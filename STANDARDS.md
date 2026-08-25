@@ -58,9 +58,13 @@ not select a database: a conforming single-instance deployment MAY use SQLite,
 while multiple application instances require PostgreSQL or another supported
 shared database.
 
-The generated `docs/capabilities.md` MUST record each profile as `conforming`,
-`not applicable`, or `exception`, with links to its evidence. A requirement is
-not conforming merely because it is described in documentation.
+While generation is in progress, `docs/capabilities.md` MAY record an
+applicable profile or requirement group as `pending`. The generated
+`docs/capabilities.md` MUST otherwise record each profile as `conforming`,
+`not applicable`, or `exception`, with links to its evidence. `Core`,
+`Identity`, and `Agent` MUST have no pending requirement groups before the
+temporary generation standard is deleted. A requirement is not conforming
+merely because it is described in documentation.
 
 ### Exceptions
 
@@ -1068,6 +1072,21 @@ The repository MUST have a documentation index, clear sources of truth, and
 change-trigger rules. Documentation MUST describe implemented behavior, not
 speculative behavior. Links are preferred over copied explanations.
 
+During template construction, implementation briefs MAY describe planned work
+when they are clearly identified as plans rather than current behavior. Every
+requirement group in this temporary standard MUST be assigned:
+
+- a lifecycle: `bootstrap`, `recurring`, `triggered`, or `operational`;
+- one canonical owner after generation;
+- the task or change that loads its context; and
+- executable or reviewable conformance evidence.
+
+`AGENTS.md` routes work and preserves short invariants. Domain documentation
+owns durable explanations. Repository-local skills own repeated, narrow,
+task-specific procedures. Code, contracts, migrations, tests, scripts, and CI
+own behavior that can be enforced mechanically. These artifacts MUST link to
+their canonical source rather than copy competing normative text.
+
 ## 7. Apply on every relevant change
 
 The following rules are obligations for contributors and software agents.
@@ -1293,7 +1312,10 @@ Generation MUST:
 5. remove or replace the sample through an explicit reviewed change;
 6. create the applicable `docs/` files and capability evidence;
 7. delete this temporary `STANDARDS.md` only after `docs/README.md` links to all
-   generated sources of truth.
+   generated sources of truth, all applicable requirement groups have owners
+   and evidence, mandatory profiles contain no pending items, repository-local
+   skills route to permanent documentation, and the complete acceptance suite
+   passes.
 
 Template releases MUST use semantic versioning:
 
@@ -1348,6 +1370,21 @@ Repository-specific `AGENTS.md` rules SHOULD add concrete commands and paths.
 They MUST NOT copy entire sections from this document. Nested agent files
 SHOULD exist only where a subtree genuinely needs different instructions.
 
+### Repository-local skills
+
+A repository-local skill SHOULD exist only when a workflow is repeated,
+narrow, costly to miss, requires repository-specific knowledge, has a clear
+trigger, and has a checkable result. One-time construction belongs in the
+implementation plan rather than a permanent skill. Deterministic or risky
+operations SHOULD be implemented as scripts or CI workflows, with a skill
+providing context only when agent judgment remains necessary.
+
+Each skill MUST have a concise, discriminating description and MUST link to
+canonical repository documents instead of copying standards. Supporting
+references, scripts, assets, and tool-specific metadata MUST NOT be added
+without a concrete use. Skills MUST be validated before release and revised
+when their commands, paths, or source documents change.
+
 ## 12. Sources of truth
 
 Every fact MUST have one canonical source.
@@ -1363,6 +1400,9 @@ Every fact MUST have one canonical source.
 | Database shape | Ordered migrations |
 | Deployment behavior | Container and deployment manifests |
 | Agent obligations | `AGENTS.md` |
+| Repeated agent procedure | Repository-local `SKILL.md` |
+| Construction order and status | `PLAN.md` and its linked implementation brief |
+| Profile conformance and deferred triggers | `docs/capabilities.md` |
 | Architectural standards | `docs/architecture.md` after generation |
 | Usage and operational explanation | Relevant file under `docs/` |
 | User-visible changes | Changelog |
@@ -1481,6 +1521,12 @@ A conforming template MUST demonstrate that:
   behavior is verified when the optional surface is selected;
 - `docs/README.md` exists and routes each audience to current, canonical
   instructions before temporary generation standards are deleted;
+- each standard requirement group has a lifecycle, permanent owner, loading
+  trigger, and evidence destination;
+- repository-local skills are narrow, valid, and linked to permanent sources
+  of truth before temporary generation standards are deleted;
+- `Core`, `Identity`, and `Agent` have no pending requirement groups before
+  temporary generation standards are deleted;
 - `template.lock` records template ancestry while update compatibility is
   maintained.
 
