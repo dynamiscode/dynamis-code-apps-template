@@ -19,14 +19,14 @@ must contain no pending groups before `STANDARDS.md` is deleted.
 
 | Standard group | Lifecycle | Phase | Status | Evidence target |
 |---|---|---:|---|---|
-| Purpose, modular-monolith boundaries, scaling path | bootstrap, recurring | 01 | pending | Architecture code, decision, tests, final architecture doc |
+| Purpose, modular-monolith boundaries, scaling path | bootstrap, recurring | 01 | conforming | [Architecture](architecture.md), [composition test](../internal/bootstrap/app_test.go) |
 | Web, REST, MCP, and remote CLI interfaces | bootstrap, recurring | 03-05 | pending | Shared-use-case tests and interface contracts |
 | Optional WebMCP browser enhancement | triggered, recurring | 04, 07 | pending | Browser registration, redaction, fallback, security-header, and smoke evidence |
 | Local authentication and OIDC | bootstrap, recurring | 02 | pending | Identity tests and authentication docs |
 | Permissions, roles, workspaces, invitations, sessions, and tokens | bootstrap, recurring | 02 | pending | Authorization matrix and isolation tests |
-| SQLite, PostgreSQL, migrations, and rolling compatibility | bootstrap, recurring | 01, 06 | pending | Real database compatibility tests |
+| SQLite, PostgreSQL, migrations, and rolling compatibility | bootstrap, recurring | 01, 06 | pending | Phase 01: [database implementation](../internal/platform/database/), real SQLite and PostgreSQL tests; rolling compatibility remains Phase 06 |
 | Data governance, portability, deletion, archive, and restoration | bootstrap, operational | 06 | pending | Policies, use cases, and lifecycle tests |
-| Configuration and secrets | bootstrap, recurring | 01 | pending | Validated configuration tests and reference |
+| Configuration and secrets | bootstrap, recurring | 01 | conforming | [Configuration](configuration.md), [validation tests](../internal/platform/config/config_test.go), safe `.env.example` |
 | HTTP limits, request IDs, timeouts, headers, and abuse controls | bootstrap, recurring | 03 | pending | HTTP component tests |
 | Traces, metrics, logs, health, shutdown, and operational targets | bootstrap, operational | 06 | pending | Telemetry and lifecycle tests |
 | RFC 9457, collections, conditional writes, and idempotency | bootstrap, recurring | 03 | pending | OpenAPI and contract tests |
@@ -40,7 +40,7 @@ must contain no pending groups before `STANDARDS.md` is deleted.
 | Containers and deployment | bootstrap, operational | 07 | pending | Image and deployment smoke evidence |
 | CI, release security, SBOM, provenance, signatures, checksums | operational | 07 | pending | Release workflow evidence |
 | Documentation, context handoff, and sources of truth | bootstrap, recurring | 07 | pending | Link, drift, and context-routing checks |
-| Testing strategy and complete template acceptance | recurring, operational | 01-07 | pending | Phase gates and final conformance report |
+| Testing strategy and complete template acceptance | recurring, operational | 01-07 | pending | Phase 01 Go, vet, race, SQLite, PostgreSQL, and startup checks pass; later phase gates remain |
 
 A group becomes `conforming` only when every applicable requirement in its
 linked standard subsection passes and evidence is linked here. Use
@@ -79,3 +79,14 @@ and redaction evidence passes.
 
 When a trigger is accepted, update `PLAN.md`, record the design decision, and
 apply the minimum standard in `STANDARDS.md` Section 8 before implementation.
+
+## Phase 01 evidence
+
+Verified 2026-08-25 with Go 1.27.0 and PostgreSQL 14.24:
+
+- `go test ./...`
+- `go vet ./...`
+- `go test -race ./...`
+- full race suite with `POSTGRES_TEST_URL` against an isolated PostgreSQL
+  database
+- built server startup, SQLite file creation/migration, and SIGTERM shutdown

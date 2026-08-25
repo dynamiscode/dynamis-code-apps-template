@@ -28,9 +28,10 @@ construction briefs, not claims about current runtime behavior.
 | Conformance status and deferred triggers | `docs/capabilities.md` |
 | Recurring procedures | `.agents/skills/` |
 
-As implementation lands, code, tests, OpenAPI, migrations, deployment files,
-and final domain documents replace the temporary sources defined by
-`STANDARDS.md` Section 12.
+Implemented Phase 01 sources: [architecture](architecture.md) and
+[configuration](configuration.md). As later phases land, code, tests, OpenAPI,
+migrations, deployment files, and final domain documents replace temporary
+sources defined by `STANDARDS.md` Section 12.
 
 ## Documentation timing
 

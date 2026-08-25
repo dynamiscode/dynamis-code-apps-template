@@ -54,3 +54,9 @@ microservice, SPA runtime, internal AI, or product-specific abstraction.
 Both databases apply the same ordered history, startup rejects invalid
 configuration without exposing secrets, dependencies assemble explicitly, and
 all evidence above is linked from `docs/capabilities.md`.
+
+## Completion evidence
+
+Completed 2026-08-25. Go 1.27.0 test, vet, race, isolated PostgreSQL 14.24,
+SQLite migration, and process startup/shutdown checks pass. Evidence links live
+in `docs/capabilities.md`.

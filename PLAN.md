@@ -28,7 +28,7 @@ focused tests, canonical documentation, and linked capability evidence.
 
 | Phase | State | Brief | Depends on |
 |---|---|---|---|
-| 01 Foundation | pending | [Foundation](docs/implementation/01-foundation.md) | Preparation harness |
+| 01 Foundation | complete | [Foundation](docs/implementation/01-foundation.md) | Preparation harness |
 | 02 Identity and tenancy | pending | [Identity and tenancy](docs/implementation/02-identity-and-tenancy.md) | 01 |
 | 03 HTTP and REST | pending | [HTTP and REST](docs/implementation/03-http-and-rest.md) | 01, 02 authorization boundary |
 | 04 Web, realtime, accessibility | pending | [Web, realtime, accessibility](docs/implementation/04-web-realtime-accessibility.md) | 02, 03 |
