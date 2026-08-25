@@ -1,7 +1,7 @@
 # Documentation and Context Router
 
-The template is not implemented. Documents under `docs/implementation/` are
-construction briefs, not claims about current runtime behavior.
+The template is under construction. Documents under `docs/implementation/`
+are construction briefs; capability claims require linked evidence.
 
 ## Choose context by task
 
@@ -28,8 +28,9 @@ construction briefs, not claims about current runtime behavior.
 | Conformance status and deferred triggers | `docs/capabilities.md` |
 | Recurring procedures | `.agents/skills/` |
 
-Implemented Phase 01 sources: [architecture](architecture.md) and
-[configuration](configuration.md). As later phases land, code, tests, OpenAPI,
+Implemented sources: [architecture](architecture.md),
+[configuration](configuration.md), and [authentication](authentication.md).
+As later phases land, code, tests, OpenAPI,
 migrations, deployment files, and final domain documents replace temporary
 sources defined by `STANDARDS.md` Section 12.
 

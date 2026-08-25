@@ -1,14 +1,13 @@
 # Capability and Conformance Ledger
 
-This ledger reports current evidence. The template is not implemented, so no
-planned capability is conforming yet.
+This ledger reports current evidence while the template is under construction.
 
 ## Profile status
 
 | Profile | Status | Evidence |
 |---|---|---|
 | Core | pending | Phases 01, 03, 04, 06, and 07 |
-| Identity | pending | Phase 02 |
+| Identity | conforming | [Phase 02 evidence](#phase-02-evidence) |
 | Agent | pending | Phase 05 |
 | Production | not applicable | No deployment serves real users or durable data |
 
@@ -22,8 +21,8 @@ must contain no pending groups before `STANDARDS.md` is deleted.
 | Purpose, modular-monolith boundaries, scaling path | bootstrap, recurring | 01 | conforming | [Architecture](architecture.md), [composition test](../internal/bootstrap/app_test.go) |
 | Web, REST, MCP, and remote CLI interfaces | bootstrap, recurring | 03-05 | pending | Shared-use-case tests and interface contracts |
 | Optional WebMCP browser enhancement | triggered, recurring | 04, 07 | pending | Browser registration, redaction, fallback, security-header, and smoke evidence |
-| Local authentication and OIDC | bootstrap, recurring | 02 | pending | Identity tests and authentication docs |
-| Permissions, roles, workspaces, invitations, sessions, and tokens | bootstrap, recurring | 02 | pending | Authorization matrix and isolation tests |
+| Local authentication and OIDC | bootstrap, recurring | 02 | conforming | [Authentication](authentication.md), [OIDC tests](../internal/identity/oidc_test.go), [configuration tests](../internal/platform/config/config_test.go) |
+| Permissions, roles, workspaces, invitations, sessions, and tokens | bootstrap, recurring | 02 | conforming | [Authorization and lifecycle tests](../internal/identity/service_test.go), [PostgreSQL identity test](../internal/identity/postgres_test.go) |
 | SQLite, PostgreSQL, migrations, and rolling compatibility | bootstrap, recurring | 01, 06 | pending | Phase 01: [database implementation](../internal/platform/database/), real SQLite and PostgreSQL tests; rolling compatibility remains Phase 06 |
 | Data governance, portability, deletion, archive, and restoration | bootstrap, operational | 06 | pending | Policies, use cases, and lifecycle tests |
 | Configuration and secrets | bootstrap, recurring | 01 | conforming | [Configuration](configuration.md), [validation tests](../internal/platform/config/config_test.go), safe `.env.example` |
@@ -90,3 +89,21 @@ Verified 2026-08-25 with Go 1.27.0 and PostgreSQL 14.24:
 - full race suite with `POSTGRES_TEST_URL` against an isolated PostgreSQL
   database
 - built server startup, SQLite file creation/migration, and SIGTERM shutdown
+
+## Phase 02 evidence
+
+Verified 2026-08-25 with Go 1.27.0 and PostgreSQL 14.24:
+
+- atomic first-owner command smoke with no default password
+- complete owner/admin/member/viewer, missing-membership, wrong-workspace,
+  token-scope, role-change, credential-revocation, and final-owner matrix
+- invitation expiry, duplicate prevention, resend rotation, acceptance,
+  single-use, revocation, existing-account, and safe-error checks
+- OIDC discovery plus state, browser session, S256 PKCE, nonce, provider,
+  redirect, code, issuer, audience, signature, expiry, verified-email, replay,
+  SSRF, and explicit-linking checks
+- plaintext-secret absence and full session, invitation, token, audit, and OIDC
+  transaction lifecycle on SQLite and isolated PostgreSQL
+- `go test ./...`
+- `go vet ./...`
+- `go test -race ./...` with `POSTGRES_TEST_URL`

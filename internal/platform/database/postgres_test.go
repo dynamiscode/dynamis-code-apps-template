@@ -42,4 +42,13 @@ func TestPostgresMigrations(t *testing.T) {
 	if count != 1 {
 		t.Fatalf("migration version count = %d, want 1", count)
 	}
+	if err := db.QueryRow(
+		"SELECT COUNT(*) FROM schema_migrations WHERE version = $1",
+		2,
+	).Scan(&count); err != nil {
+		t.Fatalf("query identity migration version: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("identity migration version count = %d, want 1", count)
+	}
 }

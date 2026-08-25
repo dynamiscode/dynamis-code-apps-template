@@ -73,3 +73,10 @@ workspace, or silent instance-admin access to workspace data.
 A first owner workspace is atomic, every protected use case evaluates explicit
 workspace permissions, all credentials are safely stored and revocable, and
 the Identity profile evidence has no pending Phase 02 group.
+
+## Completion evidence
+
+Completed 2026-08-25. The authorization and credential lifecycle suites pass
+with SQLite and isolated PostgreSQL 14.24, including OIDC discovery/token
+validation, redaction, full test, vet, and race checks. Evidence links live in
+`docs/capabilities.md` and implemented behavior in `docs/authentication.md`.

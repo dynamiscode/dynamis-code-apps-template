@@ -1,14 +1,15 @@
 # Dynamis Code Apps Template
 
-Status: Phase 01 foundation. Database startup works; web, identity, REST, MCP,
-and CLI behavior remain unimplemented.
+Status: Phase 02 identity foundation. Database startup, authentication,
+workspace authorization, and credential lifecycles work; HTTP, web, REST, MCP,
+and remote CLI surfaces remain unimplemented.
 
 The repository implements a reusable Go web-application template with a small
 default footprint and explicit paths to larger deployments. The temporary
 [generation standard](STANDARDS.md) is authoritative until the template passes
 its final conformance gate.
 
-## Run the foundation
+## Run the current foundation
 
 Requirements: Go 1.26 or newer. Go selects the recorded Go 1.27 toolchain.
 
@@ -21,6 +22,10 @@ go run ./cmd/server
 The process validates configuration, creates `data/app.db`, applies embedded
 migrations, then waits for shutdown. Press `Ctrl-C` to stop. No HTTP port
 exists before Phase 03.
+
+Create the first owner with the one-time command documented in
+[authentication](docs/authentication.md). It requires an explicit password and
+creates the user, workspace, and owner membership atomically.
 
 ```sh
 go test ./...
@@ -36,6 +41,8 @@ go test -race ./...
 - Review implemented boundaries in
   [docs/architecture.md](docs/architecture.md) and configuration in
   [docs/configuration.md](docs/configuration.md).
+- Review identity behavior in
+  [docs/authentication.md](docs/authentication.md).
 - Track planned and deferred capabilities in
   [docs/capabilities.md](docs/capabilities.md).
 - Review accepted technology choices in
