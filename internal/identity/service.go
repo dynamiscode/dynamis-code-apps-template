@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/platform/config"
+	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
@@ -618,20 +619,7 @@ func metadata(value map[string]any) string {
 }
 
 func (s *Service) bind(query string) string {
-	if s.driver != config.Postgres {
-		return query
-	}
-	var result strings.Builder
-	index := 1
-	for _, character := range query {
-		if character == '?' {
-			fmt.Fprintf(&result, "$%d", index)
-			index++
-			continue
-		}
-		result.WriteRune(character)
-	}
-	return result.String()
+	return database.Rebind(s.driver, query)
 }
 
 type queryExecutor interface {
@@ -686,6 +674,14 @@ func (s *Service) audit(
 		return fmt.Errorf("record audit event: %w", err)
 	}
 	return nil
+}
+
+func (s *Service) RecordAuditInTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	event AuditEvent,
+) error {
+	return s.audit(ctx, tx, event)
 }
 
 func nullable(value string) any {

@@ -234,6 +234,84 @@ func loadBootstrap(lookup LookupEnv) (Bootstrap, error) {
 	}, nil
 }
 
+func loadHTTP(lookup LookupEnv) (HTTP, error) {
+	secure, err := boolValue(lookup, "HTTP_SECURE", false)
+	if err != nil {
+		return HTTP{}, err
+	}
+	readHeaderTimeout, err := durationValue(
+		lookup, "HTTP_READ_HEADER_TIMEOUT", 10*time.Second, time.Second, time.Minute,
+	)
+	if err != nil {
+		return HTTP{}, err
+	}
+	requestTimeout, err := durationValue(
+		lookup, "HTTP_REQUEST_TIMEOUT", 30*time.Second, time.Second, 5*time.Minute,
+	)
+	if err != nil {
+		return HTTP{}, err
+	}
+	shutdownTimeout, err := durationValue(
+		lookup, "HTTP_SHUTDOWN_TIMEOUT", 10*time.Second, time.Second, 2*time.Minute,
+	)
+	if err != nil {
+		return HTTP{}, err
+	}
+	readinessTimeout, err := durationValue(
+		lookup, "HTTP_READINESS_TIMEOUT", 2*time.Second, 100*time.Millisecond, 30*time.Second,
+	)
+	if err != nil {
+		return HTTP{}, err
+	}
+	maxHeaderBytes, err := rangedInt(
+		lookup, "HTTP_MAX_HEADER_BYTES", 32*1024, 8*1024, 1024*1024,
+	)
+	if err != nil {
+		return HTTP{}, err
+	}
+	maxBodyBytes, err := rangedInt(
+		lookup, "HTTP_MAX_BODY_BYTES", 1024*1024, 1024, 16*1024*1024,
+	)
+	if err != nil {
+		return HTTP{}, err
+	}
+	maxPageSize, err := rangedInt(lookup, "HTTP_MAX_PAGE_SIZE", 100, 1, 100)
+	if err != nil {
+		return HTTP{}, err
+	}
+	defaultPageSize, err := rangedInt(
+		lookup, "HTTP_DEFAULT_PAGE_SIZE", 50, 1, maxPageSize,
+	)
+	if err != nil {
+		return HTTP{}, err
+	}
+	requestsPerMinute, err := rangedInt(
+		lookup, "HTTP_REQUESTS_PER_MINUTE", 120, 1, 10000,
+	)
+	if err != nil {
+		return HTTP{}, err
+	}
+	authRequestsPerMin, err := rangedInt(
+		lookup, "HTTP_AUTH_REQUESTS_PER_MINUTE", 10, 1, requestsPerMinute,
+	)
+	if err != nil {
+		return HTTP{}, err
+	}
+	address := strings.TrimSpace(valueOrDefault(lookup, "HTTP_ADDRESS", ":8080"))
+	if address == "" {
+		return HTTP{}, fmt.Errorf("HTTP_ADDRESS must not be empty")
+	}
+	return HTTP{
+		Address: address, Secure: secure,
+		ReadHeaderTimeout: readHeaderTimeout, RequestTimeout: requestTimeout,
+		ShutdownTimeout: shutdownTimeout, ReadinessTimeout: readinessTimeout,
+		MaxHeaderBytes: maxHeaderBytes, MaxBodyBytes: int64(maxBodyBytes),
+		DefaultPageSize: defaultPageSize, MaxPageSize: maxPageSize,
+		RequestsPerMinute:  requestsPerMinute,
+		AuthRequestsPerMin: authRequestsPerMin,
+	}, nil
+}
+
 func loadOIDC(lookup LookupEnv) (OIDC, error) {
 	enabled, err := boolValue(lookup, "OIDC_ENABLED", false)
 	if err != nil {
@@ -307,14 +385,46 @@ func valueOrDefault(lookup LookupEnv, key, fallback string) string {
 }
 
 func positiveInt(lookup LookupEnv, key string, fallback int) (int, error) {
+	return rangedInt(lookup, key, fallback, 1, 64)
+}
+
+func rangedInt(
+	lookup LookupEnv,
+	key string,
+	fallback int,
+	minimum int,
+	maximum int,
+) (int, error) {
 	raw, ok := lookup(key)
 	if !ok {
 		return fallback, nil
 	}
 
 	value, err := strconv.Atoi(raw)
-	if err != nil || value < 1 || value > 64 {
-		return 0, fmt.Errorf("%s must be an integer from 1 to 64", key)
+	if err != nil || value < minimum || value > maximum {
+		return 0, fmt.Errorf(
+			"%s must be an integer from %d to %d", key, minimum, maximum,
+		)
+	}
+	return value, nil
+}
+
+func durationValue(
+	lookup LookupEnv,
+	key string,
+	fallback time.Duration,
+	minimum time.Duration,
+	maximum time.Duration,
+) (time.Duration, error) {
+	raw, ok := lookup(key)
+	if !ok {
+		return fallback, nil
+	}
+	value, err := time.ParseDuration(raw)
+	if err != nil || value < minimum || value > maximum {
+		return 0, fmt.Errorf(
+			"%s must be a duration from %s to %s", key, minimum, maximum,
+		)
 	}
 	return value, nil
 }

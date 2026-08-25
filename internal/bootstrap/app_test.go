@@ -13,14 +13,14 @@ import (
 func TestNewBuildsSQLiteApplication(t *testing.T) {
 	t.Parallel()
 
-	app, err := New(context.Background(), config.Config{
-		Database: config.Database{
-			Driver:       config.SQLite,
-			SQLitePath:   ":memory:",
-			MaxOpenConns: 1,
-			MaxIdleConns: 1,
-		},
-	})
+	cfg, err := config.LoadFrom(func(string) (string, bool) { return "", false })
+	if err != nil {
+		t.Fatalf("LoadFrom() error = %v", err)
+	}
+	cfg.Database.SQLitePath = ":memory:"
+	cfg.Database.MaxOpenConns = 1
+	cfg.Database.MaxIdleConns = 1
+	app, err := New(context.Background(), cfg)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}

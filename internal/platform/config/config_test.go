@@ -3,6 +3,7 @@ package config
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestLoadFromDefaultsToSQLite(t *testing.T) {
@@ -25,6 +26,11 @@ func TestLoadFromDefaultsToSQLite(t *testing.T) {
 			cfg.Database.MaxOpenConns,
 			cfg.Database.MaxIdleConns,
 		)
+	}
+	if cfg.HTTP.Address != ":8080" || cfg.HTTP.RequestTimeout != 30*time.Second ||
+		cfg.HTTP.MaxBodyBytes != 1024*1024 || cfg.HTTP.DefaultPageSize != 50 ||
+		cfg.HTTP.MaxPageSize != 100 || cfg.HTTP.AuthRequestsPerMin >= cfg.HTTP.RequestsPerMinute {
+		t.Fatalf("HTTP defaults = %+v", cfg.HTTP)
 	}
 }
 

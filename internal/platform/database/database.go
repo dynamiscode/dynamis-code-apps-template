@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 
@@ -38,6 +39,23 @@ func Open(ctx context.Context, cfg config.Database) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+func Rebind(driver config.DatabaseDriver, query string) string {
+	if driver != config.Postgres {
+		return query
+	}
+	var result strings.Builder
+	index := 1
+	for _, character := range query {
+		if character == '?' {
+			fmt.Fprintf(&result, "$%d", index)
+			index++
+			continue
+		}
+		result.WriteRune(character)
+	}
+	return result.String()
 }
 
 func open(cfg config.Database) (*sql.DB, error) {

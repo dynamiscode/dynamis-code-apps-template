@@ -3,10 +3,15 @@ package bootstrap
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net"
+	"net/http"
 
+	"example.com/dynamis-code/apps-template/internal/httpapi"
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 )
@@ -15,6 +20,8 @@ type App struct {
 	DB       *sql.DB
 	Identity *identity.Service
 	OIDC     *identity.OIDCRegistry
+	Items    *items.Service
+	Handler  http.Handler
 }
 
 func New(ctx context.Context, cfg config.Config) (*App, error) {
@@ -75,8 +82,19 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		db.Close()
 		return nil, fmt.Errorf("initialize OIDC: %w", err)
 	}
+	itemService := items.NewService(db, cfg.Database.Driver, identityService)
+	handler, err := httpapi.NewHandler(
+		db, identityService, itemService, oidcRegistry, cfg.HTTP, slog.Default(),
+	)
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("initialize HTTP handler: %w", err)
+	}
 
-	return &App{DB: db, Identity: identityService, OIDC: oidcRegistry}, nil
+	return &App{
+		DB: db, Identity: identityService, OIDC: oidcRegistry,
+		Items: itemService, Handler: handler,
+	}, nil
 }
 
 func Run(ctx context.Context, cfg config.Config) error {
@@ -85,9 +103,34 @@ func Run(ctx context.Context, cfg config.Config) error {
 		return err
 	}
 	defer app.Close()
-
-	<-ctx.Done()
-	return nil
+	server := httpapi.NewServer(cfg.HTTP, app.Handler)
+	listener, err := net.Listen("tcp", cfg.HTTP.Address)
+	if err != nil {
+		return fmt.Errorf("listen HTTP: %w", err)
+	}
+	slog.Info("HTTP server listening", "address", listener.Addr().String())
+	serveDone := make(chan error, 1)
+	go func() { serveDone <- server.Serve(listener) }()
+	select {
+	case err := <-serveDone:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return fmt.Errorf("serve HTTP: %w", err)
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(
+			context.Background(), cfg.HTTP.ShutdownTimeout,
+		)
+		defer cancel()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			return fmt.Errorf("shutdown HTTP: %w", err)
+		}
+		err := <-serveDone
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("serve HTTP: %w", err)
+		}
+		return nil
+	}
 }
 
 func (a *App) Close() error {

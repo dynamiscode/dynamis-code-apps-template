@@ -1,0 +1,298 @@
+{
+  "openapi": "3.1.0",
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "info": {
+    "title": "Dynamis Code Apps Template API",
+    "version": "1.0.0",
+    "description": "Stable v1 REST contract. Additive changes preserve authorization, ordering, errors, and side effects. Breaking changes require a new version or published migration window."
+  },
+  "paths": {
+    "/health/live": {
+      "get": {
+        "operationId": "getLiveness",
+        "responses": {
+          "200": {"description": "Process is alive", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HealthAlive"}}}}
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "getReadiness",
+        "responses": {
+          "200": {"description": "Required dependencies are ready", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HealthReady"}}}},
+          "503": {"description": "A required dependency is unavailable", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HealthNotReady"}}}}
+        }
+      }
+    },
+    "/api/openapi.json": {
+      "get": {
+        "operationId": "getOpenAPI",
+        "responses": {
+          "200": {"description": "OpenAPI 3.1 contract", "content": {"application/json": {"schema": {"type": "object"}}}}
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "loginLocal",
+        "description": "Limited to 10 attempts per source address per minute by default.",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/LoginRequest"}}}},
+        "responses": {
+          "200": {"description": "Browser session created", "headers": {"Set-Cookie": {"schema": {"type": "string"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/LoginResponse"}}}},
+          "400": {"$ref": "#/components/responses/Problem"},
+          "401": {"$ref": "#/components/responses/Problem"},
+          "413": {"$ref": "#/components/responses/Problem"},
+          "429": {"$ref": "#/components/responses/RateLimited"}
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "logoutLocal",
+        "security": [{"sessionCookie": []}],
+        "parameters": [{"$ref": "#/components/parameters/CSRFToken"}],
+        "responses": {
+          "204": {"description": "Local session revoked"},
+          "400": {"$ref": "#/components/responses/Problem"},
+          "401": {"$ref": "#/components/responses/Problem"},
+          "403": {"$ref": "#/components/responses/Problem"},
+          "429": {"$ref": "#/components/responses/RateLimited"}
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/items": {
+      "get": {
+        "operationId": "listItems",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {"$ref": "#/components/parameters/WorkspaceId"},
+          {"name": "status", "in": "query", "schema": {"type": "string", "enum": ["active", "complete"]}},
+          {"name": "sort", "in": "query", "schema": {"type": "string", "enum": ["created_at", "-created_at"], "default": "-created_at"}},
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50}},
+          {"name": "cursor", "in": "query", "schema": {"type": "string", "maxLength": 512}}
+        ],
+        "responses": {
+          "200": {"description": "Stable cursor page", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ItemPage"}}}},
+          "400": {"$ref": "#/components/responses/Problem"},
+          "401": {"$ref": "#/components/responses/Problem"},
+          "403": {"$ref": "#/components/responses/Problem"},
+          "429": {"$ref": "#/components/responses/RateLimited"}
+        }
+      },
+      "post": {
+        "operationId": "createItem",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {"$ref": "#/components/parameters/WorkspaceId"},
+          {"$ref": "#/components/parameters/IdempotencyKey"}
+        ],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateItemRequest"}}}},
+        "responses": {
+          "201": {"description": "Item created; identical replays return the original body", "headers": {"ETag": {"schema": {"type": "string"}}, "Location": {"schema": {"type": "string"}}, "Idempotency-Replayed": {"schema": {"type": "boolean"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Item"}}}},
+          "400": {"$ref": "#/components/responses/Problem"},
+          "401": {"$ref": "#/components/responses/Problem"},
+          "403": {"$ref": "#/components/responses/Problem"},
+          "409": {"$ref": "#/components/responses/Problem"},
+          "413": {"$ref": "#/components/responses/Problem"},
+          "429": {"$ref": "#/components/responses/RateLimited"}
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/export": {
+      "get": {
+        "operationId": "exportWorkspace",
+        "description": "Returns a bounded, point-in-time workspace export. Authentication secrets and transient records are excluded.",
+        "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
+        "responses": {
+          "200": {"description": "Workspace export", "headers": {"Content-Disposition": {"schema": {"type": "string"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WorkspaceExport"}}}},
+          "401": {"$ref": "#/components/responses/Problem"},
+          "403": {"$ref": "#/components/responses/Problem"},
+          "409": {"$ref": "#/components/responses/Problem"},
+          "429": {"$ref": "#/components/responses/RateLimited"}
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/members": {
+      "get": {
+        "operationId": "listMembers", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
+        "responses": {"200": {"description": "Workspace members", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/MemberPage"}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/members/{userId}": {
+      "patch": {
+        "operationId": "changeMemberRole", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/UserId"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/MemberRoleRequest"}}}},
+        "responses": {"204": {"description": "Member role changed"}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}
+      },
+      "delete": {
+        "operationId": "removeMember", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/UserId"}],
+        "responses": {"204": {"description": "Member removed"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/ownership": {
+      "post": {
+        "operationId": "transferOwnership", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/OwnershipRequest"}}}},
+        "responses": {"204": {"description": "Ownership transferred"}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/invitations": {
+      "get": {
+        "operationId": "listInvitations", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
+        "responses": {"200": {"description": "Workspace invitations", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/InvitationPage"}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}
+      },
+      "post": {
+        "operationId": "createInvitation", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateInvitationRequest"}}}},
+        "responses": {"201": {"description": "Invitation created", "headers": {"Cache-Control": {"schema": {"type": "string", "const": "no-store"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/InvitationLinkResponse"}}}}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/invitations/{invitationId}/resend": {
+      "post": {
+        "operationId": "resendInvitation", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/InvitationId"}],
+        "responses": {"200": {"description": "Invitation resent", "headers": {"Cache-Control": {"schema": {"type": "string", "const": "no-store"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/InvitationLinkResponse"}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/invitations/{invitationId}": {
+      "delete": {
+        "operationId": "revokeInvitation", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/InvitationId"}],
+        "responses": {"204": {"description": "Invitation revoked"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/tokens": {
+      "get": {
+        "operationId": "listTokens", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
+        "responses": {"200": {"description": "Current user's workspace tokens", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TokenPage"}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}
+      },
+      "post": {
+        "operationId": "createToken", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateTokenRequest"}}}},
+        "responses": {"201": {"description": "Token created; secret is returned once", "headers": {"Cache-Control": {"schema": {"type": "string", "const": "no-store"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TokenSecretResponse"}}}}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/tokens/{tokenId}": {
+      "patch": {
+        "operationId": "updateToken", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/TokenId"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TokenScopesRequest"}}}},
+        "responses": {"204": {"description": "Token scopes changed"}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}
+      },
+      "delete": {
+        "operationId": "revokeToken", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/TokenId"}],
+        "responses": {"204": {"description": "Token revoked"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/sessions": {
+      "get": {
+        "operationId": "listSessions", "security": [{"bearerAuth": []}],
+        "responses": {"200": {"description": "Current user's sessions without secrets", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SessionPage"}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/sessions/{sessionId}": {
+      "delete": {
+        "operationId": "revokeSession", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/SessionId"}],
+        "responses": {"204": {"description": "Session revoked"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/items/{itemId}": {
+      "get": {
+        "operationId": "getItem",
+        "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/ItemId"}, {"name": "If-None-Match", "in": "header", "schema": {"type": "string"}}],
+        "responses": {
+          "200": {"description": "Item", "headers": {"ETag": {"schema": {"type": "string"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Item"}}}},
+          "401": {"$ref": "#/components/responses/Problem"},
+          "403": {"$ref": "#/components/responses/Problem"},
+          "404": {"$ref": "#/components/responses/Problem"},
+          "304": {"description": "The current representation matches If-None-Match"},
+          "429": {"$ref": "#/components/responses/RateLimited"}
+        }
+      },
+      "patch": {
+        "operationId": "updateItem",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {"$ref": "#/components/parameters/WorkspaceId"},
+          {"$ref": "#/components/parameters/ItemId"},
+          {"name": "If-Match", "in": "header", "required": true, "schema": {"type": "string"}}
+        ],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UpdateItemRequest"}}}},
+        "responses": {
+          "200": {"description": "Updated item", "headers": {"ETag": {"schema": {"type": "string"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Item"}}}},
+          "400": {"$ref": "#/components/responses/Problem"},
+          "401": {"$ref": "#/components/responses/Problem"},
+          "403": {"$ref": "#/components/responses/Problem"},
+          "404": {"$ref": "#/components/responses/Problem"},
+          "412": {"$ref": "#/components/responses/Problem"},
+          "413": {"$ref": "#/components/responses/Problem"},
+          "428": {"$ref": "#/components/responses/Problem"},
+          "429": {"$ref": "#/components/responses/RateLimited"}
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {"type": "http", "scheme": "bearer"},
+      "sessionCookie": {"type": "apiKey", "in": "cookie", "name": "session"}
+    },
+    "parameters": {
+      "WorkspaceId": {"name": "workspaceId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
+      "ItemId": {"name": "itemId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
+      "UserId": {"name": "userId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
+      "InvitationId": {"name": "invitationId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
+      "TokenId": {"name": "tokenId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
+      "SessionId": {"name": "sessionId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
+      "IdempotencyKey": {"name": "Idempotency-Key", "in": "header", "required": true, "description": "1-255 visible ASCII characters; scoped to credential, workspace, and operation; retained 24 hours", "schema": {"type": "string", "minLength": 1, "maxLength": 255}},
+      "CSRFToken": {"name": "X-CSRF-Token", "in": "header", "required": true, "schema": {"type": "string"}}
+    },
+    "responses": {
+      "Problem": {"description": "Problem Details", "content": {"application/problem+json": {"schema": {"$ref": "#/components/schemas/Problem"}}}},
+      "RateLimited": {"description": "Rate limit exceeded", "headers": {"Retry-After": {"required": true, "schema": {"type": "integer", "minimum": 1}}}, "content": {"application/problem+json": {"schema": {"$ref": "#/components/schemas/Problem"}}}}
+    },
+    "schemas": {
+      "HealthAlive": {"type": "object", "required": ["status"], "properties": {"status": {"const": "alive"}}},
+      "HealthReady": {"type": "object", "required": ["status"], "properties": {"status": {"const": "ready"}}},
+      "HealthNotReady": {"type": "object", "required": ["status", "failedChecks"], "properties": {"status": {"const": "not_ready"}, "failedChecks": {"type": "array", "items": {"type": "string", "enum": ["database"]}}}},
+      "LoginRequest": {"type": "object", "additionalProperties": false, "required": ["email", "password"], "properties": {"email": {"type": "string", "format": "email", "maxLength": 320}, "password": {"type": "string", "minLength": 1, "maxLength": 1024}}},
+      "LoginResponse": {"type": "object", "required": ["csrfToken", "expiresAt"], "properties": {"csrfToken": {"type": "string"}, "expiresAt": {"type": "string", "format": "date-time"}}},
+      "CreateItemRequest": {"type": "object", "additionalProperties": false, "required": ["title"], "properties": {"title": {"type": "string", "minLength": 1, "maxLength": 200}}},
+      "UpdateItemRequest": {"type": "object", "additionalProperties": false, "minProperties": 1, "properties": {"title": {"type": "string", "minLength": 1, "maxLength": 200}, "status": {"type": "string", "enum": ["active", "complete"]}}},
+      "Item": {"type": "object", "required": ["id", "workspaceId", "createdByUserId", "title", "status", "version", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "createdByUserId": {"type": "string"}, "title": {"type": "string"}, "status": {"type": "string", "enum": ["active", "complete"]}, "version": {"type": "integer", "minimum": 1}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}}},
+      "ItemPage": {"type": "object", "required": ["items"], "properties": {"items": {"type": "array", "items": {"$ref": "#/components/schemas/Item"}}, "nextCursor": {"type": "string"}}},
+      "ExportWorkspace": {"type": "object", "required": ["id", "name", "createdAt"], "properties": {"id": {"type": "string"}, "name": {"type": "string"}, "createdAt": {"type": "string", "format": "date-time"}}},
+      "ExportMember": {"type": "object", "required": ["userId", "email", "role", "createdAt"], "properties": {"userId": {"type": "string"}, "email": {"type": "string", "format": "email"}, "role": {"type": "string", "enum": ["owner", "admin", "member", "viewer"]}, "createdAt": {"type": "string", "format": "date-time"}}},
+      "ExportAuditEvent": {"type": "object", "required": ["id", "eventType", "authMethod", "targetType", "action", "outcome", "metadata", "createdAt"], "properties": {"id": {"type": "string"}, "eventType": {"type": "string"}, "actorUserId": {"type": "string"}, "authMethod": {"type": "string"}, "workspaceId": {"type": "string"}, "targetType": {"type": "string"}, "targetId": {"type": "string"}, "action": {"type": "string"}, "outcome": {"type": "string"}, "requestId": {"type": "string"}, "sourceAddress": {"type": "string"}, "metadata": {}, "createdAt": {"type": "string", "format": "date-time"}}},
+      "WorkspaceExport": {"type": "object", "required": ["formatVersion", "exportedAt", "workspace", "members", "items", "auditEvents", "excluded"], "properties": {"formatVersion": {"const": "dynamis-code.workspace/v1"}, "exportedAt": {"type": "string", "format": "date-time"}, "workspace": {"$ref": "#/components/schemas/ExportWorkspace"}, "members": {"type": "array", "items": {"$ref": "#/components/schemas/ExportMember"}}, "items": {"type": "array", "items": {"$ref": "#/components/schemas/Item"}}, "auditEvents": {"type": "array", "items": {"$ref": "#/components/schemas/ExportAuditEvent"}}, "excluded": {"type": "array", "items": {"type": "string"}}}},
+      "Member": {"type": "object", "required": ["userId", "email", "role", "createdAt"], "properties": {"userId": {"type": "string"}, "email": {"type": "string", "format": "email"}, "role": {"type": "string", "enum": ["owner", "admin", "member", "viewer"]}, "createdAt": {"type": "string", "format": "date-time"}}},
+      "MemberPage": {"type": "object", "required": ["members"], "properties": {"members": {"type": "array", "items": {"$ref": "#/components/schemas/Member"}}}},
+      "MemberRoleRequest": {"type": "object", "additionalProperties": false, "required": ["role"], "properties": {"role": {"type": "string", "enum": ["admin", "member", "viewer"]}}},
+      "OwnershipRequest": {"type": "object", "additionalProperties": false, "required": ["userId"], "properties": {"userId": {"type": "string"}}},
+      "Invitation": {"type": "object", "required": ["id", "workspaceId", "email", "role", "createdAt", "expiresAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "email": {"type": "string", "format": "email"}, "role": {"type": "string", "enum": ["admin", "member", "viewer"]}, "createdAt": {"type": "string", "format": "date-time"}, "expiresAt": {"type": "string", "format": "date-time"}, "acceptedAt": {"type": ["string", "null"], "format": "date-time"}, "expiredAt": {"type": ["string", "null"], "format": "date-time"}, "revokedAt": {"type": ["string", "null"], "format": "date-time"}}},
+      "InvitationPage": {"type": "object", "required": ["invitations"], "properties": {"invitations": {"type": "array", "items": {"$ref": "#/components/schemas/Invitation"}}}},
+      "CreateInvitationRequest": {"type": "object", "additionalProperties": false, "required": ["email", "role"], "properties": {"email": {"type": "string", "format": "email"}, "role": {"type": "string", "enum": ["admin", "member", "viewer"]}, "lifetimeSeconds": {"type": "integer", "minimum": 60, "maximum": 2592000}}},
+      "InvitationLinkResponse": {"type": "object", "required": ["invitation", "invitationUrl", "emailDelivered"], "properties": {"invitation": {"$ref": "#/components/schemas/Invitation"}, "invitationUrl": {"type": "string", "format": "uri-reference"}, "emailDelivered": {"type": "boolean"}}},
+      "Token": {"type": "object", "required": ["id", "userId", "workspaceId", "name", "scopes", "createdAt"], "properties": {"id": {"type": "string"}, "userId": {"type": "string"}, "workspaceId": {"type": "string"}, "name": {"type": "string"}, "scopes": {"type": "array", "items": {"type": "string"}}, "createdAt": {"type": "string", "format": "date-time"}, "expiresAt": {"type": ["string", "null"], "format": "date-time"}, "lastUsedAt": {"type": ["string", "null"], "format": "date-time"}, "revokedAt": {"type": ["string", "null"], "format": "date-time"}}},
+      "TokenPage": {"type": "object", "required": ["tokens"], "properties": {"tokens": {"type": "array", "items": {"$ref": "#/components/schemas/Token"}}}},
+      "CreateTokenRequest": {"type": "object", "additionalProperties": false, "required": ["name", "scopes"], "properties": {"name": {"type": "string", "minLength": 1, "maxLength": 100}, "scopes": {"type": "array", "minItems": 1, "items": {"type": "string"}}, "expiresAt": {"type": ["string", "null"], "format": "date-time"}}},
+      "TokenScopesRequest": {"type": "object", "additionalProperties": false, "required": ["scopes"], "properties": {"scopes": {"type": "array", "minItems": 1, "items": {"type": "string"}}}},
+      "TokenSecretResponse": {"type": "object", "required": ["token", "secret"], "properties": {"token": {"$ref": "#/components/schemas/Token"}, "secret": {"type": "string"}}},
+      "Session": {"type": "object", "required": ["id", "userId", "authMethod", "createdAt", "expiresAt"], "properties": {"id": {"type": "string"}, "userId": {"type": "string"}, "authMethod": {"type": "string"}, "oidcProviderId": {"type": "string"}, "createdAt": {"type": "string", "format": "date-time"}, "expiresAt": {"type": "string", "format": "date-time"}, "revokedAt": {"type": ["string", "null"], "format": "date-time"}}},
+      "SessionPage": {"type": "object", "required": ["sessions"], "properties": {"sessions": {"type": "array", "items": {"$ref": "#/components/schemas/Session"}}}},
+      "Problem": {"type": "object", "required": ["type", "title", "status", "detail", "instance", "code", "requestId"], "properties": {"type": {"type": "string", "format": "uri"}, "title": {"type": "string"}, "status": {"type": "integer"}, "detail": {"type": "string"}, "instance": {"type": "string"}, "code": {"type": "string"}, "requestId": {"type": "string"}}}
+    }
+  }
+}

@@ -19,17 +19,17 @@ must contain no pending groups before `STANDARDS.md` is deleted.
 | Standard group | Lifecycle | Phase | Status | Evidence target |
 |---|---|---:|---|---|
 | Purpose, modular-monolith boundaries, scaling path | bootstrap, recurring | 01 | conforming | [Architecture](architecture.md), [composition test](../internal/bootstrap/app_test.go) |
-| Web, REST, MCP, and remote CLI interfaces | bootstrap, recurring | 03-05 | pending | Shared-use-case tests and interface contracts |
 | Optional WebMCP browser enhancement | triggered, recurring | 04, 07 | pending | Browser registration, redaction, fallback, security-header, and smoke evidence |
+ | Web, REST, MCP, and remote CLI interfaces | bootstrap, recurring | 03-05 | pending | REST: [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go); web, MCP, and CLI remain |
 | Local authentication and OIDC | bootstrap, recurring | 02 | conforming | [Authentication](authentication.md), [OIDC tests](../internal/identity/oidc_test.go), [configuration tests](../internal/platform/config/config_test.go) |
 | Permissions, roles, workspaces, invitations, sessions, and tokens | bootstrap, recurring | 02 | conforming | [Authorization and lifecycle tests](../internal/identity/service_test.go), [PostgreSQL identity test](../internal/identity/postgres_test.go) |
 | SQLite, PostgreSQL, migrations, and rolling compatibility | bootstrap, recurring | 01, 06 | pending | Phase 01: [database implementation](../internal/platform/database/), real SQLite and PostgreSQL tests; rolling compatibility remains Phase 06 |
 | Data governance, portability, deletion, archive, and restoration | bootstrap, operational | 06 | pending | Policies, use cases, and lifecycle tests |
 | Configuration and secrets | bootstrap, recurring | 01 | conforming | [Configuration](configuration.md), [validation tests](../internal/platform/config/config_test.go), safe `.env.example` |
-| HTTP limits, request IDs, timeouts, headers, and abuse controls | bootstrap, recurring | 03 | pending | HTTP component tests |
+| HTTP limits, request IDs, timeouts, headers, and abuse controls | bootstrap, recurring | 03 | conforming | [HTTP component tests](../internal/httpapi/handler_test.go), [configuration](configuration.md) |
 | Traces, metrics, logs, health, shutdown, and operational targets | bootstrap, operational | 06 | pending | Telemetry and lifecycle tests |
-| RFC 9457, collections, conditional writes, and idempotency | bootstrap, recurring | 03 | pending | OpenAPI and contract tests |
-| Contract lifecycle and deprecation | recurring | 03 | pending | Compatibility policy and contract checks |
+| RFC 9457, collections, conditional writes, and idempotency | bootstrap, recurring | 03 | conforming | [API contract](api.md), [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go), [item service tests](../internal/items/service_test.go) |
+| Contract lifecycle and deprecation | recurring | 03 | conforming | [Compatibility policy](api.md#compatibility), [generation drift test](../api/contract_test.go) |
 | Long-running operations | bootstrap, triggered | 06 | pending | Operation state and authorization tests |
 | Realtime delivery | bootstrap, recurring | 04 | pending | SSE reconnect, scope, and limit tests |
 | Quotas and resource limits | bootstrap, operational | 06 | pending | Limit enforcement and observability tests |
@@ -107,3 +107,18 @@ Verified 2026-08-25 with Go 1.27.0 and PostgreSQL 14.24:
 - `go test ./...`
 - `go vet ./...`
 - `go test -race ./...` with `POSTGRES_TEST_URL`
+
+## Phase 03 evidence
+
+Verified 2026-08-25 with Go 1.27.0 and PostgreSQL 14.24:
+
+- HTTP component and contract tests cover request correlation, security
+  headers, time/body limits, health semantics, safe failures, workspace
+  authorization, abuse controls, pagination, conditional writes, and
+  idempotency
+- item lifecycle and migrations pass on SQLite and isolated PostgreSQL
+- `go generate ./api` followed by a clean generated contract diff
+- `go test ./...`
+- `go vet ./...`
+- `go test -race ./...` on SQLite and with `POSTGRES_TEST_URL`
+- built server listener, live/ready requests, and SIGTERM graceful shutdown
