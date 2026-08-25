@@ -15,7 +15,7 @@ change independently of the application release.
 
 Use the imperative WebMCP API only as a feature-detected, browser-tab-bound
 enhancement for narrow non-secret workflows. Tools may prepare visible form
-controls or an export link and focus the relevant control, but the user must
+controls or the export screen's download link and focus the relevant control, but the user must
 complete every state-changing submission through the existing flow. Do not
 expose passwords, OIDC material, invitation or token secrets, sessions, CSRF
 fields, hidden inputs, or operator lifecycle controls. Keep server MCP

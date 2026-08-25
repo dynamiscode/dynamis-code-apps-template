@@ -25,9 +25,15 @@ Environment, browser, and CLI paths grant the first user separate instance admin
 as owner membership. Instance administration never grants workspace access.
 When the database is already bootstrapped, bootstrap variables are ignored and
 `/setup` is disabled. Any authenticated user may create another workspace and
-becomes its owner. The browser home page exposes workspace creation and membership listing. Workspace
-management is available through `/workspaces/{workspaceId}/members`, `/invitations`, `/tokens`, and
-`/export`; `/sessions` manages the current user's browser sessions.
+becomes its owner. The browser home page exposes workspace creation and membership
+listing. Workspace management is available through the Settings screens at
+`/workspaces/{workspaceId}/settings/members`,
+`/workspaces/{workspaceId}/settings/invitations`,
+`/workspaces/{workspaceId}/settings/tokens`, and
+`/workspaces/{workspaceId}/settings/export`;
+the export screen's `Download JSON` action uses
+`/workspaces/{workspaceId}/settings/export/download`. `/sessions` manages the
+current user's browser sessions.
 Workspace deletion, suspension, and archival are not exposed until their data
 lifecycle is implemented.
 

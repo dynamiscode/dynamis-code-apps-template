@@ -55,6 +55,10 @@ malformed, or stale versions return `428` or `412`. Creates require an
 operation for 24 hours. An identical retry replays the result; a changed
 request returns `409`.
 
+Item deletion also requires `If-Match` and permanently removes live data.
+Backup copies remain subject to the retention policy documented for the
+deployment.
+
 All routes have bounded bodies and execution time. Authentication routes use
 a stricter per-source rate limit. `429` responses include `Retry-After`.
 

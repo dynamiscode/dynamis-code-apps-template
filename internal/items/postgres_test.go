@@ -72,4 +72,26 @@ func TestPostgresItemLifecycle(t *testing.T) {
 	if got, err := service.Get(ctx, principal, workspaceID, created.Item.ID); err != nil || got.Title != "PostgreSQL" {
 		t.Fatalf("Get() = %+v, %v", got, err)
 	}
+	checkpoint, err := service.Changes(ctx, principal, workspaceID, "", 10)
+	if err != nil || !checkpoint.Resync {
+		t.Fatalf("Changes() = %+v, %v", checkpoint, err)
+	}
+	complete := Complete
+	updated, err := service.Update(
+		ctx, principal, workspaceID, created.Item.ID, 1,
+		UpdateInput{Status: &complete}, identity.AuditContext{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	changes, err := service.Changes(ctx, principal, workspaceID, checkpoint.Next, 10)
+	if err != nil || len(changes.Changes) != 1 || changes.Changes[0].Action != "updated" {
+		t.Fatalf("incremental Changes() = %+v, %v", changes, err)
+	}
+	if err := service.Delete(
+		ctx, principal, workspaceID, created.Item.ID, updated.Version,
+		identity.AuditContext{},
+	); err != nil {
+		t.Fatal(err)
+	}
 }

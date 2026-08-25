@@ -14,6 +14,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
+	"example.com/dynamis-code/apps-template/internal/web"
 )
 
 type App struct {
@@ -42,6 +43,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	bootstrapped, err := identityService.IsBootstrapped(ctx)
 	if err != nil {
 		db.Close()
+		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("check bootstrap state: %w", err)
 	}
 	adminConfigured := cfg.Bootstrap.AdminEmail != "" ||
@@ -60,6 +62,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 			WorkspaceName: cfg.Bootstrap.AdminWorkspace,
 		}, identity.AuditContext{}); err != nil {
 			db.Close()
+			telemetryProvider.Shutdown(context.Background())
 			return nil, fmt.Errorf("bootstrap first owner: %w", err)
 		}
 	}
@@ -90,10 +93,19 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		db.Close()
 		return nil, fmt.Errorf("initialize HTTP handler: %w", err)
 	}
+	webHandler, err := web.NewHandler(identityService, itemService, cfg.HTTP, cfg.Bootstrap.SetupToken)
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("initialize web handler: %w", err)
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/api/", handler)
+	mux.Handle("/health/", handler)
+	mux.Handle("/", httpapi.Wrap(webHandler.Routes(), cfg.HTTP, slog.Default()))
 
 	return &App{
 		DB: db, Identity: identityService, OIDC: oidcRegistry,
-		Items: itemService, Handler: handler,
+		Items: itemService, Handler: mux,
 	}, nil
 }
 

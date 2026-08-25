@@ -180,6 +180,11 @@ func (s *Service) create(
 		item.Status, item.Version, formatTime(now), formatTime(now)); err != nil {
 		return CreateResult{}, err
 	}
+	if err := s.recordChange(
+		ctx, tx, workspaceID, item.ID, "created", item.Version, now,
+	); err != nil {
+		return CreateResult{}, err
+	}
 	encoded, err := json.Marshal(item)
 	if err != nil {
 		return CreateResult{}, err
@@ -394,6 +399,11 @@ func (s *Service) Update(
 	if changed, _ := result.RowsAffected(); changed != 1 {
 		return Item{}, ErrPreconditionFailed
 	}
+	if err := s.recordChange(
+		ctx, tx, workspaceID, item.ID, "updated", item.Version, item.UpdatedAt,
+	); err != nil {
+		return Item{}, err
+	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "item.updated", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
@@ -409,6 +419,68 @@ func (s *Service) Update(
 		return Item{}, err
 	}
 	return item, nil
+}
+
+func (s *Service) Delete(
+	ctx context.Context,
+	actor identity.Principal,
+	workspaceID string,
+	itemID string,
+	version int64,
+	audit identity.AuditContext,
+) error {
+	if version < 1 {
+		return ErrInvalidInput
+	}
+	if _, err := s.auth.AuthorizePrincipal(
+		ctx, actor, workspaceID, identity.ResourcesWrite,
+	); err != nil {
+		return identity.ErrForbidden
+	}
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := s.auth.AuthorizePrincipalInTx(
+		ctx, tx, actor, workspaceID, identity.ResourcesWrite,
+	); err != nil {
+		return identity.ErrForbidden
+	}
+	item, err := s.get(ctx, tx, workspaceID, itemID)
+	if err != nil {
+		return err
+	}
+	if item.Version != version {
+		return ErrPreconditionFailed
+	}
+	result, err := s.exec(ctx, tx, `
+		DELETE FROM items WHERE workspace_id = ? AND id = ? AND version = ?
+	`, workspaceID, itemID, version)
+	if err != nil {
+		return err
+	}
+	if changed, _ := result.RowsAffected(); changed != 1 {
+		return ErrPreconditionFailed
+	}
+	now := s.now().UTC()
+	if err := s.recordChange(
+		ctx, tx, workspaceID, item.ID, "deleted", item.Version+1, now,
+	); err != nil {
+		return err
+	}
+	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
+		EventType: "item.deleted", ActorUserID: actor.UserID,
+		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
+		TargetType: "item", TargetID: item.ID, Action: "item.delete",
+		Outcome: "success", RequestID: audit.RequestID,
+		SourceAddress: audit.SourceAddress,
+		Metadata:      fmt.Sprintf(`{"version":%d,"permanent":true}`, item.Version),
+		CreatedAt:     now,
+	}); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Service) get(

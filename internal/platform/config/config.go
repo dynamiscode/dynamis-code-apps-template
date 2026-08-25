@@ -297,6 +297,39 @@ func loadHTTP(lookup LookupEnv) (HTTP, error) {
 	if err != nil {
 		return HTTP{}, err
 	}
+	ssePollInterval, err := durationValue(
+		lookup, "HTTP_SSE_POLL_INTERVAL", time.Second, 100*time.Millisecond, 30*time.Second,
+	)
+	if err != nil {
+		return HTTP{}, err
+	}
+	sseHeartbeat, err := durationValue(
+		lookup, "HTTP_SSE_HEARTBEAT_INTERVAL", 15*time.Second, time.Second, time.Minute,
+	)
+	if err != nil {
+		return HTTP{}, err
+	}
+	sseMaxLifetime, err := durationValue(
+		lookup, "HTTP_SSE_MAX_LIFETIME", 5*time.Minute, time.Minute, time.Hour,
+	)
+	if err != nil {
+		return HTTP{}, err
+	}
+	if sseHeartbeat >= sseMaxLifetime {
+		return HTTP{}, fmt.Errorf("HTTP_SSE_HEARTBEAT_INTERVAL must be below HTTP_SSE_MAX_LIFETIME")
+	}
+	sseMaxConnections, err := rangedInt(
+		lookup, "HTTP_SSE_MAX_CONNECTIONS", 100, 1, 10000,
+	)
+	if err != nil {
+		return HTTP{}, err
+	}
+	sseMaxPerUser, err := rangedInt(
+		lookup, "HTTP_SSE_MAX_CONNECTIONS_PER_USER", 5, 1, sseMaxConnections,
+	)
+	if err != nil {
+		return HTTP{}, err
+	}
 	address := strings.TrimSpace(valueOrDefault(lookup, "HTTP_ADDRESS", ":8080"))
 	if address == "" {
 		return HTTP{}, fmt.Errorf("HTTP_ADDRESS must not be empty")
@@ -309,6 +342,9 @@ func loadHTTP(lookup LookupEnv) (HTTP, error) {
 		DefaultPageSize: defaultPageSize, MaxPageSize: maxPageSize,
 		RequestsPerMinute:  requestsPerMinute,
 		AuthRequestsPerMin: authRequestsPerMin,
+		SSEPollInterval:    ssePollInterval, SSEHeartbeat: sseHeartbeat,
+		SSEMaxLifetime: sseMaxLifetime, SSEMaxConnections: sseMaxConnections,
+		SSEMaxPerUser: sseMaxPerUser,
 	}, nil
 }
 

@@ -1,0 +1,11 @@
+{
+  "name": "dynamis-code-apps-template-checks",
+  "private": true,
+  "scripts": {
+    "test:a11y": "node scripts/accessibility.mjs"
+  },
+  "devDependencies": {
+    "axe-core": "4.10.2",
+    "selenium-webdriver": "4.35.0"
+  }
+}

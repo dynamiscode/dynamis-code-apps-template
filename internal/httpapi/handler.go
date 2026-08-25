@@ -108,8 +108,16 @@ func NewHandlerWithMail(
 		})
 	}
 	mux.HandleFunc("/", notFoundProblem)
-	limiter := newRateLimiter(cfg.RequestsPerMinute, cfg.AuthRequestsPerMin)
-	return middleware(mux, cfg, limiter, logger), nil
+	return Wrap(mux, cfg, logger), nil
+}
+
+func Wrap(next http.Handler, cfg config.HTTP, logger *slog.Logger) http.Handler {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return middleware(
+		next, cfg, newRateLimiter(cfg.RequestsPerMinute, cfg.AuthRequestsPerMin), logger,
+	)
 }
 
 func NewServer(cfg config.HTTP, handler http.Handler) *http.Server {
@@ -188,6 +196,11 @@ func (h *handler) login(writer http.ResponseWriter, request *http.Request) {
 		Expires: session.ExpiresAt, MaxAge: int(time.Until(session.ExpiresAt).Seconds()),
 		HttpOnly: policy.HTTPOnly, Secure: policy.Secure, SameSite: policy.SameSite,
 	})
+	http.SetCookie(writer, &http.Cookie{
+		Name: "csrf", Value: session.CSRFSecret, Path: "/",
+		Expires: session.ExpiresAt, MaxAge: int(time.Until(session.ExpiresAt).Seconds()),
+		HttpOnly: true, Secure: policy.Secure, SameSite: policy.SameSite,
+	})
 	writeJSON(writer, http.StatusOK, map[string]any{
 		"csrfToken": session.CSRFSecret, "expiresAt": session.ExpiresAt,
 	})
@@ -225,6 +238,10 @@ func (h *handler) logout(writer http.ResponseWriter, request *http.Request) {
 	http.SetCookie(writer, &http.Cookie{
 		Name: "session", Path: "/", MaxAge: -1, Expires: time.Unix(1, 0),
 		HttpOnly: policy.HTTPOnly, Secure: policy.Secure, SameSite: policy.SameSite,
+	})
+	http.SetCookie(writer, &http.Cookie{
+		Name: "csrf", Path: "/", MaxAge: -1, Expires: time.Unix(1, 0),
+		HttpOnly: true, Secure: policy.Secure, SameSite: policy.SameSite,
 	})
 	if logoutURL, ok := h.oidc.LogoutURL(providerID); ok {
 		writer.Header().Set("X-OIDC-Logout-URL", logoutURL)
@@ -391,6 +408,40 @@ func (h *handler) updateItem(writer http.ResponseWriter, request *http.Request) 
 	}
 	writer.Header().Set("ETag", etag(item.Version))
 	writeJSON(writer, http.StatusOK, item)
+}
+
+func (h *handler) deleteItem(writer http.ResponseWriter, request *http.Request) {
+	workspaceID := request.PathValue("workspaceId")
+	itemID := request.PathValue("itemId")
+	if !validID(workspaceID) || !validID(itemID) || len(request.URL.Query()) != 0 {
+		h.invalidRequest(writer, request, "The request parameters are invalid.")
+		return
+	}
+	version, ok := parseETag(request.Header.Get("If-Match"))
+	if !ok {
+		status := http.StatusPreconditionFailed
+		code := "precondition-failed"
+		detail := "The entity tag is invalid or stale."
+		if request.Header.Get("If-Match") == "" {
+			status = http.StatusPreconditionRequired
+			code = "precondition-required"
+			detail = "If-Match is required."
+		}
+		writeProblem(writer, request, status, code, detail)
+		return
+	}
+	principal, ok := h.bearerPrincipal(writer, request, identity.ResourcesWrite)
+	if !ok {
+		return
+	}
+	if err := h.items.Delete(
+		request.Context(), principal, workspaceID, itemID, version,
+		h.auditContext(request),
+	); err != nil {
+		h.itemError(writer, request, err)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
 }
 
 func (h *handler) bearerPrincipal(

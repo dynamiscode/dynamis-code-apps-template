@@ -77,6 +77,28 @@ func TestItemLifecycleContracts(t *testing.T) {
 	if _, err := service.Update(ctx, principal, owner.WorkspaceID, second.Item.ID, 1, UpdateInput{Title: &newTitle}, identity.AuditContext{}); !errors.Is(err, ErrPreconditionFailed) {
 		t.Fatalf("stale update error = %v", err)
 	}
+	checkpoint, err := service.Changes(ctx, principal, owner.WorkspaceID, "", 10)
+	if err != nil || !checkpoint.Resync || checkpoint.Next == "" {
+		t.Fatalf("initial changes = %+v, %v", checkpoint, err)
+	}
+	third, err := service.Create(ctx, principal, owner.WorkspaceID, "Third", "idem-third-key", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	changes, err := service.Changes(ctx, principal, owner.WorkspaceID, checkpoint.Next, 10)
+	if err != nil || changes.Resync || len(changes.Changes) != 1 || changes.Changes[0].Action != "created" {
+		t.Fatalf("incremental changes = %+v, %v", changes, err)
+	}
+	if err := service.Delete(ctx, principal, owner.WorkspaceID, third.Item.ID, third.Item.Version, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Get(ctx, principal, owner.WorkspaceID, third.Item.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("deleted Get() error = %v", err)
+	}
+	deleted, err := service.Changes(ctx, principal, owner.WorkspaceID, changes.Next, 10)
+	if err != nil || len(deleted.Changes) != 1 || deleted.Changes[0].Action != "deleted" {
+		t.Fatalf("delete changes = %+v, %v", deleted, err)
+	}
 	wrong := principal
 	wrong.WorkspaceID = "00000000000000000000000000000000"
 	if _, err := service.Get(ctx, wrong, wrong.WorkspaceID, created.Item.ID); !errors.Is(err, identity.ErrForbidden) {

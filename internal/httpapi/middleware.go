@@ -47,6 +47,7 @@ func requestIDMiddleware(next http.Handler) http.Handler {
 			}
 		}
 		writer.Header().Set("X-Request-ID", requestID)
+		request.Header.Set("X-Request-ID", requestID)
 		next.ServeHTTP(writer, request.WithContext(
 			withRequestID(request.Context(), requestID),
 		))
@@ -132,6 +133,11 @@ func timeoutMiddleware(
 	logger *slog.Logger,
 ) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if strings.HasPrefix(request.URL.Path, "/workspaces/") &&
+			strings.HasSuffix(request.URL.Path, "/items/events") {
+			next.ServeHTTP(writer, request)
+			return
+		}
 		ctx, cancel := context.WithTimeout(request.Context(), timeout)
 		defer cancel()
 		result := make(chan handlerResult, 1)
@@ -181,6 +187,12 @@ func copyHeaders(destination http.Header, source http.Header) {
 type statusWriter struct {
 	http.ResponseWriter
 	status int
+}
+
+func (writer *statusWriter) Flush() {
+	if flusher, ok := writer.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
 }
 
 func (writer *statusWriter) WriteHeader(status int) {

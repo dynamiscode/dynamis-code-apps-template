@@ -1,8 +1,7 @@
 # Dynamis Code Apps Template
 
-Status: Phase 03 HTTP and REST foundation. Database startup, identity,
-workspace authorization, health, and the sample item REST contract work; web,
-realtime, MCP, and remote CLI surfaces remain unimplemented.
+Status: Phase 04 web foundation. Identity, REST, accessible server-rendered
+items, HTMX fragments, and scoped SSE work; MCP and remote CLI remain pending.
 
 The repository implements a reusable Go web-application template with a small
 default footprint and explicit paths to larger deployments. The temporary
@@ -44,6 +43,8 @@ go test -race ./...
 - Review identity behavior in
   [docs/authentication.md](docs/authentication.md).
 - Review HTTP and REST behavior in [docs/api.md](docs/api.md).
+- Review browser and realtime behavior in [docs/web.md](docs/web.md) and the
+  dated [accessibility evidence](docs/accessibility.md).
 - Track planned and deferred capabilities in
   [docs/capabilities.md](docs/capabilities.md).
 - Review accepted technology choices in

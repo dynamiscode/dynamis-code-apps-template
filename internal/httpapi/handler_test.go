@@ -65,6 +65,11 @@ func TestHTTPContracts(t *testing.T) {
 	}
 	stale := serveAuthorized(handler, http.MethodPatch, resource, `{"title":"Stale"}`, token, map[string]string{"If-Match": `"v1"`})
 	assertProblem(t, stale, http.StatusPreconditionFailed, "precondition-failed")
+	deleted := serveAuthorized(handler, http.MethodDelete, resource, "", token, map[string]string{"If-Match": `"v2"`})
+	if deleted.Code != http.StatusNoContent {
+		t.Fatalf("delete response = %d, %s", deleted.Code, deleted.Body.String())
+	}
+	assertProblem(t, serveAuthorized(handler, http.MethodGet, resource, "", token, nil), http.StatusNotFound, "not-found")
 	wrongWorkspace := serveAuthorized(handler, http.MethodGet, "/api/v1/workspaces/00000000000000000000000000000000/items", "", token, nil)
 	assertProblem(t, wrongWorkspace, http.StatusForbidden, "forbidden")
 

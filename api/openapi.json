@@ -241,6 +241,25 @@
           "428": {"$ref": "#/components/responses/Problem"},
           "429": {"$ref": "#/components/responses/RateLimited"}
         }
+      },
+      "delete": {
+        "operationId": "deleteItem",
+        "description": "Permanently deletes the item from live storage. Existing backups retain it until their documented expiry.",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {"$ref": "#/components/parameters/WorkspaceId"},
+          {"$ref": "#/components/parameters/ItemId"},
+          {"name": "If-Match", "in": "header", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "204": {"description": "Item permanently deleted from live storage"},
+          "401": {"$ref": "#/components/responses/Problem"},
+          "403": {"$ref": "#/components/responses/Problem"},
+          "404": {"$ref": "#/components/responses/Problem"},
+          "412": {"$ref": "#/components/responses/Problem"},
+          "428": {"$ref": "#/components/responses/Problem"},
+          "429": {"$ref": "#/components/responses/RateLimited"}
+        }
       }
     }
   },

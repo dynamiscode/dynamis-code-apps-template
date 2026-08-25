@@ -31,7 +31,7 @@ focused tests, canonical documentation, and linked capability evidence.
 | 01 Foundation | complete | [Foundation](docs/implementation/01-foundation.md) | Preparation harness |
 | 02 Identity and tenancy | complete | [Identity and tenancy](docs/implementation/02-identity-and-tenancy.md) | 01 |
 | 03 HTTP and REST | complete | [HTTP and REST](docs/implementation/03-http-and-rest.md) | 01, 02 authorization boundary |
-| 04 Web, realtime, accessibility | pending | [Web, realtime, accessibility](docs/implementation/04-web-realtime-accessibility.md) | 02, 03 |
+| 04 Web, realtime, accessibility | complete | [Web, realtime, accessibility](docs/implementation/04-web-realtime-accessibility.md) | 02, 03 |
 | 05 MCP and CLI | pending | [MCP and CLI](docs/implementation/05-mcp-and-cli.md) | 02, 03, one shared use case from 04 |
 | 06 Operations and data lifecycle | pending | [Operations and data lifecycle](docs/implementation/06-operations-and-data-lifecycle.md) | 01-05 |
 | 07 Delivery and handoff | pending | [Delivery and handoff](docs/implementation/07-delivery-and-handoff.md) | 01-06 |

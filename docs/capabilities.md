@@ -19,8 +19,8 @@ must contain no pending groups before `STANDARDS.md` is deleted.
 | Standard group | Lifecycle | Phase | Status | Evidence target |
 |---|---|---:|---|---|
 | Purpose, modular-monolith boundaries, scaling path | bootstrap, recurring | 01 | conforming | [Architecture](architecture.md), [composition test](../internal/bootstrap/app_test.go) |
-| Optional WebMCP browser enhancement | triggered, recurring | 04, 07 | pending | Browser registration, redaction, fallback, security-header, and smoke evidence |
- | Web, REST, MCP, and remote CLI interfaces | bootstrap, recurring | 03-05 | pending | REST: [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go); web, MCP, and CLI remain |
+ | Optional WebMCP browser enhancement | triggered, recurring | 04, 07 | pending | Browser registration, redaction, fallback, security-header, and smoke evidence |
+ | Web, REST, MCP, and remote CLI interfaces | bootstrap, recurring | 03-05 | pending | Web: [component tests](../internal/web/handler_test.go); REST: [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go); MCP and CLI remain |
 | Local authentication and OIDC | bootstrap, recurring | 02 | conforming | [Authentication](authentication.md), [OIDC tests](../internal/identity/oidc_test.go), [configuration tests](../internal/platform/config/config_test.go) |
 | Permissions, roles, workspaces, invitations, sessions, and tokens | bootstrap, recurring | 02 | conforming | [Authorization and lifecycle tests](../internal/identity/service_test.go), [PostgreSQL identity test](../internal/identity/postgres_test.go) |
 | SQLite, PostgreSQL, migrations, and rolling compatibility | bootstrap, recurring | 01, 06 | pending | Phase 01: [database implementation](../internal/platform/database/), real SQLite and PostgreSQL tests; rolling compatibility remains Phase 06 |
@@ -31,11 +31,11 @@ must contain no pending groups before `STANDARDS.md` is deleted.
 | RFC 9457, collections, conditional writes, and idempotency | bootstrap, recurring | 03 | conforming | [API contract](api.md), [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go), [item service tests](../internal/items/service_test.go) |
 | Contract lifecycle and deprecation | recurring | 03 | conforming | [Compatibility policy](api.md#compatibility), [generation drift test](../api/contract_test.go) |
 | Long-running operations | bootstrap, triggered | 06 | pending | Operation state and authorization tests |
-| Realtime delivery | bootstrap, recurring | 04 | pending | SSE reconnect, scope, and limit tests |
+| Realtime delivery | bootstrap, recurring | 04 | conforming | [SSE contract](web.md#realtime-contract), [scope/reconnect/heartbeat/limit tests](../internal/web/handler_test.go) |
 | Quotas and resource limits | bootstrap, operational | 06 | pending | Limit enforcement and observability tests |
 | Audit events | bootstrap, recurring | 02, 06 | pending | Redaction, append-only, and access tests |
 | Backup, restore, upgrades, RPO, and RTO | operational | 06 | pending | Automated isolated restore evidence |
-| WCAG 2.2 AA accessibility | bootstrap, recurring | 04, 07 | pending | Automated and manual critical-flow evidence |
+| WCAG 2.2 AA accessibility | bootstrap, recurring | 04, 07 | conforming | [Automated runner](../scripts/accessibility.mjs), [dated automated and manual evidence](accessibility.md) |
 | Containers and deployment | bootstrap, operational | 07 | pending | Image and deployment smoke evidence |
 | CI, release security, SBOM, provenance, signatures, checksums | operational | 07 | pending | Release workflow evidence |
 | Documentation, context handoff, and sources of truth | bootstrap, recurring | 07 | pending | Link, drift, and context-routing checks |
@@ -122,3 +122,35 @@ Verified 2026-08-25 with Go 1.27.0 and PostgreSQL 14.24:
 - `go vet ./...`
 - `go test -race ./...` on SQLite and with `POSTGRES_TEST_URL`
 - built server listener, live/ready requests, and SIGTERM graceful shutdown
+
+## Phase 04 evidence
+
+Verified 2026-08-25 with Go 1.27.0, PostgreSQL 14.24, HTMX 2.0.4,
+axe-core 4.10.2, Chrome, and VoiceOver:
+
+- item create, stable list, get, conditional update, permanent delete,
+  workspace isolation, audit, redacted change events, and event retention on
+  SQLite and isolated PostgreSQL
+- full-page and HTMX fragment behavior, ordinary form fallback, session-bound
+  CSRF, authorization, escaped output, validation, and safe errors
+- SSE scope, initial/expired resync, valid reconnect replay, stable versioned
+  payloads, heartbeat, lifetime, concurrency rejection, and redaction under
+  the race detector
+- zero axe violations on sign-in, workspace, items, and item-validation flows;
+  keyboard, focus, 320 CSS-pixel reflow, reduced motion, accessibility-tree,
+  and VoiceOver checks passed
+- workspace home provides Items and Settings destinations; feature navigation keeps
+  Home above Items in the workspace sidebar and anchors Settings
+  at the bottom; nested Settings routes show only their members/invitations,
+  API-token, and export sub-items; Items provides a Back to Workspaces link to
+  the workspace selector and Settings provides a Back to home link to the current
+  workspace home; current-page state and
+  responsive keyboard/touch targets remain covered; destructive item actions have
+  explicit confirmation and realtime status feedback
+- optional WebMCP page markers, explicit tool schemas, secret/hidden-field
+  exclusion, safe preparation, focus, and non-submission checks are covered by
+  the browser contract test and conditional Selenium smoke
+- `go test ./...`
+- `go vet ./...`
+- `go test -race ./...` on SQLite and with `POSTGRES_TEST_URL`
+- reproducible `go generate ./api`

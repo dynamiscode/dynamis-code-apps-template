@@ -1,0 +1,5 @@
+{{define "home.html"}}<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · Dynamis Code</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body data-webmcp-page="home"><header class="topbar"><a class="brand" href="/">Dynamis Code</a><div class="topbar-context"><span>Workspaces</span></div>{{template "account-menu" .}}</header>
+<main id="main"><h1>Workspaces</h1>{{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}{{if .Workspaces}}<ul class="cards">{{range .Workspaces}}<li><a href="/workspaces/{{.ID}}"><strong>{{.Name}}</strong><span>{{.Role}}</span></a></li>{{end}}</ul>{{else}}<p>No workspace memberships.</p>{{end}}
+<section><h2>Create workspace</h2><form data-webmcp-actions="workspace-create" action="/workspaces" method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><label for="workspace-name">Name</label><input id="workspace-name" name="name" required maxlength="120"><button type="submit">Create workspace</button></form></section></main><script defer src="/assets/app.js"></script></body></html>{{end}}
