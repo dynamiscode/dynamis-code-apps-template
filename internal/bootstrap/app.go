@@ -12,6 +12,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/httpapi"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
+	"example.com/dynamis-code/apps-template/internal/mcpserver"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/web"
@@ -101,6 +102,10 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	mux := http.NewServeMux()
 	mux.Handle("/api/", handler)
 	mux.Handle("/health/", handler)
+	mux.Handle("/mcp", httpapi.Wrap(
+		mcpserver.NewHandler(identityService, itemService, cfg.MCP, slog.Default()),
+		cfg.HTTP, slog.Default(),
+	))
 	mux.Handle("/", httpapi.Wrap(webHandler.Routes(), cfg.HTTP, slog.Default()))
 
 	return &App{

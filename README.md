@@ -1,7 +1,7 @@
 # Dynamis Code Apps Template
 
-Status: Phase 04 web foundation. Identity, REST, accessible server-rendered
-items, HTMX fragments, and scoped SSE work; MCP and remote CLI remain pending.
+Status: Phase 05 agent surfaces. Identity, REST, accessible web/realtime, MCP,
+and the remote CLI work; operations and delivery remain pending.
 
 The repository implements a reusable Go web-application template with a small
 default footprint and explicit paths to larger deployments. The temporary
@@ -19,8 +19,9 @@ go run ./cmd/server
 ```
 
 The process validates configuration, creates `data/app.db`, applies embedded
-migrations, and listens on `:8080`. Check `/health/live`, `/health/ready`, or
-the contract at `/api/openapi.json`. Press `Ctrl-C` for graceful shutdown.
+migrations, and listens on `127.0.0.1:8080`. Check `/health/live`,
+`/health/ready`, or the contract at `/api/openapi.json`. Press `Ctrl-C` for
+graceful shutdown.
 
 Create the first owner with the one-time command documented in
 [authentication](docs/authentication.md). It requires an explicit password and
@@ -45,6 +46,8 @@ go test -race ./...
 - Review HTTP and REST behavior in [docs/api.md](docs/api.md).
 - Review browser and realtime behavior in [docs/web.md](docs/web.md) and the
   dated [accessibility evidence](docs/accessibility.md).
+- Review agent and automation behavior in [docs/mcp.md](docs/mcp.md) and
+  [docs/cli.md](docs/cli.md).
 - Track planned and deferred capabilities in
   [docs/capabilities.md](docs/capabilities.md).
 - Review accepted technology choices in

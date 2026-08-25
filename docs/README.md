@@ -31,7 +31,8 @@ are construction briefs; capability claims require linked evidence.
 Implemented sources: [architecture](architecture.md),
 [configuration](configuration.md), [authentication](authentication.md), and
 [HTTP and REST API](api.md), [web and realtime](web.md), and
-[accessibility evidence](accessibility.md).
+[accessibility evidence](accessibility.md), [MCP](mcp.md), and
+[remote CLI](cli.md).
 As later phases land, code, tests, OpenAPI,
 migrations, deployment files, and final domain documents replace temporary
 sources defined by `STANDARDS.md` Section 12.

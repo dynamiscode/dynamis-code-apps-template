@@ -27,7 +27,7 @@ func TestLoadFromDefaultsToSQLite(t *testing.T) {
 			cfg.Database.MaxIdleConns,
 		)
 	}
-	if cfg.HTTP.Address != ":8080" || cfg.HTTP.RequestTimeout != 30*time.Second ||
+	if cfg.HTTP.Address != "127.0.0.1:8080" || cfg.HTTP.RequestTimeout != 30*time.Second ||
 		cfg.HTTP.MaxBodyBytes != 1024*1024 || cfg.HTTP.DefaultPageSize != 50 ||
 		cfg.HTTP.MaxPageSize != 100 || cfg.HTTP.AuthRequestsPerMin >= cfg.HTTP.RequestsPerMinute ||
 		cfg.HTTP.SSEHeartbeat != 15*time.Second || cfg.HTTP.SSEMaxConnections != 100 ||
@@ -40,6 +40,28 @@ func TestLoadFromDefaultsToSQLite(t *testing.T) {
 	}))
 	if err == nil {
 		t.Fatal("equal SSE heartbeat and lifetime accepted")
+	}
+}
+
+func TestLoadFromValidatesMCPOrigins(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := LoadFrom(env(map[string]string{
+		"MCP_ALLOWED_ORIGINS": "https://app.example.com, http://127.0.0.1:3000,https://app.example.com",
+	}))
+	if err != nil {
+		t.Fatalf("LoadFrom() error = %v", err)
+	}
+	if len(cfg.MCP.AllowedOrigins) != 2 || cfg.MCP.AllowedOrigins[0] != "https://app.example.com" {
+		t.Fatalf("AllowedOrigins = %#v", cfg.MCP.AllowedOrigins)
+	}
+
+	for _, value := range []string{
+		"https://app.example.com/path", "ftp://app.example.com", "https://user@app.example.com",
+	} {
+		if _, err := LoadFrom(env(map[string]string{"MCP_ALLOWED_ORIGINS": value})); err == nil {
+			t.Fatalf("MCP_ALLOWED_ORIGINS=%q accepted", value)
+		}
 	}
 }
 

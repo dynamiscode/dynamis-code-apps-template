@@ -8,7 +8,7 @@ This ledger reports current evidence while the template is under construction.
 |---|---|---|
 | Core | pending | Phases 01, 03, 04, 06, and 07 |
 | Identity | conforming | [Phase 02 evidence](#phase-02-evidence) |
-| Agent | pending | Phase 05 |
+| Agent | conforming | [Phase 05 evidence](#phase-05-evidence) |
 | Production | not applicable | No deployment serves real users or durable data |
 
 `pending` is valid only during generation. `Core`, `Identity`, and `Agent`
@@ -19,8 +19,8 @@ must contain no pending groups before `STANDARDS.md` is deleted.
 | Standard group | Lifecycle | Phase | Status | Evidence target |
 |---|---|---:|---|---|
 | Purpose, modular-monolith boundaries, scaling path | bootstrap, recurring | 01 | conforming | [Architecture](architecture.md), [composition test](../internal/bootstrap/app_test.go) |
- | Optional WebMCP browser enhancement | triggered, recurring | 04, 07 | pending | Browser registration, redaction, fallback, security-header, and smoke evidence |
- | Web, REST, MCP, and remote CLI interfaces | bootstrap, recurring | 03-05 | pending | Web: [component tests](../internal/web/handler_test.go); REST: [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go); MCP and CLI remain |
+| Optional WebMCP browser enhancement | triggered, recurring | 04, 07 | pending | Browser registration, redaction, fallback, security-header, and smoke evidence |
+ | Web, REST, MCP, and remote CLI interfaces | bootstrap, recurring | 03-05 | conforming | Web: [component tests](../internal/web/handler_test.go); REST: [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go); [MCP tests](../internal/mcpserver/server_test.go); [CLI tests](../internal/appctl/run_test.go) |
 | Local authentication and OIDC | bootstrap, recurring | 02 | conforming | [Authentication](authentication.md), [OIDC tests](../internal/identity/oidc_test.go), [configuration tests](../internal/platform/config/config_test.go) |
 | Permissions, roles, workspaces, invitations, sessions, and tokens | bootstrap, recurring | 02 | conforming | [Authorization and lifecycle tests](../internal/identity/service_test.go), [PostgreSQL identity test](../internal/identity/postgres_test.go) |
 | SQLite, PostgreSQL, migrations, and rolling compatibility | bootstrap, recurring | 01, 06 | pending | Phase 01: [database implementation](../internal/platform/database/), real SQLite and PostgreSQL tests; rolling compatibility remains Phase 06 |
@@ -154,3 +154,23 @@ axe-core 4.10.2, Chrome, and VoiceOver:
 - `go vet ./...`
 - `go test -race ./...` on SQLite and with `POSTGRES_TEST_URL`
 - reproducible `go generate ./api`
+
+## Phase 05 evidence
+
+Verified 2026-08-25 with Go 1.27.0 and PostgreSQL 14.24:
+
+- current stateless MCP discovery and bounded legacy initialization;
+  authentication, read/write scopes, revoked tokens, exact Origins, no session
+  IDs, stable schemas and annotations, approval signals, bounds, safe errors,
+  wrong-workspace denial, and redacted tool audits
+- REST-only CLI create/list/get/update/delete integration with JSON stream
+  separation, exit statuses, bounded timeouts/responses, redirect rejection,
+  and credential-safe errors
+- live token creation, REST, CLI, MCP negotiation, and MCP tool call through
+  one shared item use case
+- production-source scans show no direct database or arbitrary shell path in
+  MCP; the CLI dependency graph contains neither application services nor
+  database packages
+- `go test ./...`
+- `go vet ./...`
+- `go test -race ./...` on SQLite and with `POSTGRES_TEST_URL`

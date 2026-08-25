@@ -39,3 +39,5 @@
   cursor pagination, conditional item updates, idempotency, and rate limits.
 - Accessible server-rendered item flows, progressive HTMX fragments, permanent
   deletion, and authenticated database-backed SSE change delivery.
+- Authenticated stateless MCP item tools with bounded contracts, approval and
+  audit controls, plus the REST-only `appctl` client.

@@ -45,6 +45,10 @@ type Bootstrap struct {
 	SetupToken     string
 }
 
+type MCP struct {
+	AllowedOrigins []string
+}
+
 type OIDC struct {
 	Enabled      bool
 	ProviderID   string
@@ -330,7 +334,7 @@ func loadHTTP(lookup LookupEnv) (HTTP, error) {
 	if err != nil {
 		return HTTP{}, err
 	}
-	address := strings.TrimSpace(valueOrDefault(lookup, "HTTP_ADDRESS", ":8080"))
+	address := strings.TrimSpace(valueOrDefault(lookup, "HTTP_ADDRESS", "127.0.0.1:8080"))
 	if address == "" {
 		return HTTP{}, fmt.Errorf("HTTP_ADDRESS must not be empty")
 	}
@@ -346,6 +350,29 @@ func loadHTTP(lookup LookupEnv) (HTTP, error) {
 		SSEMaxLifetime: sseMaxLifetime, SSEMaxConnections: sseMaxConnections,
 		SSEMaxPerUser: sseMaxPerUser,
 	}, nil
+}
+
+func loadMCP(lookup LookupEnv) (MCP, error) {
+	raw := strings.TrimSpace(valueOrDefault(lookup, "MCP_ALLOWED_ORIGINS", ""))
+	if raw == "" {
+		return MCP{}, nil
+	}
+	origins := make([]string, 0)
+	seen := make(map[string]bool)
+	for _, value := range strings.Split(raw, ",") {
+		value = strings.TrimSpace(value)
+		origin, err := url.Parse(value)
+		if err != nil || (origin.Scheme != "http" && origin.Scheme != "https") ||
+			origin.Host == "" || origin.User != nil || origin.Path != "" ||
+			origin.RawQuery != "" || origin.Fragment != "" {
+			return MCP{}, fmt.Errorf("MCP_ALLOWED_ORIGINS must contain exact HTTP origins")
+		}
+		if !seen[value] {
+			origins = append(origins, value)
+			seen[value] = true
+		}
+	}
+	return MCP{AllowedOrigins: origins}, nil
 }
 
 func loadOIDC(lookup LookupEnv) (OIDC, error) {

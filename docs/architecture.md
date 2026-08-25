@@ -1,7 +1,6 @@
 # Architecture
 
-This document describes implemented Phase 01 behavior. Later phases extend it
-without replacing these boundaries.
+This document describes the implemented modular-monolith boundaries.
 
 ## Runtime shape
 
@@ -14,13 +13,16 @@ process cancellation.
 cmd/server
     -> typed configuration
     -> bootstrap composition root
-    -> database adapter
-    -> SQLite or PostgreSQL
+    -> web / REST / MCP adapters
+    -> shared identity and item use cases
+    -> SQLite or PostgreSQL adapters
+
+cmd/appctl -> remote REST API only
 ```
 
-Business features will use vertical slices. Domain and application packages
-will own rules and transactions. Web, REST, and MCP adapters will call the
-same use cases. CLI code will call REST only.
+Business features use vertical slices. Application packages own rules and
+transactions. Web, REST, and MCP call the same item and identity use cases.
+The CLI calls the remote REST API only.
 
 ## Dependency rules
 
@@ -64,5 +66,5 @@ Go's two-release support window. Version sources:
 
 ## Not implemented
 
-HTTP, identity, workspaces, product features, MCP, CLI, telemetry, containers,
-and releases belong to later phases in `PLAN.md`.
+Operational data lifecycle, complete telemetry, containers, and releases
+belong to later phases in `PLAN.md`.

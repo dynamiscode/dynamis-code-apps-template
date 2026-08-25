@@ -684,6 +684,10 @@ func (s *Service) RecordAuditInTx(
 	return s.audit(ctx, tx, event)
 }
 
+func (s *Service) RecordAudit(ctx context.Context, event AuditEvent) error {
+	return s.audit(ctx, s.db, event)
+}
+
 func nullable(value string) any {
 	if value == "" {
 		return nil

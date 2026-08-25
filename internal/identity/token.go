@@ -115,7 +115,7 @@ func (s *Service) AuthenticateAPIToken(
 			permissions[scope] = true
 		}
 	}
-	if !permissions[needed] {
+	if needed != "" && !permissions[needed] {
 		return Principal{}, ErrForbidden
 	}
 	result, err := s.exec(ctx, tx, `
@@ -135,8 +135,16 @@ func (s *Service) AuthenticateAPIToken(
 		UserID: userID, WorkspaceID: workspaceID, Role: role,
 		Permissions: permissions, AuthMethod: "api_token", TokenID: tokenID,
 	}
+	usedScopes := []Permission{needed}
+	if needed == "" {
+		usedScopes = make([]Permission, 0, len(permissions))
+		for scope := range permissions {
+			usedScopes = append(usedScopes, scope)
+		}
+		usedScopes = normalizeScopes(usedScopes)
+	}
 	if err := s.auditToken(
-		ctx, tx, principal, tokenID, "used", []Permission{needed}, audit, now,
+		ctx, tx, principal, tokenID, "used", usedScopes, audit, now,
 	); err != nil {
 		return Principal{}, err
 	}

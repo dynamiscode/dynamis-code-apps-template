@@ -33,6 +33,9 @@ feature use case are complete.
 - Keep server MCP persistent, bearer-authenticated, and authoritative. WebMCP
   is a separate optional browser-tab enhancement using the live session and
   DOM; it does not change MCP scopes, tools, transport, or CLI behavior.
+- Keep server MCP persistent, bearer-authenticated, and authoritative. WebMCP
+  is a separate optional browser-tab enhancement using the live session and
+  DOM; it does not change MCP scopes, tools, transport, or CLI behavior.
 - Audit tool calls with principal, workspace, credential/client reference,
   tool/version, trace/request ID, target, annotations, outcome, duration, and
   redacted error category.
