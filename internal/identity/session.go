@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"time"
 
+	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
+
+const maxActiveSessionsPerUser = 10
 
 func (s *Service) CreateSession(
 	ctx context.Context,
@@ -54,6 +57,9 @@ func (s *Service) CreateSession(
 		return NewSession{}, err
 	}
 	defer tx.Rollback()
+	if err := s.enforceSessionLimit(ctx, tx, userID, now, audit); err != nil {
+		return NewSession{}, err
+	}
 	if _, err := s.exec(ctx, tx, `
 		INSERT INTO sessions (
 			id, user_id, secret_hash, csrf_hash, auth_method,
@@ -76,6 +82,61 @@ func (s *Service) CreateSession(
 		return NewSession{}, err
 	}
 	return session, nil
+}
+
+func (s *Service) enforceSessionLimit(
+	ctx context.Context,
+	tx *sql.Tx,
+	userID string,
+	now time.Time,
+	audit AuditContext,
+) error {
+	lockQuery := "SELECT id FROM users WHERE id = ?"
+	if s.driver == config.Postgres {
+		lockQuery += " FOR UPDATE"
+	}
+	var lockedUserID string
+	if err := tx.QueryRowContext(ctx, s.bind(lockQuery), userID).Scan(&lockedUserID); err != nil {
+		return err
+	}
+	rows, err := tx.QueryContext(ctx, s.bind(`
+		SELECT id FROM sessions
+		WHERE user_id = ? AND revoked_at IS NULL AND expires_at > ?
+		ORDER BY created_at DESC, id DESC
+	`), userID, timestamp(now))
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	var active []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
+		active = append(active, id)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(active) < maxActiveSessionsPerUser {
+		return nil
+	}
+	for _, sessionID := range active[maxActiveSessionsPerUser-1:] {
+		if _, err := s.exec(ctx, tx, `UPDATE sessions SET revoked_at = ? WHERE id = ?`,
+			timestamp(now), sessionID); err != nil {
+			return err
+		}
+		if err := s.audit(ctx, tx, AuditEvent{
+			EventType: "session.limit_revoked", ActorUserID: userID,
+			AuthMethod: "system", TargetType: "session", TargetID: sessionID,
+			Action: "session.revoke", Outcome: "success", RequestID: audit.RequestID,
+			SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Service) AuthenticateSession(

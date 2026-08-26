@@ -50,12 +50,28 @@ func TestHTTPMetricsTraceCorrelationAndRedaction(t *testing.T) {
 	request.Header.Set("traceparent", "00-0123456789abcdef0123456789abcdef-0123456789abcdef-01")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
+	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.WriteHeader(http.StatusNoContent)
+	}))
+	defer upstream.Close()
+	client := &http.Client{Transport: HTTPClientTransport(nil)}
+	clientRequest, err := http.NewRequestWithContext(
+		context.Background(), http.MethodGet, upstream.URL+"/private/"+secret, nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientResponse, err := client.Do(clientRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientResponse.Body.Close()
 
 	ended := spans.Ended()
-	if len(ended) != 1 || ended[0].SpanContext().TraceID().String() != "0123456789abcdef0123456789abcdef" {
+	if len(ended) != 2 || ended[0].SpanContext().TraceID().String() != "0123456789abcdef0123456789abcdef" {
 		t.Fatalf("ended spans = %+v", ended)
 	}
-	spanEvidence := fmt.Sprintf("%+v", ended[0].Attributes())
+	spanEvidence := fmt.Sprintf("%+v", ended)
 	if strings.Contains(spanEvidence, secret) || strings.Contains(spanEvidence, request.URL.Path) {
 		t.Fatalf("span leaked request data: %s", spanEvidence)
 	}
@@ -67,6 +83,7 @@ func TestHTTPMetricsTraceCorrelationAndRedaction(t *testing.T) {
 	evidence := fmt.Sprintf("%+v", metrics)
 	for _, name := range []string{
 		"http.server.request.count", "http.server.request.duration",
+		"http.client.request.count", "http.client.request.duration",
 		"auth.failure.count", "database.health.check.count",
 		"database.health.check.duration", "realtime.stream.rejected.count",
 		"resource.limit.rejected.count",

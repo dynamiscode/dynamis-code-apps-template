@@ -33,7 +33,7 @@ focused tests, canonical documentation, and linked capability evidence.
 | 03 HTTP and REST | complete | [HTTP and REST](docs/implementation/03-http-and-rest.md) | 01, 02 authorization boundary |
 | 04 Web, realtime, accessibility | complete | [Web, realtime, accessibility](docs/implementation/04-web-realtime-accessibility.md) | 02, 03 |
 | 05 MCP and CLI | complete | [MCP and CLI](docs/implementation/05-mcp-and-cli.md) | 02, 03, one shared use case from 04 |
-| 06 Operations and data lifecycle | pending | [Operations and data lifecycle](docs/implementation/06-operations-and-data-lifecycle.md) | 01-05 |
+| 06 Operations and data lifecycle | complete | [Operations and data lifecycle](docs/implementation/06-operations-and-data-lifecycle.md) | 01-05 |
 | 07 Delivery and handoff | pending | [Delivery and handoff](docs/implementation/07-delivery-and-handoff.md) | 01-06 |
 
 ## Global acceptance

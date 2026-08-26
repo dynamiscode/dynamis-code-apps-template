@@ -46,8 +46,9 @@ PostgreSQL migrations take a transaction-scoped advisory lock. PostgreSQL is
 required before multiple application instances.
 
 Migrations are forward-only and run in one transaction. Applied versions and
-UTC timestamps live in `schema_migrations`. Phase 06 adds complete rolling
-upgrade, backup, and restore behavior.
+UTC timestamps live in `schema_migrations`. Upgrades use a documented
+stop-the-world procedure; SQLite snapshots and PostgreSQL dumps have separate
+verified restore paths.
 
 ## IDs, time, and transactions
 
@@ -64,7 +65,6 @@ Go's two-release support window. Version sources:
 [Go downloads](https://go.dev/dl/) and
 [Go release policy](https://go.dev/doc/devel/release).
 
-## Not implemented
-
-Operational data lifecycle, complete telemetry, containers, and releases
-belong to later phases in `PLAN.md`.
+OpenTelemetry instrumentation runs without requiring a backend. Bounded
+workspace export, retention maintenance, and backup/restore remain platform
+services; no broker, cache, job system, or observability stack is bundled.

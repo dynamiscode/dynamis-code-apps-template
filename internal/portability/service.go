@@ -124,7 +124,7 @@ func (s *Service) Export(
 	}
 	records := 1 + len(result.Members) + len(result.Items) + len(result.AuditEvents)
 	encoded, encodeErr := json.Marshal(result)
-	if records > s.maxRecords || encodeErr == nil && len(encoded) > s.maxBytes {
+	if records > s.maxRecords || (encodeErr == nil && len(encoded) > s.maxBytes) {
 		if err := s.recordAudit(ctx, tx, actor, workspaceID, "failure", audit, result.ExportedAt); err != nil {
 			return nil, err
 		}

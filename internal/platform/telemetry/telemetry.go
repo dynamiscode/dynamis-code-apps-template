@@ -28,6 +28,8 @@ var (
 	meter                      = otel.Meter(instrumentationName)
 	httpRequests, _            = meter.Int64Counter("http.server.request.count")
 	httpDuration, _            = meter.Float64Histogram("http.server.request.duration", metric.WithUnit("s"))
+	httpClientRequests, _      = meter.Int64Counter("http.client.request.count")
+	httpClientDuration, _      = meter.Float64Histogram("http.client.request.duration", metric.WithUnit("s"))
 	authFailures, _            = meter.Int64Counter("auth.failure.count")
 	databaseChecks, _          = meter.Int64Counter("database.health.check.count")
 	databaseDuration, _        = meter.Float64Histogram("database.health.check.duration", metric.WithUnit("s"))
@@ -35,6 +37,10 @@ var (
 	streamRejections, _        = meter.Int64Counter("realtime.stream.rejected.count")
 	resourceLimitRejections, _ = meter.Int64Counter("resource.limit.rejected.count")
 )
+
+type roundTripper struct {
+	base http.RoundTripper
+}
 
 type Provider struct {
 	traces  *sdktrace.TracerProvider
@@ -120,6 +126,39 @@ func HTTPHandler(next http.Handler) http.Handler {
 		}
 		span.End()
 	})
+}
+
+func HTTPClientTransport(base http.RoundTripper) http.RoundTripper {
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	return &roundTripper{base: base}
+}
+
+func (transport *roundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+	ctx, span := otel.Tracer(instrumentationName).Start(
+		request.Context(), "HTTP "+request.Method,
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(attribute.String("http.request.method", request.Method)),
+	)
+	started := time.Now()
+	response, err := transport.base.RoundTrip(request.Clone(ctx))
+	status := 0
+	if response != nil {
+		status = response.StatusCode
+		span.SetAttributes(attribute.Int("http.response.status_code", status))
+	}
+	attributes := metric.WithAttributes(
+		attribute.String("http.request.method", request.Method),
+		attribute.Int("http.response.status_code", status),
+	)
+	httpClientRequests.Add(ctx, 1, attributes)
+	httpClientDuration.Record(ctx, time.Since(started).Seconds(), attributes)
+	if err != nil || status >= http.StatusInternalServerError {
+		span.SetStatus(codes.Error, "outbound request failed")
+	}
+	span.End()
+	return response, err
 }
 
 func RecordDatabaseHealth(ctx context.Context, healthy bool, duration time.Duration) {

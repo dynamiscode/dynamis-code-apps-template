@@ -11,6 +11,10 @@ begins. Changes require restart.
 | `DATABASE_URL` | PostgreSQL URL | none | PostgreSQL only | Yes |
 | `DATABASE_MAX_OPEN_CONNS` | integer 1-64 | `4` | No | No |
 | `DATABASE_MAX_IDLE_CONNS` | integer 1-64, not above open limit | `2` | No | No |
+| `BOOTSTRAP_ADMIN_EMAIL` | email | none | With other admin variables | No |
+| `BOOTSTRAP_ADMIN_WORKSPACE` | workspace name, 1-120 characters | none | With other admin variables | No |
+| `BOOTSTRAP_ADMIN_PASSWORD` | password, 12-1024 characters | none | With other admin variables | Yes |
+| `BOOTSTRAP_SETUP_TOKEN` | non-empty setup secret | none | No | Yes |
 | `OIDC_ENABLED` | boolean | `false` | No | No |
 | `OIDC_PROVIDER_ID` | lowercase stable identifier | none | OIDC only | No |
 | `OIDC_PROVIDER_NAME` | display label, 1-80 characters | none | OIDC only | No |
@@ -55,6 +59,12 @@ begins. Changes require restart.
 
 SQLite always uses one open and one idle connection regardless of pool
 variables because one instance owns the file.
+
+The three `BOOTSTRAP_ADMIN_*` variables enable unattended first-owner
+bootstrap only when all are non-empty. A partial set fails startup; an empty
+set leaves browser or CLI bootstrap available. `BOOTSTRAP_SETUP_TOKEN` enables
+the protected browser form for an unbootstrapped database. After bootstrap,
+these values do not overwrite database records.
 
 ## SQLite
 

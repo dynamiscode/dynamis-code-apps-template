@@ -68,6 +68,37 @@ func TestLoadMigrationsRejectsDuplicateVersion(t *testing.T) {
 	}
 }
 
+func TestSQLiteMigrationFailureRollsBack(t *testing.T) {
+	t.Parallel()
+
+	db, err := Open(context.Background(), config.Database{
+		Driver: config.SQLite, SQLitePath: filepath.Join(t.TempDir(), "app.db"),
+		MaxOpenConns: 1, MaxIdleConns: 1,
+	})
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	err = migrateFS(context.Background(), db, config.SQLite, fstest.MapFS{
+		"migrations/000001_interrupted.sql": {Data: []byte(
+			"CREATE TABLE interrupted (id TEXT); INSERT INTO missing_table VALUES (1);",
+		)},
+	})
+	if err == nil {
+		t.Fatal("migrateFS() error = nil, want failure")
+	}
+	var count int
+	if err := db.QueryRow(
+		"SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'interrupted'",
+	).Scan(&count); err != nil {
+		t.Fatalf("query interrupted table: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("interrupted table count = %d, want 0", count)
+	}
+}
+
 func TestOpenRejectsPostgresURLWithoutLeakingSecret(t *testing.T) {
 	t.Parallel()
 

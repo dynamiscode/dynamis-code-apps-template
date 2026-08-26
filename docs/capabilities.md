@@ -29,14 +29,14 @@ must contain no pending groups before `STANDARDS.md` is deleted.
 | Data governance, portability, deletion, archive, and restoration | bootstrap, operational | 06 | conforming | [Data lifecycle](data-lifecycle.md), [export tests](../internal/portability/service_test.go), [item lifecycle tests](../internal/items/service_test.go) |
 | Configuration and secrets | bootstrap, recurring | 01 | conforming | [Configuration](configuration.md), [validation tests](../internal/platform/config/config_test.go), safe `.env.example` |
 | HTTP limits, request IDs, timeouts, headers, and abuse controls | bootstrap, recurring | 03 | conforming | [HTTP component tests](../internal/httpapi/handler_test.go), [configuration](configuration.md) |
-| Traces, metrics, logs, health, shutdown, and operational targets | bootstrap, operational | 06 | pending | Telemetry and lifecycle tests |
+| Traces, metrics, logs, health, shutdown, and operational targets | bootstrap, operational | 06 | conforming | [Telemetry tests](../internal/platform/telemetry/telemetry_test.go), [operations and measurements](operations.md) |
 | RFC 9457, collections, conditional writes, and idempotency | bootstrap, recurring | 03 | conforming | [API contract](api.md), [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go), [item service tests](../internal/items/service_test.go) |
 | Contract lifecycle and deprecation | recurring | 03 | conforming | [Compatibility policy](api.md#compatibility), [generation drift test](../api/contract_test.go) |
-| Long-running operations | bootstrap, triggered | 06 | pending | Operation state and authorization tests |
+| Long-running operations | bootstrap, triggered | 06 | not applicable | Current work is request-bounded; [trigger and rationale](data-lifecycle.md#portability) |
 | Realtime delivery | bootstrap, recurring | 04 | conforming | [SSE contract](web.md#realtime-contract), [scope/reconnect/heartbeat/limit tests](../internal/web/handler_test.go) |
-| Quotas and resource limits | bootstrap, operational | 06 | pending | Limit enforcement and observability tests |
-| Audit events | bootstrap, recurring | 02, 06 | pending | Redaction, append-only, and access tests |
-| Backup, restore, upgrades, RPO, and RTO | operational | 06 | pending | Automated isolated restore evidence |
+| Quotas and resource limits | bootstrap, operational | 06 | conforming | [Limit tests](../internal/httpapi/handler_test.go), [session tests](../internal/identity/service_test.go), [resource limits](operations.md#health-telemetry-and-limits) |
+| Audit events | bootstrap, recurring | 02, 06 | conforming | [Identity audit tests](../internal/identity/service_test.go), [retention tests](../internal/platform/maintenance/maintenance_test.go), [access/deletion rules](data-lifecycle.md) |
+| Backup, restore, upgrades, RPO, and RTO | operational | 06 | conforming | [SQLite/PostgreSQL restore tests](../internal/platform/backup/backup_test.go), [operator procedures](operations.md#backup-and-restore) |
 | WCAG 2.2 AA accessibility | bootstrap, recurring | 04, 07 | conforming | [Automated runner](../scripts/accessibility.mjs), [dated automated and manual evidence](accessibility.md) |
 | Containers and deployment | bootstrap, operational | 07 | pending | Image and deployment smoke evidence |
 | CI, release security, SBOM, provenance, signatures, checksums | operational | 07 | pending | Release workflow evidence |

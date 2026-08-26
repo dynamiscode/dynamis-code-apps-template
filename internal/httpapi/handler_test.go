@@ -49,6 +49,15 @@ func TestHTTPContracts(t *testing.T) {
 	}
 	conflict := serveAuthorized(handler, http.MethodPost, collection, `{"title":"Changed"}`, token, map[string]string{"Idempotency-Key": "key-12345678"})
 	assertProblem(t, conflict, http.StatusConflict, "idempotency-conflict")
+	exported := serveAuthorized(handler, http.MethodGet,
+		"/api/v1/workspaces/"+workspaceID+"/export", "", token, nil)
+	if exported.Code != http.StatusOK || exported.Header().Get("Cache-Control") != "no-store" ||
+		!strings.Contains(exported.Header().Get("Content-Disposition"), "attachment") ||
+		!strings.Contains(exported.Body.String(), item.ID) ||
+		!strings.Contains(exported.Body.String(), portability.FormatVersion) ||
+		strings.Contains(exported.Body.String(), token) {
+		t.Fatalf("export response = %d, headers %v, body %s", exported.Code, exported.Header(), exported.Body.String())
+	}
 	unsupported := serveAuthorized(handler, http.MethodGet, collection+"?filter=no", "", token, nil)
 	assertProblem(t, unsupported, http.StatusBadRequest, "invalid-request")
 

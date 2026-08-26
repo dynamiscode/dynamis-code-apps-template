@@ -249,6 +249,42 @@ func TestSessionLifecycleAndCookiePolicy(t *testing.T) {
 	}
 }
 
+func TestSessionLimitRevokesOldest(t *testing.T) {
+	service, db := newTestService(t)
+	ctx := context.Background()
+	bootstrap := bootstrapOwner(t, service)
+	start := time.Date(2026, 8, 25, 12, 0, 0, 0, time.UTC)
+	service.now = func() time.Time { return start }
+
+	var first NewSession
+	for index := 0; index <= maxActiveSessionsPerUser; index++ {
+		service.now = func() time.Time { return start.Add(time.Duration(index) * time.Second) }
+		created, err := service.CreateSession(
+			ctx, bootstrap.UserID, "local", "", time.Hour, AuditContext{},
+		)
+		if err != nil {
+			t.Fatalf("CreateSession(%d) error = %v", index, err)
+		}
+		if index == 0 {
+			first = created
+		}
+	}
+	if _, err := service.AuthenticateSession(ctx, first.Secret); !errors.Is(err, ErrInvalidSession) {
+		t.Fatalf("oldest session error = %v, want ErrInvalidSession", err)
+	}
+	var active int
+	if err := db.QueryRow(`
+		SELECT COUNT(*) FROM sessions
+		WHERE user_id = ? AND revoked_at IS NULL AND expires_at > ?
+	`, bootstrap.UserID, timestamp(service.now())).Scan(&active); err != nil {
+		t.Fatalf("count active sessions: %v", err)
+	}
+	if active != maxActiveSessionsPerUser {
+		t.Fatalf("active sessions = %d, want %d", active, maxActiveSessionsPerUser)
+	}
+	assertAuditEvent(t, db, "session.limit_revoked")
+}
+
 func TestInvitationLifecycle(t *testing.T) {
 	service, db := newTestService(t)
 	ctx := context.Background()

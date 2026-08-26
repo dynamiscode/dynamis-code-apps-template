@@ -16,7 +16,8 @@ machine contract is [`api/openapi.json`](../api/openapi.json).
   list, create, read, and update behavior.
 API resources use `Authorization: Bearer <token>`. The token must belong to the
 path workspace and include the required `resources:read` or `resources:write`
-scope. Browser session rules are documented in [authentication](authentication.md).
+scope. Export requires `workspace:export`. Browser session rules are
+documented in [authentication](authentication.md).
 
 - `GET /api/v1/workspaces/{workspaceId}/export` returns the bounded versioned
   workspace export described in [data lifecycle](data-lifecycle.md).

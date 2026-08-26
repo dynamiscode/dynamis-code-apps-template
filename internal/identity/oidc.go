@@ -14,6 +14,7 @@ import (
 
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
+	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
@@ -553,7 +554,7 @@ func safeOIDCHTTPClient() *http.Client {
 		ResponseHeaderTimeout: 5 * time.Second,
 	}
 	return &http.Client{
-		Transport: transport,
+		Transport: telemetry.HTTPClientTransport(transport),
 		Timeout:   10 * time.Second,
 		CheckRedirect: func(request *http.Request, _ []*http.Request) error {
 			return validatePublicHTTPSURL(request.URL.String())

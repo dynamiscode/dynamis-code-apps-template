@@ -29,7 +29,16 @@ func Migrate(
 	db *sql.DB,
 	driver config.DatabaseDriver,
 ) error {
-	migrations, err := loadMigrations(migrationFiles)
+	return migrateFS(ctx, db, driver, migrationFiles)
+}
+
+func migrateFS(
+	ctx context.Context,
+	db *sql.DB,
+	driver config.DatabaseDriver,
+	source fs.FS,
+) error {
+	migrations, err := loadMigrations(source)
 	if err != nil {
 		return err
 	}

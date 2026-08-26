@@ -1,7 +1,7 @@
 # Dynamis Code Apps Template
 
-Status: Phase 05 agent surfaces. Identity, REST, accessible web/realtime, MCP,
-and the remote CLI work; operations and delivery remain pending.
+Status: Phase 06 operations and data lifecycle complete. Delivery and final
+handoff remain pending.
 
 The repository implements a reusable Go web-application template with a small
 default footprint and explicit paths to larger deployments. The temporary
@@ -48,6 +48,10 @@ go test -race ./...
   dated [accessibility evidence](docs/accessibility.md).
 - Review agent and automation behavior in [docs/mcp.md](docs/mcp.md) and
   [docs/cli.md](docs/cli.md).
+- Operate and recover the application with
+  [docs/operations.md](docs/operations.md),
+  [docs/data-lifecycle.md](docs/data-lifecycle.md), and
+  [docs/deployment.md](docs/deployment.md).
 - Track planned and deferred capabilities in
   [docs/capabilities.md](docs/capabilities.md).
 - Review accepted technology choices in

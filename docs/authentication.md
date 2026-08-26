@@ -6,22 +6,52 @@ instance administration never grants workspace access.
 ## First owner
 
 Bootstrap runs once and creates the first user, workspace, and owner membership
-in one transaction. It has no default password. Set the password through the
-environment without putting it in command arguments:
+and instance-admin record in one transaction. It has no default credentials.
+Choose one of these deployment-safe paths:
+
+### Environment bootstrap
+
+Set all three admin variables before starting the server. The application
+creates the first owner before accepting traffic:
 
 ```sh
-read -s BOOTSTRAP_PASSWORD
-export BOOTSTRAP_PASSWORD
-go run ./cmd/bootstrap-admin \
-  -email owner@example.com \
-  -workspace Example \
-  -instance-admin
-unset BOOTSTRAP_PASSWORD
+export BOOTSTRAP_ADMIN_EMAIL=owner@example.com
+export BOOTSTRAP_ADMIN_WORKSPACE=Example
+read -s BOOTSTRAP_ADMIN_PASSWORD
+export BOOTSTRAP_ADMIN_PASSWORD
+go run ./cmd/server
+unset BOOTSTRAP_ADMIN_PASSWORD
 ```
 
-`-instance-admin` is optional and grants separate installation authority. Any
-authenticated user may create another workspace and becomes its owner.
-Environment, browser, and CLI paths grant the first user separate instance administration as well
+### Browser setup
+
+Set a deployment secret before starting an empty instance, then open `/setup`.
+The form accepts the setup token, email, workspace name, and password. The
+token is not stored in the database; the route disables itself after successful
+bootstrap:
+
+```sh
+read -s BOOTSTRAP_SETUP_TOKEN
+export BOOTSTRAP_SETUP_TOKEN
+go run ./cmd/server
+unset BOOTSTRAP_SETUP_TOKEN
+```
+
+### CLI fallback
+
+The explicit command remains useful for operators with shell access. Its
+password is still supplied through the environment, never an argument:
+
+```sh
+read -s BOOTSTRAP_ADMIN_PASSWORD
+export BOOTSTRAP_ADMIN_PASSWORD
+go run ./cmd/bootstrap-admin \
+  -email owner@example.com \
+  -workspace Example
+unset BOOTSTRAP_ADMIN_PASSWORD
+```
+
+All three paths grant the first user separate instance administration as well
 as owner membership. Instance administration never grants workspace access.
 When the database is already bootstrapped, bootstrap variables are ignored and
 `/setup` is disabled. Any authenticated user may create another workspace and
@@ -63,6 +93,7 @@ Roles are protected permission collections:
 | Read workspace, members, resources | yes | yes | yes | yes |
 | Write normal resources | yes | yes | yes | no |
 | Update workspace, manage members and invitations | yes | yes | no | no |
+| Export workspace data | yes | yes | no | no |
 | Delete workspace or transfer ownership | yes | no | no | no |
 
 Checks deny by default and require an explicit workspace. Tokens are
@@ -117,5 +148,5 @@ Bootstrap, workspace creation, membership and ownership changes, session
 creation/revocation, invitation lifecycle, token lifecycle/use, and external
 identity creation/linking append audit events. Metadata contains role, scope,
 provider ID, or outcome only—never credential values or authorization headers.
-Audit access, retention, export, and deletion remain part of Phase 06 data
-lifecycle work.
+Audit access, retention, export, and deletion are defined in
+[data lifecycle](data-lifecycle.md) and [operations](operations.md).

@@ -41,3 +41,6 @@
   deletion, and authenticated database-backed SSE change delivery.
 - Authenticated stateless MCP item tools with bounded contracts, approval and
   audit controls, plus the REST-only `appctl` client.
+- OpenTelemetry traces and metrics, resource quotas, bounded workspace export,
+  retention maintenance, interruption-safe migrations, and verified SQLite
+  and PostgreSQL backup/restore paths.

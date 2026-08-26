@@ -117,5 +117,6 @@ It sends redacted resource references, not item titles or credentials.
   `close` event and normal EventSource reconnection applies.
 
 Permanent delete removes the live item and writes a redacted audit/change
-event. Existing backups may retain deleted content until their documented
-Phase 06 retention expiry; live deletion does not rewrite prior backups.
+event. Existing backups may retain deleted content until the expiry defined in
+[data lifecycle](data-lifecycle.md); live deletion does not rewrite prior
+backups.
