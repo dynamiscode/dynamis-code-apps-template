@@ -14,7 +14,7 @@ begins. Changes require restart.
 | `BOOTSTRAP_ADMIN_EMAIL` | email | none | With other admin variables | No |
 | `BOOTSTRAP_ADMIN_WORKSPACE` | workspace name, 1-120 characters | none | With other admin variables | No |
 | `BOOTSTRAP_ADMIN_PASSWORD` | password, 12-1024 characters | none | With other admin variables | Yes |
-| `BOOTSTRAP_SETUP_TOKEN` | non-empty setup secret | none | No | Yes |
+| `BOOTSTRAP_SETUP_TOKEN` | non-empty setup secret for remote browser setup | none | No | Yes |
 | `OIDC_ENABLED` | boolean | `false` | No | No |
 | `OIDC_PROVIDER_ID` | lowercase stable identifier | none | OIDC only | No |
 | `OIDC_PROVIDER_NAME` | display label, 1-80 characters | none | OIDC only | No |
@@ -62,9 +62,10 @@ variables because one instance owns the file.
 
 The three `BOOTSTRAP_ADMIN_*` variables enable unattended first-owner
 bootstrap only when all are non-empty. A partial set fails startup; an empty
-set leaves browser or CLI bootstrap available. `BOOTSTRAP_SETUP_TOKEN` enables
-the protected browser form for an unbootstrapped database. After bootstrap,
-these values do not overwrite database records.
+set leaves loopback browser or CLI bootstrap available. `BOOTSTRAP_SETUP_TOKEN`
+enables the protected browser form for remote requests; local loopback browser
+setup does not need it. After bootstrap, these values do not overwrite database
+records.
 
 ## SQLite
 

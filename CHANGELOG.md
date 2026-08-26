@@ -32,6 +32,8 @@
 ## 0.1.0 - 2026-08-25
 ### Added
 
+- Deployment-friendly first-owner bootstrap through environment variables,
+  protected browser setup, and the existing CLI fallback.
 - Portable SQLite/PostgreSQL foundation and explicit application composition.
 - Local authentication, optional OIDC, workspace roles, secure sessions,
   invitations, scoped API tokens, and audit events.

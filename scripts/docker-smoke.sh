@@ -12,6 +12,9 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+BOOTSTRAP_ADMIN_EMAIL=smoke@example.com \
+BOOTSTRAP_ADMIN_WORKSPACE=Smoke \
+BOOTSTRAP_ADMIN_PASSWORD=smoke-password-123 \
 APP_PORT="$requested_port" docker compose -p "$project" up --build --detach
 if [ "$port" = "0" ]; then
   port="$(docker compose -p "$project" port app 8080 | head -1 | awk -F: '{print $NF}')"
@@ -30,9 +33,6 @@ done
 curl --fail --silent --show-error "http://127.0.0.1:$port/health/live" >/dev/null
 curl --fail --silent --show-error "http://127.0.0.1:$port/api/openapi.json" | grep -q '"openapi":"3.1.0"\|"openapi": "3.1.0"'
 
-APP_PORT="$requested_port" docker compose -p "$project" exec -T \
-  -e BOOTSTRAP_PASSWORD=smoke-password-123 app /bootstrap-admin \
-  -email smoke@example.com -workspace Smoke >/dev/null
 curl --fail --silent --show-error -c "$cookies" "http://127.0.0.1:$port/login" >/dev/null
 login_csrf="$(awk '$6 == "login_csrf" { print $7 }' "$cookies")"
 home="$(curl --fail --silent --show-error -L -b "$cookies" -c "$cookies" \

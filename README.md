@@ -8,16 +8,18 @@ a REST-only CLI, SQLite by default, and an optional PostgreSQL deployment.
 Requirements: Docker with Compose.
 
 ```sh
+export BOOTSTRAP_ADMIN_EMAIL=owner@example.com
+export BOOTSTRAP_ADMIN_WORKSPACE='My Workspace'
+read -s BOOTSTRAP_ADMIN_PASSWORD; export BOOTSTRAP_ADMIN_PASSWORD
 docker compose up --build -d
-read -s BOOTSTRAP_PASSWORD; export BOOTSTRAP_PASSWORD
-docker compose exec -e BOOTSTRAP_PASSWORD app /bootstrap-admin \
-  -email owner@example.com -workspace 'My Workspace'
-unset BOOTSTRAP_PASSWORD
+unset BOOTSTRAP_ADMIN_PASSWORD
 ```
 
 Open <http://localhost:8080/login>. Data persists in the `app-data` volume.
-See [deployment](docs/deployment.md) for PostgreSQL, TLS, and production
-boundaries.
+The container listens on `0.0.0.0`, so a no-shell or remote deployment must set
+`BOOTSTRAP_SETUP_TOKEN` in the platform environment before opening `/setup`, or
+set all three admin variables for unattended bootstrap. See
+[deployment](docs/deployment.md) for PostgreSQL, TLS, and production boundaries.
 
 ## Run from source
 
@@ -29,14 +31,20 @@ set -a; . ./.env; set +a
 go run ./cmd/server
 ```
 
-Create the first owner in another terminal:
+Create the first owner through environment bootstrap:
 
 ```sh
-read -s BOOTSTRAP_PASSWORD; export BOOTSTRAP_PASSWORD
-go run ./cmd/bootstrap-admin \
-  -email owner@example.com -workspace 'My Workspace'
-unset BOOTSTRAP_PASSWORD
+export BOOTSTRAP_ADMIN_EMAIL=owner@example.com
+export BOOTSTRAP_ADMIN_WORKSPACE='My Workspace'
+read -s BOOTSTRAP_ADMIN_PASSWORD; export BOOTSTRAP_ADMIN_PASSWORD
+go run ./cmd/server
+unset BOOTSTRAP_ADMIN_PASSWORD
 ```
+
+With the default loopback address, an empty database also redirects
+`/login` to `/setup`; no setup token is required for that local browser flow.
+
+The CLI fallback is documented in [authentication](docs/authentication.md).
 
 Health endpoints are `/health/live` and `/health/ready`; OpenAPI is
 `/api/openapi.json`. Press `Ctrl-C` for graceful shutdown.

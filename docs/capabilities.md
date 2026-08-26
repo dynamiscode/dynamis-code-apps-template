@@ -91,7 +91,7 @@ Verified 2026-08-25 with Go 1.27.0 and PostgreSQL 14.24:
 
 Verified 2026-08-25 with Go 1.27.0 and PostgreSQL 14.24:
 
-- atomic first-owner command smoke with no default password
+- atomic first-owner environment, local loopback browser-setup, protected remote browser-setup, and CLI smoke with no default credentials
 - complete owner/admin/member/viewer, missing-membership, wrong-workspace,
   token-scope, role-change, credential-revocation, and final-owner matrix
 - invitation expiry, duplicate prevention, resend rotation, acceptance,

@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"unicode"
 )
 
 var markdownLink = regexp.MustCompile(`\[[^]]*\]\(([^)[:space:]]+)\)`)
@@ -99,17 +100,48 @@ func checkMarkdownLinks(t *testing.T, root string) {
 		content := readFile(t, path)
 		for _, match := range markdownLink.FindAllStringSubmatch(content, -1) {
 			target := strings.Trim(match[1], "<>")
-			if target == "" || strings.HasPrefix(target, "#") || strings.Contains(target, "://") || strings.HasPrefix(target, "mailto:") {
+			if target == "" || strings.Contains(target, "://") || strings.HasPrefix(target, "mailto:") {
 				continue
 			}
-			target, _, _ = strings.Cut(target, "#")
+			target, fragment, _ := strings.Cut(target, "#")
 			target, _, _ = strings.Cut(target, "?")
-			if _, err := os.Stat(filepath.Join(filepath.Dir(path), filepath.FromSlash(target))); err != nil {
+			resolved := path
+			if target != "" {
+				resolved = filepath.Join(filepath.Dir(path), filepath.FromSlash(target))
+			}
+			if _, err := os.Stat(resolved); err != nil {
 				relative, _ := filepath.Rel(root, path)
 				t.Errorf("%s links missing %s", relative, target)
+				continue
+			}
+			if fragment != "" && strings.HasSuffix(resolved, ".md") && !hasAnchor(readFile(t, resolved), fragment) {
+				relative, _ := filepath.Rel(root, path)
+				t.Errorf("%s links missing anchor %s#%s", relative, target, fragment)
 			}
 		}
 	}
+}
+
+func hasAnchor(content string, want string) bool {
+	for _, line := range strings.Split(content, "\n") {
+		if !strings.HasPrefix(line, "#") {
+			continue
+		}
+		heading := strings.TrimSpace(strings.TrimLeft(line, "#"))
+		var anchor strings.Builder
+		for _, character := range strings.ToLower(heading) {
+			switch {
+			case unicode.IsLetter(character), unicode.IsNumber(character), character == '-':
+				anchor.WriteRune(character)
+			case unicode.IsSpace(character):
+				anchor.WriteByte('-')
+			}
+		}
+		if anchor.String() == want {
+			return true
+		}
+	}
+	return false
 }
 
 func checkSkills(t *testing.T, root string) {

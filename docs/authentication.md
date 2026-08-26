@@ -25,10 +25,11 @@ unset BOOTSTRAP_ADMIN_PASSWORD
 
 ### Browser setup
 
-Set a deployment secret before starting an empty instance, then open `/setup`.
-The form accepts the setup token, email, workspace name, and password. The
-token is not stored in the database; the route disables itself after successful
-bootstrap:
+For a source run on the default loopback address, open `/setup` on an empty
+database; no token is required and the form hides the token field. Remote
+requests, including container deployments, require a deployment secret before
+opening `/setup`. The token is not stored in the database and is compared in
+constant time:
 
 ```sh
 read -s BOOTSTRAP_SETUP_TOKEN
@@ -36,6 +37,10 @@ export BOOTSTRAP_SETUP_TOKEN
 go run ./cmd/server
 unset BOOTSTRAP_SETUP_TOKEN
 ```
+
+An unconfigured remote request receives a setup-required error that names the
+configuration options without revealing a secret. The route disables itself
+after successful bootstrap.
 
 ### CLI fallback
 
@@ -51,7 +56,7 @@ go run ./cmd/bootstrap-admin \
 unset BOOTSTRAP_ADMIN_PASSWORD
 ```
 
-All three paths grant the first user separate instance administration as well
+Environment, browser, and CLI paths grant the first user separate instance administration as well
 as owner membership. Instance administration never grants workspace access.
 When the database is already bootstrapped, bootstrap variables are ignored and
 `/setup` is disabled. Any authenticated user may create another workspace and

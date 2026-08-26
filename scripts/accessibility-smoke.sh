@@ -14,7 +14,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-BOOTSTRAP_PASSWORD=a11y-password-123 DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" \
+BOOTSTRAP_ADMIN_PASSWORD=a11y-password-123 DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" \
   go run ./cmd/bootstrap-admin -email a11y@example.com -workspace Accessibility >/dev/null
 DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" HTTP_ADDRESS="127.0.0.1:$port" \
   go run ./cmd/server >"$work/server.log" 2>&1 &

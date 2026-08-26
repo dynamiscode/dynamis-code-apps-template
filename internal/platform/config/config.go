@@ -101,6 +101,7 @@ type HTTP struct {
 	SSEMaxPerUser      int
 	MaxConcurrent      int
 }
+
 var providerIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,62}$`)
 
 type LookupEnv func(string) (string, bool)

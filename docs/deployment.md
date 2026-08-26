@@ -3,11 +3,25 @@
 ## SQLite: one instance
 
 ```sh
+export BOOTSTRAP_ADMIN_EMAIL=owner@example.com
+export BOOTSTRAP_ADMIN_WORKSPACE='My Workspace'
+read -s BOOTSTRAP_ADMIN_PASSWORD; export BOOTSTRAP_ADMIN_PASSWORD
 docker compose up --build -d
-read -s BOOTSTRAP_PASSWORD; export BOOTSTRAP_PASSWORD
-docker compose exec -e BOOTSTRAP_PASSWORD app /bootstrap-admin \
+unset BOOTSTRAP_ADMIN_PASSWORD
+```
+
+The container listens on `0.0.0.0`, so browser setup for Docker, Coolify, and
+other remote deployments requires `BOOTSTRAP_SETUP_TOKEN`. Set it instead of
+the three admin variables, deploy, and open `/setup`. This is the recommended
+path for platforms that provide environment configuration but no shell access.
+Source runs using the default loopback address can open `/setup` without a
+token. The CLI fallback is:
+
+```sh
+read -s BOOTSTRAP_ADMIN_PASSWORD; export BOOTSTRAP_ADMIN_PASSWORD
+docker compose exec app /bootstrap-admin \
   -email owner@example.com -workspace 'My Workspace'
-unset BOOTSTRAP_PASSWORD
+unset BOOTSTRAP_ADMIN_PASSWORD
 ```
 
 The non-root application listens on port 8080 and stores SQLite data in the
