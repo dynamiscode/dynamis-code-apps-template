@@ -44,3 +44,8 @@
 - OpenTelemetry traces and metrics, resource quotas, bounded workspace export,
   retention maintenance, interruption-safe migrations, and verified SQLite
   and PostgreSQL backup/restore paths.
+- Pinned non-root container images, SQLite and PostgreSQL Compose profiles,
+  automated delivery/security gates, semantic release artifacts, and
+  non-overwriting application generation with `template.lock` provenance.
+- Permanent maintenance, deployment, release, security, contribution, and
+  agent-context documentation.

@@ -1,47 +1,32 @@
-# Documentation and Context Router
+# Documentation Router
 
-The template is under construction. Documents under `docs/implementation/`
-are construction briefs; capability claims require linked evidence.
-
-## Choose context by task
+Read only the route needed for the change.
 
 | Task | Read | Skill |
 |---|---|---|
-| Start or complete a build phase | `PLAN.md`, active phase brief, linked `STANDARDS.md` sections | None; one-time construction stays in the plan |
-| Add an ordinary feature slice | Active phase, Sections 2, 3, 6, and 7 | `implement-go-feature` |
-| Change schema, migrations, queries, or repositories | Phase 01 or 06; Sections 4 and 5 | `change-go-data` |
-| Change authentication, authorization, workspaces, roles, sessions, invitations, tokens, or OIDC | Phase 02; Sections 4, 6, and 7 | `change-go-identity` |
-| Add or change MCP or CLI behavior | Phase 05; Sections 3, 7, and 9 | `change-go-agent-surfaces` |
-| Verify a phase, profile, release, or final handoff | `docs/capabilities.md`, active phase, Section 13 | `verify-template-conformance` |
-| Propose a deferred capability | `docs/capabilities.md`, Section 8 | None; confirm its trigger before planning implementation |
-| Change architecture or standards | Relevant accepted decision and `STANDARDS.md` | None; present options before editing the decision |
+| Add an ordinary feature slice | [Architecture](architecture.md), affected interface contract, [development](development.md) | `implement-go-feature` |
+| Change schema, migrations, repositories, retention, export, or restore | [Architecture](architecture.md), [data lifecycle](data-lifecycle.md), [operations](operations.md) | `change-go-data` |
+| Change authentication, authorization, workspaces, roles, credentials, or OIDC | [Authentication](authentication.md), [configuration](configuration.md), [security](../SECURITY.md) | `change-go-identity` |
+| Change MCP or CLI behavior | [API](api.md), [MCP](mcp.md), [CLI](cli.md) | `change-go-agent-surfaces` |
+| Change web, WebMCP, or realtime behavior | [Web](web.md), [accessibility](accessibility.md), [API](api.md) | `implement-go-feature` |
+| Deploy, operate, back up, restore, or upgrade | [Deployment](deployment.md), [operations](operations.md), [configuration](configuration.md) | None |
+| Generate, update, or release the template | [Template lifecycle](template-lifecycle.md), [release](release.md), [capabilities](capabilities.md) | `verify-template-conformance` for verification |
+| Propose a deferred capability | [Capabilities](capabilities.md), [decisions](decisions/README.md) | None; accept its trigger first |
 
-## Current sources of truth
+## Sources of truth
 
 | Concern | Source |
 |---|---|
-| Normative generation requirements | `STANDARDS.md` |
-| Accepted technology choices | `docs/decisions/` |
-| Construction order and status | `PLAN.md` |
-| Phase outcomes and gates | `docs/implementation/` |
-| Agent obligations | `AGENTS.md` |
-| Conformance status and deferred triggers | `docs/capabilities.md` |
+| Architecture and dependency boundaries | [Architecture](architecture.md), accepted [decisions](decisions/README.md) |
+| Runtime configuration | [Configuration](configuration.md), `internal/platform/config` |
+| HTTP contract | [OpenAPI](../api/openapi.json), [API](api.md) |
+| Database history | `internal/platform/database/migrations/` |
+| Authentication and authorization | [Authentication](authentication.md), shared identity policy |
+| Browser, WebMCP, and realtime behavior | [Web](web.md), [accessibility](accessibility.md) |
+| Agent surfaces | [MCP](mcp.md), [CLI](cli.md), optional [WebMCP contract](web.md#webmcp-progressive-enhancement) |
+| Operations and data lifecycle | [Operations](operations.md), [data lifecycle](data-lifecycle.md) |
+| Conformance and deferred triggers | [Capabilities](capabilities.md) |
 | Recurring procedures | `.agents/skills/` |
 
-Implemented sources: [architecture](architecture.md),
-[configuration](configuration.md), [authentication](authentication.md), and
-[HTTP and REST API](api.md), [web and realtime](web.md), and
-[accessibility evidence](accessibility.md), [MCP](mcp.md), and
-[remote CLI](cli.md), [data lifecycle](data-lifecycle.md),
-[operations](operations.md), and [deployment](deployment.md).
-As later phases land, code, tests, OpenAPI,
-migrations, deployment files, and final domain documents replace temporary
-sources defined by `STANDARDS.md` Section 12.
-
-## Documentation timing
-
-Create final application documents only when their behavior exists:
-`architecture.md`, `configuration.md`, `deployment.md`, `operations.md`,
-`authentication.md`, `api.md`, `mcp.md`, and `cli.md`. Replace this temporary
-construction workflow with the final `development.md`. Phase 07 verifies all
-links and removes temporary material only after the application is conforming.
+Behavior claims require code or runnable evidence. Link generated contracts and
+migrations; do not duplicate them in prose.

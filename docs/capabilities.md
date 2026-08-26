@@ -1,29 +1,28 @@
 # Capability and Conformance Ledger
 
-This ledger reports current evidence while the template is under construction.
+This ledger records implemented conformance evidence and deferred triggers.
 
 ## Profile status
 
 | Profile | Status | Evidence |
 |---|---|---|
-| Core | pending | Phases 01, 03, 04, 06, and 07 |
+| Core | conforming | [Foundation through delivery evidence](#phase-07-evidence) |
 | Identity | conforming | [Phase 02 evidence](#phase-02-evidence) |
 | Agent | conforming | [Phase 05 evidence](#phase-05-evidence) |
 | Production | not applicable | No deployment serves real users or durable data |
 
-`pending` is valid only during generation. `Core`, `Identity`, and `Agent`
-must contain no pending groups before `STANDARDS.md` is deleted.
+`Production` becomes applicable only when a deployment serves real users or
+durable production data and records its deployment-specific evidence.
 
 ## Required standard groups
 
 | Standard group | Lifecycle | Phase | Status | Evidence target |
 |---|---|---:|---|---|
 | Purpose, modular-monolith boundaries, scaling path | bootstrap, recurring | 01 | conforming | [Architecture](architecture.md), [composition test](../internal/bootstrap/app_test.go) |
- | Optional WebMCP browser enhancement | triggered, recurring | 04, 07 | pending | Browser registration, redaction, fallback, security-header, and smoke evidence |
-| Optional WebMCP browser enhancement | triggered, recurring | 04, 07 | pending | Browser registration, redaction, fallback, security-header, and smoke evidence |
- | Browser baseline surfaces | bootstrap, recurring | 02, 04, 06 | conforming | [Web routes and controls](web.md), [browser tests](../internal/web/handler_test.go) |
- | REST, MCP, and remote CLI interfaces | bootstrap, recurring | 03-05 | conforming | REST: [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go); [MCP tests](../internal/mcpserver/server_test.go); [CLI tests](../internal/appctl/run_test.go) |
- | Local authentication and OIDC service | bootstrap, recurring | 02 | conforming | [Authentication](authentication.md), [OIDC tests](../internal/identity/oidc_test.go), [configuration tests](../internal/platform/config/config_test.go) |
+| Optional WebMCP browser enhancement | triggered, recurring | 04, 07 | conforming | [WebMCP contract](web.md#webmcp-progressive-enhancement), [browser test](../internal/web/handler_test.go), [smoke](../scripts/webmcp-smoke.sh) |
+| Browser baseline surfaces | bootstrap, recurring | 02, 04, 06 | conforming | [Web routes and controls](web.md), [browser tests](../internal/web/handler_test.go) |
+| REST, MCP, and remote CLI interfaces | bootstrap, recurring | 03-05 | conforming | REST: [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go); [MCP tests](../internal/mcpserver/server_test.go); [CLI tests](../internal/appctl/run_test.go) |
+| Local authentication and OIDC service | bootstrap, recurring | 02 | conforming | [Authentication](authentication.md), [OIDC tests](../internal/identity/oidc_test.go), [configuration tests](../internal/platform/config/config_test.go) |
 | Permissions, roles, workspaces, invitations, sessions, and tokens service | bootstrap, recurring | 02 | conforming | [Authorization and lifecycle tests](../internal/identity/service_test.go), [PostgreSQL identity test](../internal/identity/postgres_test.go) |
 | SQLite, PostgreSQL, migrations, and rolling compatibility | bootstrap, recurring | 01, 06 | conforming | [Database tests](../internal/platform/database/migrate_test.go), [PostgreSQL tests](../internal/platform/database/postgres_test.go), [upgrade procedure](operations.md#upgrades-and-alerts) |
 | Data governance, portability, deletion, archive, and restoration | bootstrap, operational | 06 | conforming | [Data lifecycle](data-lifecycle.md), [export tests](../internal/portability/service_test.go), [item lifecycle tests](../internal/items/service_test.go) |
@@ -38,10 +37,10 @@ must contain no pending groups before `STANDARDS.md` is deleted.
 | Audit events | bootstrap, recurring | 02, 06 | conforming | [Identity audit tests](../internal/identity/service_test.go), [retention tests](../internal/platform/maintenance/maintenance_test.go), [access/deletion rules](data-lifecycle.md) |
 | Backup, restore, upgrades, RPO, and RTO | operational | 06 | conforming | [SQLite/PostgreSQL restore tests](../internal/platform/backup/backup_test.go), [operator procedures](operations.md#backup-and-restore) |
 | WCAG 2.2 AA accessibility | bootstrap, recurring | 04, 07 | conforming | [Automated runner](../scripts/accessibility.mjs), [dated automated and manual evidence](accessibility.md) |
-| Containers and deployment | bootstrap, operational | 07 | pending | Image and deployment smoke evidence |
-| CI, release security, SBOM, provenance, signatures, checksums | operational | 07 | pending | Release workflow evidence |
-| Documentation, context handoff, and sources of truth | bootstrap, recurring | 07 | pending | Link, drift, and context-routing checks |
-| Testing strategy and complete template acceptance | recurring, operational | 01-07 | pending | Phase 01 Go, vet, race, SQLite, PostgreSQL, and startup checks pass; later phase gates remain |
+| Containers and deployment | bootstrap, operational | 07 | conforming | Pinned [image](../Dockerfile), [SQLite Compose](../compose.yaml), [PostgreSQL overlay](../compose.postgres.yaml), [smoke](../scripts/docker-smoke.sh), and [deployment contract](deployment.md) |
+| CI, release security, SBOM, provenance, signatures, checksums | operational | 07 | conforming | [CI](../.github/workflows/ci.yml), [release workflow](../.github/workflows/release.yml), [dependency monitoring](../.github/dependabot.yml), [Scorecard](../.github/workflows/scorecard.yml), and [artifact verification](release.md) |
+| Documentation, context handoff, and sources of truth | bootstrap, recurring | 07 | conforming | [Router](README.md), [agent contract](../AGENTS.md), [handoff test](../internal/conformance/handoff_test.go), and permanent [skills](../.agents/skills/) |
+| Testing strategy and complete template acceptance | recurring, operational | 01-07 | conforming | [Verification targets](../Makefile), [live surface smoke](../internal/bootstrap/agent_smoke_test.go), [accessibility smoke](../scripts/accessibility-smoke.sh), and [container smoke](../scripts/docker-smoke.sh) |
 
 A group becomes `conforming` only when every applicable requirement in its
 linked standard subsection passes and evidence is linked here. Use
@@ -73,13 +72,9 @@ These remain out of the build plan until their trigger is demonstrated.
 | Public sharing or guest access | deferred | Resources must be reachable without normal membership |
 | Fine-grained permissions | deferred | Baseline roles cannot express a measured requirement |
 
-WebMCP is selected for this template as an optional progressive enhancement.
-Its absence in a browser is not a release failure; its selected browser
-surface is conforming only when the linked fallback, security, schema, focus,
-and redaction evidence passes.
-
-When a trigger is accepted, update `PLAN.md`, record the design decision, and
-apply the minimum standard in `STANDARDS.md` Section 8 before implementation.
+When a trigger is accepted, record the requirement and architecture decision,
+then update implementation, contracts, tests, operations, and this ledger
+together.
 
 ## Phase 01 evidence
 
@@ -228,6 +223,9 @@ Trivy 0.74.0, govulncheck 1.7.0, actionlint 1.7.12, Chrome, and Node 24:
 - automated accessibility smoke reported zero violations across login,
   workspace, items, and validation; dated manual evidence remains in
   [accessibility](accessibility.md)
+- `make webmcp-smoke` passed ordinary fallback checks; native WebMCP assertions
+  remain conditional on browser support and never fail solely because the API
+  is absent
 - documentation links, skill frontmatter/permanent routing, generated drift,
   semantic version, and temporary-source absence are enforced by the handoff
   test

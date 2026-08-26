@@ -110,3 +110,18 @@ Alert targets:
 - RSS above 205 MiB, CPU above 80% of one core, or database pool saturation for 5 minutes;
 - active streams above 80, any sustained stream/request/resource rejection, or authentication failures above 20 per minute for 5 minutes;
 - backup/restore ages above the targets, certificate expiry below 14 days, or failed migration/security controls immediately.
+
+## Troubleshooting
+
+- Readiness `503`: inspect safe structured logs, validate configuration, and
+  verify database reachability before routing traffic. Liveness may remain
+  healthy while the required database is unavailable.
+- SQLite lock or durability errors: confirm only one application instance uses
+  the file and that `/data` is persistent local storage with UID/GID 65532
+  write access.
+- Migration failure: stop rollout, preserve logs, and verify the current
+  database and backup before retrying. Restore the pre-upgrade backup when the
+  old binary cannot read the new schema.
+- Rejected requests or streams: compare the machine-readable error and
+  `Retry-After` with configured request, rate, session, item, export, and SSE
+  limits before raising capacity.

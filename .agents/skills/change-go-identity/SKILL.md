@@ -5,9 +5,11 @@ description: Change Dynamis Code authentication, authorization, workspaces, role
 
 # Change Go Identity
 
-Read [AGENTS.md](../../../AGENTS.md), Phase 02 in
-[PLAN.md](../../../PLAN.md), the accepted architecture decision, and the
-implemented authentication contract. Treat this as security-sensitive work.
+Read [AGENTS.md](../../../AGENTS.md), the accepted
+[architecture decision](../../../docs/decisions/0001-go-modular-monolith.md),
+the implemented [authentication contract](../../../docs/authentication.md),
+and [security policy](../../../SECURITY.md). Treat this as security-sensitive
+work.
 
 ## Outcome
 

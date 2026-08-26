@@ -6,9 +6,11 @@ description: Change Dynamis Code database schemas, ordered migrations, queries, 
 # Change Go Data
 
 Read [AGENTS.md](../../../AGENTS.md),
-[docs/capabilities.md](../../../docs/capabilities.md), and Phase 01 or 06 from
-[PLAN.md](../../../PLAN.md). Inspect every caller of the repository or data
-contract being changed.
+[architecture](../../../docs/architecture.md),
+[data lifecycle](../../../docs/data-lifecycle.md),
+[operations](../../../docs/operations.md), and
+[capabilities](../../../docs/capabilities.md). Inspect every caller of the
+repository or data contract being changed.
 
 ## Outcome
 

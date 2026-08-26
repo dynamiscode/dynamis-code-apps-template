@@ -6,9 +6,8 @@ description: Verify a Dynamis Code implementation phase, conformance profile, re
 # Verify Template Conformance
 
 This skill verifies; it does not fix. Read [AGENTS.md](../../../AGENTS.md),
-[PLAN.md](../../../PLAN.md),
-[docs/capabilities.md](../../../docs/capabilities.md), the target phase brief,
-and only the relevant standards or permanent documents.
+[docs/capabilities.md](../../../docs/capabilities.md), the relevant permanent
+contracts, release workflow, and evidence.
 
 ## Outcome
 
@@ -17,14 +16,15 @@ working behavior.
 
 ## Workflow
 
-1. Resolve the exact phase, profile, release, or handoff target. Stop if the
+1. Resolve the exact profile, release, change, or handoff target. Stop if the
    target is ambiguous.
 2. Enumerate its required outcomes, commands, manual evidence, exceptions, and
    source-of-truth links.
 3. Inspect implementation and contracts before running checks. Do not accept a
    document, mock, or generated file as runtime evidence by itself.
-4. Run focused checks, then every available target gate in `AGENTS.md` and the
-   phase brief. Read complete failures and preserve the first root cause.
+4. Run focused checks, then every applicable target gate in `AGENTS.md` and
+   release documentation. Read complete failures and preserve the first root
+   cause.
 5. Confirm each accepted exception is unexpired, approved, scoped, evidenced,
    and linked to compensating controls.
 6. Check capability status, documentation links, generated drift, secrets,
@@ -40,6 +40,5 @@ For each requirement report exactly one status:
 - `exception`: an accepted unexpired exception covers it; or
 - `not applicable`: the standard's applicability condition is false.
 
-Do not mark `pending`, blocked, or documented-only behavior as conforming. Do
-not delete `STANDARDS.md` unless every mandatory deletion-gate condition is
-passed.
+Do not mark blocked or documented-only behavior as conforming. A release is
+conforming only when every applicable gate has observable evidence.

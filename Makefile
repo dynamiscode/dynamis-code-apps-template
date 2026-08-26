@@ -1,4 +1,4 @@
-.PHONY: fmt-check test vet race generate-check build image docker-smoke webmcp-smoke template-smoke verify
+.PHONY: fmt-check test vet race generate-check build image docker-smoke accessibility-smoke webmcp-smoke template-smoke verify
 
 fmt-check:
 	test -z "$$(gofmt -l $$(find . -name '*.go' -not -path './vendor/*'))"
@@ -27,6 +27,9 @@ docker-smoke:
 
 webmcp-smoke:
 	./scripts/webmcp-smoke.sh
+
+accessibility-smoke:
+	./scripts/accessibility-smoke.sh
 
 template-smoke:
 	work="$$(mktemp -d /tmp/dynamis-code-template-smoke.XXXXXX)"; \

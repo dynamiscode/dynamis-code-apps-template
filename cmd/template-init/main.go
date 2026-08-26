@@ -94,7 +94,7 @@ func run(args []string, now func() time.Time) error {
 	if !validSemver(selectedVersion) {
 		return errors.New("version must use semantic versioning without a v prefix")
 	}
-	templateModule, templateName, err := templateIdentity(root)
+	templateModule, templateName, templateSlug, err := templateIdentity(root)
 	if err != nil {
 		return err
 	}
@@ -106,7 +106,7 @@ func run(args []string, now func() time.Time) error {
 		templateName, *name,
 	}
 	if err := copyTemplate(
-		root, destination, replacements, filepath.Base(templateModule), slug,
+		root, destination, replacements, templateSlug, slug,
 	); err != nil {
 		return err
 	}
@@ -166,16 +166,15 @@ func copyTemplate(
 		}
 		if !strings.ContainsRune(string(raw), '\x00') {
 			value := strings.NewReplacer(replacements...).Replace(string(raw))
-			if strings.Contains(oldSlug, "-") {
-				value = strings.NewReplacer(
-					`"`+oldSlug+`"`, `"`+newSlug+`"`,
-					`"`+oldSlug+`-checks"`, `"`+newSlug+`-checks"`,
-					oldSlug+":${", newSlug+":${",
-					oldSlug+":$${", newSlug+":$${",
-					"OTEL_SERVICE_NAME="+oldSlug, "OTEL_SERVICE_NAME="+newSlug,
-					"`"+oldSlug+"`", "`"+newSlug+"`",
-				).Replace(value)
-			}
+			value = strings.NewReplacer(
+				`"`+oldSlug+`"`, `"`+newSlug+`"`,
+				`"`+oldSlug+`-checks"`, `"`+newSlug+`-checks"`,
+				oldSlug+":${", newSlug+":${",
+				oldSlug+":$${", newSlug+":$${",
+				oldSlug+":dev", newSlug+":dev",
+				"OTEL_SERVICE_NAME="+oldSlug, "OTEL_SERVICE_NAME="+newSlug,
+				"`"+oldSlug+"`", "`"+newSlug+"`",
+			).Replace(value)
 			raw = []byte(value)
 		}
 		info, err := entry.Info()
@@ -186,23 +185,34 @@ func copyTemplate(
 	})
 }
 
-func templateIdentity(root string) (string, string, error) {
+func templateIdentity(root string) (string, string, string, error) {
 	moduleFile, err := os.ReadFile(filepath.Join(root, "go.mod"))
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	moduleLine, _, _ := strings.Cut(string(moduleFile), "\n")
 	module := strings.TrimSpace(strings.TrimPrefix(moduleLine, "module "))
 	readme, err := os.ReadFile(filepath.Join(root, "README.md"))
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	nameLine, _, _ := strings.Cut(string(readme), "\n")
 	name := strings.TrimSpace(strings.TrimPrefix(nameLine, "# "))
-	if !modulePattern.MatchString(module) || name == "" {
-		return "", "", errors.New("template module or README title is invalid")
+	packageFile, err := os.ReadFile(filepath.Join(root, "package.json"))
+	if err != nil {
+		return "", "", "", err
 	}
-	return module, name, nil
+	var metadata struct {
+		Name string `json:"name"`
+	}
+	if json.Unmarshal(packageFile, &metadata) != nil {
+		return "", "", "", errors.New("template package metadata is invalid")
+	}
+	identifier := strings.TrimSuffix(metadata.Name, "-checks")
+	if !modulePattern.MatchString(module) || name == "" || !slugPattern.MatchString(identifier) {
+		return "", "", "", errors.New("template identity is invalid")
+	}
+	return module, name, identifier, nil
 }
 
 func ignored(relative string) bool {

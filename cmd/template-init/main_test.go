@@ -35,6 +35,19 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 	if err != nil || !strings.Contains(string(readme), "# My Application") {
 		t.Fatalf("generated README = %q, error = %v", readme, err)
 	}
+	for path, want := range map[string]string{
+		"package.json":                       `"name": "my-app-checks"`,
+		"compose.yaml":                       "image: my-app:${VERSION:-dev}",
+		"docs/configuration.md":              "`my-app`",
+		"internal/mcpserver/server.go":       `Name: "my-app"`,
+		"internal/platform/config/config.go": `"OTEL_SERVICE_NAME", "my-app"`,
+		".github/workflows/ci.yml":           "image-ref: my-app:dev",
+	} {
+		content, readErr := os.ReadFile(filepath.Join(output, path))
+		if readErr != nil || !strings.Contains(string(content), want) {
+			t.Errorf("generated %s lacks %q: %v", path, want, readErr)
+		}
+	}
 	var lock lockFile
 	raw, err := os.ReadFile(filepath.Join(output, "template.lock"))
 	if err != nil || json.Unmarshal(raw, &lock) != nil {

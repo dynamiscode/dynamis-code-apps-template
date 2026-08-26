@@ -1,50 +1,73 @@
-# Development Workflow During Construction
+# Development
 
-## Start a task
+## Setup
 
-1. Read `AGENTS.md` and inspect `git status`.
-2. Select the first incomplete phase in `PLAN.md` unless the user names a
-   smaller task inside that phase.
-3. Read the phase brief and only its linked standard sections.
-4. Load a repository-local skill only for a matching recurring workflow.
-5. Define the observable outcome and smallest verification before editing.
+```sh
+cp .env.example .env
+set -a; . ./.env; set +a
+go run ./cmd/server
+```
 
-## Work boundaries
+Use Go 1.26 or newer; the module records the development toolchain. Use an
+isolated PostgreSQL database through `POSTGRES_TEST_URL` for PostgreSQL tests.
 
-- Keep one task independently reviewable.
-- Preserve unrelated and untracked files.
-- Match the architecture established by accepted decisions.
-- Add no optional capability until `docs/capabilities.md` records that its
-  trigger is met and `PLAN.md` assigns it to a phase.
-- Do not create final documentation for behavior that is still planned.
-- Update capability evidence when behavior becomes real.
-- For every feature, record applicable browser, REST/OpenAPI, CLI/MCP,
-  browser-agent (WebMCP), realtime, and operations/data surfaces. For WebMCP,
-  decide whether a browser-agent surface is useful, define one-purpose
+## Change workflow
+
+1. Read `AGENTS.md`, inspect `git status`, and follow the route in
+   [docs/README.md](README.md).
+2. Trace the affected use case, policy, repository, adapters, contracts, and
+   tests. Keep workspace scope explicit.
+3. Make one bounded change. Update OpenAPI, migrations, behavior docs,
+   changelog, and capability evidence only when affected.
+4. Run focused checks, then the applicable verification ladder.
+
+Ordinary features stay vertical: application behavior first, transport
+adapters second. Reuse shared authorization, Problem Details, audit,
+telemetry, and rendering code. Add no optional capability until its trigger in
+[capabilities](capabilities.md) is accepted and recorded in a decision.
+
+## Feature completeness
+
+For every feature, record its shared application behavior, authorization
+boundary, and applicable surfaces before implementation:
+
+- browser: routes, templates, CSRF, accessible controls, and ordinary-form
+  fallback;
+- browser-agent (WebMCP): decide whether assistance helps, define one-purpose
   bounded schemas, exclude secrets and hidden security fields, preserve
-  ordinary form fallback, and test supported and unsupported browsers. Record
-  a reason for each omitted surface instead of leaving the decision implicit.
+  ordinary-form fallback, and test supported and unsupported browsers;
+- REST/OpenAPI: bearer authorization, generated contract, limits, errors, and
+  response redaction;
+- CLI/MCP: only when automation needs the capability, using shared use cases;
+- realtime: only when clients need change delivery, with scope and reconnect
+  semantics;
+- operations/data: persistence, migrations, export, retention, deletion, and
+  recovery when durable data is involved.
 
-## Verification by maturity
+Mark each omitted surface with a reason in the phase brief or capability
+ledger. A feature is complete only when every applicable surface has code,
+focused tests, canonical documentation, and linked capability evidence.
 
-| Repository state | Required checks |
-|---|---|
-| Documentation preparation | Relative links, skill validation, standards coverage, `git diff --check` |
-| Go module exists | Focused tests, `go test ./...`, `go vet ./...` |
-| Concurrent behavior exists or phase closes | `go test -race ./...` |
-| OpenAPI generation exists | `go generate ./api`, then verify no unexplained generated diff |
-| Both databases exist | Real SQLite tests and isolated PostgreSQL migration/repository tests |
-| Containers exist | Image build and `make docker-smoke` |
-| Stable release exists | Vulnerability, SBOM, provenance, signature, checksum, accessibility, restore, and conformance evidence |
+## Checks
 
-Read command output. Record environment blockers separately from failures.
-Version-only checks do not replace a runnable smoke path.
+```sh
+make verify
+npm ci && make accessibility-smoke
+make webmcp-smoke
+make docker-smoke
+```
 
-## Documentation updates
+`make verify` checks formatting, tests, vet, race behavior, generated OpenAPI
+drift, command builds, and generation of a clean application. Run the full
+suite with `POSTGRES_TEST_URL` for data or release changes.
 
-While building, update the phase brief and capability evidence. Once behavior
-exists, create or update the canonical destination listed in `STANDARDS.md`
-Section 12. Link to contracts such as OpenAPI and migrations; do not copy them.
+## Replace the sample feature
 
-Before deleting `STANDARDS.md`, replace this construction workflow with the
-verified local setup, generation, test, contribution, and extension workflow.
+The item feature is the executable reference slice. Replace or remove it only
+as one reviewed vertical change after the replacement passes browser, REST,
+CLI, MCP, SSE, and WebMCP fallback smoke. Update routes, shared use cases,
+OpenAPI, migrations, tests, navigation, docs, and capability evidence
+together; do not leave a partially disconnected sample.
+
+Contribution and security-reporting rules live in
+[CONTRIBUTING.md](../CONTRIBUTING.md) and [SECURITY.md](../SECURITY.md).

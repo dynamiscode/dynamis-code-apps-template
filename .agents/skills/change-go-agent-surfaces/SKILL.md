@@ -5,9 +5,9 @@ description: Add or change Dynamis Code MCP tools or remote CLI commands while p
 
 # Change Go Agent Surfaces
 
-Read [AGENTS.md](../../../AGENTS.md), Phase 05 in
-[PLAN.md](../../../PLAN.md), and the canonical REST, MCP, and CLI contracts that
-currently exist.
+Read [AGENTS.md](../../../AGENTS.md), [API](../../../docs/api.md),
+[MCP](../../../docs/mcp.md), and [CLI](../../../docs/cli.md), then inspect the
+shared use case and contracts involved.
 
 ## Outcome
 

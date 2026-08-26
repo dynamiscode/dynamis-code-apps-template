@@ -1,16 +1,27 @@
 # Dynamis Code Apps Template
 
-Status: Phase 06 operations and data lifecycle complete. Delivery and final
-handoff remain pending.
+A resource-conscious Go modular monolith with server-rendered HTML, REST, MCP,
+a REST-only CLI, SQLite by default, and an optional PostgreSQL deployment.
 
-The repository implements a reusable Go web-application template with a small
-default footprint and explicit paths to larger deployments. The temporary
-[generation standard](STANDARDS.md) is authoritative until the template passes
-its final conformance gate.
+## Run with Docker
 
-## Run the current foundation
+Requirements: Docker with Compose.
 
-Requirements: Go 1.26 or newer. Go selects the recorded Go 1.27 toolchain.
+```sh
+docker compose up --build -d
+read -s BOOTSTRAP_PASSWORD; export BOOTSTRAP_PASSWORD
+docker compose exec -e BOOTSTRAP_PASSWORD app /bootstrap-admin \
+  -email owner@example.com -workspace 'My Workspace'
+unset BOOTSTRAP_PASSWORD
+```
+
+Open <http://localhost:8080/login>. Data persists in the `app-data` volume.
+See [deployment](docs/deployment.md) for PostgreSQL, TLS, and production
+boundaries.
+
+## Run from source
+
+Requirements: Go 1.26 or newer. Go selects the recorded toolchain.
 
 ```sh
 cp .env.example .env
@@ -18,44 +29,40 @@ set -a; . ./.env; set +a
 go run ./cmd/server
 ```
 
-The process validates configuration, creates `data/app.db`, applies embedded
-migrations, and listens on `127.0.0.1:8080`. Check `/health/live`,
-`/health/ready`, or the contract at `/api/openapi.json`. Press `Ctrl-C` for
-graceful shutdown.
-
-Create the first owner with the one-time command documented in
-[authentication](docs/authentication.md). It requires an explicit password and
-creates the user, workspace, and owner membership atomically.
+Create the first owner in another terminal:
 
 ```sh
-go test ./...
-go vet ./...
-go test -race ./...
+read -s BOOTSTRAP_PASSWORD; export BOOTSTRAP_PASSWORD
+go run ./cmd/bootstrap-admin \
+  -email owner@example.com -workspace 'My Workspace'
+unset BOOTSTRAP_PASSWORD
 ```
 
-## Start here
+Health endpoints are `/health/live` and `/health/ready`; OpenAPI is
+`/api/openapi.json`. Press `Ctrl-C` for graceful shutdown.
 
-- Maintainers and coding agents: read [AGENTS.md](AGENTS.md), then
-  [PLAN.md](PLAN.md).
-- Find task-specific context through [docs/README.md](docs/README.md).
-- Review implemented boundaries in
-  [docs/architecture.md](docs/architecture.md) and configuration in
-  [docs/configuration.md](docs/configuration.md).
-- Review identity behavior in
-  [docs/authentication.md](docs/authentication.md).
-- Review HTTP and REST behavior in [docs/api.md](docs/api.md).
-- Review browser and realtime behavior in [docs/web.md](docs/web.md) and the
-  dated [accessibility evidence](docs/accessibility.md).
-- Review agent and automation behavior in [docs/mcp.md](docs/mcp.md) and
-  [docs/cli.md](docs/cli.md).
-- Operate and recover the application with
-  [docs/operations.md](docs/operations.md),
-  [docs/data-lifecycle.md](docs/data-lifecycle.md), and
-  [docs/deployment.md](docs/deployment.md).
-- Track planned and deferred capabilities in
-  [docs/capabilities.md](docs/capabilities.md).
-- Review accepted technology choices in
-  [docs/decisions/0001-go-modular-monolith.md](docs/decisions/0001-go-modular-monolith.md).
+## Generate an application
 
-Phase 07 replaces this foundation guide with the verified application and
-container quick start.
+Run from a verified release checkout and supply its immutable identity:
+
+```sh
+go run ./cmd/template-init \
+  -output ../my-app -name 'My App' -module example.com/acme/my-app \
+  -source https://github.com/OWNER/REPOSITORY \
+  -commit 0123456789abcdef0123456789abcdef01234567
+```
+
+Generation refuses an existing output directory and writes `template.lock`.
+See [template lifecycle](docs/template-lifecycle.md) before updating a
+generated application.
+
+## Verify
+
+```sh
+make verify
+npm ci && make accessibility-smoke
+make docker-smoke
+```
+
+Use the [documentation router](docs/README.md) for architecture, configuration,
+interfaces, operations, security, and contribution guidance.

@@ -5,9 +5,8 @@ description: Add or change an ordinary Dynamis Code Go vertical feature across s
 
 # Implement Go Feature
 
-Use this for recurring product-feature work after the foundation exists. Read
-[AGENTS.md](../../../AGENTS.md), the active brief in
-[PLAN.md](../../../PLAN.md), and the matching route in
+Read [AGENTS.md](../../../AGENTS.md),
+[architecture](../../../docs/architecture.md), and the matching route in
 [docs/README.md](../../../docs/README.md).
 
 ## Outcome
@@ -36,7 +35,7 @@ application use case and whose adapters contain transport concerns only.
 - Do not create feature-local middleware, auth, logging, retries, error types,
   or database frameworks.
 - Do not add a service, protocol, dependency, or deferred capability without
-  its accepted trigger and plan change.
+  its accepted trigger and decision.
 - Route identity changes through `change-go-identity`, database-shape changes
   through `change-go-data`, and MCP/CLI changes through
   `change-go-agent-surfaces`.
@@ -44,6 +43,6 @@ application use case and whose adapters contain transport concerns only.
 ## Verify and stop
 
 Run focused tests, then the available verification ladder in `AGENTS.md`.
-Stop on a standards conflict, missing workspace boundary, unclear destructive
+Stop on a contract conflict, missing workspace boundary, unclear destructive
 behavior, or missing canonical contract. Report blockers instead of inventing
 policy.
