@@ -1,0 +1,10 @@
+.git
+.github
+.env
+data
+dist
+coverage
+node_modules
+*.db
+*.dump
+*.backup

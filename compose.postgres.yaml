@@ -1,0 +1,24 @@
+services:
+  app:
+    environment:
+      DATABASE_DRIVER: postgres
+      DATABASE_URL: postgres://dynamis_code:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/dynamis_code?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+  postgres:
+    image: postgres:14.24-alpine3.24@sha256:727876d274666da0b92a445390ba093c84b8e9f8343e1c53cd4e9a7ab2d85310
+    environment:
+      POSTGRES_DB: dynamis_code
+      POSTGRES_USER: dynamis_code
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dynamis_code -d dynamis_code"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:

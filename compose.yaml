@@ -1,0 +1,26 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        VERSION: ${VERSION:-dev}
+        VCS_REF: ${VCS_REF:-unknown}
+        CREATED: ${CREATED:-unknown}
+        SOURCE: ${SOURCE:-local}
+    image: dynamis-code-apps-template:${VERSION:-dev}
+    environment:
+      HTTP_ADDRESS: 0.0.0.0:8080
+      SQLITE_PATH: /data/app.db
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_WORKSPACE: ${BOOTSTRAP_ADMIN_WORKSPACE:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      BOOTSTRAP_SETUP_TOKEN: ${BOOTSTRAP_SETUP_TOKEN:-}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    volumes:
+      - app-data:/data
+    init: true
+    restart: unless-stopped
+
+volumes:
+  app-data:
