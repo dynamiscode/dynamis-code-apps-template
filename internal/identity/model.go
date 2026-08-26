@@ -35,6 +35,7 @@ const (
 	WorkspaceRead     Permission = "workspace:read"
 	WorkspaceUpdate   Permission = "workspace:update"
 	WorkspaceDelete   Permission = "workspace:delete"
+	WorkspaceExport   Permission = "workspace:export"
 	OwnershipTransfer Permission = "ownership:transfer"
 	MembersRead       Permission = "members:read"
 	MembersManage     Permission = "members:manage"

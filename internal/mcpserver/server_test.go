@@ -287,7 +287,7 @@ func newTestState(t *testing.T, mcpConfig config.MCP) *testState {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	return &testState{
 		db: db, auth: authService, actor: actor, workspaceID: owner.WorkspaceID, token: token,
-		handler: NewHandler(authService, items.NewService(db, cfg.Database.Driver, authService), mcpConfig, logger),
+		handler: NewHandler(authService, items.NewService(db, cfg.Database.Driver, authService, cfg.Data.ItemsMaxPerWorkspace), mcpConfig, logger),
 	}
 }
 

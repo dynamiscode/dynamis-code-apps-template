@@ -140,7 +140,7 @@ func TestAuthorizationMatrixAndOwnershipTransfer(t *testing.T) {
 	}
 
 	permissions := []Permission{
-		WorkspaceRead, WorkspaceUpdate, WorkspaceDelete, OwnershipTransfer,
+		WorkspaceRead, WorkspaceUpdate, WorkspaceDelete, WorkspaceExport, OwnershipTransfer,
 		MembersRead, MembersManage, InvitationsManage, ResourcesRead, ResourcesWrite,
 	}
 	for _, role := range roles {

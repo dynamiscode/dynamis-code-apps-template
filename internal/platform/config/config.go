@@ -49,6 +49,20 @@ type MCP struct {
 	AllowedOrigins []string
 }
 
+type Data struct {
+	ItemsMaxPerWorkspace int
+	ExportMaxRecords     int
+	ExportMaxBytes       int
+	AuditRetention       time.Duration
+}
+
+type Telemetry struct {
+	ServiceName    string
+	Endpoint       string
+	ExportInterval time.Duration
+	ExportTimeout  time.Duration
+}
+
 type OIDC struct {
 	Enabled      bool
 	ProviderID   string
@@ -334,6 +348,12 @@ func loadHTTP(lookup LookupEnv) (HTTP, error) {
 	if err != nil {
 		return HTTP{}, err
 	}
+	maxConcurrent, err := rangedInt(
+		lookup, "HTTP_MAX_CONCURRENT_REQUESTS", 100, 1, 10000,
+	)
+	if err != nil {
+		return HTTP{}, err
+	}
 	address := strings.TrimSpace(valueOrDefault(lookup, "HTTP_ADDRESS", "127.0.0.1:8080"))
 	if address == "" {
 		return HTTP{}, fmt.Errorf("HTTP_ADDRESS must not be empty")
@@ -348,8 +368,67 @@ func loadHTTP(lookup LookupEnv) (HTTP, error) {
 		AuthRequestsPerMin: authRequestsPerMin,
 		SSEPollInterval:    ssePollInterval, SSEHeartbeat: sseHeartbeat,
 		SSEMaxLifetime: sseMaxLifetime, SSEMaxConnections: sseMaxConnections,
-		SSEMaxPerUser: sseMaxPerUser,
+		SSEMaxPerUser: sseMaxPerUser, MaxConcurrent: maxConcurrent,
 	}, nil
+}
+
+func loadData(lookup LookupEnv) (Data, error) {
+	itemsLimit, err := rangedInt(lookup, "ITEMS_MAX_PER_WORKSPACE", 10000, 1, 1000000)
+	if err != nil {
+		return Data{}, err
+	}
+	exportRecords, err := rangedInt(lookup, "EXPORT_MAX_RECORDS", 1000, 1, 10000)
+	if err != nil {
+		return Data{}, err
+	}
+	exportBytes, err := rangedInt(lookup, "EXPORT_MAX_BYTES", 4*1024*1024, 64*1024, 4*1024*1024)
+	if err != nil {
+		return Data{}, err
+	}
+	auditRetention, err := durationValue(
+		lookup, "AUDIT_RETENTION", 8760*time.Hour, 720*time.Hour, 87600*time.Hour,
+	)
+	if err != nil {
+		return Data{}, err
+	}
+	return Data{
+		ItemsMaxPerWorkspace: itemsLimit, ExportMaxRecords: exportRecords,
+		ExportMaxBytes: exportBytes, AuditRetention: auditRetention,
+	}, nil
+}
+
+func loadTelemetry(lookup LookupEnv) (Telemetry, error) {
+	value := Telemetry{
+		ServiceName: strings.TrimSpace(valueOrDefault(lookup, "OTEL_SERVICE_NAME", "dynamis-code-apps-template")),
+		Endpoint:    strings.TrimSpace(valueOrDefault(lookup, "OTEL_EXPORTER_OTLP_ENDPOINT", "")),
+	}
+	if value.ServiceName == "" || len(value.ServiceName) > 255 {
+		return Telemetry{}, fmt.Errorf("OTEL_SERVICE_NAME must be 1 to 255 characters")
+	}
+	if value.Endpoint != "" {
+		endpoint, err := url.Parse(value.Endpoint)
+		if err != nil || endpoint.Host == "" || endpoint.User != nil ||
+			endpoint.RawQuery != "" || endpoint.Fragment != "" ||
+			(endpoint.Scheme != "https" &&
+				!(endpoint.Scheme == "http" && isLoopbackHost(endpoint.Hostname()))) {
+			return Telemetry{}, fmt.Errorf("OTEL_EXPORTER_OTLP_ENDPOINT must use HTTPS or loopback HTTP")
+		}
+		value.Endpoint = strings.TrimRight(value.Endpoint, "/")
+	}
+	var err error
+	value.ExportInterval, err = durationValue(
+		lookup, "OTEL_METRIC_EXPORT_INTERVAL", 30*time.Second, 5*time.Second, 5*time.Minute,
+	)
+	if err != nil {
+		return Telemetry{}, err
+	}
+	value.ExportTimeout, err = durationValue(
+		lookup, "OTEL_EXPORTER_OTLP_TIMEOUT", 10*time.Second, time.Second, time.Minute,
+	)
+	if err != nil {
+		return Telemetry{}, err
+	}
+	return value, nil
 }
 
 func loadMCP(lookup LookupEnv) (MCP, error) {

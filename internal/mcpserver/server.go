@@ -386,6 +386,8 @@ func publicError(err error) error {
 		return &toolError{category: "conflict", message: "idempotency key conflicts with another request"}
 	case errors.Is(err, items.ErrPreconditionFailed):
 		return &toolError{category: "precondition_failed", message: "item version is stale"}
+	case errors.Is(err, items.ErrLimit):
+		return &toolError{category: "resource_limit", message: "workspace item limit reached"}
 	default:
 		return &toolError{category: "internal", message: "internal failure"}
 	}

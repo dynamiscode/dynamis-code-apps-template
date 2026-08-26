@@ -37,7 +37,7 @@ func TestItemLifecycleContracts(t *testing.T) {
 		t.Fatal(err)
 	}
 	principal.AuthMethod = "test"
-	service := NewService(db, config.SQLite, auth)
+	service := NewService(db, config.SQLite, auth, 3)
 
 	created, err := service.Create(ctx, principal, owner.WorkspaceID, " First ", "idem-12345678", identity.AuditContext{})
 	if err != nil || created.Replay || created.Item.Title != "First" {
@@ -84,6 +84,12 @@ func TestItemLifecycleContracts(t *testing.T) {
 	third, err := service.Create(ctx, principal, owner.WorkspaceID, "Third", "idem-third-key", identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if replay, err := service.Create(ctx, principal, owner.WorkspaceID, "First", "idem-12345678", identity.AuditContext{}); err != nil || !replay.Replay {
+		t.Fatalf("replay at quota = %+v, %v", replay, err)
+	}
+	if _, err := service.Create(ctx, principal, owner.WorkspaceID, "Fourth", "idem-fourth-key", identity.AuditContext{}); !errors.Is(err, ErrLimit) {
+		t.Fatalf("quota error = %v", err)
 	}
 	changes, err := service.Changes(ctx, principal, owner.WorkspaceID, checkpoint.Next, 10)
 	if err != nil || changes.Resync || len(changes.Changes) != 1 || changes.Changes[0].Action != "created" {

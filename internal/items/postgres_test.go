@@ -64,7 +64,7 @@ func TestPostgresItemLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	principal.AuthMethod = "test"
-	service := NewService(db, config.Postgres, auth)
+	service := NewService(db, config.Postgres, auth, 10000)
 	created, err := service.Create(ctx, principal, workspaceID, "PostgreSQL", "postgres-idem-key", identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)

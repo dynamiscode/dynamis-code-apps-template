@@ -12,6 +12,8 @@ import (
 
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
+	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const maxBufferedResponseBytes = 4 * 1024 * 1024
@@ -25,11 +27,33 @@ func middleware(
 	logger *slog.Logger,
 ) http.Handler {
 	next = timeoutMiddleware(next, cfg.RequestTimeout, logger)
+	next = concurrencyMiddleware(next, cfg.MaxConcurrent)
 	next = rateLimitMiddleware(next, limiter)
 	next = bodyLimitMiddleware(next, cfg.MaxBodyBytes)
 	next = securityHeadersMiddleware(next, cfg.Secure)
 	next = loggingMiddleware(next, logger)
 	return requestIDMiddleware(next)
+}
+
+func concurrencyMiddleware(next http.Handler, maximum int) http.Handler {
+	active := make(chan struct{}, maximum)
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if strings.HasPrefix(request.URL.Path, "/workspaces/") &&
+			strings.HasSuffix(request.URL.Path, "/items/events") {
+			next.ServeHTTP(writer, request)
+			return
+		}
+		select {
+		case active <- struct{}{}:
+			defer func() { <-active }()
+			next.ServeHTTP(writer, request)
+		default:
+			telemetry.RecordLimitRejection(request.Context(), "http_request")
+			writer.Header().Set("Retry-After", "1")
+			writeProblem(writer, request, http.StatusTooManyRequests,
+				"concurrency-limit", "The concurrent request limit was reached.")
+		}
+	})
 }
 
 func requestIDMiddleware(next http.Handler) http.Handler {
@@ -227,6 +251,9 @@ func loggingMiddleware(next http.Handler, logger *slog.Logger) http.Handler {
 		}
 		if traceparent := request.Header.Get("traceparent"); validTraceparent(traceparent) {
 			attributes = append(attributes, "traceparent", traceparent)
+		}
+		if span := trace.SpanContextFromContext(request.Context()); span.IsValid() {
+			attributes = append(attributes, "trace_id", span.TraceID().String())
 		}
 		logger.Info("http request", attributes...)
 	})

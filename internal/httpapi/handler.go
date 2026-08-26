@@ -39,6 +39,7 @@ func NewHandler(
 	db *sql.DB,
 	identityService *identity.Service,
 	itemService *items.Service,
+	portabilityService *portability.Service,
 	oidcRegistry *identity.OIDCRegistry,
 	cfg config.HTTP,
 	logger *slog.Logger,
@@ -111,6 +112,41 @@ func NewHandlerWithMail(
 	return Wrap(mux, cfg, logger), nil
 }
 
+func (h *handler) exportWorkspace(writer http.ResponseWriter, request *http.Request) {
+	workspaceID := request.PathValue("workspaceId")
+	if !validID(workspaceID) || len(request.URL.Query()) != 0 {
+		h.invalidRequest(writer, request, "The export parameters are invalid.")
+		return
+	}
+	principal, ok := h.bearerPrincipal(writer, request, identity.WorkspaceExport)
+	if !ok {
+		return
+	}
+	encoded, err := h.portability.Export(
+		request.Context(), principal, workspaceID, h.auditContext(request),
+	)
+	if errors.Is(err, identity.ErrForbidden) {
+		writeProblem(writer, request, http.StatusForbidden, "forbidden", "Access is denied.")
+		return
+	}
+	if errors.Is(err, portability.ErrLimit) {
+		writeProblem(
+			writer, request, http.StatusConflict, "export-limit",
+			"The workspace export limit was reached. Reduce retained data or raise the configured limit.",
+		)
+		return
+	}
+	if err != nil {
+		h.internal(writer, request)
+		return
+	}
+	writer.Header().Set("Content-Type", "application/json")
+	writer.Header().Set("Cache-Control", "no-store")
+	writer.Header().Set("Content-Disposition", `attachment; filename="workspace-export.json"`)
+	writer.WriteHeader(http.StatusOK)
+	_, _ = writer.Write(encoded)
+}
+
 func Wrap(next http.Handler, cfg config.HTTP, logger *slog.Logger) http.Handler {
 	if logger == nil {
 		logger = slog.Default()
@@ -145,14 +181,17 @@ func (h *handler) liveness(writer http.ResponseWriter, _ *http.Request) {
 }
 
 func (h *handler) readiness(writer http.ResponseWriter, request *http.Request) {
+	started := time.Now()
 	ctx, cancel := context.WithTimeout(request.Context(), h.cfg.ReadinessTimeout)
 	defer cancel()
 	if err := h.db.PingContext(ctx); err != nil {
+		telemetry.RecordDatabaseHealth(request.Context(), false, time.Since(started))
 		writeJSON(writer, http.StatusServiceUnavailable, map[string]any{
 			"status": "not_ready", "failedChecks": []string{"database"},
 		})
 		return
 	}
+	telemetry.RecordDatabaseHealth(request.Context(), true, time.Since(started))
 	writeJSON(writer, http.StatusOK, map[string]string{"status": "ready"})
 }
 
@@ -489,6 +528,11 @@ func (h *handler) itemError(
 		writeProblem(
 			writer, request, http.StatusConflict, "idempotency-conflict",
 			"The idempotency key was already used for another request.",
+		)
+	case errors.Is(err, items.ErrLimit):
+		writeProblem(
+			writer, request, http.StatusConflict, "resource-limit",
+			"The workspace item limit was reached. Delete an item before retrying.",
 		)
 	case errors.Is(err, items.ErrPreconditionFailed):
 		writeProblem(

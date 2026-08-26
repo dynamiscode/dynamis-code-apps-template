@@ -17,6 +17,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
+	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 )
 
 var (
@@ -25,6 +26,7 @@ var (
 	ErrInvalidInput        = errors.New("item input is invalid")
 	ErrNotFound            = errors.New("item not found")
 	ErrPreconditionFailed  = errors.New("item version does not match")
+	ErrLimit               = errors.New("workspace item limit reached")
 )
 
 const idempotencyRetention = 24 * time.Hour
@@ -70,18 +72,20 @@ type Page struct {
 }
 
 type Service struct {
-	db     *sql.DB
-	driver config.DatabaseDriver
-	auth   *identity.Service
-	now    func() time.Time
+	db       *sql.DB
+	driver   config.DatabaseDriver
+	auth     *identity.Service
+	now      func() time.Time
+	maxItems int
 }
 
 func NewService(
 	db *sql.DB,
 	driver config.DatabaseDriver,
 	auth *identity.Service,
+	maxItems int,
 ) *Service {
-	return &Service{db: db, driver: driver, auth: auth, now: time.Now}
+	return &Service{db: db, driver: driver, auth: auth, now: time.Now, maxItems: maxItems}
 }
 
 func (s *Service) Create(
@@ -160,6 +164,16 @@ func (s *Service) create(
 		}
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return CreateResult{}, err
+	}
+	var itemCount int
+	if err := s.queryRow(ctx, tx,
+		"SELECT COUNT(*) FROM items WHERE workspace_id = ?", workspaceID,
+	).Scan(&itemCount); err != nil {
+		return CreateResult{}, err
+	}
+	if itemCount >= s.maxItems {
+		telemetry.RecordLimitRejection(ctx, "workspace_items")
+		return CreateResult{}, ErrLimit
 	}
 
 	itemID, err := id.New()

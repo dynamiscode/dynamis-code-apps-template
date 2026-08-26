@@ -7,6 +7,7 @@ var rolePermissions = map[Role][]Permission{
 		WorkspaceRead,
 		WorkspaceUpdate,
 		WorkspaceDelete,
+		WorkspaceExport,
 		OwnershipTransfer,
 		MembersRead,
 		MembersManage,
@@ -17,6 +18,7 @@ var rolePermissions = map[Role][]Permission{
 	Admin: {
 		WorkspaceRead,
 		WorkspaceUpdate,
+		WorkspaceExport,
 		MembersRead,
 		MembersManage,
 		InvitationsManage,

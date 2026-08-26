@@ -538,6 +538,8 @@ func (h *Handler) itemError(writer http.ResponseWriter, request *http.Request, e
 		h.renderItems(writer, request, http.StatusPreconditionFailed, "This item changed. Review the current value and try again.")
 	case errors.Is(err, items.ErrInvalidInput):
 		h.renderItems(writer, request, http.StatusUnprocessableEntity, "The item values are invalid.")
+	case errors.Is(err, items.ErrLimit):
+		h.renderItems(writer, request, http.StatusConflict, "The workspace item limit was reached. Delete an item before retrying.")
 	default:
 		h.renderError(writer, http.StatusInternalServerError)
 	}
@@ -716,6 +718,7 @@ func (h *Handler) itemEvents(writer http.ResponseWriter, request *http.Request) 
 		return
 	}
 	if !h.streams.acquire(principal.UserID) {
+		telemetry.RecordStream(request.Context(), 0, true)
 		writer.Header().Set("Content-Type", "application/problem+json")
 		writer.Header().Set("Retry-After", "30")
 		writer.WriteHeader(http.StatusTooManyRequests)
@@ -726,7 +729,11 @@ func (h *Handler) itemEvents(writer http.ResponseWriter, request *http.Request) 
 		})
 		return
 	}
-	defer h.streams.release(principal.UserID)
+	telemetry.RecordStream(request.Context(), 1, false)
+	defer func() {
+		h.streams.release(principal.UserID)
+		telemetry.RecordStream(request.Context(), -1, false)
+	}()
 	flusher, ok := writer.(http.Flusher)
 	if !ok {
 		h.renderError(writer, http.StatusInternalServerError)

@@ -265,7 +265,10 @@ func testHandler(t *testing.T) (http.Handler, *sql.DB, string, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler, err := NewHandler(db, auth, items.NewService(db, cfg.Database.Driver, auth), oidc, cfg.HTTP, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace)
+	handler, err := NewHandler(db, auth, itemService,
+		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes),
+		oidc, cfg.HTTP, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}

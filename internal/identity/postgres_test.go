@@ -59,7 +59,7 @@ func TestPostgresIdentityLifecycle(t *testing.T) {
 	}
 	for role, userID := range roleUsers {
 		for _, permission := range []Permission{
-			WorkspaceRead, WorkspaceUpdate, WorkspaceDelete, OwnershipTransfer,
+			WorkspaceRead, WorkspaceUpdate, WorkspaceDelete, WorkspaceExport, OwnershipTransfer,
 			MembersRead, MembersManage, InvitationsManage,
 			ResourcesRead, ResourcesWrite,
 		} {

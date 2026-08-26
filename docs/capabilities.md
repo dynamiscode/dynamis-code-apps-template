@@ -19,12 +19,14 @@ must contain no pending groups before `STANDARDS.md` is deleted.
 | Standard group | Lifecycle | Phase | Status | Evidence target |
 |---|---|---:|---|---|
 | Purpose, modular-monolith boundaries, scaling path | bootstrap, recurring | 01 | conforming | [Architecture](architecture.md), [composition test](../internal/bootstrap/app_test.go) |
+ | Optional WebMCP browser enhancement | triggered, recurring | 04, 07 | pending | Browser registration, redaction, fallback, security-header, and smoke evidence |
 | Optional WebMCP browser enhancement | triggered, recurring | 04, 07 | pending | Browser registration, redaction, fallback, security-header, and smoke evidence |
- | Web, REST, MCP, and remote CLI interfaces | bootstrap, recurring | 03-05 | conforming | Web: [component tests](../internal/web/handler_test.go); REST: [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go); [MCP tests](../internal/mcpserver/server_test.go); [CLI tests](../internal/appctl/run_test.go) |
-| Local authentication and OIDC | bootstrap, recurring | 02 | conforming | [Authentication](authentication.md), [OIDC tests](../internal/identity/oidc_test.go), [configuration tests](../internal/platform/config/config_test.go) |
-| Permissions, roles, workspaces, invitations, sessions, and tokens | bootstrap, recurring | 02 | conforming | [Authorization and lifecycle tests](../internal/identity/service_test.go), [PostgreSQL identity test](../internal/identity/postgres_test.go) |
-| SQLite, PostgreSQL, migrations, and rolling compatibility | bootstrap, recurring | 01, 06 | pending | Phase 01: [database implementation](../internal/platform/database/), real SQLite and PostgreSQL tests; rolling compatibility remains Phase 06 |
-| Data governance, portability, deletion, archive, and restoration | bootstrap, operational | 06 | pending | Policies, use cases, and lifecycle tests |
+ | Browser baseline surfaces | bootstrap, recurring | 02, 04, 06 | conforming | [Web routes and controls](web.md), [browser tests](../internal/web/handler_test.go) |
+ | REST, MCP, and remote CLI interfaces | bootstrap, recurring | 03-05 | conforming | REST: [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go); [MCP tests](../internal/mcpserver/server_test.go); [CLI tests](../internal/appctl/run_test.go) |
+ | Local authentication and OIDC service | bootstrap, recurring | 02 | conforming | [Authentication](authentication.md), [OIDC tests](../internal/identity/oidc_test.go), [configuration tests](../internal/platform/config/config_test.go) |
+| Permissions, roles, workspaces, invitations, sessions, and tokens service | bootstrap, recurring | 02 | conforming | [Authorization and lifecycle tests](../internal/identity/service_test.go), [PostgreSQL identity test](../internal/identity/postgres_test.go) |
+| SQLite, PostgreSQL, migrations, and rolling compatibility | bootstrap, recurring | 01, 06 | conforming | [Database tests](../internal/platform/database/migrate_test.go), [PostgreSQL tests](../internal/platform/database/postgres_test.go), [upgrade procedure](operations.md#upgrades-and-alerts) |
+| Data governance, portability, deletion, archive, and restoration | bootstrap, operational | 06 | conforming | [Data lifecycle](data-lifecycle.md), [export tests](../internal/portability/service_test.go), [item lifecycle tests](../internal/items/service_test.go) |
 | Configuration and secrets | bootstrap, recurring | 01 | conforming | [Configuration](configuration.md), [validation tests](../internal/platform/config/config_test.go), safe `.env.example` |
 | HTTP limits, request IDs, timeouts, headers, and abuse controls | bootstrap, recurring | 03 | conforming | [HTTP component tests](../internal/httpapi/handler_test.go), [configuration](configuration.md) |
 | Traces, metrics, logs, health, shutdown, and operational targets | bootstrap, operational | 06 | pending | Telemetry and lifecycle tests |
@@ -107,6 +109,8 @@ Verified 2026-08-25 with Go 1.27.0 and PostgreSQL 14.24:
 - `go test ./...`
 - `go vet ./...`
 - `go test -race ./...` with `POSTGRES_TEST_URL`
+- browser login, workspace creation, member/invitation/token/session controls,
+  OIDC linking entry point, and export route use the shared services
 
 ## Phase 03 evidence
 
@@ -118,6 +122,8 @@ Verified 2026-08-25 with Go 1.27.0 and PostgreSQL 14.24:
   idempotency
 - item lifecycle and migrations pass on SQLite and isolated PostgreSQL
 - `go generate ./api` followed by a clean generated contract diff
+- bearer identity endpoints cover members, ownership, invitations, tokens, and
+  sessions; workspace list/create remain intentionally browser-only
 - `go test ./...`
 - `go vet ./...`
 - `go test -race ./...` on SQLite and with `POSTGRES_TEST_URL`
@@ -133,6 +139,9 @@ axe-core 4.10.2, Chrome, and VoiceOver:
   SQLite and isolated PostgreSQL
 - full-page and HTMX fragment behavior, ordinary form fallback, session-bound
   CSRF, authorization, escaped output, validation, and safe errors
+- browser surfaces cover workspace creation, baseline identity management,
+  invitation registration/acceptance, one-time token display, sessions,
+  security linking, and export download
 - SSE scope, initial/expired resync, valid reconnect replay, stable versioned
   payloads, heartbeat, lifetime, concurrency rejection, and redaction under
   the race detector
@@ -174,3 +183,51 @@ Verified 2026-08-25 with Go 1.27.0 and PostgreSQL 14.24:
 - `go test ./...`
 - `go vet ./...`
 - `go test -race ./...` on SQLite and with `POSTGRES_TEST_URL`
+## Phase 06 evidence
+
+Verified 2026-08-25 with Go 1.27.0, SQLite, PostgreSQL 14.24, and native
+`pg_dump`/`pg_restore`:
+
+- W3C-correlated server/client traces, metrics, structured logs, telemetry
+  redaction, readiness, shutdown, request/session/stream/storage/export limits
+- authorized versioned workspace export, wrong-workspace denial, explicit
+  exclusions, audit outcomes, permanent item deletion, and documented import
+  and identity-lifecycle boundaries
+- browser export download is exposed while backup, restore, maintenance,
+  import, audit administration, and deletion remain outside browser scope
+- transaction-safe retention, interrupted migration rollback, checksummed
+  SQLite snapshot and PostgreSQL dump, isolated known-record restore, and
+  stale/corrupt evidence rejection
+- measured SQLite server footprint and load with documented alert thresholds
+- `go test ./...`, `go vet ./...`, `go test -race ./...`, reproducible
+  `go generate ./api`, and a full race suite on isolated PostgreSQL
+
+## Phase 07 evidence
+
+Verified 2026-08-25 with Go 1.27.0, Docker Desktop, PostgreSQL 14.24,
+Trivy 0.74.0, govulncheck 1.7.0, actionlint 1.7.12, Chrome, and Node 24:
+
+- pinned minimal image built as UID/GID 65532 with executable health check,
+  OCI metadata, 32.5 MB local runtime size, and persistent SQLite storage
+- clean Compose smoke proved health, environment first-owner bootstrap, browser login,
+  useful item creation, restart, and persistent recovery; PostgreSQL overlay
+  separately migrated, bootstrapped, restarted, and became ready
+- full race suite passed on SQLite and isolated PostgreSQL, including
+  interruption-safe migrations and known-record backup/restore
+- live test proved browser login, authenticated REST, REST-only CLI, MCP
+  initialization/tool call, and SSE notification through shared use cases
+- generation replaced module, display, image, package, telemetry, API, MCP,
+  configuration, and documentation identifiers; emitted the required lock;
+  refused overwrite; and passed the generated application suite
+- source and runtime image scans found zero critical vulnerabilities;
+  govulncheck found zero reachable vulnerabilities; SPDX image SBOM generated
+- workflow YAML, pinned action commits, shell syntax, four-platform release
+  builds, and SHA-256 checksum verification passed; the release workflow owns
+  keyless signatures, provenance attestations, SBOM publication, and immutable
+  remote artifacts
+- automated accessibility smoke reported zero violations across login,
+  workspace, items, and validation; dated manual evidence remains in
+  [accessibility](accessibility.md)
+- documentation links, skill frontmatter/permanent routing, generated drift,
+  semantic version, and temporary-source absence are enforced by the handoff
+  test
