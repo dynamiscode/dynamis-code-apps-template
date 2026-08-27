@@ -674,7 +674,7 @@ func testWeb(t *testing.T, maximumStreams int, mailers ...appmail.Sender) (http.
 		mailer = mailers[0]
 	}
 	webHandler, err := NewHandlerWithServices(auth, itemService,
-		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes),
+		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes, cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService),
 		nil, cfg.HTTP, "", "", mailer)
 	if err != nil {
 		t.Fatal(err)

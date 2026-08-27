@@ -58,6 +58,13 @@ func TestHTTPContracts(t *testing.T) {
 		strings.Contains(exported.Body.String(), token) {
 		t.Fatalf("export response = %d, headers %v, body %s", exported.Code, exported.Header(), exported.Body.String())
 	}
+	imported := serveAuthorized(handler, http.MethodPost,
+		"/api/v1/workspaces/"+workspaceID+"/import",
+		"title,status\nImported,active\n", token,
+		map[string]string{"Content-Type": "text/csv"})
+	if imported.Code != http.StatusOK || imported.Body.String() != "{\"imported\":1}\n" {
+		t.Fatalf("import response = %d, %s", imported.Code, imported.Body.String())
+	}
 	unsupported := serveAuthorized(handler, http.MethodGet, collection+"?filter=no", "", token, nil)
 	assertProblem(t, unsupported, http.StatusBadRequest, "invalid-request")
 
@@ -276,7 +283,7 @@ func testHandler(t *testing.T) (http.Handler, *sql.DB, string, string) {
 	}
 	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace)
 	handler, err := NewHandler(db, auth, itemService,
-		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes),
+		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes, cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService),
 		oidc, cfg.HTTP, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)

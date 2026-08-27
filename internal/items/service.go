@@ -59,6 +59,11 @@ type UpdateInput struct {
 	Status *Status
 }
 
+type ImportItem struct {
+	Title  string `json:"title"`
+	Status Status `json:"status"`
+}
+
 type ListInput struct {
 	Status Status
 	Sort   string
@@ -106,6 +111,66 @@ func (s *Service) Create(
 		return CreateResult{}, identity.ErrForbidden
 	}
 	return s.create(ctx, actor, workspaceID, title, idempotencyKey, audit, true)
+}
+
+func (s *Service) ImportInTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	actor identity.Principal,
+	workspaceID string,
+	input []ImportItem,
+	now time.Time,
+) ([]Item, error) {
+	if len(input) == 0 {
+		return nil, ErrInvalidInput
+	}
+	if _, err := s.auth.AuthorizePrincipalInTx(
+		ctx, tx, actor, workspaceID, identity.ResourcesWrite,
+	); err != nil {
+		return nil, identity.ErrForbidden
+	}
+	var itemCount int
+	if err := s.queryRow(ctx, tx,
+		"SELECT COUNT(*) FROM items WHERE workspace_id = ?", workspaceID,
+	).Scan(&itemCount); err != nil {
+		return nil, err
+	}
+	if itemCount > s.maxItems-len(input) {
+		return nil, ErrLimit
+	}
+	now = now.UTC()
+	result := make([]Item, 0, len(input))
+	for _, value := range input {
+		normalized, err := NormalizeImportItem(value)
+		if err != nil {
+			return nil, err
+		}
+		itemID, err := id.New()
+		if err != nil {
+			return nil, err
+		}
+		item := Item{
+			ID: itemID, WorkspaceID: workspaceID, CreatedByUserID: actor.UserID,
+			Title: normalized.Title, Status: normalized.Status, Version: 1,
+			CreatedAt: now, UpdatedAt: now,
+		}
+		if _, err := s.exec(ctx, tx, `
+			INSERT INTO items (
+				id, workspace_id, created_by_user_id, title, status,
+				version, created_at, updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, item.ID, item.WorkspaceID, item.CreatedByUserID, item.Title,
+			item.Status, item.Version, formatTime(now), formatTime(now)); err != nil {
+			return nil, err
+		}
+		if err := s.recordChange(
+			ctx, tx, workspaceID, item.ID, "created", item.Version, now,
+		); err != nil {
+			return nil, err
+		}
+		result = append(result, item)
+	}
+	return result, nil
 }
 
 func (s *Service) create(
@@ -578,6 +643,21 @@ func validateTitle(value string) (string, error) {
 	if value == "" || !utf8.ValidString(value) || utf8.RuneCountInString(value) > 200 {
 		return "", ErrInvalidInput
 	}
+	return value, nil
+}
+
+func NormalizeImportItem(value ImportItem) (ImportItem, error) {
+	title, err := validateTitle(value.Title)
+	if err != nil {
+		return ImportItem{}, err
+	}
+	if value.Status == "" {
+		value.Status = Active
+	}
+	if value.Status != Active && value.Status != Complete {
+		return ImportItem{}, ErrInvalidInput
+	}
+	value.Title = title
 	return value, nil
 }
 

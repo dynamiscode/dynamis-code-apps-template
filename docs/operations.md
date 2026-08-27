@@ -24,7 +24,8 @@ Metrics:
 Default limits are 100 concurrent ordinary requests, 120 requests per source
 per minute, 10 authentication attempts per source per minute, 1 MiB request
 bodies, 100 SSE streams per instance and 5 per user, 10 active sessions per
-user, 10,000 items per workspace, 1,000 export records, and 4 MiB per export.
+user, 10,000 items per workspace, 1,000 export/import records, and 4 MiB per
+export/import payload (the HTTP body limit may be lower).
 SQLite uses one database connection; PostgreSQL defaults to four open and two
 idle. OIDC calls use a 10-second client timeout. Limits return bounded 409 or
 429 errors with remediation or `Retry-After` as applicable.
