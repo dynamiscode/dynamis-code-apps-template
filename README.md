@@ -74,3 +74,6 @@ make docker-smoke
 
 Use the [documentation router](docs/README.md) for architecture, configuration,
 interfaces, operations, security, and contribution guidance.
+
+Repository governance, dependency attribution, and the pending project-license
+decision are documented in [governance](docs/governance.md).

@@ -7,6 +7,8 @@
   localized invitation emails, and language settings.
 - Added migration 000006 and additive workspace export locale data; REST, CLI,
   MCP, WebMCP names, and machine-readable error contracts remain stable.
+- Added OSS repository governance, dependency attribution, conduct, ownership,
+  issue, and pull-request standards; project license selection remains pending.
 
 - Local loopback browser setup without a token, with protected remote setup and
   environment bootstrap precedence.

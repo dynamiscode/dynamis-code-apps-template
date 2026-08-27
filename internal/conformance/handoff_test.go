@@ -16,7 +16,12 @@ func TestPermanentContextHandoff(t *testing.T) {
 	root := repositoryRoot(t)
 	required := []string{
 		"AGENTS.md", "README.md", "SECURITY.md", "CONTRIBUTING.md",
+		"CODE_OF_CONDUCT.md", "NOTICE", ".github/CODEOWNERS",
+		".github/ISSUE_TEMPLATE/config.yml", ".github/ISSUE_TEMPLATE/bug_report.yml",
+		".github/ISSUE_TEMPLATE/feature_request.yml", ".github/ISSUE_TEMPLATE/documentation.yml",
+		".github/pull_request_template.md",
 		"CHANGELOG.md", "VERSION", "Dockerfile", "compose.yaml",
+		"docs/governance.md",
 		"docs/README.md", "docs/architecture.md", "docs/configuration.md",
 		"docs/deployment.md", "docs/operations.md", "docs/authentication.md",
 		"docs/api.md", "docs/mcp.md", "docs/cli.md", "docs/web.md",
