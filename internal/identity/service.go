@@ -104,8 +104,8 @@ func (s *Service) BootstrapFirstOwner(
 		return BootstrapResult{}, ErrAlreadyBootstrapped
 	}
 	if _, err := s.exec(ctx, tx,
-		"INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
-		userID, email, passwordHash, timestamp(now),
+		"INSERT INTO users (id, email, password_hash, email_verified_at, created_at) VALUES (?, ?, ?, ?, ?)",
+		userID, email, passwordHash, timestamp(now), timestamp(now),
 	); err != nil {
 		return BootstrapResult{}, fmt.Errorf("create first user: %w", err)
 	}
@@ -574,6 +574,12 @@ func (s *Service) RemoveMember(
 	}
 	if _, err := s.exec(ctx, tx, `
 		DELETE FROM workspace_members
+		WHERE workspace_id = ? AND user_id = ?
+	`, actor.WorkspaceID, userID); err != nil {
+		return err
+	}
+	if _, err := s.exec(ctx, tx, `
+		DELETE FROM workspace_notification_preferences
 		WHERE workspace_id = ? AND user_id = ?
 	`, actor.WorkspaceID, userID); err != nil {
 		return err

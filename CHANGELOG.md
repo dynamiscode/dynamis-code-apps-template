@@ -7,6 +7,10 @@
   localized invitation emails, and language settings.
 - Added migration 000006 and additive workspace export locale data; REST, CLI,
   MCP, WebMCP names, and machine-readable error contracts remain stable.
+- Added account profile preferences, email verification, password reset/change,
+  owner-safe account deletion, in-app notifications, recipient-scoped SSE, and
+  notification retention. SMTP delivery remains synchronous and optional;
+  retryable delivery is deferred with background jobs.
 - Added OSS repository governance, dependency attribution, conduct, ownership,
   issue, and pull-request standards; project license selection remains pending.
 

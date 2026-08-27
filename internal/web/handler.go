@@ -42,39 +42,47 @@ type Handler struct {
 }
 
 type pageData struct {
-	Locale                  string
-	Catalog                 *i18n.Catalog
-	Title                   string
-	NavPage                 string
-	NavSection              string
-	Error                   string
-	CSRF                    string
-	Workspace               identity.WorkspaceSummary
-	Workspaces              []identity.WorkspaceSummary
-	Items                   []items.Item
-	NextCursor              string
-	CreateKey               string
-	CurrentPath             string
-	Email                   string
-	UserLocale              string
-	Saved                   bool
-	WorkspaceName           string
-	WorkspaceLocale         string
-	SetupTokenRequired      bool
-	Members                 []identity.MemberSummary
-	Invitations             []identity.Invitation
-	Tokens                  []identity.APIToken
-	Sessions                []identity.Session
-	OIDCProviders           []identity.OIDCProviderInfo
-	Invitation              identity.Invitation
-	InvitationSecret        string
-	InvitationAuthenticated bool
-	InvitationURL           string
-	TokenSecret             string
-	DeliveryWarning         string
-	CanManage               bool
-	CanTransfer             bool
-	ReturnTo                string
+	Locale                           string
+	Catalog                          *i18n.Catalog
+	Title                            string
+	NavPage                          string
+	NavSection                       string
+	Error                            string
+	CSRF                             string
+	Workspace                        identity.WorkspaceSummary
+	Workspaces                       []identity.WorkspaceSummary
+	Items                            []items.Item
+	NextCursor                       string
+	CreateKey                        string
+	CurrentPath                      string
+	Email                            string
+	UserLocale                       string
+	Saved                            bool
+	WorkspaceName                    string
+	WorkspaceLocale                  string
+	SetupTokenRequired               bool
+	Members                          []identity.MemberSummary
+	Invitations                      []identity.Invitation
+	Tokens                           []identity.APIToken
+	Sessions                         []identity.Session
+	Profile                          identity.UserProfile
+	NotificationPreferences          []identity.NotificationPreference
+	WorkspaceNotificationPreferences []identity.NotificationPreference
+	Notifications                    []identity.Notification
+	UnreadNotifications              int
+	PasswordResetSecret              string
+	PasswordResetCompleted           bool
+	CurrentAuthMethod                string
+	OIDCProviders                    []identity.OIDCProviderInfo
+	Invitation                       identity.Invitation
+	InvitationSecret                 string
+	InvitationAuthenticated          bool
+	InvitationURL                    string
+	TokenSecret                      string
+	DeliveryWarning                  string
+	CanManage                        bool
+	CanTransfer                      bool
+	ReturnTo                         string
 }
 
 func (p pageData) T(key string, values ...any) string {
@@ -189,6 +197,20 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /setup", h.setupPage)
 	mux.HandleFunc("POST /setup", h.setup)
 	mux.HandleFunc("POST /logout", h.logout)
+	mux.HandleFunc("GET /account", h.accountPage)
+	mux.HandleFunc("POST /account/profile", h.accountProfileMutation)
+	mux.HandleFunc("POST /account/notifications", h.accountNotificationMutation)
+	mux.HandleFunc("POST /account/password", h.accountPasswordMutation)
+	mux.HandleFunc("POST /account/delete", h.accountDeleteMutation)
+	mux.HandleFunc("POST /account/verify-email", h.emailVerificationMutation)
+	mux.HandleFunc("GET /account/verify-email/{secret}", h.emailVerification)
+	mux.HandleFunc("GET /password-reset", h.passwordResetPage)
+	mux.HandleFunc("POST /password-reset", h.passwordResetRequest)
+	mux.HandleFunc("GET /password-reset/{secret}", h.passwordResetTokenPage)
+	mux.HandleFunc("POST /password-reset/{secret}", h.passwordResetComplete)
+	mux.HandleFunc("GET /notifications", h.notificationsPage)
+	mux.HandleFunc("POST /notifications/{notificationId}", h.notificationMutation)
+	mux.HandleFunc("GET /notifications/events", h.notificationEvents)
 	mux.HandleFunc("GET /auth/oidc/{providerId}", h.oidcLogin)
 	mux.HandleFunc("GET /auth/oidc/{providerId}/callback", h.oidcCallback)
 	mux.HandleFunc("GET /{$}", h.home)
@@ -216,6 +238,7 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /settings/language", h.languageSettings)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/general", h.generalSettingsPage)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/general", h.generalSettings)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/notifications", h.workspaceNotificationSettings)
 	mux.HandleFunc("GET /invitations/{secret}", h.invitationPage)
 	mux.HandleFunc("POST /invitations/{secret}", h.invitationPost)
 	return h.localeMiddleware(mux)

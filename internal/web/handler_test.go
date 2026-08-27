@@ -97,6 +97,83 @@ func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
 	}
 }
 
+func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
+	mailer := &recordingMailer{}
+	handler, auth, _, workspaceID, owner := testWeb(t, 10, mailer)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+
+	account := request(handler, http.MethodGet, "/account", nil, cookies, nil)
+	if account.Code != http.StatusOK || !strings.Contains(account.Body.String(), "Profile and preferences") {
+		t.Fatalf("account page = %d, %s", account.Code, account.Body.String())
+	}
+	updated := request(handler, http.MethodPost, "/account/profile", url.Values{
+		"csrf": {session.CSRFSecret}, "display_name": {"Owner"}, "locale": {"es"},
+		"timezone": {"America/Bogota"}, "theme": {"dark"},
+	}, cookies, nil)
+	if updated.Code != http.StatusSeeOther || updated.Header().Get("Location") != "/account?saved=1" {
+		t.Fatalf("profile update = %d, %q", updated.Code, updated.Header().Get("Location"))
+	}
+	if profile, err := auth.GetUserProfile(context.Background(), owner.UserID); err != nil || profile.DisplayName != "Owner" || profile.Timezone != "America/Bogota" || profile.Theme != "dark" {
+		t.Fatalf("profile = %+v, %v", profile, err)
+	}
+	preference := request(handler, http.MethodPost, "/account/notifications", url.Values{
+		"csrf": {session.CSRFSecret}, "notification_type": {"system"}, "enabled": {"false"},
+	}, cookies, nil)
+	if preference.Code != http.StatusSeeOther {
+		t.Fatalf("notification preference = %d, %s", preference.Code, preference.Body.String())
+	}
+
+	notification, err := auth.CreateNotification(context.Background(), PrincipalSystem(), identity.NotificationInput{
+		RecipientUserID: owner.UserID, WorkspaceID: workspaceID, NotificationType: "workspace", Title: "Update", Body: "A workspace update",
+	}, identity.AuditContext{})
+	if err != nil || notification.ID == "" {
+		t.Fatalf("notification = %+v, %v", notification, err)
+	}
+	notifications := request(handler, http.MethodGet, "/notifications", nil, cookies, nil)
+	if notifications.Code != http.StatusOK || !strings.Contains(notifications.Body.String(), "A workspace update") {
+		t.Fatalf("notifications page = %d, %s", notifications.Code, notifications.Body.String())
+	}
+	marked := request(handler, http.MethodPost, "/notifications/"+notification.ID, url.Values{
+		"csrf": {session.CSRFSecret},
+	}, cookies, nil)
+	if marked.Code != http.StatusSeeOther {
+		t.Fatalf("notification mark read = %d", marked.Code)
+	}
+
+	resetPage := request(handler, http.MethodGet, "/password-reset", nil, nil, nil)
+	resetCSRF := responseCookie(resetPage, "reset_csrf")
+	resetRequested := request(handler, http.MethodPost, "/password-reset", url.Values{
+		"csrf": {resetCSRF.Value}, "email": {"owner@example.com"},
+	}, []*http.Cookie{resetCSRF}, nil)
+	if resetRequested.Code != http.StatusOK || !strings.Contains(resetRequested.Body.String(), "If an account exists") {
+		t.Fatalf("reset request = %d, %s", resetRequested.Code, resetRequested.Body.String())
+	}
+	resetLink := strings.TrimSpace(strings.TrimPrefix(mailer.body, "Reset your password with this link: "))
+	parsed, err := url.Parse(resetLink)
+	if err != nil || parsed.Path == "" {
+		t.Fatalf("reset link = %q, %v", resetLink, err)
+	}
+	resetTokenPage := request(handler, http.MethodGet, parsed.Path, nil, nil, nil)
+	resetTokenCSRF := responseCookie(resetTokenPage, "reset_csrf")
+	resetComplete := request(handler, http.MethodPost, parsed.Path, url.Values{
+		"csrf": {resetTokenCSRF.Value}, "password": {"reset-owner-password"}, "password_confirmation": {"reset-owner-password"},
+	}, []*http.Cookie{resetTokenCSRF}, nil)
+	if resetComplete.Code != http.StatusOK || !strings.Contains(resetComplete.Body.String(), "Password reset") {
+		t.Fatalf("reset complete = %d, %s", resetComplete.Code, resetComplete.Body.String())
+	}
+	if _, err := auth.AuthenticateLocal(context.Background(), "owner@example.com", "reset-owner-password"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func PrincipalSystem() identity.Principal {
+	return identity.Principal{AuthMethod: "system"}
+}
+
 func TestWebLocalePrecedenceAndWorkspaceFallback(t *testing.T) {
 	handler, auth, _, workspaceID, owner := testWeb(t, 10)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
@@ -344,6 +421,42 @@ func TestSSEScopeReconnectHeartbeatAndLimits(t *testing.T) {
 	wrong := request(handler, http.MethodGet, "/workspaces/00000000000000000000000000000000/items/events", nil, cookies, nil)
 	if wrong.Code != http.StatusForbidden {
 		t.Fatalf("wrong-workspace stream = %d", wrong.Code)
+	}
+}
+
+func TestNotificationSSEIsScopedAndRedactedToRecipient(t *testing.T) {
+	handler, auth, _, workspaceID, owner := testWeb(t, 1)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	streamRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/notifications/events", nil)
+	addCookies(streamRequest, []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}})
+	response, err := server.Client().Do(streamRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("notification stream = %d", response.StatusCode)
+	}
+	reader := bufio.NewReader(response.Body)
+	if _, err := auth.CreateNotification(context.Background(), PrincipalSystem(), identity.NotificationInput{
+		RecipientUserID: owner.UserID, WorkspaceID: workspaceID, NotificationType: "workspace", Title: "Visible", Body: "Private body",
+	}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	event := readUntil(t, reader, "event: notification.created") + readUntil(t, reader, "\n\n")
+	if !strings.Contains(event, "Private body") || !strings.Contains(event, "Visible") {
+		t.Fatalf("notification event = %q", event)
+	}
+	wrong := request(handler, http.MethodGet, "/notifications", nil, []*http.Cookie{{Name: "session", Value: "missing"}}, nil)
+	if wrong.Code != http.StatusSeeOther {
+		t.Fatalf("unauthenticated notification page = %d", wrong.Code)
 	}
 }
 

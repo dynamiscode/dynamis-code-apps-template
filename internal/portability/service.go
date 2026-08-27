@@ -102,6 +102,7 @@ func (s *Service) Export(
 		Excluded: []string{
 			"credentials", "sessions", "apiTokens", "externalIdentities",
 			"invitations", "oidcTransactions", "idempotencyRecords", "realtimeReplay",
+			"notifications", "notificationPreferences",
 		},
 	}
 	var createdAt string
