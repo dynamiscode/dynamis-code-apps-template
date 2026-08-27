@@ -4,6 +4,10 @@ Read [AGENTS.md](AGENTS.md) and follow the task route in
 [docs/README.md](docs/README.md). Keep each change independently reviewable;
 preserve architecture boundaries and unrelated work.
 
+Read [governance](docs/governance.md) for maintainer responsibilities,
+dependency attribution, and the pending project-license decision. Use the
+repository issue and pull-request templates for public work.
+
 Before submitting:
 
 ```sh

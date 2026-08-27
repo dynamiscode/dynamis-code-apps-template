@@ -11,6 +11,7 @@ Read only the route needed for the change.
 | Change web, WebMCP, or realtime behavior | [Web](web.md), [accessibility](accessibility.md), [API](api.md) | `implement-go-feature` |
 | Deploy, operate, back up, restore, or upgrade | [Deployment](deployment.md), [operations](operations.md), [configuration](configuration.md) | None |
 | Generate, update, or release the template | [Template lifecycle](template-lifecycle.md), [release](release.md), [capabilities](capabilities.md) | `verify-template-conformance` for verification |
+| Maintain licensing, contribution, dependency attribution, or repository governance | [Governance](governance.md), [security](../SECURITY.md), [contribution guide](../CONTRIBUTING.md) | None |
 | Propose a deferred capability | [Capabilities](capabilities.md), [decisions](decisions/README.md) | None; accept its trigger first |
 
 ## Sources of truth
