@@ -1,0 +1,16 @@
+title = "Dynamis Code secret scanning"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Generated OpenAPI content hash is not a credential"
+paths = ["^api/contract\\.gen\\.go$"]
+regexTarget = "line"
+regexes = ['''OpenAPISHA256 = "[0-9a-f]{64}"''']
+
+[[allowlists]]
+description = "Deterministic HTTP test idempotency keys are not credentials"
+paths = ["^internal/httpapi/handler_test\\.go$"]
+regexTarget = "line"
+regexes = ['''"Idempotency-Key": "key-[0-9a-z-]+"''']
