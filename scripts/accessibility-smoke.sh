@@ -30,5 +30,7 @@ until curl --fail --silent "http://127.0.0.1:$port/health/ready" >/dev/null; do
   sleep 1
 done
 
-A11Y_BASE_URL="http://127.0.0.1:$port" A11Y_EMAIL=a11y@example.com \
-  A11Y_PASSWORD=a11y-password-123 npm run test:a11y
+for locale in en es; do
+  A11Y_BASE_URL="http://127.0.0.1:$port" A11Y_EMAIL=a11y@example.com \
+    A11Y_PASSWORD=a11y-password-123 A11Y_LOCALE="$locale" npm run test:a11y
+done

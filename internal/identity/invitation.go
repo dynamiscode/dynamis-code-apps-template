@@ -477,11 +477,12 @@ func (s *Service) findInvitation(
 	var createdAt, expiresAt string
 	var acceptedAt, expiredAt, revokedAt sql.NullString
 	err := s.queryRow(ctx, tx, `
-		SELECT id, workspace_id, email, role, created_at, expires_at,
+		SELECT i.id, i.workspace_id, w.locale, i.email, i.role, i.created_at, i.expires_at,
 			accepted_at, expired_at, revoked_at
-		FROM invitations WHERE secret_hash = ?
+		FROM invitations i JOIN workspaces w ON w.id = i.workspace_id
+		WHERE i.secret_hash = ?
 	`, hashSecret(secret)).Scan(
-		&invitation.ID, &invitation.WorkspaceID, &invitation.Email,
+		&invitation.ID, &invitation.WorkspaceID, &invitation.WorkspaceLocale, &invitation.Email,
 		&invitation.Role, &createdAt, &expiresAt,
 		&acceptedAt, &expiredAt, &revokedAt,
 	)

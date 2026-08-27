@@ -6,16 +6,16 @@ Owner: template maintainer
 
 ## Result
 
-No critical, serious, or other axe-core 4.10.2 violations were reported on
-the sign-in page, authenticated workspace selector, or authenticated item
-flow. The repeatable runner is `npm run test:a11y` against a bootstrapped local
-server; it also fails on keyboard order, missing focus visibility, horizontal
-overflow at 320 CSS pixels, reduced-motion mismatch, or missing accessible
-names in Chrome's accessibility tree.
+The repeatable runner is `npm run test:a11y` against a bootstrapped local
+server; `make accessibility-smoke` runs it once per locale. It fails on
+critical or serious axe violations, keyboard order, missing focus visibility,
+horizontal overflow at 320 CSS pixels, reduced-motion mismatch, or missing
+accessible names in Chrome's accessibility tree.
 
 Install the locked development dependencies with `npm ci`, start a local
 bootstrapped server, then provide `A11Y_BASE_URL`, `A11Y_EMAIL`, and
-`A11Y_PASSWORD` to `npm run test:a11y`. The runner never prints the password.
+`A11Y_PASSWORD` to `npm run test:a11y`; set `A11Y_LOCALE=en` or `es`. The runner
+never prints the password.
 
 ## Manual checklist
 

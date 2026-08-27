@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
@@ -32,7 +33,9 @@ func (h *Handler) createWorkspace(writer http.ResponseWriter, request *http.Requ
 	}
 	_, err := h.identity.CreateWorkspace(request.Context(), identity.Principal{
 		UserID: session.UserID, AuthMethod: session.AuthMethod,
-	}, request.FormValue("name"), auditContext(request))
+	}, identity.WorkspaceCreateInput{
+		Name: request.FormValue("name"), Locale: request.FormValue("locale"),
+	}, auditContext(request))
 	if err != nil {
 		workspaces, listErr := h.identity.ListWorkspaces(request.Context(), session.UserID)
 		if listErr != nil {
@@ -176,7 +179,8 @@ func (h *Handler) invitationMutation(writer http.ResponseWriter, request *http.R
 			return
 		}
 		link := invitationURL(h.publicURL, invitation.Secret)
-		_, warning := h.deliverInvitation(request, invitation.Email, link)
+		workspaceLocale, _ := h.identity.GetWorkspaceLocale(request.Context(), workspaceID)
+		_, warning := h.deliverInvitation(request, invitation.Email, link, workspaceLocale)
 		h.renderInvitationResult(writer, request, workspaceID, csrf, link, warning)
 		return
 	}
@@ -196,7 +200,8 @@ func (h *Handler) invitationMutation(writer http.ResponseWriter, request *http.R
 		for _, invitation := range invitations {
 			if invitation.ID == invitationID {
 				link := invitationURL(h.publicURL, secret)
-				_, warning := h.deliverInvitation(request, invitation.Email, link)
+				workspaceLocale, _ := h.identity.GetWorkspaceLocale(request.Context(), workspaceID)
+				_, warning := h.deliverInvitation(request, invitation.Email, link, workspaceLocale)
 				h.renderInvitationResult(writer, request, workspaceID, csrf, link, warning)
 				return
 			}
@@ -506,11 +511,17 @@ func (h *Handler) providers() []identity.OIDCProviderInfo {
 	return h.oidc.Providers()
 }
 
-func (h *Handler) deliverInvitation(request *http.Request, recipient, link string) (bool, string) {
+func (h *Handler) deliverInvitation(request *http.Request, recipient, link, workspaceLocale string) (bool, string) {
 	if h.mailer == nil {
 		return false, ""
 	}
-	if err := h.mailer.Send(request.Context(), recipient, "You are invited to Dynamis Code", "Open this invitation link: "+link); err != nil {
+	locale, ok := i18n.ParseLocale(workspaceLocale)
+	if !ok {
+		locale = i18n.English
+	}
+	subject := h.catalog.Translate(locale, "email.invitation_subject", nil)
+	body := h.catalog.Translate(locale, "email.invitation_body", map[string]any{"link": link})
+	if err := h.mailer.Send(request.Context(), recipient, subject, body); err != nil {
 		return false, "Invitation email could not be delivered. Share the invitation link manually."
 	}
 	return true, ""

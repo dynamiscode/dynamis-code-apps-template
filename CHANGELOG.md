@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added Git-reviewed English and Spanish browser catalogs with account
+  preference, explicit cookie, browser negotiation, workspace fallback,
+  localized invitation emails, and language settings.
+- Added migration 000006 and additive workspace export locale data; REST, CLI,
+  MCP, WebMCP names, and machine-readable error contracts remain stable.
+
 - Local loopback browser setup without a token, with protected remote setup and
   environment bootstrap precedence.
 - Browser workspace creation, member and ownership management, invitation

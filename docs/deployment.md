@@ -5,6 +5,7 @@
 ```sh
 export BOOTSTRAP_ADMIN_EMAIL=owner@example.com
 export BOOTSTRAP_ADMIN_WORKSPACE='My Workspace'
+export BOOTSTRAP_ADMIN_WORKSPACE_LOCALE=en
 read -s BOOTSTRAP_ADMIN_PASSWORD; export BOOTSTRAP_ADMIN_PASSWORD
 docker compose up --build -d
 unset BOOTSTRAP_ADMIN_PASSWORD
@@ -20,7 +21,7 @@ token. The CLI fallback is:
 ```sh
 read -s BOOTSTRAP_ADMIN_PASSWORD; export BOOTSTRAP_ADMIN_PASSWORD
 docker compose exec app /bootstrap-admin \
-  -email owner@example.com -workspace 'My Workspace'
+  -email owner@example.com -workspace 'My Workspace' -workspace-locale en
 unset BOOTSTRAP_ADMIN_PASSWORD
 ```
 

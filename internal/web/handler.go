@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
@@ -37,9 +38,12 @@ type Handler struct {
 	setupTokenHash string
 	template       *template.Template
 	streams        *streamLimit
+	catalog        *i18n.Catalog
 }
 
 type pageData struct {
+	Locale                  string
+	Catalog                 *i18n.Catalog
 	Title                   string
 	NavPage                 string
 	NavSection              string
@@ -52,7 +56,10 @@ type pageData struct {
 	CreateKey               string
 	CurrentPath             string
 	Email                   string
+	UserLocale              string
+	Saved                   bool
 	WorkspaceName           string
+	WorkspaceLocale         string
 	SetupTokenRequired      bool
 	Members                 []identity.MemberSummary
 	Invitations             []identity.Invitation
@@ -68,6 +75,55 @@ type pageData struct {
 	CanManage               bool
 	CanTransfer             bool
 	ReturnTo                string
+}
+
+func (p pageData) T(key string, values ...any) string {
+	args := map[string]any{}
+	if len(values) == 1 {
+		if supplied, ok := values[0].(map[string]any); ok {
+			args = supplied
+		}
+	}
+	return p.Catalog.Translate(i18n.Locale(p.Locale), key, args)
+}
+
+func (p pageData) Date(value time.Time) string {
+	return i18n.FormatDate(i18n.Locale(p.Locale), value)
+}
+
+func (p pageData) DateTime(value time.Time) string {
+	return i18n.FormatDateTime(i18n.Locale(p.Locale), value)
+}
+
+func (p pageData) Role(value identity.Role) string {
+	keys := map[identity.Role]string{
+		identity.Owner: "members.owner", identity.Admin: "members.admin",
+		identity.Member: "members.member", identity.Viewer: "members.viewer",
+	}
+	return p.T(keys[value])
+}
+
+func (p pageData) Scope(value identity.Permission) string {
+	keys := map[identity.Permission]string{
+		identity.WorkspaceRead: "tokens.workspace_read", identity.ResourcesRead: "tokens.resources_read",
+		identity.ResourcesWrite: "tokens.resources_write", identity.WorkspaceExport: "tokens.workspace_export",
+	}
+	return p.T(keys[value])
+}
+
+func (p pageData) ScopeList(values []identity.Permission) string {
+	labels := make([]string, 0, len(values))
+	for _, value := range values {
+		labels = append(labels, p.Scope(value))
+	}
+	return strings.Join(labels, ", ")
+}
+
+func (p pageData) AuthMethod(value string) string {
+	if value == "oidc" {
+		return p.T("security.oidc")
+	}
+	return p.T("security.local")
 }
 
 func NewHandler(
@@ -91,7 +147,21 @@ func NewHandlerWithServices(
 	publicURL string,
 	mailer appmail.Sender,
 ) (*Handler, error) {
-	templates, err := template.ParseFS(files, "templates/*.html")
+	catalog, err := i18n.New()
+	if err != nil {
+		return nil, err
+	}
+	templates, err := template.New("root").Funcs(template.FuncMap{
+		"dict": func(values ...any) map[string]any {
+			result := make(map[string]any, len(values)/2)
+			for index := 0; index+1 < len(values); index += 2 {
+				if key, ok := values[index].(string); ok {
+					result[key] = values[index+1]
+				}
+			}
+			return result
+		},
+	}).ParseFS(files, "templates/*.html")
 	if err != nil {
 		return nil, err
 	}
@@ -105,6 +175,7 @@ func NewHandlerWithServices(
 		setupTokenHash: setupTokenHash,
 		template:       templates,
 		streams:        newStreamLimit(cfg.SSEMaxConnections, cfg.SSEMaxPerUser),
+		catalog:        catalog,
 	}, nil
 }
 
@@ -112,6 +183,7 @@ func (h *Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
 	assets, _ := fs.Sub(files, "assets")
 	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServerFS(assets)))
+	mux.HandleFunc("GET /language", h.language)
 	mux.HandleFunc("GET /login", h.loginPage)
 	mux.HandleFunc("POST /login", h.login)
 	mux.HandleFunc("GET /setup", h.setupPage)
@@ -140,9 +212,13 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /sessions/{sessionId}", h.sessionMutation)
 	mux.HandleFunc("GET /security", h.securityPage)
 	mux.HandleFunc("POST /security", h.securityMutation)
+	mux.HandleFunc("GET /settings/language", h.languageSettingsPage)
+	mux.HandleFunc("POST /settings/language", h.languageSettings)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/general", h.generalSettingsPage)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/general", h.generalSettings)
 	mux.HandleFunc("GET /invitations/{secret}", h.invitationPage)
 	mux.HandleFunc("POST /invitations/{secret}", h.invitationPost)
-	return mux
+	return h.localeMiddleware(mux)
 }
 
 func (h *Handler) loginPage(writer http.ResponseWriter, request *http.Request) {
@@ -192,7 +268,7 @@ func (h *Handler) setup(writer http.ResponseWriter, request *http.Request) {
 	}
 	data := pageData{
 		Title: "Set up Dynamis Code", Email: request.FormValue("email"),
-		WorkspaceName: request.FormValue("workspace"),
+		WorkspaceName: request.FormValue("workspace"), WorkspaceLocale: request.FormValue("workspace_locale"),
 	}
 	if request.FormValue("password") != request.FormValue("password_confirmation") {
 		data.Error = "The passwords do not match."
@@ -201,6 +277,7 @@ func (h *Handler) setup(writer http.ResponseWriter, request *http.Request) {
 	}
 	_, err := h.identity.BootstrapFirstOwner(request.Context(), identity.BootstrapInput{
 		Email: data.Email, Password: request.FormValue("password"), WorkspaceName: data.WorkspaceName,
+		WorkspaceLocale: data.WorkspaceLocale,
 	}, auditContext(request))
 	if errors.Is(err, identity.ErrAlreadyBootstrapped) {
 		h.redirect(writer, request, "/login")
@@ -639,6 +716,7 @@ func (h *Handler) redirect(writer http.ResponseWriter, request *http.Request, pa
 }
 
 func (h *Handler) render(writer http.ResponseWriter, status int, name string, data pageData) {
+	h.localizePage(writer, &data)
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)
@@ -659,7 +737,7 @@ func workspaceByID(workspaces []identity.WorkspaceSummary, id string) identity.W
 			return workspace
 		}
 	}
-	return identity.WorkspaceSummary{ID: id, Name: "Workspace"}
+	return identity.WorkspaceSummary{ID: id, Name: "Workspace", Locale: "en"}
 }
 
 func cookieValue(request *http.Request, name string) string {

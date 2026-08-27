@@ -115,7 +115,7 @@ func TestBootstrapLocalAuthenticationAndInstanceScope(t *testing.T) {
 	}
 	createdWorkspace, err := service.CreateWorkspace(ctx, Principal{
 		UserID: adminWithoutWorkspace, AuthMethod: "session",
-	}, "Second workspace", AuditContext{})
+	}, WorkspaceCreateInput{Name: "Second workspace"}, AuditContext{})
 	if err != nil {
 		t.Fatalf("CreateWorkspace() error = %v", err)
 	}

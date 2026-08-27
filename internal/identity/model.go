@@ -15,6 +15,7 @@ var (
 	ErrInvalidInvitation   = errors.New("invitation is invalid or expired")
 	ErrInvalidSession      = errors.New("session is invalid or expired")
 	ErrInvalidToken        = errors.New("token is invalid or expired")
+	ErrInvalidLocale       = errors.New("locale is invalid")
 	ErrLastOwner           = errors.New("the final owner cannot be changed")
 	ErrOIDCTransaction     = errors.New("OIDC transaction is invalid or expired")
 	ErrUnknownOIDCProvider = errors.New("unknown OIDC provider")
@@ -54,9 +55,10 @@ type Principal struct {
 }
 
 type BootstrapInput struct {
-	Email         string
-	Password      string
-	WorkspaceName string
+	Email           string
+	Password        string
+	WorkspaceName   string
+	WorkspaceLocale string
 }
 
 type BootstrapResult struct {
@@ -65,9 +67,15 @@ type BootstrapResult struct {
 }
 
 type WorkspaceSummary struct {
-	ID   string
-	Name string
-	Role Role
+	ID     string
+	Name   string
+	Role   Role
+	Locale string
+}
+
+type WorkspaceCreateInput struct {
+	Name   string
+	Locale string
 }
 
 type MemberSummary struct {
@@ -93,15 +101,16 @@ type NewSession struct {
 }
 
 type Invitation struct {
-	ID          string
-	WorkspaceID string
-	Email       string
-	Role        Role
-	CreatedAt   time.Time
-	ExpiresAt   time.Time
-	AcceptedAt  *time.Time
-	ExpiredAt   *time.Time
-	RevokedAt   *time.Time
+	ID              string
+	WorkspaceID     string
+	WorkspaceLocale string
+	Email           string
+	Role            Role
+	CreatedAt       time.Time
+	ExpiresAt       time.Time
+	AcceptedAt      *time.Time
+	ExpiredAt       *time.Time
+	RevokedAt       *time.Time
 }
 
 type NewInvitation struct {

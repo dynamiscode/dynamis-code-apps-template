@@ -31,6 +31,7 @@ type Export struct {
 type Workspace struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
+	Locale    string    `json:"locale"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
@@ -105,8 +106,8 @@ func (s *Service) Export(
 	}
 	var createdAt string
 	if err := s.queryRow(ctx, tx,
-		"SELECT id, name, created_at FROM workspaces WHERE id = ?", workspaceID,
-	).Scan(&result.Workspace.ID, &result.Workspace.Name, &createdAt); err != nil {
+		"SELECT id, name, locale, created_at FROM workspaces WHERE id = ?", workspaceID,
+	).Scan(&result.Workspace.ID, &result.Workspace.Name, &result.Workspace.Locale, &createdAt); err != nil {
 		return nil, err
 	}
 	result.Workspace.CreatedAt, err = parseTime(createdAt)

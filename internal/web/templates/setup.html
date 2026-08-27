@@ -1,14 +1,15 @@
 {{define "setup.html"}}<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · Dynamis Code</title><link rel="stylesheet" href="/assets/app.css"></head>
-<body><main class="narrow" id="main"><h1>Set up Dynamis Code</h1>
-<p>Create the first owner account and workspace.</p>
+<html lang="{{.Locale}}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · Dynamis Code</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><main class="narrow" id="main"><h1>{{.T "setup.title"}}</h1>
+<p>{{.T "setup.description"}}</p>
 {{if .Error}}<p class="error" role="alert" tabindex="-1">{{.Error}}</p>{{end}}
 <form action="/setup" method="post"><input type="hidden" name="csrf" value="{{.CSRF}}">
 {{if .SetupTokenRequired}}
-<label for="setup-token">Setup token</label><input id="setup-token" name="setup_token" type="password" autocomplete="off" required maxlength="1024">
+<label for="setup-token">{{.T "setup.setup_token"}}</label><input id="setup-token" name="setup_token" type="password" autocomplete="off" required maxlength="1024">
 {{end}}
-<label for="email">Email</label><input id="email" name="email" type="email" autocomplete="username" required maxlength="320" value="{{.Email}}">
-<label for="workspace">Workspace name</label><input id="workspace" name="workspace" type="text" autocomplete="organization" required maxlength="120" value="{{.WorkspaceName}}">
-<label for="password">Password</label><input id="password" name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="1024">
-<label for="password-confirmation">Confirm password</label><input id="password-confirmation" name="password_confirmation" type="password" autocomplete="new-password" required minlength="12" maxlength="1024">
-<button type="submit">Create owner account</button></form></main></body></html>{{end}}
+<label for="email">{{.T "common.email"}}</label><input id="email" name="email" type="email" autocomplete="username" required maxlength="320" value="{{.Email}}">
+<label for="workspace">{{.T "workspace.name"}}</label><input id="workspace" name="workspace" type="text" autocomplete="organization" required maxlength="120" value="{{.WorkspaceName}}">
+<label for="workspace-locale">{{.T "workspace.language_fallback"}}</label><select id="workspace-locale" name="workspace_locale"><option value="en"{{if or (eq .WorkspaceLocale "en") (and (eq .WorkspaceLocale "") (eq .Locale "en"))}} selected{{end}}>{{.T "common.english"}}</option><option value="es"{{if or (eq .WorkspaceLocale "es") (and (eq .WorkspaceLocale "") (eq .Locale "es"))}} selected{{end}}>{{.T "common.spanish"}}</option></select>
+<label for="password">{{.T "common.password"}}</label><input id="password" name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="1024">
+<label for="password-confirmation">{{.T "setup.confirm_password"}}</label><input id="password-confirmation" name="password_confirmation" type="password" autocomplete="new-password" required minlength="12" maxlength="1024">
+<button type="submit">{{.T "setup.create_owner"}}</button></form></main></body></html>{{end}}

@@ -113,8 +113,12 @@ func TestLoadFromValidatesBootstrapEnvironment(t *testing.T) {
 		t.Fatalf("LoadFrom() error = %v", err)
 	}
 	if cfg.Bootstrap.AdminEmail != "owner@example.com" || cfg.Bootstrap.AdminWorkspace != "Example" ||
-		cfg.Bootstrap.AdminPassword != password || cfg.Bootstrap.SetupToken != "setup-token" {
+		cfg.Bootstrap.AdminPassword != password || cfg.Bootstrap.SetupToken != "setup-token" ||
+		cfg.Bootstrap.AdminWorkspaceLocale != "en" {
 		t.Fatalf("Bootstrap = %+v", cfg.Bootstrap)
+	}
+	if _, err := LoadFrom(env(map[string]string{"BOOTSTRAP_ADMIN_WORKSPACE_LOCALE": "fr"})); err == nil {
+		t.Fatal("invalid bootstrap workspace locale accepted")
 	}
 	for _, values := range []map[string]string{
 		{"BOOTSTRAP_ADMIN_EMAIL": "owner@example.com"},

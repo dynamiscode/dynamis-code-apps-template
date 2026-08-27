@@ -68,6 +68,10 @@ func (s *Service) BootstrapFirstOwner(
 	if err != nil {
 		return BootstrapResult{}, fmt.Errorf("%w: %v", ErrInvalidBootstrap, err)
 	}
+	workspaceLocale, err := defaultLocale(input.WorkspaceLocale)
+	if err != nil {
+		return BootstrapResult{}, fmt.Errorf("%w: %v", ErrInvalidBootstrap, err)
+	}
 	if len(input.Password) < 12 || len(input.Password) > 1024 {
 		return BootstrapResult{}, fmt.Errorf(
 			"%w: password must be 12 to 1024 characters", ErrInvalidBootstrap,
@@ -106,8 +110,8 @@ func (s *Service) BootstrapFirstOwner(
 		return BootstrapResult{}, fmt.Errorf("create first user: %w", err)
 	}
 	if _, err := s.exec(ctx, tx,
-		"INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)",
-		workspaceID, workspaceName, timestamp(now),
+		"INSERT INTO workspaces (id, name, locale, created_at) VALUES (?, ?, ?, ?)",
+		workspaceID, workspaceName, workspaceLocale, timestamp(now),
 	); err != nil {
 		return BootstrapResult{}, fmt.Errorf("create first workspace: %w", err)
 	}
@@ -162,13 +166,17 @@ func (s *Service) IsBootstrapped(ctx context.Context) (bool, error) {
 func (s *Service) CreateWorkspace(
 	ctx context.Context,
 	actor Principal,
-	name string,
+	input WorkspaceCreateInput,
 	audit AuditContext,
 ) (string, error) {
 	if actor.UserID == "" || actor.AuthMethod == "" {
 		return "", ErrForbidden
 	}
-	name, err := validateWorkspaceName(name)
+	name, err := validateWorkspaceName(input.Name)
+	if err != nil {
+		return "", err
+	}
+	workspaceLocale, err := defaultLocale(input.Locale)
 	if err != nil {
 		return "", err
 	}
@@ -189,8 +197,8 @@ func (s *Service) CreateWorkspace(
 	}
 	defer tx.Rollback()
 	if _, err := s.exec(ctx, tx,
-		"INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)",
-		workspaceID, name, timestamp(now),
+		"INSERT INTO workspaces (id, name, locale, created_at) VALUES (?, ?, ?, ?)",
+		workspaceID, name, workspaceLocale, timestamp(now),
 	); err != nil {
 		return "", fmt.Errorf("create workspace: %w", err)
 	}
@@ -314,7 +322,7 @@ func (s *Service) ListWorkspaces(
 	userID string,
 ) ([]WorkspaceSummary, error) {
 	rows, err := s.db.QueryContext(ctx, s.bind(`
-		SELECT w.id, w.name, m.role
+		SELECT w.id, w.name, m.role, w.locale
 		FROM workspace_members m
 		JOIN workspaces w ON w.id = m.workspace_id
 		WHERE m.user_id = ? ORDER BY lower(w.name), w.id
@@ -326,7 +334,7 @@ func (s *Service) ListWorkspaces(
 	workspaces := make([]WorkspaceSummary, 0)
 	for rows.Next() {
 		var workspace WorkspaceSummary
-		if err := rows.Scan(&workspace.ID, &workspace.Name, &workspace.Role); err != nil {
+		if err := rows.Scan(&workspace.ID, &workspace.Name, &workspace.Role, &workspace.Locale); err != nil {
 			return nil, err
 		}
 		workspaces = append(workspaces, workspace)
