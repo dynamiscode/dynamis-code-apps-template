@@ -125,7 +125,7 @@ func (s *Service) ImportInTx(
 		return nil, ErrInvalidInput
 	}
 	if _, err := s.auth.AuthorizePrincipalInTx(
-		ctx, tx, actor, workspaceID, identity.ResourcesWrite,
+		ctx, tx, actor, workspaceID, identity.WorkspaceUpdate,
 	); err != nil {
 		return nil, identity.ErrForbidden
 	}

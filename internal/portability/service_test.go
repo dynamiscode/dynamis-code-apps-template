@@ -102,6 +102,20 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("viewer import error = %v", err)
 	}
+	importToken, err := auth.CreateAPIToken(ctx, actor, "workspace update import",
+		[]identity.Permission{identity.WorkspaceUpdate}, nil, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	workspaceUpdater, err := auth.AuthenticateAPIToken(ctx, importToken.Secret, identity.WorkspaceUpdate, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Import(ctx, workspaceUpdater, workspaceID, ImportInput{
+		Format: "text/csv", Reader: strings.NewReader("title,status\nWorkspace scoped import,active\n"),
+	}, identity.AuditContext{}); err != nil {
+		t.Fatalf("workspace:update import error = %v", err)
+	}
 	wrongWorkspace, _ := id.New()
 	if _, err := service.Export(ctx, actor, wrongWorkspace, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("wrong-workspace export error = %v", err)
@@ -145,7 +159,7 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		"SELECT COUNT(*) FROM items WHERE workspace_id = ?"), workspaceID).Scan(&importedRows); err != nil {
 		t.Fatal(err)
 	}
-	if importedRows != 4 {
+	if importedRows != 5 {
 		t.Fatalf("rolled-back import item count = %d", importedRows)
 	}
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `

@@ -154,6 +154,7 @@
   "errors.workspace_name": "Ingresa un nombre de espacio de trabajo de 1 a 120 caracteres.",
   "errors.invalid_locale": "El idioma seleccionado no es válido.",
   "tokens.workspace_read": "Lectura del espacio de trabajo",
+  "tokens.workspace_update": "Actualización del espacio de trabajo",
   "tokens.resources_read": "Lectura de recursos",
   "tokens.resources_write": "Escritura de recursos",
   "tokens.workspace_export": "Exportación del espacio de trabajo",

@@ -371,6 +371,29 @@ func TestCriticalPagesAccessibilityContract(t *testing.T) {
 	assertAccessiblePage(t, login.Body.String(), "Email")
 }
 
+func TestTokensPageLabelsWorkspaceUpdateScope(t *testing.T) {
+	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	principal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.WorkspaceUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := auth.CreateAPIToken(context.Background(), principal, "workspace update", []identity.Permission{
+		identity.WorkspaceUpdate,
+	}, nil, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := request(handler, http.MethodGet, "/workspaces/"+workspaceID+"/settings/tokens", nil, []*http.Cookie{
+		{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret},
+	}, nil)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Workspace update") {
+		t.Fatalf("workspace:update token label = %d, %s", response.Code, response.Body.String())
+	}
+}
+
 func TestWebMCPBrowserSurfaceContract(t *testing.T) {
 	script, err := files.ReadFile("assets/app.js")
 	if err != nil {
