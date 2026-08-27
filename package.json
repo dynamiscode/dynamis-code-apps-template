@@ -6,7 +6,7 @@
     "test:webmcp": "node scripts/webmcp.mjs"
   },
   "devDependencies": {
-    "axe-core": "4.10.2",
+    "axe-core": "4.13.0",
     "selenium-webdriver": "4.35.0"
   }
 }
