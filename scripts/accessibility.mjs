@@ -5,9 +5,10 @@ import chrome from "selenium-webdriver/chrome.js";
 const baseURL = process.env.A11Y_BASE_URL;
 const email = process.env.A11Y_EMAIL;
 const password = process.env.A11Y_PASSWORD;
+const locale = process.env.A11Y_LOCALE || "en";
 
-if (!baseURL || !email || !password) {
-  console.error("A11Y_BASE_URL, A11Y_EMAIL, and A11Y_PASSWORD are required");
+if (!baseURL || !email || !password || !["en", "es"].includes(locale)) {
+  console.error("A11Y_BASE_URL, A11Y_EMAIL, A11Y_PASSWORD, and A11Y_LOCALE=en|es are required");
   process.exit(2);
 }
 
@@ -18,7 +19,7 @@ const driver = await new Builder()
 
 let failed = false;
 try {
-  await driver.get(`${baseURL}/login`);
+  await driver.get(`${baseURL}/language?locale=${locale}&return_to=/login`);
   await audit("login");
 	await driver.findElement(By.css("body")).sendKeys(Key.TAB);
 	await expectActive("email");
@@ -60,8 +61,11 @@ try {
 	if (!(await driver.executeScript(() => matchMedia("(prefers-reduced-motion: reduce)").matches))) {
 		throw new Error("reduced-motion preference was not honored");
 	}
-	const tree = await driver.sendAndGetDevToolsCommand("Accessibility.getFullAXTree");
-	for (const [role, name] of [["heading", "Accessibility items"], ["textbox", "New item title"], ["button", "Add item"]]) {
+  const tree = await driver.sendAndGetDevToolsCommand("Accessibility.getFullAXTree");
+  const names = locale === "es"
+    ? [["heading", "Elementos de Accessibility"], ["textbox", "Título del nuevo elemento"], ["button", "Añadir elemento"]]
+    : [["heading", "Accessibility items"], ["textbox", "New item title"], ["button", "Add item"]];
+  for (const [role, name] of names) {
 		if (!tree.nodes.some((node) => node.role?.value === role && node.name?.value === name)) {
 			throw new Error(`accessibility tree lacks ${role} named ${name}`);
 		}

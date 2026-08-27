@@ -15,6 +15,7 @@ import (
 func main() {
 	email := flag.String("email", "", "first owner email")
 	workspace := flag.String("workspace", "", "first workspace name")
+	workspaceLocale := flag.String("workspace-locale", "en", "first workspace locale (en or es)")
 	flag.Parse()
 
 	password := os.Getenv("BOOTSTRAP_ADMIN_PASSWORD")
@@ -40,7 +41,7 @@ func main() {
 		fail(err.Error())
 	}
 	result, err := service.BootstrapFirstOwner(ctx, identity.BootstrapInput{
-		Email: *email, Password: password, WorkspaceName: *workspace,
+		Email: *email, Password: password, WorkspaceName: *workspace, WorkspaceLocale: *workspaceLocale,
 	}, identity.AuditContext{})
 	if err != nil {
 		fail(err.Error())

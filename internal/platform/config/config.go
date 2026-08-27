@@ -39,10 +39,11 @@ type Config struct {
 }
 
 type Bootstrap struct {
-	AdminEmail     string
-	AdminPassword  string
-	AdminWorkspace string
-	SetupToken     string
+	AdminEmail           string
+	AdminPassword        string
+	AdminWorkspace       string
+	AdminWorkspaceLocale string
+	SetupToken           string
 }
 
 type MCP struct {
@@ -244,12 +245,17 @@ func loadBootstrap(lookup LookupEnv) (Bootstrap, error) {
 	workspace, _ := lookup("BOOTSTRAP_ADMIN_WORKSPACE")
 	password, _ := lookup("BOOTSTRAP_ADMIN_PASSWORD")
 	setupToken := valueOrDefault(lookup, "BOOTSTRAP_SETUP_TOKEN", "")
+	workspaceLocale := strings.TrimSpace(valueOrDefault(lookup, "BOOTSTRAP_ADMIN_WORKSPACE_LOCALE", "en"))
+	if workspaceLocale != "en" && workspaceLocale != "es" {
+		return Bootstrap{}, fmt.Errorf("BOOTSTRAP_ADMIN_WORKSPACE_LOCALE must be %q or %q", "en", "es")
+	}
 	if strings.TrimSpace(setupToken) == "" {
 		setupToken = ""
 	}
 	return Bootstrap{
 		AdminEmail: strings.TrimSpace(email), AdminPassword: password,
-		AdminWorkspace: strings.TrimSpace(workspace), SetupToken: setupToken,
+		AdminWorkspace: strings.TrimSpace(workspace), AdminWorkspaceLocale: workspaceLocale,
+		SetupToken: setupToken,
 	}, nil
 }
 

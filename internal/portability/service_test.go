@@ -50,7 +50,7 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}
 	exec("INSERT INTO users (id, email, created_at) VALUES (?, ?, ?)", userID, "portability-owner@example.com", now)
 	exec("INSERT INTO users (id, email, created_at) VALUES (?, ?, ?)", viewerID, "portability-viewer@example.com", now)
-	exec("INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)", workspaceID, "Portable", now)
+	exec("INSERT INTO workspaces (id, name, locale, created_at) VALUES (?, ?, ?, ?)", workspaceID, "Portable", "es", now)
 	exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", workspaceID, userID, identity.Owner, now)
 	exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", workspaceID, viewerID, identity.Viewer, now)
 	actor, err := auth.Authorize(ctx, userID, workspaceID, identity.WorkspaceExport)
@@ -81,6 +81,7 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		t.Fatal(err)
 	}
 	if result.FormatVersion != FormatVersion || result.Workspace.ID != workspaceID ||
+		result.Workspace.Locale != "es" ||
 		len(result.Members) != 2 || len(result.Items) != 1 || result.Items[0].ID != created.Item.ID ||
 		len(result.AuditEvents) == 0 || len(result.Excluded) == 0 {
 		t.Fatalf("export = %+v", result)

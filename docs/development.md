@@ -26,6 +26,12 @@ adapters second. Reuse shared authorization, Problem Details, audit,
 telemetry, and rendering code. Add no optional capability until its trigger in
 [capabilities](capabilities.md) is accepted and recorded in a decision.
 
+Localization changes keep embedded English and Spanish catalogs in exact key
+parity, use named interpolation only for trusted catalog messages, preserve
+escaped user content, and test browser precedence separately from stable
+English REST/CLI/MCP contracts. Add plural support only when the first
+count-dependent product message requires it.
+
 ## Feature completeness
 
 For every feature, record its shared application behavior, authorization

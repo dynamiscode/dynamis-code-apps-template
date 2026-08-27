@@ -1,0 +1,39 @@
+name: Feature request
+description: Propose a bounded improvement to the template
+title: "[Feature]: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Explain the concrete user or operator need. Avoid including credentials or private data.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem would this solve, and for whom?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Describe the smallest useful behavior and affected surface.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: What workarounds or alternatives did you consider?
+    validations:
+      required: false
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: I checked existing documentation and issue discussions for duplicates.
+          required: true
+        - label: I understand this request may be deferred until its trigger is demonstrated.
+          required: true

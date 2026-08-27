@@ -1,8 +1,8 @@
 {{define "login.html"}}<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · Dynamis Code</title><link rel="stylesheet" href="/assets/app.css"></head>
-<body><main class="narrow" id="main"><h1>Sign in</h1>
+<html lang="{{.Locale}}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · Dynamis Code</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><main class="narrow" id="main"><h1>{{.T "account.sign_in"}}</h1>
 {{if .Error}}<p class="error" role="alert" tabindex="-1">{{.Error}}</p>{{end}}
 <form action="/login" method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="return_to" value="{{.ReturnTo}}">
-<label for="email">Email</label><input id="email" name="email" type="email" autocomplete="username" required maxlength="320">
-<label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024">
-<button type="submit">Sign in</button></form>{{range .OIDCProviders}}<p><a class="button" href="/auth/oidc/{{.ID}}">Sign in with {{.Name}}</a></p>{{end}}</main></body></html>{{end}}
+<label for="email">{{.T "common.email"}}</label><input id="email" name="email" type="email" autocomplete="username" required maxlength="320">
+<label for="password">{{.T "common.password"}}</label><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024">
+<button type="submit">{{.T "account.sign_in"}}</button></form>{{range .OIDCProviders}}<p><a class="button" href="/auth/oidc/{{.ID}}">{{$.T "account.sign_in_with" (dict "provider" .Name)}}</a></p>{{end}}</main></body></html>{{end}}

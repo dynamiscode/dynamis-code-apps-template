@@ -16,6 +16,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
+	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/portability"
 )
 
@@ -93,6 +94,166 @@ func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
 	}, cookies, map[string]string{"HX-Request": "true"})
 	if deleted.Code != http.StatusOK || strings.Contains(deleted.Body.String(), item.Title) {
 		t.Fatalf("delete = %d, %s", deleted.Code, deleted.Body.String())
+	}
+}
+
+func TestWebLocalePrecedenceAndWorkspaceFallback(t *testing.T) {
+	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+
+	spanish := requestFrom(handler, http.MethodGet, "/", nil, cookies, map[string]string{"Accept-Language": "es-MX,es;q=0.9"}, "example.com", "192.0.2.1:1234")
+	if spanish.Header().Get("Content-Language") != "es" || !strings.Contains(spanish.Body.String(), `<html lang="es">`) || !strings.Contains(spanish.Body.String(), "Espacios de trabajo") {
+		t.Fatalf("Spanish home = %d, %s", spanish.Code, spanish.Body.String())
+	}
+
+	if err := auth.SetUserLocale(context.Background(), owner.UserID, "en", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	userPreference := requestFrom(handler, http.MethodGet, "/", nil, append(cookies, &http.Cookie{Name: "locale", Value: "es"}), map[string]string{"Accept-Language": "es"}, "example.com", "192.0.2.1:1234")
+	if userPreference.Header().Get("Content-Language") != "en" || !strings.Contains(userPreference.Body.String(), `<html lang="en">`) {
+		t.Fatalf("user preference precedence = %d, %s", userPreference.Code, userPreference.Body.String())
+	}
+	if err := auth.SetUserLocale(context.Background(), owner.UserID, "", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+
+	workspace := requestFrom(handler, http.MethodGet, "/workspaces/"+workspaceID, nil, cookies, map[string]string{"Accept-Language": "en"}, "example.com", "192.0.2.1:1234")
+	if workspace.Header().Get("Content-Language") != "en" {
+		t.Fatalf("workspace default locale = %q", workspace.Header().Get("Content-Language"))
+	}
+	ownerPrincipal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.WorkspaceUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.UpdateWorkspaceLocale(context.Background(), ownerPrincipal, "es", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	workspace = requestFrom(handler, http.MethodGet, "/workspaces/"+workspaceID, nil, cookies, map[string]string{"Accept-Language": "en"}, "example.com", "192.0.2.1:1234")
+	if workspace.Header().Get("Content-Language") != "es" || !strings.Contains(workspace.Body.String(), `<html lang="es">`) {
+		t.Fatalf("workspace fallback = %q, %s", workspace.Header().Get("Content-Language"), workspace.Body.String())
+	}
+}
+
+type recordingMailer struct {
+	subject string
+	body    string
+}
+
+func (m *recordingMailer) Send(_ context.Context, _ string, subject, body string) error {
+	m.subject, m.body = subject, body
+	return nil
+}
+
+func TestInvitationEmailUsesWorkspaceLocale(t *testing.T) {
+	mailer := &recordingMailer{}
+	handler, auth, _, workspaceID, owner := testWeb(t, 10, mailer)
+	ownerPrincipal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.InvitationsManage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.UpdateWorkspaceLocale(context.Background(), ownerPrincipal, "es", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request(handler, http.MethodPost, "/workspaces/"+workspaceID+"/settings/invitations", url.Values{
+		"action": {"create"}, "csrf": {session.CSRFSecret}, "email": {"invite@example.com"}, "role": {"member"},
+	}, []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}, nil)
+	if mailer.subject != "Has sido invitado a Dynamis Code" || !strings.HasPrefix(mailer.body, "Abre este enlace de invitación:") {
+		t.Fatalf("invitation email = subject %q body %q", mailer.subject, mailer.body)
+	}
+}
+
+func TestWebLanguageSettingsRoutes(t *testing.T) {
+	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+
+	language := request(handler, http.MethodGet, "/language?locale=es&return_to=/", nil, cookies, nil)
+	if language.Code != http.StatusSeeOther || language.Header().Get("Location") != "/" || responseCookie(language, "locale").Value != "es" {
+		t.Fatalf("language route = %d, location %q, cookie %q", language.Code, language.Header().Get("Location"), responseCookie(language, "locale").Value)
+	}
+	if invalid := request(handler, http.MethodGet, "/language?locale=fr&return_to=https://example.com", nil, cookies, nil); invalid.Header().Get("Location") != "/" || responseCookie(invalid, "locale").Value != "" {
+		t.Fatalf("invalid language route = %d, location %q", invalid.Code, invalid.Header().Get("Location"))
+	}
+
+	settings := request(handler, http.MethodGet, "/settings/language", nil, cookies, nil)
+	if settings.Code != http.StatusOK || !strings.Contains(settings.Body.String(), "Automatic") {
+		t.Fatalf("language settings = %d, %s", settings.Code, settings.Body.String())
+	}
+	saved := request(handler, http.MethodPost, "/settings/language", url.Values{
+		"csrf": {session.CSRFSecret}, "locale": {"es"},
+	}, cookies, nil)
+	if saved.Code != http.StatusSeeOther || saved.Header().Get("Location") != "/settings/language?saved=1" {
+		t.Fatalf("save language = %d, %q", saved.Code, saved.Header().Get("Location"))
+	}
+	if locale, err := auth.GetUserLocale(context.Background(), owner.UserID); err != nil || locale != "es" {
+		t.Fatalf("saved user locale = %q, %v", locale, err)
+	}
+	reset := request(handler, http.MethodPost, "/settings/language", url.Values{
+		"csrf": {session.CSRFSecret}, "locale": {""},
+	}, cookies, nil)
+	if reset.Code != http.StatusSeeOther || responseCookie(reset, "locale").MaxAge >= 0 {
+		t.Fatalf("reset language = %d, cookie %+v", reset.Code, responseCookie(reset, "locale"))
+	}
+	if locale, err := auth.GetUserLocale(context.Background(), owner.UserID); err != nil || locale != "" {
+		t.Fatalf("reset user locale = %q, %v", locale, err)
+	}
+
+	general := request(handler, http.MethodPost, "/workspaces/"+workspaceID+"/settings/general", url.Values{
+		"csrf": {session.CSRFSecret}, "locale": {"es"},
+	}, cookies, nil)
+	if general.Code != http.StatusSeeOther || general.Header().Get("Location") != "/workspaces/"+workspaceID+"/settings/general?saved=1" {
+		t.Fatalf("workspace language = %d, %q", general.Code, general.Header().Get("Location"))
+	}
+	if locale, err := auth.GetWorkspaceLocale(context.Background(), workspaceID); err != nil || locale != "es" {
+		t.Fatalf("saved workspace locale = %q, %v", locale, err)
+	}
+}
+
+func TestBrowserPagesRenderSpanishDocuments(t *testing.T) {
+	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	ownerPrincipal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.WorkspaceUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.UpdateWorkspaceLocale(context.Background(), ownerPrincipal, "es", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}, {Name: "locale", Value: "es"}}
+	paths := []string{
+		"/", "/workspaces/" + workspaceID, "/workspaces/" + workspaceID + "/items",
+		"/workspaces/" + workspaceID + "/settings/general", "/workspaces/" + workspaceID + "/settings/members",
+		"/workspaces/" + workspaceID + "/settings/invitations", "/workspaces/" + workspaceID + "/settings/tokens",
+		"/workspaces/" + workspaceID + "/settings/export", "/settings/language", "/sessions", "/security",
+	}
+	for _, path := range paths {
+		response := requestFrom(handler, http.MethodGet, path, nil, cookies, map[string]string{"Accept-Language": "en"}, "example.com", "192.0.2.1:1234")
+		body := response.Body.String()
+		if response.Code != http.StatusOK || response.Header().Get("Content-Language") != "es" || !strings.Contains(body, `<html lang="es">`) || strings.Contains(body, "common.") {
+			t.Errorf("%s = %d language=%q body=%s", path, response.Code, response.Header().Get("Content-Language"), body)
+		}
+	}
+	invitation, err := auth.CreateInvitation(context.Background(), ownerPrincipal, "recipient@example.com", identity.Member, time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	invitationResponse := requestFrom(handler, http.MethodGet, "/invitations/"+invitation.Secret, nil, nil, map[string]string{"Accept-Language": "en"}, "example.com", "192.0.2.1:1234")
+	if invitationResponse.Header().Get("Content-Language") != "es" || !strings.Contains(invitationResponse.Body.String(), `<html lang="es">`) {
+		t.Fatalf("invitation locale = %q, %s", invitationResponse.Header().Get("Content-Language"), invitationResponse.Body.String())
 	}
 }
 
@@ -474,7 +635,7 @@ func TestWebSetupRejectsCSRFAndPasswordMismatch(t *testing.T) {
 	}
 }
 
-func testWeb(t *testing.T, maximumStreams int) (http.Handler, *identity.Service, *items.Service, string, identity.BootstrapResult) {
+func testWeb(t *testing.T, maximumStreams int, mailers ...appmail.Sender) (http.Handler, *identity.Service, *items.Service, string, identity.BootstrapResult) {
 	t.Helper()
 	ctx := context.Background()
 	cfg, err := config.LoadFrom(func(string) (string, bool) { return "", false })
@@ -508,9 +669,13 @@ func testWeb(t *testing.T, maximumStreams int) (http.Handler, *identity.Service,
 		t.Fatal(err)
 	}
 	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace)
+	var mailer appmail.Sender
+	if len(mailers) > 0 {
+		mailer = mailers[0]
+	}
 	webHandler, err := NewHandlerWithServices(auth, itemService,
 		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes),
-		nil, cfg.HTTP, "", "", nil)
+		nil, cfg.HTTP, "", "", mailer)
 	if err != nil {
 		t.Fatal(err)
 	}

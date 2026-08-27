@@ -11,11 +11,39 @@ sidebar whose contents follow the current workspace context. Every mutation vali
 the session-bound CSRF token
 and rechecks current workspace permission.
 
+## Localization
+
+Browser catalogs are embedded, Git-reviewed JSON under `internal/i18n/locales`
+and currently support English (`en`) and Spanish (`es`). The browser resolves
+locale with this precedence:
+
+| Surface | Precedence |
+|---|---|
+| Authenticated global page | user preference, explicit `locale` cookie, `Accept-Language`, `en` |
+| Workspace page | user preference, explicit `locale` cookie, workspace locale, `Accept-Language`, `en` |
+| Invitation page | explicit `locale` cookie, invitation workspace locale, `Accept-Language`, `en` |
+| Invitation email | workspace locale |
+
+`GET /language?locale=en|es&return_to=...` sets the safe local explicit
+locale cookie. `/settings/language` persists the account preference; Automatic
+clears both the preference and cookie. Workspace owners and admins edit the
+workspace fallback at `/workspaces/{workspaceId}/settings/general`. That
+fallback controls invitation email language and browser fallback when no user
+or explicit cookie preference exists. New and existing workspaces default to
+English unless selected otherwise.
+
+Every document response emits `Content-Language` and its root `lang` matches
+the resolved locale. User content, identifiers, API contracts, WebMCP names,
+and stored UTC values remain unchanged. REST, CLI, and MCP errors remain
+stable and English for machine clients.
+
 Baseline browser surfaces:
 
 - `/` lists memberships and creates workspaces. Workspace cards and the
   `/workspaces/{workspaceId}` route open the authenticated workspace home, which
   links to Items and Settings.
+- `/workspaces/{workspaceId}/settings/general` reads workspace settings and lets authorized owners/admins
+  change the workspace language fallback with CSRF protection.
 - `/workspaces/{workspaceId}/settings/members` lists members; authorized owners/admins
   change roles or remove members, and owners transfer ownership.
 - `/workspaces/{workspaceId}/settings/invitations` creates, resends, revokes, and shows

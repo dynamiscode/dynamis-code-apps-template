@@ -73,7 +73,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	if !bootstrapped && cfg.Bootstrap.AdminEmail != "" {
 		if _, err := identityService.BootstrapFirstOwner(ctx, identity.BootstrapInput{
 			Email: cfg.Bootstrap.AdminEmail, Password: cfg.Bootstrap.AdminPassword,
-			WorkspaceName: cfg.Bootstrap.AdminWorkspace,
+			WorkspaceName: cfg.Bootstrap.AdminWorkspace, WorkspaceLocale: cfg.Bootstrap.AdminWorkspaceLocale,
 		}, identity.AuditContext{}); err != nil {
 			db.Close()
 			telemetryProvider.Shutdown(context.Background())

@@ -14,10 +14,10 @@ means the complete encrypted database backup described in
 | Owner / table | Fields and class | Purpose | Retention, export, correction, deletion |
 |---|---|---|---|
 | database / `schema_migrations` | `version`, `applied_at` (internal) | Applied schema history | Installation lifetime; backup only; changed only by migrations. |
-| identity / `users` | `id`, `created_at` (internal); `email` (personal); `password_hash` (secret) | Account and local login | Account lifetime; member email exports, password hash never exports; email correction and account deletion need a future authenticated workflow. |
+| identity / `users` | `id`, `created_at` (internal); `email`, nullable `locale` preference (personal); `password_hash` (secret) | Account, local login, and browser language preference | Account lifetime; locale preference and member email exports, password hash never exports; email/locale correction and account deletion need a future authenticated workflow. Automatic locale is stored as NULL. |
 | identity / `external_identities` | `id`, `user_id`, `provider_id`, `created_at` (internal); `issuer`, `subject`, `email` (personal) | Stable OIDC account binding | Account lifetime; excluded from export; linking is explicit; account deletion is not exposed. |
 | identity / `instance_admins` | `user_id`, `created_at` (internal) | Separate installation administration | Assignment lifetime; excluded from workspace export; bootstrap-managed. |
-| identity / `workspaces` | `id`, `created_at` (internal); `name` (personal user content) | Tenant boundary | Workspace lifetime; all fields export; workspace deletion/correction is not exposed. |
+| identity / `workspaces` | `id`, `created_at` (internal); `name` (personal user content); `locale` (`en`/`es`) | Tenant boundary and browser/email fallback | Workspace lifetime; all fields, including locale, export; workspace deletion/correction is not exposed. |
 | identity / `workspace_members` | `workspace_id`, `user_id`, `role`, `created_at` (personal/internal) | Scoped authorization | Membership lifetime; workspace is implied by the export envelope and other fields export; role correction uses authorized membership changes; final-owner protection applies. |
 | identity / `sessions` | `id`, `user_id`, `auth_method`, `oidc_provider_id`, timestamps (personal/internal); `secret_hash`, `csrf_hash` (secret) | Browser authentication and revocation | At most 10 active per user; expired sessions and revocations older than 30 days are pruned; excluded from export; users may list/revoke their sessions. |
 | identity / `invitations` | IDs, `email`, `role`, timestamps (personal/internal); `secret_hash` (secret) | Bounded membership invitation lifecycle | Active until accepted, revoked, or expired; completed records older than 365 days are pruned; excluded from export; resend rotates the secret. |
@@ -56,7 +56,7 @@ it; large deletion must then use an authorized long-running operation.
 
 `GET /api/v1/workspaces/{workspaceId}/export` requires `workspace:export`,
 checks workspace membership, and returns one synchronous JSON attachment. The
-format includes version, export time, workspace, members, items, audit events,
+format includes version, export time, workspace (including its locale), members, items, audit events,
 and an explicit exclusion list. Defaults cap it at 1,000 records and 4 MiB;
 over-limit exports fail with `409 export-limit` and are audited. No server-side
 download copy remains.
@@ -65,6 +65,10 @@ Import is unsupported. Importing memberships and stable identities safely
 requires explicit identifier mapping, duplicate policy, authority ceilings,
 and partial-result semantics. Adding cloud/self-hosted migration is its trigger;
 input must then be treated as untrusted and must never elevate authority.
+
+The workspace object in `dynamis-code.workspace/v1` includes its `locale` as
+an additive field. Existing readers that ignore unknown fields remain
+compatible; new exports always include `en` or `es`.
 
 WebMCP may prepare the authorized browser export link under the Settings route
 but never returns export
