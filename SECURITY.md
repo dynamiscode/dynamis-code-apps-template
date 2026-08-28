@@ -27,4 +27,8 @@ semantic patch or minor release, and rotate exposed credentials when needed.
   invitation values, token secrets, OIDC secrets, OTLP headers, backups, or
   signing material.
 
+Source security checks include secret scanning, govulncheck, pinned workflow
+validation, CodeQL analysis for Go and JavaScript/TypeScript, and bounded fuzz
+smoke tests for import and URL validation.
+
 Release verification is documented in [docs/release.md](docs/release.md).

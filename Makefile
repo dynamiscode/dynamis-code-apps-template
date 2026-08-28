@@ -2,7 +2,7 @@ GOVULNCHECK_VERSION ?= v1.7.0
 ACTIONLINT_VERSION ?= v1.7.12
 GITLEAKS_VERSION ?= v8.30.1
 
-.PHONY: setup fmt-check lint test vet race deps-check secret-check vuln-check workflow-check generate-check build image docker-smoke accessibility-smoke webmcp-smoke template-smoke verify
+.PHONY: setup fmt-check lint test vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check build image docker-smoke accessibility-smoke webmcp-smoke template-smoke verify
 
 setup:
 	test -f .env || cp .env.example .env
@@ -35,6 +35,11 @@ vuln-check:
 workflow-check:
 	go run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
 	./scripts/check-action-pins.sh
+
+fuzz-smoke:
+	go test ./internal/portability -run '^$$' -fuzz FuzzParseImport -fuzztime 2s
+	go test ./internal/webhooks -run '^$$' -fuzz FuzzValidateURL -fuzztime 2s
+	go test ./internal/identity -run '^$$' -fuzz FuzzValidatePublicHTTPSURL -fuzztime 2s
 
 generate-check:
 	before="$$(git diff -- api/contract.gen.go)"; \
