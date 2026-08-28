@@ -21,6 +21,10 @@ documented in [authentication](authentication.md).
 
 - `GET /api/v1/workspaces/{workspaceId}/export` returns the bounded versioned
   workspace export described in [data lifecycle](data-lifecycle.md).
+- `POST /api/v1/workspaces/{workspaceId}/import` atomically imports bounded
+  item records from that JSON export format or strict `title,status` CSV.
+  It requires `workspace:update`; source IDs, timestamps, memberships, audit
+  events, and credentials are ignored.
 - Members: `GET /members`, `PATCH /members/{userId}`, `DELETE /members/{userId}`,
   and `POST /ownership`.
 - Invitations: `GET/POST /invitations`, `POST /invitations/{invitationId}/resend`,

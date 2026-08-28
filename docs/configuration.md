@@ -51,6 +51,8 @@ begins. Changes require restart.
 | `ITEMS_MAX_PER_WORKSPACE` | integer 1-1000000 | `10000` | No | No |
 | `EXPORT_MAX_RECORDS` | integer 1-10000 | `1000` | No | No |
 | `EXPORT_MAX_BYTES` | bytes 65536-4194304 | `4194304` | No | No |
+| `IMPORT_MAX_RECORDS` | integer 1-10000 | `1000` | No | No |
+| `IMPORT_MAX_BYTES` | bytes 65536-4194304 | `4194304` | No | No |
 | `AUDIT_RETENTION` | duration 30 days-10 years | `8760h` | No | No |
 | `WEBHOOK_ENCRYPTION_KEY` | exactly 32 random bytes as hex or base64 | none | Webhook create/rotation only | Yes |
 | `OTEL_SERVICE_NAME` | string 1-255 | `dynamis-code-apps-template` | No | No |

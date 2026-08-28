@@ -111,6 +111,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	portabilityService := portability.NewService(
 		db, cfg.Database.Driver, identityService,
 		cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,
+		cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService,
 	)
 	mailer, err := appmail.NewSMTP(cfg.Mail)
 	if err != nil {

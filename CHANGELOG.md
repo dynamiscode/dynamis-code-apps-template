@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added bounded workspace item import from the versioned JSON export or strict
+  `title,status` CSV, with authorization, transactional rollback, limits,
+  audit outcomes, and deterministic `cmd/demo` seed support.
 - Added Git-reviewed English and Spanish browser catalogs with account
   preference, explicit cookie, browser negotiation, workspace fallback,
   localized invitation emails, and language settings.

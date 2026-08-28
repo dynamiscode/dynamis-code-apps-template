@@ -26,7 +26,7 @@ durable production data and records its deployment-specific evidence.
 | Local authentication and OIDC service | bootstrap, recurring | 02 | conforming | [Authentication](authentication.md), [OIDC tests](../internal/identity/oidc_test.go), [configuration tests](../internal/platform/config/config_test.go) |
 | Permissions, roles, workspaces, invitations, sessions, and tokens service | bootstrap, recurring | 02 | conforming | [Authorization and lifecycle tests](../internal/identity/service_test.go), [PostgreSQL identity test](../internal/identity/postgres_test.go) |
 | SQLite, PostgreSQL, migrations, and rolling compatibility | bootstrap, recurring | 01, 06 | conforming | [Database tests](../internal/platform/database/migrate_test.go), [PostgreSQL tests](../internal/platform/database/postgres_test.go), [upgrade procedure](operations.md#upgrades-and-alerts) |
-| Data governance, portability, deletion, archive, and restoration | bootstrap, operational | 06 | conforming | [Data lifecycle](data-lifecycle.md), [export tests](../internal/portability/service_test.go), [item lifecycle tests](../internal/items/service_test.go) |
+| Data governance, portability, deletion, archive, and restoration | bootstrap, operational | 06, 07 | conforming | [Data lifecycle](data-lifecycle.md), [import/export tests](../internal/portability/service_test.go), [item lifecycle tests](../internal/items/service_test.go), [demo seed](../cmd/demo/main.go) |
 | Configuration and secrets | bootstrap, recurring | 01 | conforming | [Configuration](configuration.md), [validation tests](../internal/platform/config/config_test.go), safe `.env.example` |
 | HTTP limits, request IDs, timeouts, headers, and abuse controls | bootstrap, recurring | 03 | conforming | [HTTP component tests](../internal/httpapi/handler_test.go), [configuration](configuration.md) |
 | Traces, metrics, logs, health, shutdown, and operational targets | bootstrap, operational | 06 | conforming | [Telemetry tests](../internal/platform/telemetry/telemetry_test.go), [operations and measurements](operations.md) |
@@ -206,6 +206,10 @@ Trivy 0.74.0, govulncheck 1.7.0, actionlint 1.7.12, Chrome, and Node 24:
 
 - pinned minimal image built as UID/GID 65532 with executable health check,
   OCI metadata, 32.5 MB local runtime size, and persistent SQLite storage
+- 2026-08-27 change verification passed bounded JSON/CSV item import,
+  authorization, rollback, limits, audit outcomes, deterministic demo seeding,
+  full Go tests, vet, race tests, command builds, and generated-app smoke;
+  isolated PostgreSQL verification was unavailable in this environment
 - clean Compose smoke proved health, environment first-owner bootstrap, browser login,
   useful item creation, restart, and persistent recovery; PostgreSQL overlay
   separately migrated, bootstrapped, restarted, and became ready

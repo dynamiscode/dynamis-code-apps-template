@@ -38,3 +38,11 @@ are JSON on stdout, and errors are JSON on stderr.
 
 List filters, cursors, ETags, idempotency, scopes, and public errors retain the
 REST behavior documented in [HTTP and REST API](api.md).
+
+## Local demo seed
+
+`go run ./cmd/demo` is a local operator command for making a generated
+application testable immediately. Set `DEMO_OWNER_PASSWORD` explicitly; it
+creates or reuses `Demo Workspace` and inserts three deterministic items using
+scoped idempotency keys. It prints only workspace and item IDs. It operates on
+the configured database directly and is not a production data migration tool.

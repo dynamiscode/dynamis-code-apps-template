@@ -147,6 +147,24 @@
         "responses": {"200": {"description": "Bounded webhook delivery history", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WebhookDeliveryPage"}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}}
       }
     },
+    "/api/v1/workspaces/{workspaceId}/import": {
+      "post": {
+        "operationId": "importWorkspace",
+        "description": "Atomically imports bounded item records from a workspace export JSON document or title,status CSV. Source IDs, timestamps, memberships, audit events, and credentials are ignored.",
+        "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WorkspaceExport"}}, "text/csv": {"schema": {"type": "string"}}}},
+        "responses": {
+          "200": {"description": "Imported item count", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WorkspaceImportResult"}}}},
+          "400": {"$ref": "#/components/responses/Problem"},
+          "401": {"$ref": "#/components/responses/Problem"},
+          "403": {"$ref": "#/components/responses/Problem"},
+          "409": {"$ref": "#/components/responses/Problem"},
+          "413": {"$ref": "#/components/responses/Problem"},
+          "429": {"$ref": "#/components/responses/RateLimited"}
+        }
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/members": {
       "get": {
         "operationId": "listMembers", "security": [{"bearerAuth": []}],
@@ -331,6 +349,7 @@
       "ExportMember": {"type": "object", "required": ["userId", "email", "role", "createdAt"], "properties": {"userId": {"type": "string"}, "email": {"type": "string", "format": "email"}, "role": {"type": "string", "enum": ["owner", "admin", "member", "viewer"]}, "createdAt": {"type": "string", "format": "date-time"}}},
       "ExportAuditEvent": {"type": "object", "required": ["id", "eventType", "authMethod", "targetType", "action", "outcome", "metadata", "createdAt"], "properties": {"id": {"type": "string"}, "eventType": {"type": "string"}, "actorUserId": {"type": "string"}, "authMethod": {"type": "string"}, "workspaceId": {"type": "string"}, "targetType": {"type": "string"}, "targetId": {"type": "string"}, "action": {"type": "string"}, "outcome": {"type": "string"}, "requestId": {"type": "string"}, "sourceAddress": {"type": "string"}, "metadata": {}, "createdAt": {"type": "string", "format": "date-time"}}},
       "WorkspaceExport": {"type": "object", "required": ["formatVersion", "exportedAt", "workspace", "members", "items", "auditEvents", "excluded"], "properties": {"formatVersion": {"const": "dynamis-code.workspace/v1"}, "exportedAt": {"type": "string", "format": "date-time"}, "workspace": {"$ref": "#/components/schemas/ExportWorkspace"}, "members": {"type": "array", "items": {"$ref": "#/components/schemas/ExportMember"}}, "items": {"type": "array", "items": {"$ref": "#/components/schemas/Item"}}, "auditEvents": {"type": "array", "items": {"$ref": "#/components/schemas/ExportAuditEvent"}}, "excluded": {"type": "array", "items": {"type": "string"}}}},
+      "WorkspaceImportResult": {"type": "object", "required": ["imported"], "properties": {"imported": {"type": "integer", "minimum": 1}}},
       "Member": {"type": "object", "required": ["userId", "email", "role", "createdAt"], "properties": {"userId": {"type": "string"}, "email": {"type": "string", "format": "email"}, "role": {"type": "string", "enum": ["owner", "admin", "member", "viewer"]}, "createdAt": {"type": "string", "format": "date-time"}}},
       "MemberPage": {"type": "object", "required": ["members"], "properties": {"members": {"type": "array", "items": {"$ref": "#/components/schemas/Member"}}}},
       "MemberRoleRequest": {"type": "object", "additionalProperties": false, "required": ["role"], "properties": {"role": {"type": "string", "enum": ["admin", "member", "viewer"]}}},

@@ -95,8 +95,8 @@ func NewHandlerWithWebhooks(
 		"logoutLocal": h.logout, "listItems": h.listItems,
 		"createItem": h.createItem, "getItem": h.getItem,
 		"updateItem": h.updateItem, "deleteItem": h.deleteItem,
-		"exportWorkspace": h.exportWorkspace,
-		"listMembers":     h.listMembers, "changeMemberRole": h.changeMemberRole,
+		"exportWorkspace": h.exportWorkspace, "importWorkspace": h.importWorkspace,
+		"listMembers": h.listMembers, "changeMemberRole": h.changeMemberRole,
 		"removeMember": h.removeMember, "transferOwnership": h.transferOwnership,
 		"listInvitations": h.listInvitations, "createInvitation": h.createInvitation,
 		"resendInvitation": h.resendInvitation, "revokeInvitation": h.revokeInvitation,
@@ -168,6 +168,40 @@ func (h *handler) exportWorkspace(writer http.ResponseWriter, request *http.Requ
 	writer.Header().Set("Content-Disposition", `attachment; filename="workspace-export.json"`)
 	writer.WriteHeader(http.StatusOK)
 	_, _ = writer.Write(encoded)
+}
+
+func (h *handler) importWorkspace(writer http.ResponseWriter, request *http.Request) {
+	workspaceID := request.PathValue("workspaceId")
+	if !validID(workspaceID) || len(request.URL.Query()) != 0 {
+		h.invalidRequest(writer, request, "The import parameters are invalid.")
+		return
+	}
+	principal, ok := h.bearerPrincipal(writer, request, identity.WorkspaceUpdate)
+	if !ok {
+		return
+	}
+	mediaType, _, err := mime.ParseMediaType(request.Header.Get("Content-Type"))
+	if err != nil || (mediaType != "application/json" && mediaType != "text/csv") {
+		h.invalidRequest(writer, request, "The import content type is unsupported.")
+		return
+	}
+	result, err := h.portability.Import(
+		request.Context(), principal, workspaceID,
+		portability.ImportInput{Format: mediaType, Reader: request.Body},
+		h.auditContext(request),
+	)
+	switch {
+	case errors.Is(err, identity.ErrForbidden):
+		writeProblem(writer, request, http.StatusForbidden, "forbidden", "Access is denied.")
+	case errors.Is(err, portability.ErrImportLimit), errors.Is(err, items.ErrLimit):
+		writeProblem(writer, request, http.StatusConflict, "import-limit", "The workspace import limit was reached.")
+	case errors.Is(err, portability.ErrInvalidImport), errors.Is(err, items.ErrInvalidInput):
+		writeProblem(writer, request, http.StatusBadRequest, "invalid-import", "The import file is invalid.")
+	case err != nil:
+		h.internal(writer, request)
+	default:
+		writeJSON(writer, http.StatusOK, result)
+	}
 }
 
 func Wrap(next http.Handler, cfg config.HTTP, logger *slog.Logger) http.Handler {
