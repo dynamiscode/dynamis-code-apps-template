@@ -3,17 +3,22 @@
 ## Generate
 
 Generate only from a verified semantic release checkout. `template-init`
-requires the release source URL and full commit SHA, refuses symlinks and an
-existing output directory, regenerates OpenAPI, and writes a mode-0600
-`template.lock` containing:
+requires the release source URL and full commit SHA, application repository,
+private security-reporting URL, maintainer, and selected profiles. It refuses
+symlinks and an existing output directory, regenerates OpenAPI, and writes a
+mode-0600 `template.lock` containing:
 
 - template source, semantic version, and commit;
 - UTC generation time; and
-- selected `Core`, `Identity`, and `Agent` profiles.
+- the selected profiles from `Core`, `Identity`, and `Agent`.
 
-The generated application also receives a README handoff based on the target
-name, module, and slug. It points to the implemented documentation and marks
-product purpose and domain behavior as application-owned work.
+Profiles are provenance labels only: this release has no profile-pruning
+mechanism, so selection does not remove feature code from the generated tree.
+The generated application receives repository-specific README, security-link,
+CODEOWNERS, image, telemetry, package, and runtime-branding values. It does
+not retain template repository ownership or app-facing template branding. The
+README points to implemented documentation and marks product purpose and
+domain behavior as application-owned work.
 
 The command is documented in the root [README](../README.md). Commit the lock
 with the generated application; it contains provenance, not credentials.
@@ -23,7 +28,7 @@ with the generated application; it contains provenance, not credentials.
 1. Back up the application and read release notes and migrations between the
    version in `template.lock` and the target release.
 2. Generate the target release into a new empty directory with the same name,
-   module, source, and selected profiles.
+   module, repository, security URL, maintainer, source, and selected profiles.
 3. Review `git diff --no-index <application> <generated-directory>` and port
    changes through normal reviewed commits. Resolve product-specific conflicts
    explicitly; never copy over the application tree wholesale.

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Made application generation require repository, security-reporting,
+  maintainer, and profile metadata; generated applications no longer inherit
+  template-owned repository links, ownership, or app-facing branding while
+  `template.lock` preserves selected-profile and release provenance.
 - Fixed account deletion for users who created items: items are retained and
   their creator reference becomes nullable instead of blocking user removal.
 - Standardized item collection search, bounded query validation, query-bound

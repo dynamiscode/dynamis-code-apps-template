@@ -67,13 +67,18 @@ Run from a verified release checkout and supply its immutable identity:
 ```sh
 go run ./cmd/template-init \
   -output ../my-app -name 'My App' -module example.com/acme/my-app \
+  -repository https://github.com/acme/my-app \
+  -security-url https://github.com/acme/my-app/security/advisories/new \
+  -maintainer @acme/platform -profiles Core,Identity,Agent \
   -source https://github.com/OWNER/REPOSITORY \
   -commit 0123456789abcdef0123456789abcdef01234567
 ```
 
 Generation refuses an existing output directory and writes `template.lock`.
-It also replaces the output README with an application-specific handoff that
-links the implemented setup, architecture, interfaces, operations, security,
+Repository, security-reporting, maintainer, and profile inputs become
+application-owned metadata; the lock retains template provenance and selected
+profiles. The output README is an application-specific handoff that links
+implemented setup, architecture, interfaces, operations, security,
 contribution, release, and sample-feature guidance.
 See [template lifecycle](docs/template-lifecycle.md) before updating a
 generated application.
