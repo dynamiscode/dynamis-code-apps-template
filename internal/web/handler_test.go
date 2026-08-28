@@ -18,6 +18,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/portability"
+	"example.com/dynamis-code/apps-template/internal/sharing"
 )
 
 func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
@@ -94,6 +95,72 @@ func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
 	}, cookies, map[string]string{"HX-Request": "true"})
 	if deleted.Code != http.StatusOK || strings.Contains(deleted.Body.String(), item.Title) {
 		t.Fatalf("delete = %d, %s", deleted.Code, deleted.Body.String())
+	}
+}
+
+func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
+	handler, auth, itemService, workspaceID, owner := testWeb(t, 10)
+	principal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	principal.AuthMethod = "test"
+	created, err := itemService.Create(context.Background(), principal, workspaceID, "Public title", "public-web-item", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	path := "/workspaces/" + workspaceID + "/items/" + created.Item.ID + "/share"
+	response := request(handler, http.MethodPost, path, url.Values{
+		"action": {"create"}, "lifetime": {"7"}, "csrf": {session.CSRFSecret},
+	}, cookies, nil)
+	if response.Code != http.StatusOK {
+		t.Fatalf("create public link = %d, %s", response.Code, response.Body.String())
+	}
+	body := response.Body.String()
+	start := strings.Index(body, "/share/")
+	if start < 0 {
+		t.Fatalf("public link missing: %s", body)
+	}
+	remainder := body[start:]
+	end := strings.Index(remainder, "\"")
+	if end < 0 {
+		t.Fatalf("public link not quoted: %s", body)
+	}
+	publicPath := remainder[:end]
+	public := request(handler, http.MethodGet, publicPath, nil, nil, nil)
+	publicBody := public.Body.String()
+	if public.Code != http.StatusOK || !strings.Contains(publicBody, "Public title") || !strings.Contains(publicBody, "active") {
+		t.Fatalf("public page = %d, %s", public.Code, publicBody)
+	}
+	for _, forbidden := range []string{"Example", "owner@example.com", created.Item.ID, workspaceID} {
+		if strings.Contains(publicBody, forbidden) {
+			t.Fatalf("public page leaked %q: %s", forbidden, publicBody)
+		}
+	}
+	if public.Header().Get("Cache-Control") != "private, no-store" || public.Header().Get("Referrer-Policy") != "no-referrer" || public.Header().Get("X-Robots-Tag") != "noindex, nofollow, noarchive" {
+		t.Fatalf("public headers = %+v", public.Header())
+	}
+	linkMarker := `name="link_id" value="`
+	linkStart := strings.Index(body, linkMarker)
+	if linkStart < 0 {
+		t.Fatalf("link id missing: %s", body)
+	}
+	linkStart += len(linkMarker)
+	linkEnd := strings.Index(body[linkStart:], "\"")
+	linkID := body[linkStart : linkStart+linkEnd]
+	revoked := request(handler, http.MethodPost, path, url.Values{
+		"action": {"revoke"}, "link_id": {linkID}, "csrf": {session.CSRFSecret},
+	}, cookies, nil)
+	if revoked.Code != http.StatusSeeOther {
+		t.Fatalf("revoke public link = %d, %s", revoked.Code, revoked.Body.String())
+	}
+	if unavailable := request(handler, http.MethodGet, publicPath, nil, nil, nil); unavailable.Code != http.StatusNotFound {
+		t.Fatalf("revoked public page = %d, %s", unavailable.Code, unavailable.Body.String())
 	}
 }
 
@@ -840,6 +907,7 @@ func testWeb(t *testing.T, maximumStreams int, mailers ...appmail.Sender) (http.
 		mailer = mailers[0]
 	}
 	webHandler, err := NewHandlerWithServices(auth, itemService,
+		sharing.NewService(db, cfg.Database.Driver, auth),
 		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes, cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService),
 		nil, cfg.HTTP, "", "", mailer)
 	if err != nil {

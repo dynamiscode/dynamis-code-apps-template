@@ -22,6 +22,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/id"
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
+	"example.com/dynamis-code/apps-template/internal/sharing"
 )
 
 //go:embed assets/* templates/*
@@ -30,6 +31,7 @@ var files embed.FS
 type Handler struct {
 	identity       *identity.Service
 	items          *items.Service
+	sharing        *sharing.Service
 	exporter       exporter
 	oidc           *identity.OIDCRegistry
 	publicURL      string
@@ -82,6 +84,11 @@ type pageData struct {
 	DeliveryWarning                  string
 	CanManage                        bool
 	CanTransfer                      bool
+	CanShare                         bool
+	ShareLinks                       []sharing.Link
+	PublicShareURL                   string
+	PublicShareItemID                string
+	PublicItem                       sharing.PublicItem
 	ReturnTo                         string
 }
 
@@ -142,13 +149,14 @@ func NewHandler(
 	setupToken string,
 ) (*Handler, error) {
 	return NewHandlerWithServices(
-		identityService, itemService, nil, nil, cfg, setupToken, "", nil,
+		identityService, itemService, nil, nil, nil, cfg, setupToken, "", nil,
 	)
 }
 
 func NewHandlerWithServices(
 	identityService *identity.Service,
 	itemService *items.Service,
+	sharingService *sharing.Service,
 	exporterService exporter,
 	oidcRegistry *identity.OIDCRegistry,
 	cfg config.HTTP,
@@ -179,7 +187,7 @@ func NewHandlerWithServices(
 		setupTokenHash = identity.SecretHash(setupToken)
 	}
 	return &Handler{
-		identity: identityService, items: itemService, exporter: exporterService,
+		identity: identityService, items: itemService, sharing: sharingService, exporter: exporterService,
 		oidc: oidcRegistry, publicURL: publicURL, mailer: mailer, cfg: cfg,
 		setupTokenHash: setupTokenHash,
 		template:       templates,
@@ -208,6 +216,7 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /password-reset", h.passwordResetPage)
 	mux.HandleFunc("POST /password-reset", h.passwordResetRequest)
 	mux.HandleFunc("GET /password-reset/{secret}", h.passwordResetTokenPage)
+	mux.HandleFunc("GET /share/{token}", h.publicShare)
 	mux.HandleFunc("POST /password-reset/{secret}", h.passwordResetComplete)
 	mux.HandleFunc("GET /notifications", h.notificationsPage)
 	mux.HandleFunc("POST /notifications/{notificationId}", h.notificationMutation)
@@ -220,6 +229,7 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /workspaces/{workspaceId}/items", h.itemList)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/items", h.createItem)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/items/{itemId}", h.changeItem)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/items/{itemId}/share", h.shareMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/items/events", h.itemEvents)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings", h.settingsPage)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/members", h.membersPage)
@@ -563,6 +573,7 @@ func (h *Handler) renderItems(
 	request *http.Request,
 	status int,
 	message string,
+	shareURL ...string,
 ) {
 	workspaceID := request.PathValue("workspaceId")
 	principal, session, csrf, ok := h.workspaceSession(
@@ -596,6 +607,18 @@ func (h *Handler) renderItems(
 		Workspace: workspace, Items: page.Items, NextCursor: page.NextCursor,
 		Workspaces: workspaces, NavPage: "items", NavSection: "items", CreateKey: createKey,
 		CurrentPath: "/workspaces/" + workspaceID + "/items",
+		CanShare:    principal.Permissions[identity.ResourcesWrite],
+	}
+	if h.sharing != nil && data.CanShare {
+		data.ShareLinks, err = h.sharing.List(request.Context(), principal, workspaceID)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+	}
+	if len(shareURL) > 0 {
+		data.PublicShareURL = shareURL[0]
+		data.PublicShareItemID = request.PathValue("itemId")
 	}
 	name := "items.html"
 	if request.Header.Get("HX-Request") == "true" {
@@ -747,6 +770,33 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 	if err := h.template.ExecuteTemplate(writer, name, data); err != nil {
 		return
 	}
+}
+
+func (h *Handler) publicShare(writer http.ResponseWriter, request *http.Request) {
+	if h.sharing == nil {
+		h.renderPublicError(writer)
+		return
+	}
+	item, err := h.sharing.Resolve(request.Context(), request.PathValue("token"), auditContext(request))
+	if err != nil {
+		h.renderPublicError(writer)
+		return
+	}
+	h.renderPublic(writer, http.StatusOK, pageData{Title: "Shared item", PublicItem: item})
+}
+
+func (h *Handler) renderPublic(writer http.ResponseWriter, status int, data pageData) {
+	h.localizePage(writer, &data)
+	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+	writer.Header().Set("Cache-Control", "private, no-store")
+	writer.Header().Set("Referrer-Policy", "no-referrer")
+	writer.Header().Set("X-Robots-Tag", "noindex, nofollow, noarchive")
+	writer.WriteHeader(status)
+	_ = h.template.ExecuteTemplate(writer, "public-share.html", data)
+}
+
+func (h *Handler) renderPublicError(writer http.ResponseWriter) {
+	h.renderPublic(writer, http.StatusNotFound, pageData{Title: "Shared item unavailable", Error: "This shared item is unavailable."})
 }
 
 func (h *Handler) renderError(writer http.ResponseWriter, status int) {

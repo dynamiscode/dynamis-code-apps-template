@@ -5,6 +5,11 @@ session endpoints, workspace identity management, and a workspace-scoped item
 resource. The canonical machine contract is [`api/openapi.json`](../api/openapi.json);
 the live reference is `GET /api/openapi.json`.
 
+Public Item sharing is intentionally browser-only in this slice. No bearer
+token management or public sharing endpoint is added to REST/OpenAPI; use the
+CSRF-protected Items browser controls. File sharing and public API access need
+a separate accepted contract.
+
 Quick check:
 
 ```sh
