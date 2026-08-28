@@ -71,6 +71,9 @@ go run ./cmd/template-init \
 ```
 
 Generation refuses an existing output directory and writes `template.lock`.
+It also replaces the output README with an application-specific handoff that
+links the implemented setup, architecture, interfaces, operations, security,
+contribution, release, and sample-feature guidance.
 See [template lifecycle](docs/template-lifecycle.md) before updating a
 generated application.
 
