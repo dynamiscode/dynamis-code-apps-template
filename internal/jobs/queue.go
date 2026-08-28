@@ -48,6 +48,7 @@ type Queue struct {
 	driver    config.DatabaseDriver
 	logger    *slog.Logger
 	handlers  map[string]Handler
+	exhausted map[string]Handler
 	wake      chan struct{}
 	process   sync.Mutex
 	stateMu   sync.Mutex
@@ -62,7 +63,8 @@ func NewQueue(db *sql.DB, driver config.DatabaseDriver, logger *slog.Logger) *Qu
 	}
 	return &Queue{
 		db: db, driver: driver, logger: logger,
-		handlers: make(map[string]Handler), wake: make(chan struct{}, 1),
+		handlers: make(map[string]Handler), exhausted: make(map[string]Handler),
+		wake: make(chan struct{}, 1),
 	}
 }
 
@@ -79,6 +81,25 @@ func (queue *Queue) Register(kind string, handler Handler) error {
 		return errors.New("job handler already registered")
 	}
 	queue.handlers[kind] = handler
+	return nil
+}
+
+func (queue *Queue) RegisterExhausted(kind string, handler Handler) error {
+	if strings.TrimSpace(kind) == "" || handler == nil {
+		return errors.New("exhausted job handler is invalid")
+	}
+	queue.stateMu.Lock()
+	defer queue.stateMu.Unlock()
+	if queue.cancel != nil {
+		return errors.New("job queue already started")
+	}
+	if _, exists := queue.handlers[kind]; !exists {
+		return errors.New("job handler is not registered")
+	}
+	if _, exists := queue.exhausted[kind]; exists {
+		return errors.New("exhausted job handler already registered")
+	}
+	queue.exhausted[kind] = handler
 	return nil
 }
 
@@ -158,12 +179,20 @@ func (queue *Queue) Process(ctx context.Context, limit int) (int, error) {
 			processed++
 			continue
 		}
-		var handlerErr error
-		if job.AttemptCount <= maxAttempts {
-			handlerErr = handler(ctx, job)
-		} else {
-			handlerErr = Failure{Category: "lease-expired"}
+		if job.AttemptCount > maxAttempts {
+			exhausted, registered := queue.exhaustedHandler(job.Kind)
+			if registered {
+				if err := exhausted(ctx, job); err != nil {
+					return processed, err
+				}
+			}
+			if err := queue.finish(ctx, job, Failure{Category: "attempts-exhausted"}); err != nil {
+				return processed, err
+			}
+			processed++
+			continue
 		}
+		handlerErr := handler(ctx, job)
 		if err := queue.finish(ctx, job, handlerErr); err != nil {
 			return processed, err
 		}
@@ -191,6 +220,13 @@ func (queue *Queue) handler(kind string) (Handler, bool) {
 	queue.stateMu.Lock()
 	defer queue.stateMu.Unlock()
 	handler, exists := queue.handlers[kind]
+	return handler, exists
+}
+
+func (queue *Queue) exhaustedHandler(kind string) (Handler, bool) {
+	queue.stateMu.Lock()
+	defer queue.stateMu.Unlock()
+	handler, exists := queue.exhausted[kind]
 	return handler, exists
 }
 

@@ -294,6 +294,9 @@ func testHandler(t *testing.T) (http.Handler, *sql.DB, string, string) {
 	if err := jobQueue.Register(webhooks.JobKind, webhookService.HandleJob); err != nil {
 		t.Fatal(err)
 	}
+	if err := jobQueue.RegisterExhausted(webhooks.JobKind, webhookService.HandleExhaustedJob); err != nil {
+		t.Fatal(err)
+	}
 	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace, webhookService)
 	handler, err := NewHandlerWithWebhooks(db, auth, itemService,
 		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,

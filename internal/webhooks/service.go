@@ -454,13 +454,46 @@ func (s *Service) DeliverPending(ctx context.Context, limit int) (int, error) {
 const JobKind = "webhook.delivery"
 
 func (s *Service) HandleJob(ctx context.Context, job jobs.Job) error {
+	deliveryID, err := jobDeliveryID(job)
+	if err != nil {
+		return jobs.Failure{Category: "payload-invalid"}
+	}
+	return s.deliverOne(ctx, job.WorkspaceID, deliveryID, job.AttemptCount)
+}
+
+func (s *Service) HandleExhaustedJob(ctx context.Context, job jobs.Job) error {
+	deliveryID, err := jobDeliveryID(job)
+	if err != nil {
+		return nil
+	}
+	result, err := s.exec(ctx, s.db, `
+		UPDATE webhook_deliveries SET status = 'failed', attempt_count = CASE
+			WHEN attempt_count < ? THEN ? ELSE attempt_count END,
+			next_attempt_at = NULL, last_error = ?
+		WHERE id = ? AND status = 'pending'
+			AND webhook_id IN (SELECT id FROM webhooks WHERE workspace_id = ?)
+	`, maxAttempts, maxAttempts, "worker-exhausted", deliveryID, job.WorkspaceID)
+	if err != nil {
+		return jobs.Failure{Category: "storage-error"}
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return jobs.Failure{Category: "storage-error"}
+	}
+	if changed == 1 {
+		telemetry.RecordWebhookDelivery(ctx, "failed")
+	}
+	return nil
+}
+
+func jobDeliveryID(job jobs.Job) (string, error) {
 	var payload struct {
 		DeliveryID string `json:"deliveryId"`
 	}
 	if err := json.Unmarshal([]byte(job.Payload), &payload); err != nil || payload.DeliveryID == "" {
-		return jobs.Failure{Category: "payload-invalid"}
+		return "", errors.New("job payload is invalid")
 	}
-	return s.deliverOne(ctx, job.WorkspaceID, payload.DeliveryID, job.AttemptCount)
+	return payload.DeliveryID, nil
 }
 
 func (s *Service) deliverOne(ctx context.Context, workspaceID, deliveryID string, jobAttempt int) error {

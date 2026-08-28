@@ -43,6 +43,13 @@ func TestQueueRetriesWithLeaseAndRedactsHandlerErrors(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	exhausted := false
+	if err := queue.RegisterExhausted("test", func(_ context.Context, _ Job) error {
+		exhausted = true
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -98,5 +105,27 @@ func TestQueueRetriesWithLeaseAndRedactsHandlerErrors(t *testing.T) {
 	}
 	if status != "succeeded" || attemptCount != 2 {
 		t.Fatalf("reclaimed job state = %q, %d", status, attemptCount)
+	}
+	tx, err = db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := queue.EnqueueTx(ctx, tx, "workspace-jobs", "test", "final-lease", `{"value":1}`, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("UPDATE background_jobs SET status = 'running', attempt_count = ?, lease_token = ?, leased_until = ?, started_at = ? WHERE deduplication_key = ?", maxAttempts, "final-stale-lease", stamp(time.Now().Add(-time.Minute)), stamp(time.Now().Add(-2*time.Minute)), "final-lease"); err != nil {
+		t.Fatal(err)
+	}
+	if processed, err := queue.Process(ctx, 1); err != nil || processed != 1 {
+		t.Fatalf("final lease Process() = %d, %v", processed, err)
+	}
+	if err := db.QueryRow("SELECT status, attempt_count FROM background_jobs WHERE deduplication_key = ?", "final-lease").Scan(&status, &attemptCount); err != nil {
+		t.Fatal(err)
+	}
+	if status != "failed" || attemptCount != maxAttempts+1 || !exhausted {
+		t.Fatalf("final reclaimed job state = %q, %d", status, attemptCount)
 	}
 }

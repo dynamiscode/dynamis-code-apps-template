@@ -112,6 +112,11 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("register webhook job handler: %w", err)
 	}
+	if err := jobQueue.RegisterExhausted(webhooks.JobKind, webhookService.HandleExhaustedJob); err != nil {
+		db.Close()
+		telemetryProvider.Shutdown(context.Background())
+		return nil, fmt.Errorf("register exhausted webhook job handler: %w", err)
+	}
 	itemService := items.NewService(
 		db, cfg.Database.Driver, identityService, cfg.Data.ItemsMaxPerWorkspace, webhookService,
 	)

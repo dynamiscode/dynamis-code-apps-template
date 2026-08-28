@@ -17,9 +17,11 @@ Use one database-backed `background_jobs` table and one bounded worker loop per
 process. Jobs carry explicit workspace scope, a bounded JSON payload, a
 deduplication key, status and attempt timestamps, and a lease token. Claims are
 at-least-once; expired leases are reclaimable, handlers are responsible for
-idempotency, and failures retry at most five times with exponential delays.
-Failure categories, logs, and metrics are redacted. Webhook delivery is the
-first handler and is enqueued in the same transaction as its outbox row.
+idempotency, and handlers receive at most five attempts with exponential
+delays. If a lease is exhausted, an optional terminal reconciler settles the
+consumer before the job is failed. Failure categories, logs, and metrics are
+redacted. Webhook delivery is the first handler and is enqueued in the same
+transaction as its outbox row.
 
 ## Consequences
 
