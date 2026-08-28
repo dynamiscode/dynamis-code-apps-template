@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added profile composition to application generation: Identity is required
+  for Core, and selecting Agent includes its MCP and REST-only CLI surfaces;
+  omitting Agent removes their implementation packages while preserving
+  buildable Core/Identity applications.
 - Selected MIT as the project license, added SPDX and copyright metadata, and
   made generated applications carry MIT terms with application-owned copyright
   attribution and dependency notices.

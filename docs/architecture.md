@@ -13,16 +13,20 @@ process cancellation.
 cmd/server
     -> typed configuration
     -> bootstrap composition root
-    -> web / REST / MCP adapters (optional browser WebMCP enhancement)
+    -> web / REST adapters
     -> shared identity and item use cases
     -> SQLite or PostgreSQL adapters
 
-cmd/appctl -> remote REST API only
+optional Agent profile
+    -> MCP adapter
+    -> REST-only remote CLI
+
+cmd/appctl -> remote REST API only (Agent profile)
 ```
 
 Business features use vertical slices. Application packages own rules and
-transactions. Web, REST, and MCP call the same item and identity use cases.
-The CLI calls the remote REST API only. WebMCP is a browser-tab-bound
+transactions. Web, REST, and optional MCP call the same item and identity use
+cases. The CLI calls the remote REST API only. WebMCP is a browser-tab-bound
 progressive enhancement over the server-rendered web surface; it prepares
 visible controls and never becomes a backend or server-MCP transport.
 
@@ -71,3 +75,12 @@ OpenTelemetry instrumentation runs without requiring a backend. Bounded
 workspace export, retention maintenance, backup/restore, and the webhook
 delivery loop remain platform services; no broker, cache, generic job system,
 or observability stack is bundled.
+
+## Profile composition
+
+Generated applications require Core and Identity. Identity remains included
+because Core web, REST, item, and bootstrap paths use its shared authentication
+and workspace-authorization services. Agent is optional: when selected, the
+generator retains the MCP server, its bootstrap route, the REST-only `appctl`
+command, and their tests. No CompanySite, Integrations, or Files profile is
+implemented.

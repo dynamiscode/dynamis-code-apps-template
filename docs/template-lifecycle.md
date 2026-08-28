@@ -12,8 +12,12 @@ mode-0600 `template.lock` containing:
 - UTC generation time; and
 - the selected profiles from `Core`, `Identity`, and `Agent`.
 
-Profiles are provenance labels only: this release has no profile-pruning
-mechanism, so selection does not remove feature code from the generated tree.
+Identity is required because it is the shared authentication and authorization
+boundary for Core. Core and Identity are always composed into a generated
+application. Selecting Agent additionally composes the MCP server and
+REST-only `appctl` packages, commands, bootstrap route, and Agent smoke test;
+omitting Agent removes those files. No other profile content is currently
+defined, including CompanySite, Integrations, or Files.
 The generated application receives repository-specific README, security-link,
 CODEOWNERS, image, telemetry, package, and runtime-branding values. It copies
 the MIT `LICENSE`, dependency `NOTICE`, and package SPDX metadata, rewriting

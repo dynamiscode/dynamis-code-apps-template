@@ -22,7 +22,7 @@ durable production data and records its deployment-specific evidence.
 | Optional WebMCP browser enhancement | triggered, recurring | 04, 07 | conforming | [WebMCP contract](web.md#webmcp-progressive-enhancement), [browser test](../internal/web/handler_test.go), [smoke](../scripts/webmcp-smoke.sh) |
 | Browser baseline surfaces | bootstrap, recurring | 02, 04, 06 | conforming | [Web routes and controls](web.md), [browser tests](../internal/web/handler_test.go) |
 | English/Spanish browser and invitation localization | bootstrap, recurring | 02, 04, 06 | conforming | [Localization contract](web.md#localization), [catalog tests](../internal/i18n/i18n_test.go), [identity tests](../internal/identity/locale_test.go), [web tests](../internal/web/handler_test.go) |
-| REST, MCP, and remote CLI interfaces | bootstrap, recurring | 03-05 | conforming | REST: [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go); [MCP tests](../internal/mcpserver/server_test.go); [CLI tests](../internal/appctl/run_test.go) |
+| REST and optional Agent MCP/remote CLI interfaces | bootstrap, recurring | 03-05 | conforming | REST: [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go); [MCP tests](../internal/mcpserver/server_test.go); [CLI tests](../internal/appctl/run_test.go) |
 | Local authentication and OIDC service | bootstrap, recurring | 02 | conforming | [Authentication](authentication.md), [OIDC tests](../internal/identity/oidc_test.go), [configuration tests](../internal/platform/config/config_test.go) |
 | Permissions, roles, workspaces, invitations, sessions, tokens, account lifecycle, preferences, and notifications service | bootstrap, recurring | 02 | conforming | [Authorization and lifecycle tests](../internal/identity/service_test.go), [account and notification tests](../internal/identity/account_notification_test.go), [PostgreSQL identity test](../internal/identity/postgres_test.go) |
 | SQLite, PostgreSQL, migrations, and rolling compatibility | bootstrap, recurring | 01, 06 | conforming | [Database tests](../internal/platform/database/migrate_test.go), [PostgreSQL tests](../internal/platform/database/postgres_test.go), [upgrade procedure](operations.md#upgrades-and-alerts) |
@@ -218,12 +218,14 @@ Trivy 0.74.0, govulncheck 1.7.0, actionlint 1.7.12, Chrome, and Node 24:
   interruption-safe migrations and known-record backup/restore
 - live test proved browser login, authenticated REST, REST-only CLI, MCP
   initialization/tool call, and SSE notification through shared use cases
-- generation replaced module, display, image, package, telemetry, API, MCP,
+- generation replaced module, display, image, package, telemetry, API,
   configuration, documentation, repository, security, ownership, and branding
-  identifiers; copied MIT licensing and dependency attribution with
-  application-owned copyright metadata; recorded selected profiles and
-  required lock provenance; refused overwrite; and passed the generated
-  application suite
+  identifiers; composed Core and required Identity, physically omitted the
+  optional Agent implementation when unselected, and retained the Agent MCP
+  and REST-only CLI surfaces when selected; copied MIT licensing and
+  dependency attribution with application-owned copyright metadata; recorded
+  selected profiles and required lock provenance; refused overwrite; and
+  passed generated application suites
 - source and runtime image scans found zero critical vulnerabilities;
   govulncheck found zero reachable vulnerabilities; SPDX image SBOM generated
 - workflow YAML, pinned action commits, shell syntax, four-platform release
