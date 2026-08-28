@@ -41,6 +41,7 @@ durable production data and records its deployment-specific evidence.
 | WCAG 2.2 AA accessibility | bootstrap, recurring | 04, 07 | conforming | [Automated runner](../scripts/accessibility.mjs), [dated automated and manual evidence](accessibility.md) |
 | Containers and deployment | bootstrap, operational | 07 | conforming | Pinned [image](../Dockerfile), [SQLite Compose](../compose.yaml), [PostgreSQL overlay](../compose.postgres.yaml), [smoke](../scripts/docker-smoke.sh), and [deployment contract](deployment.md) |
 | CI, release security, SBOM, provenance, signatures, checksums | operational | 07 | conforming | [CI](../.github/workflows/ci.yml), [release workflow](../.github/workflows/release.yml), [dependency monitoring](../.github/dependabot.yml), [Scorecard](../.github/workflows/scorecard.yml), and [artifact verification](release.md) |
+| MIT licensing, SPDX metadata, dependency attribution, and generated-repository governance | bootstrap, recurring | 07 | conforming | [Governance](governance.md), [LICENSE](../LICENSE), and [handoff test](../internal/conformance/handoff_test.go) |
 | Documentation, context handoff, and sources of truth | bootstrap, recurring | 07 | conforming | [Router](README.md), [agent contract](../AGENTS.md), [handoff test](../internal/conformance/handoff_test.go), and permanent [skills](../.agents/skills/) |
 | Testing strategy and complete template acceptance | recurring, operational | 01-07 | conforming | [Verification targets](../Makefile), [live surface smoke](../internal/bootstrap/agent_smoke_test.go), [accessibility smoke](../scripts/accessibility-smoke.sh), and [container smoke](../scripts/docker-smoke.sh) |
 
@@ -219,8 +220,10 @@ Trivy 0.74.0, govulncheck 1.7.0, actionlint 1.7.12, Chrome, and Node 24:
   initialization/tool call, and SSE notification through shared use cases
 - generation replaced module, display, image, package, telemetry, API, MCP,
   configuration, documentation, repository, security, ownership, and branding
-  identifiers; recorded selected profiles and required lock provenance; refused
-  overwrite; and passed the generated application suite
+  identifiers; copied MIT licensing and dependency attribution with
+  application-owned copyright metadata; recorded selected profiles and
+  required lock provenance; refused overwrite; and passed the generated
+  application suite
 - source and runtime image scans found zero critical vulnerabilities;
   govulncheck found zero reachable vulnerabilities; SPDX image SBOM generated
 - workflow YAML, pinned action commits, shell syntax, four-platform release

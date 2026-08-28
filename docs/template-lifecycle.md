@@ -15,8 +15,10 @@ mode-0600 `template.lock` containing:
 Profiles are provenance labels only: this release has no profile-pruning
 mechanism, so selection does not remove feature code from the generated tree.
 The generated application receives repository-specific README, security-link,
-CODEOWNERS, image, telemetry, package, and runtime-branding values. It does
-not retain template repository ownership or app-facing template branding. The
+CODEOWNERS, image, telemetry, package, and runtime-branding values. It copies
+the MIT `LICENSE`, dependency `NOTICE`, and package SPDX metadata, rewriting
+the copyright line to the application name and `contributors`. It does not
+retain template repository ownership or app-facing template branding. The
 README points to implemented documentation and marks product purpose and
 domain behavior as application-owned work.
 

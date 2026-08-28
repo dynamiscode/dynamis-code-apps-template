@@ -132,6 +132,7 @@ func run(args []string, now func() time.Time) error {
 		"Dynamis Code", *name,
 		"Dynamis-Code", strings.ReplaceAll(slug, "_", "-"),
 		"dynamis-code-apps-template", slug,
+		"Copyright (c) 2026 David Londono", "Copyright (c) 2026 " + *name + " contributors",
 		"template maintainers", "application maintainers",
 		"template maintainer", "application maintainer",
 		templateRepositoryURL, strings.TrimRight(*repository, "/"),
@@ -408,6 +409,11 @@ Read [deployment](docs/deployment.md) before exposing the service and
 [operations](docs/operations.md) for health, telemetry, limits, backup,
 restore, upgrades, and alerts. [Data lifecycle](docs/data-lifecycle.md)
 defines persistence, export, retention, deletion, and recovery boundaries.
+
+## License
+
+This application is licensed under MIT. See [LICENSE](LICENSE) for the
+complete terms and [NOTICE](NOTICE) for dependency attribution.
 
 ## Security
 

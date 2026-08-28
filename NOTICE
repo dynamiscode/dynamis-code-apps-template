@@ -1,7 +1,8 @@
-Dynamis Code Apps Template dependency attribution
+Dependency attribution
 
-The project license is intentionally pending maintainer selection. This file
-does not grant a license to the project code.
+Project source is licensed under MIT; see `LICENSE`. Generated applications
+retain this notice and license unless their maintainers replace them with
+reviewed project-specific terms.
 
 The following runtime dependencies are included in the Go module graph. Their
 upstream LICENSE and NOTICE files remain authoritative:

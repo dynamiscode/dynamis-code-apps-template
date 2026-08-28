@@ -1,6 +1,7 @@
 {
   "name": "dynamis-code-apps-template-checks",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "test:a11y": "node scripts/accessibility.mjs",
     "test:webmcp": "node scripts/webmcp.mjs"

@@ -15,7 +15,7 @@ var markdownLink = regexp.MustCompile(`\[[^]]*\]\(([^)[:space:]]+)\)`)
 func TestPermanentContextHandoff(t *testing.T) {
 	root := repositoryRoot(t)
 	required := []string{
-		"AGENTS.md", "README.md", "SECURITY.md", "CONTRIBUTING.md",
+		"AGENTS.md", "README.md", "LICENSE", "SECURITY.md", "CONTRIBUTING.md",
 		"CODE_OF_CONDUCT.md", "NOTICE", ".github/CODEOWNERS",
 		".github/ISSUE_TEMPLATE/config.yml", ".github/ISSUE_TEMPLATE/bug_report.yml",
 		".github/ISSUE_TEMPLATE/feature_request.yml", ".github/ISSUE_TEMPLATE/documentation.yml",
@@ -43,6 +43,7 @@ func TestPermanentContextHandoff(t *testing.T) {
 	checkSkills(t, root)
 	checkPinnedDelivery(t, root)
 	checkWebMCPHandoff(t, root)
+	checkLicense(t, root)
 
 	capabilities := readFile(t, filepath.Join(root, "docs/capabilities.md"))
 	if strings.Contains(capabilities, "| pending |") {
@@ -51,6 +52,23 @@ func TestPermanentContextHandoff(t *testing.T) {
 	version := strings.TrimSpace(readFile(t, filepath.Join(root, "VERSION")))
 	if !regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`).MatchString(version) {
 		t.Errorf("VERSION %q is not stable semantic versioning", version)
+	}
+}
+
+func checkLicense(t *testing.T, root string) {
+	t.Helper()
+	license := readFile(t, filepath.Join(root, "LICENSE"))
+	for _, required := range []string{
+		"MIT License", "Copyright (c) 2026 David Londono",
+		"THE SOFTWARE IS PROVIDED \"AS IS\"",
+	} {
+		if !strings.Contains(license, required) {
+			t.Errorf("LICENSE lacks %q", required)
+		}
+	}
+	packageJSON := readFile(t, filepath.Join(root, "package.json"))
+	if !strings.Contains(packageJSON, `"license": "MIT"`) {
+		t.Error("package.json lacks SPDX MIT metadata")
 	}
 }
 
