@@ -21,10 +21,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          GITLEAKS_ENABLE_COMMENTS: "false"
+      - run: make secret-check
       - run: make vuln-check
       - run: make verify
       - name: Validate release version

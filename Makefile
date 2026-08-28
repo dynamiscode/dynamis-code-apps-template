@@ -1,5 +1,6 @@
-GOVULNCHECK_VERSION ?= v1.1.4
+GOVULNCHECK_VERSION ?= v1.7.0
 ACTIONLINT_VERSION ?= v1.7.12
+GITLEAKS_VERSION ?= v8.30.1
 
 .PHONY: setup fmt-check lint test vet race deps-check secret-check vuln-check workflow-check generate-check build image docker-smoke accessibility-smoke webmcp-smoke template-smoke verify
 
@@ -26,8 +27,7 @@ deps-check:
 	go mod verify
 
 secret-check:
-	command -v gitleaks >/dev/null || { echo "gitleaks is required for secret-check" >&2; exit 2; }
-	gitleaks dir --redact --no-banner --exit-code 1 .
+	go run github.com/zricethezav/gitleaks/v8@$(GITLEAKS_VERSION) dir --redact --no-banner --exit-code 1 .
 
 vuln-check:
 	go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) ./...
