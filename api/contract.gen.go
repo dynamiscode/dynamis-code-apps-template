@@ -9,12 +9,22 @@ type Operation struct {
 }
 
 const OpenAPIVersion = "3.1.0"
-const OpenAPISHA256 = "27a33a0a6c43c19361fae1fda4cf5b4ccddeb78d7d2f83d4d83dc4c83aa69731"
+const OpenAPISHA256 = "74ff652f982898273d7606faaa3e3d2e93f72f94093090ef63286b395e3a3173"
 
 var Operations = []Operation{
 	{Method: "GET", Path: "/api/openapi.json", ID: "getOpenAPI"},
 	{Method: "POST", Path: "/api/v1/auth/login", ID: "loginLocal"},
 	{Method: "POST", Path: "/api/v1/auth/logout", ID: "logoutLocal"},
+	{Method: "POST", Path: "/api/v1/auth/mfa/passkey", ID: "mfaLoginPasskey"},
+	{Method: "POST", Path: "/api/v1/auth/mfa/passkeys/register", ID: "mfaPasskeyComplete"},
+	{Method: "POST", Path: "/api/v1/auth/mfa/passkeys/register/options", ID: "mfaPasskeyOptions"},
+	{Method: "DELETE", Path: "/api/v1/auth/mfa/passkeys/{passkeyId}", ID: "mfaPasskeyRemove"},
+	{Method: "POST", Path: "/api/v1/auth/mfa/recovery", ID: "mfaLoginRecovery"},
+	{Method: "GET", Path: "/api/v1/auth/mfa/status", ID: "mfaStatus"},
+	{Method: "DELETE", Path: "/api/v1/auth/mfa/totp", ID: "mfaTotpRemove"},
+	{Method: "POST", Path: "/api/v1/auth/mfa/totp", ID: "mfaLoginTOTP"},
+	{Method: "POST", Path: "/api/v1/auth/mfa/totp/complete", ID: "mfaTotpComplete"},
+	{Method: "POST", Path: "/api/v1/auth/mfa/totp/enroll", ID: "mfaTotpEnroll"},
 	{Method: "GET", Path: "/api/v1/sessions", ID: "listSessions"},
 	{Method: "DELETE", Path: "/api/v1/sessions/{sessionId}", ID: "revokeSession"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/export", ID: "exportWorkspace"},

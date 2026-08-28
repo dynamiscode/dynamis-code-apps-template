@@ -32,6 +32,7 @@ type Config struct {
 	Database  Database
 	Bootstrap Bootstrap
 	OIDC      OIDC
+	MFA       MFA
 	Mail      Mail
 	PublicURL string
 	HTTP      HTTP
@@ -81,6 +82,15 @@ type OIDC struct {
 	ClientID     string
 	ClientSecret string
 	RedirectURL  string
+}
+
+type MFA struct {
+	Enabled          bool
+	EncryptionKey    []byte
+	RelyingPartyID   string
+	Origins          []string
+	DisplayName      string
+	RequireForAdmins bool
 }
 
 type Mail struct {
@@ -173,6 +183,10 @@ func LoadFrom(lookup LookupEnv) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	mfa, err := loadMFA(lookup)
+	if err != nil {
+		return Config{}, err
+	}
 	publicURL, err := loadPublicURL(lookup)
 	if err != nil {
 		return Config{}, err
@@ -202,7 +216,7 @@ func LoadFrom(lookup LookupEnv) (Config, error) {
 		return Config{}, err
 	}
 	return Config{
-		Database: database, Bootstrap: bootstrap, OIDC: oidc, Mail: mailConfig,
+		Database: database, Bootstrap: bootstrap, OIDC: oidc, MFA: mfa, Mail: mailConfig,
 		PublicURL: publicURL, HTTP: httpConfig, MCP: mcpConfig,
 		Data: dataConfig, Telemetry: telemetryConfig, Webhooks: webhookConfig,
 	}, nil
@@ -540,6 +554,61 @@ func loadOIDC(lookup LookupEnv) (OIDC, error) {
 		return OIDC{}, fmt.Errorf("OIDC_REDIRECT_URL must use HTTPS or loopback HTTP")
 	}
 	return oidc, nil
+}
+
+func loadMFA(lookup LookupEnv) (MFA, error) {
+	enabled, err := boolValue(lookup, "MFA_ENABLED", false)
+	if err != nil {
+		return MFA{}, err
+	}
+	requireForAdmins, err := boolValue(lookup, "MFA_REQUIRE_FOR_ADMINS", false)
+	if err != nil {
+		return MFA{}, err
+	}
+	if !enabled {
+		return MFA{RequireForAdmins: requireForAdmins}, nil
+	}
+	rawKey := strings.TrimSpace(valueOrDefault(lookup, "MFA_ENCRYPTION_KEY", ""))
+	key, err := decode32ByteKey(rawKey)
+	if err != nil {
+		return MFA{}, fmt.Errorf("MFA_ENCRYPTION_KEY must encode exactly 32 bytes")
+	}
+	rpID := strings.TrimSpace(valueOrDefault(lookup, "WEBAUTHN_RP_ID", "localhost"))
+	origin := strings.TrimRight(strings.TrimSpace(valueOrDefault(lookup, "WEBAUTHN_RP_ORIGIN", "http://localhost:8080")), "/")
+	displayName := strings.TrimSpace(valueOrDefault(lookup, "WEBAUTHN_RP_DISPLAY_NAME", "Dynamis Code"))
+	if !validRelyingPartyID(rpID) {
+		return MFA{}, fmt.Errorf("WEBAUTHN_RP_ID must be a valid relying-party domain")
+	}
+	parsed, err := url.Parse(origin)
+	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.Path != "" ||
+		parsed.RawQuery != "" || parsed.Fragment != "" ||
+		(parsed.Scheme != "https" && !(parsed.Scheme == "http" && isLoopbackHost(parsed.Hostname()))) {
+		return MFA{}, fmt.Errorf("WEBAUTHN_RP_ORIGIN must use HTTPS or loopback HTTP")
+	}
+	if displayName == "" || len(displayName) > 80 {
+		return MFA{}, fmt.Errorf("WEBAUTHN_RP_DISPLAY_NAME must be 1 to 80 characters")
+	}
+	return MFA{Enabled: true, EncryptionKey: key, RelyingPartyID: rpID,
+		Origins: []string{origin}, DisplayName: displayName,
+		RequireForAdmins: requireForAdmins}, nil
+}
+
+func decode32ByteKey(raw string) ([]byte, error) {
+	key, err := hex.DecodeString(raw)
+	if err != nil || len(key) != 32 {
+		key, err = base64.StdEncoding.DecodeString(raw)
+	}
+	if err != nil || len(key) != 32 {
+		return nil, fmt.Errorf("invalid key")
+	}
+	return key, nil
+}
+
+func validRelyingPartyID(value string) bool {
+	if value == "" || strings.ContainsAny(value, "/:?#[]@ ") || net.ParseIP(value) != nil {
+		return false
+	}
+	return strings.Contains(value, ".") || strings.EqualFold(value, "localhost")
 }
 
 func boolValue(lookup LookupEnv, key string, fallback bool) (bool, error) {

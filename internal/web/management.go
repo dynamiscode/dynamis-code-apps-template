@@ -380,9 +380,11 @@ func (h *Handler) securityPage(writer http.ResponseWriter, request *http.Request
 	if !ok {
 		return
 	}
+	status, _ := h.identity.MFAStatus(request.Context(), session.UserID)
+	passkeys, _ := h.identity.ListPasskeys(request.Context(), session.UserID)
 	h.render(writer, http.StatusOK, "security.html", pageData{
 		Title: "Security", NavPage: "security", CSRF: csrf, OIDCProviders: h.providers(),
-		Error: request.URL.Query().Get("error"), Email: session.UserID,
+		Error: request.URL.Query().Get("error"), Email: session.UserID, MFAStatus: status, Passkeys: passkeys,
 	})
 }
 

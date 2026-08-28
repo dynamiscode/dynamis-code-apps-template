@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Added optional MFA with WebAuthn/passkeys as the primary strong factor, TOTP
+  fallback, one-time hashed recovery codes, encrypted TOTP storage, revocable
+  passkeys, replay-protected challenges, MFA session levels, admin policy
+  enforcement, browser/REST flows, audit redaction, and migration 000010.
+
 - Added profile composition to application generation: Identity is required
   for Core, and selecting Agent includes its MCP and REST-only CLI surfaces;
   omitting Agent removes their implementation packages while preserving

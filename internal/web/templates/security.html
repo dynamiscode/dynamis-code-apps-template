@@ -1,1 +1,89 @@
-{{define "security.html"}}<!doctype html><html lang="{{.Locale}}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · Dynamis Code</title><link rel="stylesheet" href="/assets/app.css"></head><body><header class="topbar"><a class="brand" href="/">Dynamis Code</a><div class="topbar-context"><a href="/">{{.T "workspace.workspaces"}}</a><span aria-hidden="true">/</span><span>{{.T "common.account"}}</span></div>{{template "account-menu" .}}</header><main id="main"><h1>{{.T "security.security"}}</h1>{{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}{{if .OIDCProviders}}<form action="/security" method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><label for="provider">{{.T "security.provider"}}</label><select id="provider" name="provider">{{range .OIDCProviders}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select><label for="reauth-password">{{.T "security.password"}}</label><input id="reauth-password" name="password" type="password" autocomplete="current-password" required><button type="submit">{{.T "security.link"}}</button></form>{{else}}<p>{{.T "errors.no_oidc"}}</p>{{end}}</main></body></html>{{end}}
+{{define "security.html"}}
+<!doctype html>
+<html lang="{{.Locale}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{.Title}} · Dynamis Code</title>
+  <link rel="stylesheet" href="/assets/app.css">
+  <script src="/assets/mfa.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">Dynamis Code</a>
+    <div class="topbar-context"><a href="/">{{.T "workspace.workspaces"}}</a><span aria-hidden="true">/</span><span>{{.T "common.account"}}</span></div>
+    {{template "account-menu" .}}
+  </header>
+  <main id="main">
+    <h1>{{.T "security.security"}}</h1>
+    {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
+    {{if .MFAError}}<p class="error" role="alert">{{.MFAError}}</p>{{end}}
+    <section>
+      <h2>Multi-factor authentication</h2>
+      {{if .MFAStatus.Enabled}}
+      <p>Passkeys: {{.MFAStatus.PasskeyCount}} · Authenticator app: {{if .MFAStatus.TOTPEnabled}}enabled{{else}}not enabled{{end}} · Recovery codes remaining: {{.MFAStatus.RecoveryRemain}}</p>
+      <form id="passkey-enroll" action="/api/v1/auth/mfa/passkeys/register/options" method="post">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <label for="passkey-password">Current password</label>
+        <input id="passkey-password" name="password" type="password" autocomplete="current-password" required>
+        <button type="submit">Add passkey</button>
+      </form>
+      {{if not .MFAStatus.TOTPEnabled}}
+      <form action="/security/totp/start" method="post">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <label for="totp-password">Current password</label>
+        <input id="totp-password" name="password" type="password" autocomplete="current-password" required>
+        <button type="submit">Set up authenticator app</button>
+      </form>
+      {{else}}
+      <form action="/security/totp/remove" method="post">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <label for="remove-totp-password">Current password</label>
+        <input id="remove-totp-password" name="password" type="password" autocomplete="current-password" required>
+        <button type="submit">Remove authenticator app</button>
+      </form>
+      {{end}}
+      {{range .Passkeys}}
+      {{if not .RevokedAt}}
+      <form action="/security/passkey/{{.ID}}" method="post">
+        <input type="hidden" name="csrf" value="{{$.CSRF}}">
+        <label for="remove-{{.ID}}">Remove {{.Name}}; current password</label>
+        <input id="remove-{{.ID}}" name="password" type="password" autocomplete="current-password" required>
+        <button type="submit">Remove passkey</button>
+      </form>
+      {{end}}
+      {{end}}
+      {{if .TOTPEnrollment}}
+      <p>Scan or enter this one-time authenticator setup value: <code>{{.TOTPEnrollment.Secret}}</code></p>
+      <form action="/security/totp/complete" method="post">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="challenge" value="{{.TOTPEnrollment.Challenge}}">
+        <label for="totp-enrollment-code">Authenticator code</label>
+        <input id="totp-enrollment-code" name="code" inputmode="numeric" minlength="6" maxlength="6" required>
+        <button type="submit">Confirm authenticator</button>
+      </form>
+      {{end}}
+      {{if .MFARecoveryCodes}}
+      <h3>Recovery codes — show once</h3>
+      <p>Store these codes securely. Each works once.</p>
+      <pre>{{range .MFARecoveryCodes}}{{.}}
+{{end}}</pre>
+      {{end}}
+      {{end}}
+    </section>
+    {{if .OIDCProviders}}
+    <form action="/security" method="post">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <label for="provider">{{.T "security.provider"}}</label>
+      <select id="provider" name="provider">{{range .OIDCProviders}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select>
+      <label for="reauth-password">{{.T "security.password"}}</label>
+      <input id="reauth-password" name="password" type="password" autocomplete="current-password" required>
+      <button type="submit">{{.T "security.link"}}</button>
+    </form>
+    {{else}}
+    <p>{{.T "errors.no_oidc"}}</p>
+    {{end}}
+  </main>
+</body>
+</html>
+{{end}}

@@ -23,6 +23,12 @@ begins. Changes require restart.
 | `OIDC_CLIENT_ID` | provider client ID | none | OIDC only | No |
 | `OIDC_CLIENT_SECRET` | provider client secret | none | OIDC only | Yes |
 | `OIDC_REDIRECT_URL` | exact HTTPS or loopback-HTTP callback | none | OIDC only | No |
+| `MFA_ENABLED` | boolean | `false` | No | No |
+| `MFA_ENCRYPTION_KEY` | exactly 32 random bytes as hex or base64 | none | MFA only | Yes |
+| `MFA_REQUIRE_FOR_ADMINS` | boolean | `false` | No | No |
+| `WEBAUTHN_RP_ID` | relying-party domain | `localhost` | MFA only | No |
+| `WEBAUTHN_RP_ORIGIN` | exact HTTPS or loopback-HTTP origin | `http://localhost:8080` | MFA only | No |
+| `WEBAUTHN_RP_DISPLAY_NAME` | display name, 1-80 characters | `Dynamis Code` | MFA only | No |
 | `APP_PUBLIC_URL` | HTTPS or loopback HTTP base URL | none | SMTP only | No |
 | `SMTP_HOST` | SMTP hostname | none | Optional invitation email | No |
 | `SMTP_PORT` | integer 1-65535 | `587` | SMTP only | No |
@@ -104,6 +110,19 @@ is invalid. Provider changes require deployment restart.
 
 Discovery and token requests reject non-public destinations. Use an accepted
 exception before enabling an identity provider on a private network.
+
+## MFA and passkeys
+
+MFA is disabled by default. Enable it with `MFA_ENABLED=true` and inject a
+deployment-owned 32-byte `MFA_ENCRYPTION_KEY`. TOTP secrets are encrypted at
+rest and recovery codes are stored only as hashes. Passkeys use the configured
+RP ID, exact origin, and display name. Defaults are safe for local loopback
+development; production deployments must set HTTPS RP values.
+
+`MFA_REQUIRE_FOR_ADMINS=true` requires an enrolled factor for owners and
+administrators. Members and viewers remain optional. Factor changes require
+fresh authentication; passkey removal revokes active sessions. MFA challenge
+and factor data are never logged or written to audit metadata.
 
 ## Invitation email
 

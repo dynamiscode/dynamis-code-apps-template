@@ -83,6 +83,13 @@ type pageData struct {
 	CanManage                        bool
 	CanTransfer                      bool
 	ReturnTo                         string
+	MFAChallenge                     string
+	MFAOptions                       []byte
+	MFAError                         string
+	TOTPEnrollment                   *identity.TOTPEnrollment
+	MFARecoveryCodes                 []string
+	Passkeys                         []identity.Passkey
+	MFAStatus                        identity.MFAStatus
 }
 
 func (p pageData) T(key string, values ...any) string {
@@ -195,6 +202,10 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /language", h.language)
 	mux.HandleFunc("GET /login", h.loginPage)
 	mux.HandleFunc("POST /login", h.login)
+	mux.HandleFunc("GET /mfa", h.mfaPage)
+	mux.HandleFunc("POST /mfa/totp", h.mfaTOTP)
+	mux.HandleFunc("POST /mfa/recovery", h.mfaRecovery)
+	mux.HandleFunc("POST /mfa/passkey", h.mfaPasskey)
 	mux.HandleFunc("GET /setup", h.setupPage)
 	mux.HandleFunc("POST /setup", h.setup)
 	mux.HandleFunc("POST /logout", h.logout)
@@ -235,6 +246,10 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /sessions/{sessionId}", h.sessionMutation)
 	mux.HandleFunc("GET /security", h.securityPage)
 	mux.HandleFunc("POST /security", h.securityMutation)
+	mux.HandleFunc("POST /security/totp/start", h.securityTOTPStart)
+	mux.HandleFunc("POST /security/totp/complete", h.securityTOTPComplete)
+	mux.HandleFunc("POST /security/totp/remove", h.securityTOTPRemove)
+	mux.HandleFunc("POST /security/passkey/{passkeyId}", h.securityPasskeyRemove)
 	mux.HandleFunc("GET /settings/language", h.languageSettingsPage)
 	mux.HandleFunc("POST /settings/language", h.languageSettings)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/general", h.generalSettingsPage)
@@ -420,6 +435,16 @@ func (h *Handler) login(writer http.ResponseWriter, request *http.Request) {
 			Error:         "The email or password is invalid.",
 			OIDCProviders: h.providers(), ReturnTo: safeReturnTo(request.FormValue("return_to")),
 		})
+		return
+	}
+	if h.identity.MFARequired(request.Context(), userID) {
+		challenge, err := h.identity.BeginMFALogin(request.Context(), userID, auditContext(request))
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+		h.setCookie(writer, "mfa_challenge", challenge.Token, challenge.ExpiresAt, true)
+		h.redirect(writer, request, "/mfa")
 		return
 	}
 	session, err := h.identity.CreateSession(
@@ -656,14 +681,19 @@ func (h *Handler) workspaceSession(
 	if !ok {
 		return identity.Principal{}, identity.Session{}, "", false
 	}
-	principal, err := h.identity.Authorize(
-		request.Context(), session.UserID, workspaceID, permission,
+	principal, err := h.identity.AuthenticateSessionForWorkspace(
+		request.Context(), cookieValue(request, "session"), workspaceID, permission,
 	)
 	if err != nil {
+		if errors.Is(err, identity.ErrMFARequired) {
+			h.redirect(writer, request, "/mfa")
+			return identity.Principal{}, identity.Session{}, "", false
+		}
 		h.renderError(writer, http.StatusForbidden)
 		return identity.Principal{}, identity.Session{}, "", false
 	}
 	principal.AuthMethod = session.AuthMethod
+	principal.AuthLevel = session.AuthLevel
 	return principal, session, csrf, true
 }
 

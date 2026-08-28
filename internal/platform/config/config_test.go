@@ -185,6 +185,32 @@ func TestLoadFromLeavesOIDCDisabledWithoutConfiguration(t *testing.T) {
 	}
 }
 
+func TestLoadFromValidatesMFAConfiguration(t *testing.T) {
+	t.Parallel()
+	key := "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+	cfg, err := LoadFrom(env(map[string]string{
+		"MFA_ENABLED": "true", "MFA_ENCRYPTION_KEY": key,
+		"MFA_REQUIRE_FOR_ADMINS": "true", "WEBAUTHN_RP_ID": "app.example.com",
+		"WEBAUTHN_RP_ORIGIN": "https://app.example.com", "WEBAUTHN_RP_DISPLAY_NAME": "Example",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.MFA.Enabled || !cfg.MFA.RequireForAdmins || cfg.MFA.RelyingPartyID != "app.example.com" || cfg.MFA.Origins[0] != "https://app.example.com" || len(cfg.MFA.EncryptionKey) != 32 {
+		t.Fatalf("MFA config = %+v", cfg.MFA)
+	}
+	for _, values := range []map[string]string{
+		{"MFA_ENABLED": "true"},
+		{"MFA_ENABLED": "true", "MFA_ENCRYPTION_KEY": "short"},
+		{"MFA_ENABLED": "true", "MFA_ENCRYPTION_KEY": key, "WEBAUTHN_RP_ID": "https://bad"},
+		{"MFA_ENABLED": "true", "MFA_ENCRYPTION_KEY": key, "WEBAUTHN_RP_ORIGIN": "http://169.254.169.254"},
+	} {
+		if _, err := LoadFrom(env(values)); err == nil {
+			t.Fatalf("invalid MFA config accepted: %#v", values)
+		}
+	}
+}
+
 func TestLoadFromValidatesEnabledOIDCWithoutLeakingSecret(t *testing.T) {
 	t.Parallel()
 

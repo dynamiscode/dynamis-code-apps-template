@@ -20,6 +20,18 @@ func (s *Service) CreateSession(
 	lifetime time.Duration,
 	audit AuditContext,
 ) (NewSession, error) {
+	return s.createSessionWithLevel(ctx, userID, authMethod, oidcProviderID, lifetime, AuthLevelPassword, audit)
+}
+
+func (s *Service) createSessionWithLevel(
+	ctx context.Context,
+	userID string,
+	authMethod string,
+	oidcProviderID string,
+	lifetime time.Duration,
+	authLevel AuthLevel,
+	audit AuditContext,
+) (NewSession, error) {
 	if (authMethod != "local" && authMethod != "oidc") ||
 		(authMethod == "local" && oidcProviderID != "") ||
 		(authMethod == "oidc" && oidcProviderID == "") {
@@ -47,6 +59,7 @@ func (s *Service) CreateSession(
 	session := NewSession{
 		Session: Session{
 			ID: sessionID, UserID: userID, AuthMethod: authMethod,
+			AuthLevel:      authLevel,
 			OIDCProviderID: oidcProviderID,
 			CreatedAt:      now, ExpiresAt: now.Add(lifetime),
 		},
@@ -63,10 +76,10 @@ func (s *Service) CreateSession(
 	if _, err := s.exec(ctx, tx, `
 		INSERT INTO sessions (
 			id, user_id, secret_hash, csrf_hash, auth_method,
-			oidc_provider_id, created_at, expires_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			oidc_provider_id, auth_level, fresh_at, created_at, expires_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, session.ID, userID, hashSecret(secret), hashSecret(csrfSecret),
-		authMethod, nullable(oidcProviderID), timestamp(now),
+		authMethod, nullable(oidcProviderID), session.AuthLevel, timestamp(now), timestamp(now),
 		timestamp(session.ExpiresAt)); err != nil {
 		return NewSession{}, fmt.Errorf("create session: %w", err)
 	}
@@ -145,14 +158,16 @@ func (s *Service) AuthenticateSession(
 ) (Session, error) {
 	var session Session
 	var createdAt, expiresAt string
+	var authLevel AuthLevel
+	var freshAt sql.NullString
 	var oidcProviderID sql.NullString
 	var revokedAt sql.NullString
 	err := s.queryRow(ctx, s.db, `
-		SELECT id, user_id, auth_method, oidc_provider_id,
+		SELECT id, user_id, auth_method, oidc_provider_id, auth_level, fresh_at,
 			created_at, expires_at, revoked_at
 		FROM sessions WHERE secret_hash = ?
 	`, hashSecret(secret)).Scan(
-		&session.ID, &session.UserID, &session.AuthMethod, &oidcProviderID,
+		&session.ID, &session.UserID, &session.AuthMethod, &oidcProviderID, &authLevel, &freshAt,
 		&createdAt, &expiresAt, &revokedAt,
 	)
 	if err != nil {
@@ -169,6 +184,7 @@ func (s *Service) AuthenticateSession(
 	if oidcProviderID.Valid {
 		session.OIDCProviderID = oidcProviderID.String
 	}
+	session.AuthLevel = authLevel
 	return session, nil
 }
 
@@ -189,6 +205,10 @@ func (s *Service) AuthenticateSessionForWorkspace(
 		return Principal{}, err
 	}
 	principal.AuthMethod = session.AuthMethod
+	principal.AuthLevel = session.AuthLevel
+	if s.MFARequired(ctx, session.UserID) && session.AuthLevel < AuthLevelMFA {
+		return Principal{}, ErrMFARequired
+	}
 	return principal, nil
 }
 
@@ -257,7 +277,7 @@ func (s *Service) RevokeSession(
 
 func (s *Service) ListSessions(ctx context.Context, userID string) ([]Session, error) {
 	rows, err := s.db.QueryContext(ctx, s.bind(`
-		SELECT id, user_id, auth_method, oidc_provider_id,
+		SELECT id, user_id, auth_method, oidc_provider_id, auth_level,
 			created_at, expires_at, revoked_at
 		FROM sessions WHERE user_id = ? ORDER BY created_at DESC, id DESC
 	`), userID)
@@ -270,8 +290,9 @@ func (s *Service) ListSessions(ctx context.Context, userID string) ([]Session, e
 		var session Session
 		var createdAt, expiresAt string
 		var oidcProviderID, revokedAt sql.NullString
+		var authLevel AuthLevel
 		if err := rows.Scan(
-			&session.ID, &session.UserID, &session.AuthMethod, &oidcProviderID,
+			&session.ID, &session.UserID, &session.AuthMethod, &oidcProviderID, &authLevel,
 			&createdAt, &expiresAt, &revokedAt,
 		); err != nil {
 			return nil, err
@@ -294,6 +315,7 @@ func (s *Service) ListSessions(ctx context.Context, userID string) ([]Session, e
 		if oidcProviderID.Valid {
 			session.OIDCProviderID = oidcProviderID.String
 		}
+		session.AuthLevel = authLevel
 		sessions = append(sessions, session)
 	}
 	return sessions, rows.Err()

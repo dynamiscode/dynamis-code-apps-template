@@ -49,7 +49,11 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("migrate database: %w", err)
 	}
-	identityService, err := identity.NewService(db, cfg.Database.Driver)
+	identityService, err := identity.NewServiceWithMFA(db, cfg.Database.Driver, identity.MFAConfig{
+		Enabled: cfg.MFA.Enabled, EncryptionKey: cfg.MFA.EncryptionKey,
+		RelyingPartyID: cfg.MFA.RelyingPartyID, Origins: cfg.MFA.Origins,
+		DisplayName: cfg.MFA.DisplayName, RequireForAdmins: cfg.MFA.RequireForAdmins,
+	})
 	if err != nil {
 		db.Close()
 		telemetryProvider.Shutdown(context.Background())
