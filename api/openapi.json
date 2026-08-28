@@ -4,7 +4,7 @@
   "info": {
     "title": "Dynamis Code Apps Template API",
     "version": "1.0.0",
-    "description": "Stable v1 REST contract. Additive changes preserve authorization, ordering, errors, and side effects. Breaking changes require a new version or published migration window."
+    "description": "Stable v1 REST contract. Additive changes preserve authorization, ordering, errors, and side effects. Breaking changes require a new version or published migration window. Query collections use bounded filters, literal search, deterministic sorting, and opaque query-bound cursors. Errors use RFC 9457 Problem Details. See docs/api.md for the human-readable reference."
   },
   "paths": {
     "/health/live": {
@@ -63,13 +63,15 @@
     "/api/v1/workspaces/{workspaceId}/items": {
       "get": {
         "operationId": "listItems",
+        "description": "Returns a deterministic page. Search is a trimmed, case-insensitive literal substring of title. The cursor is opaque and bound to status, search, and sort.",
         "security": [{"bearerAuth": []}],
         "parameters": [
           {"$ref": "#/components/parameters/WorkspaceId"},
-          {"name": "status", "in": "query", "schema": {"type": "string", "enum": ["active", "complete"]}},
-          {"name": "sort", "in": "query", "schema": {"type": "string", "enum": ["created_at", "-created_at"], "default": "-created_at"}},
-          {"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50}},
-          {"name": "cursor", "in": "query", "schema": {"type": "string", "maxLength": 512}}
+          {"$ref": "#/components/parameters/ItemStatus"},
+          {"$ref": "#/components/parameters/ItemSearch"},
+          {"$ref": "#/components/parameters/ItemSort"},
+          {"$ref": "#/components/parameters/PageLimit"},
+          {"$ref": "#/components/parameters/PageCursor"}
         ],
         "responses": {
           "200": {"description": "Stable cursor page", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ItemPage"}}}},
@@ -263,7 +265,7 @@
       "get": {
         "operationId": "getItem",
         "security": [{"bearerAuth": []}],
-        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/ItemId"}, {"name": "If-None-Match", "in": "header", "schema": {"type": "string"}}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/ItemId"}, {"name": "If-None-Match", "in": "header", "description": "Strong item ETag previously returned by this resource.", "schema": {"type": "string"}}],
         "responses": {
           "200": {"description": "Item", "headers": {"ETag": {"schema": {"type": "string"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Item"}}}},
           "401": {"$ref": "#/components/responses/Problem"},
@@ -279,7 +281,7 @@
         "parameters": [
           {"$ref": "#/components/parameters/WorkspaceId"},
           {"$ref": "#/components/parameters/ItemId"},
-          {"name": "If-Match", "in": "header", "required": true, "schema": {"type": "string"}}
+          {"name": "If-Match", "in": "header", "required": true, "description": "Strong item ETag previously returned by this resource.", "schema": {"type": "string"}}
         ],
         "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UpdateItemRequest"}}}},
         "responses": {
@@ -301,7 +303,7 @@
         "parameters": [
           {"$ref": "#/components/parameters/WorkspaceId"},
           {"$ref": "#/components/parameters/ItemId"},
-          {"name": "If-Match", "in": "header", "required": true, "schema": {"type": "string"}}
+          {"name": "If-Match", "in": "header", "required": true, "description": "Strong item ETag previously returned by this resource.", "schema": {"type": "string"}}
         ],
         "responses": {
           "204": {"description": "Item permanently deleted from live storage"},
@@ -328,6 +330,11 @@
       "TokenId": {"name": "tokenId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
       "SessionId": {"name": "sessionId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
       "WebhookId": {"name": "webhookId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
+      "ItemStatus": {"name": "status", "in": "query", "description": "Optional exact status filter.", "schema": {"type": "string", "enum": ["active", "complete"]}},
+      "ItemSearch": {"name": "search", "in": "query", "description": "Optional trimmed, case-insensitive literal substring of item title. Wildcards are not interpreted.", "schema": {"type": "string", "minLength": 1, "maxLength": 100}},
+      "ItemSort": {"name": "sort", "in": "query", "description": "Stable sort; ties use item id in the same direction.", "schema": {"type": "string", "enum": ["created_at", "-created_at"], "default": "-created_at"}},
+      "PageLimit": {"name": "limit", "in": "query", "description": "Number of resources to return.", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50}},
+      "PageCursor": {"name": "cursor", "in": "query", "description": "Opaque cursor from the previous page; do not modify or combine with different query parameters.", "schema": {"type": "string", "maxLength": 512}},
       "IdempotencyKey": {"name": "Idempotency-Key", "in": "header", "required": true, "description": "1-255 visible ASCII characters; scoped to credential, workspace, and operation; retained 24 hours", "schema": {"type": "string", "minLength": 1, "maxLength": 255}},
       "CSRFToken": {"name": "X-CSRF-Token", "in": "header", "required": true, "schema": {"type": "string"}}
     },

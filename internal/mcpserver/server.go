@@ -37,6 +37,7 @@ type handler struct {
 type listInput struct {
 	WorkspaceID string       `json:"workspaceId"`
 	Status      items.Status `json:"status"`
+	Search      string       `json:"search"`
 	Sort        string       `json:"sort"`
 	Limit       int          `json:"limit"`
 	Cursor      string       `json:"cursor"`
@@ -202,7 +203,8 @@ func (h *handler) addTools(server *mcp.Server) {
 			input.Limit = 50
 		}
 		page, err := h.items.List(ctx, principal(req), input.WorkspaceID, items.ListInput{
-			Status: input.Status, Sort: input.Sort, Limit: input.Limit, Cursor: input.Cursor,
+			Status: input.Status, Search: input.Search, Sort: input.Sort,
+			Limit: input.Limit, Cursor: input.Cursor,
 		})
 		return toolRun{workspaceID: input.WorkspaceID, output: page, err: publicError(err)}
 	})
@@ -430,9 +432,10 @@ func listInputSchema() any {
 	return objectSchema(map[string]any{
 		"workspaceId": idSchema,
 		"status":      map[string]any{"type": "string", "enum": []string{"active", "complete"}},
+		"search":      map[string]any{"type": "string", "minLength": 1, "maxLength": 100, "description": "Case-insensitive literal substring of title."},
 		"sort":        map[string]any{"type": "string", "enum": []string{"created_at", "-created_at"}, "default": "-created_at"},
 		"limit":       map[string]any{"type": "integer", "minimum": 1, "maximum": 100, "default": 50},
-		"cursor":      map[string]any{"type": "string", "maxLength": 700},
+		"cursor":      map[string]any{"type": "string", "maxLength": 512},
 	}, "workspaceId")
 }
 
