@@ -7,6 +7,7 @@ import (
 	"encoding/base32"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -36,6 +37,10 @@ func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	otherUserID := insertUser(t, service, db, "other@example.com")
+	if _, err := service.BeginTOTPEnrollment(ctx, otherUserID, session.ID, "owner-long-password", AuditContext{}); !errors.Is(err, ErrInvalidSession) {
+		t.Fatalf("cross-user MFA enrollment error = %v", err)
+	}
 	enrollment, err := service.BeginTOTPEnrollment(ctx, owner.UserID, session.ID, "owner-long-password", AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +53,8 @@ func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
 	if err != nil || !status.TOTPEnabled || status.RecoveryRemain != recoveryCodeCount {
 		t.Fatalf("MFA status = %+v, %v", status, err)
 	}
-	if !service.MFARequired(ctx, owner.UserID) {
+	required, err := service.MFARequired(ctx, owner.UserID)
+	if err != nil || !required {
 		t.Fatal("admin MFA policy did not require enrolled factor")
 	}
 	if _, err := service.AuthenticateSessionForWorkspace(ctx, session.Secret, owner.WorkspaceID, WorkspaceRead); !errors.Is(err, ErrMFARequired) {
@@ -116,6 +122,44 @@ func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
 	}
 	if _, err := service.CompleteTOTPLogin(ctx, limited.Token, "000000", AuditContext{}); !errors.Is(err, ErrInvalidMFAChallenge) {
 		t.Fatalf("rate-limited MFA challenge error = %v", err)
+	}
+	parallel, err := service.BeginMFALogin(ctx, owner.UserID, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const concurrentAttempts = maxMFAAttempts * 4
+	errs := make(chan error, concurrentAttempts)
+	var waitGroup sync.WaitGroup
+	waitGroup.Add(concurrentAttempts)
+	for i := 0; i < concurrentAttempts; i++ {
+		go func() {
+			defer waitGroup.Done()
+			_, err := service.CompleteTOTPLogin(ctx, parallel.Token, "000000", AuditContext{})
+			errs <- err
+		}()
+	}
+	waitGroup.Wait()
+	close(errs)
+	invalidCodes, invalidChallenges := 0, 0
+	for err := range errs {
+		switch {
+		case errors.Is(err, ErrInvalidMFACode):
+			invalidCodes++
+		case errors.Is(err, ErrInvalidMFAChallenge):
+			invalidChallenges++
+		default:
+			t.Fatalf("concurrent MFA attempt error = %v", err)
+		}
+	}
+	if invalidCodes != maxMFAAttempts || invalidChallenges != concurrentAttempts-maxMFAAttempts {
+		t.Fatalf("concurrent MFA attempts = %d invalid codes, %d invalid challenges", invalidCodes, invalidChallenges)
+	}
+
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if required, err := service.MFARequired(ctx, owner.UserID); err == nil || required {
+		t.Fatalf("MFA policy lookup after database failure = %v, %v", required, err)
 	}
 }
 

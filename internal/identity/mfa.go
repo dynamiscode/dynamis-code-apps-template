@@ -49,15 +49,25 @@ func (u webAuthnUser) WebAuthnDisplayName() string {
 }
 func (u webAuthnUser) WebAuthnCredentials() []webauthnlib.Credential { return u.credentials }
 
-func (s *Service) MFARequired(ctx context.Context, userID string) bool {
-	if !s.mfa.Enabled || !s.mfa.RequireForAdmins || !s.hasMFAFactor(ctx, userID) {
-		return false
+func (s *Service) MFARequired(ctx context.Context, userID string) (bool, error) {
+	if !s.mfa.Enabled || !s.mfa.RequireForAdmins {
+		return false, nil
 	}
-	var one int
-	return s.queryRow(ctx, s.db, `
-		SELECT 1 FROM workspace_members
-		WHERE user_id = ? AND role IN ('owner', 'admin') LIMIT 1
-	`, userID).Scan(&one) == nil
+	status, err := s.MFAStatus(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	if !status.TOTPEnabled && status.PasskeyCount == 0 {
+		return false, nil
+	}
+	var admins int
+	if err := s.queryRow(ctx, s.db, `
+		SELECT COUNT(*) FROM workspace_members
+		WHERE user_id = ? AND role IN ('owner', 'admin')
+	`, userID).Scan(&admins); err != nil {
+		return false, err
+	}
+	return admins > 0, nil
 }
 
 func (s *Service) MFAStatus(ctx context.Context, userID string) (MFAStatus, error) {
@@ -131,7 +141,11 @@ func (s *Service) BeginMFALoginWithMethod(ctx context.Context, userID, authMetho
 	if status.RecoveryRemain > 0 {
 		challenge.Methods = append(challenge.Methods, "recovery")
 	}
-	if s.MFARequired(ctx, userID) {
+	required, err := s.MFARequired(ctx, userID)
+	if err != nil {
+		return MFALoginChallenge{}, err
+	}
+	if required {
 		if err := s.audit(ctx, s.db, AuditEvent{EventType: "mfa.policy.enforced", ActorUserID: userID, AuthMethod: "policy", TargetType: "user", TargetID: userID, Action: "mfa.policy.enforce", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: s.now().UTC()}); err != nil {
 			return MFALoginChallenge{}, err
 		}
@@ -165,7 +179,7 @@ func (s *Service) BeginTOTPEnrollment(ctx context.Context, userID, sessionID, pa
 	if !s.mfa.Enabled {
 		return TOTPEnrollment{}, ErrMFAUnavailable
 	}
-	if err := s.VerifyFreshAuthentication(ctx, sessionID, password); err != nil {
+	if err := s.VerifyFreshAuthentication(ctx, userID, sessionID, password); err != nil {
 		return TOTPEnrollment{}, err
 	}
 	raw := make([]byte, 20)
@@ -199,8 +213,10 @@ func (s *Service) CompleteTOTPEnrollment(ctx context.Context, sessionID, token, 
 	if err != nil || challenge.sessionID != sessionID {
 		return nil, ErrInvalidMFAChallenge
 	}
+	if !s.reserveMFAAttempt(ctx, challenge.ID) {
+		return nil, ErrInvalidMFAChallenge
+	}
 	if !validTOTP(secret, code, s.now()) {
-		_ = s.incrementMFAAttempt(ctx, challenge.ID)
 		s.auditMFAFailure(ctx, challenge, "totp", audit)
 		return nil, ErrInvalidMFACode
 	}
@@ -239,7 +255,7 @@ func (s *Service) BeginPasskeyEnrollment(ctx context.Context, userID, sessionID,
 	if !s.mfa.Enabled {
 		return PasskeyEnrollment{}, ErrMFAUnavailable
 	}
-	if err := s.VerifyFreshAuthentication(ctx, sessionID, password); err != nil {
+	if err := s.VerifyFreshAuthentication(ctx, userID, sessionID, password); err != nil {
 		return PasskeyEnrollment{}, err
 	}
 	user, err := s.loadWebAuthnUser(ctx, s.db, userID)
@@ -282,9 +298,11 @@ func (s *Service) CompletePasskeyEnrollment(ctx context.Context, userID, session
 	if err != nil {
 		return nil, err
 	}
+	if !s.reserveMFAAttempt(ctx, challenge.ID) {
+		return nil, ErrInvalidMFAChallenge
+	}
 	credential, err := s.webauthn.FinishRegistration(user, session, request)
 	if err != nil {
-		_ = s.incrementMFAAttempt(ctx, challenge.ID)
 		s.auditMFAFailure(ctx, challenge, "passkey_enrollment", audit)
 		return nil, ErrInvalidMFAChallenge
 	}
@@ -337,8 +355,10 @@ func (s *Service) CompleteTOTPLogin(ctx context.Context, token, code string, aud
 	if err != nil {
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
+	if !s.reserveMFAAttempt(ctx, challenge.ID) {
+		return NewSession{}, ErrInvalidMFAChallenge
+	}
 	if !validTOTP(secret, code, s.now()) {
-		_ = s.incrementMFAAttempt(ctx, challenge.ID)
 		s.auditMFAFailure(ctx, challenge, "totp", audit)
 		return NewSession{}, ErrInvalidMFACode
 	}
@@ -350,6 +370,9 @@ func (s *Service) CompleteRecoveryLogin(ctx context.Context, token, code string,
 	if err != nil {
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
+	if !s.reserveMFAAttempt(ctx, challenge.ID) {
+		return NewSession{}, ErrInvalidMFAChallenge
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return NewSession{}, err
@@ -357,7 +380,6 @@ func (s *Service) CompleteRecoveryLogin(ctx context.Context, token, code string,
 	defer tx.Rollback()
 	var codeID string
 	if err := s.queryRow(ctx, tx, "SELECT id FROM mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL AND code_hash = ?", challenge.UserID, hashSecret(strings.TrimSpace(code))).Scan(&codeID); err != nil {
-		_, _ = s.exec(ctx, tx, "UPDATE mfa_challenges SET attempts = attempts + 1 WHERE id = ? AND consumed_at IS NULL", challenge.ID)
 		_ = tx.Commit()
 		s.auditMFAFailure(ctx, challenge, "recovery", audit)
 		return NewSession{}, ErrInvalidMFACode
@@ -396,9 +418,11 @@ func (s *Service) CompletePasskeyLogin(ctx context.Context, token string, reques
 	if err != nil {
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
+	if !s.reserveMFAAttempt(ctx, challenge.ID) {
+		return NewSession{}, ErrInvalidMFAChallenge
+	}
 	credential, err := s.webauthn.FinishLogin(user, session, request)
 	if err != nil {
-		_ = s.incrementMFAAttempt(ctx, challenge.ID)
 		s.auditMFAFailure(ctx, challenge, "passkey", audit)
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
@@ -533,13 +557,13 @@ func (s *Service) RemoveTOTP(ctx context.Context, userID, password string, audit
 	return tx.Commit()
 }
 
-func (s *Service) VerifyFreshAuthentication(ctx context.Context, sessionID, password string) error {
+func (s *Service) VerifyFreshAuthentication(ctx context.Context, userID, sessionID, password string) error {
 	if sessionID == "" {
 		return ErrInvalidSession
 	}
 	if password != "" {
-		var userID string
-		if err := s.queryRow(ctx, s.db, "SELECT user_id FROM sessions WHERE id = ? AND revoked_at IS NULL", sessionID).Scan(&userID); err != nil {
+		var sessionUserID string
+		if err := s.queryRow(ctx, s.db, "SELECT user_id FROM sessions WHERE id = ? AND revoked_at IS NULL", sessionID).Scan(&sessionUserID); err != nil || sessionUserID != userID {
 			return ErrInvalidSession
 		}
 		if err := s.ReauthenticateLocal(ctx, userID, password); err != nil {
@@ -548,9 +572,13 @@ func (s *Service) VerifyFreshAuthentication(ctx context.Context, sessionID, pass
 		_, err := s.exec(ctx, s.db, "UPDATE sessions SET fresh_at = ? WHERE id = ? AND revoked_at IS NULL", timestamp(s.now().UTC()), sessionID)
 		return err
 	}
+	var sessionUserID string
 	var level AuthLevel
 	var fresh sql.NullString
-	if err := s.queryRow(ctx, s.db, "SELECT auth_level, fresh_at FROM sessions WHERE id = ? AND revoked_at IS NULL", sessionID).Scan(&level, &fresh); err != nil || level < AuthLevelMFA || !fresh.Valid {
+	if err := s.queryRow(ctx, s.db, "SELECT user_id, auth_level, fresh_at FROM sessions WHERE id = ? AND revoked_at IS NULL", sessionID).Scan(&sessionUserID, &level, &fresh); err != nil || sessionUserID != userID {
+		return ErrInvalidSession
+	}
+	if level < AuthLevelMFA || !fresh.Valid {
 		return ErrInvalidCredentials
 	}
 	when, err := parseTimestamp(fresh.String)
@@ -567,11 +595,6 @@ func (s *Service) CreateMFASession(ctx context.Context, userID, authMethod, oidc
 func (s *Service) createSession(ctx context.Context, userID, authMethod, oidcProviderID string, lifetime time.Duration, level AuthLevel, audit AuditContext) (NewSession, error) {
 	// Kept separate from CreateSession so ordinary password/OIDC callers retain their existing contract.
 	return s.createSessionWithLevel(ctx, userID, authMethod, oidcProviderID, lifetime, level, audit)
-}
-
-func (s *Service) hasMFAFactor(ctx context.Context, userID string) bool {
-	status, err := s.MFAStatus(ctx, userID)
-	return err == nil && (status.TOTPEnabled || status.PasskeyCount > 0)
 }
 
 type loadedChallenge struct {
@@ -641,9 +664,13 @@ func (s *Service) loadChallenge(ctx context.Context, token, purpose string) (loa
 	return c, secret, nil
 }
 
-func (s *Service) incrementMFAAttempt(ctx context.Context, challengeID string) error {
-	_, err := s.exec(ctx, s.db, "UPDATE mfa_challenges SET attempts = attempts + 1 WHERE id = ? AND consumed_at IS NULL", challengeID)
-	return err
+func (s *Service) reserveMFAAttempt(ctx context.Context, challengeID string) bool {
+	result, err := s.exec(ctx, s.db, "UPDATE mfa_challenges SET attempts = attempts + 1 WHERE id = ? AND consumed_at IS NULL AND attempts < ?", challengeID, maxMFAAttempts)
+	if err != nil {
+		return false
+	}
+	changed, _ := result.RowsAffected()
+	return changed == 1
 }
 
 func (s *Service) auditMFAFailure(ctx context.Context, challenge loadedChallenge, method string, audit AuditContext) {

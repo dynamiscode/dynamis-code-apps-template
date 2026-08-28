@@ -206,7 +206,11 @@ func (s *Service) AuthenticateSessionForWorkspace(
 	}
 	principal.AuthMethod = session.AuthMethod
 	principal.AuthLevel = session.AuthLevel
-	if s.MFARequired(ctx, session.UserID) && session.AuthLevel < AuthLevelMFA {
+	mfaRequired, err := s.MFARequired(ctx, session.UserID)
+	if err != nil {
+		return Principal{}, err
+	}
+	if mfaRequired && session.AuthLevel < AuthLevelMFA {
 		return Principal{}, ErrMFARequired
 	}
 	return principal, nil
