@@ -38,6 +38,9 @@
 - Added reproducible setup, module verification, secret scanning, pinned
   workflow checks, and version-pinned vulnerability scanning to local and CI
   gates.
+- Added REST consumer onboarding examples for bearer auth, pagination,
+  idempotency, conditional writes, and stable Problem Details errors, plus a
+  v1 item-surface compatibility test.
 
 - Local loopback browser setup without a token, with protected remote setup and
   environment bootstrap precedence.
