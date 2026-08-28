@@ -5,10 +5,10 @@ tag, and the changelog entry must match.
 
 ## Publish
 
-1. Update `VERSION` and `CHANGELOG.md`; run `make verify`, accessibility,
-   `make webmcp-smoke`, PostgreSQL, image smoke, restore, and vulnerability
-   gates. WebMCP native assertions are conditional; unsupported browsers must
-   pass the ordinary-browser fallback check.
+1. Update `VERSION` and `CHANGELOG.md`; run `make verify`, `make secret-check`,
+   `make vuln-check`, accessibility, `make webmcp-smoke`, PostgreSQL, image
+   smoke, and restore gates. WebMCP native assertions are conditional;
+   unsupported browsers must pass the ordinary-browser fallback check.
 2. Review the complete diff and create an annotated tag matching
    `v$(cat VERSION)`.
 3. Push the tag only with release authority. The release workflow builds

@@ -26,7 +26,7 @@ set all three admin variables for unattended bootstrap. See
 Requirements: Go 1.26 or newer. Go selects the recorded toolchain.
 
 ```sh
-cp .env.example .env
+make setup
 set -a; . ./.env; set +a
 go run ./cmd/server
 ```

@@ -17,6 +17,9 @@
 - Added migration 000007 and workspace-scoped, encrypted-secret webhooks for
   item events, signed at-least-once delivery, bounded retries, and redacted
   delivery history.
+- Added reproducible setup, module verification, secret scanning, pinned
+  workflow checks, and version-pinned vulnerability scanning to local and CI
+  gates.
 
 - Local loopback browser setup without a token, with protected remote setup and
   environment bootstrap precedence.
