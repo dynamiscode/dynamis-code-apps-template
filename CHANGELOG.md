@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added reusable repository hygiene files and safe support/triage guidance;
+  generated applications rewrite repository and security links without
+  retaining template maintainer details.
 - Selected MIT as the project license, added SPDX and copyright metadata, and
   made generated applications carry MIT terms with application-owned copyright
   attribution and dependency notices.
