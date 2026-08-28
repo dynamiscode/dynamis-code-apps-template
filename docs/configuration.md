@@ -54,6 +54,7 @@ begins. Changes require restart.
 | `IMPORT_MAX_RECORDS` | integer 1-10000 | `1000` | No | No |
 | `IMPORT_MAX_BYTES` | bytes 65536-4194304 | `4194304` | No | No |
 | `AUDIT_RETENTION` | duration 30 days-10 years | `8760h` | No | No |
+| `WEBHOOK_ENCRYPTION_KEY` | exactly 32 random bytes as hex or base64 | none | Webhook create/rotation only | Yes |
 | `OTEL_SERVICE_NAME` | string 1-255 | `dynamis-code-apps-template` | No | No |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | HTTPS or loopback HTTP base URL | none | No | No |
 | `OTEL_EXPORTER_OTLP_HEADERS` | OTLP header list | none | Authenticated exporter only | Yes |
@@ -112,6 +113,14 @@ username/password values; port defaults to 587. Delivery negotiates STARTTLS
 before optional authentication. Credentials are not logged or placed in
 invitation URLs. Invitation rows commit before delivery, so a mail failure
 leaves the invitation valid and the user receives its copyable link.
+
+## Webhooks
+
+Webhook registration is available without the key, but creation and rotation
+fail safely until `WEBHOOK_ENCRYPTION_KEY` is configured. Keep this key in the
+deployment secret store and back it up separately from the database; losing it
+makes stored webhook secrets undecryptable. Delivery accepts HTTPS endpoints
+and local loopback HTTP for development, and rejects private resolved addresses.
 
 ## HTTP
 

@@ -9,7 +9,7 @@ type Operation struct {
 }
 
 const OpenAPIVersion = "3.1.0"
-const OpenAPISHA256 = "02b693ea42001b6a6c0da98e6153cc4545ba3dd435afacb2b20ab4f0e2ec764a"
+const OpenAPISHA256 = "04ab27379655244c542c5f1a5de48b32a3bc3435817a54aabbaeeaf83482b276"
 
 var Operations = []Operation{
 	{Method: "GET", Path: "/api/openapi.json", ID: "getOpenAPI"},
@@ -36,6 +36,11 @@ var Operations = []Operation{
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/tokens", ID: "createToken"},
 	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/tokens/{tokenId}", ID: "revokeToken"},
 	{Method: "PATCH", Path: "/api/v1/workspaces/{workspaceId}/tokens/{tokenId}", ID: "updateToken"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/webhooks", ID: "listWebhooks"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/webhooks", ID: "createWebhook"},
+	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}", ID: "deleteWebhook"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries", ID: "listWebhookDeliveries"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/secret", ID: "rotateWebhookSecret"},
 	{Method: "GET", Path: "/health/live", ID: "getLiveness"},
 	{Method: "GET", Path: "/health/ready", ID: "getReadiness"},
 }

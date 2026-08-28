@@ -19,6 +19,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
 	"example.com/dynamis-code/apps-template/internal/portability"
+	"example.com/dynamis-code/apps-template/internal/webhooks"
 )
 
 func TestHTTPContracts(t *testing.T) {
@@ -277,7 +278,8 @@ func testHandler(t *testing.T) (http.Handler, *sql.DB, string, string) {
 	token, err := auth.CreateAPIToken(ctx, principal, "test", []identity.Permission{
 		identity.WorkspaceRead, identity.WorkspaceUpdate, identity.WorkspaceExport,
 		identity.OwnershipTransfer, identity.MembersRead, identity.MembersManage,
-		identity.InvitationsManage, identity.ResourcesRead, identity.ResourcesWrite,
+		identity.InvitationsManage, identity.WebhooksRead, identity.WebhooksManage,
+		identity.ResourcesRead, identity.ResourcesWrite,
 	}, nil, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -286,10 +288,12 @@ func testHandler(t *testing.T) (http.Handler, *sql.DB, string, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace)
-	handler, err := NewHandler(db, auth, itemService,
-		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes, cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService),
-		oidc, cfg.HTTP, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	webhookService := webhooks.NewService(db, cfg.Database.Driver, auth, []byte("01234567890123456789012345678901"), nil)
+	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace, webhookService)
+	handler, err := NewHandlerWithWebhooks(db, auth, itemService,
+		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,
+			cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService),
+		oidc, cfg.HTTP, slog.New(slog.NewTextHandler(io.Discard, nil)), webhookService, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

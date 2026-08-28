@@ -21,6 +21,7 @@ import (
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 	"example.com/dynamis-code/apps-template/internal/portability"
+	"example.com/dynamis-code/apps-template/internal/webhooks"
 )
 
 type handler struct {
@@ -33,6 +34,7 @@ type handler struct {
 	portability *portability.Service
 	publicURL   string
 	mailer      appmail.Sender
+	webhooks    *webhooks.Service
 }
 
 func NewHandler(
@@ -44,9 +46,9 @@ func NewHandler(
 	cfg config.HTTP,
 	logger *slog.Logger,
 ) (http.Handler, error) {
-	return NewHandlerWithMail(
+	return NewHandlerWithWebhooks(
 		db, identityService, itemService, portabilityService, oidcRegistry,
-		cfg, logger, "", nil,
+		cfg, logger, nil, "", nil,
 	)
 }
 
@@ -61,13 +63,31 @@ func NewHandlerWithMail(
 	publicURL string,
 	mailer appmail.Sender,
 ) (http.Handler, error) {
+	return NewHandlerWithWebhooks(
+		db, identityService, itemService, portabilityService, oidcRegistry,
+		cfg, logger, nil, publicURL, mailer,
+	)
+}
+
+func NewHandlerWithWebhooks(
+	db *sql.DB,
+	identityService *identity.Service,
+	itemService *items.Service,
+	portabilityService *portability.Service,
+	oidcRegistry *identity.OIDCRegistry,
+	cfg config.HTTP,
+	logger *slog.Logger,
+	webhookService *webhooks.Service,
+	publicURL string,
+	mailer appmail.Sender,
+) (http.Handler, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	h := &handler{
 		db: db, identity: identityService, items: itemService,
 		oidc: oidcRegistry, cfg: cfg, logger: logger, portability: portabilityService,
-		publicURL: publicURL, mailer: mailer,
+		publicURL: publicURL, mailer: mailer, webhooks: webhookService,
 	}
 	handlers := map[string]http.HandlerFunc{
 		"getLiveness": h.liveness, "getReadiness": h.readiness,
@@ -83,6 +103,9 @@ func NewHandlerWithMail(
 		"listTokens": h.listTokens, "createToken": h.createToken,
 		"updateToken": h.updateToken, "revokeToken": h.revokeToken,
 		"listSessions": h.listSessions, "revokeSession": h.revokeSession,
+		"listWebhooks": h.listWebhooks, "createWebhook": h.createWebhook,
+		"deleteWebhook": h.deleteWebhook, "rotateWebhookSecret": h.rotateWebhookSecret,
+		"listWebhookDeliveries": h.listWebhookDeliveries,
 	}
 	mux := http.NewServeMux()
 	paths := make(map[string]map[string]http.HandlerFunc)

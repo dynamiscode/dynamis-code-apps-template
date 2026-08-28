@@ -19,13 +19,14 @@ const (
 )
 
 type Result struct {
-	AuditEvents      int64 `json:"auditEvents"`
-	Sessions         int64 `json:"sessions"`
-	Invitations      int64 `json:"invitations"`
-	APITokens        int64 `json:"apiTokens"`
-	OIDCTransactions int64 `json:"oidcTransactions"`
-	Idempotency      int64 `json:"idempotencyRecords"`
-	RealtimeReplay   int64 `json:"realtimeReplay"`
+	AuditEvents       int64 `json:"auditEvents"`
+	Sessions          int64 `json:"sessions"`
+	Invitations       int64 `json:"invitations"`
+	APITokens         int64 `json:"apiTokens"`
+	OIDCTransactions  int64 `json:"oidcTransactions"`
+	Idempotency       int64 `json:"idempotencyRecords"`
+	RealtimeReplay    int64 `json:"realtimeReplay"`
+	WebhookDeliveries int64 `json:"webhookDeliveries"`
 }
 
 func Run(
@@ -57,6 +58,7 @@ func Run(
 		{`DELETE FROM api_tokens WHERE created_at <= ? AND
 			(revoked_at IS NOT NULL OR (expires_at IS NOT NULL AND expires_at <= ?))`, []any{stamp(now.Add(-historyRetention)), stamp(now)}, &result.APITokens},
 		{"DELETE FROM item_events WHERE occurred_at <= ?", []any{stamp(now.Add(-replayRetention))}, &result.RealtimeReplay},
+		{"DELETE FROM webhook_deliveries WHERE status <> 'pending' AND created_at <= ?", []any{stamp(now.Add(-historyRetention))}, &result.WebhookDeliveries},
 		{"DELETE FROM audit_events WHERE created_at <= ?", []any{stamp(now.Add(-auditRetention))}, &result.AuditEvents},
 	}
 	for _, deletion := range deletions {

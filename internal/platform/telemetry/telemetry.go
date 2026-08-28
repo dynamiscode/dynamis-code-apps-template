@@ -36,6 +36,7 @@ var (
 	activeStreams, _           = meter.Int64UpDownCounter("realtime.stream.active")
 	streamRejections, _        = meter.Int64Counter("realtime.stream.rejected.count")
 	resourceLimitRejections, _ = meter.Int64Counter("resource.limit.rejected.count")
+	webhookDeliveries, _       = meter.Int64Counter("webhook.delivery.count")
 )
 
 type roundTripper struct {
@@ -183,6 +184,12 @@ func RecordStream(ctx context.Context, delta int64, rejected bool) {
 func RecordLimitRejection(ctx context.Context, resource string) {
 	resourceLimitRejections.Add(ctx, 1,
 		metric.WithAttributes(attribute.String("resource.type", resource)))
+}
+
+func RecordWebhookDelivery(ctx context.Context, status string) {
+	webhookDeliveries.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("webhook.delivery.status", status),
+	))
 }
 
 type statusWriter struct {
