@@ -20,8 +20,12 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 		"-output", output,
 		"-name", "My Application",
 		"-module", "example.com/acme/my-app",
+		"-repository", "https://github.com/acme/my-app",
+		"-security-url", "https://github.com/acme/my-app/security/advisories/new",
+		"-maintainer", "@acme/platform",
 		"-source", "https://example.com/acme/template",
 		"-commit", strings.Repeat("a", 40),
+		"-profiles", "Agent,Core",
 	}, func() time.Time { return generatedAt })
 	if err != nil {
 		t.Fatalf("run() error = %v", err)
@@ -36,7 +40,8 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 		t.Fatalf("generated README = %q, error = %v", readme, err)
 	}
 	for _, want := range []string{
-		"generated from **Dynamis Code Apps Template**",
+		"generated from a verified template release",
+		"https://github.com/acme/my-app/security/advisories/new",
 		"## Purpose",
 		"## Configuration",
 		"## Architecture",
@@ -79,14 +84,40 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 	}
 	if lock.Template.Version != "0.1.0" || lock.Template.Source != "https://example.com/acme/template" ||
 		lock.Template.Commit != strings.Repeat("a", 40) || !lock.GeneratedAt.Equal(generatedAt) ||
-		strings.Join(lock.Profiles, ",") != "Core,Identity,Agent" {
+		strings.Join(lock.Profiles, ",") != "Core,Agent" {
 		t.Fatalf("template.lock = %+v", lock)
+	}
+	for _, path := range []string{".github/CODEOWNERS", ".github/ISSUE_TEMPLATE/config.yml", "README.md", "SECURITY.md", "docs/accessibility.md", "docs/decisions/0001-go-modular-monolith.md"} {
+		content, err := os.ReadFile(filepath.Join(output, path))
+		if err != nil {
+			t.Fatalf("read generated %s: %v", path, err)
+		}
+		if strings.Contains(string(content), templateRepositoryURL) || strings.Contains(string(content), templateSecurityURL) ||
+			strings.Contains(string(content), "@davidlondono") || strings.Contains(string(content), "Dynamis Code") ||
+			strings.Contains(string(content), "template maintainer") {
+			t.Errorf("generated %s retains template metadata", path)
+		}
+	}
+	codeowners, err := os.ReadFile(filepath.Join(output, ".github/CODEOWNERS"))
+	if err != nil || !strings.Contains(string(codeowners), "@acme/platform") {
+		t.Errorf("generated CODEOWNERS = %q, error = %v", codeowners, err)
 	}
 	if err := run([]string{
 		"-template-dir", root, "-output", output, "-name", "Overwrite",
 		"-module", "example.com/acme/overwrite", "-source", "https://example.com/template",
-		"-commit", strings.Repeat("b", 40),
+		"-repository", "https://github.com/acme/overwrite", "-security-url", "https://github.com/acme/overwrite/security/advisories/new",
+		"-maintainer", "@acme/platform", "-profiles", "Core", "-commit", strings.Repeat("b", 40),
 	}, time.Now); err == nil {
 		t.Fatal("second generation overwrote existing output")
+	}
+	if err := run([]string{
+		"-template-dir", root, "-output", filepath.Join(t.TempDir(), "missing-profile"),
+		"-name", "Missing Profile", "-module", "example.com/acme/missing-profile",
+		"-repository", "https://github.com/acme/missing-profile",
+		"-security-url", "https://github.com/acme/missing-profile/security/advisories/new",
+		"-maintainer", "@acme/platform", "-source", "https://example.com/template",
+		"-commit", strings.Repeat("c", 40),
+	}, time.Now); err == nil {
+		t.Fatal("generation accepted missing profile selection")
 	}
 }

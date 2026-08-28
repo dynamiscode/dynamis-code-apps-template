@@ -59,7 +59,7 @@ accessibility-smoke:
 
 template-smoke:
 	work="$$(mktemp -d /tmp/dynamis-code-template-smoke.XXXXXX)"; \
-	go run ./cmd/template-init -output "$$work/app" -name "Smoke App" -module example.com/smoke/app -source https://example.com/dynamis-code/template -commit 0000000000000000000000000000000000000000; \
+	go run ./cmd/template-init -output "$$work/app" -name "Smoke App" -module example.com/smoke/app -repository https://github.com/smoke/app -security-url https://github.com/smoke/app/security/advisories/new -maintainer @smoke/maintainers -profiles Core,Identity,Agent -source https://example.com/dynamis-code/template -commit 0000000000000000000000000000000000000000; \
 	cd "$$work/app" && go test ./...
 
 verify: lint test race deps-check workflow-check generate-check build template-smoke

@@ -218,8 +218,9 @@ Trivy 0.74.0, govulncheck 1.7.0, actionlint 1.7.12, Chrome, and Node 24:
 - live test proved browser login, authenticated REST, REST-only CLI, MCP
   initialization/tool call, and SSE notification through shared use cases
 - generation replaced module, display, image, package, telemetry, API, MCP,
-  configuration, and documentation identifiers; emitted the required lock;
-  refused overwrite; and passed the generated application suite
+  configuration, documentation, repository, security, ownership, and branding
+  identifiers; recorded selected profiles and required lock provenance; refused
+  overwrite; and passed the generated application suite
 - source and runtime image scans found zero critical vulnerabilities;
   govulncheck found zero reachable vulnerabilities; SPDX image SBOM generated
 - workflow YAML, pinned action commits, shell syntax, four-platform release

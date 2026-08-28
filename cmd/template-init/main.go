@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,9 +16,16 @@ import (
 )
 
 var (
-	commitPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
-	modulePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._~/-]+$`)
-	slugPattern   = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
+	commitPattern     = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	modulePattern     = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._~/-]+$`)
+	slugPattern       = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
+	maintainerPattern = regexp.MustCompile(`^@[A-Za-z0-9][A-Za-z0-9-]*(/[A-Za-z0-9][A-Za-z0-9-]*)?$`)
+	knownProfiles     = []string{"Core", "Identity", "Agent"}
+)
+
+const (
+	templateRepositoryURL = "https://github.com/dynamiscode/dynamis-code-apps-template"
+	templateSecurityURL   = templateRepositoryURL + "/security/advisories/new"
 )
 
 type lockFile struct {
@@ -44,9 +52,13 @@ func run(args []string, now func() time.Time) error {
 	output := flags.String("output", "", "new application directory")
 	name := flags.String("name", "", "application display name")
 	module := flags.String("module", "", "Go module path")
+	repository := flags.String("repository", "", "application repository URL")
+	securityURL := flags.String("security-url", "", "application private security-reporting URL")
+	maintainer := flags.String("maintainer", "", "application repository maintainer (for CODEOWNERS)")
 	source := flags.String("source", "", "released template source URL")
 	version := flags.String("version", "", "released semantic version; defaults to VERSION")
 	commit := flags.String("commit", "", "released template commit SHA")
+	profiles := flags.String("profiles", "", "selected profiles, comma-separated")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -63,6 +75,19 @@ func run(args []string, now func() time.Time) error {
 	slug := filepath.Base(*module)
 	if !slugPattern.MatchString(slug) {
 		return errors.New("module basename must be a lowercase application slug")
+	}
+	if !validHTTPSURL(*repository) {
+		return errors.New("repository must be an HTTPS application repository URL")
+	}
+	if !validHTTPSURL(*securityURL) {
+		return errors.New("security-url must be an HTTPS private security-reporting URL")
+	}
+	if !validMaintainer(*maintainer) {
+		return errors.New("maintainer must be a single @-prefixed repository owner")
+	}
+	selectedProfiles, err := parseProfiles(*profiles)
+	if err != nil {
+		return err
 	}
 	if !strings.HasPrefix(*source, "https://") {
 		return errors.New("source must be an HTTPS released-template URL")
@@ -104,6 +129,14 @@ func run(args []string, now func() time.Time) error {
 	replacements := []string{
 		templateModule, *module,
 		templateName, *name,
+		"Dynamis Code", *name,
+		"Dynamis-Code", strings.ReplaceAll(slug, "_", "-"),
+		"dynamis-code-apps-template", slug,
+		"template maintainers", "application maintainers",
+		"template maintainer", "application maintainer",
+		templateRepositoryURL, strings.TrimRight(*repository, "/"),
+		templateSecurityURL, strings.TrimRight(*securityURL, "/"),
+		"@davidlondono", *maintainer,
 	}
 	if err := copyTemplate(
 		root, destination, replacements, templateSlug, slug,
@@ -111,7 +144,8 @@ func run(args []string, now func() time.Time) error {
 		return err
 	}
 	if err := writeGeneratedReadme(
-		filepath.Join(destination, "README.md"), templateName, *name, *module, slug,
+		filepath.Join(destination, "README.md"), *name, *module, slug,
+		strings.TrimRight(*repository, "/"), strings.TrimRight(*securityURL, "/"),
 	); err != nil {
 		return err
 	}
@@ -120,7 +154,7 @@ func run(args []string, now func() time.Time) error {
 	if output, err := command.CombinedOutput(); err != nil {
 		return fmt.Errorf("regenerate generated API contract: %s", strings.TrimSpace(string(output)))
 	}
-	lock := lockFile{GeneratedAt: now().UTC(), Profiles: []string{"Core", "Identity", "Agent"}}
+	lock := lockFile{GeneratedAt: now().UTC(), Profiles: selectedProfiles}
 	lock.Template.Source = *source
 	lock.Template.Version = selectedVersion
 	lock.Template.Commit = *commit
@@ -223,7 +257,8 @@ func templateIdentity(root string) (string, string, string, error) {
 func ignored(relative string) bool {
 	first, _, _ := strings.Cut(filepath.ToSlash(relative), "/")
 	if first == ".git" || first == ".env" || first == "data" || first == "dist" ||
-		first == "node_modules" || first == "template.lock" {
+		first == "node_modules" || first == "template.lock" || relative == "cmd/template-init" ||
+		strings.HasPrefix(filepath.ToSlash(relative), "cmd/template-init/") {
 		return true
 	}
 	return strings.HasSuffix(relative, ".db") || strings.HasSuffix(relative, ".dump") ||
@@ -232,6 +267,44 @@ func ignored(relative string) bool {
 
 func validSemver(value string) bool {
 	return regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$`).MatchString(value)
+}
+
+func validHTTPSURL(value string) bool {
+	parsed, err := url.ParseRequestURI(strings.TrimSpace(value))
+	return err == nil && parsed.Scheme == "https" && parsed.Host != "" && parsed.User == nil &&
+		!strings.ContainsAny(value, "\r\n\x00")
+}
+
+func validMaintainer(value string) bool {
+	return len(value) <= 100 && maintainerPattern.MatchString(value)
+}
+
+func parseProfiles(value string) ([]string, error) {
+	selected := make(map[string]bool)
+	for _, profile := range strings.Split(value, ",") {
+		profile = strings.TrimSpace(profile)
+		if profile == "" {
+			return nil, errors.New("profiles must contain one or more known profiles")
+		}
+		known := false
+		for _, candidate := range knownProfiles {
+			if profile == candidate {
+				known = true
+				break
+			}
+		}
+		if !known || selected[profile] {
+			return nil, fmt.Errorf("profile %q is unknown or duplicated", profile)
+		}
+		selected[profile] = true
+	}
+	ordered := make([]string, 0, len(selected))
+	for _, profile := range knownProfiles {
+		if selected[profile] {
+			ordered = append(ordered, profile)
+		}
+	}
+	return ordered, nil
 }
 
 func writeLock(path string, lock lockFile) error {
@@ -245,12 +318,13 @@ func writeLock(path string, lock lockFile) error {
 	return encoder.Encode(lock)
 }
 
-func writeGeneratedReadme(path, templateName, name, module, slug string) error {
+func writeGeneratedReadme(path, name, module, slug, repository, securityURL string) error {
 	readme := strings.NewReplacer(
-		"{{TEMPLATE_NAME}}", templateName,
 		"{{NAME}}", name,
 		"{{MODULE}}", module,
 		"{{SLUG}}", slug,
+		"{{REPOSITORY}}", repository,
+		"{{SECURITY_URL}}", securityURL,
 		"{{CODE}}", "`",
 	).Replace(generatedReadme)
 	return os.WriteFile(path, []byte(readme), 0o644)
@@ -258,7 +332,8 @@ func writeGeneratedReadme(path, templateName, name, module, slug string) error {
 
 const generatedReadme = `# {{NAME}}
 
-This repository is an application generated from **{{TEMPLATE_NAME}}**.
+This repository is an application generated from a verified template release.
+Repository: [{{REPOSITORY}}]({{REPOSITORY}})
 It is a resource-conscious Go modular-monolith starting point with
 server-rendered HTML, REST, MCP, a REST-only remote CLI, SQLite by default,
 and optional PostgreSQL deployment.
@@ -336,7 +411,8 @@ defines persistence, export, retention, deletion, and recovery boundaries.
 
 ## Security
 
-Read [SECURITY.md](SECURITY.md) for private vulnerability reporting and
+Read [SECURITY.md](SECURITY.md) for private vulnerability reporting. Report
+security issues through [the repository's private channel]({{SECURITY_URL}}), and
 operator-owned boundaries. [Authentication](docs/authentication.md) documents
 bootstrap, sessions, workspace authorization, invitations, tokens, and OIDC.
 Never publish credentials, authorization headers, session or invitation values,
@@ -363,7 +439,7 @@ WebMCP fallback checks described in [development](docs/development.md#replace-th
 
 ## Template provenance
 
-{{CODE}}template.lock{{CODE}} records the source, release version, commit, generation time,
+{{CODE}}template.lock{{CODE}} records the template source, release version, commit, generation time,
 and selected profiles. Read [template lifecycle](docs/template-lifecycle.md)
 before updating this application; generate into a new directory and port
 changes through reviewed commits instead of overwriting customizations.
