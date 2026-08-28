@@ -38,6 +38,8 @@
 - Added reproducible setup, module verification, secret scanning, pinned
   workflow checks, and version-pinned vulnerability scanning to local and CI
   gates.
+- Added pinned CodeQL analysis for Go and JavaScript/TypeScript plus bounded
+  fuzz smoke coverage for import and URL validators.
 - Added REST consumer onboarding examples for bearer auth, pagination,
   idempotency, conditional writes, and stable Problem Details errors, plus a
   v1 item-surface compatibility test.

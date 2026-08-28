@@ -40,7 +40,7 @@ durable production data and records its deployment-specific evidence.
 | Backup, restore, upgrades, RPO, and RTO | operational | 06 | conforming | [SQLite/PostgreSQL restore tests](../internal/platform/backup/backup_test.go), [operator procedures](operations.md#backup-and-restore) |
 | WCAG 2.2 AA accessibility | bootstrap, recurring | 04, 07 | conforming | [Automated runner](../scripts/accessibility.mjs), [dated automated and manual evidence](accessibility.md) |
 | Containers and deployment | bootstrap, operational | 07 | conforming | Pinned [image](../Dockerfile), [SQLite Compose](../compose.yaml), [PostgreSQL overlay](../compose.postgres.yaml), [smoke](../scripts/docker-smoke.sh), and [deployment contract](deployment.md) |
-| CI, release security, SBOM, provenance, signatures, checksums | operational | 07 | conforming | [CI](../.github/workflows/ci.yml), [release workflow](../.github/workflows/release.yml), [dependency monitoring](../.github/dependabot.yml), [Scorecard](../.github/workflows/scorecard.yml), and [artifact verification](release.md) |
+| CI, release security, SBOM, provenance, signatures, checksums | operational | 07 | conforming | [CI](../.github/workflows/ci.yml), [source security workflow](../.github/workflows/source-security.yml), [release workflow](../.github/workflows/release.yml), [dependency monitoring](../.github/dependabot.yml), [Scorecard](../.github/workflows/scorecard.yml), and [artifact verification](release.md) |
 | MIT licensing, SPDX metadata, dependency attribution, and generated-repository governance | bootstrap, recurring | 07 | conforming | [Governance](governance.md), [SUPPORT](../SUPPORT.md), [LICENSE](../LICENSE), and [handoff test](../internal/conformance/handoff_test.go) |
 | Documentation, context handoff, and sources of truth | bootstrap, recurring | 07 | conforming | [Router](README.md), [agent contract](../AGENTS.md), [handoff test](../internal/conformance/handoff_test.go), and permanent [skills](../.agents/skills/) |
 | Testing strategy and complete template acceptance | recurring, operational | 01-07 | conforming | [Verification targets](../Makefile), [live surface smoke](../internal/bootstrap/agent_smoke_test.go), [accessibility smoke](../scripts/accessibility-smoke.sh), and [container smoke](../scripts/docker-smoke.sh) |
@@ -225,7 +225,9 @@ Trivy 0.74.0, govulncheck 1.7.0, actionlint 1.7.12, Chrome, and Node 24:
   required lock provenance; refused overwrite; and passed the generated
   application suite
 - source and runtime image scans found zero critical vulnerabilities;
-  govulncheck found zero reachable vulnerabilities; SPDX image SBOM generated
+  govulncheck found zero reachable vulnerabilities; CodeQL analyzes Go and
+  JavaScript/TypeScript source; bounded fuzz smoke covers import and URL
+  validators; SPDX image SBOM generated
 - workflow YAML, pinned action commits, shell syntax, four-platform release
   builds, and SHA-256 checksum verification passed; the release workflow owns
   keyless signatures, provenance attestations, SBOM publication, and immutable

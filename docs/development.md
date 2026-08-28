@@ -65,9 +65,10 @@ make docker-smoke
 
 `make verify` checks formatting, tests, vet, race behavior, module checks,
 workflow syntax and action pins, generated OpenAPI drift, command builds, and
-generation of a clean application. Run `make secret-check` and
-`make vuln-check` for the source security gates, plus the full suite with
-`POSTGRES_TEST_URL` for data or release changes.
+generation of a clean application. Run `make secret-check`, `make vuln-check`,
+and `make fuzz-smoke` for the source security gates, plus the full suite with
+`POSTGRES_TEST_URL` for data or release changes. CI also runs CodeQL for Go and
+JavaScript/TypeScript.
 
 ## Replace the sample feature
 
