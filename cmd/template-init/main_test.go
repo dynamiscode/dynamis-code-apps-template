@@ -39,6 +39,12 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 	if err != nil || !strings.Contains(string(readme), "# My Application") {
 		t.Fatalf("generated README = %q, error = %v", readme, err)
 	}
+	license, err := os.ReadFile(filepath.Join(output, "LICENSE"))
+	if err != nil || !strings.Contains(string(license), "MIT License") ||
+		!strings.Contains(string(license), "Copyright (c) 2026 My Application contributors") ||
+		strings.Contains(string(license), "David Londono") {
+		t.Fatalf("generated LICENSE = %q, error = %v", license, err)
+	}
 	for _, want := range []string{
 		"generated from a verified template release",
 		"https://github.com/acme/my-app/security/advisories/new",
@@ -77,6 +83,10 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 			t.Errorf("generated %s lacks %q: %v", path, want, readErr)
 		}
 	}
+	packageJSON, err := os.ReadFile(filepath.Join(output, "package.json"))
+	if err != nil || !strings.Contains(string(packageJSON), `"license": "MIT"`) {
+		t.Errorf("generated package.json lacks MIT metadata: %q, error = %v", packageJSON, err)
+	}
 	var lock lockFile
 	raw, err := os.ReadFile(filepath.Join(output, "template.lock"))
 	if err != nil || json.Unmarshal(raw, &lock) != nil {
@@ -87,14 +97,14 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 		strings.Join(lock.Profiles, ",") != "Core,Agent" {
 		t.Fatalf("template.lock = %+v", lock)
 	}
-	for _, path := range []string{".github/CODEOWNERS", ".github/ISSUE_TEMPLATE/config.yml", "README.md", "SECURITY.md", "docs/accessibility.md", "docs/decisions/0001-go-modular-monolith.md"} {
+	for _, path := range []string{".github/CODEOWNERS", ".github/ISSUE_TEMPLATE/config.yml", "README.md", "SECURITY.md", "NOTICE", "docs/governance.md", "docs/accessibility.md", "docs/decisions/0001-go-modular-monolith.md"} {
 		content, err := os.ReadFile(filepath.Join(output, path))
 		if err != nil {
 			t.Fatalf("read generated %s: %v", path, err)
 		}
 		if strings.Contains(string(content), templateRepositoryURL) || strings.Contains(string(content), templateSecurityURL) ||
 			strings.Contains(string(content), "@davidlondono") || strings.Contains(string(content), "Dynamis Code") ||
-			strings.Contains(string(content), "template maintainer") {
+			strings.Contains(string(content), "template maintainer") || strings.Contains(string(content), "pending project license") {
 			t.Errorf("generated %s retains template metadata", path)
 		}
 	}

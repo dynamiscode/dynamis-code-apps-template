@@ -1,23 +1,16 @@
 # Governance
 
-## License status
+## License
 
-This checkout has no `LICENSE` file because the project has not selected a
-license. Until maintainers make that decision and add the complete license
-text at the repository root, this code is not offered under an open-source
-license and no reuse permission should be inferred.
+This project is licensed under MIT (`SPDX-License-Identifier: MIT`). The
+copyright holder is David Londono; the complete license text is in
+[`LICENSE`](../LICENSE).
 
-Before public distribution, maintainers must record:
-
-1. the SPDX license identifier and copyright holder;
-2. the complete corresponding text in `LICENSE`; and
-3. any generated-application licensing rule in the release notes and template
-   documentation.
-
-Common candidates have different consequences and require maintainer/legal
-review: MIT is permissive, Apache-2.0 adds an express patent license, and
-AGPL-3.0 adds copyleft obligations for networked use. This repository does not
-choose among them by default.
+`template-init` copies `LICENSE`, `NOTICE`, and the package SPDX metadata into
+generated applications. It keeps the MIT terms and changes the copyright line
+to the generated application name followed by `contributors`; application
+maintainers must update that attribution for their actual contributors before
+distribution.
 
 ## Maintainers
 
@@ -51,8 +44,7 @@ request template is a checklist, not a substitute for review judgment.
 
 ## Releases and changes to governance
 
-Release authority follows [release.md](release.md). A release must not imply
-that the pending project license has been selected. Changes to license,
+Release authority follows [release.md](release.md). Changes to license,
 ownership, contribution rules, security reporting, or release authority need
 maintainer approval and a changelog entry.
 

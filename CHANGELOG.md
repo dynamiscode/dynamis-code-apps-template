@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Selected MIT as the project license, added SPDX and copyright metadata, and
+  made generated applications carry MIT terms with application-owned copyright
+  attribution and dependency notices.
 - Made application generation require repository, security-reporting,
   maintainer, and profile metadata; generated applications no longer inherit
   template-owned repository links, ownership, or app-facing branding while
