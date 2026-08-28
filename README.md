@@ -93,6 +93,8 @@ make docker-smoke
 
 Use the [documentation router](docs/README.md) for architecture, configuration,
 interfaces, operations, security, and contribution guidance.
+[Support and triage](SUPPORT.md) covers safe issue reports and private
+vulnerability reporting.
 
 The project is licensed under MIT. Repository governance and dependency
 attribution are documented in [governance](docs/governance.md); see
