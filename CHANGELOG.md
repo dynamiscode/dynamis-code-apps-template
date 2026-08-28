@@ -40,6 +40,9 @@
   gates.
 - Added pinned CodeQL analysis for Go and JavaScript/TypeScript plus bounded
   fuzz smoke coverage for import and URL validators.
+- Added REST consumer onboarding examples for bearer auth, pagination,
+  idempotency, conditional writes, and stable Problem Details errors, plus a
+  v1 item-surface compatibility test.
 
 - Local loopback browser setup without a token, with protected remote setup and
   environment bootstrap precedence.
