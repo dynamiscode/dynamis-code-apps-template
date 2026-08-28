@@ -20,6 +20,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 	"example.com/dynamis-code/apps-template/internal/portability"
 	"example.com/dynamis-code/apps-template/internal/web"
+	"example.com/dynamis-code/apps-template/internal/webhooks"
 )
 
 type App struct {
@@ -28,6 +29,7 @@ type App struct {
 	OIDC        *identity.OIDCRegistry
 	Items       *items.Service
 	Portability *portability.Service
+	Webhooks    *webhooks.Service
 	Handler     http.Handler
 	Telemetry   *telemetry.Provider
 }
@@ -100,8 +102,11 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("initialize OIDC: %w", err)
 	}
+	webhookService := webhooks.NewService(
+		db, cfg.Database.Driver, identityService, cfg.Webhooks.SecretKey, slog.Default(),
+	)
 	itemService := items.NewService(
-		db, cfg.Database.Driver, identityService, cfg.Data.ItemsMaxPerWorkspace,
+		db, cfg.Database.Driver, identityService, cfg.Data.ItemsMaxPerWorkspace, webhookService,
 	)
 	portabilityService := portability.NewService(
 		db, cfg.Database.Driver, identityService,
@@ -114,9 +119,9 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("initialize invitation mail: %w", err)
 	}
-	handler, err := httpapi.NewHandlerWithMail(
+	handler, err := httpapi.NewHandlerWithWebhooks(
 		db, identityService, itemService, portabilityService, oidcRegistry, cfg.HTTP, slog.Default(),
-		cfg.PublicURL, mailer,
+		webhookService, cfg.PublicURL, mailer,
 	)
 	if err != nil {
 		db.Close()
@@ -132,6 +137,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("initialize web handler: %w", err)
 	}
+	webhookService.Start(ctx)
 	mux := http.NewServeMux()
 	mux.Handle("/api/", handler)
 	mux.Handle("/health/", handler)
@@ -143,7 +149,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 
 	return &App{
 		DB: db, Identity: identityService, OIDC: oidcRegistry,
-		Items: itemService, Portability: portabilityService,
+		Items: itemService, Portability: portabilityService, Webhooks: webhookService,
 		Handler: telemetry.HTTPHandler(mux), Telemetry: telemetryProvider,
 	}, nil
 }
@@ -187,5 +193,8 @@ func Run(ctx context.Context, cfg config.Config) error {
 func (a *App) Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	if a.Webhooks != nil {
+		a.Webhooks.Close()
+	}
 	return errors.Join(a.DB.Close(), a.Telemetry.Shutdown(ctx))
 }

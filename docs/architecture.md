@@ -68,5 +68,6 @@ Go's two-release support window. Version sources:
 [Go release policy](https://go.dev/doc/devel/release).
 
 OpenTelemetry instrumentation runs without requiring a backend. Bounded
-workspace export, retention maintenance, and backup/restore remain platform
-services; no broker, cache, job system, or observability stack is bundled.
+workspace export, retention maintenance, backup/restore, and the webhook
+delivery loop remain platform services; no broker, cache, generic job system,
+or observability stack is bundled.

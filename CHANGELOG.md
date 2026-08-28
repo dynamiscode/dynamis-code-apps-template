@@ -20,6 +20,9 @@
   and password-reset email locale resolution.
 - Added OSS repository governance, dependency attribution, conduct, ownership,
   issue, and pull-request standards; project license selection remains pending.
+- Added migration 000007 and workspace-scoped, encrypted-secret webhooks for
+  item events, signed at-least-once delivery, bounded retries, and redacted
+  delivery history.
 
 - Local loopback browser setup without a token, with protected remote setup and
   environment bootstrap precedence.

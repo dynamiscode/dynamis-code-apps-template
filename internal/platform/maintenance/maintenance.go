@@ -29,6 +29,7 @@ type Result struct {
 	Idempotency        int64 `json:"idempotencyRecords"`
 	RealtimeReplay     int64 `json:"realtimeReplay"`
 	Notifications      int64 `json:"notifications"`
+	WebhookDeliveries  int64 `json:"webhookDeliveries"`
 }
 
 func Run(
@@ -65,6 +66,7 @@ func Run(
 			(revoked_at IS NOT NULL OR (expires_at IS NOT NULL AND expires_at <= ?))`, []any{stamp(now.Add(-historyRetention)), stamp(now)}, &result.APITokens},
 		{"DELETE FROM item_events WHERE occurred_at <= ?", []any{stamp(now.Add(-replayRetention))}, &result.RealtimeReplay},
 		{"DELETE FROM notifications WHERE created_at <= ?", []any{stamp(now.Add(-historyRetention))}, &result.Notifications},
+		{"DELETE FROM webhook_deliveries WHERE status <> 'pending' AND created_at <= ?", []any{stamp(now.Add(-historyRetention))}, &result.WebhookDeliveries},
 		{"DELETE FROM audit_events WHERE created_at <= ?", []any{stamp(now.Add(-auditRetention))}, &result.AuditEvents},
 	}
 	for _, deletion := range deletions {

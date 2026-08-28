@@ -38,6 +38,9 @@ documented in [authentication](authentication.md).
 - Current-user tokens: `GET/POST /tokens`, `PATCH/DELETE /tokens/{tokenId}`.
 - Current-user sessions: `GET /api/v1/sessions` and
   `DELETE /api/v1/sessions/{sessionId}`.
+- Webhooks: `GET/POST /api/v1/workspaces/{workspaceId}/webhooks`,
+  `DELETE/POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}` (delete
+  or rotate at `/secret`), and `GET /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries`.
 
 Identity and workspace routes use `Authorization: Bearer <token>`. The token
 must belong to the path workspace and include the permission required by the
@@ -51,6 +54,17 @@ create/resend returns an invitation URL and delivery status, not a standalone
 secret. Session responses contain metadata only and never session or CSRF
 secrets. Problem details and logs exclude credentials, authorization headers,
 session values, invitation values, connection strings, and signed URLs.
+
+## Webhooks
+
+Webhook management requires `webhooks:read` or `webhooks:manage`. Creation and
+secret rotation return a secret once; all later responses omit it. Delivery
+requests include `Webhook-Id`, `Webhook-Timestamp`, and
+`Webhook-Signature: v1,<base64>` where the HMAC input is
+`Webhook-Id + "." + Webhook-Timestamp + "." + body`. Consumers must verify the
+signature, reject stale timestamps, and deduplicate by `Webhook-Id` because
+retries are at-least-once. The server records at most five attempts and
+exposes only redacted delivery status and error categories.
 
 ## Contract rules
 

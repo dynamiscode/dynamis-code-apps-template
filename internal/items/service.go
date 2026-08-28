@@ -79,11 +79,16 @@ type Page struct {
 }
 
 type Service struct {
-	db       *sql.DB
-	driver   config.DatabaseDriver
-	auth     *identity.Service
-	now      func() time.Time
-	maxItems int
+	db        *sql.DB
+	driver    config.DatabaseDriver
+	auth      *identity.Service
+	now       func() time.Time
+	maxItems  int
+	publisher EventPublisher
+}
+
+type EventPublisher interface {
+	PublishInTx(context.Context, *sql.Tx, string, string, []byte, time.Time) error
 }
 
 func NewService(
@@ -91,8 +96,13 @@ func NewService(
 	driver config.DatabaseDriver,
 	auth *identity.Service,
 	maxItems int,
+	publishers ...EventPublisher,
 ) *Service {
-	return &Service{db: db, driver: driver, auth: auth, now: time.Now, maxItems: maxItems}
+	var publisher EventPublisher
+	if len(publishers) > 0 {
+		publisher = publishers[0]
+	}
+	return &Service{db: db, driver: driver, auth: auth, now: time.Now, maxItems: maxItems, publisher: publisher}
 }
 
 func (s *Service) Create(
@@ -264,6 +274,9 @@ func (s *Service) create(
 	if err := s.recordChange(
 		ctx, tx, workspaceID, item.ID, "created", item.Version, now,
 	); err != nil {
+		return CreateResult{}, err
+	}
+	if err := s.publish(ctx, tx, workspaceID, "item.created", item, now); err != nil {
 		return CreateResult{}, err
 	}
 	encoded, err := json.Marshal(item)
@@ -494,6 +507,9 @@ func (s *Service) Update(
 	); err != nil {
 		return Item{}, err
 	}
+	if err := s.publish(ctx, tx, workspaceID, "item.updated", item, item.UpdatedAt); err != nil {
+		return Item{}, err
+	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "item.updated", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
@@ -559,6 +575,9 @@ func (s *Service) Delete(
 	); err != nil {
 		return err
 	}
+	if err := s.publish(ctx, tx, workspaceID, "item.deleted", item, now); err != nil {
+		return err
+	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "item.deleted", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
@@ -590,6 +609,24 @@ func (s *Service) get(
 		return Item{}, ErrNotFound
 	}
 	return item, err
+}
+
+func (s *Service) publish(
+	ctx context.Context,
+	tx *sql.Tx,
+	workspaceID string,
+	eventType string,
+	item Item,
+	occurredAt time.Time,
+) error {
+	if s.publisher == nil {
+		return nil
+	}
+	data, err := json.Marshal(item)
+	if err != nil {
+		return err
+	}
+	return s.publisher.PublishInTx(ctx, tx, workspaceID, eventType, data, occurredAt)
 }
 
 type scanner interface {

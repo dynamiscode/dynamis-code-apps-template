@@ -76,6 +76,10 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		VALUES (?, ?, ?, ?, ?, ?)`, "event-old", "workspace-maint", "item-old", "deleted", 1, old)
 	exec(`INSERT INTO notifications (id, user_id, workspace_id, notification_type, title, body, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`, "notification-old", "user-maint", "workspace-maint", "system", "Old", "Old", old)
+	exec(`INSERT INTO webhooks (id, workspace_id, name, url, secret_ciphertext, events, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`, "webhook-old", "workspace-maint", "old", "https://example.com/hook", "ciphertext", "[\"item.created\"]", old)
+	exec(`INSERT INTO webhook_deliveries (id, webhook_id, event_id, event_type, payload, attempt_count, status, next_attempt_at, created_at, delivered_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, "delivery-old", "webhook-old", "event-old", "item.created", "{}", 1, "delivered", nil, old, old)
 	exec(`INSERT INTO audit_events (id, event_type, auth_method, target_type, action, outcome, metadata, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "audit-old", "old", "system", "instance", "test", "success", "{}", old)
 
@@ -85,7 +89,7 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}
 	if result.Sessions < 1 || result.Invitations < 1 || result.APITokens < 1 || result.EmailVerifications < 1 || result.PasswordResets < 1 || result.Notifications < 1 ||
 		result.OIDCTransactions < 1 || result.Idempotency < 1 ||
-		result.RealtimeReplay < 1 || result.AuditEvents < 1 {
+		result.RealtimeReplay < 1 || result.WebhookDeliveries < 1 || result.AuditEvents < 1 {
 		t.Fatalf("Run() result = %+v", result)
 	}
 	for table, key := range map[string]string{
@@ -94,6 +98,7 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		"idempotency_records": "key-old", "item_events": "event-old",
 		"notifications":       "notification-old",
 		"email_verifications": "verification-old", "password_resets": "reset-old",
+		"webhook_deliveries": "delivery-old",
 	} {
 		var count int
 		column := "id"

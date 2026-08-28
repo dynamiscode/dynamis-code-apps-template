@@ -278,6 +278,7 @@ func (s *Service) Export(
 			"credentials", "sessions", "apiTokens", "externalIdentities",
 			"invitations", "oidcTransactions", "idempotencyRecords", "realtimeReplay",
 			"notifications", "notificationPreferences",
+			"webhooks", "webhookDeliveries",
 		},
 	}
 	var createdAt string
