@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-violations="$(grep -R -n -E '^[[:space:]]*-[[:space:]]+uses:' .github/workflows \
+violations="$(grep -R -n -E '^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]*[^[:space:]#]' .github/workflows \
   | grep -Ev '@[0-9a-f]{40}[[:space:]]+# v[0-9]' || true)"
 if [ -n "$violations" ]; then
 	echo "workflow actions must use a full commit SHA and version comment:" >&2
