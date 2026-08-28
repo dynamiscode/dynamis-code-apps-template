@@ -5,7 +5,8 @@ cases as REST. Sign in at `/login`, create or choose a workspace, then use the
 workspace home and sidebar. `/workspaces/{workspaceId}` is the workspace home;
 Items is its resource surface and Settings is a nested route
 group for members, invitations, API tokens, and export.
-`/sessions` and `/security` cover account security. The authenticated shell uses
+`/account`, `/notifications`, `/sessions`, and `/security` cover account and
+security settings. The authenticated shell uses
 a top bar for brand, workspace switching, and account actions, plus a context-aware
 sidebar whose contents follow the current workspace context. Every mutation validates
 the session-bound CSRF token
@@ -53,6 +54,13 @@ Baseline browser surfaces:
   shows a new secret once.
 - `/sessions` lists metadata and revokes sessions; `/security` starts
   reauthenticated OIDC linking.
+- `/account` edits profile preferences, changes a local password, requests email
+  verification, and deletes the account after reauthentication. `/password-reset`
+  provides generic request and single-use completion pages.
+- `/notifications` lists recipient-scoped in-app records and marks them read;
+  `/notifications/events` delivers recipient-scoped `notification.created` SSE
+  events. Notification records are created only through the shared identity
+  service, and user plus workspace preferences are checked before storage.
 - `/workspaces/{workspaceId}/settings/export` presents the authorized export screen;
   its `Download JSON` link downloads the export from
   `/workspaces/{workspaceId}/settings/export/download`.
@@ -143,6 +151,12 @@ It sends redacted resource references, not item titles or credentials.
   lifetime, 100 connections per instance, and five per user per instance.
   Limit rejection returns `429` plus `Retry-After`; lifetime closure emits a
   `close` event and normal EventSource reconnection applies.
+
+`GET /notifications/events` uses the same stream limits, heartbeat, lifetime,
+and database polling. Events carry the notification ID, type, title, body, and
+UTC creation time only to the authenticated recipient. `Last-Event-ID` resumes
+after the recipient's stored notification; no notification secret or other
+user's record is exposed.
 
 Permanent delete removes the live item and writes a redacted audit/change
 event. Existing backups may retain deleted content until the expiry defined in

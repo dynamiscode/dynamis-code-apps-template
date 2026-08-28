@@ -7,18 +7,25 @@ import (
 )
 
 var (
-	ErrAlreadyBootstrapped = errors.New("instance is already bootstrapped")
-	ErrActiveInvitation    = errors.New("an active invitation already exists")
-	ErrForbidden           = errors.New("forbidden")
-	ErrInvalidCredentials  = errors.New("invalid email or password")
-	ErrInvalidBootstrap    = errors.New("bootstrap input is invalid")
-	ErrInvalidInvitation   = errors.New("invitation is invalid or expired")
-	ErrInvalidSession      = errors.New("session is invalid or expired")
-	ErrInvalidToken        = errors.New("token is invalid or expired")
-	ErrInvalidLocale       = errors.New("locale is invalid")
-	ErrLastOwner           = errors.New("the final owner cannot be changed")
-	ErrOIDCTransaction     = errors.New("OIDC transaction is invalid or expired")
-	ErrUnknownOIDCProvider = errors.New("unknown OIDC provider")
+	ErrAlreadyBootstrapped  = errors.New("instance is already bootstrapped")
+	ErrActiveInvitation     = errors.New("an active invitation already exists")
+	ErrForbidden            = errors.New("forbidden")
+	ErrInvalidCredentials   = errors.New("invalid email or password")
+	ErrInvalidBootstrap     = errors.New("bootstrap input is invalid")
+	ErrInvalidInvitation    = errors.New("invitation is invalid or expired")
+	ErrInvalidSession       = errors.New("session is invalid or expired")
+	ErrInvalidToken         = errors.New("token is invalid or expired")
+	ErrInvalidLocale        = errors.New("locale is invalid")
+	ErrInvalidPassword      = errors.New("password is invalid")
+	ErrInvalidProfile       = errors.New("profile is invalid")
+	ErrInvalidNotification  = errors.New("notification cursor is invalid")
+	ErrInvalidReset         = errors.New("password reset is invalid or expired")
+	ErrInvalidVerification  = errors.New("email verification is invalid or expired")
+	ErrEmailAlreadyVerified = errors.New("email is already verified")
+	ErrOwnedWorkspace       = errors.New("account owns a workspace")
+	ErrLastOwner            = errors.New("the final owner cannot be changed")
+	ErrOIDCTransaction      = errors.New("OIDC transaction is invalid or expired")
+	ErrUnknownOIDCProvider  = errors.New("unknown OIDC provider")
 )
 
 type Role string
@@ -85,6 +92,60 @@ type MemberSummary struct {
 	Email     string
 	Role      Role
 	CreatedAt time.Time
+}
+
+type UserProfile struct {
+	ID              string
+	Email           string
+	DisplayName     string
+	Locale          string
+	Timezone        string
+	Theme           string
+	EmailVerifiedAt *time.Time
+}
+
+type ProfileUpdateInput struct {
+	DisplayName string
+	Locale      string
+	Timezone    string
+	Theme       string
+}
+
+type NewEmailVerification struct {
+	Email     string
+	Secret    string
+	ExpiresAt time.Time
+}
+
+type NewPasswordReset struct {
+	Email     string
+	Secret    string
+	ExpiresAt time.Time
+}
+
+type Notification struct {
+	ID               string
+	UserID           string
+	WorkspaceID      string
+	NotificationType string
+	Title            string
+	Body             string
+	CreatedAt        time.Time
+	ReadAt           *time.Time
+}
+
+type NotificationInput struct {
+	RecipientUserID  string
+	WorkspaceID      string
+	NotificationType string
+	Title            string
+	Body             string
+}
+
+type NotificationPreference struct {
+	Scope            string
+	NotificationType string
+	Enabled          bool
 }
 type Session struct {
 	ID             string

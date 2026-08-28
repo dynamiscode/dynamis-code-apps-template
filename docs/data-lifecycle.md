@@ -14,8 +14,8 @@ means the complete encrypted database backup described in
 | Owner / table | Fields and class | Purpose | Retention, export, correction, deletion |
 |---|---|---|---|
 | database / `schema_migrations` | `version`, `applied_at` (internal) | Applied schema history | Installation lifetime; backup only; changed only by migrations. |
-| identity / `users` | `id`, `created_at` (internal); `email`, nullable `locale` preference (personal); `password_hash` (secret) | Account, local login, and browser language preference | Account lifetime; locale preference and member email exports, password hash never exports; email/locale correction and account deletion need a future authenticated workflow. Automatic locale is stored as NULL. |
-| identity / `external_identities` | `id`, `user_id`, `provider_id`, `created_at` (internal); `issuer`, `subject`, `email` (personal) | Stable OIDC account binding | Account lifetime; excluded from export; linking is explicit; account deletion is not exposed. |
+| identity / `users` | `id`, `created_at` (internal); `email`, `display_name`, nullable `locale`, `timezone`, `theme`, nullable `email_verified_at` (personal); `password_hash` (secret) | Account, local login, profile, and preferences | Account lifetime; workspace exports include member email but not profile or password data; authenticated profile correction is available; deletion removes the account after ownership transfer. Automatic locale is stored as NULL. |
+| identity / `external_identities` | `id`, `user_id`, `provider_id`, `created_at` (internal); `issuer`, `subject`, `email` (personal) | Stable OIDC account binding | Account lifetime; excluded from export; linking is explicit. |
 | identity / `instance_admins` | `user_id`, `created_at` (internal) | Separate installation administration | Assignment lifetime; excluded from workspace export; bootstrap-managed. |
 | identity / `workspaces` | `id`, `created_at` (internal); `name` (personal user content); `locale` (`en`/`es`) | Tenant boundary and browser/email fallback | Workspace lifetime; all fields, including locale, export; workspace deletion/correction is not exposed. |
 | identity / `workspace_members` | `workspace_id`, `user_id`, `role`, `created_at` (personal/internal) | Scoped authorization | Membership lifetime; workspace is implied by the export envelope and other fields export; role correction uses authorized membership changes; final-owner protection applies. |
@@ -23,6 +23,9 @@ means the complete encrypted database backup described in
 | identity / `invitations` | IDs, `email`, `role`, timestamps (personal/internal); `secret_hash` (secret) | Bounded membership invitation lifecycle | Active until accepted, revoked, or expired; completed records older than 365 days are pruned; excluded from export; resend rotates the secret. |
 | identity / `api_tokens` | IDs, `name`, `scopes`, timestamps (personal/internal); `secret_hash` (secret) | Scoped API/MCP credentials | Active until expiry/revocation; inactive records older than 365 days are pruned; excluded from export; scope changes and revocation are audited. |
 | identity / `oidc_transactions` | `provider_id`, `redirect_uri`, timestamps (internal); all hash fields (secret) | Single-use OIDC state, PKCE, nonce, and browser binding | Ten-minute active lifetime; expired records are pruned; excluded from export; no correction. |
+| identity / `email_verifications`, `password_resets` | user, email where applicable, timestamps (internal); token hash (secret) | Single-use account recovery and verification | Twenty-four-hour single-use lifetime; expired and consumed records are pruned; excluded from export; account deletion cascades. |
+| identity / notification preference tables | user/workspace, notification type, enabled, updated timestamp (personal) | User and workspace in-app delivery preference | Account or membership lifetime; excluded from workspace export; account deletion and member removal clean up. |
+| identity / `notifications` | IDs, recipient, optional workspace, type, title, body, timestamps (personal) | In-app notification inbox and SSE delivery | One-year retention; read state is user-correctable; excluded from workspace export; account/workspace deletion cascades. |
 | identity / `audit_events` | IDs, types, actions, outcome, timestamps (internal); actor, workspace, request, source address, metadata (personal) | Security and administrative evidence | Append-only during normal operation; default 365-day retention; workspace events export; maintenance deletes expired events and records its own prune event. No product correction. |
 | identity / `bootstrap_state` | `id`, `completed_at` (internal) | Enforce one-time first-owner bootstrap | Installation lifetime; backup only; never reset by application behavior. |
 | items / `items` | IDs, status, version, timestamps (internal); `title` (personal user content) | Sample feature | Until permanent deletion or future workspace deletion; all fields export; title/status correction uses conditional update. |
@@ -48,11 +51,12 @@ permanently removes the live row, emits a deletion event, and records an audit
 event. The identifier is not reused. Recovery from backup is an operator
 disaster-recovery action, not an item restore feature.
 
-Account and workspace deletion are intentionally unavailable. Although
-foreign keys define cascades, a product workflow still needs reauthentication,
-last-owner handling, retained-audit policy, external-identity consequences,
-and bounded cascading behavior. Add that workflow only when the product needs
-it; large deletion must then use an authorized long-running operation.
+Account deletion is available after local-password reauthentication and is
+refused for users who still own a workspace. Ownership transfer is required
+first; deletion then cascades account credentials, memberships, external
+identities, preferences, and notifications, and removes invitations created by
+the account. The deletion audit event retains the user ID and safe metadata but
+no credential or profile content. Workspace deletion remains unavailable.
 
 ## Portability
 

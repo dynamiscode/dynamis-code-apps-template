@@ -19,14 +19,17 @@ const (
 )
 
 type Result struct {
-	AuditEvents       int64 `json:"auditEvents"`
-	Sessions          int64 `json:"sessions"`
-	Invitations       int64 `json:"invitations"`
-	APITokens         int64 `json:"apiTokens"`
-	OIDCTransactions  int64 `json:"oidcTransactions"`
-	Idempotency       int64 `json:"idempotencyRecords"`
-	RealtimeReplay    int64 `json:"realtimeReplay"`
-	WebhookDeliveries int64 `json:"webhookDeliveries"`
+	AuditEvents        int64 `json:"auditEvents"`
+	Sessions           int64 `json:"sessions"`
+	Invitations        int64 `json:"invitations"`
+	APITokens          int64 `json:"apiTokens"`
+	OIDCTransactions   int64 `json:"oidcTransactions"`
+	EmailVerifications int64 `json:"emailVerifications"`
+	PasswordResets     int64 `json:"passwordResets"`
+	Idempotency        int64 `json:"idempotencyRecords"`
+	RealtimeReplay     int64 `json:"realtimeReplay"`
+	Notifications      int64 `json:"notifications"`
+	WebhookDeliveries  int64 `json:"webhookDeliveries"`
 }
 
 func Run(
@@ -51,6 +54,10 @@ func Run(
 	}{
 		{"DELETE FROM idempotency_records WHERE expires_at <= ?", []any{stamp(now)}, &result.Idempotency},
 		{"DELETE FROM oidc_transactions WHERE expires_at <= ?", []any{stamp(now)}, &result.OIDCTransactions},
+		{`DELETE FROM email_verifications WHERE expires_at <= ? OR
+			(consumed_at IS NOT NULL AND consumed_at <= ?)`, []any{stamp(now), stamp(now.Add(-transientRetention))}, &result.EmailVerifications},
+		{`DELETE FROM password_resets WHERE expires_at <= ? OR
+			(consumed_at IS NOT NULL AND consumed_at <= ?)`, []any{stamp(now), stamp(now.Add(-transientRetention))}, &result.PasswordResets},
 		{`DELETE FROM sessions WHERE expires_at <= ? OR
 			(revoked_at IS NOT NULL AND revoked_at <= ?)`, []any{stamp(now), stamp(now.Add(-transientRetention))}, &result.Sessions},
 		{`DELETE FROM invitations WHERE created_at <= ? AND
@@ -58,6 +65,7 @@ func Run(
 		{`DELETE FROM api_tokens WHERE created_at <= ? AND
 			(revoked_at IS NOT NULL OR (expires_at IS NOT NULL AND expires_at <= ?))`, []any{stamp(now.Add(-historyRetention)), stamp(now)}, &result.APITokens},
 		{"DELETE FROM item_events WHERE occurred_at <= ?", []any{stamp(now.Add(-replayRetention))}, &result.RealtimeReplay},
+		{"DELETE FROM notifications WHERE created_at <= ?", []any{stamp(now.Add(-historyRetention))}, &result.Notifications},
 		{"DELETE FROM webhook_deliveries WHERE status <> 'pending' AND created_at <= ?", []any{stamp(now.Add(-historyRetention))}, &result.WebhookDeliveries},
 		{"DELETE FROM audit_events WHERE created_at <= ?", []any{stamp(now.Add(-auditRetention))}, &result.AuditEvents},
 	}

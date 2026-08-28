@@ -68,7 +68,10 @@ listing. Workspace management is available through the Settings screens at
 `/workspaces/{workspaceId}/settings/export`;
 the export screen's `Download JSON` action uses
 `/workspaces/{workspaceId}/settings/export/download`. `/sessions` manages the
-current user's browser sessions.
+current user's browser sessions. `/account` manages the profile, locale,
+timezone, theme, notification preferences, email verification, password change,
+and account deletion flow. `/notifications` lists in-app notifications and
+marks them read. `/password-reset` starts a generic password reset request.
 Workspace deletion, suspension, and archival are not exposed until their data
 lifecycle is implemented.
 
@@ -84,6 +87,24 @@ are stored. Sessions expire, can be listed and revoked, and re-evaluate current
 workspace membership on protected operations. Browser handlers must use the
 provided cookie policy: `HttpOnly`, `SameSite=Lax`, and `Secure` under HTTPS;
 they must verify the session-bound CSRF secret on state-changing requests.
+
+Bootstrap, invitation possession, and OIDC verified-email claims mark an email
+verified. Other accounts can request a single-use, 24-hour verification link.
+Password reset requests return the same browser response for known and unknown
+emails; a single-use, 24-hour token sets a new local password and revokes all
+sessions. Password changes require the current local password, set a new
+Argon2id hash, and revoke all sessions before issuing a fresh browser session.
+Account deletion requires local-password reauthentication and is refused while
+the user owns any workspace; after ownership transfer it removes the account's
+memberships, credentials, external identities, invitations created by the
+user, notifications, and profile data while retaining a safe audit event.
+
+Profile preferences store display name, locale, IANA timezone, and `system`,
+`light`, or `dark` theme. In-app notification delivery is controlled by a
+user preference and an optional per-workspace preference; disabled notifications
+are not stored. Email verification and password-reset delivery reuse the
+optional synchronous SMTP sender. Reliable retryable delivery remains outside
+this request-bounded template and requires the deferred background-job decision.
 
 OIDC sessions retain only the provider identifier. Revocation returns that
 identifier so the web layer can also use the provider's discovered logout

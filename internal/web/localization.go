@@ -79,6 +79,9 @@ func localizedLegacy(catalog *i18n.Catalog, locale i18n.Locale, value string) st
 		"Workspace home": "workspace.home", "Members": "members.members",
 		"Invitations": "invitations.invitations", "API tokens": "tokens.tokens",
 		"Sessions": "sessions.sessions", "Security": "security.security", "Export": "navigation.export",
+		"Account": "account.account", "Notifications": "notifications.notifications",
+		"Reset password": "account.reset_password", "Choose a new password": "account.new_password",
+		"Password reset": "account.reset_password", "Email verification": "account.email_verification",
 		"Language settings": "account.language_settings_title", "General workspace settings": "workspace.general_settings",
 		"Workspace invitation": "invitations.workspace_invitation",
 		"The identity provider sign-in could not be completed.": "errors.oidc_signin",
@@ -103,10 +106,20 @@ func localizedLegacy(catalog *i18n.Catalog, locale i18n.Locale, value string) st
 		"The token expiration is invalid.":                                             "errors.invalid_token_expiration", "The token could not be created.": "errors.token_create",
 		"The token could not be revoked.": "errors.token_revoke", "The requested token action is invalid.": "errors.invalid_token_action",
 		"No OIDC provider is configured.": "errors.no_oidc", "Reauthentication failed.": "errors.reauthentication",
-		"The OIDC link could not be started.":                  "errors.oidc_link",
-		"Enter a workspace name between 1 and 120 characters.": "errors.workspace_name",
-		"The selected language is invalid.":                    "errors.invalid_locale",
-		"Enter a title between 1 and 200 characters.":          "items.invalid_title",
+		"The OIDC link could not be started.":                         "errors.oidc_link",
+		"Enter a workspace name between 1 and 120 characters.":        "errors.workspace_name",
+		"The selected language is invalid.":                           "errors.invalid_locale",
+		"The account settings are invalid.":                           "errors.account_settings",
+		"The email verification link is invalid or expired.":          "errors.email_verification",
+		"The password reset link is invalid or expired.":              "errors.password_reset",
+		"The current password or new password is invalid.":            "errors.password_change",
+		"Transfer workspace ownership before deleting this account.":  "errors.owned_workspace",
+		"Account deletion requires the current password.":             "errors.delete_account",
+		"Email delivery is not configured.":                           "errors.email_delivery",
+		"Verification email could not be delivered. Try again later.": "errors.verification_delivery",
+		"The notification preference is invalid.":                     "errors.notification_preference",
+		"The password reset form expired. Reload and try again.":      "errors.password_reset_expired",
+		"Enter a title between 1 and 200 characters.":                 "items.invalid_title",
 		"Not Found": "errors.not_found", "Unauthorized": "errors.unauthorized",
 		"Forbidden": "errors.forbidden", "Too Many Requests": "errors.too_many_requests",
 		"The invitation is invalid or the password could not be accepted.":                         "errors.invitation_password",
@@ -184,10 +197,16 @@ func (h *Handler) generalSettingsPage(writer http.ResponseWriter, request *http.
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
+	preferences, err := h.identity.GetNotificationPreferences(request.Context(), session.UserID, workspaceID)
+	if err != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	}
 	h.render(writer, http.StatusOK, "general-settings.html", pageData{
 		Title: "General workspace settings", NavPage: "general", NavSection: "settings", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		CanManage: principal.Permissions[identity.WorkspaceUpdate], Saved: request.URL.Query().Get("saved") == "1",
+		WorkspaceNotificationPreferences: preferences,
+		CanManage:                        principal.Permissions[identity.WorkspaceUpdate], Saved: request.URL.Query().Get("saved") == "1",
 	})
 }
 
@@ -199,6 +218,20 @@ func (h *Handler) generalSettings(writer http.ResponseWriter, request *http.Requ
 	}
 	if err := h.identity.UpdateWorkspaceLocale(request.Context(), principal, request.FormValue("locale"), auditContext(request)); err != nil {
 		h.managementError(writer, request, workspaceID, "The selected language is invalid.")
+		return
+	}
+	h.redirect(writer, request, "/workspaces/"+workspaceID+"/settings/general?saved=1")
+}
+
+func (h *Handler) workspaceNotificationSettings(writer http.ResponseWriter, request *http.Request) {
+	workspaceID := request.PathValue("workspaceId")
+	principal, _, _, ok := h.managementPrincipal(writer, request, workspaceID, identity.WorkspaceRead)
+	if !ok {
+		return
+	}
+	if err := h.identity.SetWorkspaceNotificationPreference(request.Context(), principal,
+		request.FormValue("notification_type"), request.FormValue("enabled") == "true", auditContext(request)); err != nil {
+		h.managementError(writer, request, workspaceID, "The notification preference is invalid.")
 		return
 	}
 	h.redirect(writer, request, "/workspaces/"+workspaceID+"/settings/general?saved=1")
