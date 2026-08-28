@@ -10,6 +10,10 @@ import (
 )
 
 func (h *Handler) shareMutation(writer http.ResponseWriter, request *http.Request) {
+	if h.sharing == nil {
+		h.renderError(writer, http.StatusNotFound)
+		return
+	}
 	workspaceID := request.PathValue("workspaceId")
 	itemID := request.PathValue("itemId")
 	principal, _, _, ok := h.managementPrincipal(writer, request, workspaceID, identity.ResourcesWrite)

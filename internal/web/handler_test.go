@@ -164,6 +164,16 @@ func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
 	}
 }
 
+func TestWebSharingUnavailableWithoutService(t *testing.T) {
+	handler, _ := testUnbootstrappedWeb(t, "")
+	response := request(handler, http.MethodPost, "/workspaces/workspace/items/item/share", url.Values{
+		"action": {"create"}, "lifetime": {"7"},
+	}, nil, nil)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("sharing without service = %d, %s", response.Code, response.Body.String())
+	}
+}
+
 func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	mailer := &recordingMailer{}
 	handler, auth, _, workspaceID, owner := testWeb(t, 10, mailer)

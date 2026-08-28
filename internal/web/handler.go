@@ -607,7 +607,7 @@ func (h *Handler) renderItems(
 		Workspace: workspace, Items: page.Items, NextCursor: page.NextCursor,
 		Workspaces: workspaces, NavPage: "items", NavSection: "items", CreateKey: createKey,
 		CurrentPath: "/workspaces/" + workspaceID + "/items",
-		CanShare:    principal.Permissions[identity.ResourcesWrite],
+		CanShare:    h.sharing != nil && principal.Permissions[identity.ResourcesWrite],
 	}
 	if h.sharing != nil && data.CanShare {
 		data.ShareLinks, err = h.sharing.List(request.Context(), principal, workspaceID)
