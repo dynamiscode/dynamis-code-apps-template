@@ -70,6 +70,15 @@ func TestPostgresMigrations(t *testing.T) {
 	if count != 1 {
 		t.Fatalf("web migration version count = %d, want 1", count)
 	}
+	if err := db.QueryRow(
+		"SELECT COUNT(*) FROM schema_migrations WHERE version = $1",
+		10,
+	).Scan(&count); err != nil {
+		t.Fatalf("query background jobs migration version: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("background jobs migration version count = %d, want 1", count)
+	}
 }
 
 func TestPostgresMigrationFailureRollsBack(t *testing.T) {

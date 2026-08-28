@@ -36,14 +36,15 @@ durable production data and records its deployment-specific evidence.
 | Realtime delivery | bootstrap, recurring | 04 | conforming | [SSE contract](web.md#realtime-contract), [scope/reconnect/heartbeat/limit tests](../internal/web/handler_test.go) |
 | Quotas and resource limits | bootstrap, operational | 06 | conforming | [Limit tests](../internal/httpapi/handler_test.go), [session tests](../internal/identity/service_test.go), [resource limits](operations.md#health-telemetry-and-limits) |
 | Audit events | bootstrap, recurring | 02, 06 | conforming | [Identity audit tests](../internal/identity/service_test.go), [retention tests](../internal/platform/maintenance/maintenance_test.go), [access/deletion rules](data-lifecycle.md) |
-| Workspace webhooks | triggered, recurring | 08 | conforming | [Decision](decisions/0004-webhooks.md), [REST contract](api.md#webhooks), [service tests](../internal/webhooks/service_test.go), [operations](operations.md#webhook-delivery) |
+| Workspace webhooks | triggered, recurring | 08-09 | conforming | [Decision](decisions/0004-webhooks.md), [REST contract](api.md#webhooks), [service tests](../internal/webhooks/service_test.go), [operations](operations.md#webhook-delivery) |
+| Background jobs | triggered, recurring | 09 | conforming | [Decision](decisions/0005-background-jobs.md), [queue tests](../internal/jobs/queue_test.go), [migration](../internal/platform/database/migrations/000010_background_jobs.sql), [operations](operations.md#health-telemetry-and-limits) |
 | Backup, restore, upgrades, RPO, and RTO | operational | 06 | conforming | [SQLite/PostgreSQL restore tests](../internal/platform/backup/backup_test.go), [operator procedures](operations.md#backup-and-restore) |
 | WCAG 2.2 AA accessibility | bootstrap, recurring | 04, 07 | conforming | [Automated runner](../scripts/accessibility.mjs), [dated automated and manual evidence](accessibility.md) |
 | Containers and deployment | bootstrap, operational | 07 | conforming | Pinned [image](../Dockerfile), [SQLite Compose](../compose.yaml), [PostgreSQL overlay](../compose.postgres.yaml), [smoke](../scripts/docker-smoke.sh), and [deployment contract](deployment.md) |
 | CI, release security, SBOM, provenance, signatures, checksums | operational | 07 | conforming | [CI](../.github/workflows/ci.yml), [source security workflow](../.github/workflows/source-security.yml), [release workflow](../.github/workflows/release.yml), [dependency monitoring](../.github/dependabot.yml), [Scorecard](../.github/workflows/scorecard.yml), and [artifact verification](release.md) |
 | MIT licensing, SPDX metadata, dependency attribution, and generated-repository governance | bootstrap, recurring | 07 | conforming | [Governance](governance.md), [SUPPORT](../SUPPORT.md), [LICENSE](../LICENSE), and [handoff test](../internal/conformance/handoff_test.go) |
 | Documentation, context handoff, and sources of truth | bootstrap, recurring | 07 | conforming | [Router](README.md), [agent contract](../AGENTS.md), [handoff test](../internal/conformance/handoff_test.go), and permanent [skills](../.agents/skills/) |
-| Testing strategy and complete template acceptance | recurring, operational | 01-07 | conforming | [Verification targets](../Makefile), [live surface smoke](../internal/bootstrap/agent_smoke_test.go), [accessibility smoke](../scripts/accessibility-smoke.sh), and [container smoke](../scripts/docker-smoke.sh) |
+| Testing strategy and complete template acceptance | recurring, operational | 01-09 | conforming | [Verification targets](../Makefile), [live surface smoke](../internal/bootstrap/agent_smoke_test.go), [queue tests](../internal/jobs/queue_test.go), [accessibility smoke](../scripts/accessibility-smoke.sh), and [container smoke](../scripts/docker-smoke.sh) |
 
 A group becomes `conforming` only when every applicable requirement in its
 linked standard subsection passes and evidence is linked here. Use
@@ -56,7 +57,7 @@ These remain out of the build plan until their trigger is demonstrated.
 | Capability | State | Trigger |
 |---|---|---|
 | Webhooks | conforming | External consumers required delivery; accepted in [decision 0004](decisions/0004-webhooks.md) |
-| Background jobs | deferred | Work must survive, retry, schedule, or outlive a request |
+| Background jobs | conforming | Bounded webhook delivery requires durable retry and lease ownership; see [phase 09 evidence](#phase-09-evidence) |
 | Shared event broker | deferred | Cross-replica delivery cannot use the database safely |
 | Object storage | deferred | Users upload or generate files |
 | SCIM | deferred | Enterprise provisioning is required |
@@ -263,3 +264,15 @@ Verified 2026-08-28 with Go 1.27.0 and PostgreSQL 14.24:
   compatibility tests pass.
 - `go test ./...`, `go vet ./...`, `go test -race ./...`, `make verify`, and
   `make docker-smoke` pass.
+
+## Phase 09 evidence
+
+Verified 2026-08-28 with SQLite and Docker smoke. The database-backed worker
+queue persists workspace-scoped webhook jobs in the same transaction as item
+outbox rows, deduplicates enqueue keys, claims with lease tokens, reclaims
+expired leases, records bounded attempt/status/timestamps, retries up to five
+times, and stores only redacted failure categories. Focused queue, webhook,
+maintenance, migration, telemetry, and isolated changed-package race tests
+pass. PostgreSQL tests were skipped because `POSTGRES_TEST_URL` was unset;
+the final full `make verify` race phase was resource-contended by concurrent
+test processes and failed only in the existing live bootstrap smoke timeout.

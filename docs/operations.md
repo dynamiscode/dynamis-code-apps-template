@@ -19,7 +19,8 @@ Metrics:
 - `auth.failure.count` for HTTP 401 responses;
 - `database.health.check.count` and `.duration` by health result;
 - `realtime.stream.active` and `realtime.stream.rejected.count`;
-- `resource.limit.rejected.count` by bounded resource type.
+- `resource.limit.rejected.count` by bounded resource type;
+- `background.job.count` by bounded handler kind and result status.
 
 Default limits are 100 concurrent ordinary requests, 120 requests per source
 per minute, 10 authentication attempts per source per minute, 1 MiB request
@@ -30,8 +31,12 @@ SQLite uses one database connection; PostgreSQL defaults to four open and two
 idle. OIDC calls use a 10-second client timeout. Limits return bounded 409 or
 429 errors with remediation or `Retry-After` as applicable.
 
-The current application has no background delivery or long-running product
-operations, so it has no worker metric or operation queue.
+The application runs one bounded database-backed worker loop per process.
+Background jobs are workspace-scoped, at-least-once, idempotent-handler work;
+claims use a one-minute lease and handlers receive at most five attempts with
+exponential retry. Metrics and logs contain only handler kind, status, attempt,
+and redacted failure category; they never contain payloads, URLs, secrets, or
+authorization values.
 
 Run retention at least daily:
 
@@ -45,18 +50,17 @@ summary audit event. `AUDIT_RETENTION` defaults to 365 days.
 
 ## Webhook delivery
 
-Webhook delivery uses a database-backed outbox written with each item mutation.
-The application runs one bounded in-process delivery loop per instance; it
-polls pending rows, sends signed requests with a 10-second timeout, and retries
-up to five attempts with 1s, 2s, 4s, and 8s delays. A 2xx response settles a
-delivery; other responses and network failures are recorded as redacted
-categories. Delivery history is available through the workspace REST endpoint
-and is retained for 365 days after settlement. Consumers must deduplicate by
-`Webhook-Id`.
+Webhook delivery uses a database-backed outbox and `webhook.delivery` job
+written with each item mutation. The worker claims the job with a lease, sends
+signed requests with a 10-second timeout, and retries up to five attempts with
+1s, 2s, 4s, and 8s delays. A 2xx response settles a delivery; other responses
+and network failures are recorded as redacted categories. Delivery history is
+available through the workspace REST endpoint and is retained for 365 days
+after settlement. Consumers must deduplicate by `Webhook-Id`.
 
-The loop is intentionally not a shared queue. Run PostgreSQL before multiple
-application instances and replace the loop with a shared job ownership model
-when delivery volume or replica count requires it.
+The queue is intentionally database-backed and bounded. Run PostgreSQL before
+multiple application instances; replace it with a shared broker only when
+database ownership or measured delivery volume no longer meets the target.
 
 ## Backup and restore
 
