@@ -1,6 +1,6 @@
 package identity
 
-import "sort"
+import "slices"
 
 var rolePermissions = map[Role][]Permission{
 	Owner: {
@@ -75,6 +75,6 @@ func validScopes(scopes []Permission, allowed map[Permission]bool) bool {
 
 func normalizeScopes(scopes []Permission) []Permission {
 	result := append([]Permission(nil), scopes...)
-	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
+	slices.Sort(result)
 	return result
 }

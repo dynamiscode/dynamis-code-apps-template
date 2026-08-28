@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -8,7 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -116,7 +117,9 @@ func (r *OIDCRegistry) Providers() []OIDCProviderInfo {
 			ID: provider.id, Name: provider.name,
 		})
 	}
-	sort.Slice(providers, func(i, j int) bool { return providers[i].ID < providers[j].ID })
+	slices.SortFunc(providers, func(a, b OIDCProviderInfo) int {
+		return cmp.Compare(a.ID, b.ID)
+	})
 	return providers
 }
 
