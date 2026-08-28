@@ -39,7 +39,8 @@ Run retention at least daily:
 go run ./cmd/maintain
 ```
 
-It removes expired transient records, old inactive credentials, expired audit
+It removes expired transient records, old inactive credentials including SCIM
+credentials, expired audit
 history, and stale realtime replay in one transaction, then appends a safe
 summary audit event. `AUDIT_RETENTION` defaults to 365 days.
 

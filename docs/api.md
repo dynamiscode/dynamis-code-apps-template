@@ -150,6 +150,15 @@ documented in [authentication](authentication.md).
 - Webhooks: `GET/POST /api/v1/workspaces/{workspaceId}/webhooks`,
   `DELETE/POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}` (delete
   or rotate at `/secret`), and `GET /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries`.
+- SCIM: create/revoke the dedicated credential with
+  `POST/DELETE /api/v1/workspaces/{workspaceId}/scim-token`, then use
+  `GET/POST /scim/v2/{workspaceId}/Users`, `GET/PATCH/DELETE
+  /scim/v2/{workspaceId}/Users/{externalId}`, `GET
+  /scim/v2/{workspaceId}/Groups`, and `GET/PATCH
+  /scim/v2/{workspaceId}/Groups/{admin|member|viewer}`. SCIM uses
+  `application/scim+json`, exact `userName`/`externalId` filters, bounded
+  `startIndex`/`count` pagination, strong ETag/If-Match, and safe SCIM error
+  responses. User DELETE deactivates the workspace mapping.
 
 Identity and workspace routes use `Authorization: Bearer <token>`. The token
 must belong to the path workspace and include the permission required by the

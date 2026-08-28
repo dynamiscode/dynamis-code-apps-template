@@ -9,7 +9,7 @@ type Operation struct {
 }
 
 const OpenAPIVersion = "3.1.0"
-const OpenAPISHA256 = "27a33a0a6c43c19361fae1fda4cf5b4ccddeb78d7d2f83d4d83dc4c83aa69731"
+const OpenAPISHA256 = "1e7114f1d6df60312631428b26838e9186432d661280ba1f216669f14eac2e00"
 
 var Operations = []Operation{
 	{Method: "GET", Path: "/api/openapi.json", ID: "getOpenAPI"},
@@ -32,6 +32,8 @@ var Operations = []Operation{
 	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/members/{userId}", ID: "removeMember"},
 	{Method: "PATCH", Path: "/api/v1/workspaces/{workspaceId}/members/{userId}", ID: "changeMemberRole"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/ownership", ID: "transferOwnership"},
+	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/scim-token", ID: "revokeSCIMToken"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/scim-token", ID: "createSCIMToken"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/tokens", ID: "listTokens"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/tokens", ID: "createToken"},
 	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/tokens/{tokenId}", ID: "revokeToken"},
@@ -43,4 +45,12 @@ var Operations = []Operation{
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/secret", ID: "rotateWebhookSecret"},
 	{Method: "GET", Path: "/health/live", ID: "getLiveness"},
 	{Method: "GET", Path: "/health/ready", ID: "getReadiness"},
+	{Method: "GET", Path: "/scim/v2/{workspaceId}/Groups", ID: "listSCIMGroups"},
+	{Method: "GET", Path: "/scim/v2/{workspaceId}/Groups/{groupId}", ID: "getSCIMGroup"},
+	{Method: "PATCH", Path: "/scim/v2/{workspaceId}/Groups/{groupId}", ID: "patchSCIMGroup"},
+	{Method: "GET", Path: "/scim/v2/{workspaceId}/Users", ID: "listSCIMUsers"},
+	{Method: "POST", Path: "/scim/v2/{workspaceId}/Users", ID: "createSCIMUser"},
+	{Method: "DELETE", Path: "/scim/v2/{workspaceId}/Users/{userId}", ID: "deleteSCIMUser"},
+	{Method: "GET", Path: "/scim/v2/{workspaceId}/Users/{userId}", ID: "getSCIMUser"},
+	{Method: "PATCH", Path: "/scim/v2/{workspaceId}/Users/{userId}", ID: "patchSCIMUser"},
 }

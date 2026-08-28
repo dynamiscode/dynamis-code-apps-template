@@ -123,6 +123,7 @@ Roles are protected permission collections:
 | Update workspace, manage members and invitations | yes | yes | no | no |
 | Export workspace data | yes | yes | no | no |
 | Delete workspace or transfer ownership | yes | no | no | no |
+| Provision SCIM users and role groups | yes | yes | no | no |
 
 Checks deny by default and require an explicit workspace. Tokens are
 intersected with the user's current role on every use. Owners cannot be
@@ -145,6 +146,24 @@ changes, and revocation are enforced.
 Bearer REST management uses the same workspace permission checks. Workspace listing and creation
 remain browser-only. Invitation create/resend returns a copyable URL and delivery status; SMTP is
 optional and invitation rows commit before delivery is attempted.
+
+## SCIM provisioning
+
+Enterprise provisioning uses REST-only SCIM 2.0 at `/scim/v2/{workspaceId}`
+and supports Users and Groups. Owners or admins create/revoke the dedicated
+workspace credential with `POST`/`DELETE
+/api/v1/workspaces/{workspaceId}/scim-token`; its secret is shown once and
+stored as a SHA-256 hash. It is never accepted as an ordinary API token.
+Browser, CLI, MCP, and WebMCP surfaces do not manage SCIM.
+
+SCIM normalizes `userName` and email to the account email and keeps a stable
+workspace external ID. New users are active members with no local password and
+enroll through existing OIDC or invitation flows. Groups map only to `admin`,
+`member`, and `viewer`; owner membership is never exposed or assignable.
+`PATCH` and `DELETE` require the current strong ETag. Deactivation removes
+only workspace membership, revokes the user's sessions and API/SCIM tokens,
+and retains the account, workspace, audit history, and final owner. DELETE is
+deactivation, not destruction.
 
 ## OIDC
 
