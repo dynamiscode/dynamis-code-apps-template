@@ -192,6 +192,13 @@ func TestGenerateWithoutAgentPrunesAgentSurfaceAndBuilds(t *testing.T) {
 func runCommand(directory, name string, args ...string) error {
 	command := exec.Command(name, args...)
 	command.Dir = directory
+	command.Env = make([]string, 0, len(os.Environ()))
+	for _, value := range os.Environ() {
+		if strings.HasPrefix(value, "POSTGRES_TEST_URL=") {
+			continue
+		}
+		command.Env = append(command.Env, value)
+	}
 	output, err := command.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output)))
