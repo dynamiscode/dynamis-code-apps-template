@@ -120,7 +120,7 @@ func (h *handler) mfaTotpRemove(writer http.ResponseWriter, request *http.Reques
 		h.badJSON(writer, request, err)
 		return
 	}
-	if err := h.identity.RemoveTOTP(request.Context(), session.UserID, input.Password, h.auditContext(request)); err != nil {
+	if err := h.identity.RemoveTOTP(request.Context(), session.UserID, session.ID, input.Password, h.auditContext(request)); err != nil {
 		h.mfaProblem(writer, request, err)
 		return
 	}
@@ -180,7 +180,7 @@ func (h *handler) mfaPasskeyRemove(writer http.ResponseWriter, request *http.Req
 		h.badJSON(writer, request, err)
 		return
 	}
-	if err := h.identity.RemovePasskey(request.Context(), session.UserID, request.PathValue("passkeyId"), input.Password, h.auditContext(request)); err != nil {
+	if err := h.identity.RemovePasskey(request.Context(), session.UserID, session.ID, request.PathValue("passkeyId"), input.Password, h.auditContext(request)); err != nil {
 		h.mfaProblem(writer, request, err)
 		return
 	}

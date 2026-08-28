@@ -69,6 +69,7 @@ func (h *Handler) localizePage(writer http.ResponseWriter, data *pageData) {
 	data.Catalog = h.catalog
 	data.Title = localizedLegacy(h.catalog, locale, data.Title)
 	data.Error = localizedLegacy(h.catalog, locale, data.Error)
+	data.MFAError = localizedLegacy(h.catalog, locale, data.MFAError)
 	data.DeliveryWarning = localizedLegacy(h.catalog, locale, data.DeliveryWarning)
 }
 
@@ -78,7 +79,7 @@ func localizedLegacy(catalog *i18n.Catalog, locale i18n.Locale, value string) st
 		"Remote setup required": "errors.remote_setup", "Workspaces": "workspace.workspaces",
 		"Workspace home": "workspace.home", "Members": "members.members",
 		"Invitations": "invitations.invitations", "API tokens": "tokens.tokens",
-		"Sessions": "sessions.sessions", "Security": "security.security", "Export": "navigation.export",
+		"Sessions": "sessions.sessions", "Security": "security.security", "Multi-factor authentication": "security.mfa_title", "Export": "navigation.export",
 		"Account": "account.account", "Notifications": "notifications.notifications",
 		"Reset password": "account.reset_password", "Choose a new password": "account.new_password",
 		"Password reset": "account.reset_password", "Email verification": "account.email_verification",
@@ -124,6 +125,12 @@ func localizedLegacy(catalog *i18n.Catalog, locale i18n.Locale, value string) st
 		"Forbidden": "errors.forbidden", "Too Many Requests": "errors.too_many_requests",
 		"The invitation is invalid or the password could not be accepted.":                         "errors.invitation_password",
 		"This invitation is invalid, expired, revoked, already used, or belongs to another email.": "errors.invalid_invitation_email",
+		"The verification code is invalid.":                                                        "errors.mfa_verification",
+		"The recovery code is invalid.":                                                            "errors.mfa_recovery",
+		"The passkey verification failed.":                                                         "errors.mfa_passkey",
+		"Fresh authentication failed.":                                                             "errors.mfa_fresh",
+		"The authenticator could not be removed.":                                                  "errors.mfa_remove_authenticator",
+		"The passkey could not be removed.":                                                        "errors.mfa_remove_passkey",
 	}
 	key := keys[value]
 	if key == "" {

@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -188,13 +189,13 @@ type MFAStatus struct {
 }
 
 type MFALoginChallenge struct {
-	Token          string    `json:"challenge"`
-	UserID         string    `json:"-"`
-	AuthMethod     string    `json:"-"`
-	OIDCProviderID string    `json:"-"`
-	Methods        []string  `json:"methods"`
-	PasskeyJSON    []byte    `json:"passkeyOptions,omitempty"`
-	ExpiresAt      time.Time `json:"expiresAt"`
+	Token          string          `json:"challenge"`
+	UserID         string          `json:"-"`
+	AuthMethod     string          `json:"-"`
+	OIDCProviderID string          `json:"-"`
+	Methods        []string        `json:"methods"`
+	PasskeyJSON    json.RawMessage `json:"passkeyOptions,omitempty"`
+	ExpiresAt      time.Time       `json:"expiresAt"`
 }
 
 type TOTPEnrollment struct {
@@ -213,9 +214,9 @@ type Passkey struct {
 }
 
 type PasskeyEnrollment struct {
-	Challenge string    `json:"challenge"`
-	Options   []byte    `json:"options"`
-	ExpiresAt time.Time `json:"expiresAt"`
+	Challenge string          `json:"challenge"`
+	Options   json.RawMessage `json:"options"`
+	ExpiresAt time.Time       `json:"expiresAt"`
 }
 
 type NewSession struct {

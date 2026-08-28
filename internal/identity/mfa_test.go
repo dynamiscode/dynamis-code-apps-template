@@ -41,6 +41,17 @@ func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
 	if _, err := service.BeginTOTPEnrollment(ctx, otherUserID, session.ID, "owner-long-password", AuditContext{}); !errors.Is(err, ErrInvalidSession) {
 		t.Fatalf("cross-user MFA enrollment error = %v", err)
 	}
+	oidcUserID := insertUser(t, service, db, "oidc@example.com")
+	if _, err := db.Exec("UPDATE users SET password_hash = NULL WHERE id = ?", oidcUserID); err != nil {
+		t.Fatal(err)
+	}
+	oidcSession, err := service.CreateSession(ctx, oidcUserID, "oidc", "company", time.Hour, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.BeginTOTPEnrollment(ctx, oidcUserID, oidcSession.ID, "", AuditContext{}); err != nil {
+		t.Fatalf("OIDC fresh MFA enrollment = %v", err)
+	}
 	enrollment, err := service.BeginTOTPEnrollment(ctx, owner.UserID, session.ID, "owner-long-password", AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -81,13 +92,43 @@ func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
 	if _, err := service.CompleteRecoveryLogin(ctx, recoveryLogin.Token, codes[0], AuditContext{}); err == nil {
 		t.Fatal("replayed recovery challenge accepted")
 	}
+	recoveryA, err := service.BeginMFALogin(ctx, owner.UserID, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recoveryB, err := service.BeginMFALogin(ctx, owner.UserID, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recoveryResults := make(chan error, 2)
+	go func() {
+		_, err := service.CompleteRecoveryLogin(ctx, recoveryA.Token, codes[2], AuditContext{})
+		recoveryResults <- err
+	}()
+	go func() {
+		_, err := service.CompleteRecoveryLogin(ctx, recoveryB.Token, codes[2], AuditContext{})
+		recoveryResults <- err
+	}()
+	var recoverySuccess, recoveryFailure int
+	for i := 0; i < 2; i++ {
+		if err := <-recoveryResults; err == nil {
+			recoverySuccess++
+		} else if errors.Is(err, ErrInvalidMFACode) {
+			recoveryFailure++
+		} else {
+			t.Fatalf("concurrent recovery error = %v", err)
+		}
+	}
+	if recoverySuccess != 1 || recoveryFailure != 1 {
+		t.Fatalf("concurrent recovery results = %d success, %d invalid", recoverySuccess, recoveryFailure)
+	}
 	oidcLogin, err := service.BeginMFALoginWithMethod(ctx, owner.UserID, "oidc", "company", AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	oidcSession, err := service.CompleteRecoveryLogin(ctx, oidcLogin.Token, codes[1], AuditContext{})
-	if err != nil || oidcSession.AuthMethod != "oidc" || oidcSession.OIDCProviderID != "company" {
-		t.Fatalf("OIDC MFA session = %+v, %v", oidcSession.Session, err)
+	oidcMFASession, err := service.CompleteRecoveryLogin(ctx, oidcLogin.Token, codes[1], AuditContext{})
+	if err != nil || oidcMFASession.AuthMethod != "oidc" || oidcMFASession.OIDCProviderID != "company" {
+		t.Fatalf("OIDC MFA session = %+v, %v", oidcMFASession.Session, err)
 	}
 	var encrypted string
 	if err := db.QueryRow("SELECT encrypted_secret FROM mfa_totp WHERE user_id = ?", owner.UserID).Scan(&encrypted); err != nil {

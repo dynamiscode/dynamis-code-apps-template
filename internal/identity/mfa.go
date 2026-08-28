@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
 	"github.com/go-webauthn/webauthn/protocol"
 	webauthnlib "github.com/go-webauthn/webauthn/webauthn"
@@ -121,10 +122,11 @@ func (s *Service) BeginMFALoginWithMethod(ctx context.Context, userID, authMetho
 			return MFALoginChallenge{}, ErrMFAUnavailable
 		}
 		challenge.Methods = append(challenge.Methods, "passkey")
-		challenge.PasskeyJSON, err = json.Marshal(options)
-		if err != nil {
-			return MFALoginChallenge{}, err
+		encodedOptions, marshalErr := json.Marshal(options)
+		if marshalErr != nil {
+			return MFALoginChallenge{}, marshalErr
 		}
+		challenge.PasskeyJSON = json.RawMessage(encodedOptions)
 		encoded, err := json.Marshal(session)
 		if err != nil {
 			return MFALoginChallenge{}, err
@@ -282,7 +284,7 @@ func (s *Service) BeginPasskeyEnrollment(ctx context.Context, userID, sessionID,
 	if err := s.insertMFAChallenge(ctx, MFALoginChallenge{Token: token, UserID: userID, ExpiresAt: expires}, "passkey_enrollment", sessionID, string(sessionJSON), "", audit); err != nil {
 		return PasskeyEnrollment{}, err
 	}
-	return PasskeyEnrollment{Challenge: token, Options: optionsJSON, ExpiresAt: expires}, nil
+	return PasskeyEnrollment{Challenge: token, Options: json.RawMessage(optionsJSON), ExpiresAt: expires}, nil
 }
 
 func (s *Service) CompletePasskeyEnrollment(ctx context.Context, userID, sessionID, token, name string, request *http.Request, audit AuditContext) ([]string, error) {
@@ -387,8 +389,15 @@ func (s *Service) CompleteRecoveryLogin(ctx context.Context, token, code string,
 	if !s.consumeChallenge(ctx, tx, challenge.ID) {
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
-	if _, err := s.exec(ctx, tx, "UPDATE mfa_recovery_codes SET used_at = ? WHERE id = ? AND used_at IS NULL", timestamp(s.now().UTC()), codeID); err != nil {
+	result, err := s.exec(ctx, tx, "UPDATE mfa_recovery_codes SET used_at = ? WHERE id = ? AND used_at IS NULL", timestamp(s.now().UTC()), codeID)
+	if err != nil {
 		return NewSession{}, err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil || changed != 1 {
+		_ = tx.Rollback()
+		s.auditMFAFailure(ctx, challenge, "recovery", audit)
+		return NewSession{}, ErrInvalidMFACode
 	}
 	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.recovery.used", ActorUserID: challenge.UserID, AuthMethod: "recovery", TargetType: "mfa_challenge", TargetID: challenge.ID, Action: "mfa.recovery.use", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: s.now().UTC()}); err != nil {
 		return NewSession{}, err
@@ -427,21 +436,26 @@ func (s *Service) CompletePasskeyLogin(ctx context.Context, token string, reques
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
 	credentialID := base64.RawURLEncoding.EncodeToString(credential.ID)
-	stored, err := s.loadCredential(ctx, s.db, challenge.UserID, credentialID)
-	if err != nil {
-		return NewSession{}, ErrInvalidMFAChallenge
-	}
-	stored.Authenticator.SignCount = credential.Authenticator.SignCount
-	stored.Flags = stored.Flags.Update(credential.Flags.ProtocolValue())
-	encoded, err := json.Marshal(stored)
-	if err != nil {
-		return NewSession{}, err
-	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return NewSession{}, err
 	}
 	defer tx.Rollback()
+	stored, err := s.loadCredential(ctx, tx, challenge.UserID, credentialID)
+	if err != nil {
+		return NewSession{}, ErrInvalidMFAChallenge
+	}
+	stored.Authenticator.UpdateCounter(credential.Authenticator.SignCount)
+	if stored.Authenticator.CloneWarning {
+		_ = tx.Rollback()
+		s.auditMFAFailure(ctx, challenge, "passkey", audit)
+		return NewSession{}, ErrInvalidMFAChallenge
+	}
+	stored.Flags = stored.Flags.Update(credential.Flags.ProtocolValue())
+	encoded, err := json.Marshal(stored)
+	if err != nil {
+		return NewSession{}, err
+	}
 	if !s.consumeChallenge(ctx, tx, challenge.ID) {
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
@@ -494,16 +508,9 @@ func (s *Service) ListPasskeys(ctx context.Context, userID string) ([]Passkey, e
 	return result, rows.Err()
 }
 
-func (s *Service) RemovePasskey(ctx context.Context, userID, passkeyID, password string, audit AuditContext) error {
-	if err := s.ReauthenticateLocal(ctx, userID, password); err != nil {
+func (s *Service) RemovePasskey(ctx context.Context, userID, sessionID, passkeyID, password string, audit AuditContext) error {
+	if err := s.VerifyFreshAuthentication(ctx, userID, sessionID, password); err != nil {
 		return ErrInvalidCredentials
-	}
-	status, err := s.MFAStatus(ctx, userID)
-	if err != nil {
-		return err
-	}
-	if status.PasskeyCount <= 1 && !status.TOTPEnabled {
-		return ErrLastMFAFactor
 	}
 	now := s.now().UTC()
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -511,6 +518,19 @@ func (s *Service) RemovePasskey(ctx context.Context, userID, passkeyID, password
 		return err
 	}
 	defer tx.Rollback()
+	if err := s.lockMFAUser(ctx, tx, userID); err != nil {
+		return err
+	}
+	var passkeyCount, totpCount int
+	if err := s.queryRow(ctx, tx, "SELECT COUNT(*) FROM mfa_passkeys WHERE user_id = ? AND revoked_at IS NULL", userID).Scan(&passkeyCount); err != nil {
+		return err
+	}
+	if err := s.queryRow(ctx, tx, "SELECT COUNT(*) FROM mfa_totp WHERE user_id = ?", userID).Scan(&totpCount); err != nil {
+		return err
+	}
+	if passkeyCount+totpCount <= 1 {
+		return ErrLastMFAFactor
+	}
 	result, err := s.exec(ctx, tx, "UPDATE mfa_passkeys SET revoked_at = ? WHERE id = ? AND user_id = ? AND revoked_at IS NULL", timestamp(now), passkeyID, userID)
 	if err != nil {
 		return err
@@ -528,16 +548,9 @@ func (s *Service) RemovePasskey(ctx context.Context, userID, passkeyID, password
 	return tx.Commit()
 }
 
-func (s *Service) RemoveTOTP(ctx context.Context, userID, password string, audit AuditContext) error {
-	if err := s.ReauthenticateLocal(ctx, userID, password); err != nil {
+func (s *Service) RemoveTOTP(ctx context.Context, userID, sessionID, password string, audit AuditContext) error {
+	if err := s.VerifyFreshAuthentication(ctx, userID, sessionID, password); err != nil {
 		return ErrInvalidCredentials
-	}
-	status, err := s.MFAStatus(ctx, userID)
-	if err != nil {
-		return err
-	}
-	if !status.TOTPEnabled || status.PasskeyCount == 0 {
-		return ErrLastMFAFactor
 	}
 	now := s.now().UTC()
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -545,6 +558,19 @@ func (s *Service) RemoveTOTP(ctx context.Context, userID, password string, audit
 		return err
 	}
 	defer tx.Rollback()
+	if err := s.lockMFAUser(ctx, tx, userID); err != nil {
+		return err
+	}
+	var passkeyCount, totpCount int
+	if err := s.queryRow(ctx, tx, "SELECT COUNT(*) FROM mfa_passkeys WHERE user_id = ? AND revoked_at IS NULL", userID).Scan(&passkeyCount); err != nil {
+		return err
+	}
+	if err := s.queryRow(ctx, tx, "SELECT COUNT(*) FROM mfa_totp WHERE user_id = ?", userID).Scan(&totpCount); err != nil {
+		return err
+	}
+	if totpCount != 1 || passkeyCount == 0 {
+		return ErrLastMFAFactor
+	}
 	if _, err := s.exec(ctx, tx, "DELETE FROM mfa_totp WHERE user_id = ?", userID); err != nil {
 		return err
 	}
@@ -555,6 +581,15 @@ func (s *Service) RemoveTOTP(ctx context.Context, userID, password string, audit
 		return err
 	}
 	return tx.Commit()
+}
+
+func (s *Service) lockMFAUser(ctx context.Context, tx *sql.Tx, userID string) error {
+	query := "SELECT id FROM users WHERE id = ?"
+	if s.driver == config.Postgres {
+		query += " FOR UPDATE"
+	}
+	var lockedUserID string
+	return s.queryRow(ctx, tx, query, userID).Scan(&lockedUserID)
 }
 
 func (s *Service) VerifyFreshAuthentication(ctx context.Context, userID, sessionID, password string) error {
@@ -572,20 +607,23 @@ func (s *Service) VerifyFreshAuthentication(ctx context.Context, userID, session
 		_, err := s.exec(ctx, s.db, "UPDATE sessions SET fresh_at = ? WHERE id = ? AND revoked_at IS NULL", timestamp(s.now().UTC()), sessionID)
 		return err
 	}
-	var sessionUserID string
+	var sessionUserID, authMethod string
 	var level AuthLevel
 	var fresh sql.NullString
-	if err := s.queryRow(ctx, s.db, "SELECT user_id, auth_level, fresh_at FROM sessions WHERE id = ? AND revoked_at IS NULL", sessionID).Scan(&sessionUserID, &level, &fresh); err != nil || sessionUserID != userID {
+	if err := s.queryRow(ctx, s.db, "SELECT user_id, auth_method, auth_level, fresh_at FROM sessions WHERE id = ? AND revoked_at IS NULL", sessionID).Scan(&sessionUserID, &authMethod, &level, &fresh); err != nil || sessionUserID != userID {
 		return ErrInvalidSession
 	}
-	if level < AuthLevelMFA || !fresh.Valid {
+	if !fresh.Valid {
 		return ErrInvalidCredentials
 	}
 	when, err := parseTimestamp(fresh.String)
 	if err != nil || s.now().UTC().Sub(when) > freshAuthenticationLifetime {
 		return ErrInvalidCredentials
 	}
-	return nil
+	if level >= AuthLevelMFA || (authMethod == "oidc" && level >= AuthLevelPassword) {
+		return nil
+	}
+	return ErrInvalidCredentials
 }
 
 func (s *Service) CreateMFASession(ctx context.Context, userID, authMethod, oidcProviderID string, lifetime time.Duration, audit AuditContext) (NewSession, error) {

@@ -129,8 +129,10 @@ the server returns the accepted or generated request ID.
   `POST /api/v1/auth/mfa/passkey`, `/mfa/totp`, or `/mfa/recovery`.
   `POST /api/v1/auth/logout` requires the session CSRF token.
 - MFA status and factor management use the session-cookie endpoints under
-  `/api/v1/auth/mfa`. Enrollment/removal requires CSRF plus fresh password
-  authentication; enrollment responses show recovery codes once only.
+  `/api/v1/auth/mfa`. Enrollment/removal requires CSRF plus fresh
+  authentication; a current password is accepted, while a recent OIDC sign-in
+  or MFA-authenticated session can satisfy the same step-up. Enrollment
+  responses show recovery codes once only.
   TOTP enrollment material is `no-store`; factor secrets are never returned
   after enrollment.
 - `/api/v1/workspaces/{workspaceId}/items` proves shared, workspace-scoped

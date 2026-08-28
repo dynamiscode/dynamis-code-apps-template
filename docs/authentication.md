@@ -96,7 +96,8 @@ ID and exact origin configuration, store challenge state server-side, expire
 once, and update the authenticator sign counter on successful use. Credentials
 are per-user, revocable, and listed without public-key or challenge material.
 
-TOTP enrollment requires fresh authentication, encrypts the seed with the
+TOTP enrollment requires fresh authentication (current password, recent OIDC
+sign-in, or an MFA-authenticated session), encrypts the seed with the
 deployment MFA key, and displays enrollment material only during enrollment.
 Recovery codes are generated once, shown once, and stored as one-time hashes.
 Login challenges expire, have bounded attempts, and are consumed atomically;

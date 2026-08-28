@@ -19,53 +19,53 @@
     {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
     {{if .MFAError}}<p class="error" role="alert">{{.MFAError}}</p>{{end}}
     <section>
-      <h2>Multi-factor authentication</h2>
+      <h2>{{.T "security.mfa_title"}}</h2>
       {{if .MFAStatus.Enabled}}
-      <p>Passkeys: {{.MFAStatus.PasskeyCount}} · Authenticator app: {{if .MFAStatus.TOTPEnabled}}enabled{{else}}not enabled{{end}} · Recovery codes remaining: {{.MFAStatus.RecoveryRemain}}</p>
+      <p>{{.T "security.mfa_passkeys"}}: {{.MFAStatus.PasskeyCount}} · {{.T "security.mfa_authenticator"}}: {{if .MFAStatus.TOTPEnabled}}{{.T "security.mfa_enabled"}}{{else}}{{.T "security.mfa_not_enabled"}}{{end}} · {{.T "security.mfa_recovery_remaining"}}: {{.MFAStatus.RecoveryRemain}}</p>
       <form id="passkey-enroll" action="/api/v1/auth/mfa/passkeys/register/options" method="post">
         <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <label for="passkey-password">Current password</label>
-        <input id="passkey-password" name="password" type="password" autocomplete="current-password" required>
-        <button type="submit">Add passkey</button>
+        <label for="passkey-password">{{.T "security.mfa_password_optional"}}</label>
+        <input id="passkey-password" name="password" type="password" autocomplete="current-password">
+        <button type="submit">{{.T "security.mfa_add_passkey"}}</button>
       </form>
       {{if not .MFAStatus.TOTPEnabled}}
       <form action="/security/totp/start" method="post">
         <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <label for="totp-password">Current password</label>
-        <input id="totp-password" name="password" type="password" autocomplete="current-password" required>
-        <button type="submit">Set up authenticator app</button>
+        <label for="totp-password">{{.T "security.mfa_password_optional"}}</label>
+        <input id="totp-password" name="password" type="password" autocomplete="current-password">
+        <button type="submit">{{.T "security.mfa_setup_authenticator"}}</button>
       </form>
       {{else}}
       <form action="/security/totp/remove" method="post">
         <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <label for="remove-totp-password">Current password</label>
-        <input id="remove-totp-password" name="password" type="password" autocomplete="current-password" required>
-        <button type="submit">Remove authenticator app</button>
+        <label for="remove-totp-password">{{.T "security.mfa_password_optional"}}</label>
+        <input id="remove-totp-password" name="password" type="password" autocomplete="current-password">
+        <button type="submit">{{.T "security.mfa_remove_authenticator"}}</button>
       </form>
       {{end}}
       {{range .Passkeys}}
       {{if not .RevokedAt}}
       <form action="/security/passkey/{{.ID}}" method="post">
         <input type="hidden" name="csrf" value="{{$.CSRF}}">
-        <label for="remove-{{.ID}}">Remove {{.Name}}; current password</label>
-        <input id="remove-{{.ID}}" name="password" type="password" autocomplete="current-password" required>
-        <button type="submit">Remove passkey</button>
+        <label for="remove-{{.ID}}">{{$.T "security.mfa_password_optional"}} — {{.Name}}</label>
+        <input id="remove-{{.ID}}" name="password" type="password" autocomplete="current-password">
+        <button type="submit">{{$.T "security.mfa_remove_passkey"}}</button>
       </form>
       {{end}}
       {{end}}
       {{if .TOTPEnrollment}}
-      <p>Scan or enter this one-time authenticator setup value: <code>{{.TOTPEnrollment.Secret}}</code></p>
+      <p>{{.T "security.mfa_setup_value"}}: <code>{{.TOTPEnrollment.Secret}}</code></p>
       <form action="/security/totp/complete" method="post">
         <input type="hidden" name="csrf" value="{{.CSRF}}">
         <input type="hidden" name="challenge" value="{{.TOTPEnrollment.Challenge}}">
-        <label for="totp-enrollment-code">Authenticator code</label>
+        <label for="totp-enrollment-code">{{.T "security.mfa_authenticator_code"}}</label>
         <input id="totp-enrollment-code" name="code" inputmode="numeric" minlength="6" maxlength="6" required>
-        <button type="submit">Confirm authenticator</button>
+        <button type="submit">{{.T "security.mfa_confirm_authenticator"}}</button>
       </form>
       {{end}}
       {{if .MFARecoveryCodes}}
-      <h3>Recovery codes — show once</h3>
-      <p>Store these codes securely. Each works once.</p>
+      <h3>{{.T "security.mfa_recovery_codes"}}</h3>
+      <p>{{.T "security.mfa_store_recovery"}} {{.T "security.mfa_each_recovery_once"}}</p>
       <pre>{{range .MFARecoveryCodes}}{{.}}
 {{end}}</pre>
       {{end}}

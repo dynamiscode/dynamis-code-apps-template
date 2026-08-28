@@ -57,7 +57,7 @@
       "delete": {
         "operationId": "mfaTotpRemove", "security": [{"sessionCookie": []}],
         "parameters": [{"$ref": "#/components/parameters/CSRFToken"}],
-        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "required": ["password"], "properties": {"password": {"type": "string", "maxLength": 1024}}}}}},
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "properties": {"password": {"type": "string", "maxLength": 1024}}}}}},
         "responses": {"204": {"description": "Authenticator factor revoked and affected sessions revoked"}, "401": {"$ref": "#/components/responses/Problem"}}
       }
     },
