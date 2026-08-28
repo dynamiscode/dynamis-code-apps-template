@@ -1,13 +1,14 @@
 package main
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"go/format"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -56,11 +57,8 @@ func main() {
 			routes = append(routes, route{Method: method, Path: path, ID: operation.OperationID})
 		}
 	}
-	sort.Slice(routes, func(i, j int) bool {
-		if routes[i].Path == routes[j].Path {
-			return routes[i].Method < routes[j].Method
-		}
-		return routes[i].Path < routes[j].Path
+	slices.SortFunc(routes, func(a, b route) int {
+		return cmp.Or(cmp.Compare(a.Path, b.Path), cmp.Compare(a.Method, b.Method))
 	})
 	sum := sha256.Sum256(raw)
 	var source strings.Builder

@@ -612,7 +612,7 @@ func (h *handler) badJSON(
 	request *http.Request,
 	err error,
 ) {
-	if errors.As(err, new(*http.MaxBytesError)) {
+	if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 		writeProblem(
 			writer, request, http.StatusRequestEntityTooLarge, "body-too-large",
 			"The request body exceeds the configured limit.",

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -95,7 +95,7 @@ func loadMigrations(source fs.FS) ([]migration, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list migrations: %w", err)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	migrations := make([]migration, 0, len(names))
 	var previous int64

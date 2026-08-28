@@ -76,7 +76,7 @@ type Delivery struct {
 	AttemptCount   int        `json:"attemptCount"`
 	Status         string     `json:"status"`
 	NextAttemptAt  *time.Time `json:"nextAttemptAt,omitempty"`
-	LastStatusCode int        `json:"lastStatusCode,omitempty"`
+	LastStatusCode int        `json:"lastStatusCode,omitzero"`
 	LastError      string     `json:"lastError,omitempty"`
 	CreatedAt      time.Time  `json:"createdAt"`
 	DeliveredAt    *time.Time `json:"deliveredAt,omitempty"`
