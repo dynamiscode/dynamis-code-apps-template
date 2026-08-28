@@ -54,6 +54,8 @@ type Data struct {
 	ItemsMaxPerWorkspace int
 	ExportMaxRecords     int
 	ExportMaxBytes       int
+	ImportMaxRecords     int
+	ImportMaxBytes       int
 	AuditRetention       time.Duration
 }
 
@@ -392,6 +394,14 @@ func loadData(lookup LookupEnv) (Data, error) {
 	if err != nil {
 		return Data{}, err
 	}
+	importRecords, err := rangedInt(lookup, "IMPORT_MAX_RECORDS", 1000, 1, 10000)
+	if err != nil {
+		return Data{}, err
+	}
+	importBytes, err := rangedInt(lookup, "IMPORT_MAX_BYTES", 4*1024*1024, 64*1024, 4*1024*1024)
+	if err != nil {
+		return Data{}, err
+	}
 	auditRetention, err := durationValue(
 		lookup, "AUDIT_RETENTION", 8760*time.Hour, 720*time.Hour, 87600*time.Hour,
 	)
@@ -400,7 +410,8 @@ func loadData(lookup LookupEnv) (Data, error) {
 	}
 	return Data{
 		ItemsMaxPerWorkspace: itemsLimit, ExportMaxRecords: exportRecords,
-		ExportMaxBytes: exportBytes, AuditRetention: auditRetention,
+		ExportMaxBytes: exportBytes, ImportMaxRecords: importRecords,
+		ImportMaxBytes: importBytes, AuditRetention: auditRetention,
 	}, nil
 }
 

@@ -46,6 +46,16 @@ With the default loopback address, an empty database also redirects
 
 The CLI fallback is documented in [authentication](docs/authentication.md).
 
+Seed a repeatable local workspace after first-owner setup (or on an empty
+database). The password is required and is never printed:
+
+```sh
+DEMO_OWNER_PASSWORD='use-a-local-password-12' go run ./cmd/demo
+```
+
+The command creates or reuses `Demo Workspace` and three deterministic items;
+set `DEMO_OWNER_EMAIL` or `DEMO_WORKSPACE` to target another local setup.
+
 Health endpoints are `/health/live` and `/health/ready`; OpenAPI is
 `/api/openapi.json`. Press `Ctrl-C` for graceful shutdown.
 
