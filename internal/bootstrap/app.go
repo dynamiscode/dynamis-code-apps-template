@@ -19,6 +19,7 @@ import (
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 	"example.com/dynamis-code/apps-template/internal/portability"
+	"example.com/dynamis-code/apps-template/internal/sharing"
 	"example.com/dynamis-code/apps-template/internal/web"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
 )
@@ -28,6 +29,7 @@ type App struct {
 	Identity    *identity.Service
 	OIDC        *identity.OIDCRegistry
 	Items       *items.Service
+	Sharing     *sharing.Service
 	Portability *portability.Service
 	Webhooks    *webhooks.Service
 	Jobs        *jobs.Queue
@@ -120,6 +122,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	itemService := items.NewService(
 		db, cfg.Database.Driver, identityService, cfg.Data.ItemsMaxPerWorkspace, webhookService,
 	)
+	sharingService := sharing.NewService(db, cfg.Database.Driver, identityService)
 	portabilityService := portability.NewService(
 		db, cfg.Database.Driver, identityService,
 		cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,
@@ -141,7 +144,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, fmt.Errorf("initialize HTTP handler: %w", err)
 	}
 	webHandler, err := web.NewHandlerWithServices(
-		identityService, itemService, portabilityService, oidcRegistry, cfg.HTTP,
+		identityService, itemService, sharingService, portabilityService, oidcRegistry, cfg.HTTP,
 		cfg.Bootstrap.SetupToken, cfg.PublicURL, mailer,
 	)
 	if err != nil {
@@ -158,7 +161,8 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 
 	return &App{
 		DB: db, Identity: identityService, OIDC: oidcRegistry,
-		Items: itemService, Portability: portabilityService, Webhooks: webhookService, Jobs: jobQueue,
+		Items: itemService, Sharing: sharingService, Portability: portabilityService, Webhooks: webhookService,
+		Jobs: jobQueue,
 		Handler: telemetry.HTTPHandler(mux), Telemetry: telemetryProvider,
 	}, nil
 }

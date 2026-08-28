@@ -38,6 +38,7 @@ durable production data and records its deployment-specific evidence.
 | Audit events | bootstrap, recurring | 02, 06 | conforming | [Identity audit tests](../internal/identity/service_test.go), [retention tests](../internal/platform/maintenance/maintenance_test.go), [access/deletion rules](data-lifecycle.md) |
 | Workspace webhooks | triggered, recurring | 08-09 | conforming | [Decision](decisions/0004-webhooks.md), [REST contract](api.md#webhooks), [service tests](../internal/webhooks/service_test.go), [operations](operations.md#webhook-delivery) |
 | Background jobs | triggered, recurring | 09 | conforming | [Decision](decisions/0005-background-jobs.md), [queue tests](../internal/jobs/queue_test.go), [migration](../internal/platform/database/migrations/000010_background_jobs.sql), [operations](operations.md#health-telemetry-and-limits) |
+| Bounded public Item sharing | triggered, recurring | 09 | conforming | [Decision](decisions/0005-public-sharing.md), [web contract](web.md), [sharing tests](../internal/sharing/service_test.go), [browser tests](../internal/web/handler_test.go), [lifecycle](data-lifecycle.md) |
 | Backup, restore, upgrades, RPO, and RTO | operational | 06 | conforming | [SQLite/PostgreSQL restore tests](../internal/platform/backup/backup_test.go), [operator procedures](operations.md#backup-and-restore) |
 | WCAG 2.2 AA accessibility | bootstrap, recurring | 04, 07 | conforming | [Automated runner](../scripts/accessibility.mjs), [dated automated and manual evidence](accessibility.md) |
 | Containers and deployment | bootstrap, operational | 07 | conforming | Pinned [image](../Dockerfile), [SQLite Compose](../compose.yaml), [PostgreSQL overlay](../compose.postgres.yaml), [smoke](../scripts/docker-smoke.sh), and [deployment contract](deployment.md) |
@@ -73,7 +74,7 @@ These remain out of the build plan until their trigger is demonstrated.
 | Search engine | deferred | Database search fails measured relevance or scale needs |
 | Internal AI | deferred | Product behavior requires model-driven decisions |
 | Workspace domains and routing | deferred | Users require workspace-specific domains or URLs |
-| Public sharing or guest access | deferred | Resources must be reachable without normal membership |
+| Public sharing or guest access | conforming for bounded Item browser links | Files, public APIs, guest collaboration, or other resource types require a separate contract |
 | Fine-grained permissions | deferred | Baseline roles cannot express a measured requirement |
 
 When a trigger is accepted, record the requirement and architecture decision,
@@ -253,6 +254,15 @@ endpoint dialing, bounded retry/failure status, redacted delivery history,
 retention pruning, and REST/OpenAPI behavior pass the focused webhook, item,
 HTTP, configuration, maintenance, and migration tests. PostgreSQL execution and
 Docker smoke remain part of the final verification ladder.
+
+## Phase 09 evidence
+
+Bounded Item sharing passes hashed-token storage, default and maximum expiry,
+explicit write authorization, safe title/status-only public projection,
+revocation, item-deletion invalidation, access outcome audits, browser CSRF,
+public response headers, and public-token path redaction tests. REST, CLI, MCP,
+WebMCP, file sharing, public writes, search, listing, and indexing remain
+intentionally omitted by the accepted [decision](decisions/0005-public-sharing.md).
 
 ## Account deletion fix evidence
 

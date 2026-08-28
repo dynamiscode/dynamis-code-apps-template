@@ -5,6 +5,12 @@
 - Added the first durable background-jobs slice: a workspace-scoped,
   database-backed queue with lease recovery, idempotent webhook delivery,
   bounded retries, redacted status/metrics, and one worker loop per process.
+- Added bounded public Item sharing with hashed opaque bearer tokens, seven-day
+  default and 30-day maximum expiry, explicit write authorization, cascading
+  invalidation, redacted public projections, access audits, rate limiting,
+  safe browser headers, and ordinary-form CSRF-protected management. Files,
+  REST, CLI, MCP, and WebMCP sharing remain out of scope.
+
 - Added profile composition to application generation: Identity is required
   for Core, and selecting Agent includes its MCP and REST-only CLI surfaces;
   omitting Agent removes their implementation packages while preserving

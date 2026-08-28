@@ -58,6 +58,8 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	exec("INSERT INTO users (id, email, created_at) VALUES (?, ?, ?)", "user-maint", "maint@example.com", old)
 	exec("INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)", "workspace-maint", "Maintenance", old)
 	exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", "workspace-maint", "user-maint", "owner", old)
+	exec(`INSERT INTO items (id, workspace_id, created_by_user_id, title, status, version, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "item-old", "workspace-maint", "user-maint", "Old", "active", 1, old, old)
 	exec(`INSERT INTO sessions (id, user_id, secret_hash, csrf_hash, auth_method, created_at, expires_at, revoked_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "session-old", "user-maint", "session-secret", "csrf", "local", old, future, old)
 	exec(`INSERT INTO invitations (id, workspace_id, invited_by_user_id, email, role, secret_hash, created_at, expires_at, accepted_at)
@@ -82,6 +84,8 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, "delivery-old", "webhook-old", "event-old", "item.created", "{}", 1, "delivered", nil, old, old)
 	exec(`INSERT INTO background_jobs (id, workspace_id, kind, deduplication_key, payload, status, attempt_count, available_at, completed_at, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, "job-old", "workspace-maint", "webhook.delivery", "delivery-old", "{}", "succeeded", 1, old, old, old)
+	exec(`INSERT INTO public_links (id, workspace_id, item_id, token_hash, created_at, expires_at, revoked_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`, "public-link-old", "workspace-maint", "item-old", "public-hash", old, old, old)
 	exec(`INSERT INTO audit_events (id, event_type, auth_method, target_type, action, outcome, metadata, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "audit-old", "old", "system", "instance", "test", "success", "{}", old)
 
@@ -91,7 +95,7 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}
 	if result.Sessions < 1 || result.Invitations < 1 || result.APITokens < 1 || result.EmailVerifications < 1 || result.PasswordResets < 1 || result.Notifications < 1 ||
 		result.OIDCTransactions < 1 || result.Idempotency < 1 ||
-		result.RealtimeReplay < 1 || result.WebhookDeliveries < 1 || result.BackgroundJobs < 1 || result.AuditEvents < 1 {
+		result.RealtimeReplay < 1 || result.WebhookDeliveries < 1 || result.BackgroundJobs < 1 || result.PublicLinks < 1 || result.AuditEvents < 1 {
 		t.Fatalf("Run() result = %+v", result)
 	}
 	for table, key := range map[string]string{
@@ -102,6 +106,7 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		"email_verifications": "verification-old", "password_resets": "reset-old",
 		"webhook_deliveries": "delivery-old",
 		"background_jobs":    "job-old",
+		"public_links":       "public-link-old",
 	} {
 		var count int
 		column := "id"
