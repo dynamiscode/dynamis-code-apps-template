@@ -424,6 +424,8 @@ bootstrap, sessions, workspace authorization, invitations, tokens, and OIDC.
 Never publish credentials, authorization headers, session or invitation values,
 token secrets, database URLs, backups, or signed URLs.
 
+For setup, operation, documentation, and bug triage, use [SUPPORT.md](SUPPORT.md).
+
 ## Contributing and release
 
 Use [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), and the
