@@ -61,6 +61,9 @@ Baseline browser surfaces:
   `/notifications/events` delivers recipient-scoped `notification.created` SSE
   events. Notification records are created only through the shared identity
   service, and user plus workspace preferences are checked before storage.
+- `/workspaces/{workspaceId}/files` lists ready private workspace files and
+  accepts an ordinary multipart upload form. Local downloads stream through
+  the app; S3 downloads redirect to a short-lived private URL.
 - `/workspaces/{workspaceId}/settings/export` presents the authorized export screen;
   its `Download JSON` link downloads the export from
   `/workspaces/{workspaceId}/settings/export/download`.

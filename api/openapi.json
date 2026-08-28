@@ -115,6 +115,54 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspaceId}/files": {
+      "get": {
+        "operationId": "listFiles", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/PageLimit"}],
+        "responses": {"200": {"description": "Ready workspace files", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/FilePage"}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}
+      },
+      "post": {
+        "operationId": "createFile", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
+        "requestBody": {"required": true, "content": {"multipart/form-data": {"schema": {"$ref": "#/components/schemas/UploadFileRequest"}}, "application/json": {"schema": {"$ref": "#/components/schemas/InitiateFileRequest"}}}},
+        "responses": {"201": {"description": "File uploaded or upload initiated", "headers": {"Location": {"schema": {"type": "string"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/FileResponse"}}}}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}, "413": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/files/uploads": {
+      "post": {
+        "operationId": "initiateFileUpload", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/InitiateFileRequest"}}}},
+        "responses": {"201": {"description": "Upload initiated", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/FileResponse"}}}}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/files/{fileId}": {
+      "get": {
+        "operationId": "getFile", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/FileId"}],
+        "responses": {"200": {"description": "Private file metadata and short-lived download URL", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/FileResponse"}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/files/{fileId}/content": {
+      "put": {
+        "operationId": "uploadFileContent", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/FileId"}],
+        "requestBody": {"required": true, "content": {"application/octet-stream": {"schema": {"type": "string", "format": "binary"}}}},
+        "responses": {"200": {"description": "File finalized", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/FileResponse"}}}}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}
+      },
+      "get": {
+        "operationId": "getFileContent", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/FileId"}],
+        "responses": {"200": {"description": "Private file content or redirect to a short-lived object URL", "headers": {"Content-Disposition": {"schema": {"type": "string"}}}, "content": {"application/octet-stream": {"schema": {"type": "string", "format": "binary"}}}}, "302": {"description": "Redirect to a short-lived private object URL"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/files/{fileId}/complete": {
+      "post": {
+        "operationId": "completeFileUpload", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/FileId"}],
+        "responses": {"200": {"description": "External upload verified", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/FileResponse"}}}}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/webhooks": {
       "get": {
         "operationId": "listWebhooks", "security": [{"bearerAuth": []}],
@@ -325,6 +373,7 @@
     "parameters": {
       "WorkspaceId": {"name": "workspaceId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
       "ItemId": {"name": "itemId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
+      "FileId": {"name": "fileId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
       "UserId": {"name": "userId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
       "InvitationId": {"name": "invitationId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
       "TokenId": {"name": "tokenId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
@@ -352,6 +401,11 @@
       "UpdateItemRequest": {"type": "object", "additionalProperties": false, "minProperties": 1, "properties": {"title": {"type": "string", "minLength": 1, "maxLength": 200}, "status": {"type": "string", "enum": ["active", "complete"]}}},
       "Item": {"type": "object", "required": ["id", "workspaceId", "createdByUserId", "title", "status", "version", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "createdByUserId": {"type": ["string", "null"]}, "title": {"type": "string"}, "status": {"type": "string", "enum": ["active", "complete"]}, "version": {"type": "integer", "minimum": 1}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}}},
       "ItemPage": {"type": "object", "required": ["items"], "properties": {"items": {"type": "array", "items": {"$ref": "#/components/schemas/Item"}}, "nextCursor": {"type": "string"}}},
+      "UploadFileRequest": {"type": "object", "required": ["file"], "properties": {"file": {"type": "string", "format": "binary"}}},
+      "InitiateFileRequest": {"type": "object", "additionalProperties": false, "required": ["originalName", "size"], "properties": {"originalName": {"type": "string", "maxLength": 255}, "size": {"type": "integer", "minimum": 1}, "contentType": {"type": "string", "maxLength": 255}}},
+      "File": {"type": "object", "required": ["id", "workspaceId", "ownerUserId", "originalName", "size", "status", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "ownerUserId": {"type": ["string", "null"]}, "originalName": {"type": "string"}, "detectedMime": {"type": "string"}, "size": {"type": "integer", "minimum": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "status": {"type": "string", "enum": ["pending", "ready", "failed"]}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}}},
+      "FileResponse": {"allOf": [{"$ref": "#/components/schemas/File"}, {"type": "object", "properties": {"uploadUrl": {"type": "string", "format": "uri-reference"}, "completeUrl": {"type": "string", "format": "uri-reference"}, "downloadUrl": {"type": "string", "format": "uri-reference"}}}]},
+      "FilePage": {"type": "object", "required": ["files"], "properties": {"files": {"type": "array", "items": {"$ref": "#/components/schemas/File"}}}},
       "ExportWorkspace": {"type": "object", "required": ["id", "name", "createdAt"], "properties": {"id": {"type": "string"}, "name": {"type": "string"}, "locale": {"type": "string", "enum": ["en", "es"]}, "createdAt": {"type": "string", "format": "date-time"}}},
       "ExportMember": {"type": "object", "required": ["userId", "email", "role", "createdAt"], "properties": {"userId": {"type": "string"}, "email": {"type": "string", "format": "email"}, "role": {"type": "string", "enum": ["owner", "admin", "member", "viewer"]}, "createdAt": {"type": "string", "format": "date-time"}}},
       "ExportAuditEvent": {"type": "object", "required": ["id", "eventType", "authMethod", "targetType", "action", "outcome", "metadata", "createdAt"], "properties": {"id": {"type": "string"}, "eventType": {"type": "string"}, "actorUserId": {"type": "string"}, "authMethod": {"type": "string"}, "workspaceId": {"type": "string"}, "targetType": {"type": "string"}, "targetId": {"type": "string"}, "action": {"type": "string"}, "outcome": {"type": "string"}, "requestId": {"type": "string"}, "sourceAddress": {"type": "string"}, "metadata": {}, "createdAt": {"type": "string", "format": "date-time"}}},

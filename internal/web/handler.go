@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
@@ -30,6 +31,7 @@ var files embed.FS
 type Handler struct {
 	identity       *identity.Service
 	items          *items.Service
+	files          *appfiles.Service
 	exporter       exporter
 	oidc           *identity.OIDCRegistry
 	publicURL      string
@@ -52,6 +54,8 @@ type pageData struct {
 	Workspace                        identity.WorkspaceSummary
 	Workspaces                       []identity.WorkspaceSummary
 	Items                            []items.Item
+	Files                            []appfiles.File
+	FilesEnabled                     bool
 	NextCursor                       string
 	CreateKey                        string
 	CurrentPath                      string
@@ -146,12 +150,40 @@ func NewHandler(
 	)
 }
 
+func NewHandlerWithServicesAndFiles(
+	identityService *identity.Service,
+	itemService *items.Service,
+	exporterService exporter,
+	oidcRegistry *identity.OIDCRegistry,
+	cfg config.HTTP,
+	fileService *appfiles.Service,
+	setupToken string,
+	publicURL string,
+	mailer appmail.Sender,
+) (*Handler, error) {
+	return newHandler(identityService, itemService, exporterService, oidcRegistry, cfg, fileService, setupToken, publicURL, mailer)
+}
+
 func NewHandlerWithServices(
 	identityService *identity.Service,
 	itemService *items.Service,
 	exporterService exporter,
 	oidcRegistry *identity.OIDCRegistry,
 	cfg config.HTTP,
+	setupToken string,
+	publicURL string,
+	mailer appmail.Sender,
+) (*Handler, error) {
+	return newHandler(identityService, itemService, exporterService, oidcRegistry, cfg, nil, setupToken, publicURL, mailer)
+}
+
+func newHandler(
+	identityService *identity.Service,
+	itemService *items.Service,
+	exporterService exporter,
+	oidcRegistry *identity.OIDCRegistry,
+	cfg config.HTTP,
+	fileService *appfiles.Service,
 	setupToken string,
 	publicURL string,
 	mailer appmail.Sender,
@@ -179,7 +211,7 @@ func NewHandlerWithServices(
 		setupTokenHash = identity.SecretHash(setupToken)
 	}
 	return &Handler{
-		identity: identityService, items: itemService, exporter: exporterService,
+		identity: identityService, items: itemService, files: fileService, exporter: exporterService,
 		oidc: oidcRegistry, publicURL: publicURL, mailer: mailer, cfg: cfg,
 		setupTokenHash: setupTokenHash,
 		template:       templates,
@@ -221,6 +253,11 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/items", h.createItem)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/items/{itemId}", h.changeItem)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/items/events", h.itemEvents)
+	if h.files != nil {
+		mux.HandleFunc("GET /workspaces/{workspaceId}/files", h.filesPage)
+		mux.HandleFunc("POST /workspaces/{workspaceId}/files", h.filesUpload)
+		mux.HandleFunc("GET /workspaces/{workspaceId}/files/{fileId}/content", h.fileDownload)
+	}
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings", h.settingsPage)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/members", h.membersPage)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/members", h.memberMutation)
@@ -487,6 +524,7 @@ func (h *Handler) workspaceHome(writer http.ResponseWriter, request *http.Reques
 	h.render(writer, http.StatusOK, "workspace.html", pageData{
 		Title: "Workspace home", NavPage: "workspace", NavSection: "workspace",
 		CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
+		FilesEnabled: h.files != nil,
 	})
 }
 

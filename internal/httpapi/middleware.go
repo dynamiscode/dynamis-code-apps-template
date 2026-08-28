@@ -29,7 +29,7 @@ func middleware(
 	next = timeoutMiddleware(next, cfg.RequestTimeout, logger)
 	next = concurrencyMiddleware(next, cfg.MaxConcurrent)
 	next = rateLimitMiddleware(next, limiter)
-	next = bodyLimitMiddleware(next, cfg.MaxBodyBytes)
+	next = bodyLimitMiddleware(next, cfg.MaxBodyBytes, cfg.FileMaxBodyBytes)
 	next = securityHeadersMiddleware(next, cfg.Secure)
 	next = loggingMiddleware(next, logger)
 	return requestIDMiddleware(next)
@@ -105,13 +105,21 @@ func securityHeadersMiddleware(next http.Handler, secure bool) http.Handler {
 	})
 }
 
-func bodyLimitMiddleware(next http.Handler, maximum int64) http.Handler {
+func bodyLimitMiddleware(next http.Handler, maximum, fileMaximum int64) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if fileMaximum > maximum && isFileBodyPath(request.URL.Path) {
+			maximum = fileMaximum
+		}
 		if request.Body != nil {
 			request.Body = http.MaxBytesReader(writer, request.Body, maximum)
 		}
 		next.ServeHTTP(writer, request)
 	})
+}
+
+func isFileBodyPath(path string) bool {
+	return (strings.HasPrefix(path, "/api/v1/workspaces/") && (strings.HasSuffix(path, "/files") || strings.HasSuffix(path, "/files/content"))) ||
+		(strings.HasPrefix(path, "/workspaces/") && strings.HasSuffix(path, "/files"))
 }
 
 type bufferedResponse struct {
@@ -157,8 +165,7 @@ func timeoutMiddleware(
 	logger *slog.Logger,
 ) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if strings.HasPrefix(request.URL.Path, "/workspaces/") &&
-			strings.HasSuffix(request.URL.Path, "/items/events") {
+		if isStreamingPath(request.URL.Path) {
 			next.ServeHTTP(writer, request)
 			return
 		}
@@ -197,6 +204,12 @@ func timeoutMiddleware(
 			)
 		}
 	})
+}
+
+func isStreamingPath(path string) bool {
+	return (strings.HasPrefix(path, "/workspaces/") && strings.HasSuffix(path, "/items/events")) ||
+		(strings.HasPrefix(path, "/api/v1/workspaces/") && strings.HasSuffix(path, "/files/content")) ||
+		(strings.HasPrefix(path, "/workspaces/") && strings.HasSuffix(path, "/files/content"))
 }
 
 func copyHeaders(destination http.Header, source http.Header) {

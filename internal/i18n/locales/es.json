@@ -221,5 +221,11 @@
   "errors.forbidden": "Prohibido",
   "errors.too_many_requests": "Demasiadas solicitudes",
   "export.description": "Descarga una copia JSON limitada de este espacio de trabajo, incluidos sus miembros, elementos y eventos de auditoría.",
-  "export.download": "Descargar JSON"
+  "export.download": "Descargar JSON",
+  "files.files": "Archivos",
+  "files.description": "Carga archivos privados del espacio de trabajo.",
+  "files.choose": "Archivo",
+  "files.upload": "Cargar archivo",
+  "files.recent": "Archivos del espacio de trabajo",
+  "files.none": "Aún no hay archivos."
 }

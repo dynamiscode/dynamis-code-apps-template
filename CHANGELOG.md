@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Added optional Files profile with workspace-scoped private local/S3-compatible
+  object storage, metadata migration, presigned upload/download URLs, bounded
+  MIME/signature validation, quotas, browser fallback, and REST/OpenAPI flow.
+- Documented file backup, owner deletion, reconciliation, scanning, and
+  background-job boundaries; no second worker or public sharing was added.
 - Added profile composition to application generation: Identity is required
   for Core, and selecting Agent includes its MCP and REST-only CLI surfaces;
   omitting Agent removes their implementation packages while preserving

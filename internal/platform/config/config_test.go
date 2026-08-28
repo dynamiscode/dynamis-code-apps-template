@@ -38,6 +38,11 @@ func TestLoadFromDefaultsToSQLite(t *testing.T) {
 		cfg.Data.ExportMaxBytes != 4*1024*1024 || cfg.Data.AuditRetention != 8760*time.Hour {
 		t.Fatalf("Data defaults = %+v", cfg.Data)
 	}
+	if cfg.Storage.Driver != StorageLocal || cfg.Storage.LocalPath != "data/files" ||
+		cfg.Storage.MaxObjectBytes != 16*1024*1024 || cfg.Storage.MaxWorkspaceBytes != 1024*1024*1024 ||
+		cfg.Storage.SignedURLTTL != 5*time.Minute {
+		t.Fatalf("Storage defaults = %+v", cfg.Storage)
+	}
 	if cfg.Telemetry.ServiceName != "dynamis-code-apps-template" || cfg.Telemetry.Endpoint != "" ||
 		cfg.Telemetry.ExportInterval != 30*time.Second || cfg.Telemetry.ExportTimeout != 10*time.Second {
 		t.Fatalf("Telemetry defaults = %+v", cfg.Telemetry)
@@ -48,6 +53,39 @@ func TestLoadFromDefaultsToSQLite(t *testing.T) {
 	}))
 	if err == nil {
 		t.Fatal("equal SSE heartbeat and lifetime accepted")
+	}
+}
+
+func TestLoadFromValidatesStorage(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := LoadFrom(env(map[string]string{
+		"STORAGE_DRIVER": "s3", "STORAGE_S3_BUCKET": "files",
+		"STORAGE_S3_ENDPOINT": "http://127.0.0.1:9000", "STORAGE_S3_FORCE_PATH_STYLE": "true",
+		"STORAGE_MAX_OBJECT_BYTES": "1024", "STORAGE_MAX_WORKSPACE_BYTES": "2048",
+		"STORAGE_SIGNED_URL_TTL": "1m",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Storage.Driver != StorageS3 || !cfg.Storage.S3ForcePathStyle || cfg.Storage.MaxObjectBytes != 1024 {
+		t.Fatalf("Storage = %+v", cfg.Storage)
+	}
+	if _, err := LoadFrom(env(map[string]string{"STORAGE_MAX_OBJECT_BYTES": "33554432"})); err != nil {
+		t.Fatalf("larger configurable object limit rejected: %v", err)
+	}
+	for key, value := range map[string]string{
+		"STORAGE_DRIVER": "r2", "STORAGE_S3_ENDPOINT": "http://169.254.169.254",
+		"STORAGE_S3_BUCKET": "", "STORAGE_SIGNED_URL_TTL": "16m",
+		"STORAGE_MAX_OBJECT_BYTES": "1073741825", "STORAGE_MAX_WORKSPACE_BYTES": "1023",
+	} {
+		values := map[string]string{key: value}
+		if key == "STORAGE_S3_BUCKET" {
+			values["STORAGE_DRIVER"] = "s3"
+		}
+		if _, err := LoadFrom(env(values)); err == nil {
+			t.Fatalf("%s=%q accepted", key, value)
+		}
 	}
 }
 

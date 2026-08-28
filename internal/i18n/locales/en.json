@@ -221,5 +221,11 @@
   "errors.forbidden": "Forbidden",
   "errors.too_many_requests": "Too Many Requests",
   "export.description": "Download a bounded JSON copy of this workspace, including its members, items, and audit events.",
-  "export.download": "Download JSON"
+  "export.download": "Download JSON",
+  "files.files": "Files",
+  "files.description": "Upload private workspace files.",
+  "files.choose": "File",
+  "files.upload": "Upload file",
+  "files.recent": "Workspace files",
+  "files.none": "No files yet."
 }

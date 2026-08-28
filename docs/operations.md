@@ -26,6 +26,13 @@ per minute, 10 authentication attempts per source per minute, 1 MiB request
 bodies, 100 SSE streams per instance and 5 per user, 10 active sessions per
 user, 10,000 items per workspace, 1,000 export/import records, and 4 MiB per
 export/import payload (the HTTP body limit may be lower).
+Files default to 16 MiB per object and 1 GiB per workspace. Local storage uses
+`data/files`; S3-compatible storage uses the configured private bucket and
+prefix. File upload routes apply the object limit separately from the global
+HTTP body limit. Presigned URLs default to five minutes and never appear in
+logs. Monitor local filesystem capacity or object-store quota separately from
+database capacity. Database backups contain file metadata, not local object
+bytes; back up `STORAGE_LOCAL_PATH` separately when using the local driver.
 SQLite uses one database connection; PostgreSQL defaults to four open and two
 idle. OIDC calls use a 10-second client timeout. Limits return bounded 409 or
 429 errors with remediation or `Retry-After` as applicable.

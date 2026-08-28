@@ -146,6 +146,9 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 	if _, err := parseProfiles("Core,Agent"); err == nil {
 		t.Fatal("profile selection accepted Agent without Identity")
 	}
+	if _, err := parseProfiles("Core,Files"); err == nil {
+		t.Fatal("profile selection accepted Files without Identity")
+	}
 	if _, err := parseProfiles("Identity"); err == nil {
 		t.Fatal("profile selection accepted Identity without Core")
 	}

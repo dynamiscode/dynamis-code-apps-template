@@ -33,6 +33,7 @@ means the complete encrypted database backup described in
 | items / `item_events` | IDs, type, version, time (internal) | SSE replay and resynchronization | Application keeps the newest 1,000 per workspace; maintenance also removes events older than 7 days; excluded from export; no correction. |
 | webhooks / `webhooks` | IDs, workspace, name, endpoint URL, selected event names, timestamps (internal/configuration); encrypted secret (secret) | Workspace event delivery registration | Workspace lifetime or explicit deletion; excluded from export; secret rotates through authorized management and is never returned after creation. |
 | webhooks / `webhook_deliveries` | IDs, webhook/event references, event type, bounded payload, attempt/status/timestamps, HTTP status, redacted error category (internal; payload personal) | Durable at-least-once item delivery and bounded delivery history | Pending rows remain until delivery settles; delivered/failed rows retained 365 days and pruned by maintenance; excluded from export; cascade on webhook deletion. |
+| files / `files` | IDs, workspace/owner, object key, original name, detected MIME, size, SHA-256, status, timestamps (personal user content/internal) | Workspace-scoped private file metadata and object reconciliation | Workspace lifetime; metadata is included in backup but excluded from workspace export; owner deletion sets owner NULL; live object deletion/reconciliation is not exposed in this slice. Pending/failed rows remain for bounded operator reconciliation. |
 
 Every row is included in database backup until the operator's backup retention
 expires. Production fixtures must never contain copied production data.
@@ -42,6 +43,14 @@ authorized export. No public instance-wide audit endpoint exists. Only the
 deployment operator may inspect instance events through restricted database
 access. Normal application code inserts audit rows but never updates or
 deletes them; the retention command is the sole deletion path.
+
+Files are standalone workspace resources, not generic attachments. Local bytes
+live under the configured storage path; S3 bytes live in the configured private
+bucket/prefix. S3 URLs expire according to `STORAGE_SIGNED_URL_TTL`. The initial
+allowlist rejects executable, HTML, SVG, archive, and mismatched
+extension/signature content. Background scanning, orphan reconciliation,
+durable deletion, and workspace deletion require the deferred Background Jobs
+trigger; this slice leaves bounded metadata hooks and adds no worker.
 
 ## Resource and identity deletion
 

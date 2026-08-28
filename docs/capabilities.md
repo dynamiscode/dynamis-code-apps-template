@@ -9,6 +9,7 @@ This ledger records implemented conformance evidence and deferred triggers.
 | Core | conforming | [Foundation through delivery evidence](#phase-07-evidence) |
 | Identity | conforming | [Phase 02 evidence](#phase-02-evidence) |
 | Agent | conforming | [Phase 05 evidence](#phase-05-evidence) |
+| Files | conforming | [Phase 09 evidence](#phase-09-evidence) |
 | Production | not applicable | No deployment serves real users or durable data |
 
 `Production` becomes applicable only when a deployment serves real users or
@@ -58,7 +59,7 @@ These remain out of the build plan until their trigger is demonstrated.
 | Webhooks | conforming | External consumers required delivery; accepted in [decision 0004](decisions/0004-webhooks.md) |
 | Background jobs | deferred | Work must survive, retry, schedule, or outlive a request |
 | Shared event broker | deferred | Cross-replica delivery cannot use the database safely |
-| Object storage | deferred | Users upload or generate files |
+| Object storage | conforming | Files profile accepted; [Phase 09 evidence](#phase-09-evidence) |
 | SCIM | deferred | Enterprise provisioning is required |
 | MFA and passkeys | deferred | Identity ownership or measured risk requires stronger authentication |
 | Feature flags | deferred | Staged rollout, kill switches, or targeting is required |
@@ -263,3 +264,13 @@ Verified 2026-08-28 with Go 1.27.0 and PostgreSQL 14.24:
   compatibility tests pass.
 - `go test ./...`, `go vet ./...`, `go test -race ./...`, `make verify`, and
   `make docker-smoke` pass.
+
+## Phase 09 evidence
+
+Files metadata migration and workspace authorization, local filesystem uploads
+and streams, private S3-compatible presigned PUT/GET paths, configurable
+16 MiB object and 1 GiB workspace limits, safe filename and content allowlists,
+browser ordinary-form fallback, REST/OpenAPI behavior, and generated profile
+pruning are covered by focused SQLite tests and generated-app checks. Deletion,
+reconciliation, scanning, background jobs, and PostgreSQL/Docker execution
+remain follow-up verification or deferred behavior for this slice.
