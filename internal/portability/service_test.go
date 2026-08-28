@@ -1,6 +1,7 @@
 package portability
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -69,7 +70,7 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	service := NewService(db, driver, auth, 100, 1024*1024)
+	service := NewService(db, driver, auth, 100, 1024*1024, 100, 1024*1024, itemService)
 	service.now = func() time.Time { return time.Date(2026, 8, 25, 20, 0, 0, 0, time.UTC) }
 	encoded, err := service.Export(ctx, actor, workspaceID,
 		identity.AuditContext{RequestID: "export-request", SourceAddress: "127.0.0.1"})
@@ -96,13 +97,79 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if _, err := service.Export(ctx, viewer, workspaceID, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("viewer export error = %v", err)
 	}
+	if _, err := service.Import(ctx, viewer, workspaceID, ImportInput{
+		Format: "text/csv", Reader: strings.NewReader("title,status\nBlocked,active\n"),
+	}, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer import error = %v", err)
+	}
+	importToken, err := auth.CreateAPIToken(ctx, actor, "workspace update import",
+		[]identity.Permission{identity.WorkspaceUpdate}, nil, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	workspaceUpdater, err := auth.AuthenticateAPIToken(ctx, importToken.Secret, identity.WorkspaceUpdate, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Import(ctx, workspaceUpdater, workspaceID, ImportInput{
+		Format: "text/csv", Reader: strings.NewReader("title,status\nWorkspace scoped import,active\n"),
+	}, identity.AuditContext{}); err != nil {
+		t.Fatalf("workspace:update import error = %v", err)
+	}
 	wrongWorkspace, _ := id.New()
 	if _, err := service.Export(ctx, actor, wrongWorkspace, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("wrong-workspace export error = %v", err)
 	}
-	limited := NewService(db, driver, auth, 1, 1024*1024)
+	limited := NewService(db, driver, auth, 1, 1024*1024, 100, 1024*1024, itemService)
 	if _, err := limited.Export(ctx, actor, workspaceID, identity.AuditContext{}); !errors.Is(err, ErrLimit) {
 		t.Fatalf("limited export error = %v", err)
+	}
+	imported, err := service.Import(ctx, actor, workspaceID, ImportInput{
+		Format: "text/csv", Reader: strings.NewReader("title,status\nCSV item,active\nCSV done,complete\n"),
+	}, identity.AuditContext{RequestID: "import-csv"})
+	if err != nil || imported.Imported != 2 {
+		t.Fatalf("CSV import = %+v, %v", imported, err)
+	}
+	jsonImport, err := json.Marshal(Export{
+		FormatVersion: FormatVersion,
+		Items:         []items.Item{{ID: "source-id", WorkspaceID: "source-workspace", Title: "JSON item", Status: items.Active}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	imported, err = service.Import(ctx, actor, workspaceID, ImportInput{
+		Format: "application/json", Reader: bytes.NewReader(jsonImport),
+	}, identity.AuditContext{RequestID: "import-json"})
+	if err != nil || imported.Imported != 1 {
+		t.Fatalf("JSON import = %+v, %v", imported, err)
+	}
+	limitedImport := NewService(db, driver, auth, 100, 1024*1024, 1, 1024*1024, itemService)
+	if _, err := limitedImport.Import(ctx, actor, workspaceID, ImportInput{
+		Format: "text/csv", Reader: strings.NewReader("title,status\nOne,active\nTwo,active\n"),
+	}, identity.AuditContext{RequestID: "import-limit"}); !errors.Is(err, ErrImportLimit) {
+		t.Fatalf("limited import error = %v", err)
+	}
+	if _, err := service.Import(ctx, actor, workspaceID, ImportInput{
+		Format: "text/csv", Reader: strings.NewReader("title,status\nValid,active\n,active\n"),
+	}, identity.AuditContext{RequestID: "import-invalid"}); !errors.Is(err, ErrInvalidImport) {
+		t.Fatalf("invalid import error = %v", err)
+	}
+	var importedRows, failedImports int
+	if err := db.QueryRowContext(ctx, database.Rebind(driver,
+		"SELECT COUNT(*) FROM items WHERE workspace_id = ?"), workspaceID).Scan(&importedRows); err != nil {
+		t.Fatal(err)
+	}
+	if importedRows != 5 {
+		t.Fatalf("rolled-back import item count = %d", importedRows)
+	}
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `
+		SELECT COUNT(*) FROM audit_events
+		WHERE workspace_id = ? AND action = 'workspace.import' AND outcome = 'failure'
+	`), workspaceID).Scan(&failedImports); err != nil {
+		t.Fatal(err)
+	}
+	if failedImports != 2 {
+		t.Fatalf("import failure audits = %d", failedImports)
 	}
 	var success, failure int
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `
