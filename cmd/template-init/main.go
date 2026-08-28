@@ -140,13 +140,14 @@ func run(args []string, now func() time.Time) error {
 		"@davidlondono", *maintainer,
 	}
 	if err := copyTemplate(
-		root, destination, replacements, templateSlug, slug,
+		root, destination, replacements, templateSlug, slug, hasProfile(selectedProfiles, "Agent"),
 	); err != nil {
 		return err
 	}
 	if err := writeGeneratedReadme(
 		filepath.Join(destination, "README.md"), *name, *module, slug,
 		strings.TrimRight(*repository, "/"), strings.TrimRight(*securityURL, "/"),
+		hasProfile(selectedProfiles, "Agent"),
 	); err != nil {
 		return err
 	}
@@ -154,6 +155,13 @@ func run(args []string, now func() time.Time) error {
 	command.Dir = destination
 	if output, err := command.CombinedOutput(); err != nil {
 		return fmt.Errorf("regenerate generated API contract: %s", strings.TrimSpace(string(output)))
+	}
+	if !hasProfile(selectedProfiles, "Agent") {
+		command := exec.Command("go", "mod", "tidy")
+		command.Dir = destination
+		if output, err := command.CombinedOutput(); err != nil {
+			return fmt.Errorf("prune generated module dependencies: %s", strings.TrimSpace(string(output)))
+		}
 	}
 	lock := lockFile{GeneratedAt: now().UTC(), Profiles: selectedProfiles}
 	lock.Template.Source = *source
@@ -168,6 +176,7 @@ func copyTemplate(
 	replacements []string,
 	oldSlug string,
 	newSlug string,
+	agent bool,
 ) error {
 	return filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -193,6 +202,12 @@ func copyTemplate(
 			}
 			return nil
 		}
+		if !agent && agentPath(relative) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 		target := filepath.Join(destination, relative)
 		if entry.IsDir() {
 			return os.MkdirAll(target, 0o750)
@@ -206,6 +221,13 @@ func copyTemplate(
 		}
 		if !strings.ContainsRune(string(raw), '\x00') {
 			value := strings.NewReplacer(replacements...).Replace(string(raw))
+			if !agent && filepath.ToSlash(relative) == "docs/capabilities.md" {
+				value = strings.ReplaceAll(value, "; [MCP tests](../internal/mcpserver/server_test.go); [CLI tests](../internal/appctl/run_test.go)", "")
+				value = strings.ReplaceAll(value, "[live surface smoke](../internal/bootstrap/agent_smoke_test.go)", "[composition test](../internal/bootstrap/app_test.go)")
+			}
+			if !agent && filepath.ToSlash(relative) == "NOTICE" {
+				value = strings.ReplaceAll(value, "- github.com/modelcontextprotocol/go-sdk v1.7.0 — Apache-2.0 and MIT code\n", "")
+			}
 			value = strings.NewReplacer(
 				`"`+oldSlug+`"`, `"`+newSlug+`"`,
 				`"`+oldSlug+`-checks"`, `"`+newSlug+`-checks"`,
@@ -217,6 +239,9 @@ func copyTemplate(
 			).Replace(value)
 			raw = []byte(value)
 		}
+		if !agent && filepath.ToSlash(relative) == "internal/bootstrap/agent.go" {
+			raw = []byte(strings.NewReplacer(replacements...).Replace(disabledAgent))
+		}
 		info, err := entry.Info()
 		if err != nil {
 			return err
@@ -224,6 +249,32 @@ func copyTemplate(
 		return os.WriteFile(target, raw, info.Mode().Perm())
 	})
 }
+
+func agentPath(relative string) bool {
+	relative = filepath.ToSlash(relative)
+	return relative == "cmd/appctl" || strings.HasPrefix(relative, "cmd/appctl/") ||
+		relative == "internal/appctl" || strings.HasPrefix(relative, "internal/appctl/") ||
+		relative == "internal/mcpserver" || strings.HasPrefix(relative, "internal/mcpserver/") ||
+		relative == "internal/bootstrap/agent_smoke_test.go"
+}
+
+const disabledAgent = `package bootstrap
+
+import (
+	"net/http"
+
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/items"
+	"example.com/dynamis-code/apps-template/internal/platform/config"
+)
+
+func registerAgent(
+	_ *http.ServeMux,
+	_ *identity.Service,
+	_ *items.Service,
+	_ config.Config,
+) {}
+`
 
 func templateIdentity(root string) (string, string, string, error) {
 	moduleFile, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -299,6 +350,15 @@ func parseProfiles(value string) ([]string, error) {
 		}
 		selected[profile] = true
 	}
+	if selected["Agent"] && !selected["Identity"] {
+		return nil, errors.New("Agent profile requires Identity")
+	}
+	if !selected["Core"] {
+		return nil, errors.New("profile set must include Core")
+	}
+	if !selected["Identity"] {
+		return nil, errors.New("profile set must include Identity; generated applications depend on it")
+	}
 	ordered := make([]string, 0, len(selected))
 	for _, profile := range knownProfiles {
 		if selected[profile] {
@@ -306,6 +366,15 @@ func parseProfiles(value string) ([]string, error) {
 		}
 	}
 	return ordered, nil
+}
+
+func hasProfile(profiles []string, want string) bool {
+	for _, profile := range profiles {
+		if profile == want {
+			return true
+		}
+	}
+	return false
 }
 
 func writeLock(path string, lock lockFile) error {
@@ -319,13 +388,18 @@ func writeLock(path string, lock lockFile) error {
 	return encoder.Encode(lock)
 }
 
-func writeGeneratedReadme(path, name, module, slug, repository, securityURL string) error {
+func writeGeneratedReadme(path, name, module, slug, repository, securityURL string, agent bool) error {
+	agentInterfaces := ""
+	if agent {
+		agentInterfaces = "- MCP: bounded authenticated tools over the server MCP endpoint — [MCP](docs/mcp.md).\n- Remote CLI: `cmd/appctl` calls REST and never reaches the database — [CLI](docs/cli.md).\n"
+	}
 	readme := strings.NewReplacer(
 		"{{NAME}}", name,
 		"{{MODULE}}", module,
 		"{{SLUG}}", slug,
 		"{{REPOSITORY}}", repository,
 		"{{SECURITY_URL}}", securityURL,
+		"{{AGENT_INTERFACES}}", agentInterfaces,
 		"{{CODE}}", "`",
 	).Replace(generatedReadme)
 	return os.WriteFile(path, []byte(readme), 0o644)
@@ -336,8 +410,8 @@ const generatedReadme = `# {{NAME}}
 This repository is an application generated from a verified template release.
 Repository: [{{REPOSITORY}}]({{REPOSITORY}})
 It is a resource-conscious Go modular-monolith starting point with
-server-rendered HTML, REST, MCP, a REST-only remote CLI, SQLite by default,
-and optional PostgreSQL deployment.
+server-rendered HTML, REST, SQLite by default, and optional PostgreSQL
+deployment.
 
 ## Purpose
 
@@ -385,8 +459,9 @@ credentials.
 
 ## Architecture
 
-The application keeps business rules in shared application use cases. Web,
-REST, and MCP adapters call those use cases; the remote CLI calls REST only.
+The application keeps business rules in shared application use cases. Web and
+REST adapters call those use cases. The optional Agent profile adds MCP and a
+REST-only remote CLI.
 Constructors use manual injection, SQLite is the one-instance default, and
 PostgreSQL is required before multiple application instances. See
 [architecture](docs/architecture.md) and the [documentation router](docs/README.md)
@@ -398,9 +473,7 @@ for source-of-truth boundaries.
   accessible controls — [web and realtime](docs/web.md).
 - REST: bearer-authenticated HTTP API and generated OpenAPI contract —
   [API guide](docs/api.md) and [OpenAPI](api/openapi.json).
-- MCP: bounded authenticated tools over the server MCP endpoint — [MCP](docs/mcp.md).
-- Remote CLI: {{CODE}}cmd/appctl{{CODE}} calls REST and never reaches the database — [CLI](docs/cli.md).
-- Realtime: scoped, one-way SSE delivery; optional WebMCP only enhances the
+{{AGENT_INTERFACES}}- Realtime: scoped, one-way SSE delivery; optional WebMCP only enhances the
   current browser tab and keeps ordinary HTML fallback — [web contract](docs/web.md).
 
 ## Operations and data
@@ -442,8 +515,8 @@ authority.
 The item feature is the executable reference for a complete vertical slice.
 Replace or remove it as one reviewed change: update shared use cases, routes,
 authorization, OpenAPI, migrations, tests, navigation, and documentation
-together. Before removing it, pass the browser, REST, CLI, MCP, SSE, and
-WebMCP fallback checks described in [development](docs/development.md#replace-the-sample-feature).
+together. Before removing it, pass the applicable browser, REST, CLI, MCP, SSE,
+and WebMCP fallback checks described in [development](docs/development.md#replace-the-sample-feature).
 
 ## Template provenance
 

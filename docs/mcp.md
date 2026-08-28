@@ -1,4 +1,7 @@
-# MCP
+# MCP (Agent profile)
+
+This surface is included only when the application is generated with the
+Agent profile. Core and Identity applications do not expose `/mcp`.
 
 The authenticated Streamable HTTP endpoint is `POST /mcp`. It uses the
 official Go SDK, the stateless MCP `2026-07-28` flow, and bounded legacy

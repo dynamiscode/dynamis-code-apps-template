@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added profile composition to application generation: Identity is required
+  for Core, and selecting Agent includes its MCP and REST-only CLI surfaces;
+  omitting Agent removes their implementation packages while preserving
+  buildable Core/Identity applications.
 - Added reusable repository hygiene files and safe support/triage guidance;
   generated applications rewrite repository and security links without
   retaining template maintainer details.

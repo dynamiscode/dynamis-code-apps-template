@@ -1,4 +1,7 @@
-# Remote CLI
+# Remote CLI (Agent profile)
+
+This command is included only when the application is generated with the Agent
+profile. Core and Identity applications do not include `cmd/appctl`.
 
 `appctl` is a REST-only client for the versioned item API. It has no database,
 shell, or local application-service dependency.

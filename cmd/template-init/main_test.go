@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -25,7 +27,7 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 		"-maintainer", "@acme/platform",
 		"-source", "https://example.com/acme/template",
 		"-commit", strings.Repeat("a", 40),
-		"-profiles", "Agent,Core",
+		"-profiles", "Agent,Core,Identity",
 	}, func() time.Time { return generatedAt })
 	if err != nil {
 		t.Fatalf("run() error = %v", err)
@@ -38,6 +40,11 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 	readme, err := os.ReadFile(filepath.Join(output, "README.md"))
 	if err != nil || !strings.Contains(string(readme), "# My Application") {
 		t.Fatalf("generated README = %q, error = %v", readme, err)
+	}
+	for _, path := range []string{"cmd/appctl", "internal/appctl", "internal/mcpserver"} {
+		if _, err := os.Stat(filepath.Join(output, path)); err != nil {
+			t.Fatalf("generated Agent path %s missing: %v", path, err)
+		}
 	}
 	license, err := os.ReadFile(filepath.Join(output, "LICENSE"))
 	if err != nil || !strings.Contains(string(license), "MIT License") ||
@@ -95,7 +102,7 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 	}
 	if lock.Template.Version != "0.1.0" || lock.Template.Source != "https://example.com/acme/template" ||
 		lock.Template.Commit != strings.Repeat("a", 40) || !lock.GeneratedAt.Equal(generatedAt) ||
-		strings.Join(lock.Profiles, ",") != "Core,Agent" {
+		strings.Join(lock.Profiles, ",") != "Core,Identity,Agent" {
 		t.Fatalf("template.lock = %+v", lock)
 	}
 	for _, path := range []string{".github/CODEOWNERS", ".github/ISSUE_TEMPLATE/config.yml", "README.md", "SUPPORT.md", "SECURITY.md", "NOTICE", "docs/governance.md", "docs/accessibility.md", "docs/decisions/0001-go-modular-monolith.md"} {
@@ -122,7 +129,7 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 		"-template-dir", root, "-output", output, "-name", "Overwrite",
 		"-module", "example.com/acme/overwrite", "-source", "https://example.com/template",
 		"-repository", "https://github.com/acme/overwrite", "-security-url", "https://github.com/acme/overwrite/security/advisories/new",
-		"-maintainer", "@acme/platform", "-profiles", "Core", "-commit", strings.Repeat("b", 40),
+		"-maintainer", "@acme/platform", "-profiles", "Core,Identity", "-commit", strings.Repeat("b", 40),
 	}, time.Now); err == nil {
 		t.Fatal("second generation overwrote existing output")
 	}
@@ -136,4 +143,65 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 	}, time.Now); err == nil {
 		t.Fatal("generation accepted missing profile selection")
 	}
+	if _, err := parseProfiles("Core,Agent"); err == nil {
+		t.Fatal("profile selection accepted Agent without Identity")
+	}
+	if _, err := parseProfiles("Identity"); err == nil {
+		t.Fatal("profile selection accepted Identity without Core")
+	}
+}
+
+func TestGenerateWithoutAgentPrunesAgentSurfaceAndBuilds(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	output := filepath.Join(t.TempDir(), "core-app")
+	err := run([]string{
+		"-template-dir", root, "-output", output, "-name", "Core Application",
+		"-module", "example.com/acme/core-app",
+		"-repository", "https://github.com/acme/core-app",
+		"-security-url", "https://github.com/acme/core-app/security/advisories/new",
+		"-maintainer", "@acme/platform", "-profiles", "Core,Identity",
+		"-source", "https://example.com/acme/template", "-commit", strings.Repeat("d", 40),
+	}, time.Now)
+	if err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+	for _, path := range []string{"cmd/appctl", "internal/appctl", "internal/mcpserver", "internal/bootstrap/agent_smoke_test.go"} {
+		if _, err := os.Stat(filepath.Join(output, path)); !os.IsNotExist(err) {
+			t.Errorf("generated Agent path %s still exists: %v", path, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(output, "internal/identity")); err != nil {
+		t.Fatalf("generated Identity package missing: %v", err)
+	}
+	readme, err := os.ReadFile(filepath.Join(output, "README.md"))
+	if err != nil || strings.Contains(string(readme), "MCP:") || strings.Contains(string(readme), "cmd/appctl") {
+		t.Fatalf("generated README retains Agent interface: %q, error = %v", readme, err)
+	}
+	for _, path := range []string{"go.mod", "go.sum", "NOTICE"} {
+		content, err := os.ReadFile(filepath.Join(output, path))
+		if err != nil || strings.Contains(string(content), "modelcontextprotocol") {
+			t.Fatalf("generated %s retains Agent dependency: %q, error = %v", path, content, err)
+		}
+	}
+	if err := runCommand(output, "go", "test", "./..."); err != nil {
+		t.Fatalf("generated application tests: %v", err)
+	}
+}
+
+func runCommand(directory, name string, args ...string) error {
+	command := exec.Command(name, args...)
+	command.Dir = directory
+	command.Env = make([]string, 0, len(os.Environ()))
+	for _, value := range os.Environ() {
+		if strings.HasPrefix(value, "POSTGRES_TEST_URL=") {
+			continue
+		}
+		command.Env = append(command.Env, value)
+	}
+	output, err := command.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output)))
+	}
+	return nil
 }

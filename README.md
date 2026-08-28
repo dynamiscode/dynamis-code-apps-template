@@ -77,9 +77,12 @@ go run ./cmd/template-init \
 Generation refuses an existing output directory and writes `template.lock`.
 Repository, security-reporting, maintainer, and profile inputs become
 application-owned metadata; the lock retains template provenance and selected
-profiles. The output README is an application-specific handoff that links
-implemented setup, architecture, interfaces, operations, security,
-contribution, release, and sample-feature guidance.
+profiles. Identity is required because it is shared by Core. Selecting Agent
+also composes the MCP server and REST-only CLI; omitting Agent removes those
+implementation packages from the generated tree. The output README is an
+application-specific handoff that links implemented setup, architecture,
+interfaces, operations, security, contribution, release, and sample-feature
+guidance.
 See [template lifecycle](docs/template-lifecycle.md) before updating a
 generated application.
 
