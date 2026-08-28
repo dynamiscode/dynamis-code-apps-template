@@ -21,6 +21,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - run: make secret-check
+      - run: make vuln-check
       - run: make verify
       - name: Validate release version
         run: test "v$(cat VERSION)" = "$GITHUB_REF_NAME"
