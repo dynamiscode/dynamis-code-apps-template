@@ -122,6 +122,15 @@ func TestHTTPBoundaries(t *testing.T) {
 	if rateLimited.Header().Get("Retry-After") == "" {
 		t.Fatal("Retry-After missing")
 	}
+	publicLimiter := newRateLimiter(1, 1)
+	publicNext := requestIDMiddleware(rateLimitMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}), publicLimiter))
+	if serve(publicNext, http.MethodGet, "/share/public-token", "", "").Code != http.StatusNoContent {
+		t.Fatal("first public share request rejected")
+	}
+	publicRateLimited := serve(publicNext, http.MethodGet, "/share/public-token", "", "")
+	assertProblem(t, publicRateLimited, http.StatusTooManyRequests, "rate-limited")
 
 	timed := requestIDMiddleware(timeoutMiddleware(http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
 		<-request.Context().Done()
@@ -335,5 +344,14 @@ func assertProblem(t *testing.T, response *httptest.ResponseRecorder, status int
 	}
 	if value.Status != status || value.Code != code || value.RequestID == "" || value.Type == "" || value.Instance == "" {
 		t.Fatalf("problem = %+v", value)
+	}
+}
+
+func TestPublicSharePathIsRedactedFromLogs(t *testing.T) {
+	if got := logPath("/share/secret-token"); got != "/share/[redacted]" {
+		t.Fatalf("logPath() = %q", got)
+	}
+	if got := logPath("/workspaces/example/items"); got != "/workspaces/example/items" {
+		t.Fatalf("ordinary logPath() = %q", got)
 	}
 }

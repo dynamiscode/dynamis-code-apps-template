@@ -221,5 +221,17 @@
   "errors.forbidden": "Prohibido",
   "errors.too_many_requests": "Demasiadas solicitudes",
   "export.description": "Descarga una copia JSON limitada de este espacio de trabajo, incluidos sus miembros, elementos y eventos de auditoría.",
-  "export.download": "Descargar JSON"
+  "export.download": "Descargar JSON",
+  "sharing.shared_item": "Elemento compartido",
+  "sharing.unavailable": "Elemento compartido no disponible",
+  "sharing.unavailable_detail": "Este elemento compartido no está disponible.",
+  "sharing.title": "Título",
+  "sharing.status": "Estado",
+  "sharing.expiration": "Vencimiento del enlace",
+  "sharing.seven_days": "7 días",
+  "sharing.thirty_days": "30 días",
+  "sharing.create": "Crear enlace público",
+  "sharing.active_until": "Enlace público activo hasta",
+  "sharing.revoke": "Revocar enlace público",
+  "sharing.created": "Enlace público creado:"
 }
