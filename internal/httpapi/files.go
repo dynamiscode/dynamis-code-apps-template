@@ -254,6 +254,10 @@ func contentType(file appfiles.File) string {
 }
 
 func (h *handler) fileProblem(writer http.ResponseWriter, request *http.Request, err error) {
+	if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+		writeProblem(writer, request, http.StatusRequestEntityTooLarge, "body-too-large", "The file request body exceeds the configured limit.")
+		return
+	}
 	switch {
 	case errors.Is(err, identity.ErrForbidden):
 		writeProblem(writer, request, http.StatusForbidden, "forbidden", "Access is denied.")

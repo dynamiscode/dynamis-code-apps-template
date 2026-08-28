@@ -55,3 +55,11 @@ func TestFileRESTLifecycle(t *testing.T) {
 		t.Fatalf("list = %d, %s", list.Code, list.Body.String())
 	}
 }
+
+func TestFileProblemMapsBodyLimit(t *testing.T) {
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/files", nil)
+	request = request.WithContext(withRequestID(request.Context(), "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
+	response := httptest.NewRecorder()
+	(&handler{}).fileProblem(response, request, &http.MaxBytesError{Limit: 1})
+	assertProblem(t, response, http.StatusRequestEntityTooLarge, "body-too-large")
+}

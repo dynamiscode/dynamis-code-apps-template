@@ -18,6 +18,8 @@ import (
 
 const maxBufferedResponseBytes = 4 * 1024 * 1024
 
+const maxMultipartOverheadBytes = 1024 * 1024
+
 var errResponseTooLarge = errors.New("response exceeds buffer limit")
 
 func middleware(
@@ -107,11 +109,15 @@ func securityHeadersMiddleware(next http.Handler, secure bool) http.Handler {
 
 func bodyLimitMiddleware(next http.Handler, maximum, fileMaximum int64) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if fileMaximum > maximum && isFileBodyPath(request.URL.Path) {
-			maximum = fileMaximum
+		limit := maximum
+		if fileMaximum > limit && isFileBodyPath(request.URL.Path) {
+			limit = fileMaximum
+		}
+		if fileMaximum > 0 && request.Method == http.MethodPost && strings.HasSuffix(request.URL.Path, "/files") {
+			limit += maxMultipartOverheadBytes
 		}
 		if request.Body != nil {
-			request.Body = http.MaxBytesReader(writer, request.Body, maximum)
+			request.Body = http.MaxBytesReader(writer, request.Body, limit)
 		}
 		next.ServeHTTP(writer, request)
 	})
