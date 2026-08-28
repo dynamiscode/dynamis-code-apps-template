@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed account deletion for users who created items: items are retained and
+  their creator reference becomes nullable instead of blocking user removal.
 - Standardized item collection search, bounded query validation, query-bound
   cursors, and discoverable REST/OpenAPI conventions across REST, CLI, and MCP.
 - Added bounded workspace item import from the versioned JSON export or strict

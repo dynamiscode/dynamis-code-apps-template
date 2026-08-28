@@ -362,12 +362,16 @@ func (s *Service) itemRecords(ctx context.Context, tx *sql.Tx, workspaceID strin
 	result := make([]items.Item, 0)
 	for rows.Next() {
 		var value items.Item
+		var createdByUserID sql.NullString
 		var createdAt, updatedAt string
 		if err := rows.Scan(
-			&value.ID, &value.WorkspaceID, &value.CreatedByUserID, &value.Title,
+			&value.ID, &value.WorkspaceID, &createdByUserID, &value.Title,
 			&value.Status, &value.Version, &createdAt, &updatedAt,
 		); err != nil {
 			return nil, err
+		}
+		if createdByUserID.Valid {
+			value.CreatedByUserID = &createdByUserID.String
 		}
 		value.CreatedAt, err = parseTime(createdAt)
 		if err != nil {

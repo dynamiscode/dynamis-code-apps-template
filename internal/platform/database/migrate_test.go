@@ -56,6 +56,8 @@ func TestSQLiteConfigurationAndMigrations(t *testing.T) {
 	assertMigrationVersion(t, db, 5)
 	assertMigrationVersion(t, db, 6)
 	assertMigrationVersion(t, db, 7)
+	assertMigrationVersion(t, db, 8)
+	assertMigrationVersion(t, db, 9)
 }
 
 func TestLoadMigrationsRejectsDuplicateVersion(t *testing.T) {

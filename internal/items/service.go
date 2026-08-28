@@ -42,7 +42,7 @@ const (
 type Item struct {
 	ID              string    `json:"id"`
 	WorkspaceID     string    `json:"workspaceId"`
-	CreatedByUserID string    `json:"createdByUserId"`
+	CreatedByUserID *string   `json:"createdByUserId"`
 	Title           string    `json:"title"`
 	Status          Status    `json:"status"`
 	Version         int64     `json:"version"`
@@ -162,7 +162,7 @@ func (s *Service) ImportInTx(
 			return nil, err
 		}
 		item := Item{
-			ID: itemID, WorkspaceID: workspaceID, CreatedByUserID: actor.UserID,
+			ID: itemID, WorkspaceID: workspaceID, CreatedByUserID: &actor.UserID,
 			Title: normalized.Title, Status: normalized.Status, Version: 1,
 			CreatedAt: now, UpdatedAt: now,
 		}
@@ -171,7 +171,7 @@ func (s *Service) ImportInTx(
 				id, workspace_id, created_by_user_id, title, status,
 				version, created_at, updated_at
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		`, item.ID, item.WorkspaceID, item.CreatedByUserID, item.Title,
+		`, item.ID, item.WorkspaceID, actor.UserID, item.Title,
 			item.Status, item.Version, formatTime(now), formatTime(now)); err != nil {
 			return nil, err
 		}
@@ -259,7 +259,7 @@ func (s *Service) create(
 	}
 	item := Item{
 		ID: itemID, WorkspaceID: workspaceID,
-		CreatedByUserID: actor.UserID, Title: title, Status: Active,
+		CreatedByUserID: &actor.UserID, Title: title, Status: Active,
 		Version: 1, CreatedAt: now, UpdatedAt: now,
 	}
 	if _, err := s.exec(ctx, tx, `
@@ -267,7 +267,7 @@ func (s *Service) create(
 			id, workspace_id, created_by_user_id, title, status,
 			version, created_at, updated_at
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-	`, item.ID, item.WorkspaceID, item.CreatedByUserID, item.Title,
+	`, item.ID, item.WorkspaceID, actor.UserID, item.Title,
 		item.Status, item.Version, formatTime(now), formatTime(now)); err != nil {
 		return CreateResult{}, err
 	}
@@ -635,13 +635,17 @@ type scanner interface {
 
 func scanItem(row scanner) (Item, error) {
 	var item Item
+	var createdByUserID sql.NullString
 	var createdAt, updatedAt string
 	err := row.Scan(
-		&item.ID, &item.WorkspaceID, &item.CreatedByUserID,
+		&item.ID, &item.WorkspaceID, &createdByUserID,
 		&item.Title, &item.Status, &item.Version, &createdAt, &updatedAt,
 	)
 	if err != nil {
 		return Item{}, err
+	}
+	if createdByUserID.Valid {
+		item.CreatedByUserID = &createdByUserID.String
 	}
 	item.CreatedAt, err = parseTime(createdAt)
 	if err != nil {

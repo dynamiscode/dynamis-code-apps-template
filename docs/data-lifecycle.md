@@ -28,7 +28,7 @@ means the complete encrypted database backup described in
 | identity / `notifications` | IDs, recipient, optional workspace, type, title, body, timestamps (personal) | In-app notification inbox and SSE delivery | One-year retention; read state is user-correctable; excluded from workspace export; account/workspace deletion cascades. |
 | identity / `audit_events` | IDs, types, actions, outcome, timestamps (internal); actor, workspace, request, source address, metadata (personal) | Security and administrative evidence | Append-only during normal operation; default 365-day retention; workspace events export; maintenance deletes expired events and records its own prune event. No product correction. |
 | identity / `bootstrap_state` | `id`, `completed_at` (internal) | Enforce one-time first-owner bootstrap | Installation lifetime; backup only; never reset by application behavior. |
-| items / `items` | IDs, status, version, timestamps (internal); `title` (personal user content) | Sample feature | Until permanent deletion or future workspace deletion; all fields export; title/status correction uses conditional update. |
+| items / `items` | IDs, status, version, timestamps (internal); nullable `created_by_user_id`, `title` (personal user content) | Sample feature | Until permanent deletion or future workspace deletion; all fields export; title/status correction uses conditional update; account deletion retains the item and clears its deleted creator reference. |
 | items / `idempotency_records` | hashes, IDs, operation, result, timestamps (internal; hashes treated as secret) | Safe create replay | Exact 24-hour expiry; pruned after expiry; excluded from export; no correction. |
 | items / `item_events` | IDs, type, version, time (internal) | SSE replay and resynchronization | Application keeps the newest 1,000 per workspace; maintenance also removes events older than 7 days; excluded from export; no correction. |
 | webhooks / `webhooks` | IDs, workspace, name, endpoint URL, selected event names, timestamps (internal/configuration); encrypted secret (secret) | Workspace event delivery registration | Workspace lifetime or explicit deletion; excluded from export; secret rotates through authorized management and is never returned after creation. |
@@ -56,7 +56,8 @@ refused for users who still own a workspace. Ownership transfer is required
 first; deletion then cascades account credentials, memberships, external
 identities, preferences, and notifications, and removes invitations created by
 the account. The deletion audit event retains the user ID and safe metadata but
-no credential or profile content. Workspace deletion remains unavailable.
+no credential or profile content. Items created by the account remain in their
+workspace with `createdByUserId: null`. Workspace deletion remains unavailable.
 
 ## Portability
 

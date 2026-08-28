@@ -2,6 +2,7 @@ package identity
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 	"time"
@@ -57,6 +58,39 @@ func TestAccountLifecycleAndDeletionBoundaries(t *testing.T) {
 		t.Fatalf("deleted profile error = %v", err)
 	}
 	assertAuditEvent(t, db, "user.account_deleted")
+}
+
+func TestAccountDeletionRetainsCreatedItems(t *testing.T) {
+	service, db := newTestService(t)
+	ctx := context.Background()
+	userID := insertUser(t, service, db, "item-creator@example.com")
+	workspaceID := insertWorkspace(t, service, db, "Retained items")
+	insertMembership(t, service, db, workspaceID, userID, Member)
+	now := timestamp(service.now())
+	if _, err := db.Exec(`
+		INSERT INTO items (
+			id, workspace_id, created_by_user_id, title, status,
+			version, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, "retained-item", workspaceID, userID, "Keep this item", "complete", 2, now, now); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := service.DeleteAccount(ctx, userID, "user-long-password", AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+
+	var creator sql.NullString
+	var title, status string
+	if err := db.QueryRow(
+		"SELECT created_by_user_id, title, status FROM items WHERE id = ?",
+		"retained-item",
+	).Scan(&creator, &title, &status); err != nil {
+		t.Fatal(err)
+	}
+	if creator.Valid || title != "Keep this item" || status != "complete" {
+		t.Fatalf("retained item = creator %q valid=%v, title %q, status %q", creator.String, creator.Valid, title, status)
+	}
 }
 
 func TestEmailVerificationAndPasswordResetAreSingleUse(t *testing.T) {

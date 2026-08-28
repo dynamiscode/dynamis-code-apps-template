@@ -473,12 +473,13 @@ func deleteInputSchema() any {
 
 func itemSchema() any {
 	return objectSchema(map[string]any{
-		"id": idSchema, "workspaceId": idSchema, "createdByUserId": idSchema,
-		"title":     map[string]any{"type": "string", "maxLength": 200},
-		"status":    map[string]any{"type": "string", "enum": []string{"active", "complete"}},
-		"version":   map[string]any{"type": "integer", "minimum": 1},
-		"createdAt": map[string]any{"type": "string", "format": "date-time"},
-		"updatedAt": map[string]any{"type": "string", "format": "date-time"},
+		"id": idSchema, "workspaceId": idSchema,
+		"createdByUserId": map[string]any{"type": []string{"string", "null"}},
+		"title":           map[string]any{"type": "string", "maxLength": 200},
+		"status":          map[string]any{"type": "string", "enum": []string{"active", "complete"}},
+		"version":         map[string]any{"type": "integer", "minimum": 1},
+		"createdAt":       map[string]any{"type": "string", "format": "date-time"},
+		"updatedAt":       map[string]any{"type": "string", "format": "date-time"},
 	}, "id", "workspaceId", "createdByUserId", "title", "status", "version", "createdAt", "updatedAt")
 }
 

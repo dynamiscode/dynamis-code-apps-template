@@ -244,3 +244,14 @@ endpoint dialing, bounded retry/failure status, redacted delivery history,
 retention pruning, and REST/OpenAPI behavior pass the focused webhook, item,
 HTTP, configuration, maintenance, and migration tests. PostgreSQL execution and
 Docker smoke remain part of the final verification ladder.
+
+## Account deletion fix evidence
+
+Verified 2026-08-28 with Go 1.27.0 and PostgreSQL 14.24:
+
+- Account deletion retains creator-owned items, clears their nullable creator
+  reference, and passes the focused SQLite regression.
+- SQLite and isolated PostgreSQL migration, identity, item, and portability
+  compatibility tests pass.
+- `go test ./...`, `go vet ./...`, `go test -race ./...`, `make verify`, and
+  `make docker-smoke` pass.
