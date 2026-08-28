@@ -20,6 +20,8 @@ curl http://127.0.0.1:8080/api/openapi.json
   its CSRF token. `POST /api/v1/auth/logout` requires that token.
 - `/api/v1/workspaces/{workspaceId}/items` proves shared, workspace-scoped
   list, create, read, and update behavior.
+  Item responses retain `createdByUserId` as a required field but return `null`
+  after its creator's account is deleted; item content remains available.
 API resources use `Authorization: Bearer <token>`. The token must belong to the
 path workspace and include the required `resources:read` or `resources:write`
 scope. Export requires `workspace:export`. Browser session rules are

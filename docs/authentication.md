@@ -97,7 +97,9 @@ Argon2id hash, and revoke all sessions before issuing a fresh browser session.
 Account deletion requires local-password reauthentication and is refused while
 the user owns any workspace; after ownership transfer it removes the account's
 memberships, credentials, external identities, invitations created by the
-user, notifications, and profile data while retaining a safe audit event.
+user, notifications, and profile data while retaining a safe audit event. Items
+created by the deleted user remain in their workspace and expose a null creator
+reference.
 
 Profile preferences store display name, locale, IANA timezone, and `system`,
 `light`, or `dark` theme. In-app notification delivery is controlled by a

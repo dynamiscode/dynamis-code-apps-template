@@ -20,7 +20,9 @@ filesystem, code execution, or external networks.
 | `items_delete_v1` | `resources:write` | destructive, idempotent with version, closed-world, approval required |
 
 Names include their contract version. A breaking schema, scope, output, or
-side-effect change requires a new name such as `_v2`.
+side-effect change requires a new name such as `_v2`. Item outputs retain their
+record after account deletion and return `createdByUserId: null` when the
+creator no longer exists.
 
 WebMCP is separate from this server MCP endpoint. It is an optional,
 feature-detected browser-tab enhancement that uses the live authenticated web
