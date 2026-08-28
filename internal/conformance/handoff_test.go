@@ -15,7 +15,7 @@ var markdownLink = regexp.MustCompile(`\[[^]]*\]\(([^)[:space:]]+)\)`)
 func TestPermanentContextHandoff(t *testing.T) {
 	root := repositoryRoot(t)
 	required := []string{
-		"AGENTS.md", "README.md", "LICENSE", "SECURITY.md", "CONTRIBUTING.md",
+		"AGENTS.md", "README.md", "LICENSE", "SECURITY.md", "SUPPORT.md", ".editorconfig", ".gitattributes", "CONTRIBUTING.md",
 		"CODE_OF_CONDUCT.md", "NOTICE", ".github/CODEOWNERS",
 		".github/ISSUE_TEMPLATE/config.yml", ".github/ISSUE_TEMPLATE/bug_report.yml",
 		".github/ISSUE_TEMPLATE/feature_request.yml", ".github/ISSUE_TEMPLATE/documentation.yml",
@@ -44,6 +44,7 @@ func TestPermanentContextHandoff(t *testing.T) {
 	checkPinnedDelivery(t, root)
 	checkWebMCPHandoff(t, root)
 	checkLicense(t, root)
+	checkRepositoryHygiene(t, root)
 
 	capabilities := readFile(t, filepath.Join(root, "docs/capabilities.md"))
 	if strings.Contains(capabilities, "| pending |") {
@@ -69,6 +70,24 @@ func checkLicense(t *testing.T, root string) {
 	packageJSON := readFile(t, filepath.Join(root, "package.json"))
 	if !strings.Contains(packageJSON, `"license": "MIT"`) {
 		t.Error("package.json lacks SPDX MIT metadata")
+	}
+}
+
+func checkRepositoryHygiene(t *testing.T, root string) {
+	t.Helper()
+	support := readFile(t, filepath.Join(root, "SUPPORT.md"))
+	for _, required := range []string{
+		"issue tracker", "SECURITY.md", "credentials", "private reporting channel",
+	} {
+		if !strings.Contains(support, required) {
+			t.Errorf("SUPPORT.md lacks %q", required)
+		}
+	}
+	if !strings.Contains(readFile(t, filepath.Join(root, ".editorconfig")), "root = true") {
+		t.Error(".editorconfig lacks root marker")
+	}
+	if !strings.Contains(readFile(t, filepath.Join(root, ".gitattributes")), "text=auto eol=lf") {
+		t.Error(".gitattributes lacks normalized text policy")
 	}
 }
 
@@ -105,7 +124,8 @@ func checkMarkdownLinks(t *testing.T, root string) {
 	t.Helper()
 	paths := []string{
 		filepath.Join(root, "AGENTS.md"), filepath.Join(root, "README.md"),
-		filepath.Join(root, "SECURITY.md"), filepath.Join(root, "CONTRIBUTING.md"),
+		filepath.Join(root, "SECURITY.md"), filepath.Join(root, "SUPPORT.md"),
+		filepath.Join(root, "CONTRIBUTING.md"),
 		filepath.Join(root, "CHANGELOG.md"),
 	}
 	for _, directory := range []string{filepath.Join(root, "docs"), filepath.Join(root, ".agents/skills")} {

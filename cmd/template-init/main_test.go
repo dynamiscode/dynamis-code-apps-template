@@ -61,6 +61,7 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 		"## Interfaces",
 		"## Operations and data",
 		"## Security",
+		"[SUPPORT.md](SUPPORT.md)",
 		"## Contributing and release",
 		"## Replace the sample feature",
 		"## Template provenance",
@@ -104,7 +105,7 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 		strings.Join(lock.Profiles, ",") != "Core,Identity,Agent" {
 		t.Fatalf("template.lock = %+v", lock)
 	}
-	for _, path := range []string{".github/CODEOWNERS", ".github/ISSUE_TEMPLATE/config.yml", "README.md", "SECURITY.md", "NOTICE", "docs/governance.md", "docs/accessibility.md", "docs/decisions/0001-go-modular-monolith.md"} {
+	for _, path := range []string{".github/CODEOWNERS", ".github/ISSUE_TEMPLATE/config.yml", "README.md", "SUPPORT.md", "SECURITY.md", "NOTICE", "docs/governance.md", "docs/accessibility.md", "docs/decisions/0001-go-modular-monolith.md"} {
 		content, err := os.ReadFile(filepath.Join(output, path))
 		if err != nil {
 			t.Fatalf("read generated %s: %v", path, err)
@@ -114,6 +115,11 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 			strings.Contains(string(content), "template maintainer") || strings.Contains(string(content), "pending project license") {
 			t.Errorf("generated %s retains template metadata", path)
 		}
+	}
+	support, err := os.ReadFile(filepath.Join(output, "SUPPORT.md"))
+	if err != nil || !strings.Contains(string(support), "https://github.com/acme/my-app/issues") ||
+		!strings.Contains(string(support), "https://github.com/acme/my-app/security/advisories/new") {
+		t.Errorf("generated SUPPORT.md = %q, error = %v", support, err)
 	}
 	codeowners, err := os.ReadFile(filepath.Join(output, ".github/CODEOWNERS"))
 	if err != nil || !strings.Contains(string(codeowners), "@acme/platform") {

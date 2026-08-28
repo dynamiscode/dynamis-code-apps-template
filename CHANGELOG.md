@@ -6,6 +6,9 @@
   for Core, and selecting Agent includes its MCP and REST-only CLI surfaces;
   omitting Agent removes their implementation packages while preserving
   buildable Core/Identity applications.
+- Added reusable repository hygiene files and safe support/triage guidance;
+  generated applications rewrite repository and security links without
+  retaining template maintainer details.
 - Selected MIT as the project license, added SPDX and copyright metadata, and
   made generated applications carry MIT terms with application-owned copyright
   attribution and dependency notices.
@@ -39,6 +42,9 @@
 - Added reproducible setup, module verification, secret scanning, pinned
   workflow checks, and version-pinned vulnerability scanning to local and CI
   gates.
+- Added REST consumer onboarding examples for bearer auth, pagination,
+  idempotency, conditional writes, and stable Problem Details errors, plus a
+  v1 item-surface compatibility test.
 
 - Local loopback browser setup without a token, with protected remote setup and
   environment bootstrap precedence.

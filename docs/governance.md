@@ -36,6 +36,7 @@ Use the [contribution guide](../CONTRIBUTING.md), select the closest issue
 template, and explain scope, verification, and intentional omissions in pull
 requests. Security vulnerabilities belong in the private channel described by
 [SECURITY.md](../SECURITY.md), never in a public issue.
+Use [SUPPORT.md](../SUPPORT.md) for safe issue content and support triage.
 
 Reviewers check behavior, authorization boundaries, data handling, accessible
 fallbacks, dependency obligations, and documentation. A pull request may be

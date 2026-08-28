@@ -18,11 +18,13 @@ application. Selecting Agent additionally composes the MCP server and
 REST-only `appctl` packages, commands, bootstrap route, and Agent smoke test;
 omitting Agent removes those files. No other profile content is currently
 defined, including CompanySite, Integrations, or Files.
-The generated application receives repository-specific README, security-link,
-CODEOWNERS, image, telemetry, package, and runtime-branding values. It copies
+The generated application receives repository-specific README, support and
+security links, CODEOWNERS, image, telemetry, package, and runtime-branding
+values. It copies
 the MIT `LICENSE`, dependency `NOTICE`, and package SPDX metadata, rewriting
 the copyright line to the application name and `contributors`. It does not
-retain template repository ownership or app-facing template branding. The
+retain template repository ownership, maintainer details, or app-facing
+template branding. The
 README points to implemented documentation and marks product purpose and
 domain behavior as application-owned work.
 
