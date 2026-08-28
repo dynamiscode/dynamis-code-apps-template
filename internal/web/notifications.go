@@ -71,8 +71,18 @@ func (h *Handler) notificationEvents(writer http.ResponseWriter, request *http.R
 	writer.Header().Set("Content-Type", "text/event-stream")
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.Header().Set("X-Accel-Buffering", "no")
-	writer.WriteHeader(http.StatusOK)
 	after := request.Header.Get("Last-Event-ID")
+	if after == "" {
+		existing, err := h.identity.ListNotifications(request.Context(), session.UserID, "", true, 1)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+		if len(existing) == 1 {
+			after = existing[0].ID
+		}
+	}
+	writer.WriteHeader(http.StatusOK)
 	if !h.sendNotifications(writer, request, session.UserID, &after) {
 		return
 	}
@@ -123,14 +133,27 @@ func (h *Handler) sendNotifications(
 	notifications, err := h.identity.NotificationsAfter(request.Context(), userID, *after, 100)
 	if err != nil {
 		if errors.Is(err, identity.ErrInvalidNotification) {
+			latest, listErr := h.identity.ListNotifications(request.Context(), userID, "", true, 1)
+			if listErr != nil {
+				return false
+			}
+			if len(latest) == 1 {
+				_, _ = fmt.Fprintf(writer, "id: %s\n", latest[0].ID)
+				*after = latest[0].ID
+			} else {
+				*after = ""
+			}
 			_, _ = fmt.Fprint(writer, "event: resync\ndata: {\"reason\":\"cursor\"}\n\n")
-			*after = ""
 			return true
 		}
 		return false
 	}
 	for _, notification := range notifications {
-		encoded, err := json.Marshal(notification)
+		encoded, err := json.Marshal(notificationEvent{
+			ID: notification.ID, Type: notification.NotificationType,
+			Title: notification.Title, Body: notification.Body,
+			CreatedAt: notification.CreatedAt.UTC(),
+		})
 		if err != nil {
 			return false
 		}
@@ -138,4 +161,12 @@ func (h *Handler) sendNotifications(
 		*after = notification.ID
 	}
 	return true
+}
+
+type notificationEvent struct {
+	ID        string    `json:"id"`
+	Type      string    `json:"type"`
+	Title     string    `json:"title"`
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"createdAt"`
 }

@@ -240,7 +240,7 @@ func (h *Handler) passwordResetRequest(writer http.ResponseWriter, request *http
 	}
 	if reset.Secret != "" && h.mailer != nil {
 		link := accountURL(h.publicURL, "/password-reset/", reset.Secret)
-		locale := i18n.English
+		locale := h.pageLocale(writer, pageData{})
 		_ = h.mailer.Send(request.Context(), reset.Email,
 			h.catalog.Translate(locale, "email.password_reset_subject", nil),
 			h.catalog.Translate(locale, "email.password_reset_body", map[string]any{"link": link}))

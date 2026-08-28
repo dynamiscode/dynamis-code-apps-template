@@ -148,11 +148,14 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	resetCSRF := responseCookie(resetPage, "reset_csrf")
 	resetRequested := request(handler, http.MethodPost, "/password-reset", url.Values{
 		"csrf": {resetCSRF.Value}, "email": {"owner@example.com"},
-	}, []*http.Cookie{resetCSRF}, nil)
-	if resetRequested.Code != http.StatusOK || !strings.Contains(resetRequested.Body.String(), "If an account exists") {
+	}, []*http.Cookie{resetCSRF, {Name: "locale", Value: "es"}}, nil)
+	if resetRequested.Code != http.StatusOK || !strings.Contains(resetRequested.Body.String(), "Si existe una cuenta") {
 		t.Fatalf("reset request = %d, %s", resetRequested.Code, resetRequested.Body.String())
 	}
-	resetLink := strings.TrimSpace(strings.TrimPrefix(mailer.body, "Reset your password with this link: "))
+	if mailer.subject != "Restablece tu contraseña de Dynamis Code" {
+		t.Fatalf("reset subject = %q", mailer.subject)
+	}
+	resetLink := strings.TrimSpace(strings.TrimPrefix(mailer.body, "Restablece tu contraseña con este enlace: "))
 	parsed, err := url.Parse(resetLink)
 	if err != nil || parsed.Path == "" {
 		t.Fatalf("reset link = %q, %v", resetLink, err)
@@ -426,6 +429,12 @@ func TestSSEScopeReconnectHeartbeatAndLimits(t *testing.T) {
 
 func TestNotificationSSEIsScopedAndRedactedToRecipient(t *testing.T) {
 	handler, auth, _, workspaceID, owner := testWeb(t, 1)
+	_, err := auth.CreateNotification(context.Background(), PrincipalSystem(), identity.NotificationInput{
+		RecipientUserID: owner.UserID, WorkspaceID: workspaceID, NotificationType: "workspace", Title: "Existing", Body: "Existing body",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -445,14 +454,35 @@ func TestNotificationSSEIsScopedAndRedactedToRecipient(t *testing.T) {
 		t.Fatalf("notification stream = %d", response.StatusCode)
 	}
 	reader := bufio.NewReader(response.Body)
-	if _, err := auth.CreateNotification(context.Background(), PrincipalSystem(), identity.NotificationInput{
+	newNotification, err := auth.CreateNotification(context.Background(), PrincipalSystem(), identity.NotificationInput{
 		RecipientUserID: owner.UserID, WorkspaceID: workspaceID, NotificationType: "workspace", Title: "Visible", Body: "Private body",
-	}, identity.AuditContext{}); err != nil {
+	}, identity.AuditContext{})
+	if err != nil {
 		t.Fatal(err)
 	}
 	event := readUntil(t, reader, "event: notification.created") + readUntil(t, reader, "\n\n")
-	if !strings.Contains(event, "Private body") || !strings.Contains(event, "Visible") {
+	if strings.Contains(event, "Existing body") || !strings.Contains(event, "Private body") || !strings.Contains(event, "Visible") ||
+		strings.Contains(event, "UserID") || strings.Contains(event, "WorkspaceID") || strings.Contains(event, "ReadAt") ||
+		!strings.Contains(event, `"type":"workspace"`) || !strings.Contains(event, `"createdAt":"`) {
 		t.Fatalf("notification event = %q", event)
+	}
+	cancel()
+	response.Body.Close()
+	time.Sleep(30 * time.Millisecond)
+	resyncCtx, resyncCancel := context.WithTimeout(context.Background(), time.Second)
+	defer resyncCancel()
+	resyncRequest, _ := http.NewRequestWithContext(resyncCtx, http.MethodGet, server.URL+"/notifications/events", nil)
+	resyncRequest.Header.Set("Last-Event-ID", "missing")
+	addCookies(resyncRequest, []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}})
+	resyncResponse, err := server.Client().Do(resyncRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resyncReader := bufio.NewReader(resyncResponse.Body)
+	resync := readUntil(t, resyncReader, "\n\n")
+	resyncResponse.Body.Close()
+	if !strings.Contains(resync, "id: "+newNotification.ID) || !strings.Contains(resync, "event: resync") {
+		t.Fatalf("notification resync = %q", resync)
 	}
 	wrong := request(handler, http.MethodGet, "/notifications", nil, []*http.Cookie{{Name: "session", Value: "missing"}}, nil)
 	if wrong.Code != http.StatusSeeOther {
