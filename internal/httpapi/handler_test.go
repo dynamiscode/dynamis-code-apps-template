@@ -67,6 +67,11 @@ func TestHTTPContracts(t *testing.T) {
 	}
 	unsupported := serveAuthorized(handler, http.MethodGet, collection+"?filter=no", "", token, nil)
 	assertProblem(t, unsupported, http.StatusBadRequest, "invalid-request")
+	searched := serveAuthorized(handler, http.MethodGet, collection+"?search=first&limit=1&sort=created_at", "", token, nil)
+	if searched.Code != http.StatusOK || !strings.Contains(searched.Body.String(), item.ID) {
+		t.Fatalf("search response = %d, %s", searched.Code, searched.Body.String())
+	}
+	assertProblem(t, serveAuthorized(handler, http.MethodGet, collection+"?search=", "", token, nil), http.StatusBadRequest, "invalid-request")
 
 	resource := collection + "/" + item.ID
 	got := serveAuthorized(handler, http.MethodGet, resource, "", token, nil)

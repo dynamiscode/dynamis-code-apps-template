@@ -56,8 +56,9 @@ DEMO_OWNER_PASSWORD='use-a-local-password-12' go run ./cmd/demo
 The command creates or reuses `Demo Workspace` and three deterministic items;
 set `DEMO_OWNER_EMAIL` or `DEMO_WORKSPACE` to target another local setup.
 
-Health endpoints are `/health/live` and `/health/ready`; OpenAPI is
-`/api/openapi.json`. Press `Ctrl-C` for graceful shutdown.
+Health endpoints are `/health/live` and `/health/ready`; the live OpenAPI
+reference is `/api/openapi.json`, with conventions in
+[HTTP and REST API](docs/api.md). Press `Ctrl-C` for graceful shutdown.
 
 ## Generate an application
 

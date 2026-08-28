@@ -13,7 +13,7 @@ filesystem, code execution, or external networks.
 
 | Tool | Scope | Safety |
 |---|---|---|
-| `items_list_v1` | `resources:read` | read-only, idempotent, closed-world; limit 1-100 and opaque cursor |
+| `items_list_v1` | `resources:read` | read-only, idempotent, closed-world; bounded search, limit 1-100, and opaque cursor |
 | `items_get_v1` | `resources:read` | read-only, idempotent, closed-world |
 | `items_create_v1` | `resources:write` | additive, idempotent with caller key, closed-world |
 | `items_update_v1` | `resources:write` | destructive, idempotent with version, closed-world, approval required |
