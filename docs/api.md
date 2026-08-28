@@ -11,6 +11,113 @@ Quick check:
 curl http://127.0.0.1:8080/api/openapi.json
 ```
 
+## Consumer quickstart
+
+API tokens are created from the workspace Settings API-token screen or through
+`POST /api/v1/workspaces/{workspaceId}/tokens` using an existing bearer token
+with `workspace:read`. The token secret is returned once. Keep it in an
+environment variable; do not commit or log it.
+
+```sh
+export BASE_URL=http://127.0.0.1:8080 # no trailing slash
+export WORKSPACE_ID='0123456789abcdef0123456789abcdef'
+export TOKEN='<token secret>'
+```
+
+Use `resources:read` for item list/read and `resources:write` for item
+create/update/delete. A token must belong to the workspace in the URL.
+
+Check liveness and discover the machine contract:
+
+```sh
+curl --silent --show-error "$BASE_URL/health/live"
+curl --silent --show-error "$BASE_URL/api/openapi.json"
+```
+
+List items. `nextCursor` is present only when another page exists:
+
+```sh
+curl --silent --show-error --include \
+  -H "Authorization: Bearer $TOKEN" \
+  "$BASE_URL/api/v1/workspaces/$WORKSPACE_ID/items?limit=2&sort=-created_at"
+
+# Copy nextCursor exactly; keep every other query parameter unchanged.
+export NEXT_CURSOR='<nextCursor from the previous response>'
+curl --silent --show-error --include --get \
+  -H "Authorization: Bearer $TOKEN" \
+  --data-urlencode 'limit=2' \
+  --data-urlencode 'sort=-created_at' \
+  --data-urlencode "cursor=$NEXT_CURSOR" \
+  "$BASE_URL/api/v1/workspaces/$WORKSPACE_ID/items"
+```
+
+Create an item. The key is required, scoped to the token, workspace, and
+operation, and retained for 24 hours. Retrying the same key with the same body
+replays the original response; changing the body returns `409` with code
+`idempotency-conflict`.
+
+```sh
+export IDEMPOTENCY_KEY='onboarding-create-1'
+curl --silent --show-error --include \
+  -X POST "$BASE_URL/api/v1/workspaces/$WORKSPACE_ID/items" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
+  --data '{"title":"Onboarding item"}'
+```
+
+Copy the returned `id` and `ETag` (for example, `"v1"`) into `ITEM_ID` and
+`ETAG`. Reads return the current strong ETag; updates and deletes require that
+value in `If-Match` and return a new ETag after an update.
+
+```sh
+export ITEM_ID='0123456789abcdef0123456789abcdef'
+export ETAG='"v1"'
+
+curl --silent --show-error --include \
+  -H "Authorization: Bearer $TOKEN" \
+  "$BASE_URL/api/v1/workspaces/$WORKSPACE_ID/items/$ITEM_ID"
+
+# Returns 304 with no body when the item has not changed.
+curl --silent --show-error --include \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "If-None-Match: $ETAG" \
+  "$BASE_URL/api/v1/workspaces/$WORKSPACE_ID/items/$ITEM_ID"
+
+curl --silent --show-error --include \
+  -X PATCH "$BASE_URL/api/v1/workspaces/$WORKSPACE_ID/items/$ITEM_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -H "If-Match: $ETAG" \
+  --data '{"status":"complete"}'
+
+# Use the update response's new ETag.
+export ETAG='"v2"'
+curl --silent --show-error --include \
+  -X DELETE "$BASE_URL/api/v1/workspaces/$WORKSPACE_ID/items/$ITEM_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "If-Match: $ETAG"
+```
+
+Errors use RFC 9457 Problem Details with content type
+`application/problem+json`. Branch on `status` and stable `code`; treat
+`title` and `detail` as display text. Common onboarding cases:
+
+- Missing or invalid bearer token: `401`, code `unauthorized`, and
+  `WWW-Authenticate: Bearer`.
+- Token missing the required item scope: `403`, code `insufficient-scope`.
+- Missing create key: `400`, code `idempotency-key-required`.
+- Missing `If-Match`: `428`, code `precondition-required`; stale `If-Match`:
+  `412`, code `precondition-failed`.
+- Invalid parameters or cursor: `400`, code `invalid-request`; missing item:
+  `404`, code `not-found`.
+- Rate limit: `429`, code `rate-limited`; wait the number of seconds in
+  `Retry-After` before retrying.
+
+Every problem includes `type`, `status`, `detail`, `instance`, `code`, and
+`requestId`. Include `X-Request-ID` on requests when correlating a client log;
+the server returns the accepted or generated request ID.
+
 ## Endpoints
 
 - `GET /health/live` reports process liveness without dependencies.
