@@ -41,6 +41,8 @@ const (
 	MembersRead       Permission = "members:read"
 	MembersManage     Permission = "members:manage"
 	InvitationsManage Permission = "invitations:manage"
+	WebhooksRead      Permission = "webhooks:read"
+	WebhooksManage    Permission = "webhooks:manage"
 	ResourcesRead     Permission = "resources:read"
 	ResourcesWrite    Permission = "resources:write"
 )

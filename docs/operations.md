@@ -42,6 +42,21 @@ It removes expired transient records, old inactive credentials, expired audit
 history, and stale realtime replay in one transaction, then appends a safe
 summary audit event. `AUDIT_RETENTION` defaults to 365 days.
 
+## Webhook delivery
+
+Webhook delivery uses a database-backed outbox written with each item mutation.
+The application runs one bounded in-process delivery loop per instance; it
+polls pending rows, sends signed requests with a 10-second timeout, and retries
+up to five attempts with 1s, 2s, 4s, and 8s delays. A 2xx response settles a
+delivery; other responses and network failures are recorded as redacted
+categories. Delivery history is available through the workspace REST endpoint
+and is retained for 365 days after settlement. Consumers must deduplicate by
+`Webhook-Id`.
+
+The loop is intentionally not a shared queue. Run PostgreSQL before multiple
+application instances and replace the loop with a shared job ownership model
+when delivery volume or replica count requires it.
+
 ## Backup and restore
 
 Recovery owner: deployment operator. Production targets: hourly backups,

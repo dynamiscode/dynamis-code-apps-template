@@ -28,6 +28,8 @@ means the complete encrypted database backup described in
 | items / `items` | IDs, status, version, timestamps (internal); `title` (personal user content) | Sample feature | Until permanent deletion or future workspace deletion; all fields export; title/status correction uses conditional update. |
 | items / `idempotency_records` | hashes, IDs, operation, result, timestamps (internal; hashes treated as secret) | Safe create replay | Exact 24-hour expiry; pruned after expiry; excluded from export; no correction. |
 | items / `item_events` | IDs, type, version, time (internal) | SSE replay and resynchronization | Application keeps the newest 1,000 per workspace; maintenance also removes events older than 7 days; excluded from export; no correction. |
+| webhooks / `webhooks` | IDs, workspace, name, endpoint URL, selected event names, timestamps (internal/configuration); encrypted secret (secret) | Workspace event delivery registration | Workspace lifetime or explicit deletion; excluded from export; secret rotates through authorized management and is never returned after creation. |
+| webhooks / `webhook_deliveries` | IDs, webhook/event references, event type, bounded payload, attempt/status/timestamps, HTTP status, redacted error category (internal; payload personal) | Durable at-least-once item delivery and bounded delivery history | Pending rows remain until delivery settles; delivered/failed rows retained 365 days and pruned by maintenance; excluded from export; cascade on webhook deletion. |
 
 Every row is included in database backup until the operator's backup retention
 expires. Production fixtures must never contain copied production data.
@@ -76,6 +78,11 @@ content, credentials, or secret data to a browser agent. It does not expose
 operator backup, restore, import, maintenance, or audit administration. User
 activation follows the normal authorization and audit path; redacted export
 content remains bounded by the workspace export contract.
+
+Webhook registrations and delivery history are not part of workspace export;
+endpoint URLs and delivery payloads can contain integration or personal data,
+and encrypted secrets are deployment-sensitive. Database backups containing
+these rows remain sensitive.
 
 No current product action survives request disconnection or exceeds the
 ordinary request contract: item operations are small and exports reject their

@@ -1,6 +1,8 @@
 package config
 
 import (
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"net/url"
@@ -36,6 +38,7 @@ type Config struct {
 	MCP       MCP
 	Data      Data
 	Telemetry Telemetry
+	Webhooks  Webhooks
 }
 
 type Bootstrap struct {
@@ -62,6 +65,10 @@ type Telemetry struct {
 	Endpoint       string
 	ExportInterval time.Duration
 	ExportTimeout  time.Duration
+}
+
+type Webhooks struct {
+	SecretKey []byte
 }
 
 type OIDC struct {
@@ -188,11 +195,30 @@ func LoadFrom(lookup LookupEnv) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	webhookConfig, err := loadWebhooks(lookup)
+	if err != nil {
+		return Config{}, err
+	}
 	return Config{
 		Database: database, Bootstrap: bootstrap, OIDC: oidc, Mail: mailConfig,
 		PublicURL: publicURL, HTTP: httpConfig, MCP: mcpConfig,
-		Data: dataConfig, Telemetry: telemetryConfig,
+		Data: dataConfig, Telemetry: telemetryConfig, Webhooks: webhookConfig,
 	}, nil
+}
+
+func loadWebhooks(lookup LookupEnv) (Webhooks, error) {
+	raw := strings.TrimSpace(valueOrDefault(lookup, "WEBHOOK_ENCRYPTION_KEY", ""))
+	if raw == "" {
+		return Webhooks{}, nil
+	}
+	key, err := hex.DecodeString(raw)
+	if err != nil || len(key) != 32 {
+		key, err = base64.StdEncoding.DecodeString(raw)
+	}
+	if err != nil || len(key) != 32 {
+		return Webhooks{}, fmt.Errorf("WEBHOOK_ENCRYPTION_KEY must encode exactly 32 bytes")
+	}
+	return Webhooks{SecretKey: key}, nil
 }
 
 func loadPublicURL(lookup LookupEnv) (string, error) {
