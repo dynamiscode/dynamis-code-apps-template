@@ -453,9 +453,9 @@ func (s *Service) AuthenticateOIDC(
 	}
 	now := s.now().UTC()
 	if _, err := s.exec(ctx, tx, `
-		INSERT INTO users (id, email, password_hash, created_at)
-		VALUES (?, ?, NULL, ?)
-	`, userID, email, timestamp(now)); err != nil {
+		INSERT INTO users (id, email, password_hash, email_verified_at, created_at)
+		VALUES (?, ?, NULL, ?, ?)
+	`, userID, email, timestamp(now), timestamp(now)); err != nil {
 		return "", ErrInvalidCredentials
 	}
 	if _, err := s.exec(ctx, tx, `

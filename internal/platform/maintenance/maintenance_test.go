@@ -66,10 +66,16 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "token-old", "user-maint", "workspace-maint", "old", "token-secret", "items:read", old, old)
 	exec(`INSERT INTO oidc_transactions (state_hash, provider_id, browser_session_hash, pkce_verifier_hash, nonce_hash, redirect_uri, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "state-old", "provider", "browser", "pkce", "nonce", "https://example.com/callback", old, old)
+	exec(`INSERT INTO email_verifications (id, user_id, email, token_hash, created_at, expires_at)
+		VALUES (?, ?, ?, ?, ?, ?)`, "verification-old", "user-maint", "maint@example.com", "verification-secret", old, old)
+	exec(`INSERT INTO password_resets (id, user_id, token_hash, created_at, expires_at)
+		VALUES (?, ?, ?, ?, ?)`, "reset-old", "user-maint", "reset-secret", old, old)
 	exec(`INSERT INTO idempotency_records (key_hash, principal_id, workspace_id, operation, request_hash, result_json, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "key-old", "user-maint", "workspace-maint", "create", "request", "{}", old, old)
 	exec(`INSERT INTO item_events (id, workspace_id, item_id, event_type, item_version, occurred_at)
 		VALUES (?, ?, ?, ?, ?, ?)`, "event-old", "workspace-maint", "item-old", "deleted", 1, old)
+	exec(`INSERT INTO notifications (id, user_id, workspace_id, notification_type, title, body, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`, "notification-old", "user-maint", "workspace-maint", "system", "Old", "Old", old)
 	exec(`INSERT INTO webhooks (id, workspace_id, name, url, secret_ciphertext, events, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`, "webhook-old", "workspace-maint", "old", "https://example.com/hook", "ciphertext", "[\"item.created\"]", old)
 	exec(`INSERT INTO webhook_deliveries (id, webhook_id, event_id, event_type, payload, attempt_count, status, next_attempt_at, created_at, delivered_at)
@@ -81,7 +87,7 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
-	if result.Sessions < 1 || result.Invitations < 1 || result.APITokens < 1 ||
+	if result.Sessions < 1 || result.Invitations < 1 || result.APITokens < 1 || result.EmailVerifications < 1 || result.PasswordResets < 1 || result.Notifications < 1 ||
 		result.OIDCTransactions < 1 || result.Idempotency < 1 ||
 		result.RealtimeReplay < 1 || result.WebhookDeliveries < 1 || result.AuditEvents < 1 {
 		t.Fatalf("Run() result = %+v", result)
@@ -90,6 +96,8 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		"sessions": "session-old", "invitations": "invite-old",
 		"api_tokens": "token-old", "oidc_transactions": "state-old",
 		"idempotency_records": "key-old", "item_events": "event-old",
+		"notifications":       "notification-old",
+		"email_verifications": "verification-old", "password_resets": "reset-old",
 		"webhook_deliveries": "delivery-old",
 	} {
 		var count int
