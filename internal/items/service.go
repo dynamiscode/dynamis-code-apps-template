@@ -30,6 +30,7 @@ var (
 )
 
 const idempotencyRetention = 24 * time.Hour
+const maximumSearchLength = 100
 
 type Status string
 
@@ -61,6 +62,7 @@ type UpdateInput struct {
 
 type ListInput struct {
 	Status Status
+	Search string
 	Sort   string
 	Limit  int
 	Cursor string
@@ -272,12 +274,17 @@ func (s *Service) List(
 	workspaceID string,
 	input ListInput,
 ) (Page, error) {
+	search, err := validateSearch(input.Search)
+	if err != nil {
+		return Page{}, ErrInvalidInput
+	}
+	input.Search = search
 	if input.Limit < 1 || input.Limit > 100 ||
 		(input.Status != "" && input.Status != Active && input.Status != Complete) ||
 		(input.Sort != "created_at" && input.Sort != "-created_at") {
 		return Page{}, ErrInvalidInput
 	}
-	position, err := decodeCursor(input.Cursor, input.Sort)
+	position, err := decodeCursor(input.Cursor, input)
 	if err != nil {
 		return Page{}, err
 	}
@@ -300,6 +307,10 @@ func (s *Service) List(
 	if input.Status != "" {
 		query += " AND status = ?"
 		args = append(args, input.Status)
+	}
+	if input.Search != "" {
+		query += " AND LOWER(title) LIKE LOWER(?) ESCAPE '\\'"
+		args = append(args, searchPattern(input.Search))
 	}
 	comparison := ">"
 	direction := "ASC"
@@ -339,7 +350,7 @@ func (s *Service) List(
 	if len(items) > input.Limit {
 		last := items[input.Limit-1]
 		page.Items = items[:input.Limit]
-		page.NextCursor, err = encodeCursor(input.Sort, last)
+		page.NextCursor, err = encodeCursor(input, last)
 		if err != nil {
 			return Page{}, err
 		}
@@ -539,14 +550,17 @@ func scanItem(row scanner) (Item, error) {
 }
 
 type cursor struct {
+	Status    Status `json:"status"`
+	Search    string `json:"search"`
 	Sort      string `json:"sort"`
 	CreatedAt string `json:"createdAt"`
 	ID        string `json:"id"`
 }
 
-func encodeCursor(sort string, item Item) (string, error) {
+func encodeCursor(input ListInput, item Item) (string, error) {
 	encoded, err := json.Marshal(cursor{
-		Sort: sort, CreatedAt: formatTime(item.CreatedAt), ID: item.ID,
+		Status: input.Status, Search: input.Search, Sort: input.Sort,
+		CreatedAt: formatTime(item.CreatedAt), ID: item.ID,
 	})
 	if err != nil {
 		return "", err
@@ -554,7 +568,7 @@ func encodeCursor(sort string, item Item) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(encoded), nil
 }
 
-func decodeCursor(encoded string, sort string) (*cursor, error) {
+func decodeCursor(encoded string, input ListInput) (*cursor, error) {
 	if encoded == "" {
 		return nil, nil
 	}
@@ -564,7 +578,8 @@ func decodeCursor(encoded string, sort string) (*cursor, error) {
 	}
 	var value cursor
 	if err := json.Unmarshal(raw, &value); err != nil ||
-		value.Sort != sort || value.ID == "" {
+		value.Status != input.Status || value.Search != input.Search ||
+		value.Sort != input.Sort || !validCursorID(value.ID) {
 		return nil, ErrInvalidCursor
 	}
 	if _, err := parseTime(value.CreatedAt); err != nil {
@@ -579,6 +594,27 @@ func validateTitle(value string) (string, error) {
 		return "", ErrInvalidInput
 	}
 	return value, nil
+}
+
+func validCursorID(value string) bool {
+	if len(value) != 32 || strings.ToLower(value) != value {
+		return false
+	}
+	decoded, err := hex.DecodeString(value)
+	return err == nil && len(decoded) == 16
+}
+
+func validateSearch(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value != "" && (!utf8.ValidString(value) || utf8.RuneCountInString(value) > maximumSearchLength) {
+		return "", ErrInvalidInput
+	}
+	return value, nil
+}
+
+func searchPattern(value string) string {
+	value = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(value)
+	return "%" + value + "%"
 }
 
 func validIdempotencyKey(value string) bool {

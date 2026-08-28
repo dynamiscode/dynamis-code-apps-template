@@ -46,8 +46,9 @@ With the default loopback address, an empty database also redirects
 
 The CLI fallback is documented in [authentication](docs/authentication.md).
 
-Health endpoints are `/health/live` and `/health/ready`; OpenAPI is
-`/api/openapi.json`. Press `Ctrl-C` for graceful shutdown.
+Health endpoints are `/health/live` and `/health/ready`; the live OpenAPI
+reference is `/api/openapi.json`, with conventions in
+[HTTP and REST API](docs/api.md). Press `Ctrl-C` for graceful shutdown.
 
 ## Generate an application
 

@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 const maxResponseBytes = 1 << 20
@@ -65,6 +66,7 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 	itemID := flags.String("item", "", "item ID")
 	title := flags.String("title", "", "item title")
 	status := flags.String("status", "", "item status")
+	search := flags.String("search", "", "case-insensitive title substring")
 	cursor := flags.String("cursor", "", "page cursor")
 	sort := flags.String("sort", "-created_at", "created_at or -created_at")
 	limit := flags.Int("limit", 50, "page size")
@@ -80,7 +82,7 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 		"base-url": true, "token": true, "timeout": true, "workspace": true,
 	}
 	for _, name := range map[string][]string{
-		"list": {"status", "cursor", "sort", "limit"},
+		"list": {"status", "search", "cursor", "sort", "limit"},
 		"get":  {"item"}, "create": {"title", "idempotency-key"},
 		"update": {"item", "version", "set-title", "set-status"},
 		"delete": {"item", "version"},
@@ -105,6 +107,7 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 	switch command {
 	case "list":
 		if *limit < 1 || *limit > 100 || (*status != "" && *status != "active" && *status != "complete") ||
+			(*search != "" && (!utf8.ValidString(*search) || strings.TrimSpace(*search) == "" || utf8.RuneCountInString(strings.TrimSpace(*search)) > 100)) ||
 			(*sort != "created_at" && *sort != "-created_at") {
 			return usage(stderr, "list flags are invalid")
 		}
@@ -113,6 +116,9 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 		query.Set("sort", *sort)
 		if *status != "" {
 			query.Set("status", *status)
+		}
+		if *search != "" {
+			query.Set("search", *search)
 		}
 		if *cursor != "" {
 			query.Set("cursor", *cursor)

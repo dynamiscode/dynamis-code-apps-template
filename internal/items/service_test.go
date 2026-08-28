@@ -3,6 +3,7 @@ package items
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
@@ -64,6 +65,34 @@ func TestItemLifecycleContracts(t *testing.T) {
 	}
 	if _, err := service.List(ctx, principal, owner.WorkspaceID, ListInput{Sort: "title", Limit: 1}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("unsupported sort error = %v", err)
+	}
+	searchPage, err := service.List(ctx, principal, owner.WorkspaceID, ListInput{
+		Search: " first ", Sort: "created_at", Limit: 1,
+	})
+	if err != nil || len(searchPage.Items) != 1 || searchPage.Items[0].Title != "First" {
+		t.Fatalf("search page = %+v, %v", searchPage, err)
+	}
+	literalWildcard, err := service.List(ctx, principal, owner.WorkspaceID, ListInput{
+		Search: "%", Sort: "created_at", Limit: 1,
+	})
+	if err != nil || len(literalWildcard.Items) != 0 {
+		t.Fatalf("literal wildcard search = %+v, %v", literalWildcard, err)
+	}
+	if _, err := service.List(ctx, principal, owner.WorkspaceID, ListInput{
+		Search: strings.Repeat("a", 101), Sort: "created_at", Limit: 1,
+	}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("oversized search error = %v", err)
+	}
+	activePage, err := service.List(ctx, principal, owner.WorkspaceID, ListInput{
+		Status: Active, Sort: "created_at", Limit: 1,
+	})
+	if err != nil || activePage.NextCursor == "" {
+		t.Fatalf("active page = %+v, %v", activePage, err)
+	}
+	if _, err := service.List(ctx, principal, owner.WorkspaceID, ListInput{
+		Status: Complete, Sort: "created_at", Limit: 1, Cursor: activePage.NextCursor,
+	}); !errors.Is(err, ErrInvalidCursor) {
+		t.Fatalf("cross-query cursor error = %v", err)
 	}
 	if _, err := service.List(ctx, principal, owner.WorkspaceID, ListInput{Sort: "created_at", Limit: 1, Cursor: "bad"}); !errors.Is(err, ErrInvalidCursor) {
 		t.Fatalf("invalid cursor error = %v", err)

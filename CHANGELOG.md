@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Standardized item collection search, bounded query validation, query-bound
+  cursors, and discoverable REST/OpenAPI conventions across REST, CLI, and MCP.
 - Added Git-reviewed English and Spanish browser catalogs with account
   preference, explicit cookie, browser negotiation, workspace fallback,
   localized invitation emails, and language settings.
