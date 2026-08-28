@@ -75,8 +75,8 @@ func NewHandlerWithMail(
 		"logoutLocal": h.logout, "listItems": h.listItems,
 		"createItem": h.createItem, "getItem": h.getItem,
 		"updateItem": h.updateItem, "deleteItem": h.deleteItem,
-		"exportWorkspace": h.exportWorkspace,
-		"listMembers":     h.listMembers, "changeMemberRole": h.changeMemberRole,
+		"exportWorkspace": h.exportWorkspace, "importWorkspace": h.importWorkspace,
+		"listMembers": h.listMembers, "changeMemberRole": h.changeMemberRole,
 		"removeMember": h.removeMember, "transferOwnership": h.transferOwnership,
 		"listInvitations": h.listInvitations, "createInvitation": h.createInvitation,
 		"resendInvitation": h.resendInvitation, "revokeInvitation": h.revokeInvitation,
@@ -145,6 +145,40 @@ func (h *handler) exportWorkspace(writer http.ResponseWriter, request *http.Requ
 	writer.Header().Set("Content-Disposition", `attachment; filename="workspace-export.json"`)
 	writer.WriteHeader(http.StatusOK)
 	_, _ = writer.Write(encoded)
+}
+
+func (h *handler) importWorkspace(writer http.ResponseWriter, request *http.Request) {
+	workspaceID := request.PathValue("workspaceId")
+	if !validID(workspaceID) || len(request.URL.Query()) != 0 {
+		h.invalidRequest(writer, request, "The import parameters are invalid.")
+		return
+	}
+	principal, ok := h.bearerPrincipal(writer, request, identity.WorkspaceUpdate)
+	if !ok {
+		return
+	}
+	mediaType, _, err := mime.ParseMediaType(request.Header.Get("Content-Type"))
+	if err != nil || (mediaType != "application/json" && mediaType != "text/csv") {
+		h.invalidRequest(writer, request, "The import content type is unsupported.")
+		return
+	}
+	result, err := h.portability.Import(
+		request.Context(), principal, workspaceID,
+		portability.ImportInput{Format: mediaType, Reader: request.Body},
+		h.auditContext(request),
+	)
+	switch {
+	case errors.Is(err, identity.ErrForbidden):
+		writeProblem(writer, request, http.StatusForbidden, "forbidden", "Access is denied.")
+	case errors.Is(err, portability.ErrImportLimit), errors.Is(err, items.ErrLimit):
+		writeProblem(writer, request, http.StatusConflict, "import-limit", "The workspace import limit was reached.")
+	case errors.Is(err, portability.ErrInvalidImport), errors.Is(err, items.ErrInvalidInput):
+		writeProblem(writer, request, http.StatusBadRequest, "invalid-import", "The import file is invalid.")
+	case err != nil:
+		h.internal(writer, request)
+	default:
+		writeJSON(writer, http.StatusOK, result)
+	}
 }
 
 func Wrap(next http.Handler, cfg config.HTTP, logger *slog.Logger) http.Handler {
@@ -291,9 +325,15 @@ func (h *handler) logout(writer http.ResponseWriter, request *http.Request) {
 func (h *handler) listItems(writer http.ResponseWriter, request *http.Request) {
 	workspaceID := request.PathValue("workspaceId")
 	if !validID(workspaceID) || !onlyQuery(
-		request, "status", "sort", "limit", "cursor",
+		request, "status", "search", "sort", "limit", "cursor",
 	) {
 		h.invalidRequest(writer, request, "The collection parameters are invalid.")
+		return
+	}
+	query := request.URL.Query()
+	search := query.Get("search")
+	if _, specified := query["search"]; specified && strings.TrimSpace(search) == "" {
+		h.invalidRequest(writer, request, "The search parameter is invalid.")
 		return
 	}
 	principal, ok := h.bearerPrincipal(
@@ -303,7 +343,7 @@ func (h *handler) listItems(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	limit := h.cfg.DefaultPageSize
-	if raw := request.URL.Query().Get("limit"); raw != "" {
+	if raw := query.Get("limit"); raw != "" {
 		value, err := strconv.Atoi(raw)
 		if err != nil || value < 1 || value > h.cfg.MaxPageSize {
 			h.invalidRequest(writer, request, "The page limit is invalid.")
@@ -311,13 +351,13 @@ func (h *handler) listItems(writer http.ResponseWriter, request *http.Request) {
 		}
 		limit = value
 	}
-	sort := request.URL.Query().Get("sort")
+	sort := query.Get("sort")
 	if sort == "" {
 		sort = "-created_at"
 	}
 	page, err := h.items.List(request.Context(), principal, workspaceID, items.ListInput{
-		Status: items.Status(request.URL.Query().Get("status")), Sort: sort,
-		Limit: limit, Cursor: request.URL.Query().Get("cursor"),
+		Status: items.Status(query.Get("status")), Search: search, Sort: sort,
+		Limit: limit, Cursor: query.Get("cursor"),
 	})
 	if err != nil {
 		h.itemError(writer, request, err)
@@ -621,7 +661,7 @@ func onlyQuery(request *http.Request, allowed ...string) bool {
 		allow[key] = true
 	}
 	for key, values := range request.URL.Query() {
-		if !allow[key] || len(values) != 1 {
+		if !allow[key] || len(values) != 1 || values[0] == "" {
 			return false
 		}
 	}

@@ -114,7 +114,8 @@ func (p pageData) Role(value identity.Role) string {
 func (p pageData) Scope(value identity.Permission) string {
 	keys := map[identity.Permission]string{
 		identity.WorkspaceRead: "tokens.workspace_read", identity.ResourcesRead: "tokens.resources_read",
-		identity.ResourcesWrite: "tokens.resources_write", identity.WorkspaceExport: "tokens.workspace_export",
+		identity.WorkspaceUpdate: "tokens.workspace_update",
+		identity.ResourcesWrite:  "tokens.resources_write", identity.WorkspaceExport: "tokens.workspace_export",
 	}
 	return p.T(keys[value])
 }

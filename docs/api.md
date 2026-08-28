@@ -2,8 +2,14 @@
 
 The server exposes health checks, its OpenAPI 3.1 contract, local browser
 session endpoints, workspace identity management, and a workspace-scoped item
-resource. The canonical
-machine contract is [`api/openapi.json`](../api/openapi.json).
+resource. The canonical machine contract is [`api/openapi.json`](../api/openapi.json);
+the live reference is `GET /api/openapi.json`.
+
+Quick check:
+
+```sh
+curl http://127.0.0.1:8080/api/openapi.json
+```
 
 ## Endpoints
 
@@ -21,6 +27,10 @@ documented in [authentication](authentication.md).
 
 - `GET /api/v1/workspaces/{workspaceId}/export` returns the bounded versioned
   workspace export described in [data lifecycle](data-lifecycle.md).
+- `POST /api/v1/workspaces/{workspaceId}/import` atomically imports bounded
+  item records from that JSON export format or strict `title,status` CSV.
+  It requires `workspace:update`; source IDs, timestamps, memberships, audit
+  events, and credentials are ignored.
 - Members: `GET /members`, `PATCH /members/{userId}`, `DELETE /members/{userId}`,
   and `POST /ownership`.
 - Invitations: `GET/POST /invitations`, `POST /invitations/{invitationId}/resend`,
@@ -36,9 +46,11 @@ operation: `members:read`, `members:manage`, `ownership:transfer`,
 `resources:*` and `workspace:export`. REST intentionally has no workspace
 list/create endpoint; those operations are browser-only.
 
-Invitation create/resend returns `invitationUrl` and delivery status, never a
-standalone secret. Token create returns `secret` once only. Session responses
-contain metadata only and never session or CSRF secrets.
+Token create returns `secret` once only; token lists never return it. Invitation
+create/resend returns an invitation URL and delivery status, not a standalone
+secret. Session responses contain metadata only and never session or CSRF
+secrets. Problem details and logs exclude credentials, authorization headers,
+session values, invitation values, connection strings, and signed URLs.
 
 ## Contract rules
 
@@ -46,12 +58,24 @@ Errors use RFC 9457 `application/problem+json` with a stable `type`, `code`,
 HTTP `status`, safe `detail`, request `instance`, and `requestId`. Internal
 errors never expose implementation details.
 
-Collections accept only documented filters and `created_at` or `-created_at`
-sorts. Opaque cursors include the stable sort position; page size defaults to
-50 and cannot exceed 100. Unsupported or repeated query parameters fail.
+Common error codes are `invalid-request`, `not-found`, `precondition-required`,
+`precondition-failed`, `idempotency-key-required`, `idempotency-conflict`,
+`insufficient-scope`, and `rate-limited`. Clients should branch on `status` and
+stable `code`, not on human-readable `title` or `detail`.
 
-Item reads return strong version ETags. Updates require `If-Match`; missing,
-malformed, or stale versions return `428` or `412`. Creates require an
+Collections use one query shape: optional resource filters, `search`, `sort`,
+`limit`, and opaque `cursor`. The item reference accepts `status=active|complete`
+and `search`, which is a trimmed, case-insensitive literal substring match on
+`title`; `%`, `_`, and `\\` have no wildcard meaning. Search is limited to 100
+Unicode characters. `sort` is `created_at` or `-created_at`; ties use `id` in
+the same direction. `limit` defaults to 50 and is bounded to 1-100. A response
+contains `nextCursor` only when another page exists. Cursors bind the complete
+filter/search/sort query and must be sent unchanged. Unsupported, repeated,
+empty, or malformed parameters fail with Problem Details `400`.
+
+Item reads return strong version ETags in the form `"vN"`. `If-None-Match` can
+return `304`. Updates and deletes require `If-Match`; missing, malformed, or
+stale versions return `428` or `412`. Creates require an
 `Idempotency-Key`. Keys are hashed and scoped to principal, workspace, and
 operation for 24 hours. An identical retry replays the result; a changed
 request returns `409`.

@@ -204,6 +204,7 @@
   "errors.password_reset_expired": "The password reset form expired. Reload and try again.",
   "errors.notification_preference": "The notification preference is invalid.",
   "tokens.workspace_read": "Workspace read",
+  "tokens.workspace_update": "Workspace update",
   "tokens.resources_read": "Resources read",
   "tokens.resources_write": "Resources write",
   "tokens.workspace_export": "Workspace export",

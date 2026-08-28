@@ -65,10 +65,27 @@ and an explicit exclusion list. Defaults cap it at 1,000 records and 4 MiB;
 over-limit exports fail with `409 export-limit` and are audited. No server-side
 download copy remains.
 
-Import is unsupported. Importing memberships and stable identities safely
-requires explicit identifier mapping, duplicate policy, authority ceilings,
-and partial-result semantics. Adding cloud/self-hosted migration is its trigger;
-input must then be treated as untrusted and must never elevate authority.
+Import supports only item records through `POST /api/v1/workspaces/{workspaceId}/import`.
+Authorized owners and admins with `workspace:update` may submit the versioned
+workspace JSON export or strict UTF-8 `title,status` CSV. Source IDs,
+timestamps, memberships, audit events, credentials, and unknown JSON fields are
+ignored or rejected; imported items receive new IDs, the current actor as
+creator, and current UTC timestamps. The configured import record and byte
+limits apply, and the whole batch is validated and committed in one
+transaction. Any validation, quota, or storage error rolls the batch back.
+Successful and authorized rejected imports append workspace audit events;
+invalid or over-limit input has a safe error without echoing file contents.
+Membership, identity, and arbitrary-domain imports remain unsupported.
+Deletion removes imported items through the normal permanent item deletion
+path; database backups retain them until backup expiry. Import does not create
+a restore or undelete workflow.
+Import is intentionally REST-only; browser, remote CLI, MCP, and WebMCP
+surfaces omit it because a bulk mutation needs explicit file selection and
+operator review.
+
+The workspace object in `dynamis-code.workspace/v1` includes its `locale` as
+an additive field. Existing readers that ignore unknown fields remain
+compatible; new exports always include `en` or `es`.
 
 The workspace object in `dynamis-code.workspace/v1` includes its `locale` as
 an additive field. Existing readers that ignore unknown fields remain

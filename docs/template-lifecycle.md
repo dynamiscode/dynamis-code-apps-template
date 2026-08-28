@@ -11,6 +11,10 @@ existing output directory, regenerates OpenAPI, and writes a mode-0600
 - UTC generation time; and
 - selected `Core`, `Identity`, and `Agent` profiles.
 
+The generated application also receives a README handoff based on the target
+name, module, and slug. It points to the implemented documentation and marks
+product purpose and domain behavior as application-owned work.
+
 The command is documented in the root [README](../README.md). Commit the lock
 with the generated application; it contains provenance, not credentials.
 

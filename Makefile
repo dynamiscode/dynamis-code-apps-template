@@ -1,4 +1,4 @@
-.PHONY: fmt-check test vet race generate-check build image docker-smoke accessibility-smoke webmcp-smoke template-smoke verify
+.PHONY: fmt-check test vet race workflow-check generate-check build image docker-smoke accessibility-smoke webmcp-smoke template-smoke verify
 
 fmt-check:
 	test -z "$$(gofmt -l $$(find . -name '*.go' -not -path './vendor/*'))"
@@ -11,6 +11,9 @@ vet:
 
 race:
 	go test -race ./...
+
+workflow-check:
+	./scripts/check-action-pins.sh
 
 generate-check:
 	go generate ./api
@@ -36,4 +39,4 @@ template-smoke:
 	go run ./cmd/template-init -output "$$work/app" -name "Smoke App" -module example.com/smoke/app -source https://example.com/dynamis-code/template -commit 0000000000000000000000000000000000000000; \
 	cd "$$work/app" && go test ./...
 
-verify: fmt-check test vet race generate-check build template-smoke
+verify: fmt-check test vet race workflow-check generate-check build template-smoke

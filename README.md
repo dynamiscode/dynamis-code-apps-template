@@ -46,8 +46,19 @@ With the default loopback address, an empty database also redirects
 
 The CLI fallback is documented in [authentication](docs/authentication.md).
 
-Health endpoints are `/health/live` and `/health/ready`; OpenAPI is
-`/api/openapi.json`. Press `Ctrl-C` for graceful shutdown.
+Seed a repeatable local workspace after first-owner setup (or on an empty
+database). The password is required and is never printed:
+
+```sh
+DEMO_OWNER_PASSWORD='use-a-local-password-12' go run ./cmd/demo
+```
+
+The command creates or reuses `Demo Workspace` and three deterministic items;
+set `DEMO_OWNER_EMAIL` or `DEMO_WORKSPACE` to target another local setup.
+
+Health endpoints are `/health/live` and `/health/ready`; the live OpenAPI
+reference is `/api/openapi.json`, with conventions in
+[HTTP and REST API](docs/api.md). Press `Ctrl-C` for graceful shutdown.
 
 ## Generate an application
 
@@ -61,6 +72,9 @@ go run ./cmd/template-init \
 ```
 
 Generation refuses an existing output directory and writes `template.lock`.
+It also replaces the output README with an application-specific handoff that
+links the implemented setup, architecture, interfaces, operations, security,
+contribution, release, and sample-feature guidance.
 See [template lifecycle](docs/template-lifecycle.md) before updating a
 generated application.
 

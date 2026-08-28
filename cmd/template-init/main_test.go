@@ -35,6 +35,30 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 	if err != nil || !strings.Contains(string(readme), "# My Application") {
 		t.Fatalf("generated README = %q, error = %v", readme, err)
 	}
+	for _, want := range []string{
+		"generated from **Dynamis Code Apps Template**",
+		"## Purpose",
+		"## Configuration",
+		"## Architecture",
+		"## Interfaces",
+		"## Operations and data",
+		"## Security",
+		"## Contributing and release",
+		"## Replace the sample feature",
+		"## Template provenance",
+		"`example.com/acme/my-app`",
+		"`my-app`",
+	} {
+		if !strings.Contains(string(readme), want) {
+			t.Errorf("generated README lacks %q", want)
+		}
+	}
+	if strings.Count(string(readme), "```") != 4 {
+		t.Errorf("generated README has malformed code fences: %d", strings.Count(string(readme), "```"))
+	}
+	if strings.Contains(string(readme), "go run ./cmd/template-init") {
+		t.Error("generated README still contains template-only generation instructions")
+	}
 	for path, want := range map[string]string{
 		"package.json":                       `"name": "my-app-checks"`,
 		"compose.yaml":                       "image: my-app:${VERSION:-dev}",

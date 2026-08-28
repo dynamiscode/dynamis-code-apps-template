@@ -204,6 +204,7 @@
   "errors.password_reset_expired": "El formulario de restablecimiento venció. Recarga e inténtalo de nuevo.",
   "errors.notification_preference": "La preferencia de notificación no es válida.",
   "tokens.workspace_read": "Lectura del espacio de trabajo",
+  "tokens.workspace_update": "Actualización del espacio de trabajo",
   "tokens.resources_read": "Lectura de recursos",
   "tokens.resources_write": "Escritura de recursos",
   "tokens.workspace_export": "Exportación del espacio de trabajo",

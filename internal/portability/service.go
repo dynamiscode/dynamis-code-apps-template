@@ -1,11 +1,15 @@
 package portability
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"strings"
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
@@ -14,7 +18,11 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 )
 
-var ErrLimit = errors.New("workspace export limit reached")
+var (
+	ErrLimit         = errors.New("workspace export limit reached")
+	ErrImportLimit   = errors.New("workspace import limit reached")
+	ErrInvalidImport = errors.New("workspace import is invalid")
+)
 
 const FormatVersion = "dynamis-code.workspace/v1"
 
@@ -59,12 +67,15 @@ type AuditEvent struct {
 }
 
 type Service struct {
-	db         *sql.DB
-	driver     config.DatabaseDriver
-	identity   *identity.Service
-	maxRecords int
-	maxBytes   int
-	now        func() time.Time
+	db               *sql.DB
+	driver           config.DatabaseDriver
+	identity         *identity.Service
+	items            *items.Service
+	maxRecords       int
+	maxBytes         int
+	maxImportRecords int
+	maxImportBytes   int
+	now              func() time.Time
 }
 
 func NewService(
@@ -73,11 +84,175 @@ func NewService(
 	identityService *identity.Service,
 	maxRecords int,
 	maxBytes int,
+	maxImportRecords int,
+	maxImportBytes int,
+	itemService *items.Service,
 ) *Service {
 	return &Service{
-		db: db, driver: driver, identity: identityService,
-		maxRecords: maxRecords, maxBytes: maxBytes, now: time.Now,
+		db: db, driver: driver, identity: identityService, items: itemService,
+		maxRecords: maxRecords, maxBytes: maxBytes,
+		maxImportRecords: maxImportRecords, maxImportBytes: maxImportBytes,
+		now: time.Now,
 	}
+}
+
+type ImportInput struct {
+	Format string
+	Reader io.Reader
+}
+
+type ImportResult struct {
+	Imported int `json:"imported"`
+}
+
+func (s *Service) Import(
+	ctx context.Context,
+	actor identity.Principal,
+	workspaceID string,
+	input ImportInput,
+	audit identity.AuditContext,
+) (ImportResult, error) {
+	records, err := s.parseImport(input)
+	if err != nil {
+		s.recordImportFailure(ctx, actor, workspaceID, input.Format, audit)
+		return ImportResult{}, err
+	}
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return ImportResult{}, err
+	}
+	defer tx.Rollback()
+	if _, err := s.identity.AuthorizePrincipalInTx(
+		ctx, tx, actor, workspaceID, identity.WorkspaceUpdate,
+	); err != nil {
+		return ImportResult{}, identity.ErrForbidden
+	}
+	created, err := s.items.ImportInTx(ctx, tx, actor, workspaceID, records, s.now())
+	if err != nil {
+		if errors.Is(err, items.ErrLimit) && s.recordImportAudit(
+			ctx, tx, actor, workspaceID, "failure", input.Format, len(records), audit,
+		) == nil {
+			_ = tx.Commit()
+		}
+		return ImportResult{}, err
+	}
+	if err := s.recordImportAudit(
+		ctx, tx, actor, workspaceID, "success", input.Format, len(created), audit,
+	); err != nil {
+		return ImportResult{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return ImportResult{}, err
+	}
+	return ImportResult{Imported: len(created)}, nil
+}
+
+func (s *Service) parseImport(input ImportInput) ([]items.ImportItem, error) {
+	if input.Reader == nil || (input.Format != "application/json" && input.Format != "text/csv") {
+		return nil, ErrInvalidImport
+	}
+	encoded, err := io.ReadAll(io.LimitReader(input.Reader, int64(s.maxImportBytes)+1))
+	if err != nil {
+		return nil, ErrInvalidImport
+	}
+	if len(encoded) > s.maxImportBytes {
+		return nil, ErrImportLimit
+	}
+	var records []items.ImportItem
+	switch input.Format {
+	case "application/json":
+		var document Export
+		decoder := json.NewDecoder(bytes.NewReader(encoded))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&document); err != nil || document.FormatVersion != FormatVersion {
+			return nil, ErrInvalidImport
+		}
+		if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+			return nil, ErrInvalidImport
+		}
+		records = make([]items.ImportItem, 0, len(document.Items))
+		for _, item := range document.Items {
+			records = append(records, items.ImportItem{Title: item.Title, Status: item.Status})
+		}
+	case "text/csv":
+		records, err = parseCSV(encoded)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(records) == 0 || len(records) > s.maxImportRecords {
+		return nil, ErrImportLimit
+	}
+	for _, record := range records {
+		if _, err := items.NormalizeImportItem(record); err != nil {
+			return nil, ErrInvalidImport
+		}
+	}
+	return records, nil
+}
+
+func parseCSV(encoded []byte) ([]items.ImportItem, error) {
+	reader := csv.NewReader(bytes.NewReader(encoded))
+	reader.FieldsPerRecord = -1
+	header, err := reader.Read()
+	if err != nil || len(header) != 2 || header[0] != "title" || header[1] != "status" {
+		return nil, ErrInvalidImport
+	}
+	result := make([]items.ImportItem, 0)
+	for {
+		row, err := reader.Read()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil || len(row) != 2 {
+			return nil, ErrInvalidImport
+		}
+		result = append(result, items.ImportItem{
+			Title: row[0], Status: items.Status(strings.TrimSpace(row[1])),
+		})
+	}
+	return result, nil
+}
+
+func (s *Service) recordImportFailure(
+	ctx context.Context,
+	actor identity.Principal,
+	workspaceID, format string,
+	audit identity.AuditContext,
+) {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return
+	}
+	defer tx.Rollback()
+	if _, err := s.identity.AuthorizePrincipalInTx(
+		ctx, tx, actor, workspaceID, identity.WorkspaceUpdate,
+	); err != nil {
+		return
+	}
+	if err := s.recordImportAudit(
+		ctx, tx, actor, workspaceID, "failure", format, 0, audit,
+	); err == nil {
+		_ = tx.Commit()
+	}
+}
+
+func (s *Service) recordImportAudit(
+	ctx context.Context,
+	tx *sql.Tx,
+	actor identity.Principal,
+	workspaceID, outcome, format string,
+	records int,
+	audit identity.AuditContext,
+) error {
+	return s.identity.RecordAuditInTx(ctx, tx, identity.AuditEvent{
+		EventType: "workspace.imported", ActorUserID: actor.UserID,
+		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
+		TargetType: "workspace", TargetID: workspaceID, Action: "workspace.import",
+		Outcome: outcome, RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
+		Metadata:  fmt.Sprintf(`{"format":%q,"records":%d}`, format, records),
+		CreatedAt: s.now().UTC(),
+	})
 }
 
 func (s *Service) Export(

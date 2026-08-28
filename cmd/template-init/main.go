@@ -110,6 +110,11 @@ func run(args []string, now func() time.Time) error {
 	); err != nil {
 		return err
 	}
+	if err := writeGeneratedReadme(
+		filepath.Join(destination, "README.md"), templateName, *name, *module, slug,
+	); err != nil {
+		return err
+	}
 	command := exec.Command("go", "generate", "./api")
 	command.Dir = destination
 	if output, err := command.CombinedOutput(); err != nil {
@@ -239,3 +244,129 @@ func writeLock(path string, lock lockFile) error {
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(lock)
 }
+
+func writeGeneratedReadme(path, templateName, name, module, slug string) error {
+	readme := strings.NewReplacer(
+		"{{TEMPLATE_NAME}}", templateName,
+		"{{NAME}}", name,
+		"{{MODULE}}", module,
+		"{{SLUG}}", slug,
+		"{{CODE}}", "`",
+	).Replace(generatedReadme)
+	return os.WriteFile(path, []byte(readme), 0o644)
+}
+
+const generatedReadme = `# {{NAME}}
+
+This repository is an application generated from **{{TEMPLATE_NAME}}**.
+It is a resource-conscious Go modular-monolith starting point with
+server-rendered HTML, REST, MCP, a REST-only remote CLI, SQLite by default,
+and optional PostgreSQL deployment.
+
+## Purpose
+
+The generator cannot infer your product purpose or domain rules. Replace this
+paragraph with the product problem, users, and scope before shipping. The
+included item feature is an executable reference slice, not a claim about your
+product.
+
+## Start locally
+
+Requirements: Go 1.26 or newer. Go selects the recorded toolchain.
+
+{{CODE}}{{CODE}}{{CODE}}sh
+cp .env.example .env
+set -a; . ./.env; set +a
+go run ./cmd/server
+{{CODE}}{{CODE}}{{CODE}}
+
+For the first local owner, set {{CODE}}BOOTSTRAP_ADMIN_EMAIL{{CODE}}, {{CODE}}BOOTSTRAP_ADMIN_WORKSPACE{{CODE}},
+and {{CODE}}BOOTSTRAP_ADMIN_PASSWORD{{CODE}} in the environment before starting the server. Keep
+the password out of command arguments, files committed to Git, and logs. Open
+{{CODE}}http://127.0.0.1:8080/login{{CODE}}; an empty local database also offers the loopback setup flow.
+
+Docker users can run:
+
+{{CODE}}{{CODE}}{{CODE}}sh
+export BOOTSTRAP_ADMIN_EMAIL=owner@example.com
+export BOOTSTRAP_ADMIN_WORKSPACE='My Workspace'
+read -s BOOTSTRAP_ADMIN_PASSWORD; export BOOTSTRAP_ADMIN_PASSWORD
+docker compose up --build -d
+unset BOOTSTRAP_ADMIN_PASSWORD
+{{CODE}}{{CODE}}{{CODE}}
+
+Data persists in the {{CODE}}app-data{{CODE}} volume. See [deployment](docs/deployment.md) for
+PostgreSQL, TLS termination, and production boundaries. Health endpoints are
+{{CODE}}/health/live{{CODE}} and {{CODE}}/health/ready{{CODE}}; press {{CODE}}Ctrl-C{{CODE}} for graceful shutdown.
+
+## Configuration
+
+Runtime configuration is environment-owned and validated at startup. Read the
+complete variable table, secret handling rules, SQLite defaults, PostgreSQL
+requirements, OIDC, SMTP, HTTP, rate, SSE, and telemetry settings in
+[configuration](docs/configuration.md). Do not commit {{CODE}}.env{{CODE}} or real
+credentials.
+
+## Architecture
+
+The application keeps business rules in shared application use cases. Web,
+REST, and MCP adapters call those use cases; the remote CLI calls REST only.
+Constructors use manual injection, SQLite is the one-instance default, and
+PostgreSQL is required before multiple application instances. See
+[architecture](docs/architecture.md) and the [documentation router](docs/README.md)
+for source-of-truth boundaries.
+
+## Interfaces
+
+- Browser: server-rendered HTML, HTMX fragments, CSRF-protected forms, and
+  accessible controls — [web and realtime](docs/web.md).
+- REST: bearer-authenticated HTTP API and generated OpenAPI contract —
+  [API guide](docs/api.md) and [OpenAPI](api/openapi.json).
+- MCP: bounded authenticated tools over the server MCP endpoint — [MCP](docs/mcp.md).
+- Remote CLI: {{CODE}}cmd/appctl{{CODE}} calls REST and never reaches the database — [CLI](docs/cli.md).
+- Realtime: scoped, one-way SSE delivery; optional WebMCP only enhances the
+  current browser tab and keeps ordinary HTML fallback — [web contract](docs/web.md).
+
+## Operations and data
+
+Read [deployment](docs/deployment.md) before exposing the service and
+[operations](docs/operations.md) for health, telemetry, limits, backup,
+restore, upgrades, and alerts. [Data lifecycle](docs/data-lifecycle.md)
+defines persistence, export, retention, deletion, and recovery boundaries.
+
+## Security
+
+Read [SECURITY.md](SECURITY.md) for private vulnerability reporting and
+operator-owned boundaries. [Authentication](docs/authentication.md) documents
+bootstrap, sessions, workspace authorization, invitations, tokens, and OIDC.
+Never publish credentials, authorization headers, session or invitation values,
+token secrets, database URLs, backups, or signed URLs.
+
+## Contributing and release
+
+Use [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), and the
+[documentation router](docs/README.md) before changing code. Run {{CODE}}make verify{{CODE}} before
+submission, plus the applicable PostgreSQL, accessibility, WebMCP, container,
+restore, and security checks.
+
+Release and artifact verification rules live in [release](docs/release.md).
+Do not publish tags, credentials, or production changes without the required
+authority.
+
+## Replace the sample feature
+
+The item feature is the executable reference for a complete vertical slice.
+Replace or remove it as one reviewed change: update shared use cases, routes,
+authorization, OpenAPI, migrations, tests, navigation, and documentation
+together. Before removing it, pass the browser, REST, CLI, MCP, SSE, and
+WebMCP fallback checks described in [development](docs/development.md#replace-the-sample-feature).
+
+## Template provenance
+
+{{CODE}}template.lock{{CODE}} records the source, release version, commit, generation time,
+and selected profiles. Read [template lifecycle](docs/template-lifecycle.md)
+before updating this application; generate into a new directory and port
+changes through reviewed commits instead of overwriting customizations.
+
+The application module is {{CODE}}{{MODULE}}{{CODE}} and its image/telemetry slug is {{CODE}}{{SLUG}}{{CODE}}.
+`
