@@ -32,7 +32,7 @@ func (h *Handler) createWorkspace(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 	_, err := h.identity.CreateWorkspace(request.Context(), identity.Principal{
-		UserID: session.UserID, AuthMethod: session.AuthMethod,
+		UserID: session.UserID, AuthMethod: session.AuthMethod, AuthLevel: session.AuthLevel,
 	}, identity.WorkspaceCreateInput{
 		Name: request.FormValue("name"), Locale: request.FormValue("locale"),
 	}, auditContext(request))
