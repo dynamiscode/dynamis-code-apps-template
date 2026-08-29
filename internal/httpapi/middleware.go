@@ -171,6 +171,18 @@ func timeoutMiddleware(
 	logger *slog.Logger,
 ) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if isFileStreamingPath(request.URL.Path) {
+			ctx, cancel := context.WithTimeout(request.Context(), timeout)
+			defer cancel()
+			controller := http.NewResponseController(writer)
+			deadline := time.Now().Add(timeout)
+			_ = controller.SetReadDeadline(deadline)
+			_ = controller.SetWriteDeadline(deadline)
+			defer controller.SetReadDeadline(time.Time{})
+			defer controller.SetWriteDeadline(time.Time{})
+			next.ServeHTTP(writer, request.WithContext(ctx))
+			return
+		}
 		if isStreamingPath(request.URL.Path) {
 			next.ServeHTTP(writer, request)
 			return
@@ -214,7 +226,11 @@ func timeoutMiddleware(
 
 func isStreamingPath(path string) bool {
 	return (strings.HasPrefix(path, "/workspaces/") && strings.HasSuffix(path, "/items/events")) ||
-		(strings.HasPrefix(path, "/api/v1/workspaces/") && strings.HasSuffix(path, "/files/content")) ||
+		isFileStreamingPath(path)
+}
+
+func isFileStreamingPath(path string) bool {
+	return (strings.HasPrefix(path, "/api/v1/workspaces/") && strings.HasSuffix(path, "/files/content")) ||
 		(strings.HasPrefix(path, "/workspaces/") && strings.HasSuffix(path, "/files/content"))
 }
 

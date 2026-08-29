@@ -3,11 +3,13 @@ package httpapi
 import (
 	"bytes"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestBodyLimitFileOverrideIsRequestLocal(t *testing.T) {
@@ -64,5 +66,21 @@ func TestBodyLimitAllowsMultipartEnvelopeAroundFileLimit(t *testing.T) {
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("multipart response = %d, want %d", response.Code, http.StatusNoContent)
+	}
+}
+
+func TestFileStreamingPathGetsRequestDeadline(t *testing.T) {
+	next := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if _, ok := request.Context().Deadline(); !ok {
+			t.Error("file stream request has no context deadline")
+		}
+		writer.WriteHeader(http.StatusNoContent)
+	})
+	handler := timeoutMiddleware(next, time.Minute, slog.Default())
+	request := httptest.NewRequest(http.MethodPut, "/api/v1/workspaces/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/files/file/content", nil)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("response = %d, want %d", response.Code, http.StatusNoContent)
 	}
 }

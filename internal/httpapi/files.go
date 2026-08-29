@@ -265,6 +265,8 @@ func (h *handler) fileProblem(writer http.ResponseWriter, request *http.Request,
 		notFoundProblem(writer, request)
 	case errors.Is(err, appfiles.ErrInvalidInput):
 		h.invalidRequest(writer, request, "The file input is invalid.")
+	case errors.Is(err, appfiles.ErrObjectLimit):
+		writeProblem(writer, request, http.StatusRequestEntityTooLarge, "file-too-large", "The file exceeds the configured per-file limit.")
 	case errors.Is(err, appfiles.ErrLimit):
 		writeProblem(writer, request, http.StatusConflict, "storage-limit", "The workspace file storage limit was reached.")
 	case errors.Is(err, appfiles.ErrNotReady):

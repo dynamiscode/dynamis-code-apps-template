@@ -30,6 +30,7 @@ var (
 	ErrInvalidInput = errors.New("file input is invalid")
 	ErrNotFound     = errors.New("file not found")
 	ErrLimit        = errors.New("file storage limit reached")
+	ErrObjectLimit  = errors.New("file object limit reached")
 	ErrNotReady     = errors.New("file is not ready")
 )
 
@@ -127,6 +128,14 @@ func (s *Service) PutContent(ctx context.Context, actor identity.Principal, work
 		return File{}, ErrInvalidInput
 	}
 	defer os.Remove(temporary)
+	tx, file, err := s.lockPending(ctx, actor, file.WorkspaceID, file.ID)
+	if err != nil {
+		return File{}, err
+	}
+	defer tx.Rollback()
+	if file.Size != size || !validContent(file.OriginalName, detected) {
+		return File{}, s.failLocked(ctx, tx, file.ID, ErrInvalidInput)
+	}
 	input, err := os.Open(temporary)
 	if err != nil {
 		return File{}, err
@@ -134,26 +143,23 @@ func (s *Service) PutContent(ctx context.Context, actor identity.Principal, work
 	putErr := s.store.Put(ctx, s.objectKey(file), input, size, detected)
 	closeErr := input.Close()
 	if putErr != nil {
-		s.markFailed(ctx, file.ID)
-		return File{}, putErr
+		return File{}, s.failLocked(ctx, tx, file.ID, putErr)
 	}
 	if closeErr != nil {
 		return File{}, closeErr
 	}
-	return s.complete(ctx, actor, file, size, detected, digest, audit)
+	return s.completeTx(ctx, tx, actor, file, size, detected, digest, audit)
 }
 
 func (s *Service) Complete(ctx context.Context, actor identity.Principal, workspaceID, fileID string, audit identity.AuditContext) (File, error) {
 	if !validID(workspaceID) || !validID(fileID) {
 		return File{}, ErrInvalidInput
 	}
-	file, err := s.pending(ctx, actor, workspaceID, fileID)
+	tx, file, err := s.lockPending(ctx, actor, workspaceID, fileID)
 	if err != nil {
 		return File{}, err
 	}
-	if file.Status != Pending {
-		return File{}, ErrNotReady
-	}
+	defer tx.Rollback()
 	object, err := s.store.Head(ctx, s.objectKey(file))
 	if err != nil {
 		if errors.Is(err, ErrObjectNotFound) {
@@ -161,8 +167,11 @@ func (s *Service) Complete(ctx context.Context, actor identity.Principal, worksp
 		}
 		return File{}, err
 	}
-	if object.Size < 1 || object.Size > s.maxObjectBytes {
-		return File{}, ErrInvalidInput
+	if object.Size > s.maxObjectBytes {
+		return File{}, s.failLocked(ctx, tx, file.ID, ErrObjectLimit)
+	}
+	if object.Size < 1 || object.Size != file.Size {
+		return File{}, s.failLocked(ctx, tx, file.ID, ErrInvalidInput)
 	}
 	reader, err := s.store.Get(ctx, s.objectKey(file))
 	if err != nil {
@@ -174,11 +183,13 @@ func (s *Service) Complete(ctx context.Context, actor identity.Principal, worksp
 	temporary, size, detected, digest, inspectErr := inspect(reader, s.maxObjectBytes)
 	reader.Close()
 	if inspectErr != nil || size != object.Size || !validContent(file.OriginalName, detected) {
-		s.markFailed(ctx, file.ID)
-		return File{}, ErrInvalidInput
+		if errors.Is(inspectErr, ErrObjectLimit) {
+			return File{}, s.failLocked(ctx, tx, file.ID, ErrObjectLimit)
+		}
+		return File{}, s.failLocked(ctx, tx, file.ID, ErrInvalidInput)
 	}
 	os.Remove(temporary)
-	return s.complete(ctx, actor, file, size, detected, digest, audit)
+	return s.completeTx(ctx, tx, actor, file, size, detected, digest, audit)
 }
 
 func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceID string, limit int) ([]File, error) {
@@ -240,6 +251,50 @@ func (s *Service) pending(ctx context.Context, actor identity.Principal, workspa
 		return File{}, ErrNotFound
 	}
 	return file, err
+}
+
+func (s *Service) lockPending(ctx context.Context, actor identity.Principal, workspaceID, fileID string) (*sql.Tx, File, error) {
+	if !validID(workspaceID) || !validID(fileID) {
+		return nil, File{}, ErrInvalidInput
+	}
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return nil, File{}, err
+	}
+	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesWrite); err != nil {
+		_ = tx.Rollback()
+		return nil, File{}, identity.ErrForbidden
+	}
+	var file File
+	err = scanRow(tx.QueryRowContext(ctx, database.Rebind(s.driver, `
+		SELECT id, workspace_id, owner_user_id, original_name, detected_mime,
+			size, sha256, status, created_at, updated_at
+		FROM files WHERE id = ? AND workspace_id = ? AND status = ?
+	`), fileID, workspaceID, Pending), &file)
+	if errors.Is(err, sql.ErrNoRows) {
+		_ = tx.Rollback()
+		return nil, File{}, ErrNotFound
+	}
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, File{}, err
+	}
+	// ponytail: SQLite serializes this write transaction; row locking needs no vendor-specific SQL.
+	result, err := tx.ExecContext(ctx, database.Rebind(s.driver,
+		"UPDATE files SET updated_at = updated_at WHERE id = ? AND workspace_id = ? AND status = ?",
+	), fileID, workspaceID, Pending)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, File{}, err
+	}
+	if affected, err := result.RowsAffected(); err != nil {
+		_ = tx.Rollback()
+		return nil, File{}, err
+	} else if affected != 1 {
+		_ = tx.Rollback()
+		return nil, File{}, ErrNotReady
+	}
+	return tx, file, nil
 }
 
 func (s *Service) Open(ctx context.Context, actor identity.Principal, workspaceID, fileID string) (File, io.ReadCloser, error) {
@@ -307,15 +362,16 @@ func (s *Service) reserve(ctx context.Context, actor identity.Principal, workspa
 }
 
 func (s *Service) complete(ctx context.Context, actor identity.Principal, file File, size int64, detected string, digest [32]byte, audit identity.AuditContext) (File, error) {
-	now := s.now().UTC()
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, file, err := s.lockPending(ctx, actor, file.WorkspaceID, file.ID)
 	if err != nil {
 		return File{}, err
 	}
 	defer tx.Rollback()
-	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, file.WorkspaceID, identity.ResourcesWrite); err != nil {
-		return File{}, identity.ErrForbidden
-	}
+	return s.completeTx(ctx, tx, actor, file, size, detected, digest, audit)
+}
+
+func (s *Service) completeTx(ctx context.Context, tx *sql.Tx, actor identity.Principal, file File, size int64, detected string, digest [32]byte, audit identity.AuditContext) (File, error) {
+	now := s.now().UTC()
 	var used int64
 	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver,
 		"SELECT COALESCE(SUM(size), 0) FROM files WHERE workspace_id = ? AND id <> ? AND status IN (?, ?)",
@@ -326,12 +382,17 @@ func (s *Service) complete(ctx context.Context, actor identity.Principal, file F
 		return File{}, ErrLimit
 	}
 	sha := hex.EncodeToString(digest[:])
-	_, err = tx.ExecContext(ctx, database.Rebind(s.driver, `
+	result, err := tx.ExecContext(ctx, database.Rebind(s.driver, `
 		UPDATE files SET detected_mime = ?, size = ?, sha256 = ?, status = ?, updated_at = ?
 		WHERE id = ? AND workspace_id = ? AND status = ?
 	`), detected, size, sha, Ready, stamp(now), file.ID, file.WorkspaceID, Pending)
 	if err != nil {
 		return File{}, err
+	}
+	if affected, err := result.RowsAffected(); err != nil {
+		return File{}, err
+	} else if affected != 1 {
+		return File{}, ErrNotReady
 	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "file.uploaded", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
@@ -380,6 +441,23 @@ func (s *Service) markFailed(ctx context.Context, fileID string) {
 	_, _ = s.db.ExecContext(ctx, database.Rebind(s.driver,
 		"UPDATE files SET status = ?, updated_at = ? WHERE id = ? AND status = ?",
 	), Failed, stamp(s.now()), fileID, Pending)
+}
+
+func (s *Service) markFailedTx(ctx context.Context, tx *sql.Tx, fileID string) error {
+	_, err := tx.ExecContext(ctx, database.Rebind(s.driver,
+		"UPDATE files SET status = ?, updated_at = ? WHERE id = ? AND status = ?",
+	), Failed, stamp(s.now()), fileID, Pending)
+	return err
+}
+
+func (s *Service) failLocked(ctx context.Context, tx *sql.Tx, fileID string, cause error) error {
+	if err := s.markFailedTx(ctx, tx, fileID); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return cause
 }
 
 func scan(rows *sql.Rows) (File, error) {
@@ -433,9 +511,13 @@ func inspect(source io.Reader, maximum int64) (string, int64, string, [32]byte, 
 		os.Remove(name)
 		return "", 0, "", [32]byte{}, err
 	}
-	if count < 1 || count > maximum {
+	if count < 1 {
 		os.Remove(name)
-		return "", 0, "", [32]byte{}, ErrLimit
+		return "", 0, "", [32]byte{}, ErrInvalidInput
+	}
+	if count > maximum {
+		os.Remove(name)
+		return "", 0, "", [32]byte{}, ErrObjectLimit
 	}
 	if err := temporary.Close(); err != nil {
 		os.Remove(name)
@@ -481,12 +563,13 @@ func allowedDeclaredType(value, name string) bool {
 	if err != nil || !allowedMIME(detected) {
 		return false
 	}
-	return mimeByExtension(filepath.Ext(name)) == detected || detected == "application/octet-stream"
+	extension := strings.ToLower(filepath.Ext(name))
+	return mimeByExtension(extension) == detected || (extension == ".csv" && detected == "text/csv") || detected == "application/octet-stream"
 }
 
 func allowedMIME(value string) bool {
 	switch value {
-	case "text/plain", "application/pdf", "image/jpeg", "image/png", "image/gif", "image/webp":
+	case "text/plain", "text/csv", "application/pdf", "image/jpeg", "image/png", "image/gif", "image/webp":
 		return true
 	default:
 		return false

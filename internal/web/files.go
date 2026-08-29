@@ -49,7 +49,10 @@ func (h *Handler) filesUpload(writer http.ResponseWriter, request *http.Request)
 	defer upload.Close()
 	if _, err := h.files.Upload(request.Context(), principal, workspaceID, header.Filename, upload, auditContext(request)); err != nil {
 		message := "The file could not be uploaded."
-		if errors.Is(err, appfiles.ErrLimit) {
+		switch {
+		case errors.Is(err, appfiles.ErrObjectLimit):
+			message = "The file exceeds the per-file size limit."
+		case errors.Is(err, appfiles.ErrLimit):
 			message = "The workspace file storage limit was reached."
 		}
 		h.renderFilesError(writer, request, message)

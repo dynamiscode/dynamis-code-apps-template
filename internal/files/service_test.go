@@ -50,11 +50,23 @@ func TestLocalFileLifecycleAndValidation(t *testing.T) {
 	if err != nil || string(content) != "hello" {
 		t.Fatalf("content = %q, error = %v", content, err)
 	}
+	pending, err := service.Initiate(context.Background(), actor, owner.WorkspaceID, InitiateInput{
+		OriginalName: "data.csv", Size: 5, ContentType: "text/csv",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Put(context.Background(), service.objectKey(pending), strings.NewReader("123456"), 6, "text/plain"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Complete(context.Background(), actor, owner.WorkspaceID, pending.ID, identity.AuditContext{}); err != ErrInvalidInput {
+		t.Fatalf("mismatched external object error = %v, want ErrInvalidInput", err)
+	}
 	if _, err := service.Upload(context.Background(), actor, owner.WorkspaceID, "bad.html", strings.NewReader("<html>"), identity.AuditContext{}); err != ErrInvalidInput {
 		t.Fatalf("HTML upload error = %v, want ErrInvalidInput", err)
 	}
-	if _, err := service.Upload(context.Background(), actor, owner.WorkspaceID, "too.txt", strings.NewReader("012345678901234567"), identity.AuditContext{}); err != ErrLimit {
-		t.Fatalf("oversized upload error = %v, want ErrLimit", err)
+	if _, err := service.Upload(context.Background(), actor, owner.WorkspaceID, "too.txt", strings.NewReader("012345678901234567"), identity.AuditContext{}); err != ErrObjectLimit {
+		t.Fatalf("oversized upload error = %v, want ErrObjectLimit", err)
 	}
 }
 
