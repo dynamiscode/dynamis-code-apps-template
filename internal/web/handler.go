@@ -815,6 +815,9 @@ func (h *Handler) clearCookie(writer http.ResponseWriter, name string) {
 }
 
 func (h *Handler) redirect(writer http.ResponseWriter, request *http.Request, path string) {
+	if !isValidRedirect(path) {
+		path = "/"
+	}
 	http.Redirect(writer, request, path, http.StatusSeeOther)
 }
 

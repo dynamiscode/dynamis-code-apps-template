@@ -377,6 +377,19 @@ func TestWebLanguageSettingsRoutes(t *testing.T) {
 	}
 }
 
+func TestWebRedirectRejectsExternalTarget(t *testing.T) {
+	for _, target := range []string{"https://example.com", "//example.com", "/\\example.com", "/%5cexample.com"} {
+		request := httptest.NewRequest(http.MethodGet, "/", nil)
+		response := httptest.NewRecorder()
+
+		(&Handler{}).redirect(response, request, target)
+
+		if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/" {
+			t.Errorf("redirect %q = %d, location %q", target, response.Code, response.Header().Get("Location"))
+		}
+	}
+}
+
 func TestBrowserPagesRenderSpanishDocuments(t *testing.T) {
 	handler, auth, _, workspaceID, owner := testWeb(t, 10)
 	ownerPrincipal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.WorkspaceUpdate)
