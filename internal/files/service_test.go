@@ -3,10 +3,12 @@ package files
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"io"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
@@ -123,6 +125,60 @@ func TestWorkspaceQuotaAndIsolation(t *testing.T) {
 	if _, err := service.List(context.Background(), actor, strings.Repeat("0", 32), 10); err != identity.ErrForbidden {
 		t.Fatalf("cross-workspace list error = %v, want forbidden", err)
 	}
+}
+
+func TestPresignFailureReleasesPendingQuota(t *testing.T) {
+	db := openTestDB(t)
+	auth, err := identity.NewService(db, config.SQLite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := auth.BootstrapFirstOwner(context.Background(), identity.BootstrapInput{
+		Email: "presign@example.com", Password: "long-enough-password", WorkspaceName: "Presign",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := newLocalStore(filepath.Join(t.TempDir(), "objects"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(db, config.SQLite, auth, &presignFailureStore{ObjectStore: store}, 5, 5, 0, "")
+	actor, err := auth.Authorize(context.Background(), owner.UserID, owner.WorkspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file, err := service.Initiate(context.Background(), actor, owner.WorkspaceID, InitiateInput{
+		OriginalName: "one.txt", Size: 5, ContentType: "text/plain",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := service.PresignedPut(context.Background(), actor, owner.WorkspaceID, file.ID); err == nil {
+		t.Fatal("presign error = nil")
+	}
+	if _, err := service.Initiate(context.Background(), actor, owner.WorkspaceID, InitiateInput{
+		OriginalName: "two.txt", Size: 5, ContentType: "text/plain",
+	}, identity.AuditContext{}); err != nil {
+		t.Fatalf("quota after presign failure = %v, want available", err)
+	}
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM files WHERE id = ?", file.ID).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("released file count = %d, want 0", count)
+	}
+}
+
+type presignFailureStore struct {
+	ObjectStore
+}
+
+func (*presignFailureStore) SupportsPresignedPut() bool { return true }
+
+func (*presignFailureStore) PresignPut(context.Context, string, int64, string, time.Duration) (PresignedUpload, error) {
+	return PresignedUpload{}, errors.New("presign failed")
 }
 
 func openTestDB(t *testing.T) *sql.DB {

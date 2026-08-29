@@ -297,6 +297,9 @@ func (s *Service) PresignedPut(ctx context.Context, actor identity.Principal, wo
 		return File{}, PresignedUpload{}, err
 	}
 	upload, err := s.store.PresignPut(ctx, s.storedObjectKey(file), file.Size, contentType(file), s.signedURLTTL)
+	if err != nil && !errors.Is(err, ErrNotSupported) {
+		s.releasePending(ctx, file)
+	}
 	return file, upload, err
 }
 
@@ -422,6 +425,12 @@ func (s *Service) markFailed(ctx context.Context, fileID string) {
 	_, _ = s.db.ExecContext(ctx, database.Rebind(s.driver,
 		"UPDATE files SET status = ?, updated_at = ? WHERE id = ? AND status = ?",
 	), Failed, stamp(s.now()), fileID, Pending)
+}
+
+func (s *Service) releasePending(ctx context.Context, file File) {
+	_, _ = s.db.ExecContext(ctx, database.Rebind(s.driver,
+		"DELETE FROM files WHERE id = ? AND workspace_id = ? AND status = ?",
+	), file.ID, file.WorkspaceID, Pending)
 }
 
 func scan(rows *sql.Rows) (File, error) {
