@@ -39,6 +39,18 @@ func TestSCIMProvisioningLifecycle(t *testing.T) {
 	if passwordHash != "" {
 		t.Fatal("SCIM provisioned a local password")
 	}
+	retryUser, err := service.CreateSCIMUser(ctx, scimPrincipal, SCIMUserInput{
+		UserName: "retry@example.com",
+	}, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	replayedWithoutExternalID, err := service.CreateSCIMUser(ctx, scimPrincipal, SCIMUserInput{
+		UserName: "retry@example.com",
+	}, AuditContext{})
+	if err != nil || replayedWithoutExternalID.UserID != retryUser.UserID || replayedWithoutExternalID.ExternalID != retryUser.ExternalID {
+		t.Fatalf("SCIM replay without external ID = %+v, %v", replayedWithoutExternalID, err)
+	}
 	for _, externalID := range []string{".", ".."} {
 		if _, err := service.CreateSCIMUser(ctx, scimPrincipal, SCIMUserInput{
 			ExternalID: externalID, UserName: "reserved@example.com",
@@ -161,6 +173,96 @@ func TestSCIMProvisioningLifecycle(t *testing.T) {
 	assertAuditEvent(t, db, "scim.token.created")
 	assertDatabaseDoesNotContain(t, db, token.Secret)
 	assertDatabaseDoesNotContain(t, db, rotated.Secret)
+}
+
+func TestSCIMGroupETagsTrackMembershipChanges(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := context.Background()
+	bootstrap := bootstrapOwner(t, service)
+	owner := mustAuthorize(t, service, bootstrap.UserID, bootstrap.WorkspaceID, WorkspaceUpdate)
+	token, err := service.CreateSCIMToken(ctx, owner, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	scim, err := service.AuthenticateSCIMToken(ctx, token.Secret, bootstrap.WorkspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	user, err := service.CreateSCIMUser(ctx, scim, SCIMUserInput{
+		ExternalID: "etag-user", UserName: "etag@example.com",
+	}, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	groups, err := service.ListSCIMGroups(ctx, scim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	memberVersion, adminVersion := groups[1].Version, groups[0].Version
+	if err := service.ChangeMemberRole(ctx, owner, user.UserID, Admin, AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	groups, err = service.ListSCIMGroups(ctx, scim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if groups[1].Version == memberVersion || groups[0].Version == adminVersion {
+		t.Fatalf("role change did not advance affected group ETags: %+v", groups)
+	}
+
+	adminVersion = groups[0].Version
+	currentUser, err := service.GetSCIMUser(ctx, scim, user.ExternalID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deactivated, err := service.PatchSCIMUser(ctx, scim, user.ExternalID, SCIMUserPatch{Active: boolPtr(false)}, currentUser.Version, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	groups, err = service.ListSCIMGroups(ctx, scim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if groups[0].Version == adminVersion {
+		t.Fatalf("deactivation did not advance admin group ETag: %+v", groups[0])
+	}
+	adminVersion = groups[0].Version
+	if _, err := service.PatchSCIMUser(ctx, scim, user.ExternalID, SCIMUserPatch{Active: boolPtr(true)}, deactivated.Version, AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	groups, err = service.ListSCIMGroups(ctx, scim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if groups[0].Version == adminVersion {
+		t.Fatalf("reactivation did not advance admin group ETag: %+v", groups[0])
+	}
+
+	second, err := service.CreateSCIMUser(ctx, scim, SCIMUserInput{
+		ExternalID: "etag-second", UserName: "etag-second@example.com",
+	}, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	groups, err = service.ListSCIMGroups(ctx, scim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	memberVersion = groups[1].Version
+	adminVersion = groups[0].Version
+	if _, err := service.PatchSCIMGroup(ctx, scim, "admin", []SCIMGroupOperation{{Operation: "add", Members: []string{second.ExternalID}}}, adminVersion, AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	groups, err = service.ListSCIMGroups(ctx, scim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if groups[1].Version == memberVersion {
+		t.Fatalf("SCIM group move did not advance old group ETag: %+v", groups[1])
+	}
+	if _, err := service.PatchSCIMGroup(ctx, scim, "member", []SCIMGroupOperation{{Operation: "remove", Members: []string{second.ExternalID}}}, memberVersion, AuditContext{}); !errors.Is(err, ErrSCIMPrecondition) {
+		t.Fatalf("stale old-group ETag error = %v", err)
+	}
 }
 
 func TestSCIMDeactivationScopesCredentialsToWorkspace(t *testing.T) {

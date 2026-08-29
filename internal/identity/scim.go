@@ -298,6 +298,21 @@ func (s *Service) CreateSCIMUser(ctx context.Context, actor Principal, input SCI
 	}
 	var member int
 	if err := s.queryRow(ctx, tx, `SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?`, actor.WorkspaceID, userID).Scan(&member); err == nil {
+		if externalID == "" {
+			var mappedExternalID string
+			if mapErr := s.queryRow(ctx, tx, `SELECT external_id FROM scim_users WHERE workspace_id = ? AND user_id = ?`, actor.WorkspaceID, userID).Scan(&mappedExternalID); mapErr == nil {
+				user, loadErr := s.getSCIMUserTx(ctx, tx, actor.WorkspaceID, mappedExternalID)
+				if loadErr != nil {
+					return SCIMUser{}, loadErr
+				}
+				if err := tx.Commit(); err != nil {
+					return SCIMUser{}, err
+				}
+				return user, nil
+			} else if !errors.Is(mapErr, sql.ErrNoRows) {
+				return SCIMUser{}, mapErr
+			}
+		}
 		return SCIMUser{}, ErrSCIMConflict
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return SCIMUser{}, err
@@ -323,6 +338,9 @@ func (s *Service) CreateSCIMUser(ctx context.Context, actor Principal, input SCI
 		VALUES (?, ?, ?, ?, TRUE, 1, ?, ?)
 	`, actor.WorkspaceID, externalID, userID, Member, timestamp(now), timestamp(now)); err != nil {
 		return SCIMUser{}, fmt.Errorf("map SCIM user: %w", err)
+	}
+	if err := s.bumpSCIMGroupVersions(ctx, tx, actor.WorkspaceID, Member); err != nil {
+		return SCIMUser{}, err
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "scim.user.created", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
@@ -402,6 +420,11 @@ func (s *Service) PatchSCIMUser(ctx context.Context, actor Principal, externalID
 		WHERE workspace_id = ? AND external_id = ?
 	`, active, newVersion, timestamp(now), actor.WorkspaceID, externalID); err != nil {
 		return SCIMUser{}, err
+	}
+	if active != current.Active {
+		if err := s.bumpSCIMGroupVersions(ctx, tx, actor.WorkspaceID, current.Role); err != nil {
+			return SCIMUser{}, err
+		}
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "scim.user.updated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
@@ -486,6 +509,7 @@ func (s *Service) PatchSCIMGroup(ctx context.Context, actor Principal, groupID s
 		return SCIMGroup{}, ErrSCIMPrecondition
 	}
 	now := s.now().UTC()
+	changedRoles := []Role{group.Role}
 	for _, operation := range operations {
 		op := strings.ToLower(strings.TrimSpace(operation.Operation))
 		if (op != "add" && op != "remove") || len(operation.Members) == 0 {
@@ -508,6 +532,9 @@ func (s *Service) PatchSCIMGroup(ctx context.Context, actor Principal, groupID s
 			}
 			switch op {
 			case "add":
+				if active && currentRole != group.Role {
+					changedRoles = append(changedRoles, currentRole)
+				}
 				if active {
 					if _, err := s.exec(ctx, tx, "UPDATE workspace_members SET role = ? WHERE workspace_id = ? AND user_id = ?", group.Role, actor.WorkspaceID, userID); err != nil {
 						return SCIMGroup{}, err
@@ -551,8 +578,7 @@ func (s *Service) PatchSCIMGroup(ctx context.Context, actor Principal, groupID s
 			}
 		}
 	}
-	newVersion := group.Version + 1
-	if _, err := s.exec(ctx, tx, "UPDATE scim_groups SET version = ? WHERE workspace_id = ? AND role = ?", newVersion, actor.WorkspaceID, group.Role); err != nil {
+	if err := s.bumpSCIMGroupVersions(ctx, tx, actor.WorkspaceID, changedRoles...); err != nil {
 		return SCIMGroup{}, err
 	}
 	if err := s.audit(ctx, tx, AuditEvent{EventType: "scim.group.updated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID, TargetType: "scim_group", TargetID: group.ID, Action: "scim.group.update", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"role": group.Role}), CreatedAt: now}); err != nil {
@@ -581,6 +607,69 @@ func normalizeSCIMEmail(userName, email string) (string, error) {
 }
 
 func (s *Service) ensureSCIMMembership(ctx context.Context, tx *sql.Tx, workspaceID, userID string, role Role, active bool, now string) error {
+	var currentRole Role
+	var currentActive bool
+	err := s.queryRow(ctx, tx, `
+		SELECT role, active FROM scim_users
+		WHERE workspace_id = ? AND user_id = ?
+	`, workspaceID, userID).Scan(&currentRole, &currentActive)
+	if err == nil {
+		if _, err := s.exec(ctx, tx, `
+			UPDATE scim_users SET role = ?, active = ?, version = version + 1, updated_at = ?
+			WHERE workspace_id = ? AND user_id = ?
+		`, role, active, now, workspaceID, userID); err != nil {
+			return err
+		}
+		if currentRole != role || currentActive != active {
+			return s.bumpSCIMGroupVersions(ctx, tx, workspaceID, currentRole, role)
+		}
+		return nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if _, err := s.exec(ctx, tx, `
+		INSERT INTO scim_users (workspace_id, external_id, user_id, role, active, version, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+	`, workspaceID, userID, userID, role, active, now, now); err != nil {
+		return err
+	}
+	return s.bumpSCIMGroupVersions(ctx, tx, workspaceID, role)
+}
+
+func (s *Service) bumpSCIMGroupVersions(ctx context.Context, tx *sql.Tx, workspaceID string, roles ...Role) error {
+	seen := make(map[Role]struct{}, len(roles))
+	for _, role := range roles {
+		if role != Admin && role != Member && role != Viewer {
+			continue
+		}
+		if _, ok := seen[role]; ok {
+			continue
+		}
+		seen[role] = struct{}{}
+		if _, err := s.exec(ctx, tx, `
+			UPDATE scim_groups SET version = version + 1
+			WHERE workspace_id = ? AND role = ?
+		`, workspaceID, role); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Service) syncSCIMMembership(ctx context.Context, tx *sql.Tx, workspaceID, userID string, role Role, active bool, now string) error {
+	var currentRole Role
+	var currentActive bool
+	err := s.queryRow(ctx, tx, `
+		SELECT role, active FROM scim_users
+		WHERE workspace_id = ? AND user_id = ?
+	`, workspaceID, userID).Scan(&currentRole, &currentActive)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
 	result, err := s.exec(ctx, tx, `
 		UPDATE scim_users SET role = ?, active = ?, version = version + 1, updated_at = ?
 		WHERE workspace_id = ? AND user_id = ?
@@ -588,26 +677,15 @@ func (s *Service) ensureSCIMMembership(ctx context.Context, tx *sql.Tx, workspac
 	if err != nil {
 		return err
 	}
-	changed, err := result.RowsAffected()
-	if err != nil {
+	if changed, err := result.RowsAffected(); err != nil {
 		return err
-	}
-	if changed != 0 {
+	} else if changed == 0 {
 		return nil
 	}
-	_, err = s.exec(ctx, tx, `
-		INSERT INTO scim_users (workspace_id, external_id, user_id, role, active, version, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-	`, workspaceID, userID, userID, role, active, now, now)
-	return err
-}
-
-func (s *Service) syncSCIMMembership(ctx context.Context, tx *sql.Tx, workspaceID, userID string, role Role, active bool, now string) error {
-	_, err := s.exec(ctx, tx, `
-		UPDATE scim_users SET role = ?, active = ?, version = version + 1, updated_at = ?
-		WHERE workspace_id = ? AND user_id = ?
-	`, role, active, now, workspaceID, userID)
-	return err
+	if currentRole != role || currentActive != active {
+		return s.bumpSCIMGroupVersions(ctx, tx, workspaceID, currentRole, role)
+	}
+	return nil
 }
 
 func (s *Service) ensureSCIMGroups(ctx context.Context, tx *sql.Tx, workspaceID string, actor Principal, audit AuditContext) error {

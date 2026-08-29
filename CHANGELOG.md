@@ -7,8 +7,9 @@
   pagination, conditional PATCH/DELETE, safe errors, audit events, owner
   protection, passwordless verified-OIDC enrollment, workspace-scoped
   session/token revocation on deactivation, and read-only account profile
-  fields, including order-independent primary email handling and filtered
-  group-member removals.
+  fields, including order-independent primary email handling, filtered
+  group-member removals, membership-aware group ETags, and retry-safe creates
+  when `externalId` is omitted.
 
 - Added profile composition to application generation: Identity is required
   for Core, and selecting Agent includes its MCP and REST-only CLI surfaces;
