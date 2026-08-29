@@ -50,6 +50,16 @@ func TestLocalFileLifecycleAndValidation(t *testing.T) {
 	if err != nil || string(content) != "hello" {
 		t.Fatalf("content = %q, error = %v", content, err)
 	}
+	otherService := NewService(db, config.SQLite, auth, store, 16, 32, 0, "changed-prefix")
+	_, reader, err = otherService.Open(context.Background(), actor, owner.WorkspaceID, file.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content, err = io.ReadAll(reader)
+	reader.Close()
+	if err != nil || string(content) != "hello" {
+		t.Fatalf("content after prefix change = %q, error = %v", content, err)
+	}
 	pending, err := service.Initiate(context.Background(), actor, owner.WorkspaceID, InitiateInput{
 		OriginalName: "data.csv", Size: 5, ContentType: "text/csv",
 	}, identity.AuditContext{})

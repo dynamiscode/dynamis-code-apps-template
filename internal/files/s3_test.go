@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/smithy-go"
 )
 
 func TestS3PresignPutReturnsRequiredHeaders(t *testing.T) {
@@ -27,5 +28,11 @@ func TestS3PresignPutReturnsRequiredHeaders(t *testing.T) {
 	}
 	if _, ok := upload.Headers["Host"]; ok {
 		t.Fatal("presigned upload must not expose Host header")
+	}
+}
+
+func TestS3NotFoundRecognizesGenericProviderErrors(t *testing.T) {
+	if !isS3NotFound(&smithy.GenericAPIError{Code: "NotFound"}) {
+		t.Fatal("generic NotFound error was not normalized")
 	}
 }

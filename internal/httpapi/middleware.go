@@ -110,7 +110,7 @@ func securityHeadersMiddleware(next http.Handler, secure bool) http.Handler {
 func bodyLimitMiddleware(next http.Handler, maximum, fileMaximum int64) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		limit := maximum
-		if fileMaximum > limit && isFileBodyPath(request.URL.Path) {
+		if fileMaximum > 0 && isFileBodyPath(request.URL.Path) {
 			limit = fileMaximum
 		}
 		if fileMaximum > 0 && request.Method == http.MethodPost && strings.HasSuffix(request.URL.Path, "/files") {

@@ -29,6 +29,12 @@ func TestBodyLimitFileOverrideIsRequestLocal(t *testing.T) {
 	if fileResponse.Code != http.StatusNoContent {
 		t.Fatalf("file response = %d, want %d", fileResponse.Code, http.StatusNoContent)
 	}
+	overLimitRequest := httptest.NewRequest(http.MethodPut, "/api/v1/workspaces/"+strings.Repeat("a", 32)+"/files/content", strings.NewReader("123456789"))
+	overLimitResponse := httptest.NewRecorder()
+	handler.ServeHTTP(overLimitResponse, overLimitRequest)
+	if overLimitResponse.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("oversized file response = %d, want %d", overLimitResponse.Code, http.StatusRequestEntityTooLarge)
+	}
 
 	ordinaryRequest := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader("12345"))
 	ordinaryResponse := httptest.NewRecorder()

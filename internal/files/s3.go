@@ -4,13 +4,15 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
@@ -50,8 +52,7 @@ func (s *s3Store) Get(ctx context.Context, key string) (io.ReadCloser, error) {
 		Bucket: aws.String(s.bucket), Key: aws.String(key),
 	})
 	if err != nil {
-		var notFound *types.NoSuchKey
-		if errors.As(err, &notFound) {
+		if isS3NotFound(err) {
 			return nil, ErrObjectNotFound
 		}
 		return nil, err
@@ -64,8 +65,7 @@ func (s *s3Store) Head(ctx context.Context, key string) (ObjectInfo, error) {
 		Bucket: aws.String(s.bucket), Key: aws.String(key),
 	})
 	if err != nil {
-		var notFound *types.NotFound
-		if errors.As(err, &notFound) {
+		if isS3NotFound(err) {
 			return ObjectInfo{}, ErrObjectNotFound
 		}
 		return ObjectInfo{}, err
@@ -78,6 +78,18 @@ func (s *s3Store) Head(ctx context.Context, key string) (ObjectInfo, error) {
 		contentType = *result.ContentType
 	}
 	return ObjectInfo{Size: *result.ContentLength, ContentType: contentType}, nil
+}
+
+func isS3NotFound(err error) bool {
+	var responseErr *smithyhttp.ResponseError
+	if errors.As(err, &responseErr) && responseErr.HTTPStatusCode() == http.StatusNotFound {
+		return true
+	}
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.ErrorCode() == "NoSuchKey" || apiErr.ErrorCode() == "NotFound"
+	}
+	return false
 }
 
 func (s *s3Store) PresignPut(ctx context.Context, key string, size int64, contentType string, ttl time.Duration) (PresignedUpload, error) {

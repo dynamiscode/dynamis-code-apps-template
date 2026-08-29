@@ -36,9 +36,10 @@ var (
 )
 
 type File struct {
-	ID           string    `json:"id"`
-	WorkspaceID  string    `json:"workspaceId"`
-	OwnerUserID  *string   `json:"ownerUserId"`
+	ID           string  `json:"id"`
+	WorkspaceID  string  `json:"workspaceId"`
+	OwnerUserID  *string `json:"ownerUserId"`
+	storageKey   string
 	OriginalName string    `json:"originalName"`
 	DetectedMIME *string   `json:"detectedMime,omitempty"`
 	Size         int64     `json:"size"`
@@ -105,7 +106,7 @@ func (s *Service) Upload(ctx context.Context, actor identity.Principal, workspac
 	if err != nil {
 		return File{}, err
 	}
-	putErr := s.store.Put(ctx, s.objectKey(file), input, size, detected)
+	putErr := s.store.Put(ctx, s.storedObjectKey(file), input, size, detected)
 	closeErr := input.Close()
 	if putErr != nil {
 		s.markFailed(ctx, file.ID)
@@ -145,7 +146,7 @@ func (s *Service) PutContent(ctx context.Context, actor identity.Principal, work
 	if err != nil {
 		return File{}, err
 	}
-	putErr := s.store.Put(ctx, s.objectKey(file), input, size, detected)
+	putErr := s.store.Put(ctx, s.storedObjectKey(file), input, size, detected)
 	closeErr := input.Close()
 	if putErr != nil {
 		return File{}, putErr
@@ -166,7 +167,7 @@ func (s *Service) Complete(ctx context.Context, actor identity.Principal, worksp
 	if err != nil {
 		return File{}, err
 	}
-	object, err := s.store.Head(ctx, s.objectKey(file))
+	object, err := s.store.Head(ctx, s.storedObjectKey(file))
 	if err != nil {
 		if errors.Is(err, ErrObjectNotFound) {
 			return File{}, ErrNotFound
@@ -181,7 +182,7 @@ func (s *Service) Complete(ctx context.Context, actor identity.Principal, worksp
 		s.markFailed(ctx, file.ID)
 		return File{}, ErrInvalidInput
 	}
-	reader, err := s.store.Get(ctx, s.objectKey(file))
+	reader, err := s.store.Get(ctx, s.storedObjectKey(file))
 	if err != nil {
 		if errors.Is(err, ErrObjectNotFound) {
 			return File{}, ErrNotFound
@@ -215,7 +216,7 @@ func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceI
 		return nil, identity.ErrForbidden
 	}
 	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `
-		SELECT id, workspace_id, owner_user_id, original_name, detected_mime,
+		SELECT id, workspace_id, owner_user_id, object_key, original_name, detected_mime,
 			size, sha256, status, created_at, updated_at
 		FROM files WHERE workspace_id = ? AND status = ?
 		ORDER BY created_at DESC, id DESC LIMIT ?
@@ -253,7 +254,7 @@ func (s *Service) pending(ctx context.Context, actor identity.Principal, workspa
 	}
 	var file File
 	err = scanRow(tx.QueryRowContext(ctx, database.Rebind(s.driver, `
-		SELECT id, workspace_id, owner_user_id, original_name, detected_mime,
+		SELECT id, workspace_id, owner_user_id, object_key, original_name, detected_mime,
 			size, sha256, status, created_at, updated_at
 		FROM files WHERE id = ? AND workspace_id = ? AND status = ?
 	`), fileID, workspaceID, Pending), &file)
@@ -268,7 +269,7 @@ func (s *Service) Open(ctx context.Context, actor identity.Principal, workspaceI
 	if err != nil {
 		return File{}, nil, err
 	}
-	reader, err := s.store.Get(ctx, s.objectKey(file))
+	reader, err := s.store.Get(ctx, s.storedObjectKey(file))
 	if errors.Is(err, ErrObjectNotFound) {
 		return File{}, nil, ErrNotFound
 	}
@@ -283,7 +284,7 @@ func (s *Service) PresignedGet(ctx context.Context, actor identity.Principal, wo
 	if err != nil {
 		return File{}, "", err
 	}
-	url, err := s.store.PresignGet(ctx, s.objectKey(file), s.signedURLTTL)
+	url, err := s.store.PresignGet(ctx, s.storedObjectKey(file), s.signedURLTTL)
 	return file, url, err
 }
 
@@ -292,7 +293,7 @@ func (s *Service) PresignedPut(ctx context.Context, actor identity.Principal, wo
 	if err != nil {
 		return File{}, PresignedUpload{}, err
 	}
-	upload, err := s.store.PresignPut(ctx, s.objectKey(file), file.Size, contentType(file), s.signedURLTTL)
+	upload, err := s.store.PresignPut(ctx, s.storedObjectKey(file), file.Size, contentType(file), s.signedURLTTL)
 	return file, upload, err
 }
 
@@ -320,10 +321,11 @@ func (s *Service) reserve(ctx context.Context, actor identity.Principal, workspa
 		return File{}, ErrLimit
 	}
 	file := File{ID: fileID, WorkspaceID: workspaceID, OwnerUserID: stringPtr(actor.UserID), OriginalName: name, Size: size, Status: Pending, CreatedAt: now, UpdatedAt: now}
+	file.storageKey = s.objectKey(file)
 	if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, `
 		INSERT INTO files (id, workspace_id, owner_user_id, object_key, original_name, size, status, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`), file.ID, workspaceID, actor.UserID, s.objectKey(file), name, size, Pending, stamp(now), stamp(now)); err != nil {
+	`), file.ID, workspaceID, actor.UserID, file.storageKey, name, size, Pending, stamp(now), stamp(now)); err != nil {
 		return File{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -401,7 +403,7 @@ func (s *Service) get(ctx context.Context, actor identity.Principal, workspaceID
 	}
 	var file File
 	row := tx.QueryRowContext(ctx, database.Rebind(s.driver, `
-		SELECT id, workspace_id, owner_user_id, original_name, detected_mime,
+		SELECT id, workspace_id, owner_user_id, object_key, original_name, detected_mime,
 			size, sha256, status, created_at, updated_at
 		FROM files WHERE id = ? AND workspace_id = ? AND status = ?
 	`), fileID, workspaceID, Ready)
@@ -432,7 +434,7 @@ type scanner interface {
 func scanRow(row scanner, file *File) error {
 	var owner, detected, digest sql.NullString
 	var createdAt, updatedAt string
-	if err := row.Scan(&file.ID, &file.WorkspaceID, &owner, &file.OriginalName, &detected, &file.Size, &digest, &file.Status, &createdAt, &updatedAt); err != nil {
+	if err := row.Scan(&file.ID, &file.WorkspaceID, &owner, &file.storageKey, &file.OriginalName, &detected, &file.Size, &digest, &file.Status, &createdAt, &updatedAt); err != nil {
 		return err
 	}
 	var err error
@@ -573,6 +575,13 @@ func (s *Service) objectKey(file File) string {
 		return file.WorkspaceID + "/" + file.ID
 	}
 	return s.prefix + "/" + file.WorkspaceID + "/" + file.ID
+}
+
+func (s *Service) storedObjectKey(file File) string {
+	if file.storageKey != "" {
+		return file.storageKey
+	}
+	return s.objectKey(file)
 }
 
 func contentType(file File) string {
