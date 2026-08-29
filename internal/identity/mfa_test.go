@@ -68,6 +68,9 @@ func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
 	if err != nil || !required {
 		t.Fatal("admin MFA policy did not require enrolled factor")
 	}
+	if _, err := service.CreateWorkspace(ctx, Principal{UserID: owner.UserID, AuthMethod: "local", AuthLevel: AuthLevelPassword}, WorkspaceCreateInput{Name: "Blocked"}, AuditContext{}); !errors.Is(err, ErrMFARequired) {
+		t.Fatalf("password workspace creation error = %v", err)
+	}
 	pendingSession, err := service.CreateSession(ctx, owner.UserID, "local", "", time.Hour, AuditContext{})
 	if err != nil {
 		t.Fatal(err)

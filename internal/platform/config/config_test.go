@@ -203,6 +203,7 @@ func TestLoadFromValidatesMFAConfiguration(t *testing.T) {
 		{"MFA_ENABLED": "true"},
 		{"MFA_ENABLED": "true", "MFA_ENCRYPTION_KEY": "short"},
 		{"MFA_ENABLED": "true", "MFA_ENCRYPTION_KEY": key, "WEBAUTHN_RP_ID": "https://bad"},
+		{"MFA_ENABLED": "true", "MFA_ENCRYPTION_KEY": key, "WEBAUTHN_RP_ID": "other.example.com", "WEBAUTHN_RP_ORIGIN": "https://app.example.com"},
 		{"MFA_ENABLED": "true", "MFA_ENCRYPTION_KEY": key, "WEBAUTHN_RP_ORIGIN": "http://169.254.169.254"},
 	} {
 		if _, err := LoadFrom(env(values)); err == nil {

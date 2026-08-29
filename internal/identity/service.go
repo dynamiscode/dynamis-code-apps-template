@@ -191,6 +191,15 @@ func (s *Service) CreateWorkspace(
 	if actor.UserID == "" || actor.AuthMethod == "" {
 		return "", ErrForbidden
 	}
+	if actor.AuthLevel < AuthLevelMFA {
+		required, err := s.MFARequired(ctx, actor.UserID)
+		if err != nil {
+			return "", err
+		}
+		if required {
+			return "", ErrMFARequired
+		}
+	}
 	name, err := validateWorkspaceName(input.Name)
 	if err != nil {
 		return "", err

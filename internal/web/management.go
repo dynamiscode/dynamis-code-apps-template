@@ -37,6 +37,10 @@ func (h *Handler) createWorkspace(writer http.ResponseWriter, request *http.Requ
 		Name: request.FormValue("name"), Locale: request.FormValue("locale"),
 	}, auditContext(request))
 	if err != nil {
+		if errors.Is(err, identity.ErrMFARequired) {
+			h.redirect(writer, request, "/mfa")
+			return
+		}
 		workspaces, listErr := h.identity.ListWorkspaces(request.Context(), session.UserID)
 		if listErr != nil {
 			h.renderError(writer, http.StatusInternalServerError)

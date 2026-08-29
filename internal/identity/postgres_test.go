@@ -3,6 +3,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -155,6 +156,47 @@ func TestPostgresIdentityLifecycle(t *testing.T) {
 		if count != 0 {
 			t.Fatalf("PostgreSQL contains plaintext secret")
 		}
+	}
+}
+
+func TestPostgresMFA(t *testing.T) {
+	databaseURL := os.Getenv("POSTGRES_TEST_URL")
+	if databaseURL == "" {
+		t.Skip("POSTGRES_TEST_URL is not set")
+	}
+	ctx := context.Background()
+	db, err := database.Open(ctx, config.Database{Driver: config.Postgres, URL: databaseURL, MaxOpenConns: 2, MaxIdleConns: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	if err := database.Migrate(ctx, db, config.Postgres); err != nil {
+		t.Fatal(err)
+	}
+	service, err := NewServiceWithMFA(db, config.Postgres, MFAConfig{
+		Enabled: true, EncryptionKey: []byte("01234567890123456789012345678901"),
+		RelyingPartyID: "localhost", Origins: []string{"http://localhost:8080"}, DisplayName: "Dynamis Code",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service.passwordParams = passwordParams{memory: 64, iterations: 1, parallelism: 1, saltLength: 16, keyLength: 32}
+	marker, err := id.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	userID := postgresInsertUser(t, service, fmt.Sprintf("mfa-%s@example.com", marker))
+	t.Cleanup(func() { _, _ = db.ExecContext(ctx, "DELETE FROM users WHERE id = $1", userID) })
+	session, err := service.CreateSession(ctx, userID, "local", "", time.Hour, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	enrollment, err := service.BeginTOTPEnrollment(ctx, userID, session.ID, "postgres-user-password", AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.CompleteTOTPEnrollment(ctx, session.ID, enrollment.Challenge, totpTestCode(enrollment.Secret, service.now()), AuditContext{}); err != nil {
+		t.Fatal(err)
 	}
 }
 

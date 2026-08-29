@@ -585,6 +585,11 @@ func loadMFA(lookup LookupEnv) (MFA, error) {
 		(parsed.Scheme != "https" && !(parsed.Scheme == "http" && isLoopbackHost(parsed.Hostname()))) {
 		return MFA{}, fmt.Errorf("WEBAUTHN_RP_ORIGIN must use HTTPS or loopback HTTP")
 	}
+	originHost := strings.TrimSuffix(strings.ToLower(parsed.Hostname()), ".")
+	rpID = strings.TrimSuffix(strings.ToLower(rpID), ".")
+	if originHost != rpID && !strings.HasSuffix(originHost, "."+rpID) {
+		return MFA{}, fmt.Errorf("WEBAUTHN_RP_ID must match or be a suffix of the origin host")
+	}
 	if displayName == "" || len(displayName) > 80 {
 		return MFA{}, fmt.Errorf("WEBAUTHN_RP_DISPLAY_NAME must be 1 to 80 characters")
 	}

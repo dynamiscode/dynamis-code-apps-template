@@ -118,6 +118,7 @@ deployment-owned 32-byte `MFA_ENCRYPTION_KEY`. TOTP secrets are encrypted at
 rest and recovery codes are stored only as hashes. Passkeys use the configured
 RP ID, exact origin, and display name. Defaults are safe for local loopback
 development; production deployments must set HTTPS RP values.
+The RP ID must match the origin host or be a domain suffix of it.
 
 `MFA_REQUIRE_FOR_ADMINS=true` requires an enrolled factor for owners and
 administrators. Members and viewers remain optional. Factor changes require
