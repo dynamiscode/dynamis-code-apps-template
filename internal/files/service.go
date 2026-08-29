@@ -313,8 +313,8 @@ func (s *Service) reserve(ctx context.Context, actor identity.Principal, workspa
 	}
 	var used int64
 	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver,
-		"SELECT COALESCE(SUM(size), 0) FROM files WHERE workspace_id = ? AND status IN (?, ?)",
-	), workspaceID, Pending, Ready).Scan(&used); err != nil {
+		"SELECT COALESCE(SUM(size), 0) FROM files WHERE workspace_id = ? AND status IN (?, ?, ?)",
+	), workspaceID, Pending, Ready, Failed).Scan(&used); err != nil {
 		return File{}, err
 	}
 	if used > s.maxWorkspaceBytes-size {
@@ -352,8 +352,8 @@ func (s *Service) completeDB(ctx context.Context, actor identity.Principal, file
 	now := s.now().UTC()
 	var used int64
 	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver,
-		"SELECT COALESCE(SUM(size), 0) FROM files WHERE workspace_id = ? AND id <> ? AND status IN (?, ?)",
-	), file.WorkspaceID, file.ID, Pending, Ready).Scan(&used); err != nil {
+		"SELECT COALESCE(SUM(size), 0) FROM files WHERE workspace_id = ? AND id <> ? AND status IN (?, ?, ?)",
+	), file.WorkspaceID, file.ID, Pending, Ready, Failed).Scan(&used); err != nil {
 		return File{}, err
 	}
 	if used > s.maxWorkspaceBytes-size {

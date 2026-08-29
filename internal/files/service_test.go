@@ -29,7 +29,7 @@ func TestLocalFileLifecycleAndValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	service := NewService(db, config.SQLite, auth, store, 16, 32, 0, "prefix")
+	service := NewService(db, config.SQLite, auth, store, 16, 16, 0, "prefix")
 	actor, err := auth.Authorize(context.Background(), owner.UserID, owner.WorkspaceID, identity.ResourcesWrite)
 	if err != nil {
 		t.Fatal(err)
@@ -79,6 +79,11 @@ func TestLocalFileLifecycleAndValidation(t *testing.T) {
 	}
 	if _, err := service.Complete(context.Background(), actor, owner.WorkspaceID, pending.ID, identity.AuditContext{}); err != ErrInvalidInput {
 		t.Fatalf("mismatched external object error = %v, want ErrInvalidInput", err)
+	}
+	if _, err := service.Initiate(context.Background(), actor, owner.WorkspaceID, InitiateInput{
+		OriginalName: "blocked.txt", Size: 7, ContentType: "text/plain",
+	}, identity.AuditContext{}); err != ErrLimit {
+		t.Fatalf("failed object quota error = %v, want ErrLimit", err)
 	}
 	if _, err := service.Upload(context.Background(), actor, owner.WorkspaceID, "bad.html", strings.NewReader("<html>"), identity.AuditContext{}); err != ErrInvalidInput {
 		t.Fatalf("HTML upload error = %v, want ErrInvalidInput", err)

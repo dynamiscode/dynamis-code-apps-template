@@ -263,7 +263,7 @@ func copyTemplate(
 func filesPath(relative string) bool {
 	relative = filepath.ToSlash(relative)
 	return relative == "internal/files" || strings.HasPrefix(relative, "internal/files/") ||
-		relative == "internal/httpapi/files.go" || relative == "internal/httpapi/files_test.go" || relative == "internal/web/files.go" ||
+		relative == "internal/httpapi/files.go" || relative == "internal/httpapi/files_test.go" || relative == "internal/web/files.go" || relative == "internal/web/files_test.go" ||
 		relative == "internal/web/templates/files.html" ||
 		relative == "internal/platform/database/migrations/000010_files.sql"
 }

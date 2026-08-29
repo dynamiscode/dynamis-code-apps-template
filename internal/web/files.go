@@ -96,6 +96,10 @@ func (h *Handler) fileDownload(writer http.ResponseWriter, request *http.Request
 		http.Redirect(writer, request, url, http.StatusFound)
 		return
 	}
+	if errors.Is(err, appfiles.ErrNotFound) || errors.Is(err, appfiles.ErrInvalidInput) {
+		h.renderError(writer, http.StatusNotFound)
+		return
+	}
 	if !errors.Is(err, appfiles.ErrNotSupported) {
 		h.renderError(writer, http.StatusInternalServerError)
 		return

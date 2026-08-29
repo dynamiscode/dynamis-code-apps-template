@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed failed external file objects retaining workspace quota until reconciliation
+  and browser file misses returning 404 instead of 500.
 - Added optional Files profile with workspace-scoped private local/S3-compatible
   object storage, metadata migration, presigned upload/download URLs, bounded
   MIME/signature validation, quotas, browser fallback, and REST/OpenAPI flow.
