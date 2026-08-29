@@ -63,10 +63,14 @@ func (s *Service) MFARequired(ctx context.Context, userID string) (bool, error) 
 }
 
 func (s *Service) mfaRequiredForRole(ctx context.Context, userID string, targetRole Role) (bool, error) {
+	return s.mfaRequiredForRoleQuery(ctx, s.db, userID, targetRole)
+}
+
+func (s *Service) mfaRequiredForRoleQuery(ctx context.Context, queryer rowQueryer, userID string, targetRole Role) (bool, error) {
 	if !s.mfa.Enabled || !s.mfa.RequireForAdmins {
 		return false, nil
 	}
-	status, err := s.MFAStatus(ctx, userID)
+	status, err := s.mfaStatusQuery(ctx, queryer, userID)
 	if err != nil {
 		return false, err
 	}
@@ -87,18 +91,22 @@ func (s *Service) mfaRequiredForRole(ctx context.Context, userID string, targetR
 }
 
 func (s *Service) MFAStatus(ctx context.Context, userID string) (MFAStatus, error) {
+	return s.mfaStatusQuery(ctx, s.db, userID)
+}
+
+func (s *Service) mfaStatusQuery(ctx context.Context, queryer rowQueryer, userID string) (MFAStatus, error) {
 	if !s.mfa.Enabled {
 		return MFAStatus{}, nil
 	}
 	var totp int
-	if err := s.queryRow(ctx, s.db, "SELECT COUNT(*) FROM mfa_totp WHERE user_id = ?", userID).Scan(&totp); err != nil {
+	if err := s.queryRow(ctx, queryer, "SELECT COUNT(*) FROM mfa_totp WHERE user_id = ?", userID).Scan(&totp); err != nil {
 		return MFAStatus{}, err
 	}
 	var passkeys, recovery int
-	if err := s.queryRow(ctx, s.db, "SELECT COUNT(*) FROM mfa_passkeys WHERE user_id = ? AND revoked_at IS NULL", userID).Scan(&passkeys); err != nil {
+	if err := s.queryRow(ctx, queryer, "SELECT COUNT(*) FROM mfa_passkeys WHERE user_id = ? AND revoked_at IS NULL", userID).Scan(&passkeys); err != nil {
 		return MFAStatus{}, err
 	}
-	if err := s.queryRow(ctx, s.db, "SELECT COUNT(*) FROM mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL", userID).Scan(&recovery); err != nil {
+	if err := s.queryRow(ctx, queryer, "SELECT COUNT(*) FROM mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL", userID).Scan(&recovery); err != nil {
 		return MFAStatus{}, err
 	}
 	return MFAStatus{Enabled: true, TOTPEnabled: totp == 1, PasskeyCount: passkeys, RecoveryRemain: recovery}, nil

@@ -72,6 +72,17 @@ func (h *Handler) mfaPasskey(writer http.ResponseWriter, request *http.Request) 
 	writer.WriteHeader(http.StatusNoContent)
 }
 
+func (h *Handler) beginMFALogin(writer http.ResponseWriter, request *http.Request, session identity.Session, returnTo string) {
+	challenge, err := h.identity.BeginMFALoginWithMethod(request.Context(), session.UserID, session.AuthMethod, session.OIDCProviderID, auditContext(request))
+	if err != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	}
+	h.setCookie(writer, "mfa_challenge", challenge.Token, challenge.ExpiresAt, true)
+	h.setCookie(writer, "mfa_return_to", safeReturnTo(returnTo), challenge.ExpiresAt, true)
+	h.redirect(writer, request, "/mfa")
+}
+
 func (h *Handler) completeMFASession(writer http.ResponseWriter, request *http.Request, session identity.NewSession) string {
 	returnTo := safeReturnTo(cookieValue(request, "mfa_return_to"))
 	h.setCookie(writer, "session", session.Secret, session.ExpiresAt, true)

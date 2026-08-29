@@ -12,6 +12,7 @@
   races, and browser return paths after MFA login.
 - Fixed optional enrolled-user MFA login, password-change MFA reauthentication,
   expired-session fresh-auth checks, and challenge failure auditing.
+- Fixed MFA-required browser redirects and admin API-token policy enforcement.
 
 - Added profile composition to application generation: Identity is required
   for Core, and selecting Agent includes its MCP and REST-only CLI surfaces;

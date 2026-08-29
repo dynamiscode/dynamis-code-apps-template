@@ -108,6 +108,11 @@ func (s *Service) AuthenticateAPIToken(
 	`, workspaceID, userID).Scan(&role); err != nil {
 		return Principal{}, ErrInvalidToken
 	}
+	if required, err := s.mfaRequiredForRoleQuery(ctx, tx, userID, role); err != nil {
+		return Principal{}, err
+	} else if required {
+		return Principal{}, ErrMFARequired
+	}
 	roleAllowed := permissionsForRole(role)
 	permissions := make(map[Permission]bool)
 	for _, scope := range decodeScopes(encodedScopes) {

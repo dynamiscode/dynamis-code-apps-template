@@ -112,6 +112,8 @@ protected workspace operations with `MFA_REQUIRE_FOR_ADMINS=true`; ordinary
 members and viewers remain optional by default.
 Password changes also require the enrolled factor before issuing a replacement
 browser session.
+The admin policy also applies to API-token requests for protected workspace
+operations.
 REST MFA endpoints use the existing session cookie/CSRF boundary and return no
 factor secrets after enrollment. MCP and CLI expose no MFA or secret flow.
 

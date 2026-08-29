@@ -4,7 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha1"
+	"encoding/base32"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -69,6 +73,50 @@ func TestCompleteMFASessionPreservesReturnTo(t *testing.T) {
 	if cookie := responseCookie(response, "mfa_return_to"); cookie.MaxAge != -1 {
 		t.Fatalf("mfa_return_to cookie max age = %d", cookie.MaxAge)
 	}
+}
+
+func TestMFAPolicyRedirectStartsBrowserChallenge(t *testing.T) {
+	handler, auth, _, workspaceID, owner := testWebWithMFA(t, 10, true)
+	ctx := context.Background()
+	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	enrollment, err := auth.BeginTOTPEnrollment(ctx, owner.UserID, session.ID, "long-enough-password", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := auth.CompleteTOTPEnrollment(ctx, session.ID, enrollment.Challenge, webTOTPCode(enrollment.Secret, time.Now()), identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	response := request(handler, http.MethodGet, "/workspaces/"+workspaceID+"/items", nil, cookies, nil)
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/mfa" {
+		t.Fatalf("MFA redirect = %d, %s", response.Code, response.Body.String())
+	}
+	if challenge := responseCookie(response, "mfa_challenge"); challenge.Value == "" {
+		t.Fatal("MFA challenge cookie missing")
+	}
+	if returnTo := responseCookie(response, "mfa_return_to"); returnTo.Value != "/workspaces/"+workspaceID+"/items" {
+		t.Fatalf("MFA return path = %q", returnTo.Value)
+	}
+}
+
+func webTOTPCode(secret string, now time.Time) string {
+	decoded, _ := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(secret)
+	counter := uint64(now.Unix() / 30)
+	var message [8]byte
+	for index := len(message) - 1; index >= 0; index-- {
+		message[index] = byte(counter)
+		counter >>= 8
+	}
+	mac := hmac.New(sha1.New, decoded)
+	_, _ = mac.Write(message[:])
+	sum := mac.Sum(nil)
+	offset := sum[len(sum)-1] & 15
+	value := (uint32(sum[offset])&127)<<24 | uint32(sum[offset+1])<<16 | uint32(sum[offset+2])<<8 | uint32(sum[offset+3])
+	return fmt.Sprintf("%06d", value%1000000)
 }
 
 func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
@@ -853,6 +901,10 @@ func TestWebSetupRejectsCSRFAndPasswordMismatch(t *testing.T) {
 }
 
 func testWeb(t *testing.T, maximumStreams int, mailers ...appmail.Sender) (http.Handler, *identity.Service, *items.Service, string, identity.BootstrapResult) {
+	return testWebWithMFA(t, maximumStreams, false, mailers...)
+}
+
+func testWebWithMFA(t *testing.T, maximumStreams int, mfaEnabled bool, mailers ...appmail.Sender) (http.Handler, *identity.Service, *items.Service, string, identity.BootstrapResult) {
 	t.Helper()
 	ctx := context.Background()
 	cfg, err := config.LoadFrom(func(string) (string, bool) { return "", false })
@@ -875,7 +927,11 @@ func testWeb(t *testing.T, maximumStreams int, mailers ...appmail.Sender) (http.
 	if err := database.Migrate(ctx, db, cfg.Database.Driver); err != nil {
 		t.Fatal(err)
 	}
-	auth, err := identity.NewService(db, cfg.Database.Driver)
+	mfa := identity.MFAConfig{}
+	if mfaEnabled {
+		mfa = identity.MFAConfig{Enabled: true, EncryptionKey: []byte("01234567890123456789012345678901"), RelyingPartyID: "localhost", Origins: []string{"http://localhost:8080"}, DisplayName: "Dynamis Code", RequireForAdmins: true}
+	}
+	auth, err := identity.NewServiceWithMFA(db, cfg.Database.Driver, mfa)
 	if err != nil {
 		t.Fatal(err)
 	}

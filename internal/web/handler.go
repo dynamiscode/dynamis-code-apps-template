@@ -692,7 +692,11 @@ func (h *Handler) workspaceSession(
 	)
 	if err != nil {
 		if errors.Is(err, identity.ErrMFARequired) {
-			h.redirect(writer, request, "/mfa")
+			returnTo := "/"
+			if request.Method == http.MethodGet {
+				returnTo = request.URL.RequestURI()
+			}
+			h.beginMFALogin(writer, request, session, returnTo)
 			return identity.Principal{}, identity.Session{}, "", false
 		}
 		h.renderError(writer, http.StatusForbidden)

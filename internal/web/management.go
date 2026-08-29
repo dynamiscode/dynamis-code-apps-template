@@ -38,7 +38,7 @@ func (h *Handler) createWorkspace(writer http.ResponseWriter, request *http.Requ
 	}, auditContext(request))
 	if err != nil {
 		if errors.Is(err, identity.ErrMFARequired) {
-			h.redirect(writer, request, "/mfa")
+			h.beginMFALogin(writer, request, session, "/")
 			return
 		}
 		workspaces, listErr := h.identity.ListWorkspaces(request.Context(), session.UserID)

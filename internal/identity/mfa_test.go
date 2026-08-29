@@ -75,6 +75,14 @@ func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
 	if _, err := service.CreateWorkspace(ctx, Principal{UserID: owner.UserID, AuthMethod: "local", AuthLevel: AuthLevelPassword}, WorkspaceCreateInput{Name: "Blocked"}, AuditContext{}); !errors.Is(err, ErrMFARequired) {
 		t.Fatalf("password workspace creation error = %v", err)
 	}
+	ownerPrincipal := mustAuthorize(t, service, owner.UserID, owner.WorkspaceID, WorkspaceRead)
+	ownerToken, err := service.CreateAPIToken(ctx, ownerPrincipal, "owner-automation", []Permission{WorkspaceRead}, nil, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.AuthenticateAPIToken(ctx, ownerToken.Secret, WorkspaceRead, AuditContext{}); !errors.Is(err, ErrMFARequired) {
+		t.Fatalf("owner API token bypassed MFA policy: %v", err)
+	}
 	memberID := insertUser(t, service, db, "member-with-mfa@example.com")
 	memberSession, err := service.CreateSession(ctx, memberID, "local", "", time.Hour, AuditContext{})
 	if err != nil {
