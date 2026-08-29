@@ -9,6 +9,7 @@ This ledger records implemented conformance evidence and deferred triggers.
 | Core | conforming | [Foundation through delivery evidence](#phase-07-evidence) |
 | Identity | conforming | [Phase 02 evidence](#phase-02-evidence) |
 | Agent | conforming | [Phase 05 evidence](#phase-05-evidence) |
+| Files | conforming | [Files evidence](#files-evidence) |
 | Production | not applicable | No deployment serves real users or durable data |
 
 `Production` becomes applicable only when a deployment serves real users or
@@ -60,7 +61,7 @@ These remain out of the build plan until their trigger is demonstrated.
 | Webhooks | conforming | External consumers required delivery; accepted in [decision 0004](decisions/0004-webhooks.md) |
 | Background jobs | conforming | Bounded webhook delivery requires durable retry and lease ownership; see [phase 09 evidence](#phase-09-evidence) |
 | Shared event broker | deferred | Cross-replica delivery cannot use the database safely |
-| Object storage | deferred | Users upload or generate files |
+| Object storage | conforming | Files profile accepted; [Files evidence](#files-evidence) |
 | SCIM | conforming | Enterprise provisioning accepted and implemented in Phase 09 |
 | MFA and passkeys | deferred | Identity ownership or measured risk requires stronger authentication |
 | Feature flags | deferred | Staged rollout, kill switches, or targeting is required |
@@ -263,8 +264,8 @@ external IDs, normalized email identity, passwordless verified-OIDC enrollment,
 idempotent create, exact filtering, pagination, PATCH/DELETE ETags, group role
 mapping, workspace-scoped deactivation revocation, safe errors, audit redaction,
 and final-owner protection. PostgreSQL identity
-and migration checks cover migration 000013 and the provisioning/deactivation
-path when `POSTGRES_TEST_URL` is configured.
+and migration checks cover migrations 000013-000014 and the
+provisioning/deactivation path when `POSTGRES_TEST_URL` is configured.
 
 Bounded Item sharing passes hashed-token storage, default and maximum expiry,
 explicit write authorization, safe title/status-only public projection,
@@ -272,6 +273,16 @@ revocation, item-deletion invalidation, access outcome audits, browser CSRF,
 public response headers, and public-token path redaction tests. REST, CLI, MCP,
 WebMCP, file sharing, public writes, search, listing, and indexing remain
 intentionally omitted by the accepted [decision](decisions/0005-public-sharing.md).
+
+Verified 2026-08-28 with SQLite and Docker smoke. The database-backed worker
+queue persists workspace-scoped webhook jobs in the same transaction as item
+outbox rows, deduplicates enqueue keys, claims with lease tokens, reclaims
+expired leases, records bounded attempt/status/timestamps, retries up to five
+times, and stores only redacted failure categories. Focused queue, webhook,
+maintenance, migration, telemetry, and isolated changed-package race tests
+pass. PostgreSQL tests were skipped because `POSTGRES_TEST_URL` was unset;
+the final full `make verify` race phase was resource-contended by concurrent
+test processes and failed only in the existing live bootstrap smoke timeout.
 
 ## Account deletion fix evidence
 
@@ -284,14 +295,12 @@ Verified 2026-08-28 with Go 1.27.0 and PostgreSQL 14.24:
 - `go test ./...`, `go vet ./...`, `go test -race ./...`, `make verify`, and
   `make docker-smoke` pass.
 
-## Phase 09 evidence
+## Files evidence
 
-Verified 2026-08-28 with SQLite and Docker smoke. The database-backed worker
-queue persists workspace-scoped webhook jobs in the same transaction as item
-outbox rows, deduplicates enqueue keys, claims with lease tokens, reclaims
-expired leases, records bounded attempt/status/timestamps, retries up to five
-times, and stores only redacted failure categories. Focused queue, webhook,
-maintenance, migration, telemetry, and isolated changed-package race tests
-pass. PostgreSQL tests were skipped because `POSTGRES_TEST_URL` was unset;
-the final full `make verify` race phase was resource-contended by concurrent
-test processes and failed only in the existing live bootstrap smoke timeout.
+Files metadata migration and workspace authorization, local filesystem uploads
+and streams, private S3-compatible presigned PUT/GET paths, configurable
+16 MiB object and 1 GiB workspace limits, safe filename and content allowlists,
+browser ordinary-form fallback, REST/OpenAPI behavior, and generated profile
+pruning are covered by focused SQLite tests and generated-app checks. Deletion,
+reconciliation, scanning, background jobs, and PostgreSQL/Docker execution
+remain follow-up verification or deferred behavior for this slice.

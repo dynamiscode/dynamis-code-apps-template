@@ -1,8 +1,8 @@
 # HTTP and REST API
 
 The server exposes health checks, its OpenAPI 3.1 contract, local browser
-session endpoints, workspace identity management, and a workspace-scoped item
-resource. The canonical machine contract is [`api/openapi.json`](../api/openapi.json);
+session endpoints, workspace identity management, a workspace-scoped item
+resource, and (when the Files profile is selected) private workspace files. The canonical machine contract is [`api/openapi.json`](../api/openapi.json);
 the live reference is `GET /api/openapi.json`.
 
 Public Item sharing is intentionally browser-only in this slice. No bearer
@@ -155,6 +155,10 @@ documented in [authentication](authentication.md).
 - Webhooks: `GET/POST /api/v1/workspaces/{workspaceId}/webhooks`,
   `DELETE/POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}` (delete
   or rotate at `/secret`), and `GET /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries`.
+- Files: `GET/POST /api/v1/workspaces/{workspaceId}/files` lists, uploads, or
+  initiates a file; `GET /files/{fileId}` returns metadata and a short-lived
+  download URL; `PUT /files/{fileId}/content` finalizes app-streamed uploads;
+  `POST /files/{fileId}/complete` verifies S3 uploads.
 - SCIM: create/revoke the dedicated credential with
   `POST/DELETE /api/v1/workspaces/{workspaceId}/scim-token`, then use
   `GET/POST /scim/v2/{workspaceId}/Users`, `GET/PATCH/DELETE

@@ -10,14 +10,14 @@ mode-0600 `template.lock` containing:
 
 - template source, semantic version, and commit;
 - UTC generation time; and
-- the selected profiles from `Core`, `Identity`, and `Agent`.
+- the selected profiles from `Core`, `Identity`, `Agent`, and `Files`.
 
 Identity is required because it is the shared authentication and authorization
 boundary for Core. Core and Identity are always composed into a generated
 application. Selecting Agent additionally composes the MCP server and
 REST-only `appctl` packages, commands, bootstrap route, and Agent smoke test;
-omitting Agent removes those files. No other profile content is currently
-defined, including CompanySite, Integrations, or Files.
+omitting Agent or Files removes those files. Files requires Identity. No other
+profile content is currently defined, including CompanySite and Integrations.
 The generated application receives repository-specific README, support and
 security links, CODEOWNERS, image, telemetry, package, and runtime-branding
 values. It copies

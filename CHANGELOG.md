@@ -2,18 +2,27 @@
 
 ## Unreleased
 
-- Preserved forward upgrades for databases created from the pre-merge SCIM
-  branch after migration numbering was reconciled with background jobs.
+- Corrected direct AWS SDK dependency metadata and added AWS/Smithy license notices.
+- Fixed failed S3 presigns leaving pending file reservations counted against workspace quota.
+- Fixed failed external file objects retaining workspace quota until reconciliation
+  and browser file misses returning 404 instead of 500.
+- Added optional Files profile with workspace-scoped private local/S3-compatible
+  object storage, metadata migration, presigned upload/download URLs, bounded
+  MIME/signature validation, quotas, browser fallback, and REST/OpenAPI flow.
+- Documented file backup, owner deletion, reconciliation, scanning, and
+  background-job boundaries; no second worker or public sharing was added.
+
+- Preserved forward upgrades for databases created from pre-merge Files and
+  SCIM branches after migration numbering was reconciled.
 
 - Added REST-only SCIM 2.0 workspace provisioning for Users and role-mapped
   Groups, with one-time hashed dedicated credentials, bounded filtering and
   pagination, conditional PATCH/DELETE, safe errors, audit events, owner
   protection, passwordless verified-OIDC enrollment, workspace-scoped
   session/token revocation on deactivation, and read-only account profile
-  fields, including order-independent primary email handling, filtered
-  group-member removals, membership-aware group ETags, and retry-safe creates
-  when `externalId` is omitted.
-
+ fields, including order-independent primary email handling, filtered
+ group-member removals, membership-aware group ETags, and retry-safe creates
+ when `externalId` is omitted.
 - Added the first durable background-jobs slice: a workspace-scoped,
   database-backed queue with lease recovery, idempotent webhook delivery,
   bounded retries, redacted status/metrics, and one worker loop per process.

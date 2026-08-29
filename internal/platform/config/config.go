@@ -39,6 +39,7 @@ type Config struct {
 	Data      Data
 	Telemetry Telemetry
 	Webhooks  Webhooks
+	Storage   Storage
 }
 
 type Bootstrap struct {
@@ -73,6 +74,26 @@ type Webhooks struct {
 	SecretKey []byte
 }
 
+type StorageDriver string
+
+const (
+	StorageLocal StorageDriver = "local"
+	StorageS3    StorageDriver = "s3"
+)
+
+type Storage struct {
+	Driver            StorageDriver
+	LocalPath         string
+	S3Endpoint        string
+	S3Region          string
+	S3Bucket          string
+	S3Prefix          string
+	S3ForcePathStyle  bool
+	MaxObjectBytes    int64
+	MaxWorkspaceBytes int64
+	SignedURLTTL      time.Duration
+}
+
 type OIDC struct {
 	Enabled      bool
 	ProviderID   string
@@ -100,6 +121,7 @@ type HTTP struct {
 	ReadinessTimeout   time.Duration
 	MaxHeaderBytes     int
 	MaxBodyBytes       int64
+	FileMaxBodyBytes   int64
 	DefaultPageSize    int
 	MaxPageSize        int
 	RequestsPerMinute  int
@@ -201,11 +223,68 @@ func LoadFrom(lookup LookupEnv) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	storageConfig, err := loadStorage(lookup)
+	if err != nil {
+		return Config{}, err
+	}
+	httpConfig.FileMaxBodyBytes = storageConfig.MaxObjectBytes
 	return Config{
 		Database: database, Bootstrap: bootstrap, OIDC: oidc, Mail: mailConfig,
 		PublicURL: publicURL, HTTP: httpConfig, MCP: mcpConfig,
 		Data: dataConfig, Telemetry: telemetryConfig, Webhooks: webhookConfig,
+		Storage: storageConfig,
 	}, nil
+}
+
+func loadStorage(lookup LookupEnv) (Storage, error) {
+	driver := StorageDriver(valueOrDefault(lookup, "STORAGE_DRIVER", string(StorageLocal)))
+	if driver != StorageLocal && driver != StorageS3 {
+		return Storage{}, fmt.Errorf("STORAGE_DRIVER must be %q or %q", StorageLocal, StorageS3)
+	}
+	maxObject, err := rangedInt(lookup, "STORAGE_MAX_OBJECT_BYTES", 16*1024*1024, 1, 1024*1024*1024)
+	if err != nil {
+		return Storage{}, err
+	}
+	maxWorkspace, err := rangedInt(lookup, "STORAGE_MAX_WORKSPACE_BYTES", 1024*1024*1024, maxObject, 1024*1024*1024*1024)
+	if err != nil {
+		return Storage{}, err
+	}
+	ttl, err := durationValue(lookup, "STORAGE_SIGNED_URL_TTL", 5*time.Minute, time.Minute, 15*time.Minute)
+	if err != nil {
+		return Storage{}, err
+	}
+	storage := Storage{
+		Driver: driver, LocalPath: strings.TrimSpace(valueOrDefault(lookup, "STORAGE_LOCAL_PATH", "data/files")),
+		S3Endpoint:     strings.TrimRight(strings.TrimSpace(valueOrDefault(lookup, "STORAGE_S3_ENDPOINT", "")), "/"),
+		S3Region:       strings.TrimSpace(valueOrDefault(lookup, "STORAGE_S3_REGION", "us-east-1")),
+		S3Bucket:       strings.TrimSpace(valueOrDefault(lookup, "STORAGE_S3_BUCKET", "")),
+		S3Prefix:       strings.Trim(strings.TrimSpace(valueOrDefault(lookup, "STORAGE_S3_PREFIX", "")), "/"),
+		MaxObjectBytes: int64(maxObject), MaxWorkspaceBytes: int64(maxWorkspace), SignedURLTTL: ttl,
+	}
+	if storage.LocalPath == "" {
+		return Storage{}, fmt.Errorf("STORAGE_LOCAL_PATH must not be empty")
+	}
+	if storage.S3Region == "" {
+		return Storage{}, fmt.Errorf("STORAGE_S3_REGION must not be empty")
+	}
+	storage.S3ForcePathStyle, err = boolValue(lookup, "STORAGE_S3_FORCE_PATH_STYLE", false)
+	if err != nil {
+		return Storage{}, err
+	}
+	if storage.S3Prefix != "" && (strings.ContainsAny(storage.S3Prefix, "\\\x00") || strings.Contains(storage.S3Prefix, "..")) {
+		return Storage{}, fmt.Errorf("STORAGE_S3_PREFIX must be a safe object prefix")
+	}
+	if storage.S3Endpoint != "" {
+		endpoint, parseErr := url.Parse(storage.S3Endpoint)
+		if parseErr != nil || endpoint.Host == "" || endpoint.User != nil || endpoint.RawQuery != "" || endpoint.Fragment != "" ||
+			(endpoint.Scheme != "https" && !(endpoint.Scheme == "http" && isLoopbackHost(endpoint.Hostname()))) {
+			return Storage{}, fmt.Errorf("STORAGE_S3_ENDPOINT must use HTTPS or loopback HTTP")
+		}
+	}
+	if driver == StorageS3 && storage.S3Bucket == "" {
+		return Storage{}, fmt.Errorf("STORAGE_S3_BUCKET is required when STORAGE_DRIVER is %q", StorageS3)
+	}
+	return storage, nil
 }
 
 func loadWebhooks(lookup LookupEnv) (Webhooks, error) {

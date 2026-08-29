@@ -9,7 +9,7 @@ type Operation struct {
 }
 
 const OpenAPIVersion = "3.1.0"
-const OpenAPISHA256 = "b6f20af8b582747f8b5e38f6010aa8849afe4f04cee696aaeb88401704c0f221"
+const OpenAPISHA256 = "f1cea98eb03cc63c817b13a84f782570bc4156e720e352d0ac4a55e48d6cb167"
 
 var Operations = []Operation{
 	{Method: "GET", Path: "/api/openapi.json", ID: "getOpenAPI"},
@@ -18,6 +18,13 @@ var Operations = []Operation{
 	{Method: "GET", Path: "/api/v1/sessions", ID: "listSessions"},
 	{Method: "DELETE", Path: "/api/v1/sessions/{sessionId}", ID: "revokeSession"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/export", ID: "exportWorkspace"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/files", ID: "listFiles"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/files", ID: "createFile"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/files/uploads", ID: "initiateFileUpload"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/files/{fileId}", ID: "getFile"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/files/{fileId}/complete", ID: "completeFileUpload"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/files/{fileId}/content", ID: "getFileContent"},
+	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/files/{fileId}/content", ID: "uploadFileContent"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/import", ID: "importWorkspace"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/invitations", ID: "listInvitations"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/invitations", ID: "createInvitation"},

@@ -1,0 +1,195 @@
+package files
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"io"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/platform/config"
+	"example.com/dynamis-code/apps-template/internal/platform/database"
+)
+
+func TestLocalFileLifecycleAndValidation(t *testing.T) {
+	db := openTestDB(t)
+	auth, err := identity.NewService(db, config.SQLite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := auth.BootstrapFirstOwner(context.Background(), identity.BootstrapInput{
+		Email: "owner@example.com", Password: "long-enough-password", WorkspaceName: "Files",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := newLocalStore(filepath.Join(t.TempDir(), "objects"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(db, config.SQLite, auth, store, 16, 16, 0, "prefix")
+	actor, err := auth.Authorize(context.Background(), owner.UserID, owner.WorkspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file, err := service.Upload(context.Background(), actor, owner.WorkspaceID, "../notes.txt", strings.NewReader("hello"), identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if file.Status != Ready || file.OriginalName != "notes.txt" || file.Size != 5 || file.SHA256 == nil {
+		t.Fatalf("file = %+v", file)
+	}
+	_, reader, err := service.Open(context.Background(), actor, owner.WorkspaceID, file.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content, err := io.ReadAll(reader)
+	reader.Close()
+	if err != nil || string(content) != "hello" {
+		t.Fatalf("content = %q, error = %v", content, err)
+	}
+	otherService := NewService(db, config.SQLite, auth, store, 16, 32, 0, "changed-prefix")
+	_, reader, err = otherService.Open(context.Background(), actor, owner.WorkspaceID, file.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content, err = io.ReadAll(reader)
+	reader.Close()
+	if err != nil || string(content) != "hello" {
+		t.Fatalf("content after prefix change = %q, error = %v", content, err)
+	}
+	if _, err := service.Initiate(context.Background(), actor, owner.WorkspaceID, InitiateInput{
+		OriginalName: "payload.exe", Size: 5,
+	}, identity.AuditContext{}); err != ErrInvalidInput {
+		t.Fatalf("unsupported initiated file error = %v, want ErrInvalidInput", err)
+	}
+	pending, err := service.Initiate(context.Background(), actor, owner.WorkspaceID, InitiateInput{
+		OriginalName: "data.csv", Size: 5, ContentType: "text/csv",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Put(context.Background(), service.objectKey(pending), strings.NewReader("123456"), 6, "text/plain"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := service.PresignedPut(context.Background(), actor, strings.Repeat("0", 32), pending.ID); err != identity.ErrForbidden {
+		t.Fatalf("cross-workspace presign error = %v, want forbidden", err)
+	}
+	if _, err := service.Complete(context.Background(), actor, owner.WorkspaceID, pending.ID, identity.AuditContext{}); err != ErrInvalidInput {
+		t.Fatalf("mismatched external object error = %v, want ErrInvalidInput", err)
+	}
+	if _, err := service.Initiate(context.Background(), actor, owner.WorkspaceID, InitiateInput{
+		OriginalName: "blocked.txt", Size: 7, ContentType: "text/plain",
+	}, identity.AuditContext{}); err != ErrLimit {
+		t.Fatalf("failed object quota error = %v, want ErrLimit", err)
+	}
+	if _, err := service.Upload(context.Background(), actor, owner.WorkspaceID, "bad.html", strings.NewReader("<html>"), identity.AuditContext{}); err != ErrInvalidInput {
+		t.Fatalf("HTML upload error = %v, want ErrInvalidInput", err)
+	}
+	if _, err := service.Upload(context.Background(), actor, owner.WorkspaceID, "too.txt", strings.NewReader("012345678901234567"), identity.AuditContext{}); err != ErrObjectLimit {
+		t.Fatalf("oversized upload error = %v, want ErrObjectLimit", err)
+	}
+}
+
+func TestWorkspaceQuotaAndIsolation(t *testing.T) {
+	db := openTestDB(t)
+	auth, err := identity.NewService(db, config.SQLite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := auth.BootstrapFirstOwner(context.Background(), identity.BootstrapInput{
+		Email: "first@example.com", Password: "long-enough-password", WorkspaceName: "First",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := newLocalStore(filepath.Join(t.TempDir(), "objects"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(db, config.SQLite, auth, store, 16, 5, 0, "")
+	actor, err := auth.Authorize(context.Background(), first.UserID, first.WorkspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Upload(context.Background(), actor, first.WorkspaceID, "one.txt", strings.NewReader("hello"), identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Upload(context.Background(), actor, first.WorkspaceID, "two.txt", strings.NewReader("x"), identity.AuditContext{}); err != ErrLimit {
+		t.Fatalf("quota error = %v, want ErrLimit", err)
+	}
+	if _, err := service.List(context.Background(), actor, strings.Repeat("0", 32), 10); err != identity.ErrForbidden {
+		t.Fatalf("cross-workspace list error = %v, want forbidden", err)
+	}
+}
+
+func TestPresignFailureReleasesPendingQuota(t *testing.T) {
+	db := openTestDB(t)
+	auth, err := identity.NewService(db, config.SQLite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := auth.BootstrapFirstOwner(context.Background(), identity.BootstrapInput{
+		Email: "presign@example.com", Password: "long-enough-password", WorkspaceName: "Presign",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := newLocalStore(filepath.Join(t.TempDir(), "objects"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(db, config.SQLite, auth, &presignFailureStore{ObjectStore: store}, 5, 5, 0, "")
+	actor, err := auth.Authorize(context.Background(), owner.UserID, owner.WorkspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file, err := service.Initiate(context.Background(), actor, owner.WorkspaceID, InitiateInput{
+		OriginalName: "one.txt", Size: 5, ContentType: "text/plain",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := service.PresignedPut(context.Background(), actor, owner.WorkspaceID, file.ID); err == nil {
+		t.Fatal("presign error = nil")
+	}
+	if _, err := service.Initiate(context.Background(), actor, owner.WorkspaceID, InitiateInput{
+		OriginalName: "two.txt", Size: 5, ContentType: "text/plain",
+	}, identity.AuditContext{}); err != nil {
+		t.Fatalf("quota after presign failure = %v, want available", err)
+	}
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM files WHERE id = ?", file.ID).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("released file count = %d, want 0", count)
+	}
+}
+
+type presignFailureStore struct {
+	ObjectStore
+}
+
+func (*presignFailureStore) SupportsPresignedPut() bool { return true }
+
+func (*presignFailureStore) PresignPut(context.Context, string, int64, string, time.Duration) (PresignedUpload, error) {
+	return PresignedUpload{}, errors.New("presign failed")
+}
+
+func openTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+	db, err := database.Open(context.Background(), config.Database{Driver: config.SQLite, SQLitePath: ":memory:", MaxOpenConns: 1, MaxIdleConns: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	if err := database.Migrate(context.Background(), db, config.SQLite); err != nil {
+		t.Fatal(err)
+	}
+	return db
+}

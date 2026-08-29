@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/api"
+	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
@@ -35,6 +36,7 @@ type handler struct {
 	publicURL   string
 	mailer      appmail.Sender
 	webhooks    *webhooks.Service
+	files       *appfiles.Service
 }
 
 func NewHandler(
@@ -50,6 +52,22 @@ func NewHandler(
 		db, identityService, itemService, portabilityService, oidcRegistry,
 		cfg, logger, nil, "", nil,
 	)
+}
+
+func NewHandlerWithWebhooksAndFiles(
+	db *sql.DB,
+	identityService *identity.Service,
+	itemService *items.Service,
+	portabilityService *portability.Service,
+	oidcRegistry *identity.OIDCRegistry,
+	cfg config.HTTP,
+	logger *slog.Logger,
+	webhookService *webhooks.Service,
+	fileService *appfiles.Service,
+	publicURL string,
+	mailer appmail.Sender,
+) (http.Handler, error) {
+	return newHandler(db, identityService, itemService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer)
 }
 
 func NewHandlerWithMail(
@@ -81,13 +99,29 @@ func NewHandlerWithWebhooks(
 	publicURL string,
 	mailer appmail.Sender,
 ) (http.Handler, error) {
+	return newHandler(db, identityService, itemService, portabilityService, oidcRegistry, cfg, logger, webhookService, nil, publicURL, mailer)
+}
+
+func newHandler(
+	db *sql.DB,
+	identityService *identity.Service,
+	itemService *items.Service,
+	portabilityService *portability.Service,
+	oidcRegistry *identity.OIDCRegistry,
+	cfg config.HTTP,
+	logger *slog.Logger,
+	webhookService *webhooks.Service,
+	fileService *appfiles.Service,
+	publicURL string,
+	mailer appmail.Sender,
+) (http.Handler, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	h := &handler{
 		db: db, identity: identityService, items: itemService,
 		oidc: oidcRegistry, cfg: cfg, logger: logger, portability: portabilityService,
-		publicURL: publicURL, mailer: mailer, webhooks: webhookService,
+		publicURL: publicURL, mailer: mailer, webhooks: webhookService, files: fileService,
 	}
 	handlers := map[string]http.HandlerFunc{
 		"getLiveness": h.liveness, "getReadiness": h.readiness,
@@ -106,7 +140,11 @@ func NewHandlerWithWebhooks(
 		"listWebhooks": h.listWebhooks, "createWebhook": h.createWebhook,
 		"deleteWebhook": h.deleteWebhook, "rotateWebhookSecret": h.rotateWebhookSecret,
 		"listWebhookDeliveries": h.listWebhookDeliveries,
-		"createSCIMToken":       h.createSCIMToken, "revokeSCIMToken": h.revokeSCIMToken,
+		"listFiles":             h.listFiles, "createFile": h.createFile,
+		"getFile": h.getFile, "getFileContent": h.getFileContent,
+		"initiateFileUpload": h.initiateFileUpload,
+		"completeFileUpload": h.completeFileUpload, "uploadFileContent": h.uploadFileContent,
+		"createSCIMToken": h.createSCIMToken, "revokeSCIMToken": h.revokeSCIMToken,
 		"listSCIMUsers": h.listSCIMUsers, "createSCIMUser": h.createSCIMUser,
 		"getSCIMUser": h.getSCIMUser, "patchSCIMUser": h.patchSCIMUser,
 		"deleteSCIMUser": h.deleteSCIMUser, "listSCIMGroups": h.listSCIMGroups,

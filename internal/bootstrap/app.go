@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/httpapi"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
@@ -32,6 +33,7 @@ type App struct {
 	Sharing     *sharing.Service
 	Portability *portability.Service
 	Webhooks    *webhooks.Service
+	Files       *appfiles.Service
 	Jobs        *jobs.Queue
 	Handler     http.Handler
 	Telemetry   *telemetry.Provider
@@ -109,6 +111,21 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	webhookService := webhooks.NewService(
 		db, cfg.Database.Driver, identityService, cfg.Webhooks.SecretKey, jobQueue,
 	)
+	storageConfig := cfg.Storage
+	if storageConfig.Driver == config.StorageLocal {
+		storageConfig.S3Prefix = ""
+	}
+	objectStore, err := appfiles.NewStore(ctx, storageConfig)
+	if err != nil {
+		db.Close()
+		telemetryProvider.Shutdown(context.Background())
+		return nil, fmt.Errorf("initialize file storage: %w", err)
+	}
+	fileService := appfiles.NewService(
+		db, cfg.Database.Driver, identityService, objectStore,
+		storageConfig.MaxObjectBytes, storageConfig.MaxWorkspaceBytes,
+		storageConfig.SignedURLTTL, storageConfig.S3Prefix,
+	)
 	if err := jobQueue.Register(webhooks.JobKind, webhookService.HandleJob); err != nil {
 		db.Close()
 		telemetryProvider.Shutdown(context.Background())
@@ -134,18 +151,18 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("initialize invitation mail: %w", err)
 	}
-	handler, err := httpapi.NewHandlerWithWebhooks(
+	handler, err := httpapi.NewHandlerWithWebhooksAndFiles(
 		db, identityService, itemService, portabilityService, oidcRegistry, cfg.HTTP, slog.Default(),
-		webhookService, cfg.PublicURL, mailer,
+		webhookService, fileService, cfg.PublicURL, mailer,
 	)
 	if err != nil {
 		db.Close()
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("initialize HTTP handler: %w", err)
 	}
-	webHandler, err := web.NewHandlerWithServices(
+	webHandler, err := web.NewHandlerWithServicesAndFilesAndSharing(
 		identityService, itemService, sharingService, portabilityService, oidcRegistry, cfg.HTTP,
-		cfg.Bootstrap.SetupToken, cfg.PublicURL, mailer,
+		fileService, cfg.Bootstrap.SetupToken, cfg.PublicURL, mailer,
 	)
 	if err != nil {
 		db.Close()
@@ -162,7 +179,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	return &App{
 		DB: db, Identity: identityService, OIDC: oidcRegistry,
 		Items: itemService, Sharing: sharingService, Portability: portabilityService, Webhooks: webhookService,
-		Jobs:    jobQueue,
+		Files: fileService, Jobs: jobQueue,
 		Handler: telemetry.HTTPHandler(mux), Telemetry: telemetryProvider,
 	}, nil
 }
