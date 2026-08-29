@@ -192,7 +192,7 @@ func (s *Service) CreateWorkspace(
 		return "", ErrForbidden
 	}
 	if actor.AuthLevel < AuthLevelMFA {
-		required, err := s.MFARequired(ctx, actor.UserID)
+		required, err := s.mfaRequiredForRole(ctx, actor.UserID, Owner)
 		if err != nil {
 			return "", err
 		}

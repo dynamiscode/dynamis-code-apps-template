@@ -8,6 +8,8 @@
   enforcement, browser/REST flows, audit redaction, and migration 000010.
 - Fixed MFA policy enforcement for workspace creation, challenge retention,
   WebAuthn RP configuration validation, and the documented MFA login response.
+- Fixed MFA owner-policy enforcement for new workspaces, challenge expiry
+  races, and browser return paths after MFA login.
 
 - Added profile composition to application generation: Identity is required
   for Core, and selecting Agent includes its MCP and REST-only CLI surfaces;

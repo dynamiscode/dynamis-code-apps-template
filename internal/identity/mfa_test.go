@@ -71,6 +71,21 @@ func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
 	if _, err := service.CreateWorkspace(ctx, Principal{UserID: owner.UserID, AuthMethod: "local", AuthLevel: AuthLevelPassword}, WorkspaceCreateInput{Name: "Blocked"}, AuditContext{}); !errors.Is(err, ErrMFARequired) {
 		t.Fatalf("password workspace creation error = %v", err)
 	}
+	memberID := insertUser(t, service, db, "member-with-mfa@example.com")
+	memberSession, err := service.CreateSession(ctx, memberID, "local", "", time.Hour, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	memberEnrollment, err := service.BeginTOTPEnrollment(ctx, memberID, memberSession.ID, "user-long-password", AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.CompleteTOTPEnrollment(ctx, memberSession.ID, memberEnrollment.Challenge, totpTestCode(memberEnrollment.Secret, now), AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.CreateWorkspace(ctx, Principal{UserID: memberID, AuthMethod: "local", AuthLevel: AuthLevelPassword}, WorkspaceCreateInput{Name: "Member blocked"}, AuditContext{}); !errors.Is(err, ErrMFARequired) {
+		t.Fatalf("member password workspace creation error = %v", err)
+	}
 	pendingSession, err := service.CreateSession(ctx, owner.UserID, "local", "", time.Hour, AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -169,6 +184,23 @@ func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
 		t.Fatalf("expired MFA challenge error = %v", err)
 	}
 	now = base
+	late, err := service.BeginMFALogin(ctx, owner.UserID, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loadedLate, _, err := service.loadChallenge(ctx, late.Token, "login")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now = base.Add(mfaChallengeLifetime + time.Second)
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if service.consumeChallenge(ctx, tx, loadedLate.ID) {
+		t.Fatal("expired MFA challenge consumed")
+	}
+	_ = tx.Rollback()
 	limited, err := service.BeginMFALogin(ctx, owner.UserID, AuditContext{})
 	if err != nil {
 		t.Fatal(err)

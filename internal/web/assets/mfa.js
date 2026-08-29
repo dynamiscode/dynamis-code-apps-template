@@ -12,7 +12,7 @@
       const credential = await navigator.credentials.get({publicKey: options.publicKey});
       const response = {id: credential.id, rawId: encode(credential.rawId), type: credential.type, response: {clientDataJSON: encode(credential.response.clientDataJSON), authenticatorData: encode(credential.response.authenticatorData), signature: encode(credential.response.signature), userHandle: credential.response.userHandle ? encode(credential.response.userHandle) : null}};
       const result = await fetch("/mfa/passkey", {method: "POST", headers: {"Content-Type": "application/json", "X-MFA-CSRF": button.dataset.csrf}, body: JSON.stringify(response)});
-      if (result.ok) window.location = "/"; else window.location.reload();
+      if (result.ok) window.location = result.headers.get("X-MFA-Return-To") || "/"; else window.location.reload();
     } catch (_) {}
   });
 

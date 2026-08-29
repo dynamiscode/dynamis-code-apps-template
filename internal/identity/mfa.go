@@ -51,6 +51,10 @@ func (u webAuthnUser) WebAuthnDisplayName() string {
 func (u webAuthnUser) WebAuthnCredentials() []webauthnlib.Credential { return u.credentials }
 
 func (s *Service) MFARequired(ctx context.Context, userID string) (bool, error) {
+	return s.mfaRequiredForRole(ctx, userID, "")
+}
+
+func (s *Service) mfaRequiredForRole(ctx context.Context, userID string, targetRole Role) (bool, error) {
 	if !s.mfa.Enabled || !s.mfa.RequireForAdmins {
 		return false, nil
 	}
@@ -60,6 +64,9 @@ func (s *Service) MFARequired(ctx context.Context, userID string) (bool, error) 
 	}
 	if !status.TOTPEnabled && status.PasskeyCount == 0 {
 		return false, nil
+	}
+	if targetRole == Owner || targetRole == Admin {
+		return true, nil
 	}
 	var admins int
 	if err := s.queryRow(ctx, s.db, `
@@ -751,7 +758,8 @@ func (s *Service) auditMFAFailure(ctx context.Context, challenge loadedChallenge
 	_ = s.audit(ctx, s.db, AuditEvent{EventType: "mfa.challenge.failed", ActorUserID: challenge.UserID, AuthMethod: method, TargetType: "mfa_challenge", TargetID: challenge.ID, Action: "mfa.challenge.complete", Outcome: "failure", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": method}), CreatedAt: s.now().UTC()})
 }
 func (s *Service) consumeChallenge(ctx context.Context, tx *sql.Tx, challengeID string) bool {
-	result, err := s.exec(ctx, tx, "UPDATE mfa_challenges SET consumed_at = ? WHERE id = ? AND consumed_at IS NULL", timestamp(s.now().UTC()), challengeID)
+	now := timestamp(s.now().UTC())
+	result, err := s.exec(ctx, tx, "UPDATE mfa_challenges SET consumed_at = ? WHERE id = ? AND consumed_at IS NULL AND expires_at > ?", now, challengeID, now)
 	if err != nil {
 		return false
 	}

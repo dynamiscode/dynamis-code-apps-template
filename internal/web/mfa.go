@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 
+	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
@@ -15,6 +16,7 @@ func (h *Handler) mfaPage(writer http.ResponseWriter, request *http.Request) {
 	options, err := h.identity.MFALoginOptions(request.Context(), challenge)
 	if err != nil {
 		h.clearCookie(writer, "mfa_challenge")
+		h.clearCookie(writer, "mfa_return_to")
 		h.redirect(writer, request, "/login")
 		return
 	}
@@ -37,11 +39,8 @@ func (h *Handler) mfaTOTP(writer http.ResponseWriter, request *http.Request) {
 		h.mfaPageError(writer, request, "The verification code is invalid.")
 		return
 	}
-	h.setCookie(writer, "session", session.Secret, session.ExpiresAt, true)
-	h.setCookie(writer, "csrf", session.CSRFSecret, session.ExpiresAt, true)
-	h.clearCookie(writer, "mfa_challenge")
-	h.clearCookie(writer, "mfa_csrf")
-	h.redirect(writer, request, "/")
+	returnTo := h.completeMFASession(writer, request, session)
+	h.redirect(writer, request, returnTo)
 }
 
 func (h *Handler) mfaRecovery(writer http.ResponseWriter, request *http.Request) {
@@ -54,11 +53,8 @@ func (h *Handler) mfaRecovery(writer http.ResponseWriter, request *http.Request)
 		h.mfaPageError(writer, request, "The recovery code is invalid.")
 		return
 	}
-	h.setCookie(writer, "session", session.Secret, session.ExpiresAt, true)
-	h.setCookie(writer, "csrf", session.CSRFSecret, session.ExpiresAt, true)
-	h.clearCookie(writer, "mfa_challenge")
-	h.clearCookie(writer, "mfa_csrf")
-	h.redirect(writer, request, "/")
+	returnTo := h.completeMFASession(writer, request, session)
+	h.redirect(writer, request, returnTo)
 }
 
 func (h *Handler) mfaPasskey(writer http.ResponseWriter, request *http.Request) {
@@ -71,11 +67,19 @@ func (h *Handler) mfaPasskey(writer http.ResponseWriter, request *http.Request) 
 		h.mfaPageError(writer, request, "The passkey verification failed.")
 		return
 	}
+	returnTo := h.completeMFASession(writer, request, session)
+	writer.Header().Set("X-MFA-Return-To", returnTo)
+	writer.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) completeMFASession(writer http.ResponseWriter, request *http.Request, session identity.NewSession) string {
+	returnTo := safeReturnTo(cookieValue(request, "mfa_return_to"))
 	h.setCookie(writer, "session", session.Secret, session.ExpiresAt, true)
 	h.setCookie(writer, "csrf", session.CSRFSecret, session.ExpiresAt, true)
 	h.clearCookie(writer, "mfa_challenge")
 	h.clearCookie(writer, "mfa_csrf")
-	writer.WriteHeader(http.StatusNoContent)
+	h.clearCookie(writer, "mfa_return_to")
+	return returnTo
 }
 
 func (h *Handler) mfaPageError(writer http.ResponseWriter, request *http.Request, message string) {

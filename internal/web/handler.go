@@ -449,6 +449,7 @@ func (h *Handler) login(writer http.ResponseWriter, request *http.Request) {
 			return
 		}
 		h.setCookie(writer, "mfa_challenge", challenge.Token, challenge.ExpiresAt, true)
+		h.setCookie(writer, "mfa_return_to", safeReturnTo(request.FormValue("return_to")), challenge.ExpiresAt, true)
 		h.redirect(writer, request, "/mfa")
 		return
 	}

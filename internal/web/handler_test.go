@@ -57,6 +57,20 @@ func TestMFAOptionsRenderAsJSON(t *testing.T) {
 	}
 }
 
+func TestCompleteMFASessionPreservesReturnTo(t *testing.T) {
+	handler := &Handler{}
+	request := httptest.NewRequest(http.MethodGet, "/mfa", nil)
+	request.AddCookie(&http.Cookie{Name: "mfa_return_to", Value: "/invitations/example"})
+	response := httptest.NewRecorder()
+	returnTo := handler.completeMFASession(response, request, identity.NewSession{Secret: "session", CSRFSecret: "csrf"})
+	if returnTo != "/invitations/example" {
+		t.Fatalf("return_to = %q", returnTo)
+	}
+	if cookie := responseCookie(response, "mfa_return_to"); cookie.MaxAge != -1 {
+		t.Fatalf("mfa_return_to cookie max age = %d", cookie.MaxAge)
+	}
+}
+
 func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
 	handler, auth, itemService, workspaceID, _ := testWeb(t, 10)
 
