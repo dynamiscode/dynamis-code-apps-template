@@ -211,8 +211,8 @@ func (h *handler) writeAuthenticatedSession(writer http.ResponseWriter, request 
 	policy := identity.BrowserCookiePolicy(h.cfg.Secure)
 	maxAge := int(session.ExpiresAt.Sub(time.Now()).Seconds())
 	for _, cookie := range []*http.Cookie{
-		{Name: "session", Value: session.Secret, Path: "/", Expires: session.ExpiresAt, MaxAge: maxAge, HttpOnly: policy.HTTPOnly, Secure: policy.Secure, SameSite: policy.SameSite},
-		{Name: "csrf", Value: session.CSRFSecret, Path: "/", Expires: session.ExpiresAt, MaxAge: maxAge, HttpOnly: true, Secure: policy.Secure, SameSite: policy.SameSite},
+		{Name: "session", Value: session.Secret, Path: "/", Expires: session.ExpiresAt, MaxAge: maxAge, HttpOnly: policy.HTTPOnly, Secure: true, SameSite: policy.SameSite},
+		{Name: "csrf", Value: session.CSRFSecret, Path: "/", Expires: session.ExpiresAt, MaxAge: maxAge, HttpOnly: true, Secure: true, SameSite: policy.SameSite},
 	} {
 		http.SetCookie(writer, cookie)
 	}

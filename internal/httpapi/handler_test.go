@@ -116,6 +116,11 @@ func TestAuthenticatedSessionResponseIsNotCacheable(t *testing.T) {
 	if got := writer.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q", got)
 	}
+	for _, cookie := range writer.Result().Cookies() {
+		if (cookie.Name == "session" || cookie.Name == "csrf") && !cookie.Secure {
+			t.Fatalf("%s cookie Secure = false", cookie.Name)
+		}
+	}
 }
 
 func TestMFAStatusResponseIsNotCacheable(t *testing.T) {
