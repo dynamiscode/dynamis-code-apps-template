@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -39,7 +40,7 @@ func newS3Store(ctx context.Context, cfg config.Storage) (*s3Store, error) {
 func (s *s3Store) Put(ctx context.Context, key string, source io.Reader, size int64, contentType string) error {
 	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s.bucket), Key: aws.String(key), Body: source,
-		ContentLength: aws.Int64(size), ContentType: aws.String(contentType),
+		ContentLength: aws.Int64(size), ContentType: aws.String(contentType), IfNoneMatch: aws.String("*"),
 	})
 	return err
 }
@@ -79,15 +80,22 @@ func (s *s3Store) Head(ctx context.Context, key string) (ObjectInfo, error) {
 	return ObjectInfo{Size: *result.ContentLength, ContentType: contentType}, nil
 }
 
-func (s *s3Store) PresignPut(ctx context.Context, key string, size int64, contentType string, ttl time.Duration) (string, error) {
+func (s *s3Store) PresignPut(ctx context.Context, key string, size int64, contentType string, ttl time.Duration) (PresignedUpload, error) {
 	result, err := s.presign.PresignPutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s.bucket), Key: aws.String(key),
-		ContentLength: aws.Int64(size), ContentType: aws.String(contentType),
+		ContentLength: aws.Int64(size), ContentType: aws.String(contentType), IfNoneMatch: aws.String("*"),
 	}, s3.WithPresignExpires(ttl))
 	if err != nil {
-		return "", err
+		return PresignedUpload{}, err
 	}
-	return result.URL, nil
+	headers := make(map[string]string, len(result.SignedHeader))
+	for name, values := range result.SignedHeader {
+		if strings.EqualFold(name, "Host") || len(values) == 0 {
+			continue
+		}
+		headers[name] = values[0]
+	}
+	return PresignedUpload{URL: result.URL, Headers: headers}, nil
 }
 
 func (s *s3Store) PresignGet(ctx context.Context, key string, ttl time.Duration) (string, error) {

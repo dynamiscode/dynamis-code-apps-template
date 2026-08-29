@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
@@ -57,6 +58,8 @@ type Service struct {
 	signedURLTTL      time.Duration
 	prefix            string
 	now               func() time.Time
+	// ponytail: one process-wide finalization lock; use per-file/distributed claims if throughput or multi-instance local storage requires it.
+	finalizationMu sync.Mutex
 }
 
 type InitiateInput struct {
@@ -128,13 +131,15 @@ func (s *Service) PutContent(ctx context.Context, actor identity.Principal, work
 		return File{}, ErrInvalidInput
 	}
 	defer os.Remove(temporary)
-	tx, file, err := s.lockPending(ctx, actor, file.WorkspaceID, file.ID)
+	s.finalizationMu.Lock()
+	defer s.finalizationMu.Unlock()
+	file, err = s.pending(ctx, actor, file.WorkspaceID, file.ID)
 	if err != nil {
 		return File{}, err
 	}
-	defer tx.Rollback()
 	if file.Size != size || !validContent(file.OriginalName, detected) {
-		return File{}, s.failLocked(ctx, tx, file.ID, ErrInvalidInput)
+		s.markFailed(ctx, file.ID)
+		return File{}, ErrInvalidInput
 	}
 	input, err := os.Open(temporary)
 	if err != nil {
@@ -143,23 +148,24 @@ func (s *Service) PutContent(ctx context.Context, actor identity.Principal, work
 	putErr := s.store.Put(ctx, s.objectKey(file), input, size, detected)
 	closeErr := input.Close()
 	if putErr != nil {
-		return File{}, s.failLocked(ctx, tx, file.ID, putErr)
+		return File{}, putErr
 	}
 	if closeErr != nil {
 		return File{}, closeErr
 	}
-	return s.completeTx(ctx, tx, actor, file, size, detected, digest, audit)
+	return s.completeDB(ctx, actor, file, size, detected, digest, audit)
 }
 
 func (s *Service) Complete(ctx context.Context, actor identity.Principal, workspaceID, fileID string, audit identity.AuditContext) (File, error) {
 	if !validID(workspaceID) || !validID(fileID) {
 		return File{}, ErrInvalidInput
 	}
-	tx, file, err := s.lockPending(ctx, actor, workspaceID, fileID)
+	s.finalizationMu.Lock()
+	defer s.finalizationMu.Unlock()
+	file, err := s.pending(ctx, actor, workspaceID, fileID)
 	if err != nil {
 		return File{}, err
 	}
-	defer tx.Rollback()
 	object, err := s.store.Head(ctx, s.objectKey(file))
 	if err != nil {
 		if errors.Is(err, ErrObjectNotFound) {
@@ -168,10 +174,12 @@ func (s *Service) Complete(ctx context.Context, actor identity.Principal, worksp
 		return File{}, err
 	}
 	if object.Size > s.maxObjectBytes {
-		return File{}, s.failLocked(ctx, tx, file.ID, ErrObjectLimit)
+		s.markFailed(ctx, file.ID)
+		return File{}, ErrObjectLimit
 	}
 	if object.Size < 1 || object.Size != file.Size {
-		return File{}, s.failLocked(ctx, tx, file.ID, ErrInvalidInput)
+		s.markFailed(ctx, file.ID)
+		return File{}, ErrInvalidInput
 	}
 	reader, err := s.store.Get(ctx, s.objectKey(file))
 	if err != nil {
@@ -184,12 +192,14 @@ func (s *Service) Complete(ctx context.Context, actor identity.Principal, worksp
 	reader.Close()
 	if inspectErr != nil || size != object.Size || !validContent(file.OriginalName, detected) {
 		if errors.Is(inspectErr, ErrObjectLimit) {
-			return File{}, s.failLocked(ctx, tx, file.ID, ErrObjectLimit)
+			s.markFailed(ctx, file.ID)
+			return File{}, ErrObjectLimit
 		}
-		return File{}, s.failLocked(ctx, tx, file.ID, ErrInvalidInput)
+		s.markFailed(ctx, file.ID)
+		return File{}, ErrInvalidInput
 	}
 	os.Remove(temporary)
-	return s.completeTx(ctx, tx, actor, file, size, detected, digest, audit)
+	return s.completeDB(ctx, actor, file, size, detected, digest, audit)
 }
 
 func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceID string, limit int) ([]File, error) {
@@ -253,50 +263,6 @@ func (s *Service) pending(ctx context.Context, actor identity.Principal, workspa
 	return file, err
 }
 
-func (s *Service) lockPending(ctx context.Context, actor identity.Principal, workspaceID, fileID string) (*sql.Tx, File, error) {
-	if !validID(workspaceID) || !validID(fileID) {
-		return nil, File{}, ErrInvalidInput
-	}
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
-	if err != nil {
-		return nil, File{}, err
-	}
-	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesWrite); err != nil {
-		_ = tx.Rollback()
-		return nil, File{}, identity.ErrForbidden
-	}
-	var file File
-	err = scanRow(tx.QueryRowContext(ctx, database.Rebind(s.driver, `
-		SELECT id, workspace_id, owner_user_id, original_name, detected_mime,
-			size, sha256, status, created_at, updated_at
-		FROM files WHERE id = ? AND workspace_id = ? AND status = ?
-	`), fileID, workspaceID, Pending), &file)
-	if errors.Is(err, sql.ErrNoRows) {
-		_ = tx.Rollback()
-		return nil, File{}, ErrNotFound
-	}
-	if err != nil {
-		_ = tx.Rollback()
-		return nil, File{}, err
-	}
-	// ponytail: SQLite serializes this write transaction; row locking needs no vendor-specific SQL.
-	result, err := tx.ExecContext(ctx, database.Rebind(s.driver,
-		"UPDATE files SET updated_at = updated_at WHERE id = ? AND workspace_id = ? AND status = ?",
-	), fileID, workspaceID, Pending)
-	if err != nil {
-		_ = tx.Rollback()
-		return nil, File{}, err
-	}
-	if affected, err := result.RowsAffected(); err != nil {
-		_ = tx.Rollback()
-		return nil, File{}, err
-	} else if affected != 1 {
-		_ = tx.Rollback()
-		return nil, File{}, ErrNotReady
-	}
-	return tx, file, nil
-}
-
 func (s *Service) Open(ctx context.Context, actor identity.Principal, workspaceID, fileID string) (File, io.ReadCloser, error) {
 	file, err := s.Get(ctx, actor, workspaceID, fileID)
 	if err != nil {
@@ -321,8 +287,13 @@ func (s *Service) PresignedGet(ctx context.Context, actor identity.Principal, wo
 	return file, url, err
 }
 
-func (s *Service) PresignedPut(ctx context.Context, file File) (string, error) {
-	return s.store.PresignPut(ctx, s.objectKey(file), file.Size, contentType(file), s.signedURLTTL)
+func (s *Service) PresignedPut(ctx context.Context, actor identity.Principal, workspaceID, fileID string) (File, PresignedUpload, error) {
+	file, err := s.pending(ctx, actor, workspaceID, fileID)
+	if err != nil {
+		return File{}, PresignedUpload{}, err
+	}
+	upload, err := s.store.PresignPut(ctx, s.objectKey(file), file.Size, contentType(file), s.signedURLTTL)
+	return file, upload, err
 }
 
 func (s *Service) reserve(ctx context.Context, actor identity.Principal, workspaceID, name string, size int64, audit identity.AuditContext) (File, error) {
@@ -362,15 +333,20 @@ func (s *Service) reserve(ctx context.Context, actor identity.Principal, workspa
 }
 
 func (s *Service) complete(ctx context.Context, actor identity.Principal, file File, size int64, detected string, digest [32]byte, audit identity.AuditContext) (File, error) {
-	tx, file, err := s.lockPending(ctx, actor, file.WorkspaceID, file.ID)
+	s.finalizationMu.Lock()
+	defer s.finalizationMu.Unlock()
+	return s.completeDB(ctx, actor, file, size, detected, digest, audit)
+}
+
+func (s *Service) completeDB(ctx context.Context, actor identity.Principal, file File, size int64, detected string, digest [32]byte, audit identity.AuditContext) (File, error) {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return File{}, err
 	}
 	defer tx.Rollback()
-	return s.completeTx(ctx, tx, actor, file, size, detected, digest, audit)
-}
-
-func (s *Service) completeTx(ctx context.Context, tx *sql.Tx, actor identity.Principal, file File, size int64, detected string, digest [32]byte, audit identity.AuditContext) (File, error) {
+	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, file.WorkspaceID, identity.ResourcesWrite); err != nil {
+		return File{}, identity.ErrForbidden
+	}
 	now := s.now().UTC()
 	var used int64
 	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver,
@@ -441,23 +417,6 @@ func (s *Service) markFailed(ctx context.Context, fileID string) {
 	_, _ = s.db.ExecContext(ctx, database.Rebind(s.driver,
 		"UPDATE files SET status = ?, updated_at = ? WHERE id = ? AND status = ?",
 	), Failed, stamp(s.now()), fileID, Pending)
-}
-
-func (s *Service) markFailedTx(ctx context.Context, tx *sql.Tx, fileID string) error {
-	_, err := tx.ExecContext(ctx, database.Rebind(s.driver,
-		"UPDATE files SET status = ?, updated_at = ? WHERE id = ? AND status = ?",
-	), Failed, stamp(s.now()), fileID, Pending)
-	return err
-}
-
-func (s *Service) failLocked(ctx context.Context, tx *sql.Tx, fileID string, cause error) error {
-	if err := s.markFailedTx(ctx, tx, fileID); err != nil {
-		return err
-	}
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	return cause
 }
 
 func scan(rows *sql.Rows) (File, error) {

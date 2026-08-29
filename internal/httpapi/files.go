@@ -13,9 +13,10 @@ import (
 
 type fileResponse struct {
 	appfiles.File
-	UploadURL   string `json:"uploadUrl,omitempty"`
-	CompleteURL string `json:"completeUrl,omitempty"`
-	DownloadURL string `json:"downloadUrl,omitempty"`
+	UploadURL     string            `json:"uploadUrl,omitempty"`
+	UploadHeaders map[string]string `json:"uploadHeaders,omitempty"`
+	CompleteURL   string            `json:"completeUrl,omitempty"`
+	DownloadURL   string            `json:"downloadUrl,omitempty"`
 }
 
 func (h *handler) listFiles(writer http.ResponseWriter, request *http.Request) {
@@ -64,7 +65,7 @@ func (h *handler) createFile(writer http.ResponseWriter, request *http.Request) 
 	switch mediaType {
 	case "multipart/form-data":
 		if err := request.ParseMultipartForm(1024 * 1024); err != nil {
-			h.fileProblem(writer, request, appfiles.ErrInvalidInput)
+			h.fileProblem(writer, request, err)
 			return
 		}
 		upload, header, err := request.FormFile("file")
@@ -88,12 +89,13 @@ func (h *handler) createFile(writer http.ResponseWriter, request *http.Request) 
 			OriginalName: input.OriginalName, Size: input.Size, ContentType: input.ContentType,
 		}, h.auditContext(request))
 		if err == nil {
-			fileResponse, urlErr := h.fileUploadResponse(request, file)
+			fileResponse, urlErr := h.fileUploadResponse(request, principal, file)
 			if urlErr != nil {
 				h.internal(writer, request)
 				return
 			}
 			writer.Header().Set("Location", "/api/v1/workspaces/"+workspaceID+"/files/"+file.ID)
+			writer.Header().Set("Cache-Control", "private, no-store")
 			writeJSON(writer, http.StatusCreated, fileResponse)
 			return
 		}
@@ -218,9 +220,9 @@ func (h *handler) fileContent(writer http.ResponseWriter, request *http.Request)
 	_, _ = io.Copy(writer, reader)
 }
 
-func (h *handler) fileUploadResponse(request *http.Request, file appfiles.File) (fileResponse, error) {
+func (h *handler) fileUploadResponse(request *http.Request, principal identity.Principal, file appfiles.File) (fileResponse, error) {
 	response := fileResponse{File: file, CompleteURL: "/api/v1/workspaces/" + file.WorkspaceID + "/files/" + file.ID + "/complete"}
-	url, err := h.files.PresignedPut(request.Context(), file)
+	_, upload, err := h.files.PresignedPut(request.Context(), principal, file.WorkspaceID, file.ID)
 	if errors.Is(err, appfiles.ErrNotSupported) {
 		response.UploadURL = "/api/v1/workspaces/" + file.WorkspaceID + "/files/" + file.ID + "/content"
 		return response, nil
@@ -228,7 +230,8 @@ func (h *handler) fileUploadResponse(request *http.Request, file appfiles.File) 
 	if err != nil {
 		return fileResponse{}, err
 	}
-	response.UploadURL = url
+	response.UploadURL = upload.URL
+	response.UploadHeaders = upload.Headers
 	return response, nil
 }
 

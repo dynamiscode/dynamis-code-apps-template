@@ -22,8 +22,13 @@ type ObjectStore interface {
 	Put(context.Context, string, io.Reader, int64, string) error
 	Get(context.Context, string) (io.ReadCloser, error)
 	Head(context.Context, string) (ObjectInfo, error)
-	PresignPut(context.Context, string, int64, string, time.Duration) (string, error)
+	PresignPut(context.Context, string, int64, string, time.Duration) (PresignedUpload, error)
 	PresignGet(context.Context, string, time.Duration) (string, error)
+}
+
+type PresignedUpload struct {
+	URL     string
+	Headers map[string]string
 }
 
 type ObjectInfo struct {
@@ -107,8 +112,8 @@ func (s *localStore) Head(_ context.Context, key string) (ObjectInfo, error) {
 	return ObjectInfo{Size: info.Size()}, nil
 }
 
-func (*localStore) PresignPut(context.Context, string, int64, string, time.Duration) (string, error) {
-	return "", ErrNotSupported
+func (*localStore) PresignPut(context.Context, string, int64, string, time.Duration) (PresignedUpload, error) {
+	return PresignedUpload{}, ErrNotSupported
 }
 
 func (*localStore) PresignGet(context.Context, string, time.Duration) (string, error) {
