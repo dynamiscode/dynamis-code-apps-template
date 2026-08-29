@@ -11,14 +11,26 @@
   MIME/signature validation, quotas, browser fallback, and REST/OpenAPI flow.
 - Documented file backup, owner deletion, reconciliation, scanning, and
   background-job boundaries; no second worker or public sharing was added.
+
+- Preserved forward upgrades for databases created from pre-merge Files and
+  SCIM branches after migration numbering was reconciled.
+
+- Added REST-only SCIM 2.0 workspace provisioning for Users and role-mapped
+  Groups, with one-time hashed dedicated credentials, bounded filtering and
+  pagination, conditional PATCH/DELETE, safe errors, audit events, owner
+  protection, passwordless verified-OIDC enrollment, workspace-scoped
+  session/token revocation on deactivation, and read-only account profile
+ fields, including order-independent primary email handling, filtered
+ group-member removals, membership-aware group ETags, and retry-safe creates
+ when `externalId` is omitted.
 - Added the first durable background-jobs slice: a workspace-scoped,
   database-backed queue with lease recovery, idempotent webhook delivery,
   bounded retries, redacted status/metrics, and one worker loop per process.
 - Added bounded public Item sharing with hashed opaque bearer tokens, seven-day
   default and 30-day maximum expiry, explicit write authorization, cascading
   invalidation, redacted public projections, access audits, rate limiting,
-  safe browser headers, and ordinary-form CSRF-protected management. Files,
-  REST, CLI, MCP, and WebMCP sharing remain out of scope.
+ safe browser headers, and ordinary-form CSRF-protected management. Files,
+ REST, CLI, MCP, and WebMCP sharing remain out of scope.
 
 - Added profile composition to application generation: Identity is required
   for Core, and selecting Agent includes its MCP and REST-only CLI surfaces;

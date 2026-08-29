@@ -66,6 +66,8 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, "invite-old", "workspace-maint", "user-maint", "old@example.com", "viewer", "invite-secret", old, old, old)
 	exec(`INSERT INTO api_tokens (id, user_id, workspace_id, name, secret_hash, scopes, created_at, revoked_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "token-old", "user-maint", "workspace-maint", "old", "token-secret", "items:read", old, old)
+	exec(`INSERT INTO scim_tokens (id, workspace_id, created_by_user_id, secret_hash, created_at, revoked_at)
+		VALUES (?, ?, ?, ?, ?, ?)`, "scim-old", "workspace-maint", "user-maint", "scim-secret", old, old)
 	exec(`INSERT INTO oidc_transactions (state_hash, provider_id, browser_session_hash, pkce_verifier_hash, nonce_hash, redirect_uri, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "state-old", "provider", "browser", "pkce", "nonce", "https://example.com/callback", old, old)
 	exec(`INSERT INTO email_verifications (id, user_id, email, token_hash, created_at, expires_at)
@@ -93,14 +95,14 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
-	if result.Sessions < 1 || result.Invitations < 1 || result.APITokens < 1 || result.EmailVerifications < 1 || result.PasswordResets < 1 || result.Notifications < 1 ||
+	if result.Sessions < 1 || result.Invitations < 1 || result.APITokens < 1 || result.SCIMTokens < 1 || result.EmailVerifications < 1 || result.PasswordResets < 1 || result.Notifications < 1 ||
 		result.OIDCTransactions < 1 || result.Idempotency < 1 ||
 		result.RealtimeReplay < 1 || result.WebhookDeliveries < 1 || result.BackgroundJobs < 1 || result.PublicLinks < 1 || result.AuditEvents < 1 {
 		t.Fatalf("Run() result = %+v", result)
 	}
 	for table, key := range map[string]string{
 		"sessions": "session-old", "invitations": "invite-old",
-		"api_tokens": "token-old", "oidc_transactions": "state-old",
+		"api_tokens": "token-old", "scim_tokens": "scim-old", "oidc_transactions": "state-old",
 		"idempotency_records": "key-old", "item_events": "event-old",
 		"notifications":       "notification-old",
 		"email_verifications": "verification-old", "password_resets": "reset-old",

@@ -438,11 +438,61 @@ func (s *Service) AuthenticateOIDC(
 	).Scan(&bootstrapped); err != nil {
 		return "", ErrInvalidCredentials
 	}
-	var existing int
+	var existingID string
+	var existingPassword sql.NullString
 	if err := s.queryRow(ctx, tx,
-		"SELECT 1 FROM users WHERE email = ?", email,
-	).Scan(&existing); err == nil {
-		return "", ErrInvalidCredentials
+		"SELECT id, password_hash FROM users WHERE email = ?", email,
+	).Scan(&existingID, &existingPassword); err == nil {
+		if existingPassword.Valid {
+			return "", ErrInvalidCredentials
+		}
+		var provisioned int
+		if err := s.queryRow(ctx, tx,
+			"SELECT 1 FROM scim_users WHERE user_id = ? LIMIT 1", existingID,
+		).Scan(&provisioned); err != nil {
+			return "", ErrInvalidCredentials
+		}
+		var linked int
+		if err := s.queryRow(ctx, tx,
+			"SELECT 1 FROM external_identities WHERE user_id = ? LIMIT 1", existingID,
+		).Scan(&linked); err == nil {
+			return "", ErrInvalidCredentials
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return "", err
+		}
+		identityID, err := id.New()
+		if err != nil {
+			return "", err
+		}
+		now := s.now().UTC()
+		if _, err := s.exec(ctx, tx, `
+			INSERT INTO external_identities (
+				id, user_id, provider_id, issuer, subject, email, created_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?)
+		`, identityID, existingID, claims.ProviderID, claims.Issuer,
+			claims.Subject, email, timestamp(now)); err != nil {
+			return "", ErrInvalidCredentials
+		}
+		if _, err := s.exec(ctx, tx,
+			"UPDATE users SET email_verified_at = COALESCE(email_verified_at, ?) WHERE id = ?",
+			timestamp(now), existingID,
+		); err != nil {
+			return "", ErrInvalidCredentials
+		}
+		if err := s.audit(ctx, tx, AuditEvent{
+			EventType: "external_identity.created", ActorUserID: existingID,
+			AuthMethod: "oidc", TargetType: "external_identity", TargetID: identityID,
+			Action: "external_identity.create", Outcome: "success",
+			RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
+			Metadata:  metadata(map[string]any{"provider_id": claims.ProviderID}),
+			CreatedAt: now,
+		}); err != nil {
+			return "", err
+		}
+		if err := tx.Commit(); err != nil {
+			return "", err
+		}
+		return existingID, nil
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return "", err
 	}

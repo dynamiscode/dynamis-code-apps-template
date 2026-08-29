@@ -1,4 +1,4 @@
-CREATE TABLE files (
+CREATE TABLE IF NOT EXISTS files (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
@@ -12,5 +12,5 @@ CREATE TABLE files (
     updated_at TEXT NOT NULL
 );
 
-CREATE INDEX files_workspace_created_idx
+CREATE INDEX IF NOT EXISTS files_workspace_created_idx
     ON files (workspace_id, created_at, id);

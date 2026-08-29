@@ -159,6 +159,19 @@ documented in [authentication](authentication.md).
   initiates a file; `GET /files/{fileId}` returns metadata and a short-lived
   download URL; `PUT /files/{fileId}/content` finalizes app-streamed uploads;
   `POST /files/{fileId}/complete` verifies S3 uploads.
+- SCIM: create/revoke the dedicated credential with
+  `POST/DELETE /api/v1/workspaces/{workspaceId}/scim-token`, then use
+  `GET/POST /scim/v2/{workspaceId}/Users`, `GET/PATCH/DELETE
+  /scim/v2/{workspaceId}/Users/{externalId}`, `GET
+  /scim/v2/{workspaceId}/Groups`, and `GET/PATCH
+  /scim/v2/{workspaceId}/Groups/{admin|member|viewer}`. SCIM uses
+  `application/scim+json`, exact `userName`/`externalId` filters, bounded
+  `startIndex`/`count` pagination, strong ETag/If-Match, and safe SCIM error
+  responses. Group ETags advance for SCIM user changes and ordinary workspace
+  membership changes, including both sides of a role move. Group PATCH supports
+  member arrays and bounded filtered member removals. User DELETE deactivates
+  the workspace mapping; POST retries without `externalId` return the existing
+  normalized workspace mapping.
 
 Identity and workspace routes use `Authorization: Bearer <token>`. The token
 must belong to the path workspace and include the permission required by the
