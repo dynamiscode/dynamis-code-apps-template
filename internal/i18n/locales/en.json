@@ -249,5 +249,17 @@
   "errors.forbidden": "Forbidden",
   "errors.too_many_requests": "Too Many Requests",
   "export.description": "Download a bounded JSON copy of this workspace, including its members, items, and audit events.",
-  "export.download": "Download JSON"
+  "export.download": "Download JSON",
+  "sharing.shared_item": "Shared item",
+  "sharing.unavailable": "Shared item unavailable",
+  "sharing.unavailable_detail": "This shared item is unavailable.",
+  "sharing.title": "Title",
+  "sharing.status": "Status",
+  "sharing.expiration": "Link expiration",
+  "sharing.seven_days": "7 days",
+  "sharing.thirty_days": "30 days",
+  "sharing.create": "Create public link",
+  "sharing.active_until": "Public link active until",
+  "sharing.revoke": "Revoke public link",
+  "sharing.created": "Public link created:"
 }

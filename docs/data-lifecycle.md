@@ -32,8 +32,10 @@ means the complete encrypted database backup described in
 | items / `items` | IDs, status, version, timestamps (internal); nullable `created_by_user_id`, `title` (personal user content) | Sample feature | Until permanent deletion or future workspace deletion; all fields export; title/status correction uses conditional update; account deletion retains the item and clears its deleted creator reference. |
 | items / `idempotency_records` | hashes, IDs, operation, result, timestamps (internal; hashes treated as secret) | Safe create replay | Exact 24-hour expiry; pruned after expiry; excluded from export; no correction. |
 | items / `item_events` | IDs, type, version, time (internal) | SSE replay and resynchronization | Application keeps the newest 1,000 per workspace; maintenance also removes events older than 7 days; excluded from export; no correction. |
+| sharing / `public_links` | IDs, workspace/item references, timestamps, expiry, revocation (internal); `token_hash` (secret) | Bounded read-only Item sharing without membership | Until expiry or revocation; expired links are pruned by maintenance and revoked links after 365 days; excluded from export; item/workspace deletion cascades; no correction. |
 | webhooks / `webhooks` | IDs, workspace, name, endpoint URL, selected event names, timestamps (internal/configuration); encrypted secret (secret) | Workspace event delivery registration | Workspace lifetime or explicit deletion; excluded from export; secret rotates through authorized management and is never returned after creation. |
 | webhooks / `webhook_deliveries` | IDs, webhook/event references, event type, bounded payload, attempt/status/timestamps, HTTP status, redacted error category (internal; payload personal) | Durable at-least-once item delivery and bounded delivery history | Pending rows remain until delivery settles; delivered/failed rows retained 365 days and pruned by maintenance; excluded from export; cascade on webhook deletion. |
+| platform / `background_jobs` | IDs, workspace, handler kind, deduplication key, bounded payload, status/attempt/lease/timestamps, redacted error category (internal; payload personal) | Durable retry and lease ownership for bounded asynchronous handlers | Pending and leased rows remain until settlement; settled rows retained 365 days and pruned by maintenance; excluded from export; workspace deletion cascades. |
 
 Every row is included in database backup until the operator's backup retention
 expires. Production fixtures must never contain copied production data.
@@ -59,6 +61,14 @@ identities, preferences, and notifications, and removes invitations created by
 the account. The deletion audit event retains the user ID and safe metadata but
 no credential or profile content. Items created by the account remain in their
 workspace with `createdByUserId: null`. Workspace deletion remains unavailable.
+
+Public links are not workspace memberships. A valid link returns only the Item
+title and status; workspace names, emails, creator details, audit history,
+internal IDs, and bearer tokens are excluded. Link creation and revocation
+require `resources:write`; access outcomes are audited without the bearer
+token. Links expire after seven days by default, at most 30 days, and never
+have an unlimited lifetime. Item deletion invalidates links through the
+foreign-key cascade.
 
 ## Portability
 
@@ -107,8 +117,7 @@ endpoint URLs and delivery payloads can contain integration or personal data,
 and encrypted secrets are deployment-sensitive. Database backups containing
 these rows remain sensitive.
 
-No current product action survives request disconnection or exceeds the
-ordinary request contract: item operations are small and exports reject their
-bounds. A long-running-operation resource and job system therefore do not
-exist. Add both only when measured work needs retry, resumption, cancellation,
-or duration beyond the request timeout.
+Webhook delivery survives request disconnection through the background job
+queue. No public long-running-operation resource, cancellation contract, or
+browser/REST job administration exists; add those only when a product action
+needs user-visible progress or cancellation beyond the bounded handler model.

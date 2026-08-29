@@ -37,6 +37,7 @@ var (
 	streamRejections, _        = meter.Int64Counter("realtime.stream.rejected.count")
 	resourceLimitRejections, _ = meter.Int64Counter("resource.limit.rejected.count")
 	webhookDeliveries, _       = meter.Int64Counter("webhook.delivery.count")
+	backgroundJobs, _          = meter.Int64Counter("background.job.count")
 )
 
 type roundTripper struct {
@@ -189,6 +190,13 @@ func RecordLimitRejection(ctx context.Context, resource string) {
 func RecordWebhookDelivery(ctx context.Context, status string) {
 	webhookDeliveries.Add(ctx, 1, metric.WithAttributes(
 		attribute.String("webhook.delivery.status", status),
+	))
+}
+
+func RecordJob(ctx context.Context, kind, status string) {
+	backgroundJobs.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("job.kind", kind),
+		attribute.String("job.status", status),
 	))
 }
 

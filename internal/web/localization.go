@@ -85,6 +85,8 @@ func localizedLegacy(catalog *i18n.Catalog, locale i18n.Locale, value string) st
 		"Password reset": "account.reset_password", "Email verification": "account.email_verification",
 		"Language settings": "account.language_settings_title", "General workspace settings": "workspace.general_settings",
 		"Workspace invitation": "invitations.workspace_invitation",
+		"Shared item":          "sharing.shared_item", "Shared item unavailable": "sharing.unavailable",
+		"This shared item is unavailable.":                      "sharing.unavailable_detail",
 		"The identity provider sign-in could not be completed.": "errors.oidc_signin",
 		"Invitation unavailable":                                "errors.invalid_invitation", "Request failed": "errors.request_failed",
 		"The request could not be completed.":             "errors.generic",

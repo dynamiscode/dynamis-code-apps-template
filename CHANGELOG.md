@@ -5,7 +5,7 @@
 - Added optional MFA with WebAuthn/passkeys as the primary strong factor, TOTP
   fallback, one-time hashed recovery codes, encrypted TOTP storage, revocable
   passkeys, replay-protected challenges, MFA session levels, admin policy
-  enforcement, browser/REST flows, audit redaction, and migration 000010.
+  enforcement, browser/REST flows, audit redaction, and migration 000012.
 - Fixed MFA policy enforcement for workspace creation, challenge retention,
   WebAuthn RP configuration validation, and the documented MFA login response.
 - Fixed MFA owner-policy enforcement for new workspaces, challenge expiry
@@ -13,6 +13,14 @@
 - Fixed optional enrolled-user MFA login, password-change MFA reauthentication,
   expired-session fresh-auth checks, and challenge failure auditing.
 - Fixed MFA-required browser redirects and admin API-token policy enforcement.
+- Added the first durable background-jobs slice: a workspace-scoped,
+  database-backed queue with lease recovery, idempotent webhook delivery,
+  bounded retries, redacted status/metrics, and one worker loop per process.
+- Added bounded public Item sharing with hashed opaque bearer tokens, seven-day
+  default and 30-day maximum expiry, explicit write authorization, cascading
+  invalidation, redacted public projections, access audits, rate limiting,
+  safe browser headers, and ordinary-form CSRF-protected management. Files,
+  REST, CLI, MCP, and WebMCP sharing remain out of scope.
 
 - Added profile composition to application generation: Identity is required
   for Core, and selecting Agent includes its MCP and REST-only CLI surfaces;
@@ -43,7 +51,7 @@
 - Added account profile preferences, email verification, password reset/change,
   owner-safe account deletion, in-app notifications, recipient-scoped SSE, and
   notification retention. SMTP delivery remains synchronous and optional;
-  retryable delivery is deferred with background jobs.
+  retryable email delivery remains deferred.
 - Fixed notification SSE initial/resync cursors, redacted notification events,
   and password-reset email locale resolution.
 - Added OSS repository governance, dependency attribution, conduct, ownership,
