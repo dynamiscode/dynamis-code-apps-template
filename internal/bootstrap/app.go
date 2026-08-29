@@ -162,7 +162,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	return &App{
 		DB: db, Identity: identityService, OIDC: oidcRegistry,
 		Items: itemService, Sharing: sharingService, Portability: portabilityService, Webhooks: webhookService,
-		Jobs: jobQueue,
+		Jobs:    jobQueue,
 		Handler: telemetry.HTTPHandler(mux), Telemetry: telemetryProvider,
 	}, nil
 }
