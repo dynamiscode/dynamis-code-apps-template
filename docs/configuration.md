@@ -141,7 +141,9 @@ MinIO, Wasabi, Backblaze, and similar services. Credentials are never logged.
 Objects remain private; S3 clients receive short-lived presigned PUT/GET URLs,
 while local objects stream through the application. The object and workspace
 limits default to 16 MiB and 1 GiB. File routes use their separate object
-limit; do not raise `HTTP_MAX_BODY_BYTES` globally.
+limit; do not raise `HTTP_MAX_BODY_BYTES` globally. Browser S3 uploads also
+require bucket CORS permitting PUT from the application origin and the signed
+upload headers returned by the initiation response.
 
 ## HTTP
 

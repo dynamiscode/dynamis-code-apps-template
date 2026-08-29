@@ -22,6 +22,7 @@ type ObjectStore interface {
 	Put(context.Context, string, io.Reader, int64, string) error
 	Get(context.Context, string) (io.ReadCloser, error)
 	Head(context.Context, string) (ObjectInfo, error)
+	SupportsPresignedPut() bool
 	PresignPut(context.Context, string, int64, string, time.Duration) (PresignedUpload, error)
 	PresignGet(context.Context, string, time.Duration) (string, error)
 }
@@ -115,6 +116,8 @@ func (s *localStore) Head(_ context.Context, key string) (ObjectInfo, error) {
 func (*localStore) PresignPut(context.Context, string, int64, string, time.Duration) (PresignedUpload, error) {
 	return PresignedUpload{}, ErrNotSupported
 }
+
+func (*localStore) SupportsPresignedPut() bool { return false }
 
 func (*localStore) PresignGet(context.Context, string, time.Duration) (string, error) {
 	return "", ErrNotSupported

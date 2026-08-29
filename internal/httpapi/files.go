@@ -116,6 +116,9 @@ func (h *handler) createFile(writer http.ResponseWriter, request *http.Request) 
 		}
 	}
 	writer.Header().Set("Location", "/api/v1/workspaces/"+workspaceID+"/files/"+file.ID)
+	if response.DownloadURL != "" && file.Status == appfiles.Ready {
+		writer.Header().Set("Cache-Control", "private, no-store")
+	}
 	writeJSON(writer, http.StatusCreated, response)
 }
 

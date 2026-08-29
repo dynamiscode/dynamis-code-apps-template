@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"mime"
@@ -30,8 +31,44 @@ func (h *Handler) filesPage(writer http.ResponseWriter, request *http.Request) {
 	h.render(writer, http.StatusOK, "files.html", pageData{
 		Title: "Files", NavPage: "files", NavSection: "workspace", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		Files:       fileList,
+		Files: fileList, FilesPresigned: h.files.SupportsPresignedPut(),
 		CurrentPath: "/workspaces/" + workspaceID + "/files",
+	})
+}
+
+func (h *Handler) filesInitiateUpload(writer http.ResponseWriter, request *http.Request) {
+	workspaceID := request.PathValue("workspaceId")
+	principal, _, _, ok := h.managementPrincipal(writer, request, workspaceID, identity.ResourcesWrite)
+	if !ok {
+		return
+	}
+	if !h.files.SupportsPresignedPut() {
+		h.renderError(writer, http.StatusNotFound)
+		return
+	}
+	size, err := strconv.ParseInt(request.FormValue("size"), 10, 64)
+	if err != nil {
+		h.renderFilesError(writer, request, "The selected file is invalid.")
+		return
+	}
+	file, err := h.files.Initiate(request.Context(), principal, workspaceID, appfiles.InitiateInput{
+		OriginalName: request.FormValue("originalName"), Size: size, ContentType: request.FormValue("contentType"),
+	}, auditContext(request))
+	if err != nil {
+		h.renderFilesError(writer, request, "The selected file is invalid.")
+		return
+	}
+	_, upload, err := h.files.PresignedPut(request.Context(), principal, workspaceID, file.ID)
+	if err != nil {
+		h.renderFilesError(writer, request, "The file upload could not be started.")
+		return
+	}
+	writer.Header().Set("Content-Type", "application/json")
+	writer.Header().Set("Cache-Control", "private, no-store")
+	writer.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(writer).Encode(map[string]any{
+		"uploadUrl": upload.URL, "uploadHeaders": upload.Headers,
+		"completeUrl": "/workspaces/" + workspaceID + "/files/" + file.ID + "/complete",
 	})
 }
 
@@ -61,6 +98,19 @@ func (h *Handler) filesUpload(writer http.ResponseWriter, request *http.Request)
 	h.redirect(writer, request, "/workspaces/"+workspaceID+"/files")
 }
 
+func (h *Handler) filesCompleteUpload(writer http.ResponseWriter, request *http.Request) {
+	workspaceID, fileID := request.PathValue("workspaceId"), request.PathValue("fileId")
+	principal, _, _, ok := h.managementPrincipal(writer, request, workspaceID, identity.ResourcesWrite)
+	if !ok {
+		return
+	}
+	if _, err := h.files.Complete(request.Context(), principal, workspaceID, fileID, auditContext(request)); err != nil {
+		h.renderFilesError(writer, request, "The file upload could not be completed.")
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
+}
+
 func (h *Handler) renderFilesError(writer http.ResponseWriter, request *http.Request, message string) {
 	workspaceID := request.PathValue("workspaceId")
 	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.ResourcesRead)
@@ -80,7 +130,7 @@ func (h *Handler) renderFilesError(writer http.ResponseWriter, request *http.Req
 	h.render(writer, http.StatusUnprocessableEntity, "files.html", pageData{
 		Title: "Files", NavPage: "files", NavSection: "workspace", CSRF: csrf, Error: message,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		Files: fileList, CurrentPath: "/workspaces/" + workspaceID + "/files",
+		Files: fileList, FilesPresigned: h.files.SupportsPresignedPut(), CurrentPath: "/workspaces/" + workspaceID + "/files",
 	})
 }
 

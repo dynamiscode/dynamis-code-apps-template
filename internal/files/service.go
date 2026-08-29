@@ -73,6 +73,8 @@ func NewService(db *sql.DB, driver config.DatabaseDriver, auth *identity.Service
 	return &Service{db: db, driver: driver, auth: auth, store: store, maxObjectBytes: maxObjectBytes, maxWorkspaceBytes: maxWorkspaceBytes, signedURLTTL: signedURLTTL, prefix: prefix, now: time.Now}
 }
 
+func (s *Service) SupportsPresignedPut() bool { return s.store.SupportsPresignedPut() }
+
 func (s *Service) Initiate(ctx context.Context, actor identity.Principal, workspaceID string, input InitiateInput, audit identity.AuditContext) (File, error) {
 	name, err := safeFilename(input.OriginalName)
 	if err != nil || input.Size < 1 || input.Size > s.maxObjectBytes || !allowedDeclaredType(input.ContentType, name) {
@@ -125,6 +127,7 @@ func (s *Service) PutContent(ctx context.Context, actor identity.Principal, work
 	}
 	temporary, size, detected, digest, err := inspect(source, s.maxObjectBytes)
 	if err != nil || size != file.Size || !validContent(file.OriginalName, detected) {
+		defer os.Remove(temporary)
 		s.markFailed(ctx, file.ID)
 		if err != nil {
 			return File{}, err
@@ -191,6 +194,7 @@ func (s *Service) Complete(ctx context.Context, actor identity.Principal, worksp
 	}
 	temporary, size, detected, digest, inspectErr := inspect(reader, s.maxObjectBytes)
 	reader.Close()
+	defer os.Remove(temporary)
 	if inspectErr != nil || size != object.Size || !validContent(file.OriginalName, detected) {
 		if errors.Is(inspectErr, ErrObjectLimit) {
 			s.markFailed(ctx, file.ID)
@@ -199,7 +203,6 @@ func (s *Service) Complete(ctx context.Context, actor identity.Principal, worksp
 		s.markFailed(ctx, file.ID)
 		return File{}, ErrInvalidInput
 	}
-	os.Remove(temporary)
 	return s.completeDB(ctx, actor, file, size, detected, digest, audit)
 }
 

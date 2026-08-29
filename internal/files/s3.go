@@ -110,6 +110,8 @@ func (s *s3Store) PresignPut(ctx context.Context, key string, size int64, conten
 	return PresignedUpload{URL: result.URL, Headers: headers}, nil
 }
 
+func (*s3Store) SupportsPresignedPut() bool { return true }
+
 func (s *s3Store) PresignGet(ctx context.Context, key string, ttl time.Duration) (string, error) {
 	result, err := s.presign.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket), Key: aws.String(key),
