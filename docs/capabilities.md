@@ -257,9 +257,10 @@ Docker smoke remain part of the final verification ladder.
 
 SCIM 2.0 Users and role Groups are REST-only and workspace-scoped. SQLite
 tests cover dedicated-token separation, one-time secret storage, stable
-external IDs, normalized email identity, idempotent create, exact filtering,
-pagination, PATCH/DELETE ETags, group role mapping, deactivation revocation,
-safe errors, audit redaction, and final-owner protection. PostgreSQL identity
+external IDs, normalized email identity, passwordless verified-OIDC enrollment,
+idempotent create, exact filtering, pagination, PATCH/DELETE ETags, group role
+mapping, workspace-scoped deactivation revocation, safe errors, audit redaction,
+and final-owner protection. PostgreSQL identity
 and migration checks cover migration 000010 and the provisioning/deactivation
 path when `POSTGRES_TEST_URL` is configured.
 

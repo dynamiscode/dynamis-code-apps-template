@@ -527,7 +527,7 @@ func (s *Service) acceptLoadedInvitation(
 	`, invitation.WorkspaceID, userID, invitation.Role, timestamp(now)); err != nil {
 		return Invitation{}, ErrInvalidInvitation
 	}
-	if err := s.syncSCIMMembership(ctx, tx, invitation.WorkspaceID, userID, invitation.Role, true, timestamp(now)); err != nil {
+	if err := s.ensureSCIMMembership(ctx, tx, invitation.WorkspaceID, userID, invitation.Role, true, timestamp(now)); err != nil {
 		return Invitation{}, ErrInvalidInvitation
 	}
 	result, err := s.exec(ctx, tx, `

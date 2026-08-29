@@ -5,7 +5,10 @@
 - Added REST-only SCIM 2.0 workspace provisioning for Users and role-mapped
   Groups, with one-time hashed dedicated credentials, bounded filtering and
   pagination, conditional PATCH/DELETE, safe errors, audit events, owner
-  protection, and session/token revocation on deactivation.
+  protection, passwordless verified-OIDC enrollment, workspace-scoped
+  session/token revocation on deactivation, and read-only account profile
+  fields, including order-independent primary email handling and filtered
+  group-member removals.
 
 - Added profile composition to application generation: Identity is required
   for Core, and selecting Agent includes its MCP and REST-only CLI surfaces;

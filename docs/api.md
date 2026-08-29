@@ -158,7 +158,8 @@ documented in [authentication](authentication.md).
   /scim/v2/{workspaceId}/Groups/{admin|member|viewer}`. SCIM uses
   `application/scim+json`, exact `userName`/`externalId` filters, bounded
   `startIndex`/`count` pagination, strong ETag/If-Match, and safe SCIM error
-  responses. User DELETE deactivates the workspace mapping.
+  responses. Group PATCH supports member arrays and bounded filtered member
+  removals. User DELETE deactivates the workspace mapping.
 
 Identity and workspace routes use `Authorization: Bearer <token>`. The token
 must belong to the path workspace and include the permission required by the

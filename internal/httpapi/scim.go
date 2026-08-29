@@ -3,8 +3,10 @@ package httpapi
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -37,8 +39,8 @@ type scimEmail struct {
 
 type scimMeta struct {
 	ResourceType string `json:"resourceType"`
-	Created      string `json:"created"`
-	LastModified string `json:"lastModified"`
+	Created      string `json:"created,omitempty"`
+	LastModified string `json:"lastModified,omitempty"`
 	Version      string `json:"version"`
 }
 
@@ -122,7 +124,7 @@ func (h *handler) revokeSCIMToken(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 	if err := h.identity.RevokeSCIMToken(request.Context(), principal, h.auditContext(request)); err != nil {
-		h.scimProblem(writer, request, err)
+		h.identityProblem(writer, request, err)
 		return
 	}
 	writer.WriteHeader(http.StatusNoContent)
@@ -141,6 +143,10 @@ func (h *handler) scimPrincipal(writer http.ResponseWriter, request *http.Reques
 	}
 	principal, err := h.identity.AuthenticateSCIMToken(request.Context(), parts[1], workspaceID)
 	if err != nil {
+		if errors.Is(err, identity.ErrForbidden) {
+			h.scimProblem(writer, request, err)
+			return identity.Principal{}, false
+		}
 		h.scimUnauthorized(writer, request)
 		return identity.Principal{}, false
 	}
@@ -186,11 +192,9 @@ func (h *handler) createSCIMUser(writer http.ResponseWriter, request *http.Reque
 	}
 	email := input.UserName
 	for _, candidate := range input.Emails {
-		if candidate.Primary || email == input.UserName {
+		if candidate.Primary {
 			email = candidate.Value
-			if candidate.Primary {
-				break
-			}
+			break
 		}
 	}
 	user, err := h.identity.CreateSCIMUser(request.Context(), principal, identity.SCIMUserInput{ExternalID: input.ExternalID, UserName: input.UserName, Email: email, DisplayName: input.DisplayName}, h.auditContext(request))
@@ -199,7 +203,7 @@ func (h *handler) createSCIMUser(writer http.ResponseWriter, request *http.Reque
 		return
 	}
 	writer.Header().Set("ETag", etag(user.Version))
-	writer.Header().Set("Location", "/scim/v2/"+principal.WorkspaceID+"/Users/"+user.ID)
+	writer.Header().Set("Location", "/scim/v2/"+principal.WorkspaceID+"/Users/"+url.PathEscape(user.ID))
 	writeSCIMJSON(writer, http.StatusCreated, scimUserDTO(user, request))
 }
 
@@ -343,6 +347,10 @@ func decodeSCIMJSON(request *http.Request, target any) error {
 	if err := decoder.Decode(target); err != nil {
 		return err
 	}
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		return errors.New("invalid trailing SCIM data")
+	}
 	return nil
 }
 
@@ -354,15 +362,34 @@ func scimFilter(request *http.Request) (string, string, bool) {
 	if len(values) != 1 || len(values[0]) > 256 {
 		return "", "", false
 	}
-	parts := strings.Fields(values[0])
-	if len(parts) != 3 || !strings.EqualFold(parts[1], "eq") || len(parts[2]) < 2 || parts[2][0] != '"' || parts[2][len(parts[2])-1] != '"' {
+	field, value, ok := parseSCIMEquality(values[0])
+	if !ok {
 		return "", "", false
 	}
-	field := parts[0]
 	if !strings.EqualFold(field, "userName") && !strings.EqualFold(field, "externalId") {
 		return "", "", false
 	}
-	return map[string]string{"username": "userName", "externalid": "externalId"}[strings.ToLower(field)], parts[2][1 : len(parts[2])-1], true
+	return map[string]string{"username": "userName", "externalid": "externalId"}[strings.ToLower(field)], value, true
+}
+
+func parseSCIMEquality(filter string) (string, string, bool) {
+	filter = strings.TrimSpace(filter)
+	firstSpace := strings.IndexAny(filter, " \t\r\n")
+	if firstSpace <= 0 {
+		return "", "", false
+	}
+	field := filter[:firstSpace]
+	remaining := strings.TrimSpace(filter[firstSpace:])
+	secondSpace := strings.IndexAny(remaining, " \t\r\n")
+	if secondSpace <= 0 || !strings.EqualFold(remaining[:secondSpace], "eq") {
+		return "", "", false
+	}
+	literal := strings.TrimSpace(remaining[secondSpace:])
+	value, err := strconv.Unquote(literal)
+	if err != nil {
+		return "", "", false
+	}
+	return field, value, true
 }
 
 func scimPage(request *http.Request) (int, int, bool) {
@@ -405,15 +432,20 @@ func scimUserPatch(operations []scimPatchOperation) (identity.SCIMUserPatch, err
 	if len(operations) == 0 || len(operations) > 10 {
 		return patch, identity.ErrSCIMInvalid
 	}
+	activeSeen := false
 	for _, operation := range operations {
 		path := strings.ToLower(strings.TrimSpace(operation.Path))
 		switch path {
 		case "active":
-			var value bool
-			if json.Unmarshal(operation.Value, &value) != nil {
+			if activeSeen {
 				return patch, identity.ErrSCIMInvalid
 			}
-			patch.Active = &value
+			activeSeen = true
+			var value *bool
+			if json.Unmarshal(operation.Value, &value) != nil || value == nil {
+				return patch, identity.ErrSCIMInvalid
+			}
+			patch.Active = value
 		case "username":
 			var value string
 			if json.Unmarshal(operation.Value, &value) != nil || strings.TrimSpace(value) == "" {
@@ -456,14 +488,27 @@ func scimGroupOperations(operations []scimPatchOperation) ([]identity.SCIMGroupO
 	}
 	result := make([]identity.SCIMGroupOperation, len(operations))
 	for i, operation := range operations {
-		if !strings.EqualFold(operation.Path, "members") || (strings.ToLower(operation.Op) != "add" && strings.ToLower(operation.Op) != "remove") {
+		op := strings.ToLower(strings.TrimSpace(operation.Op))
+		if op != "add" && op != "remove" {
 			return nil, identity.ErrSCIMInvalid
 		}
 		var members []scimGroupMember
-		if err := json.Unmarshal(operation.Value, &members); err != nil {
+		path := strings.TrimSpace(operation.Path)
+		switch {
+		case strings.EqualFold(path, "members"):
+			if err := json.Unmarshal(operation.Value, &members); err != nil {
+				return nil, identity.ErrSCIMInvalid
+			}
+		case op == "remove" && len(path) <= 256 && strings.HasPrefix(strings.ToLower(path), "members[") && strings.HasSuffix(path, "]"):
+			field, value, ok := parseSCIMEquality(path[len("members[") : len(path)-1])
+			if !ok || !strings.EqualFold(field, "value") || len(operation.Value) != 0 {
+				return nil, identity.ErrSCIMInvalid
+			}
+			members = []scimGroupMember{{Value: value}}
+		default:
 			return nil, identity.ErrSCIMInvalid
 		}
-		result[i].Operation = strings.ToLower(operation.Op)
+		result[i].Operation = op
 		for _, member := range members {
 			if strings.TrimSpace(member.Value) == "" || len(member.Value) > 256 {
 				return nil, identity.ErrSCIMInvalid
@@ -516,8 +561,10 @@ func (h *handler) scimProblem(writer http.ResponseWriter, request *http.Request,
 		h.scimError(writer, request, status, "versionMismatch", "The entity tag is missing or stale.")
 	case errors.Is(err, identity.ErrLastOwner):
 		h.scimError(writer, request, http.StatusConflict, "mutability", "The final owner cannot be deactivated.")
-	default:
+	case errors.Is(err, identity.ErrSCIMInvalid):
 		h.scimError(writer, request, http.StatusBadRequest, "invalidValue", "The SCIM request is invalid.")
+	default:
+		h.scimError(writer, request, http.StatusInternalServerError, "", "The request could not be completed.")
 	}
 }
 

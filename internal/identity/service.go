@@ -121,6 +121,14 @@ func (s *Service) BootstrapFirstOwner(
 	`, workspaceID, userID, Owner, timestamp(now)); err != nil {
 		return BootstrapResult{}, fmt.Errorf("create first owner: %w", err)
 	}
+	if err := s.ensureSCIMMembership(ctx, tx, workspaceID, userID, Owner, true, timestamp(now)); err != nil {
+		return BootstrapResult{}, err
+	}
+	if err := s.ensureSCIMGroups(ctx, tx, workspaceID, Principal{
+		UserID: userID, WorkspaceID: workspaceID, AuthMethod: "bootstrap",
+	}, audit); err != nil {
+		return BootstrapResult{}, err
+	}
 	if _, err := s.exec(ctx, tx,
 		"INSERT INTO instance_admins (user_id, created_at) VALUES (?, ?)",
 		userID, timestamp(now),
@@ -207,6 +215,12 @@ func (s *Service) CreateWorkspace(
 		VALUES (?, ?, ?, ?)
 	`, workspaceID, actor.UserID, Owner, timestamp(now)); err != nil {
 		return "", fmt.Errorf("create workspace owner: %w", err)
+	}
+	if err := s.ensureSCIMMembership(ctx, tx, workspaceID, actor.UserID, Owner, true, timestamp(now)); err != nil {
+		return "", err
+	}
+	if err := s.ensureSCIMGroups(ctx, tx, workspaceID, actor, audit); err != nil {
+		return "", err
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "workspace.created", ActorUserID: actor.UserID,
@@ -430,7 +444,7 @@ func (s *Service) AddMember(
 	`, actor.WorkspaceID, userID, role, timestamp(now)); err != nil {
 		return fmt.Errorf("add workspace member: %w", err)
 	}
-	if err := s.syncSCIMMembership(ctx, tx, actor.WorkspaceID, userID, role, true, timestamp(now)); err != nil {
+	if err := s.ensureSCIMMembership(ctx, tx, actor.WorkspaceID, userID, role, true, timestamp(now)); err != nil {
 		return err
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
@@ -481,7 +495,7 @@ func (s *Service) ChangeMemberRole(
 	`, role, actor.WorkspaceID, userID); err != nil {
 		return err
 	}
-	if err := s.syncSCIMMembership(ctx, tx, actor.WorkspaceID, userID, role, true, timestamp(now)); err != nil {
+	if err := s.ensureSCIMMembership(ctx, tx, actor.WorkspaceID, userID, role, true, timestamp(now)); err != nil {
 		return err
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
@@ -537,10 +551,10 @@ func (s *Service) TransferOwnership(
 		return err
 	}
 	now := s.now().UTC()
-	if err := s.syncSCIMMembership(ctx, tx, actor.WorkspaceID, newOwnerUserID, Owner, true, timestamp(now)); err != nil {
+	if err := s.ensureSCIMMembership(ctx, tx, actor.WorkspaceID, newOwnerUserID, Owner, true, timestamp(now)); err != nil {
 		return err
 	}
-	if err := s.syncSCIMMembership(ctx, tx, actor.WorkspaceID, actor.UserID, Admin, true, timestamp(now)); err != nil {
+	if err := s.ensureSCIMMembership(ctx, tx, actor.WorkspaceID, actor.UserID, Admin, true, timestamp(now)); err != nil {
 		return err
 	}
 	if err := s.audit(ctx, tx, AuditEvent{

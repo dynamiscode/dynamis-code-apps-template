@@ -157,8 +157,12 @@ stored as a SHA-256 hash. It is never accepted as an ordinary API token.
 Browser, CLI, MCP, and WebMCP surfaces do not manage SCIM.
 
 SCIM normalizes `userName` and email to the account email and keeps a stable
-workspace external ID. New users are active members with no local password and
-enroll through existing OIDC or invitation flows. Groups map only to `admin`,
+workspace external ID. Account email, `userName`, and `displayName` are
+immutable through SCIM; `displayName` is read-only because account profile
+fields are not workspace-scoped.
+New users are active members with no local password and
+may claim their account through a verified OIDC email or the existing
+password-reset enrollment flow; SCIM never sets a password. Groups map only to `admin`,
 `member`, and `viewer`; owner membership is never exposed or assignable.
 `PATCH` and `DELETE` require the current strong ETag. Deactivation removes
 only workspace membership, revokes the user's sessions and API/SCIM tokens,
@@ -176,8 +180,9 @@ Login selection uses the configured provider ID, never a request-supplied
 issuer. Transactions bind provider, browser session, exact redirect, hashed
 state, S256 PKCE verifier, and nonce. Callback processing validates the code,
 signature, issuer, audience, expiration, nonce, and verified email. External
-identity keys are issuer plus subject. Matching email never silently links an
-identity; linking to an existing user is explicit and requires reauthentication.
+identity keys are issuer plus subject. A verified OIDC email may claim a
+passwordless SCIM-provisioned account that has no external identity; all other
+matching-email links remain explicit and require reauthentication.
 
 Browser login starts at `GET /auth/oidc/{providerId}` and returns through the configured callback.
 Login transactions use short-lived HTTP-only cookies. Linking starts from `/security`, requires the
