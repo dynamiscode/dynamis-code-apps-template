@@ -105,8 +105,8 @@ Profile preferences store display name, locale, IANA timezone, and `system`,
 `light`, or `dark` theme. In-app notification delivery is controlled by a
 user preference and an optional per-workspace preference; disabled notifications
 are not stored. Email verification and password-reset delivery reuse the
-optional synchronous SMTP sender. Reliable retryable delivery remains outside
-this request-bounded template and requires the deferred background-job decision.
+optional synchronous SMTP sender. Reliable retryable email delivery remains
+outside the current webhook-focused background-job slice.
 
 OIDC sessions retain only the provider identifier. Revocation returns that
 identifier so the web layer can also use the provider's discovered logout

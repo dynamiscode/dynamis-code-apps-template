@@ -43,6 +43,7 @@ func TestHTTPMetricsTraceCorrelationAndRedaction(t *testing.T) {
 		RecordDatabaseHealth(request.Context(), false, 2*time.Millisecond)
 		RecordStream(request.Context(), 0, true)
 		RecordLimitRejection(request.Context(), "test_resource")
+		RecordJob(request.Context(), "test-handler", "failed")
 		writer.WriteHeader(http.StatusUnauthorized)
 	}))
 	request := httptest.NewRequest(http.MethodGet, "/items?secret="+secret, nil)
@@ -87,6 +88,7 @@ func TestHTTPMetricsTraceCorrelationAndRedaction(t *testing.T) {
 		"auth.failure.count", "database.health.check.count",
 		"database.health.check.duration", "realtime.stream.rejected.count",
 		"resource.limit.rejected.count",
+		"background.job.count",
 	} {
 		if !strings.Contains(evidence, name) {
 			t.Errorf("metric %q missing from %s", name, evidence)
