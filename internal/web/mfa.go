@@ -24,7 +24,7 @@ func (h *Handler) mfaPage(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	h.setCookie(writer, "mfa_csrf", csrf, options.ExpiresAt, true)
-	h.render(writer, http.StatusOK, "mfa.html", pageData{Title: "Multi-factor authentication", CSRF: csrf, MFAChallenge: challenge, MFAOptions: string(options.PasskeyJSON)})
+	h.render(writer, http.StatusOK, "mfa.html", pageData{Title: "Multi-factor authentication", CSRF: csrf, MFAChallenge: challenge, MFAOptions: options.PasskeyJSON})
 }
 
 func (h *Handler) mfaTOTP(writer http.ResponseWriter, request *http.Request) {
@@ -80,7 +80,7 @@ func (h *Handler) mfaPasskey(writer http.ResponseWriter, request *http.Request) 
 
 func (h *Handler) mfaPageError(writer http.ResponseWriter, request *http.Request, message string) {
 	options, _ := h.identity.MFALoginOptions(request.Context(), cookieValue(request, "mfa_challenge"))
-	h.render(writer, http.StatusUnauthorized, "mfa.html", pageData{Title: "Multi-factor authentication", CSRF: cookieValue(request, "mfa_csrf"), MFAChallenge: cookieValue(request, "mfa_challenge"), MFAOptions: string(options.PasskeyJSON), MFAError: message})
+	h.render(writer, http.StatusUnauthorized, "mfa.html", pageData{Title: "Multi-factor authentication", CSRF: cookieValue(request, "mfa_csrf"), MFAChallenge: cookieValue(request, "mfa_challenge"), MFAOptions: options.PasskeyJSON, MFAError: message})
 }
 
 func (h *Handler) validMFACSRF(request *http.Request) bool {

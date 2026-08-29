@@ -84,7 +84,7 @@ type pageData struct {
 	CanTransfer                      bool
 	ReturnTo                         string
 	MFAChallenge                     string
-	MFAOptions                       string
+	MFAOptions                       json.RawMessage
 	MFAError                         string
 	TOTPEnrollment                   *identity.TOTPEnrollment
 	MFARecoveryCodes                 []string

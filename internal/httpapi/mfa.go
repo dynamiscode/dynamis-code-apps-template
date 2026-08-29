@@ -206,6 +206,7 @@ func (h *handler) sessionCookie(writer http.ResponseWriter, request *http.Reques
 }
 
 func (h *handler) writeAuthenticatedSession(writer http.ResponseWriter, request *http.Request, session identity.NewSession) {
+	writer.Header().Set("Cache-Control", "no-store")
 	policy := identity.BrowserCookiePolicy(h.cfg.Secure)
 	maxAge := int(session.ExpiresAt.Sub(time.Now()).Seconds())
 	for _, cookie := range []*http.Cookie{

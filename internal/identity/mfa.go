@@ -380,6 +380,9 @@ func (s *Service) CompleteRecoveryLogin(ctx context.Context, token, code string,
 		return NewSession{}, err
 	}
 	defer tx.Rollback()
+	if err := s.lockMFAUser(ctx, tx, challenge.UserID); err != nil {
+		return NewSession{}, err
+	}
 	var codeID string
 	if err := s.queryRow(ctx, tx, "SELECT id FROM mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL AND code_hash = ?", challenge.UserID, hashSecret(strings.TrimSpace(code))).Scan(&codeID); err != nil {
 		_ = tx.Commit()
@@ -405,10 +408,14 @@ func (s *Service) CompleteRecoveryLogin(ctx context.Context, token, code string,
 	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.challenge.completed", ActorUserID: challenge.UserID, AuthMethod: "recovery", TargetType: "mfa_challenge", TargetID: challenge.ID, Action: "mfa.challenge.complete", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": "recovery"}), CreatedAt: s.now().UTC()}); err != nil {
 		return NewSession{}, err
 	}
+	newSession, err := s.createSessionWithLevelTx(ctx, tx, challenge.UserID, challenge.authMethod, challenge.oidcProviderID, 0, AuthLevelMFA, audit)
+	if err != nil {
+		return NewSession{}, err
+	}
 	if err := tx.Commit(); err != nil {
 		return NewSession{}, err
 	}
-	return s.CreateMFASession(ctx, challenge.UserID, challenge.authMethod, challenge.oidcProviderID, 0, audit)
+	return newSession, nil
 }
 
 func (s *Service) CompletePasskeyLogin(ctx context.Context, token string, request *http.Request, audit AuditContext) (NewSession, error) {
@@ -441,6 +448,9 @@ func (s *Service) CompletePasskeyLogin(ctx context.Context, token string, reques
 		return NewSession{}, err
 	}
 	defer tx.Rollback()
+	if err := s.lockMFAUser(ctx, tx, challenge.UserID); err != nil {
+		return NewSession{}, err
+	}
 	stored, err := s.loadCredential(ctx, tx, challenge.UserID, credentialID)
 	if err != nil {
 		return NewSession{}, ErrInvalidMFAChallenge
@@ -459,16 +469,25 @@ func (s *Service) CompletePasskeyLogin(ctx context.Context, token string, reques
 	if !s.consumeChallenge(ctx, tx, challenge.ID) {
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
-	if _, err := s.exec(ctx, tx, "UPDATE mfa_passkeys SET credential_json = ?, last_used_at = ? WHERE user_id = ? AND credential_id = ? AND revoked_at IS NULL", string(encoded), timestamp(s.now().UTC()), challenge.UserID, credentialID); err != nil {
+	result, err := s.exec(ctx, tx, "UPDATE mfa_passkeys SET credential_json = ?, last_used_at = ? WHERE user_id = ? AND credential_id = ? AND revoked_at IS NULL", string(encoded), timestamp(s.now().UTC()), challenge.UserID, credentialID)
+	if err != nil {
 		return NewSession{}, err
 	}
+	changed, err := result.RowsAffected()
+	if err != nil || changed != 1 {
+		return NewSession{}, ErrInvalidMFAChallenge
+	}
 	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.challenge.completed", ActorUserID: challenge.UserID, AuthMethod: "passkey", TargetType: "mfa_challenge", TargetID: challenge.ID, Action: "mfa.challenge.complete", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": "passkey"}), CreatedAt: s.now().UTC()}); err != nil {
+		return NewSession{}, err
+	}
+	newSession, err := s.createSessionWithLevelTx(ctx, tx, challenge.UserID, challenge.authMethod, challenge.oidcProviderID, 0, AuthLevelMFA, audit)
+	if err != nil {
 		return NewSession{}, err
 	}
 	if err := tx.Commit(); err != nil {
 		return NewSession{}, err
 	}
-	return s.CreateMFASession(ctx, challenge.UserID, challenge.authMethod, challenge.oidcProviderID, 0, audit)
+	return newSession, nil
 }
 
 func (s *Service) ListPasskeys(ctx context.Context, userID string) ([]Passkey, error) {
@@ -729,16 +748,29 @@ func (s *Service) completeMFAChallenge(ctx context.Context, challenge loadedChal
 		return NewSession{}, err
 	}
 	defer tx.Rollback()
+	if err := s.lockMFAUser(ctx, tx, challenge.UserID); err != nil {
+		return NewSession{}, err
+	}
+	if method == "totp" {
+		var enabled int
+		if err := s.queryRow(ctx, tx, "SELECT COUNT(*) FROM mfa_totp WHERE user_id = ?", challenge.UserID).Scan(&enabled); err != nil || enabled != 1 {
+			return NewSession{}, ErrInvalidMFAChallenge
+		}
+	}
 	if !s.consumeChallenge(ctx, tx, challenge.ID) {
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
 	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.challenge.completed", ActorUserID: challenge.UserID, AuthMethod: method, TargetType: "mfa_challenge", TargetID: challenge.ID, Action: "mfa.challenge.complete", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": method}), CreatedAt: s.now().UTC()}); err != nil {
 		return NewSession{}, err
 	}
+	newSession, err := s.createSessionWithLevelTx(ctx, tx, challenge.UserID, challenge.authMethod, challenge.oidcProviderID, 0, AuthLevelMFA, audit)
+	if err != nil {
+		return NewSession{}, err
+	}
 	if err := tx.Commit(); err != nil {
 		return NewSession{}, err
 	}
-	return s.CreateMFASession(ctx, challenge.UserID, challenge.authMethod, challenge.oidcProviderID, 0, audit)
+	return newSession, nil
 }
 
 func (s *Service) loadWebAuthnUser(ctx context.Context, queryer rowQueryer, userID string) (webAuthnUser, error) {

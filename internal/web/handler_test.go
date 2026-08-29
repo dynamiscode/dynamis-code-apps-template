@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
@@ -19,6 +21,41 @@ import (
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/portability"
 )
+
+func TestMFAOptionsRenderAsJSON(t *testing.T) {
+	handler, err := NewHandlerWithServices(nil, nil, nil, nil, config.HTTP{}, "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := i18n.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body bytes.Buffer
+	data := pageData{
+		Locale: "en", Catalog: catalog,
+		MFAOptions: json.RawMessage(`{"publicKey":{"challenge":"abc"}}`),
+	}
+	if err := handler.template.ExecuteTemplate(&body, "mfa.html", data); err != nil {
+		t.Fatal(err)
+	}
+	start := strings.Index(body.String(), `<script id="mfa-options" type="application/json">`) + len(`<script id="mfa-options" type="application/json">`)
+	end := strings.Index(body.String()[start:], `</script>`)
+	if start < len(`<script id="mfa-options" type="application/json">`) || end < 0 {
+		t.Fatalf("MFA options script missing: %s", body.String())
+	}
+	var options struct {
+		PublicKey struct {
+			Challenge string `json:"challenge"`
+		} `json:"publicKey"`
+	}
+	if err := json.Unmarshal([]byte(body.String()[start:start+end]), &options); err != nil {
+		t.Fatalf("MFA options are not a JSON object: %v; body=%s", err, body.String())
+	}
+	if options.PublicKey.Challenge != "abc" {
+		t.Fatalf("challenge = %q", options.PublicKey.Challenge)
+	}
+}
 
 func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
 	handler, auth, itemService, workspaceID, _ := testWeb(t, 10)

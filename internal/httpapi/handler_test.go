@@ -104,6 +104,18 @@ func TestHTTPContracts(t *testing.T) {
 	}
 }
 
+func TestAuthenticatedSessionResponseIsNotCacheable(t *testing.T) {
+	h := &handler{}
+	writer := httptest.NewRecorder()
+	h.writeAuthenticatedSession(writer, httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", nil), identity.NewSession{
+		Session: identity.Session{ExpiresAt: time.Now().Add(time.Hour)},
+		Secret:  "session-secret", CSRFSecret: "csrf-secret",
+	})
+	if got := writer.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q", got)
+	}
+}
+
 func TestHTTPBoundaries(t *testing.T) {
 	handler, _, _, _ := testHandler(t)
 	large := serve(handler, http.MethodPost, "/api/v1/auth/login", `{"email":"`+strings.Repeat("a", 2048)+`"}`, "application/json")

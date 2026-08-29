@@ -32,6 +32,31 @@ func (s *Service) createSessionWithLevel(
 	authLevel AuthLevel,
 	audit AuditContext,
 ) (NewSession, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return NewSession{}, err
+	}
+	defer tx.Rollback()
+	session, err := s.createSessionWithLevelTx(ctx, tx, userID, authMethod, oidcProviderID, lifetime, authLevel, audit)
+	if err != nil {
+		return NewSession{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return NewSession{}, err
+	}
+	return session, nil
+}
+
+func (s *Service) createSessionWithLevelTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	userID string,
+	authMethod string,
+	oidcProviderID string,
+	lifetime time.Duration,
+	authLevel AuthLevel,
+	audit AuditContext,
+) (NewSession, error) {
 	if (authMethod != "local" && authMethod != "oidc") ||
 		(authMethod == "local" && oidcProviderID != "") ||
 		(authMethod == "oidc" && oidcProviderID == "") {
@@ -65,11 +90,6 @@ func (s *Service) createSessionWithLevel(
 		},
 		Secret: secret, CSRFSecret: csrfSecret,
 	}
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return NewSession{}, err
-	}
-	defer tx.Rollback()
 	if err := s.enforceSessionLimit(ctx, tx, userID, now, audit); err != nil {
 		return NewSession{}, err
 	}
@@ -89,9 +109,6 @@ func (s *Service) createSessionWithLevel(
 		Action: "session.create", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
-		return NewSession{}, err
-	}
-	if err := tx.Commit(); err != nil {
 		return NewSession{}, err
 	}
 	return session, nil
