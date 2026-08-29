@@ -50,6 +50,14 @@ func (u webAuthnUser) WebAuthnDisplayName() string {
 }
 func (u webAuthnUser) WebAuthnCredentials() []webauthnlib.Credential { return u.credentials }
 
+func (s *Service) MFAEnrolled(ctx context.Context, userID string) (bool, error) {
+	status, err := s.MFAStatus(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	return status.TOTPEnabled || status.PasskeyCount > 0 || status.RecoveryRemain > 0, nil
+}
+
 func (s *Service) MFARequired(ctx context.Context, userID string) (bool, error) {
 	return s.mfaRequiredForRole(ctx, userID, "")
 }
@@ -641,26 +649,39 @@ func (s *Service) VerifyFreshAuthentication(ctx context.Context, userID, session
 	}
 	if password != "" {
 		var sessionUserID string
-		if err := s.queryRow(ctx, s.db, "SELECT user_id FROM sessions WHERE id = ? AND revoked_at IS NULL", sessionID).Scan(&sessionUserID); err != nil || sessionUserID != userID {
+		now := s.now().UTC()
+		if err := s.queryRow(ctx, s.db, "SELECT user_id FROM sessions WHERE id = ? AND revoked_at IS NULL AND expires_at > ?", sessionID, timestamp(now)).Scan(&sessionUserID); err != nil || sessionUserID != userID {
 			return ErrInvalidSession
 		}
 		if err := s.ReauthenticateLocal(ctx, userID, password); err != nil {
 			return ErrInvalidCredentials
 		}
-		_, err := s.exec(ctx, s.db, "UPDATE sessions SET fresh_at = ? WHERE id = ? AND revoked_at IS NULL", timestamp(s.now().UTC()), sessionID)
-		return err
+		now = s.now().UTC()
+		result, err := s.exec(ctx, s.db, "UPDATE sessions SET fresh_at = ? WHERE id = ? AND revoked_at IS NULL AND expires_at > ?", timestamp(now), sessionID, timestamp(now))
+		if err != nil {
+			return err
+		}
+		changed, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if changed != 1 {
+			return ErrInvalidSession
+		}
+		return nil
 	}
 	var sessionUserID, authMethod string
 	var level AuthLevel
 	var fresh sql.NullString
-	if err := s.queryRow(ctx, s.db, "SELECT user_id, auth_method, auth_level, fresh_at FROM sessions WHERE id = ? AND revoked_at IS NULL", sessionID).Scan(&sessionUserID, &authMethod, &level, &fresh); err != nil || sessionUserID != userID {
+	now := s.now().UTC()
+	if err := s.queryRow(ctx, s.db, "SELECT user_id, auth_method, auth_level, fresh_at FROM sessions WHERE id = ? AND revoked_at IS NULL AND expires_at > ?", sessionID, timestamp(now)).Scan(&sessionUserID, &authMethod, &level, &fresh); err != nil || sessionUserID != userID {
 		return ErrInvalidSession
 	}
 	if !fresh.Valid {
 		return ErrInvalidCredentials
 	}
 	when, err := parseTimestamp(fresh.String)
-	if err != nil || s.now().UTC().Sub(when) > freshAuthenticationLifetime {
+	if err != nil || now.Sub(when) > freshAuthenticationLifetime {
 		return ErrInvalidCredentials
 	}
 	if level >= AuthLevelMFA || (authMethod == "oidc" && level >= AuthLevelPassword) {

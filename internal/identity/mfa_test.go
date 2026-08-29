@@ -68,6 +68,10 @@ func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
 	if err != nil || !required {
 		t.Fatal("admin MFA policy did not require enrolled factor")
 	}
+	enrolled, err := service.MFAEnrolled(ctx, owner.UserID)
+	if err != nil || !enrolled {
+		t.Fatalf("MFA enrollment status = %v, %v", enrolled, err)
+	}
 	if _, err := service.CreateWorkspace(ctx, Principal{UserID: owner.UserID, AuthMethod: "local", AuthLevel: AuthLevelPassword}, WorkspaceCreateInput{Name: "Blocked"}, AuditContext{}); !errors.Is(err, ErrMFARequired) {
 		t.Fatalf("password workspace creation error = %v", err)
 	}
@@ -243,6 +247,22 @@ func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
 	}
 	if invalidCodes != maxMFAAttempts || invalidChallenges != concurrentAttempts-maxMFAAttempts {
 		t.Fatalf("concurrent MFA attempts = %d invalid codes, %d invalid challenges", invalidCodes, invalidChallenges)
+	}
+	now = base
+	expiredPasswordSession, err := service.CreateSession(ctx, owner.UserID, "local", "", time.Minute, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expiredMFASession, err := service.CreateMFASession(ctx, owner.UserID, "local", "", time.Minute, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now = base.Add(2 * time.Minute)
+	if err := service.VerifyFreshAuthentication(ctx, owner.UserID, expiredPasswordSession.ID, "owner-long-password"); !errors.Is(err, ErrInvalidSession) {
+		t.Fatalf("expired password session error = %v", err)
+	}
+	if err := service.VerifyFreshAuthentication(ctx, owner.UserID, expiredMFASession.ID, ""); !errors.Is(err, ErrInvalidSession) {
+		t.Fatalf("expired MFA session error = %v", err)
 	}
 
 	if err := db.Close(); err != nil {

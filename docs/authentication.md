@@ -106,9 +106,10 @@ level. Factor enrollment/removal and challenge outcomes append redacted audit
 events. Removing a final factor is refused, and removing a passkey revokes the
 user's active sessions.
 
-Owners and administrators can be required to use an enrolled factor with
-`MFA_REQUIRE_FOR_ADMINS=true`; ordinary members and viewers remain optional by
-default. Protected browser workspace operations enforce this shared policy.
+Enrolling a factor opts a user into MFA at local and OIDC login. Owners and
+administrators can additionally be required to use an enrolled factor for
+protected workspace operations with `MFA_REQUIRE_FOR_ADMINS=true`; ordinary
+members and viewers remain optional by default.
 REST MFA endpoints use the existing session cookie/CSRF boundary and return no
 factor secrets after enrollment. MCP and CLI expose no MFA or secret flow.
 

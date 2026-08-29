@@ -284,12 +284,12 @@ func (h *handler) login(writer http.ResponseWriter, request *http.Request) {
 		)
 		return
 	}
-	mfaRequired, err := h.identity.MFARequired(request.Context(), userID)
+	mfaEnrolled, err := h.identity.MFAEnrolled(request.Context(), userID)
 	if err != nil {
 		h.internal(writer, request)
 		return
 	}
-	if mfaRequired {
+	if mfaEnrolled {
 		challenge, err := h.identity.BeginMFALogin(request.Context(), userID, h.auditContext(request))
 		if err != nil {
 			h.internal(writer, request)

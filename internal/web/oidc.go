@@ -91,12 +91,12 @@ func (h *Handler) oidcCallback(writer http.ResponseWriter, request *http.Request
 		h.oidcError(writer, request)
 		return
 	}
-	mfaRequired, err := h.identity.MFARequired(request.Context(), userID)
+	mfaEnrolled, err := h.identity.MFAEnrolled(request.Context(), userID)
 	if err != nil {
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	if mfaRequired {
+	if mfaEnrolled {
 		challenge, err := h.identity.BeginMFALoginWithMethod(request.Context(), userID, "oidc", completion.Claims.ProviderID, auditContext(request))
 		if err != nil {
 			h.renderError(writer, http.StatusInternalServerError)
