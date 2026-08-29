@@ -540,8 +540,9 @@ func (h *Handler) redirectURL(writer http.ResponseWriter, request *http.Request,
 }
 
 func safeReturnTo(value string) string {
+	value = strings.ReplaceAll(value, "\\", "/")
 	parsed, err := url.Parse(value)
-	if err != nil || parsed.Path == "" || parsed.Path[0] != '/' || strings.HasPrefix(parsed.Path, "//") || parsed.Host != "" || parsed.Scheme != "" {
+	if err != nil || parsed.Path == "" || parsed.Path[0] != '/' || strings.HasPrefix(parsed.Path, "//") || strings.HasPrefix(parsed.Path, "/\\") || parsed.Host != "" || parsed.Scheme != "" {
 		return "/"
 	}
 	return parsed.RequestURI()
