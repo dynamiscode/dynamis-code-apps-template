@@ -106,7 +106,7 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	for table, key := range map[string]string{
 		"sessions": "session-old", "invitations": "invite-old",
 		"api_tokens": "token-old", "scim_tokens": "scim-old", "oidc_transactions": "state-old",
-		"mfa_challenges": "mfa-challenge-old",
+		"mfa_challenges":      "mfa-challenge-old",
 		"idempotency_records": "key-old", "item_events": "event-old",
 		"notifications":       "notification-old",
 		"email_verifications": "verification-old", "password_resets": "reset-old",
