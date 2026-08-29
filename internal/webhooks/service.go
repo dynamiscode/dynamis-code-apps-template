@@ -12,16 +12,15 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
@@ -83,17 +82,12 @@ type Delivery struct {
 }
 
 type Service struct {
-	db         *sql.DB
-	driver     config.DatabaseDriver
-	auth       *identity.Service
-	secretKey  []byte
-	client     *http.Client
-	logger     *slog.Logger
-	wake       chan struct{}
-	cancel     context.CancelFunc
-	done       chan struct{}
-	deliveryMu sync.Mutex
-	closeOnce  sync.Once
+	db        *sql.DB
+	driver    config.DatabaseDriver
+	auth      *identity.Service
+	secretKey []byte
+	client    *http.Client
+	queue     *jobs.Queue
 }
 
 func NewService(
@@ -101,35 +95,13 @@ func NewService(
 	driver config.DatabaseDriver,
 	auth *identity.Service,
 	secretKey []byte,
-	logger *slog.Logger,
+	queue *jobs.Queue,
 ) *Service {
-	if logger == nil {
-		logger = slog.Default()
-	}
 	return &Service{
 		db: db, driver: driver, auth: auth,
 		secretKey: append([]byte(nil), secretKey...),
-		client:    newHTTPClient(), logger: logger,
-		wake: make(chan struct{}, 1),
+		client:    newHTTPClient(), queue: queue,
 	}
-}
-
-func (s *Service) Start(parent context.Context) {
-	if s.cancel != nil {
-		return
-	}
-	ctx, cancel := context.WithCancel(parent)
-	s.cancel, s.done = cancel, make(chan struct{})
-	go s.run(ctx)
-}
-
-func (s *Service) Close() {
-	s.closeOnce.Do(func() {
-		if s.cancel != nil {
-			s.cancel()
-			<-s.done
-		}
-	})
 }
 
 func (s *Service) Create(
@@ -439,20 +411,31 @@ func (s *Service) PublishInTx(
 		if err != nil {
 			return err
 		}
-		if _, err := s.exec(ctx, tx, `
+		result, err := s.exec(ctx, tx, `
 			INSERT INTO webhook_deliveries (
 				id, webhook_id, event_id, event_type, payload, attempt_count,
 				status, next_attempt_at, last_status_code, last_error, created_at
 			) VALUES (?, ?, ?, ?, ?, 0, 'pending', ?, NULL, NULL, ?)
 			ON CONFLICT (webhook_id, event_id) DO NOTHING
-		`, deliveryID, target.id, eventID, eventType, string(envelope), stamp(occurredAt), stamp(occurredAt)); err != nil {
+		`, deliveryID, target.id, eventID, eventType, string(envelope), stamp(occurredAt), stamp(occurredAt))
+		if err != nil {
 			return err
 		}
-	}
-	if len(targets) > 0 {
-		select {
-		case s.wake <- struct{}{}:
-		default:
+		changed, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if changed == 1 {
+			if s.queue == nil {
+				return errors.New("webhook job queue is unavailable")
+			}
+			jobPayload, err := json.Marshal(map[string]string{"deliveryId": deliveryID})
+			if err != nil {
+				return err
+			}
+			if err := s.queue.EnqueueTx(ctx, tx, workspaceID, JobKind, deliveryID, string(jobPayload), occurredAt); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -462,46 +445,83 @@ func (s *Service) DeliverPending(ctx context.Context, limit int) (int, error) {
 	if limit < 1 || limit > maxDeliveryHistory {
 		return 0, ErrInvalidInput
 	}
-	s.deliveryMu.Lock()
-	defer s.deliveryMu.Unlock()
-	delivered := 0
-	for delivered < limit {
-		count, ok, err := s.deliverOne(ctx)
-		if err != nil {
-			return delivered, err
-		}
-		if !ok {
-			return delivered, nil
-		}
-		delivered += count
+	if s.queue == nil {
+		return 0, errors.New("webhook job queue is unavailable")
 	}
-	return delivered, nil
+	return s.queue.Process(ctx, limit)
 }
 
-func (s *Service) deliverOne(ctx context.Context) (int, bool, error) {
+const JobKind = "webhook.delivery"
+
+func (s *Service) HandleJob(ctx context.Context, job jobs.Job) error {
+	deliveryID, err := jobDeliveryID(job)
+	if err != nil {
+		return jobs.Failure{Category: "payload-invalid"}
+	}
+	return s.deliverOne(ctx, job.WorkspaceID, deliveryID, job.AttemptCount)
+}
+
+func (s *Service) HandleExhaustedJob(ctx context.Context, job jobs.Job) error {
+	deliveryID, err := jobDeliveryID(job)
+	if err != nil {
+		return nil
+	}
+	result, err := s.exec(ctx, s.db, `
+		UPDATE webhook_deliveries SET status = 'failed', attempt_count = CASE
+			WHEN attempt_count < ? THEN ? ELSE attempt_count END,
+			next_attempt_at = NULL, last_error = ?
+		WHERE id = ? AND status = 'pending'
+			AND webhook_id IN (SELECT id FROM webhooks WHERE workspace_id = ?)
+	`, maxAttempts, maxAttempts, "worker-exhausted", deliveryID, job.WorkspaceID)
+	if err != nil {
+		return jobs.Failure{Category: "storage-error"}
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return jobs.Failure{Category: "storage-error"}
+	}
+	if changed == 1 {
+		telemetry.RecordWebhookDelivery(ctx, "failed")
+	}
+	return nil
+}
+
+func jobDeliveryID(job jobs.Job) (string, error) {
+	var payload struct {
+		DeliveryID string `json:"deliveryId"`
+	}
+	if err := json.Unmarshal([]byte(job.Payload), &payload); err != nil || payload.DeliveryID == "" {
+		return "", errors.New("job payload is invalid")
+	}
+	return payload.DeliveryID, nil
+}
+
+func (s *Service) deliverOne(ctx context.Context, workspaceID, deliveryID string, jobAttempt int) error {
 	now := time.Now().UTC()
-	var deliveryID, webhookID, eventID, eventType, payload, urlValue, encrypted string
+	var webhookID, eventID, eventType, payload, urlValue, encrypted string
 	var attempt int
 	err := s.queryRow(ctx, s.db, `
 		SELECT d.id, d.webhook_id, d.event_id, d.event_type, d.payload,
 			d.attempt_count, w.url, w.secret_ciphertext
 		FROM webhook_deliveries d JOIN webhooks w ON w.id = d.webhook_id
-		WHERE d.status = 'pending' AND d.next_attempt_at <= ?
-		ORDER BY d.next_attempt_at, d.created_at, d.id LIMIT 1
-	`, stamp(now)).Scan(&deliveryID, &webhookID, &eventID, &eventType, &payload, &attempt, &urlValue, &encrypted)
+		WHERE d.id = ? AND d.status = 'pending' AND w.workspace_id = ?
+	`, deliveryID, workspaceID).Scan(&deliveryID, &webhookID, &eventID, &eventType, &payload, &attempt, &urlValue, &encrypted)
 	if errors.Is(err, sql.ErrNoRows) {
-		return 0, false, nil
+		return nil
 	}
 	if err != nil {
-		return 0, false, err
+		return jobs.Failure{Category: "storage-error"}
 	}
 	attempt++
+	if attempt < jobAttempt {
+		attempt = jobAttempt
+	}
 	if _, err := s.exec(ctx, s.db, "UPDATE webhook_deliveries SET attempt_count = ? WHERE id = ? AND status = 'pending'", attempt, deliveryID); err != nil {
-		return 0, true, err
+		return jobs.Failure{Category: "storage-error"}
 	}
 	secret, err := s.decrypt(encrypted)
 	if err != nil {
-		return 0, true, s.finishFailure(ctx, deliveryID, webhookID, eventID, attempt, 0, "secret-unavailable", now)
+		return s.deliveryFailure(ctx, deliveryID, attempt, 0, "secret-unavailable", now)
 	}
 	timestamp := strconv.FormatInt(now.Unix(), 10)
 	message := eventID + "." + timestamp + "." + payload
@@ -509,7 +529,7 @@ func (s *Service) deliverOne(ctx context.Context) (int, bool, error) {
 	_, _ = mac.Write([]byte(message))
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, urlValue, strings.NewReader(payload))
 	if err != nil {
-		return 0, true, s.finishFailure(ctx, deliveryID, webhookID, eventID, attempt, 0, "request-invalid", now)
+		return s.deliveryFailure(ctx, deliveryID, attempt, 0, "request-invalid", now)
 	}
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("User-Agent", "Dynamis-Code-Webhooks/1")
@@ -518,27 +538,26 @@ func (s *Service) deliverOne(ctx context.Context) (int, bool, error) {
 	request.Header.Set("Webhook-Signature", "v1,"+base64.RawStdEncoding.EncodeToString(mac.Sum(nil)))
 	response, err := s.client.Do(request)
 	if err != nil {
-		return 0, true, s.finishFailure(ctx, deliveryID, webhookID, eventID, attempt, 0, "network-error", now)
+		return s.deliveryFailure(ctx, deliveryID, attempt, 0, "network-error", now)
 	}
 	_, _ = io.CopyN(io.Discard, response.Body, 4096)
 	_ = response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return 0, true, s.finishFailure(ctx, deliveryID, webhookID, eventID, attempt, response.StatusCode, "remote-status", now)
+		return s.deliveryFailure(ctx, deliveryID, attempt, response.StatusCode, "remote-status", now)
 	}
 	if _, err := s.exec(ctx, s.db, `
 		UPDATE webhook_deliveries SET status = 'delivered', delivered_at = ?,
-		next_attempt_at = NULL, last_status_code = ?, last_error = NULL WHERE id = ?
+		next_attempt_at = NULL, last_status_code = ?, last_error = NULL WHERE id = ? AND status = 'pending'
 	`, stamp(now), response.StatusCode, deliveryID); err != nil {
-		return 0, true, err
+		return jobs.Failure{Category: "storage-error"}
 	}
 	telemetry.RecordWebhookDelivery(ctx, "delivered")
-	s.logger.Info("webhook delivery completed", "delivery_id", deliveryID, "webhook_id", webhookID, "event_id", eventID, "event_type", eventType, "attempt", attempt, "status", "delivered")
-	return 1, true, nil
+	return nil
 }
 
-func (s *Service) finishFailure(
+func (s *Service) deliveryFailure(
 	ctx context.Context,
-	deliveryID, webhookID, eventID string,
+	deliveryID string,
 	attempt, statusCode int,
 	reason string,
 	now time.Time,
@@ -548,31 +567,14 @@ func (s *Service) finishFailure(
 	if attempt >= maxAttempts {
 		status, next = "failed", nil
 	}
-	_, err := s.exec(ctx, s.db, `
+	if _, err := s.exec(ctx, s.db, `
 		UPDATE webhook_deliveries SET status = ?, next_attempt_at = ?,
-		last_status_code = ?, last_error = ? WHERE id = ?
-	`, status, next, nullableStatus(statusCode), reason, deliveryID)
-	if err != nil {
-		return err
+		last_status_code = ?, last_error = ? WHERE id = ? AND status = 'pending'
+	`, status, next, nullableStatus(statusCode), reason, deliveryID); err != nil {
+		return jobs.Failure{Category: "storage-error"}
 	}
 	telemetry.RecordWebhookDelivery(ctx, status)
-	s.logger.Warn("webhook delivery failed", "delivery_id", deliveryID, "webhook_id", webhookID, "event_id", eventID, "attempt", attempt, "status", status, "http_status", statusCode, "reason", reason)
-	return nil
-}
-
-func (s *Service) run(ctx context.Context) {
-	defer close(s.done)
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-		case <-s.wake:
-		}
-		_, _ = s.DeliverPending(ctx, 1)
-	}
+	return jobs.Failure{Category: reason}
 }
 
 func newHTTPClient() *http.Client {

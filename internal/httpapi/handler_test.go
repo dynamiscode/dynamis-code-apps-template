@@ -15,6 +15,7 @@ import (
 
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
+	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
@@ -297,7 +298,14 @@ func testHandler(t *testing.T) (http.Handler, *sql.DB, string, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	webhookService := webhooks.NewService(db, cfg.Database.Driver, auth, []byte("01234567890123456789012345678901"), nil)
+	jobQueue := jobs.NewQueue(db, cfg.Database.Driver, nil)
+	webhookService := webhooks.NewService(db, cfg.Database.Driver, auth, []byte("01234567890123456789012345678901"), jobQueue)
+	if err := jobQueue.Register(webhooks.JobKind, webhookService.HandleJob); err != nil {
+		t.Fatal(err)
+	}
+	if err := jobQueue.RegisterExhausted(webhooks.JobKind, webhookService.HandleExhaustedJob); err != nil {
+		t.Fatal(err)
+	}
 	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace, webhookService)
 	handler, err := NewHandlerWithWebhooks(db, auth, itemService,
 		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added the first durable background-jobs slice: a workspace-scoped,
+  database-backed queue with lease recovery, idempotent webhook delivery,
+  bounded retries, redacted status/metrics, and one worker loop per process.
 - Added bounded public Item sharing with hashed opaque bearer tokens, seven-day
   default and 30-day maximum expiry, explicit write authorization, cascading
   invalidation, redacted public projections, access audits, rate limiting,
@@ -37,7 +40,7 @@
 - Added account profile preferences, email verification, password reset/change,
   owner-safe account deletion, in-app notifications, recipient-scoped SSE, and
   notification retention. SMTP delivery remains synchronous and optional;
-  retryable delivery is deferred with background jobs.
+  retryable email delivery remains deferred.
 - Fixed notification SSE initial/resync cursors, redacted notification events,
   and password-reset email locale resolution.
 - Added OSS repository governance, dependency attribution, conduct, ownership,

@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"io/fs"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -58,6 +59,74 @@ func TestSQLiteConfigurationAndMigrations(t *testing.T) {
 	assertMigrationVersion(t, db, 7)
 	assertMigrationVersion(t, db, 8)
 	assertMigrationVersion(t, db, 9)
+	assertMigrationVersion(t, db, 10)
+}
+
+func TestSQLiteBackgroundJobsMigrationBackfillsPendingWebhook(t *testing.T) {
+	t.Parallel()
+
+	db, err := Open(context.Background(), config.Database{
+		Driver: config.SQLite, SQLitePath: filepath.Join(t.TempDir(), "app.db"),
+		MaxOpenConns: 1, MaxIdleConns: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	legacy := fstest.MapFS{}
+	for _, name := range []string{
+		"migrations/000001_foundation.sql", "migrations/000002_identity.sql",
+		"migrations/000003_items_http.sql", "migrations/000004_item_events.sql",
+		"migrations/000005_oidc_flow.sql", "migrations/000006_localization.sql",
+		"migrations/000007_account_notifications.sql", "migrations/000008_webhooks.sql",
+		"migrations/000009_nullable_item_creator.sql",
+	} {
+		data, err := fs.ReadFile(migrationFiles, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		legacy[name] = &fstest.MapFile{Data: data}
+	}
+	ctx := context.Background()
+	if err := migrateFS(ctx, db, config.SQLite, legacy); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(
+		"INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)",
+		"workspace-migration", "Migration", "2026-08-28T00:00:00Z",
+	); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO webhooks (id, workspace_id, name, url, secret_ciphertext, events, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, "webhook-migration", "workspace-migration", "Webhook", "https://example.com/hook", "ciphertext", `["item.created"]`, "2026-08-28T00:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO webhook_deliveries (
+			id, webhook_id, event_id, event_type, payload, attempt_count,
+			status, next_attempt_at, created_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "delivery-migration", "webhook-migration", "event-migration", "item.created", `{}`, 2, "pending", "2026-08-28T00:00:01Z", "2026-08-28T00:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+	if err := Migrate(ctx, db, config.SQLite); err != nil {
+		t.Fatal(err)
+	}
+	var workspaceID, kind, key, payload, status string
+	var attempts int
+	if err := db.QueryRow(`
+		SELECT workspace_id, kind, deduplication_key, payload, status, attempt_count
+		FROM background_jobs WHERE deduplication_key = ?
+	`, "delivery-migration").Scan(&workspaceID, &kind, &key, &payload, &status, &attempts); err != nil {
+		t.Fatal(err)
+	}
+	if workspaceID != "workspace-migration" || kind != "webhook.delivery" || key != "delivery-migration" ||
+		payload != `{"deliveryId":"delivery-migration"}` || status != "pending" || attempts != 2 {
+		t.Fatalf("backfilled job = %q, %q, %q, %q, %q, %d", workspaceID, kind, key, payload, status, attempts)
+	}
 }
 
 func TestLoadMigrationsRejectsDuplicateVersion(t *testing.T) {

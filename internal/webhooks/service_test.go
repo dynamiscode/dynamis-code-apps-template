@@ -15,6 +15,7 @@ import (
 
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
+	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 )
@@ -35,7 +36,14 @@ func TestItemEventsAreSignedEncryptedAndDeliveredOnce(t *testing.T) {
 	defer server.Close()
 
 	secretKey := []byte("01234567890123456789012345678901")
-	service := NewService(db, config.SQLite, auth, secretKey, nil)
+	queue := jobs.NewQueue(db, config.SQLite, nil)
+	service := NewService(db, config.SQLite, auth, secretKey, queue)
+	if err := queue.Register(JobKind, service.HandleJob); err != nil {
+		t.Fatal(err)
+	}
+	if err := queue.RegisterExhausted(JobKind, service.HandleExhaustedJob); err != nil {
+		t.Fatal(err)
+	}
 	service.client = server.Client()
 	created, err := service.Create(ctx, owner, owner.WorkspaceID, CreateInput{
 		Name: "items", URL: server.URL + "/hook", Events: []string{"item.created"},
@@ -57,6 +65,10 @@ func TestItemEventsAreSignedEncryptedAndDeliveredOnce(t *testing.T) {
 	itemService := items.NewService(db, config.SQLite, auth, 100, service)
 	if _, err := itemService.Create(ctx, owner, owner.WorkspaceID, "Sensitive title", "webhook-item-key", identity.AuditContext{}); err != nil {
 		t.Fatal(err)
+	}
+	var pendingJobs int
+	if err := db.QueryRow("SELECT COUNT(*) FROM background_jobs WHERE kind = ? AND status = 'pending'", JobKind).Scan(&pendingJobs); err != nil || pendingJobs != 1 {
+		t.Fatalf("pending background jobs = %d, err = %v", pendingJobs, err)
 	}
 	if _, err := service.DeliverPending(ctx, 1); err != nil {
 		t.Fatal(err)
@@ -91,7 +103,14 @@ func TestDeliveryRetriesAreBoundedAndRedacted(t *testing.T) {
 		writer.WriteHeader(http.StatusBadGateway)
 	}))
 	defer server.Close()
-	service := NewService(db, config.SQLite, auth, []byte("01234567890123456789012345678901"), nil)
+	queue := jobs.NewQueue(db, config.SQLite, nil)
+	service := NewService(db, config.SQLite, auth, []byte("01234567890123456789012345678901"), queue)
+	if err := queue.Register(JobKind, service.HandleJob); err != nil {
+		t.Fatal(err)
+	}
+	if err := queue.RegisterExhausted(JobKind, service.HandleExhaustedJob); err != nil {
+		t.Fatal(err)
+	}
 	service.client = server.Client()
 	created, err := service.Create(ctx, owner, owner.WorkspaceID, CreateInput{
 		Name: "failing", URL: server.URL, Events: []string{"item.created"},
@@ -107,6 +126,9 @@ func TestDeliveryRetriesAreBoundedAndRedacted(t *testing.T) {
 		if _, err := db.Exec("UPDATE webhook_deliveries SET next_attempt_at = ? WHERE webhook_id = ?", time.Now().UTC().Add(-time.Second).Format(time.RFC3339Nano), created.ID); err != nil {
 			t.Fatal(err)
 		}
+		if _, err := db.Exec("UPDATE background_jobs SET available_at = ? WHERE kind = ? AND deduplication_key = (SELECT id FROM webhook_deliveries WHERE webhook_id = ?)", time.Now().UTC().Add(-time.Second).Format(time.RFC3339Nano), JobKind, created.ID); err != nil {
+			t.Fatal(err)
+		}
 		if _, err := service.DeliverPending(ctx, 1); err != nil {
 			t.Fatal(err)
 		}
@@ -114,6 +136,57 @@ func TestDeliveryRetriesAreBoundedAndRedacted(t *testing.T) {
 	deliveries, err := service.ListDeliveries(ctx, owner, owner.WorkspaceID, created.ID)
 	if err != nil || len(deliveries) != 1 || deliveries[0].Status != "failed" || deliveries[0].AttemptCount != maxAttempts || deliveries[0].LastError != "remote-status" {
 		t.Fatalf("bounded delivery = %+v, err = %v", deliveries, err)
+	}
+}
+
+func TestExhaustedWebhookJobSettlesDelivery(t *testing.T) {
+	ctx := context.Background()
+	db, auth, owner := webhookTestDB(t)
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		calls++
+		writer.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+	queue := jobs.NewQueue(db, config.SQLite, nil)
+	service := NewService(db, config.SQLite, auth, []byte("01234567890123456789012345678901"), queue)
+	if err := queue.Register(JobKind, service.HandleJob); err != nil {
+		t.Fatal(err)
+	}
+	if err := queue.RegisterExhausted(JobKind, service.HandleExhaustedJob); err != nil {
+		t.Fatal(err)
+	}
+	service.client = server.Client()
+	created, err := service.Create(ctx, owner, owner.WorkspaceID, CreateInput{
+		Name: "exhausted", URL: server.URL, Events: []string{"item.created"},
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	itemService := items.NewService(db, config.SQLite, auth, 100, service)
+	if _, err := itemService.Create(ctx, owner, owner.WorkspaceID, "retry", "exhausted-key", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`
+		UPDATE background_jobs SET status = 'running', attempt_count = ?,
+			lease_token = ?, leased_until = ?, started_at = ?
+		WHERE kind = ? AND deduplication_key = (
+			SELECT id FROM webhook_deliveries WHERE webhook_id = ?
+		)
+	`, maxAttempts, "stale-final-lease", stamp(time.Now().Add(-time.Minute)),
+		stamp(time.Now().Add(-2*time.Minute)), JobKind, created.ID); err != nil {
+		t.Fatal(err)
+	}
+	if processed, err := queue.Process(ctx, 1); err != nil || processed != 1 {
+		t.Fatalf("Process() = %d, %v", processed, err)
+	}
+	deliveries, err := service.ListDeliveries(ctx, owner, owner.WorkspaceID, created.ID)
+	if err != nil || len(deliveries) != 1 || deliveries[0].Status != "failed" ||
+		deliveries[0].AttemptCount != maxAttempts || deliveries[0].LastError != "worker-exhausted" {
+		t.Fatalf("exhausted delivery = %+v, err = %v", deliveries, err)
+	}
+	if calls != 0 {
+		t.Fatalf("HTTP calls = %d, want 0", calls)
 	}
 }
 

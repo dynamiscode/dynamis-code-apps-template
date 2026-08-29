@@ -34,6 +34,7 @@ means the complete encrypted database backup described in
 | sharing / `public_links` | IDs, workspace/item references, timestamps, expiry, revocation (internal); `token_hash` (secret) | Bounded read-only Item sharing without membership | Until expiry or revocation; expired links are pruned by maintenance and revoked links after 365 days; excluded from export; item/workspace deletion cascades; no correction. |
 | webhooks / `webhooks` | IDs, workspace, name, endpoint URL, selected event names, timestamps (internal/configuration); encrypted secret (secret) | Workspace event delivery registration | Workspace lifetime or explicit deletion; excluded from export; secret rotates through authorized management and is never returned after creation. |
 | webhooks / `webhook_deliveries` | IDs, webhook/event references, event type, bounded payload, attempt/status/timestamps, HTTP status, redacted error category (internal; payload personal) | Durable at-least-once item delivery and bounded delivery history | Pending rows remain until delivery settles; delivered/failed rows retained 365 days and pruned by maintenance; excluded from export; cascade on webhook deletion. |
+| platform / `background_jobs` | IDs, workspace, handler kind, deduplication key, bounded payload, status/attempt/lease/timestamps, redacted error category (internal; payload personal) | Durable retry and lease ownership for bounded asynchronous handlers | Pending and leased rows remain until settlement; settled rows retained 365 days and pruned by maintenance; excluded from export; workspace deletion cascades. |
 
 Every row is included in database backup until the operator's backup retention
 expires. Production fixtures must never contain copied production data.
@@ -115,8 +116,7 @@ endpoint URLs and delivery payloads can contain integration or personal data,
 and encrypted secrets are deployment-sensitive. Database backups containing
 these rows remain sensitive.
 
-No current product action survives request disconnection or exceeds the
-ordinary request contract: item operations are small and exports reject their
-bounds. A long-running-operation resource and job system therefore do not
-exist. Add both only when measured work needs retry, resumption, cancellation,
-or duration beyond the request timeout.
+Webhook delivery survives request disconnection through the background job
+queue. No public long-running-operation resource, cancellation contract, or
+browser/REST job administration exists; add those only when a product action
+needs user-visible progress or cancellation beyond the bounded handler model.
