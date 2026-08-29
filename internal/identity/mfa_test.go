@@ -68,6 +68,20 @@ func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
 	if err != nil || !required {
 		t.Fatal("admin MFA policy did not require enrolled factor")
 	}
+	pendingSession, err := service.CreateSession(ctx, owner.UserID, "local", "", time.Hour, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pendingEnrollment, err := service.BeginTOTPEnrollment(ctx, owner.UserID, pendingSession.ID, "owner-long-password", AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.RevokeSession(ctx, owner.UserID, pendingSession.ID, AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.CompleteTOTPEnrollment(ctx, pendingSession.ID, pendingEnrollment.Challenge, totpTestCode(pendingEnrollment.Secret, now), AuditContext{}); !errors.Is(err, ErrInvalidMFAChallenge) {
+		t.Fatalf("revoked enrollment session error = %v", err)
+	}
 	if _, err := service.AuthenticateSessionForWorkspace(ctx, session.Secret, owner.WorkspaceID, WorkspaceRead); !errors.Is(err, ErrMFARequired) {
 		t.Fatalf("password session bypassed MFA policy: %v", err)
 	}

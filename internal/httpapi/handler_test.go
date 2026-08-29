@@ -116,6 +116,14 @@ func TestAuthenticatedSessionResponseIsNotCacheable(t *testing.T) {
 	}
 }
 
+func TestMFAStatusResponseIsNotCacheable(t *testing.T) {
+	handler, _, _, _ := testHandler(t)
+	response := serve(handler, http.MethodGet, "/api/v1/auth/mfa/status", "", "")
+	if got := response.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q", got)
+	}
+}
+
 func TestHTTPBoundaries(t *testing.T) {
 	handler, _, _, _ := testHandler(t)
 	large := serve(handler, http.MethodPost, "/api/v1/auth/login", `{"email":"`+strings.Repeat("a", 2048)+`"}`, "application/json")

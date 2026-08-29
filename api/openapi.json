@@ -39,7 +39,7 @@
         "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/LoginRequest"}}}},
         "responses": {
           "200": {"description": "Browser session created", "headers": {"Set-Cookie": {"schema": {"type": "string"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/LoginResponse"}}}},
-          "202": {"description": "Multi-factor authentication required", "headers": {"Set-Cookie": {"schema": {"type": "string"}}}, "content": {"application/json": {"schema": {"type": "object"}}}},
+          "202": {"description": "Multi-factor authentication required", "content": {"application/json": {"schema": {"type": "object"}}}},
           "400": {"$ref": "#/components/responses/Problem"},
           "401": {"$ref": "#/components/responses/Problem"},
           "413": {"$ref": "#/components/responses/Problem"},

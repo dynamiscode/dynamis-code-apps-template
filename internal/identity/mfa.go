@@ -227,6 +227,12 @@ func (s *Service) CompleteTOTPEnrollment(ctx context.Context, sessionID, token, 
 		return nil, err
 	}
 	defer tx.Rollback()
+	if err := s.lockMFAUser(ctx, tx, challenge.UserID); err != nil {
+		return nil, ErrInvalidMFAChallenge
+	}
+	if err := s.verifyMFAEnrollmentSession(ctx, tx, challenge.UserID, sessionID); err != nil {
+		return nil, ErrInvalidMFAChallenge
+	}
 	if !s.consumeChallenge(ctx, tx, challenge.ID) {
 		return nil, ErrInvalidMFAChallenge
 	}
@@ -326,6 +332,12 @@ func (s *Service) CompletePasskeyEnrollment(ctx context.Context, userID, session
 		return nil, err
 	}
 	defer tx.Rollback()
+	if err := s.lockMFAUser(ctx, tx, userID); err != nil {
+		return nil, ErrInvalidMFAChallenge
+	}
+	if err := s.verifyMFAEnrollmentSession(ctx, tx, userID, sessionID); err != nil {
+		return nil, ErrInvalidMFAChallenge
+	}
 	if !s.consumeChallenge(ctx, tx, challenge.ID) {
 		return nil, ErrInvalidMFAChallenge
 	}
@@ -609,6 +621,11 @@ func (s *Service) lockMFAUser(ctx context.Context, tx *sql.Tx, userID string) er
 	}
 	var lockedUserID string
 	return s.queryRow(ctx, tx, query, userID).Scan(&lockedUserID)
+}
+
+func (s *Service) verifyMFAEnrollmentSession(ctx context.Context, tx *sql.Tx, userID, sessionID string) error {
+	var sessionUserID string
+	return s.queryRow(ctx, tx, "SELECT user_id FROM sessions WHERE id = ? AND user_id = ? AND revoked_at IS NULL AND expires_at > ?", sessionID, userID, timestamp(s.now().UTC())).Scan(&sessionUserID)
 }
 
 func (s *Service) VerifyFreshAuthentication(ctx context.Context, userID, sessionID, password string) error {

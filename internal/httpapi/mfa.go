@@ -51,6 +51,7 @@ func (h *handler) mfaLoginPasskey(writer http.ResponseWriter, request *http.Requ
 }
 
 func (h *handler) mfaStatus(writer http.ResponseWriter, request *http.Request) {
+	writer.Header().Set("Cache-Control", "no-store")
 	session, ok := h.sessionCookie(writer, request, false)
 	if !ok {
 		return
