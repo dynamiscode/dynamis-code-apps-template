@@ -311,6 +311,12 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = strings.Replace(value, "identity: identityService, items: itemService, files: fileService, exporter: exporterService", "identity: identityService, items: itemService, exporter: exporterService", 1)
 		value = removeBlockIncludingEnd(value, "\tif h.files != nil {", "\t}\n")
 		value = strings.Replace(value, "\t\tFilesEnabled: h.files != nil,\n", "", 1)
+	case "docs/capabilities.md":
+		value = removeLineStarting(value, "| Files |")
+		value = removeLineStarting(value, "| Object storage |")
+		if start := strings.Index(value, "\n## Phase 09 evidence\n"); start >= 0 {
+			value = value[:start] + "\n"
+		}
 	case "api/openapi.json":
 		value = stripFilesOpenAPI([]byte(value))
 	}
