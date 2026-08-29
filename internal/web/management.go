@@ -32,11 +32,15 @@ func (h *Handler) createWorkspace(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 	_, err := h.identity.CreateWorkspace(request.Context(), identity.Principal{
-		UserID: session.UserID, AuthMethod: session.AuthMethod,
+		UserID: session.UserID, AuthMethod: session.AuthMethod, AuthLevel: session.AuthLevel,
 	}, identity.WorkspaceCreateInput{
 		Name: request.FormValue("name"), Locale: request.FormValue("locale"),
 	}, auditContext(request))
 	if err != nil {
+		if errors.Is(err, identity.ErrMFARequired) {
+			h.beginMFALogin(writer, request, session, "/")
+			return
+		}
 		workspaces, listErr := h.identity.ListWorkspaces(request.Context(), session.UserID)
 		if listErr != nil {
 			h.renderError(writer, http.StatusInternalServerError)
@@ -380,9 +384,11 @@ func (h *Handler) securityPage(writer http.ResponseWriter, request *http.Request
 	if !ok {
 		return
 	}
+	status, _ := h.identity.MFAStatus(request.Context(), session.UserID)
+	passkeys, _ := h.identity.ListPasskeys(request.Context(), session.UserID)
 	h.render(writer, http.StatusOK, "security.html", pageData{
 		Title: "Security", NavPage: "security", CSRF: csrf, OIDCProviders: h.providers(),
-		Error: request.URL.Query().Get("error"), Email: session.UserID,
+		Error: request.URL.Query().Get("error"), Email: session.UserID, MFAStatus: status, Passkeys: passkeys,
 	})
 }
 

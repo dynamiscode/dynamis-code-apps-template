@@ -24,7 +24,7 @@ durable production data and records its deployment-specific evidence.
 | Browser baseline surfaces | bootstrap, recurring | 02, 04, 06 | conforming | [Web routes and controls](web.md), [browser tests](../internal/web/handler_test.go) |
 | English/Spanish browser and invitation localization | bootstrap, recurring | 02, 04, 06 | conforming | [Localization contract](web.md#localization), [catalog tests](../internal/i18n/i18n_test.go), [identity tests](../internal/identity/locale_test.go), [web tests](../internal/web/handler_test.go) |
 | REST and optional Agent MCP/remote CLI interfaces | bootstrap, recurring | 03-05, 09 | conforming | REST: [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go), [SCIM contracts](../internal/httpapi/scim_test.go); [MCP tests](../internal/mcpserver/server_test.go); [CLI tests](../internal/appctl/run_test.go) |
-| Local authentication and OIDC service | bootstrap, recurring | 02 | conforming | [Authentication](authentication.md), [OIDC tests](../internal/identity/oidc_test.go), [configuration tests](../internal/platform/config/config_test.go) |
+| Local authentication, OIDC, MFA, and passkey service | bootstrap, recurring | 02 | conforming | [Authentication](authentication.md), [MFA service](../internal/identity/mfa.go), [OIDC tests](../internal/identity/oidc_test.go), [configuration tests](../internal/platform/config/config_test.go) |
 | Permissions, roles, workspaces, invitations, sessions, tokens, SCIM provisioning, account lifecycle, preferences, and notifications service | bootstrap, recurring | 02, 09 | conforming | [Authorization and lifecycle tests](../internal/identity/service_test.go), [SCIM lifecycle tests](../internal/identity/scim_test.go), [account and notification tests](../internal/identity/account_notification_test.go), [PostgreSQL identity test](../internal/identity/postgres_test.go) |
 | SQLite, PostgreSQL, migrations, and rolling compatibility | bootstrap, recurring | 01, 06 | conforming | [Database tests](../internal/platform/database/migrate_test.go), [PostgreSQL tests](../internal/platform/database/postgres_test.go), [upgrade procedure](operations.md#upgrades-and-alerts) |
 | Data governance, portability, deletion, archive, restoration, account retention, and import | bootstrap, operational | 06, 07 | conforming | [Data lifecycle](data-lifecycle.md), [import/export tests](../internal/portability/service_test.go), [item lifecycle tests](../internal/items/service_test.go), [account tests](../internal/identity/account_notification_test.go), [retention tests](../internal/platform/maintenance/maintenance_test.go), [demo seed](../cmd/demo/main.go) |
@@ -63,7 +63,7 @@ These remain out of the build plan until their trigger is demonstrated.
 | Shared event broker | deferred | Cross-replica delivery cannot use the database safely |
 | Object storage | conforming | Files profile accepted; [Files evidence](#files-evidence) |
 | SCIM | conforming | Enterprise provisioning accepted and implemented in Phase 09 |
-| MFA and passkeys | deferred | Identity ownership or measured risk requires stronger authentication |
+| MFA and passkeys | conforming | MFA and passkey identity flows accepted and implemented in Phase 02 |
 | Feature flags | deferred | Staged rollout, kill switches, or targeting is required |
 | AsyncAPI | deferred | A public asynchronous contract exists |
 | A2A | deferred | The product hosts an independent communicating agent |
@@ -100,6 +100,8 @@ Verified 2026-08-25 with Go 1.27.0 and PostgreSQL 14.24:
 - atomic first-owner environment, local loopback browser-setup, protected remote browser-setup, and CLI smoke with no default credentials
 - complete owner/admin/member/viewer, missing-membership, wrong-workspace,
   token-scope, role-change, credential-revocation, and final-owner matrix
+- MFA enrollment, optional-user login, policy enforcement, challenge expiry,
+  recovery, replay, and redacted audit coverage
 - invitation expiry, duplicate prevention, resend rotation, acceptance,
   single-use, revocation, existing-account, and safe-error checks
 - OIDC discovery plus state, browser session, S256 PKCE, nonce, provider,

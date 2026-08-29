@@ -70,6 +70,8 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		VALUES (?, ?, ?, ?, ?, ?)`, "scim-old", "workspace-maint", "user-maint", "scim-secret", old, old)
 	exec(`INSERT INTO oidc_transactions (state_hash, provider_id, browser_session_hash, pkce_verifier_hash, nonce_hash, redirect_uri, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "state-old", "provider", "browser", "pkce", "nonce", "https://example.com/callback", old, old)
+	exec(`INSERT INTO mfa_challenges (id, token_hash, user_id, purpose, created_at, expires_at)
+		VALUES (?, ?, ?, ?, ?, ?)`, "mfa-challenge-old", "mfa-token-hash", "user-maint", "login", old, old)
 	exec(`INSERT INTO email_verifications (id, user_id, email, token_hash, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?)`, "verification-old", "user-maint", "maint@example.com", "verification-secret", old, old)
 	exec(`INSERT INTO password_resets (id, user_id, token_hash, created_at, expires_at)
@@ -96,6 +98,7 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		t.Fatalf("Run() error = %v", err)
 	}
 	if result.Sessions < 1 || result.Invitations < 1 || result.APITokens < 1 || result.SCIMTokens < 1 || result.EmailVerifications < 1 || result.PasswordResets < 1 || result.Notifications < 1 ||
+		result.MFAChallenges < 1 ||
 		result.OIDCTransactions < 1 || result.Idempotency < 1 ||
 		result.RealtimeReplay < 1 || result.WebhookDeliveries < 1 || result.BackgroundJobs < 1 || result.PublicLinks < 1 || result.AuditEvents < 1 {
 		t.Fatalf("Run() result = %+v", result)
@@ -103,6 +106,7 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	for table, key := range map[string]string{
 		"sessions": "session-old", "invitations": "invite-old",
 		"api_tokens": "token-old", "scim_tokens": "scim-old", "oidc_transactions": "state-old",
+		"mfa_challenges":      "mfa-challenge-old",
 		"idempotency_records": "key-old", "item_events": "event-old",
 		"notifications":       "notification-old",
 		"email_verifications": "verification-old", "password_resets": "reset-old",

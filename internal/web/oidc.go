@@ -91,6 +91,22 @@ func (h *Handler) oidcCallback(writer http.ResponseWriter, request *http.Request
 		h.oidcError(writer, request)
 		return
 	}
+	mfaEnrolled, err := h.identity.MFAEnrolled(request.Context(), userID)
+	if err != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	}
+	if mfaEnrolled {
+		challenge, err := h.identity.BeginMFALoginWithMethod(request.Context(), userID, "oidc", completion.Claims.ProviderID, auditContext(request))
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+		h.setCookie(writer, "mfa_challenge", challenge.Token, challenge.ExpiresAt, true)
+		h.clearCookie(writer, "oidc_browser")
+		h.redirect(writer, request, "/mfa")
+		return
+	}
 	session, err := h.identity.CreateSession(request.Context(), userID, "oidc", completion.Claims.ProviderID, 0, auditContext(request))
 	if err != nil {
 		h.renderError(writer, http.StatusInternalServerError)

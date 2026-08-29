@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Added optional MFA with WebAuthn/passkeys as the primary strong factor, TOTP
+  fallback, one-time hashed recovery codes, encrypted TOTP storage, revocable
+  passkeys, replay-protected challenges, MFA session levels, admin policy
+  enforcement, browser/REST flows, audit redaction, and migration 000015.
+- Fixed MFA policy enforcement for workspace creation, challenge retention,
+  WebAuthn RP configuration validation, and the documented MFA login response.
+- Fixed MFA owner-policy enforcement for new workspaces, challenge expiry
+  races, and browser return paths after MFA login.
+- Fixed optional enrolled-user MFA login, password-change MFA reauthentication,
+  expired-session fresh-auth checks, and challenge failure auditing.
+- Fixed MFA-required browser redirects and admin API-token policy enforcement.
 - Corrected direct AWS SDK dependency metadata and added AWS/Smithy license notices.
 - Fixed failed S3 presigns leaving pending file reservations counted against workspace quota.
 - Fixed failed external file objects retaining workspace quota until reconciliation
@@ -20,9 +31,9 @@
   pagination, conditional PATCH/DELETE, safe errors, audit events, owner
   protection, passwordless verified-OIDC enrollment, workspace-scoped
   session/token revocation on deactivation, and read-only account profile
- fields, including order-independent primary email handling, filtered
- group-member removals, membership-aware group ETags, and retry-safe creates
- when `externalId` is omitted.
+  fields, including order-independent primary email handling, filtered
+  group-member removals, membership-aware group ETags, and retry-safe creates
+  when `externalId` is omitted.
 - Added the first durable background-jobs slice: a workspace-scoped,
   database-backed queue with lease recovery, idempotent webhook delivery,
   bounded retries, redacted status/metrics, and one worker loop per process.

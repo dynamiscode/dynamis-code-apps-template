@@ -14,6 +14,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
+	webauthnlib "github.com/go-webauthn/webauthn/webauthn"
 )
 
 const (
@@ -34,9 +35,15 @@ type Service struct {
 	now            func() time.Time
 	passwordParams passwordParams
 	dummyHash      string
+	mfa            MFAConfig
+	webauthn       *webauthnlib.WebAuthn
 }
 
 func NewService(db *sql.DB, driver config.DatabaseDriver) (*Service, error) {
+	return NewServiceWithMFA(db, driver, MFAConfig{})
+}
+
+func NewServiceWithMFA(db *sql.DB, driver config.DatabaseDriver, mfa MFAConfig) (*Service, error) {
 	dummyHashOnce.Do(func() {
 		dummyHash, dummyHashErr = hashPassword(
 			"not-a-real-account-password",
@@ -46,13 +53,25 @@ func NewService(db *sql.DB, driver config.DatabaseDriver) (*Service, error) {
 	if dummyHashErr != nil {
 		return nil, dummyHashErr
 	}
-	return &Service{
+	service := &Service{
 		db:             db,
 		driver:         driver,
 		now:            time.Now,
 		passwordParams: defaultPasswordParams,
 		dummyHash:      dummyHash,
-	}, nil
+		mfa:            mfa,
+	}
+	if !mfa.Enabled {
+		return service, nil
+	}
+	webAuthn, err := webauthnlib.New(&webauthnlib.Config{
+		RPID: mfa.RelyingPartyID, RPOrigins: mfa.Origins, RPDisplayName: mfa.DisplayName,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("initialize WebAuthn: %w", err)
+	}
+	service.webauthn = webAuthn
+	return service, nil
 }
 
 func (s *Service) BootstrapFirstOwner(
@@ -179,6 +198,15 @@ func (s *Service) CreateWorkspace(
 ) (string, error) {
 	if actor.UserID == "" || actor.AuthMethod == "" {
 		return "", ErrForbidden
+	}
+	if actor.AuthLevel < AuthLevelMFA {
+		required, err := s.mfaRequiredForRole(ctx, actor.UserID, Owner)
+		if err != nil {
+			return "", err
+		}
+		if required {
+			return "", ErrMFARequired
+		}
 	}
 	name, err := validateWorkspaceName(input.Name)
 	if err != nil {
@@ -670,6 +698,7 @@ type queryExecutor interface {
 }
 
 type rowQueryer interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 

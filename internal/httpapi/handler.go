@@ -127,6 +127,11 @@ func newHandler(
 		"getLiveness": h.liveness, "getReadiness": h.readiness,
 		"getOpenAPI": h.openAPI, "loginLocal": h.login,
 		"logoutLocal": h.logout, "listItems": h.listItems,
+		"mfaLoginTOTP": h.mfaLoginTOTP, "mfaLoginRecovery": h.mfaLoginRecovery,
+		"mfaLoginPasskey": h.mfaLoginPasskey, "mfaStatus": h.mfaStatus,
+		"mfaTotpEnroll": h.mfaTotpEnroll, "mfaTotpComplete": h.mfaTotpComplete,
+		"mfaPasskeyOptions": h.mfaPasskeyOptions, "mfaPasskeyComplete": h.mfaPasskeyComplete,
+		"mfaPasskeyRemove": h.mfaPasskeyRemove, "mfaTotpRemove": h.mfaTotpRemove,
 		"createItem": h.createItem, "getItem": h.getItem,
 		"updateItem": h.updateItem, "deleteItem": h.deleteItem,
 		"exportWorkspace": h.exportWorkspace, "importWorkspace": h.importWorkspace,
@@ -322,6 +327,24 @@ func (h *handler) login(writer http.ResponseWriter, request *http.Request) {
 		)
 		return
 	}
+	mfaEnrolled, err := h.identity.MFAEnrolled(request.Context(), userID)
+	if err != nil {
+		h.internal(writer, request)
+		return
+	}
+	if mfaEnrolled {
+		challenge, err := h.identity.BeginMFALogin(request.Context(), userID, h.auditContext(request))
+		if err != nil {
+			h.internal(writer, request)
+			return
+		}
+		writer.Header().Set("Cache-Control", "no-store")
+		writeJSON(writer, http.StatusAccepted, map[string]any{
+			"mfaRequired": true, "challenge": challenge.Token,
+			"methods": challenge.Methods, "passkeyOptions": json.RawMessage(challenge.PasskeyJSON),
+		})
+		return
+	}
 	session, err := h.identity.CreateSession(
 		request.Context(), userID, "local", "", 0, h.auditContext(request),
 	)
@@ -329,20 +352,7 @@ func (h *handler) login(writer http.ResponseWriter, request *http.Request) {
 		h.internal(writer, request)
 		return
 	}
-	policy := identity.BrowserCookiePolicy(h.cfg.Secure)
-	http.SetCookie(writer, &http.Cookie{
-		Name: "session", Value: session.Secret, Path: "/",
-		Expires: session.ExpiresAt, MaxAge: int(time.Until(session.ExpiresAt).Seconds()),
-		HttpOnly: policy.HTTPOnly, Secure: policy.Secure, SameSite: policy.SameSite,
-	})
-	http.SetCookie(writer, &http.Cookie{
-		Name: "csrf", Value: session.CSRFSecret, Path: "/",
-		Expires: session.ExpiresAt, MaxAge: int(time.Until(session.ExpiresAt).Seconds()),
-		HttpOnly: true, Secure: policy.Secure, SameSite: policy.SameSite,
-	})
-	writeJSON(writer, http.StatusOK, map[string]any{
-		"csrfToken": session.CSRFSecret, "expiresAt": session.ExpiresAt,
-	})
+	h.writeAuthenticatedSession(writer, request, session)
 }
 
 func (h *handler) logout(writer http.ResponseWriter, request *http.Request) {

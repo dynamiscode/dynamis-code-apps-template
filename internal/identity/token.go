@@ -108,6 +108,23 @@ func (s *Service) AuthenticateAPIToken(
 	`, workspaceID, userID).Scan(&role); err != nil {
 		return Principal{}, ErrInvalidToken
 	}
+	if required, err := s.mfaRequiredForRoleQuery(ctx, tx, userID, role); err != nil {
+		return Principal{}, err
+	} else if required {
+		if err := s.audit(ctx, tx, AuditEvent{
+			EventType: "mfa.policy.enforced", ActorUserID: userID,
+			AuthMethod: "policy", WorkspaceID: workspaceID,
+			TargetType: "user", TargetID: userID, Action: "mfa.policy.enforce",
+			Outcome: "success", RequestID: audit.RequestID,
+			SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
+		}); err != nil {
+			return Principal{}, err
+		}
+		if err := tx.Commit(); err != nil {
+			return Principal{}, err
+		}
+		return Principal{}, ErrMFARequired
+	}
 	roleAllowed := permissionsForRole(role)
 	permissions := make(map[Permission]bool)
 	for _, scope := range decodeScopes(encodedScopes) {

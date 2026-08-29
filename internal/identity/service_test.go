@@ -788,6 +788,8 @@ func assertDatabaseDoesNotContain(t *testing.T, db *sql.DB, secret string) {
 		"SELECT token_hash FROM email_verifications",
 		"SELECT token_hash FROM password_resets",
 		"SELECT state_hash || browser_session_hash || pkce_verifier_hash || nonce_hash FROM oidc_transactions",
+		"SELECT encrypted_secret FROM mfa_totp",
+		"SELECT encrypted_secret FROM mfa_challenges WHERE encrypted_secret IS NOT NULL",
 		"SELECT metadata FROM audit_events",
 	}
 	for _, query := range queries {

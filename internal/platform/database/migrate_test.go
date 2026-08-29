@@ -63,6 +63,7 @@ func TestSQLiteConfigurationAndMigrations(t *testing.T) {
 	assertMigrationVersion(t, db, 11)
 	assertMigrationVersion(t, db, 12)
 	assertMigrationVersion(t, db, 13)
+	assertMigrationVersion(t, db, 15)
 }
 
 func TestSQLiteBackgroundJobsMigrationBackfillsPendingWebhook(t *testing.T) {

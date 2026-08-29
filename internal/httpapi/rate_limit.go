@@ -78,7 +78,9 @@ func (limiter *rateLimiter) removeExpired(now time.Time) {
 func rateLimitMiddleware(next http.Handler, limiter *rateLimiter) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		authentication := strings.HasPrefix(request.URL.Path, "/api/v1/auth/") ||
-			request.URL.Path == "/login" || request.URL.Path == "/setup"
+			request.URL.Path == "/login" || request.URL.Path == "/setup" ||
+			strings.HasPrefix(request.URL.Path, "/mfa") ||
+			strings.HasPrefix(request.URL.Path, "/security/")
 		allowed, retry := limiter.allow(sourceHost(request.RemoteAddr), authentication)
 		if !allowed {
 			writer.Header().Set("Retry-After", strconv.Itoa(retry))

@@ -126,6 +126,20 @@ func (h *Handler) accountPasswordMutation(writer http.ResponseWriter, request *h
 		h.render(writer, http.StatusUnprocessableEntity, "account.html", data)
 		return
 	}
+	if enrolled, err := h.identity.MFAEnrolled(request.Context(), session.UserID); err != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	} else if enrolled {
+		challenge, err := h.identity.BeginMFALogin(request.Context(), session.UserID, auditContext(request))
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+		h.setCookie(writer, "mfa_challenge", challenge.Token, challenge.ExpiresAt, true)
+		h.setCookie(writer, "mfa_return_to", "/account?saved=1", challenge.ExpiresAt, true)
+		h.redirect(writer, request, "/mfa")
+		return
+	}
 	newSession, err := h.identity.CreateSession(request.Context(), session.UserID, "local", "", 0, auditContext(request))
 	if err != nil {
 		h.renderError(writer, http.StatusInternalServerError)

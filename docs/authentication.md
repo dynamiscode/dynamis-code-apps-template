@@ -88,6 +88,35 @@ workspace membership on protected operations. Browser handlers must use the
 provided cookie policy: `HttpOnly`, `SameSite=Lax`, and `Secure` under HTTPS;
 they must verify the session-bound CSRF secret on state-changing requests.
 
+### MFA and passkeys
+
+When enabled, WebAuthn/passkeys are the primary strong factor and TOTP is the
+fallback. SMS is not supported. Passkey ceremonies bind to deployment-owned RP
+ID and exact origin configuration, store challenge state server-side, expire
+once, and update the authenticator sign counter on successful use. Credentials
+are per-user, revocable, and listed without public-key or challenge material.
+
+TOTP enrollment requires fresh authentication (current password, recent OIDC
+sign-in, or an MFA-authenticated session), encrypts the seed with the
+deployment MFA key, and displays enrollment material only during enrollment.
+Recovery codes are generated once, shown once, and stored as one-time hashes.
+Login challenges expire, have bounded attempts, and are consumed atomically;
+successful factor authentication creates a session with MFA authentication
+level. Factor enrollment/removal and challenge outcomes append redacted audit
+events. Removing a final factor is refused, and removing a passkey revokes the
+user's active sessions.
+
+Enrolling a factor opts a user into MFA at local and OIDC login. Owners and
+administrators can additionally be required to use an enrolled factor for
+protected workspace operations with `MFA_REQUIRE_FOR_ADMINS=true`; ordinary
+members and viewers remain optional by default.
+Password changes also require the enrolled factor before issuing a replacement
+browser session.
+The admin policy also applies to API-token requests for protected workspace
+operations.
+REST MFA endpoints use the existing session cookie/CSRF boundary and return no
+factor secrets after enrollment. MCP and CLI expose no MFA or secret flow.
+
 Bootstrap, invitation possession, and OIDC verified-email claims mark an email
 verified. Other accounts can request a single-use, 24-hour verification link.
 Password reset requests return the same browser response for known and unknown

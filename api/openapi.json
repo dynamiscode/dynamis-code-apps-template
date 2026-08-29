@@ -39,11 +39,86 @@
         "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/LoginRequest"}}}},
         "responses": {
           "200": {"description": "Browser session created", "headers": {"Set-Cookie": {"schema": {"type": "string"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/LoginResponse"}}}},
+          "202": {"description": "Multi-factor authentication required", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/MFALoginResponse"}}}},
           "400": {"$ref": "#/components/responses/Problem"},
           "401": {"$ref": "#/components/responses/Problem"},
           "413": {"$ref": "#/components/responses/Problem"},
           "429": {"$ref": "#/components/responses/RateLimited"}
         }
+      }
+    },
+    "/api/v1/auth/mfa/totp": {
+      "post": {
+        "operationId": "mfaLoginTOTP",
+        "description": "Completes a password login with a time-based authenticator code.",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "required": ["challenge", "code"], "properties": {"challenge": {"type": "string"}, "code": {"type": "string", "pattern": "^[0-9]{6}$"}}}}}},
+        "responses": {"200": {"description": "Browser session created", "headers": {"Set-Cookie": {"schema": {"type": "string"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/LoginResponse"}}}}, "401": {"$ref": "#/components/responses/Problem"}, "429": {"$ref": "#/components/responses/RateLimited"}}
+      },
+      "delete": {
+        "operationId": "mfaTotpRemove", "security": [{"sessionCookie": []}],
+        "parameters": [{"$ref": "#/components/parameters/CSRFToken"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "properties": {"password": {"type": "string", "maxLength": 1024}}}}}},
+        "responses": {"204": {"description": "Authenticator factor revoked and affected sessions revoked"}, "401": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/auth/mfa/recovery": {
+      "post": {
+        "operationId": "mfaLoginRecovery",
+        "description": "Completes a password login with one single-use recovery code.",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "required": ["challenge", "code"], "properties": {"challenge": {"type": "string"}, "code": {"type": "string"}}}}}},
+        "responses": {"200": {"description": "Browser session created", "headers": {"Set-Cookie": {"schema": {"type": "string"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/LoginResponse"}}}}, "401": {"$ref": "#/components/responses/Problem"}, "429": {"$ref": "#/components/responses/RateLimited"}}
+      }
+    },
+    "/api/v1/auth/mfa/passkey": {
+      "post": {
+        "operationId": "mfaLoginPasskey",
+        "description": "Completes a password login with a server-verified passkey assertion.",
+        "parameters": [{"name": "X-MFA-Challenge", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}}}},
+        "responses": {"200": {"description": "Browser session created", "headers": {"Set-Cookie": {"schema": {"type": "string"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/LoginResponse"}}}}, "401": {"$ref": "#/components/responses/Problem"}, "429": {"$ref": "#/components/responses/RateLimited"}}
+      }
+    },
+    "/api/v1/auth/mfa/status": {
+      "get": {
+        "operationId": "mfaStatus", "security": [{"sessionCookie": []}],
+        "responses": {"200": {"description": "MFA status without secrets", "content": {"application/json": {"schema": {"type": "object"}}}}, "401": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/auth/mfa/totp/enroll": {
+      "post": {
+        "operationId": "mfaTotpEnroll", "security": [{"sessionCookie": []}],
+        "parameters": [{"$ref": "#/components/parameters/CSRFToken"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "properties": {"password": {"type": "string", "maxLength": 1024}}}}}},
+        "responses": {"200": {"description": "One-time TOTP enrollment material", "headers": {"Cache-Control": {"schema": {"type": "string", "const": "no-store"}}}, "content": {"application/json": {"schema": {"type": "object"}}}}, "401": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/auth/mfa/totp/complete": {
+      "post": {
+        "operationId": "mfaTotpComplete", "security": [{"sessionCookie": []}],
+        "parameters": [{"$ref": "#/components/parameters/CSRFToken"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "required": ["challenge", "code"], "properties": {"challenge": {"type": "string"}, "code": {"type": "string", "pattern": "^[0-9]{6}$"}}}}}},
+        "responses": {"200": {"description": "Recovery codes shown once", "headers": {"Cache-Control": {"schema": {"type": "string", "const": "no-store"}}}, "content": {"application/json": {"schema": {"type": "object", "properties": {"recoveryCodes": {"type": "array", "items": {"type": "string"}}}}}}}, "401": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/auth/mfa/passkeys/register/options": {
+      "post": {
+        "operationId": "mfaPasskeyOptions", "security": [{"sessionCookie": []}], "parameters": [{"$ref": "#/components/parameters/CSRFToken"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}}}},
+        "responses": {"200": {"description": "Passkey creation options", "headers": {"Cache-Control": {"schema": {"type": "string", "const": "no-store"}}}, "content": {"application/json": {"schema": {"type": "object"}}}}, "401": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/auth/mfa/passkeys/register": {
+      "post": {
+        "operationId": "mfaPasskeyComplete", "security": [{"sessionCookie": []}], "parameters": [{"$ref": "#/components/parameters/CSRFToken"}, {"name": "X-MFA-Challenge", "in": "header", "required": true, "schema": {"type": "string"}}, {"name": "X-MFA-Name", "in": "header", "schema": {"type": "string"}}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}}}},
+        "responses": {"200": {"description": "Passkey enrolled; recovery codes shown once", "headers": {"Cache-Control": {"schema": {"type": "string", "const": "no-store"}}}, "content": {"application/json": {"schema": {"type": "object"}}}}, "401": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/auth/mfa/passkeys/{passkeyId}": {
+      "delete": {
+        "operationId": "mfaPasskeyRemove", "security": [{"sessionCookie": []}], "parameters": [{"name": "passkeyId", "in": "path", "required": true, "schema": {"type": "string"}}, {"$ref": "#/components/parameters/CSRFToken"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "properties": {"password": {"type": "string"}}}}}},
+        "responses": {"204": {"description": "Passkey revoked and affected sessions revoked"}, "401": {"$ref": "#/components/responses/Problem"}}
       }
     },
     "/api/v1/auth/logout": {
@@ -420,6 +495,7 @@
       "HealthNotReady": {"type": "object", "required": ["status", "failedChecks"], "properties": {"status": {"const": "not_ready"}, "failedChecks": {"type": "array", "items": {"type": "string", "enum": ["database"]}}}},
       "LoginRequest": {"type": "object", "additionalProperties": false, "required": ["email", "password"], "properties": {"email": {"type": "string", "format": "email", "maxLength": 320}, "password": {"type": "string", "minLength": 1, "maxLength": 1024}}},
       "LoginResponse": {"type": "object", "required": ["csrfToken", "expiresAt"], "properties": {"csrfToken": {"type": "string"}, "expiresAt": {"type": "string", "format": "date-time"}}},
+      "MFALoginResponse": {"type": "object", "required": ["mfaRequired", "challenge", "methods"], "properties": {"mfaRequired": {"const": true}, "challenge": {"type": "string", "minLength": 1}, "methods": {"type": "array", "minItems": 1, "items": {"type": "string", "enum": ["passkey", "totp", "recovery"]}}, "passkeyOptions": {"type": ["object", "null"]}}},
       "CreateItemRequest": {"type": "object", "additionalProperties": false, "required": ["title"], "properties": {"title": {"type": "string", "minLength": 1, "maxLength": 200}}},
       "UpdateItemRequest": {"type": "object", "additionalProperties": false, "minProperties": 1, "properties": {"title": {"type": "string", "minLength": 1, "maxLength": 200}, "status": {"type": "string", "enum": ["active", "complete"]}}},
       "Item": {"type": "object", "required": ["id", "workspaceId", "createdByUserId", "title", "status", "version", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "createdByUserId": {"type": ["string", "null"]}, "title": {"type": "string"}, "status": {"type": "string", "enum": ["active", "complete"]}, "version": {"type": "integer", "minimum": 1}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}}},
@@ -447,7 +523,7 @@
       "CreateTokenRequest": {"type": "object", "additionalProperties": false, "required": ["name", "scopes"], "properties": {"name": {"type": "string", "minLength": 1, "maxLength": 100}, "scopes": {"type": "array", "minItems": 1, "items": {"type": "string"}}, "expiresAt": {"type": ["string", "null"], "format": "date-time"}}},
       "TokenScopesRequest": {"type": "object", "additionalProperties": false, "required": ["scopes"], "properties": {"scopes": {"type": "array", "minItems": 1, "items": {"type": "string"}}}},
       "TokenSecretResponse": {"type": "object", "required": ["token", "secret"], "properties": {"token": {"$ref": "#/components/schemas/Token"}, "secret": {"type": "string"}}},
-      "Session": {"type": "object", "required": ["id", "userId", "authMethod", "createdAt", "expiresAt"], "properties": {"id": {"type": "string"}, "userId": {"type": "string"}, "authMethod": {"type": "string"}, "oidcProviderId": {"type": "string"}, "createdAt": {"type": "string", "format": "date-time"}, "expiresAt": {"type": "string", "format": "date-time"}, "revokedAt": {"type": ["string", "null"], "format": "date-time"}}},
+      "Session": {"type": "object", "required": ["id", "userId", "authMethod", "authLevel", "createdAt", "expiresAt"], "properties": {"id": {"type": "string"}, "userId": {"type": "string"}, "authMethod": {"type": "string"}, "authLevel": {"type": "integer", "minimum": 1, "maximum": 2}, "oidcProviderId": {"type": "string"}, "createdAt": {"type": "string", "format": "date-time"}, "expiresAt": {"type": "string", "format": "date-time"}, "revokedAt": {"type": ["string", "null"], "format": "date-time"}}},
       "SessionPage": {"type": "object", "required": ["sessions"], "properties": {"sessions": {"type": "array", "items": {"$ref": "#/components/schemas/Session"}}}},
       "CreateWebhookRequest": {"type": "object", "additionalProperties": false, "required": ["name", "url", "events"], "properties": {"name": {"type": "string", "minLength": 1, "maxLength": 100}, "url": {"type": "string", "format": "uri", "maxLength": 2048}, "events": {"type": "array", "minItems": 1, "maxItems": 3, "items": {"type": "string", "enum": ["item.created", "item.updated", "item.deleted"]}}}},
       "Webhook": {"type": "object", "required": ["id", "workspaceId", "name", "url", "events", "createdAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "name": {"type": "string"}, "url": {"type": "string", "format": "uri"}, "events": {"type": "array", "items": {"type": "string"}}, "createdAt": {"type": "string", "format": "date-time"}}},

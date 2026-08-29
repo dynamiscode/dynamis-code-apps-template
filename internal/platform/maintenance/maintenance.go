@@ -20,6 +20,7 @@ const (
 
 type Result struct {
 	AuditEvents        int64 `json:"auditEvents"`
+	MFAChallenges      int64 `json:"mfaChallenges"`
 	Sessions           int64 `json:"sessions"`
 	Invitations        int64 `json:"invitations"`
 	APITokens          int64 `json:"apiTokens"`
@@ -57,6 +58,8 @@ func Run(
 	}{
 		{"DELETE FROM idempotency_records WHERE expires_at <= ?", []any{stamp(now)}, &result.Idempotency},
 		{"DELETE FROM oidc_transactions WHERE expires_at <= ?", []any{stamp(now)}, &result.OIDCTransactions},
+		{`DELETE FROM mfa_challenges WHERE expires_at <= ? OR
+			(consumed_at IS NOT NULL AND consumed_at <= ?)`, []any{stamp(now), stamp(now.Add(-transientRetention))}, &result.MFAChallenges},
 		{`DELETE FROM email_verifications WHERE expires_at <= ? OR
 			(consumed_at IS NOT NULL AND consumed_at <= ?)`, []any{stamp(now), stamp(now.Add(-transientRetention))}, &result.EmailVerifications},
 		{`DELETE FROM password_resets WHERE expires_at <= ? OR

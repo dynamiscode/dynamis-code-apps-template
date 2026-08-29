@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -26,10 +27,22 @@ var (
 	ErrLastOwner            = errors.New("the final owner cannot be changed")
 	ErrOIDCTransaction      = errors.New("OIDC transaction is invalid or expired")
 	ErrUnknownOIDCProvider  = errors.New("unknown OIDC provider")
+	ErrMFARequired          = errors.New("multi-factor authentication is required")
+	ErrMFAUnavailable       = errors.New("multi-factor authentication is unavailable")
+	ErrInvalidMFAChallenge  = errors.New("multi-factor challenge is invalid or expired")
+	ErrInvalidMFACode       = errors.New("multi-factor code is invalid")
+	ErrLastMFAFactor        = errors.New("the final authentication factor cannot be removed")
 	ErrSCIMNotFound         = errors.New("SCIM resource not found")
 	ErrSCIMConflict         = errors.New("SCIM resource conflict")
 	ErrSCIMPrecondition     = errors.New("SCIM resource precondition failed")
 	ErrSCIMInvalid          = errors.New("SCIM request is invalid")
+)
+
+type AuthLevel uint8
+
+const (
+	AuthLevelPassword AuthLevel = 1
+	AuthLevelMFA      AuthLevel = 2
 )
 
 type Role string
@@ -66,6 +79,7 @@ type Principal struct {
 	Permissions map[Permission]bool
 	AuthMethod  string
 	TokenID     string
+	AuthLevel   AuthLevel
 }
 
 type BootstrapInput struct {
@@ -156,10 +170,58 @@ type Session struct {
 	ID             string
 	UserID         string
 	AuthMethod     string
+	AuthLevel      AuthLevel
 	OIDCProviderID string
 	CreatedAt      time.Time
 	ExpiresAt      time.Time
 	RevokedAt      *time.Time
+}
+
+type MFAConfig struct {
+	Enabled          bool
+	EncryptionKey    []byte
+	RelyingPartyID   string
+	Origins          []string
+	DisplayName      string
+	RequireForAdmins bool
+}
+
+type MFAStatus struct {
+	Enabled        bool `json:"enabled"`
+	TOTPEnabled    bool `json:"totpEnabled"`
+	PasskeyCount   int  `json:"passkeyCount"`
+	RecoveryRemain int  `json:"recoveryCodesRemaining"`
+}
+
+type MFALoginChallenge struct {
+	Token          string          `json:"challenge"`
+	UserID         string          `json:"-"`
+	AuthMethod     string          `json:"-"`
+	OIDCProviderID string          `json:"-"`
+	Methods        []string        `json:"methods"`
+	PasskeyJSON    json.RawMessage `json:"passkeyOptions,omitempty"`
+	ExpiresAt      time.Time       `json:"expiresAt"`
+}
+
+type TOTPEnrollment struct {
+	Challenge  string    `json:"challenge"`
+	Secret     string    `json:"secret"`
+	OTPAuthURL string    `json:"otpauthUrl"`
+	ExpiresAt  time.Time `json:"expiresAt"`
+}
+
+type Passkey struct {
+	ID         string     `json:"id"`
+	Name       string     `json:"name"`
+	CreatedAt  time.Time  `json:"createdAt"`
+	LastUsedAt *time.Time `json:"lastUsedAt,omitempty"`
+	RevokedAt  *time.Time `json:"revokedAt,omitempty"`
+}
+
+type PasskeyEnrollment struct {
+	Challenge string          `json:"challenge"`
+	Options   json.RawMessage `json:"options"`
+	ExpiresAt time.Time       `json:"expiresAt"`
 }
 
 type NewSession struct {

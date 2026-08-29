@@ -129,7 +129,17 @@ the server returns the accepted or generated request ID.
 - `GET /health/ready` checks the database with a bounded timeout.
 - `GET /api/openapi.json` serves the exact embedded contract.
 - `POST /api/v1/auth/login` creates an HTTP-only browser session and returns
-  its CSRF token. `POST /api/v1/auth/logout` requires that token.
+  its CSRF token, or returns a short-lived MFA challenge when a configured
+  factor is required. Complete that challenge with
+  `POST /api/v1/auth/mfa/passkey`, `/mfa/totp`, or `/mfa/recovery`.
+  `POST /api/v1/auth/logout` requires the session CSRF token.
+- MFA status and factor management use the session-cookie endpoints under
+  `/api/v1/auth/mfa`. Enrollment/removal requires CSRF plus fresh
+  authentication; a current password is accepted, while a recent OIDC sign-in
+  or MFA-authenticated session can satisfy the same step-up. Enrollment
+  responses show recovery codes once only.
+  TOTP enrollment material is `no-store`; factor secrets are never returned
+  after enrollment.
 - `/api/v1/workspaces/{workspaceId}/items` proves shared, workspace-scoped
   list, create, read, and update behavior.
   Item responses retain `createdByUserId` as a required field but return `null`

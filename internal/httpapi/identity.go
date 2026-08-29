@@ -42,13 +42,14 @@ type tokenResponse struct {
 }
 
 type sessionResponse struct {
-	ID             string     `json:"id"`
-	UserID         string     `json:"userId"`
-	AuthMethod     string     `json:"authMethod"`
-	OIDCProviderID string     `json:"oidcProviderId,omitempty"`
-	CreatedAt      time.Time  `json:"createdAt"`
-	ExpiresAt      time.Time  `json:"expiresAt"`
-	RevokedAt      *time.Time `json:"revokedAt,omitempty"`
+	ID             string             `json:"id"`
+	UserID         string             `json:"userId"`
+	AuthMethod     string             `json:"authMethod"`
+	AuthLevel      identity.AuthLevel `json:"authLevel"`
+	OIDCProviderID string             `json:"oidcProviderId,omitempty"`
+	CreatedAt      time.Time          `json:"createdAt"`
+	ExpiresAt      time.Time          `json:"expiresAt"`
+	RevokedAt      *time.Time         `json:"revokedAt,omitempty"`
 }
 
 type memberRoleRequest struct {
@@ -441,6 +442,8 @@ func (h *handler) identityProblem(writer http.ResponseWriter, request *http.Requ
 		writeProblem(writer, request, http.StatusConflict, "invalid-token", "The token is invalid or expired.")
 	case errors.Is(err, identity.ErrInvalidSession):
 		writeProblem(writer, request, http.StatusConflict, "invalid-session", "The session is invalid or expired.")
+	case errors.Is(err, identity.ErrMFARequired):
+		writeProblem(writer, request, http.StatusUnauthorized, "mfa-required", "Multi-factor authentication is required.")
 	default:
 		writeProblem(writer, request, http.StatusBadRequest, "invalid-request", "The identity request is invalid.")
 	}
@@ -465,6 +468,7 @@ func tokenDTO(value identity.APIToken) tokenResponse {
 func sessionDTO(value identity.Session) sessionResponse {
 	return sessionResponse{
 		ID: value.ID, UserID: value.UserID, AuthMethod: value.AuthMethod,
+		AuthLevel:      value.AuthLevel,
 		OIDCProviderID: value.OIDCProviderID, CreatedAt: value.CreatedAt,
 		ExpiresAt: value.ExpiresAt, RevokedAt: value.RevokedAt,
 	}
