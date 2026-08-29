@@ -540,12 +540,23 @@ func (h *Handler) redirectURL(writer http.ResponseWriter, request *http.Request,
 }
 
 func safeReturnTo(value string) string {
+	if !isValidRedirect(value) {
+		return "/"
+	}
 	value = strings.ReplaceAll(value, "\\", "/")
 	parsed, err := url.Parse(value)
-	if err != nil || parsed.Path == "" || parsed.Path[0] != '/' || strings.HasPrefix(parsed.Path, "//") || strings.HasPrefix(parsed.Path, "/\\") || parsed.Host != "" || parsed.Scheme != "" {
+	if err != nil {
 		return "/"
 	}
 	return parsed.RequestURI()
+}
+
+func isValidRedirect(value string) bool {
+	value = strings.ReplaceAll(value, "\\", "/")
+	parsed, err := url.Parse(value)
+	return err == nil && parsed.Path != "" && parsed.Path[0] == '/' &&
+		!strings.HasPrefix(parsed.Path, "//") && !strings.HasPrefix(parsed.Path, "/\\") &&
+		parsed.Host == "" && parsed.Scheme == ""
 }
 
 func sameValue(a, b string) bool {
