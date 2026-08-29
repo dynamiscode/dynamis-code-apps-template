@@ -16,6 +16,7 @@ var rolePermissions = map[Role][]Permission{
 		WebhooksManage,
 		ResourcesRead,
 		ResourcesWrite,
+		SCIMManage,
 	},
 	Admin: {
 		WorkspaceRead,
@@ -28,6 +29,7 @@ var rolePermissions = map[Role][]Permission{
 		WebhooksManage,
 		ResourcesRead,
 		ResourcesWrite,
+		SCIMManage,
 	},
 	Member: {
 		WorkspaceRead,

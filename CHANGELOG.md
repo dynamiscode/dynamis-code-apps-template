@@ -5,7 +5,7 @@
 - Added optional MFA with WebAuthn/passkeys as the primary strong factor, TOTP
   fallback, one-time hashed recovery codes, encrypted TOTP storage, revocable
   passkeys, replay-protected challenges, MFA session levels, admin policy
-  enforcement, browser/REST flows, audit redaction, and migration 000012.
+  enforcement, browser/REST flows, audit redaction, and migration 000015.
 - Fixed MFA policy enforcement for workspace creation, challenge retention,
   WebAuthn RP configuration validation, and the documented MFA login response.
 - Fixed MFA owner-policy enforcement for new workspaces, challenge expiry
@@ -13,14 +13,35 @@
 - Fixed optional enrolled-user MFA login, password-change MFA reauthentication,
   expired-session fresh-auth checks, and challenge failure auditing.
 - Fixed MFA-required browser redirects and admin API-token policy enforcement.
+- Corrected direct AWS SDK dependency metadata and added AWS/Smithy license notices.
+- Fixed failed S3 presigns leaving pending file reservations counted against workspace quota.
+- Fixed failed external file objects retaining workspace quota until reconciliation
+  and browser file misses returning 404 instead of 500.
+- Added optional Files profile with workspace-scoped private local/S3-compatible
+  object storage, metadata migration, presigned upload/download URLs, bounded
+  MIME/signature validation, quotas, browser fallback, and REST/OpenAPI flow.
+- Documented file backup, owner deletion, reconciliation, scanning, and
+  background-job boundaries; no second worker or public sharing was added.
+
+- Preserved forward upgrades for databases created from pre-merge Files and
+  SCIM branches after migration numbering was reconciled.
+
+- Added REST-only SCIM 2.0 workspace provisioning for Users and role-mapped
+  Groups, with one-time hashed dedicated credentials, bounded filtering and
+  pagination, conditional PATCH/DELETE, safe errors, audit events, owner
+  protection, passwordless verified-OIDC enrollment, workspace-scoped
+  session/token revocation on deactivation, and read-only account profile
+  fields, including order-independent primary email handling, filtered
+  group-member removals, membership-aware group ETags, and retry-safe creates
+  when `externalId` is omitted.
 - Added the first durable background-jobs slice: a workspace-scoped,
   database-backed queue with lease recovery, idempotent webhook delivery,
   bounded retries, redacted status/metrics, and one worker loop per process.
 - Added bounded public Item sharing with hashed opaque bearer tokens, seven-day
   default and 30-day maximum expiry, explicit write authorization, cascading
   invalidation, redacted public projections, access audits, rate limiting,
-  safe browser headers, and ordinary-form CSRF-protected management. Files,
-  REST, CLI, MCP, and WebMCP sharing remain out of scope.
+ safe browser headers, and ordinary-form CSRF-protected management. Files,
+ REST, CLI, MCP, and WebMCP sharing remain out of scope.
 
 - Added profile composition to application generation: Identity is required
   for Core, and selecting Agent includes its MCP and REST-only CLI surfaces;

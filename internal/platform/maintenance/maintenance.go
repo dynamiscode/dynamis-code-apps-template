@@ -24,6 +24,7 @@ type Result struct {
 	Sessions           int64 `json:"sessions"`
 	Invitations        int64 `json:"invitations"`
 	APITokens          int64 `json:"apiTokens"`
+	SCIMTokens         int64 `json:"scimTokens"`
 	OIDCTransactions   int64 `json:"oidcTransactions"`
 	EmailVerifications int64 `json:"emailVerifications"`
 	PasswordResets     int64 `json:"passwordResets"`
@@ -69,6 +70,7 @@ func Run(
 			(accepted_at IS NOT NULL OR expired_at IS NOT NULL OR revoked_at IS NOT NULL)`, []any{stamp(now.Add(-historyRetention))}, &result.Invitations},
 		{`DELETE FROM api_tokens WHERE created_at <= ? AND
 			(revoked_at IS NOT NULL OR (expires_at IS NOT NULL AND expires_at <= ?))`, []any{stamp(now.Add(-historyRetention)), stamp(now)}, &result.APITokens},
+		{`DELETE FROM scim_tokens WHERE created_at <= ? AND revoked_at IS NOT NULL`, []any{stamp(now.Add(-historyRetention))}, &result.SCIMTokens},
 		{"DELETE FROM item_events WHERE occurred_at <= ?", []any{stamp(now.Add(-replayRetention))}, &result.RealtimeReplay},
 		{"DELETE FROM notifications WHERE created_at <= ?", []any{stamp(now.Add(-historyRetention))}, &result.Notifications},
 		{"DELETE FROM webhook_deliveries WHERE status <> 'pending' AND created_at <= ?", []any{stamp(now.Add(-historyRetention))}, &result.WebhookDeliveries},

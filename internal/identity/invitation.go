@@ -527,6 +527,9 @@ func (s *Service) acceptLoadedInvitation(
 	`, invitation.WorkspaceID, userID, invitation.Role, timestamp(now)); err != nil {
 		return Invitation{}, ErrInvalidInvitation
 	}
+	if err := s.ensureSCIMMembership(ctx, tx, invitation.WorkspaceID, userID, invitation.Role, true, timestamp(now)); err != nil {
+		return Invitation{}, ErrInvalidInvitation
+	}
 	result, err := s.exec(ctx, tx, `
 		UPDATE invitations SET accepted_at = ?, active_email = NULL
 		WHERE id = ? AND accepted_at IS NULL

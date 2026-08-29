@@ -142,6 +142,7 @@ func TestAuthorizationMatrixAndOwnershipTransfer(t *testing.T) {
 	permissions := []Permission{
 		WorkspaceRead, WorkspaceUpdate, WorkspaceDelete, WorkspaceExport, OwnershipTransfer,
 		MembersRead, MembersManage, InvitationsManage, ResourcesRead, ResourcesWrite,
+		SCIMManage,
 	}
 	for _, role := range roles {
 		for _, permission := range permissions {
@@ -783,6 +784,7 @@ func assertDatabaseDoesNotContain(t *testing.T, db *sql.DB, secret string) {
 		"SELECT secret_hash || csrf_hash FROM sessions",
 		"SELECT secret_hash FROM invitations",
 		"SELECT secret_hash FROM api_tokens",
+		"SELECT secret_hash FROM scim_tokens",
 		"SELECT token_hash FROM email_verifications",
 		"SELECT token_hash FROM password_resets",
 		"SELECT state_hash || browser_session_hash || pkce_verifier_hash || nonce_hash FROM oidc_transactions",

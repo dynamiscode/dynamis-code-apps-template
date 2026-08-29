@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/jobs"
@@ -283,6 +284,7 @@ func testHandler(t *testing.T) (http.Handler, *sql.DB, string, string) {
 	cfg.Database.SQLitePath = ":memory:"
 	cfg.Database.MaxOpenConns = 1
 	cfg.Database.MaxIdleConns = 1
+	cfg.Storage.LocalPath = t.TempDir()
 	db, err := database.Open(ctx, cfg.Database)
 	if err != nil {
 		t.Fatal(err)
@@ -309,7 +311,7 @@ func testHandler(t *testing.T) (http.Handler, *sql.DB, string, string) {
 		identity.WorkspaceRead, identity.WorkspaceUpdate, identity.WorkspaceExport,
 		identity.OwnershipTransfer, identity.MembersRead, identity.MembersManage,
 		identity.InvitationsManage, identity.WebhooksRead, identity.WebhooksManage,
-		identity.ResourcesRead, identity.ResourcesWrite,
+		identity.ResourcesRead, identity.ResourcesWrite, identity.SCIMManage,
 	}, nil, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -327,10 +329,16 @@ func testHandler(t *testing.T) (http.Handler, *sql.DB, string, string) {
 		t.Fatal(err)
 	}
 	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace, webhookService)
-	handler, err := NewHandlerWithWebhooks(db, auth, itemService,
+	objectStore, err := appfiles.NewStore(ctx, cfg.Storage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fileService := appfiles.NewService(db, cfg.Database.Driver, auth, objectStore,
+		cfg.Storage.MaxObjectBytes, cfg.Storage.MaxWorkspaceBytes, cfg.Storage.SignedURLTTL, cfg.Storage.S3Prefix)
+	handler, err := NewHandlerWithWebhooksAndFiles(db, auth, itemService,
 		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,
 			cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService),
-		oidc, cfg.HTTP, slog.New(slog.NewTextHandler(io.Discard, nil)), webhookService, "", nil)
+		oidc, cfg.HTTP, slog.New(slog.NewTextHandler(io.Discard, nil)), webhookService, fileService, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

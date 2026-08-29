@@ -152,6 +152,7 @@ Roles are protected permission collections:
 | Update workspace, manage members and invitations | yes | yes | no | no |
 | Export workspace data | yes | yes | no | no |
 | Delete workspace or transfer ownership | yes | no | no | no |
+| Provision SCIM users and role groups | yes | yes | no | no |
 
 Checks deny by default and require an explicit workspace. Tokens are
 intersected with the user's current role on every use. Owners cannot be
@@ -175,6 +176,28 @@ Bearer REST management uses the same workspace permission checks. Workspace list
 remain browser-only. Invitation create/resend returns a copyable URL and delivery status; SMTP is
 optional and invitation rows commit before delivery is attempted.
 
+## SCIM provisioning
+
+Enterprise provisioning uses REST-only SCIM 2.0 at `/scim/v2/{workspaceId}`
+and supports Users and Groups. Owners or admins create/revoke the dedicated
+workspace credential with `POST`/`DELETE
+/api/v1/workspaces/{workspaceId}/scim-token`; its secret is shown once and
+stored as a SHA-256 hash. It is never accepted as an ordinary API token.
+Browser, CLI, MCP, and WebMCP surfaces do not manage SCIM.
+
+SCIM normalizes `userName` and email to the account email and keeps a stable
+workspace external ID. Account email, `userName`, and `displayName` are
+immutable through SCIM; `displayName` is read-only because account profile
+fields are not workspace-scoped.
+New users are active members with no local password and
+may claim their account through a verified OIDC email or the existing
+password-reset enrollment flow; SCIM never sets a password. Groups map only to `admin`,
+`member`, and `viewer`; owner membership is never exposed or assignable.
+`PATCH` and `DELETE` require the current strong ETag. Deactivation removes
+only workspace membership, revokes the user's sessions and API/SCIM tokens,
+and retains the account, workspace, audit history, and final owner. DELETE is
+deactivation, not destruction.
+
 ## OIDC
 
 OIDC is disabled by default. One deployment-owned provider can be enabled by
@@ -186,8 +209,9 @@ Login selection uses the configured provider ID, never a request-supplied
 issuer. Transactions bind provider, browser session, exact redirect, hashed
 state, S256 PKCE verifier, and nonce. Callback processing validates the code,
 signature, issuer, audience, expiration, nonce, and verified email. External
-identity keys are issuer plus subject. Matching email never silently links an
-identity; linking to an existing user is explicit and requires reauthentication.
+identity keys are issuer plus subject. A verified OIDC email may claim a
+passwordless SCIM-provisioned account that has no external identity; all other
+matching-email links remain explicit and require reauthentication.
 
 Browser login starts at `GET /auth/oidc/{providerId}` and returns through the configured callback.
 Login transactions use short-lived HTTP-only cookies. Linking starts from `/security`, requires the

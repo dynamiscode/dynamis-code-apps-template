@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"log/slog"
+	"mime"
 	"net/http"
 	"strings"
 	"time"
@@ -18,6 +19,8 @@ import (
 
 const maxBufferedResponseBytes = 4 * 1024 * 1024
 
+const maxMultipartOverheadBytes = 1024 * 1024
+
 var errResponseTooLarge = errors.New("response exceeds buffer limit")
 
 func middleware(
@@ -29,7 +32,7 @@ func middleware(
 	next = timeoutMiddleware(next, cfg.RequestTimeout, logger)
 	next = concurrencyMiddleware(next, cfg.MaxConcurrent)
 	next = rateLimitMiddleware(next, limiter)
-	next = bodyLimitMiddleware(next, cfg.MaxBodyBytes)
+	next = bodyLimitMiddleware(next, cfg.MaxBodyBytes, cfg.FileMaxBodyBytes)
 	next = securityHeadersMiddleware(next, cfg.Secure)
 	next = loggingMiddleware(next, logger)
 	return requestIDMiddleware(next)
@@ -105,13 +108,36 @@ func securityHeadersMiddleware(next http.Handler, secure bool) http.Handler {
 	})
 }
 
-func bodyLimitMiddleware(next http.Handler, maximum int64) http.Handler {
+func bodyLimitMiddleware(next http.Handler, maximum, fileMaximum int64) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		limit := maximum
+		if fileMaximum > 0 && isFileBodyPath(request) {
+			limit = fileMaximum
+			if request.Method == http.MethodPost {
+				limit += maxMultipartOverheadBytes
+			}
+		}
 		if request.Body != nil {
-			request.Body = http.MaxBytesReader(writer, request.Body, maximum)
+			request.Body = http.MaxBytesReader(writer, request.Body, limit)
 		}
 		next.ServeHTTP(writer, request)
 	})
+}
+
+func isFileBodyPath(request *http.Request) bool {
+	path := request.URL.Path
+	if request.Method == http.MethodPut &&
+		strings.HasPrefix(path, "/api/v1/workspaces/") &&
+		strings.HasSuffix(path, "/files/content") {
+		return true
+	}
+	if request.Method != http.MethodPost ||
+		!strings.HasSuffix(path, "/files") ||
+		(!strings.HasPrefix(path, "/api/v1/workspaces/") && !strings.HasPrefix(path, "/workspaces/")) {
+		return false
+	}
+	mediaType, params, err := mime.ParseMediaType(request.Header.Get("Content-Type"))
+	return err == nil && mediaType == "multipart/form-data" && params["boundary"] != ""
 }
 
 type bufferedResponse struct {
@@ -157,8 +183,19 @@ func timeoutMiddleware(
 	logger *slog.Logger,
 ) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if strings.HasPrefix(request.URL.Path, "/workspaces/") &&
-			strings.HasSuffix(request.URL.Path, "/items/events") {
+		if isFileStreamingPath(request.URL.Path) {
+			ctx, cancel := context.WithTimeout(request.Context(), timeout)
+			defer cancel()
+			controller := http.NewResponseController(writer)
+			deadline := time.Now().Add(timeout)
+			_ = controller.SetReadDeadline(deadline)
+			_ = controller.SetWriteDeadline(deadline)
+			defer controller.SetReadDeadline(time.Time{})
+			defer controller.SetWriteDeadline(time.Time{})
+			next.ServeHTTP(writer, request.WithContext(ctx))
+			return
+		}
+		if isStreamingPath(request.URL.Path) {
 			next.ServeHTTP(writer, request)
 			return
 		}
@@ -197,6 +234,16 @@ func timeoutMiddleware(
 			)
 		}
 	})
+}
+
+func isStreamingPath(path string) bool {
+	return (strings.HasPrefix(path, "/workspaces/") && strings.HasSuffix(path, "/items/events")) ||
+		isFileStreamingPath(path)
+}
+
+func isFileStreamingPath(path string) bool {
+	return (strings.HasPrefix(path, "/api/v1/workspaces/") && strings.HasSuffix(path, "/files/content")) ||
+		(strings.HasPrefix(path, "/workspaces/") && strings.HasSuffix(path, "/files/content"))
 }
 
 func copyHeaders(destination http.Header, source http.Header) {

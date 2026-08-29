@@ -22,6 +22,8 @@ means the complete encrypted database backup described in
 | identity / `sessions` | `id`, `user_id`, `auth_method`, `oidc_provider_id`, timestamps (personal/internal); `secret_hash`, `csrf_hash` (secret) | Browser authentication and revocation | At most 10 active per user; expired sessions and revocations older than 30 days are pruned; excluded from export; users may list/revoke their sessions. |
 | identity / `invitations` | IDs, `email`, `role`, timestamps (personal/internal); `secret_hash` (secret) | Bounded membership invitation lifecycle | Active until accepted, revoked, or expired; completed records older than 365 days are pruned; excluded from export; resend rotates the secret. |
 | identity / `api_tokens` | IDs, `name`, `scopes`, timestamps (personal/internal); `secret_hash` (secret) | Scoped API/MCP credentials | Active until expiry/revocation; inactive records older than 365 days are pruned; excluded from export; scope changes and revocation are audited. |
+| identity / `scim_tokens` | IDs, workspace, creator, timestamps (internal); `secret_hash` (secret) | Dedicated workspace SCIM bearer credentials | One active credential per workspace; secret is shown once; inactive records older than 365 days are pruned; excluded from export; creation, rotation, and revocation are audited. |
+| identity / `scim_users`, `scim_groups` | Workspace mappings, external IDs, roles, active/version state, timestamps (internal) | Stable SCIM identity and role-group versions | Workspace lifetime; excluded from export; deactivation retains mappings for safe reactivation; owner mappings never appear in groups. |
 | identity / `oidc_transactions` | `provider_id`, `redirect_uri`, timestamps (internal); all hash fields (secret) | Single-use OIDC state, PKCE, nonce, and browser binding | Ten-minute active lifetime; expired records are pruned; excluded from export; no correction. |
 | identity / `mfa_challenges` | user, purpose, authentication method, attempt and lifecycle timestamps (internal); token hash, WebAuthn state, encrypted enrollment secret (secret) | Single-use MFA login and factor-enrollment challenges | Five-minute active lifetime; expired and consumed records are pruned after 30 days; excluded from export; no correction. |
 | identity / `email_verifications`, `password_resets` | user, email where applicable, timestamps (internal); token hash (secret) | Single-use account recovery and verification | Twenty-four-hour single-use lifetime; expired and consumed records are pruned; excluded from export; account deletion cascades. |
@@ -35,6 +37,7 @@ means the complete encrypted database backup described in
 | sharing / `public_links` | IDs, workspace/item references, timestamps, expiry, revocation (internal); `token_hash` (secret) | Bounded read-only Item sharing without membership | Until expiry or revocation; expired links are pruned by maintenance and revoked links after 365 days; excluded from export; item/workspace deletion cascades; no correction. |
 | webhooks / `webhooks` | IDs, workspace, name, endpoint URL, selected event names, timestamps (internal/configuration); encrypted secret (secret) | Workspace event delivery registration | Workspace lifetime or explicit deletion; excluded from export; secret rotates through authorized management and is never returned after creation. |
 | webhooks / `webhook_deliveries` | IDs, webhook/event references, event type, bounded payload, attempt/status/timestamps, HTTP status, redacted error category (internal; payload personal) | Durable at-least-once item delivery and bounded delivery history | Pending rows remain until delivery settles; delivered/failed rows retained 365 days and pruned by maintenance; excluded from export; cascade on webhook deletion. |
+| files / `files` | IDs, workspace/owner, object key, original name, detected MIME, size, SHA-256, status, timestamps (personal user content/internal) | Workspace-scoped private file metadata and object reconciliation | Workspace lifetime; metadata is included in backup but excluded from workspace export; owner deletion sets owner NULL; live object deletion/reconciliation is not exposed in this slice. Pending/failed rows remain quota-reserved for bounded operator reconciliation. |
 | platform / `background_jobs` | IDs, workspace, handler kind, deduplication key, bounded payload, status/attempt/lease/timestamps, redacted error category (internal; payload personal) | Durable retry and lease ownership for bounded asynchronous handlers | Pending and leased rows remain until settlement; settled rows retained 365 days and pruned by maintenance; excluded from export; workspace deletion cascades. |
 
 Every row is included in database backup until the operator's backup retention
@@ -45,6 +48,14 @@ authorized export. No public instance-wide audit endpoint exists. Only the
 deployment operator may inspect instance events through restricted database
 access. Normal application code inserts audit rows but never updates or
 deletes them; the retention command is the sole deletion path.
+
+Files are standalone workspace resources, not generic attachments. Local bytes
+live under the configured storage path; S3 bytes live in the configured private
+bucket/prefix. S3 URLs expire according to `STORAGE_SIGNED_URL_TTL`. The initial
+allowlist rejects executable, HTML, SVG, archive, and mismatched
+extension/signature content. Background scanning, orphan reconciliation,
+durable deletion, and workspace deletion require the deferred Background Jobs
+trigger; this slice leaves bounded metadata hooks and adds no worker.
 
 ## Resource and identity deletion
 

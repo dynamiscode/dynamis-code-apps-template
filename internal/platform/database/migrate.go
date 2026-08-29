@@ -76,6 +76,18 @@ func migrateFS(
 		if applied[migration.version] {
 			continue
 		}
+		if migration.version == 15 {
+			mfaApplied, err := mfaMigrationAlreadyApplied(ctx, tx, driver)
+			if err != nil {
+				return fmt.Errorf("check MFA migration compatibility: %w", err)
+			}
+			if mfaApplied {
+				if err := recordMigration(ctx, tx, driver, migration.version); err != nil {
+					return fmt.Errorf("record migration %s: %w", migration.name, err)
+				}
+				continue
+			}
+		}
 		if _, err := tx.ExecContext(ctx, migration.sql); err != nil {
 			return fmt.Errorf("apply migration %s: %w", migration.name, err)
 		}
@@ -88,6 +100,28 @@ func migrateFS(
 		return fmt.Errorf("commit migrations: %w", err)
 	}
 	return nil
+}
+
+func mfaMigrationAlreadyApplied(
+	ctx context.Context,
+	tx *sql.Tx,
+	driver config.DatabaseDriver,
+) (bool, error) {
+	query := `
+		SELECT COUNT(*) FROM sqlite_master
+		WHERE type = 'table' AND name = 'mfa_challenges'
+	`
+	if driver == config.Postgres {
+		query = `
+			SELECT COUNT(*) FROM information_schema.tables
+			WHERE table_schema = current_schema() AND table_name = 'mfa_challenges'
+		`
+	}
+	var count int
+	if err := tx.QueryRowContext(ctx, query).Scan(&count); err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func loadMigrations(source fs.FS) ([]migration, error) {

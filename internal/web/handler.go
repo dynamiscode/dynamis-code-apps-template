@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
@@ -31,6 +32,7 @@ var files embed.FS
 type Handler struct {
 	identity       *identity.Service
 	items          *items.Service
+	files          *appfiles.Service
 	sharing        *sharing.Service
 	exporter       exporter
 	oidc           *identity.OIDCRegistry
@@ -54,6 +56,9 @@ type pageData struct {
 	Workspace                        identity.WorkspaceSummary
 	Workspaces                       []identity.WorkspaceSummary
 	Items                            []items.Item
+	Files                            []appfiles.File
+	FilesEnabled                     bool
+	FilesPresigned                   bool
 	NextCursor                       string
 	CreateKey                        string
 	CurrentPath                      string
@@ -160,6 +165,35 @@ func NewHandler(
 	)
 }
 
+func NewHandlerWithServicesAndFiles(
+	identityService *identity.Service,
+	itemService *items.Service,
+	exporterService exporter,
+	oidcRegistry *identity.OIDCRegistry,
+	cfg config.HTTP,
+	fileService *appfiles.Service,
+	setupToken string,
+	publicURL string,
+	mailer appmail.Sender,
+) (*Handler, error) {
+	return newHandler(identityService, itemService, nil, exporterService, oidcRegistry, cfg, fileService, setupToken, publicURL, mailer)
+}
+
+func NewHandlerWithServicesAndFilesAndSharing(
+	identityService *identity.Service,
+	itemService *items.Service,
+	sharingService *sharing.Service,
+	exporterService exporter,
+	oidcRegistry *identity.OIDCRegistry,
+	cfg config.HTTP,
+	fileService *appfiles.Service,
+	setupToken string,
+	publicURL string,
+	mailer appmail.Sender,
+) (*Handler, error) {
+	return newHandler(identityService, itemService, sharingService, exporterService, oidcRegistry, cfg, fileService, setupToken, publicURL, mailer)
+}
+
 func NewHandlerWithServices(
 	identityService *identity.Service,
 	itemService *items.Service,
@@ -167,6 +201,21 @@ func NewHandlerWithServices(
 	exporterService exporter,
 	oidcRegistry *identity.OIDCRegistry,
 	cfg config.HTTP,
+	setupToken string,
+	publicURL string,
+	mailer appmail.Sender,
+) (*Handler, error) {
+	return newHandler(identityService, itemService, sharingService, exporterService, oidcRegistry, cfg, nil, setupToken, publicURL, mailer)
+}
+
+func newHandler(
+	identityService *identity.Service,
+	itemService *items.Service,
+	sharingService *sharing.Service,
+	exporterService exporter,
+	oidcRegistry *identity.OIDCRegistry,
+	cfg config.HTTP,
+	fileService *appfiles.Service,
 	setupToken string,
 	publicURL string,
 	mailer appmail.Sender,
@@ -194,7 +243,7 @@ func NewHandlerWithServices(
 		setupTokenHash = identity.SecretHash(setupToken)
 	}
 	return &Handler{
-		identity: identityService, items: itemService, sharing: sharingService, exporter: exporterService,
+		identity: identityService, items: itemService, files: fileService, sharing: sharingService, exporter: exporterService,
 		oidc: oidcRegistry, publicURL: publicURL, mailer: mailer, cfg: cfg,
 		setupTokenHash: setupTokenHash,
 		template:       templates,
@@ -242,6 +291,13 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/items/{itemId}", h.changeItem)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/items/{itemId}/share", h.shareMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/items/events", h.itemEvents)
+	if h.files != nil {
+		mux.HandleFunc("GET /workspaces/{workspaceId}/files", h.filesPage)
+		mux.HandleFunc("POST /workspaces/{workspaceId}/files", h.filesUpload)
+		mux.HandleFunc("POST /workspaces/{workspaceId}/files/initiate", h.filesInitiateUpload)
+		mux.HandleFunc("POST /workspaces/{workspaceId}/files/{fileId}/complete", h.filesCompleteUpload)
+		mux.HandleFunc("GET /workspaces/{workspaceId}/files/{fileId}/content", h.fileDownload)
+	}
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings", h.settingsPage)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/members", h.membersPage)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/members", h.memberMutation)
@@ -803,6 +859,7 @@ func (h *Handler) redirect(writer http.ResponseWriter, request *http.Request, pa
 }
 
 func (h *Handler) render(writer http.ResponseWriter, status int, name string, data pageData) {
+	data.FilesEnabled = h.files != nil
 	h.localizePage(writer, &data)
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.Header().Set("Cache-Control", "no-store")

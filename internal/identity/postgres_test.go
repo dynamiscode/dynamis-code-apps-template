@@ -47,6 +47,23 @@ func TestPostgresIdentityLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	owner := mustAuthorize(t, service, bootstrap.UserID, bootstrap.WorkspaceID, InvitationsManage)
+	scimToken, err := service.CreateSCIMToken(ctx, owner, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	scim, err := service.AuthenticateSCIMToken(ctx, scimToken.Secret, bootstrap.WorkspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scimUser, err := service.CreateSCIMUser(ctx, scim, SCIMUserInput{
+		ExternalID: "postgres-scim-user", UserName: "postgres-scim@example.com",
+	}, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.PatchSCIMUser(ctx, scim, scimUser.ExternalID, SCIMUserPatch{Active: boolPtr(false)}, scimUser.Version, AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
 	roleUsers := map[Role]string{Owner: bootstrap.UserID}
 	for _, role := range []Role{Admin, Member, Viewer} {
 		userID := postgresInsertUser(t, service, string(role)+"-matrix@example.com")
@@ -62,6 +79,7 @@ func TestPostgresIdentityLifecycle(t *testing.T) {
 		for _, permission := range []Permission{
 			WorkspaceRead, WorkspaceUpdate, WorkspaceDelete, WorkspaceExport, OwnershipTransfer,
 			MembersRead, MembersManage, InvitationsManage,
+			SCIMManage,
 			ResourcesRead, ResourcesWrite,
 		} {
 			_, err := service.Authorize(ctx, userID, bootstrap.WorkspaceID, permission)
@@ -147,6 +165,7 @@ func TestPostgresIdentityLifecycle(t *testing.T) {
 				UNION ALL SELECT secret_hash || csrf_hash FROM sessions
 				UNION ALL SELECT secret_hash FROM invitations
 				UNION ALL SELECT secret_hash FROM api_tokens
+				UNION ALL SELECT secret_hash FROM scim_tokens
 				UNION ALL SELECT state_hash || browser_session_hash || pkce_verifier_hash || nonce_hash FROM oidc_transactions
 				UNION ALL SELECT metadata FROM audit_events
 			) values_to_check WHERE value LIKE '%' || $1 || '%'

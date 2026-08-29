@@ -82,5 +82,7 @@ Generated applications require Core and Identity. Identity remains included
 because Core web, REST, item, and bootstrap paths use its shared authentication
 and workspace-authorization services. Agent is optional: when selected, the
 generator retains the MCP server, its bootstrap route, the REST-only `appctl`
-command, and their tests. No CompanySite, Integrations, or Files profile is
-implemented.
+command, and their tests. Files is optional and requires Core plus Identity. It
+adds workspace-scoped private file metadata, local or S3-compatible object
+storage, and browser/REST surfaces. CompanySite and Integrations remain
+unimplemented.

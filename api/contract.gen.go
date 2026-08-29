@@ -9,7 +9,7 @@ type Operation struct {
 }
 
 const OpenAPIVersion = "3.1.0"
-const OpenAPISHA256 = "5203f335febe4db4aa28f09fed34114a69f01c74d65272a620ecb506ce1022b0"
+const OpenAPISHA256 = "11eea85cb4f4b8b70fa7d62094626938d1489ce7afbc54c83bba8e7a7bc2ce61"
 
 var Operations = []Operation{
 	{Method: "GET", Path: "/api/openapi.json", ID: "getOpenAPI"},
@@ -28,6 +28,13 @@ var Operations = []Operation{
 	{Method: "GET", Path: "/api/v1/sessions", ID: "listSessions"},
 	{Method: "DELETE", Path: "/api/v1/sessions/{sessionId}", ID: "revokeSession"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/export", ID: "exportWorkspace"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/files", ID: "listFiles"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/files", ID: "createFile"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/files/uploads", ID: "initiateFileUpload"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/files/{fileId}", ID: "getFile"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/files/{fileId}/complete", ID: "completeFileUpload"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/files/{fileId}/content", ID: "getFileContent"},
+	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/files/{fileId}/content", ID: "uploadFileContent"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/import", ID: "importWorkspace"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/invitations", ID: "listInvitations"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/invitations", ID: "createInvitation"},
@@ -42,6 +49,8 @@ var Operations = []Operation{
 	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/members/{userId}", ID: "removeMember"},
 	{Method: "PATCH", Path: "/api/v1/workspaces/{workspaceId}/members/{userId}", ID: "changeMemberRole"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/ownership", ID: "transferOwnership"},
+	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/scim-token", ID: "revokeSCIMToken"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/scim-token", ID: "createSCIMToken"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/tokens", ID: "listTokens"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/tokens", ID: "createToken"},
 	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/tokens/{tokenId}", ID: "revokeToken"},
@@ -53,4 +62,12 @@ var Operations = []Operation{
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/secret", ID: "rotateWebhookSecret"},
 	{Method: "GET", Path: "/health/live", ID: "getLiveness"},
 	{Method: "GET", Path: "/health/ready", ID: "getReadiness"},
+	{Method: "GET", Path: "/scim/v2/{workspaceId}/Groups", ID: "listSCIMGroups"},
+	{Method: "GET", Path: "/scim/v2/{workspaceId}/Groups/{groupId}", ID: "getSCIMGroup"},
+	{Method: "PATCH", Path: "/scim/v2/{workspaceId}/Groups/{groupId}", ID: "patchSCIMGroup"},
+	{Method: "GET", Path: "/scim/v2/{workspaceId}/Users", ID: "listSCIMUsers"},
+	{Method: "POST", Path: "/scim/v2/{workspaceId}/Users", ID: "createSCIMUser"},
+	{Method: "DELETE", Path: "/scim/v2/{workspaceId}/Users/{userId}", ID: "deleteSCIMUser"},
+	{Method: "GET", Path: "/scim/v2/{workspaceId}/Users/{userId}", ID: "getSCIMUser"},
+	{Method: "PATCH", Path: "/scim/v2/{workspaceId}/Users/{userId}", ID: "patchSCIMUser"},
 }

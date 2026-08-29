@@ -11,6 +11,9 @@ upstream LICENSE and NOTICE files remain authoritative:
 - github.com/go-jose/go-jose/v4 v4.1.4 — Apache-2.0
 - github.com/jackc/pgx/v5 v5.10.0 — MIT
 - github.com/modelcontextprotocol/go-sdk v1.7.0 — Apache-2.0 and MIT code
+- github.com/aws/aws-sdk-go-v2 packages (core v1.45.1, config v1.33.0,
+  credentials v1.20.0, service/s3 v1.109.1) — Apache-2.0; AWS SDK NOTICE.txt
+- github.com/aws/smithy-go v1.28.1 — Apache-2.0; Smithy NOTICE
 - golang.org/x/crypto v0.55.0 — BSD-3-Clause
 - golang.org/x/oauth2 v0.36.0 — BSD-3-Clause
 - golang.org/x/text v0.41.0 — BSD-3-Clause

@@ -34,7 +34,8 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 	}
 	module, err := os.ReadFile(filepath.Join(output, "go.mod"))
 	if err != nil || !strings.Contains(string(module), "module example.com/acme/my-app") ||
-		strings.Contains(string(module), "example.com/dynamis-code/apps-template") {
+		strings.Contains(string(module), "example.com/dynamis-code/apps-template") ||
+		strings.Contains(string(module), "aws-sdk-go-v2") || strings.Contains(string(module), "smithy-go") {
 		t.Fatalf("generated go.mod = %q, error = %v", module, err)
 	}
 	readme, err := os.ReadFile(filepath.Join(output, "README.md"))
@@ -146,6 +147,9 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 	if _, err := parseProfiles("Core,Agent"); err == nil {
 		t.Fatal("profile selection accepted Agent without Identity")
 	}
+	if _, err := parseProfiles("Core,Files"); err == nil {
+		t.Fatal("profile selection accepted Files without Identity")
+	}
 	if _, err := parseProfiles("Identity"); err == nil {
 		t.Fatal("profile selection accepted Identity without Core")
 	}
@@ -177,6 +181,10 @@ func TestGenerateWithoutAgentPrunesAgentSurfaceAndBuilds(t *testing.T) {
 	readme, err := os.ReadFile(filepath.Join(output, "README.md"))
 	if err != nil || strings.Contains(string(readme), "MCP:") || strings.Contains(string(readme), "cmd/appctl") {
 		t.Fatalf("generated README retains Agent interface: %q, error = %v", readme, err)
+	}
+	capabilities, err := os.ReadFile(filepath.Join(output, "docs/capabilities.md"))
+	if err != nil || strings.Contains(string(capabilities), "| Files |") || strings.Contains(string(capabilities), "Object storage") || strings.Contains(string(capabilities), "Files evidence") {
+		t.Fatalf("generated capabilities retains Files evidence: %q, error = %v", capabilities, err)
 	}
 	for _, path := range []string{"go.mod", "go.sum", "NOTICE"} {
 		content, err := os.ReadFile(filepath.Join(output, path))

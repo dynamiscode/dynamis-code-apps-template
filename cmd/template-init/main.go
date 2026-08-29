@@ -20,7 +20,7 @@ var (
 	modulePattern     = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._~/-]+$`)
 	slugPattern       = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
 	maintainerPattern = regexp.MustCompile(`^@[A-Za-z0-9][A-Za-z0-9-]*(/[A-Za-z0-9][A-Za-z0-9-]*)?$`)
-	knownProfiles     = []string{"Core", "Identity", "Agent"}
+	knownProfiles     = []string{"Core", "Identity", "Agent", "Files"}
 )
 
 const (
@@ -140,7 +140,7 @@ func run(args []string, now func() time.Time) error {
 		"@davidlondono", *maintainer,
 	}
 	if err := copyTemplate(
-		root, destination, replacements, templateSlug, slug, hasProfile(selectedProfiles, "Agent"),
+		root, destination, replacements, templateSlug, slug, hasProfile(selectedProfiles, "Agent"), hasProfile(selectedProfiles, "Files"),
 	); err != nil {
 		return err
 	}
@@ -156,12 +156,10 @@ func run(args []string, now func() time.Time) error {
 	if output, err := command.CombinedOutput(); err != nil {
 		return fmt.Errorf("regenerate generated API contract: %s", strings.TrimSpace(string(output)))
 	}
-	if !hasProfile(selectedProfiles, "Agent") {
-		command := exec.Command("go", "mod", "tidy")
-		command.Dir = destination
-		if output, err := command.CombinedOutput(); err != nil {
-			return fmt.Errorf("prune generated module dependencies: %s", strings.TrimSpace(string(output)))
-		}
+	command = exec.Command("go", "mod", "tidy")
+	command.Dir = destination
+	if output, err := command.CombinedOutput(); err != nil {
+		return fmt.Errorf("prune generated module dependencies: %s", strings.TrimSpace(string(output)))
 	}
 	lock := lockFile{GeneratedAt: now().UTC(), Profiles: selectedProfiles}
 	lock.Template.Source = *source
@@ -177,6 +175,7 @@ func copyTemplate(
 	oldSlug string,
 	newSlug string,
 	agent bool,
+	files bool,
 ) error {
 	return filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -203,6 +202,12 @@ func copyTemplate(
 			return nil
 		}
 		if !agent && agentPath(relative) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !files && filesPath(relative) {
 			if entry.IsDir() {
 				return filepath.SkipDir
 			}
@@ -242,12 +247,155 @@ func copyTemplate(
 		if !agent && filepath.ToSlash(relative) == "internal/bootstrap/agent.go" {
 			raw = []byte(strings.NewReplacer(replacements...).Replace(disabledAgent))
 		}
+		if !files {
+			raw = disableFilesSource(filepath.ToSlash(relative), raw)
+		}
 		info, err := entry.Info()
 		if err != nil {
 			return err
 		}
 		return os.WriteFile(target, raw, info.Mode().Perm())
 	})
+}
+
+func filesPath(relative string) bool {
+	relative = filepath.ToSlash(relative)
+	return relative == "internal/files" || strings.HasPrefix(relative, "internal/files/") ||
+		relative == "internal/httpapi/files.go" || relative == "internal/httpapi/files_test.go" || relative == "internal/web/files.go" || relative == "internal/web/files_test.go" ||
+		relative == "internal/web/templates/files.html" ||
+		relative == "internal/platform/database/migrations/000014_files.sql" ||
+		relative == "internal/platform/database/migrate_files_test.go"
+}
+
+func disableFilesSource(relative string, raw []byte) []byte {
+	value := string(raw)
+	switch relative {
+	case "internal/bootstrap/app.go":
+		value = removeImport(value, "appfiles")
+		value = strings.Replace(value, "\tFiles       *appfiles.Service\n", "", 1)
+		value = removeText(value, "\tstorageConfig := cfg.Storage", "\titemService := items.NewService(")
+		value = strings.ReplaceAll(value, "httpapi.NewHandlerWithWebhooksAndFiles", "httpapi.NewHandlerWithWebhooks")
+		value = strings.ReplaceAll(value, "web.NewHandlerWithServicesAndFilesAndSharing", "web.NewHandlerWithServices")
+		value = strings.ReplaceAll(value, "web.NewHandlerWithServicesAndFiles", "web.NewHandlerWithServices")
+		value = strings.ReplaceAll(value, "\t\twebhookService, fileService, cfg.PublicURL, mailer,", "\t\twebhookService, cfg.PublicURL, mailer,")
+		value = strings.ReplaceAll(value, "\t\tfileService, cfg.Bootstrap.SetupToken, cfg.PublicURL, mailer,", "\t\tcfg.Bootstrap.SetupToken, cfg.PublicURL, mailer,")
+		value = removeLineStarting(value, "\t\tFiles:")
+	case "internal/httpapi/handler.go":
+		value = removeImport(value, "appfiles")
+		value = strings.Replace(value, "\tfiles       *appfiles.Service\n", "", 1)
+		value = removeText(value, "func NewHandlerWithWebhooksAndFiles(", "func NewHandlerWithMail(")
+		value = strings.ReplaceAll(value, "webhookService, nil, publicURL, mailer", "webhookService, publicURL, mailer")
+		value = strings.ReplaceAll(value, "webhookService, fileService, publicURL, mailer", "webhookService, publicURL, mailer")
+		for _, prefix := range []string{
+			"\t\t\"listFiles\":", "\t\t\"getFile\":", "\t\t\"initiateFileUpload\":", "\t\t\"completeFileUpload\":",
+		} {
+			value = removeLineStarting(value, prefix)
+		}
+		value = strings.Replace(value, "\tfileService *appfiles.Service,\n", "", 1)
+		value = strings.Replace(value, "webhooks: webhookService, files: fileService", "webhooks: webhookService", 1)
+	case "internal/httpapi/handler_test.go":
+		value = removeImport(value, "appfiles")
+		value = strings.Replace(value, "\tcfg.Storage.LocalPath = t.TempDir()\n", "", 1)
+		value = removeText(value, "\tobjectStore, err := appfiles.NewStore(ctx, cfg.Storage)", "\thandler, err := NewHandlerWithWebhooksAndFiles(")
+		value = strings.ReplaceAll(value, "NewHandlerWithWebhooksAndFiles", "NewHandlerWithWebhooks")
+		value = strings.ReplaceAll(value, "webhookService, fileService, \"\", nil", "webhookService, \"\", nil")
+	case "internal/web/handler.go":
+		value = removeImport(value, "appfiles")
+		value = strings.Replace(value, "\tfiles          *appfiles.Service\n", "", 1)
+		value = strings.Replace(value, "\tFiles                            []appfiles.File\n", "", 1)
+		value = strings.Replace(value, "\tFilesPresigned                   bool\n", "", 1)
+		value = strings.Replace(value, "\tdata.FilesEnabled = h.files != nil\n", "", 1)
+		value = removeText(value, "func NewHandlerWithServicesAndFiles(", "func NewHandlerWithServices(")
+		value = strings.ReplaceAll(value, "cfg, nil, setupToken, publicURL, mailer", "cfg, setupToken, publicURL, mailer")
+		value = strings.ReplaceAll(value, "cfg, fileService, setupToken, publicURL, mailer", "cfg, setupToken, publicURL, mailer")
+		value = strings.Replace(value, "\tfileService *appfiles.Service,\n", "", 1)
+		value = strings.Replace(value, "identity: identityService, items: itemService, files: fileService, sharing: sharingService, exporter: exporterService", "identity: identityService, items: itemService, sharing: sharingService, exporter: exporterService", 1)
+		value = strings.Replace(value, "identity: identityService, items: itemService, files: fileService, exporter: exporterService", "identity: identityService, items: itemService, exporter: exporterService", 1)
+		value = removeBlockIncludingEnd(value, "\tif h.files != nil {", "\t}\n")
+		value = strings.Replace(value, "\t\tFilesEnabled: h.files != nil,\n", "", 1)
+	case "docs/capabilities.md":
+		value = removeLineStarting(value, "| Files |")
+		value = removeLineStarting(value, "| Object storage |")
+		if start := strings.Index(value, "\n## Files evidence\n"); start >= 0 {
+			value = value[:start] + "\n"
+		}
+	case "docs/web.md":
+		value = removeText(value, "- `/workspaces/{workspaceId}/files`", "- `/workspaces/{workspaceId}/settings/export`")
+	case "api/openapi.json":
+		value = stripFilesOpenAPI([]byte(value))
+	}
+	return []byte(value)
+}
+
+func removeText(value, start, end string) string {
+	startAt := strings.Index(value, start)
+	if startAt < 0 {
+		return value
+	}
+	endAt := strings.Index(value[startAt:], end)
+	if endAt < 0 {
+		return value
+	}
+	return value[:startAt] + value[startAt+endAt:]
+}
+
+func removeImport(value, alias string) string {
+	needle := "\t" + alias + " \""
+	start := strings.Index(value, needle)
+	if start < 0 {
+		return value
+	}
+	end := strings.IndexByte(value[start:], '\n')
+	if end < 0 {
+		return value[:start]
+	}
+	return value[:start] + value[start+end+1:]
+}
+
+func removeLineStarting(value, prefix string) string {
+	start := strings.Index(value, prefix)
+	if start < 0 {
+		return value
+	}
+	lineStart := strings.LastIndex(value[:start], "\n") + 1
+	lineEnd := strings.IndexByte(value[start:], '\n')
+	if lineEnd < 0 {
+		return value[:lineStart]
+	}
+	return value[:lineStart] + value[start+lineEnd+1:]
+}
+
+func removeBlockIncludingEnd(value, start, end string) string {
+	startAt := strings.Index(value, start)
+	if startAt < 0 {
+		return value
+	}
+	endAt := strings.Index(value[startAt:], end)
+	if endAt < 0 {
+		return value
+	}
+	return value[:startAt] + value[startAt+endAt+len(end):]
+}
+
+func stripFilesOpenAPI(raw []byte) string {
+	var document map[string]any
+	if json.Unmarshal(raw, &document) != nil {
+		return string(raw)
+	}
+	paths, ok := document["paths"].(map[string]any)
+	if !ok {
+		return string(raw)
+	}
+	for path := range paths {
+		if strings.Contains(path, "/files") {
+			delete(paths, path)
+		}
+	}
+	encoded, err := json.MarshalIndent(document, "", "  ")
+	if err != nil {
+		return string(raw)
+	}
+	return string(encoded) + "\n"
 }
 
 func agentPath(relative string) bool {
@@ -352,6 +500,9 @@ func parseProfiles(value string) ([]string, error) {
 	}
 	if selected["Agent"] && !selected["Identity"] {
 		return nil, errors.New("Agent profile requires Identity")
+	}
+	if selected["Files"] && !selected["Identity"] {
+		return nil, errors.New("Files profile requires Identity")
 	}
 	if !selected["Core"] {
 		return nil, errors.New("profile set must include Core")

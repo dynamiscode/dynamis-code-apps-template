@@ -60,6 +60,16 @@ begins. Changes require restart.
 | `IMPORT_MAX_RECORDS` | integer 1-10000 | `1000` | No | No |
 | `IMPORT_MAX_BYTES` | bytes 65536-4194304 | `4194304` | No | No |
 | `AUDIT_RETENTION` | duration 30 days-10 years | `8760h` | No | No |
+| `STORAGE_DRIVER` | `local` or `s3` | `local` | No | No |
+| `STORAGE_LOCAL_PATH` | non-empty path | `data/files` | Local only | No |
+| `STORAGE_S3_ENDPOINT` | HTTPS or loopback HTTP URL | none | No | No |
+| `STORAGE_S3_REGION` | non-empty region | `us-east-1` | S3 only | No |
+| `STORAGE_S3_BUCKET` | bucket name | none | S3 only | No |
+| `STORAGE_S3_PREFIX` | safe object prefix | none | No | No |
+| `STORAGE_S3_FORCE_PATH_STYLE` | boolean | `false` | No | No |
+| `STORAGE_MAX_OBJECT_BYTES` | bytes 1-1073741824 | `16777216` | No | No |
+| `STORAGE_MAX_WORKSPACE_BYTES` | bytes, at least object limit | `1073741824` | No | No |
+| `STORAGE_SIGNED_URL_TTL` | duration 1m-15m | `5m` | No | No |
 | `WEBHOOK_ENCRYPTION_KEY` | exactly 32 random bytes as hex or base64 | none | Webhook create/rotation only | Yes |
 | `OTEL_SERVICE_NAME` | string 1-255 | `dynamis-code-apps-template` | No | No |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | HTTPS or loopback HTTP base URL | none | No | No |
@@ -141,6 +151,19 @@ fail safely until `WEBHOOK_ENCRYPTION_KEY` is configured. Keep this key in the
 deployment secret store and back it up separately from the database; losing it
 makes stored webhook secrets undecryptable. Delivery accepts HTTPS endpoints
 and local loopback HTTP for development, and rejects private resolved addresses.
+
+## Files
+
+The optional Files profile stores metadata in SQLite or PostgreSQL and object
+bytes in the local filesystem by default. S3 mode uses the AWS SDK standard
+credential chain and one S3-compatible endpoint configuration for AWS S3, R2,
+MinIO, Wasabi, Backblaze, and similar services. Credentials are never logged.
+Objects remain private; S3 clients receive short-lived presigned PUT/GET URLs,
+while local objects stream through the application. The object and workspace
+limits default to 16 MiB and 1 GiB. File routes use their separate object
+limit; do not raise `HTTP_MAX_BODY_BYTES` globally. Browser S3 uploads also
+require bucket CORS permitting PUT from the application origin and the signed
+upload headers returned by the initiation response.
 
 ## HTTP
 
