@@ -517,6 +517,10 @@ func validContent(name, detected string) bool {
 }
 
 func allowedDeclaredType(value, name string) bool {
+	expected := mimeByExtension(filepath.Ext(name))
+	if expected == "" {
+		return false
+	}
 	if strings.TrimSpace(value) == "" {
 		return true
 	}
@@ -525,7 +529,7 @@ func allowedDeclaredType(value, name string) bool {
 		return false
 	}
 	extension := strings.ToLower(filepath.Ext(name))
-	return mimeByExtension(extension) == detected || (extension == ".csv" && detected == "text/csv") || detected == "application/octet-stream"
+	return expected == detected || (extension == ".csv" && detected == "text/csv") || detected == "application/octet-stream"
 }
 
 func allowedMIME(value string) bool {

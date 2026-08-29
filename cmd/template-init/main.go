@@ -303,6 +303,7 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = removeImport(value, "appfiles")
 		value = strings.Replace(value, "\tfiles          *appfiles.Service\n", "", 1)
 		value = strings.Replace(value, "\tFiles                            []appfiles.File\n", "", 1)
+		value = strings.Replace(value, "\tdata.FilesEnabled = h.files != nil\n", "", 1)
 		value = removeText(value, "func NewHandlerWithServicesAndFiles(", "func NewHandlerWithServices(")
 		value = strings.ReplaceAll(value, "cfg, nil, setupToken, publicURL, mailer", "cfg, setupToken, publicURL, mailer")
 		value = strings.ReplaceAll(value, "cfg, fileService, setupToken, publicURL, mailer", "cfg, setupToken, publicURL, mailer")

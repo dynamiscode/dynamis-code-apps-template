@@ -524,7 +524,6 @@ func (h *Handler) workspaceHome(writer http.ResponseWriter, request *http.Reques
 	h.render(writer, http.StatusOK, "workspace.html", pageData{
 		Title: "Workspace home", NavPage: "workspace", NavSection: "workspace",
 		CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		FilesEnabled: h.files != nil,
 	})
 }
 
@@ -778,6 +777,7 @@ func (h *Handler) redirect(writer http.ResponseWriter, request *http.Request, pa
 }
 
 func (h *Handler) render(writer http.ResponseWriter, status int, name string, data pageData) {
+	data.FilesEnabled = h.files != nil
 	h.localizePage(writer, &data)
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.Header().Set("Cache-Control", "no-store")

@@ -30,7 +30,7 @@ func (h *Handler) filesPage(writer http.ResponseWriter, request *http.Request) {
 	h.render(writer, http.StatusOK, "files.html", pageData{
 		Title: "Files", NavPage: "files", NavSection: "workspace", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		Files: fileList, FilesEnabled: true,
+		Files:       fileList,
 		CurrentPath: "/workspaces/" + workspaceID + "/files",
 	})
 }
@@ -80,7 +80,7 @@ func (h *Handler) renderFilesError(writer http.ResponseWriter, request *http.Req
 	h.render(writer, http.StatusUnprocessableEntity, "files.html", pageData{
 		Title: "Files", NavPage: "files", NavSection: "workspace", CSRF: csrf, Error: message,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		Files: fileList, FilesEnabled: true, CurrentPath: "/workspaces/" + workspaceID + "/files",
+		Files: fileList, CurrentPath: "/workspaces/" + workspaceID + "/files",
 	})
 }
 

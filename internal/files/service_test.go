@@ -60,6 +60,11 @@ func TestLocalFileLifecycleAndValidation(t *testing.T) {
 	if err != nil || string(content) != "hello" {
 		t.Fatalf("content after prefix change = %q, error = %v", content, err)
 	}
+	if _, err := service.Initiate(context.Background(), actor, owner.WorkspaceID, InitiateInput{
+		OriginalName: "payload.exe", Size: 5,
+	}, identity.AuditContext{}); err != ErrInvalidInput {
+		t.Fatalf("unsupported initiated file error = %v, want ErrInvalidInput", err)
+	}
 	pending, err := service.Initiate(context.Background(), actor, owner.WorkspaceID, InitiateInput{
 		OriginalName: "data.csv", Size: 5, ContentType: "text/csv",
 	}, identity.AuditContext{})
