@@ -289,7 +289,7 @@ func testHandler(t *testing.T) (http.Handler, *sql.DB, string, string) {
 		identity.WorkspaceRead, identity.WorkspaceUpdate, identity.WorkspaceExport,
 		identity.OwnershipTransfer, identity.MembersRead, identity.MembersManage,
 		identity.InvitationsManage, identity.WebhooksRead, identity.WebhooksManage,
-		identity.ResourcesRead, identity.ResourcesWrite,
+		identity.ResourcesRead, identity.ResourcesWrite, identity.SCIMManage,
 	}, nil, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)

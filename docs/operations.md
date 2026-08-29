@@ -47,10 +47,10 @@ Run retention at least daily:
 go run ./cmd/maintain
 ```
 
-It removes expired transient records, old inactive credentials, expired audit
-history, expired public links, and stale realtime replay in one transaction,
-then appends a safe summary audit event. `AUDIT_RETENTION` defaults to 365
-days.
+It removes expired transient records, old inactive credentials including SCIM
+credentials, expired public links, expired audit history, and stale realtime
+replay in one transaction, then appends a safe summary audit event.
+`AUDIT_RETENTION` defaults to 365 days.
 
 ## Webhook delivery
 
@@ -118,7 +118,9 @@ forward-only migrations, then check readiness and smoke paths before restoring
 traffic. PostgreSQL migrations take a transaction advisory lock. All migration
 steps and history writes share one transaction; interruption rolls them back.
 Migration 000009 rebuilds `items` transactionally to retain item content when a
-creator account is deleted.
+creator account is deleted. Migration 000013 preserves upgrades from the
+pre-merge SCIM-at-000010 history while adding the main-branch background-jobs
+schema.
 Binary rollback is safe only when the old binary accepts the new schema.
 Otherwise restore the pre-upgrade backup. Future breaking schema work must use
 expand-contract or publish its explicit outage and recovery procedure.

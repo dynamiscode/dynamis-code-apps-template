@@ -413,6 +413,9 @@ func (s *Service) DeleteAccount(
 	if _, err := s.exec(ctx, tx, "DELETE FROM invitations WHERE invited_by_user_id = ?", userID); err != nil {
 		return err
 	}
+	if _, err := s.exec(ctx, tx, "DELETE FROM scim_tokens WHERE created_by_user_id = ?", userID); err != nil {
+		return err
+	}
 	result, err := s.exec(ctx, tx, "DELETE FROM users WHERE id = ?", userID)
 	if err != nil {
 		return err

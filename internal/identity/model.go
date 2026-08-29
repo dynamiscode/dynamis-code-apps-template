@@ -26,6 +26,10 @@ var (
 	ErrLastOwner            = errors.New("the final owner cannot be changed")
 	ErrOIDCTransaction      = errors.New("OIDC transaction is invalid or expired")
 	ErrUnknownOIDCProvider  = errors.New("unknown OIDC provider")
+	ErrSCIMNotFound         = errors.New("SCIM resource not found")
+	ErrSCIMConflict         = errors.New("SCIM resource conflict")
+	ErrSCIMPrecondition     = errors.New("SCIM resource precondition failed")
+	ErrSCIMInvalid          = errors.New("SCIM request is invalid")
 )
 
 type Role string
@@ -52,6 +56,7 @@ const (
 	WebhooksManage    Permission = "webhooks:manage"
 	ResourcesRead     Permission = "resources:read"
 	ResourcesWrite    Permission = "resources:write"
+	SCIMManage        Permission = "scim:manage"
 )
 
 type Principal struct {
@@ -196,6 +201,54 @@ type APIToken struct {
 type NewAPIToken struct {
 	APIToken
 	Secret string
+}
+
+type NewSCIMToken struct {
+	ID          string
+	WorkspaceID string
+	CreatedAt   time.Time
+	Secret      string
+}
+
+type SCIMUser struct {
+	ID          string
+	UserID      string
+	ExternalID  string
+	UserName    string
+	Email       string
+	DisplayName string
+	Active      bool
+	Role        Role
+	Version     int64
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type SCIMUserInput struct {
+	ExternalID  string
+	UserName    string
+	Email       string
+	DisplayName string
+}
+
+type SCIMUserPatch struct {
+	UserName    *string
+	Email       *string
+	DisplayName *string
+	Active      *bool
+}
+
+type SCIMGroup struct {
+	ID          string
+	DisplayName string
+	Role        Role
+	Version     int64
+	Members     []string
+}
+
+type SCIMGroupOperation struct {
+	Operation string
+	Members   []string
 }
 
 type OIDCTransaction struct {

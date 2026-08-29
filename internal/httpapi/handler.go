@@ -106,6 +106,11 @@ func NewHandlerWithWebhooks(
 		"listWebhooks": h.listWebhooks, "createWebhook": h.createWebhook,
 		"deleteWebhook": h.deleteWebhook, "rotateWebhookSecret": h.rotateWebhookSecret,
 		"listWebhookDeliveries": h.listWebhookDeliveries,
+		"createSCIMToken":       h.createSCIMToken, "revokeSCIMToken": h.revokeSCIMToken,
+		"listSCIMUsers": h.listSCIMUsers, "createSCIMUser": h.createSCIMUser,
+		"getSCIMUser": h.getSCIMUser, "patchSCIMUser": h.patchSCIMUser,
+		"deleteSCIMUser": h.deleteSCIMUser, "listSCIMGroups": h.listSCIMGroups,
+		"getSCIMGroup": h.getSCIMGroup, "patchSCIMGroup": h.patchSCIMGroup,
 	}
 	mux := http.NewServeMux()
 	paths := make(map[string]map[string]http.HandlerFunc)

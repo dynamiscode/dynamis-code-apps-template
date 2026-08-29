@@ -22,9 +22,9 @@ durable production data and records its deployment-specific evidence.
 | Optional WebMCP browser enhancement | triggered, recurring | 04, 07 | conforming | [WebMCP contract](web.md#webmcp-progressive-enhancement), [browser test](../internal/web/handler_test.go), [smoke](../scripts/webmcp-smoke.sh) |
 | Browser baseline surfaces | bootstrap, recurring | 02, 04, 06 | conforming | [Web routes and controls](web.md), [browser tests](../internal/web/handler_test.go) |
 | English/Spanish browser and invitation localization | bootstrap, recurring | 02, 04, 06 | conforming | [Localization contract](web.md#localization), [catalog tests](../internal/i18n/i18n_test.go), [identity tests](../internal/identity/locale_test.go), [web tests](../internal/web/handler_test.go) |
-| REST and optional Agent MCP/remote CLI interfaces | bootstrap, recurring | 03-05 | conforming | REST: [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go); [MCP tests](../internal/mcpserver/server_test.go); [CLI tests](../internal/appctl/run_test.go) |
+| REST and optional Agent MCP/remote CLI interfaces | bootstrap, recurring | 03-05, 09 | conforming | REST: [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go), [SCIM contracts](../internal/httpapi/scim_test.go); [MCP tests](../internal/mcpserver/server_test.go); [CLI tests](../internal/appctl/run_test.go) |
 | Local authentication and OIDC service | bootstrap, recurring | 02 | conforming | [Authentication](authentication.md), [OIDC tests](../internal/identity/oidc_test.go), [configuration tests](../internal/platform/config/config_test.go) |
-| Permissions, roles, workspaces, invitations, sessions, tokens, account lifecycle, preferences, and notifications service | bootstrap, recurring | 02 | conforming | [Authorization and lifecycle tests](../internal/identity/service_test.go), [account and notification tests](../internal/identity/account_notification_test.go), [PostgreSQL identity test](../internal/identity/postgres_test.go) |
+| Permissions, roles, workspaces, invitations, sessions, tokens, SCIM provisioning, account lifecycle, preferences, and notifications service | bootstrap, recurring | 02, 09 | conforming | [Authorization and lifecycle tests](../internal/identity/service_test.go), [SCIM lifecycle tests](../internal/identity/scim_test.go), [account and notification tests](../internal/identity/account_notification_test.go), [PostgreSQL identity test](../internal/identity/postgres_test.go) |
 | SQLite, PostgreSQL, migrations, and rolling compatibility | bootstrap, recurring | 01, 06 | conforming | [Database tests](../internal/platform/database/migrate_test.go), [PostgreSQL tests](../internal/platform/database/postgres_test.go), [upgrade procedure](operations.md#upgrades-and-alerts) |
 | Data governance, portability, deletion, archive, restoration, account retention, and import | bootstrap, operational | 06, 07 | conforming | [Data lifecycle](data-lifecycle.md), [import/export tests](../internal/portability/service_test.go), [item lifecycle tests](../internal/items/service_test.go), [account tests](../internal/identity/account_notification_test.go), [retention tests](../internal/platform/maintenance/maintenance_test.go), [demo seed](../cmd/demo/main.go) |
 | Configuration and secrets | bootstrap, recurring | 01 | conforming | [Configuration](configuration.md), [validation tests](../internal/platform/config/config_test.go), safe `.env.example` |
@@ -61,7 +61,7 @@ These remain out of the build plan until their trigger is demonstrated.
 | Background jobs | conforming | Bounded webhook delivery requires durable retry and lease ownership; see [phase 09 evidence](#phase-09-evidence) |
 | Shared event broker | deferred | Cross-replica delivery cannot use the database safely |
 | Object storage | deferred | Users upload or generate files |
-| SCIM | deferred | Enterprise provisioning is required |
+| SCIM | conforming | Enterprise provisioning accepted and implemented in Phase 09 |
 | MFA and passkeys | deferred | Identity ownership or measured risk requires stronger authentication |
 | Feature flags | deferred | Staged rollout, kill switches, or targeting is required |
 | AsyncAPI | deferred | A public asynchronous contract exists |
@@ -256,6 +256,15 @@ HTTP, configuration, maintenance, and migration tests. PostgreSQL execution and
 Docker smoke remain part of the final verification ladder.
 
 ## Phase 09 evidence
+
+SCIM 2.0 Users and role Groups are REST-only and workspace-scoped. SQLite
+tests cover dedicated-token separation, one-time secret storage, stable
+external IDs, normalized email identity, passwordless verified-OIDC enrollment,
+idempotent create, exact filtering, pagination, PATCH/DELETE ETags, group role
+mapping, workspace-scoped deactivation revocation, safe errors, audit redaction,
+and final-owner protection. PostgreSQL identity
+and migration checks cover migration 000013 and the provisioning/deactivation
+path when `POSTGRES_TEST_URL` is configured.
 
 Bounded Item sharing passes hashed-token storage, default and maximum expiry,
 explicit write authorization, safe title/status-only public projection,
