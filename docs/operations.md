@@ -118,7 +118,9 @@ forward-only migrations, then check readiness and smoke paths before restoring
 traffic. PostgreSQL migrations take a transaction advisory lock. All migration
 steps and history writes share one transaction; interruption rolls them back.
 Migration 000009 rebuilds `items` transactionally to retain item content when a
-creator account is deleted.
+creator account is deleted. Migration 000013 preserves upgrades from the
+pre-merge SCIM-at-000010 history while adding the main-branch background-jobs
+schema.
 Binary rollback is safe only when the old binary accepts the new schema.
 Otherwise restore the pre-upgrade backup. Future breaking schema work must use
 expand-contract or publish its explicit outage and recovery procedure.

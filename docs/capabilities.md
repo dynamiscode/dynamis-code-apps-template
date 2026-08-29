@@ -263,7 +263,7 @@ external IDs, normalized email identity, passwordless verified-OIDC enrollment,
 idempotent create, exact filtering, pagination, PATCH/DELETE ETags, group role
 mapping, workspace-scoped deactivation revocation, safe errors, audit redaction,
 and final-owner protection. PostgreSQL identity
-and migration checks cover migration 000012 and the provisioning/deactivation
+and migration checks cover migration 000013 and the provisioning/deactivation
 path when `POSTGRES_TEST_URL` is configured.
 
 Bounded Item sharing passes hashed-token storage, default and maximum expiry,

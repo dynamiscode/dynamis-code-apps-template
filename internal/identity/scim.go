@@ -16,7 +16,7 @@ const (
 )
 
 func (s *Service) CreateSCIMToken(ctx context.Context, actor Principal, audit AuditContext) (NewSCIMToken, error) {
-	if s.require(ctx, actor, WorkspaceUpdate) != nil {
+	if s.require(ctx, actor, SCIMManage) != nil {
 		return NewSCIMToken{}, ErrForbidden
 	}
 	secret, err := newSecret()
@@ -34,7 +34,7 @@ func (s *Service) CreateSCIMToken(ctx context.Context, actor Principal, audit Au
 		return NewSCIMToken{}, err
 	}
 	defer tx.Rollback()
-	if s.requireTx(ctx, tx, actor, WorkspaceUpdate) != nil {
+	if s.requireTx(ctx, tx, actor, SCIMManage) != nil {
 		return NewSCIMToken{}, ErrForbidden
 	}
 	rows, err := tx.QueryContext(ctx, s.bind(`
@@ -95,7 +95,7 @@ func (s *Service) CreateSCIMToken(ctx context.Context, actor Principal, audit Au
 }
 
 func (s *Service) RevokeSCIMToken(ctx context.Context, actor Principal, audit AuditContext) error {
-	if s.require(ctx, actor, WorkspaceUpdate) != nil {
+	if s.require(ctx, actor, SCIMManage) != nil {
 		return ErrForbidden
 	}
 	now := s.now().UTC()
@@ -104,7 +104,7 @@ func (s *Service) RevokeSCIMToken(ctx context.Context, actor Principal, audit Au
 		return err
 	}
 	defer tx.Rollback()
-	if s.requireTx(ctx, tx, actor, WorkspaceUpdate) != nil {
+	if s.requireTx(ctx, tx, actor, SCIMManage) != nil {
 		return ErrForbidden
 	}
 	result, err := s.exec(ctx, tx, `

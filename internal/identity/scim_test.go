@@ -175,6 +175,27 @@ func TestSCIMProvisioningLifecycle(t *testing.T) {
 	assertDatabaseDoesNotContain(t, db, rotated.Secret)
 }
 
+func TestSCIMTokenManagementRequiresSCIMScope(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := context.Background()
+	bootstrap := bootstrapOwner(t, service)
+	owner := mustAuthorize(t, service, bootstrap.UserID, bootstrap.WorkspaceID, WorkspaceUpdate)
+	ordinary, err := service.CreateAPIToken(ctx, owner, "workspace-update", []Permission{WorkspaceRead, WorkspaceUpdate}, nil, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	principal, err := service.AuthenticateAPIToken(ctx, ordinary.Secret, WorkspaceUpdate, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.CreateSCIMToken(ctx, principal, AuditContext{}); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("ordinary token created SCIM token: %v", err)
+	}
+	if err := service.RevokeSCIMToken(ctx, principal, AuditContext{}); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("ordinary token revoked SCIM token: %v", err)
+	}
+}
+
 func TestSCIMGroupETagsTrackMembershipChanges(t *testing.T) {
 	service, _ := newTestService(t)
 	ctx := context.Background()

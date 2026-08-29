@@ -60,6 +60,9 @@ func TestSQLiteConfigurationAndMigrations(t *testing.T) {
 	assertMigrationVersion(t, db, 8)
 	assertMigrationVersion(t, db, 9)
 	assertMigrationVersion(t, db, 10)
+	assertMigrationVersion(t, db, 11)
+	assertMigrationVersion(t, db, 12)
+	assertMigrationVersion(t, db, 13)
 }
 
 func TestSQLiteBackgroundJobsMigrationBackfillsPendingWebhook(t *testing.T) {
@@ -88,6 +91,11 @@ func TestSQLiteBackgroundJobsMigrationBackfillsPendingWebhook(t *testing.T) {
 		}
 		legacy[name] = &fstest.MapFile{Data: data}
 	}
+	scim, err := fs.ReadFile(migrationFiles, "migrations/000012_scim.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy["migrations/000010_scim.sql"] = &fstest.MapFile{Data: scim}
 	ctx := context.Background()
 	if err := migrateFS(ctx, db, config.SQLite, legacy); err != nil {
 		t.Fatal(err)

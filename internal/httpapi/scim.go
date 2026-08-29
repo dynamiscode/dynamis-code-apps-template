@@ -100,7 +100,7 @@ func (h *handler) createSCIMToken(writer http.ResponseWriter, request *http.Requ
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
-	principal, ok := h.workspaceBearer(writer, request, workspaceID, identity.WorkspaceUpdate)
+	principal, ok := h.workspaceBearer(writer, request, workspaceID, identity.SCIMManage)
 	if !ok {
 		return
 	}
@@ -119,7 +119,7 @@ func (h *handler) revokeSCIMToken(writer http.ResponseWriter, request *http.Requ
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
-	principal, ok := h.workspaceBearer(writer, request, workspaceID, identity.WorkspaceUpdate)
+	principal, ok := h.workspaceBearer(writer, request, workspaceID, identity.SCIMManage)
 	if !ok {
 		return
 	}

@@ -88,6 +88,15 @@ func TestPostgresMigrations(t *testing.T) {
 	if count != 1 {
 		t.Fatalf("SCIM migration version count = %d, want 1", count)
 	}
+	if err := db.QueryRow(
+		"SELECT COUNT(*) FROM schema_migrations WHERE version = $1",
+		13,
+	).Scan(&count); err != nil {
+		t.Fatalf("query migration compatibility version: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("migration compatibility version count = %d, want 1", count)
+	}
 }
 
 func TestPostgresMigrationFailureRollsBack(t *testing.T) {

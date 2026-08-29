@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Preserved forward upgrades for databases created from the pre-merge SCIM
+  branch after migration numbering was reconciled with background jobs.
+
 - Added REST-only SCIM 2.0 workspace provisioning for Users and role-mapped
   Groups, with one-time hashed dedicated credentials, bounded filtering and
   pagination, conditional PATCH/DELETE, safe errors, audit events, owner
