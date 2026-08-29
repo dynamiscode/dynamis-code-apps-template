@@ -16,6 +16,7 @@ import (
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
+	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
@@ -123,6 +124,15 @@ func TestHTTPBoundaries(t *testing.T) {
 	if rateLimited.Header().Get("Retry-After") == "" {
 		t.Fatal("Retry-After missing")
 	}
+	publicLimiter := newRateLimiter(1, 1)
+	publicNext := requestIDMiddleware(rateLimitMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}), publicLimiter))
+	if serve(publicNext, http.MethodGet, "/share/public-token", "", "").Code != http.StatusNoContent {
+		t.Fatal("first public share request rejected")
+	}
+	publicRateLimited := serve(publicNext, http.MethodGet, "/share/public-token", "", "")
+	assertProblem(t, publicRateLimited, http.StatusTooManyRequests, "rate-limited")
 
 	timed := requestIDMiddleware(timeoutMiddleware(http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
 		<-request.Context().Done()
@@ -290,7 +300,14 @@ func testHandler(t *testing.T) (http.Handler, *sql.DB, string, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	webhookService := webhooks.NewService(db, cfg.Database.Driver, auth, []byte("01234567890123456789012345678901"), nil)
+	jobQueue := jobs.NewQueue(db, cfg.Database.Driver, nil)
+	webhookService := webhooks.NewService(db, cfg.Database.Driver, auth, []byte("01234567890123456789012345678901"), jobQueue)
+	if err := jobQueue.Register(webhooks.JobKind, webhookService.HandleJob); err != nil {
+		t.Fatal(err)
+	}
+	if err := jobQueue.RegisterExhausted(webhooks.JobKind, webhookService.HandleExhaustedJob); err != nil {
+		t.Fatal(err)
+	}
 	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace, webhookService)
 	objectStore, err := appfiles.NewStore(ctx, cfg.Storage)
 	if err != nil {
@@ -343,5 +360,14 @@ func assertProblem(t *testing.T, response *httptest.ResponseRecorder, status int
 	}
 	if value.Status != status || value.Code != code || value.RequestID == "" || value.Type == "" || value.Instance == "" {
 		t.Fatalf("problem = %+v", value)
+	}
+}
+
+func TestPublicSharePathIsRedactedFromLogs(t *testing.T) {
+	if got := logPath("/share/secret-token"); got != "/share/[redacted]" {
+		t.Fatalf("logPath() = %q", got)
+	}
+	if got := logPath("/workspaces/example/items"); got != "/workspaces/example/items" {
+		t.Fatalf("ordinary logPath() = %q", got)
 	}
 }

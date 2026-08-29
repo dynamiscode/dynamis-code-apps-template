@@ -69,10 +69,19 @@ Baseline browser surfaces:
 - `/workspaces/{workspaceId}/settings/export` presents the authorized export screen;
   its `Download JSON` link downloads the export from
   `/workspaces/{workspaceId}/settings/export/download`.
+- `/share/{token}` presents a read-only Item projection containing only title
+  and status. The Items page lets principals with `resources:write` create
+  seven- or 30-day links and revoke active links with CSRF-protected ordinary
+  forms.
 
 Forms keep ordinary navigation as fallback. HTMX enhances item fragments only.
 Secret-bearing responses use `no-store`; list pages never render session,
 CSRF, invitation, or token secrets.
+
+Public sharing uses `private, no-store`, `no-referrer`, and
+`X-Robots-Tag: noindex, nofollow, noarchive`. The existing per-source HTTP
+rate limit applies to public access. There is no public write, search, listing,
+REST, CLI, MCP, or WebMCP sharing surface.
 
 The workspace sidebar exposes `Home` above `Items` in the workspace context.
 Home is active at `/workspaces/{workspaceId}`. Settings uses the nested

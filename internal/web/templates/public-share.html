@@ -1,0 +1,3 @@
+{{define "public-share.html"}}<!doctype html>
+<html lang="{{.Locale}}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · Dynamis Code</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><main class="narrow"><h1>{{.Title}}</h1>{{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{else}}<dl><dt>{{.T "sharing.title"}}</dt><dd>{{.PublicItem.Title}}</dd><dt>{{.T "sharing.status"}}</dt><dd>{{.PublicItem.Status}}</dd></dl>{{end}}</main></body></html>{{end}}

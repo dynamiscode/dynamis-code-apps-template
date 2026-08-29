@@ -227,5 +227,17 @@
   "files.choose": "File",
   "files.upload": "Upload file",
   "files.recent": "Workspace files",
-  "files.none": "No files yet."
+  "files.none": "No files yet.",
+  "sharing.shared_item": "Shared item",
+  "sharing.unavailable": "Shared item unavailable",
+  "sharing.unavailable_detail": "This shared item is unavailable.",
+  "sharing.title": "Title",
+  "sharing.status": "Status",
+  "sharing.expiration": "Link expiration",
+  "sharing.seven_days": "7 days",
+  "sharing.thirty_days": "30 days",
+  "sharing.create": "Create public link",
+  "sharing.active_until": "Public link active until",
+  "sharing.revoke": "Revoke public link",
+  "sharing.created": "Public link created:"
 }

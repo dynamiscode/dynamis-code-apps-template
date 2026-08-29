@@ -263,7 +263,7 @@ func filesPath(relative string) bool {
 	return relative == "internal/files" || strings.HasPrefix(relative, "internal/files/") ||
 		relative == "internal/httpapi/files.go" || relative == "internal/httpapi/files_test.go" || relative == "internal/web/files.go" || relative == "internal/web/files_test.go" ||
 		relative == "internal/web/templates/files.html" ||
-		relative == "internal/platform/database/migrations/000010_files.sql"
+		relative == "internal/platform/database/migrations/000012_files.sql"
 }
 
 func disableFilesSource(relative string, raw []byte) []byte {
@@ -274,6 +274,7 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = strings.Replace(value, "\tFiles       *appfiles.Service\n", "", 1)
 		value = removeText(value, "\tstorageConfig := cfg.Storage", "\titemService := items.NewService(")
 		value = strings.ReplaceAll(value, "httpapi.NewHandlerWithWebhooksAndFiles", "httpapi.NewHandlerWithWebhooks")
+		value = strings.ReplaceAll(value, "web.NewHandlerWithServicesAndFilesAndSharing", "web.NewHandlerWithServices")
 		value = strings.ReplaceAll(value, "web.NewHandlerWithServicesAndFiles", "web.NewHandlerWithServices")
 		value = strings.ReplaceAll(value, "\t\twebhookService, fileService, cfg.PublicURL, mailer,", "\t\twebhookService, cfg.PublicURL, mailer,")
 		value = strings.ReplaceAll(value, "\t\tfileService, cfg.Bootstrap.SetupToken, cfg.PublicURL, mailer,", "\t\tcfg.Bootstrap.SetupToken, cfg.PublicURL, mailer,")
@@ -307,13 +308,14 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = strings.ReplaceAll(value, "cfg, nil, setupToken, publicURL, mailer", "cfg, setupToken, publicURL, mailer")
 		value = strings.ReplaceAll(value, "cfg, fileService, setupToken, publicURL, mailer", "cfg, setupToken, publicURL, mailer")
 		value = strings.Replace(value, "\tfileService *appfiles.Service,\n", "", 1)
+		value = strings.Replace(value, "identity: identityService, items: itemService, files: fileService, sharing: sharingService, exporter: exporterService", "identity: identityService, items: itemService, sharing: sharingService, exporter: exporterService", 1)
 		value = strings.Replace(value, "identity: identityService, items: itemService, files: fileService, exporter: exporterService", "identity: identityService, items: itemService, exporter: exporterService", 1)
 		value = removeBlockIncludingEnd(value, "\tif h.files != nil {", "\t}\n")
 		value = strings.Replace(value, "\t\tFilesEnabled: h.files != nil,\n", "", 1)
 	case "docs/capabilities.md":
 		value = removeLineStarting(value, "| Files |")
 		value = removeLineStarting(value, "| Object storage |")
-		if start := strings.Index(value, "\n## Phase 09 evidence\n"); start >= 0 {
+		if start := strings.Index(value, "\n## Files evidence\n"); start >= 0 {
 			value = value[:start] + "\n"
 		}
 	case "docs/web.md":

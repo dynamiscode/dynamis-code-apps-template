@@ -14,11 +14,13 @@ import (
 	"example.com/dynamis-code/apps-template/internal/httpapi"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
+	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 	"example.com/dynamis-code/apps-template/internal/portability"
+	"example.com/dynamis-code/apps-template/internal/sharing"
 	"example.com/dynamis-code/apps-template/internal/web"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
 )
@@ -28,9 +30,11 @@ type App struct {
 	Identity    *identity.Service
 	OIDC        *identity.OIDCRegistry
 	Items       *items.Service
+	Sharing     *sharing.Service
 	Portability *portability.Service
 	Webhooks    *webhooks.Service
 	Files       *appfiles.Service
+	Jobs        *jobs.Queue
 	Handler     http.Handler
 	Telemetry   *telemetry.Provider
 }
@@ -103,8 +107,9 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("initialize OIDC: %w", err)
 	}
+	jobQueue := jobs.NewQueue(db, cfg.Database.Driver, slog.Default())
 	webhookService := webhooks.NewService(
-		db, cfg.Database.Driver, identityService, cfg.Webhooks.SecretKey, slog.Default(),
+		db, cfg.Database.Driver, identityService, cfg.Webhooks.SecretKey, jobQueue,
 	)
 	storageConfig := cfg.Storage
 	if storageConfig.Driver == config.StorageLocal {
@@ -121,9 +126,20 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		storageConfig.MaxObjectBytes, storageConfig.MaxWorkspaceBytes,
 		storageConfig.SignedURLTTL, storageConfig.S3Prefix,
 	)
+	if err := jobQueue.Register(webhooks.JobKind, webhookService.HandleJob); err != nil {
+		db.Close()
+		telemetryProvider.Shutdown(context.Background())
+		return nil, fmt.Errorf("register webhook job handler: %w", err)
+	}
+	if err := jobQueue.RegisterExhausted(webhooks.JobKind, webhookService.HandleExhaustedJob); err != nil {
+		db.Close()
+		telemetryProvider.Shutdown(context.Background())
+		return nil, fmt.Errorf("register exhausted webhook job handler: %w", err)
+	}
 	itemService := items.NewService(
 		db, cfg.Database.Driver, identityService, cfg.Data.ItemsMaxPerWorkspace, webhookService,
 	)
+	sharingService := sharing.NewService(db, cfg.Database.Driver, identityService)
 	portabilityService := portability.NewService(
 		db, cfg.Database.Driver, identityService,
 		cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,
@@ -144,8 +160,8 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("initialize HTTP handler: %w", err)
 	}
-	webHandler, err := web.NewHandlerWithServicesAndFiles(
-		identityService, itemService, portabilityService, oidcRegistry, cfg.HTTP,
+	webHandler, err := web.NewHandlerWithServicesAndFilesAndSharing(
+		identityService, itemService, sharingService, portabilityService, oidcRegistry, cfg.HTTP,
 		fileService, cfg.Bootstrap.SetupToken, cfg.PublicURL, mailer,
 	)
 	if err != nil {
@@ -153,7 +169,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("initialize web handler: %w", err)
 	}
-	webhookService.Start(ctx)
+	jobQueue.Start(ctx)
 	mux := http.NewServeMux()
 	mux.Handle("/api/", handler)
 	mux.Handle("/health/", handler)
@@ -162,8 +178,8 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 
 	return &App{
 		DB: db, Identity: identityService, OIDC: oidcRegistry,
-		Items: itemService, Portability: portabilityService, Webhooks: webhookService,
-		Files:   fileService,
+		Items: itemService, Sharing: sharingService, Portability: portabilityService, Webhooks: webhookService,
+		Files: fileService, Jobs: jobQueue,
 		Handler: telemetry.HTTPHandler(mux), Telemetry: telemetryProvider,
 	}, nil
 }
@@ -207,8 +223,8 @@ func Run(ctx context.Context, cfg config.Config) error {
 func (a *App) Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if a.Webhooks != nil {
-		a.Webhooks.Close()
+	if a.Jobs != nil {
+		a.Jobs.Close()
 	}
 	return errors.Join(a.DB.Close(), a.Telemetry.Shutdown(ctx))
 }

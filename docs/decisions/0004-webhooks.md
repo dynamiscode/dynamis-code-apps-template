@@ -20,11 +20,12 @@ endpoint URL, selected events, and an AES-GCM encrypted secret; creation and
 rotation return the plaintext secret once and never include it in lists,
 delivery records, audit metadata, or logs.
 
-Item mutations write matching delivery rows in the same database transaction.
-One in-process bounded delivery loop sends Standard Webhooks-style
-`Webhook-Id`, timestamp, and HMAC-SHA256 signatures, records redacted status,
-and retries a delivery at most five times with exponential delays. Delivery
-history is workspace-scoped and retained for one year. Endpoints require HTTPS,
+Item mutations write matching delivery and background-job rows in the same
+database transaction. One in-process bounded worker sends Standard
+Webhooks-style `Webhook-Id`, timestamp, and HMAC-SHA256 signatures, records
+redacted status, and retries a delivery at most five times with exponential
+delays. Delivery history is workspace-scoped and retained for one year.
+Endpoints require HTTPS,
 with loopback HTTP allowed for local development; literal and resolved private
 addresses are rejected.
 
@@ -33,7 +34,8 @@ addresses are rejected.
 Request loss cannot lose a committed matching delivery, and SQLite remains a
 single-instance deployment. Delivery is at-least-once, so consumers must
 deduplicate by `Webhook-Id`. Cross-replica delivery, operator-triggered replay,
-event expansion, and a general job system remain deferred.
+event expansion, and a shared broker remain deferred. The bounded queue is
+reusable for internal handlers but exposes no public job administration.
 
 ## Revisit when
 

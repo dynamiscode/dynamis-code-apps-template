@@ -292,7 +292,7 @@ func loggingMiddleware(next http.Handler, logger *slog.Logger) http.Handler {
 		attributes := []any{
 			"request_id", requestIDFrom(request.Context()),
 			"method", request.Method,
-			"path", request.URL.Path,
+			"path", logPath(request.URL.Path),
 			"status", status,
 			"duration_ms", time.Since(started).Milliseconds(),
 		}
@@ -304,6 +304,13 @@ func loggingMiddleware(next http.Handler, logger *slog.Logger) http.Handler {
 		}
 		logger.Info("http request", attributes...)
 	})
+}
+
+func logPath(path string) string {
+	if strings.HasPrefix(path, "/share/") {
+		return "/share/[redacted]"
+	}
+	return path
 }
 
 func validTraceparent(value string) bool {
