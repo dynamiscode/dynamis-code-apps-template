@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Corrected direct AWS SDK dependency metadata and added AWS/Smithy license notices.
 - Fixed failed external file objects retaining workspace quota until reconciliation
   and browser file misses returning 404 instead of 500.
 - Added optional Files profile with workspace-scoped private local/S3-compatible
