@@ -34,7 +34,8 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 	}
 	module, err := os.ReadFile(filepath.Join(output, "go.mod"))
 	if err != nil || !strings.Contains(string(module), "module example.com/acme/my-app") ||
-		strings.Contains(string(module), "example.com/dynamis-code/apps-template") {
+		strings.Contains(string(module), "example.com/dynamis-code/apps-template") ||
+		strings.Contains(string(module), "aws-sdk-go-v2") || strings.Contains(string(module), "smithy-go") {
 		t.Fatalf("generated go.mod = %q, error = %v", module, err)
 	}
 	readme, err := os.ReadFile(filepath.Join(output, "README.md"))

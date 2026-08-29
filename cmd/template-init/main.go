@@ -156,12 +156,10 @@ func run(args []string, now func() time.Time) error {
 	if output, err := command.CombinedOutput(); err != nil {
 		return fmt.Errorf("regenerate generated API contract: %s", strings.TrimSpace(string(output)))
 	}
-	if !hasProfile(selectedProfiles, "Agent") {
-		command := exec.Command("go", "mod", "tidy")
-		command.Dir = destination
-		if output, err := command.CombinedOutput(); err != nil {
-			return fmt.Errorf("prune generated module dependencies: %s", strings.TrimSpace(string(output)))
-		}
+	command = exec.Command("go", "mod", "tidy")
+	command.Dir = destination
+	if output, err := command.CombinedOutput(); err != nil {
+		return fmt.Errorf("prune generated module dependencies: %s", strings.TrimSpace(string(output)))
 	}
 	lock := lockFile{GeneratedAt: now().UTC(), Profiles: selectedProfiles}
 	lock.Template.Source = *source

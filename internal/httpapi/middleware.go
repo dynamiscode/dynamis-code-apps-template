@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"log/slog"
+	"mime"
 	"net/http"
 	"strings"
 	"time"
@@ -110,11 +111,11 @@ func securityHeadersMiddleware(next http.Handler, secure bool) http.Handler {
 func bodyLimitMiddleware(next http.Handler, maximum, fileMaximum int64) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		limit := maximum
-		if fileMaximum > 0 && isFileBodyPath(request.URL.Path) {
+		if fileMaximum > 0 && isFileBodyPath(request) {
 			limit = fileMaximum
-		}
-		if fileMaximum > 0 && request.Method == http.MethodPost && strings.HasSuffix(request.URL.Path, "/files") {
-			limit += maxMultipartOverheadBytes
+			if request.Method == http.MethodPost {
+				limit += maxMultipartOverheadBytes
+			}
 		}
 		if request.Body != nil {
 			request.Body = http.MaxBytesReader(writer, request.Body, limit)
@@ -123,9 +124,20 @@ func bodyLimitMiddleware(next http.Handler, maximum, fileMaximum int64) http.Han
 	})
 }
 
-func isFileBodyPath(path string) bool {
-	return (strings.HasPrefix(path, "/api/v1/workspaces/") && (strings.HasSuffix(path, "/files") || strings.HasSuffix(path, "/files/content"))) ||
-		(strings.HasPrefix(path, "/workspaces/") && strings.HasSuffix(path, "/files"))
+func isFileBodyPath(request *http.Request) bool {
+	path := request.URL.Path
+	if request.Method == http.MethodPut &&
+		strings.HasPrefix(path, "/api/v1/workspaces/") &&
+		strings.HasSuffix(path, "/files/content") {
+		return true
+	}
+	if request.Method != http.MethodPost ||
+		!strings.HasSuffix(path, "/files") ||
+		(!strings.HasPrefix(path, "/api/v1/workspaces/") && !strings.HasPrefix(path, "/workspaces/")) {
+		return false
+	}
+	mediaType, params, err := mime.ParseMediaType(request.Header.Get("Content-Type"))
+	return err == nil && mediaType == "multipart/form-data" && params["boundary"] != ""
 }
 
 type bufferedResponse struct {

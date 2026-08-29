@@ -42,6 +42,14 @@ func TestBodyLimitFileOverrideIsRequestLocal(t *testing.T) {
 	if ordinaryResponse.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("ordinary response = %d, want %d", ordinaryResponse.Code, http.StatusRequestEntityTooLarge)
 	}
+
+	jsonRequest := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+strings.Repeat("a", 32)+"/files", strings.NewReader("123456789"))
+	jsonRequest.Header.Set("Content-Type", "application/json")
+	jsonResponse := httptest.NewRecorder()
+	handler.ServeHTTP(jsonResponse, jsonRequest)
+	if jsonResponse.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("file initiation response = %d, want %d", jsonResponse.Code, http.StatusRequestEntityTooLarge)
+	}
 }
 
 func TestBodyLimitAllowsMultipartEnvelopeAroundFileLimit(t *testing.T) {

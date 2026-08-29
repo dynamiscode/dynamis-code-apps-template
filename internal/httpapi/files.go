@@ -221,7 +221,7 @@ func (h *handler) fileContent(writer http.ResponseWriter, request *http.Request)
 }
 
 func (h *handler) fileUploadResponse(request *http.Request, principal identity.Principal, file appfiles.File) (fileResponse, error) {
-	response := fileResponse{File: file, CompleteURL: "/api/v1/workspaces/" + file.WorkspaceID + "/files/" + file.ID + "/complete"}
+	response := fileResponse{File: file}
 	_, upload, err := h.files.PresignedPut(request.Context(), principal, file.WorkspaceID, file.ID)
 	if errors.Is(err, appfiles.ErrNotSupported) {
 		response.UploadURL = "/api/v1/workspaces/" + file.WorkspaceID + "/files/" + file.ID + "/content"
@@ -230,6 +230,7 @@ func (h *handler) fileUploadResponse(request *http.Request, principal identity.P
 	if err != nil {
 		return fileResponse{}, err
 	}
+	response.CompleteURL = "/api/v1/workspaces/" + file.WorkspaceID + "/files/" + file.ID + "/complete"
 	response.UploadURL = upload.URL
 	response.UploadHeaders = upload.Headers
 	return response, nil

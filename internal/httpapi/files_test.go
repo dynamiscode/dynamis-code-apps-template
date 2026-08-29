@@ -56,6 +56,29 @@ func TestFileRESTLifecycle(t *testing.T) {
 	}
 }
 
+func TestLocalInitiatedUploadOmitsCompletionURL(t *testing.T) {
+	handler, _, workspaceID, token := testHandler(t)
+	response := serveAuthorized(handler, http.MethodPost,
+		"/api/v1/workspaces/"+workspaceID+"/files/uploads",
+		`{"originalName":"notes.txt","size":5,"contentType":"text/plain"}`,
+		token, map[string]string{"Content-Type": "application/json"})
+	if response.Code != http.StatusCreated {
+		t.Fatalf("initiate = %d, %s", response.Code, response.Body.String())
+	}
+	var initiated fileResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &initiated); err != nil {
+		t.Fatal(err)
+	}
+	if initiated.CompleteURL != "" {
+		t.Fatalf("local completion URL = %q, want empty", initiated.CompleteURL)
+	}
+	uploaded := serveAuthorized(handler, http.MethodPut, initiated.UploadURL, "hello", token,
+		map[string]string{"Content-Type": "application/octet-stream"})
+	if uploaded.Code != http.StatusOK {
+		t.Fatalf("local upload = %d, %s", uploaded.Code, uploaded.Body.String())
+	}
+}
+
 func TestFileProblemMapsBodyLimit(t *testing.T) {
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/files", nil)
 	request = request.WithContext(withRequestID(request.Context(), "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
