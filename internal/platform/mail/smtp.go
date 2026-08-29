@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"net"
 	"net/mail"
 	"net/smtp"
@@ -87,7 +86,7 @@ func (s *SMTP) Send(ctx context.Context, recipient, subject, body string) error 
 	if err != nil {
 		return errors.New("SMTP message rejected")
 	}
-	message := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s\r\n", s.from, recipient, subject, body)
+	message := formatMessage(s.from, subject, body)
 	if _, err := writer.Write([]byte(message)); err != nil {
 		_ = writer.Close()
 		return errors.New("SMTP message write failed")
@@ -96,4 +95,8 @@ func (s *SMTP) Send(ctx context.Context, recipient, subject, body string) error 
 		return errors.New("SMTP message delivery failed")
 	}
 	return client.Quit()
+}
+
+func formatMessage(from, subject, body string) string {
+	return "From: " + from + "\r\nTo: undisclosed-recipients:;\r\nSubject: " + subject + "\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n" + body + "\r\n"
 }
