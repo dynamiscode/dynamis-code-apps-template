@@ -227,10 +227,16 @@ func (s *Service) BeginTOTPEnrollment(ctx context.Context, userID, sessionID, pa
 
 func (s *Service) CompleteTOTPEnrollment(ctx context.Context, sessionID, token, code string, audit AuditContext) ([]string, error) {
 	challenge, secret, err := s.loadChallenge(ctx, token, "totp_enrollment")
-	if err != nil || challenge.sessionID != sessionID {
+	if err != nil {
+		s.auditMFAChallengeFailure(ctx, token, "totp_enrollment", "totp_enrollment", audit)
+		return nil, ErrInvalidMFAChallenge
+	}
+	if challenge.sessionID != sessionID {
+		s.auditMFAFailure(ctx, challenge, "totp_enrollment", audit)
 		return nil, ErrInvalidMFAChallenge
 	}
 	if !s.reserveMFAAttempt(ctx, challenge.ID) {
+		s.auditMFAFailure(ctx, challenge, "totp_enrollment", audit)
 		return nil, ErrInvalidMFAChallenge
 	}
 	if !validTOTP(secret, code, s.now()) {
@@ -249,6 +255,8 @@ func (s *Service) CompleteTOTPEnrollment(ctx context.Context, sessionID, token, 
 		return nil, ErrInvalidMFAChallenge
 	}
 	if !s.consumeChallenge(ctx, tx, challenge.ID) {
+		_ = tx.Rollback()
+		s.auditMFAFailure(ctx, challenge, "totp_enrollment", audit)
 		return nil, ErrInvalidMFAChallenge
 	}
 	now := s.now().UTC()
@@ -310,7 +318,12 @@ func (s *Service) BeginPasskeyEnrollment(ctx context.Context, userID, sessionID,
 
 func (s *Service) CompletePasskeyEnrollment(ctx context.Context, userID, sessionID, token, name string, request *http.Request, audit AuditContext) ([]string, error) {
 	challenge, _, err := s.loadChallenge(ctx, token, "passkey_enrollment")
-	if err != nil || challenge.UserID != userID || challenge.sessionID != sessionID {
+	if err != nil {
+		s.auditMFAChallengeFailure(ctx, token, "passkey_enrollment", "passkey_enrollment", audit)
+		return nil, ErrInvalidMFAChallenge
+	}
+	if challenge.UserID != userID || challenge.sessionID != sessionID {
+		s.auditMFAFailure(ctx, challenge, "passkey_enrollment", audit)
 		return nil, ErrInvalidMFAChallenge
 	}
 	var session webauthnlib.SessionData
@@ -354,6 +367,8 @@ func (s *Service) CompletePasskeyEnrollment(ctx context.Context, userID, session
 		return nil, ErrInvalidMFAChallenge
 	}
 	if !s.consumeChallenge(ctx, tx, challenge.ID) {
+		_ = tx.Rollback()
+		s.auditMFAFailure(ctx, challenge, "passkey_enrollment", audit)
 		return nil, ErrInvalidMFAChallenge
 	}
 	passkeyID, err := id.New()
@@ -382,9 +397,11 @@ func (s *Service) CompletePasskeyEnrollment(ctx context.Context, userID, session
 func (s *Service) CompleteTOTPLogin(ctx context.Context, token, code string, audit AuditContext) (NewSession, error) {
 	challenge, secret, err := s.loadChallenge(ctx, token, "login")
 	if err != nil {
+		s.auditMFAChallengeFailure(ctx, token, "login", "totp", audit)
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
 	if !s.reserveMFAAttempt(ctx, challenge.ID) {
+		s.auditMFAFailure(ctx, challenge, "totp", audit)
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
 	if !validTOTP(secret, code, s.now()) {
@@ -397,9 +414,11 @@ func (s *Service) CompleteTOTPLogin(ctx context.Context, token, code string, aud
 func (s *Service) CompleteRecoveryLogin(ctx context.Context, token, code string, audit AuditContext) (NewSession, error) {
 	challenge, _, err := s.loadChallenge(ctx, token, "login")
 	if err != nil {
+		s.auditMFAChallengeFailure(ctx, token, "login", "recovery", audit)
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
 	if !s.reserveMFAAttempt(ctx, challenge.ID) {
+		s.auditMFAFailure(ctx, challenge, "recovery", audit)
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -417,6 +436,8 @@ func (s *Service) CompleteRecoveryLogin(ctx context.Context, token, code string,
 		return NewSession{}, ErrInvalidMFACode
 	}
 	if !s.consumeChallenge(ctx, tx, challenge.ID) {
+		_ = tx.Rollback()
+		s.auditMFAFailure(ctx, challenge, "recovery", audit)
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
 	result, err := s.exec(ctx, tx, "UPDATE mfa_recovery_codes SET used_at = ? WHERE id = ? AND used_at IS NULL", timestamp(s.now().UTC()), codeID)
@@ -448,9 +469,11 @@ func (s *Service) CompleteRecoveryLogin(ctx context.Context, token, code string,
 func (s *Service) CompletePasskeyLogin(ctx context.Context, token string, request *http.Request, audit AuditContext) (NewSession, error) {
 	challenge, _, err := s.loadChallenge(ctx, token, "login")
 	if err != nil {
+		s.auditMFAChallengeFailure(ctx, token, "login", "passkey", audit)
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
 	if challenge.webauthnJSON == "" {
+		s.auditMFAFailure(ctx, challenge, "passkey", audit)
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
 	var session webauthnlib.SessionData
@@ -494,6 +517,8 @@ func (s *Service) CompletePasskeyLogin(ctx context.Context, token string, reques
 		return NewSession{}, err
 	}
 	if !s.consumeChallenge(ctx, tx, challenge.ID) {
+		_ = tx.Rollback()
+		s.auditMFAFailure(ctx, challenge, "passkey", audit)
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
 	result, err := s.exec(ctx, tx, "UPDATE mfa_passkeys SET credential_json = ?, last_used_at = ? WHERE user_id = ? AND credential_id = ? AND revoked_at IS NULL", string(encoded), timestamp(s.now().UTC()), challenge.UserID, credentialID)
@@ -778,6 +803,18 @@ func (s *Service) reserveMFAAttempt(ctx context.Context, challengeID string) boo
 func (s *Service) auditMFAFailure(ctx context.Context, challenge loadedChallenge, method string, audit AuditContext) {
 	_ = s.audit(ctx, s.db, AuditEvent{EventType: "mfa.challenge.failed", ActorUserID: challenge.UserID, AuthMethod: method, TargetType: "mfa_challenge", TargetID: challenge.ID, Action: "mfa.challenge.complete", Outcome: "failure", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": method}), CreatedAt: s.now().UTC()})
 }
+
+func (s *Service) auditMFAChallengeFailure(ctx context.Context, token, purpose, method string, audit AuditContext) {
+	var challenge loadedChallenge
+	if err := s.queryRow(ctx, s.db,
+		"SELECT id, user_id FROM mfa_challenges WHERE token_hash = ? AND purpose = ?",
+		hashSecret(token), purpose,
+	).Scan(&challenge.ID, &challenge.UserID); err != nil {
+		return
+	}
+	s.auditMFAFailure(ctx, challenge, method, audit)
+}
+
 func (s *Service) consumeChallenge(ctx context.Context, tx *sql.Tx, challengeID string) bool {
 	now := timestamp(s.now().UTC())
 	result, err := s.exec(ctx, tx, "UPDATE mfa_challenges SET consumed_at = ? WHERE id = ? AND consumed_at IS NULL AND expires_at > ?", now, challengeID, now)

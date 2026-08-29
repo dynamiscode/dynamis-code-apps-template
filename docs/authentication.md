@@ -110,6 +110,8 @@ Enrolling a factor opts a user into MFA at local and OIDC login. Owners and
 administrators can additionally be required to use an enrolled factor for
 protected workspace operations with `MFA_REQUIRE_FOR_ADMINS=true`; ordinary
 members and viewers remain optional by default.
+Password changes also require the enrolled factor before issuing a replacement
+browser session.
 REST MFA endpoints use the existing session cookie/CSRF boundary and return no
 factor secrets after enrollment. MCP and CLI expose no MFA or secret flow.
 

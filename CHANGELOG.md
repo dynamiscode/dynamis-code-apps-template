@@ -10,7 +10,8 @@
   WebAuthn RP configuration validation, and the documented MFA login response.
 - Fixed MFA owner-policy enforcement for new workspaces, challenge expiry
   races, and browser return paths after MFA login.
-- Fixed optional enrolled-user MFA login and expired-session fresh-auth checks.
+- Fixed optional enrolled-user MFA login, password-change MFA reauthentication,
+  expired-session fresh-auth checks, and challenge failure auditing.
 
 - Added profile composition to application generation: Identity is required
   for Core, and selecting Agent includes its MCP and REST-only CLI surfaces;

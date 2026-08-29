@@ -225,6 +225,8 @@ func (h *handler) mfaProblem(writer http.ResponseWriter, request *http.Request, 
 		writeProblem(writer, request, http.StatusNotFound, "mfa-unavailable", "Multi-factor authentication is unavailable.")
 	case errors.Is(err, identity.ErrMFARequired), errors.Is(err, identity.ErrInvalidMFAChallenge), errors.Is(err, identity.ErrInvalidMFACode), errors.Is(err, identity.ErrLastMFAFactor):
 		writeProblem(writer, request, http.StatusUnauthorized, "mfa-invalid", "The multi-factor authentication request is invalid.")
+	case errors.Is(err, identity.ErrInvalidSession):
+		writeProblem(writer, request, http.StatusUnauthorized, "invalid-session", "The session is invalid or expired.")
 	case errors.Is(err, identity.ErrInvalidCredentials):
 		writeProblem(writer, request, http.StatusUnauthorized, "invalid-credentials", "Reauthentication failed.")
 	default:

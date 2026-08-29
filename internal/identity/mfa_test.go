@@ -183,9 +183,20 @@ func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	var expiredChallengeID string
+	if err := db.QueryRow("SELECT id FROM mfa_challenges WHERE token_hash = ?", hashSecret(expired.Token)).Scan(&expiredChallengeID); err != nil {
+		t.Fatal(err)
+	}
 	now = base.Add(mfaChallengeLifetime + time.Second)
 	if _, err := service.CompleteTOTPLogin(ctx, expired.Token, totpTestCode(enrollment.Secret, now), AuditContext{}); !errors.Is(err, ErrInvalidMFAChallenge) {
 		t.Fatalf("expired MFA challenge error = %v", err)
+	}
+	var expiredAuditCount int
+	if err := db.QueryRow("SELECT COUNT(*) FROM audit_events WHERE event_type = 'mfa.challenge.failed' AND target_id = ?", expiredChallengeID).Scan(&expiredAuditCount); err != nil {
+		t.Fatal(err)
+	}
+	if expiredAuditCount != 1 {
+		t.Fatalf("expired MFA challenge audit count = %d", expiredAuditCount)
 	}
 	now = base
 	late, err := service.BeginMFALogin(ctx, owner.UserID, AuditContext{})
