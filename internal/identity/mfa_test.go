@@ -83,6 +83,13 @@ func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
 	if _, err := service.AuthenticateAPIToken(ctx, ownerToken.Secret, WorkspaceRead, AuditContext{}); !errors.Is(err, ErrMFARequired) {
 		t.Fatalf("owner API token bypassed MFA policy: %v", err)
 	}
+	var policyAuditCount int
+	if err := db.QueryRow("SELECT COUNT(*) FROM audit_events WHERE event_type = 'mfa.policy.enforced'").Scan(&policyAuditCount); err != nil {
+		t.Fatal(err)
+	}
+	if policyAuditCount != 1 {
+		t.Fatalf("API-token MFA policy audit count = %d, want 1", policyAuditCount)
+	}
 	memberID := insertUser(t, service, db, "member-with-mfa@example.com")
 	memberSession, err := service.CreateSession(ctx, memberID, "local", "", time.Hour, AuditContext{})
 	if err != nil {
