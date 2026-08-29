@@ -33,6 +33,16 @@
       const result = {id: credential.id, rawId: encode(credential.rawId), type: credential.type, response: {clientDataJSON: encode(credential.response.clientDataJSON), attestationObject: encode(credential.response.attestationObject), transports: credential.response.getTransports ? credential.response.getTransports() : []}};
       const completed = await fetch("/api/v1/auth/mfa/passkeys/register", {method: "POST", headers: {"Content-Type": "application/json", "X-CSRF-Token": csrf, "X-MFA-Challenge": data.challenge, "X-MFA-Name": "Passkey"}, body: JSON.stringify(result)});
       if (!completed.ok) throw new Error();
+      const completedData = await completed.json();
+      if (Array.isArray(completedData.recoveryCodes) && completedData.recoveryCodes.length > 0) {
+        const output = document.getElementById("mfa-recovery-output");
+        const values = document.getElementById("mfa-recovery-values");
+        if (!output || !values) throw new Error();
+        values.textContent = completedData.recoveryCodes.join("\n");
+        output.hidden = false;
+        enrollment.hidden = true;
+        return;
+      }
       window.location.reload();
     } catch (_) { window.location.reload(); }
   });

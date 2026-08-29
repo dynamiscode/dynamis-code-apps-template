@@ -69,6 +69,11 @@
       <pre>{{range .MFARecoveryCodes}}{{.}}
 {{end}}</pre>
       {{end}}
+      <div id="mfa-recovery-output" hidden>
+        <h3>{{.T "security.mfa_recovery_codes"}}</h3>
+        <p>{{.T "security.mfa_store_recovery"}} {{.T "security.mfa_each_recovery_once"}}</p>
+        <pre id="mfa-recovery-values"></pre>
+      </div>
       {{end}}
     </section>
     {{if .OIDCProviders}}

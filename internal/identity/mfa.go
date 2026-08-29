@@ -81,7 +81,7 @@ func (s *Service) mfaRequiredForRoleQuery(ctx context.Context, queryer rowQuerye
 		return true, nil
 	}
 	var admins int
-	if err := s.queryRow(ctx, s.db, `
+	if err := s.queryRow(ctx, queryer, `
 		SELECT COUNT(*) FROM workspace_members
 		WHERE user_id = ? AND role IN ('owner', 'admin')
 	`, userID).Scan(&admins); err != nil {

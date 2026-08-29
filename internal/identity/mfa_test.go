@@ -98,6 +98,24 @@ func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
 	if _, err := service.CreateWorkspace(ctx, Principal{UserID: memberID, AuthMethod: "local", AuthLevel: AuthLevelPassword}, WorkspaceCreateInput{Name: "Member blocked"}, AuditContext{}); !errors.Is(err, ErrMFARequired) {
 		t.Fatalf("member password workspace creation error = %v", err)
 	}
+	secondWorkspaceID := "member-mfa-workspace"
+	if _, err := db.Exec("INSERT INTO workspaces (id, name, locale, created_at) VALUES (?, ?, ?, ?)", secondWorkspaceID, "Member workspace", "en", timestamp(now)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", owner.WorkspaceID, memberID, Admin, timestamp(now)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", secondWorkspaceID, memberID, Member, timestamp(now)); err != nil {
+		t.Fatal(err)
+	}
+	memberPrincipal := mustAuthorize(t, service, memberID, secondWorkspaceID, WorkspaceRead)
+	memberToken, err := service.CreateAPIToken(ctx, memberPrincipal, "member-automation", []Permission{WorkspaceRead}, nil, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.AuthenticateAPIToken(ctx, memberToken.Secret, WorkspaceRead, AuditContext{}); !errors.Is(err, ErrMFARequired) {
+		t.Fatalf("member API token policy error = %v", err)
+	}
 	pendingSession, err := service.CreateSession(ctx, owner.UserID, "local", "", time.Hour, AuditContext{})
 	if err != nil {
 		t.Fatal(err)
