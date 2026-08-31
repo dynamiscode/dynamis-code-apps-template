@@ -35,8 +35,10 @@ exception is open.
 
 The workspace home keeps brand, workspace, and account controls. The workspace
 sidebar shows `Home` above `Items` in the workspace context, with Settings separated by flexible space
-and anchored at the bottom. Settings routes show only their `Members & invitations`,
-`API tokens`, and `Export` sub-items. The workspace home exposes Items and
+and anchored at the bottom. Settings routes show `Members & invitations`,
+`API tokens`, and `Export`; owners and admins also see `Audit history`.
+The audit history uses a captioned table with scoped column headers and a
+bounded overflow wrapper for narrow screens. The workspace home exposes Items and
 Settings cards. The Items page provides `Back to Workspaces`, returning to the
 workspace selector. Settings pages provide `Back to home`, returning to the
 current workspace home.

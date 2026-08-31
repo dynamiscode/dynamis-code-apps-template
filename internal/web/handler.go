@@ -72,6 +72,7 @@ type pageData struct {
 	Invitations                      []identity.Invitation
 	Tokens                           []identity.APIToken
 	Sessions                         []identity.Session
+	AuditHistory                     []identity.AuditHistoryEntry
 	Profile                          identity.UserProfile
 	NotificationPreferences          []identity.NotificationPreference
 	WorkspaceNotificationPreferences []identity.NotificationPreference
@@ -312,6 +313,7 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/provisioning", h.provisioningMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/export", h.exportPage)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/export/download", h.exportWorkspace)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/audit", h.auditHistoryPage)
 	mux.HandleFunc("GET /sessions", h.sessionsPage)
 	mux.HandleFunc("POST /sessions/{sessionId}", h.sessionMutation)
 	mux.HandleFunc("GET /security", h.securityPage)

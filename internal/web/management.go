@@ -427,6 +427,29 @@ func (h *Handler) exportPage(writer http.ResponseWriter, request *http.Request) 
 	})
 }
 
+func (h *Handler) auditHistoryPage(writer http.ResponseWriter, request *http.Request) {
+	workspaceID := request.PathValue("workspaceId")
+	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceExport)
+	if !ok {
+		return
+	}
+	history, err := h.identity.ListAuditHistory(request.Context(), principal, workspaceID)
+	if err != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	}
+	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
+	if err != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	}
+	h.render(writer, http.StatusOK, "audit-history.html", pageData{
+		Title: "Audit history", NavPage: "audit", NavSection: "settings", CSRF: csrf,
+		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
+		AuditHistory: history,
+	})
+}
+
 func (h *Handler) exportWorkspace(writer http.ResponseWriter, request *http.Request) {
 	workspaceID := request.PathValue("workspaceId")
 	principal, _, _, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceExport)
