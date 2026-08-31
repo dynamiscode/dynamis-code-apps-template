@@ -86,6 +86,8 @@ type pageData struct {
 	InvitationAuthenticated          bool
 	InvitationURL                    string
 	TokenSecret                      string
+	SCIMEndpoint                     string
+	SCIMTokenSecret                  string
 	DeliveryWarning                  string
 	CanManage                        bool
 	CanTransfer                      bool
@@ -306,6 +308,8 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/tokens", h.tokensPage)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/tokens", h.tokenMutation)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/tokens/{tokenId}", h.tokenMutation)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/provisioning", h.provisioningPage)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/provisioning", h.provisioningMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/export", h.exportPage)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/export/download", h.exportWorkspace)
 	mux.HandleFunc("GET /sessions", h.sessionsPage)

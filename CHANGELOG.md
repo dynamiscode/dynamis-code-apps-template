@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Added the owner/admin browser Settings → Provisioning page for SCIM endpoint
+  instructions and dedicated credential create/rotate/revoke lifecycle, with
+  one-time secret rendering, CSRF protection, no-store responses, localization,
+  workspace isolation, and WebMCP exclusion; SCIM Users and Groups remain
+  REST/IdP-only.
 - Added optional MFA with WebAuthn/passkeys as the primary strong factor, TOTP
   fallback, one-time hashed recovery codes, encrypted TOTP storage, revocable
   passkeys, replay-protected challenges, MFA session levels, admin policy

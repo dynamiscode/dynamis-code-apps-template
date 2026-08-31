@@ -45,6 +45,7 @@ header { background: var(--surface); border-bottom: 1px solid #ccd3dd; }
 .sidebar-nav .nav-label:first-child { margin-top: 0; }
 main { width: min(64rem, 100%); margin: 0 auto; padding: 2rem clamp(1rem, 3vw, 2rem); }
 .narrow { width: min(32rem, 100%); }
+.breakable { overflow-wrap: anywhere; }
 .brand { font-weight: 800; text-decoration: none; }
 .button { display: inline-flex; align-items: center; min-height: 2.75rem; padding: .45rem .65rem; border-radius: .25rem; background: var(--accent); color: #fff; font-weight: 700; text-decoration: none; }
 .button:hover { background: #103d80; color: #fff; }

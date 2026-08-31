@@ -64,7 +64,8 @@ becomes its owner. The browser home page exposes workspace creation and membersh
 listing. Workspace management is available through the Settings screens at
 `/workspaces/{workspaceId}/settings/members`,
 `/workspaces/{workspaceId}/settings/invitations`,
-`/workspaces/{workspaceId}/settings/tokens`, and
+`/workspaces/{workspaceId}/settings/tokens`,
+`/workspaces/{workspaceId}/settings/provisioning`, and
 `/workspaces/{workspaceId}/settings/export`;
 the export screen's `Download JSON` action uses
 `/workspaces/{workspaceId}/settings/export/download`. `/sessions` manages the
@@ -183,7 +184,10 @@ and supports Users and Groups. Owners or admins create/revoke the dedicated
 workspace credential with `POST`/`DELETE
 /api/v1/workspaces/{workspaceId}/scim-token`; its secret is shown once and
 stored as a SHA-256 hash. It is never accepted as an ordinary API token.
-Browser, CLI, MCP, and WebMCP surfaces do not manage SCIM.
+Owners and admins can also manage that credential from the browser Settings →
+Provisioning page. The browser does not provide a SCIM directory; Users and
+Groups remain REST/IdP-only. CLI, MCP, and WebMCP surfaces do not manage SCIM
+or expose its credentials.
 
 SCIM normalizes `userName` and email to the account email and keeps a stable
 workspace external ID. Account email, `userName`, and `displayName` are
