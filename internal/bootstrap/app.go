@@ -166,7 +166,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	}
 	webHandler, err := web.NewHandlerWithServicesAndFilesAndSharing(
 		identityService, itemService, sharingService, portabilityService, oidcRegistry, cfg.HTTP,
-		fileService, cfg.Bootstrap.SetupToken, cfg.PublicURL, mailer,
+		fileService, cfg.Bootstrap.SetupToken, cfg.PublicURL, mailer, webhookService,
 	)
 	if err != nil {
 		db.Close()
