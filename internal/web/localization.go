@@ -79,7 +79,7 @@ func localizedLegacy(catalog *i18n.Catalog, locale i18n.Locale, value string) st
 		"Remote setup required": "errors.remote_setup", "Workspaces": "workspace.workspaces",
 		"Workspace home": "workspace.home", "Members": "members.members",
 		"Invitations": "invitations.invitations", "API tokens": "tokens.tokens",
-		"Sessions": "sessions.sessions", "Security": "security.security", "Multi-factor authentication": "security.mfa_title", "Export": "navigation.export",
+		"Sessions": "sessions.sessions", "Security": "security.security", "Multi-factor authentication": "security.mfa_title", "Export": "navigation.export", "Audit history": "audit.history",
 		"Account": "account.account", "Notifications": "notifications.notifications",
 		"Reset password": "account.reset_password", "Choose a new password": "account.new_password",
 		"Password reset": "account.reset_password", "Email verification": "account.email_verification",

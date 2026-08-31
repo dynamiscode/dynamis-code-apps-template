@@ -507,7 +507,8 @@ func TestBrowserPagesRenderSpanishDocuments(t *testing.T) {
 		"/", "/workspaces/" + workspaceID, "/workspaces/" + workspaceID + "/items",
 		"/workspaces/" + workspaceID + "/settings/general", "/workspaces/" + workspaceID + "/settings/members",
 		"/workspaces/" + workspaceID + "/settings/invitations", "/workspaces/" + workspaceID + "/settings/tokens",
-		"/workspaces/" + workspaceID + "/settings/export", "/settings/language", "/sessions", "/security",
+		"/workspaces/" + workspaceID + "/settings/export", "/workspaces/" + workspaceID + "/settings/audit",
+		"/settings/language", "/sessions", "/security",
 	}
 	for _, path := range paths {
 		response := requestFrom(handler, http.MethodGet, path, nil, cookies, map[string]string{"Accept-Language": "en"}, "example.com", "192.0.2.1:1234")
@@ -695,12 +696,89 @@ func TestCriticalPagesAccessibilityContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	for _, target := range []string{"/", "/workspaces/" + workspaceID, "/workspaces/" + workspaceID + "/items"} {
+	for _, target := range []string{"/", "/workspaces/" + workspaceID, "/workspaces/" + workspaceID + "/items", "/workspaces/" + workspaceID + "/settings/audit"} {
 		response := request(handler, http.MethodGet, target, nil, cookies, nil)
 		assertAccessiblePage(t, response.Body.String(), "")
 	}
 	login := request(handler, http.MethodGet, "/login", nil, nil, nil)
 	assertAccessiblePage(t, login.Body.String(), "Email")
+}
+
+func TestWebAuditHistoryIsScopedRedactedAndNotWebMCP(t *testing.T) {
+	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	ctx := context.Background()
+	if err := auth.RecordAudit(ctx, identity.AuditEvent{
+		EventType:     "test.audit.visible",
+		ActorUserID:   owner.UserID,
+		AuthMethod:    "session",
+		WorkspaceID:   workspaceID,
+		TargetType:    "workspace",
+		TargetID:      "target-secret",
+		Action:        "audit.visible",
+		Outcome:       "success",
+		RequestID:     "request-secret",
+		SourceAddress: "198.51.100.9",
+		Metadata:      `{"invite_secret":"invite-secret","signed_url":"https://example.test/signed?token=signed-secret"}`,
+		CreatedAt:     time.Now().UTC(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	page := request(handler, http.MethodGet, "/workspaces/"+workspaceID+"/settings/audit", nil, cookies, nil)
+	body := page.Body.String()
+	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" ||
+		!strings.Contains(body, "Audit history") || !strings.Contains(body, "test.audit.visible") ||
+		!strings.Contains(body, "audit.visible") || strings.Contains(body, "target-secret") ||
+		strings.Contains(body, "request-secret") || strings.Contains(body, "198.51.100.9") ||
+		strings.Contains(body, "invite-secret") || strings.Contains(body, "example.test") || strings.Contains(body, "signed-secret") ||
+		strings.Contains(body, "/assets/app.js") || strings.Contains(body, "data-webmcp-page") {
+		t.Fatalf("audit page = %d, headers=%v, body=%s", page.Code, page.Header(), body)
+	}
+	assertAccessiblePage(t, body, "Audit history")
+
+	invitations, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.InvitationsManage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	invitation, err := auth.CreateInvitation(ctx, invitations, "viewer@example.com", identity.Viewer, time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	viewerID, _, err := auth.CreateInvitedLocalUser(ctx, invitation.Secret, "viewer-long-password", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	viewerSession, err := auth.CreateSession(ctx, viewerID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	viewerResponse := request(handler, http.MethodGet, "/workspaces/"+workspaceID+"/settings/audit", nil, []*http.Cookie{
+		{Name: "session", Value: viewerSession.Secret}, {Name: "csrf", Value: viewerSession.CSRFSecret},
+	}, nil)
+	if viewerResponse.Code != http.StatusForbidden {
+		t.Fatalf("viewer audit page = %d, %s", viewerResponse.Code, viewerResponse.Body.String())
+	}
+	viewerSettings := request(handler, http.MethodGet, "/workspaces/"+workspaceID+"/settings/members", nil, []*http.Cookie{
+		{Name: "session", Value: viewerSession.Secret}, {Name: "csrf", Value: viewerSession.CSRFSecret},
+	}, nil)
+	if viewerSettings.Code != http.StatusOK || strings.Contains(viewerSettings.Body.String(), "/settings/audit") {
+		t.Fatalf("viewer settings navigation = %d, %s", viewerSettings.Code, viewerSettings.Body.String())
+	}
+
+	otherWorkspace, err := auth.CreateWorkspace(ctx, identity.Principal{
+		UserID: viewerID, AuthMethod: "session",
+	}, identity.WorkspaceCreateInput{Name: "Viewer workspace"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	crossWorkspace := request(handler, http.MethodGet, "/workspaces/"+otherWorkspace+"/settings/audit", nil, cookies, nil)
+	if crossWorkspace.Code != http.StatusForbidden {
+		t.Fatalf("cross-workspace audit page = %d, %s", crossWorkspace.Code, crossWorkspace.Body.String())
+	}
 }
 
 func TestTokensPageLabelsWorkspaceUpdateScope(t *testing.T) {
@@ -798,6 +876,7 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 		{workspaceRoot + "/settings/invitations", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/members" + `"`, "Workspace settings"},
 		{workspaceRoot + "/settings/tokens", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/tokens" + `"`, "Workspace settings"},
 		{workspaceRoot + "/settings/export", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/export" + `"`, "Workspace settings"},
+		{workspaceRoot + "/settings/audit", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/audit" + `"`, "Workspace settings"},
 	} {
 		body := request(handler, http.MethodGet, page.path, nil, cookies, nil).Body.String()
 		if !strings.Contains(body, `<nav class="sidebar-nav" aria-label="`+page.sidebarName+`">`) ||
@@ -815,7 +894,7 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 	if settingsRoot.Code != http.StatusSeeOther || settingsRoot.Header().Get("Location") != workspaceRoot+"/settings/members" {
 		t.Fatalf("settings root = %d, %s", settingsRoot.Code, settingsRoot.Header().Get("Location"))
 	}
-	for _, page := range []string{workspaceRoot + "/settings/members", workspaceRoot + "/settings/invitations", workspaceRoot + "/settings/tokens", workspaceRoot + "/settings/export"} {
+	for _, page := range []string{workspaceRoot + "/settings/members", workspaceRoot + "/settings/invitations", workspaceRoot + "/settings/tokens", workspaceRoot + "/settings/export", workspaceRoot + "/settings/audit"} {
 		body := request(handler, http.MethodGet, page, nil, cookies, nil).Body.String()
 		if strings.Contains(body, `>Items<`) || strings.Contains(body, `href="`+workspaceRoot+`/settings">Settings`) || strings.Contains(body, `<nav class="sidebar-nav" aria-label="Workspace navigation">`) || !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `API tokens`) || !strings.Contains(body, `>Export<`) || !strings.Contains(body, `href="`+workspaceRoot+`">← Back to home`) {
 			t.Errorf("%s lacks expanded settings navigation", page)
@@ -865,6 +944,7 @@ func TestWebBaselineManagementRoutes(t *testing.T) {
 		"/workspaces/" + workspaceID + "/settings/invitations",
 		"/workspaces/" + workspaceID + "/settings/tokens",
 		"/sessions", "/security", "/workspaces/" + workspaceID + "/settings/export",
+		"/workspaces/" + workspaceID + "/settings/audit",
 	} {
 		response := request(handler, http.MethodGet, target, nil, cookies, nil)
 		if response.Code != http.StatusOK {

@@ -66,6 +66,8 @@ listing. Workspace management is available through the Settings screens at
 `/workspaces/{workspaceId}/settings/invitations`,
 `/workspaces/{workspaceId}/settings/tokens`, and
 `/workspaces/{workspaceId}/settings/export`;
+`/workspaces/{workspaceId}/settings/audit` is the read-only audit history
+for authorized owners and administrators;
 the export screen's `Download JSON` action uses
 `/workspaces/{workspaceId}/settings/export/download`. `/sessions` manages the
 current user's browser sessions. `/account` manages the profile, locale,
@@ -158,6 +160,11 @@ Checks deny by default and require an explicit workspace. Tokens are
 intersected with the user's current role on every use. Owners cannot be
 removed or demoted through ordinary membership changes; ownership transfer is
 the only path and demotes the previous owner to administrator.
+
+The read-only Settings → Audit history page reuses `workspace:export`, so only
+current owners and administrators may view the bounded history for that
+workspace. Members, viewers, missing memberships, and cross-workspace requests
+are denied.
 
 ## Invitations and API tokens
 

@@ -36,7 +36,7 @@ durable production data and records its deployment-specific evidence.
 | Long-running operations | bootstrap, triggered | 06 | not applicable | Current work is request-bounded; [trigger and rationale](data-lifecycle.md#portability) |
 | Realtime delivery | bootstrap, recurring | 04 | conforming | [SSE contract](web.md#realtime-contract), [scope/reconnect/heartbeat/limit tests](../internal/web/handler_test.go) |
 | Quotas and resource limits | bootstrap, operational | 06 | conforming | [Limit tests](../internal/httpapi/handler_test.go), [session tests](../internal/identity/service_test.go), [resource limits](operations.md#health-telemetry-and-limits) |
-| Audit events | bootstrap, recurring | 02, 06 | conforming | [Identity audit tests](../internal/identity/service_test.go), [retention tests](../internal/platform/maintenance/maintenance_test.go), [access/deletion rules](data-lifecycle.md) |
+| Audit events | bootstrap, recurring | 02, 04, 06 | conforming | [Identity audit tests](../internal/identity/audit_test.go), [browser audit tests](../internal/web/handler_test.go), [retention tests](../internal/platform/maintenance/maintenance_test.go), [access/deletion rules](data-lifecycle.md), [decision](decisions/0006-workspace-audit-history.md) |
 | Workspace webhooks | triggered, recurring | 08-09 | conforming | [Decision](decisions/0004-webhooks.md), [REST contract](api.md#webhooks), [service tests](../internal/webhooks/service_test.go), [operations](operations.md#webhook-delivery) |
 | Background jobs | triggered, recurring | 09 | conforming | [Decision](decisions/0005-background-jobs.md), [queue tests](../internal/jobs/queue_test.go), [migration](../internal/platform/database/migrations/000010_background_jobs.sql), [operations](operations.md#health-telemetry-and-limits) |
 | Bounded public Item sharing | triggered, recurring | 09 | conforming | [Decision](decisions/0005-public-sharing.md), [web contract](web.md), [sharing tests](../internal/sharing/service_test.go), [browser tests](../internal/web/handler_test.go), [lifecycle](data-lifecycle.md) |
@@ -197,7 +197,8 @@ Verified 2026-08-25 with Go 1.27.0, SQLite, PostgreSQL 14.24, and native
   exclusions, audit outcomes, permanent item deletion, and documented import
   and identity-lifecycle boundaries
 - browser export download is exposed while backup, restore, maintenance,
-  import, audit administration, and deletion remain outside browser scope
+  import, audit administration, and deletion remain outside browser scope;
+  owners/admins have a separate redacted read-only audit history page
 - transaction-safe retention, interrupted migration rollback, checksummed
   SQLite snapshot and PostgreSQL dump, isolated known-record restore, and
   stale/corrupt evidence rejection
@@ -268,6 +269,20 @@ mapping, workspace-scoped deactivation revocation, safe errors, audit redaction,
 and final-owner protection. PostgreSQL identity
 and migration checks cover migrations 000013-000014 and the
 provisioning/deactivation path when `POSTGRES_TEST_URL` is configured.
+
+## Workspace audit history evidence
+
+Verified 2026-08-29 with SQLite:
+
+- owners and admins can read only their workspace's latest 100 audit events
+  through the shared identity use case and Settings page; members, viewers,
+  missing memberships, and cross-workspace requests are denied
+- the browser projection omits metadata, workspace and target IDs, request IDs,
+  and source addresses; no credentials, invitation values, signed URLs, or
+  WebMCP controls are rendered
+- fixed ordering, localization parity, semantic table markup, `no-store`
+  caching, ordinary navigation, and focused identity/browser regression tests
+  pass; REST, CLI, MCP, pagination, and filtering remain intentionally omitted
 
 Bounded Item sharing passes hashed-token storage, default and maximum expiry,
 explicit write authorization, safe title/status-only public projection,

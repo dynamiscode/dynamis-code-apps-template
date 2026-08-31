@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added a read-only, workspace-scoped Settings audit history for owners and
+  admins, limited to the latest 100 redacted events with no REST, MCP, or
+  WebMCP surface.
 - Added optional MFA with WebAuthn/passkeys as the primary strong factor, TOTP
   fallback, one-time hashed recovery codes, encrypted TOTP storage, revocable
   passkeys, replay-protected challenges, MFA session levels, admin policy
