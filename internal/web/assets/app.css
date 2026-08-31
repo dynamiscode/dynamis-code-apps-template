@@ -54,6 +54,7 @@ label { display: block; font-weight: 700; margin-top: .75rem; }
 input, select, button { font: inherit; min-height: 2.75rem; border: 2px solid #657287; border-radius: .25rem; padding: .45rem .65rem; background: var(--surface); color: var(--ink); }
 input, select { width: 100%; }
 button { border-color: var(--accent); background: var(--accent); color: #fff; font-weight: 700; cursor: pointer; }
+main form:not(.inline) > :is(input:not([type="hidden"]), select, textarea) + button { margin-top: .75rem; }
 .secondary { background: #fff; color: var(--accent); }
 .danger { background: var(--danger); border-color: var(--danger); }
 :focus-visible { outline: .2rem solid #fff; outline-offset: 0; box-shadow: 0 0 0 .4rem #111827; }
