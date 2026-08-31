@@ -346,6 +346,20 @@ type AuditEvent struct {
 	CreatedAt     time.Time
 }
 
+// AuditHistoryLimit bounds the browser audit history projection.
+const AuditHistoryLimit = 100
+
+// AuditHistoryEntry contains only fields safe for the workspace browser.
+type AuditHistoryEntry struct {
+	EventType   string
+	ActorUserID string
+	AuthMethod  string
+	TargetType  string
+	Action      string
+	Outcome     string
+	CreatedAt   time.Time
+}
+
 type CookiePolicy struct {
 	HTTPOnly bool
 	SameSite http.SameSite

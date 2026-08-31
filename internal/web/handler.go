@@ -72,6 +72,7 @@ type pageData struct {
 	Invitations                      []identity.Invitation
 	Tokens                           []identity.APIToken
 	Sessions                         []identity.Session
+	AuditHistory                     []identity.AuditHistoryEntry
 	Profile                          identity.UserProfile
 	NotificationPreferences          []identity.NotificationPreference
 	WorkspaceNotificationPreferences []identity.NotificationPreference
@@ -86,6 +87,8 @@ type pageData struct {
 	InvitationAuthenticated          bool
 	InvitationURL                    string
 	TokenSecret                      string
+	SCIMEndpoint                     string
+	SCIMTokenSecret                  string
 	DeliveryWarning                  string
 	CanManage                        bool
 	CanTransfer                      bool
@@ -306,8 +309,11 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/tokens", h.tokensPage)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/tokens", h.tokenMutation)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/tokens/{tokenId}", h.tokenMutation)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/provisioning", h.provisioningPage)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/provisioning", h.provisioningMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/export", h.exportPage)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/export/download", h.exportWorkspace)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/audit", h.auditHistoryPage)
 	mux.HandleFunc("GET /sessions", h.sessionsPage)
 	mux.HandleFunc("POST /sessions/{sessionId}", h.sessionMutation)
 	mux.HandleFunc("GET /security", h.securityPage)

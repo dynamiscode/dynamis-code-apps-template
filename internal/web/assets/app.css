@@ -45,6 +45,7 @@ header { background: var(--surface); border-bottom: 1px solid #ccd3dd; }
 .sidebar-nav .nav-label:first-child { margin-top: 0; }
 main { width: min(64rem, 100%); margin: 0 auto; padding: 2rem clamp(1rem, 3vw, 2rem); }
 .narrow { width: min(32rem, 100%); }
+.breakable { overflow-wrap: anywhere; }
 .brand { font-weight: 800; text-decoration: none; }
 .button { display: inline-flex; align-items: center; min-height: 2.75rem; padding: .45rem .65rem; border-radius: .25rem; background: var(--accent); color: #fff; font-weight: 700; text-decoration: none; }
 .button:hover { background: #103d80; color: #fff; }
@@ -64,6 +65,12 @@ main form:not(.inline) > :is(input:not([type="hidden"]), select, textarea) + but
 .row, .actions { display: flex; gap: .75rem; align-items: end; }
 .row input { flex: 1; }
 .error { border-left: .35rem solid var(--danger); background: #fff0f1; padding: .75rem; font-weight: 700; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; }
+th, td { padding: .65rem; border-bottom: 1px solid #ccd3dd; text-align: left; vertical-align: top; }
+th { background: var(--surface); }
+code { overflow-wrap: anywhere; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 @media (max-width: 38rem) {
   .topbar { flex-wrap: wrap; }
   .topbar-context { order: 2; flex-basis: 100%; }

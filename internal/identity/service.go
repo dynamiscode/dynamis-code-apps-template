@@ -415,6 +415,50 @@ func (s *Service) ListMembers(
 	}
 	return members, rows.Err()
 }
+
+func (s *Service) ListAuditHistory(
+	ctx context.Context,
+	actor Principal,
+	workspaceID string,
+) ([]AuditHistoryEntry, error) {
+	if _, err := s.AuthorizePrincipal(ctx, actor, workspaceID, WorkspaceExport); err != nil {
+		return nil, ErrForbidden
+	}
+	rows, err := s.db.QueryContext(ctx, s.bind(`
+		SELECT event_type, actor_user_id, auth_method, target_type,
+			action, outcome, created_at
+		FROM audit_events
+		WHERE workspace_id = ?
+		ORDER BY created_at DESC, id DESC
+		LIMIT ?
+	`), workspaceID, AuditHistoryLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	history := make([]AuditHistoryEntry, 0, AuditHistoryLimit)
+	for rows.Next() {
+		var entry AuditHistoryEntry
+		var actorUserID sql.NullString
+		var createdAt string
+		if err := rows.Scan(
+			&entry.EventType, &actorUserID, &entry.AuthMethod, &entry.TargetType,
+			&entry.Action, &entry.Outcome, &createdAt,
+		); err != nil {
+			return nil, err
+		}
+		if actorUserID.Valid {
+			entry.ActorUserID = actorUserID.String
+		}
+		entry.CreatedAt, err = parseTimestamp(createdAt)
+		if err != nil {
+			return nil, err
+		}
+		history = append(history, entry)
+	}
+	return history, rows.Err()
+}
+
 func (s *Service) authorizePrincipal(
 	ctx context.Context,
 	queryer rowQueryer,
