@@ -4,7 +4,7 @@ The browser interface is server-rendered and reaches the same application use
 cases as REST. Sign in at `/login`, create or choose a workspace, then use the
 workspace home and sidebar. `/workspaces/{workspaceId}` is the workspace home;
 Items is its resource surface and Settings is a nested route
-group for members, invitations, API tokens, export, and audit history.
+group for members, invitations, API tokens, SCIM provisioning, export, and audit history.
 `/account`, `/notifications`, `/sessions`, and `/security` cover account and
 security settings. The authenticated shell uses
 a top bar for brand, workspace switching, and account actions, plus a context-aware
@@ -52,6 +52,11 @@ Baseline browser surfaces:
   safe invalid, expired, revoked, duplicate, and wrong-email failures.
 - `/workspaces/{workspaceId}/settings/tokens` manages current-user scoped tokens and
   shows a new secret once.
+- `/workspaces/{workspaceId}/settings/provisioning` is restricted to workspace
+  owners and admins. It shows the workspace SCIM endpoint and setup instructions,
+  creates or rotates the dedicated SCIM credential with its secret shown once,
+  and revokes it through ordinary CSRF-protected forms. The page is no-store and
+  has no WebMCP enhancement; SCIM Users and Groups remain REST/IdP-only.
 - `/sessions` lists metadata and revokes sessions; `/security` starts
   reauthenticated OIDC linking.
 - `/account` edits profile preferences, changes a local password, requests email
@@ -78,7 +83,7 @@ Baseline browser surfaces:
 
 Forms keep ordinary navigation as fallback. HTMX enhances item fragments only.
 Secret-bearing responses use `no-store`; list pages never render session,
-CSRF, invitation, or token secrets.
+CSRF, invitation, API-token, or SCIM credential secrets.
 
 Public sharing uses `private, no-store`, `no-referrer`, and
 `X-Robots-Tag: noindex, nofollow, noarchive`. The existing per-source HTTP
@@ -89,13 +94,14 @@ The workspace sidebar exposes `Home` above `Items` in the workspace context.
 Home is active at `/workspaces/{workspaceId}`. Settings uses the nested
 `/workspaces/{workspaceId}/settings` route and shows only its `Members & invitations`,
 `API tokens`, and `Export` sub-items. Owners and admins also see
-`Audit history`. The Settings group is separated by flexible space and
-anchored at the bottom in the workspace context. The members screen and
+`Provisioning (SCIM)` and `Audit history`. The Settings group is separated by
+flexible space and anchored at the bottom in the workspace context. The members screen and
 invitations screen retain local tabs behind the combined entry. The Items page offers
 `Back to Workspaces`, returning to the workspace selector; each Settings page offers
 `Back to home`, returning to the current workspace home. The native workspace switcher and account menu use ordinary
 `details` controls, so they work without JavaScript. On narrow screens the
-settings sidebar becomes a compact stacked navigation region. Item deletion is
+settings sidebar becomes a compact stacked navigation region. Provisioning is
+shown only to owners and admins. Item deletion is
 explicitly permanent and asks for confirmation when the browser script is
 available; ordinary form submission remains available without it.
 
@@ -137,8 +143,8 @@ Schemas are explicit, bounded, and versioned. Tools expose no passwords,
 login/logout or reauthentication fields, OIDC state, invitation URLs or
 secrets, token secrets, session or CSRF values, hidden form fields, operator
 backup/restore/import/maintenance/audit controls, or export content. Invitation
-creation/resend/acceptance/registration and token creation/secret display stay
-outside WebMCP.
+creation/resend/acceptance/registration, token creation/secret display, and SCIM
+credential setup stay outside WebMCP.
 
 Preparation never calls `submit()` or `requestSubmit()`, including for role,
 ownership, removal, revocation, and delete tools. The user completes the

@@ -8,6 +8,7 @@ import (
 	"crypto/sha1"
 	"encoding/base32"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -507,7 +508,8 @@ func TestBrowserPagesRenderSpanishDocuments(t *testing.T) {
 		"/", "/workspaces/" + workspaceID, "/workspaces/" + workspaceID + "/items",
 		"/workspaces/" + workspaceID + "/settings/general", "/workspaces/" + workspaceID + "/settings/members",
 		"/workspaces/" + workspaceID + "/settings/invitations", "/workspaces/" + workspaceID + "/settings/tokens",
-		"/workspaces/" + workspaceID + "/settings/export", "/workspaces/" + workspaceID + "/settings/audit",
+		"/workspaces/" + workspaceID + "/settings/provisioning", "/workspaces/" + workspaceID + "/settings/export",
+		"/workspaces/" + workspaceID + "/settings/audit",
 		"/settings/language", "/sessions", "/security",
 	}
 	for _, path := range paths {
@@ -804,6 +806,161 @@ func TestTokensPageLabelsWorkspaceUpdateScope(t *testing.T) {
 	}
 }
 
+func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
+	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	path := "/workspaces/" + workspaceID + "/settings/provisioning"
+
+	page := request(handler, http.MethodGet, path, nil, cookies, nil)
+	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" ||
+		!strings.Contains(page.Body.String(), "http://example.com/scim/v2/"+workspaceID) ||
+		strings.Contains(page.Body.String(), "/assets/app.js") || strings.Contains(page.Body.String(), "data-webmcp-page") {
+		t.Fatalf("SCIM provisioning page = %d, headers=%v, body=%s", page.Code, page.Header(), page.Body.String())
+	}
+
+	withoutCSRF := request(handler, http.MethodPost, path, url.Values{"action": {"create"}}, cookies, nil)
+	if withoutCSRF.Code != http.StatusForbidden {
+		t.Fatalf("SCIM missing CSRF = %d", withoutCSRF.Code)
+	}
+	created := request(handler, http.MethodPost, path, url.Values{
+		"action": {"create"}, "csrf": {session.CSRFSecret},
+	}, cookies, nil)
+	secret := extractSCIMSecret(t, created.Body.String())
+	if created.Code != http.StatusOK || created.Header().Get("Cache-Control") != "no-store" ||
+		strings.Count(created.Body.String(), secret) != 1 || !strings.Contains(created.Body.String(), "Copy this credential now") {
+		t.Fatalf("SCIM create = %d, headers=%v, body=%s", created.Code, created.Header(), created.Body.String())
+	}
+	if _, err := auth.AuthenticateSCIMToken(context.Background(), secret, workspaceID); err != nil {
+		t.Fatalf("created SCIM credential = %v", err)
+	}
+	scimPrincipal, err := auth.AuthenticateSCIMToken(context.Background(), secret, workspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scimUser, err := auth.CreateSCIMUser(context.Background(), scimPrincipal, identity.SCIMUserInput{
+		UserName: "provisioned@example.com",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	adminSession, err := auth.CreateSession(context.Background(), scimUser.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	adminCookies := []*http.Cookie{{Name: "session", Value: adminSession.Secret}, {Name: "csrf", Value: adminSession.CSRFSecret}}
+	if adminPage := request(handler, http.MethodGet, path, nil, adminCookies, nil); adminPage.Code != http.StatusForbidden {
+		t.Fatalf("SCIM member page = %d, %s", adminPage.Code, adminPage.Body.String())
+	}
+	ownerPrincipal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.MembersManage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.ChangeMemberRole(context.Background(), ownerPrincipal, scimUser.UserID, identity.Admin, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if adminPage := request(handler, http.MethodGet, path, nil, adminCookies, nil); adminPage.Code != http.StatusOK {
+		t.Fatalf("SCIM admin page = %d, %s", adminPage.Code, adminPage.Body.String())
+	}
+	adminCreated := request(handler, http.MethodPost, path, url.Values{
+		"action": {"create"}, "csrf": {adminSession.CSRFSecret},
+	}, adminCookies, nil)
+	adminSecret := extractSCIMSecret(t, adminCreated.Body.String())
+	if adminCreated.Code != http.StatusOK || strings.Count(adminCreated.Body.String(), adminSecret) != 1 {
+		t.Fatalf("SCIM admin create = %d, body=%s", adminCreated.Code, adminCreated.Body.String())
+	}
+	if _, err := auth.AuthenticateSCIMToken(context.Background(), secret, workspaceID); !errors.Is(err, identity.ErrInvalidToken) {
+		t.Fatalf("owner SCIM credential after admin rotation = %v", err)
+	}
+	if _, err := auth.AuthenticateSCIMToken(context.Background(), adminSecret, workspaceID); err != nil {
+		t.Fatalf("admin-created SCIM credential = %v", err)
+	}
+	adminRevoked := request(handler, http.MethodPost, path, url.Values{
+		"action": {"revoke"}, "csrf": {adminSession.CSRFSecret},
+	}, adminCookies, nil)
+	if adminRevoked.Code != http.StatusSeeOther || adminRevoked.Header().Get("Location") != path {
+		t.Fatalf("SCIM admin revoke = %d, %q", adminRevoked.Code, adminRevoked.Header().Get("Location"))
+	}
+	if _, err := auth.AuthenticateSCIMToken(context.Background(), adminSecret, workspaceID); !errors.Is(err, identity.ErrInvalidToken) {
+		t.Fatalf("admin-revoked SCIM credential = %v", err)
+	}
+
+	page = request(handler, http.MethodGet, path, nil, cookies, nil)
+	if strings.Contains(page.Body.String(), secret) || strings.Contains(page.Body.String(), adminSecret) || strings.Contains(page.Body.String(), "SCIMTokenSecret") {
+		t.Fatalf("SCIM GET leaked secret: %s", page.Body.String())
+	}
+	rotated := request(handler, http.MethodPost, path, url.Values{
+		"action": {"create"}, "csrf": {session.CSRFSecret},
+	}, cookies, nil)
+	rotatedSecret := extractSCIMSecret(t, rotated.Body.String())
+	if rotated.Code != http.StatusOK || rotatedSecret == secret || strings.Count(rotated.Body.String(), rotatedSecret) != 1 || strings.Contains(rotated.Body.String(), secret) {
+		t.Fatalf("SCIM rotation = %d, body=%s", rotated.Code, rotated.Body.String())
+	}
+	if _, err := auth.AuthenticateSCIMToken(context.Background(), secret, workspaceID); !errors.Is(err, identity.ErrInvalidToken) {
+		t.Fatalf("old SCIM credential after rotation = %v", err)
+	}
+	if _, err := auth.AuthenticateSCIMToken(context.Background(), rotatedSecret, workspaceID); err != nil {
+		t.Fatalf("rotated SCIM credential = %v", err)
+	}
+
+	revokeWithoutCSRF := request(handler, http.MethodPost, path, url.Values{"action": {"revoke"}}, cookies, nil)
+	if revokeWithoutCSRF.Code != http.StatusForbidden {
+		t.Fatalf("SCIM revoke missing CSRF = %d", revokeWithoutCSRF.Code)
+	}
+	revoked := request(handler, http.MethodPost, path, url.Values{
+		"action": {"revoke"}, "csrf": {session.CSRFSecret},
+	}, cookies, nil)
+	if revoked.Code != http.StatusSeeOther || revoked.Header().Get("Location") != path {
+		t.Fatalf("SCIM revoke = %d, %q", revoked.Code, revoked.Header().Get("Location"))
+	}
+	if _, err := auth.AuthenticateSCIMToken(context.Background(), rotatedSecret, workspaceID); !errors.Is(err, identity.ErrInvalidToken) {
+		t.Fatalf("revoked SCIM credential = %v", err)
+	}
+
+	wrongWorkspace := request(handler, http.MethodGet, "/workspaces/00000000000000000000000000000000/settings/provisioning", nil, cookies, nil)
+	if wrongWorkspace.Code != http.StatusForbidden || strings.Contains(wrongWorkspace.Body.String(), secret) || strings.Contains(wrongWorkspace.Body.String(), rotatedSecret) {
+		t.Fatalf("cross-workspace SCIM page = %d, %s", wrongWorkspace.Code, wrongWorkspace.Body.String())
+	}
+}
+
+func TestSCIMEndpointUsesConfiguredPublicURL(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "https://browser.example/workspaces/workspace/settings/provisioning", nil)
+	if got := scimEndpoint("https://app.example/base/", false, request, "workspace"); got != "https://app.example/base/scim/v2/workspace" {
+		t.Fatalf("SCIM endpoint = %q", got)
+	}
+}
+
+func extractSCIMSecret(t *testing.T, body string) string {
+	t.Helper()
+	warning := "Copy this credential now. It will not be shown again."
+	warningStart := strings.Index(body, warning)
+	if warningStart < 0 {
+		t.Fatalf("SCIM secret missing: %s", body)
+	}
+	start := strings.Index(body[warningStart:], "<code")
+	if start < 0 {
+		t.Fatalf("SCIM secret missing: %s", body)
+	}
+	start += warningStart
+	contentStart := strings.Index(body[start:], ">")
+	if contentStart < 0 {
+		t.Fatalf("SCIM secret element is malformed: %s", body)
+	}
+	start += contentStart + 1
+	end := strings.Index(body[start:], "</code>")
+	if end < 0 {
+		t.Fatalf("SCIM secret end missing: %s", body)
+	}
+	secret := body[start : start+end]
+	if secret == "" {
+		t.Fatalf("SCIM secret empty: %s", body)
+	}
+	return secret
+}
+
 func TestWebMCPBrowserSurfaceContract(t *testing.T) {
 	script, err := files.ReadFile("assets/app.js")
 	if err != nil {
@@ -852,6 +1009,10 @@ func TestWebMCPBrowserSurfaceContract(t *testing.T) {
 			t.Errorf("secret-bearing page %s exposes WebMCP", target)
 		}
 	}
+	provisioning := request(handler, http.MethodGet, "/workspaces/"+workspaceID+"/settings/provisioning", nil, cookies, nil)
+	if strings.Contains(provisioning.Body.String(), "data-webmcp-page") || strings.Contains(provisioning.Body.String(), "/assets/app.js") {
+		t.Fatal("SCIM provisioning page exposes WebMCP")
+	}
 }
 
 func TestWebNavigationAndActionFeedback(t *testing.T) {
@@ -875,6 +1036,7 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 		{workspaceRoot + "/settings/members", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/members" + `"`, "Workspace settings"},
 		{workspaceRoot + "/settings/invitations", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/members" + `"`, "Workspace settings"},
 		{workspaceRoot + "/settings/tokens", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/tokens" + `"`, "Workspace settings"},
+		{workspaceRoot + "/settings/provisioning", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/provisioning" + `"`, "Workspace settings"},
 		{workspaceRoot + "/settings/export", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/export" + `"`, "Workspace settings"},
 		{workspaceRoot + "/settings/audit", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/audit" + `"`, "Workspace settings"},
 	} {
