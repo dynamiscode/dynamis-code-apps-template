@@ -40,6 +40,7 @@ try {
   await driver.findElement(By.css(".cards a")).click();
   await driver.wait(until.elementLocated(By.css("[data-workspace-home]")), 5000);
   await audit("workspace");
+  const workspaceURL = new URL(await driver.getCurrentUrl());
   await driver.get(`${baseURL}${workspacePath}/settings/general`);
   await driver.wait(until.elementLocated(By.id("workspace-locale")), 5000);
   await audit("general settings");
@@ -47,7 +48,7 @@ try {
   await driver.get(`${baseURL}/sessions`);
   await driver.wait(until.elementLocated(By.css(".inline button")), 5000);
   await expectNoExtraButtonMargin(".inline button", "inline actions");
-  await driver.get(`${baseURL}${workspacePath}/items`);
+  await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/items`);
   await driver.wait(until.elementLocated(By.id("item-list")), 5000);
   await audit("items");
 	await driver.executeScript(() => {
@@ -82,10 +83,37 @@ try {
   const names = locale === "es"
     ? [["heading", "Elementos de Accessibility"], ["textbox", "Título del nuevo elemento"], ["button", "Añadir elemento"]]
     : [["heading", "Accessibility items"], ["textbox", "New item title"], ["button", "Add item"]];
-  for (const [role, name] of names) {
+	for (const [role, name] of names) {
 		if (!tree.nodes.some((node) => node.role?.value === role && node.name?.value === name)) {
 			throw new Error(`accessibility tree lacks ${role} named ${name}`);
 		}
+	}
+	await driver.manage().window().setRect({ width: 1280, height: 900 });
+	await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/settings/import`);
+	await driver.wait(until.elementLocated(By.id("import-file")), 5000);
+	await audit("import");
+	const importContract = await driver.executeScript(() => ({
+		form: document.querySelector('form[enctype="multipart/form-data"]') !== null,
+		fileRequired: document.querySelector("#import-file[required]") !== null,
+		confirmationRequired: document.querySelector("#import-confirm[required]") !== null,
+		noScript: document.querySelector('script[src="/assets/app.js"]') === null,
+		noWebMCP: document.querySelector("[data-webmcp-page]") === null,
+	}));
+	if (!Object.values(importContract).every(Boolean)) {
+		throw new Error("import page ordinary-form contract failed");
+	}
+	const importTree = await driver.sendAndGetDevToolsCommand("Accessibility.getFullAXTree");
+	const importNames = locale === "es"
+		? [["heading", "Accessibility Importar"], ["checkbox", "Entiendo que todo el archivo se importará como elementos nuevos en este espacio de trabajo."], ["button", "Importar elementos"]]
+		: [["heading", "Accessibility Import"], ["checkbox", "I understand this imports the whole file as new items in this workspace."], ["button", "Import items"]];
+	for (const [role, name] of importNames) {
+		if (!importTree.nodes.some((node) => node.role?.value === role && node.name?.value === name)) {
+			throw new Error(`import accessibility tree lacks ${role} named ${name}`);
+		}
+	}
+	await driver.manage().window().setRect({ width: 320, height: 800 });
+	if (await driver.executeScript(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)) {
+		throw new Error("import page has horizontal overflow at 320 CSS pixels");
 	}
 	console.log("manual-contract: keyboard, focus, 320px reflow, reduced motion, and accessibility tree passed");
 } finally {

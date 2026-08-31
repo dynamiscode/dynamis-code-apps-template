@@ -3,19 +3,33 @@ package web
 import (
 	"context"
 	"errors"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
+	"example.com/dynamis-code/apps-template/internal/portability"
 )
 
 type exporter interface {
 	Export(context.Context, identity.Principal, string, identity.AuditContext) ([]byte, error)
+}
+
+type importer interface {
+	Import(context.Context, identity.Principal, string, portability.ImportInput, identity.AuditContext) (portability.ImportResult, error)
+}
+
+func importerFor(service exporter) importer {
+	value, _ := service.(importer)
+	return value
 }
 
 func (h *Handler) createWorkspace(writer http.ResponseWriter, request *http.Request) {
@@ -470,6 +484,207 @@ func (h *Handler) exportWorkspace(writer http.ResponseWriter, request *http.Requ
 	writer.Header().Set("Content-Disposition", `attachment; filename="workspace-export.json"`)
 	writer.WriteHeader(http.StatusOK)
 	_, _ = writer.Write(encoded)
+}
+
+const importMultipartMemory = 32 * 1024
+const importFlashLifetime = time.Minute
+
+type importFlashKey struct {
+	sessionID   string
+	workspaceID string
+}
+
+type importFlash struct {
+	imported  int
+	expiresAt time.Time
+}
+
+func (h *Handler) setImportFlash(sessionID, workspaceID string, imported int) {
+	now := time.Now()
+	h.importFlashMu.Lock()
+	defer h.importFlashMu.Unlock()
+	if h.importFlashes == nil {
+		h.importFlashes = make(map[importFlashKey]importFlash)
+	}
+	for key, flash := range h.importFlashes {
+		if !now.Before(flash.expiresAt) {
+			delete(h.importFlashes, key)
+		}
+	}
+	h.importFlashes[importFlashKey{sessionID: sessionID, workspaceID: workspaceID}] = importFlash{
+		imported: imported, expiresAt: now.Add(importFlashLifetime),
+	}
+}
+
+func (h *Handler) consumeImportFlash(sessionID, workspaceID string) (int, bool) {
+	now := time.Now()
+	key := importFlashKey{sessionID: sessionID, workspaceID: workspaceID}
+	h.importFlashMu.Lock()
+	defer h.importFlashMu.Unlock()
+	flash, ok := h.importFlashes[key]
+	if !ok || !now.Before(flash.expiresAt) {
+		delete(h.importFlashes, key)
+		return 0, false
+	}
+	delete(h.importFlashes, key)
+	return flash.imported, true
+}
+
+func (h *Handler) importPage(writer http.ResponseWriter, request *http.Request) {
+	workspaceID := request.PathValue("workspaceId")
+	_, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceUpdate)
+	if !ok {
+		return
+	}
+	if h.importer == nil {
+		h.renderError(writer, http.StatusNotFound)
+		return
+	}
+	imported, completed := h.consumeImportFlash(session.ID, workspaceID)
+	h.renderImportPage(writer, request, http.StatusOK, session, csrf, "", completed, imported)
+}
+
+func (h *Handler) importMutation(writer http.ResponseWriter, request *http.Request) {
+	workspaceID := request.PathValue("workspaceId")
+	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceUpdate)
+	if !ok {
+		return
+	}
+	if h.importer == nil {
+		h.renderError(writer, http.StatusNotFound)
+		return
+	}
+	if h.cfg.MaxBodyBytes > 0 && request.ContentLength > h.cfg.MaxBodyBytes {
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file exceeds the configured limit.", false, 0)
+		return
+	}
+	if h.cfg.MaxBodyBytes > 0 {
+		request.Body = http.MaxBytesReader(writer, request.Body, h.cfg.MaxBodyBytes)
+	}
+	parseErr := request.ParseMultipartForm(importMultipartMemory)
+	if request.MultipartForm != nil {
+		defer request.MultipartForm.RemoveAll()
+	}
+	if parseErr != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(parseErr, &maxBytesErr) {
+			h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file exceeds the configured limit.", false, 0)
+			return
+		}
+		if errors.Is(parseErr, http.ErrNotMultipart) {
+			if !h.identity.VerifyCSRF(request.Context(), session.ID, request.PostFormValue("csrf")) {
+				h.renderError(writer, http.StatusForbidden)
+				return
+			}
+			h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "Choose a .json or .csv import file.", false, 0)
+			return
+		}
+		if !h.identity.VerifyCSRF(request.Context(), session.ID, request.PostFormValue("csrf")) {
+			h.renderError(writer, http.StatusForbidden)
+			return
+		}
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file is invalid.", false, 0)
+		return
+	}
+	if request.MultipartForm == nil {
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "Choose a .json or .csv import file.", false, 0)
+		return
+	}
+	csrfValues := request.MultipartForm.Value["csrf"]
+	if len(csrfValues) != 1 || !h.identity.VerifyCSRF(request.Context(), session.ID, csrfValues[0]) {
+		h.renderError(writer, http.StatusForbidden)
+		return
+	}
+	if values := request.MultipartForm.Value["confirm"]; len(values) != 1 || values[0] != "yes" {
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "Confirm that you understand this bulk import.", false, 0)
+		return
+	}
+	files := request.MultipartForm.File["file"]
+	if len(files) != 1 {
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "Choose a .json or .csv import file.", false, 0)
+		return
+	}
+	format, ok := importFormat(files[0])
+	if !ok {
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "Choose a .json or .csv import file.", false, 0)
+		return
+	}
+	upload, _, err := request.FormFile("file")
+	if err != nil {
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "Choose a .json or .csv import file.", false, 0)
+		return
+	}
+	defer upload.Close()
+	result, err := h.importer.Import(
+		request.Context(), principal, workspaceID,
+		portability.ImportInput{Format: format, Reader: upload}, auditContext(request),
+	)
+	switch {
+	case errors.Is(err, identity.ErrForbidden):
+		h.renderError(writer, http.StatusForbidden)
+	case errors.Is(err, portability.ErrImportLimit), errors.Is(err, items.ErrLimit):
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file exceeds the configured limit or workspace item quota.", false, 0)
+	case errors.Is(err, portability.ErrInvalidImport), errors.Is(err, items.ErrInvalidInput):
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file is invalid.", false, 0)
+	case err != nil:
+		h.renderError(writer, http.StatusInternalServerError)
+	default:
+		h.setImportFlash(session.ID, workspaceID, result.Imported)
+		h.redirect(writer, request, "/workspaces/"+workspaceID+"/settings/import")
+	}
+}
+
+func (h *Handler) renderImportPage(
+	writer http.ResponseWriter,
+	request *http.Request,
+	status int,
+	session identity.Session,
+	csrf, message string,
+	completed bool,
+	imported int,
+) {
+	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
+	if err != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	}
+	workspaceID := request.PathValue("workspaceId")
+	h.render(writer, status, "import.html", pageData{
+		Title: "Import", NavPage: "import", NavSection: "settings", Error: message,
+		CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
+		ImportCompleted: completed, Imported: imported,
+	})
+}
+
+func importFormat(header *multipart.FileHeader) (string, bool) {
+	if header == nil {
+		return "", false
+	}
+	extensionFormat := ""
+	switch strings.ToLower(filepath.Ext(header.Filename)) {
+	case ".json":
+		extensionFormat = "application/json"
+	case ".csv":
+		extensionFormat = "text/csv"
+	}
+	mediaFormat := ""
+	if raw := strings.TrimSpace(header.Header.Get("Content-Type")); raw != "" {
+		mediaType, _, err := mime.ParseMediaType(raw)
+		if err != nil {
+			return "", false
+		}
+		switch mediaType {
+		case "application/json", "text/csv":
+			mediaFormat = mediaType
+		}
+	}
+	if extensionFormat != "" && mediaFormat != "" && extensionFormat != mediaFormat {
+		return "", false
+	}
+	if extensionFormat != "" {
+		return extensionFormat, true
+	}
+	return mediaFormat, mediaFormat != ""
 }
 
 func (h *Handler) securityPage(writer http.ResponseWriter, request *http.Request) {

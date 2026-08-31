@@ -4,6 +4,10 @@
 
 - Fixed browser form action buttons sitting directly against their preceding
   controls.
+- Added an authorized Settings import form for bounded JSON exports and strict
+  UTF-8 CSV, with session CSRF, explicit bulk-mutation confirmation, atomic
+  synchronous results, localized safe feedback, and ordinary-form fallback;
+  import remains outside WebMCP, MCP, and the remote CLI.
 - Added a read-only, workspace-scoped Settings audit history for owners and
   admins, limited to the latest 100 redacted events with no REST, MCP, or
   WebMCP surface.
