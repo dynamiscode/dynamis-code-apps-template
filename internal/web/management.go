@@ -325,6 +325,76 @@ func (h *Handler) tokenMutation(writer http.ResponseWriter, request *http.Reques
 	h.managementError(writer, request, workspaceID, "The requested token action is invalid.")
 }
 
+func (h *Handler) provisioningPage(writer http.ResponseWriter, request *http.Request) {
+	workspaceID := request.PathValue("workspaceId")
+	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.SCIMManage)
+	if !ok {
+		return
+	}
+	h.renderProvisioningPage(writer, request, principal, session, csrf, "")
+}
+
+func (h *Handler) provisioningMutation(writer http.ResponseWriter, request *http.Request) {
+	workspaceID := request.PathValue("workspaceId")
+	principal, session, csrf, ok := h.managementPrincipal(writer, request, workspaceID, identity.SCIMManage)
+	if !ok {
+		return
+	}
+	switch request.FormValue("action") {
+	case "create":
+		token, err := h.identity.CreateSCIMToken(request.Context(), principal, auditContext(request))
+		if err != nil {
+			h.managementError(writer, request, workspaceID, "The SCIM credential could not be created.")
+			return
+		}
+		h.renderProvisioningPage(writer, request, principal, session, csrf, token.Secret)
+	case "revoke":
+		if err := h.identity.RevokeSCIMToken(request.Context(), principal, auditContext(request)); err != nil {
+			h.managementError(writer, request, workspaceID, "The SCIM credential could not be revoked.")
+			return
+		}
+		h.redirect(writer, request, "/workspaces/"+workspaceID+"/settings/provisioning")
+	default:
+		h.managementError(writer, request, workspaceID, "The requested SCIM action is invalid.")
+	}
+}
+
+func (h *Handler) renderProvisioningPage(
+	writer http.ResponseWriter,
+	request *http.Request,
+	principal identity.Principal,
+	session identity.Session,
+	csrf string,
+	secret string,
+) {
+	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
+	if err != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	}
+	workspaceID := principal.WorkspaceID
+	h.render(writer, http.StatusOK, "provisioning.html", pageData{
+		Title: "SCIM provisioning", NavPage: "provisioning", NavSection: "settings", CSRF: csrf,
+		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
+		SCIMEndpoint: scimEndpoint(h.publicURL, h.cfg.Secure, request, workspaceID), SCIMTokenSecret: secret,
+	})
+}
+
+func scimEndpoint(publicURL string, secure bool, request *http.Request, workspaceID string) string {
+	base := strings.TrimRight(strings.TrimSpace(publicURL), "/")
+	if base == "" {
+		scheme := request.URL.Scheme
+		if scheme == "" {
+			scheme = "http"
+			if secure {
+				scheme = "https"
+			}
+		}
+		base = scheme + "://" + request.Host
+	}
+	return base + "/scim/v2/" + url.PathEscape(workspaceID)
+}
+
 func (h *Handler) sessionsPage(writer http.ResponseWriter, request *http.Request) {
 	session, csrf, ok := h.session(writer, request)
 	if !ok {
@@ -368,6 +438,29 @@ func (h *Handler) exportPage(writer http.ResponseWriter, request *http.Request) 
 	h.render(writer, http.StatusOK, "export.html", pageData{
 		Title: "Export", NavPage: "export", NavSection: "settings", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
+	})
+}
+
+func (h *Handler) auditHistoryPage(writer http.ResponseWriter, request *http.Request) {
+	workspaceID := request.PathValue("workspaceId")
+	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceExport)
+	if !ok {
+		return
+	}
+	history, err := h.identity.ListAuditHistory(request.Context(), principal, workspaceID)
+	if err != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	}
+	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
+	if err != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	}
+	h.render(writer, http.StatusOK, "audit-history.html", pageData{
+		Title: "Audit history", NavPage: "audit", NavSection: "settings", CSRF: csrf,
+		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
+		AuditHistory: history,
 	})
 }
 

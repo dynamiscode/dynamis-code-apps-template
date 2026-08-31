@@ -29,7 +29,7 @@ means the complete encrypted database backup described in
 | identity / `email_verifications`, `password_resets` | user, email where applicable, timestamps (internal); token hash (secret) | Single-use account recovery and verification | Twenty-four-hour single-use lifetime; expired and consumed records are pruned; excluded from export; account deletion cascades. |
 | identity / notification preference tables | user/workspace, notification type, enabled, updated timestamp (personal) | User and workspace in-app delivery preference | Account or membership lifetime; excluded from workspace export; account deletion and member removal clean up. |
 | identity / `notifications` | IDs, recipient, optional workspace, type, title, body, timestamps (personal) | In-app notification inbox and SSE delivery | One-year retention; read state is user-correctable; excluded from workspace export; account/workspace deletion cascades. |
-| identity / `audit_events` | IDs, types, actions, outcome, timestamps (internal); actor, workspace, request, source address, metadata (personal) | Security and administrative evidence | Append-only during normal operation; default 365-day retention; workspace events export; maintenance deletes expired events and records its own prune event. No product correction. |
+| identity / `audit_events` | IDs, types, actions, outcome, timestamps (internal); actor, workspace, request, source address, metadata (personal) | Security and administrative evidence | Append-only during normal operation; default 365-day retention; workspace events export and the redacted latest-100 browser projection are available to owners/admins; maintenance deletes expired events and records its own prune event. No product correction. |
 | identity / `bootstrap_state` | `id`, `completed_at` (internal) | Enforce one-time first-owner bootstrap | Installation lifetime; backup only; never reset by application behavior. |
 | items / `items` | IDs, status, version, timestamps (internal); nullable `created_by_user_id`, `title` (personal user content) | Sample feature | Until permanent deletion or future workspace deletion; all fields export; title/status correction uses conditional update; account deletion retains the item and clears its deleted creator reference. |
 | items / `idempotency_records` | hashes, IDs, operation, result, timestamps (internal; hashes treated as secret) | Safe create replay | Exact 24-hour expiry; pruned after expiry; excluded from export; no correction. |
@@ -43,11 +43,15 @@ means the complete encrypted database backup described in
 Every row is included in database backup until the operator's backup retention
 expires. Production fixtures must never contain copied production data.
 
-Workspace owners and admins receive their workspace audit history through the
-authorized export. No public instance-wide audit endpoint exists. Only the
-deployment operator may inspect instance events through restricted database
-access. Normal application code inserts audit rows but never updates or
-deletes them; the retention command is the sole deletion path.
+Workspace owners and admins can view the latest 100 events for their workspace
+at Settings → Audit history, using the existing `workspace:export` permission.
+The browser projection omits metadata, workspace and target IDs, request IDs,
+and source addresses. Older workspace events remain available through the
+authorized bounded export. Members, viewers, and cross-workspace requests are
+denied. No public instance-wide audit endpoint exists. Only the deployment
+operator may inspect instance events through restricted database access.
+Normal application code inserts audit rows but never updates or deletes them;
+the retention command is the sole deletion path.
 
 Files are standalone workspace resources, not generic attachments. Local bytes
 live under the configured storage path; S3 bytes live in the configured private
@@ -122,11 +126,11 @@ an additive field. Existing readers that ignore unknown fields remain
 compatible; new exports always include `en` or `es`.
 
 WebMCP may prepare the authorized browser export link under the Settings route
-but never returns export
-content, credentials, or secret data to a browser agent. It does not expose
-operator backup, restore, import, maintenance, or audit administration. User
-activation follows the normal authorization and audit path; redacted export
-content remains bounded by the workspace export contract.
+but never returns export content, credentials, or secret data to a browser
+agent. It does not expose operator backup, restore, import, maintenance, or
+audit administration or history. The browser audit page remains ordinary
+server-rendered HTML; redacted export content remains bounded by the workspace
+export contract.
 
 Webhook registrations and delivery history are not part of workspace export;
 endpoint URLs and delivery payloads can contain integration or personal data,
