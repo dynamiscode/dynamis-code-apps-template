@@ -260,14 +260,19 @@ Docker smoke remain part of the final verification ladder.
 
 ## Phase 09 evidence
 
-SCIM 2.0 Users and role Groups are REST-only and workspace-scoped. SQLite
+SCIM 2.0 Users and role Groups are REST-only and workspace-scoped. The browser
+Settings → Provisioning page manages only the dedicated workspace credential;
+it does not expose a browser SCIM directory or WebMCP credential tool. SQLite
 tests cover dedicated-token separation, one-time secret storage, stable
 external IDs, normalized email identity, passwordless verified-OIDC enrollment,
 idempotent create, exact filtering, pagination, PATCH/DELETE ETags, group role
 mapping, workspace-scoped deactivation revocation, safe errors, audit redaction,
 and final-owner protection. PostgreSQL identity
 and migration checks cover migrations 000013-000014 and the
-provisioning/deactivation path when `POSTGRES_TEST_URL` is configured.
+provisioning/deactivation path when `POSTGRES_TEST_URL` is configured. Browser
+tests cover owner/admin authorization, workspace isolation, CSRF, endpoint
+rendering, one-time secret response behavior, revocation, no-store headers,
+localization, and WebMCP exclusion.
 
 Bounded Item sharing passes hashed-token storage, default and maximum expiry,
 explicit write authorization, safe title/status-only public projection,
