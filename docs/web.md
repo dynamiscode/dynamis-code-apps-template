@@ -4,7 +4,7 @@ The browser interface is server-rendered and reaches the same application use
 cases as REST. Sign in at `/login`, create or choose a workspace, then use the
 workspace home and sidebar. `/workspaces/{workspaceId}` is the workspace home;
 Items is its resource surface and Settings is a nested route
-group for members, invitations, API tokens, and export.
+group for members, invitations, API tokens, export, and import.
 `/account`, `/notifications`, `/sessions`, and `/security` cover account and
 security settings. The authenticated shell uses
 a top bar for brand, workspace switching, and account actions, plus a context-aware
@@ -69,6 +69,10 @@ Baseline browser surfaces:
 - `/workspaces/{workspaceId}/settings/export` presents the authorized export screen;
   its `Download JSON` link downloads the export from
   `/workspaces/{workspaceId}/settings/export/download`.
+- `/workspaces/{workspaceId}/settings/import` presents an authorized ordinary
+  multipart form for one bounded JSON export or strict UTF-8 `title,status` CSV;
+  it requires session CSRF, an explicit bulk-import confirmation, and returns
+  localized full-page success or safe validation/limit feedback.
 - `/share/{token}` presents a read-only Item projection containing only title
   and status. The Items page lets principals with `resources:write` create
   seven- or 30-day links and revoke active links with CSRF-protected ordinary
@@ -86,7 +90,7 @@ REST, CLI, MCP, or WebMCP sharing surface.
 The workspace sidebar exposes `Home` above `Items` in the workspace context.
 Home is active at `/workspaces/{workspaceId}`. Settings uses the nested
 `/workspaces/{workspaceId}/settings` route and shows only its `Members & invitations`,
-`API tokens`, and `Export` sub-items. The Settings group is separated by flexible
+`API tokens`, `Export`, and `Import` sub-items. The Settings group is separated by flexible
 space and anchored at the bottom in the workspace context. The members screen and
 invitations screen retain local tabs behind the combined entry. The Items page offers
 `Back to Workspaces`, returning to the workspace selector; each Settings page offers

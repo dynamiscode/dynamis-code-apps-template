@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added an authorized Settings import form for bounded JSON exports and strict
+  UTF-8 CSV, with session CSRF, explicit bulk-mutation confirmation, atomic
+  synchronous results, localized safe feedback, and ordinary-form fallback;
+  import remains outside WebMCP, MCP, and the remote CLI.
 - Added optional MFA with WebAuthn/passkeys as the primary strong factor, TOTP
   fallback, one-time hashed recovery codes, encrypted TOTP storage, revocable
   passkeys, replay-protected challenges, MFA session levels, admin policy

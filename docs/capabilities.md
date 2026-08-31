@@ -297,6 +297,22 @@ Verified 2026-08-28 with Go 1.27.0 and PostgreSQL 14.24:
 - `go test ./...`, `go vet ./...`, `go test -race ./...`, `make verify`, and
   `make docker-smoke` pass.
 
+## Settings import evidence
+
+Verified 2026-08-29 with focused Go tests on SQLite:
+
+- owners and admins reach the server-rendered Settings import form; viewers
+  are denied by shared workspace authorization
+- one bounded `.json` export or strict UTF-8 `title,status` CSV upload requires
+  session CSRF and explicit bulk-mutation confirmation; invalid format,
+  content, size, quota, rollback, success, Spanish localization, safe output,
+  and ordinary-form fallback are covered by the browser handler test
+- import remains synchronous and atomic through the existing portability use
+  case; REST/OpenAPI, MCP, remote CLI, and WebMCP contracts remain unchanged
+- focused web, portability, localization, and template-generation tests pass;
+  full-suite listener-dependent tests require execution outside the restricted
+  sandbox
+
 ## Files evidence
 
 Files metadata migration and workspace authorization, local filesystem uploads

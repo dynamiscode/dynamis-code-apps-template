@@ -65,7 +65,8 @@ listing. Workspace management is available through the Settings screens at
 `/workspaces/{workspaceId}/settings/members`,
 `/workspaces/{workspaceId}/settings/invitations`,
 `/workspaces/{workspaceId}/settings/tokens`, and
-`/workspaces/{workspaceId}/settings/export`;
+`/workspaces/{workspaceId}/settings/export`, and
+`/workspaces/{workspaceId}/settings/import`;
 the export screen's `Download JSON` action uses
 `/workspaces/{workspaceId}/settings/export/download`. `/sessions` manages the
 current user's browser sessions. `/account` manages the profile, locale,

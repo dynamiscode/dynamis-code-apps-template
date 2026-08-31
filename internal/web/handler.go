@@ -35,6 +35,7 @@ type Handler struct {
 	files          *appfiles.Service
 	sharing        *sharing.Service
 	exporter       exporter
+	importer       importer
 	oidc           *identity.OIDCRegistry
 	publicURL      string
 	mailer         appmail.Sender
@@ -43,6 +44,8 @@ type Handler struct {
 	template       *template.Template
 	streams        *streamLimit
 	catalog        *i18n.Catalog
+	importFlashMu  sync.Mutex
+	importFlashes  map[importFlashKey]importFlash
 }
 
 type pageData struct {
@@ -86,6 +89,8 @@ type pageData struct {
 	InvitationAuthenticated          bool
 	InvitationURL                    string
 	TokenSecret                      string
+	ImportCompleted                  bool
+	Imported                         int
 	DeliveryWarning                  string
 	CanManage                        bool
 	CanTransfer                      bool
@@ -244,7 +249,8 @@ func newHandler(
 	}
 	return &Handler{
 		identity: identityService, items: itemService, files: fileService, sharing: sharingService, exporter: exporterService,
-		oidc: oidcRegistry, publicURL: publicURL, mailer: mailer, cfg: cfg,
+		importer: importerFor(exporterService),
+		oidc:     oidcRegistry, publicURL: publicURL, mailer: mailer, cfg: cfg,
 		setupTokenHash: setupTokenHash,
 		template:       templates,
 		streams:        newStreamLimit(cfg.SSEMaxConnections, cfg.SSEMaxPerUser),
@@ -308,6 +314,8 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/tokens/{tokenId}", h.tokenMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/export", h.exportPage)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/export/download", h.exportWorkspace)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/import", h.importPage)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/import", h.importMutation)
 	mux.HandleFunc("GET /sessions", h.sessionsPage)
 	mux.HandleFunc("POST /sessions/{sessionId}", h.sessionMutation)
 	mux.HandleFunc("GET /security", h.securityPage)

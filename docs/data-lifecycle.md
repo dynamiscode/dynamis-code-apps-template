@@ -104,9 +104,14 @@ Membership, identity, and arbitrary-domain imports remain unsupported.
 Deletion removes imported items through the normal permanent item deletion
 path; database backups retain them until backup expiry. Import does not create
 a restore or undelete workflow.
-Import is intentionally REST-only; browser, remote CLI, MCP, and WebMCP
-surfaces omit it because a bulk mutation needs explicit file selection and
-operator review.
+The same bounded import use case is available in the browser at
+`/workspaces/{workspaceId}/settings/import` for owners and admins. The
+server-rendered form requires session-bound CSRF, one `.json` or `.csv` file,
+and an explicit confirmation before submission; it provides localized safe
+success, validation, and limit feedback without echoing file contents. The
+browser form remains synchronous and uses the same atomic transaction. Remote
+CLI, MCP, and WebMCP surfaces omit import because they have no ordinary file
+selection and operator-review flow; backup and restore remain operator-only.
 
 The workspace object in `dynamis-code.workspace/v1` includes its `locale` as
 an additive field. Existing readers that ignore unknown fields remain
