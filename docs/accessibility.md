@@ -1,7 +1,7 @@
 # Accessibility Evidence
 
 Standard: WCAG 2.2 Level AA  
-Review date: 2026-08-25  
+Review date: 2026-08-31
 Owner: template maintainer
 
 ## Result
@@ -23,7 +23,7 @@ never prints the password.
 |---|---|---|
 | Keyboard-only order and actions | Pass | Sign-in order reached email, password, then submit; native links, forms, selects, and buttons require no pointer |
 | Focus order and visibility | Pass | DOM order is visual order; the two-color focus ring remained visible on light and colored controls |
-| Forms and errors | Pass | Labels are programmatic; HTMX validation returns a `role=alert` target, focuses it after swap, and supplies useful text |
+| Forms and errors | Pass | Labels are programmatic; HTMX validation returns a `role=alert` target, focuses it after swap, and the import form supplies a required confirmation plus useful `role=status`/`role=alert` text |
 | 200% zoom and reflow | Pass | Equivalent 320 CSS-pixel viewport had no horizontal page overflow; controls stack at the narrow breakpoint |
 | Reduced motion | Pass | Emulated `prefers-reduced-motion: reduce` matched and disables animation, transition, and smooth scrolling |
 | Contrast and target size | Pass | Text ratios: 15.01:1 body, 5.82:1 muted, 7.92:1 accent, 7.46:1 danger; controls have a 44 CSS-pixel minimum height |
@@ -35,8 +35,11 @@ exception is open.
 
 The workspace home keeps brand, workspace, and account controls. The workspace
 sidebar shows `Home` above `Items` in the workspace context, with Settings separated by flexible space
-and anchored at the bottom. Settings routes show only their `Members & invitations`,
-`API tokens`, and `Export` sub-items. The workspace home exposes Items and
+and anchored at the bottom. Settings routes show `Members & invitations`,
+`API tokens`, `Export`, and `Import`; owners and admins also see `Provisioning (SCIM)`
+and `Audit history`.
+The audit history uses a captioned table with scoped column headers and a
+bounded overflow wrapper for narrow screens. The workspace home exposes Items and
 Settings cards. The Items page provides `Back to Workspaces`, returning to the
 workspace selector. Settings pages provide `Back to home`, returning to the
 current workspace home.

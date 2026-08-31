@@ -21,6 +21,7 @@ let failed = false;
 try {
   await driver.get(`${baseURL}/language?locale=${locale}&return_to=/login`);
   await audit("login");
+	await expectFormActionSpacing("#password", 'form[action="/login"] button[type="submit"]', "login");
 	await driver.findElement(By.css("body")).sendKeys(Key.TAB);
 	await expectActive("email");
 	await driver.actions().sendKeys(Key.TAB).perform();
@@ -34,10 +35,20 @@ try {
   await driver.findElement(By.css('button[type="submit"]')).click();
   await driver.wait(until.urlIs(`${baseURL}/`), 5000);
   await audit("workspaces");
+  await expectFormActionSpacing("#workspace-locale", 'form[action="/workspaces"] button[type="submit"]', "workspace creation");
+  const workspacePath = new URL(await driver.findElement(By.css(".cards a")).getAttribute("href"), baseURL).pathname;
   await driver.findElement(By.css(".cards a")).click();
   await driver.wait(until.elementLocated(By.css("[data-workspace-home]")), 5000);
   await audit("workspace");
-  await driver.findElement(By.css('a[href$="/items"]')).click();
+  const workspaceURL = new URL(await driver.getCurrentUrl());
+  await driver.get(`${baseURL}${workspacePath}/settings/general`);
+  await driver.wait(until.elementLocated(By.id("workspace-locale")), 5000);
+  await audit("general settings");
+  await expectFormActionSpacing("#workspace-locale", 'form[action$="/settings/general"] button[type="submit"]', "general settings");
+  await driver.get(`${baseURL}/sessions`);
+  await driver.wait(until.elementLocated(By.css(".inline button")), 5000);
+  await expectNoExtraButtonMargin(".inline button", "inline actions");
+  await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/items`);
   await driver.wait(until.elementLocated(By.id("item-list")), 5000);
   await audit("items");
 	await driver.executeScript(() => {
@@ -51,6 +62,13 @@ try {
 	if ((await driver.switchTo().activeElement().getAttribute("role")) !== "alert") {
 		throw new Error("HTMX validation error did not receive focus");
 	}
+	const spacingTitle = `Spacing check ${locale}`;
+	await driver.findElement(By.id("new-title")).sendKeys(spacingTitle);
+	await driver.findElement(By.css("form.create button[type=submit]")).click();
+	await driver.wait(until.elementLocated(By.css(`.items input[value="${spacingTitle}"]`)), 5000);
+	await expectNoExtraButtonMargin(".row button", "item row actions");
+	await expectNoExtraButtonMargin(".actions button", "item action group");
+	await expectNoExtraButtonMargin(".account-menu-panel button", "account menu");
 	await driver.manage().window().setRect({ width: 320, height: 800 });
 	if (await driver.executeScript(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)) {
 		throw new Error("items page has horizontal overflow at 320 CSS pixels");
@@ -65,10 +83,37 @@ try {
   const names = locale === "es"
     ? [["heading", "Elementos de Accessibility"], ["textbox", "Título del nuevo elemento"], ["button", "Añadir elemento"]]
     : [["heading", "Accessibility items"], ["textbox", "New item title"], ["button", "Add item"]];
-  for (const [role, name] of names) {
+	for (const [role, name] of names) {
 		if (!tree.nodes.some((node) => node.role?.value === role && node.name?.value === name)) {
 			throw new Error(`accessibility tree lacks ${role} named ${name}`);
 		}
+	}
+	await driver.manage().window().setRect({ width: 1280, height: 900 });
+	await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/settings/import`);
+	await driver.wait(until.elementLocated(By.id("import-file")), 5000);
+	await audit("import");
+	const importContract = await driver.executeScript(() => ({
+		form: document.querySelector('form[enctype="multipart/form-data"]') !== null,
+		fileRequired: document.querySelector("#import-file[required]") !== null,
+		confirmationRequired: document.querySelector("#import-confirm[required]") !== null,
+		noScript: document.querySelector('script[src="/assets/app.js"]') === null,
+		noWebMCP: document.querySelector("[data-webmcp-page]") === null,
+	}));
+	if (!Object.values(importContract).every(Boolean)) {
+		throw new Error("import page ordinary-form contract failed");
+	}
+	const importTree = await driver.sendAndGetDevToolsCommand("Accessibility.getFullAXTree");
+	const importNames = locale === "es"
+		? [["heading", "Accessibility Importar"], ["checkbox", "Entiendo que todo el archivo se importará como elementos nuevos en este espacio de trabajo."], ["button", "Importar elementos"]]
+		: [["heading", "Accessibility Import"], ["checkbox", "I understand this imports the whole file as new items in this workspace."], ["button", "Import items"]];
+	for (const [role, name] of importNames) {
+		if (!importTree.nodes.some((node) => node.role?.value === role && node.name?.value === name)) {
+			throw new Error(`import accessibility tree lacks ${role} named ${name}`);
+		}
+	}
+	await driver.manage().window().setRect({ width: 320, height: 800 });
+	if (await driver.executeScript(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)) {
+		throw new Error("import page has horizontal overflow at 320 CSS pixels");
 	}
 	console.log("manual-contract: keyboard, focus, 320px reflow, reduced motion, and accessibility tree passed");
 } finally {
@@ -104,4 +149,29 @@ async function expectActive(id) {
 	if (!style || style === "none") {
 		throw new Error(`visible focus style missing on ${id}`);
 	}
+}
+
+async function expectFormActionSpacing(controlSelector, buttonSelector, name) {
+	const metrics = await driver.executeScript((controlQuery, buttonQuery) => {
+		const control = document.querySelector(controlQuery);
+		const button = document.querySelector(buttonQuery);
+		if (!control || !button) return null;
+		return {
+			gap: button.getBoundingClientRect().top - control.getBoundingClientRect().bottom,
+			marginTop: getComputedStyle(button).marginTop,
+			height: button.getBoundingClientRect().height,
+		};
+	}, controlSelector, buttonSelector);
+	if (!metrics) throw new Error(`${name} spacing controls missing`);
+	if (metrics.marginTop !== "12px" || metrics.gap < 12 || metrics.height < 44) {
+		throw new Error(`${name} button spacing invalid: ${JSON.stringify(metrics)}`);
+	}
+}
+
+async function expectNoExtraButtonMargin(selector, name) {
+	const marginTop = await driver.executeScript((query) => {
+		const button = document.querySelector(query);
+		return button ? getComputedStyle(button).marginTop : null;
+	}, selector);
+	if (marginTop !== "0px") throw new Error(`${name} button has unexpected top margin: ${marginTop}`);
 }

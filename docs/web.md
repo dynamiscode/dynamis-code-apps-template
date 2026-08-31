@@ -4,7 +4,7 @@ The browser interface is server-rendered and reaches the same application use
 cases as REST. Sign in at `/login`, create or choose a workspace, then use the
 workspace home and sidebar. `/workspaces/{workspaceId}` is the workspace home;
 Items is its resource surface and Settings is a nested route
-group for members, invitations, API tokens, webhooks, and export.
+group for members, invitations, API tokens, webhooks, SCIM provisioning, export, import, and audit history.
 `/account`, `/notifications`, `/sessions`, and `/security` cover account and
 security settings. The authenticated shell uses
 a top bar for brand, workspace switching, and account actions, plus a context-aware
@@ -58,6 +58,11 @@ Baseline browser surfaces:
   `WEBHOOK_ENCRYPTION_KEY` is missing, managers see an actionable warning and
   create/rotate controls are disabled. Stale form submissions keep the user on
   this page with an inline error.
+- `/workspaces/{workspaceId}/settings/provisioning` is restricted to workspace
+  owners and admins. It shows the workspace SCIM endpoint and setup instructions,
+  creates or rotates the dedicated SCIM credential with its secret shown once,
+  and revokes it through ordinary CSRF-protected forms. The page is no-store and
+  has no WebMCP enhancement; SCIM Users and Groups remain REST/IdP-only.
 - `/sessions` lists metadata and revokes sessions; `/security` starts
   reauthenticated OIDC linking.
 - `/account` edits profile preferences, changes a local password, requests email
@@ -75,6 +80,12 @@ Baseline browser surfaces:
 - `/workspaces/{workspaceId}/settings/export` presents the authorized export screen;
   its `Download JSON` link downloads the export from
   `/workspaces/{workspaceId}/settings/export/download`.
+- `/workspaces/{workspaceId}/settings/import` presents an authorized ordinary
+  multipart form for one bounded JSON export or strict UTF-8 `title,status` CSV;
+  it requires session CSRF, an explicit bulk-import confirmation, and returns
+  localized full-page success or safe validation/limit feedback.
+- `/workspaces/{workspaceId}/settings/audit` presents the authorized,
+  read-only latest-100 audit history with redacted fields.
 - `/share/{token}` presents a read-only Item projection containing only title
   and status. The Items page lets principals with `resources:write` create
   seven- or 30-day links and revoke active links with CSRF-protected ordinary
@@ -82,7 +93,7 @@ Baseline browser surfaces:
 
 Forms keep ordinary navigation as fallback. HTMX enhances item fragments only.
 Secret-bearing responses use `no-store`; list pages never render session,
-CSRF, invitation, token, or webhook secrets. Webhook delivery history excludes
+CSRF, invitation, API-token, SCIM credential, or webhook secrets. Webhook delivery history excludes
 delivery payloads and shows only bounded status, attempt, HTTP status, timestamps,
 and redacted error categories.
 
@@ -94,13 +105,15 @@ REST, CLI, MCP, or WebMCP sharing surface.
 The workspace sidebar exposes `Home` above `Items` in the workspace context.
 Home is active at `/workspaces/{workspaceId}`. Settings uses the nested
 `/workspaces/{workspaceId}/settings` route and shows only its `Members & invitations`,
-`API tokens`, `Webhooks`, and `Export` sub-items. The Settings group is separated by flexible
-space and anchored at the bottom in the workspace context. The members screen and
+`API tokens`, `Webhooks`, `Export`, and `Import` sub-items. Owners and admins also see
+`Provisioning (SCIM)` and `Audit history`. The Settings group is separated by
+flexible space and anchored at the bottom in the workspace context. The members screen and
 invitations screen retain local tabs behind the combined entry. The Items page offers
 `Back to Workspaces`, returning to the workspace selector; each Settings page offers
 `Back to home`, returning to the current workspace home. The native workspace switcher and account menu use ordinary
 `details` controls, so they work without JavaScript. On narrow screens the
-settings sidebar becomes a compact stacked navigation region. Item deletion is
+settings sidebar becomes a compact stacked navigation region. Provisioning is
+shown only to owners and admins. Item deletion is
 explicitly permanent and asks for confirmation when the browser script is
 available; ordinary form submission remains available without it.
 
@@ -116,6 +129,10 @@ after feature-detecting `document.modelContext`; browsers without that API
 retain identical ordinary HTML navigation and form behavior. This surface does
 not reuse bearer credentials, change server MCP scopes/tools/transport, or
 replace server authorization. Server MCP remains persistent and authoritative.
+
+Audit history is intentionally not an eligible WebMCP page: it has no
+WebMCP marker or script and exposes no audit tool. The ordinary server-rendered
+page remains the only browser surface.
 
 Eligible pages load the local `app.js` and mark visible controls. The current
 tool contract is:
@@ -138,9 +155,10 @@ Schemas are explicit, bounded, and versioned. Tools expose no passwords,
 login/logout or reauthentication fields, OIDC state, invitation URLs or
 secrets, token secrets, session or CSRF values, hidden form fields, operator
 backup/restore/import/maintenance/audit controls, or export content. Invitation
-creation/resend/acceptance/registration, token creation/secret display, and
-webhook management/secret display stay outside WebMCP. The webhook page does
-not register browser-agent tools and retains ordinary accessible forms.
+creation/resend/acceptance/registration, token creation/secret display, SCIM
+credential setup, and webhook management/secret display stay outside WebMCP.
+The webhook page does not register browser-agent tools and retains ordinary
+accessible forms.
 
 Preparation never calls `submit()` or `requestSubmit()`, including for role,
 ownership, removal, revocation, and delete tools. The user completes the

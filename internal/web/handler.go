@@ -37,6 +37,7 @@ type Handler struct {
 	sharing        *sharing.Service
 	webhooks       webhookManager
 	exporter       exporter
+	importer       importer
 	oidc           *identity.OIDCRegistry
 	publicURL      string
 	mailer         appmail.Sender
@@ -45,6 +46,8 @@ type Handler struct {
 	template       *template.Template
 	streams        *streamLimit
 	catalog        *i18n.Catalog
+	importFlashMu  sync.Mutex
+	importFlashes  map[importFlashKey]importFlash
 }
 
 type pageData struct {
@@ -74,6 +77,7 @@ type pageData struct {
 	Invitations                      []identity.Invitation
 	Tokens                           []identity.APIToken
 	Sessions                         []identity.Session
+	AuditHistory                     []identity.AuditHistoryEntry
 	Profile                          identity.UserProfile
 	NotificationPreferences          []identity.NotificationPreference
 	WorkspaceNotificationPreferences []identity.NotificationPreference
@@ -88,6 +92,10 @@ type pageData struct {
 	InvitationAuthenticated          bool
 	InvitationURL                    string
 	TokenSecret                      string
+	ImportCompleted                  bool
+	Imported                         int
+	SCIMEndpoint                     string
+	SCIMTokenSecret                  string
 	DeliveryWarning                  string
 	CanManage                        bool
 	CanTransfer                      bool
@@ -256,6 +264,7 @@ func newHandler(
 	return &Handler{
 		identity: identityService, items: itemService, files: fileService, sharing: sharingService, exporter: exporterService,
 		webhooks: webhookService,
+		importer: importerFor(exporterService),
 		oidc:     oidcRegistry, publicURL: publicURL, mailer: mailer, cfg: cfg,
 		setupTokenHash: setupTokenHash,
 		template:       templates,
@@ -329,8 +338,13 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/webhooks", h.webhookMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/webhooks/{webhookId}/deliveries", h.webhookDeliveriesPage)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/webhooks/{webhookId}", h.webhookMutation)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/provisioning", h.provisioningPage)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/provisioning", h.provisioningMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/export", h.exportPage)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/export/download", h.exportWorkspace)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/import", h.importPage)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/import", h.importMutation)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/audit", h.auditHistoryPage)
 	mux.HandleFunc("GET /sessions", h.sessionsPage)
 	mux.HandleFunc("POST /sessions/{sessionId}", h.sessionMutation)
 	mux.HandleFunc("GET /security", h.securityPage)
