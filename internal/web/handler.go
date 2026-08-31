@@ -24,6 +24,7 @@ import (
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 	"example.com/dynamis-code/apps-template/internal/sharing"
+	"example.com/dynamis-code/apps-template/internal/webhooks"
 )
 
 //go:embed assets/* templates/*
@@ -34,6 +35,7 @@ type Handler struct {
 	items          *items.Service
 	files          *appfiles.Service
 	sharing        *sharing.Service
+	webhooks       webhookManager
 	exporter       exporter
 	importer       importer
 	oidc           *identity.OIDCRegistry
@@ -110,6 +112,12 @@ type pageData struct {
 	MFARecoveryCodes                 []string
 	Passkeys                         []identity.Passkey
 	MFAStatus                        identity.MFAStatus
+	Webhooks                         []webhooks.Webhook
+	SelectedWebhook                  webhooks.Webhook
+	WebhookDeliveries                []webhooks.Delivery
+	WebhookSecret                    string
+	WebhookSecretKeyConfigured       bool
+	WebhookReadbackFailed            bool
 }
 
 func (p pageData) T(key string, values ...any) string {
@@ -184,7 +192,7 @@ func NewHandlerWithServicesAndFiles(
 	publicURL string,
 	mailer appmail.Sender,
 ) (*Handler, error) {
-	return newHandler(identityService, itemService, nil, exporterService, oidcRegistry, cfg, fileService, setupToken, publicURL, mailer)
+	return newHandler(identityService, itemService, nil, exporterService, oidcRegistry, cfg, fileService, setupToken, publicURL, mailer, nil)
 }
 
 func NewHandlerWithServicesAndFilesAndSharing(
@@ -198,8 +206,9 @@ func NewHandlerWithServicesAndFilesAndSharing(
 	setupToken string,
 	publicURL string,
 	mailer appmail.Sender,
+	webhookServices ...*webhooks.Service,
 ) (*Handler, error) {
-	return newHandler(identityService, itemService, sharingService, exporterService, oidcRegistry, cfg, fileService, setupToken, publicURL, mailer)
+	return newHandler(identityService, itemService, sharingService, exporterService, oidcRegistry, cfg, fileService, setupToken, publicURL, mailer, firstWebhook(webhookServices))
 }
 
 func NewHandlerWithServices(
@@ -212,8 +221,9 @@ func NewHandlerWithServices(
 	setupToken string,
 	publicURL string,
 	mailer appmail.Sender,
+	webhookServices ...*webhooks.Service,
 ) (*Handler, error) {
-	return newHandler(identityService, itemService, sharingService, exporterService, oidcRegistry, cfg, nil, setupToken, publicURL, mailer)
+	return newHandler(identityService, itemService, sharingService, exporterService, oidcRegistry, cfg, nil, setupToken, publicURL, mailer, firstWebhook(webhookServices))
 }
 
 func newHandler(
@@ -227,6 +237,7 @@ func newHandler(
 	setupToken string,
 	publicURL string,
 	mailer appmail.Sender,
+	webhookService webhookManager,
 ) (*Handler, error) {
 	catalog, err := i18n.New()
 	if err != nil {
@@ -252,6 +263,7 @@ func newHandler(
 	}
 	return &Handler{
 		identity: identityService, items: itemService, files: fileService, sharing: sharingService, exporter: exporterService,
+		webhooks: webhookService,
 		importer: importerFor(exporterService),
 		oidc:     oidcRegistry, publicURL: publicURL, mailer: mailer, cfg: cfg,
 		setupTokenHash: setupTokenHash,
@@ -259,6 +271,13 @@ func newHandler(
 		streams:        newStreamLimit(cfg.SSEMaxConnections, cfg.SSEMaxPerUser),
 		catalog:        catalog,
 	}, nil
+}
+
+func firstWebhook(values []*webhooks.Service) webhookManager {
+	if len(values) == 0 || values[0] == nil {
+		return nil
+	}
+	return values[0]
 }
 
 func (h *Handler) Routes() http.Handler {
@@ -315,6 +334,10 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/tokens", h.tokensPage)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/tokens", h.tokenMutation)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/tokens/{tokenId}", h.tokenMutation)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/webhooks", h.webhooksPage)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/webhooks", h.webhookMutation)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/webhooks/{webhookId}/deliveries", h.webhookDeliveriesPage)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/webhooks/{webhookId}", h.webhookMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/provisioning", h.provisioningPage)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/provisioning", h.provisioningMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/export", h.exportPage)

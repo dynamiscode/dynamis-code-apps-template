@@ -94,6 +94,16 @@
 - Added migration 000007 and workspace-scoped, encrypted-secret webhooks for
   item events, signed at-least-once delivery, bounded retries, and redacted
   delivery history.
+- Added the workspace Settings webhooks browser surface for registration,
+  one-time secret display and rotation, deletion, and redacted delivery history
+  with localized accessible form fallback.
+- Fixed webhook creation and rotation preserving one-time secret display when
+  post-commit browser readback fails.
+- Fixed browser webhook errors hiding missing `WEBHOOK_ENCRYPTION_KEY` and the
+  workspace webhook limit; the settings page now shows missing-key status and
+  disables create/rotate controls, while server startup reports the configuration gap.
+- Webhook form failures now keep the user on the settings page with an inline
+  error instead of a generic request-failed page.
 - Added reproducible setup, module verification, secret scanning, pinned
   workflow checks, and version-pinned vulnerability scanning to local and CI
   gates.

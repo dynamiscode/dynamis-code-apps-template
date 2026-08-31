@@ -814,8 +814,9 @@ func (h *Handler) managementError(writer http.ResponseWriter, request *http.Requ
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	_ = workspaceID
-	h.render(writer, http.StatusUnprocessableEntity, "error.html", pageData{Title: "Request failed", Error: message, Workspaces: workspaces})
+	h.render(writer, http.StatusUnprocessableEntity, "error.html", pageData{
+		Title: "Request failed", Error: message, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
+	})
 }
 
 func (h *Handler) providers() []identity.OIDCProviderInfo {
