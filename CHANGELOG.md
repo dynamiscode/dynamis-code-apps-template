@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed browser form action buttons sitting directly against their preceding
+  controls.
 - Added optional MFA with WebAuthn/passkeys as the primary strong factor, TOTP
   fallback, one-time hashed recovery codes, encrypted TOTP storage, revocable
   passkeys, replay-protected challenges, MFA session levels, admin policy
