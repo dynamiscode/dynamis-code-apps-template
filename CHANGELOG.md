@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed browser form action buttons sitting directly against their preceding
+  controls.
 - Added a read-only, workspace-scoped Settings audit history for owners and
   admins, limited to the latest 100 redacted events with no REST, MCP, or
   WebMCP surface.
