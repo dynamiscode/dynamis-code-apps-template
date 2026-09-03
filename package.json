@@ -8,6 +8,6 @@
   },
   "devDependencies": {
     "axe-core": "4.13.0",
-    "selenium-webdriver": "4.47.0"
+    "selenium-webdriver": "4.48.0"
   }
 }
