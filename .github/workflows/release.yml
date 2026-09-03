@@ -44,7 +44,7 @@ jobs:
       - name: Create checksums
         working-directory: dist
         run: sha256sum appctl_* server_* release.spdx.json > SHA256SUMS
-      - uses: sigstore/cosign-installer@f713795cb21599bc4e5c4b58cbad1da852d7eeb9 # v3
+      - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
       - name: Sign release files keylessly
         run: |
           for file in dist/appctl_* dist/server_* dist/release.spdx.json dist/SHA256SUMS; do
