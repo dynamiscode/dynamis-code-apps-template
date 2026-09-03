@@ -50,7 +50,7 @@ jobs:
           for file in dist/appctl_* dist/server_* dist/release.spdx.json dist/SHA256SUMS; do
             cosign sign-blob --yes --bundle "${file}.sigstore.json" "$file"
           done
-      - uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
+      - uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
         with:
           subject-path: |
             dist/appctl_*
@@ -83,7 +83,7 @@ jobs:
           sbom: true
       - name: Sign image keylessly
         run: cosign sign --yes "${{ steps.image.outputs.name }}@${{ steps.image-build.outputs.digest }}"
-      - uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
+      - uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
         with:
           subject-name: ${{ steps.image.outputs.name }}
           subject-digest: ${{ steps.image-build.outputs.digest }}
