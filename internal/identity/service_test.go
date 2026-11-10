@@ -382,6 +382,269 @@ func TestInvitationLifecycle(t *testing.T) {
 	}
 }
 
+func TestInvitationStatus(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC)
+	past := now.Add(-time.Hour)
+	future := now.Add(time.Hour)
+
+	tests := []struct {
+		name       string
+		invitation Invitation
+		now        time.Time
+		want       InvitationStatus
+	}{
+		{
+			name: "accepted takes precedence over everything",
+			invitation: Invitation{
+				ExpiresAt:  past,
+				AcceptedAt: &past,
+				RevokedAt:  &past,
+				ExpiredAt:  &past,
+			},
+			now:  now,
+			want: InvitationAccepted,
+		},
+		{
+			name: "accepted alone",
+			invitation: Invitation{
+				ExpiresAt:  future,
+				AcceptedAt: &now,
+			},
+			now:  now,
+			want: InvitationAccepted,
+		},
+		{
+			name: "accepted when expired by time",
+			invitation: Invitation{
+				ExpiresAt:  past,
+				AcceptedAt: &past,
+			},
+			now:  now,
+			want: InvitationAccepted,
+		},
+		{
+			name: "revoked takes precedence over expired",
+			invitation: Invitation{
+				ExpiresAt: past,
+				RevokedAt: &past,
+				ExpiredAt: &past,
+			},
+			now:  now,
+			want: InvitationRevoked,
+		},
+		{
+			name: "revoked alone",
+			invitation: Invitation{
+				ExpiresAt: future,
+				RevokedAt: &now,
+			},
+			now:  now,
+			want: InvitationRevoked,
+		},
+		{
+			name: "revoked when expired by time",
+			invitation: Invitation{
+				ExpiresAt: past,
+				RevokedAt: &past,
+			},
+			now:  now,
+			want: InvitationRevoked,
+		},
+		{
+			name: "expired by timestamp even if expires_at is future",
+			invitation: Invitation{
+				ExpiresAt: future,
+				ExpiredAt: &past,
+			},
+			now:  now,
+			want: InvitationExpired,
+		},
+		{
+			name: "expired when now is equal to expires_at",
+			invitation: Invitation{
+				ExpiresAt: now,
+			},
+			now:  now,
+			want: InvitationExpired,
+		},
+		{
+			name: "expired when now is after expires_at",
+			invitation: Invitation{
+				ExpiresAt: past,
+			},
+			now:  now,
+			want: InvitationExpired,
+		},
+		{
+			name: "pending when no timestamps set and now is before expires_at",
+			invitation: Invitation{
+				ExpiresAt: future,
+			},
+			now:  now,
+			want: InvitationPending,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.invitation.Status(tt.now)
+			if got != tt.want {
+				t.Fatalf("Status() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestValidateInvitationTransition(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		current   InvitationStatus
+		target    InvitationStatus
+		wantValid bool
+	}{
+		// Valid transitions
+		{"pending to accepted", InvitationPending, InvitationAccepted, true},
+		{"pending to revoked", InvitationPending, InvitationRevoked, true},
+		{"pending to expired", InvitationPending, InvitationExpired, true},
+		{"pending to pending (resend)", InvitationPending, InvitationPending, true},
+		{"expired to pending (resend)", InvitationExpired, InvitationPending, true},
+
+		// Terminal states cannot transition
+		{"accepted to pending", InvitationAccepted, InvitationPending, false},
+		{"accepted to accepted", InvitationAccepted, InvitationAccepted, false},
+		{"accepted to revoked", InvitationAccepted, InvitationRevoked, false},
+		{"accepted to expired", InvitationAccepted, InvitationExpired, false},
+
+		{"revoked to pending", InvitationRevoked, InvitationPending, false},
+		{"revoked to accepted", InvitationRevoked, InvitationAccepted, false},
+		{"revoked to revoked", InvitationRevoked, InvitationRevoked, false},
+		{"revoked to expired", InvitationRevoked, InvitationExpired, false},
+
+		// Expired cannot transition to other terminal states
+		{"expired to accepted", InvitationExpired, InvitationAccepted, false},
+		{"expired to revoked", InvitationExpired, InvitationRevoked, false},
+		{"expired to expired", InvitationExpired, InvitationExpired, false},
+
+		// Unknown statuses
+		{"unknown to pending", InvitationStatus("unknown"), InvitationPending, false},
+		{"pending to unknown", InvitationPending, InvitationStatus("unknown"), false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateInvitationTransition(tt.current, tt.target)
+			if tt.wantValid {
+				if err != nil {
+					t.Fatalf("ValidateInvitationTransition(%v, %v) unexpected error = %v", tt.current, tt.target, err)
+				}
+			} else {
+				if err == nil {
+					t.Fatalf("ValidateInvitationTransition(%v, %v) expected error, got nil", tt.current, tt.target)
+				}
+				if !errors.Is(err, ErrInvalidInvitation) {
+					t.Fatalf("ValidateInvitationTransition(%v, %v) error = %v, want ErrInvalidInvitation", tt.current, tt.target, err)
+				}
+			}
+		})
+	}
+}
+
+func TestInvitationExplicitTransitionsInService(t *testing.T) {
+	service, db := newTestService(t)
+	ctx := context.Background()
+	bootstrap := bootstrapOwner(t, service)
+	owner := mustAuthorize(t, service, bootstrap.UserID, bootstrap.WorkspaceID, InvitationsManage)
+
+	// Create an invitation -> status is Pending
+	invitation, err := service.CreateInvitation(ctx, owner, "statemachine@example.com", Member, time.Hour, AuditContext{})
+	if err != nil {
+		t.Fatalf("CreateInvitation() error = %v", err)
+	}
+	if status := invitation.Invitation.Status(service.now().UTC()); status != InvitationPending {
+		t.Fatalf("new invitation status = %v, want %v", status, InvitationPending)
+	}
+
+	// Resend pending -> pending (valid)
+	rotated, err := service.ResendInvitation(ctx, owner, invitation.ID, time.Hour, AuditContext{})
+	if err != nil {
+		t.Fatalf("ResendInvitation() error = %v", err)
+	}
+
+	// Revoke pending -> revoked (valid)
+	if err := service.RevokeInvitation(ctx, owner, invitation.ID, AuditContext{}); err != nil {
+		t.Fatalf("RevokeInvitation() error = %v", err)
+	}
+
+	// Resend revoked -> invalid transition (revoked is terminal)
+	if _, err := service.ResendInvitation(ctx, owner, invitation.ID, time.Hour, AuditContext{}); !errors.Is(err, ErrInvalidInvitation) {
+		t.Fatalf("ResendInvitation(revoked) error = %v, want ErrInvalidInvitation", err)
+	}
+
+	// Revoke revoked -> invalid transition
+	if err := service.RevokeInvitation(ctx, owner, invitation.ID, AuditContext{}); !errors.Is(err, ErrInvalidInvitation) {
+		t.Fatalf("RevokeInvitation(revoked) error = %v, want ErrInvalidInvitation", err)
+	}
+
+	// Accept revoked -> invalid transition
+	user := insertUser(t, service, db, "statemachine@example.com")
+	if _, err := service.AcceptInvitation(ctx, rotated, user, AuditContext{}); !errors.Is(err, ErrInvalidInvitation) {
+		t.Fatalf("AcceptInvitation(revoked) error = %v, want ErrInvalidInvitation", err)
+	}
+
+	// Create accepted invitation
+	acceptedInv, err := service.CreateInvitation(ctx, owner, "accepted@example.com", Member, time.Hour, AuditContext{})
+	if err != nil {
+		t.Fatalf("CreateInvitation(accepted) error = %v", err)
+	}
+	acceptedUser := insertUser(t, service, db, "accepted@example.com")
+	if _, err := service.AcceptInvitation(ctx, acceptedInv.Secret, acceptedUser, AuditContext{}); err != nil {
+		t.Fatalf("AcceptInvitation() error = %v", err)
+	}
+
+	// Resend accepted -> invalid transition
+	if _, err := service.ResendInvitation(ctx, owner, acceptedInv.ID, time.Hour, AuditContext{}); !errors.Is(err, ErrInvalidInvitation) {
+		t.Fatalf("ResendInvitation(accepted) error = %v, want ErrInvalidInvitation", err)
+	}
+
+	// Revoke accepted -> invalid transition
+	if err := service.RevokeInvitation(ctx, owner, acceptedInv.ID, AuditContext{}); !errors.Is(err, ErrInvalidInvitation) {
+		t.Fatalf("RevokeInvitation(accepted) error = %v, want ErrInvalidInvitation", err)
+	}
+
+	// Accept accepted -> invalid transition
+	if _, err := service.AcceptInvitation(ctx, acceptedInv.Secret, acceptedUser, AuditContext{}); !errors.Is(err, ErrInvalidInvitation) {
+		t.Fatalf("AcceptInvitation(accepted) error = %v, want ErrInvalidInvitation", err)
+	}
+
+	// Expired invitation
+	expiredInv, err := service.CreateInvitation(ctx, owner, "expired-trans@example.com", Member, time.Minute, AuditContext{})
+	if err != nil {
+		t.Fatalf("CreateInvitation(expired) error = %v", err)
+	}
+	service.now = func() time.Time { return expiredInv.ExpiresAt.Add(time.Second) }
+
+	// Revoke expired -> invalid transition
+	if err := service.RevokeInvitation(ctx, owner, expiredInv.ID, AuditContext{}); !errors.Is(err, ErrInvalidInvitation) {
+		t.Fatalf("RevokeInvitation(expired) error = %v, want ErrInvalidInvitation", err)
+	}
+
+	// Resend expired -> valid (revives to pending)
+	revivedSecret, err := service.ResendInvitation(ctx, owner, expiredInv.ID, time.Hour, AuditContext{})
+	if err != nil {
+		t.Fatalf("ResendInvitation(expired) error = %v", err)
+	}
+
+	// Accept revived -> valid
+	expiredUser := insertUser(t, service, db, "expired-trans@example.com")
+	if _, err := service.AcceptInvitation(ctx, revivedSecret, expiredUser, AuditContext{}); err != nil {
+		t.Fatalf("AcceptInvitation(revived) error = %v", err)
+	}
+}
+
 func TestInvitedLocalUserAndExistingMemberSafety(t *testing.T) {
 	service, _ := newTestService(t)
 	ctx := context.Background()
