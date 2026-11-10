@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha1"
+	"database/sql"
 	"encoding/base32"
 	"errors"
 	"fmt"
@@ -331,4 +332,115 @@ func totpTestCode(secret string, now time.Time) string {
 	offset := sum[len(sum)-1] & 15
 	value := (uint32(sum[offset])&127)<<24 | uint32(sum[offset+1])<<16 | uint32(sum[offset+2])<<8 | uint32(sum[offset+3])
 	return fmt.Sprintf("%06d", value%1000000)
+}
+
+func TestEvaluateChallengeState(t *testing.T) {
+	now := time.Date(2026, 8, 28, 12, 0, 0, 0, time.UTC)
+	future := now.Add(5 * time.Minute)
+	past := now.Add(-5 * time.Minute)
+
+	tests := []struct {
+		name       string
+		consumedAt sql.NullString
+		expiresAt  time.Time
+		attempts   int
+		now        time.Time
+		want       MFAChallengeState
+	}{
+		{
+			name:       "active challenge with zero attempts",
+			consumedAt: sql.NullString{Valid: false},
+			expiresAt:  future,
+			attempts:   0,
+			now:        now,
+			want:       ChallengeActive,
+		},
+		{
+			name:       "active challenge with some attempts below max",
+			consumedAt: sql.NullString{Valid: false},
+			expiresAt:  future,
+			attempts:   maxMFAAttempts - 1,
+			now:        now,
+			want:       ChallengeActive,
+		},
+		{
+			name:       "consumed challenge",
+			consumedAt: sql.NullString{String: "2026-08-28T12:01:00Z", Valid: true},
+			expiresAt:  future,
+			attempts:   0,
+			now:        now,
+			want:       ChallengeConsumed,
+		},
+		{
+			name:       "consumed takes precedence over locked",
+			consumedAt: sql.NullString{String: "2026-08-28T12:01:00Z", Valid: true},
+			expiresAt:  future,
+			attempts:   maxMFAAttempts,
+			now:        now,
+			want:       ChallengeConsumed,
+		},
+		{
+			name:       "consumed takes precedence over expired",
+			consumedAt: sql.NullString{String: "2026-08-28T12:01:00Z", Valid: true},
+			expiresAt:  past,
+			attempts:   0,
+			now:        now,
+			want:       ChallengeConsumed,
+		},
+		{
+			name:       "locked challenge at max attempts",
+			consumedAt: sql.NullString{Valid: false},
+			expiresAt:  future,
+			attempts:   maxMFAAttempts,
+			now:        now,
+			want:       ChallengeLocked,
+		},
+		{
+			name:       "locked challenge exceeding max attempts",
+			consumedAt: sql.NullString{Valid: false},
+			expiresAt:  future,
+			attempts:   maxMFAAttempts + 2,
+			now:        now,
+			want:       ChallengeLocked,
+		},
+		{
+			name:       "expired challenge exactly at expiration time",
+			consumedAt: sql.NullString{Valid: false},
+			expiresAt:  now,
+			attempts:   0,
+			now:        now,
+			want:       ChallengeExpired,
+		},
+		{
+			name:       "expired challenge past expiration time",
+			consumedAt: sql.NullString{Valid: false},
+			expiresAt:  past,
+			attempts:   0,
+			now:        now,
+			want:       ChallengeExpired,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := evaluateChallengeState(tc.consumedAt, tc.expiresAt, tc.attempts, tc.now)
+			if got != tc.want {
+				t.Fatalf("evaluateChallengeState() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+
+	// Verify String() representations
+	if ChallengeActive.String() != "active" {
+		t.Fatalf("ChallengeActive.String() = %q, want %q", ChallengeActive.String(), "active")
+	}
+	if ChallengeConsumed.String() != "consumed" {
+		t.Fatalf("ChallengeConsumed.String() = %q, want %q", ChallengeConsumed.String(), "consumed")
+	}
+	if ChallengeExpired.String() != "expired" {
+		t.Fatalf("ChallengeExpired.String() = %q, want %q", ChallengeExpired.String(), "expired")
+	}
+	if ChallengeLocked.String() != "locked" {
+		t.Fatalf("ChallengeLocked.String() = %q, want %q", ChallengeLocked.String(), "locked")
+	}
 }

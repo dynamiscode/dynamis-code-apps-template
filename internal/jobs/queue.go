@@ -25,6 +25,22 @@ const (
 	initialRetry    = time.Second
 )
 
+type JobStatus string
+
+const (
+	JobPending   JobStatus = "pending"
+	JobRunning   JobStatus = "running"
+	JobSucceeded JobStatus = "succeeded"
+	JobFailed    JobStatus = "failed"
+)
+
+type JobOutcome struct {
+	Status          JobStatus
+	Exhausted       bool
+	AvailableAt     *time.Time
+	FailureCategory string
+}
+
 type Job struct {
 	ID           string
 	WorkspaceID  string
@@ -180,19 +196,31 @@ func (queue *Queue) Process(ctx context.Context, limit int) (int, error) {
 			continue
 		}
 		if job.AttemptCount > maxAttempts {
-			exhausted, registered := queue.exhaustedHandler(job.Kind)
-			if registered {
-				if err := exhausted(ctx, job); err != nil {
-					return processed, err
+			outcome := EvaluateJobOutcome(job.AttemptCount, maxAttempts, nil, time.Now().UTC())
+			if outcome.Exhausted {
+				exhausted, registered := queue.exhaustedHandler(job.Kind)
+				if registered {
+					if err := exhausted(ctx, job); err != nil {
+						return processed, err
+					}
 				}
 			}
-			if err := queue.finish(ctx, job, Failure{Category: "attempts-exhausted"}); err != nil {
+			if err := queue.finish(ctx, job, Failure{Category: outcome.FailureCategory}); err != nil {
 				return processed, err
 			}
 			processed++
 			continue
 		}
 		handlerErr := handler(ctx, job)
+		outcome := EvaluateJobOutcome(job.AttemptCount, maxAttempts, handlerErr, time.Now().UTC())
+		if outcome.Exhausted {
+			exhausted, registered := queue.exhaustedHandler(job.Kind)
+			if registered {
+				if err := exhausted(ctx, job); err != nil {
+					return processed, err
+				}
+			}
+		}
 		if err := queue.finish(ctx, job, handlerErr); err != nil {
 			return processed, err
 		}
@@ -298,31 +326,76 @@ func (queue *Queue) claim(ctx context.Context) (Job, bool, error) {
 
 func (queue *Queue) finish(ctx context.Context, job Job, handlerErr error) error {
 	now := time.Now().UTC()
-	status, lastError, next := "succeeded", any(nil), any(nil)
-	if handlerErr != nil {
-		status = "pending"
-		lastError = failureCategory(handlerErr)
-		next = stamp(now.Add(retryDelay(job.AttemptCount)))
-		if job.AttemptCount >= maxAttempts {
-			status, next = "failed", nil
-		}
+	outcome := EvaluateJobOutcome(job.AttemptCount, maxAttempts, handlerErr, now)
+	var next any
+	if outcome.AvailableAt != nil {
+		next = stamp(*outcome.AvailableAt)
+	}
+	var lastError any
+	if outcome.FailureCategory != "" {
+		lastError = outcome.FailureCategory
 	}
 	_, err := queue.db.ExecContext(ctx, database.Rebind(queue.driver, `
 		UPDATE background_jobs SET status = ?, available_at = COALESCE(?, available_at),
 			lease_token = NULL, leased_until = NULL,
 			completed_at = CASE WHEN ? IN ('succeeded', 'failed') THEN ? ELSE NULL END,
 			last_error = ? WHERE id = ? AND status = 'running' AND lease_token = ?
-	`), status, next, status, stamp(now), lastError, job.ID, job.LeaseToken)
+	`), string(outcome.Status), next, string(outcome.Status), stamp(now), lastError, job.ID, job.LeaseToken)
 	if err != nil {
 		return err
 	}
-	telemetry.RecordJob(ctx, job.Kind, status)
-	if handlerErr != nil {
-		queue.logger.Warn("background job failed", "kind", job.Kind, "attempt", job.AttemptCount, "status", status, "category", lastError)
+	telemetry.RecordJob(ctx, job.Kind, string(outcome.Status))
+	if handlerErr != nil || outcome.Status == JobFailed {
+		queue.logger.Warn("background job failed", "kind", job.Kind, "attempt", job.AttemptCount, "status", string(outcome.Status), "category", lastError)
 	} else {
 		queue.logger.Info("background job completed", "kind", job.Kind, "attempt", job.AttemptCount)
 	}
 	return nil
+}
+
+func EvaluateJobOutcome(attempt, maxAttempts int, handlerErr error, now time.Time) JobOutcome {
+	if attempt < 1 {
+		attempt = 1
+	}
+	if maxAttempts < 1 {
+		maxAttempts = 1
+	}
+	if attempt > maxAttempts {
+		category := "attempts-exhausted"
+		if handlerErr != nil {
+			category = failureCategory(handlerErr)
+		}
+		return JobOutcome{
+			Status:          JobFailed,
+			Exhausted:       true,
+			AvailableAt:     nil,
+			FailureCategory: category,
+		}
+	}
+	if handlerErr == nil {
+		return JobOutcome{
+			Status:          JobSucceeded,
+			Exhausted:       false,
+			AvailableAt:     nil,
+			FailureCategory: "",
+		}
+	}
+	category := failureCategory(handlerErr)
+	if attempt >= maxAttempts {
+		return JobOutcome{
+			Status:          JobFailed,
+			Exhausted:       true,
+			AvailableAt:     nil,
+			FailureCategory: category,
+		}
+	}
+	next := now.Add(retryDelay(attempt))
+	return JobOutcome{
+		Status:          JobPending,
+		Exhausted:       false,
+		AvailableAt:     &next,
+		FailureCategory: category,
+	}
 }
 
 func failureCategory(err error) string {
