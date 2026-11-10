@@ -361,3 +361,20 @@ Verified 2026-11-10 with Go 1.27.0, HTMX 4.0.1, axe-core, and Chrome:
   assertions were skipped because the browser exposes no `document.modelContext`
 - not yet covered: a browser-level check that a 4xx response leaves the list
   unchanged under the restored non-swap config
+
+## MCP completion evidence
+
+Verified 2026-11-10 with Go 1.27.3 and the go-sdk v1.8.0 stateless endpoint:
+
+- completion and prompt tests cover the advertised `prompts` and `completions`
+  capabilities, stateless responses without `Mcp-Session-Id`, read-scope
+  enforcement (a write-only token is denied), read-only token access, status
+  and workspace-scoped item ID completion, empty results for unauthorized,
+  malformed, or missing workspaces, a 100-value bound with `hasMore`, and
+  prompt authorization through the shared item service
+- `go vet ./...`, `go test -race ./internal/mcpserver/`, and `go generate ./api`
+  with no generated drift pass
+- `go test ./...` passed in every package except `internal/bootstrap`, where
+  `TestAgentSurfacesLiveSmoke` timed out once under full-suite load; the same
+  test passed on an isolated rerun, so the timeout is recorded as unresolved load
+  sensitivity, not as a fix
