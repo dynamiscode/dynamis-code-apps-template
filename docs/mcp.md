@@ -27,6 +27,17 @@ side-effect change requires a new name such as `_v2`. Item outputs retain their
 record after account deletion and return `createdByUserId: null` when the
 creator no longer exists.
 
+Tools use the SDK's typed `mcp.AddTool`: the Go input and output types derive
+the published schemas, and the SDK validates arguments before the handler runs
+and validates outputs before they are returned. `testdata/tools-v1.json` pins
+the published `tools/list` contract, and a contract test fails on any drift.
+Arguments the schema rejects return `parameters are invalid` and write one
+failed audit record without workspace or item identifiers, because the caller's
+workspace is not authorized input at that point. The published constraints are
+enforced for every field, so inputs the previous handler accepted silently or
+mapped to defaults, such as `limit: 0`, an empty `search`, `status`, or `sort`,
+`status: null`, and cursors over 512 characters, are now rejected.
+
 WebMCP is separate from this server MCP endpoint. It is an optional,
 feature-detected browser-tab enhancement that uses the live authenticated web
 session and DOM to prepare narrow visible controls. It does not reuse bearer
