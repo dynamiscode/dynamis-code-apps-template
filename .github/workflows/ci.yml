@@ -59,6 +59,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: make js-check
+      - run: make test-unit
       - run: make accessibility-smoke
       - run: make webmcp-smoke
 
