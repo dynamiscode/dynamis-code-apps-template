@@ -173,7 +173,7 @@ test("PresignedUploader handles successful upload lifecycle", async () => {
         })
       };
     }
-    if (url.includes("storage.example.com")) {
+    if (new URL(url, "https://app.example.test").hostname === "storage.example.com") {
       return { ok: true };
     }
     if (url.endsWith("/complete")) {
