@@ -146,7 +146,7 @@ func TestMCPToolsUseSharedScopedItemService(t *testing.T) {
 	deleted := decodeOutput[deleteOutput](t, callTool(t, session, "items_delete_v1", map[string]any{
 		"workspaceId": state.workspaceID, "itemId": created.ID, "version": 2,
 	}))
-	if !deleted.Deleted || deleted.ItemID != created.ID {
+	if !deleted.Deleted || string(deleted.ItemID) != created.ID {
 		t.Fatalf("deleted = %+v", deleted)
 	}
 
@@ -394,7 +394,7 @@ func TestMCPReceivingMiddlewareAuditsEveryKnownMethod(t *testing.T) {
 
 	promptsBody := `{"jsonrpc":"2.0","id":2,"method":"prompts/list","params":{"_meta":{` + statelessMeta + `}}}`
 	prompts := postMCPMethod(state.handler, state.token.Secret, "prompts/list", promptsBody)
-	if prompts.Code != http.StatusOK || !strings.Contains(prompts.Body.String(), `"prompts":[]`) {
+	if prompts.Code != http.StatusOK || !strings.Contains(prompts.Body.String(), `"prompts":[{`) {
 		t.Fatalf("prompts/list response = %d %s", prompts.Code, prompts.Body.String())
 	}
 
@@ -432,13 +432,16 @@ func TestMCPReceivingMiddlewareAuditsEveryKnownMethod(t *testing.T) {
 func TestMCPReceivingMiddlewareRecoversPanicsWithoutLeakingValues(t *testing.T) {
 	state := newTestState(t, config.MCP{})
 	var logs bytes.Buffer
-	h := &handler{identity: state.auth, logger: slog.New(slog.NewTextHandler(&logs, nil))}
-	server := h.newServer()
-	h.add(server, &mcp.Tool{
+	h := &handler{
+		identity: state.auth, logger: slog.New(slog.NewTextHandler(&logs, nil)), tools: map[string]*mcp.Tool{},
+	}
+	server := mcp.NewServer(&mcp.Implementation{Name: "panic-server", Version: "1"}, nil)
+	server.AddReceivingMiddleware(h.observe)
+	type none struct{}
+	addTool(server, h, &mcp.Tool{
 		Name: "panic_v1", Description: "Panics for middleware tests.",
-		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true}, InputSchema: objectSchema(map[string]any{}),
-		OutputSchema: objectSchema(map[string]any{}),
-	}, func(context.Context, *mcp.CallToolRequest) toolRun {
+		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
+	}, nil, func(context.Context, *mcp.CallToolRequest, none) (none, toolRun) {
 		panic("super-secret-panic-value")
 	})
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()
@@ -494,4 +497,38 @@ func postMCPMethod(handler http.Handler, token, method, body string) *httptest.R
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	return response
+}
+
+func TestMCPToolsListCacheHints(t *testing.T) {
+	state := newTestState(t, config.MCP{})
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`
+	response := postMCP(state.handler, state.token.Secret, "", body)
+	if response.Code != http.StatusOK {
+		t.Fatalf("tools/list status = %d body = %s", response.Code, response.Body.String())
+	}
+	if response.Header().Get("Mcp-Session-Id") != "" {
+		t.Fatalf("tools/list issued Mcp-Session-Id")
+	}
+	var envelope struct {
+		Result struct {
+			Tools      []struct{ Name string } `json:"tools"`
+			TTLMs      int                     `json:"ttlMs"`
+			CacheScope string                  `json:"cacheScope"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode tools/list: %v body = %s", err, response.Body.String())
+	}
+	if envelope.Result.TTLMs != 300_000 || envelope.Result.CacheScope != "public" {
+		t.Fatalf("cache hints = ttlMs %d cacheScope %q", envelope.Result.TTLMs, envelope.Result.CacheScope)
+	}
+	if len(envelope.Result.Tools) != 5 {
+		t.Fatalf("tools/list returned %d tools, want 5", len(envelope.Result.Tools))
+	}
+
+	// Discovery of other results is untouched: an unscoped method must not gain hints.
+	ping := postMCP(state.handler, state.token.Secret, "", `{"jsonrpc":"2.0","id":2,"method":"ping"}`)
+	if strings.Contains(ping.Body.String(), "ttlMs") || strings.Contains(ping.Body.String(), "cacheScope") {
+		t.Fatalf("ping gained cache hints: %s", ping.Body.String())
+	}
 }

@@ -29,6 +29,15 @@ var (
 	ErrUnavailable  = errors.New("public share is unavailable")
 )
 
+type LinkStatus string
+
+const (
+	LinkActive   LinkStatus = "active"
+	LinkRevoked  LinkStatus = "revoked"
+	LinkExpired  LinkStatus = "expired"
+	LinkNotFound LinkStatus = "not_found"
+)
+
 type Link struct {
 	ID          string
 	WorkspaceID string
@@ -195,25 +204,37 @@ func (s *Service) Resolve(ctx context.Context, token string, audit identity.Audi
 		return PublicItem{}, err
 	}
 	defer tx.Rollback()
-	var linkID, workspaceID, itemID, title, status, expiresAt string
-	var revokedAt sql.NullString
+	var linkID, workspaceID, itemID, title, status, expiresAtStr string
+	var revokedAtStr sql.NullString
 	err = s.queryRow(ctx, tx, `
 		SELECT p.id, p.workspace_id, p.item_id, p.expires_at, p.revoked_at, i.title, i.status
 		FROM public_links p JOIN items i ON i.id = p.item_id AND i.workspace_id = p.workspace_id
 		WHERE p.token_hash = ?
-	`, identity.SecretHash(token)).Scan(&linkID, &workspaceID, &itemID, &expiresAt, &revokedAt, &title, &status)
-	now := s.now().UTC()
-	outcome := "success"
-	if errors.Is(err, sql.ErrNoRows) {
-		outcome = "not_found"
-	} else if err != nil {
+	`, identity.SecretHash(token)).Scan(&linkID, &workspaceID, &itemID, &expiresAtStr, &revokedAtStr, &title, &status)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return PublicItem{}, err
-	} else if revokedAt.Valid {
-		outcome = "revoked"
-	} else if expiry, parseErr := parseTime(expiresAt); parseErr != nil {
-		return PublicItem{}, parseErr
-	} else if !now.Before(expiry) {
-		outcome = "expired"
+	}
+	found := err == nil
+	now := s.now().UTC()
+	var expiry time.Time
+	var revokedAt *time.Time
+	if found {
+		expiry, err = parseTime(expiresAtStr)
+		if err != nil {
+			return PublicItem{}, err
+		}
+		if revokedAtStr.Valid {
+			parsedRevoked, err := parseTime(revokedAtStr.String)
+			if err != nil {
+				return PublicItem{}, err
+			}
+			revokedAt = &parsedRevoked
+		}
+	}
+	linkStatus := evaluateLinkStatus(found, revokedAt, expiry, now)
+	outcome := "success"
+	if linkStatus != LinkActive {
+		outcome = string(linkStatus)
 	}
 	if auditErr := s.audit(ctx, tx, identity.AuditEvent{
 		EventType: "public_share.accessed", AuthMethod: "public", WorkspaceID: workspaceID,
@@ -226,10 +247,23 @@ func (s *Service) Resolve(ctx context.Context, token string, audit identity.Audi
 	if err := tx.Commit(); err != nil {
 		return PublicItem{}, err
 	}
-	if outcome != "success" {
+	if linkStatus != LinkActive {
 		return PublicItem{}, ErrUnavailable
 	}
 	return PublicItem{Title: title, Status: status}, nil
+}
+
+func evaluateLinkStatus(found bool, revokedAt *time.Time, expiresAt time.Time, now time.Time) LinkStatus {
+	if !found {
+		return LinkNotFound
+	}
+	if revokedAt != nil {
+		return LinkRevoked
+	}
+	if !now.Before(expiresAt) {
+		return LinkExpired
+	}
+	return LinkActive
 }
 
 func newToken() (string, error) {
