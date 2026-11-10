@@ -96,6 +96,17 @@ workspace export, retention maintenance, backup/restore, and the database-backed
 background-job queue remain platform services; no broker, cache, or
 observability stack is bundled.
 
+## Asynchronous state machines
+
+Background queues, workers, and delivery state transitions use pure outcome
+evaluators (`EvaluateJobOutcome`, `evaluateDeliveryOutcome`) with explicit typed
+status enums (`JobPending`, `JobRunning`, `JobSucceeded`, `JobFailed`;
+`DeliveryPending`, `DeliveryDelivered`, `DeliveryFailed`). Handlers and
+persistence queries apply the evaluated outcome rather than branching on
+attempt counts or lease boundaries inline. State transitions are verified
+across attempt boundaries (initial attempt, retry backoff, exhaustion, and
+stale lease reclamation) with unit tests before persistence updates.
+
 ## Profile composition
 
 Generated applications require Core and Identity. Identity remains included

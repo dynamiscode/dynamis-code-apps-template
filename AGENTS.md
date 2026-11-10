@@ -41,6 +41,9 @@ When sources conflict, stop and resolve the contract or decision first.
   service until its trigger in `docs/capabilities.md` is accepted.
 - Pass workspace scope explicitly. Deny authorization by default in shared
   application policy, never only in a handler.
+- Model asynchronous queue, worker, and delivery lifecycles with pure outcome
+  evaluators returning typed status enums; apply evaluated outcomes in persistence
+  queries without distributing retry or exhaustion conditions across handler loops.
 
 ## Change obligations
 
