@@ -12,3 +12,5 @@ if [ -n "$staged_files" ]; then
 		exit 1
 	fi
 fi
+
+make vet generate-check
