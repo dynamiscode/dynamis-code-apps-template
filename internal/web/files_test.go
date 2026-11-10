@@ -71,4 +71,7 @@ func TestFileDownloadMissingReturnsNotFound(t *testing.T) {
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `data-file-upload`) || strings.Contains(page.Body.String(), `data-presigned="true"`) {
 		t.Fatalf("local files page does not retain ordinary upload fallback: %d, %s", page.Code, page.Body.String())
 	}
+	if !strings.Contains(page.Body.String(), `data-upload-status`) || !strings.Contains(page.Body.String(), `role="status"`) || !strings.Contains(page.Body.String(), `aria-live="polite"`) {
+		t.Fatalf("files page missing upload status container: %s", page.Body.String())
+	}
 }
