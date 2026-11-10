@@ -105,6 +105,20 @@ agent-assisted development:
 - **Bounded file reads**: Read specific line ranges around relevant symbols
   rather than loading entire multi-thousand-line files unconditionally.
 
+## Pull requests and merge guidance
+
+1. Open pull requests targeting `main` with a clear summary, change list, and
+   verification evidence.
+2. When merging via CLI, enable auto-merge so squashing occurs automatically
+   once all required checks succeed:
+   ```sh
+   gh pr merge <pr-number> --squash --delete-branch --auto
+   ```
+3. In concurrent worktree workflows, merge conflicts frequently cluster in
+   `CHANGELOG.md` under `## Unreleased`. When rebasing or merging `origin/main`,
+   preserve all concurrent unreleased entries by keeping both sides of the
+   conflict markers, ensuring no entries are dropped or duplicated.
+
 ## Checks
 
 ```sh
