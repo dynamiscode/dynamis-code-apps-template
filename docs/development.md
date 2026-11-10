@@ -66,6 +66,26 @@ Mark each omitted surface with a reason in the phase brief or capability
 ledger. A feature is complete only when every applicable surface has code,
 focused tests, canonical documentation, and linked capability evidence.
 
+## Agent environment and hook resilience
+
+When running coding agents or AI orchestrators (e.g. Antigravity, Orca, Claude Code)
+configured with lifecycle hooks (`PreInvocation`, `PreToolUse`, `PostToolUse`),
+hook scripts must adhere to strict runtime boundaries:
+
+1. **Non-blocking stdin**: Stdin reading should never wait indefinitely or employ
+   long select timeouts. If stdin has no immediate data or EOF, hooks must continue
+   immediately.
+2. **Sub-second execution**: The agent CLI enforces strict timeouts on tool hooks
+   (typically 2-5 seconds). Synchronous hooks that block on network requests or
+   heavy computations will be terminated with `signal: killed`, failing tool calls.
+3. **Graceful degradation**: Inability to contact telemetry or spooling endpoints
+   must fall back cleanly without emitting errors or aborting tool execution.
+
+Verify hook script timing and non-blocking behavior using:
+```sh
+./scripts/check-agent-hooks.sh /path/to/hook-script
+```
+
 ## Checks
 
 ```sh
