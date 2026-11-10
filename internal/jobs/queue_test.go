@@ -129,3 +129,176 @@ func TestQueueRetriesWithLeaseAndRedactsHandlerErrors(t *testing.T) {
 		t.Fatalf("final reclaimed job state = %q, %d", status, attemptCount)
 	}
 }
+
+func TestQueueExhaustionTriggeredOnMaxAttempts(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, config.Database{
+		Driver: config.SQLite, SQLitePath: filepath.Join(t.TempDir(), "jobs.db"),
+		MaxOpenConns: 1, MaxIdleConns: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	if err := database.Migrate(ctx, db, config.SQLite); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)", "workspace-jobs", "Jobs", stamp(time.Now())); err != nil {
+		t.Fatal(err)
+	}
+
+	queue := NewQueue(db, config.SQLite, nil)
+	if err := queue.Register("fail-job", func(_ context.Context, _ Job) error {
+		return errors.New("permanent failure")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	exhaustedCount := 0
+	var exhaustedJob Job
+	if err := queue.RegisterExhausted("fail-job", func(_ context.Context, j Job) error {
+		exhaustedCount++
+		exhaustedJob = j
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := queue.EnqueueTx(ctx, tx, "workspace-jobs", "fail-job", "exhaust-key", `{"test":true}`, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if attempt > 1 {
+			if _, err := db.Exec("UPDATE background_jobs SET available_at = ? WHERE deduplication_key = ?", stamp(time.Now().Add(-time.Second)), "exhaust-key"); err != nil {
+				t.Fatal(err)
+			}
+		}
+		processed, err := queue.Process(ctx, 1)
+		if err != nil || processed != 1 {
+			t.Fatalf("attempt %d Process() = %d, %v", attempt, processed, err)
+		}
+		if attempt < maxAttempts {
+			if exhaustedCount != 0 {
+				t.Fatalf("attempt %d: exhaustedCount = %d, want 0", attempt, exhaustedCount)
+			}
+		}
+	}
+
+	if exhaustedCount != 1 {
+		t.Fatalf("after %d failed attempts, exhaustedCount = %d, want 1", maxAttempts, exhaustedCount)
+	}
+	if exhaustedJob.AttemptCount != maxAttempts {
+		t.Fatalf("exhaustedJob.AttemptCount = %d, want %d", exhaustedJob.AttemptCount, maxAttempts)
+	}
+}
+
+func TestEvaluateJobOutcome(t *testing.T) {
+	now := time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC)
+
+	t.Run("succeeded on attempt 1 to 5", func(t *testing.T) {
+		for attempt := 1; attempt <= 5; attempt++ {
+			outcome := EvaluateJobOutcome(attempt, 5, nil, now)
+			if outcome.Status != JobSucceeded {
+				t.Fatalf("attempt %d status = %v, want %v", attempt, outcome.Status, JobSucceeded)
+			}
+			if outcome.Exhausted {
+				t.Fatalf("attempt %d exhausted = true, want false", attempt)
+			}
+			if outcome.AvailableAt != nil {
+				t.Fatalf("attempt %d AvailableAt = %v, want nil", attempt, outcome.AvailableAt)
+			}
+			if outcome.FailureCategory != "" {
+				t.Fatalf("attempt %d FailureCategory = %q, want empty", attempt, outcome.FailureCategory)
+			}
+		}
+	})
+
+	t.Run("retryable failures on attempts 1 to 4 with exponential backoff", func(t *testing.T) {
+		expectedDelays := map[int]time.Duration{
+			1: time.Second,
+			2: 2 * time.Second,
+			3: 4 * time.Second,
+			4: 8 * time.Second,
+		}
+		for attempt, delay := range expectedDelays {
+			err := Failure{Category: "transient-err"}
+			outcome := EvaluateJobOutcome(attempt, 5, err, now)
+			if outcome.Status != JobPending {
+				t.Fatalf("attempt %d status = %v, want %v", attempt, outcome.Status, JobPending)
+			}
+			if outcome.Exhausted {
+				t.Fatalf("attempt %d exhausted = true, want false", attempt)
+			}
+			if outcome.AvailableAt == nil {
+				t.Fatalf("attempt %d AvailableAt is nil, want %v", attempt, now.Add(delay))
+			} else if !outcome.AvailableAt.Equal(now.Add(delay)) {
+				t.Fatalf("attempt %d AvailableAt = %v, want %v", attempt, *outcome.AvailableAt, now.Add(delay))
+			}
+			if outcome.FailureCategory != "transient-err" {
+				t.Fatalf("attempt %d FailureCategory = %q, want %q", attempt, outcome.FailureCategory, "transient-err")
+			}
+		}
+	})
+
+	t.Run("exhausted on attempt 5", func(t *testing.T) {
+		err := Failure{Category: "final-failure"}
+		outcome := EvaluateJobOutcome(5, 5, err, now)
+		if outcome.Status != JobFailed {
+			t.Fatalf("attempt 5 status = %v, want %v", outcome.Status, JobFailed)
+		}
+		if !outcome.Exhausted {
+			t.Fatalf("attempt 5 exhausted = false, want true")
+		}
+		if outcome.AvailableAt != nil {
+			t.Fatalf("attempt 5 AvailableAt = %v, want nil", outcome.AvailableAt)
+		}
+		if outcome.FailureCategory != "final-failure" {
+			t.Fatalf("attempt 5 FailureCategory = %q, want %q", outcome.FailureCategory, "final-failure")
+		}
+	})
+
+	t.Run("exhausted when attempt exceeds maxAttempts", func(t *testing.T) {
+		// e.g. reclaimed after lease expired on attempt 5 (attempt = 6)
+		outcome := EvaluateJobOutcome(6, 5, nil, now)
+		if outcome.Status != JobFailed {
+			t.Fatalf("attempt 6 status = %v, want %v", outcome.Status, JobFailed)
+		}
+		if !outcome.Exhausted {
+			t.Fatalf("attempt 6 exhausted = false, want true")
+		}
+		if outcome.AvailableAt != nil {
+			t.Fatalf("attempt 6 AvailableAt = %v, want nil", outcome.AvailableAt)
+		}
+		if outcome.FailureCategory != "attempts-exhausted" {
+			t.Fatalf("attempt 6 FailureCategory = %q, want %q", outcome.FailureCategory, "attempts-exhausted")
+		}
+
+		// With explicit handler error
+		errOutcome := EvaluateJobOutcome(6, 5, Failure{Category: "stale-lease"}, now)
+		if errOutcome.Status != JobFailed || !errOutcome.Exhausted || errOutcome.FailureCategory != "stale-lease" {
+			t.Fatalf("attempt 6 with error outcome = %+v", errOutcome)
+		}
+	})
+
+	t.Run("redacts arbitrary error to handler-error", func(t *testing.T) {
+		outcome := EvaluateJobOutcome(1, 5, errors.New("sensitive db error"), now)
+		if outcome.FailureCategory != "handler-error" {
+			t.Fatalf("FailureCategory = %q, want %q", outcome.FailureCategory, "handler-error")
+		}
+	})
+
+	t.Run("normalizes invalid attempt and maxAttempts bounds", func(t *testing.T) {
+		outcome := EvaluateJobOutcome(0, 0, errors.New("err"), now)
+		// normalized attempt=1, maxAttempts=1 -> attempt >= maxAttempts -> JobFailed, Exhausted=true
+		if outcome.Status != JobFailed || !outcome.Exhausted {
+			t.Fatalf("outcome for attempt 0, max 0 = %+v", outcome)
+		}
+	})
+}
