@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Converted client-side presigned file upload logic in `internal/web/assets/app.js`
+  into an explicit `PresignedUploader` state machine with `IDLE`, `INITIATING`,
+  `UPLOADING`, `COMPLETING`, `SUCCESS`, and `ERROR` phases, in-flight submit
+  button locking, non-reloading error transitions, and polite live-region status
+  feedback.
 - Migrated the five `items_*_v1` MCP tools to the SDK's typed `mcp.AddTool`,
   deriving schemas from Go contract types. Tool names, descriptions,
   annotations, and published schemas are unchanged and pinned by a contract
