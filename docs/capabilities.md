@@ -361,3 +361,22 @@ Verified 2026-11-10 with Go 1.27.0, HTMX 4.0.1, axe-core, and Chrome:
   assertions were skipped because the browser exposes no `document.modelContext`
 - not yet covered: a browser-level check that a 4xx response leaves the list
   unchanged under the restored non-swap config
+
+## MCP typed-tool evidence
+
+Verified 2026-11-10 with Go 1.27.3 on the rebased branch commit, after
+rebasing onto `main` at `f5635f3`:
+
+- `make verify` exited 0: formatting, `go vet ./...`, `go test ./...`,
+  `go test -race ./...`, `go mod verify`, workflow checks, reproducible
+  `go generate ./api` with no drift, command builds, and generated-application
+  tests for the Core, Identity, and Agent profiles
+- focused MCP tests cover the golden `tools/list` contract in
+  `internal/mcpserver/testdata/tools-v1.json`, the SDK-applied published
+  defaults, and rejected-argument audits without workspace attribution
+- not run: `make docker-smoke`, `make secret-check`, `make vuln-check`,
+  `make fuzz-smoke`, and the PostgreSQL suite; this change alters no SQL or
+  migrations, and the MCP tools still reach data only through the item service
+- known ceiling: output-validation failures after a handler returns are audited
+  as success before the SDK rejects the output; outputs come from typed DTOs, so
+  this is treated as a programming-error edge rather than a reachable input path
