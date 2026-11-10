@@ -53,6 +53,12 @@ type Bootstrap struct {
 
 type MCP struct {
 	AllowedOrigins []string
+	// OAuthAuthorizationServer is the RFC 9728 authorization server advertised
+	// by protected-resource metadata. Empty keeps OAuth discovery disabled.
+	OAuthAuthorizationServer string
+	// OAuthResourceURL is the MCP resource identifier derived from APP_PUBLIC_URL
+	// when OAuth discovery is enabled.
+	OAuthResourceURL string
 }
 
 type Data struct {
@@ -221,7 +227,7 @@ func LoadFrom(lookup LookupEnv) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	mcpConfig, err := loadMCP(lookup)
+	mcpConfig, err := loadMCP(lookup, publicURL)
 	if err != nil {
 		return Config{}, err
 	}
@@ -568,10 +574,14 @@ func loadTelemetry(lookup LookupEnv) (Telemetry, error) {
 	return value, nil
 }
 
-func loadMCP(lookup LookupEnv) (MCP, error) {
+func loadMCP(lookup LookupEnv, publicURL string) (MCP, error) {
+	authorizationServer, resourceURL, err := loadMCPOAuth(lookup, publicURL)
+	if err != nil {
+		return MCP{}, err
+	}
 	raw := strings.TrimSpace(valueOrDefault(lookup, "MCP_ALLOWED_ORIGINS", ""))
 	if raw == "" {
-		return MCP{}, nil
+		return MCP{OAuthAuthorizationServer: authorizationServer, OAuthResourceURL: resourceURL}, nil
 	}
 	origins := make([]string, 0)
 	seen := make(map[string]bool)
@@ -588,7 +598,35 @@ func loadMCP(lookup LookupEnv) (MCP, error) {
 			seen[value] = true
 		}
 	}
-	return MCP{AllowedOrigins: origins}, nil
+	return MCP{
+		AllowedOrigins: origins, OAuthAuthorizationServer: authorizationServer, OAuthResourceURL: resourceURL,
+	}, nil
+}
+
+// loadMCPOAuth returns the authorization server and MCP resource identifier
+// for RFC 9728 discovery. The resource is derived only from APP_PUBLIC_URL, never
+// from request headers, so metadata cannot be redirected by Host manipulation.
+func loadMCPOAuth(lookup LookupEnv, publicURL string) (string, string, error) {
+	authorizationServer := strings.TrimSpace(valueOrDefault(lookup, "MCP_OAUTH_AUTHORIZATION_SERVER", ""))
+	if authorizationServer == "" {
+		return "", "", nil
+	}
+	if publicURL == "" {
+		return "", "", fmt.Errorf("MCP_OAUTH_AUTHORIZATION_SERVER requires APP_PUBLIC_URL")
+	}
+	public, err := url.Parse(publicURL)
+	if err != nil || public.Path != "" {
+		return "", "", fmt.Errorf("APP_PUBLIC_URL must be an origin when MCP_OAUTH_AUTHORIZATION_SERVER is set")
+	}
+	issuer, err := url.Parse(authorizationServer)
+	if err != nil || issuer.Host == "" || issuer.User != nil || issuer.RawQuery != "" || issuer.Fragment != "" ||
+		(issuer.Scheme != "https" && !(issuer.Scheme == "http" && isLoopbackHost(issuer.Hostname()))) ||
+		strings.ContainsFunc(authorizationServer, func(r rune) bool {
+			return r <= ' ' || r > '~' || r == '"' || r == '\\'
+		}) {
+		return "", "", fmt.Errorf("MCP_OAUTH_AUTHORIZATION_SERVER must use HTTPS or loopback HTTP without credentials, query, or fragment")
+	}
+	return authorizationServer, publicURL + "/mcp", nil
 }
 
 func loadOIDC(lookup LookupEnv) (OIDC, error) {

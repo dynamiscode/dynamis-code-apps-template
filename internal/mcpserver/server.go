@@ -235,11 +235,12 @@ func NewHandler(
 	}
 	authenticated := auth.RequireBearerToken(verifier, &auth.RequireBearerTokenOptions{
 		AllowMissingExpiration: true,
-	})(scopeMiddleware(streamable))
+		ResourceMetadataURL:    protectedResourceMetadataURL(cfg),
+	})(scopeMiddleware(streamable, insufficientScopeChallenge(cfg)))
 	return originMiddleware(authenticated, cfg.AllowedOrigins)
 }
 
-func scopeMiddleware(next http.Handler) http.Handler {
+func scopeMiddleware(next http.Handler, challenge string) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		token := auth.TokenInfoFromContext(request.Context())
 		needed := string(identity.ResourcesRead)
@@ -251,6 +252,9 @@ func scopeMiddleware(next http.Handler) http.Handler {
 				next.ServeHTTP(writer, request)
 				return
 			}
+		}
+		if challenge != "" {
+			writer.Header().Set("WWW-Authenticate", challenge)
 		}
 		http.Error(writer, "insufficient scope", http.StatusForbidden)
 	})

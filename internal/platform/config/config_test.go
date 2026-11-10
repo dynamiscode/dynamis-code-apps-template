@@ -139,6 +139,78 @@ func TestLoadFromValidatesMCPOrigins(t *testing.T) {
 	}
 }
 
+func TestLoadFromMCPOAuthMetadataIsOffByDefault(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := LoadFrom(env(map[string]string{}))
+	if err != nil {
+		t.Fatalf("LoadFrom() error = %v", err)
+	}
+	if cfg.MCP.OAuthAuthorizationServer != "" || cfg.MCP.OAuthResourceURL != "" {
+		t.Fatalf("MCP OAuth metadata enabled by default: %#v", cfg.MCP)
+	}
+}
+
+func TestLoadFromValidatesMCPOAuthAuthorizationServer(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := LoadFrom(env(map[string]string{
+		"APP_PUBLIC_URL":                 "https://app.example.com",
+		"MCP_OAUTH_AUTHORIZATION_SERVER": "https://idp.example.com/tenant",
+	}))
+	if err != nil {
+		t.Fatalf("LoadFrom() error = %v", err)
+	}
+	if cfg.MCP.OAuthAuthorizationServer != "https://idp.example.com/tenant" ||
+		cfg.MCP.OAuthResourceURL != "https://app.example.com/mcp" {
+		t.Fatalf("MCP OAuth metadata = %#v", cfg.MCP)
+	}
+	if _, err := LoadFrom(env(map[string]string{
+		"APP_PUBLIC_URL":                 "http://127.0.0.1:8080",
+		"MCP_OAUTH_AUTHORIZATION_SERVER": "http://127.0.0.1:9000",
+	})); err != nil {
+		t.Fatalf("loopback HTTP authorization server rejected: %v", err)
+	}
+
+	cases := map[string]map[string]string{
+		"missing public URL": {
+			"MCP_OAUTH_AUTHORIZATION_SERVER": "https://idp.example.com",
+		},
+		"public URL with path": {
+			"APP_PUBLIC_URL": "https://app.example.com/base", "MCP_OAUTH_AUTHORIZATION_SERVER": "https://idp.example.com",
+		},
+		"remote plain HTTP": {
+			"APP_PUBLIC_URL": "https://app.example.com", "MCP_OAUTH_AUTHORIZATION_SERVER": "http://idp.example.com",
+		},
+		"query": {
+			"APP_PUBLIC_URL": "https://app.example.com", "MCP_OAUTH_AUTHORIZATION_SERVER": "https://idp.example.com?x=1",
+		},
+		"fragment": {
+			"APP_PUBLIC_URL": "https://app.example.com", "MCP_OAUTH_AUTHORIZATION_SERVER": "https://idp.example.com#x",
+		},
+		"user info": {
+			"APP_PUBLIC_URL": "https://app.example.com", "MCP_OAUTH_AUTHORIZATION_SERVER": "https://user@idp.example.com",
+		},
+		"header-breaking quote": {
+			"APP_PUBLIC_URL": "https://app.example.com", "MCP_OAUTH_AUTHORIZATION_SERVER": `https://idp.example.com/"x`,
+		},
+		"whitespace": {
+			"APP_PUBLIC_URL": "https://app.example.com", "MCP_OAUTH_AUTHORIZATION_SERVER": "https://idp.example.com/a b",
+		},
+		"non-ASCII": {
+			"APP_PUBLIC_URL": "https://app.example.com", "MCP_OAUTH_AUTHORIZATION_SERVER": "https://idp.example.com/tenã",
+		},
+		"missing host": {
+			"APP_PUBLIC_URL": "https://app.example.com", "MCP_OAUTH_AUTHORIZATION_SERVER": "https:///tenant",
+		},
+	}
+	for name, values := range cases {
+		if _, err := LoadFrom(env(values)); err == nil {
+			t.Fatalf("%s accepted: %#v", name, values)
+		}
+	}
+}
+
 func TestLoadFromValidatesBootstrapEnvironment(t *testing.T) {
 	t.Parallel()
 
