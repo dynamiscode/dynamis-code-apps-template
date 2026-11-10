@@ -60,13 +60,14 @@ When sources conflict, stop and resolve the contract or decision first.
 Run applicable commands in order:
 
 1. Focused tests.
-2. `go test ./...`
-3. `go vet ./...`
-4. `go test -race ./...` for concurrent code or release readiness.
-5. `go generate ./api` and confirm no generated drift.
-6. SQLite and isolated PostgreSQL compatibility checks for data changes.
-7. `make docker-smoke` for runtime or delivery changes.
-8. `make verify` before release.
+2. `make fmt-check` (or `gofmt -l`).
+3. `go test ./...`
+4. `go vet ./...`
+5. `go test -race ./...` for concurrent code or release readiness.
+6. `go generate ./api` and confirm no generated drift.
+7. SQLite and isolated PostgreSQL compatibility checks for data changes.
+8. `make docker-smoke` for runtime or delivery changes.
+9. `make verify` before release.
 
 Report passed, failed, blocked, and not-applicable checks separately.
 

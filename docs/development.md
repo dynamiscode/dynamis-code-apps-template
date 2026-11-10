@@ -19,7 +19,7 @@ isolated PostgreSQL database through `POSTGRES_TEST_URL` for PostgreSQL tests.
    tests. Keep workspace scope explicit.
 3. Make one bounded change. Update OpenAPI, migrations, behavior docs,
    changelog, and capability evidence only when affected.
-4. Run focused checks, then the applicable verification ladder.
+4. Run focused checks and `make fmt-check`, then the applicable verification ladder.
 
 Ordinary features stay vertical: application behavior first, transport
 adapters second. Reuse shared authorization, Problem Details, audit,
