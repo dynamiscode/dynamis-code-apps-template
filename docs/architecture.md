@@ -83,6 +83,7 @@ because Core web, REST, item, and bootstrap paths use its shared authentication
 and workspace-authorization services. Agent is optional: when selected, the
 generator retains the MCP server, its bootstrap route, the REST-only `appctl`
 command, and their tests. Files is optional and requires Core plus Identity. It
-adds workspace-scoped private file metadata, local or S3-compatible object
-storage, and browser/REST surfaces. CompanySite and Integrations remain
-unimplemented.
+adds workspace-scoped private file metadata with explicit state transitions
+(Pending -> Ready, Pending -> Failed), local or S3-compatible object storage,
+quota reservations across active and failed uploads, and browser/REST surfaces.
+CompanySite and Integrations remain unimplemented.

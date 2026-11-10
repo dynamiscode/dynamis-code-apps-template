@@ -1,3 +1,18 @@
+// Package files manages workspace-scoped private file metadata and object storage.
+//
+// File Lifecycle State Machine:
+// Files begin in Pending status upon Initiate or reservation.
+// Valid state transitions are strictly:
+//   - Pending -> Ready: Upload and content validation succeeded.
+//   - Pending -> Failed: Upload, inspect, or complete validation failed.
+//
+// Invalid transitions (e.g. Failed -> Ready, Ready -> Failed, or self-transitions)
+// are rejected with ErrInvalidTransition.
+//
+// Quota Accounting:
+// Both Pending and Failed files reserve workspace storage quota until completed or
+// cleaned up. Stale pending uploads and failed records can be pruned via CleanupStaleFiles,
+// which releases their quota reservation for future file reservations.
 package files
 
 import (
@@ -439,6 +454,9 @@ func (s *Service) get(ctx context.Context, actor identity.Principal, workspaceID
 	return file, nil
 }
 
+// transitionFile validates and executes a state transition from fromStatus to toStatus for fileID.
+// It returns ErrInvalidTransition if the transition is disallowed by validTransitions or if the file
+// in the database has already transitioned past fromStatus.
 func (s *Service) transitionFile(ctx context.Context, tx *sql.Tx, fileID, fromStatus, toStatus string) error {
 	if !isValidTransition(fromStatus, toStatus) {
 		return ErrInvalidTransition
@@ -494,6 +512,8 @@ func (s *Service) releasePending(ctx context.Context, file File) {
 	), file.ID, file.WorkspaceID, Pending)
 }
 
+// CleanupStaleFiles permanently deletes pending and failed files updated before or at cutoff,
+// releasing their quota reservation for future file allocations.
 func (s *Service) CleanupStaleFiles(ctx context.Context, cutoff time.Time) (int64, error) {
 	result, err := s.db.ExecContext(ctx, database.Rebind(s.driver, `
 		DELETE FROM files WHERE status IN (?, ?) AND updated_at <= ?
@@ -504,6 +524,7 @@ func (s *Service) CleanupStaleFiles(ctx context.Context, cutoff time.Time) (int6
 	return result.RowsAffected()
 }
 
+// CleanupStale is an alias for CleanupStaleFiles.
 func (s *Service) CleanupStale(ctx context.Context, cutoff time.Time) (int64, error) {
 	return s.CleanupStaleFiles(ctx, cutoff)
 }
