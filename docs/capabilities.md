@@ -326,8 +326,9 @@ Verified 2026-08-29 with focused Go tests on SQLite:
   are denied by shared workspace authorization
 - one bounded `.json` export or strict UTF-8 `title,status` CSV upload requires
   session CSRF and explicit bulk-mutation confirmation; invalid format,
-  content, size, quota, rollback, success, Spanish localization, safe output,
-  and ordinary-form fallback are covered by the browser handler test
+  content, size, quota, rollback, stateless query-param success, Spanish localization,
+  safe output, ordinary-form fallback, and multi-instance stateless redirects
+  are covered by browser handler tests
 - import remains synchronous and atomic through the existing portability use
   case; REST/OpenAPI, MCP, remote CLI, and WebMCP contracts remain unchanged
 - focused web, portability, localization, and template-generation tests pass;

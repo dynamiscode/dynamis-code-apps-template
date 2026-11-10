@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Refactored the Post-Redirect-Get Settings import confirmation from an
+  in-memory flash map to a stateless `?imported=` URL query parameter redirect,
+  supporting multi-instance deployments behind a load balancer without
+  shared server memory.
 - Fixed race condition in HTTP `timeoutMiddleware` where context cancellation
   or timeout could race with the result channel and flush an unwritten
   buffered response as `200 OK` instead of `504 Gateway Timeout` (`request-timeout`).
