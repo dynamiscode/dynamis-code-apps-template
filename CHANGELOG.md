@@ -139,6 +139,8 @@
 - Nested workspace management under the Settings route; Settings pages now show
   only their sub-navigation and provide a Back to home link to the current
   workspace.
+- Updated the MCP Go SDK to v1.8.0, which adds no protocol revision; the
+  supported MCP protocol stays 2026-07-28.
 
 ## 0.1.0 - 2026-08-25
 ### Added
