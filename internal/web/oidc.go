@@ -1,12 +1,67 @@
 package web
 
 import (
+	"crypto/subtle"
+	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
+
+var (
+	ErrInvalidFlow           = errors.New("flow is not 'login' or 'link'")
+	ErrMissingBrowserSession = errors.New("browser session cookie empty")
+	ErrStateMismatch         = errors.New("state query param empty or does not match state cookie")
+	ErrMissingCryptoParams   = errors.New("verifier or nonce cookie empty")
+	ErrMissingAuthCode       = errors.New("authorization code query param empty")
+)
+
+type OIDCCallbackParams struct {
+	Flow           string
+	BrowserSession string
+	StateCookie    string
+	StateQuery     string
+	State          string
+	Verifier       string
+	PKCEVerifier   string
+	Nonce          string
+	Code           string
+}
+
+func validateOIDCCallbackParams(p OIDCCallbackParams) error {
+	if p.Flow != "login" && p.Flow != "link" {
+		return ErrInvalidFlow
+	}
+	if p.BrowserSession == "" {
+		return ErrMissingBrowserSession
+	}
+	stateQuery := p.StateQuery
+	if stateQuery == "" {
+		stateQuery = p.State
+	}
+	if p.StateCookie == "" || stateQuery == "" || subtle.ConstantTimeCompare([]byte(p.StateCookie), []byte(stateQuery)) != 1 {
+		return ErrStateMismatch
+	}
+	verifier := p.Verifier
+	if verifier == "" {
+		verifier = p.PKCEVerifier
+	}
+	if verifier == "" || p.Nonce == "" {
+		return ErrMissingCryptoParams
+	}
+	if p.Code == "" {
+		return ErrMissingAuthCode
+	}
+	return nil
+}
+
+// ValidateOIDCCallbackParams validates callback parameters for external callers.
+func ValidateOIDCCallbackParams(p OIDCCallbackParams) error {
+	return validateOIDCCallbackParams(p)
+}
 
 func (h *Handler) oidcLogin(writer http.ResponseWriter, request *http.Request) {
 	if h.oidc == nil {
@@ -34,6 +89,10 @@ func (h *Handler) oidcLogin(writer http.ResponseWriter, request *http.Request) {
 	h.redirectURL(writer, request, loginURL)
 }
 
+func (h *Handler) handleOIDCCallback(writer http.ResponseWriter, request *http.Request) {
+	h.oidcCallback(writer, request)
+}
+
 func (h *Handler) oidcCallback(writer http.ResponseWriter, request *http.Request) {
 	if h.oidc == nil {
 		h.renderError(writer, http.StatusNotFound)
@@ -49,9 +108,19 @@ func (h *Handler) oidcCallback(writer http.ResponseWriter, request *http.Request
 		}
 		browserSession = session.ID
 	}
-	if flow != "login" && flow != "link" || browserSession == "" ||
-		cookieValue(request, "oidc_state") == "" || cookieValue(request, "oidc_state") != request.URL.Query().Get("state") ||
-		cookieValue(request, "oidc_verifier") == "" || cookieValue(request, "oidc_nonce") == "" || request.URL.Query().Get("code") == "" {
+	params := OIDCCallbackParams{
+		Flow:           flow,
+		BrowserSession: browserSession,
+		StateCookie:    cookieValue(request, "oidc_state"),
+		StateQuery:     request.URL.Query().Get("state"),
+		State:          request.URL.Query().Get("state"),
+		Verifier:       cookieValue(request, "oidc_verifier"),
+		PKCEVerifier:   cookieValue(request, "oidc_verifier"),
+		Nonce:          cookieValue(request, "oidc_nonce"),
+		Code:           request.URL.Query().Get("code"),
+	}
+	if err := validateOIDCCallbackParams(params); err != nil {
+		slog.WarnContext(request.Context(), "oidc callback validation failed", "error", err)
 		h.oidcError(writer, request)
 		return
 	}
