@@ -21,6 +21,8 @@ When sources conflict, stop and resolve the contract or decision first.
 3. Reuse existing use cases, policies, middleware, and adapters.
 4. Load one matching repository-local skill for a recurring workflow.
 5. State the bounded outcome and verification before editing.
+6. Scope code symbol and text searches to relevant package subtrees or imports
+   to avoid high-volume output.
 
 ## Architecture invariants
 

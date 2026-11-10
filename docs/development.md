@@ -16,7 +16,8 @@ isolated PostgreSQL database through `POSTGRES_TEST_URL` for PostgreSQL tests.
 1. Read `AGENTS.md`, inspect `git status`, and follow the route in
    [docs/README.md](README.md).
 2. Trace the affected use case, policy, repository, adapters, contracts, and
-   tests. Keep workspace scope explicit.
+   tests. Keep workspace scope explicit and scope symbol searches by package to
+   avoid broad repository-wide output.
 3. Make one bounded change. Update OpenAPI, migrations, behavior docs,
    changelog, and capability evidence only when affected.
 4. Run focused checks, then the applicable verification ladder.
