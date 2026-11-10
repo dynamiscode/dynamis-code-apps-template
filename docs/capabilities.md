@@ -361,3 +361,23 @@ Verified 2026-11-10 with Go 1.27.0, HTMX 4.0.1, axe-core, and Chrome:
   assertions were skipped because the browser exposes no `document.modelContext`
 - not yet covered: a browser-level check that a 4xx response leaves the list
   unchanged under the restored non-swap config
+
+## MCP resources evidence
+
+Verified 2026-11-10 with Go 1.27.3 on SQLite:
+
+- [resource tests](../internal/mcpserver/resources_test.go) cover the template listing, own-workspace read with
+  `application/json` content, unknown-item and item-in-other-workspace
+  not-found, cross-workspace `access is denied` without item data, malformed
+  URI rejection, write-only token rejection at connect, read-only token reads,
+  and no `Mcp-Session-Id` issued on resource reads
+- `make verify` exits 0: lint, `go test ./...`, `go vet ./...`, `go test -race
+  ./...`, dependency and workflow checks, generated OpenAPI no-drift, command
+  builds, and generated-app smoke
+- not run: PostgreSQL compatibility (no data change), `make docker-smoke`,
+  `make secret-check`, `make vuln-check`, `make fuzz-smoke`
+- omitted surfaces, by reason: REST/OpenAPI and CLI need no resource form
+  because items already have REST and CLI item APIs; WebMCP and browser are
+  not agent-automation surfaces for read-only resources; realtime delivery and
+  resource subscriptions are not needed because no client requires change
+  notifications

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added a read-only, workspace-scoped MCP resource template
+  `dynamis://workspaces/{workspaceId}/items/{itemId}` on the Agent profile
+  endpoint, requiring `resources:read`, reusing the item read use case, and
+  returning safe not-found and access-denied errors with no subscriptions.
 - Upgraded vendored HTMX from 2.0.4 to 4.0.1, renamed the `htmx:afterSwap`
   listener to `htmx:after:swap`, and kept 2.x non-swap behavior for
   `204`, `304`, `4xx`, and `5xx` responses.
