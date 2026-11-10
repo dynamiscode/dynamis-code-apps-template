@@ -361,3 +361,31 @@ Verified 2026-11-10 with Go 1.27.0, HTMX 4.0.1, axe-core, and Chrome:
   assertions were skipped because the browser exposes no `document.modelContext`
 - not yet covered: a browser-level check that a 4xx response leaves the list
   unchanged under the restored non-swap config
+
+## MCP prompts evidence
+
+Verified 2026-11-10 with Go 1.27.0 and go-sdk v1.8.0 on SQLite:
+
+- `items_summarize_v1` and `items_triage_v1` are listed and fetched through the
+  stateless `prompts/list` and `prompts/get` methods; no `Mcp-Session-Id` is
+  issued
+- arguments are validated strictly (undeclared, missing, malformed, or
+  unsupported values return `-32602` with `parameters are invalid`); unknown
+  prompt names are rejected by the SDK
+- prompts require `resources:read`: a write-only token receives HTTP `403`, a
+  read-only token gets results, and a foreign workspace returns `access is denied`
+- item titles are JSON-encoded inside a `<workspace_items>` block, and the item
+  table is byte-identical before and after prompt calls (no mutation)
+- every prompt call writes an `mcp.prompt.called` audit record without the bearer
+  token or item titles
+- `go test -count=1 -race ./internal/mcpserver/` passes, covering the prompt tests
+  in `internal/mcpserver/prompts_test.go`
+- `go test ./...`, `go vet ./...`, `make race`, `make deps-check`,
+  `make workflow-check`, `make generate-check` (no OpenAPI drift), `make build`,
+  and `make template-smoke` each exited 0
+- `make verify` as one invocation first stopped at `make race` because
+  `TestAgentSurfacesLiveSmoke` (`internal/bootstrap`) timed out on `/login` while
+  the host load average was about 335; the test passed when run alone under
+  `-race`, and the full `make race` passed on rerun
+- not run: `make docker-smoke`, `make vuln-check`, `make secret-check`, and
+  `make fuzz-smoke`; prompt behavior is not covered by a browser or PostgreSQL run

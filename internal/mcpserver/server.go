@@ -101,6 +101,7 @@ func NewHandler(
 		Name: "dynamis-code-apps-template", Version: "0.1.0",
 	}, &mcp.ServerOptions{Capabilities: &mcp.ServerCapabilities{}, PageSize: 100})
 	h.addTools(server)
+	h.addPrompts(server)
 	streamable := mcp.NewStreamableHTTPHandler(
 		func(*http.Request) *mcp.Server { return server },
 		&mcp.StreamableHTTPOptions{
