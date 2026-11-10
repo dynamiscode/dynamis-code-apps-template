@@ -10,6 +10,9 @@
 - Documented protected-main merge requirements for owner review, passing
   CI/source security checks, resolved conversations, and up-to-date status
   checks.
+- Upgraded vendored HTMX from 2.0.4 to 4.0.1, renamed the `htmx:afterSwap`
+  listener to `htmx:after:swap`, and kept 2.x non-swap behavior for
+  `204`, `304`, `4xx`, and `5xx` responses.
 - Fixed browser form action buttons sitting directly against their preceding
   controls.
 - Added an authorized Settings import form for bounded JSON exports and strict
