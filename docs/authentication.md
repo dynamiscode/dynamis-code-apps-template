@@ -65,8 +65,9 @@ listing. Workspace management is available through the Settings screens at
 `/workspaces/{workspaceId}/settings/members`,
 `/workspaces/{workspaceId}/settings/invitations`,
 `/workspaces/{workspaceId}/settings/tokens`,
-`/workspaces/{workspaceId}/settings/provisioning`, and
-`/workspaces/{workspaceId}/settings/export`;
+`/workspaces/{workspaceId}/settings/provisioning`,
+`/workspaces/{workspaceId}/settings/export`, and
+`/workspaces/{workspaceId}/settings/import`;
 `/workspaces/{workspaceId}/settings/audit` is the read-only audit history
 for authorized owners and administrators;
 the export screen's `Download JSON` action uses

@@ -104,6 +104,10 @@ func NewService(
 	}
 }
 
+func (s *Service) SecretKeyConfigured() bool {
+	return len(s.secretKey) == 32
+}
+
 func (s *Service) Create(
 	ctx context.Context,
 	actor identity.Principal,

@@ -37,7 +37,7 @@ durable production data and records its deployment-specific evidence.
 | Realtime delivery | bootstrap, recurring | 04 | conforming | [SSE contract](web.md#realtime-contract), [scope/reconnect/heartbeat/limit tests](../internal/web/handler_test.go) |
 | Quotas and resource limits | bootstrap, operational | 06 | conforming | [Limit tests](../internal/httpapi/handler_test.go), [session tests](../internal/identity/service_test.go), [resource limits](operations.md#health-telemetry-and-limits) |
 | Audit events | bootstrap, recurring | 02, 04, 06 | conforming | [Identity audit tests](../internal/identity/audit_test.go), [browser audit tests](../internal/web/handler_test.go), [retention tests](../internal/platform/maintenance/maintenance_test.go), [access/deletion rules](data-lifecycle.md), [decision](decisions/0006-workspace-audit-history.md) |
-| Workspace webhooks | triggered, recurring | 08-09 | conforming | [Decision](decisions/0004-webhooks.md), [REST contract](api.md#webhooks), [service tests](../internal/webhooks/service_test.go), [operations](operations.md#webhook-delivery) |
+| Workspace webhooks | triggered, recurring | 08-09 | conforming | [Decision](decisions/0004-webhooks.md), [REST contract](api.md#webhooks), [browser contract](web.md), [service tests](../internal/webhooks/service_test.go), [browser tests](../internal/web/webhooks_test.go), [operations](operations.md#webhook-delivery) |
 | Background jobs | triggered, recurring | 09 | conforming | [Decision](decisions/0005-background-jobs.md), [queue tests](../internal/jobs/queue_test.go), [migration](../internal/platform/database/migrations/000010_background_jobs.sql), [operations](operations.md#health-telemetry-and-limits) |
 | Bounded public Item sharing | triggered, recurring | 09 | conforming | [Decision](decisions/0005-public-sharing.md), [web contract](web.md), [sharing tests](../internal/sharing/service_test.go), [browser tests](../internal/web/handler_test.go), [lifecycle](data-lifecycle.md) |
 | Backup, restore, upgrades, RPO, and RTO | operational | 06 | conforming | [SQLite/PostgreSQL restore tests](../internal/platform/backup/backup_test.go), [operator procedures](operations.md#backup-and-restore) |
@@ -255,9 +255,10 @@ Trivy 0.74.0, govulncheck 1.7.0, actionlint 1.7.12, Chrome, and Node 24:
 Webhook registration, dedicated workspace authorization, encrypted one-time
 secrets, same-transaction item outbox rows, HMAC delivery headers, SSRF-safe
 endpoint dialing, bounded retry/failure status, redacted delivery history,
-retention pruning, and REST/OpenAPI behavior pass the focused webhook, item,
-HTTP, configuration, maintenance, and migration tests. PostgreSQL execution and
-Docker smoke remain part of the final verification ladder.
+retention pruning, REST/OpenAPI behavior, and the CSRF-protected browser
+management surface pass the focused webhook, item, browser, HTTP, configuration,
+maintenance, and migration tests. PostgreSQL execution and Docker smoke remain
+part of the final verification ladder.
 
 ## Phase 09 evidence
 
@@ -316,6 +317,22 @@ Verified 2026-08-28 with Go 1.27.0 and PostgreSQL 14.24:
   compatibility tests pass.
 - `go test ./...`, `go vet ./...`, `go test -race ./...`, `make verify`, and
   `make docker-smoke` pass.
+
+## Settings import evidence
+
+Verified 2026-08-29 with focused Go tests on SQLite:
+
+- owners and admins reach the server-rendered Settings import form; viewers
+  are denied by shared workspace authorization
+- one bounded `.json` export or strict UTF-8 `title,status` CSV upload requires
+  session CSRF and explicit bulk-mutation confirmation; invalid format,
+  content, size, quota, rollback, success, Spanish localization, safe output,
+  and ordinary-form fallback are covered by the browser handler test
+- import remains synchronous and atomic through the existing portability use
+  case; REST/OpenAPI, MCP, remote CLI, and WebMCP contracts remain unchanged
+- focused web, portability, localization, and template-generation tests pass;
+  full-suite listener-dependent tests require execution outside the restricted
+  sandbox
 
 ## Files evidence
 
