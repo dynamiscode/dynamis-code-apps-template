@@ -60,8 +60,8 @@ When sources conflict, stop and resolve the contract or decision first.
 Run applicable commands in order:
 
 1. Focused tests.
-2. `go test ./...`
-3. `go vet ./...`
+2. `make lint` (fast formatting and static analysis check).
+3. `go test ./...`
 4. `go test -race ./...` for concurrent code or release readiness.
 5. `go generate ./api` and confirm no generated drift.
 6. SQLite and isolated PostgreSQL compatibility checks for data changes.
