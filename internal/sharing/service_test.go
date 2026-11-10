@@ -106,3 +106,86 @@ func TestPublicSharingExpiryBounds(t *testing.T) {
 		t.Fatalf("maximum lifetime error = %v", err)
 	}
 }
+
+func TestEvaluateLinkStatus(t *testing.T) {
+	now := time.Now().UTC()
+	future := now.Add(time.Hour)
+	past := now.Add(-time.Hour)
+
+	tests := []struct {
+		name      string
+		found     bool
+		revokedAt *time.Time
+		expiresAt time.Time
+		now       time.Time
+		want      LinkStatus
+	}{
+		{
+			name:      "not found",
+			found:     false,
+			revokedAt: nil,
+			expiresAt: future,
+			now:       now,
+			want:      LinkNotFound,
+		},
+		{
+			name:      "not found even if revoked and expired",
+			found:     false,
+			revokedAt: &past,
+			expiresAt: past,
+			now:       now,
+			want:      LinkNotFound,
+		},
+		{
+			name:      "revoked before expiry",
+			found:     true,
+			revokedAt: &past,
+			expiresAt: future,
+			now:       now,
+			want:      LinkRevoked,
+		},
+		{
+			name:      "revoked after expiry takes precedence as revoked",
+			found:     true,
+			revokedAt: &past,
+			expiresAt: past,
+			now:       now,
+			want:      LinkRevoked,
+		},
+		{
+			name:      "expired when now is after expiresAt",
+			found:     true,
+			revokedAt: nil,
+			expiresAt: past,
+			now:       now,
+			want:      LinkExpired,
+		},
+		{
+			name:      "expired when now is equal to expiresAt",
+			found:     true,
+			revokedAt: nil,
+			expiresAt: now,
+			now:       now,
+			want:      LinkExpired,
+		},
+		{
+			name:      "active when not revoked and now before expiresAt",
+			found:     true,
+			revokedAt: nil,
+			expiresAt: future,
+			now:       now,
+			want:      LinkActive,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := evaluateLinkStatus(tc.found, tc.revokedAt, tc.expiresAt, tc.now)
+			if got != tc.want {
+				t.Fatalf("evaluateLinkStatus(%v, %v, %v, %v) = %v, want %v",
+					tc.found, tc.revokedAt, tc.expiresAt, tc.now, got, tc.want)
+			}
+		})
+	}
+}
+
