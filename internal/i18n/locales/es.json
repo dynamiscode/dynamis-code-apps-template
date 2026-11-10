@@ -347,5 +347,14 @@
   "sharing.create": "Crear enlace público",
   "sharing.active_until": "Enlace público activo hasta",
   "sharing.revoke": "Revocar enlace público",
-  "sharing.created": "Enlace público creado:"
+  "sharing.created": "Enlace público creado:",
+  "oauth.consent_title": "Autorizar cliente MCP",
+  "oauth.consent_intro": "Un cliente MCP solicita acceso a uno de sus espacios de trabajo.",
+  "oauth.client_label": "Cliente",
+  "oauth.scopes_label": "Acceso solicitado",
+  "oauth.scope_read": "Leer elementos",
+  "oauth.scope_write": "Crear, actualizar y eliminar elementos",
+  "oauth.consent_help": "Elija el espacio de trabajo que este cliente puede usar. Puede revocar el acceso más tarde.",
+  "oauth.approve": "Permitir acceso",
+  "oauth.deny": "Denegar"
 }

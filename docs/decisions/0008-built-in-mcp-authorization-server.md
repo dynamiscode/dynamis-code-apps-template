@@ -33,6 +33,8 @@ long-lived and have no consent or refresh flow.
 - Token and revocation endpoints return OAuth-format errors (RFC 6749 §5.2 and
   RFC 7009), not Problem Details. This is a protocol requirement and is recorded
   here as the approved exception to the REST error convention.
+- The consent page lives in the browser surface. It is not exposed through
+  WebMCP, because WebMCP must never handle consent, credentials, or tokens.
 - `MCP_OAUTH_ENABLED` turns the built-in server on. It uses `APP_PUBLIC_URL` as
   the issuer and conflicts with `MCP_OAUTH_AUTHORIZATION_SERVER`.
 
