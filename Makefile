@@ -6,6 +6,7 @@ GITLEAKS_VERSION ?= v8.30.1
 
 setup:
 	test -f .env || cp .env.example .env
+	test ! -e .git || git config core.hooksPath .githooks
 	go mod download
 	npm ci
 
