@@ -394,4 +394,3 @@ func TestQuotaCalculationCleanupStaleAndFailedFiles(t *testing.T) {
 		t.Fatal("expected valid file ID")
 	}
 }
-

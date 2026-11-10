@@ -188,4 +188,3 @@ func TestEvaluateLinkStatus(t *testing.T) {
 		})
 	}
 }
-
