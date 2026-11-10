@@ -48,7 +48,10 @@ boundary, and applicable surfaces before implementation:
 - realtime: only when clients need change delivery, with scope and reconnect
   semantics;
 - operations/data: persistence, migrations, export, retention, deletion, and
-  recovery when durable data is involved.
+  recovery when durable data is involved;
+- state lifecycle: entities with multi-step lifecycles define typed status enums,
+  pure computed `Status(now)` methods, and `ValidateTransition` functions
+  matching the [architecture](architecture.md#domain-state-machines) pattern.
 
 Mark each omitted surface with a reason in the phase brief or capability
 ledger. A feature is complete only when every applicable surface has code,

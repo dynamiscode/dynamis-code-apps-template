@@ -63,6 +63,26 @@ Persisted timestamps use UTC RFC 3339 with nanosecond precision. Application
 use cases own transactions spanning multiple data operations; repositories do
 not start hidden transactions.
 
+## Domain state machines
+
+Domain entities with non-trivial lifecycles (such as invitations, jobs, webhooks,
+and uploads) model state transitions explicitly rather than relying on implicit
+database column nullability checks:
+
+1. **Typed status enum**: Define an explicit string-backed status type
+   (e.g., `InvitationStatus`) with named constants for all lifecycle states
+   (`pending`, `accepted`, `revoked`, `expired`).
+2. **Pure computed status**: Implement a pure method on the model
+   `func (m Model) Status(now time.Time) StatusEnum` that evaluates timestamps
+   and precedence to compute current status dynamically without side effects.
+3. **Canonical transition validator**: Implement a pure transition function
+   `func Validate<Resource>Transition(current, target StatusEnum) error`
+   enforcing allowed state changes and returning wrapped domain errors
+   on illegal transitions.
+4. **Service enforcement**: Application services load current status, validate
+   the transition before mutating state, execute atomic database updates, and
+   record matching audit events.
+
 ## Go support
 
 As verified on 2026-08-25, current stable Go is 1.27.0. The module keeps Go
