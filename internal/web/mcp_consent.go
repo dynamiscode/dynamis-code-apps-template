@@ -82,7 +82,7 @@ func (h *Handler) mcpAuthorize(writer http.ResponseWriter, request *http.Request
 		return
 	}
 	if request.FormValue("decision") == "deny" {
-		h.redirectMCPResult(writer, request, params.RedirectURI, url.Values{
+		h.redirectMCPResult(writer, request, client, params.RedirectURI, url.Values{
 			"error": {"access_denied"}, "state": {params.State},
 		})
 		return
@@ -101,7 +101,7 @@ func (h *Handler) mcpAuthorize(writer http.ResponseWriter, request *http.Request
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.redirectMCPResult(writer, request, params.RedirectURI, url.Values{
+	h.redirectMCPResult(writer, request, client, params.RedirectURI, url.Values{
 		"code": {code}, "state": {params.State},
 	})
 }
@@ -195,7 +195,20 @@ func (h *Handler) consentWorkspaces(ctx context.Context, userID string, scopes [
 	return choices
 }
 
-func (h *Handler) redirectMCPResult(writer http.ResponseWriter, request *http.Request, redirectURI string, values url.Values) {
+// redirectMCPResult sends the browser back to the client. The target must be
+// one of the client's registered redirect URIs; this is re-checked here so the
+// guard is local to the redirect, not only in validation.
+func (h *Handler) redirectMCPResult(
+	writer http.ResponseWriter,
+	request *http.Request,
+	client identity.OAuthClient,
+	redirectURI string,
+	values url.Values,
+) {
+	if !slices.Contains(client.RedirectURIs, redirectURI) {
+		h.renderError(writer, http.StatusBadRequest)
+		return
+	}
 	target, err := url.Parse(redirectURI)
 	if err != nil {
 		h.renderError(writer, http.StatusBadRequest)
