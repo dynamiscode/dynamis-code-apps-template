@@ -24,4 +24,12 @@ func registerAgent(
 	if metadata := mcpserver.NewProtectedResourceMetadataHandler(cfg.MCP); metadata != nil {
 		mux.Handle(mcpserver.ProtectedResourceMetadataPath, httpapi.Wrap(metadata, cfg.HTTP, slog.Default()))
 	}
+	if cfg.MCP.OAuthBuiltIn {
+		mux.Handle("/oauth/token", httpapi.Wrap(
+			mcpserver.NewOAuthTokenEndpoint(identityService), cfg.HTTP, slog.Default(),
+		))
+		mux.Handle("/oauth/revoke", httpapi.Wrap(
+			mcpserver.NewOAuthRevocationEndpoint(identityService), cfg.HTTP, slog.Default(),
+		))
+	}
 }

@@ -185,11 +185,37 @@ When disabled, the route is absent and challenges carry no `WWW-Authenticate`
 header, as before. Responses never include the submitted token, request
 `Host`, or internal configuration, and the endpoint never issues a session ID.
 
-Discovery does not change authentication. Bearer API tokens remain the only
-credentials `/mcp` accepts. Access tokens from the advertised authorization
-server are rejected until an external-issuer token verifier is accepted in
-[capabilities](capabilities.md#deferred-capabilities); use API tokens for MCP
-access until then. Decision: [0007](decisions/0007-mcp-oauth-protected-resource-metadata.md).
+Discovery does not change authentication by itself. Bearer API tokens are
+always accepted. Access tokens from an external authorization server are
+rejected; that path remains deferred in [capabilities](capabilities.md#deferred-capabilities).
+Decision: [0007](decisions/0007-mcp-oauth-protected-resource-metadata.md).
+
+## Built-in authorization server
+
+Set `MCP_OAUTH_ENABLED=true` to make this application the authorization server
+(decision [0008](decisions/0008-built-in-mcp-authorization-server.md)). It uses
+`APP_PUBLIC_URL` as the issuer and cannot be combined with
+`MCP_OAUTH_AUTHORIZATION_SERVER`.
+
+- `POST /oauth/token` (form-encoded) handles `authorization_code` with PKCE S256
+  and `refresh_token`. Access tokens last 15 minutes. Refresh tokens last 30
+  days and rotate on every use. Reusing a rotated refresh token or a consumed
+  code revokes the whole grant.
+- `POST /oauth/revoke` (RFC 7009) revokes the grant that owns a token. Unknown
+  tokens also return `200`.
+- Token responses use `Cache-Control: no-store`. Errors use the OAuth format
+  (`invalid_grant`, `invalid_client`, `unsupported_grant_type`), not Problem
+  Details.
+- Access is checked on every request. The consenting browser session must still
+  be active, the user must still be a workspace member, and workspace MFA policy
+  applies. Revoking the session, changing the password, removing the membership,
+  or deleting the account ends access.
+- Each grant is bound to one workspace, and its scopes are capped by the user's
+  role when used.
+
+Client registration (`/oauth/register`) and the consent page are not included in
+this change; they follow in the next change. Until then, the endpoints above
+work only for grants created by the identity service.
 
 The protocol contract follows the upstream
 [MCP specification](https://modelcontextprotocol.io/specification/2026-07-28)

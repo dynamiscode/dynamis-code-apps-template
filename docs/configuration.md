@@ -54,6 +54,7 @@ begins. Changes require restart.
 | `HTTP_SSE_MAX_CONNECTIONS_PER_USER` | integer, within instance limit | `5` | No | No |
 | `HTTP_MAX_CONCURRENT_REQUESTS` | integer 1-10000 | `100` | No | No |
 | `MCP_ALLOWED_ORIGINS` | comma-separated exact HTTP origins | none | Browser MCP only | No |
+| `MCP_OAUTH_ENABLED` | boolean | `false` | Requires origin-only `APP_PUBLIC_URL`; conflicts with `MCP_OAUTH_AUTHORIZATION_SERVER` | No |
 | `MCP_OAUTH_AUTHORIZATION_SERVER` | HTTPS or loopback HTTP issuer URL without credentials, query, or fragment | none (discovery off) | Requires origin-only `APP_PUBLIC_URL` | No |
 | `ITEMS_MAX_PER_WORKSPACE` | integer 1-1000000 | `10000` | No | No |
 | `EXPORT_MAX_RECORDS` | integer 1-10000 | `1000` | No | No |

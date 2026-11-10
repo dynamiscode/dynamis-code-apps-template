@@ -211,6 +211,35 @@ func TestLoadFromValidatesMCPOAuthAuthorizationServer(t *testing.T) {
 	}
 }
 
+func TestLoadFromMCPBuiltInAuthorizationServer(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := LoadFrom(env(map[string]string{
+		"APP_PUBLIC_URL": "https://app.example.com", "MCP_OAUTH_ENABLED": "true",
+	}))
+	if err != nil {
+		t.Fatalf("LoadFrom() error = %v", err)
+	}
+	if !cfg.MCP.OAuthBuiltIn || cfg.MCP.OAuthAuthorizationServer != "https://app.example.com" ||
+		cfg.MCP.OAuthResourceURL != "https://app.example.com/mcp" {
+		t.Fatalf("built-in MCP OAuth = %#v", cfg.MCP)
+	}
+	for name, values := range map[string]map[string]string{
+		"requires public URL": {"MCP_OAUTH_ENABLED": "true"},
+		"public URL with path": {
+			"APP_PUBLIC_URL": "https://app.example.com/base", "MCP_OAUTH_ENABLED": "true",
+		},
+		"conflicts with external server": {
+			"APP_PUBLIC_URL": "https://app.example.com", "MCP_OAUTH_ENABLED": "true",
+			"MCP_OAUTH_AUTHORIZATION_SERVER": "https://idp.example.com",
+		},
+	} {
+		if _, err := LoadFrom(env(values)); err == nil {
+			t.Fatalf("%s accepted: %#v", name, values)
+		}
+	}
+}
+
 func TestLoadFromValidatesBootstrapEnvironment(t *testing.T) {
 	t.Parallel()
 
