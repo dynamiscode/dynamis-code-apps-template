@@ -47,6 +47,9 @@ When sources conflict, stop and resolve the contract or decision first.
 - Make one reviewable change; no drive-by refactors.
 - Update implementation, canonical contract, smallest regression test,
   capability evidence, changelog, and behavior docs together when applicable.
+- When working in parallel agent worktrees or swarms, do not edit CHANGELOG.md
+  directly on feature branches; changelog updates are aggregated at release or
+  PR merge time.
 - Follow the feature-surface checklist in [docs/development.md](docs/development.md)
   and record intentional omissions.
 - Never claim planned behavior is implemented.
@@ -61,7 +64,7 @@ Run applicable commands in order:
 
 1. Focused tests.
 2. `go test ./...`
-3. `go vet ./...`
+3. make lint (runs fmt-check and go vet)
 4. `go test -race ./...` for concurrent code or release readiness.
 5. `go generate ./api` and confirm no generated drift.
 6. SQLite and isolated PostgreSQL compatibility checks for data changes.
