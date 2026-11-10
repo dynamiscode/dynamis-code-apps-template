@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Converted client-side presigned file upload logic in `internal/web/assets/app.js`
+  into an explicit `PresignedUploader` state machine with `IDLE`, `INITIATING`,
+  `UPLOADING`, `COMPLETING`, `SUCCESS`, and `ERROR` phases, in-flight submit
+  button locking, non-reloading error transitions, and polite live-region status
+  feedback.
+
 - Upgraded vendored HTMX from 2.0.4 to 4.0.1, renamed the `htmx:afterSwap`
   listener to `htmx:after:swap`, and kept 2.x non-swap behavior for
   `204`, `304`, `4xx`, and `5xx` responses.
