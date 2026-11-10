@@ -362,6 +362,20 @@ Verified 2026-11-10 with Go 1.27.0, HTMX 4.0.1, axe-core, and Chrome:
 - not yet covered: a browser-level check that a 4xx response leaves the list
   unchanged under the restored non-swap config
 
+## MCP cacheable tool catalog evidence
+
+Verified 2026-11-10 with Go 1.27.3, SQLite, and the vendored `go-sdk` v1.8.0:
+
+- `tools/list` carries `ttlMs: 300000` and `cacheScope: "public"`; `ping` gains
+  no cache fields; the catalog still lists the five `items_*_v1` tools; no
+  `Mcp-Session-Id` is issued ([test](../internal/mcpserver/server_test.go))
+- `go test ./...`, `go vet ./...`, `go test -race ./internal/mcpserver`, and
+  `go generate ./api` with no generated drift pass
+- `make verify` passes, including lint, actionlint, dependency and secret checks,
+  generate check, build, and the generated-app template smoke test
+- not covered: no resources or prompts exist, so their list hints are untested;
+  no live-client cache behavior was exercised
+
 ## MCP typed-tool evidence
 
 Verified 2026-11-10 with Go 1.27.3 on the rebased branch commit, after

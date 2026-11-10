@@ -336,3 +336,37 @@ func postMCP(handler http.Handler, token, origin, body string) *httptest.Respons
 	handler.ServeHTTP(response, request)
 	return response
 }
+
+func TestMCPToolsListCacheHints(t *testing.T) {
+	state := newTestState(t, config.MCP{})
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`
+	response := postMCP(state.handler, state.token.Secret, "", body)
+	if response.Code != http.StatusOK {
+		t.Fatalf("tools/list status = %d body = %s", response.Code, response.Body.String())
+	}
+	if response.Header().Get("Mcp-Session-Id") != "" {
+		t.Fatalf("tools/list issued Mcp-Session-Id")
+	}
+	var envelope struct {
+		Result struct {
+			Tools      []struct{ Name string } `json:"tools"`
+			TTLMs      int                     `json:"ttlMs"`
+			CacheScope string                  `json:"cacheScope"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode tools/list: %v body = %s", err, response.Body.String())
+	}
+	if envelope.Result.TTLMs != 300_000 || envelope.Result.CacheScope != "public" {
+		t.Fatalf("cache hints = ttlMs %d cacheScope %q", envelope.Result.TTLMs, envelope.Result.CacheScope)
+	}
+	if len(envelope.Result.Tools) != 5 {
+		t.Fatalf("tools/list returned %d tools, want 5", len(envelope.Result.Tools))
+	}
+
+	// Discovery of other results is untouched: an unscoped method must not gain hints.
+	ping := postMCP(state.handler, state.token.Secret, "", `{"jsonrpc":"2.0","id":2,"method":"ping"}`)
+	if strings.Contains(ping.Body.String(), "ttlMs") || strings.Contains(ping.Body.String(), "cacheScope") {
+		t.Fatalf("ping gained cache hints: %s", ping.Body.String())
+	}
+}

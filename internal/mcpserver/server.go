@@ -23,6 +23,10 @@ import (
 
 const maxResultBytes = 1 << 20
 
+// toolsListTTLMs is the freshness hint for tools/list. The tool catalog changes
+// only on deployment, so clients may poll it at most every five minutes.
+const toolsListTTLMs = 300_000
+
 var (
 	falseValue = false
 	trueValue  = true
@@ -162,6 +166,16 @@ func NewHandler(
 		Name: "dynamis-code-apps-template", Version: "0.1.0",
 	}, &mcp.ServerOptions{
 		Capabilities: &mcp.ServerCapabilities{}, PageSize: 100, CompletionHandler: h.complete,
+		// The catalog is identical for every authenticated principal and holds no
+		// workspace data, so shared caches may keep it. This holds only while
+		// addTools registers tools without per-principal filtering; revisit "public"
+		// before adding any. Other list results keep the
+		// SDK's zero TTL (immediately stale) until they opt in here.
+		SetCacheable: func(_ context.Context, req mcp.Request, c *mcp.Cacheable) {
+			if _, ok := req.(*mcp.ListToolsRequest); ok {
+				c.TTLMs, c.CacheScope = toolsListTTLMs, "public"
+			}
+		},
 	})
 	h.addTools(server)
 	server.AddReceivingMiddleware(h.auditRejectedCalls)

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added SDK cacheable list hints to the Agent MCP `tools/list` result
+  (`ttlMs: 300000`, `cacheScope: "public"`) through `SetCacheable`, scoped to
+  that method; tool behavior, scopes, and the stateless no-session contract are
+  unchanged.
 - Converted client-side presigned file upload logic in `internal/web/assets/app.js`
   into an explicit `PresignedUploader` state machine with `IDLE`, `INITIATING`,
   `UPLOADING`, `COMPLETING`, `SUCCESS`, and `ERROR` phases, in-flight submit

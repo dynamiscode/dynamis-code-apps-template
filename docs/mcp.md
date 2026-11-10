@@ -68,6 +68,15 @@ session and DOM to prepare narrow visible controls. It does not reuse bearer
 credentials or change these scopes, tools, or transport. Server MCP remains
 the persistent and authoritative automation surface.
 
+## Discovery cache hints
+
+`tools/list` returns `ttlMs: 300000` and `cacheScope: "public"`. The tool
+catalog is identical for every authenticated principal and contains no
+workspace data, so clients may reuse it for five minutes and shared caches may
+keep it. The SDK's `SetCacheable` policy sets these fields only for that method.
+The endpoint still requires a bearer token, and tool results are never cached
+by this policy.
+
 ## Security contract
 
 - Requests with `Origin` must exactly match `MCP_ALLOWED_ORIGINS`. Requests
