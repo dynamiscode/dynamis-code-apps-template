@@ -180,6 +180,7 @@ func NewHandler(
 	h.addTools(server)
 	server.AddReceivingMiddleware(h.auditRejectedCalls)
 	h.addPrompts(server)
+	h.addItemListPrompts(server)
 	streamable := mcp.NewStreamableHTTPHandler(
 		func(*http.Request) *mcp.Server { return server },
 		&mcp.StreamableHTTPOptions{

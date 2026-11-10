@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Added two read-only Agent MCP prompts, `items_summarize_v1` and
+  `items_triage_v1`, served through the stateless `prompts/list` and
+  `prompts/get` endpoint with `resources:read`, strict argument validation,
+  workspace-scoped item reads, data-fenced item titles, and `mcp.prompt.called`
+  audit records; no mutating use case, REST route, or dependency was added.
 - Added SDK cacheable list hints to the Agent MCP `tools/list` result
   (`ttlMs: 300000`, `cacheScope: "public"`) through `SetCacheable`, scoped to
   that method; tool behavior, scopes, and the stateless no-session contract are
