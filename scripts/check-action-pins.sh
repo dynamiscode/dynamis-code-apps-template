@@ -22,6 +22,7 @@ check_commit_object() {
 	set -- \
 		--fail --silent --show-error --location \
 		--connect-timeout 10 --max-time 30 \
+		--retry 3 --retry-delay 5 --retry-all-errors \
 		--header 'Accept: application/vnd.github+json' \
 		--header 'X-GitHub-Api-Version: 2022-11-28'
 	if [ -n "${GITHUB_TOKEN:-}" ]; then

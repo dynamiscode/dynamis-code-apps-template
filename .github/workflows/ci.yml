@@ -18,6 +18,8 @@ jobs:
           go-version-file: go.mod
           cache: true
       - run: make verify
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
   postgres:
     runs-on: ubuntu-24.04
