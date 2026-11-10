@@ -343,3 +343,21 @@ browser ordinary-form fallback, REST/OpenAPI behavior, and generated profile
 pruning are covered by focused SQLite tests and generated-app checks. Deletion,
 reconciliation, scanning, background jobs, and PostgreSQL/Docker execution
 remain follow-up verification or deferred behavior for this slice.
+
+## HTMX 4 upgrade evidence
+
+Verified 2026-11-10 with Go 1.27.0, HTMX 4.0.1, axe-core, and Chrome:
+
+- vendored `htmx.min.js` is the npm `htmx.org@4.0.1` `dist` build; the
+  upgrade-check scanner reports no remaining old events in application code
+- `app.js` listens for `htmx:after:swap` and restores HTMX 2.x non-swap for
+  `204`, `304`, `4xx`, and `5xx` so error pages never replace `#item-list`
+- `go test ./...` passes, including the HTMX create, validation, and delete
+  handler tests
+- `make accessibility-smoke` passes with zero axe violations on login,
+  workspaces, workspace, general settings, items, and item-validation, plus the
+  keyboard, focus, reflow, reduced-motion, and accessibility-tree checks
+- `make webmcp-smoke` passes the ordinary-fallback check on Chrome; WebMCP tool
+  assertions were skipped because the browser exposes no `document.modelContext`
+- not yet covered: a browser-level check that a 4xx response leaves the list
+  unchanged under the restored non-swap config
