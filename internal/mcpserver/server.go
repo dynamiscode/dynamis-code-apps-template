@@ -181,6 +181,7 @@ func NewHandler(
 	server.AddReceivingMiddleware(h.auditRejectedCalls)
 	h.addPrompts(server)
 	h.addItemListPrompts(server)
+	h.addResources(server)
 	streamable := mcp.NewStreamableHTTPHandler(
 		func(*http.Request) *mcp.Server { return server },
 		&mcp.StreamableHTTPOptions{

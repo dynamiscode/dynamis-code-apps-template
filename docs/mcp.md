@@ -93,6 +93,23 @@ session and DOM to prepare narrow visible controls. It does not reuse bearer
 credentials or change these scopes, tools, or transport. Server MCP remains
 the persistent and authoritative automation surface.
 
+## Resources
+
+The endpoint also serves one read-only resource template:
+
+| Template | MIME type | Scope | Safety |
+|---|---|---|---|
+| `dynamis://workspaces/{workspaceId}/items/{itemId}` | `application/json` | `resources:read` | read-only, workspace-scoped, no subscriptions |
+
+Reads call the same workspace-scoped `items.Get` use case as `items_get_v1`
+and return the item's JSON. Malformed URIs, unknown items, and items outside
+the URI's workspace return `Resource not found`; a workspace the token cannot
+read returns `access is denied` without item data. The template is named `item_v1`, following the
+tool naming rule: a breaking URI, output, or side-effect change requires a new
+name such as `item_v2`. The template is the only
+resource: items are discovered through `items_list_v1`. Resource reads are
+not written to the tool audit, matching REST item reads.
+
 ## Discovery cache hints
 
 `tools/list` returns `ttlMs: 300000` and `cacheScope: "public"`. The tool

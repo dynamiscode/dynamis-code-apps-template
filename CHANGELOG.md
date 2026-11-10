@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added a read-only, workspace-scoped MCP resource template
+  `dynamis://workspaces/{workspaceId}/items/{itemId}` on the Agent profile
+  endpoint, requiring `resources:read`, reusing the item read use case, and
+  returning safe not-found and access-denied errors with no subscriptions.
 - Added two read-only Agent MCP prompts, `items_summarize_v1` and
   `items_triage_v1`, served through the stateless `prompts/list` and
   `prompts/get` endpoint with `resources:read`, strict argument validation,
