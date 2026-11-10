@@ -1032,8 +1032,8 @@ func (h *Handler) itemEvents(writer http.ResponseWriter, request *http.Request) 
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.Header().Set("X-Accel-Buffering", "no")
 	writer.WriteHeader(http.StatusOK)
-	after := request.Header.Get("Last-Event-ID")
-	if !h.sendChanges(writer, request, principal, workspaceID, &after) {
+	cursor := request.Header.Get("Last-Event-ID")
+	if cursor, ok = h.sendChanges(writer, request, principal, workspaceID, cursor); !ok {
 		return
 	}
 	flusher.Flush()
@@ -1055,7 +1055,7 @@ func (h *Handler) itemEvents(writer http.ResponseWriter, request *http.Request) 
 			_, _ = fmt.Fprint(writer, ": heartbeat\n\n")
 			flusher.Flush()
 		case <-poll.C:
-			if !h.sendChanges(writer, request, principal, workspaceID, &after) {
+			if cursor, ok = h.sendChanges(writer, request, principal, workspaceID, cursor); !ok {
 				return
 			}
 			flusher.Flush()
@@ -1068,32 +1068,32 @@ func (h *Handler) sendChanges(
 	request *http.Request,
 	principal identity.Principal,
 	workspaceID string,
-	after *string,
-) bool {
+	cursor string,
+) (nextCursor string, ok bool) {
 	page, err := h.items.Changes(
-		request.Context(), principal, workspaceID, *after, 100,
+		request.Context(), principal, workspaceID, cursor, 100,
 	)
 	if err != nil {
-		return false
+		return cursor, false
 	}
 	if page.Resync {
 		if page.Next != "" {
 			_, _ = fmt.Fprintf(writer, "id: %s\n", page.Next)
 		}
 		_, _ = fmt.Fprint(writer, "event: resync\ndata: {\"reason\":\"cursor\"}\n\n")
-		*after = page.Next
-		return true
+		return page.Next, true
 	}
+	nextCursor = cursor
 	for _, change := range page.Changes {
 		encoded, err := json.Marshal(change)
 		if err != nil {
-			return false
+			return nextCursor, false
 		}
 		_, _ = fmt.Fprintf(
 			writer, "id: %s\nevent: item.changed\ndata: %s\n\n",
 			change.ID, encoded,
 		)
-		*after = change.ID
+		nextCursor = change.ID
 	}
-	return true
+	return nextCursor, true
 }
