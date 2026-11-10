@@ -61,6 +61,9 @@ boundary, and applicable surfaces before implementation:
 - state lifecycle: entities with multi-step lifecycles define typed status enums,
   pure computed `Status(now)` methods, and `ValidateTransition` functions
   matching the [architecture](architecture.md#domain-state-machines) pattern.
+- async lifecycles: background queues, workers, and webhook deliveries use pure
+  outcome evaluators matching the [architecture](architecture.md#asynchronous-state-machines)
+  pattern.
 
 Mark each omitted surface with a reason in the phase brief or capability
 ledger. A feature is complete only when every applicable surface has code,
