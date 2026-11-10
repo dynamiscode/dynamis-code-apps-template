@@ -4,6 +4,9 @@
 
 - Fixed workflow action pins to reference commit objects, including Scorecard,
   and made pin validation reject annotated tag objects.
+- Re-pinned CodeQL actions to the v3.39.3 commit object, fixed pin validation
+  for subpath actions, and moved the Go toolchain to go1.27.3 and
+  golang.org/x/net to v0.60.0 to clear govulncheck findings.
 - Documented protected-main merge requirements for owner review, passing
   CI/source security checks, resolved conversations, and up-to-date status
   checks.

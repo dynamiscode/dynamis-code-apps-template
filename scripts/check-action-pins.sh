@@ -17,7 +17,7 @@ actions="$(grep -R -h -E '^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]*[^[:spac
 
 check_commit_object() {
 	action="$1"
-	repo="${action%@*}"
+	repo="$(printf '%s' "${action%@*}" | cut -d/ -f1,2)"
 	sha="${action##*@}"
 	set -- \
 		--fail --silent --show-error --location \
