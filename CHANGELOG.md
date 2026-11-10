@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Moved MCP audit, request ID, timing, and panic recovery into an SDK receiving
+  middleware, so every dispatched method (including `tools/list` and
+  `prompts/list`) writes one redacted audit record. Tool audit fields are
+  unchanged; unregistered tool calls and recovered panics are now audited
+  without recording client-supplied names or panic values. Unknown method names
+  are still rejected by the SDK before middleware and write no audit record.
 - Upgraded vendored HTMX from 2.0.4 to 4.0.1, renamed the `htmx:afterSwap`
   listener to `htmx:after:swap`, and kept 2.x non-swap behavior for
   `204`, `304`, `4xx`, and `5xx` responses.

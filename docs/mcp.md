@@ -48,10 +48,23 @@ the persistent and authoritative automation surface.
 - Inputs are strict, bounded data. Internal errors become safe tool errors.
   Authentication and insufficient scope use HTTP `401` and `403`.
 
-Each accepted tool call writes an audit record containing safe principal,
-workspace, token/client, tool/version, request ID, target, annotation, outcome,
-duration, and error-category fields. Raw arguments, item titles, bearer values,
-and unrestricted payloads are excluded.
+A receiving middleware on the SDK server audits, times, and recovers panics for
+every method the SDK dispatches to the server. Each tool call writes an
+`mcp.tool.called` record with principal, workspace, token/client, tool/version,
+request ID, target, annotation, outcome, duration, and error-category fields.
+Other dispatched methods, such as `tools/list` and `prompts/list`, write an
+`mcp.request.called` record with the same safe fields plus `method`. Requests
+that fail the SDK's own checks, such as unregistered tool names, are audited as
+`tools/call` with `protocol_error`; the client-supplied name is never recorded.
+
+Raw arguments, item titles, bearer values, panic values, and unrestricted
+payloads are excluded. A panic becomes an `internal failure` response and an
+`internal` audit record. If an audit write fails, the request returns
+`internal failure` rather than a successful result.
+
+The SDK rejects unknown method names before receiving middleware runs, so they
+return JSON-RPC method-not-found and write no audit record. Client notifications
+use a separate SDK path and are not audited.
 
 The protocol contract follows the upstream
 [MCP specification](https://modelcontextprotocol.io/specification/2026-07-28)

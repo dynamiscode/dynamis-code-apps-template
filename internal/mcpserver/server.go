@@ -97,10 +97,7 @@ func NewHandler(
 		logger = slog.Default()
 	}
 	h := &handler{identity: identityService, items: itemService, logger: logger}
-	server := mcp.NewServer(&mcp.Implementation{
-		Name: "dynamis-code-apps-template", Version: "0.1.0",
-	}, &mcp.ServerOptions{Capabilities: &mcp.ServerCapabilities{}, PageSize: 100})
-	h.addTools(server)
+	server := h.newServer()
 	streamable := mcp.NewStreamableHTTPHandler(
 		func(*http.Request) *mcp.Server { return server },
 		&mcp.StreamableHTTPOptions{
@@ -136,6 +133,15 @@ func NewHandler(
 		AllowMissingExpiration: true,
 	})(scopeMiddleware(streamable))
 	return originMiddleware(authenticated, cfg.AllowedOrigins)
+}
+
+func (h *handler) newServer() *mcp.Server {
+	server := mcp.NewServer(&mcp.Implementation{
+		Name: "dynamis-code-apps-template", Version: "0.1.0",
+	}, &mcp.ServerOptions{Capabilities: &mcp.ServerCapabilities{}, PageSize: 100})
+	server.AddReceivingMiddleware(h.observe)
+	h.addTools(server)
+	return server
 }
 
 func scopeMiddleware(next http.Handler) http.Handler {
@@ -270,67 +276,140 @@ func approved(request *mcp.CallToolRequest) bool {
 	return request.Extra != nil && request.Extra.Header.Get("Mcp-Human-Approval") == "true"
 }
 
+const (
+	methodToolsCall    = "tools/call"
+	eventToolCalled    = "mcp.tool.called"
+	eventRequestCalled = "mcp.request.called"
+)
+
+// callRecord carries facts known only to tool adapters to the receiving
+// middleware, which writes exactly one audit record per dispatched request.
+type callRecord struct {
+	toolName    string
+	workspaceID string
+	targetID    string
+	annotations *mcp.ToolAnnotations
+	err         error
+}
+
+type callRecordKey struct{}
+
+func recordFor(ctx context.Context) *callRecord {
+	if record, ok := ctx.Value(callRecordKey{}).(*callRecord); ok {
+		return record
+	}
+	return &callRecord{}
+}
+
+// observe wraps every method the SDK dispatches to the server. It is the only
+// place that audits, times, and recovers panics, so tool and non-tool requests
+// share one failure contract.
+func (h *handler) observe(next mcp.MethodHandler) mcp.MethodHandler {
+	return func(ctx context.Context, method string, req mcp.Request) (result mcp.Result, err error) {
+		started := time.Now()
+		record := &callRecord{}
+		ctx = context.WithValue(ctx, callRecordKey{}, record)
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				h.logger.Error("MCP request panicked", "method", method, "request_id", requestID(req))
+				record.err = &toolError{category: "internal", message: "internal failure"}
+				result, err = internalFailure(method)
+			}
+			if auditErr := h.audit(ctx, method, req, record, result, err, started); auditErr != nil {
+				h.logger.Error("MCP audit failed", "method", method, "request_id", requestID(req))
+				result, err = internalFailure(method)
+			}
+		}()
+		return next(ctx, method, req)
+	}
+}
+
+func internalFailure(method string) (mcp.Result, error) {
+	if method == methodToolsCall {
+		return errorResult("internal failure"), nil
+	}
+	return nil, errors.New("internal failure")
+}
+
 func (h *handler) add(server *mcp.Server, tool *mcp.Tool, run func(context.Context, *mcp.CallToolRequest) toolRun) {
 	server.AddTool(tool, func(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		started := time.Now()
+		record := recordFor(ctx)
+		record.toolName, record.annotations = tool.Name, tool.Annotations
 		result := run(ctx, request)
+		record.workspaceID, record.targetID = result.workspaceID, result.targetID
 		if result.err == nil {
 			encoded, err := json.Marshal(result.output)
-			if err != nil || len(encoded) > maxResultBytes {
-				result.err = &toolError{category: "internal", message: "internal failure"}
-			} else {
+			if err == nil && len(encoded) <= maxResultBytes {
 				var structured any
-				if json.Unmarshal(encoded, &structured) != nil {
-					result.err = &toolError{category: "internal", message: "internal failure"}
-				} else {
-					result.output = structured
-					if err := h.audit(ctx, request, tool, result, started); err != nil {
-						h.logger.Error("MCP audit failed", "request_id", requestID(request))
-						return errorResult("internal failure"), nil
-					}
+				if json.Unmarshal(encoded, &structured) == nil {
 					return &mcp.CallToolResult{
 						Content:           []mcp.Content{&mcp.TextContent{Text: string(encoded)}},
-						StructuredContent: result.output,
+						StructuredContent: structured,
 					}, nil
 				}
 			}
+			result.err = &toolError{category: "internal", message: "internal failure"}
 		}
-		if err := h.audit(ctx, request, tool, result, started); err != nil {
-			h.logger.Error("MCP audit failed", "request_id", requestID(request))
-			return errorResult("internal failure"), nil
-		}
+		record.err = result.err
 		return errorResult(result.err.Error()), nil
 	})
 }
 
-func (h *handler) audit(ctx context.Context, request *mcp.CallToolRequest, tool *mcp.Tool, result toolRun, started time.Time) error {
-	actor := principal(request)
+func (h *handler) audit(
+	ctx context.Context, method string, req mcp.Request, record *callRecord,
+	result mcp.Result, err error, started time.Time,
+) error {
+	actor := principal(req)
 	clientName, clientVersion := "", ""
-	if client := request.ClientInfo(); client != nil {
-		clientName, clientVersion = client.Name, client.Version
+	if client, ok := req.(interface{ ClientInfo() *mcp.Implementation }); ok && client.ClientInfo() != nil {
+		clientName, clientVersion = client.ClientInfo().Name, client.ClientInfo().Version
 	}
-	category, outcome := "", "success"
-	if result.err != nil {
-		outcome = "failure"
-		if value, ok := result.err.(*toolError); ok {
-			category = value.category
-		} else {
-			category = "internal"
+	category := ""
+	switch {
+	case record.err != nil:
+		category = errorCategory(record.err)
+	case err != nil:
+		category = "protocol_error"
+	default:
+		if value, ok := result.(*mcp.CallToolResult); ok && value.IsError {
+			category = "tool_error"
 		}
 	}
-	metadata, _ := json.Marshal(map[string]any{
+	outcome := "success"
+	if category != "" {
+		outcome = "failure"
+	}
+	fields := map[string]any{
 		"token_id": actor.TokenID, "client_name": clientName,
-		"client_version": clientVersion, "tool_version": "v1",
-		"annotations": tool.Annotations, "error_category": category,
+		"client_version": clientVersion, "error_category": category,
 		"duration_ms": time.Since(started).Milliseconds(),
-	})
+	}
+	eventType, action, targetType := eventRequestCalled, method, ""
+	if method == methodToolsCall {
+		eventType, targetType = eventToolCalled, "item"
+		action = record.toolName
+		if action == "" {
+			action = method // unregistered names are client input and are never logged
+		}
+		fields["tool_version"], fields["annotations"] = "v1", record.annotations
+	} else {
+		fields["method"] = method
+	}
+	metadata, _ := json.Marshal(fields)
 	return h.identity.RecordAudit(ctx, identity.AuditEvent{
-		EventType: "mcp.tool.called", ActorUserID: actor.UserID,
-		AuthMethod: actor.AuthMethod, WorkspaceID: result.workspaceID,
-		TargetType: "item", TargetID: result.targetID, Action: tool.Name,
-		Outcome: outcome, RequestID: requestID(request),
-		SourceAddress: sourceAddress(request), Metadata: string(metadata), CreatedAt: time.Now().UTC(),
+		EventType: eventType, ActorUserID: actor.UserID,
+		AuthMethod: actor.AuthMethod, WorkspaceID: record.workspaceID,
+		TargetType: targetType, TargetID: record.targetID, Action: action,
+		Outcome: outcome, RequestID: requestID(req),
+		SourceAddress: sourceAddress(req), Metadata: string(metadata), CreatedAt: time.Now().UTC(),
 	})
+}
+
+func errorCategory(err error) string {
+	if value, ok := err.(*toolError); ok {
+		return value.category
+	}
+	return "internal"
 }
 
 func decode(request *mcp.CallToolRequest, destination any) error {
@@ -345,26 +424,29 @@ func decode(request *mcp.CallToolRequest, destination any) error {
 	return nil
 }
 
-func principal(request *mcp.CallToolRequest) identity.Principal {
-	if request.Extra == nil || request.Extra.TokenInfo == nil {
+func principal(request mcp.Request) identity.Principal {
+	extra := request.GetExtra()
+	if extra == nil || extra.TokenInfo == nil {
 		return identity.Principal{}
 	}
-	value, _ := request.Extra.TokenInfo.Extra["principal"].(identity.Principal)
+	value, _ := extra.TokenInfo.Extra["principal"].(identity.Principal)
 	return value
 }
 
-func requestID(request *mcp.CallToolRequest) string {
-	if request.Extra == nil {
+func requestID(request mcp.Request) string {
+	extra := request.GetExtra()
+	if extra == nil {
 		return ""
 	}
-	return request.Extra.Header.Get("X-Request-ID")
+	return extra.Header.Get("X-Request-ID")
 }
 
-func sourceAddress(request *mcp.CallToolRequest) string {
-	if request.Extra == nil || request.Extra.TokenInfo == nil {
+func sourceAddress(request mcp.Request) string {
+	extra := request.GetExtra()
+	if extra == nil || extra.TokenInfo == nil {
 		return ""
 	}
-	value, _ := request.Extra.TokenInfo.Extra["sourceAddress"].(string)
+	value, _ := extra.TokenInfo.Extra["sourceAddress"].(string)
 	return value
 }
 
