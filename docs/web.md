@@ -117,9 +117,11 @@ shown only to owners and admins. Item deletion is
 explicitly permanent and asks for confirmation when the browser script is
 available; ordinary form submission remains available without it.
 
-Forms work with ordinary navigation. Vendored HTMX 2.0.4 enhances item forms
-only by replacing `#item-list`; it contains no business rules. The exact
-upstream license is served from `internal/web/assets/HTMX-LICENSE`.
+Forms work with ordinary navigation. Vendored HTMX 4.0.1 enhances item forms
+only by replacing `#item-list`; it contains no business rules. `app.js` keeps
+HTMX 2.x non-swap behavior for `204`, `304`, `4xx`, and `5xx` responses so
+error pages never replace the list. The exact upstream license is served from
+`internal/web/assets/HTMX-LICENSE`.
 
 ## WebMCP progressive enhancement
 
