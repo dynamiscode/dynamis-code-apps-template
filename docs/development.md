@@ -127,6 +127,26 @@ Prior to PR creation, verify changes with the following checklist:
 - Run `npm ci && make accessibility-smoke`, `make webmcp-smoke`, and `make docker-smoke` when interface or container delivery are affected.
 - Run security gates (`make secret-check`, `make vuln-check`, `make fuzz-smoke`) and database tests against PostgreSQL when applicable.
 
+## Worktree and branch lifecycle
+
+When working in concurrent feature worktrees (e.g. through Herdr or `git worktree`):
+
+1. **Active checkout isolation**: Git prevents deleting a branch that is actively
+   checked out in an attached worktree. Running `gh pr merge <pr> --squash --delete-branch`
+   deletes the remote branch on GitHub, but purposefully skips local branch deletion
+   while the worktree is still attached.
+2. **Post-merge worktree cleanup**: To finalize cleanup after merging a PR:
+   ```sh
+   # Exit the worktree directory back to the root or parent workspace
+   cd /path/to/main-repo
+
+   # Remove the worktree and delete the local feature branch
+   git worktree remove /path/to/worktree && git branch -d <branch-name>
+
+   # Prune any stale worktree registration metadata
+   git worktree prune
+   ```
+
 ## Replace the sample feature
 
 The item feature is the executable reference slice. Replace or remove it only
