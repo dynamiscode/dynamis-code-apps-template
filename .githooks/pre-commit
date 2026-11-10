@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+
+staged_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+
+if [ -n "$staged_files" ]; then
+	unformatted=$(gofmt -l $staged_files)
+	if [ -n "$unformatted" ]; then
+		echo "Formatting error: The following Go file(s) are not formatted according to gofmt:" >&2
+		echo "$unformatted" >&2
+		echo "Run: gofmt -w <file>" >&2
+		exit 1
+	fi
+fi
+
+make vet generate-check

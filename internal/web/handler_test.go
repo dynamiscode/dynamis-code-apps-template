@@ -620,6 +620,91 @@ func TestSSEScopeReconnectHeartbeatAndLimits(t *testing.T) {
 	}
 }
 
+func TestItemEvents(t *testing.T) {
+	webHandler, auth, itemService, workspaceID, owner := testWebRaw(t, 2)
+	ctx := context.Background()
+
+	principal, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	principal.AuthMethod = "test"
+
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "/workspaces/"+workspaceID+"/items/events", nil)
+
+	rec := httptest.NewRecorder()
+	nextCursor, ok := webHandler.sendChanges(rec, req, principal, workspaceID, "")
+	if !ok {
+		t.Fatal("expected sendChanges with empty cursor to succeed")
+	}
+	if nextCursor != "0" {
+		t.Fatalf("expected nextCursor '0', got %q", nextCursor)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "id: 0\n") || !strings.Contains(body, "event: resync\n") || !strings.Contains(body, "data: {\"reason\":\"cursor\"}\n\n") {
+		t.Fatalf("unexpected resync event body: %q", body)
+	}
+
+	rec = httptest.NewRecorder()
+	nextCursor, ok = webHandler.sendChanges(rec, req, principal, workspaceID, nextCursor)
+	if !ok {
+		t.Fatal("expected sendChanges with no changes to succeed")
+	}
+	if nextCursor != "0" {
+		t.Fatalf("expected nextCursor '0', got %q", nextCursor)
+	}
+	if rec.Body.Len() != 0 {
+		t.Fatalf("expected no output when no changes, got %q", rec.Body.String())
+	}
+
+	created1, err := itemService.Create(ctx, principal, workspaceID, "Item 1", "key-1", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	created2, err := itemService.Create(ctx, principal, workspaceID, "Item 2", "key-2", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rec = httptest.NewRecorder()
+	nextCursor, ok = webHandler.sendChanges(rec, req, principal, workspaceID, nextCursor)
+	if !ok {
+		t.Fatal("expected sendChanges with new items to succeed")
+	}
+	body = rec.Body.String()
+	if !strings.Contains(body, "event: item.changed\n") || !strings.Contains(body, created1.Item.ID) || !strings.Contains(body, created2.Item.ID) {
+		t.Fatalf("expected change events for both items, got %q", body)
+	}
+	if nextCursor == "" || nextCursor == "0" {
+		t.Fatalf("expected nextCursor to advance beyond '0', got %q", nextCursor)
+	}
+
+	rec = httptest.NewRecorder()
+	advancedCursor, ok := webHandler.sendChanges(rec, req, principal, workspaceID, nextCursor)
+	if !ok {
+		t.Fatal("expected sendChanges with up-to-date cursor to succeed")
+	}
+	if advancedCursor != nextCursor {
+		t.Fatalf("expected nextCursor %q, got %q", nextCursor, advancedCursor)
+	}
+	if rec.Body.Len() != 0 {
+		t.Fatalf("expected no output when up to date, got %q", rec.Body.String())
+	}
+
+	rec = httptest.NewRecorder()
+	resyncCursor, ok := webHandler.sendChanges(rec, req, principal, workspaceID, "non-existent-cursor")
+	if !ok {
+		t.Fatal("expected sendChanges with stale cursor to succeed with resync")
+	}
+	body = rec.Body.String()
+	if !strings.Contains(body, "event: resync\n") || !strings.Contains(body, "data: {\"reason\":\"cursor\"}\n\n") {
+		t.Fatalf("expected resync event for stale cursor, got %q", body)
+	}
+	if resyncCursor != nextCursor {
+		t.Fatalf("expected resync nextCursor %q, got %q", nextCursor, resyncCursor)
+	}
+}
+
 func TestNotificationSSEIsScopedAndRedactedToRecipient(t *testing.T) {
 	handler, auth, _, workspaceID, owner := testWeb(t, 1)
 	_, err := auth.CreateNotification(context.Background(), PrincipalSystem(), identity.NotificationInput{
@@ -1179,21 +1264,26 @@ func TestWebImportIsAuthorizedExplicitAndAtomic(t *testing.T) {
 	}
 
 	valid := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "confirm": {"yes"}}, "items.csv", "title,status\nImported one,active\nImported two,complete\n", cookies, nil)
-	if valid.Code != http.StatusSeeOther || valid.Header().Get("Location") != root {
-		t.Fatalf("valid import = %d, %s", valid.Code, valid.Body.String())
+	expectedRedirect := root + "?imported=" + url.QueryEscape(fmt.Sprintf("%d", 2))
+	if valid.Code != http.StatusSeeOther || valid.Header().Get("Location") != expectedRedirect {
+		t.Fatalf("valid import = %d, location %q, %s", valid.Code, valid.Header().Get("Location"), valid.Body.String())
 	}
-	completed := request(handler, http.MethodGet, root, nil, cookies, nil)
+	completed := request(handler, http.MethodGet, valid.Header().Get("Location"), nil, cookies, nil)
 	if completed.Code != http.StatusOK || !strings.Contains(completed.Body.String(), "Items imported:") || !strings.Contains(completed.Body.String(), "2") ||
 		strings.Contains(completed.Body.String(), "Imported one") || strings.Contains(completed.Body.String(), "Imported two") {
 		t.Fatalf("completed import page = %d, %s", completed.Code, completed.Body.String())
 	}
-	replayed := request(handler, http.MethodGet, root, nil, cookies, nil)
-	if strings.Contains(replayed.Body.String(), "Items imported:") {
-		t.Fatalf("import success was replayed: %s", replayed.Body.String())
+	clean := request(handler, http.MethodGet, root, nil, cookies, nil)
+	if strings.Contains(clean.Body.String(), "Items imported:") {
+		t.Fatalf("import success was displayed on clean root: %s", clean.Body.String())
 	}
-	forged := request(handler, http.MethodGet, root+"?imported=999", nil, cookies, nil)
-	if strings.Contains(forged.Body.String(), "Items imported:") {
-		t.Fatalf("forged import success was displayed: %s", forged.Body.String())
+	statelessParam := request(handler, http.MethodGet, root+"?imported=999", nil, cookies, nil)
+	if !strings.Contains(statelessParam.Body.String(), "Items imported:") || !strings.Contains(statelessParam.Body.String(), "999") {
+		t.Fatalf("stateless import success was not displayed: %s", statelessParam.Body.String())
+	}
+	invalidParam := request(handler, http.MethodGet, root+"?imported=invalid", nil, cookies, nil)
+	if strings.Contains(invalidParam.Body.String(), "Items imported:") {
+		t.Fatalf("invalid import param displayed success: %s", invalidParam.Body.String())
 	}
 	principal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.ResourcesRead)
 	if err != nil {
@@ -1211,8 +1301,9 @@ func TestWebImportIsAuthorizedExplicitAndAtomic(t *testing.T) {
 		t.Fatal(err)
 	}
 	validJSON := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "confirm": {"yes"}}, "items.json", string(jsonImport), cookies, nil)
-	if validJSON.Code != http.StatusSeeOther || validJSON.Header().Get("Location") != root {
-		t.Fatalf("valid JSON import = %d, %s", validJSON.Code, validJSON.Body.String())
+	expectedJSONRedirect := root + "?imported=" + url.QueryEscape(fmt.Sprintf("%d", 1))
+	if validJSON.Code != http.StatusSeeOther || validJSON.Header().Get("Location") != expectedJSONRedirect {
+		t.Fatalf("valid JSON import = %d, location %q, %s", validJSON.Code, validJSON.Header().Get("Location"), validJSON.Body.String())
 	}
 	ownerUpdate, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.WorkspaceUpdate)
 	if err != nil {
@@ -1389,7 +1480,18 @@ func testWeb(t *testing.T, maximumStreams int, mailers ...appmail.Sender) (http.
 	return testWebWithMFA(t, maximumStreams, false, mailers...)
 }
 
+func testWebRaw(t *testing.T, maximumStreams int, mailers ...appmail.Sender) (*Handler, *identity.Service, *items.Service, string, identity.BootstrapResult) {
+	t.Helper()
+	return testWebWithMFARaw(t, maximumStreams, false, mailers...)
+}
+
 func testWebWithMFA(t *testing.T, maximumStreams int, mfaEnabled bool, mailers ...appmail.Sender) (http.Handler, *identity.Service, *items.Service, string, identity.BootstrapResult) {
+	t.Helper()
+	webHandler, auth, itemService, workspaceID, owner := testWebWithMFARaw(t, maximumStreams, mfaEnabled, mailers...)
+	return webHandler.Routes(), auth, itemService, workspaceID, owner
+}
+
+func testWebWithMFARaw(t *testing.T, maximumStreams int, mfaEnabled bool, mailers ...appmail.Sender) (*Handler, *identity.Service, *items.Service, string, identity.BootstrapResult) {
 	t.Helper()
 	ctx := context.Background()
 	cfg, err := config.LoadFrom(func(string) (string, bool) { return "", false })
@@ -1438,7 +1540,7 @@ func testWebWithMFA(t *testing.T, maximumStreams int, mfaEnabled bool, mailers .
 	if err != nil {
 		t.Fatal(err)
 	}
-	return webHandler.Routes(), auth, itemService, owner.WorkspaceID, owner
+	return webHandler, auth, itemService, owner.WorkspaceID, owner
 }
 
 func testUnbootstrappedWeb(t *testing.T, setupToken string) (http.Handler, *identity.Service) {

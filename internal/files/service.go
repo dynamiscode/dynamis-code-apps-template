@@ -1,3 +1,18 @@
+// Package files manages workspace-scoped private file metadata and object storage.
+//
+// File Lifecycle State Machine:
+// Files begin in Pending status upon Initiate or reservation.
+// Valid state transitions are strictly:
+//   - Pending -> Ready: Upload and content validation succeeded.
+//   - Pending -> Failed: Upload, inspect, or complete validation failed.
+//
+// Invalid transitions (e.g. Failed -> Ready, Ready -> Failed, or self-transitions)
+// are rejected with ErrInvalidTransition.
+//
+// Quota Accounting:
+// Both Pending and Failed files reserve workspace storage quota until completed or
+// cleaned up. Stale pending uploads and failed records can be pruned via CleanupStaleFiles,
+// which releases their quota reservation for future file reservations.
 package files
 
 import (
@@ -28,12 +43,24 @@ const (
 )
 
 var (
-	ErrInvalidInput = errors.New("file input is invalid")
-	ErrNotFound     = errors.New("file not found")
-	ErrLimit        = errors.New("file storage limit reached")
-	ErrObjectLimit  = errors.New("file object limit reached")
-	ErrNotReady     = errors.New("file is not ready")
+	ErrInvalidInput      = errors.New("file input is invalid")
+	ErrNotFound          = errors.New("file not found")
+	ErrLimit             = errors.New("file storage limit reached")
+	ErrObjectLimit       = errors.New("file object limit reached")
+	ErrNotReady          = errors.New("file is not ready")
+	ErrInvalidTransition = errors.New("invalid file state transition")
 )
+
+var validTransitions = map[string]map[string]bool{
+	Pending: {
+		Ready:  true,
+		Failed: true,
+	},
+}
+
+func isValidTransition(fromStatus, toStatus string) bool {
+	return validTransitions[fromStatus][toStatus]
+}
 
 type File struct {
 	ID           string  `json:"id"`
@@ -365,11 +392,17 @@ func (s *Service) completeDB(ctx context.Context, actor identity.Principal, file
 	if used > s.maxWorkspaceBytes-size {
 		return File{}, ErrLimit
 	}
+	if err := s.transitionFile(ctx, tx, file.ID, Pending, Ready); err != nil {
+		if errors.Is(err, ErrInvalidTransition) {
+			return File{}, ErrNotReady
+		}
+		return File{}, err
+	}
 	sha := hex.EncodeToString(digest[:])
 	result, err := tx.ExecContext(ctx, database.Rebind(s.driver, `
-		UPDATE files SET detected_mime = ?, size = ?, sha256 = ?, status = ?, updated_at = ?
-		WHERE id = ? AND workspace_id = ? AND status = ?
-	`), detected, size, sha, Ready, stamp(now), file.ID, file.WorkspaceID, Pending)
+		UPDATE files SET detected_mime = ?, size = ?, sha256 = ?
+		WHERE id = ? AND workspace_id = ?
+	`), detected, size, sha, file.ID, file.WorkspaceID)
 	if err != nil {
 		return File{}, err
 	}
@@ -421,16 +454,79 @@ func (s *Service) get(ctx context.Context, actor identity.Principal, workspaceID
 	return file, nil
 }
 
+// transitionFile validates and executes a state transition from fromStatus to toStatus for fileID.
+// It returns ErrInvalidTransition if the transition is disallowed by validTransitions or if the file
+// in the database has already transitioned past fromStatus.
+func (s *Service) transitionFile(ctx context.Context, tx *sql.Tx, fileID, fromStatus, toStatus string) error {
+	if !isValidTransition(fromStatus, toStatus) {
+		return ErrInvalidTransition
+	}
+	now := s.now().UTC()
+	var result sql.Result
+	var err error
+	if tx != nil {
+		result, err = tx.ExecContext(ctx, database.Rebind(s.driver, `
+			UPDATE files SET status = ?, updated_at = ? WHERE id = ? AND status = ?
+		`), toStatus, stamp(now), fileID, fromStatus)
+	} else {
+		result, err = s.db.ExecContext(ctx, database.Rebind(s.driver, `
+			UPDATE files SET status = ?, updated_at = ? WHERE id = ? AND status = ?
+		`), toStatus, stamp(now), fileID, fromStatus)
+	}
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		var currentStatus string
+		var checkErr error
+		if tx != nil {
+			checkErr = tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT status FROM files WHERE id = ?`), fileID).Scan(&currentStatus)
+		} else {
+			checkErr = s.db.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT status FROM files WHERE id = ?`), fileID).Scan(&currentStatus)
+		}
+		if errors.Is(checkErr, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		if checkErr != nil {
+			return checkErr
+		}
+		if !isValidTransition(currentStatus, toStatus) {
+			return ErrInvalidTransition
+		}
+		return ErrNotReady
+	}
+	return nil
+}
+
 func (s *Service) markFailed(ctx context.Context, fileID string) {
-	_, _ = s.db.ExecContext(ctx, database.Rebind(s.driver,
-		"UPDATE files SET status = ?, updated_at = ? WHERE id = ? AND status = ?",
-	), Failed, stamp(s.now()), fileID, Pending)
+	_ = s.transitionFile(ctx, nil, fileID, Pending, Failed)
 }
 
 func (s *Service) releasePending(ctx context.Context, file File) {
 	_, _ = s.db.ExecContext(ctx, database.Rebind(s.driver,
 		"DELETE FROM files WHERE id = ? AND workspace_id = ? AND status = ?",
 	), file.ID, file.WorkspaceID, Pending)
+}
+
+// CleanupStaleFiles permanently deletes pending and failed files updated before or at cutoff,
+// releasing their quota reservation for future file allocations.
+func (s *Service) CleanupStaleFiles(ctx context.Context, cutoff time.Time) (int64, error) {
+	result, err := s.db.ExecContext(ctx, database.Rebind(s.driver, `
+		DELETE FROM files WHERE status IN (?, ?) AND updated_at <= ?
+	`), Pending, Failed, stamp(cutoff))
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// CleanupStale is an alias for CleanupStaleFiles.
+func (s *Service) CleanupStale(ctx context.Context, cutoff time.Time) (int64, error) {
+	return s.CleanupStaleFiles(ctx, cutoff)
 }
 
 func scan(rows *sql.Rows) (File, error) {

@@ -3,13 +3,18 @@
 ## Setup
 
 ```sh
-cp .env.example .env
+make setup
 set -a; . ./.env; set +a
 go run ./cmd/server
 ```
 
+Running `make setup` configures `.githooks` (enforcing `gofmt` on staged Go files, plus `go vet` and generate drift checks) and installs dependencies. Refresh only the hook path with `make setup-hooks`.
+
 Use Go 1.26 or newer; the module records the development toolchain. Use an
-isolated PostgreSQL database through `POSTGRES_TEST_URL` for PostgreSQL tests.
+isolated PostgreSQL database through `POSTGRES_TEST_URL` (for example,
+`postgres://postgres@127.0.0.1:5432/dynamis_code_test?sslmode=disable`) for
+PostgreSQL compatibility tests across schema migrations, leasing locks, and
+queue claim transactions.
 
 ## Change workflow
 
@@ -19,7 +24,13 @@ isolated PostgreSQL database through `POSTGRES_TEST_URL` for PostgreSQL tests.
    tests. Keep workspace scope explicit.
 3. Make one bounded change. Update OpenAPI, migrations, behavior docs,
    changelog, and capability evidence only when affected.
-4. Run focused checks, then the applicable verification ladder.
+4. Run focused package checks (e.g. `go test ./internal/<affected-feature>/...`)
+   during iteration to maintain fast feedback loops, then the applicable
+   verification ladder before committing.
+
+When working in parallel agent worktrees or swarms, do not edit CHANGELOG.md
+directly on feature branches; changelog updates are aggregated at release or PR
+merge time.
 
 Ordinary features stay vertical: application behavior first, transport
 adapters second. Reuse shared authorization, Problem Details, audit,
@@ -48,15 +59,70 @@ boundary, and applicable surfaces before implementation:
 - realtime: only when clients need change delivery, with scope and reconnect
   semantics;
 - operations/data: persistence, migrations, export, retention, deletion, and
-  recovery when durable data is involved.
+  recovery when durable data is involved;
+- state lifecycle: entities with multi-step lifecycles define typed status enums,
+  pure computed `Status(now)` methods, and `ValidateTransition` functions
+  matching the [architecture](architecture.md#domain-state-machines) pattern.
+- async lifecycles: background queues, workers, and webhook deliveries use pure
+  outcome evaluators matching the [architecture](architecture.md#asynchronous-state-machines)
+  pattern.
 
 Mark each omitted surface with a reason in the phase brief or capability
 ledger. A feature is complete only when every applicable surface has code,
 focused tests, canonical documentation, and linked capability evidence.
 
+## Agent environment and hook resilience
+
+When running coding agents or AI orchestrators (e.g. Antigravity, Orca, Claude Code)
+configured with lifecycle hooks (`PreInvocation`, `PreToolUse`, `PostToolUse`),
+hook scripts must adhere to strict runtime boundaries:
+
+1. **Non-blocking stdin**: Stdin reading should never wait indefinitely or employ
+   long select timeouts. If stdin has no immediate data or EOF, hooks must continue
+   immediately.
+2. **Sub-second execution**: The agent CLI enforces strict timeouts on tool hooks
+   (typically 2-5 seconds). Synchronous hooks that block on network requests or
+   heavy computations will be terminated with `signal: killed`, failing tool calls.
+3. **Graceful degradation**: Inability to contact telemetry or spooling endpoints
+   must fall back cleanly without emitting errors or aborting tool execution.
+
+Verify hook script timing and non-blocking behavior using:
+```sh
+./scripts/check-agent-hooks.sh /path/to/hook-script
+```
+
+## Tool economy and bounded navigation
+
+To protect context windows and prevent output truncation during automated or
+agent-assisted development:
+
+- **Path-bounded searches**: Constrain search queries to target packages
+  (e.g. `git grep <pattern> internal/<package>/`) rather than root-wide keyword
+  dumps that traverse generated schemas, contracts, and HTML templates.
+- **Symbol-scoped lookups**: Prefer type or definition lookups (e.g.
+  `git grep "type <Name>"`) or LSP workspace symbol queries over generic
+  substring matching.
+- **Bounded file reads**: Read specific line ranges around relevant symbols
+  rather than loading entire multi-thousand-line files unconditionally.
+
+## Pull requests and merge guidance
+
+1. Open pull requests targeting `main` with a clear summary, change list, and
+   verification evidence.
+2. When merging via CLI, enable auto-merge so squashing occurs automatically
+   once all required checks succeed:
+   ```sh
+   gh pr merge <pr-number> --squash --delete-branch --auto
+   ```
+3. In concurrent worktree workflows, merge conflicts frequently cluster in
+   `CHANGELOG.md` under `## Unreleased`. When rebasing or merging `origin/main`,
+   preserve all concurrent unreleased entries by keeping both sides of the
+   conflict markers, ensuring no entries are dropped or duplicated.
+
 ## Checks
 
 ```sh
+make lint
 make verify
 npm ci && make accessibility-smoke
 make webmcp-smoke
@@ -65,10 +131,43 @@ make docker-smoke
 
 `make verify` checks formatting, tests, vet, race behavior, module checks,
 workflow syntax and action pins, generated OpenAPI drift, command builds, and
-generation of a clean application. Run `make secret-check`, `make vuln-check`,
+generation of a clean application. During active iteration, run package-focused
+tests (such as `go test ./internal/web/...`) to avoid the integration and
+template-smoke overhead; run full `go test ./...` and `make verify` once the change
+is bounded. Run `node --check internal/web/assets/*.js` when modifying browser
+scripts. Run `make secret-check`, `make vuln-check`,
 and `make fuzz-smoke` for the source security gates, plus the full suite with
 `POSTGRES_TEST_URL` for data or release changes. CI also runs CodeQL for Go and
 JavaScript/TypeScript.
+
+### Verification checklist
+
+Prior to PR creation, verify changes with the following checklist:
+- Run `make lint` (runs `fmt-check` and `go vet`) so mechanical formatting failures are caught before pushing.
+- Run focused tests and `go test ./...` across affected packages.
+- Run `make verify` before submitting changes for review.
+- Run `npm ci && make accessibility-smoke`, `make webmcp-smoke`, and `make docker-smoke` when interface or container delivery are affected.
+- Run security gates (`make secret-check`, `make vuln-check`, `make fuzz-smoke`) and database tests against PostgreSQL when applicable.
+
+## Worktree and branch lifecycle
+
+When working in concurrent feature worktrees (e.g. through Herdr or `git worktree`):
+
+1. **Active checkout isolation**: Git prevents deleting a branch that is actively
+   checked out in an attached worktree. Running `gh pr merge <pr> --squash --delete-branch`
+   deletes the remote branch on GitHub, but purposefully skips local branch deletion
+   while the worktree is still attached.
+2. **Post-merge worktree cleanup**: To finalize cleanup after merging a PR:
+   ```sh
+   # Exit the worktree directory back to the root or parent workspace
+   cd /path/to/main-repo
+
+   # Remove the worktree and delete the local feature branch
+   git worktree remove /path/to/worktree && git branch -d <branch-name>
+
+   # Prune any stale worktree registration metadata
+   git worktree prune
+   ```
 
 ## Replace the sample feature
 

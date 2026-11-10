@@ -63,6 +63,26 @@ Persisted timestamps use UTC RFC 3339 with nanosecond precision. Application
 use cases own transactions spanning multiple data operations; repositories do
 not start hidden transactions.
 
+## Domain state machines
+
+Domain entities with non-trivial lifecycles (such as invitations, jobs, webhooks,
+and uploads) model state transitions explicitly rather than relying on implicit
+database column nullability checks:
+
+1. **Typed status enum**: Define an explicit string-backed status type
+   (e.g., `InvitationStatus`) with named constants for all lifecycle states
+   (`pending`, `accepted`, `revoked`, `expired`).
+2. **Pure computed status**: Implement a pure method on the model
+   `func (m Model) Status(now time.Time) StatusEnum` that evaluates timestamps
+   and precedence to compute current status dynamically without side effects.
+3. **Canonical transition validator**: Implement a pure transition function
+   `func Validate<Resource>Transition(current, target StatusEnum) error`
+   enforcing allowed state changes and returning wrapped domain errors
+   on illegal transitions.
+4. **Service enforcement**: Application services load current status, validate
+   the transition before mutating state, execute atomic database updates, and
+   record matching audit events.
+
 ## Go support
 
 As verified on 2026-08-25, current stable Go is 1.27.0. The module keeps Go
@@ -76,6 +96,17 @@ workspace export, retention maintenance, backup/restore, and the database-backed
 background-job queue remain platform services; no broker, cache, or
 observability stack is bundled.
 
+## Asynchronous state machines
+
+Background queues, workers, and delivery state transitions use pure outcome
+evaluators (`EvaluateJobOutcome`, `evaluateDeliveryOutcome`) with explicit typed
+status enums (`JobPending`, `JobRunning`, `JobSucceeded`, `JobFailed`;
+`DeliveryPending`, `DeliveryDelivered`, `DeliveryFailed`). Handlers and
+persistence queries apply the evaluated outcome rather than branching on
+attempt counts or lease boundaries inline. State transitions are verified
+across attempt boundaries (initial attempt, retry backoff, exhaustion, and
+stale lease reclamation) with unit tests before persistence updates.
+
 ## Profile composition
 
 Generated applications require Core and Identity. Identity remains included
@@ -83,6 +114,7 @@ because Core web, REST, item, and bootstrap paths use its shared authentication
 and workspace-authorization services. Agent is optional: when selected, the
 generator retains the MCP server, its bootstrap route, the REST-only `appctl`
 command, and their tests. Files is optional and requires Core plus Identity. It
-adds workspace-scoped private file metadata, local or S3-compatible object
-storage, and browser/REST surfaces. CompanySite and Integrations remain
-unimplemented.
+adds workspace-scoped private file metadata with explicit state transitions
+(Pending -> Ready, Pending -> Failed), local or S3-compatible object storage,
+quota reservations across active and failed uploads, and browser/REST surfaces.
+CompanySite and Integrations remain unimplemented.

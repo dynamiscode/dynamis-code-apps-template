@@ -4,8 +4,205 @@ const list=document.querySelector("#item-list[data-events]");
 const realtimeStatus=document.querySelector("#realtime-status");
 if(list&&window.EventSource){const messages={connecting:list.dataset.liveConnecting,connected:list.dataset.liveConnected,unavailable:list.dataset.liveUnavailable,reconnecting:list.dataset.liveReconnecting};if(realtimeStatus)realtimeStatus.textContent=messages.connecting;const events=new EventSource(list.dataset.events);events.addEventListener("open",()=>{if(realtimeStatus)realtimeStatus.textContent=messages.connected});events.addEventListener("error",()=>{if(realtimeStatus)realtimeStatus.textContent=events.readyState===EventSource.CLOSED?messages.unavailable:messages.reconnecting});for(const name of["item.changed","resync"]){events.addEventListener(name,()=>window.htmx?.ajax("GET",location.pathname,{target:"#item-list",swap:"outerHTML"}))}events.addEventListener("close",()=>events.close())}
 document.addEventListener("click",event=>{const button=event.target instanceof Element?event.target.closest("button[data-confirm]"):null;if(button&&!window.confirm(button.dataset.confirm))event.preventDefault()});
-const fileUploadForm=document.querySelector("form[data-file-upload][data-presigned='true']");
-if(fileUploadForm){fileUploadForm.addEventListener("submit",async event=>{event.preventDefault();const input=fileUploadForm.querySelector("input[type=file]");const file=input?.files?.[0];if(!file)return;const csrf=fileUploadForm.querySelector("input[name=csrf]")?.value||"";try{const initiate=await fetch(fileUploadForm.dataset.initiate,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({csrf,originalName:file.name,size:String(file.size),contentType:file.type}),credentials:"same-origin"});if(!initiate.ok)throw new Error("initiation failed");const upload=await initiate.json();const stored=await fetch(upload.uploadUrl,{method:"PUT",headers:upload.uploadHeaders||{},body:file,credentials:"omit"});if(!stored.ok)throw new Error("upload failed");const complete=await fetch(upload.completeUrl,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({csrf}),credentials:"same-origin"});if(!complete.ok)throw new Error("completion failed");window.location.assign(fileUploadForm.action)}catch(_){window.location.reload()}})}
+class PresignedUploader {
+	static PHASES = Object.freeze({
+		IDLE: "IDLE",
+		INITIATING: "INITIATING",
+		UPLOADING: "UPLOADING",
+		COMPLETING: "COMPLETING",
+		SUCCESS: "SUCCESS",
+		ERROR: "ERROR"
+	});
+
+	static PHASE_MESSAGES = Object.freeze({
+		IDLE: "",
+		INITIATING: "Initiating upload...",
+		UPLOADING: "Uploading file...",
+		COMPLETING: "Completing upload...",
+		SUCCESS: "Upload complete.",
+		ERROR: "Upload failed. Please try again."
+	});
+
+	constructor(form) {
+		this.form = form;
+		this.submitButton = form?.querySelector('button[type="submit"]') || form?.querySelector("button");
+		this.fileInput = form?.querySelector('input[type="file"]');
+		this.statusElement = form?.querySelector("[data-upload-status]")
+			|| form?.querySelector('[role="status"]')
+			|| form?.querySelector('[aria-live="polite"]');
+		this.phase = PresignedUploader.PHASES.IDLE;
+	}
+
+	ensureStatusElement() {
+		if (!this.statusElement && this.form) {
+			this.statusElement = document.createElement("p");
+			this.statusElement.setAttribute("role", "status");
+			this.statusElement.setAttribute("aria-live", "polite");
+			this.statusElement.className = "status";
+			this.statusElement.setAttribute("data-upload-status", "");
+			this.form.appendChild(this.statusElement);
+		}
+		return this.statusElement;
+	}
+
+	getPhaseMessage(phase) {
+		if (this.form?.dataset) {
+			const phaseKey = phase.charAt(0) + phase.slice(1).toLowerCase();
+			const custom = this.form.dataset[`status${phaseKey}`] || this.form.dataset[`phase${phaseKey}`];
+			if (custom) return custom;
+		}
+		return PresignedUploader.PHASE_MESSAGES[phase] || "";
+	}
+
+	isInFlight() {
+		return this.phase === PresignedUploader.PHASES.INITIATING ||
+			this.phase === PresignedUploader.PHASES.UPLOADING ||
+			this.phase === PresignedUploader.PHASES.COMPLETING ||
+			this.phase === PresignedUploader.PHASES.SUCCESS;
+	}
+
+	transition(phase, message) {
+		this.phase = phase;
+		const isError = phase === PresignedUploader.PHASES.ERROR;
+		const inFlight = this.isInFlight();
+
+		if (this.submitButton) {
+			this.submitButton.disabled = inFlight;
+		}
+		if (this.fileInput) {
+			this.fileInput.disabled = inFlight;
+		}
+
+		const statusEl = this.ensureStatusElement();
+		if (statusEl) {
+			const text = message !== undefined ? message : this.getPhaseMessage(phase);
+			statusEl.textContent = text;
+			if (text) {
+				statusEl.removeAttribute("hidden");
+			} else {
+				statusEl.setAttribute("hidden", "");
+			}
+			if (isError) {
+				statusEl.classList.add("error");
+				statusEl.classList.remove("status");
+			} else {
+				statusEl.classList.remove("error");
+				statusEl.classList.add("status");
+			}
+		}
+	}
+
+	async handleSubmit(event) {
+		if (event) event.preventDefault();
+		if (this.isInFlight()) return;
+
+		const file = this.fileInput?.files?.[0];
+		if (!file) {
+			this.transition(PresignedUploader.PHASES.ERROR, "Choose a file to upload.");
+			return;
+		}
+
+		const csrf = this.form?.querySelector('input[name="csrf"]')?.value || "";
+		const initiateUrl = this.form?.dataset?.initiate || (this.form?.action ? `${this.form.action}/initiate` : "");
+
+		try {
+			this.transition(PresignedUploader.PHASES.INITIATING);
+			const initiate = await fetch(initiateUrl, {
+				method: "POST",
+				headers: { "Content-Type": "application/x-www-form-urlencoded" },
+				body: new URLSearchParams({
+					csrf,
+					originalName: file.name,
+					size: String(file.size),
+					contentType: file.type || "application/octet-stream"
+				}),
+				credentials: "same-origin"
+			});
+			if (!initiate.ok) {
+				const errMsg = await PresignedUploader.extractErrorMessage(initiate, "Failed to initiate file upload. Please try again.");
+				throw new Error(errMsg);
+			}
+			const upload = await initiate.json();
+			if (!upload || !upload.uploadUrl || !upload.completeUrl) {
+				throw new Error("Invalid upload initiation response. Please try again.");
+			}
+
+			this.transition(PresignedUploader.PHASES.UPLOADING);
+			const stored = await fetch(upload.uploadUrl, {
+				method: "PUT",
+				headers: upload.uploadHeaders || {},
+				body: file,
+				credentials: "omit"
+			});
+			if (!stored.ok) {
+				throw new Error("Failed to upload file to storage. Please try again.");
+			}
+
+			this.transition(PresignedUploader.PHASES.COMPLETING);
+			const complete = await fetch(upload.completeUrl, {
+				method: "POST",
+				headers: { "Content-Type": "application/x-www-form-urlencoded" },
+				body: new URLSearchParams({ csrf }),
+				credentials: "same-origin"
+			});
+			if (!complete.ok) {
+				const errMsg = await PresignedUploader.extractErrorMessage(complete, "Failed to finalize file upload. Please try again.");
+				throw new Error(errMsg);
+			}
+
+			this.transition(PresignedUploader.PHASES.SUCCESS);
+			if (this.form?.action && typeof window !== "undefined" && window.location) {
+				window.location.assign(this.form.action);
+			}
+		} catch (err) {
+			const message = err?.message || "Upload failed. Please try again.";
+			this.transition(PresignedUploader.PHASES.ERROR, message);
+		}
+	}
+
+	static async extractErrorMessage(response, defaultMsg) {
+		try {
+			const text = await response.text();
+			if (text) {
+				if (typeof DOMParser !== "undefined") {
+					const doc = new DOMParser().parseFromString(text, "text/html");
+					const alert = doc.querySelector('[role="alert"]');
+					if (alert?.textContent?.trim()) {
+						return alert.textContent.trim();
+					}
+				}
+				try {
+					const json = JSON.parse(text);
+					if (json.detail) return json.detail;
+					if (json.title) return json.title;
+					if (json.error) return json.error;
+				} catch (_) {}
+			}
+		} catch (_) {}
+		return defaultMsg;
+	}
+
+	init() {
+		if (!this.form) return;
+		this.form.addEventListener("submit", (event) => this.handleSubmit(event));
+	}
+}
+
+PresignedUploader.Phases = PresignedUploader.PHASES;
+PresignedUploader.PhaseMessages = PresignedUploader.PHASE_MESSAGES;
+
+if (typeof window !== "undefined") {
+	window.PresignedUploader = PresignedUploader;
+}
+if (typeof module !== "undefined" && module.exports) {
+	module.exports = { PresignedUploader };
+}
+
+const fileUploadForm = document.querySelector("form[data-file-upload][data-presigned='true']");
+if (fileUploadForm) {
+	const uploader = new PresignedUploader(fileUploadForm);
+	uploader.init();
+}
 
 (() => {
 	const context = document.modelContext;

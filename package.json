@@ -4,10 +4,12 @@
   "license": "MIT",
   "scripts": {
     "test:a11y": "node scripts/accessibility.mjs",
-    "test:webmcp": "node scripts/webmcp.mjs"
+    "test:webmcp": "node scripts/webmcp.mjs",
+    "test:unit": "node --test internal/web/assets/*.test.mjs",
+    "check:js": "for f in internal/web/assets/*.js; do node --check \"$f\"; done"
   },
   "devDependencies": {
-    "axe-core": "4.13.0",
-    "selenium-webdriver": "4.48.0"
+    "axe-core": "4.14.0",
+    "selenium-webdriver": "4.52.0"
   }
 }

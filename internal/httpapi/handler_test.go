@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -162,7 +163,9 @@ func TestHTTPBoundaries(t *testing.T) {
 	timed := requestIDMiddleware(timeoutMiddleware(http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
 		<-request.Context().Done()
 	}), time.Millisecond, slog.New(slog.NewTextHandler(io.Discard, nil))))
-	assertProblem(t, serve(timed, http.MethodGet, "/slow", "", ""), http.StatusGatewayTimeout, "request-timeout")
+	for i := 0; i < 5; i++ {
+		assertProblem(t, serve(timed, http.MethodGet, "/slow", "", ""), http.StatusGatewayTimeout, "request-timeout")
+	}
 	panicked := requestIDMiddleware(timeoutMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		panic("private failure")
 	}), time.Second, slog.New(slog.NewTextHandler(io.Discard, nil))))
@@ -395,4 +398,28 @@ func TestPublicSharePathIsRedactedFromLogs(t *testing.T) {
 	if got := logPath("/workspaces/example/items"); got != "/workspaces/example/items" {
 		t.Fatalf("ordinary logPath() = %q", got)
 	}
+}
+
+func TestTimeoutMiddlewareContextDoneRace(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	timed := requestIDMiddleware(timeoutMiddleware(http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
+		<-request.Context().Done()
+	}), time.Nanosecond, logger))
+
+	var wg sync.WaitGroup
+	for worker := 0; worker < 20; worker++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 50; i++ {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				req := httptest.NewRequest(http.MethodGet, "/slow", nil).WithContext(ctx)
+				rec := httptest.NewRecorder()
+				timed.ServeHTTP(rec, req)
+				assertProblem(t, rec, http.StatusGatewayTimeout, "request-timeout")
+			}
+		}()
+	}
+	wg.Wait()
 }

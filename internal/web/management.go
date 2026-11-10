@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"errors"
+	"fmt"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -487,48 +488,6 @@ func (h *Handler) exportWorkspace(writer http.ResponseWriter, request *http.Requ
 }
 
 const importMultipartMemory = 32 * 1024
-const importFlashLifetime = time.Minute
-
-type importFlashKey struct {
-	sessionID   string
-	workspaceID string
-}
-
-type importFlash struct {
-	imported  int
-	expiresAt time.Time
-}
-
-func (h *Handler) setImportFlash(sessionID, workspaceID string, imported int) {
-	now := time.Now()
-	h.importFlashMu.Lock()
-	defer h.importFlashMu.Unlock()
-	if h.importFlashes == nil {
-		h.importFlashes = make(map[importFlashKey]importFlash)
-	}
-	for key, flash := range h.importFlashes {
-		if !now.Before(flash.expiresAt) {
-			delete(h.importFlashes, key)
-		}
-	}
-	h.importFlashes[importFlashKey{sessionID: sessionID, workspaceID: workspaceID}] = importFlash{
-		imported: imported, expiresAt: now.Add(importFlashLifetime),
-	}
-}
-
-func (h *Handler) consumeImportFlash(sessionID, workspaceID string) (int, bool) {
-	now := time.Now()
-	key := importFlashKey{sessionID: sessionID, workspaceID: workspaceID}
-	h.importFlashMu.Lock()
-	defer h.importFlashMu.Unlock()
-	flash, ok := h.importFlashes[key]
-	if !ok || !now.Before(flash.expiresAt) {
-		delete(h.importFlashes, key)
-		return 0, false
-	}
-	delete(h.importFlashes, key)
-	return flash.imported, true
-}
 
 func (h *Handler) importPage(writer http.ResponseWriter, request *http.Request) {
 	workspaceID := request.PathValue("workspaceId")
@@ -540,7 +499,14 @@ func (h *Handler) importPage(writer http.ResponseWriter, request *http.Request) 
 		h.renderError(writer, http.StatusNotFound)
 		return
 	}
-	imported, completed := h.consumeImportFlash(session.ID, workspaceID)
+	completed := false
+	imported := 0
+	if raw := strings.TrimSpace(request.URL.Query().Get("imported")); raw != "" {
+		if count, err := strconv.Atoi(raw); err == nil && count >= 0 {
+			completed = true
+			imported = count
+		}
+	}
 	h.renderImportPage(writer, request, http.StatusOK, session, csrf, "", completed, imported)
 }
 
@@ -629,8 +595,8 @@ func (h *Handler) importMutation(writer http.ResponseWriter, request *http.Reque
 	case err != nil:
 		h.renderError(writer, http.StatusInternalServerError)
 	default:
-		h.setImportFlash(session.ID, workspaceID, result.Imported)
-		h.redirect(writer, request, "/workspaces/"+workspaceID+"/settings/import")
+		currentPath := "/workspaces/" + workspaceID + "/settings/import"
+		h.redirect(writer, request, currentPath+"?imported="+url.QueryEscape(fmt.Sprintf("%d", result.Imported)))
 	}
 }
 
@@ -652,6 +618,7 @@ func (h *Handler) renderImportPage(
 	h.render(writer, status, "import.html", pageData{
 		Title: "Import", NavPage: "import", NavSection: "settings", Error: message,
 		CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
+		CurrentPath:     "/workspaces/" + workspaceID + "/settings/import",
 		ImportCompleted: completed, Imported: imported,
 	})
 }

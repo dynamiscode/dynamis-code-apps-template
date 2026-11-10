@@ -12,6 +12,45 @@ import (
 
 var errInvitationExpired = errors.New("invitation expired")
 
+// InvitationStatus represents the lifecycle state of a workspace invitation.
+type InvitationStatus string
+
+const (
+	InvitationPending  InvitationStatus = "pending"
+	InvitationAccepted InvitationStatus = "accepted"
+	InvitationRevoked  InvitationStatus = "revoked"
+	InvitationExpired  InvitationStatus = "expired"
+)
+
+// Status computes the current invitation lifecycle status based on AcceptedAt,
+// RevokedAt, ExpiredAt, and ExpiresAt evaluated against now.
+func (inv Invitation) Status(now time.Time) InvitationStatus {
+	if inv.AcceptedAt != nil {
+		return InvitationAccepted
+	}
+	if inv.RevokedAt != nil {
+		return InvitationRevoked
+	}
+	if inv.ExpiredAt != nil || !now.Before(inv.ExpiresAt) {
+		return InvitationExpired
+	}
+	return InvitationPending
+}
+
+// ValidateInvitationTransition enforces valid lifecycle flows:
+// Accepted, Revoked, and Expired are only allowed from Pending.
+// Resend (transition to Pending) is only allowed from Pending or Expired.
+func ValidateInvitationTransition(current, target InvitationStatus) error {
+	switch {
+	case current == InvitationPending && (target == InvitationAccepted || target == InvitationRevoked || target == InvitationExpired || target == InvitationPending):
+		return nil
+	case current == InvitationExpired && target == InvitationPending:
+		return nil
+	default:
+		return fmt.Errorf("%w: cannot transition invitation from %s to %s", ErrInvalidInvitation, current, target)
+	}
+}
+
 func (s *Service) InvitationForSecret(
 	ctx context.Context,
 	secret string,
@@ -70,6 +109,9 @@ func (s *Service) CreateInvitation(
 			Email: email, Role: role, CreatedAt: now, ExpiresAt: now.Add(lifetime),
 		},
 		Secret: secret,
+	}
+	if status := invitation.Invitation.Status(now); status != InvitationPending {
+		return NewInvitation{}, fmt.Errorf("%w: initial status must be pending, got %s", ErrInvalidInvitation, status)
 	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
@@ -162,12 +204,38 @@ func (s *Service) ResendInvitation(
 		FROM invitations WHERE id = ? AND workspace_id = ?
 	`, invitationID, actor.WorkspaceID).Scan(
 		&email, &role, &expiresAt, &acceptedAt, &expiredAt, &revokedAt,
-	); err != nil || acceptedAt.Valid || revokedAt.Valid {
+	); err != nil {
 		return "", ErrInvalidInvitation
 	}
 	expires, err := parseTimestamp(expiresAt)
 	if err != nil {
 		return "", ErrInvalidInvitation
+	}
+	acc, err := optionalTimestamp(acceptedAt)
+	if err != nil {
+		return "", ErrInvalidInvitation
+	}
+	exp, err := optionalTimestamp(expiredAt)
+	if err != nil {
+		return "", ErrInvalidInvitation
+	}
+	rev, err := optionalTimestamp(revokedAt)
+	if err != nil {
+		return "", ErrInvalidInvitation
+	}
+	inv := Invitation{
+		ID:          invitationID,
+		WorkspaceID: actor.WorkspaceID,
+		Email:       email,
+		Role:        role,
+		ExpiresAt:   expires,
+		AcceptedAt:  acc,
+		ExpiredAt:   exp,
+		RevokedAt:   rev,
+	}
+	currentStatus := inv.Status(now)
+	if err := ValidateInvitationTransition(currentStatus, InvitationPending); err != nil {
+		return "", err
 	}
 	if !expiredAt.Valid && !now.Before(expires) {
 		marked, err := s.markInvitationExpired(
@@ -222,34 +290,55 @@ func (s *Service) RevokeInvitation(
 	}
 	var role Role
 	var expiresAt string
-	var expiredAt sql.NullString
+	var acceptedAt, expiredAt, revokedAt sql.NullString
 	if err := s.queryRow(ctx, tx, `
-		SELECT role, expires_at, expired_at FROM invitations
+		SELECT role, expires_at, accepted_at, expired_at, revoked_at FROM invitations
 		WHERE id = ? AND workspace_id = ?
-		AND accepted_at IS NULL AND revoked_at IS NULL
-	`, invitationID, actor.WorkspaceID).Scan(&role, &expiresAt, &expiredAt); err != nil {
+	`, invitationID, actor.WorkspaceID).Scan(&role, &expiresAt, &acceptedAt, &expiredAt, &revokedAt); err != nil {
 		return ErrInvalidInvitation
 	}
 	expires, err := parseTimestamp(expiresAt)
 	if err != nil {
 		return ErrInvalidInvitation
 	}
-	if expiredAt.Valid || !now.Before(expires) {
-		if !expiredAt.Valid {
-			marked, err := s.markInvitationExpired(
+	acc, err := optionalTimestamp(acceptedAt)
+	if err != nil {
+		return ErrInvalidInvitation
+	}
+	exp, err := optionalTimestamp(expiredAt)
+	if err != nil {
+		return ErrInvalidInvitation
+	}
+	rev, err := optionalTimestamp(revokedAt)
+	if err != nil {
+		return ErrInvalidInvitation
+	}
+	inv := Invitation{
+		ID:          invitationID,
+		WorkspaceID: actor.WorkspaceID,
+		Role:        role,
+		ExpiresAt:   expires,
+		AcceptedAt:  acc,
+		ExpiredAt:   exp,
+		RevokedAt:   rev,
+	}
+	currentStatus := inv.Status(now)
+	if err := ValidateInvitationTransition(currentStatus, InvitationRevoked); err != nil {
+		if currentStatus == InvitationExpired && !expiredAt.Valid {
+			marked, markErr := s.markInvitationExpired(
 				ctx, tx, invitationID, actor.WorkspaceID, now,
 			)
-			if err != nil {
-				return err
+			if markErr != nil {
+				return markErr
 			}
 			if !marked {
 				return ErrInvalidInvitation
 			}
-			if err := tx.Commit(); err != nil {
-				return err
+			if commitErr := tx.Commit(); commitErr != nil {
+				return commitErr
 			}
 		}
-		return ErrInvalidInvitation
+		return err
 	}
 	result, err := s.exec(ctx, tx, `
 		UPDATE invitations SET revoked_at = ?, active_email = NULL
@@ -326,8 +415,11 @@ func (s *Service) ListInvitations(
 		if invitation.RevokedAt, err = optionalTimestamp(revokedAt); err != nil {
 			return nil, err
 		}
-		if invitation.AcceptedAt == nil && invitation.ExpiredAt == nil &&
-			invitation.RevokedAt == nil && !now.Before(invitation.ExpiresAt) {
+		currentStatus := invitation.Status(now)
+		if invitation.ExpiredAt == nil && currentStatus == InvitationExpired {
+			if err := ValidateInvitationTransition(InvitationPending, InvitationExpired); err != nil {
+				return nil, err
+			}
 			invitation.ExpiredAt = &now
 			newlyExpired = append(newlyExpired, invitation.ID)
 		}
@@ -486,7 +578,7 @@ func (s *Service) findInvitation(
 		&invitation.Role, &createdAt, &expiresAt,
 		&acceptedAt, &expiredAt, &revokedAt,
 	)
-	if err != nil || acceptedAt.Valid || expiredAt.Valid || revokedAt.Valid {
+	if err != nil {
 		return Invitation{}, ErrInvalidInvitation
 	}
 	invitation.CreatedAt, err = parseTimestamp(createdAt)
@@ -497,8 +589,18 @@ func (s *Service) findInvitation(
 	if err != nil {
 		return Invitation{}, ErrInvalidInvitation
 	}
-	if !s.now().UTC().Before(invitation.ExpiresAt) {
-		now := s.now().UTC()
+	if invitation.AcceptedAt, err = optionalTimestamp(acceptedAt); err != nil {
+		return Invitation{}, ErrInvalidInvitation
+	}
+	if invitation.ExpiredAt, err = optionalTimestamp(expiredAt); err != nil {
+		return Invitation{}, ErrInvalidInvitation
+	}
+	if invitation.RevokedAt, err = optionalTimestamp(revokedAt); err != nil {
+		return Invitation{}, ErrInvalidInvitation
+	}
+	now := s.now().UTC()
+	currentStatus := invitation.Status(now)
+	if currentStatus == InvitationExpired && !expiredAt.Valid {
 		marked, err := s.markInvitationExpired(
 			ctx, tx, invitation.ID, invitation.WorkspaceID, now,
 		)
@@ -509,6 +611,9 @@ func (s *Service) findInvitation(
 			return Invitation{}, ErrInvalidInvitation
 		}
 		return Invitation{}, errInvitationExpired
+	}
+	if err := ValidateInvitationTransition(currentStatus, InvitationAccepted); err != nil {
+		return Invitation{}, err
 	}
 	return invitation, nil
 }
@@ -521,6 +626,10 @@ func (s *Service) acceptLoadedInvitation(
 	audit AuditContext,
 	now time.Time,
 ) (Invitation, error) {
+	currentStatus := invitation.Status(now)
+	if err := ValidateInvitationTransition(currentStatus, InvitationAccepted); err != nil {
+		return Invitation{}, err
+	}
 	if _, err := s.exec(ctx, tx, `
 		INSERT INTO workspace_members (workspace_id, user_id, role, created_at)
 		VALUES (?, ?, ?, ?)
@@ -602,6 +711,9 @@ func (s *Service) markInvitationExpired(
 	workspaceID string,
 	now time.Time,
 ) (bool, error) {
+	if err := ValidateInvitationTransition(InvitationPending, InvitationExpired); err != nil {
+		return false, err
+	}
 	result, err := s.exec(ctx, tx, `
 		UPDATE invitations SET active_email = NULL, expired_at = ?
 		WHERE id = ? AND workspace_id = ? AND accepted_at IS NULL
