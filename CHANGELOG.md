@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added SDK cacheable list hints to the Agent MCP `tools/list` result
+  (`ttlMs: 300000`, `cacheScope: "public"`) through `SetCacheable`, scoped to
+  that method; tool behavior, scopes, and the stateless no-session contract are
+  unchanged.
 - Upgraded vendored HTMX from 2.0.4 to 4.0.1, renamed the `htmx:afterSwap`
   listener to `htmx:after:swap`, and kept 2.x non-swap behavior for
   `204`, `304`, `4xx`, and `5xx` responses.
