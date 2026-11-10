@@ -24,7 +24,9 @@ queue claim transactions.
    tests. Keep workspace scope explicit.
 3. Make one bounded change. Update OpenAPI, migrations, behavior docs,
    changelog, and capability evidence only when affected.
-4. Run focused checks, then the applicable verification ladder.
+4. Run focused package checks (e.g. `go test ./internal/<affected-feature>/...`)
+   during iteration to maintain fast feedback loops, then the applicable
+   verification ladder before committing.
 
 When working in parallel agent worktrees or swarms, do not edit CHANGELOG.md
 directly on feature branches; changelog updates are aggregated at release or PR
@@ -98,8 +100,11 @@ make docker-smoke
 
 `make verify` checks formatting, tests, vet, race behavior, module checks,
 workflow syntax and action pins, generated OpenAPI drift, command builds, and
-generation of a clean application. Run `node --check internal/web/assets/*.js`
-when modifying browser scripts. Run `make secret-check`, `make vuln-check`,
+generation of a clean application. During active iteration, run package-focused
+tests (such as `go test ./internal/web/...`) to avoid the integration and
+template-smoke overhead; run full `go test ./...` and `make verify` once the change
+is bounded. Run `node --check internal/web/assets/*.js` when modifying browser
+scripts. Run `make secret-check`, `make vuln-check`,
 and `make fuzz-smoke` for the source security gates, plus the full suite with
 `POSTGRES_TEST_URL` for data or release changes. CI also runs CodeQL for Go and
 JavaScript/TypeScript.
