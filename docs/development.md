@@ -21,6 +21,10 @@ isolated PostgreSQL database through `POSTGRES_TEST_URL` for PostgreSQL tests.
    changelog, and capability evidence only when affected.
 4. Run focused checks, then the applicable verification ladder.
 
+When working in parallel agent worktrees or swarms, do not edit CHANGELOG.md
+directly on feature branches; changelog updates are aggregated at release or PR
+merge time.
+
 Ordinary features stay vertical: application behavior first, transport
 adapters second. Reuse shared authorization, Problem Details, audit,
 telemetry, and rendering code. Add no optional capability until its trigger in
@@ -57,6 +61,7 @@ focused tests, canonical documentation, and linked capability evidence.
 ## Checks
 
 ```sh
+make lint
 make verify
 npm ci && make accessibility-smoke
 make webmcp-smoke
@@ -69,6 +74,15 @@ generation of a clean application. Run `make secret-check`, `make vuln-check`,
 and `make fuzz-smoke` for the source security gates, plus the full suite with
 `POSTGRES_TEST_URL` for data or release changes. CI also runs CodeQL for Go and
 JavaScript/TypeScript.
+
+### Verification checklist
+
+Prior to PR creation, verify changes with the following checklist:
+- Run `make lint` (runs `fmt-check` and `go vet`) so mechanical formatting failures are caught before pushing.
+- Run focused tests and `go test ./...` across affected packages.
+- Run `make verify` before submitting changes for review.
+- Run `npm ci && make accessibility-smoke`, `make webmcp-smoke`, and `make docker-smoke` when interface or container delivery are affected.
+- Run security gates (`make secret-check`, `make vuln-check`, `make fuzz-smoke`) and database tests against PostgreSQL when applicable.
 
 ## Replace the sample feature
 
