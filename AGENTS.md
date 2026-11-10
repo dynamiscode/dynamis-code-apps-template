@@ -21,6 +21,7 @@ When sources conflict, stop and resolve the contract or decision first.
 3. Reuse existing use cases, policies, middleware, and adapters.
 4. Load one matching repository-local skill for a recurring workflow.
 5. State the bounded outcome and verification before editing.
+6. Use path-bounded or symbol-scoped searches (`git grep <pat> <dir>`, LSP symbol queries) rather than unbounded root keyword scans to keep context compact.
 
 ## Architecture invariants
 

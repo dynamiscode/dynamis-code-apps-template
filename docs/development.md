@@ -86,6 +86,20 @@ Verify hook script timing and non-blocking behavior using:
 ./scripts/check-agent-hooks.sh /path/to/hook-script
 ```
 
+## Tool economy and bounded navigation
+
+To protect context windows and prevent output truncation during automated or
+agent-assisted development:
+
+- **Path-bounded searches**: Constrain search queries to target packages
+  (e.g. `git grep <pattern> internal/<package>/`) rather than root-wide keyword
+  dumps that traverse generated schemas, contracts, and HTML templates.
+- **Symbol-scoped lookups**: Prefer type or definition lookups (e.g.
+  `git grep "type <Name>"`) or LSP workspace symbol queries over generic
+  substring matching.
+- **Bounded file reads**: Read specific line ranges around relevant symbols
+  rather than loading entire multi-thousand-line files unconditionally.
+
 ## Checks
 
 ```sh
