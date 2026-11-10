@@ -205,11 +205,19 @@ func (h *Handler) redirectMCPResult(
 	redirectURI string,
 	values url.Values,
 ) {
-	if !slices.Contains(client.RedirectURIs, redirectURI) {
+	// Use the registered value, not the request value, as the redirect target.
+	registered := ""
+	for _, candidate := range client.RedirectURIs {
+		if candidate == redirectURI {
+			registered = candidate
+			break
+		}
+	}
+	if registered == "" {
 		h.renderError(writer, http.StatusBadRequest)
 		return
 	}
-	target, err := url.Parse(redirectURI)
+	target, err := url.Parse(registered)
 	if err != nil {
 		h.renderError(writer, http.StatusBadRequest)
 		return
