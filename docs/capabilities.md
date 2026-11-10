@@ -380,3 +380,20 @@ rebasing onto `main` at `f5635f3`:
 - known ceiling: output-validation failures after a handler returns are audited
   as success before the SDK rejects the output; outputs come from typed DTOs, so
   this is treated as a programming-error edge rather than a reachable input path
+
+## MCP completion evidence
+
+Verified 2026-11-10 with Go 1.27.3 and the go-sdk v1.8.0 stateless endpoint:
+
+- completion and prompt tests cover the advertised `prompts` and `completions`
+  capabilities, stateless responses without `Mcp-Session-Id`, read-scope
+  enforcement (a write-only token is denied), read-only token access, status
+  and workspace-scoped item ID completion, empty results for unauthorized,
+  malformed, or missing workspaces, a 100-value bound with `hasMore`, and
+  prompt authorization through the shared item service
+- `go vet ./...`, `go test -race ./internal/mcpserver/`, and `go generate ./api`
+  with no generated drift pass
+- `go test ./...` passed in every package except `internal/bootstrap`, where
+  `TestAgentSurfacesLiveSmoke` timed out once under full-suite load; the same
+  test passed on an isolated rerun, so the timeout is recorded as unresolved load
+  sensitivity, not as a fix

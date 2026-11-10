@@ -160,9 +160,12 @@ func NewHandler(
 	h := &handler{identity: identityService, items: itemService, logger: logger, tools: map[string]*mcp.Tool{}}
 	server := mcp.NewServer(&mcp.Implementation{
 		Name: "dynamis-code-apps-template", Version: "0.1.0",
-	}, &mcp.ServerOptions{Capabilities: &mcp.ServerCapabilities{}, PageSize: 100})
+	}, &mcp.ServerOptions{
+		Capabilities: &mcp.ServerCapabilities{}, PageSize: 100, CompletionHandler: h.complete,
+	})
 	h.addTools(server)
 	server.AddReceivingMiddleware(h.auditRejectedCalls)
+	h.addPrompts(server)
 	streamable := mcp.NewStreamableHTTPHandler(
 		func(*http.Request) *mcp.Server { return server },
 		&mcp.StreamableHTTPOptions{
@@ -457,11 +460,7 @@ func (h *handler) audit(ctx context.Context, request *mcp.CallToolRequest, tool 
 }
 
 func principal(request *mcp.CallToolRequest) identity.Principal {
-	if request.Extra == nil || request.Extra.TokenInfo == nil {
-		return identity.Principal{}
-	}
-	value, _ := request.Extra.TokenInfo.Extra["principal"].(identity.Principal)
-	return value
+	return principalFromExtra(request.Extra)
 }
 
 func requestID(request *mcp.CallToolRequest) string {

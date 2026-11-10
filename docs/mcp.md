@@ -38,6 +38,30 @@ enforced for every field, so inputs the previous handler accepted silently or
 mapped to defaults, such as `limit: 0`, an empty `search`, `status`, or `sort`,
 `status: null`, and cursors over 512 characters, are now rejected.
 
+## Prompts and completion
+
+The server advertises the `prompts` and `completions` capabilities. MCP
+completion can only target prompt or resource-template arguments, so the single
+prompt below exists to give argument autocompletion a real target.
+
+| Surface | Scope | Safety |
+|---|---|---|
+| `item_review_v1` prompt | `resources:read` | read-only; requires `workspaceId`, `itemId`, and `status`; `prompts/get` checks the item through `items_get_v1`'s shared service |
+| `completion/complete` for `status` | `resources:read` | read-only; returns `active` and/or `complete` by prefix |
+| `completion/complete` for `itemId` | `resources:read` | read-only; scans the newest 100 items of the `workspaceId` named in the request context, optionally filtered by a valid `status` context value |
+
+Completion is workspace-scoped through the caller's bearer token: an
+unauthorized, unknown, or malformed `workspaceId` returns an empty value list
+rather than an error, so missing and forbidden workspaces look the same.
+Unknown prompts and unknown arguments return empty lists, and an `itemId`
+request without a `workspaceId` context value also returns an empty list. Values are capped at 100 and `hasMore` is set when more
+items exist than the single scanned page. Workspace IDs are not completed:
+workspace enumeration remains browser-only.
+
+Completion and prompt reads are not tool calls and write no MCP audit record.
+They return only data that `items_list_v1` or `items_get_v1` would return to
+the same token.
+
 WebMCP is separate from this server MCP endpoint. It is an optional,
 feature-detected browser-tab enhancement that uses the live authenticated web
 session and DOM to prepare narrow visible controls. It does not reuse bearer
