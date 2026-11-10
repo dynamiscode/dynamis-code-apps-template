@@ -1,4 +1,5 @@
-document.addEventListener("htmx:afterSwap",()=>document.querySelector('[role="alert"]')?.focus());
+if(window.htmx)htmx.config.noSwap=[204,304,"4xx","5xx"];
+document.addEventListener("htmx:after:swap",()=>document.querySelector('[role="alert"]')?.focus());
 const list=document.querySelector("#item-list[data-events]");
 const realtimeStatus=document.querySelector("#realtime-status");
 if(list&&window.EventSource){const messages={connecting:list.dataset.liveConnecting,connected:list.dataset.liveConnected,unavailable:list.dataset.liveUnavailable,reconnecting:list.dataset.liveReconnecting};if(realtimeStatus)realtimeStatus.textContent=messages.connecting;const events=new EventSource(list.dataset.events);events.addEventListener("open",()=>{if(realtimeStatus)realtimeStatus.textContent=messages.connected});events.addEventListener("error",()=>{if(realtimeStatus)realtimeStatus.textContent=events.readyState===EventSource.CLOSED?messages.unavailable:messages.reconnecting});for(const name of["item.changed","resync"]){events.addEventListener(name,()=>window.htmx?.ajax("GET",location.pathname,{target:"#item-list",swap:"outerHTML"}))}events.addEventListener("close",()=>events.close())}
