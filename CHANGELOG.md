@@ -2,14 +2,44 @@
 
 ## Unreleased
 
-- Fixed workflow action pins to reference commit objects, including Scorecard,
-  and made pin validation reject annotated tag objects.
-- Re-pinned CodeQL actions to the v3.39.3 commit object, fixed pin validation
-  for subpath actions, and moved the Go toolchain to go1.27.3 and
-  golang.org/x/net to v0.60.0 to clear govulncheck findings.
-- Documented protected-main merge requirements for owner review, passing
-  CI/source security checks, resolved conversations, and up-to-date status
-  checks.
+- Fixed race condition in HTTP `timeoutMiddleware` where context cancellation
+  or timeout could race with the result channel and flush an unwritten
+  buffered response as `200 OK` instead of `504 Gateway Timeout` (`request-timeout`).
+- Moved MCP audit, request ID, timing, and panic recovery into an SDK receiving
+  middleware, so every dispatched method (including `tools/list` and
+  `prompts/list`) writes one redacted audit record. Tool audit fields are
+  unchanged; unregistered tool calls and recovered panics are now audited
+  without recording client-supplied names or panic values. Unknown method names
+  are still rejected by the SDK before middleware and write no audit record.
+- Added a read-only, workspace-scoped MCP resource template
+  `dynamis://workspaces/{workspaceId}/items/{itemId}` on the Agent profile
+  endpoint, requiring `resources:read`, reusing the item read use case, and
+  returning safe not-found and access-denied errors with no subscriptions.
+- Added two read-only Agent MCP prompts, `items_summarize_v1` and
+  `items_triage_v1`, served through the stateless `prompts/list` and
+  `prompts/get` endpoint with `resources:read`, strict argument validation,
+  workspace-scoped item reads, data-fenced item titles, and `mcp.prompt.called`
+  audit records; no mutating use case, REST route, or dependency was added.
+- Added SDK cacheable list hints to the Agent MCP `tools/list` result
+  (`ttlMs: 300000`, `cacheScope: "public"`) through `SetCacheable`, scoped to
+  that method; tool behavior, scopes, and the stateless no-session contract are
+  unchanged.
+- Converted client-side presigned file upload logic in `internal/web/assets/app.js`
+  into an explicit `PresignedUploader` state machine with `IDLE`, `INITIATING`,
+  `UPLOADING`, `COMPLETING`, `SUCCESS`, and `ERROR` phases, in-flight submit
+  button locking, non-reloading error transitions, and polite live-region status
+  feedback.
+- Migrated the five `items_*_v1` MCP tools to the SDK's typed `mcp.AddTool`,
+  deriving schemas from Go contract types. Tool names, descriptions,
+  annotations, and published schemas are unchanged and pinned by a contract
+  test; the SDK now enforces the published constraints, so inputs such as
+  `limit: 0`, empty `search`, `status`, or `sort`, `status: null`, and cursors
+  over 512 characters are rejected instead of accepted or defaulted.
+- Added MCP completion: `completion/complete` for the new read-only
+  `item_review_v1` prompt, completing `status` from the fixed item statuses and
+  `itemId` from one bounded page of the caller's authorized workspace, with
+  empty results for unauthorized or malformed workspaces and no new write
+  surface.
 - Upgraded vendored HTMX from 2.0.4 to 4.0.1, renamed the `htmx:afterSwap`
   listener to `htmx:after:swap`, and kept 2.x non-swap behavior for
   `204`, `304`, `4xx`, and `5xx` responses.
@@ -150,6 +180,8 @@
 - Nested workspace management under the Settings route; Settings pages now show
   only their sub-navigation and provide a Back to home link to the current
   workspace.
+- Updated the MCP Go SDK to v1.8.0, which adds no protocol revision; the
+  supported MCP protocol stays 2026-07-28.
 
 ## 0.1.0 - 2026-08-25
 ### Added

@@ -33,6 +33,43 @@ const (
 	recoveryCodeCount           = 10
 )
 
+type MFAChallengeState int
+
+const (
+	ChallengeActive MFAChallengeState = iota
+	ChallengeConsumed
+	ChallengeExpired
+	ChallengeLocked
+)
+
+func (s MFAChallengeState) String() string {
+	switch s {
+	case ChallengeActive:
+		return "active"
+	case ChallengeConsumed:
+		return "consumed"
+	case ChallengeExpired:
+		return "expired"
+	case ChallengeLocked:
+		return "locked"
+	default:
+		return "unknown"
+	}
+}
+
+func evaluateChallengeState(consumedAt sql.NullString, expiresAt time.Time, attempts int, now time.Time) MFAChallengeState {
+	if consumedAt.Valid {
+		return ChallengeConsumed
+	}
+	if attempts >= maxMFAAttempts {
+		return ChallengeLocked
+	}
+	if !now.Before(expiresAt) {
+		return ChallengeExpired
+	}
+	return ChallengeActive
+}
+
 type webAuthnUser struct {
 	id          string
 	email       string
@@ -736,6 +773,7 @@ type loadedChallenge struct {
 	ID, UserID, authMethod, oidcProviderID, sessionID, webauthnJSON, encryptedSecret string
 	attempts                                                                         int
 	expiresAt                                                                        time.Time
+	state                                                                            MFAChallengeState
 }
 
 func (s *Service) insertMFAChallenge(ctx context.Context, challenge MFALoginChallenge, purpose, sessionID, webauthnJSON, encryptedSecret string, audit AuditContext) error {
@@ -772,7 +810,15 @@ func (s *Service) loadChallenge(ctx context.Context, token, purpose string) (loa
 	c.webauthnJSON = webauthn.String
 	c.encryptedSecret = encrypted.String
 	c.expiresAt, err = parseTimestamp(expires)
-	if err != nil || c.attempts >= maxMFAAttempts || consumed.Valid || !s.now().UTC().Before(c.expiresAt) {
+	if err != nil {
+		return loadedChallenge{}, "", ErrInvalidMFAChallenge
+	}
+	c.state = evaluateChallengeState(consumed, c.expiresAt, c.attempts, s.now().UTC())
+	switch c.state {
+	case ChallengeActive:
+	case ChallengeConsumed, ChallengeExpired, ChallengeLocked:
+		return loadedChallenge{}, "", ErrInvalidMFAChallenge
+	default:
 		return loadedChallenge{}, "", ErrInvalidMFAChallenge
 	}
 	secret := ""

@@ -193,3 +193,204 @@ func openTestDB(t *testing.T) *sql.DB {
 	}
 	return db
 }
+
+func TestFileStateTransitions(t *testing.T) {
+	ctx := context.Background()
+	db := openTestDB(t)
+	auth, err := identity.NewService(db, config.SQLite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := auth.BootstrapFirstOwner(ctx, identity.BootstrapInput{
+		Email: "transitions@example.com", Password: "long-enough-password", WorkspaceName: "Transitions",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := newLocalStore(filepath.Join(t.TempDir(), "objects"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(db, config.SQLite, auth, store, 100, 100, 0, "")
+	actor, err := auth.Authorize(ctx, owner.UserID, owner.WorkspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. Pending -> Ready (valid transition)
+	file1, err := service.Initiate(ctx, actor, owner.WorkspaceID, InitiateInput{
+		OriginalName: "valid_ready.txt", Size: 10, ContentType: "text/plain",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.transitionFile(ctx, nil, file1.ID, Pending, Ready); err != nil {
+		t.Fatalf("Pending -> Ready transition failed: %v", err)
+	}
+	var status1 string
+	if err := db.QueryRow("SELECT status FROM files WHERE id = ?", file1.ID).Scan(&status1); err != nil {
+		t.Fatal(err)
+	}
+	if status1 != Ready {
+		t.Fatalf("expected status %s, got %s", Ready, status1)
+	}
+
+	// 2. Pending -> Failed (valid transition)
+	file2, err := service.Initiate(ctx, actor, owner.WorkspaceID, InitiateInput{
+		OriginalName: "valid_failed.txt", Size: 10, ContentType: "text/plain",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.transitionFile(ctx, nil, file2.ID, Pending, Failed); err != nil {
+		t.Fatalf("Pending -> Failed transition failed: %v", err)
+	}
+	var status2 string
+	if err := db.QueryRow("SELECT status FROM files WHERE id = ?", file2.ID).Scan(&status2); err != nil {
+		t.Fatal(err)
+	}
+	if status2 != Failed {
+		t.Fatalf("expected status %s, got %s", Failed, status2)
+	}
+
+	// 3. Failed -> Ready (invalid transition: must fail)
+	if err := service.transitionFile(ctx, nil, file2.ID, Failed, Ready); !errors.Is(err, ErrInvalidTransition) {
+		t.Fatalf("Failed -> Ready error = %v, want ErrInvalidTransition", err)
+	}
+
+	// 4. Ready -> Failed (invalid transition: must fail)
+	if err := service.transitionFile(ctx, nil, file1.ID, Ready, Failed); !errors.Is(err, ErrInvalidTransition) {
+		t.Fatalf("Ready -> Failed error = %v, want ErrInvalidTransition", err)
+	}
+
+	// 5. Ready -> Ready (invalid self transition)
+	if err := service.transitionFile(ctx, nil, file1.ID, Ready, Ready); !errors.Is(err, ErrInvalidTransition) {
+		t.Fatalf("Ready -> Ready error = %v, want ErrInvalidTransition", err)
+	}
+
+	// 6. Failed -> Failed (invalid self transition)
+	if err := service.transitionFile(ctx, nil, file2.ID, Failed, Failed); !errors.Is(err, ErrInvalidTransition) {
+		t.Fatalf("Failed -> Failed error = %v, want ErrInvalidTransition", err)
+	}
+
+	// 7. Pending -> Pending (invalid self transition)
+	file3, err := service.Initiate(ctx, actor, owner.WorkspaceID, InitiateInput{
+		OriginalName: "pending_pending.txt", Size: 10, ContentType: "text/plain",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.transitionFile(ctx, nil, file3.ID, Pending, Pending); !errors.Is(err, ErrInvalidTransition) {
+		t.Fatalf("Pending -> Pending error = %v, want ErrInvalidTransition", err)
+	}
+
+	// 8. Transition on non-existent file
+	if err := service.transitionFile(ctx, nil, strings.Repeat("a", 32), Pending, Ready); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("non-existent file transition error = %v, want ErrNotFound", err)
+	}
+
+	// 9. FromStatus mismatch when file in DB is already Failed
+	if err := service.transitionFile(ctx, nil, file2.ID, Pending, Ready); !errors.Is(err, ErrInvalidTransition) {
+		t.Fatalf("stale fromStatus transition error = %v, want ErrInvalidTransition", err)
+	}
+
+	// 10. Within a transaction
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	if err := service.transitionFile(ctx, tx, file3.ID, Pending, Ready); err != nil {
+		t.Fatalf("tx transition Pending -> Ready failed: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	var status3 string
+	if err := db.QueryRow("SELECT status FROM files WHERE id = ?", file3.ID).Scan(&status3); err != nil {
+		t.Fatal(err)
+	}
+	if status3 != Ready {
+		t.Fatalf("expected status %s, got %s", Ready, status3)
+	}
+}
+
+func TestQuotaCalculationCleanupStaleAndFailedFiles(t *testing.T) {
+	ctx := context.Background()
+	db := openTestDB(t)
+	auth, err := identity.NewService(db, config.SQLite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := auth.BootstrapFirstOwner(ctx, identity.BootstrapInput{
+		Email: "quota_cleanup@example.com", Password: "long-enough-password", WorkspaceName: "QuotaCleanup",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := newLocalStore(filepath.Join(t.TempDir(), "objects"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Total workspace quota is 10 bytes.
+	service := NewService(db, config.SQLite, auth, store, 10, 10, 0, "")
+	actor, err := auth.Authorize(ctx, owner.UserID, owner.WorkspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// File 1: Ready file of 5 bytes.
+	_, err = service.Upload(ctx, actor, owner.WorkspaceID, "file1.txt", strings.NewReader("12345"), identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// File 2: Initiate 5 bytes (Pending) -> used is now 10 (quota full).
+	file2, err := service.Initiate(ctx, actor, owner.WorkspaceID, InitiateInput{
+		OriginalName: "file2.txt", Size: 5, ContentType: "text/plain",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Attempting file 3 should fail due to quota limit.
+	_, err = service.Initiate(ctx, actor, owner.WorkspaceID, InitiateInput{
+		OriginalName: "file3.txt", Size: 5, ContentType: "text/plain",
+	}, identity.AuditContext{})
+	if !errors.Is(err, ErrLimit) {
+		t.Fatalf("expected ErrLimit, got %v", err)
+	}
+
+	// Transition file2 to Failed. It should still count against quota until cleaned up.
+	if err := service.transitionFile(ctx, nil, file2.ID, Pending, Failed); err != nil {
+		t.Fatal(err)
+	}
+
+	// Attempting file 3 should still fail because failed files are quota-reserved.
+	_, err = service.Initiate(ctx, actor, owner.WorkspaceID, InitiateInput{
+		OriginalName: "file3.txt", Size: 5, ContentType: "text/plain",
+	}, identity.AuditContext{})
+	if !errors.Is(err, ErrLimit) {
+		t.Fatalf("expected ErrLimit for failed file still reserving quota, got %v", err)
+	}
+
+	// Clean up stale/failed files.
+	cleaned, err := service.CleanupStaleFiles(ctx, time.Now().Add(time.Minute))
+	if err != nil {
+		t.Fatalf("CleanupStaleFiles failed: %v", err)
+	}
+	if cleaned != 1 {
+		t.Fatalf("expected 1 cleaned file, got %d", cleaned)
+	}
+
+	// Now file 3 should succeed because quota was released!
+	file3, err := service.Initiate(ctx, actor, owner.WorkspaceID, InitiateInput{
+		OriginalName: "file3.txt", Size: 5, ContentType: "text/plain",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatalf("expected initiate to succeed after cleanup, got: %v", err)
+	}
+	if file3.ID == "" {
+		t.Fatal("expected valid file ID")
+	}
+}

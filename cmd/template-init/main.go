@@ -231,7 +231,7 @@ func copyTemplate(
 				value = strings.ReplaceAll(value, "[live surface smoke](../internal/bootstrap/agent_smoke_test.go)", "[composition test](../internal/bootstrap/app_test.go)")
 			}
 			if !agent && filepath.ToSlash(relative) == "NOTICE" {
-				value = strings.ReplaceAll(value, "- github.com/modelcontextprotocol/go-sdk v1.7.0 — Apache-2.0 and MIT code\n", "")
+				value = strings.ReplaceAll(value, "- github.com/modelcontextprotocol/go-sdk v1.8.0 — Apache-2.0 and MIT code\n", "")
 			}
 			value = strings.NewReplacer(
 				`"`+oldSlug+`"`, `"`+newSlug+`"`,

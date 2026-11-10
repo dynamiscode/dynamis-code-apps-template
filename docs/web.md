@@ -74,9 +74,11 @@ Baseline browser surfaces:
   service, and user plus workspace preferences are checked before storage.
 - `/workspaces/{workspaceId}/files` lists ready private workspace files and
   accepts an ordinary multipart upload form. S3-enabled browsers use a
-  short-lived presigned PUT when JavaScript is available; the form remains the
-  fallback. Local uploads and downloads stream through the app; S3 downloads
-  redirect to a short-lived private URL.
+  short-lived presigned PUT orchestrated by a client-side state machine
+  (`PresignedUploader` with IDLE, INITIATING, UPLOADING, COMPLETING, SUCCESS,
+  and ERROR phases, in-flight button locking, and polite live-region status feedback)
+  when JavaScript is available; the form remains the fallback. Local uploads and
+  downloads stream through the app; S3 downloads redirect to a short-lived private URL.
 - `/workspaces/{workspaceId}/settings/export` presents the authorized export screen;
   its `Download JSON` link downloads the export from
   `/workspaces/{workspaceId}/settings/export/download`.
