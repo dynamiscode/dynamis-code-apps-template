@@ -29,9 +29,10 @@ creator no longer exists.
 
 ## Prompts
 
-`prompts/list` and `prompts/get` expose two read-only prompt templates. Both
-require `resources:read`, call only the shared item list use case, and return
-one user message. They never create, update, or delete data.
+`prompts/list` and `prompts/get` expose three read-only prompt templates. All
+require `resources:read`, use only shared item use cases, and return one user
+message. The first two are listed here; `item_review_v1` is described under
+[Prompts and completion](#prompts-and-completion). They never create, update, or delete data.
 
 | Prompt | Arguments | Result |
 |---|---|---|
@@ -51,11 +52,55 @@ one user message. They never create, update, or delete data.
 - The endpoint stays stateless. Prompt lists are static, so no list-changed
   notifications are sent and no `Mcp-Session-Id` is issued.
 
+Tools use the SDK's typed `mcp.AddTool`: the Go input and output types derive
+the published schemas, and the SDK validates arguments before the handler runs
+and validates outputs before they are returned. `testdata/tools-v1.json` pins
+the published `tools/list` contract, and a contract test fails on any drift.
+Arguments the schema rejects return `parameters are invalid` and write one
+failed audit record without workspace or item identifiers, because the caller's
+workspace is not authorized input at that point. The published constraints are
+enforced for every field, so inputs the previous handler accepted silently or
+mapped to defaults, such as `limit: 0`, an empty `search`, `status`, or `sort`,
+`status: null`, and cursors over 512 characters, are now rejected.
+
+## Prompts and completion
+
+The server advertises the `prompts` and `completions` capabilities. MCP
+completion can only target prompt or resource-template arguments, so the
+`item_review_v1` prompt below exists to give argument autocompletion a real target.
+
+| Surface | Scope | Safety |
+|---|---|---|
+| `item_review_v1` prompt | `resources:read` | read-only; requires `workspaceId`, `itemId`, and `status`; `prompts/get` checks the item through `items_get_v1`'s shared service |
+| `completion/complete` for `status` | `resources:read` | read-only; returns `active` and/or `complete` by prefix |
+| `completion/complete` for `itemId` | `resources:read` | read-only; scans the newest 100 items of the `workspaceId` named in the request context, optionally filtered by a valid `status` context value |
+
+Completion is workspace-scoped through the caller's bearer token: an
+unauthorized, unknown, or malformed `workspaceId` returns an empty value list
+rather than an error, so missing and forbidden workspaces look the same.
+Unknown prompts and unknown arguments return empty lists, and an `itemId`
+request without a `workspaceId` context value also returns an empty list. Values are capped at 100 and `hasMore` is set when more
+items exist than the single scanned page. Workspace IDs are not completed:
+workspace enumeration remains browser-only.
+
+Completion and prompt reads are not tool calls and write no MCP audit record.
+They return only data that `items_list_v1` or `items_get_v1` would return to
+the same token.
+
 WebMCP is separate from this server MCP endpoint. It is an optional,
 feature-detected browser-tab enhancement that uses the live authenticated web
 session and DOM to prepare narrow visible controls. It does not reuse bearer
 credentials or change these scopes, tools, or transport. Server MCP remains
 the persistent and authoritative automation surface.
+
+## Discovery cache hints
+
+`tools/list` returns `ttlMs: 300000` and `cacheScope: "public"`. The tool
+catalog is identical for every authenticated principal and contains no
+workspace data, so clients may reuse it for five minutes and shared caches may
+keep it. The SDK's `SetCacheable` policy sets these fields only for that method.
+The endpoint still requires a bearer token, and tool results are never cached
+by this policy.
 
 ## Security contract
 

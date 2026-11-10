@@ -67,18 +67,33 @@ type NewWebhook struct {
 	Secret string `json:"secret"`
 }
 
+type DeliveryStatus string
+
+const (
+	DeliveryPending   DeliveryStatus = "pending"
+	DeliveryDelivered DeliveryStatus = "delivered"
+	DeliveryFailed    DeliveryStatus = "failed"
+)
+
+type deliveryOutcome struct {
+	Status         DeliveryStatus
+	NextAttemptAt  *time.Time
+	LastStatusCode int
+	LastError      string
+}
+
 type Delivery struct {
-	ID             string     `json:"id"`
-	WebhookID      string     `json:"webhookId"`
-	EventID        string     `json:"eventId"`
-	EventType      string     `json:"eventType"`
-	AttemptCount   int        `json:"attemptCount"`
-	Status         string     `json:"status"`
-	NextAttemptAt  *time.Time `json:"nextAttemptAt,omitempty"`
-	LastStatusCode int        `json:"lastStatusCode,omitzero"`
-	LastError      string     `json:"lastError,omitempty"`
-	CreatedAt      time.Time  `json:"createdAt"`
-	DeliveredAt    *time.Time `json:"deliveredAt,omitempty"`
+	ID             string         `json:"id"`
+	WebhookID      string         `json:"webhookId"`
+	EventID        string         `json:"eventId"`
+	EventType      string         `json:"eventType"`
+	AttemptCount   int            `json:"attemptCount"`
+	Status         DeliveryStatus `json:"status"`
+	NextAttemptAt  *time.Time     `json:"nextAttemptAt,omitempty"`
+	LastStatusCode int            `json:"lastStatusCode,omitzero"`
+	LastError      string         `json:"lastError,omitempty"`
+	CreatedAt      time.Time      `json:"createdAt"`
+	DeliveredAt    *time.Time     `json:"deliveredAt,omitempty"`
 }
 
 type Service struct {
@@ -470,13 +485,14 @@ func (s *Service) HandleExhaustedJob(ctx context.Context, job jobs.Job) error {
 	if err != nil {
 		return nil
 	}
+	outcome := evaluateDeliveryOutcome(job.AttemptCount, maxAttempts, 0, "worker-exhausted", time.Now().UTC())
 	result, err := s.exec(ctx, s.db, `
-		UPDATE webhook_deliveries SET status = 'failed', attempt_count = CASE
+		UPDATE webhook_deliveries SET status = ?, attempt_count = CASE
 			WHEN attempt_count < ? THEN ? ELSE attempt_count END,
 			next_attempt_at = NULL, last_error = ?
 		WHERE id = ? AND status = 'pending'
 			AND webhook_id IN (SELECT id FROM webhooks WHERE workspace_id = ?)
-	`, maxAttempts, maxAttempts, "worker-exhausted", deliveryID, job.WorkspaceID)
+	`, string(outcome.Status), maxAttempts, maxAttempts, outcome.LastError, deliveryID, job.WorkspaceID)
 	if err != nil {
 		return jobs.Failure{Category: "storage-error"}
 	}
@@ -485,7 +501,7 @@ func (s *Service) HandleExhaustedJob(ctx context.Context, job jobs.Job) error {
 		return jobs.Failure{Category: "storage-error"}
 	}
 	if changed == 1 {
-		telemetry.RecordWebhookDelivery(ctx, "failed")
+		telemetry.RecordWebhookDelivery(ctx, string(outcome.Status))
 	}
 	return nil
 }
@@ -549,13 +565,14 @@ func (s *Service) deliverOne(ctx context.Context, workspaceID, deliveryID string
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return s.deliveryFailure(ctx, deliveryID, attempt, response.StatusCode, "remote-status", now)
 	}
+	outcome := evaluateDeliveryOutcome(attempt, maxAttempts, response.StatusCode, "", now)
 	if _, err := s.exec(ctx, s.db, `
-		UPDATE webhook_deliveries SET status = 'delivered', delivered_at = ?,
+		UPDATE webhook_deliveries SET status = ?, delivered_at = ?,
 		next_attempt_at = NULL, last_status_code = ?, last_error = NULL WHERE id = ? AND status = 'pending'
-	`, stamp(now), response.StatusCode, deliveryID); err != nil {
+	`, string(outcome.Status), stamp(now), outcome.LastStatusCode, deliveryID); err != nil {
 		return jobs.Failure{Category: "storage-error"}
 	}
-	telemetry.RecordWebhookDelivery(ctx, "delivered")
+	telemetry.RecordWebhookDelivery(ctx, string(outcome.Status))
 	return nil
 }
 
@@ -566,19 +583,51 @@ func (s *Service) deliveryFailure(
 	reason string,
 	now time.Time,
 ) error {
-	status := "pending"
-	var next any = stamp(now.Add(retryDelay(attempt)))
-	if attempt >= maxAttempts {
-		status, next = "failed", nil
+	outcome := evaluateDeliveryOutcome(attempt, maxAttempts, statusCode, reason, now)
+	var next any
+	if outcome.NextAttemptAt != nil {
+		next = stamp(*outcome.NextAttemptAt)
 	}
 	if _, err := s.exec(ctx, s.db, `
 		UPDATE webhook_deliveries SET status = ?, next_attempt_at = ?,
 		last_status_code = ?, last_error = ? WHERE id = ? AND status = 'pending'
-	`, status, next, nullableStatus(statusCode), reason, deliveryID); err != nil {
+	`, string(outcome.Status), next, nullableStatus(outcome.LastStatusCode), outcome.LastError, deliveryID); err != nil {
 		return jobs.Failure{Category: "storage-error"}
 	}
-	telemetry.RecordWebhookDelivery(ctx, status)
+	telemetry.RecordWebhookDelivery(ctx, string(outcome.Status))
 	return jobs.Failure{Category: reason}
+}
+
+func evaluateDeliveryOutcome(attempt, maxAttempts, statusCode int, reason string, now time.Time) deliveryOutcome {
+	if attempt < 1 {
+		attempt = 1
+	}
+	if maxAttempts < 1 {
+		maxAttempts = 1
+	}
+	if reason == "" && statusCode >= 200 && statusCode < 300 {
+		return deliveryOutcome{
+			Status:         DeliveryDelivered,
+			NextAttemptAt:  nil,
+			LastStatusCode: statusCode,
+			LastError:      "",
+		}
+	}
+	if attempt >= maxAttempts {
+		return deliveryOutcome{
+			Status:         DeliveryFailed,
+			NextAttemptAt:  nil,
+			LastStatusCode: statusCode,
+			LastError:      reason,
+		}
+	}
+	next := now.Add(retryDelay(attempt))
+	return deliveryOutcome{
+		Status:         DeliveryPending,
+		NextAttemptAt:  &next,
+		LastStatusCode: statusCode,
+		LastError:      reason,
+	}
 }
 
 func newHTTPClient() *http.Client {
@@ -741,6 +790,9 @@ func optionalTime(value sql.NullString) (*time.Time, error) {
 func stamp(value time.Time) string { return value.UTC().Format(time.RFC3339Nano) }
 
 func retryDelay(attempt int) time.Duration {
+	if attempt < 1 {
+		attempt = 1
+	}
 	return initialRetryDelay * time.Duration(1<<(attempt-1))
 }
 

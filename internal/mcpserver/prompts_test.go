@@ -65,6 +65,7 @@ func TestMCPPromptsListReadOnlyPromptsWithArguments(t *testing.T) {
 	}{
 		"items_summarize_v1": {{"workspaceId", true}, {"status", false}},
 		"items_triage_v1":    {{"workspaceId", true}},
+		itemReviewPromptName: {{"workspaceId", true}, {"itemId", true}, {"status", true}},
 	}
 	if len(listed.Prompts) != len(wantArguments) {
 		t.Fatalf("prompts = %d, want %d", len(listed.Prompts), len(wantArguments))

@@ -29,7 +29,7 @@ type promptItem struct {
 	CreatedAt time.Time    `json:"createdAt"`
 }
 
-func (h *handler) addPrompts(server *mcp.Server) {
+func (h *handler) addItemListPrompts(server *mcp.Server) {
 	h.addPrompt(server, &mcp.Prompt{
 		Name:        "items_summarize_v1",
 		Description: "Summarize the newest items in one workspace, optionally filtered by status.",
