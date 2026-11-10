@@ -215,6 +215,10 @@ func timeoutMiddleware(
 		}()
 		select {
 		case outcome := <-result:
+			if ctx.Err() != nil {
+				timeoutProblem(writer, request.WithContext(ctx))
+				return
+			}
 			if outcome.panicked || outcome.response.writeErr != nil {
 				logger.Error("request handler failed", "request_id", requestIDFrom(ctx))
 				internalProblem(writer, request.WithContext(ctx))
@@ -228,10 +232,7 @@ func timeoutMiddleware(
 			writer.WriteHeader(status)
 			_, _ = writer.Write(outcome.response.body.Bytes())
 		case <-ctx.Done():
-			writeProblem(
-				writer, request.WithContext(ctx), http.StatusGatewayTimeout,
-				"request-timeout", "The request exceeded its time limit.",
-			)
+			timeoutProblem(writer, request.WithContext(ctx))
 		}
 	})
 }

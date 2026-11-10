@@ -6,7 +6,24 @@
   in-memory flash map to a stateless `?imported=` URL query parameter redirect,
   supporting multi-instance deployments behind a load balancer without
   shared server memory.
-
+- Fixed race condition in HTTP `timeoutMiddleware` where context cancellation
+  or timeout could race with the result channel and flush an unwritten
+  buffered response as `200 OK` instead of `504 Gateway Timeout` (`request-timeout`).
+- Moved MCP audit, request ID, timing, and panic recovery into an SDK receiving
+  middleware, so every dispatched method (including `tools/list` and
+  `prompts/list`) writes one redacted audit record. Tool audit fields are
+  unchanged; unregistered tool calls and recovered panics are now audited
+  without recording client-supplied names or panic values. Unknown method names
+  are still rejected by the SDK before middleware and write no audit record.
+- Added a read-only, workspace-scoped MCP resource template
+  `dynamis://workspaces/{workspaceId}/items/{itemId}` on the Agent profile
+  endpoint, requiring `resources:read`, reusing the item read use case, and
+  returning safe not-found and access-denied errors with no subscriptions.
+- Added two read-only Agent MCP prompts, `items_summarize_v1` and
+  `items_triage_v1`, served through the stateless `prompts/list` and
+  `prompts/get` endpoint with `resources:read`, strict argument validation,
+  workspace-scoped item reads, data-fenced item titles, and `mcp.prompt.called`
+  audit records; no mutating use case, REST route, or dependency was added.
 - Added SDK cacheable list hints to the Agent MCP `tools/list` result
   (`ttlMs: 300000`, `cacheScope: "public"`) through `SetCacheable`, scoped to
   that method; tool behavior, scopes, and the stateless no-session contract are

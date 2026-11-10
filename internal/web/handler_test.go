@@ -620,6 +620,91 @@ func TestSSEScopeReconnectHeartbeatAndLimits(t *testing.T) {
 	}
 }
 
+func TestItemEvents(t *testing.T) {
+	webHandler, auth, itemService, workspaceID, owner := testWebRaw(t, 2)
+	ctx := context.Background()
+
+	principal, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	principal.AuthMethod = "test"
+
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "/workspaces/"+workspaceID+"/items/events", nil)
+
+	rec := httptest.NewRecorder()
+	nextCursor, ok := webHandler.sendChanges(rec, req, principal, workspaceID, "")
+	if !ok {
+		t.Fatal("expected sendChanges with empty cursor to succeed")
+	}
+	if nextCursor != "0" {
+		t.Fatalf("expected nextCursor '0', got %q", nextCursor)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "id: 0\n") || !strings.Contains(body, "event: resync\n") || !strings.Contains(body, "data: {\"reason\":\"cursor\"}\n\n") {
+		t.Fatalf("unexpected resync event body: %q", body)
+	}
+
+	rec = httptest.NewRecorder()
+	nextCursor, ok = webHandler.sendChanges(rec, req, principal, workspaceID, nextCursor)
+	if !ok {
+		t.Fatal("expected sendChanges with no changes to succeed")
+	}
+	if nextCursor != "0" {
+		t.Fatalf("expected nextCursor '0', got %q", nextCursor)
+	}
+	if rec.Body.Len() != 0 {
+		t.Fatalf("expected no output when no changes, got %q", rec.Body.String())
+	}
+
+	created1, err := itemService.Create(ctx, principal, workspaceID, "Item 1", "key-1", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	created2, err := itemService.Create(ctx, principal, workspaceID, "Item 2", "key-2", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rec = httptest.NewRecorder()
+	nextCursor, ok = webHandler.sendChanges(rec, req, principal, workspaceID, nextCursor)
+	if !ok {
+		t.Fatal("expected sendChanges with new items to succeed")
+	}
+	body = rec.Body.String()
+	if !strings.Contains(body, "event: item.changed\n") || !strings.Contains(body, created1.Item.ID) || !strings.Contains(body, created2.Item.ID) {
+		t.Fatalf("expected change events for both items, got %q", body)
+	}
+	if nextCursor == "" || nextCursor == "0" {
+		t.Fatalf("expected nextCursor to advance beyond '0', got %q", nextCursor)
+	}
+
+	rec = httptest.NewRecorder()
+	advancedCursor, ok := webHandler.sendChanges(rec, req, principal, workspaceID, nextCursor)
+	if !ok {
+		t.Fatal("expected sendChanges with up-to-date cursor to succeed")
+	}
+	if advancedCursor != nextCursor {
+		t.Fatalf("expected nextCursor %q, got %q", nextCursor, advancedCursor)
+	}
+	if rec.Body.Len() != 0 {
+		t.Fatalf("expected no output when up to date, got %q", rec.Body.String())
+	}
+
+	rec = httptest.NewRecorder()
+	resyncCursor, ok := webHandler.sendChanges(rec, req, principal, workspaceID, "non-existent-cursor")
+	if !ok {
+		t.Fatal("expected sendChanges with stale cursor to succeed with resync")
+	}
+	body = rec.Body.String()
+	if !strings.Contains(body, "event: resync\n") || !strings.Contains(body, "data: {\"reason\":\"cursor\"}\n\n") {
+		t.Fatalf("expected resync event for stale cursor, got %q", body)
+	}
+	if resyncCursor != nextCursor {
+		t.Fatalf("expected resync nextCursor %q, got %q", nextCursor, resyncCursor)
+	}
+}
+
 func TestNotificationSSEIsScopedAndRedactedToRecipient(t *testing.T) {
 	handler, auth, _, workspaceID, owner := testWeb(t, 1)
 	_, err := auth.CreateNotification(context.Background(), PrincipalSystem(), identity.NotificationInput{
@@ -1395,7 +1480,18 @@ func testWeb(t *testing.T, maximumStreams int, mailers ...appmail.Sender) (http.
 	return testWebWithMFA(t, maximumStreams, false, mailers...)
 }
 
+func testWebRaw(t *testing.T, maximumStreams int, mailers ...appmail.Sender) (*Handler, *identity.Service, *items.Service, string, identity.BootstrapResult) {
+	t.Helper()
+	return testWebWithMFARaw(t, maximumStreams, false, mailers...)
+}
+
 func testWebWithMFA(t *testing.T, maximumStreams int, mfaEnabled bool, mailers ...appmail.Sender) (http.Handler, *identity.Service, *items.Service, string, identity.BootstrapResult) {
+	t.Helper()
+	webHandler, auth, itemService, workspaceID, owner := testWebWithMFARaw(t, maximumStreams, mfaEnabled, mailers...)
+	return webHandler.Routes(), auth, itemService, workspaceID, owner
+}
+
+func testWebWithMFARaw(t *testing.T, maximumStreams int, mfaEnabled bool, mailers ...appmail.Sender) (*Handler, *identity.Service, *items.Service, string, identity.BootstrapResult) {
 	t.Helper()
 	ctx := context.Background()
 	cfg, err := config.LoadFrom(func(string) (string, bool) { return "", false })
@@ -1444,7 +1540,7 @@ func testWebWithMFA(t *testing.T, maximumStreams int, mfaEnabled bool, mailers .
 	if err != nil {
 		t.Fatal(err)
 	}
-	return webHandler.Routes(), auth, itemService, owner.WorkspaceID, owner
+	return webHandler, auth, itemService, owner.WorkspaceID, owner
 }
 
 func testUnbootstrappedWeb(t *testing.T, setupToken string) (http.Handler, *identity.Service) {

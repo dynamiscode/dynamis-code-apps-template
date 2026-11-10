@@ -67,10 +67,16 @@ func TestMCPCompletionAndPromptAreWorkspaceScoped(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListPrompts() error = %v", err)
 	}
-	if len(listed.Prompts) != 1 || listed.Prompts[0].Name != itemReviewPromptName {
+	var review *mcp.Prompt
+	for _, prompt := range listed.Prompts {
+		if prompt.Name == itemReviewPromptName {
+			review = prompt
+		}
+	}
+	if review == nil {
 		t.Fatalf("prompts = %+v", listed.Prompts)
 	}
-	for _, argument := range listed.Prompts[0].Arguments {
+	for _, argument := range review.Arguments {
 		if !argument.Required {
 			t.Fatalf("prompt argument %q is optional", argument.Name)
 		}

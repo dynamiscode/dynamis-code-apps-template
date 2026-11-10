@@ -363,6 +363,80 @@ Verified 2026-11-10 with Go 1.27.0, HTMX 4.0.1, axe-core, and Chrome:
 - not yet covered: a browser-level check that a 4xx response leaves the list
   unchanged under the restored non-swap config
 
+## MCP receiving middleware evidence
+
+Verified 2026-11-10 with Go 1.27.0 on SQLite:
+
+- receiving middleware audits, times, and recovers panics for every method the
+  SDK dispatches to the server: tools, `tools/list`, and `prompts/list` are
+  covered by `TestMCPReceivingMiddlewareAuditsEveryKnownMethod`; a panicking
+  tool returns `internal failure`, leaks no panic value to logs, and is audited
+  by `TestMCPReceivingMiddlewareRecoversPanicsWithoutLeakingValues`
+- unregistered tool names are audited as `tools/call` without the client name
+  by the same test; unknown method names are rejected by the SDK before
+  middleware and write no audit record, pinned by
+  `TestMCPUnknownMethodIsRejectedBeforeMiddleware`
+- the existing tool-audit contract test still asserts ten `mcp.tool.called`
+  events, `tool_version`, request ID, and no bearer or title leakage
+- `go test ./...`, `go vet ./...`, `go generate ./api` with no drift,
+  `make deps-check`, `make workflow-check`, `make generate-check`,
+  `make build`, and `make template-smoke` pass
+- `go test -race ./internal/mcpserver/` passes; the full `make race` run hit a
+  timeout in `internal/bootstrap` `TestAgentSurfacesLiveSmoke` (login returned
+  504 after 35s under full-suite load) and that test passes alone with race
+- not run: PostgreSQL compatibility (`POSTGRES_TEST_URL` unset), `make
+  docker-smoke`, `make secret-check`, `make vuln-check`, `make fuzz-smoke`
+- not covered: an audit-write-failure test (the `internal failure` branch), and
+  notifications, which are outside receiving middleware
+
+## MCP resources evidence
+
+Verified 2026-11-10 with Go 1.27.3 on SQLite:
+
+- [resource tests](../internal/mcpserver/resources_test.go) cover the template listing, own-workspace read with
+  `application/json` content, unknown-item and item-in-other-workspace
+  not-found, cross-workspace `access is denied` without item data, malformed
+  URI rejection, write-only token rejection at connect, read-only token reads,
+  and no `Mcp-Session-Id` issued on resource reads
+- `make verify` exits 0: lint, `go test ./...`, `go vet ./...`, `go test -race
+  ./...`, dependency and workflow checks, generated OpenAPI no-drift, command
+  builds, and generated-app smoke
+- not run: PostgreSQL compatibility (no data change), `make docker-smoke`,
+  `make secret-check`, `make vuln-check`, `make fuzz-smoke`
+- omitted surfaces, by reason: REST/OpenAPI and CLI need no resource form
+  because items already have REST and CLI item APIs; WebMCP and browser are
+  not agent-automation surfaces for read-only resources; realtime delivery and
+  resource subscriptions are not needed because no client requires change
+  notifications
+
+## MCP prompts evidence
+
+Verified 2026-11-10 with Go 1.27.0 and go-sdk v1.8.0 on SQLite:
+
+- `items_summarize_v1` and `items_triage_v1` are listed and fetched through the
+  stateless `prompts/list` and `prompts/get` methods; no `Mcp-Session-Id` is
+  issued
+- arguments are validated strictly (undeclared, missing, malformed, or
+  unsupported values return `-32602` with `parameters are invalid`); unknown
+  prompt names are rejected by the SDK
+- prompts require `resources:read`: a write-only token receives HTTP `403`, a
+  read-only token gets results, and a foreign workspace returns `access is denied`
+- item titles are JSON-encoded inside a `<workspace_items>` block, and the item
+  table is byte-identical before and after prompt calls (no mutation)
+- every prompt call writes an `mcp.prompt.called` audit record without the bearer
+  token or item titles
+- `go test -count=1 -race ./internal/mcpserver/` passes, covering the prompt tests
+  in `internal/mcpserver/prompts_test.go`
+- `go test ./...`, `go vet ./...`, `make race`, `make deps-check`,
+  `make workflow-check`, `make generate-check` (no OpenAPI drift), `make build`,
+  and `make template-smoke` each exited 0
+- `make verify` as one invocation first stopped at `make race` because
+  `TestAgentSurfacesLiveSmoke` (`internal/bootstrap`) timed out on `/login` while
+  the host load average was about 335; the test passed when run alone under
+  `-race`, and the full `make race` passed on rerun
+- not run: `make docker-smoke`, `make vuln-check`, `make secret-check`, and
+  `make fuzz-smoke`; prompt behavior is not covered by a browser or PostgreSQL run
+
 ## MCP cacheable tool catalog evidence
 
 Verified 2026-11-10 with Go 1.27.3, SQLite, and the vendored `go-sdk` v1.8.0:
