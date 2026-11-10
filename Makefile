@@ -2,13 +2,15 @@ GOVULNCHECK_VERSION ?= v1.7.0
 ACTIONLINT_VERSION ?= v1.7.12
 GITLEAKS_VERSION ?= v8.30.1
 
-.PHONY: setup fmt-check lint test vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check build image docker-smoke accessibility-smoke webmcp-smoke template-smoke verify
+.PHONY: setup setup-hooks fmt-check lint test vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check build image docker-smoke accessibility-smoke webmcp-smoke template-smoke verify
 
-setup:
+setup: setup-hooks
 	test -f .env || cp .env.example .env
-	test ! -e .git || git config core.hooksPath .githooks
 	go mod download
 	npm ci
+
+setup-hooks:
+	test ! -e .git || git config core.hooksPath .githooks
 
 fmt-check:
 	test -z "$$(gofmt -l $$(find . -name '*.go' -not -path './vendor/*'))"
