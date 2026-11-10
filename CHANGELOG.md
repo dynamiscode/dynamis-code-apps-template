@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Replaced the MCP update and delete `Mcp-Human-Approval` header with stateless
+  multi round-trip `input_required` confirmation bound to the prompted arguments
+  through `requestState`. The header is removed; no released clients depend on it.
 - Upgraded vendored HTMX from 2.0.4 to 4.0.1, renamed the `htmx:afterSwap`
   listener to `htmx:after:swap`, and kept 2.x non-swap behavior for
   `204`, `304`, `4xx`, and `5xx` responses.

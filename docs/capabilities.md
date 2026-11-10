@@ -361,3 +361,21 @@ Verified 2026-11-10 with Go 1.27.0, HTMX 4.0.1, axe-core, and Chrome:
   assertions were skipped because the browser exposes no `document.modelContext`
 - not yet covered: a browser-level check that a 4xx response leaves the list
   unchanged under the restored non-swap config
+
+## MCP MRTR approval evidence
+
+Verified 2026-11-10 with Go 1.27.3 and go-sdk v1.8.0:
+
+- `internal/mcpserver/approval_test.go` covers update and delete confirmation:
+  `input_required` with a `human-approval` elicitation and request-state binding,
+  no mutation before an accepted `confirm: true`, a retry on a second connection
+  (stateless), decline, forged request state, changed arguments, a header-only
+  call that does not approve, and a pre-MRTR protocol call with the old header
+  that cannot update the item
+- mutation check: removing the request-state comparison fails the forged-state
+  assertion
+- `go test ./...`, `go vet ./...`, `go generate ./api` with no drift, and
+  `make verify` (including race) passed on the final code
+- not run: `make docker-smoke`, `make secret-check`, `make vuln-check`,
+  `make fuzz-smoke`, PostgreSQL checks (no data change), and the browser and
+  WebMCP smoke targets (no browser surface change)

@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -21,7 +22,16 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-const maxResultBytes = 1 << 20
+const (
+	maxResultBytes  = 1 << 20
+	approvalInputID = "human-approval"
+)
+
+var approvalSchema = map[string]any{
+	"type": "object", "additionalProperties": false,
+	"properties": map[string]any{"confirm": map[string]any{"type": "boolean", "title": "Confirm this change"}},
+	"required":   []string{"confirm"},
+}
 
 var (
 	falseValue = false
@@ -85,6 +95,8 @@ type toolRun struct {
 	targetID    string
 	output      any
 	err         error
+	// pending is an input_required result; it is returned without auditing a mutation.
+	pending *mcp.CallToolResult
 }
 
 func NewHandler(
@@ -239,9 +251,9 @@ func (h *handler) addTools(server *mcp.Server) {
 		if err := decode(req, &input); err != nil || !validID(input.WorkspaceID) || !validID(input.ItemID) {
 			return toolRun{err: invalidParameters()}
 		}
-		if !approved(req) {
-			return toolRun{workspaceID: input.WorkspaceID, targetID: input.ItemID,
-				err: &toolError{category: "approval_required", message: "human approval is required"}}
+		if pending, err := approvalGate(req, "items_update_v1", input,
+			fmt.Sprintf("Confirm the update of item %s to version %d.", input.ItemID, input.Version)); pending != nil || err != nil {
+			return toolRun{workspaceID: input.WorkspaceID, targetID: input.ItemID, pending: pending, err: err}
 		}
 		item, err := h.items.Update(ctx, principal(req), input.WorkspaceID, input.ItemID,
 			input.Version, items.UpdateInput{Title: input.Title, Status: input.Status}, auditContext(req))
@@ -255,9 +267,9 @@ func (h *handler) addTools(server *mcp.Server) {
 		if err := decode(req, &input); err != nil || !validID(input.WorkspaceID) || !validID(input.ItemID) {
 			return toolRun{err: invalidParameters()}
 		}
-		if !approved(req) {
-			return toolRun{workspaceID: input.WorkspaceID, targetID: input.ItemID,
-				err: &toolError{category: "approval_required", message: "human approval is required"}}
+		if pending, err := approvalGate(req, "items_delete_v1", input,
+			fmt.Sprintf("Confirm permanent deletion of item %s at version %d.", input.ItemID, input.Version)); pending != nil || err != nil {
+			return toolRun{workspaceID: input.WorkspaceID, targetID: input.ItemID, pending: pending, err: err}
 		}
 		err := h.items.Delete(ctx, principal(req), input.WorkspaceID, input.ItemID,
 			input.Version, auditContext(req))
@@ -266,14 +278,42 @@ func (h *handler) addTools(server *mcp.Server) {
 	})
 }
 
-func approved(request *mcp.CallToolRequest) bool {
-	return request.Extra != nil && request.Extra.Header.Get("Mcp-Human-Approval") == "true"
+// approvalGate blocks destructive calls until the client host confirms them
+// through a multi round-trip (SEP-2322) input request. The confirmation is bound
+// to the prompted arguments through the request state, so the endpoint stays
+// stateless. The gate is a client-host confirmation; it never replaces server
+// authorization.
+func approvalGate(request *mcp.CallToolRequest, tool string, input any, message string) (*mcp.CallToolResult, error) {
+	state := approvalState(tool, input)
+	response, answered := request.Params.InputResponses[approvalInputID]
+	if !answered || request.Params.RequestState != state {
+		return &mcp.CallToolResult{
+			InputRequests: mcp.InputRequestMap{approvalInputID: &mcp.ElicitParams{
+				Mode: "form", Message: message, RequestedSchema: approvalSchema,
+			}},
+			RequestState: state,
+		}, nil
+	}
+	if confirmed, ok := response.(*mcp.ElicitResult); ok && confirmed.Action == "accept" && confirmed.Content["confirm"] == true {
+		return nil, nil
+	}
+	return nil, &toolError{category: "approval_declined", message: "human approval was declined"}
+}
+
+// approvalState binds an approval to the tool and the exact arguments that were prompted.
+func approvalState(tool string, input any) string {
+	encoded, _ := json.Marshal(input)
+	sum := sha256.Sum256(append([]byte(tool+"\n"), encoded...))
+	return hex.EncodeToString(sum[:])
 }
 
 func (h *handler) add(server *mcp.Server, tool *mcp.Tool, run func(context.Context, *mcp.CallToolRequest) toolRun) {
 	server.AddTool(tool, func(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		started := time.Now()
 		result := run(ctx, request)
+		if result.pending != nil {
+			return result.pending, nil
+		}
 		if result.err == nil {
 			encoded, err := json.Marshal(result.output)
 			if err != nil || len(encoded) > maxResultBytes {

@@ -60,7 +60,15 @@ func TestMCPToolsUseSharedScopedItemService(t *testing.T) {
 	server := httptest.NewServer(state.handler)
 	t.Cleanup(server.Close)
 	transport := &authTransport{token: state.token.Secret}
-	client := mcp.NewClient(&mcp.Implementation{Name: "component-test", Version: "1.0.0"}, nil)
+	var humanConfirms atomic.Bool
+	client := mcp.NewClient(&mcp.Implementation{Name: "component-test", Version: "1.0.0"}, &mcp.ClientOptions{
+		ElicitationHandler: func(context.Context, *mcp.ElicitRequest) (*mcp.ElicitResult, error) {
+			if humanConfirms.Load() {
+				return &mcp.ElicitResult{Action: "accept", Content: map[string]any{"confirm": true}}, nil
+			}
+			return &mcp.ElicitResult{Action: "decline"}, nil
+		},
+	})
 	session, err := client.Connect(context.Background(), &mcp.StreamableClientTransport{
 		Endpoint: server.URL, HTTPClient: &http.Client{Transport: transport},
 		DisableStandaloneSSE: true, MaxRetries: -1,
@@ -129,20 +137,20 @@ func TestMCPToolsUseSharedScopedItemService(t *testing.T) {
 	if !withoutUpdateApproval.IsError || !strings.Contains(contentText(withoutUpdateApproval), "human approval") {
 		t.Fatalf("update without approval = %+v", withoutUpdateApproval)
 	}
-	transport.approval.Store(true)
+	humanConfirms.Store(true)
 	updated := decodeOutput[items.Item](t, callTool(t, session, "items_update_v1", updateArgs))
 	if updated.Status != items.Complete || updated.Version != 2 {
 		t.Fatalf("updated = %+v", updated)
 	}
 
-	transport.approval.Store(false)
+	humanConfirms.Store(false)
 	withoutApproval := callTool(t, session, "items_delete_v1", map[string]any{
 		"workspaceId": state.workspaceID, "itemId": created.ID, "version": 2,
 	})
 	if !withoutApproval.IsError || !strings.Contains(contentText(withoutApproval), "human approval") {
 		t.Fatalf("delete without approval = %+v", withoutApproval)
 	}
-	transport.approval.Store(true)
+	humanConfirms.Store(true)
 	deleted := decodeOutput[deleteOutput](t, callTool(t, session, "items_delete_v1", map[string]any{
 		"workspaceId": state.workspaceID, "itemId": created.ID, "version": 2,
 	}))
