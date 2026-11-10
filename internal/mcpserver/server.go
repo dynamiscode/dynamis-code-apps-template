@@ -146,11 +146,31 @@ type toolRun struct {
 	err         error
 }
 
-type auditSlotKey struct{}
+const (
+	methodToolsCall    = "tools/call"
+	eventToolCalled    = "mcp.tool.called"
+	eventRequestCalled = "mcp.request.called"
+)
 
-// auditSlot records whether a typed handler ran, so the receiving middleware
-// audits only the calls the SDK rejects before any handler sees them.
-type auditSlot struct{ handled bool }
+// callRecord carries facts known only to tool adapters to the receiving
+// middleware, which writes exactly one audit record per dispatched request.
+type callRecord struct {
+	handled     bool // a typed tool handler ran, so the SDK accepted the arguments
+	toolName    string
+	workspaceID string
+	targetID    string
+	annotations *mcp.ToolAnnotations
+	err         error
+}
+
+type callRecordKey struct{}
+
+func recordFor(ctx context.Context) *callRecord {
+	if record, ok := ctx.Value(callRecordKey{}).(*callRecord); ok {
+		return record
+	}
+	return &callRecord{}
+}
 
 func NewHandler(
 	identityService *identity.Service,
@@ -178,7 +198,7 @@ func NewHandler(
 		},
 	})
 	h.addTools(server)
-	server.AddReceivingMiddleware(h.auditRejectedCalls)
+	server.AddReceivingMiddleware(h.observe)
 	h.addPrompts(server)
 	h.addItemListPrompts(server)
 	h.addResources(server)
@@ -399,98 +419,137 @@ func addTool[In, Out any](
 	tool.InputSchema, tool.OutputSchema = input, output
 	h.tools[tool.Name] = tool
 	mcp.AddTool(server, tool, func(ctx context.Context, request *mcp.CallToolRequest, in In) (*mcp.CallToolResult, Out, error) {
-		started := time.Now()
-		if slot, ok := ctx.Value(auditSlotKey{}).(*auditSlot); ok {
-			slot.handled = true
-		}
+		record := recordFor(ctx)
+		record.handled, record.toolName, record.annotations = true, tool.Name, tool.Annotations
 		out, result := run(ctx, request, in)
 		if result.err == nil {
 			if encoded, err := json.Marshal(out); err != nil || len(encoded) > maxResultBytes {
 				result.err = &toolError{category: "internal", message: "internal failure"}
 			}
 		}
-		if err := h.audit(ctx, request, tool, result, started); err != nil {
-			h.logger.Error("MCP audit failed", "request_id", requestID(request))
-			return nil, out, errors.New("internal failure")
-		}
+		record.workspaceID, record.targetID, record.err = result.workspaceID, result.targetID, result.err
 		return nil, out, result.err
 	})
 }
 
-// auditRejectedCalls audits tools/call requests the SDK rejects before a typed
-// handler runs, and returns the same safe error the handler would have returned.
-func (h *handler) auditRejectedCalls(next mcp.MethodHandler) mcp.MethodHandler {
-	return func(ctx context.Context, method string, request mcp.Request) (mcp.Result, error) {
-		call, ok := request.(*mcp.CallToolRequest)
-		if !ok || method != "tools/call" || h.tools[call.Params.Name] == nil {
-			return next(ctx, method, request)
-		}
+// observe wraps every method the SDK dispatches to the server. It is the only
+// place that audits, times, and recovers panics, so tool and non-tool requests
+// share one failure contract. Arguments the SDK rejects before a typed handler
+// runs are audited as invalid parameters with the registered tool's identity,
+// and callers get the same safe message the handlers use.
+func (h *handler) observe(next mcp.MethodHandler) mcp.MethodHandler {
+	return func(ctx context.Context, method string, req mcp.Request) (result mcp.Result, err error) {
 		started := time.Now()
-		slot := &auditSlot{}
-		result, err := next(context.WithValue(ctx, auditSlotKey{}, slot), method, request)
-		if slot.handled || err != nil {
-			return result, err
+		record := &callRecord{}
+		ctx = context.WithValue(ctx, callRecordKey{}, record)
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				h.logger.Error("MCP request panicked", "method", method, "request_id", requestID(req))
+				record.err = &toolError{category: "internal", message: "internal failure"}
+				result, err = internalFailure(method)
+			}
+			if auditErr := h.audit(ctx, method, req, record, result, err, started); auditErr != nil {
+				h.logger.Error("MCP audit failed", "method", method, "request_id", requestID(req))
+				result, err = internalFailure(method)
+			}
+		}()
+		result, err = next(ctx, method, req)
+		if call, ok := req.(*mcp.CallToolRequest); ok && method == methodToolsCall && err == nil && !record.handled {
+			if tool := h.tools[call.Params.Name]; tool != nil {
+				// Rejected arguments are unauthorized input, so the record carries no workspace or item.
+				record.toolName, record.annotations, record.err = tool.Name, tool.Annotations, invalidParameters()
+				result = errorResult(record.err.Error())
+			}
 		}
-		// Rejected arguments are unauthorized input, so the record carries no workspace or item.
-		run := toolRun{err: invalidParameters()}
-		if err := h.audit(ctx, call, h.tools[call.Params.Name], run, started); err != nil {
-			h.logger.Error("MCP audit failed", "request_id", requestID(call))
-			return errorResult("internal failure"), nil
-		}
-		return errorResult(run.err.Error()), nil
+		return result, err
 	}
+}
+
+func internalFailure(method string) (mcp.Result, error) {
+	if method == methodToolsCall {
+		return errorResult("internal failure"), nil
+	}
+	return nil, errors.New("internal failure")
 }
 
 func approved(request *mcp.CallToolRequest) bool {
 	return request.Extra != nil && request.Extra.Header.Get("Mcp-Human-Approval") == "true"
 }
 
-func (h *handler) audit(ctx context.Context, request *mcp.CallToolRequest, tool *mcp.Tool, result toolRun, started time.Time) error {
-	actor := principal(request)
+func (h *handler) audit(
+	ctx context.Context, method string, req mcp.Request, record *callRecord,
+	result mcp.Result, err error, started time.Time,
+) error {
+	actor := principal(req)
 	clientName, clientVersion := "", ""
-	if client := request.ClientInfo(); client != nil {
-		clientName, clientVersion = client.Name, client.Version
+	if client, ok := req.(interface{ ClientInfo() *mcp.Implementation }); ok && client.ClientInfo() != nil {
+		clientName, clientVersion = client.ClientInfo().Name, client.ClientInfo().Version
 	}
-	category, outcome := "", "success"
-	if result.err != nil {
-		outcome = "failure"
-		if value, ok := result.err.(*toolError); ok {
-			category = value.category
-		} else {
-			category = "internal"
+	category := ""
+	switch {
+	case record.err != nil:
+		category = errorCategory(record.err)
+	case err != nil:
+		category = "protocol_error"
+	default:
+		if value, ok := result.(*mcp.CallToolResult); ok && value.IsError {
+			category = "tool_error"
 		}
 	}
-	metadata, _ := json.Marshal(map[string]any{
+	outcome := "success"
+	if category != "" {
+		outcome = "failure"
+	}
+	fields := map[string]any{
 		"token_id": actor.TokenID, "client_name": clientName,
-		"client_version": clientVersion, "tool_version": "v1",
-		"annotations": tool.Annotations, "error_category": category,
+		"client_version": clientVersion, "error_category": category,
 		"duration_ms": time.Since(started).Milliseconds(),
-	})
+	}
+	eventType, action, targetType := eventRequestCalled, method, ""
+	if method == methodToolsCall {
+		eventType, targetType = eventToolCalled, "item"
+		if record.toolName != "" {
+			action = record.toolName
+		} // unregistered names are client input and are never logged
+		fields["tool_version"], fields["annotations"] = "v1", record.annotations
+	} else {
+		fields["method"] = method
+	}
+	metadata, _ := json.Marshal(fields)
 	return h.identity.RecordAudit(ctx, identity.AuditEvent{
-		EventType: "mcp.tool.called", ActorUserID: actor.UserID,
-		AuthMethod: actor.AuthMethod, WorkspaceID: result.workspaceID,
-		TargetType: "item", TargetID: result.targetID, Action: tool.Name,
-		Outcome: outcome, RequestID: requestID(request),
-		SourceAddress: sourceAddress(request), Metadata: string(metadata), CreatedAt: time.Now().UTC(),
+		EventType: eventType, ActorUserID: actor.UserID,
+		AuthMethod: actor.AuthMethod, WorkspaceID: record.workspaceID,
+		TargetType: targetType, TargetID: record.targetID, Action: action,
+		Outcome: outcome, RequestID: requestID(req),
+		SourceAddress: sourceAddress(req), Metadata: string(metadata), CreatedAt: time.Now().UTC(),
 	})
 }
 
-func principal(request *mcp.CallToolRequest) identity.Principal {
-	return principalFromExtra(request.Extra)
+func errorCategory(err error) string {
+	if value, ok := err.(*toolError); ok {
+		return value.category
+	}
+	return "internal"
 }
 
-func requestID(request *mcp.CallToolRequest) string {
-	if request.Extra == nil {
-		return ""
-	}
-	return request.Extra.Header.Get("X-Request-ID")
+func principal(request mcp.Request) identity.Principal {
+	return principalFromExtra(request.GetExtra())
 }
 
-func sourceAddress(request *mcp.CallToolRequest) string {
-	if request.Extra == nil || request.Extra.TokenInfo == nil {
+func requestID(request mcp.Request) string {
+	extra := request.GetExtra()
+	if extra == nil {
 		return ""
 	}
-	value, _ := request.Extra.TokenInfo.Extra["sourceAddress"].(string)
+	return extra.Header.Get("X-Request-ID")
+}
+
+func sourceAddress(request mcp.Request) string {
+	extra := request.GetExtra()
+	if extra == nil || extra.TokenInfo == nil {
+		return ""
+	}
+	value, _ := extra.TokenInfo.Extra["sourceAddress"].(string)
 	return value
 }
 

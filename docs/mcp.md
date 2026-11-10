@@ -83,8 +83,9 @@ request without a `workspaceId` context value also returns an empty list. Values
 items exist than the single scanned page. Workspace IDs are not completed:
 workspace enumeration remains browser-only.
 
-Completion and prompt reads are not tool calls and write no MCP audit record.
-They return only data that `items_list_v1` or `items_get_v1` would return to
+Completion and prompt reads are not tool calls, so they write the
+`mcp.request.called` record described under the security contract, not a
+tool record. They return only data that `items_list_v1` or `items_get_v1` would return to
 the same token.
 
 WebMCP is separate from this server MCP endpoint. It is an optional,
@@ -107,8 +108,8 @@ the URI's workspace return `Resource not found`; a workspace the token cannot
 read returns `access is denied` without item data. The template is named `item_v1`, following the
 tool naming rule: a breaking URI, output, or side-effect change requires a new
 name such as `item_v2`. The template is the only
-resource: items are discovered through `items_list_v1`. Resource reads are
-not written to the tool audit, matching REST item reads.
+resource: items are discovered through `items_list_v1`. Resource reads write an
+`mcp.request.called` record, not a tool record.
 
 ## Discovery cache hints
 
@@ -133,6 +134,24 @@ by this policy.
   argument and never replaces server authorization.
 - Inputs are strict, bounded data. Internal errors become safe tool errors.
   Authentication and insufficient scope use HTTP `401` and `403`.
+
+A receiving middleware on the SDK server audits, times, and recovers panics for
+every method the SDK dispatches to the server. Each tool call writes an
+`mcp.tool.called` record with principal, workspace, token/client, tool/version,
+request ID, target, annotation, outcome, duration, and error-category fields.
+Other dispatched methods, such as `tools/list` and `prompts/list`, write an
+`mcp.request.called` record with the same safe fields plus `method`. Requests
+that fail the SDK's own checks, such as unregistered tool names, are audited as
+`tools/call` with `protocol_error`; the client-supplied name is never recorded.
+
+Raw arguments, item titles, bearer values, panic values, and unrestricted
+payloads are excluded. A panic becomes an `internal failure` response and an
+`internal` audit record. If an audit write fails, the request returns
+`internal failure` rather than a successful result.
+
+The SDK rejects unknown method names before receiving middleware runs, so they
+return JSON-RPC method-not-found and write no audit record. Client notifications
+use a separate SDK path and are not audited.
 
 Each accepted tool call writes an audit record containing safe principal,
 workspace, token/client, tool/version, request ID, target, annotation, outcome,

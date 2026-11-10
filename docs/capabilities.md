@@ -362,6 +362,32 @@ Verified 2026-11-10 with Go 1.27.0, HTMX 4.0.1, axe-core, and Chrome:
 - not yet covered: a browser-level check that a 4xx response leaves the list
   unchanged under the restored non-swap config
 
+## MCP receiving middleware evidence
+
+Verified 2026-11-10 with Go 1.27.0 on SQLite:
+
+- receiving middleware audits, times, and recovers panics for every method the
+  SDK dispatches to the server: tools, `tools/list`, and `prompts/list` are
+  covered by `TestMCPReceivingMiddlewareAuditsEveryKnownMethod`; a panicking
+  tool returns `internal failure`, leaks no panic value to logs, and is audited
+  by `TestMCPReceivingMiddlewareRecoversPanicsWithoutLeakingValues`
+- unregistered tool names are audited as `tools/call` without the client name
+  by the same test; unknown method names are rejected by the SDK before
+  middleware and write no audit record, pinned by
+  `TestMCPUnknownMethodIsRejectedBeforeMiddleware`
+- the existing tool-audit contract test still asserts ten `mcp.tool.called`
+  events, `tool_version`, request ID, and no bearer or title leakage
+- `go test ./...`, `go vet ./...`, `go generate ./api` with no drift,
+  `make deps-check`, `make workflow-check`, `make generate-check`,
+  `make build`, and `make template-smoke` pass
+- `go test -race ./internal/mcpserver/` passes; the full `make race` run hit a
+  timeout in `internal/bootstrap` `TestAgentSurfacesLiveSmoke` (login returned
+  504 after 35s under full-suite load) and that test passes alone with race
+- not run: PostgreSQL compatibility (`POSTGRES_TEST_URL` unset), `make
+  docker-smoke`, `make secret-check`, `make vuln-check`, `make fuzz-smoke`
+- not covered: an audit-write-failure test (the `internal failure` branch), and
+  notifications, which are outside receiving middleware
+
 ## MCP resources evidence
 
 Verified 2026-11-10 with Go 1.27.3 on SQLite:

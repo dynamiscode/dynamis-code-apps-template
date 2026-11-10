@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Moved MCP audit, request ID, timing, and panic recovery into an SDK receiving
+  middleware, so every dispatched method (including `tools/list` and
+  `prompts/list`) writes one redacted audit record. Tool audit fields are
+  unchanged; unregistered tool calls and recovered panics are now audited
+  without recording client-supplied names or panic values. Unknown method names
+  are still rejected by the SDK before middleware and write no audit record.
 - Added a read-only, workspace-scoped MCP resource template
   `dynamis://workspaces/{workspaceId}/items/{itemId}` on the Agent profile
   endpoint, requiring `resources:read`, reusing the item read use case, and

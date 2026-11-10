@@ -337,6 +337,168 @@ func postMCP(handler http.Handler, token, origin, body string) *httptest.Respons
 	return response
 }
 
+type auditRow struct {
+	action, outcome, requestID, metadata string
+}
+
+func auditRows(t *testing.T, db *sql.DB, eventType string) []auditRow {
+	t.Helper()
+	rows, err := db.Query(`SELECT action, outcome, COALESCE(request_id, ''), metadata FROM audit_events
+		WHERE event_type = ? ORDER BY created_at`, eventType)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var result []auditRow
+	for rows.Next() {
+		var row auditRow
+		if err := rows.Scan(&row.action, &row.outcome, &row.requestID, &row.metadata); err != nil {
+			t.Fatal(err)
+		}
+		result = append(result, row)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return result
+}
+
+func findAudit(t *testing.T, rows []auditRow, action string) auditRow {
+	t.Helper()
+	for _, row := range rows {
+		if row.action == action {
+			return row
+		}
+	}
+	t.Fatalf("no audit row for action %q in %+v", action, rows)
+	return auditRow{}
+}
+
+func TestMCPReceivingMiddlewareAuditsEveryKnownMethod(t *testing.T) {
+	state := newTestState(t, config.MCP{})
+	server := httptest.NewServer(state.handler)
+	t.Cleanup(server.Close)
+	transport := &authTransport{token: state.token.Secret}
+	client := mcp.NewClient(&mcp.Implementation{Name: "middleware-test", Version: "1.0.0"}, nil)
+	session, err := client.Connect(context.Background(), &mcp.StreamableClientTransport{
+		Endpoint: server.URL, HTTPClient: &http.Client{Transport: transport},
+		DisableStandaloneSSE: true, MaxRetries: -1,
+	}, nil)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	t.Cleanup(func() { session.Close() })
+	if _, err := session.ListTools(context.Background(), nil); err != nil {
+		t.Fatalf("ListTools() error = %v", err)
+	}
+
+	promptsBody := `{"jsonrpc":"2.0","id":2,"method":"prompts/list","params":{"_meta":{` + statelessMeta + `}}}`
+	prompts := postMCPMethod(state.handler, state.token.Secret, "prompts/list", promptsBody)
+	if prompts.Code != http.StatusOK || !strings.Contains(prompts.Body.String(), `"prompts":[{`) {
+		t.Fatalf("prompts/list response = %d %s", prompts.Code, prompts.Body.String())
+	}
+
+	if _, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "client-supplied-name-v9", Arguments: map[string]any{},
+	}); err == nil {
+		t.Fatal("unregistered tool call succeeded")
+	}
+	unknownAudited := false
+	for _, row := range auditRows(t, state.db, "mcp.tool.called") {
+		if strings.Contains(row.action, "client-supplied") {
+			t.Fatalf("client-supplied tool name reached audit: %+v", row)
+		}
+		if row.action == "tools/call" && row.outcome == "failure" && strings.Contains(row.metadata, `"error_category":"protocol_error"`) {
+			unknownAudited = true
+		}
+	}
+	if !unknownAudited {
+		t.Fatal("unregistered tool call was not audited as tools/call failure")
+	}
+
+	rows := auditRows(t, state.db, "mcp.request.called")
+	listed := findAudit(t, rows, "tools/list")
+	if listed.outcome != "success" || listed.requestID != testRequestID || !strings.Contains(listed.metadata, `"duration_ms"`) ||
+		!strings.Contains(listed.metadata, `"method":"tools/list"`) || strings.Contains(listed.metadata, state.token.Secret) {
+		t.Fatalf("tools/list audit = %+v", listed)
+	}
+	prompted := findAudit(t, rows, "prompts/list")
+	if prompted.outcome != "success" || prompted.requestID != testRequestID ||
+		!strings.Contains(prompted.metadata, `"method":"prompts/list"`) || !strings.Contains(prompted.metadata, `"duration_ms"`) {
+		t.Fatalf("prompts/list audit = %+v", prompted)
+	}
+}
+
+func TestMCPReceivingMiddlewareRecoversPanicsWithoutLeakingValues(t *testing.T) {
+	state := newTestState(t, config.MCP{})
+	var logs bytes.Buffer
+	h := &handler{
+		identity: state.auth, logger: slog.New(slog.NewTextHandler(&logs, nil)), tools: map[string]*mcp.Tool{},
+	}
+	server := mcp.NewServer(&mcp.Implementation{Name: "panic-server", Version: "1"}, nil)
+	server.AddReceivingMiddleware(h.observe)
+	type none struct{}
+	addTool(server, h, &mcp.Tool{
+		Name: "panic_v1", Description: "Panics for middleware tests.",
+		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
+	}, nil, func(context.Context, *mcp.CallToolRequest, none) (none, toolRun) {
+		panic("super-secret-panic-value")
+	})
+	clientTransport, serverTransport := mcp.NewInMemoryTransports()
+	if _, err := server.Connect(context.Background(), serverTransport, nil); err != nil {
+		t.Fatal(err)
+	}
+	session, err := mcp.NewClient(&mcp.Implementation{Name: "panic-test", Version: "1"}, nil).Connect(
+		context.Background(), clientTransport, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { session.Close() })
+
+	result := callTool(t, session, "panic_v1", map[string]any{})
+	if !result.IsError || contentText(result) != "internal failure" {
+		t.Fatalf("panic result = %+v", result)
+	}
+	if strings.Contains(logs.String(), "super-secret-panic-value") {
+		t.Fatalf("panic value leaked into logs: %s", logs.String())
+	}
+	row := findAudit(t, auditRows(t, state.db, "mcp.tool.called"), "panic_v1")
+	if row.outcome != "failure" || !strings.Contains(row.metadata, `"error_category":"internal"`) {
+		t.Fatalf("panic audit = %+v", row)
+	}
+}
+
+func TestMCPUnknownMethodIsRejectedBeforeMiddleware(t *testing.T) {
+	state := newTestState(t, config.MCP{})
+	body := `{"jsonrpc":"2.0","id":3,"method":"x/unknown","params":{"_meta":{` + statelessMeta + `}}}`
+	response := postMCPMethod(state.handler, state.token.Secret, "x/unknown", body)
+	if !strings.Contains(response.Body.String(), `"code":-32601`) {
+		t.Fatalf("unknown method response = %d %s", response.Code, response.Body.String())
+	}
+	for _, row := range auditRows(t, state.db, "mcp.request.called") {
+		if row.action == "x/unknown" {
+			t.Fatalf("SDK rejects unknown methods before receiving middleware; unexpected audit %+v", row)
+		}
+	}
+}
+
+const statelessMeta = `"io.modelcontextprotocol/protocolVersion":"2026-07-28",` +
+	`"io.modelcontextprotocol/clientInfo":{"name":"raw-test","version":"1"},` +
+	`"io.modelcontextprotocol/clientCapabilities":{}`
+
+func postMCPMethod(handler http.Handler, token, method, body string) *httptest.ResponseRecorder {
+	request := httptest.NewRequest(http.MethodPost, "/mcp", bytes.NewBufferString(body))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Accept", "application/json, text/event-stream")
+	request.Header.Set("Authorization", "Bearer "+token)
+	request.Header.Set("MCP-Protocol-Version", "2026-07-28")
+	request.Header.Set("Mcp-Method", method)
+	request.Header.Set("X-Request-ID", testRequestID)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	return response
+}
+
 func TestMCPToolsListCacheHints(t *testing.T) {
 	state := newTestState(t, config.MCP{})
 	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`
