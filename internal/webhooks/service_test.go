@@ -132,6 +132,19 @@ func TestDeliveryRetriesAreBoundedAndRedacted(t *testing.T) {
 		if _, err := service.DeliverPending(ctx, 1); err != nil {
 			t.Fatal(err)
 		}
+		deliveries, err := service.ListDeliveries(ctx, owner, owner.WorkspaceID, created.ID)
+		if err != nil || len(deliveries) != 1 {
+			t.Fatalf("attempt %d ListDeliveries = %+v, err = %v", attempt, deliveries, err)
+		}
+		if attempt < maxAttempts {
+			if deliveries[0].Status != DeliveryPending || deliveries[0].AttemptCount != attempt {
+				t.Fatalf("attempt %d: status = %v, count = %d", attempt, deliveries[0].Status, deliveries[0].AttemptCount)
+			}
+		} else {
+			if deliveries[0].Status != DeliveryFailed || deliveries[0].AttemptCount != maxAttempts {
+				t.Fatalf("attempt %d: status = %v, count = %d", attempt, deliveries[0].Status, deliveries[0].AttemptCount)
+			}
+		}
 	}
 	deliveries, err := service.ListDeliveries(ctx, owner, owner.WorkspaceID, created.ID)
 	if err != nil || len(deliveries) != 1 || deliveries[0].Status != "failed" || deliveries[0].AttemptCount != maxAttempts || deliveries[0].LastError != "remote-status" {
@@ -188,6 +201,90 @@ func TestExhaustedWebhookJobSettlesDelivery(t *testing.T) {
 	if calls != 0 {
 		t.Fatalf("HTTP calls = %d, want 0", calls)
 	}
+}
+
+func TestEvaluateDeliveryOutcome(t *testing.T) {
+	now := time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC)
+
+	t.Run("successful delivery on attempts 1 to 5", func(t *testing.T) {
+		for attempt := 1; attempt <= 5; attempt++ {
+			outcome := evaluateDeliveryOutcome(attempt, 5, 200, "", now)
+			if outcome.Status != DeliveryDelivered {
+				t.Fatalf("attempt %d status = %v, want %v", attempt, outcome.Status, DeliveryDelivered)
+			}
+			if outcome.NextAttemptAt != nil {
+				t.Fatalf("attempt %d NextAttemptAt = %v, want nil", attempt, outcome.NextAttemptAt)
+			}
+			if outcome.LastStatusCode != 200 {
+				t.Fatalf("attempt %d LastStatusCode = %d, want 200", attempt, outcome.LastStatusCode)
+			}
+			if outcome.LastError != "" {
+				t.Fatalf("attempt %d LastError = %q, want empty", attempt, outcome.LastError)
+			}
+		}
+	})
+
+	t.Run("retryable failures on attempts 1 to 4 with exponential backoff", func(t *testing.T) {
+		expectedDelays := map[int]time.Duration{
+			1: time.Second,
+			2: 2 * time.Second,
+			3: 4 * time.Second,
+			4: 8 * time.Second,
+		}
+		for attempt, delay := range expectedDelays {
+			outcome := evaluateDeliveryOutcome(attempt, 5, 502, "remote-status", now)
+			if outcome.Status != DeliveryPending {
+				t.Fatalf("attempt %d status = %v, want %v", attempt, outcome.Status, DeliveryPending)
+			}
+			if outcome.NextAttemptAt == nil {
+				t.Fatalf("attempt %d NextAttemptAt is nil, want %v", attempt, now.Add(delay))
+			} else if !outcome.NextAttemptAt.Equal(now.Add(delay)) {
+				t.Fatalf("attempt %d NextAttemptAt = %v, want %v", attempt, *outcome.NextAttemptAt, now.Add(delay))
+			}
+			if outcome.LastStatusCode != 502 {
+				t.Fatalf("attempt %d LastStatusCode = %d, want 502", attempt, outcome.LastStatusCode)
+			}
+			if outcome.LastError != "remote-status" {
+				t.Fatalf("attempt %d LastError = %q, want remote-status", attempt, outcome.LastError)
+			}
+		}
+	})
+
+	t.Run("exhausted on attempt 5", func(t *testing.T) {
+		outcome := evaluateDeliveryOutcome(5, 5, 504, "remote-status", now)
+		if outcome.Status != DeliveryFailed {
+			t.Fatalf("attempt 5 status = %v, want %v", outcome.Status, DeliveryFailed)
+		}
+		if outcome.NextAttemptAt != nil {
+			t.Fatalf("attempt 5 NextAttemptAt = %v, want nil", outcome.NextAttemptAt)
+		}
+		if outcome.LastStatusCode != 504 {
+			t.Fatalf("attempt 5 LastStatusCode = %d, want 504", outcome.LastStatusCode)
+		}
+		if outcome.LastError != "remote-status" {
+			t.Fatalf("attempt 5 LastError = %q, want remote-status", outcome.LastError)
+		}
+	})
+
+	t.Run("worker exhausted outcome", func(t *testing.T) {
+		outcome := evaluateDeliveryOutcome(5, 5, 0, "worker-exhausted", now)
+		if outcome.Status != DeliveryFailed {
+			t.Fatalf("status = %v, want %v", outcome.Status, DeliveryFailed)
+		}
+		if outcome.NextAttemptAt != nil {
+			t.Fatalf("NextAttemptAt = %v, want nil", outcome.NextAttemptAt)
+		}
+		if outcome.LastError != "worker-exhausted" {
+			t.Fatalf("LastError = %q, want worker-exhausted", outcome.LastError)
+		}
+	})
+
+	t.Run("normalizes invalid attempt and maxAttempts bounds", func(t *testing.T) {
+		outcome := evaluateDeliveryOutcome(0, 0, 500, "err", now)
+		if outcome.Status != DeliveryFailed {
+			t.Fatalf("outcome for attempt 0, max 0 = %+v", outcome)
+		}
+	})
 }
 
 func webhookTestDB(t *testing.T) (*sql.DB, *identity.Service, identity.Principal) {

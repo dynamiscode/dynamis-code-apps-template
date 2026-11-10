@@ -7,7 +7,17 @@
   `UPLOADING`, `COMPLETING`, `SUCCESS`, and `ERROR` phases, in-flight submit
   button locking, non-reloading error transitions, and polite live-region status
   feedback.
-
+- Migrated the five `items_*_v1` MCP tools to the SDK's typed `mcp.AddTool`,
+  deriving schemas from Go contract types. Tool names, descriptions,
+  annotations, and published schemas are unchanged and pinned by a contract
+  test; the SDK now enforces the published constraints, so inputs such as
+  `limit: 0`, empty `search`, `status`, or `sort`, `status: null`, and cursors
+  over 512 characters are rejected instead of accepted or defaulted.
+- Added MCP completion: `completion/complete` for the new read-only
+  `item_review_v1` prompt, completing `status` from the fixed item statuses and
+  `itemId` from one bounded page of the caller's authorized workspace, with
+  empty results for unauthorized or malformed workspaces and no new write
+  surface.
 - Upgraded vendored HTMX from 2.0.4 to 4.0.1, renamed the `htmx:afterSwap`
   listener to `htmx:after:swap`, and kept 2.x non-swap behavior for
   `204`, `304`, `4xx`, and `5xx` responses.

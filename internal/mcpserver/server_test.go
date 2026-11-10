@@ -146,7 +146,7 @@ func TestMCPToolsUseSharedScopedItemService(t *testing.T) {
 	deleted := decodeOutput[deleteOutput](t, callTool(t, session, "items_delete_v1", map[string]any{
 		"workspaceId": state.workspaceID, "itemId": created.ID, "version": 2,
 	}))
-	if !deleted.Deleted || deleted.ItemID != created.ID {
+	if !deleted.Deleted || string(deleted.ItemID) != created.ID {
 		t.Fatalf("deleted = %+v", deleted)
 	}
 
