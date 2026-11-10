@@ -1179,21 +1179,26 @@ func TestWebImportIsAuthorizedExplicitAndAtomic(t *testing.T) {
 	}
 
 	valid := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "confirm": {"yes"}}, "items.csv", "title,status\nImported one,active\nImported two,complete\n", cookies, nil)
-	if valid.Code != http.StatusSeeOther || valid.Header().Get("Location") != root {
-		t.Fatalf("valid import = %d, %s", valid.Code, valid.Body.String())
+	expectedRedirect := root + "?imported=" + url.QueryEscape(fmt.Sprintf("%d", 2))
+	if valid.Code != http.StatusSeeOther || valid.Header().Get("Location") != expectedRedirect {
+		t.Fatalf("valid import = %d, location %q, %s", valid.Code, valid.Header().Get("Location"), valid.Body.String())
 	}
-	completed := request(handler, http.MethodGet, root, nil, cookies, nil)
+	completed := request(handler, http.MethodGet, valid.Header().Get("Location"), nil, cookies, nil)
 	if completed.Code != http.StatusOK || !strings.Contains(completed.Body.String(), "Items imported:") || !strings.Contains(completed.Body.String(), "2") ||
 		strings.Contains(completed.Body.String(), "Imported one") || strings.Contains(completed.Body.String(), "Imported two") {
 		t.Fatalf("completed import page = %d, %s", completed.Code, completed.Body.String())
 	}
-	replayed := request(handler, http.MethodGet, root, nil, cookies, nil)
-	if strings.Contains(replayed.Body.String(), "Items imported:") {
-		t.Fatalf("import success was replayed: %s", replayed.Body.String())
+	clean := request(handler, http.MethodGet, root, nil, cookies, nil)
+	if strings.Contains(clean.Body.String(), "Items imported:") {
+		t.Fatalf("import success was displayed on clean root: %s", clean.Body.String())
 	}
-	forged := request(handler, http.MethodGet, root+"?imported=999", nil, cookies, nil)
-	if strings.Contains(forged.Body.String(), "Items imported:") {
-		t.Fatalf("forged import success was displayed: %s", forged.Body.String())
+	statelessParam := request(handler, http.MethodGet, root+"?imported=999", nil, cookies, nil)
+	if !strings.Contains(statelessParam.Body.String(), "Items imported:") || !strings.Contains(statelessParam.Body.String(), "999") {
+		t.Fatalf("stateless import success was not displayed: %s", statelessParam.Body.String())
+	}
+	invalidParam := request(handler, http.MethodGet, root+"?imported=invalid", nil, cookies, nil)
+	if strings.Contains(invalidParam.Body.String(), "Items imported:") {
+		t.Fatalf("invalid import param displayed success: %s", invalidParam.Body.String())
 	}
 	principal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.ResourcesRead)
 	if err != nil {
@@ -1211,8 +1216,9 @@ func TestWebImportIsAuthorizedExplicitAndAtomic(t *testing.T) {
 		t.Fatal(err)
 	}
 	validJSON := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "confirm": {"yes"}}, "items.json", string(jsonImport), cookies, nil)
-	if validJSON.Code != http.StatusSeeOther || validJSON.Header().Get("Location") != root {
-		t.Fatalf("valid JSON import = %d, %s", validJSON.Code, validJSON.Body.String())
+	expectedJSONRedirect := root + "?imported=" + url.QueryEscape(fmt.Sprintf("%d", 1))
+	if validJSON.Code != http.StatusSeeOther || validJSON.Header().Get("Location") != expectedJSONRedirect {
+		t.Fatalf("valid JSON import = %d, location %q, %s", validJSON.Code, validJSON.Header().Get("Location"), validJSON.Body.String())
 	}
 	ownerUpdate, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.WorkspaceUpdate)
 	if err != nil {

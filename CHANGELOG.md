@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Refactored the Post-Redirect-Get Settings import confirmation from an
+  in-memory flash map to a stateless `?imported=` URL query parameter redirect,
+  supporting multi-instance deployments behind a load balancer without
+  shared server memory.
+
 - Added SDK cacheable list hints to the Agent MCP `tools/list` result
   (`ttlMs: 300000`, `cacheScope: "public"`) through `SetCacheable`, scoped to
   that method; tool behavior, scopes, and the stateless no-session contract are

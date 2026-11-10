@@ -46,8 +46,6 @@ type Handler struct {
 	template       *template.Template
 	streams        *streamLimit
 	catalog        *i18n.Catalog
-	importFlashMu  sync.Mutex
-	importFlashes  map[importFlashKey]importFlash
 }
 
 type pageData struct {
