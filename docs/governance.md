@@ -43,6 +43,11 @@ fallbacks, dependency obligations, and documentation. A pull request may be
 merged only after required checks pass and an owner approves it. The pull
 request template is a checklist, not a substitute for review judgment.
 
+The `main` branch merge policy requires one CODEOWNERS approval, successful CI
+and source security checks, resolved review conversations, and up-to-date
+status checks. GitHub branch protection must enforce this policy, including
+administrator enforcement and disabled force-pushes and branch deletion.
+
 ## Releases and changes to governance
 
 Release authority follows [release.md](release.md). Changes to license,
