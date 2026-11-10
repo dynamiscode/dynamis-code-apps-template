@@ -4,6 +4,9 @@
 
 - Fixed workflow action pins to reference commit objects, including Scorecard,
   and made pin validation reject annotated tag objects.
+- Documented protected-main merge requirements for owner review, passing
+  CI/source security checks, resolved conversations, and up-to-date status
+  checks.
 - Fixed browser form action buttons sitting directly against their preceding
   controls.
 - Added an authorized Settings import form for bounded JSON exports and strict
