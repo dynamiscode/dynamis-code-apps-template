@@ -1,0 +1,455 @@
+[
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Create an item using a caller-supplied idempotency key.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "idempotencyKey": {
+          "maxLength": 255,
+          "minLength": 1,
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "workspaceId": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "title",
+        "idempotencyKey"
+      ],
+      "type": "object"
+    },
+    "name": "items_create_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "createdByUserId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "active",
+            "complete"
+          ],
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 200,
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "workspaceId": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "workspaceId",
+        "createdByUserId",
+        "title",
+        "status",
+        "version",
+        "createdAt",
+        "updatedAt"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Permanently delete an item after client-side human approval.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "itemId": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "workspaceId": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "itemId",
+        "version"
+      ],
+      "type": "object"
+    },
+    "name": "items_delete_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "deleted": {
+          "type": "boolean"
+        },
+        "itemId": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "deleted",
+        "itemId"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Get one item in an authorized workspace.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "itemId": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "workspaceId": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "itemId"
+      ],
+      "type": "object"
+    },
+    "name": "items_get_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "createdByUserId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "active",
+            "complete"
+          ],
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 200,
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "workspaceId": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "workspaceId",
+        "createdByUserId",
+        "title",
+        "status",
+        "version",
+        "createdAt",
+        "updatedAt"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "List one workspace's items with bounded cursor pagination.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "cursor": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "limit": {
+          "default": 50,
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "search": {
+          "description": "Case-insensitive literal substring of title.",
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+        },
+        "sort": {
+          "default": "-created_at",
+          "enum": [
+            "created_at",
+            "-created_at"
+          ],
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "active",
+            "complete"
+          ],
+          "type": "string"
+        },
+        "workspaceId": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId"
+      ],
+      "type": "object"
+    },
+    "name": "items_list_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "createdAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "createdByUserId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "id": {
+                "pattern": "^[0-9a-f]{32}$",
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "active",
+                  "complete"
+                ],
+                "type": "string"
+              },
+              "title": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "updatedAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "version": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "workspaceId": {
+                "pattern": "^[0-9a-f]{32}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "workspaceId",
+              "createdByUserId",
+              "title",
+              "status",
+              "version",
+              "createdAt",
+              "updatedAt"
+            ],
+            "type": "object"
+          },
+          "maxItems": 100,
+          "type": "array"
+        },
+        "nextCursor": {
+          "maxLength": 700,
+          "type": "string"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Update an item when its version matches.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "title"
+          ]
+        },
+        {
+          "required": [
+            "status"
+          ]
+        }
+      ],
+      "properties": {
+        "itemId": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "active",
+            "complete"
+          ],
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "workspaceId": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "itemId",
+        "version"
+      ],
+      "type": "object"
+    },
+    "name": "items_update_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "createdByUserId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "active",
+            "complete"
+          ],
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 200,
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "workspaceId": {
+          "pattern": "^[0-9a-f]{32}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "workspaceId",
+        "createdByUserId",
+        "title",
+        "status",
+        "version",
+        "createdAt",
+        "updatedAt"
+      ],
+      "type": "object"
+    }
+  }
+]
