@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Fixed race condition in HTTP `timeoutMiddleware` where context cancellation
+  or timeout could race with the result channel and flush an unwritten
+  buffered response as `200 OK` instead of `504 Gateway Timeout` (`request-timeout`).
 - Moved MCP audit, request ID, timing, and panic recovery into an SDK receiving
   middleware, so every dispatched method (including `tools/list` and
   `prompts/list`) writes one redacted audit record. Tool audit fields are

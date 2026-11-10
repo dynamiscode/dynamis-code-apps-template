@@ -60,6 +60,13 @@ func notFoundProblem(writer http.ResponseWriter, request *http.Request) {
 	)
 }
 
+func timeoutProblem(writer http.ResponseWriter, request *http.Request) {
+	writeProblem(
+		writer, request, http.StatusGatewayTimeout, "request-timeout",
+		"The request exceeded its time limit.",
+	)
+}
+
 func etag(version int64) string {
 	return fmt.Sprintf(`"v%d"`, version)
 }
