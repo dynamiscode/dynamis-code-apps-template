@@ -11,7 +11,10 @@ go run ./cmd/server
 Running `make setup` configures `.githooks` (enforcing `gofmt` verification on staged Go files) and installs dependencies.
 
 Use Go 1.26 or newer; the module records the development toolchain. Use an
-isolated PostgreSQL database through `POSTGRES_TEST_URL` for PostgreSQL tests.
+isolated PostgreSQL database through `POSTGRES_TEST_URL` (for example,
+`postgres://postgres@127.0.0.1:5432/dynamis_code_test?sslmode=disable`) for
+PostgreSQL compatibility tests across schema migrations, leasing locks, and
+queue claim transactions.
 
 ## Change workflow
 
