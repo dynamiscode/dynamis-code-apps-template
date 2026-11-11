@@ -14,7 +14,7 @@ Use Go 1.26 or newer; the module records the development toolchain. Use an
 isolated PostgreSQL database through `POSTGRES_TEST_URL` (for example,
 `postgres://postgres@127.0.0.1:5432/dynamis_code_test?sslmode=disable`) for
 PostgreSQL compatibility tests across schema migrations, leasing locks, and
-queue claim transactions.
+queue claim transactions. `make test-postgres` runs the identity Postgres tests against a fresh container on CI's pinned version, because those tests require a fresh database per run (see the target in the [Makefile](../Makefile)).
 
 ## Change workflow
 

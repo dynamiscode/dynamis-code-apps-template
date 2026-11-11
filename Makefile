@@ -2,7 +2,7 @@ GOVULNCHECK_VERSION ?= v1.7.0
 ACTIONLINT_VERSION ?= v1.7.12
 GITLEAKS_VERSION ?= v8.30.1
 
-.PHONY: setup setup-hooks fmt-check lint test vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check build image docker-smoke accessibility-smoke webmcp-smoke template-smoke verify js-check test-unit
+.PHONY: setup setup-hooks fmt-check lint test vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check build image docker-smoke accessibility-smoke webmcp-smoke template-smoke verify js-check test-unit test-postgres
 
 setup: setup-hooks
 	test -f .env || cp .env.example .env
@@ -26,6 +26,16 @@ web-conformance:
 
 test-unit:
 	node --test internal/web/assets/*.test.mjs
+
+test-postgres:
+	set -e; \
+	name="dynamis-code-test-pg-$$$$"; \
+	trap 'docker rm -f "$$name" >/dev/null 2>&1 || true' EXIT; \
+	docker run -d --name "$$name" -e POSTGRES_DB=dynamis_code_test -e POSTGRES_USER=postgres -e POSTGRES_HOST_AUTH_METHOD=trust -p 127.0.0.1::5432 postgres:14.24-alpine3.24@sha256:727876d274666da0b92a445390ba093c84b8e9f8343e1c53cd4e9a7ab2d85310 >/dev/null; \
+	port="$$(docker port "$$name" 5432/tcp | head -n1 | sed 's/.*://')"; \
+	for i in $$(seq 1 60); do docker exec "$$name" pg_isready -h 127.0.0.1 -U postgres -d dynamis_code_test >/dev/null 2>&1 && break; sleep 1; done; \
+	docker exec "$$name" pg_isready -h 127.0.0.1 -U postgres -d dynamis_code_test >/dev/null; \
+	POSTGRES_TEST_URL="postgres://postgres@127.0.0.1:$$port/dynamis_code_test?sslmode=disable" go test ./internal/identity/... -count=1
 
 lint: fmt-check vet js-check doc-links web-conformance
 
