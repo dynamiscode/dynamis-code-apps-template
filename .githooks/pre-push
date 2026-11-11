@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+
+# Run the full test suite before a push so failures surface locally, not in CI.
+make test

@@ -8,7 +8,7 @@ set -a; . ./.env; set +a
 go run ./cmd/server
 ```
 
-Running `make setup` configures `.githooks` (enforcing `gofmt` on staged Go files, plus `go vet` and generate drift checks) and installs dependencies. Refresh only the hook path with `make setup-hooks`.
+Running `make setup` configures `.githooks` (enforcing `gofmt` on staged Go files, plus `go vet` and generate drift checks on commit, and `go test ./...` on push) and installs dependencies. Refresh only the hook path with `make setup-hooks`.
 
 Use Go 1.26 or newer; the module records the development toolchain. Use an
 isolated PostgreSQL database through `POSTGRES_TEST_URL` (for example,
