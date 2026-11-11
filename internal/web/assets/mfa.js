@@ -1,6 +1,7 @@
 (() => {
   const button = document.getElementById("passkey-login");
   const optionsNode = document.getElementById("mfa-options");
+  const BUTTON_SELECTOR = "button, input[type=submit]";
   if (!window.PublicKeyCredential || !navigator.credentials) return;
   const decode = value => Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/") + "==="), c => c.charCodeAt(0));
   const encode = value => { let binary = ""; new Uint8Array(value).forEach(byte => binary += String.fromCharCode(byte)); return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
@@ -38,9 +39,8 @@
     let detail = "";
     try {
       const body = await response.json();
-      if (typeof body.error === "string") detail = body.error;
-      else if (typeof body.detail === "string") detail = body.detail;
-    } catch (err) {
+      if (typeof body.detail === "string") detail = body.detail;
+    } catch {
       detail = "";
     }
     throw new RejectedResponse(detail.trim() || "The passkey registration failed.");
@@ -66,7 +66,7 @@
     }
   };
 
-  if (button && optionsNode) button.addEventListener("click", () => withBusy(document.querySelectorAll("button, input[type=submit]"), async () => {
+  if (button && optionsNode) button.addEventListener("click", () => withBusy(document.querySelectorAll(BUTTON_SELECTOR), async () => {
     const options = JSON.parse(optionsNode.textContent);
     options.publicKey.challenge = decode(options.publicKey.challenge);
     (options.publicKey.allowCredentials || []).forEach(item => item.id = decode(item.id));
@@ -84,7 +84,7 @@
   if (!enrollment) return;
   enrollment.addEventListener("submit", event => {
     event.preventDefault();
-    return withBusy(enrollment.querySelectorAll("button, input[type=submit]"), async () => {
+    return withBusy(enrollment.querySelectorAll(BUTTON_SELECTOR), async () => {
       const csrf = enrollment.querySelector("[name=csrf]").value;
       const response = await fetch(enrollment.action, {method: "POST", headers: {"Content-Type": "application/json", "X-CSRF-Token": csrf}, body: JSON.stringify({password: enrollment.querySelector("[name=password]").value})});
       await rejectIfNotOk(response);

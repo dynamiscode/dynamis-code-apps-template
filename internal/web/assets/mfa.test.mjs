@@ -44,8 +44,9 @@ const deferred = () => {
 const cancelError = () => Object.assign(new Error("user dismissed"), { name: "NotAllowedError" });
 
 // Loads mfa.js against minimal DOM stubs. Login and enrollment are both present unless disabled.
-// The injected atob is lenient because mfa.js's decode() appends "===" to base64url values, which
-// the browser atob rejects (InvalidCharacterError); see the follow-up note in the change report.
+// The injected atob is lenient because mfa.js's decode() appends "===" to base64url input, which
+// native atob rejects (InvalidCharacterError). The stub reaches the code under test; fixing decode()
+// is tracked separately and is out of scope here.
 function load({ login = false, enroll = false, credentialsGet, credentialsCreate, fetchImpl } = {}) {
   const main = element();
   const loginButton = element({ dataset: { csrf: "test-csrf" } });
