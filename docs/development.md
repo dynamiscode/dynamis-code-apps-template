@@ -105,8 +105,7 @@ agent-assisted development:
 Claude Code entry points: root `CLAUDE.md` imports `AGENTS.md`, and
 `.claude/skills/` holds a copy of each `.agents/skills/` skill. Edit the skill
 in `.agents/skills/` and copy it to `.claude/skills/`; the permanent handoff
-conformance test fails on drift. Symlinks are not used because
-`cmd/template-init` rejects them.
+conformance test fails on drift.
 
 ## Pull requests and merge guidance
 
@@ -125,6 +124,9 @@ conformance test fails on drift. Symlinks are not used because
    `CHANGELOG.md` under `## Unreleased`. When rebasing or merging `origin/main`,
    preserve all concurrent unreleased entries by keeping both sides of the
    conflict markers, ensuring no entries are dropped or duplicated.
+5. Rebase onto `origin/main` before running `make verify`. A branch cut from an
+   older `main` can miss Makefile steps that CI runs, so a local pass proves less
+   than it appears to.
 
 ## Checks
 
