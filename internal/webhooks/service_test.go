@@ -302,6 +302,15 @@ func TestWebhookAndJobRetrySchedulesMatch(t *testing.T) {
 	}
 }
 
+func TestRetryScheduleBackoffIsConcrete(t *testing.T) {
+	want := []time.Duration{time.Second, 2 * time.Second, 4 * time.Second, 8 * time.Second}
+	for i, expected := range want {
+		if got := jobs.RetryDelay(i + 1); got != expected {
+			t.Fatalf("RetryDelay(%d) = %v, want %v", i+1, got, expected)
+		}
+	}
+}
+
 func webhookTestDB(t *testing.T) (*sql.DB, *identity.Service, identity.Principal) {
 	t.Helper()
 	ctx := context.Background()
