@@ -1,10 +1,12 @@
 package files
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
 	"io"
+	"log/slog"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -227,7 +229,7 @@ func TestFileStateTransitions(t *testing.T) {
 	if err := service.transitionFile(ctx, nil, file1.ID, Pending, Ready); err != nil {
 		t.Fatalf("Pending -> Ready transition failed: %v", err)
 	}
-	var status1 string
+	var status1 FileStatus
 	if err := db.QueryRow("SELECT status FROM files WHERE id = ?", file1.ID).Scan(&status1); err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +247,7 @@ func TestFileStateTransitions(t *testing.T) {
 	if err := service.transitionFile(ctx, nil, file2.ID, Pending, Failed); err != nil {
 		t.Fatalf("Pending -> Failed transition failed: %v", err)
 	}
-	var status2 string
+	var status2 FileStatus
 	if err := db.QueryRow("SELECT status FROM files WHERE id = ?", file2.ID).Scan(&status2); err != nil {
 		t.Fatal(err)
 	}
@@ -306,7 +308,7 @@ func TestFileStateTransitions(t *testing.T) {
 	if err := tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
-	var status3 string
+	var status3 FileStatus
 	if err := db.QueryRow("SELECT status FROM files WHERE id = ?", file3.ID).Scan(&status3); err != nil {
 		t.Fatal(err)
 	}
@@ -392,5 +394,17 @@ func TestQuotaCalculationCleanupStaleAndFailedFiles(t *testing.T) {
 	}
 	if file3.ID == "" {
 		t.Fatal("expected valid file ID")
+	}
+}
+
+func TestMarkFailedLogsTransitionError(t *testing.T) {
+	var logs bytes.Buffer
+	service := NewService(openTestDB(t), config.SQLite, nil, nil, 0, 0, 0, "")
+	service.logger = slog.New(slog.NewTextHandler(&logs, nil))
+	missingID := strings.Repeat("a", 32)
+	service.markFailed(context.Background(), missingID)
+
+	if !strings.Contains(logs.String(), "file_id="+missingID) || !strings.Contains(logs.String(), ErrNotFound.Error()) {
+		t.Fatalf("markFailed did not log its transition error; logs = %q", logs.String())
 	}
 }
