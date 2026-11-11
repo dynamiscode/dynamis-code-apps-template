@@ -102,8 +102,10 @@ agent-assisted development:
   rather than loading entire multi-thousand-line files unconditionally.
 
 Claude Code entry points: root `CLAUDE.md` imports `AGENTS.md`, and
-`.claude/skills` is a symlink to `.agents/skills/`. Keep `AGENTS.md` and the
-skills as the only sources; do not copy them into Claude-specific files.
+`.claude/skills/` holds a copy of each `.agents/skills/` skill. Edit the skill
+in `.agents/skills/` and copy it to `.claude/skills/`; the permanent handoff
+conformance test fails on drift. Symlinks are not used because
+`cmd/template-init` rejects them.
 
 ## Pull requests and merge guidance
 
