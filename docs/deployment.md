@@ -44,6 +44,60 @@ through `DATABASE_URL`. Multiple application instances also require external
 traffic distribution. SSE polling shares database state; connections remain
 instance-local.
 
+## Cloudflare R2 object storage
+
+Use R2 only with the optional Files profile. Metadata stays in the database and
+object bytes go to one private bucket. Variables are described in
+[configuration](configuration.md#files).
+
+1. Create a bucket and leave public access off. Do not attach an `r2.dev` URL
+   or a custom public domain to it.
+2. Create an R2 API token limited to that bucket with object read and write
+   permission. Store its access key ID and secret access key in the deployment
+   secret store.
+3. Set these variables at runtime. Do not bake them into the image:
+
+   ```sh
+   STORAGE_DRIVER=s3
+   STORAGE_S3_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+   STORAGE_S3_REGION=auto
+   STORAGE_S3_BUCKET=<bucket-name>
+   AWS_ACCESS_KEY_ID=<token-access-key-id>
+   AWS_SECRET_ACCESS_KEY=<token-secret-access-key>
+   ```
+
+4. Add a bucket CORS rule so browsers can upload. Allow the origin of
+   `APP_PUBLIC_URL` and the headers the upload initiation returns:
+
+   ```json
+   [
+     {
+       "AllowedOrigins": ["https://app.example.com"],
+       "AllowedMethods": ["PUT"],
+       "AllowedHeaders": ["Content-Type", "If-None-Match"],
+       "MaxAgeSeconds": 3600
+     }
+   ]
+   ```
+
+5. Verify the endpoint from a source checkout with a dedicated test bucket. The
+   suite writes and deletes objects under a random `conformance-` prefix. Enter
+   the secret without putting it in shell history:
+
+   ```sh
+   read -s AWS_SECRET_ACCESS_KEY; export AWS_SECRET_ACCESS_KEY
+   export AWS_ACCESS_KEY_ID=<token-access-key-id>
+   S3_CONFORMANCE_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com \
+   S3_CONFORMANCE_BUCKET=<test-bucket-name> S3_CONFORMANCE_REGION=auto \
+     go test ./internal/files/ -run TestS3ConformanceConfiguredEndpoint -count=1 -v
+   unset AWS_SECRET_ACCESS_KEY
+   ```
+
+   `S3_CONFORMANCE_FORCE_PATH_STYLE=true` selects path-style addressing for
+   endpoints that need it. The test is skipped unless the endpoint, bucket, and
+   `AWS_ACCESS_KEY_ID` are all set. Record the result as a dated section in the
+   object-storage conformance evidence in [capabilities](capabilities.md).
+
 ## Runtime contract
 
 - Container user: UID/GID 65532; writable path: `/data`; port: `8080`.
