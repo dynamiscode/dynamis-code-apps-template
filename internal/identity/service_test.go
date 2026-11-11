@@ -798,6 +798,32 @@ func TestAPITokenScopesRevocationAndRoleReevaluation(t *testing.T) {
 	}
 }
 
+func TestBeginOIDCTransactionForRejectsInvalidPurpose(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := context.Background()
+	bootstrap := bootstrapOwner(t, service)
+	redirect := "https://app.example.com/callback"
+
+	for name, tc := range map[string]struct {
+		purpose OIDCPurpose
+		userID  string
+	}{
+		"unknown purpose":   {purpose: OIDCPurpose("admin"), userID: bootstrap.UserID},
+		"empty purpose":     {purpose: "", userID: ""},
+		"link without user": {purpose: OIDCPurposeLink, userID: ""},
+		"login with user":   {purpose: OIDCPurposeLogin, userID: bootstrap.UserID},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := service.beginOIDCTransactionFor(
+				ctx, "company", "browser", tc.purpose, tc.userID, redirect,
+			)
+			if !errors.Is(err, ErrOIDCTransaction) {
+				t.Fatalf("beginOIDCTransactionFor(%q) error = %v", tc.purpose, err)
+			}
+		})
+	}
+}
+
 func TestOIDCTransactionBindingAndIdentityLinking(t *testing.T) {
 	service, db := newTestService(t)
 	ctx := context.Background()

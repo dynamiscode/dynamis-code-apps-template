@@ -159,7 +159,7 @@ func (r *OIDCRegistry) BeginLink(
 		return OIDCTransaction{}, "", ErrUnknownOIDCProvider
 	}
 	transaction, err := service.beginOIDCTransactionFor(
-		ctx, providerID, browserSession, "link", userID, provider.redirectURI,
+		ctx, providerID, browserSession, OIDCPurposeLink, userID, provider.redirectURI,
 	)
 	if err != nil {
 		return OIDCTransaction{}, "", err
@@ -191,7 +191,7 @@ func (r *OIDCRegistry) Complete(
 
 type OIDCCompletion struct {
 	Claims  ExternalClaims
-	Purpose string
+	Purpose OIDCPurpose
 	UserID  string
 }
 
@@ -283,19 +283,19 @@ func (s *Service) beginOIDCTransaction(
 	browserSession string,
 	redirectURI string,
 ) (OIDCTransaction, error) {
-	return s.beginOIDCTransactionFor(ctx, providerID, browserSession, "login", "", redirectURI)
+	return s.beginOIDCTransactionFor(ctx, providerID, browserSession, OIDCPurposeLogin, "", redirectURI)
 }
 
 func (s *Service) beginOIDCTransactionFor(
 	ctx context.Context,
 	providerID string,
 	browserSession string,
-	purpose string,
+	purpose OIDCPurpose,
 	userID string,
 	redirectURI string,
 ) (OIDCTransaction, error) {
-	if browserSession == "" || (purpose != "login" && purpose != "link") ||
-		(purpose == "link" && userID == "") || (purpose == "login" && userID != "") {
+	if browserSession == "" || (purpose != OIDCPurposeLogin && purpose != OIDCPurposeLink) ||
+		(purpose == OIDCPurposeLink && userID == "") || (purpose == OIDCPurposeLogin && userID != "") {
 		return OIDCTransaction{}, ErrOIDCTransaction
 	}
 	state, err := newSecret()
@@ -323,7 +323,7 @@ func (s *Service) beginOIDCTransactionFor(
 			nonce_hash, redirect_uri, purpose, user_id, created_at, expires_at
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, hashSecret(state), providerID, hashSecret(browserSession),
-		hashSecret(verifier), hashSecret(nonce), redirectURI, purpose, nullable(userID),
+		hashSecret(verifier), hashSecret(nonce), redirectURI, string(purpose), nullable(userID),
 		timestamp(now), timestamp(transaction.ExpiresAt))
 	if err != nil {
 		return OIDCTransaction{}, fmt.Errorf("create OIDC transaction: %w", err)
@@ -399,7 +399,7 @@ func (s *Service) consumeOIDCTransactionFlow(
 	}
 	return OIDCTransaction{
 		ProviderID: providerID, BrowserSession: browserSession,
-		Purpose: purpose, UserID: userID.String, RedirectURI: redirectURI,
+		Purpose: OIDCPurpose(purpose), UserID: userID.String, RedirectURI: redirectURI,
 		ExpiresAt: expires,
 	}, nil
 }

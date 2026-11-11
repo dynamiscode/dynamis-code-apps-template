@@ -58,11 +58,6 @@ func validateOIDCCallbackParams(p OIDCCallbackParams) error {
 	return nil
 }
 
-// ValidateOIDCCallbackParams validates callback parameters for external callers.
-func ValidateOIDCCallbackParams(p OIDCCallbackParams) error {
-	return validateOIDCCallbackParams(p)
-}
-
 func (h *Handler) oidcLogin(writer http.ResponseWriter, request *http.Request) {
 	if h.oidc == nil {
 		h.renderError(writer, http.StatusNotFound)
@@ -140,7 +135,7 @@ func (h *Handler) oidcCallback(writer http.ResponseWriter, request *http.Request
 		return
 	}
 	h.clearOIDCCookies(writer)
-	if completion.Purpose == "link" {
+	if completion.Purpose == identity.OIDCPurposeLink {
 		session, err := h.identity.AuthenticateSession(request.Context(), cookieValue(request, "session"))
 		if err != nil || session.UserID != completion.UserID {
 			h.oidcError(writer, request)

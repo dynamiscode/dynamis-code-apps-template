@@ -313,10 +313,18 @@ type SCIMGroupOperation struct {
 	Members   []string
 }
 
+// OIDCPurpose is the flow an OIDC transaction was started for.
+type OIDCPurpose string
+
+const (
+	OIDCPurposeLogin OIDCPurpose = "login"
+	OIDCPurposeLink  OIDCPurpose = "link"
+)
+
 type OIDCTransaction struct {
 	ProviderID     string
 	BrowserSession string
-	Purpose        string
+	Purpose        OIDCPurpose
 	UserID         string
 	State          string
 	PKCEVerifier   string

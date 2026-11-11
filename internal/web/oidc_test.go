@@ -60,13 +60,6 @@ func TestValidateOIDCCallbackParams_Valid(t *testing.T) {
 			t.Fatalf("expected nil error, got: %v", err)
 		}
 	})
-
-	t.Run("valid via exported ValidateOIDCCallbackParams wrapper", func(t *testing.T) {
-		p := validCallbackParams()
-		if err := ValidateOIDCCallbackParams(p); err != nil {
-			t.Fatalf("expected nil error, got: %v", err)
-		}
-	})
 }
 
 func TestValidateOIDCCallbackParams_InvalidFlow(t *testing.T) {
