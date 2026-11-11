@@ -171,7 +171,7 @@ func (h *Handler) oidcCallback(writer http.ResponseWriter, request *http.Request
 			h.renderError(writer, http.StatusInternalServerError)
 			return
 		}
-		h.setCookie(writer, "mfa_challenge", challenge.Token, challenge.ExpiresAt, true)
+		h.setMFAChallengeCookies(writer, challenge, "/")
 		h.clearCookie(writer, "oidc_browser")
 		h.redirect(writer, request, "/mfa")
 		return

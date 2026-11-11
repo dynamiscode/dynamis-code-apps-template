@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"log/slog"
 	"mime"
 	"net/http"
 	"os"
@@ -36,10 +37,13 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
+// FileStatus is the persisted lifecycle state of a file.
+type FileStatus string
+
 const (
-	Pending = "pending"
-	Ready   = "ready"
-	Failed  = "failed"
+	Pending FileStatus = "pending"
+	Ready   FileStatus = "ready"
+	Failed  FileStatus = "failed"
 )
 
 var (
@@ -51,14 +55,14 @@ var (
 	ErrInvalidTransition = errors.New("invalid file state transition")
 )
 
-var validTransitions = map[string]map[string]bool{
+var validTransitions = map[FileStatus]map[FileStatus]bool{
 	Pending: {
 		Ready:  true,
 		Failed: true,
 	},
 }
 
-func isValidTransition(fromStatus, toStatus string) bool {
+func isValidTransition(fromStatus, toStatus FileStatus) bool {
 	return validTransitions[fromStatus][toStatus]
 }
 
@@ -67,13 +71,13 @@ type File struct {
 	WorkspaceID  string  `json:"workspaceId"`
 	OwnerUserID  *string `json:"ownerUserId"`
 	storageKey   string
-	OriginalName string    `json:"originalName"`
-	DetectedMIME *string   `json:"detectedMime,omitempty"`
-	Size         int64     `json:"size"`
-	SHA256       *string   `json:"sha256,omitempty"`
-	Status       string    `json:"status"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+	OriginalName string     `json:"originalName"`
+	DetectedMIME *string    `json:"detectedMime,omitempty"`
+	Size         int64      `json:"size"`
+	SHA256       *string    `json:"sha256,omitempty"`
+	Status       FileStatus `json:"status"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	UpdatedAt    time.Time  `json:"updatedAt"`
 }
 
 type Service struct {
@@ -86,6 +90,7 @@ type Service struct {
 	signedURLTTL      time.Duration
 	prefix            string
 	now               func() time.Time
+	logger            *slog.Logger
 	// ponytail: one process-wide finalization lock; use per-file/distributed claims if throughput or multi-instance local storage requires it.
 	finalizationMu sync.Mutex
 }
@@ -97,7 +102,7 @@ type InitiateInput struct {
 }
 
 func NewService(db *sql.DB, driver config.DatabaseDriver, auth *identity.Service, store ObjectStore, maxObjectBytes, maxWorkspaceBytes int64, signedURLTTL time.Duration, prefix string) *Service {
-	return &Service{db: db, driver: driver, auth: auth, store: store, maxObjectBytes: maxObjectBytes, maxWorkspaceBytes: maxWorkspaceBytes, signedURLTTL: signedURLTTL, prefix: prefix, now: time.Now}
+	return &Service{db: db, driver: driver, auth: auth, store: store, maxObjectBytes: maxObjectBytes, maxWorkspaceBytes: maxWorkspaceBytes, signedURLTTL: signedURLTTL, prefix: prefix, now: time.Now, logger: slog.Default()}
 }
 
 func (s *Service) SupportsPresignedPut() bool { return s.store.SupportsPresignedPut() }
@@ -454,25 +459,25 @@ func (s *Service) get(ctx context.Context, actor identity.Principal, workspaceID
 	return file, nil
 }
 
+// dbExecutor is satisfied by both *sql.DB and *sql.Tx.
+type dbExecutor interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
 // transitionFile validates and executes a state transition from fromStatus to toStatus for fileID.
-// It returns ErrInvalidTransition if the transition is disallowed by validTransitions or if the file
-// in the database has already transitioned past fromStatus.
-func (s *Service) transitionFile(ctx context.Context, tx *sql.Tx, fileID, fromStatus, toStatus string) error {
+// A nil db runs against the service database; pass an untyped nil, never a typed-nil *sql.Tx. It returns ErrInvalidTransition if the transition is
+// disallowed by validTransitions or if the file in the database has already transitioned past fromStatus.
+func (s *Service) transitionFile(ctx context.Context, db dbExecutor, fileID string, fromStatus, toStatus FileStatus) error {
 	if !isValidTransition(fromStatus, toStatus) {
 		return ErrInvalidTransition
 	}
-	now := s.now().UTC()
-	var result sql.Result
-	var err error
-	if tx != nil {
-		result, err = tx.ExecContext(ctx, database.Rebind(s.driver, `
-			UPDATE files SET status = ?, updated_at = ? WHERE id = ? AND status = ?
-		`), toStatus, stamp(now), fileID, fromStatus)
-	} else {
-		result, err = s.db.ExecContext(ctx, database.Rebind(s.driver, `
-			UPDATE files SET status = ?, updated_at = ? WHERE id = ? AND status = ?
-		`), toStatus, stamp(now), fileID, fromStatus)
+	if db == nil {
+		db = s.db
 	}
+	result, err := db.ExecContext(ctx, database.Rebind(s.driver, `
+		UPDATE files SET status = ?, updated_at = ? WHERE id = ? AND status = ?
+	`), toStatus, stamp(s.now().UTC()), fileID, fromStatus)
 	if err != nil {
 		return err
 	}
@@ -481,13 +486,8 @@ func (s *Service) transitionFile(ctx context.Context, tx *sql.Tx, fileID, fromSt
 		return err
 	}
 	if affected == 0 {
-		var currentStatus string
-		var checkErr error
-		if tx != nil {
-			checkErr = tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT status FROM files WHERE id = ?`), fileID).Scan(&currentStatus)
-		} else {
-			checkErr = s.db.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT status FROM files WHERE id = ?`), fileID).Scan(&currentStatus)
-		}
+		var currentStatus FileStatus
+		checkErr := db.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT status FROM files WHERE id = ?`), fileID).Scan(&currentStatus)
 		if errors.Is(checkErr, sql.ErrNoRows) {
 			return ErrNotFound
 		}
@@ -503,7 +503,9 @@ func (s *Service) transitionFile(ctx context.Context, tx *sql.Tx, fileID, fromSt
 }
 
 func (s *Service) markFailed(ctx context.Context, fileID string) {
-	_ = s.transitionFile(ctx, nil, fileID, Pending, Failed)
+	if err := s.transitionFile(ctx, nil, fileID, Pending, Failed); err != nil {
+		s.logger.ErrorContext(ctx, "mark file failed", "file_id", fileID, "error", err)
+	}
 }
 
 func (s *Service) releasePending(ctx context.Context, file File) {

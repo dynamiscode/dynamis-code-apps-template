@@ -121,6 +121,16 @@ operations.
 REST MFA endpoints use the existing session cookie/CSRF boundary and return no
 factor secrets after enrollment. MCP and CLI expose no MFA or secret flow.
 
+Browser login challenges have four states: `active`, `consumed` (a factor was
+accepted), `expired` (5 minutes after creation), and `locked` (5 failed
+attempts). Only an `active` challenge loads; every other state and an unknown
+token return the same invalid-challenge result. Starting a challenge sets
+`mfa_challenge` and `mfa_return_to`. Successful completion, and a `/mfa` load that
+finds the challenge invalid, clear `mfa_challenge`, `mfa_csrf`, and
+`mfa_return_to` together. A challenge that locks on a failed
+attempt keeps its cookies until the next `/mfa` load clears them. OIDC login
+starts with return target `/`.
+
 Bootstrap, invitation possession, and OIDC verified-email claims mark an email
 verified. Other accounts can request a single-use, 24-hour verification link.
 Password reset requests return the same browser response for known and unknown

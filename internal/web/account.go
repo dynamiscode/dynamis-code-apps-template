@@ -136,8 +136,7 @@ func (h *Handler) accountPasswordMutation(writer http.ResponseWriter, request *h
 			h.renderError(writer, http.StatusInternalServerError)
 			return
 		}
-		h.setCookie(writer, "mfa_challenge", challenge.Token, challenge.ExpiresAt, true)
-		h.setCookie(writer, "mfa_return_to", "/account?saved=1", challenge.ExpiresAt, true)
+		h.setMFAChallengeCookies(writer, challenge, "/account?saved=1")
 		h.redirect(writer, request, "/mfa")
 		return
 	}
