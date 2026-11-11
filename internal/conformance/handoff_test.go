@@ -203,6 +203,11 @@ func checkSkills(t *testing.T, root string) {
 				t.Errorf("skill references temporary source %s: %s", temporary, path)
 			}
 		}
+		// .claude/skills is a real copy for Claude Code; the template generator rejects symlinks.
+		mirror := filepath.Join(root, ".claude/skills", filepath.Base(filepath.Dir(path)), "SKILL.md")
+		if readFile(t, mirror) != content {
+			t.Errorf("%s drifted from %s; copy the skill into .claude/skills", mirror, path)
+		}
 	}
 }
 
