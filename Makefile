@@ -18,10 +18,13 @@ fmt-check:
 js-check:
 	node --check internal/web/assets/app.js
 
+doc-links:
+	./scripts/check-doc-links.sh
+
 test-unit:
 	node --test internal/web/assets/*.test.mjs
 
-lint: fmt-check vet js-check
+lint: fmt-check vet js-check doc-links
 
 test:
 	go test ./...
