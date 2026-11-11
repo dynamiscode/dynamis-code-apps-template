@@ -13,4 +13,4 @@ if [ -n "$staged_files" ]; then
 	fi
 fi
 
-make vet generate-check
+make vet generate-check js-check
