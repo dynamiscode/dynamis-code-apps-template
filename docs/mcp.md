@@ -213,9 +213,21 @@ Set `MCP_OAUTH_ENABLED=true` to make this application the authorization server
 - Each grant is bound to one workspace, and its scopes are capped by the user's
   role when used.
 
-Client registration (`/oauth/register`) and the consent page are not included in
-this change; they follow in the next change. Until then, the endpoints above
-work only for grants created by the identity service.
+- `POST /oauth/register` (RFC 7591) registers public PKCE clients. Clients must
+  use `token_endpoint_auth_method` `none`, grant types `authorization_code` and
+  `refresh_token`, and response type `code`. Redirect URIs must be HTTPS or
+  loopback HTTP and match exactly. Registrations are capped per instance
+  (`429` when the cap is reached).
+- `GET /.well-known/oauth-authorization-server` (RFC 8414) advertises the
+  endpoints, `S256` PKCE, and `none` client authentication.
+- `GET /oauth/authorize` is the browser consent page. It requires a browser
+  session, redirects to sign-in when none exists, and asks the user to choose one
+  workspace where they hold the requested scopes. `POST /oauth/authorize` checks
+  the CSRF token, then approves or denies. Approval redirects to the client with a
+  single-use code. Invalid client, redirect URI, or resource shows an error page
+  rather than redirecting, because the target is untrusted until matched. The
+  page is localized (English and Spanish) and is not exposed through WebMCP,
+  which never handles consent, credentials, or tokens.
 
 The protocol contract follows the upstream
 [MCP specification](https://modelcontextprotocol.io/specification/2026-07-28)

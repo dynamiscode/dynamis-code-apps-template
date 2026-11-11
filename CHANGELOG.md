@@ -48,8 +48,10 @@
   `MCP_OAUTH_ENABLED`: PKCE authorization codes, rotating refresh tokens, opaque
   15-minute access tokens checked against the live session and membership,
   `POST /oauth/token` and `POST /oauth/revoke`, OAuth-format errors, and
-  `error="invalid_token"` on rejected bearer tokens. Client registration and the
-  consent page follow in the next change; migration `000016`.
+  `error="invalid_token"` on rejected bearer tokens; migration `000016`.
+- Added dynamic client registration (`POST /oauth/register`), RFC 8414
+  authorization-server metadata, and a localized browser consent page at
+  `GET`/`POST /oauth/authorize` for the built-in MCP authorization server.
 - Added optional RFC 9728 protected-resource metadata for `/mcp`, enabled only
   by `MCP_OAUTH_AUTHORIZATION_SERVER` with `APP_PUBLIC_URL` as an origin, plus
   `WWW-Authenticate` `resource_metadata` hints on `401` and insufficient-scope

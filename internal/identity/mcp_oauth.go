@@ -28,7 +28,11 @@ var (
 	ErrOAuthInvalidRequest = errors.New("oauth request is invalid")
 	ErrOAuthInvalidClient  = errors.New("oauth client is invalid")
 	ErrOAuthInvalidGrant   = errors.New("oauth grant is invalid or expired")
+	ErrOAuthClientLimit    = errors.New("oauth client registration limit reached")
 )
+
+// defaultOAuthClientLimit bounds dynamically registered clients per instance.
+const defaultOAuthClientLimit = 1000
 
 // OAuthClient is a dynamically registered MCP client. Clients are public and
 // authenticate with PKCE rather than a client secret.
@@ -81,6 +85,15 @@ func (s *Service) RegisterOAuthClient(
 		return OAuthClient{}, err
 	}
 	defer tx.Rollback()
+	var registered int
+	if err := s.queryRow(ctx, tx, `
+		SELECT COUNT(*) FROM oauth_clients WHERE deleted_at IS NULL
+	`).Scan(&registered); err != nil {
+		return OAuthClient{}, err
+	}
+	if registered >= s.oauthClientLimit {
+		return OAuthClient{}, ErrOAuthClientLimit
+	}
 	if _, err := s.exec(ctx, tx, `
 		INSERT INTO oauth_clients (id, client_id, name, redirect_uris, created_at)
 		VALUES (?, ?, ?, ?, ?)
@@ -555,4 +568,19 @@ func validOAuthRedirectURI(value string) bool {
 	}
 	ip := net.ParseIP(parsed.Hostname())
 	return parsed.Scheme == "http" && (parsed.Hostname() == "localhost" || (ip != nil && ip.IsLoopback()))
+}
+
+// OAuthClientByID returns an active registered client for the consent page and
+// token exchange checks. Unknown or deleted clients return ErrOAuthInvalidClient.
+func (s *Service) OAuthClientByID(ctx context.Context, clientID string) (OAuthClient, error) {
+	var client OAuthClient
+	var encoded string
+	if err := s.queryRow(ctx, s.db, `
+		SELECT id, client_id, name, redirect_uris FROM oauth_clients
+		WHERE client_id = ? AND deleted_at IS NULL
+	`, clientID).Scan(&client.ID, &client.ClientID, &client.Name, &encoded); err != nil {
+		return OAuthClient{}, ErrOAuthInvalidClient
+	}
+	client.RedirectURIs = strings.Split(encoded, "\n")
+	return client, nil
 }

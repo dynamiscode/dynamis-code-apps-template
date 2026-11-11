@@ -31,5 +31,11 @@ func registerAgent(
 		mux.Handle("/oauth/revoke", httpapi.Wrap(
 			mcpserver.NewOAuthRevocationEndpoint(identityService), cfg.HTTP, slog.Default(),
 		))
+		mux.Handle("/oauth/register", httpapi.Wrap(
+			mcpserver.NewOAuthRegistrationEndpoint(identityService), cfg.HTTP, slog.Default(),
+		))
+		if metadata := mcpserver.NewAuthorizationServerMetadataHandler(cfg.MCP); metadata != nil {
+			mux.Handle("/.well-known/oauth-authorization-server", httpapi.Wrap(metadata, cfg.HTTP, slog.Default()))
+		}
 	}
 }

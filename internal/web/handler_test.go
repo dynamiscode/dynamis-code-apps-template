@@ -1487,7 +1487,15 @@ func testWebRaw(t *testing.T, maximumStreams int, mailers ...appmail.Sender) (*H
 
 func testWebWithMFA(t *testing.T, maximumStreams int, mfaEnabled bool, mailers ...appmail.Sender) (http.Handler, *identity.Service, *items.Service, string, identity.BootstrapResult) {
 	t.Helper()
+	return testWebConfigured(t, maximumStreams, mfaEnabled, nil, mailers...)
+}
+
+func testWebConfigured(t *testing.T, maximumStreams int, mfaEnabled bool, configure func(*Handler), mailers ...appmail.Sender) (http.Handler, *identity.Service, *items.Service, string, identity.BootstrapResult) {
+	t.Helper()
 	webHandler, auth, itemService, workspaceID, owner := testWebWithMFARaw(t, maximumStreams, mfaEnabled, mailers...)
+	if configure != nil {
+		configure(webHandler)
+	}
 	return webHandler.Routes(), auth, itemService, workspaceID, owner
 }
 

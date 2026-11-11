@@ -252,6 +252,26 @@ func TestAgentOAuthMetadataRouteIsOptIn(t *testing.T) {
 		return app
 	}
 
+	newBuiltInApp := func(t *testing.T) *App {
+		t.Helper()
+		cfg, err := config.LoadFrom(func(string) (string, bool) { return "", false })
+		if err != nil {
+			t.Fatal(err)
+		}
+		cfg.Database.SQLitePath = ":memory:"
+		cfg.Database.MaxOpenConns, cfg.Database.MaxIdleConns = 1, 1
+		cfg.PublicURL = "https://app.example.com"
+		cfg.MCP.OAuthBuiltIn = true
+		cfg.MCP.OAuthAuthorizationServer = "https://app.example.com"
+		cfg.MCP.OAuthResourceURL = "https://app.example.com/mcp"
+		app, err := New(ctx, cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { app.Close() })
+		return app
+	}
+
 	enabled := newApp(t, true)
 	metadata := httptest.NewRecorder()
 	enabled.Handler.ServeHTTP(metadata, httptest.NewRequest(http.MethodGet, metadataPath, nil))
@@ -264,7 +284,24 @@ func TestAgentOAuthMetadataRouteIsOptIn(t *testing.T) {
 		t.Fatalf("enabled /mcp challenge = %d WWW-Authenticate=%q", challengeResponse.Code, challengeResponse.Header().Get("WWW-Authenticate"))
 	}
 
+	builtIn := newBuiltInApp(t)
+	authorize := httptest.NewRecorder()
+	builtIn.Handler.ServeHTTP(authorize, httptest.NewRequest(http.MethodGet, "/oauth/authorize?response_type=code", nil))
+	if authorize.Code != http.StatusBadRequest {
+		t.Fatalf("built-in consent without parameters = %d, want 400", authorize.Code)
+	}
+	serverMetadata := httptest.NewRecorder()
+	builtIn.Handler.ServeHTTP(serverMetadata, httptest.NewRequest(http.MethodGet, "/.well-known/oauth-authorization-server", nil))
+	if serverMetadata.Code != http.StatusOK || !strings.Contains(serverMetadata.Body.String(), `"registration_endpoint":"https://app.example.com/oauth/register"`) {
+		t.Fatalf("built-in AS metadata = %d %s", serverMetadata.Code, serverMetadata.Body.String())
+	}
+
 	disabled := newApp(t, false)
+	absentAuthorize := httptest.NewRecorder()
+	disabled.Handler.ServeHTTP(absentAuthorize, httptest.NewRequest(http.MethodGet, "/oauth/authorize", nil))
+	if absentAuthorize.Code != http.StatusNotFound {
+		t.Fatalf("disabled consent route = %d, want 404", absentAuthorize.Code)
+	}
 	absent := httptest.NewRecorder()
 	disabled.Handler.ServeHTTP(absent, httptest.NewRequest(http.MethodGet, metadataPath, nil))
 	if absent.Code != http.StatusNotFound {

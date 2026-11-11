@@ -242,3 +242,28 @@ func TestOAuthRevokeAndRefreshAfterRevoke(t *testing.T) {
 		t.Fatalf("unknown token revoke = %v, want nil (RFC 7009)", err)
 	}
 }
+
+func TestOAuthClientLookupAndRegistrationLimit(t *testing.T) {
+	t.Parallel()
+	service, _ := newTestService(t)
+	ctx := context.Background()
+	service.oauthClientLimit = 2
+
+	client, err := service.RegisterOAuthClient(ctx, "Lookup", []string{testRedirectURI}, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	found, err := service.OAuthClientByID(ctx, client.ClientID)
+	if err != nil || found.Name != "Lookup" || found.RedirectURIs[0] != testRedirectURI {
+		t.Fatalf("OAuthClientByID() = %#v, %v", found, err)
+	}
+	if _, err := service.OAuthClientByID(ctx, "missing-client"); !errors.Is(err, ErrOAuthInvalidClient) {
+		t.Fatalf("missing client error = %v", err)
+	}
+	if _, err := service.RegisterOAuthClient(ctx, "Second", []string{testRedirectURI}, AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.RegisterOAuthClient(ctx, "Third", []string{testRedirectURI}, AuditContext{}); !errors.Is(err, ErrOAuthClientLimit) {
+		t.Fatalf("third registration = %v, want ErrOAuthClientLimit", err)
+	}
+}

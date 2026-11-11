@@ -178,6 +178,9 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	mux.Handle("/api/", handler)
 	mux.Handle("/health/", handler)
 	registerAgent(mux, identityService, itemService, cfg)
+	if cfg.MCP.OAuthBuiltIn {
+		webHandler.EnableMCPOAuth(cfg.MCP.OAuthResourceURL)
+	}
 	mux.Handle("/", httpapi.Wrap(webHandler.Routes(), cfg.HTTP, slog.Default()))
 
 	return &App{

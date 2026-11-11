@@ -37,6 +37,8 @@ type Service struct {
 	dummyHash      string
 	mfa            MFAConfig
 	webauthn       *webauthnlib.WebAuthn
+	// oauthClientLimit bounds MCP OAuth client registrations (see mcp_oauth.go).
+	oauthClientLimit int
 }
 
 func NewService(db *sql.DB, driver config.DatabaseDriver) (*Service, error) {
@@ -54,12 +56,13 @@ func NewServiceWithMFA(db *sql.DB, driver config.DatabaseDriver, mfa MFAConfig) 
 		return nil, dummyHashErr
 	}
 	service := &Service{
-		db:             db,
-		driver:         driver,
-		now:            time.Now,
-		passwordParams: defaultPasswordParams,
-		dummyHash:      dummyHash,
-		mfa:            mfa,
+		db:               db,
+		driver:           driver,
+		now:              time.Now,
+		passwordParams:   defaultPasswordParams,
+		dummyHash:        dummyHash,
+		mfa:              mfa,
+		oauthClientLimit: defaultOAuthClientLimit,
 	}
 	if !mfa.Enabled {
 		return service, nil

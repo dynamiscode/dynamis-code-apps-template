@@ -46,9 +46,11 @@ type Handler struct {
 	template       *template.Template
 	streams        *streamLimit
 	catalog        *i18n.Catalog
+	mcpResource    string
 }
 
 type pageData struct {
+	MCPConsent                       *mcpConsentView
 	Locale                           string
 	Catalog                          *i18n.Catalog
 	Title                            string
@@ -292,6 +294,10 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /setup", h.setupPage)
 	mux.HandleFunc("POST /setup", h.setup)
 	mux.HandleFunc("POST /logout", h.logout)
+	if h.mcpResource != "" {
+		mux.HandleFunc("GET /oauth/authorize", h.mcpAuthorizePage)
+		mux.HandleFunc("POST /oauth/authorize", h.mcpAuthorize)
+	}
 	mux.HandleFunc("GET /account", h.accountPage)
 	mux.HandleFunc("POST /account/profile", h.accountProfileMutation)
 	mux.HandleFunc("POST /account/notifications", h.accountNotificationMutation)

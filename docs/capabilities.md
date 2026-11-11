@@ -26,7 +26,7 @@ durable production data and records its deployment-specific evidence.
 | REST and optional Agent MCP/remote CLI interfaces | bootstrap, recurring | 03-05, 09 | conforming | REST: [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go), [SCIM contracts](../internal/httpapi/scim_test.go); [MCP tests](../internal/mcpserver/server_test.go); [CLI tests](../internal/appctl/run_test.go) |
 | Local authentication, OIDC, MFA, and passkey service | bootstrap, recurring | 02 | conforming | [Authentication](authentication.md), [MFA service](../internal/identity/mfa.go), [OIDC tests](../internal/identity/oidc_test.go), [configuration tests](../internal/platform/config/config_test.go) |
 | Optional MCP OAuth protected-resource metadata | bootstrap, recurring | 05 | conforming, off by default; trigger accepted in [decision 0007](decisions/0007-mcp-oauth-protected-resource-metadata.md) | [MCP discovery](mcp.md#protected-resource-discovery), `internal/mcpserver/oauth_test.go`, `internal/bootstrap/agent_smoke_test.go` (Agent profile only), [configuration tests](../internal/platform/config/config_test.go) |
-| Built-in MCP OAuth authorization server | bootstrap, recurring | 05 | partial: token and revocation endpoints, grant store, and access checks implemented behind `MCP_OAUTH_ENABLED`; client registration and consent page pending | [decision 0008](decisions/0008-built-in-mcp-authorization-server.md), [MCP OAuth](mcp.md#built-in-authorization-server), `internal/identity/mcp_oauth_test.go`, `internal/mcpserver/oauth_token_test.go`, [configuration tests](../internal/platform/config/config_test.go) |
+| Built-in MCP OAuth authorization server | bootstrap, recurring | 05 | implemented behind `MCP_OAUTH_ENABLED`; expired-record pruning and accessibility-smoke evidence pending | [decision 0008](decisions/0008-built-in-mcp-authorization-server.md), [MCP OAuth](mcp.md#built-in-authorization-server), `internal/identity/mcp_oauth_test.go`, `internal/mcpserver/oauth_token_test.go`, [configuration tests](../internal/platform/config/config_test.go) |
 | Permissions, roles, workspaces, invitations, sessions, tokens, SCIM provisioning, account lifecycle, preferences, and notifications service | bootstrap, recurring | 02, 09 | conforming | [Authorization and lifecycle tests](../internal/identity/service_test.go), [SCIM lifecycle tests](../internal/identity/scim_test.go), [account and notification tests](../internal/identity/account_notification_test.go), [PostgreSQL identity test](../internal/identity/postgres_test.go) |
 | SQLite, PostgreSQL, migrations, and rolling compatibility | bootstrap, recurring | 01, 06 | conforming | [Database tests](../internal/platform/database/migrate_test.go), [PostgreSQL tests](../internal/platform/database/postgres_test.go), [upgrade procedure](operations.md#upgrades-and-alerts) |
 | Data governance, portability, deletion, archive, restoration, account retention, and import | bootstrap, operational | 06, 07 | conforming | [Data lifecycle](data-lifecycle.md), [import/export tests](../internal/portability/service_test.go), [item lifecycle tests](../internal/items/service_test.go), [account tests](../internal/identity/account_notification_test.go), [retention tests](../internal/platform/maintenance/maintenance_test.go), [demo seed](../cmd/demo/main.go) |
@@ -502,7 +502,9 @@ Verified 2026-11-10 with Go 1.27.3 on macOS (SQLite only):
   `error="invalid_token"` challenges, and revocation
 - `make verify` passed on this tree (gofmt, vet, `go test ./...`,
   `go test -race ./...`, generate-check, build, template-smoke)
-- not yet run: PostgreSQL migration and service tests (`POSTGRES_TEST_URL`),
-  `make docker-smoke` for this change, and `make secret-check`
-- not yet implemented: `/oauth/register`, the consent page, RFC 8414 metadata,
-  and expired-record pruning
+- `POST /oauth/register`, RFC 8414 metadata, and the localized consent page
+  (`internal/web/mcp_consent_test.go`: sign-in redirect, escaped client name,
+  invalid redirect and resource rejection, CSRF, approve and deny, code exchange)
+- `internal/identity/mcp_oauth_postgres_test.go` on PostgreSQL 16
+- not yet run: `make accessibility-smoke` for the consent page
+- not yet implemented: expired-record pruning
