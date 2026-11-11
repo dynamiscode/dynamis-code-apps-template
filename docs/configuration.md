@@ -83,11 +83,13 @@ begins. Changes require restart.
 SQLite always uses one open and one idle connection regardless of pool
 variables because one instance owns the file.
 
-`MULTI_WORKSPACE_ENABLED` defaults to `false`, which is single workspace mode.
-This is a default change: deployments that rely on multi-workspace operation
-must set `MULTI_WORKSPACE_ENABLED=true` before upgrading. Setting it to `true`
-keeps the current multi-workspace behaviour. The browser is unchanged by this
-setting in this release.
+`MULTI_WORKSPACE_ENABLED` is parsed at startup and stored as the instance
+workspace mode. It defaults to `false`, which selects single workspace mode;
+`true` selects multi workspace mode. In this release no runtime path reads the
+stored mode, so behaviour is the same for either value and the browser is
+unchanged. When a later change makes the mode take effect, the default change
+will apply to existing deployments: those that rely on multi-workspace
+operation must set `MULTI_WORKSPACE_ENABLED=true` before upgrading.
 
 The three `BOOTSTRAP_ADMIN_*` variables enable unattended first-owner
 bootstrap only when all are non-empty. A partial set fails startup; an empty
