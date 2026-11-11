@@ -69,8 +69,8 @@ When sources conflict, stop and resolve the contract or decision first.
 Run applicable commands in order:
 
 1. Focused package tests (e.g. `go test ./internal/<pkg>/...` during iteration).
-2. `node --check internal/web/assets/*.js` for browser script changes.
-3. `go test ./...`
+2. `node --check internal/web/assets/*.js` and `make test-unit` for browser script changes.
+3. `make test` (runs `test-unit` and `go test ./...`)
 4. make lint (runs fmt-check and go vet)
 5. `go test -race ./...` for concurrent code or release readiness.
 6. `go generate ./api` and confirm no generated drift.
