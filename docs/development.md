@@ -109,12 +109,16 @@ agent-assisted development:
 
 1. Open pull requests targeting `main` with a clear summary, change list, and
    verification evidence.
-2. When merging via CLI, enable auto-merge so squashing occurs automatically
+2. Watch the checks until they finish, and stop at the first failure:
+   ```sh
+   gh pr checks <pr-number> --watch --fail-fast
+   ```
+3. When merging via CLI, enable auto-merge so squashing occurs automatically
    once all required checks succeed:
    ```sh
    gh pr merge <pr-number> --squash --delete-branch --auto
    ```
-3. In concurrent worktree workflows, merge conflicts frequently cluster in
+4. In concurrent worktree workflows, merge conflicts frequently cluster in
    `CHANGELOG.md` under `## Unreleased`. When rebasing or merging `origin/main`,
    preserve all concurrent unreleased entries by keeping both sides of the
    conflict markers, ensuring no entries are dropped or duplicated.
