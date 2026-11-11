@@ -28,6 +28,8 @@ Read only the route needed for the change.
 | Operations and data lifecycle | [Operations](operations.md), [data lifecycle](data-lifecycle.md) |
 | Conformance and deferred triggers | [Capabilities](capabilities.md) |
 | Recurring procedures | `.agents/skills/` |
+| Domain vocabulary | [Glossary](../GLOSSARY.md) |
+| Issue tracker, triage labels, domain-doc rules | [Issue tracker](agents/issue-tracker.md), [triage labels](agents/triage-labels.md), [domain docs](agents/domain.md) |
 
 Behavior claims require code or runnable evidence. Link generated contracts and
 migrations; do not duplicate them in prose.

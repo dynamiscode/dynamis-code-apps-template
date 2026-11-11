@@ -31,6 +31,21 @@ domain behavior as application-owned work.
 The command is documented in the root [README](../README.md). Commit the lock
 with the generated application; it contains provenance, not credentials.
 
+## Set up agent docs in a generated application
+
+`template-init` does not copy the agent setup. After generation, before the
+first feature change:
+
+1. Run the `setup-matt-pocock-skills` procedure, or copy `docs/agents/` and the
+   `## Agent skills` block from this template by hand.
+2. Change the tracker repository in `AGENTS.md` and `docs/agents/issue-tracker.md`
+   from `dynamiscode/dynamis-code-apps-template` to the generated repository.
+3. Create the triage labels in the generated repository (`gh label create`).
+4. Add the application's product terms to the application-owned section of
+   `GLOSSARY.md`. Keep the template terms unchanged.
+5. Commit `AGENTS.md`, `docs/agents/`, and `GLOSSARY.md` with the generated
+   application.
+
 ## Update without overwriting customization
 
 1. Back up the application and read release notes and migrations between the
