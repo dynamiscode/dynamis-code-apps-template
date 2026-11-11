@@ -30,9 +30,8 @@ import (
 const (
 	maxWebhooks            = 20
 	maxDeliveryHistory     = 100
-	maxAttempts            = 5
+	maxAttempts            = jobs.MaxAttempts
 	deliveryRequestTimeout = 10 * time.Second
-	initialRetryDelay      = time.Second
 	maxWebhookNameLength   = 100
 	maxWebhookURLLength    = 2048
 	maxWebhookPayloadBytes = 1 << 20
@@ -621,7 +620,7 @@ func evaluateDeliveryOutcome(attempt, maxAttempts, statusCode int, reason string
 			LastError:      reason,
 		}
 	}
-	next := now.Add(retryDelay(attempt))
+	next := now.Add(jobs.RetryDelay(attempt))
 	return deliveryOutcome{
 		Status:         DeliveryPending,
 		NextAttemptAt:  &next,
@@ -788,13 +787,6 @@ func optionalTime(value sql.NullString) (*time.Time, error) {
 }
 
 func stamp(value time.Time) string { return value.UTC().Format(time.RFC3339Nano) }
-
-func retryDelay(attempt int) time.Duration {
-	if attempt < 1 {
-		attempt = 1
-	}
-	return initialRetryDelay * time.Duration(1<<(attempt-1))
-}
 
 func nullableStatus(value int) any {
 	if value == 0 {
