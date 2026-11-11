@@ -2,7 +2,7 @@ GOVULNCHECK_VERSION ?= v1.7.0
 ACTIONLINT_VERSION ?= v1.7.12
 GITLEAKS_VERSION ?= v8.30.1
 
-.PHONY: setup setup-hooks fmt-check lint test vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check build image docker-smoke accessibility-smoke webmcp-smoke template-smoke verify js-check test-unit test-postgres
+.PHONY: setup setup-hooks fmt-check lint test vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check build image docker-smoke accessibility-smoke webmcp-smoke template-smoke verify js-check test-unit test-postgres logger-injection
 
 setup: setup-hooks
 	test -f .env || cp .env.example .env
@@ -37,7 +37,11 @@ test-postgres:
 	docker exec "$$name" pg_isready -h 127.0.0.1 -U postgres -d dynamis_code_test >/dev/null; \
 	POSTGRES_TEST_URL="postgres://postgres@127.0.0.1:$$port/dynamis_code_test?sslmode=disable" go test -p 1 ./internal/identity/... ./internal/files/... -count=1
 
-lint: fmt-check vet js-check doc-links web-conformance
+lint: fmt-check vet js-check doc-links web-conformance logger-injection
+
+logger-injection:
+	./scripts/check-logger-injection.sh
+	./scripts/test-check-logger-injection.sh
 
 test: test-unit
 	go test ./...
