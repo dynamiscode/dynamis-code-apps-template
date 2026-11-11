@@ -23,6 +23,20 @@ consumer before the job is failed. Failure categories, logs, and metrics are
 redacted. Webhook delivery is the first handler and is enqueued in the same
 transaction as its outbox row.
 
+## Exhaustion contract
+
+When a claimed job has used its final attempt, the worker runs the kind's
+exhausted handler, if one is registered, before it finishes the job as failed.
+This is at-least-once. If the exhausted handler returns an error, or the finish
+write fails, the job stays leased and is reclaimed after the lease expires, so
+the exhausted handler runs again. Exhausted handlers must be idempotent: a rerun
+must leave the same state and must not repeat external effects.
+
+The webhook handler is the reference. `HandleExhaustedJob` in
+[`internal/webhooks/service.go`](../../internal/webhooks/service.go) updates a
+delivery only while its status is `pending`, so a rerun changes no rows and
+returns success.
+
 ## Consequences
 
 Committed webhook work survives request loss and crashed workers without a new
