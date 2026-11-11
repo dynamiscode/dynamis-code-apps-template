@@ -2,6 +2,10 @@
 
 This ledger records implemented conformance evidence and deferred triggers.
 
+Dated evidence sections are append-only. New verification is recorded as a new
+dated section; past dated sections are never rewritten, because each is a record
+of what was verified on its date.
+
 ## Profile status
 
 | Profile | Status | Evidence |
