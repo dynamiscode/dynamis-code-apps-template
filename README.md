@@ -60,6 +60,13 @@ Health endpoints are `/health/live` and `/health/ready`; the live OpenAPI
 reference is `/api/openapi.json`, with conventions in
 [HTTP and REST API](docs/api.md). Press `Ctrl-C` for graceful shutdown.
 
+## Email delivery
+
+Invitation, verification, and password-reset email is optional. Configure either
+SMTP (`SMTP_*`) or Cloudflare Email Sending (`CLOUDFLARE_EMAIL_*`), not both. For
+Cloudflare, the sender domain must be verified in Cloudflare before delivery
+works. See [configuration](docs/configuration.md#invitation-email).
+
 ## Generate an application
 
 Run from a verified release checkout and supply its immutable identity:

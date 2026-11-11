@@ -148,7 +148,7 @@ Profile preferences store display name, locale, IANA timezone, and `system`,
 `light`, or `dark` theme. In-app notification delivery is controlled by a
 user preference and an optional per-workspace preference; disabled notifications
 are not stored. Email verification and password-reset delivery reuse the
-optional synchronous SMTP sender. Reliable retryable email delivery remains
+optional synchronous SMTP or Cloudflare Email Sending sender. Reliable retryable email delivery remains
 outside the current webhook-focused background-job slice.
 
 OIDC sessions retain only the provider identifier. Revocation returns that
@@ -192,8 +192,9 @@ result and stored as SHA-256 hashes. Expiration, scope changes, last use, role
 changes, and revocation are enforced.
 
 Bearer REST management uses the same workspace permission checks. Workspace listing and creation
-remain browser-only. Invitation create/resend returns a copyable URL and delivery status; SMTP is
-optional and invitation rows commit before delivery is attempted.
+remain browser-only. Invitation create/resend returns a copyable URL and delivery
+status; email is optional and invitation rows commit before delivery is
+attempted.
 
 ## SCIM provisioning
 
