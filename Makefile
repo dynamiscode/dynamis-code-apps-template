@@ -39,7 +39,7 @@ test-postgres:
 
 lint: fmt-check vet js-check doc-links web-conformance
 
-test:
+test: test-unit
 	go test ./...
 
 vet:
