@@ -8,7 +8,7 @@ set -a; . ./.env; set +a
 go run ./cmd/server
 ```
 
-Running `make setup` configures `.githooks` (enforcing `gofmt` on staged Go files, plus `go vet` and generate drift checks) and installs dependencies. Refresh only the hook path with `make setup-hooks`.
+Running `make setup` configures `.githooks` (enforcing `gofmt` on staged Go files, plus `go vet` and generate drift checks on commit, and `go test ./...` on push) and installs dependencies. Refresh only the hook path with `make setup-hooks`.
 
 Use Go 1.26 or newer; the module records the development toolchain. Use an
 isolated PostgreSQL database through `POSTGRES_TEST_URL` (for example,
@@ -22,8 +22,9 @@ queue claim transactions. `make test-postgres` runs the identity Postgres tests 
    [docs/README.md](README.md).
 2. Trace the affected use case, policy, repository, adapters, contracts, and
    tests. Keep workspace scope explicit.
-3. Make one bounded change. Update OpenAPI, migrations, behavior docs,
-   changelog, and capability evidence only when affected.
+3. Make one bounded change. Update OpenAPI, migrations, behavior docs, and
+   capability evidence only when affected. Changelog timing follows the
+   change obligations in [AGENTS.md](../AGENTS.md).
 4. Run focused package checks (e.g. `go test ./internal/<affected-feature>/...`)
    during iteration to maintain fast feedback loops, then the applicable
    verification ladder before committing.
@@ -104,8 +105,7 @@ agent-assisted development:
 Claude Code entry points: root `CLAUDE.md` imports `AGENTS.md`, and
 `.claude/skills/` holds a copy of each `.agents/skills/` skill. Edit the skill
 in `.agents/skills/` and copy it to `.claude/skills/`; the permanent handoff
-conformance test fails on drift. Symlinks are not used because
-`cmd/template-init` rejects them.
+conformance test fails on drift.
 
 ## Pull requests and merge guidance
 
@@ -124,6 +124,9 @@ conformance test fails on drift. Symlinks are not used because
    `CHANGELOG.md` under `## Unreleased`. When rebasing or merging `origin/main`,
    preserve all concurrent unreleased entries by keeping both sides of the
    conflict markers, ensuring no entries are dropped or duplicated.
+5. Rebase onto `origin/main` before running `make verify`. A branch cut from an
+   older `main` can miss Makefile steps that CI runs, so a local pass proves less
+   than it appears to.
 
 ## Checks
 

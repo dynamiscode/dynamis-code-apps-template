@@ -21,6 +21,9 @@ js-check:
 doc-links:
 	./scripts/check-doc-links.sh
 
+web-conformance:
+	./scripts/check-web-conformance.sh
+
 test-unit:
 	node --test internal/web/assets/*.test.mjs
 
@@ -34,7 +37,7 @@ test-postgres:
 	docker exec "$$name" pg_isready -h 127.0.0.1 -U postgres -d dynamis_code_test >/dev/null; \
 	POSTGRES_TEST_URL="postgres://postgres@127.0.0.1:$$port/dynamis_code_test?sslmode=disable" go test ./internal/identity/... -count=1
 
-lint: fmt-check vet js-check doc-links
+lint: fmt-check vet js-check doc-links web-conformance
 
 test:
 	go test ./...
