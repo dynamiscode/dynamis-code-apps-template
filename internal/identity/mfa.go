@@ -814,11 +814,7 @@ func (s *Service) loadChallenge(ctx context.Context, token, purpose string) (loa
 		return loadedChallenge{}, "", ErrInvalidMFAChallenge
 	}
 	c.state = evaluateChallengeState(consumed, c.expiresAt, c.attempts, s.now().UTC())
-	switch c.state {
-	case ChallengeActive:
-	case ChallengeConsumed, ChallengeExpired, ChallengeLocked:
-		return loadedChallenge{}, "", ErrInvalidMFAChallenge
-	default:
+	if c.state != ChallengeActive {
 		return loadedChallenge{}, "", ErrInvalidMFAChallenge
 	}
 	secret := ""

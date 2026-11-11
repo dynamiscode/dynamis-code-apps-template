@@ -1615,6 +1615,21 @@ func addCookies(request *http.Request, cookies []*http.Cookie) {
 	}
 }
 
+func TestMFAPageInvalidChallengeClearsAllChallengeCookies(t *testing.T) {
+	handler, _, _, _, _ := testWebWithMFA(t, 10, true)
+	request := httptest.NewRequest(http.MethodGet, "/mfa", nil)
+	request.AddCookie(&http.Cookie{Name: "mfa_challenge", Value: "invalid"})
+	request.AddCookie(&http.Cookie{Name: "mfa_return_to", Value: "/invitations/example"})
+	request.AddCookie(&http.Cookie{Name: "mfa_csrf", Value: "stale"})
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	for _, name := range []string{"mfa_challenge", "mfa_return_to", "mfa_csrf"} {
+		if cookie := responseCookie(response, name); cookie.MaxAge != -1 {
+			t.Fatalf("%s cookie max age = %d, want -1", name, cookie.MaxAge)
+		}
+	}
+}
+
 func responseCookie(response *httptest.ResponseRecorder, name string) *http.Cookie {
 	for _, cookie := range response.Result().Cookies() {
 		if cookie.Name == name {

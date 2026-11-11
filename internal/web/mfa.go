@@ -15,8 +15,7 @@ func (h *Handler) mfaPage(writer http.ResponseWriter, request *http.Request) {
 	}
 	options, err := h.identity.MFALoginOptions(request.Context(), challenge)
 	if err != nil {
-		h.clearCookie(writer, "mfa_challenge")
-		h.clearCookie(writer, "mfa_return_to")
+		h.clearMFAChallengeCookies(writer)
 		h.redirect(writer, request, "/login")
 		return
 	}
@@ -78,18 +77,30 @@ func (h *Handler) beginMFALogin(writer http.ResponseWriter, request *http.Reques
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
+	h.setMFAChallengeCookies(writer, challenge, returnTo)
+	h.redirect(writer, request, "/mfa")
+}
+
+// setMFAChallengeCookies starts a browser MFA challenge. returnTo is sanitized here,
+// so callers pass the raw value.
+func (h *Handler) setMFAChallengeCookies(writer http.ResponseWriter, challenge identity.MFALoginChallenge, returnTo string) {
 	h.setCookie(writer, "mfa_challenge", challenge.Token, challenge.ExpiresAt, true)
 	h.setCookie(writer, "mfa_return_to", safeReturnTo(returnTo), challenge.ExpiresAt, true)
-	h.redirect(writer, request, "/mfa")
+}
+
+// clearMFAChallengeCookies ends a browser MFA challenge on every path that ends it.
+// It clears every cookie that setMFAChallengeCookies or mfaPage sets.
+func (h *Handler) clearMFAChallengeCookies(writer http.ResponseWriter) {
+	h.clearCookie(writer, "mfa_challenge")
+	h.clearCookie(writer, "mfa_csrf")
+	h.clearCookie(writer, "mfa_return_to")
 }
 
 func (h *Handler) completeMFASession(writer http.ResponseWriter, request *http.Request, session identity.NewSession) string {
 	returnTo := safeReturnTo(cookieValue(request, "mfa_return_to"))
 	h.setCookie(writer, "session", session.Secret, session.ExpiresAt, true)
 	h.setCookie(writer, "csrf", session.CSRFSecret, session.ExpiresAt, true)
-	h.clearCookie(writer, "mfa_challenge")
-	h.clearCookie(writer, "mfa_csrf")
-	h.clearCookie(writer, "mfa_return_to")
+	h.clearMFAChallengeCookies(writer)
 	return returnTo
 }
 
