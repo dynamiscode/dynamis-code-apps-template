@@ -238,14 +238,10 @@ func (s *Service) ResendInvitation(
 		return "", err
 	}
 	if !expiredAt.Valid && !now.Before(expires) {
-		marked, err := s.markInvitationExpired(
+		if err := s.markInvitationExpired(
 			ctx, tx, invitationID, actor.WorkspaceID, now,
-		)
-		if err != nil {
+		); err != nil {
 			return "", err
-		}
-		if !marked {
-			return "", ErrInvalidInvitation
 		}
 	}
 	result, err := s.exec(ctx, tx, `
@@ -325,14 +321,10 @@ func (s *Service) RevokeInvitation(
 	currentStatus := inv.Status(now)
 	if err := ValidateInvitationTransition(currentStatus, InvitationRevoked); err != nil {
 		if currentStatus == InvitationExpired && !expiredAt.Valid {
-			marked, markErr := s.markInvitationExpired(
+			if markErr := s.markInvitationExpired(
 				ctx, tx, invitationID, actor.WorkspaceID, now,
-			)
-			if markErr != nil {
+			); markErr != nil {
 				return markErr
-			}
-			if !marked {
-				return ErrInvalidInvitation
 			}
 			if commitErr := tx.Commit(); commitErr != nil {
 				return commitErr
@@ -432,14 +424,10 @@ func (s *Service) ListInvitations(
 		return nil, err
 	}
 	for _, invitationID := range newlyExpired {
-		marked, err := s.markInvitationExpired(
+		if err := s.markInvitationExpired(
 			ctx, tx, invitationID, actor.WorkspaceID, now,
-		)
-		if err != nil {
+		); err != nil {
 			return nil, err
-		}
-		if !marked {
-			return nil, ErrInvalidInvitation
 		}
 	}
 	if err := tx.Commit(); err != nil {
@@ -601,14 +589,10 @@ func (s *Service) findInvitation(
 	now := s.now().UTC()
 	currentStatus := invitation.Status(now)
 	if currentStatus == InvitationExpired && !expiredAt.Valid {
-		marked, err := s.markInvitationExpired(
+		if err := s.markInvitationExpired(
 			ctx, tx, invitation.ID, invitation.WorkspaceID, now,
-		)
-		if err != nil {
+		); err != nil {
 			return Invitation{}, err
-		}
-		if !marked {
-			return Invitation{}, ErrInvalidInvitation
 		}
 		return Invitation{}, errInvitationExpired
 	}
@@ -691,28 +675,30 @@ func (s *Service) expireInvitations(
 		return err
 	}
 	for _, invitationID := range ids {
-		marked, err := s.markInvitationExpired(
+		if err := s.markInvitationExpired(
 			ctx, tx, invitationID, workspaceID, now,
-		)
-		if err != nil {
+		); err != nil {
 			return err
-		}
-		if !marked {
-			return ErrInvalidInvitation
 		}
 	}
 	return nil
 }
 
+// markInvitationExpired is the single mark-expired-or-fail helper for mutation
+// paths. It persists expiry for a pending invitation whose ExpiresAt has passed,
+// writes the audit event, and returns ErrInvalidInvitation when no row
+// transitions (already expired, accepted, revoked, or missing). Callers need no
+// mark-then-check pattern of their own. InvitationForSecret reaches it through
+// findInvitation and relies on rolling back, not committing, that transaction.
 func (s *Service) markInvitationExpired(
 	ctx context.Context,
 	tx *sql.Tx,
 	invitationID string,
 	workspaceID string,
 	now time.Time,
-) (bool, error) {
+) error {
 	if err := ValidateInvitationTransition(InvitationPending, InvitationExpired); err != nil {
-		return false, err
+		return err
 	}
 	result, err := s.exec(ctx, tx, `
 		UPDATE invitations SET active_email = NULL, expired_at = ?
@@ -720,21 +706,21 @@ func (s *Service) markInvitationExpired(
 		AND expired_at IS NULL AND revoked_at IS NULL AND expires_at <= ?
 	`, timestamp(now), invitationID, workspaceID, timestamp(now))
 	if err != nil {
-		return false, err
+		return err
 	}
 	changed, err := result.RowsAffected()
-	if err != nil || changed != 1 {
-		return false, err
+	if err != nil {
+		return err
 	}
-	if err := s.audit(ctx, tx, AuditEvent{
+	if changed != 1 {
+		return ErrInvalidInvitation
+	}
+	return s.audit(ctx, tx, AuditEvent{
 		EventType: "invitation.expired", AuthMethod: "system",
 		WorkspaceID: workspaceID, TargetType: "invitation",
 		TargetID: invitationID, Action: "invitation.expire",
 		Outcome: "success", Metadata: "{}", CreatedAt: now,
-	}); err != nil {
-		return false, err
-	}
-	return true, nil
+	})
 }
 
 func (s *Service) auditInvitation(
