@@ -16,11 +16,14 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 )
 
+// MaxAttempts is the shared retry ceiling for background jobs and webhook deliveries.
+const MaxAttempts = 5
+
 const (
 	maxPayloadBytes = 1 << 20
 	maxKindLength   = 100
 	maxKeyLength    = 255
-	maxAttempts     = 5
+	maxAttempts     = MaxAttempts
 	leaseDuration   = time.Minute
 	initialRetry    = time.Second
 )
@@ -389,7 +392,7 @@ func EvaluateJobOutcome(attempt, maxAttempts int, handlerErr error, now time.Tim
 			FailureCategory: category,
 		}
 	}
-	next := now.Add(retryDelay(attempt))
+	next := now.Add(RetryDelay(attempt))
 	return JobOutcome{
 		Status:          JobPending,
 		Exhausted:       false,
@@ -418,7 +421,8 @@ func validCategory(value string) bool {
 	return true
 }
 
-func retryDelay(attempt int) time.Duration {
+// RetryDelay is the shared backoff after a failed attempt: 1s, 2s, 4s, ...
+func RetryDelay(attempt int) time.Duration {
 	if attempt < 1 {
 		attempt = 1
 	}

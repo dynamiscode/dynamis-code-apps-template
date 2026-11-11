@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -285,6 +286,29 @@ func TestEvaluateDeliveryOutcome(t *testing.T) {
 			t.Fatalf("outcome for attempt 0, max 0 = %+v", outcome)
 		}
 	})
+}
+
+func TestWebhookAndJobRetrySchedulesMatch(t *testing.T) {
+	now := time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC)
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		webhookOutcome := evaluateDeliveryOutcome(attempt, maxAttempts, 500, "remote-status", now)
+		jobOutcome := jobs.EvaluateJobOutcome(attempt, maxAttempts, errors.New("err"), now)
+		if (webhookOutcome.NextAttemptAt == nil) != (jobOutcome.AvailableAt == nil) {
+			t.Fatalf("attempt %d: webhook next=%v, job next=%v", attempt, webhookOutcome.NextAttemptAt, jobOutcome.AvailableAt)
+		}
+		if webhookOutcome.NextAttemptAt != nil && !webhookOutcome.NextAttemptAt.Equal(*jobOutcome.AvailableAt) {
+			t.Fatalf("attempt %d: webhook next = %v, job next = %v", attempt, *webhookOutcome.NextAttemptAt, *jobOutcome.AvailableAt)
+		}
+	}
+}
+
+func TestRetryScheduleBackoffIsConcrete(t *testing.T) {
+	want := []time.Duration{time.Second, 2 * time.Second, 4 * time.Second, 8 * time.Second}
+	for i, expected := range want {
+		if got := jobs.RetryDelay(i + 1); got != expected {
+			t.Fatalf("RetryDelay(%d) = %v, want %v", i+1, got, expected)
+		}
+	}
 }
 
 func webhookTestDB(t *testing.T) (*sql.DB, *identity.Service, identity.Principal) {
