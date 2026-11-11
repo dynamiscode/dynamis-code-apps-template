@@ -21,10 +21,13 @@ js-check:
 doc-links:
 	./scripts/check-doc-links.sh
 
+web-conformance:
+	./scripts/check-web-conformance.sh
+
 test-unit:
 	node --test internal/web/assets/*.test.mjs
 
-lint: fmt-check vet js-check doc-links
+lint: fmt-check vet js-check doc-links web-conformance
 
 test:
 	go test ./...
