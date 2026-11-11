@@ -56,6 +56,8 @@ When sources conflict, stop and resolve the contract or decision first.
   PR merge time.
 - Follow the feature-surface checklist in [docs/development.md](docs/development.md)
   and record intentional omissions.
+- In grilling or design-interview sessions, edit files only after the user writes
+  an explicit go; answers to the questions are not a go.
 - Never claim planned behavior is implemented.
 - Never log or commit credentials, authorization headers, session values,
   invitation values, connection strings, or signed URLs.
