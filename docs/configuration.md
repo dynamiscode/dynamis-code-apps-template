@@ -29,12 +29,15 @@ begins. Changes require restart.
 | `WEBAUTHN_RP_ID` | relying-party domain | `localhost` | MFA only | No |
 | `WEBAUTHN_RP_ORIGIN` | exact HTTPS or loopback-HTTP origin | `http://localhost:8080` | MFA only | No |
 | `WEBAUTHN_RP_DISPLAY_NAME` | display name, 1-80 characters | `Dynamis Code` | MFA only | No |
-| `APP_PUBLIC_URL` | HTTPS or loopback HTTP base URL | none | SMTP only | No |
-| `SMTP_HOST` | SMTP hostname | none | Optional invitation email | No |
+| `APP_PUBLIC_URL` | HTTPS or loopback HTTP base URL | none | SMTP or Cloudflare Email only | No |
+| `SMTP_HOST` | SMTP hostname | none | Optional email delivery | No |
 | `SMTP_PORT` | integer 1-65535 | `587` | SMTP only | No |
 | `SMTP_USERNAME` | SMTP username | none | With SMTP password | No |
 | `SMTP_PASSWORD` | SMTP password | none | With SMTP username | Yes |
 | `SMTP_FROM` | sender address | none | SMTP only | No |
+| `CLOUDFLARE_EMAIL_ACCOUNT_ID` | Cloudflare account ID | none | Optional email delivery | No |
+| `CLOUDFLARE_EMAIL_API_TOKEN` | API token with Email Sending permission | none | With Cloudflare account ID | Yes |
+| `CLOUDFLARE_EMAIL_FROM` | verified sender address | none | Cloudflare Email only | No |
 | `HTTP_ADDRESS` | listen address | `127.0.0.1:8080` | No | No |
 | `HTTP_SECURE` | boolean | `false` | No | No |
 | `HTTP_READ_HEADER_TIMEOUT` | duration | `10s` | No | No |
@@ -139,12 +142,23 @@ and factor data are never logged or written to audit metadata.
 
 ## Invitation email
 
-SMTP is disabled when `SMTP_HOST` is empty. Any partial SMTP configuration fails
-startup. Enabling it requires `APP_PUBLIC_URL`, `SMTP_FROM`, and matching
-username/password values; port defaults to 587. Delivery negotiates STARTTLS
-before optional authentication. Credentials are not logged or placed in
-invitation URLs. Invitation rows commit before delivery, so a mail failure
-leaves the invitation valid and the user receives its copyable link.
+Email is disabled when neither `SMTP_HOST` nor `CLOUDFLARE_EMAIL_ACCOUNT_ID` is
+set. Any partial configuration fails startup, and configuring both providers
+fails startup.
+
+SMTP requires `APP_PUBLIC_URL`, `SMTP_FROM`, and matching username/password
+values; port defaults to 587. Delivery negotiates STARTTLS before optional
+authentication.
+
+Cloudflare Email Sending requires `APP_PUBLIC_URL`, `CLOUDFLARE_EMAIL_ACCOUNT_ID`,
+`CLOUDFLARE_EMAIL_API_TOKEN`, and `CLOUDFLARE_EMAIL_FROM`. The sender domain
+must be verified in Cloudflare before any message is delivered. Delivery calls
+the Email Sending REST API with a bearer token and times out after 10 seconds.
+Provider error bodies are not logged or returned.
+
+Credentials are not logged or placed in invitation URLs. Invitation rows commit
+before delivery, so a mail failure leaves the invitation valid and the user
+receives its copyable link.
 
 ## Webhooks
 

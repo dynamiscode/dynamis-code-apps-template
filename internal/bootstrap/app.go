@@ -149,7 +149,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,
 		cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService,
 	)
-	mailer, err := appmail.NewSMTP(cfg.Mail)
+	mailer, err := appmail.NewSender(cfg.Mail, cfg.Cloudflare)
 	if err != nil {
 		db.Close()
 		telemetryProvider.Shutdown(context.Background())

@@ -436,6 +436,42 @@ func TestLoadFromValidatesOptionalSMTP(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadFromValidatesOptionalCloudflareEmail(t *testing.T) {
+	t.Parallel()
+
+	secret := "cf-token-secret"
+	cfg, err := LoadFrom(env(map[string]string{
+		"APP_PUBLIC_URL":              "https://app.example.com/",
+		"CLOUDFLARE_EMAIL_ACCOUNT_ID": "account-123",
+		"CLOUDFLARE_EMAIL_API_TOKEN":  secret,
+		"CLOUDFLARE_EMAIL_FROM":       "no-reply@example.com",
+	}))
+	if err != nil {
+		t.Fatalf("valid Cloudflare Email configuration rejected: %v", err)
+	}
+	if cfg.Cloudflare.AccountID != "account-123" || cfg.Cloudflare.APIToken != secret || cfg.Cloudflare.From != "no-reply@example.com" {
+		t.Fatalf("Cloudflare config = %+v", cfg.Cloudflare)
+	}
+	for _, values := range []map[string]string{
+		{"CLOUDFLARE_EMAIL_ACCOUNT_ID": "account-123"},
+		{"CLOUDFLARE_EMAIL_API_TOKEN": secret, "APP_PUBLIC_URL": "https://app.example.com", "CLOUDFLARE_EMAIL_FROM": "no-reply@example.com"},
+		{"CLOUDFLARE_EMAIL_ACCOUNT_ID": "account-123", "CLOUDFLARE_EMAIL_API_TOKEN": secret, "CLOUDFLARE_EMAIL_FROM": "no-reply@example.com"},
+		{"CLOUDFLARE_EMAIL_ACCOUNT_ID": "account-123", "CLOUDFLARE_EMAIL_API_TOKEN": secret, "APP_PUBLIC_URL": "https://app.example.com", "CLOUDFLARE_EMAIL_FROM": "bad\r\nBcc: x@example.com"},
+		{
+			"CLOUDFLARE_EMAIL_ACCOUNT_ID": "account-123", "CLOUDFLARE_EMAIL_API_TOKEN": secret,
+			"APP_PUBLIC_URL": "https://app.example.com", "CLOUDFLARE_EMAIL_FROM": "no-reply@example.com",
+			"SMTP_HOST": "smtp.example.com", "SMTP_FROM": "no-reply@example.com",
+		},
+	} {
+		if _, err := LoadFrom(env(values)); err == nil {
+			t.Fatalf("invalid Cloudflare Email configuration accepted: %#v", values)
+		} else if strings.Contains(err.Error(), secret) {
+			t.Fatalf("Cloudflare Email validation leaked secret: %v", err)
+		}
+	}
+}
+
 func env(values map[string]string) LookupEnv {
 	return func(key string) (string, bool) {
 		value, ok := values[key]
