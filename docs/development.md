@@ -22,8 +22,9 @@ queue claim transactions.
    [docs/README.md](README.md).
 2. Trace the affected use case, policy, repository, adapters, contracts, and
    tests. Keep workspace scope explicit.
-3. Make one bounded change. Update OpenAPI, migrations, behavior docs,
-   changelog, and capability evidence only when affected.
+3. Make one bounded change. Update OpenAPI, migrations, behavior docs, and
+   capability evidence only when affected. Changelog timing follows the
+   change obligations in [AGENTS.md](../AGENTS.md).
 4. Run focused package checks (e.g. `go test ./internal/<affected-feature>/...`)
    during iteration to maintain fast feedback loops, then the applicable
    verification ladder before committing.
