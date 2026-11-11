@@ -31,8 +31,9 @@ safe external identity binding, and auditable administrative changes.
    identify external users by issuer plus subject.
 6. Keep provider choice server-controlled and protect discovery or callback
    network access from SSRF.
-7. Update all interface behavior, tests, audit events, authentication docs,
-   changelog, and capability evidence together.
+7. Update interface behavior, tests, audit events, authentication docs, and
+   capability evidence together where they apply. Do not edit CHANGELOG.md on
+   feature branches (AGENTS.md).
 
 ## Verify and stop
 
@@ -40,3 +41,6 @@ Run the complete role/scope matrix plus credential lifecycle, enumeration,
 OIDC mismatch, redaction, audit, and both-database tests. Stop if account
 linking depends silently on email, instance authority implies workspace access,
 or a failure could expose credentials or remove the final owner.
+
+Do not finish until every AGENTS.md change obligation has a line in the PR
+body: applied, or omitted with a reason.
