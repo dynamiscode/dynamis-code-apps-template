@@ -74,7 +74,7 @@ Run applicable commands in order:
 4. make lint (runs fmt-check and go vet)
 5. `go test -race ./...` for concurrent code or release readiness.
 6. `go generate ./api` and confirm no generated drift.
-7. SQLite and isolated PostgreSQL compatibility checks for data changes.
+7. SQLite and isolated PostgreSQL compatibility checks for data changes (`POSTGRES_TEST_URL` or `make test-postgres`; see [development](docs/development.md)).
 8. `make docker-smoke` for runtime or delivery changes.
 9. `make verify` before release.
 
