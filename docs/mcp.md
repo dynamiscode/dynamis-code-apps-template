@@ -19,8 +19,8 @@ filesystem, code execution, or external networks.
 | `items_list_v1` | `resources:read` | read-only, idempotent, closed-world; bounded search, limit 1-100, and opaque cursor |
 | `items_get_v1` | `resources:read` | read-only, idempotent, closed-world |
 | `items_create_v1` | `resources:write` | additive, idempotent with caller key, closed-world |
-| `items_update_v1` | `resources:write` | destructive, idempotent with version, closed-world, approval required |
-| `items_delete_v1` | `resources:write` | destructive, idempotent with version, closed-world, approval required |
+| `items_update_v1` | `resources:write` | destructive, idempotent with version, closed-world, MRTR confirmation |
+| `items_delete_v1` | `resources:write` | destructive, idempotent with version, closed-world, MRTR confirmation |
 
 Names include their contract version. A breaking schema, scope, output, or
 side-effect change requires a new name such as `_v2`. Item outputs retain their
@@ -129,9 +129,16 @@ by this policy.
 - The endpoint is stateless and never issues `Mcp-Session-Id`.
 - Bodies and structured results are limited to 1 MiB. Collection results are
   capped at 100 items.
-- Update and delete require the client host to add
-  `Mcp-Human-Approval: true` after human confirmation. Approval is not a tool
-  argument and never replaces server authorization.
+- Update and delete require client-host confirmation. On `2026-07-28` and later
+  sessions, the first call returns an MRTR `input_required` result with one
+  `human-approval` form elicitation (`confirm` boolean) and a `requestState`.
+  The client retries the same arguments with `inputResponses` and the echoed
+  state; nothing changes unless the response is `accept` with `confirm: true`
+  and the state matches the arguments. Approval is never a tool argument and
+  never replaces server authorization. Decision: [MRTR approvals](decisions/0007-mcp-mrtr-approvals.md).
+- The `Mcp-Human-Approval` header is removed. Pre-`2026-07-28` protocol requests
+  cannot confirm update or delete, because the stateless endpoint cannot deliver
+  the server-initiated elicitation that the SDK would otherwise attempt.
 - Inputs are strict, bounded data. Internal errors become safe tool errors.
   Authentication and insufficient scope use HTTP `401` and `403`.
 

@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -21,7 +22,16 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-const maxResultBytes = 1 << 20
+const (
+	maxResultBytes  = 1 << 20
+	approvalInputID = "human-approval"
+)
+
+var approvalSchema = map[string]any{
+	"type": "object", "additionalProperties": false,
+	"properties": map[string]any{"confirm": map[string]any{"type": "boolean", "title": "Confirm this change"}},
+	"required":   []string{"confirm"},
+}
 
 // toolsListTTLMs is the freshness hint for tools/list. The tool catalog changes
 // only on deployment, so clients may poll it at most every five minutes.
@@ -144,6 +154,8 @@ type toolRun struct {
 	workspaceID string
 	targetID    string
 	err         error
+	// pending is an input_required result; it is returned without auditing a call outcome.
+	pending *mcp.CallToolResult
 }
 
 const (
@@ -156,6 +168,7 @@ const (
 // middleware, which writes exactly one audit record per dispatched request.
 type callRecord struct {
 	handled     bool // a typed tool handler ran, so the SDK accepted the arguments
+	prompted    bool // an MRTR confirmation prompt was returned; no call outcome exists yet
 	toolName    string
 	workspaceID string
 	targetID    string
@@ -357,8 +370,9 @@ func (h *handler) createItem(ctx context.Context, request *mcp.CallToolRequest, 
 
 func (h *handler) updateItem(ctx context.Context, request *mcp.CallToolRequest, input updateInput) (itemOutput, toolRun) {
 	run := toolRun{workspaceID: string(input.WorkspaceID), targetID: string(input.ItemID)}
-	if !approved(request) {
-		run.err = approvalRequired()
+	if pending, err := approvalGate(request, "items_update_v1", input,
+		fmt.Sprintf("Confirm the update of item %s to version %d.", input.ItemID, input.Version)); pending != nil || err != nil {
+		run.pending, run.err = pending, err
 		return itemOutput{}, run
 	}
 	// Zero values mean "absent": the schema already rejects empty title and status.
@@ -379,8 +393,9 @@ func (h *handler) updateItem(ctx context.Context, request *mcp.CallToolRequest, 
 
 func (h *handler) deleteItem(ctx context.Context, request *mcp.CallToolRequest, input deleteInput) (deleteOutput, toolRun) {
 	run := toolRun{workspaceID: string(input.WorkspaceID), targetID: string(input.ItemID)}
-	if !approved(request) {
-		run.err = approvalRequired()
+	if pending, err := approvalGate(request, "items_delete_v1", input,
+		fmt.Sprintf("Confirm permanent deletion of item %s at version %d.", input.ItemID, input.Version)); pending != nil || err != nil {
+		run.pending, run.err = pending, err
 		return deleteOutput{}, run
 	}
 	err := h.items.Delete(ctx, principal(request), string(input.WorkspaceID), string(input.ItemID),
@@ -432,6 +447,11 @@ func addTool[In, Out any](
 		record := recordFor(ctx)
 		record.handled, record.toolName, record.annotations = true, tool.Name, tool.Annotations
 		out, result := run(ctx, request, in)
+		if result.pending != nil {
+			record.prompted, record.workspaceID, record.targetID = true, result.workspaceID, result.targetID
+			var none Out
+			return result.pending, none, nil
+		}
 		if result.err == nil {
 			if encoded, err := json.Marshal(out); err != nil || len(encoded) > maxResultBytes {
 				result.err = &toolError{category: "internal", message: "internal failure"}
@@ -458,6 +478,9 @@ func (h *handler) observe(next mcp.MethodHandler) mcp.MethodHandler {
 				record.err = &toolError{category: "internal", message: "internal failure"}
 				result, err = internalFailure(method)
 			}
+			if record.prompted {
+				return
+			}
 			if auditErr := h.audit(ctx, method, req, record, result, err, started); auditErr != nil {
 				h.logger.Error("MCP audit failed", "method", method, "request_id", requestID(req))
 				result, err = internalFailure(method)
@@ -482,8 +505,33 @@ func internalFailure(method string) (mcp.Result, error) {
 	return nil, errors.New("internal failure")
 }
 
-func approved(request *mcp.CallToolRequest) bool {
-	return request.Extra != nil && request.Extra.Header.Get("Mcp-Human-Approval") == "true"
+// approvalGate blocks destructive calls until the client host confirms them
+// through a multi round-trip (SEP-2322) input request. The confirmation is bound
+// to the prompted arguments through the request state, so the endpoint stays
+// stateless. The gate is a client-host confirmation; it never replaces server
+// authorization.
+func approvalGate(request *mcp.CallToolRequest, tool string, input any, message string) (*mcp.CallToolResult, error) {
+	state := approvalState(tool, input)
+	response, answered := request.Params.InputResponses[approvalInputID]
+	if !answered || request.Params.RequestState != state {
+		return &mcp.CallToolResult{
+			InputRequests: mcp.InputRequestMap{approvalInputID: &mcp.ElicitParams{
+				Mode: "form", Message: message, RequestedSchema: approvalSchema,
+			}},
+			RequestState: state,
+		}, nil
+	}
+	if confirmed, ok := response.(*mcp.ElicitResult); ok && confirmed.Action == "accept" && confirmed.Content["confirm"] == true {
+		return nil, nil
+	}
+	return nil, &toolError{category: "approval_declined", message: "human approval was declined"}
+}
+
+// approvalState binds an approval to the tool and the exact arguments that were prompted.
+func approvalState(tool string, input any) string {
+	encoded, _ := json.Marshal(input)
+	sum := sha256.Sum256(append([]byte(tool+"\n"), encoded...))
+	return hex.EncodeToString(sum[:])
 }
 
 func (h *handler) audit(
@@ -588,10 +636,6 @@ func publicError(err error) error {
 	default:
 		return &toolError{category: "internal", message: "internal failure"}
 	}
-}
-
-func approvalRequired() error {
-	return &toolError{category: "approval_required", message: "human approval is required"}
 }
 
 func invalidParameters() error {

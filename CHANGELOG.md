@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Replaced the MCP update and delete `Mcp-Human-Approval` header with stateless
+  multi round-trip `input_required` confirmation bound to the prompted arguments
+  through `requestState`. The header is removed; no released clients depend on it.
 - Refactored the Post-Redirect-Get Settings import confirmation from an
   in-memory flash map to a stateless `?imported=` URL query parameter redirect,
   supporting multi-instance deployments behind a load balancer without
