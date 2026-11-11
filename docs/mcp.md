@@ -161,6 +161,36 @@ outcome fields, a `workspace` target, and the prompt version.
 Raw arguments, item titles, bearer values, and unrestricted payloads are
 excluded.
 
+## Protected-resource discovery
+
+Discovery is optional and off by default. Set `MCP_OAUTH_AUTHORIZATION_SERVER`
+to the authorization server issuer (HTTPS, or loopback HTTP for development),
+and set `APP_PUBLIC_URL` to the public origin without a path. Startup fails if
+either rule is violated. The resource identifier is `${APP_PUBLIC_URL}/mcp`,
+derived from configuration and never from request `Host` headers.
+
+When enabled:
+
+- `GET /.well-known/oauth-protected-resource/mcp` serves unauthenticated
+  RFC 9728 metadata: `resource`, `authorization_servers`, `scopes_supported`
+  (`resources:read`, `resources:write`), and `bearer_methods_supported`
+  (`header`). It accepts only `GET` and `OPTIONS`, and allows any origin to
+  read it (`Access-Control-Allow-Origin: *`) because the document is public.
+- A missing or invalid bearer returns `401` with
+  `WWW-Authenticate: Bearer resource_metadata="<metadata URL>"`.
+- A valid token without the tool's scope returns `403` with
+  `WWW-Authenticate: Bearer error="insufficient_scope", resource_metadata="<metadata URL>"`.
+
+When disabled, the route is absent and challenges carry no `WWW-Authenticate`
+header, as before. Responses never include the submitted token, request
+`Host`, or internal configuration, and the endpoint never issues a session ID.
+
+Discovery does not change authentication. Bearer API tokens remain the only
+credentials `/mcp` accepts. Access tokens from the advertised authorization
+server are rejected until an external-issuer token verifier is accepted in
+[capabilities](capabilities.md#deferred-capabilities); use API tokens for MCP
+access until then. Decision: [0007](decisions/0007-mcp-oauth-protected-resource-metadata.md).
+
 The protocol contract follows the upstream
 [MCP specification](https://modelcontextprotocol.io/specification/2026-07-28)
 and [official Go SDK](https://github.com/modelcontextprotocol/go-sdk).

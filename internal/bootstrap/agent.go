@@ -21,4 +21,7 @@ func registerAgent(
 		mcpserver.NewHandler(identityService, itemService, cfg.MCP, slog.Default()),
 		cfg.HTTP, slog.Default(),
 	))
+	if metadata := mcpserver.NewProtectedResourceMetadataHandler(cfg.MCP); metadata != nil {
+		mux.Handle(mcpserver.ProtectedResourceMetadataPath, httpapi.Wrap(metadata, cfg.HTTP, slog.Default()))
+	}
 }

@@ -54,6 +54,7 @@ begins. Changes require restart.
 | `HTTP_SSE_MAX_CONNECTIONS_PER_USER` | integer, within instance limit | `5` | No | No |
 | `HTTP_MAX_CONCURRENT_REQUESTS` | integer 1-10000 | `100` | No | No |
 | `MCP_ALLOWED_ORIGINS` | comma-separated exact HTTP origins | none | Browser MCP only | No |
+| `MCP_OAUTH_AUTHORIZATION_SERVER` | HTTPS or loopback HTTP issuer URL without credentials, query, or fragment | none (discovery off) | Requires origin-only `APP_PUBLIC_URL` | No |
 | `ITEMS_MAX_PER_WORKSPACE` | integer 1-1000000 | `10000` | No | No |
 | `EXPORT_MAX_RECORDS` | integer 1-10000 | `1000` | No | No |
 | `EXPORT_MAX_BYTES` | bytes 65536-4194304 | `4194304` | No | No |
@@ -178,6 +179,11 @@ broker for this bounded sample stream.
 
 Requests to `/mcp` that include `Origin` are accepted only when the exact
 origin appears in `MCP_ALLOWED_ORIGINS`. Non-browser clients omit `Origin`.
+
+`MCP_OAUTH_AUTHORIZATION_SERVER` enables the optional RFC 9728 metadata and
+`WWW-Authenticate` hints described in [MCP](mcp.md#protected-resource-discovery).
+It does not accept OAuth access tokens; bearer API tokens remain the only
+`/mcp` credentials.
 
 OTLP exporter authentication headers use the standard
 `OTEL_EXPORTER_OTLP_HEADERS` deployment secret. The endpoint is a base URL;

@@ -224,3 +224,55 @@ func TestAgentSurfacesLiveSmoke(t *testing.T) {
 		t.Fatal("SSE item notification timed out")
 	}
 }
+
+func TestAgentOAuthMetadataRouteIsOptIn(t *testing.T) {
+	ctx := context.Background()
+	const (
+		metadataPath = "/.well-known/oauth-protected-resource/mcp"
+		challenge    = `Bearer resource_metadata="https://app.example.com/.well-known/oauth-protected-resource/mcp"`
+	)
+	newApp := func(t *testing.T, oauth bool) *App {
+		t.Helper()
+		cfg, err := config.LoadFrom(func(string) (string, bool) { return "", false })
+		if err != nil {
+			t.Fatal(err)
+		}
+		cfg.Database.SQLitePath = ":memory:"
+		cfg.Database.MaxOpenConns, cfg.Database.MaxIdleConns = 1, 1
+		if oauth {
+			cfg.PublicURL = "https://app.example.com"
+			cfg.MCP.OAuthAuthorizationServer = "https://idp.example.com/tenant"
+			cfg.MCP.OAuthResourceURL = "https://app.example.com/mcp"
+		}
+		app, err := New(ctx, cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { app.Close() })
+		return app
+	}
+
+	enabled := newApp(t, true)
+	metadata := httptest.NewRecorder()
+	enabled.Handler.ServeHTTP(metadata, httptest.NewRequest(http.MethodGet, metadataPath, nil))
+	if metadata.Code != http.StatusOK || !strings.Contains(metadata.Body.String(), `"resource":"https://app.example.com/mcp"`) {
+		t.Fatalf("enabled metadata = %d %s", metadata.Code, metadata.Body.String())
+	}
+	challengeResponse := httptest.NewRecorder()
+	enabled.Handler.ServeHTTP(challengeResponse, httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(`{}`)))
+	if challengeResponse.Code != http.StatusUnauthorized || challengeResponse.Header().Get("WWW-Authenticate") != challenge {
+		t.Fatalf("enabled /mcp challenge = %d WWW-Authenticate=%q", challengeResponse.Code, challengeResponse.Header().Get("WWW-Authenticate"))
+	}
+
+	disabled := newApp(t, false)
+	absent := httptest.NewRecorder()
+	disabled.Handler.ServeHTTP(absent, httptest.NewRequest(http.MethodGet, metadataPath, nil))
+	if absent.Code != http.StatusNotFound {
+		t.Fatalf("disabled metadata = %d, want 404", absent.Code)
+	}
+	plain := httptest.NewRecorder()
+	disabled.Handler.ServeHTTP(plain, httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(`{}`)))
+	if plain.Code != http.StatusUnauthorized || plain.Header().Get("WWW-Authenticate") != "" {
+		t.Fatalf("disabled /mcp challenge = %d WWW-Authenticate=%q", plain.Code, plain.Header().Get("WWW-Authenticate"))
+	}
+}

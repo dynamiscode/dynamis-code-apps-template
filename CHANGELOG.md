@@ -44,6 +44,10 @@
   `itemId` from one bounded page of the caller's authorized workspace, with
   empty results for unauthorized or malformed workspaces and no new write
   surface.
+- Added optional RFC 9728 protected-resource metadata for `/mcp`, enabled only
+  by `MCP_OAUTH_AUTHORIZATION_SERVER` with `APP_PUBLIC_URL` as an origin, plus
+  `WWW-Authenticate` `resource_metadata` hints on `401` and insufficient-scope
+  `403` responses; bearer API tokens remain the only accepted MCP credentials.
 - Upgraded vendored HTMX from 2.0.4 to 4.0.1, renamed the `htmx:afterSwap`
   listener to `htmx:after:swap`, and kept 2.x non-swap behavior for
   `204`, `304`, `4xx`, and `5xx` responses.
