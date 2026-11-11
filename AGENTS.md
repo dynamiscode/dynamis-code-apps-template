@@ -80,3 +80,17 @@ Report passed, failed, blocked, and not-applicable checks separately.
 
 Keep this root contract short. Add nested `AGENTS.md` files only when a subtree
 has genuinely different rules.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues in `dynamiscode/dynamis-code-apps-template`, via `gh`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` at root (created lazily) and ADRs in `docs/decisions/`. See `docs/agents/domain.md`.
