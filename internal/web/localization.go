@@ -16,6 +16,8 @@ type localeState struct {
 	userLocale     string
 	cookieLocale   string
 	acceptLanguage string
+	userTheme      string
+	cookieTheme    string
 }
 
 type localeWriter struct {
@@ -31,13 +33,16 @@ func (w *localeWriter) Flush() {
 
 func (h *Handler) localeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		userLocale := ""
+		userLocale, userTheme := "", ""
 		if session, err := h.identity.AuthenticateSession(request.Context(), cookieValue(request, "session")); err == nil {
-			userLocale, _ = h.identity.GetUserLocale(request.Context(), session.UserID)
+			if profile, err := h.identity.GetUserProfile(request.Context(), session.UserID); err == nil {
+				userLocale, userTheme = profile.Locale, profile.Theme
+			}
 		}
 		request = request.WithContext(context.WithValue(request.Context(), localeContextKey{}, localeState{
 			userLocale: userLocale, cookieLocale: cookieValue(request, "locale"),
 			acceptLanguage: request.Header.Get("Accept-Language"),
+			userTheme:      userTheme, cookieTheme: cookieValue(request, themeCookie),
 		}))
 		next.ServeHTTP(&localeWriter{ResponseWriter: writer, context: request.Context()}, request)
 	})
@@ -66,6 +71,7 @@ func (h *Handler) pageLocale(writer http.ResponseWriter, data pageData) i18n.Loc
 func (h *Handler) localizePage(writer http.ResponseWriter, data *pageData) {
 	locale := h.pageLocale(writer, *data)
 	data.Locale = string(locale)
+	data.Theme = h.pageTheme(writer)
 	data.Catalog = h.catalog
 	data.Title = localizedLegacy(h.catalog, locale, data.Title)
 	data.Error = localizedLegacy(h.catalog, locale, data.Error)

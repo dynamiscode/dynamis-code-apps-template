@@ -52,6 +52,7 @@ type Handler struct {
 type pageData struct {
 	MCPConsent                       *mcpConsentView
 	Locale                           string
+	Theme                            string
 	Catalog                          *i18n.Catalog
 	Title                            string
 	NavPage                          string

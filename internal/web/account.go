@@ -69,6 +69,7 @@ func (h *Handler) accountProfileMutation(writer http.ResponseWriter, request *ht
 		h.render(writer, http.StatusUnprocessableEntity, "account.html", data)
 		return
 	}
+	h.setCookie(writer, themeCookie, strings.TrimSpace(request.FormValue("theme")), time.Now().Add(themeCookieTTL), true)
 	h.redirect(writer, request, "/account?saved=1")
 }
 

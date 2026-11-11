@@ -25,6 +25,7 @@ the source wins and this file gets fixed.
 | Owner | The role that can delete the workspace and transfer ownership. Cannot be removed or demoted by ordinary membership changes. | [Authentication](docs/authentication.md#workspace-permissions) |
 | Invitation | A workspace invitation to join with a role. Managed by owners and admins. | [Authentication](docs/authentication.md#workspace-permissions) |
 | Session | A browser authentication record. Stores only hashes of its secret and CSRF values; re-checks membership on protected operations. | [Authentication](docs/authentication.md) |
+| Theme preference | A user's profile appearance setting: `system` (follows the OS), `light`, or `dark`. Owned by the user, not the workspace. | [Authentication](docs/authentication.md) |
 | Token | A bearer credential for REST, MCP, or CLI access. Shown once; intersected with the user's current role on every use. | [Authentication](docs/authentication.md#workspace-permissions) |
 | Item | The sample workspace-scoped resource used by the item API and browser. | [API](docs/api.md) |
 | Public item sharing | A bounded, browser-only public link to one Item. | [Public sharing decision](docs/decisions/0005-public-sharing.md) |

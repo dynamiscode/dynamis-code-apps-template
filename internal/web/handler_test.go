@@ -364,7 +364,7 @@ func TestWebLocalePrecedenceAndWorkspaceFallback(t *testing.T) {
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 
 	spanish := requestFrom(handler, http.MethodGet, "/", nil, cookies, map[string]string{"Accept-Language": "es-MX,es;q=0.9"}, "example.com", "192.0.2.1:1234")
-	if spanish.Header().Get("Content-Language") != "es" || !strings.Contains(spanish.Body.String(), `<html lang="es">`) || !strings.Contains(spanish.Body.String(), "Espacios de trabajo") {
+	if spanish.Header().Get("Content-Language") != "es" || !strings.Contains(spanish.Body.String(), `<html lang="es"`) || !strings.Contains(spanish.Body.String(), "Espacios de trabajo") {
 		t.Fatalf("Spanish home = %d, %s", spanish.Code, spanish.Body.String())
 	}
 
@@ -372,7 +372,7 @@ func TestWebLocalePrecedenceAndWorkspaceFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 	userPreference := requestFrom(handler, http.MethodGet, "/", nil, append(cookies, &http.Cookie{Name: "locale", Value: "es"}), map[string]string{"Accept-Language": "es"}, "example.com", "192.0.2.1:1234")
-	if userPreference.Header().Get("Content-Language") != "en" || !strings.Contains(userPreference.Body.String(), `<html lang="en">`) {
+	if userPreference.Header().Get("Content-Language") != "en" || !strings.Contains(userPreference.Body.String(), `<html lang="en"`) {
 		t.Fatalf("user preference precedence = %d, %s", userPreference.Code, userPreference.Body.String())
 	}
 	if err := auth.SetUserLocale(context.Background(), owner.UserID, "", identity.AuditContext{}); err != nil {
@@ -391,7 +391,7 @@ func TestWebLocalePrecedenceAndWorkspaceFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 	workspace = requestFrom(handler, http.MethodGet, "/workspaces/"+workspaceID, nil, cookies, map[string]string{"Accept-Language": "en"}, "example.com", "192.0.2.1:1234")
-	if workspace.Header().Get("Content-Language") != "es" || !strings.Contains(workspace.Body.String(), `<html lang="es">`) {
+	if workspace.Header().Get("Content-Language") != "es" || !strings.Contains(workspace.Body.String(), `<html lang="es"`) {
 		t.Fatalf("workspace fallback = %q, %s", workspace.Header().Get("Content-Language"), workspace.Body.String())
 	}
 }
@@ -516,7 +516,7 @@ func TestBrowserPagesRenderSpanishDocuments(t *testing.T) {
 	for _, path := range paths {
 		response := requestFrom(handler, http.MethodGet, path, nil, cookies, map[string]string{"Accept-Language": "en"}, "example.com", "192.0.2.1:1234")
 		body := response.Body.String()
-		if response.Code != http.StatusOK || response.Header().Get("Content-Language") != "es" || !strings.Contains(body, `<html lang="es">`) || strings.Contains(body, "common.") {
+		if response.Code != http.StatusOK || response.Header().Get("Content-Language") != "es" || !strings.Contains(body, `<html lang="es"`) || strings.Contains(body, "common.") {
 			t.Errorf("%s = %d language=%q body=%s", path, response.Code, response.Header().Get("Content-Language"), body)
 		}
 	}
@@ -525,7 +525,7 @@ func TestBrowserPagesRenderSpanishDocuments(t *testing.T) {
 		t.Fatal(err)
 	}
 	invitationResponse := requestFrom(handler, http.MethodGet, "/invitations/"+invitation.Secret, nil, nil, map[string]string{"Accept-Language": "en"}, "example.com", "192.0.2.1:1234")
-	if invitationResponse.Header().Get("Content-Language") != "es" || !strings.Contains(invitationResponse.Body.String(), `<html lang="es">`) {
+	if invitationResponse.Header().Get("Content-Language") != "es" || !strings.Contains(invitationResponse.Body.String(), `<html lang="es"`) {
 		t.Fatalf("invitation locale = %q, %s", invitationResponse.Header().Get("Content-Language"), invitationResponse.Body.String())
 	}
 }
@@ -1639,7 +1639,7 @@ func readUntil(t *testing.T, reader *bufio.Reader, wanted string) string {
 
 func assertAccessiblePage(t *testing.T, body string, label string) {
 	t.Helper()
-	for _, required := range []string{`<!doctype html>`, `<html lang="en">`, `<meta name="viewport"`, `<main`, `<h1`} {
+	for _, required := range []string{`<!doctype html>`, `<html lang="en"`, `<meta name="viewport"`, `<main`, `<h1`} {
 		if !strings.Contains(body, required) {
 			t.Errorf("page lacks %s", required)
 		}
