@@ -101,6 +101,10 @@ agent-assisted development:
 - **Bounded file reads**: Read specific line ranges around relevant symbols
   rather than loading entire multi-thousand-line files unconditionally.
 
+Claude Code entry points: root `CLAUDE.md` imports `AGENTS.md`, and
+`.claude/skills` is a symlink to `.agents/skills/`. Keep `AGENTS.md` and the
+skills as the only sources; do not copy them into Claude-specific files.
+
 ## Pull requests and merge guidance
 
 1. Open pull requests targeting `main` with a clear summary, change list, and
