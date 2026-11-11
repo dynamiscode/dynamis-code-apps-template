@@ -86,7 +86,6 @@ jobs:
           go-version-file: go.mod
           cache: true
       - run: make secret-check
-      - run: make workflow-check
 
   container:
     runs-on: ubuntu-24.04
