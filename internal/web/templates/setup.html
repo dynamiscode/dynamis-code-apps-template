@@ -1,5 +1,5 @@
 {{define "setup.html"}}<!doctype html>
-<html lang="{{.Locale}}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · Dynamis Code</title><link rel="stylesheet" href="/assets/app.css"></head>
+<html lang="{{.Locale}}" data-theme="{{.Theme}}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · Dynamis Code</title><link rel="stylesheet" href="/assets/app.css"></head>
 <body><main class="narrow" id="main"><h1>{{.T "setup.title"}}</h1>
 <p>{{.T "setup.description"}}</p>
 {{if .Error}}<p class="error" role="alert" tabindex="-1">{{.Error}}</p>{{end}}

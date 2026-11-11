@@ -125,6 +125,20 @@ HTMX 2.x non-swap behavior for `204`, `304`, `4xx`, and `5xx` responses so
 error pages never replace the list. The exact upstream license is served from
 `internal/web/assets/HTMX-LICENSE`.
 
+## Theme
+
+Light, dark, and system appearance. The signed-in user's `users.theme`
+preference is canonical; `system` follows the OS `prefers-color-scheme`.
+Saving the account profile also sets a `theme` cookie that mirrors the
+preference, so anonymous and first-paint renders match it. Resolution order:
+user preference, then the mirror cookie, then `system`. An invalid cookie falls
+back to `system`, and a stale mirror is refreshed from the stored preference on
+the next rendered page. The mirror holds no secret.
+
+Every page root carries `data-theme`. `app.css` defines tokens for `light` and
+`dark`; the `system` value applies the dark tokens only under
+`prefers-color-scheme: dark`.
+
 ## WebMCP progressive enhancement
 
 WebMCP is optional, browser-only, and bound to the current tab's live web
