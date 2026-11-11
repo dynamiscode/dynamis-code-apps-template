@@ -10,7 +10,7 @@ setup: setup-hooks
 	npm ci
 
 setup-hooks:
-	test ! -e .git || git config core.hooksPath .githooks
+	git rev-parse --is-inside-work-tree >/dev/null 2>&1 && git config core.hooksPath .githooks || true
 
 fmt-check:
 	test -z "$$(gofmt -l $$(find . -name '*.go' -not -path './vendor/*'))"
