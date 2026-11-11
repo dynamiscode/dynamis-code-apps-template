@@ -39,6 +39,10 @@ Create a GitHub issue.
 
 Read it as in **Read an issue** above.
 
+## When implementing a ticket
+
+Route the change with [docs/README.md](../README.md). For an ordinary Go feature slice, use the `implement-go-feature` skill: [.agents/skills/implement-go-feature/SKILL.md](../../.agents/skills/implement-go-feature/SKILL.md).
+
 ## Wayfinding operations
 
 Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets.
