@@ -3,7 +3,6 @@ package web
 import (
 	"crypto/subtle"
 	"errors"
-	"log/slog"
 	"net/http"
 	"time"
 
@@ -115,7 +114,7 @@ func (h *Handler) oidcCallback(writer http.ResponseWriter, request *http.Request
 		Code:           request.URL.Query().Get("code"),
 	}
 	if err := validateOIDCCallbackParams(params); err != nil {
-		slog.WarnContext(request.Context(), "oidc callback validation failed", "error", err)
+		h.logger.WarnContext(request.Context(), "oidc callback validation failed", "error", err)
 		h.oidcError(writer, request)
 		return
 	}

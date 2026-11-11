@@ -466,9 +466,9 @@ func TestOIDCCallbackHandler_ValidationFailures(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			capture := &testLogCapture{}
-			origLogger := slog.Default()
-			slog.SetDefault(slog.New(capture))
-			defer slog.SetDefault(origLogger)
+			origLogger := handler.logger
+			handler.logger = slog.New(capture)
+			defer func() { handler.logger = origLogger }()
 
 			target := "/auth/oidc/test-provider/callback"
 			params := url.Values{}

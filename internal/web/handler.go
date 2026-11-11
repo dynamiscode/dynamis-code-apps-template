@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"log/slog"
 	"net"
 	"net/http"
 	"strconv"
@@ -31,6 +32,7 @@ import (
 var files embed.FS
 
 type Handler struct {
+	logger         *slog.Logger
 	identity       *identity.Service
 	items          *items.Service
 	files          *appfiles.Service
@@ -263,6 +265,7 @@ func newHandler(
 		setupTokenHash = identity.SecretHash(setupToken)
 	}
 	return &Handler{
+		logger:   slog.Default(),
 		identity: identityService, items: itemService, files: fileService, sharing: sharingService, exporter: exporterService,
 		webhooks: webhookService,
 		importer: importerFor(exporterService),
