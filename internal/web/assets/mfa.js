@@ -31,45 +31,64 @@
       notice.focus();
     }
   };
-
-  if (button && optionsNode) button.addEventListener("click", async () => {
-    const buttons = document.querySelectorAll("button, input[type=submit]");
+  // Thrown for a non-OK server response; carries only the server's safe text, never raw internals.
+  class RejectedResponse extends Error {}
+  const rejectIfNotOk = async response => {
+    if (response.ok) return;
+    let detail = "";
+    try {
+      const body = await response.json();
+      if (typeof body.error === "string") detail = body.error;
+      else if (typeof body.detail === "string") detail = body.detail;
+    } catch (err) {
+      detail = "";
+    }
+    throw new RejectedResponse(detail.trim() || "The passkey registration failed.");
+  };
+  // Disables buttons while fn runs and leaves them disabled on success on purpose (navigation
+  // or recovery codes follow). A cancel re-enables them with a notice; a server rejection shows
+  // its message; any other failure reloads the page.
+  const withBusy = async (buttons, fn, {cancelMessage, container}) => {
     const setButtonsDisabled = disabled => buttons.forEach(b => { b.disabled = disabled; });
     setButtonsDisabled(true);
     try {
-      const options = JSON.parse(optionsNode.textContent);
-      options.publicKey.challenge = decode(options.publicKey.challenge);
-      (options.publicKey.allowCredentials || []).forEach(item => item.id = decode(item.id));
-      const credential = await navigator.credentials.get({publicKey: options.publicKey});
-      const response = {id: credential.id, rawId: encode(credential.rawId), type: credential.type, response: {clientDataJSON: encode(credential.response.clientDataJSON), authenticatorData: encode(credential.response.authenticatorData), signature: encode(credential.response.signature), userHandle: credential.response.userHandle ? encode(credential.response.userHandle) : null}};
-      const result = await fetch("/mfa/passkey", {method: "POST", headers: {"Content-Type": "application/json", "X-MFA-CSRF": button.dataset.csrf}, body: JSON.stringify(response)});
-      if (result.ok) {
-        window.location = result.headers.get("X-MFA-Return-To") || "/";
+      await fn();
+    } catch (err) {
+      if (err instanceof RejectedResponse) {
+        setButtonsDisabled(false);
+        showNotice(err.message, container);
+      } else if (isCancellation(err)) {
+        setButtonsDisabled(false);
+        showNotice(cancelMessage, container);
       } else {
         window.location.reload();
       }
-    } catch (err) {
-      if (isCancellation(err)) {
-        setButtonsDisabled(false);
-        showNotice("Passkey verification was canceled or timed out.");
-        return;
-      }
+    }
+  };
+
+  if (button && optionsNode) button.addEventListener("click", () => withBusy(document.querySelectorAll("button, input[type=submit]"), async () => {
+    const options = JSON.parse(optionsNode.textContent);
+    options.publicKey.challenge = decode(options.publicKey.challenge);
+    (options.publicKey.allowCredentials || []).forEach(item => item.id = decode(item.id));
+    const credential = await navigator.credentials.get({publicKey: options.publicKey});
+    const response = {id: credential.id, rawId: encode(credential.rawId), type: credential.type, response: {clientDataJSON: encode(credential.response.clientDataJSON), authenticatorData: encode(credential.response.authenticatorData), signature: encode(credential.response.signature), userHandle: credential.response.userHandle ? encode(credential.response.userHandle) : null}};
+    const result = await fetch("/mfa/passkey", {method: "POST", headers: {"Content-Type": "application/json", "X-MFA-CSRF": button.dataset.csrf}, body: JSON.stringify(response)});
+    if (result.ok) {
+      window.location = result.headers.get("X-MFA-Return-To") || "/";
+    } else {
       window.location.reload();
     }
-  });
+  }, {cancelMessage: "Passkey verification was canceled or timed out."}));
 
   const enrollment = document.getElementById("passkey-enroll");
   if (!enrollment) return;
-  enrollment.addEventListener("submit", async event => {
+  enrollment.addEventListener("submit", event => {
     event.preventDefault();
-    const buttons = enrollment.querySelectorAll("button, input[type=submit]");
-    const setButtonsDisabled = disabled => buttons.forEach(b => { b.disabled = disabled; });
-    setButtonsDisabled(true);
-    try {
+    return withBusy(enrollment.querySelectorAll("button, input[type=submit]"), async () => {
       const csrf = enrollment.querySelector("[name=csrf]").value;
       const response = await fetch(enrollment.action, {method: "POST", headers: {"Content-Type": "application/json", "X-CSRF-Token": csrf}, body: JSON.stringify({password: enrollment.querySelector("[name=password]").value})});
+      await rejectIfNotOk(response);
       const data = await response.json();
-      if (!response.ok) throw new Error();
       const options = data.options;
       options.publicKey.challenge = decode(options.publicKey.challenge);
       options.publicKey.user.id = decode(options.publicKey.user.id);
@@ -77,7 +96,7 @@
       const credential = await navigator.credentials.create({publicKey: options.publicKey});
       const result = {id: credential.id, rawId: encode(credential.rawId), type: credential.type, response: {clientDataJSON: encode(credential.response.clientDataJSON), attestationObject: encode(credential.response.attestationObject), transports: credential.response.getTransports ? credential.response.getTransports() : []}};
       const completed = await fetch("/api/v1/auth/mfa/passkeys/register", {method: "POST", headers: {"Content-Type": "application/json", "X-CSRF-Token": csrf, "X-MFA-Challenge": data.challenge, "X-MFA-Name": "Passkey"}, body: JSON.stringify(result)});
-      if (!completed.ok) throw new Error();
+      await rejectIfNotOk(completed);
       const completedData = await completed.json();
       if (Array.isArray(completedData.recoveryCodes) && completedData.recoveryCodes.length > 0) {
         const output = document.getElementById("mfa-recovery-output");
@@ -89,13 +108,6 @@
         return;
       }
       window.location.reload();
-    } catch (err) {
-      if (isCancellation(err)) {
-        setButtonsDisabled(false);
-        showNotice("Passkey registration was canceled or timed out.", enrollment.parentElement);
-        return;
-      }
-      window.location.reload();
-    }
+    }, {cancelMessage: "Passkey registration was canceled or timed out.", container: enrollment.parentElement});
   });
 })();
