@@ -645,6 +645,53 @@ func TestInvitationExplicitTransitionsInService(t *testing.T) {
 	}
 }
 
+func TestExpiredInvitationCanBeReinvitedOrResent(t *testing.T) {
+	service, db := newTestService(t)
+	ctx := context.Background()
+	bootstrap := bootstrapOwner(t, service)
+	owner := mustAuthorize(t, service, bootstrap.UserID, bootstrap.WorkspaceID, InvitationsManage)
+
+	// Re-invite: a new invitation for an email whose earlier one expired.
+	expired, err := service.CreateInvitation(
+		ctx, owner, "reinvite@example.com", Viewer, time.Minute, AuditContext{},
+	)
+	if err != nil {
+		t.Fatalf("CreateInvitation(expired) error = %v", err)
+	}
+	service.now = func() time.Time { return expired.ExpiresAt }
+	reinvited, err := service.CreateInvitation(
+		ctx, owner, "reinvite@example.com", Member, time.Hour, AuditContext{},
+	)
+	if err != nil {
+		t.Fatalf("CreateInvitation(reinvite) error = %v", err)
+	}
+	userID := insertUser(t, service, db, "reinvite@example.com")
+	if _, err := service.AcceptInvitation(ctx, expired.Secret, userID, AuditContext{}); !errors.Is(err, ErrInvalidInvitation) {
+		t.Fatalf("expired invitation after reinvite error = %v", err)
+	}
+	if _, err := service.AcceptInvitation(ctx, reinvited.Secret, userID, AuditContext{}); err != nil {
+		t.Fatalf("AcceptInvitation(reinvite) error = %v", err)
+	}
+
+	// Resend: reviving an expired invitation makes it active, so a second
+	// invitation for the same email must still be rejected.
+	resendExpired, err := service.CreateInvitation(
+		ctx, owner, "resend@example.com", Viewer, time.Minute, AuditContext{},
+	)
+	if err != nil {
+		t.Fatalf("CreateInvitation(resend) error = %v", err)
+	}
+	service.now = func() time.Time { return resendExpired.ExpiresAt }
+	if _, err := service.ResendInvitation(ctx, owner, resendExpired.ID, time.Hour, AuditContext{}); err != nil {
+		t.Fatalf("ResendInvitation(expired) error = %v", err)
+	}
+	if _, err := service.CreateInvitation(
+		ctx, owner, "resend@example.com", Member, time.Hour, AuditContext{},
+	); !errors.Is(err, ErrActiveInvitation) {
+		t.Fatalf("CreateInvitation(after resend) error = %v, want ErrActiveInvitation", err)
+	}
+}
+
 func TestInvitedLocalUserAndExistingMemberSafety(t *testing.T) {
 	service, _ := newTestService(t)
 	ctx := context.Background()
