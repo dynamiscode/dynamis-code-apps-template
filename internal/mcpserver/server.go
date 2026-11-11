@@ -214,6 +214,12 @@ func NewHandler(
 			RequestID: request.Header.Get("X-Request-ID"), SourceAddress: sourceHost(request.RemoteAddr),
 		})
 		if errors.Is(err, identity.ErrInvalidToken) {
+			principal, err = identityService.AuthenticateOAuthAccessToken(ctx, token)
+			if errors.Is(err, identity.ErrMFARequired) {
+				return nil, auth.ErrInvalidToken
+			}
+		}
+		if errors.Is(err, identity.ErrInvalidToken) {
 			return nil, auth.ErrInvalidToken
 		}
 		if errors.Is(err, identity.ErrForbidden) {
@@ -237,7 +243,7 @@ func NewHandler(
 		AllowMissingExpiration: true,
 		ResourceMetadataURL:    protectedResourceMetadataURL(cfg),
 	})(scopeMiddleware(streamable, insufficientScopeChallenge(cfg)))
-	return originMiddleware(authenticated, cfg.AllowedOrigins)
+	return originMiddleware(invalidTokenChallengeMiddleware(authenticated, cfg), cfg.AllowedOrigins)
 }
 
 func scopeMiddleware(next http.Handler, challenge string) http.Handler {

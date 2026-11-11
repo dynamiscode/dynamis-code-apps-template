@@ -123,8 +123,9 @@ func TestMCPChallengesAdvertiseProtectedResourceMetadata(t *testing.T) {
 	}
 
 	const submitted = "not-a-real-token-value"
+	wantInvalidChallenge := `Bearer error="invalid_token", resource_metadata="` + testOAuthMetadataURL + `"`
 	invalid := postMCP(state.handler, submitted, "", testOAuthInitializeBody)
-	if invalid.Code != http.StatusUnauthorized || invalid.Header().Get("WWW-Authenticate") != wantChallenge {
+	if invalid.Code != http.StatusUnauthorized || invalid.Header().Get("WWW-Authenticate") != wantInvalidChallenge {
 		t.Fatalf("invalid token = %d WWW-Authenticate=%q", invalid.Code, invalid.Header().Get("WWW-Authenticate"))
 	}
 	for name, value := range map[string]string{

@@ -44,6 +44,12 @@
   `itemId` from one bounded page of the caller's authorized workspace, with
   empty results for unauthorized or malformed workspaces and no new write
   surface.
+- Added the first part of the built-in MCP OAuth authorization server behind
+  `MCP_OAUTH_ENABLED`: PKCE authorization codes, rotating refresh tokens, opaque
+  15-minute access tokens checked against the live session and membership,
+  `POST /oauth/token` and `POST /oauth/revoke`, OAuth-format errors, and
+  `error="invalid_token"` on rejected bearer tokens. Client registration and the
+  consent page follow in the next change; migration `000016`.
 - Added optional RFC 9728 protected-resource metadata for `/mcp`, enabled only
   by `MCP_OAUTH_AUTHORIZATION_SERVER` with `APP_PUBLIC_URL` as an origin, plus
   `WWW-Authenticate` `resource_metadata` hints on `401` and insufficient-scope
