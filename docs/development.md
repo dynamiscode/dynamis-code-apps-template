@@ -28,10 +28,6 @@ queue claim transactions.
    during iteration to maintain fast feedback loops, then the applicable
    verification ladder before committing.
 
-When working in parallel agent worktrees or swarms, do not edit CHANGELOG.md
-directly on feature branches; changelog updates are aggregated at release or PR
-merge time.
-
 Ordinary features stay vertical: application behavior first, transport
 adapters second. Reuse shared authorization, Problem Details, audit,
 telemetry, and rendering code. Add no optional capability until its trigger in
