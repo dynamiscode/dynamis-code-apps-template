@@ -28,19 +28,29 @@ type Database struct {
 	MaxIdleConns int
 }
 
+// WorkspaceMode selects single-workspace or multi-workspace operation. The
+// default is single; MULTI_WORKSPACE_ENABLED=true selects multi.
+type WorkspaceMode string
+
+const (
+	WorkspaceModeSingle WorkspaceMode = "single"
+	WorkspaceModeMulti  WorkspaceMode = "multi"
+)
+
 type Config struct {
-	Database  Database
-	Bootstrap Bootstrap
-	OIDC      OIDC
-	MFA       MFA
-	Mail      Mail
-	PublicURL string
-	HTTP      HTTP
-	MCP       MCP
-	Data      Data
-	Telemetry Telemetry
-	Webhooks  Webhooks
-	Storage   Storage
+	Database      Database
+	WorkspaceMode WorkspaceMode
+	Bootstrap     Bootstrap
+	OIDC          OIDC
+	MFA           MFA
+	Mail          Mail
+	PublicURL     string
+	HTTP          HTTP
+	MCP           MCP
+	Data          Data
+	Telemetry     Telemetry
+	Webhooks      Webhooks
+	Storage       Storage
 }
 
 type Bootstrap struct {
@@ -251,12 +261,28 @@ func LoadFrom(lookup LookupEnv) (Config, error) {
 		return Config{}, err
 	}
 	httpConfig.FileMaxBodyBytes = storageConfig.MaxObjectBytes
+	workspaceMode, err := loadWorkspaceMode(lookup)
+	if err != nil {
+		return Config{}, err
+	}
 	return Config{
-		Database: database, Bootstrap: bootstrap, OIDC: oidc, MFA: mfa, Mail: mailConfig,
+		Database: database, WorkspaceMode: workspaceMode,
+		Bootstrap: bootstrap, OIDC: oidc, MFA: mfa, Mail: mailConfig,
 		PublicURL: publicURL, HTTP: httpConfig, MCP: mcpConfig,
 		Data: dataConfig, Telemetry: telemetryConfig, Webhooks: webhookConfig,
 		Storage: storageConfig,
 	}, nil
+}
+
+func loadWorkspaceMode(lookup LookupEnv) (WorkspaceMode, error) {
+	multi, err := boolValue(lookup, "MULTI_WORKSPACE_ENABLED", false)
+	if err != nil {
+		return "", err
+	}
+	if multi {
+		return WorkspaceModeMulti, nil
+	}
+	return WorkspaceModeSingle, nil
 }
 
 func loadStorage(lookup LookupEnv) (Storage, error) {

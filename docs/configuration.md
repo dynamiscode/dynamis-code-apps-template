@@ -11,6 +11,7 @@ begins. Changes require restart.
 | `DATABASE_URL` | PostgreSQL URL | none | PostgreSQL only | Yes |
 | `DATABASE_MAX_OPEN_CONNS` | integer 1-64 | `4` | No | No |
 | `DATABASE_MAX_IDLE_CONNS` | integer 1-64, not above open limit | `2` | No | No |
+| `MULTI_WORKSPACE_ENABLED` | boolean; `false` is single workspace mode, `true` is multi | `false` | No | No |
 | `BOOTSTRAP_ADMIN_EMAIL` | email | none | With other admin variables | No |
 | `BOOTSTRAP_ADMIN_WORKSPACE` | workspace name, 1-120 characters | none | With other admin variables | No |
 | `BOOTSTRAP_ADMIN_PASSWORD` | password, 12-1024 characters | none | With other admin variables | Yes |
@@ -81,6 +82,12 @@ begins. Changes require restart.
 
 SQLite always uses one open and one idle connection regardless of pool
 variables because one instance owns the file.
+
+`MULTI_WORKSPACE_ENABLED` defaults to `false`, which is single workspace mode.
+This is a default change: deployments that rely on multi-workspace operation
+must set `MULTI_WORKSPACE_ENABLED=true` before upgrading. Setting it to `true`
+keeps the current multi-workspace behaviour. The browser is unchanged by this
+setting in this release.
 
 The three `BOOTSTRAP_ADMIN_*` variables enable unattended first-owner
 bootstrap only when all are non-empty. A partial set fails startup; an empty
