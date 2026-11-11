@@ -68,7 +68,7 @@ These remain out of the build plan until their trigger is demonstrated.
 | Webhooks | conforming | External consumers required delivery; accepted in [decision 0004](decisions/0004-webhooks.md) |
 | Background jobs | conforming | Bounded webhook delivery requires durable retry and lease ownership; see [phase 09 evidence](#phase-09-evidence) |
 | Shared event broker | deferred | Cross-replica delivery cannot use the database safely |
-| Object storage | conforming | Files profile accepted; [Files evidence](#files-evidence) |
+| Object storage | conforming | Files profile accepted; [Files evidence](#files-evidence); [S3 conformance evidence](#object-storage-s3-conformance-evidence) |
 | SCIM | conforming | Enterprise provisioning accepted and implemented in Phase 09 |
 | MFA and passkeys | conforming | MFA and passkey identity flows accepted and implemented in Phase 02 |
 | Feature flags | deferred | Staged rollout, kill switches, or targeting is required |
@@ -530,3 +530,38 @@ Verified 2026-11-10 with Go 1.27.3 on macOS (SQLite only):
 - `internal/identity/mcp_oauth_postgres_test.go` on PostgreSQL 16
 - not yet run: `make accessibility-smoke` for the consent page
 - not yet implemented: expired-record pruning
+
+## Object storage S3 conformance evidence
+
+Verified 2026-11-11 with Go 1.27.4 on the in-process conformance suite:
+
+- `TestS3ConformanceInProcess` (`internal/files/s3_conformance_test.go`) runs
+  the S3 object contract through the production `newS3Store` constructor against
+  an in-process S3-compatible endpoint. It covers a put/head/get round trip with
+  size and content type, conditional create rejecting overwrite, not-found
+  normalized to `ErrObjectNotFound` for head and get, a presigned PUT using the
+  returned headers, a presigned GET whose `X-Amz-Expires` equals the requested
+  TTL, unsigned requests refused so objects stay private, and a presigned GET
+  refused after expiry
+- mutation checks: disabling the expiry check fails the suite at the expired-URL
+  assertion; disabling `If-None-Match` fails at the overwrite assertion
+- the in-process endpoint does not verify SigV4 signatures. Signature validity
+  requires a run against a real endpoint
+- `TestS3ConformanceConfiguredEndpoint` runs the same suite when
+  `S3_CONFORMANCE_ENDPOINT` and `S3_CONFORMANCE_BUCKET` are set, and skips
+  otherwise. Credentials come from the AWS SDK standard chain and are not logged
+- no new storage driver; the change adds tests and documentation only
+- passed: `make test`, `make lint`, `make doc-links`, `make generate-check`,
+  `make secret-check`, and `go test -race ./internal/files/...`
+- not run: `make race` for the whole tree, PostgreSQL (`POSTGRES_TEST_URL` unset;
+  no data change), `make docker-smoke` (no runtime change), and `make verify`
+
+Manual R2 run: **not run**. It is gated on R2 credentials and a dedicated test
+bucket, neither of which was available to this run. Procedure:
+[deployment](deployment.md#cloudflare-r2-object-storage). Record the result as a
+new dated section here: date, endpoint kind (no account ID), Go version, and
+`go test` outcome.
+
+Not verified against R2 until that run passes: SigV4 signature validity for
+presigned URLs, the SDK's default request checksum behavior, conditional PUT
+with `If-None-Match`, and browser CORS preflight for presigned uploads.
