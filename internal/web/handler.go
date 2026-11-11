@@ -556,8 +556,7 @@ func (h *Handler) login(writer http.ResponseWriter, request *http.Request) {
 			h.renderError(writer, http.StatusInternalServerError)
 			return
 		}
-		h.setCookie(writer, "mfa_challenge", challenge.Token, challenge.ExpiresAt, true)
-		h.setCookie(writer, "mfa_return_to", safeReturnTo(request.FormValue("return_to")), challenge.ExpiresAt, true)
+		h.setMFAChallengeCookies(writer, challenge, request.FormValue("return_to"))
 		h.redirect(writer, request, "/mfa")
 		return
 	}
