@@ -35,7 +35,7 @@ test-postgres:
 	port="$$(docker port "$$name" 5432/tcp | head -n1 | sed 's/.*://')"; \
 	for i in $$(seq 1 60); do docker exec "$$name" pg_isready -h 127.0.0.1 -U postgres -d dynamis_code_test >/dev/null 2>&1 && break; sleep 1; done; \
 	docker exec "$$name" pg_isready -h 127.0.0.1 -U postgres -d dynamis_code_test >/dev/null; \
-	POSTGRES_TEST_URL="postgres://postgres@127.0.0.1:$$port/dynamis_code_test?sslmode=disable" go test ./internal/identity/... -count=1
+	POSTGRES_TEST_URL="postgres://postgres@127.0.0.1:$$port/dynamis_code_test?sslmode=disable" go test -p 1 ./internal/identity/... ./internal/files/... -count=1
 
 lint: fmt-check vet js-check doc-links web-conformance
 
