@@ -44,6 +44,7 @@ type Config struct {
 	OIDC          OIDC
 	MFA           MFA
 	Mail          Mail
+	Cloudflare    CloudflareEmail
 	PublicURL     string
 	HTTP          HTTP
 	MCP           MCP
@@ -141,6 +142,12 @@ type Mail struct {
 	From     string
 }
 
+type CloudflareEmail struct {
+	AccountID string
+	APIToken  string
+	From      string
+}
+
 type HTTP struct {
 	Address            string
 	Secure             bool
@@ -236,6 +243,13 @@ func LoadFrom(lookup LookupEnv) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	cloudflareConfig, err := loadCloudflareEmail(lookup, publicURL)
+	if err != nil {
+		return Config{}, err
+	}
+	if mailConfig.Host != "" && cloudflareConfig.AccountID != "" {
+		return Config{}, fmt.Errorf("configure either SMTP or Cloudflare Email Sending, not both")
+	}
 	httpConfig, err := loadHTTP(lookup)
 	if err != nil {
 		return Config{}, err
@@ -268,7 +282,7 @@ func LoadFrom(lookup LookupEnv) (Config, error) {
 	return Config{
 		Database: database, WorkspaceMode: workspaceMode,
 		Bootstrap: bootstrap, OIDC: oidc, MFA: mfa, Mail: mailConfig,
-		PublicURL: publicURL, HTTP: httpConfig, MCP: mcpConfig,
+		Cloudflare: cloudflareConfig, PublicURL: publicURL, HTTP: httpConfig, MCP: mcpConfig,
 		Data: dataConfig, Telemetry: telemetryConfig, Webhooks: webhookConfig,
 		Storage: storageConfig,
 	}, nil
@@ -362,6 +376,25 @@ func loadPublicURL(lookup LookupEnv) (string, error) {
 		return "", fmt.Errorf("APP_PUBLIC_URL must use HTTPS or loopback HTTP")
 	}
 	return value, nil
+}
+
+func loadCloudflareEmail(lookup LookupEnv, publicURL string) (CloudflareEmail, error) {
+	accountID, accountSet := lookup("CLOUDFLARE_EMAIL_ACCOUNT_ID")
+	token, tokenSet := lookup("CLOUDFLARE_EMAIL_API_TOKEN")
+	from, fromSet := lookup("CLOUDFLARE_EMAIL_FROM")
+	if !accountSet && !tokenSet && !fromSet {
+		return CloudflareEmail{}, nil
+	}
+	accountID = strings.TrimSpace(accountID)
+	token = strings.TrimSpace(token)
+	from = strings.TrimSpace(from)
+	if accountID == "" || token == "" || publicURL == "" {
+		return CloudflareEmail{}, fmt.Errorf("Cloudflare Email configuration requires CLOUDFLARE_EMAIL_ACCOUNT_ID, CLOUDFLARE_EMAIL_API_TOKEN, APP_PUBLIC_URL, and CLOUDFLARE_EMAIL_FROM")
+	}
+	if from == "" || strings.ContainsAny(from, "\r\n") {
+		return CloudflareEmail{}, fmt.Errorf("CLOUDFLARE_EMAIL_FROM must be a valid address")
+	}
+	return CloudflareEmail{AccountID: accountID, APIToken: token, From: from}, nil
 }
 
 func loadMail(lookup LookupEnv, publicURL string) (Mail, error) {

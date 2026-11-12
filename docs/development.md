@@ -16,6 +16,11 @@ isolated PostgreSQL database through `POSTGRES_TEST_URL` (for example,
 PostgreSQL compatibility tests across schema migrations, leasing locks, and
 queue claim transactions. `make test-postgres` runs the identity Postgres tests against a fresh container on CI's pinned version, because those tests require a fresh database per run (see the target in the [Makefile](../Makefile)).
 
+The object-storage conformance suite in `internal/files` always runs against an
+in-process S3-compatible endpoint. Set `S3_CONFORMANCE_ENDPOINT` and
+`S3_CONFORMANCE_BUCKET` to run the same suite against a real endpoint; see
+[deployment](deployment.md#cloudflare-r2-object-storage).
+
 ## Change workflow
 
 1. Read `AGENTS.md`, inspect `git status`, and follow the route in
