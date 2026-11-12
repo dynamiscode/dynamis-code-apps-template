@@ -31,6 +31,7 @@ const (
 	TypeSCIMToken       TypeCode = "scim_token"
 	TypeOAuthClient     TypeCode = "oauth_client"
 	TypeOAuthGrant      TypeCode = "oauth_grant"
+	TypeItemEvent       TypeCode = "item_event"
 )
 
 // TypeCodes returns every registered type code.
@@ -38,7 +39,7 @@ func TypeCodes() []TypeCode {
 	return []TypeCode{
 		TypeItem, TypeWorkspace, TypeFile, TypeWebhook, TypeWebhookDelivery,
 		TypeWebhookEvent, TypeJob, TypeInvitation, TypeMember, TypeToken,
-		TypePublicLink, TypeSCIMToken, TypeOAuthClient, TypeOAuthGrant,
+		TypePublicLink, TypeSCIMToken, TypeOAuthClient, TypeOAuthGrant, TypeItemEvent,
 	}
 }
 

@@ -262,3 +262,17 @@ func TestRegistryNamesEveryWebhookAndJobType(t *testing.T) {
 		}
 	}
 }
+
+func TestRegistryNamesItemEvents(t *testing.T) {
+	t.Parallel()
+
+	if TypeItemEvent != "item_event" {
+		t.Fatalf("TypeItemEvent = %q", TypeItemEvent)
+	}
+	for _, code := range TypeCodes() {
+		if code == TypeItemEvent {
+			return
+		}
+	}
+	t.Fatal("item_event is not in the registry")
+}

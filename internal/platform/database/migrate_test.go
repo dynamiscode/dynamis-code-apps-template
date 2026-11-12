@@ -229,3 +229,40 @@ func assertMigrationVersion(t *testing.T, queryer interface {
 		t.Fatalf("migration version %d count = %d, want 1", version, count)
 	}
 }
+
+func TestSQLiteItemEventKeysAreNeverReused(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db, err := Open(ctx, config.Database{
+		Driver: config.SQLite, SQLitePath: filepath.Join(t.TempDir(), "app.db"),
+		MaxOpenConns: 1, MaxIdleConns: 1,
+	})
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+	if err := Migrate(ctx, db, config.SQLite); err != nil {
+		t.Fatalf("Migrate() error = %v", err)
+	}
+	var workspaceID int64
+	if err := db.QueryRowContext(ctx, "INSERT INTO workspaces (name, created_at) VALUES (?, ?) RETURNING id", "Events", "2026-01-01T00:00:00Z").Scan(&workspaceID); err != nil {
+		t.Fatal(err)
+	}
+	insert := func() int64 {
+		var eventID int64
+		if err := db.QueryRowContext(ctx, `INSERT INTO item_events (workspace_id, item_id, event_type, item_version, occurred_at)
+			VALUES (?, ?, 'created', 1, ?) RETURNING id`, workspaceID, 1, "2026-01-01T00:00:00Z").Scan(&eventID); err != nil {
+			t.Fatal(err)
+		}
+		return eventID
+	}
+	first := insert()
+	if _, err := db.ExecContext(ctx, "DELETE FROM item_events"); err != nil {
+		t.Fatal(err)
+	}
+	// A cursor for a pruned event must not resolve to the next event.
+	if second := insert(); second == first {
+		t.Fatalf("item event key %d was reused", first)
+	}
+}

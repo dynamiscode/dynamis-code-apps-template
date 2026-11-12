@@ -211,12 +211,12 @@ session values or hidden inputs into logs.
 `GET /workspaces/{workspaceId}/items/events` is an authenticated SSE stream.
 It sends redacted resource references, not item titles or credentials.
 
-- `item.changed` carries a stable event ID, schema version `1`, UTC occurrence
+- `item.changed` carries a stable short event ID, schema version `1`, UTC occurrence
   time, workspace and item IDs, action, and item version.
 - Events order by occurrence time then ID. Delivery is at least once; clients
   must tolerate duplicates and refresh the normal item list.
 - Browsers reconnect with `Last-Event-ID`. Retained events after that ID replay
-  in order. A missing, unknown, or expired cursor receives `resync`, requiring
+  in order. A missing, malformed, unknown, or expired cursor receives `resync`, requiring
   a normal list refresh before continuing.
 - The database retains the latest 1,000 item events per workspace. Database
   polling makes delivery shared across instances once PostgreSQL is used.
