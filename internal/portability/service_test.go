@@ -40,7 +40,7 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		t.Fatal(err)
 	}
 	userID, _ := id.New()
-	workspaceID, _ := id.New()
+	var workspaceID identity.WorkspaceID
 	viewerID, _ := id.New()
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	exec := func(query string, args ...any) {
@@ -51,7 +51,9 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}
 	exec("INSERT INTO users (id, email, created_at) VALUES (?, ?, ?)", userID, "portability-owner@example.com", now)
 	exec("INSERT INTO users (id, email, created_at) VALUES (?, ?, ?)", viewerID, "portability-viewer@example.com", now)
-	exec("INSERT INTO workspaces (id, name, locale, created_at) VALUES (?, ?, ?, ?)", workspaceID, "Portable", "es", now)
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, "INSERT INTO workspaces (name, locale, created_at) VALUES (?, ?, ?) RETURNING id"), "Portable", "es", now).Scan(&workspaceID); err != nil {
+		t.Fatal(err)
+	}
 	exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", workspaceID, userID, identity.Owner, now)
 	exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", workspaceID, viewerID, identity.Viewer, now)
 	actor, err := auth.Authorize(ctx, userID, workspaceID, identity.WorkspaceExport)
@@ -81,7 +83,7 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if err := json.Unmarshal(encoded, &result); err != nil {
 		t.Fatal(err)
 	}
-	if result.FormatVersion != FormatVersion || result.Workspace.ID != workspaceID ||
+	if result.FormatVersion != FormatVersion || result.Workspace.ID != workspaceID.String() ||
 		result.Workspace.Locale != "es" ||
 		len(result.Members) != 2 || len(result.Items) != 1 || result.Items[0].ID != created.Item.ID ||
 		len(result.AuditEvents) == 0 || len(result.Excluded) == 0 {
@@ -116,7 +118,7 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}, identity.AuditContext{}); err != nil {
 		t.Fatalf("workspace:update import error = %v", err)
 	}
-	wrongWorkspace, _ := id.New()
+	wrongWorkspace := identity.WorkspaceID(workspaceID + 1000)
 	if _, err := service.Export(ctx, actor, wrongWorkspace, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("wrong-workspace export error = %v", err)
 	}
@@ -132,7 +134,7 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}
 	jsonImport, err := json.Marshal(Export{
 		FormatVersion: FormatVersion,
-		Items:         []items.Item{{ID: "source-id", WorkspaceID: "source-workspace", Title: "JSON item", Status: items.Active}},
+		Items:         []items.Item{{ID: "source-id", WorkspaceID: identity.WorkspaceID(999), Title: "JSON item", Status: items.Active}},
 	})
 	if err != nil {
 		t.Fatal(err)

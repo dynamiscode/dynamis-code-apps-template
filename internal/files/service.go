@@ -67,9 +67,9 @@ func isValidTransition(fromStatus, toStatus FileStatus) bool {
 }
 
 type File struct {
-	ID           string  `json:"id"`
-	WorkspaceID  string  `json:"workspaceId"`
-	OwnerUserID  *string `json:"ownerUserId"`
+	ID           string               `json:"id"`
+	WorkspaceID  identity.WorkspaceID `json:"workspaceId"`
+	OwnerUserID  *string              `json:"ownerUserId"`
 	storageKey   string
 	OriginalName string     `json:"originalName"`
 	DetectedMIME *string    `json:"detectedMime,omitempty"`
@@ -107,7 +107,7 @@ func NewService(db *sql.DB, driver config.DatabaseDriver, auth *identity.Service
 
 func (s *Service) SupportsPresignedPut() bool { return s.store.SupportsPresignedPut() }
 
-func (s *Service) Initiate(ctx context.Context, actor identity.Principal, workspaceID string, input InitiateInput, audit identity.AuditContext) (File, error) {
+func (s *Service) Initiate(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, input InitiateInput, audit identity.AuditContext) (File, error) {
 	name, err := safeFilename(input.OriginalName)
 	if err != nil || input.Size < 1 || input.Size > s.maxObjectBytes || !allowedDeclaredType(input.ContentType, name) {
 		return File{}, ErrInvalidInput
@@ -119,7 +119,7 @@ func (s *Service) Initiate(ctx context.Context, actor identity.Principal, worksp
 	return file, nil
 }
 
-func (s *Service) Upload(ctx context.Context, actor identity.Principal, workspaceID, originalName string, source io.Reader, audit identity.AuditContext) (File, error) {
+func (s *Service) Upload(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, originalName string, source io.Reader, audit identity.AuditContext) (File, error) {
 	name, err := safeFilename(originalName)
 	if err != nil {
 		return File{}, ErrInvalidInput
@@ -152,7 +152,7 @@ func (s *Service) Upload(ctx context.Context, actor identity.Principal, workspac
 	return s.complete(ctx, actor, file, size, detected, digest, audit)
 }
 
-func (s *Service) PutContent(ctx context.Context, actor identity.Principal, workspaceID, fileID string, source io.Reader, audit identity.AuditContext) (File, error) {
+func (s *Service) PutContent(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID string, source io.Reader, audit identity.AuditContext) (File, error) {
 	file, err := s.pending(ctx, actor, workspaceID, fileID)
 	if err != nil {
 		return File{}, err
@@ -192,8 +192,8 @@ func (s *Service) PutContent(ctx context.Context, actor identity.Principal, work
 	return s.completeDB(ctx, actor, file, size, detected, digest, audit)
 }
 
-func (s *Service) Complete(ctx context.Context, actor identity.Principal, workspaceID, fileID string, audit identity.AuditContext) (File, error) {
-	if !validID(workspaceID) || !validID(fileID) {
+func (s *Service) Complete(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID string, audit identity.AuditContext) (File, error) {
+	if workspaceID == 0 || !validID(fileID) {
 		return File{}, ErrInvalidInput
 	}
 	s.finalizationMu.Lock()
@@ -238,7 +238,7 @@ func (s *Service) Complete(ctx context.Context, actor identity.Principal, worksp
 	return s.completeDB(ctx, actor, file, size, detected, digest, audit)
 }
 
-func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceID string, limit int) ([]File, error) {
+func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, limit int) ([]File, error) {
 	if limit < 1 || limit > 100 {
 		return nil, ErrInvalidInput
 	}
@@ -271,12 +271,12 @@ func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceI
 	return result, rows.Err()
 }
 
-func (s *Service) Get(ctx context.Context, actor identity.Principal, workspaceID, fileID string) (File, error) {
+func (s *Service) Get(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID string) (File, error) {
 	return s.get(ctx, actor, workspaceID, fileID, identity.ResourcesRead)
 }
 
-func (s *Service) pending(ctx context.Context, actor identity.Principal, workspaceID, fileID string) (File, error) {
-	if !validID(workspaceID) || !validID(fileID) {
+func (s *Service) pending(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID string) (File, error) {
+	if workspaceID == 0 || !validID(fileID) {
 		return File{}, ErrInvalidInput
 	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
@@ -299,7 +299,7 @@ func (s *Service) pending(ctx context.Context, actor identity.Principal, workspa
 	return file, err
 }
 
-func (s *Service) Open(ctx context.Context, actor identity.Principal, workspaceID, fileID string) (File, io.ReadCloser, error) {
+func (s *Service) Open(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID string) (File, io.ReadCloser, error) {
 	file, err := s.Get(ctx, actor, workspaceID, fileID)
 	if err != nil {
 		return File{}, nil, err
@@ -314,7 +314,7 @@ func (s *Service) Open(ctx context.Context, actor identity.Principal, workspaceI
 	return file, reader, nil
 }
 
-func (s *Service) PresignedGet(ctx context.Context, actor identity.Principal, workspaceID, fileID string) (File, string, error) {
+func (s *Service) PresignedGet(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID string) (File, string, error) {
 	file, err := s.Get(ctx, actor, workspaceID, fileID)
 	if err != nil {
 		return File{}, "", err
@@ -323,7 +323,7 @@ func (s *Service) PresignedGet(ctx context.Context, actor identity.Principal, wo
 	return file, url, err
 }
 
-func (s *Service) PresignedPut(ctx context.Context, actor identity.Principal, workspaceID, fileID string) (File, PresignedUpload, error) {
+func (s *Service) PresignedPut(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID string) (File, PresignedUpload, error) {
 	file, err := s.pending(ctx, actor, workspaceID, fileID)
 	if err != nil {
 		return File{}, PresignedUpload{}, err
@@ -335,7 +335,7 @@ func (s *Service) PresignedPut(ctx context.Context, actor identity.Principal, wo
 	return file, upload, err
 }
 
-func (s *Service) reserve(ctx context.Context, actor identity.Principal, workspaceID, name string, size int64, audit identity.AuditContext) (File, error) {
+func (s *Service) reserve(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, name string, size int64, audit identity.AuditContext) (File, error) {
 	fileID, err := id.New()
 	if err != nil {
 		return File{}, err
@@ -433,8 +433,8 @@ func (s *Service) completeDB(ctx context.Context, actor identity.Principal, file
 	return file, nil
 }
 
-func (s *Service) get(ctx context.Context, actor identity.Principal, workspaceID, fileID string, permission identity.Permission) (File, error) {
-	if !validID(workspaceID) || !validID(fileID) {
+func (s *Service) get(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID string, permission identity.Permission) (File, error) {
+	if workspaceID == 0 || !validID(fileID) {
 		return File{}, ErrInvalidInput
 	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
@@ -686,9 +686,9 @@ func safeFilename(value string) (string, error) {
 
 func (s *Service) objectKey(file File) string {
 	if s.prefix == "" {
-		return file.WorkspaceID + "/" + file.ID
+		return file.WorkspaceID.String() + "/" + file.ID
 	}
-	return s.prefix + "/" + file.WorkspaceID + "/" + file.ID
+	return s.prefix + "/" + file.WorkspaceID.String() + "/" + file.ID
 }
 
 func (s *Service) storedObjectKey(file File) string {

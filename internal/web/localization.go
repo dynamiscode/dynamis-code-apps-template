@@ -213,7 +213,7 @@ func (h *Handler) languageSettings(writer http.ResponseWriter, request *http.Req
 }
 
 func (h *Handler) generalSettingsPage(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceRead)
 	if !ok {
 		return
@@ -237,7 +237,7 @@ func (h *Handler) generalSettingsPage(writer http.ResponseWriter, request *http.
 }
 
 func (h *Handler) generalSettings(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, _, _, ok := h.managementPrincipal(writer, request, workspaceID, identity.WorkspaceUpdate)
 	if !ok {
 		return
@@ -246,11 +246,11 @@ func (h *Handler) generalSettings(writer http.ResponseWriter, request *http.Requ
 		h.managementError(writer, request, workspaceID, "The selected language is invalid.")
 		return
 	}
-	h.redirect(writer, request, "/workspaces/"+workspaceID+"/settings/general?saved=1")
+	h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/settings/general?saved=1")
 }
 
 func (h *Handler) workspaceNotificationSettings(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, _, _, ok := h.managementPrincipal(writer, request, workspaceID, identity.WorkspaceRead)
 	if !ok {
 		return
@@ -260,5 +260,5 @@ func (h *Handler) workspaceNotificationSettings(writer http.ResponseWriter, requ
 		h.managementError(writer, request, workspaceID, "The notification preference is invalid.")
 		return
 	}
-	h.redirect(writer, request, "/workspaces/"+workspaceID+"/settings/general?saved=1")
+	h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/settings/general?saved=1")
 }

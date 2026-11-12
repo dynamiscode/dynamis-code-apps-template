@@ -38,7 +38,7 @@ func (s *Service) CreateNotification(
 	if err := s.queryRow(ctx, tx, "SELECT 1 FROM users WHERE id = ?", input.RecipientUserID).Scan(&exists); err != nil {
 		return Notification{}, ErrForbidden
 	}
-	if input.WorkspaceID != "" {
+	if input.WorkspaceID != 0 {
 		if err := s.queryRow(ctx, tx, `
 			SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?
 		`, input.WorkspaceID, input.RecipientUserID).Scan(&exists); err != nil {
@@ -67,7 +67,7 @@ func (s *Service) CreateNotification(
 	if _, err := s.exec(ctx, tx, `
 		INSERT INTO notifications (id, user_id, workspace_id, notification_type, title, body, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, notificationID, input.RecipientUserID, nullable(input.WorkspaceID), input.NotificationType,
+	`, notificationID, input.RecipientUserID, nullableWorkspaceID(input.WorkspaceID), input.NotificationType,
 		input.Title, input.Body, timestamp(now)); err != nil {
 		return Notification{}, err
 	}
@@ -94,7 +94,7 @@ func (s *Service) CreateNotification(
 func (s *Service) notificationEnabled(
 	ctx context.Context,
 	queryer rowQueryer,
-	userID, workspaceID, notificationType string,
+	userID string, workspaceID WorkspaceID, notificationType string,
 ) (bool, error) {
 	var enabled bool
 	err := s.queryRow(ctx, queryer, `
@@ -107,7 +107,7 @@ func (s *Service) notificationEnabled(
 	if err == nil && !enabled {
 		return false, nil
 	}
-	if workspaceID == "" {
+	if workspaceID == 0 {
 		return true, nil
 	}
 	err = s.queryRow(ctx, queryer, `
@@ -129,7 +129,7 @@ func (s *Service) SetNotificationPreference(
 	if err := validateNotificationType(notificationType); err != nil {
 		return err
 	}
-	return s.setNotificationPreference(ctx, userID, "", notificationType, enabled, audit)
+	return s.setNotificationPreference(ctx, userID, 0, notificationType, enabled, audit)
 }
 
 func (s *Service) SetWorkspaceNotificationPreference(
@@ -142,7 +142,7 @@ func (s *Service) SetWorkspaceNotificationPreference(
 	if err := validateNotificationType(notificationType); err != nil {
 		return err
 	}
-	if actor.UserID == "" || actor.WorkspaceID == "" {
+	if actor.UserID == "" || actor.WorkspaceID == 0 {
 		return ErrForbidden
 	}
 	if _, err := s.Authorize(ctx, actor.UserID, actor.WorkspaceID, WorkspaceRead); err != nil {
@@ -153,7 +153,7 @@ func (s *Service) SetWorkspaceNotificationPreference(
 
 func (s *Service) setNotificationPreference(
 	ctx context.Context,
-	userID, workspaceID, notificationType string,
+	userID string, workspaceID WorkspaceID, notificationType string,
 	enabled bool,
 	audit AuditContext,
 ) error {
@@ -169,7 +169,7 @@ func (s *Service) setNotificationPreference(
 	now := s.now().UTC()
 	var query string
 	args := []any{userID, notificationType, enabled, timestamp(now)}
-	if workspaceID == "" {
+	if workspaceID == 0 {
 		query = `INSERT INTO user_notification_preferences (user_id, notification_type, enabled, updated_at)
 			VALUES (?, ?, ?, ?) ON CONFLICT (user_id, notification_type)
 			DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at`
@@ -209,12 +209,12 @@ func validateNotificationType(value string) error {
 
 func (s *Service) GetNotificationPreferences(
 	ctx context.Context,
-	userID, workspaceID string,
+	userID string, workspaceID WorkspaceID,
 ) ([]NotificationPreference, error) {
 	if _, err := s.GetUserProfile(ctx, userID); err != nil {
 		return nil, err
 	}
-	if workspaceID != "" {
+	if workspaceID != 0 {
 		if _, err := s.Authorize(ctx, userID, workspaceID, WorkspaceRead); err != nil {
 			return nil, ErrForbidden
 		}
@@ -239,7 +239,7 @@ func (s *Service) GetNotificationPreferences(
 	if err := rows.Close(); err != nil {
 		return nil, err
 	}
-	if workspaceID == "" {
+	if workspaceID == 0 {
 		return preferences, nil
 	}
 	rows, err = s.db.QueryContext(ctx, s.bind(`
@@ -263,22 +263,22 @@ func (s *Service) GetNotificationPreferences(
 
 func (s *Service) ListNotifications(
 	ctx context.Context,
-	userID, workspaceID string,
+	userID string, workspaceID WorkspaceID,
 	includeRead bool,
 	limit int,
 ) ([]Notification, error) {
 	if limit <= 0 || limit > maxNotifications {
 		limit = 50
 	}
-	if workspaceID != "" {
+	if workspaceID != 0 {
 		if _, err := s.Authorize(ctx, userID, workspaceID, WorkspaceRead); err != nil {
 			return nil, ErrForbidden
 		}
 	}
-	query := `SELECT id, user_id, COALESCE(workspace_id, ''), notification_type,
+	query := `SELECT id, user_id, COALESCE(workspace_id, 0), notification_type,
 		title, body, created_at, read_at FROM notifications WHERE user_id = ?`
 	args := []any{userID}
-	if workspaceID != "" {
+	if workspaceID != 0 {
 		query += " AND workspace_id = ?"
 		args = append(args, workspaceID)
 	}
@@ -300,7 +300,7 @@ func (s *Service) NotificationsAfter(
 	}
 	if afterID == "" {
 		return s.scanNotifications(ctx, `
-			SELECT id, user_id, COALESCE(workspace_id, ''), notification_type,
+			SELECT id, user_id, COALESCE(workspace_id, 0), notification_type,
 				title, body, created_at, read_at FROM notifications
 			WHERE user_id = ? ORDER BY created_at, id LIMIT ?
 		`, userID, limit)
@@ -312,7 +312,7 @@ func (s *Service) NotificationsAfter(
 		return nil, ErrInvalidNotification
 	}
 	return s.scanNotifications(ctx, `
-		SELECT id, user_id, COALESCE(workspace_id, ''), notification_type,
+		SELECT id, user_id, COALESCE(workspace_id, 0), notification_type,
 			title, body, created_at, read_at FROM notifications
 		WHERE user_id = ? AND (created_at > ? OR (created_at = ? AND id > ?))
 		ORDER BY created_at, id LIMIT ?

@@ -441,30 +441,30 @@ func (s *Service) AcceptInvitation(
 	secret string,
 	userID string,
 	audit AuditContext,
-) (string, error) {
+) (WorkspaceID, error) {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	defer tx.Rollback()
 	var userEmail string
 	if err := s.queryRow(ctx, tx,
 		"SELECT email FROM users WHERE id = ?", userID,
 	).Scan(&userEmail); err != nil {
-		return "", ErrInvalidInvitation
+		return 0, ErrInvalidInvitation
 	}
 	invitation, err := s.acceptInvitation(ctx, tx, secret, userID, userEmail, audit)
 	if err != nil {
 		if errors.Is(err, errInvitationExpired) {
 			if commitErr := tx.Commit(); commitErr != nil {
-				return "", commitErr
+				return 0, commitErr
 			}
-			return "", ErrInvalidInvitation
+			return 0, ErrInvalidInvitation
 		}
-		return "", err
+		return 0, err
 	}
 	if err := tx.Commit(); err != nil {
-		return "", err
+		return 0, err
 	}
 	return invitation.WorkspaceID, nil
 }
@@ -474,56 +474,56 @@ func (s *Service) CreateInvitedLocalUser(
 	secret string,
 	password string,
 	audit AuditContext,
-) (string, string, error) {
+) (string, WorkspaceID, error) {
 	if len(password) < 12 || len(password) > 1024 {
-		return "", "", ErrInvalidInvitation
+		return "", 0, ErrInvalidInvitation
 	}
 	passwordHash, err := hashPassword(password, s.passwordParams)
 	if err != nil {
-		return "", "", ErrInvalidInvitation
+		return "", 0, ErrInvalidInvitation
 	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		return "", "", err
+		return "", 0, err
 	}
 	defer tx.Rollback()
 	invitation, err := s.findInvitation(ctx, tx, secret)
 	if err != nil {
 		if errors.Is(err, errInvitationExpired) {
 			if commitErr := tx.Commit(); commitErr != nil {
-				return "", "", commitErr
+				return "", 0, commitErr
 			}
-			return "", "", ErrInvalidInvitation
+			return "", 0, ErrInvalidInvitation
 		}
-		return "", "", err
+		return "", 0, err
 	}
 	var existing int
 	if err := s.queryRow(ctx, tx,
 		"SELECT 1 FROM users WHERE email = ?", invitation.Email,
 	).Scan(&existing); err == nil {
-		return "", "", ErrInvalidInvitation
+		return "", 0, ErrInvalidInvitation
 	} else if !errors.Is(err, sql.ErrNoRows) {
-		return "", "", err
+		return "", 0, err
 	}
 	userID, err := id.New()
 	if err != nil {
-		return "", "", err
+		return "", 0, err
 	}
 	now := s.now().UTC()
 	if _, err := s.exec(ctx, tx, `
 		INSERT INTO users (id, email, password_hash, email_verified_at, created_at)
 		VALUES (?, ?, ?, ?, ?)
 	`, userID, invitation.Email, passwordHash, timestamp(now), timestamp(now)); err != nil {
-		return "", "", ErrInvalidInvitation
+		return "", 0, ErrInvalidInvitation
 	}
 	invitation, err = s.acceptLoadedInvitation(
 		ctx, tx, invitation, userID, audit, now,
 	)
 	if err != nil {
-		return "", "", err
+		return "", 0, err
 	}
 	if err := tx.Commit(); err != nil {
-		return "", "", err
+		return "", 0, err
 	}
 	return userID, invitation.WorkspaceID, nil
 }
@@ -650,7 +650,7 @@ func (s *Service) acceptLoadedInvitation(
 func (s *Service) expireInvitations(
 	ctx context.Context,
 	tx *sql.Tx,
-	workspaceID string,
+	workspaceID WorkspaceID,
 	email string,
 	now time.Time,
 ) error {
@@ -694,7 +694,7 @@ func (s *Service) markInvitationExpired(
 	ctx context.Context,
 	tx *sql.Tx,
 	invitationID string,
-	workspaceID string,
+	workspaceID WorkspaceID,
 	now time.Time,
 ) error {
 	if err := ValidateInvitationTransition(InvitationPending, InvitationExpired); err != nil {

@@ -1,6 +1,6 @@
 CREATE TABLE item_events (
     id TEXT PRIMARY KEY,
-    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     item_id TEXT NOT NULL,
     event_type TEXT NOT NULL CHECK (event_type IN ('created', 'updated', 'deleted')),
     item_version BIGINT NOT NULL,

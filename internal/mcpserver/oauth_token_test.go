@@ -47,7 +47,7 @@ func newOAuthSetup(t *testing.T) oauthSetup {
 func (setup oauthSetup) code(t *testing.T, scopes []identity.Permission) string {
 	t.Helper()
 	code, err := setup.state.auth.ApproveOAuthConsent(context.Background(), setup.session.Session,
-		setup.state.workspaceID, setup.client.ClientID, scopes, "https://client.example/callback",
+		setup.state.workspaceKey, setup.client.ClientID, scopes, "https://client.example/callback",
 		s256(testPKCEVerifier), testOAuthResourceURL, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)

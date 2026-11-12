@@ -16,13 +16,13 @@ const maximumRetainedChanges = 1000
 const changeOriginCursor = "0"
 
 type Change struct {
-	ID            string    `json:"id"`
-	SchemaVersion int       `json:"schemaVersion"`
-	OccurredAt    time.Time `json:"occurredAt"`
-	WorkspaceID   string    `json:"workspaceId"`
-	ItemID        string    `json:"itemId"`
-	Action        string    `json:"action"`
-	ItemVersion   int64     `json:"itemVersion"`
+	ID            string               `json:"id"`
+	SchemaVersion int                  `json:"schemaVersion"`
+	OccurredAt    time.Time            `json:"occurredAt"`
+	WorkspaceID   identity.WorkspaceID `json:"workspaceId"`
+	ItemID        string               `json:"itemId"`
+	Action        string               `json:"action"`
+	ItemVersion   int64                `json:"itemVersion"`
 }
 
 type ChangePage struct {
@@ -34,7 +34,7 @@ type ChangePage struct {
 func (s *Service) Changes(
 	ctx context.Context,
 	actor identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	after string,
 	limit int,
 ) (ChangePage, error) {
@@ -109,7 +109,7 @@ func (s *Service) Changes(
 	return page, rows.Err()
 }
 
-func (s *Service) latestChangeID(ctx context.Context, workspaceID string) (string, error) {
+func (s *Service) latestChangeID(ctx context.Context, workspaceID identity.WorkspaceID) (string, error) {
 	var latest string
 	err := s.queryRow(ctx, s.db, `
 		SELECT id FROM item_events WHERE workspace_id = ?
@@ -124,7 +124,7 @@ func (s *Service) latestChangeID(ctx context.Context, workspaceID string) (strin
 func (s *Service) recordChange(
 	ctx context.Context,
 	tx *sql.Tx,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	itemID string,
 	action string,
 	version int64,

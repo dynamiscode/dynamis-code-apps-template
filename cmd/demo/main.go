@@ -16,8 +16,8 @@ import (
 )
 
 type result struct {
-	WorkspaceID string   `json:"workspaceId"`
-	ItemIDs     []string `json:"itemIds"`
+	WorkspaceID identity.WorkspaceID `json:"workspaceId"`
+	ItemIDs     []string             `json:"itemIds"`
 }
 
 func main() {
@@ -82,34 +82,34 @@ func demoOwner(
 	ctx context.Context,
 	auth *identity.Service,
 	email, password, workspaceName string,
-) (string, string, error) {
+) (identity.WorkspaceID, string, error) {
 	bootstrapped, err := auth.IsBootstrapped(ctx)
 	if err != nil {
-		return "", "", err
+		return 0, "", err
 	}
 	if !bootstrapped {
 		created, err := auth.BootstrapFirstOwner(ctx, identity.BootstrapInput{
 			Email: email, Password: password, WorkspaceName: workspaceName,
 		}, identity.AuditContext{})
 		if err != nil {
-			return "", "", err
+			return 0, "", err
 		}
 		return created.WorkspaceID, created.UserID, nil
 	}
 	userID, err := auth.AuthenticateLocal(ctx, email, password)
 	if err != nil {
-		return "", "", err
+		return 0, "", err
 	}
 	workspaces, err := auth.ListWorkspaces(ctx, userID)
 	if err != nil {
-		return "", "", err
+		return 0, "", err
 	}
 	for _, workspace := range workspaces {
 		if workspace.Name == workspaceName {
 			return workspace.ID, userID, nil
 		}
 	}
-	return "", "", fmt.Errorf("demo workspace %q was not found", workspaceName)
+	return 0, "", fmt.Errorf("demo workspace %q was not found", workspaceName)
 }
 
 func valueOrDefault(name, fallback string) string {

@@ -28,8 +28,11 @@ func TypeCodes() []TypeCode {
 	return []TypeCode{TypeItem, TypeWorkspace, TypeWebhook, TypeInvitation}
 }
 
+// ShortIDAlphabet is the alphabet every short ID uses; the CLI validates against it.
+const ShortIDAlphabet = "23456789abcdefghjkmnpqrstuvwxyz"
+
 const (
-	baseAlphabet = "23456789abcdefghjkmnpqrstuvwxyz"
+	baseAlphabet = ShortIDAlphabet
 	minLength    = 4
 )
 

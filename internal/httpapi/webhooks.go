@@ -15,8 +15,8 @@ type createWebhookRequest struct {
 }
 
 func (h *handler) listWebhooks(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
-	if !validID(workspaceID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -37,8 +37,8 @@ func (h *handler) listWebhooks(writer http.ResponseWriter, request *http.Request
 }
 
 func (h *handler) createWebhook(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
-	if !validID(workspaceID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -67,8 +67,8 @@ func (h *handler) createWebhook(writer http.ResponseWriter, request *http.Reques
 }
 
 func (h *handler) deleteWebhook(writer http.ResponseWriter, request *http.Request) {
-	workspaceID, webhookID := request.PathValue("workspaceId"), request.PathValue("webhookId")
-	if !validID(workspaceID) || !validID(webhookID) || len(request.URL.Query()) != 0 {
+	workspaceID, webhookID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), request.PathValue("webhookId")
+	if !validID(webhookID) || len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -88,8 +88,8 @@ func (h *handler) deleteWebhook(writer http.ResponseWriter, request *http.Reques
 }
 
 func (h *handler) rotateWebhookSecret(writer http.ResponseWriter, request *http.Request) {
-	workspaceID, webhookID := request.PathValue("workspaceId"), request.PathValue("webhookId")
-	if !validID(workspaceID) || !validID(webhookID) || len(request.URL.Query()) != 0 {
+	workspaceID, webhookID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), request.PathValue("webhookId")
+	if !validID(webhookID) || len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -111,8 +111,8 @@ func (h *handler) rotateWebhookSecret(writer http.ResponseWriter, request *http.
 }
 
 func (h *handler) listWebhookDeliveries(writer http.ResponseWriter, request *http.Request) {
-	workspaceID, webhookID := request.PathValue("workspaceId"), request.PathValue("webhookId")
-	if !validID(workspaceID) || !validID(webhookID) || len(request.URL.Query()) != 0 {
+	workspaceID, webhookID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), request.PathValue("webhookId")
+	if !validID(webhookID) || len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}

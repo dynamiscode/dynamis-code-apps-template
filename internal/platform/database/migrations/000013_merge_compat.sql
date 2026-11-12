@@ -3,7 +3,7 @@
 -- Recreate whichever schema a previously applied version skipped.
 CREATE TABLE IF NOT EXISTS scim_tokens (
     id TEXT PRIMARY KEY,
-    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     created_by_user_id TEXT NOT NULL REFERENCES users(id),
     secret_hash TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
@@ -14,7 +14,7 @@ CREATE INDEX IF NOT EXISTS scim_tokens_workspace_idx
     ON scim_tokens (workspace_id, created_at);
 
 CREATE TABLE IF NOT EXISTS scim_users (
-    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     external_id TEXT NOT NULL,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'member', 'viewer')),
@@ -30,7 +30,7 @@ CREATE INDEX IF NOT EXISTS scim_users_workspace_name_idx
     ON scim_users (workspace_id, user_id, external_id);
 
 CREATE TABLE IF NOT EXISTS scim_groups (
-    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     role TEXT NOT NULL CHECK (role IN ('admin', 'member', 'viewer')),
     version BIGINT NOT NULL,
     created_at TEXT NOT NULL,
@@ -63,7 +63,7 @@ WHERE NOT EXISTS (
 
 CREATE TABLE IF NOT EXISTS background_jobs (
     id TEXT PRIMARY KEY,
-    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     kind TEXT NOT NULL,
     deduplication_key TEXT NOT NULL,
     payload TEXT NOT NULL,

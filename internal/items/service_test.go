@@ -135,7 +135,7 @@ func TestItemLifecycleContracts(t *testing.T) {
 		t.Fatalf("delete changes = %+v, %v", deleted, err)
 	}
 	wrong := principal
-	wrong.WorkspaceID = "00000000000000000000000000000000"
+	wrong.WorkspaceID = identity.WorkspaceID(999)
 	if _, err := service.Get(ctx, wrong, wrong.WorkspaceID, created.Item.ID); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("cross-workspace get error = %v", err)
 	}

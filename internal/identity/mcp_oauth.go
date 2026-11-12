@@ -120,7 +120,7 @@ func (s *Service) RegisterOAuthClient(
 func (s *Service) ApproveOAuthConsent(
 	ctx context.Context,
 	session Session,
-	workspaceID string,
+	workspaceID WorkspaceID,
 	clientID string,
 	scopes []Permission,
 	redirectURI string,
@@ -318,7 +318,8 @@ func (s *Service) RefreshOAuthToken(
 // without separate revocation hooks.
 func (s *Service) AuthenticateOAuthAccessToken(ctx context.Context, token string) (Principal, error) {
 	now := s.now().UTC()
-	var tokenID, userID, workspaceID, encodedScopes string
+	var tokenID, userID, encodedScopes string
+	var workspaceID WorkspaceID
 	var tokenExpires, tokenRevoked, grantRevoked, sessionRevoked, sessionExpires sql.NullString
 	var authLevel int
 	if err := s.queryRow(ctx, s.db, `
@@ -393,7 +394,7 @@ type oauthSecretRow struct {
 	codeChallenge  string
 	resource       string
 	userID         string
-	workspaceID    string
+	workspaceID    WorkspaceID
 	scopes         []Permission
 	expiresAt      sql.NullString
 	consumed       sql.NullString

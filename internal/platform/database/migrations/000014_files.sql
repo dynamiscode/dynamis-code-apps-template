@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS files (
     id TEXT PRIMARY KEY,
-    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     object_key TEXT NOT NULL UNIQUE,
     original_name TEXT NOT NULL,

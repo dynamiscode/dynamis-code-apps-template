@@ -90,7 +90,7 @@ func TestAgentSurfacesLiveSmoke(t *testing.T) {
 	if loginResponse.StatusCode != http.StatusOK || !strings.HasSuffix(loginResponse.Request.URL.Path, "/") {
 		t.Fatalf("browser login status=%d path=%s", loginResponse.StatusCode, loginResponse.Request.URL.Path)
 	}
-	itemsPage, err := browser.Get(server.URL + "/workspaces/" + owner.WorkspaceID + "/items")
+	itemsPage, err := browser.Get(server.URL + "/workspaces/" + owner.WorkspaceID.String() + "/items")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func TestAgentSurfacesLiveSmoke(t *testing.T) {
 		t.Fatalf("browser items status = %d", itemsPage.StatusCode)
 	}
 
-	endpoint := server.URL + "/api/v1/workspaces/" + owner.WorkspaceID + "/items"
+	endpoint := server.URL + "/api/v1/workspaces/" + owner.WorkspaceID.String() + "/items"
 	request, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBufferString(`{"title":"smoke item"}`))
 	if err != nil {
 		t.Fatal(err)
@@ -118,7 +118,7 @@ func TestAgentSurfacesLiveSmoke(t *testing.T) {
 	}
 
 	var stdout, stderr bytes.Buffer
-	exit := appctl.Run([]string{"items", "get", "--workspace", owner.WorkspaceID, "--item", created.ID},
+	exit := appctl.Run([]string{"items", "get", "--workspace", owner.WorkspaceID.String(), "--item", created.ID},
 		func(key string) string {
 			if key == "APPCTL_BASE_URL" {
 				return server.URL
@@ -144,7 +144,7 @@ func TestAgentSurfacesLiveSmoke(t *testing.T) {
 	t.Cleanup(func() { session.Close() })
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{
 		Name: "items_get_v1", Arguments: map[string]any{
-			"workspaceId": owner.WorkspaceID, "itemId": created.ID,
+			"workspaceId": owner.WorkspaceID.String(), "itemId": created.ID,
 		},
 	})
 	if err != nil || result.IsError || len(result.Content) != 1 {
@@ -158,7 +158,7 @@ func TestAgentSurfacesLiveSmoke(t *testing.T) {
 	streamContext, cancelStream := context.WithTimeout(ctx, 5*time.Second)
 	defer cancelStream()
 	streamRequest, err := http.NewRequestWithContext(streamContext, http.MethodGet,
-		server.URL+"/workspaces/"+owner.WorkspaceID+"/items/events", nil)
+		server.URL+"/workspaces/"+owner.WorkspaceID.String()+"/items/events", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

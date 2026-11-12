@@ -87,7 +87,7 @@ func (h *Handler) mcpAuthorize(writer http.ResponseWriter, request *http.Request
 		})
 		return
 	}
-	code, err := h.identity.ApproveOAuthConsent(request.Context(), session, request.FormValue("workspace_id"),
+	code, err := h.identity.ApproveOAuthConsent(request.Context(), session, identity.ParseWorkspaceIDOrZero(request.FormValue("workspace_id")),
 		client.ClientID, scopes, params.RedirectURI, params.CodeChallenge, params.Resource,
 		auditContext(request))
 	switch {
@@ -189,7 +189,7 @@ func (h *Handler) consentWorkspaces(ctx context.Context, userID string, scopes [
 			}
 		}
 		if allowed {
-			choices = append(choices, mcpWorkspaceChoice{ID: workspace.ID, Name: workspace.Name})
+			choices = append(choices, mcpWorkspaceChoice{ID: workspace.ID.String(), Name: workspace.Name})
 		}
 	}
 	return choices

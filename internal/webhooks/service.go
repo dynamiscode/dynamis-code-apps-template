@@ -53,12 +53,12 @@ type CreateInput struct {
 }
 
 type Webhook struct {
-	ID          string    `json:"id"`
-	WorkspaceID string    `json:"workspaceId"`
-	Name        string    `json:"name"`
-	URL         string    `json:"url"`
-	Events      []string  `json:"events"`
-	CreatedAt   time.Time `json:"createdAt"`
+	ID          string               `json:"id"`
+	WorkspaceID identity.WorkspaceID `json:"workspaceId"`
+	Name        string               `json:"name"`
+	URL         string               `json:"url"`
+	Events      []string             `json:"events"`
+	CreatedAt   time.Time            `json:"createdAt"`
 }
 
 type NewWebhook struct {
@@ -125,7 +125,7 @@ func (s *Service) SecretKeyConfigured() bool {
 func (s *Service) Create(
 	ctx context.Context,
 	actor identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	input CreateInput,
 	audit identity.AuditContext,
 ) (NewWebhook, error) {
@@ -196,7 +196,7 @@ func (s *Service) Create(
 	}, Secret: secret}, nil
 }
 
-func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceID string) ([]Webhook, error) {
+func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID) ([]Webhook, error) {
 	if _, err := s.auth.AuthorizePrincipal(ctx, actor, workspaceID, identity.WebhooksRead); err != nil {
 		return nil, identity.ErrForbidden
 	}
@@ -222,7 +222,7 @@ func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceI
 func (s *Service) Delete(
 	ctx context.Context,
 	actor identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	webhookID string,
 	audit identity.AuditContext,
 ) error {
@@ -262,7 +262,7 @@ func (s *Service) Delete(
 func (s *Service) RotateSecret(
 	ctx context.Context,
 	actor identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	webhookID string,
 	audit identity.AuditContext,
 ) (string, error) {
@@ -317,7 +317,7 @@ func (s *Service) RotateSecret(
 func (s *Service) ListDeliveries(
 	ctx context.Context,
 	actor identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	webhookID string,
 ) ([]Delivery, error) {
 	if _, err := s.auth.AuthorizePrincipal(ctx, actor, workspaceID, identity.WebhooksRead); err != nil {
@@ -379,7 +379,7 @@ func (s *Service) ListDeliveries(
 func (s *Service) PublishInTx(
 	ctx context.Context,
 	tx *sql.Tx,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	eventType string,
 	data []byte,
 	occurredAt time.Time,
@@ -515,7 +515,7 @@ func jobDeliveryID(job jobs.Job) (string, error) {
 	return payload.DeliveryID, nil
 }
 
-func (s *Service) deliverOne(ctx context.Context, workspaceID, deliveryID string, jobAttempt int) error {
+func (s *Service) deliverOne(ctx context.Context, workspaceID identity.WorkspaceID, deliveryID string, jobAttempt int) error {
 	now := time.Now().UTC()
 	var webhookID, eventID, eventType, payload, urlValue, encrypted string
 	var attempt int

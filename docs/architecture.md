@@ -52,7 +52,10 @@ PostgreSQL migrations take a transaction-scoped advisory lock. PostgreSQL is
 required before multiple application instances.
 
 Migrations are forward-only and run in one transaction. Applied versions and
-UTC timestamps live in `schema_migrations`. Upgrades use a documented
+UTC timestamps live in `schema_migrations`. The workspace primary key is the one
+dialect-specific fragment: the runner renders `{{workspace_id_pk}}` per driver.
+Migrations 000002 through 000016 were rewritten in place for workspace short IDs
+under a [recorded exception](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md). Upgrades use a documented
 stop-the-world procedure; SQLite snapshots and PostgreSQL dumps have separate
 verified restore paths.
 
@@ -62,6 +65,11 @@ verified restore paths.
 Persisted timestamps use UTC RFC 3339 with nanosecond precision. Application
 use cases own transactions spanning multiple data operations; repositories do
 not start hidden transactions.
+
+Workspaces are the exception to opaque IDs. They use an integer key
+(`INTEGER PRIMARY KEY` on SQLite, `BIGINT GENERATED ALWAYS AS IDENTITY` on
+PostgreSQL). `identity.WorkspaceID` marshals to its short ID, the only form that
+leaves the process. The short-ID codec is [ADR 0009](decisions/0009-short-id-codec.md).
 
 ## Domain state machines
 

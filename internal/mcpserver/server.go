@@ -52,16 +52,17 @@ type handler struct {
 // Contract types. The SDK derives each tool schema from these Go types, so the
 // published constraints live on the types in contractTypes.
 type (
-	resourceID     string
-	newTitle       string
-	itemTitle      string
-	idempotencyKey string
-	searchText     string
-	sortOrder      string
-	pageLimit      int
-	cursorToken    string
-	nextCursor     string
-	itemVersion    int64
+	resourceID       string
+	workspaceShortID string
+	newTitle         string
+	itemTitle        string
+	idempotencyKey   string
+	searchText       string
+	sortOrder        string
+	pageLimit        int
+	cursorToken      string
+	nextCursor       string
+	itemVersion      int64
 )
 
 // contractTypes holds the keyword constraints that jsonschema-go cannot derive
@@ -89,48 +90,48 @@ var contractTypes = map[reflect.Type]*jsonschema.Schema{
 }
 
 type listInput struct {
-	WorkspaceID resourceID   `json:"workspaceId"`
-	Status      items.Status `json:"status,omitempty"`
-	Search      searchText   `json:"search,omitempty"`
-	Sort        sortOrder    `json:"sort,omitempty"`
-	Limit       pageLimit    `json:"limit,omitempty"`
-	Cursor      cursorToken  `json:"cursor,omitempty"`
+	WorkspaceID workspaceShortID `json:"workspaceId"`
+	Status      items.Status     `json:"status,omitempty"`
+	Search      searchText       `json:"search,omitempty"`
+	Sort        sortOrder        `json:"sort,omitempty"`
+	Limit       pageLimit        `json:"limit,omitempty"`
+	Cursor      cursorToken      `json:"cursor,omitempty"`
 }
 
 type itemInput struct {
-	WorkspaceID resourceID `json:"workspaceId"`
-	ItemID      resourceID `json:"itemId"`
+	WorkspaceID workspaceShortID `json:"workspaceId"`
+	ItemID      resourceID       `json:"itemId"`
 }
 
 type createInput struct {
-	WorkspaceID    resourceID     `json:"workspaceId"`
-	Title          newTitle       `json:"title"`
-	IdempotencyKey idempotencyKey `json:"idempotencyKey"`
+	WorkspaceID    workspaceShortID `json:"workspaceId"`
+	Title          newTitle         `json:"title"`
+	IdempotencyKey idempotencyKey   `json:"idempotencyKey"`
 }
 
 type updateInput struct {
-	WorkspaceID resourceID   `json:"workspaceId"`
-	ItemID      resourceID   `json:"itemId"`
-	Version     itemVersion  `json:"version"`
-	Title       newTitle     `json:"title,omitempty"`
-	Status      items.Status `json:"status,omitempty"`
+	WorkspaceID workspaceShortID `json:"workspaceId"`
+	ItemID      resourceID       `json:"itemId"`
+	Version     itemVersion      `json:"version"`
+	Title       newTitle         `json:"title,omitempty"`
+	Status      items.Status     `json:"status,omitempty"`
 }
 
 type deleteInput struct {
-	WorkspaceID resourceID  `json:"workspaceId"`
-	ItemID      resourceID  `json:"itemId"`
-	Version     itemVersion `json:"version"`
+	WorkspaceID workspaceShortID `json:"workspaceId"`
+	ItemID      resourceID       `json:"itemId"`
+	Version     itemVersion      `json:"version"`
 }
 
 type itemOutput struct {
-	ID              resourceID   `json:"id"`
-	WorkspaceID     resourceID   `json:"workspaceId"`
-	CreatedByUserID *string      `json:"createdByUserId"`
-	Title           itemTitle    `json:"title"`
-	Status          items.Status `json:"status"`
-	Version         itemVersion  `json:"version"`
-	CreatedAt       time.Time    `json:"createdAt"`
-	UpdatedAt       time.Time    `json:"updatedAt"`
+	ID              resourceID       `json:"id"`
+	WorkspaceID     workspaceShortID `json:"workspaceId"`
+	CreatedByUserID *string          `json:"createdByUserId"`
+	Title           itemTitle        `json:"title"`
+	Status          items.Status     `json:"status"`
+	Version         itemVersion      `json:"version"`
+	CreatedAt       time.Time        `json:"createdAt"`
+	UpdatedAt       time.Time        `json:"updatedAt"`
 }
 
 type pageOutput struct {
@@ -151,7 +152,7 @@ type toolError struct {
 func (e *toolError) Error() string { return e.message }
 
 type toolRun struct {
-	workspaceID string
+	workspaceID identity.WorkspaceID
 	targetID    string
 	err         error
 	// pending is an input_required result; it is returned without auditing a call outcome.
@@ -170,7 +171,7 @@ type callRecord struct {
 	handled     bool // a typed tool handler ran, so the SDK accepted the arguments
 	prompted    bool // an MRTR confirmation prompt was returned; no call outcome exists yet
 	toolName    string
-	workspaceID string
+	workspaceID identity.WorkspaceID
 	targetID    string
 	annotations *mcp.ToolAnnotations
 	err         error
@@ -346,30 +347,30 @@ func titleOrStatus(input, _ *jsonschema.Schema) {
 }
 
 func (h *handler) listItems(ctx context.Context, request *mcp.CallToolRequest, input listInput) (pageOutput, toolRun) {
-	page, err := h.items.List(ctx, principal(request), string(input.WorkspaceID), items.ListInput{
+	page, err := h.items.List(ctx, principal(request), identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), items.ListInput{
 		Status: input.Status, Search: string(input.Search), Sort: string(input.Sort),
 		Limit: int(input.Limit), Cursor: string(input.Cursor),
 	})
-	return toPageOutput(page), toolRun{workspaceID: string(input.WorkspaceID), err: publicError(err)}
+	return toPageOutput(page), toolRun{workspaceID: identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), err: publicError(err)}
 }
 
 func (h *handler) getItem(ctx context.Context, request *mcp.CallToolRequest, input itemInput) (itemOutput, toolRun) {
-	run := toolRun{workspaceID: string(input.WorkspaceID), targetID: string(input.ItemID)}
-	item, err := h.items.Get(ctx, principal(request), string(input.WorkspaceID), string(input.ItemID))
+	run := toolRun{workspaceID: identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), targetID: string(input.ItemID)}
+	item, err := h.items.Get(ctx, principal(request), identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), string(input.ItemID))
 	run.err = publicError(err)
 	return toItemOutput(item), run
 }
 
 func (h *handler) createItem(ctx context.Context, request *mcp.CallToolRequest, input createInput) (itemOutput, toolRun) {
-	result, err := h.items.Create(ctx, principal(request), string(input.WorkspaceID), string(input.Title),
+	result, err := h.items.Create(ctx, principal(request), identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), string(input.Title),
 		string(input.IdempotencyKey), auditContext(request))
 	return toItemOutput(result.Item), toolRun{
-		workspaceID: string(input.WorkspaceID), targetID: result.Item.ID, err: publicError(err),
+		workspaceID: identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), targetID: result.Item.ID, err: publicError(err),
 	}
 }
 
 func (h *handler) updateItem(ctx context.Context, request *mcp.CallToolRequest, input updateInput) (itemOutput, toolRun) {
-	run := toolRun{workspaceID: string(input.WorkspaceID), targetID: string(input.ItemID)}
+	run := toolRun{workspaceID: identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), targetID: string(input.ItemID)}
 	if pending, err := approvalGate(request, "items_update_v1", input,
 		fmt.Sprintf("Confirm the update of item %s to version %d.", input.ItemID, input.Version)); pending != nil || err != nil {
 		run.pending, run.err = pending, err
@@ -385,20 +386,20 @@ func (h *handler) updateItem(ctx context.Context, request *mcp.CallToolRequest, 
 		status := input.Status
 		update.Status = &status
 	}
-	item, err := h.items.Update(ctx, principal(request), string(input.WorkspaceID), string(input.ItemID),
+	item, err := h.items.Update(ctx, principal(request), identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), string(input.ItemID),
 		int64(input.Version), update, auditContext(request))
 	run.err = publicError(err)
 	return toItemOutput(item), run
 }
 
 func (h *handler) deleteItem(ctx context.Context, request *mcp.CallToolRequest, input deleteInput) (deleteOutput, toolRun) {
-	run := toolRun{workspaceID: string(input.WorkspaceID), targetID: string(input.ItemID)}
+	run := toolRun{workspaceID: identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), targetID: string(input.ItemID)}
 	if pending, err := approvalGate(request, "items_delete_v1", input,
 		fmt.Sprintf("Confirm permanent deletion of item %s at version %d.", input.ItemID, input.Version)); pending != nil || err != nil {
 		run.pending, run.err = pending, err
 		return deleteOutput{}, run
 	}
-	err := h.items.Delete(ctx, principal(request), string(input.WorkspaceID), string(input.ItemID),
+	err := h.items.Delete(ctx, principal(request), identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), string(input.ItemID),
 		int64(input.Version), auditContext(request))
 	run.err = publicError(err)
 	return deleteOutput{Deleted: err == nil, ItemID: input.ItemID}, run
@@ -406,7 +407,7 @@ func (h *handler) deleteItem(ctx context.Context, request *mcp.CallToolRequest, 
 
 func toItemOutput(item items.Item) itemOutput {
 	return itemOutput{
-		ID: resourceID(item.ID), WorkspaceID: resourceID(item.WorkspaceID),
+		ID: resourceID(item.ID), WorkspaceID: workspaceShortID(item.WorkspaceID.String()),
 		CreatedByUserID: item.CreatedByUserID, Title: itemTitle(item.Title), Status: item.Status,
 		Version: itemVersion(item.Version), CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt,
 	}

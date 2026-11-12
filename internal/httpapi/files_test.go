@@ -49,7 +49,7 @@ func TestFileRESTLifecycle(t *testing.T) {
 	}
 	wrongWorkspace := serveAuthorized(handler, http.MethodGet,
 		"/api/v1/workspaces/00000000000000000000000000000000/files/"+uploaded.ID, "", token, nil)
-	assertProblem(t, wrongWorkspace, http.StatusForbidden, "forbidden")
+	assertProblem(t, wrongWorkspace, http.StatusNotFound, "not-found")
 	list := serveAuthorized(handler, http.MethodGet, "/api/v1/workspaces/"+workspaceID+"/files", "", token, nil)
 	if list.Code != http.StatusOK || !bytes.Contains(list.Body.Bytes(), []byte(uploaded.ID)) {
 		t.Fatalf("list = %d, %s", list.Code, list.Body.String())

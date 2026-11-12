@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 )
@@ -25,14 +26,12 @@ func TestQueueRetriesWithLeaseAndRedactsHandlerErrors(t *testing.T) {
 	if err := database.Migrate(ctx, db, config.SQLite); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)", "workspace-jobs", "Jobs", stamp(time.Now())); err != nil {
-		t.Fatal(err)
-	}
+	workspaceID := insertJobsWorkspace(t, db)
 
 	queue := NewQueue(db, config.SQLite, nil)
 	attempts := 0
 	if err := queue.Register("test", func(_ context.Context, job Job) error {
-		if job.WorkspaceID != "workspace-jobs" || job.Payload != `{"value":1}` {
+		if job.WorkspaceID != workspaceID || job.Payload != `{"value":1}` {
 			t.Fatalf("job = %+v", job)
 		}
 		attempts++
@@ -54,7 +53,7 @@ func TestQueueRetriesWithLeaseAndRedactsHandlerErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := queue.EnqueueTx(ctx, tx, "workspace-jobs", "test", "dedup-1", `{"value":1}`, time.Now()); err != nil {
+	if err := queue.EnqueueTx(ctx, tx, workspaceID, "test", "dedup-1", `{"value":1}`, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -88,7 +87,7 @@ func TestQueueRetriesWithLeaseAndRedactsHandlerErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := queue.EnqueueTx(ctx, tx, "workspace-jobs", "test", "lease-1", `{"value":1}`, time.Now()); err != nil {
+	if err := queue.EnqueueTx(ctx, tx, workspaceID, "test", "lease-1", `{"value":1}`, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -110,7 +109,7 @@ func TestQueueRetriesWithLeaseAndRedactsHandlerErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := queue.EnqueueTx(ctx, tx, "workspace-jobs", "test", "final-lease", `{"value":1}`, time.Now()); err != nil {
+	if err := queue.EnqueueTx(ctx, tx, workspaceID, "test", "final-lease", `{"value":1}`, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -143,9 +142,7 @@ func TestQueueExhaustionTriggeredOnMaxAttempts(t *testing.T) {
 	if err := database.Migrate(ctx, db, config.SQLite); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)", "workspace-jobs", "Jobs", stamp(time.Now())); err != nil {
-		t.Fatal(err)
-	}
+	workspaceID := insertJobsWorkspace(t, db)
 
 	queue := NewQueue(db, config.SQLite, nil)
 	if err := queue.Register("fail-job", func(_ context.Context, _ Job) error {
@@ -167,7 +164,7 @@ func TestQueueExhaustionTriggeredOnMaxAttempts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := queue.EnqueueTx(ctx, tx, "workspace-jobs", "fail-job", "exhaust-key", `{"test":true}`, time.Now()); err != nil {
+	if err := queue.EnqueueTx(ctx, tx, workspaceID, "fail-job", "exhaust-key", `{"test":true}`, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -301,4 +298,16 @@ func TestEvaluateJobOutcome(t *testing.T) {
 			t.Fatalf("outcome for attempt 0, max 0 = %+v", outcome)
 		}
 	})
+}
+
+func insertJobsWorkspace(t *testing.T, db *sql.DB) identity.WorkspaceID {
+	t.Helper()
+	var workspaceID identity.WorkspaceID
+	if err := db.QueryRow(
+		"INSERT INTO workspaces (name, created_at) VALUES (?, ?) RETURNING id",
+		"Jobs", stamp(time.Now()),
+	).Scan(&workspaceID); err != nil {
+		t.Fatal(err)
+	}
+	return workspaceID
 }

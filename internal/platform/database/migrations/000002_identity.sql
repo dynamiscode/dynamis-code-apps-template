@@ -25,13 +25,13 @@ CREATE TABLE instance_admins (
 );
 
 CREATE TABLE workspaces (
-    id TEXT PRIMARY KEY,
+    id {{workspace_id_pk}},
     name TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
 
 CREATE TABLE workspace_members (
-    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'member', 'viewer')),
     created_at TEXT NOT NULL,
@@ -62,7 +62,7 @@ CREATE INDEX sessions_user_idx
 
 CREATE TABLE invitations (
     id TEXT PRIMARY KEY,
-    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     invited_by_user_id TEXT NOT NULL REFERENCES users(id),
     email TEXT NOT NULL,
     active_email TEXT,
@@ -82,7 +82,7 @@ CREATE INDEX invitations_workspace_idx
 CREATE TABLE api_tokens (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     secret_hash TEXT NOT NULL UNIQUE,
     scopes TEXT NOT NULL,
@@ -114,7 +114,7 @@ CREATE TABLE audit_events (
     event_type TEXT NOT NULL,
     actor_user_id TEXT,
     auth_method TEXT NOT NULL,
-    workspace_id TEXT,
+    workspace_id BIGINT,
     target_type TEXT NOT NULL,
     target_id TEXT,
     action TEXT NOT NULL,

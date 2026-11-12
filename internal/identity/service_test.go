@@ -1064,16 +1064,13 @@ func insertUser(t *testing.T, service *Service, db *sql.DB, email string) string
 	return userID
 }
 
-func insertWorkspace(t *testing.T, service *Service, db *sql.DB, name string) string {
+func insertWorkspace(t *testing.T, service *Service, db *sql.DB, name string) WorkspaceID {
 	t.Helper()
-	workspaceID, err := id.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.Exec(
-		"INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)",
-		workspaceID, name, timestamp(service.now()),
-	); err != nil {
+	var workspaceID WorkspaceID
+	if err := db.QueryRow(
+		"INSERT INTO workspaces (name, created_at) VALUES (?, ?) RETURNING id",
+		name, timestamp(service.now()),
+	).Scan(&workspaceID); err != nil {
 		t.Fatal(err)
 	}
 	return workspaceID
@@ -1083,7 +1080,7 @@ func insertMembership(
 	t *testing.T,
 	service *Service,
 	db *sql.DB,
-	workspaceID string,
+	workspaceID WorkspaceID,
 	userID string,
 	role Role,
 ) {
@@ -1100,7 +1097,7 @@ func mustAuthorize(
 	t *testing.T,
 	service *Service,
 	userID string,
-	workspaceID string,
+	workspaceID WorkspaceID,
 	permission Permission,
 ) Principal {
 	t.Helper()

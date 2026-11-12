@@ -89,14 +89,14 @@ type scimPatchOperation struct {
 }
 
 type scimTokenResponse struct {
-	ID          string `json:"id"`
-	WorkspaceID string `json:"workspaceId"`
-	Secret      string `json:"secret"`
+	ID          string               `json:"id"`
+	WorkspaceID identity.WorkspaceID `json:"workspaceId"`
+	Secret      string               `json:"secret"`
 }
 
 func (h *handler) createSCIMToken(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
-	if !validID(workspaceID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -114,8 +114,8 @@ func (h *handler) createSCIMToken(writer http.ResponseWriter, request *http.Requ
 }
 
 func (h *handler) revokeSCIMToken(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
-	if !validID(workspaceID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -131,11 +131,7 @@ func (h *handler) revokeSCIMToken(writer http.ResponseWriter, request *http.Requ
 }
 
 func (h *handler) scimPrincipal(writer http.ResponseWriter, request *http.Request) (identity.Principal, bool) {
-	workspaceID := request.PathValue("workspaceId")
-	if !validID(workspaceID) {
-		h.scimProblem(writer, request, identity.ErrSCIMInvalid)
-		return identity.Principal{}, false
-	}
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	parts := strings.Fields(request.Header.Get("Authorization"))
 	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
 		h.scimUnauthorized(writer, request)
@@ -203,7 +199,7 @@ func (h *handler) createSCIMUser(writer http.ResponseWriter, request *http.Reque
 		return
 	}
 	writer.Header().Set("ETag", etag(user.Version))
-	writer.Header().Set("Location", "/scim/v2/"+principal.WorkspaceID+"/Users/"+url.PathEscape(user.ID))
+	writer.Header().Set("Location", "/scim/v2/"+principal.WorkspaceID.String()+"/Users/"+url.PathEscape(user.ID))
 	writeSCIMJSON(writer, http.StatusCreated, scimUserDTO(user, request))
 }
 

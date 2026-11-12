@@ -343,6 +343,12 @@ Verified 2026-08-29 with focused Go tests on SQLite:
   full-suite listener-dependent tests require execution outside the restricted
   sandbox
 
+## Workspace short ID evidence
+
+Verified 2026-11-11 with Go 1.27.4. Issue #189 moves workspace keys to integers
+and exposes only the ADR 0009 short ID. Implemented and verified as recorded above; the
+exception is [2026-11-11-workspace-short-id-migration-rewrite](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md).
+
 ## Files evidence
 
 Files metadata migration and workspace authorization, local filesystem uploads

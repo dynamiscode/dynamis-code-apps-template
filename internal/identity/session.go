@@ -208,7 +208,7 @@ func (s *Service) AuthenticateSession(
 func (s *Service) AuthenticateSessionForWorkspace(
 	ctx context.Context,
 	secret string,
-	workspaceID string,
+	workspaceID WorkspaceID,
 	permission Permission,
 ) (Principal, error) {
 	session, err := s.AuthenticateSession(ctx, secret)

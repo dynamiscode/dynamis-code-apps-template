@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -615,7 +616,7 @@ func (h *Handler) home(writer http.ResponseWriter, request *http.Request) {
 }
 
 func (h *Handler) workspaceHome(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	_, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceRead)
 	if !ok {
 		return
@@ -641,7 +642,7 @@ func (h *Handler) createItem(writer http.ResponseWriter, request *http.Request) 
 		return
 	}
 	_, err := h.items.Create(
-		request.Context(), principal, request.PathValue("workspaceId"),
+		request.Context(), principal, identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")),
 		request.FormValue("title"), request.FormValue("idempotency_key"),
 		auditContext(request),
 	)
@@ -666,7 +667,7 @@ func (h *Handler) changeItem(writer http.ResponseWriter, request *http.Request) 
 		h.renderItems(writer, request, http.StatusBadRequest, "The item version is invalid. Reload and try again.")
 		return
 	}
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	itemID := request.PathValue("itemId")
 	switch request.FormValue("action") {
 	case "delete":
@@ -696,7 +697,7 @@ func (h *Handler) afterMutation(writer http.ResponseWriter, request *http.Reques
 		h.renderItems(writer, request, http.StatusOK, "")
 		return
 	}
-	h.redirect(writer, request, "/workspaces/"+request.PathValue("workspaceId")+"/items")
+	h.redirect(writer, request, "/workspaces/"+identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")).String()+"/items")
 }
 
 func (h *Handler) renderItems(
@@ -706,7 +707,7 @@ func (h *Handler) renderItems(
 	message string,
 	shareURL ...string,
 ) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, session, csrf, ok := h.workspaceSession(
 		writer, request, workspaceID, identity.ResourcesRead,
 	)
@@ -737,7 +738,7 @@ func (h *Handler) renderItems(
 		Title: workspace.Name + " items", Error: message, CSRF: csrf,
 		Workspace: workspace, Items: page.Items, NextCursor: page.NextCursor,
 		Workspaces: workspaces, NavPage: "items", NavSection: "items", CreateKey: createKey,
-		CurrentPath: "/workspaces/" + workspaceID + "/items",
+		CurrentPath: "/workspaces/" + workspaceID.String() + "/items",
 		CanShare:    h.sharing != nil && principal.Permissions[identity.ResourcesWrite],
 	}
 	if h.sharing != nil && data.CanShare {
@@ -771,7 +772,7 @@ func (h *Handler) mutationPrincipal(
 		return identity.Principal{}, false
 	}
 	principal, session, _, ok := h.workspaceSession(
-		writer, request, request.PathValue("workspaceId"), identity.ResourcesWrite,
+		writer, request, identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), identity.ResourcesWrite,
 	)
 	if !ok {
 		return identity.Principal{}, false
@@ -803,7 +804,7 @@ func (h *Handler) itemError(writer http.ResponseWriter, request *http.Request, e
 func (h *Handler) workspaceSession(
 	writer http.ResponseWriter,
 	request *http.Request,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	permission identity.Permission,
 ) (identity.Principal, identity.Session, string, bool) {
 	session, csrf, ok := h.session(writer, request)
@@ -822,7 +823,7 @@ func (h *Handler) workspaceSession(
 			h.beginMFALogin(writer, request, session, returnTo)
 			return identity.Principal{}, identity.Session{}, "", false
 		}
-		h.renderError(writer, http.StatusForbidden)
+		h.renderError(writer, h.workspaceDenialStatus(request, session.UserID, workspaceID))
 		return identity.Principal{}, identity.Session{}, "", false
 	}
 	principal.AuthMethod = session.AuthMethod
@@ -949,7 +950,7 @@ func (h *Handler) renderError(writer http.ResponseWriter, status int) {
 	})
 }
 
-func workspaceByID(workspaces []identity.WorkspaceSummary, id string) identity.WorkspaceSummary {
+func workspaceByID(workspaces []identity.WorkspaceSummary, id identity.WorkspaceID) identity.WorkspaceSummary {
 	for _, workspace := range workspaces {
 		if workspace.ID == id {
 			return workspace
@@ -1006,7 +1007,7 @@ func (limit *streamLimit) release(userID string) {
 }
 
 func (h *Handler) itemEvents(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, _, _, ok := h.workspaceSession(
 		writer, request, workspaceID, identity.ResourcesRead,
 	)
@@ -1074,7 +1075,7 @@ func (h *Handler) sendChanges(
 	writer http.ResponseWriter,
 	request *http.Request,
 	principal identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	cursor string,
 ) (nextCursor string, ok bool) {
 	page, err := h.items.Changes(
@@ -1103,4 +1104,17 @@ func (h *Handler) sendChanges(
 		nextCursor = change.ID
 	}
 	return nextCursor, true
+}
+
+// workspaceDenialStatus answers a denied workspace request. A user who is not a
+// member gets the same not-found as a missing workspace, so IDs cannot be
+// probed. A member who lacks the permission gets forbidden.
+func (h *Handler) workspaceDenialStatus(request *http.Request, userID string, workspaceID identity.WorkspaceID) int {
+	workspaces, err := h.identity.ListWorkspaces(request.Context(), userID)
+	if err == nil && slices.ContainsFunc(workspaces, func(workspace identity.WorkspaceSummary) bool {
+		return workspace.ID == workspaceID
+	}) {
+		return http.StatusForbidden
+	}
+	return http.StatusNotFound
 }

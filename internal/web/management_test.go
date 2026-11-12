@@ -18,7 +18,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/sharing"
 )
 
-func testMultiInstanceWeb(t *testing.T) (http.Handler, http.Handler, *identity.Service, string, identity.BootstrapResult) {
+func testMultiInstanceWeb(t *testing.T) (http.Handler, http.Handler, *identity.Service, identity.WorkspaceID, identity.BootstrapResult) {
 	t.Helper()
 	ctx := context.Background()
 	cfg, err := config.LoadFrom(func(string) (string, bool) { return "", false })
@@ -68,7 +68,7 @@ func TestMultiInstanceImportFlashStateless(t *testing.T) {
 		t.Fatal(err)
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	root := "/workspaces/" + workspaceID + "/settings/import"
+	root := "/workspaces/" + workspaceID.String() + "/settings/import"
 
 	// 1. Post import to instance 1
 	postResp := multipartRequest(t, instance1, root, url.Values{"csrf": {session.CSRFSecret}, "confirm": {"yes"}}, "items.csv", "title,status\nItem One,active\nItem Two,complete\n", cookies, nil)
@@ -128,7 +128,7 @@ func TestImportPageQueryParamHandling(t *testing.T) {
 		t.Fatal(err)
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	root := "/workspaces/" + workspaceID + "/settings/import"
+	root := "/workspaces/" + workspaceID.String() + "/settings/import"
 
 	tests := []struct {
 		name         string

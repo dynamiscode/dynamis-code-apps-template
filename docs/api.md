@@ -25,7 +25,7 @@ environment variable; do not commit or log it.
 
 ```sh
 export BASE_URL=http://127.0.0.1:8080 # no trailing slash
-export WORKSPACE_ID='0123456789abcdef0123456789abcdef'
+export WORKSPACE_ID='<workspace short ID>'
 export TOKEN='<token secret>'
 ```
 
@@ -116,6 +116,9 @@ Errors use RFC 9457 Problem Details with content type
   `412`, code `precondition-failed`.
 - Invalid parameters or cursor: `400`, code `invalid-request`; missing item:
   `404`, code `not-found`.
+- Workspace path: a malformed, unknown, or foreign `workspaceId` returns `404`,
+  code `not-found`, with the same body as a missing workspace. Workspace IDs are
+  short IDs; integer keys are never accepted or returned.
 - Rate limit: `429`, code `rate-limited`; wait the number of seconds in
   `Retry-After` before retrying.
 

@@ -25,7 +25,7 @@ func TestWebhooksBrowserLifecycleAndRedaction(t *testing.T) {
 		t.Fatal(err)
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	base := "/workspaces/" + workspaceID + "/settings/webhooks"
+	base := "/workspaces/" + workspaceID.String() + "/settings/webhooks"
 
 	page := request(handler, http.MethodGet, base, nil, cookies, nil)
 	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" || strings.Contains(page.Body.String(), "data-webmcp-page") {
@@ -98,7 +98,7 @@ func TestWebhooksBrowserLifecycleAndRedaction(t *testing.T) {
 	}
 
 	otherWorkspace := strings.Repeat("f", 32)
-	if response := request(handler, http.MethodGet, "/workspaces/"+otherWorkspace+"/settings/webhooks", nil, cookies, nil); response.Code != http.StatusForbidden {
+	if response := request(handler, http.MethodGet, "/workspaces/"+otherWorkspace+"/settings/webhooks", nil, cookies, nil); response.Code != http.StatusNotFound {
 		t.Fatalf("wrong workspace webhook access = %d", response.Code)
 	}
 	memberInvitation, err := auth.CreateInvitation(ctx, mustPrincipal(t, auth, owner.UserID, workspaceID, identity.InvitationsManage), "member@example.com", identity.Member, time.Hour, identity.AuditContext{})
@@ -136,7 +136,7 @@ func TestWebhookSecretSurvivesReadbackFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	base := "/workspaces/" + workspaceID + "/settings/webhooks"
+	base := "/workspaces/" + workspaceID.String() + "/settings/webhooks"
 	rawHandler.webhooks = failingWebhookManager{service: service, listErr: errors.New("webhook list unavailable"), secretConfigured: true}
 
 	created := request(handler, http.MethodPost, base, url.Values{
@@ -175,7 +175,7 @@ func TestWebhookSecretKeyErrorIsActionable(t *testing.T) {
 		t.Fatal(err)
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	base := "/workspaces/" + workspaceID + "/settings/webhooks"
+	base := "/workspaces/" + workspaceID.String() + "/settings/webhooks"
 	rawHandler.webhooks = failingWebhookManager{service: service, createErr: webhooks.ErrSecretKey}
 
 	page := request(handler, http.MethodGet, base, nil, cookies, nil)
@@ -206,33 +206,33 @@ func (f failingWebhookManager) SecretKeyConfigured() bool {
 	return f.secretConfigured
 }
 
-func (f failingWebhookManager) List(ctx context.Context, actor identity.Principal, workspaceID string) ([]webhooks.Webhook, error) {
+func (f failingWebhookManager) List(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID) ([]webhooks.Webhook, error) {
 	if f.listErr != nil {
 		return nil, f.listErr
 	}
 	return f.service.List(ctx, actor, workspaceID)
 }
 
-func (f failingWebhookManager) ListDeliveries(ctx context.Context, actor identity.Principal, workspaceID, webhookID string) ([]webhooks.Delivery, error) {
+func (f failingWebhookManager) ListDeliveries(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, webhookID string) ([]webhooks.Delivery, error) {
 	return f.service.ListDeliveries(ctx, actor, workspaceID, webhookID)
 }
 
-func (f failingWebhookManager) Create(ctx context.Context, actor identity.Principal, workspaceID string, input webhooks.CreateInput, audit identity.AuditContext) (webhooks.NewWebhook, error) {
+func (f failingWebhookManager) Create(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, input webhooks.CreateInput, audit identity.AuditContext) (webhooks.NewWebhook, error) {
 	if f.createErr != nil {
 		return webhooks.NewWebhook{}, f.createErr
 	}
 	return f.service.Create(ctx, actor, workspaceID, input, audit)
 }
 
-func (f failingWebhookManager) RotateSecret(ctx context.Context, actor identity.Principal, workspaceID, webhookID string, audit identity.AuditContext) (string, error) {
+func (f failingWebhookManager) RotateSecret(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, webhookID string, audit identity.AuditContext) (string, error) {
 	return f.service.RotateSecret(ctx, actor, workspaceID, webhookID, audit)
 }
 
-func (f failingWebhookManager) Delete(ctx context.Context, actor identity.Principal, workspaceID, webhookID string, audit identity.AuditContext) error {
+func (f failingWebhookManager) Delete(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, webhookID string, audit identity.AuditContext) error {
 	return f.service.Delete(ctx, actor, workspaceID, webhookID, audit)
 }
 
-func webhookWebTest(t *testing.T) (http.Handler, *sql.DB, *identity.Service, *webhooks.Service, string, identity.BootstrapResult, *Handler) {
+func webhookWebTest(t *testing.T) (http.Handler, *sql.DB, *identity.Service, *webhooks.Service, identity.WorkspaceID, identity.BootstrapResult, *Handler) {
 	t.Helper()
 	ctx := context.Background()
 	cfg, err := config.LoadFrom(func(string) (string, bool) { return "", false })
@@ -283,7 +283,7 @@ func webhookSecret(t *testing.T, body string) string {
 	return body[start : start+end]
 }
 
-func mustPrincipal(t *testing.T, auth *identity.Service, userID, workspaceID string, permission identity.Permission) identity.Principal {
+func mustPrincipal(t *testing.T, auth *identity.Service, userID string, workspaceID identity.WorkspaceID, permission identity.Permission) identity.Principal {
 	t.Helper()
 	principal, err := auth.Authorize(context.Background(), userID, workspaceID, permission)
 	if err != nil {

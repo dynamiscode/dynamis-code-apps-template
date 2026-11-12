@@ -35,8 +35,8 @@ func (h *handler) addPrompts(server *mcp.Server) {
 
 func (h *handler) itemReviewPrompt(ctx context.Context, request *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 	arguments := request.Params.Arguments
-	workspaceID, itemID, status := arguments["workspaceId"], arguments["itemId"], arguments["status"]
-	if !validID(workspaceID) || !validID(itemID) || !isItemStatus(status) {
+	workspaceID, itemID, status := identity.ParseWorkspaceIDOrZero(arguments["workspaceId"]), arguments["itemId"], arguments["status"]
+	if workspaceID == 0 || !validID(itemID) || !isItemStatus(status) {
 		return nil, invalidParameters()
 	}
 	item, err := h.items.Get(ctx, principalFromExtra(request.Extra), workspaceID, itemID)
@@ -85,8 +85,8 @@ func (h *handler) completeItemIDs(ctx context.Context, request *mcp.CompleteRequ
 	if request.Params.Context != nil {
 		scope = request.Params.Context.Arguments
 	}
-	workspaceID := scope["workspaceId"]
-	if !validID(workspaceID) {
+	workspaceID := identity.ParseWorkspaceIDOrZero(scope["workspaceId"])
+	if workspaceID == 0 {
 		return empty, false, nil
 	}
 	input := items.ListInput{Sort: "-created_at", Limit: completionScanLimit}

@@ -51,19 +51,19 @@ type Member struct {
 }
 
 type AuditEvent struct {
-	ID            string          `json:"id"`
-	EventType     string          `json:"eventType"`
-	ActorUserID   string          `json:"actorUserId,omitempty"`
-	AuthMethod    string          `json:"authMethod"`
-	WorkspaceID   string          `json:"workspaceId,omitempty"`
-	TargetType    string          `json:"targetType"`
-	TargetID      string          `json:"targetId,omitempty"`
-	Action        string          `json:"action"`
-	Outcome       string          `json:"outcome"`
-	RequestID     string          `json:"requestId,omitempty"`
-	SourceAddress string          `json:"sourceAddress,omitempty"`
-	Metadata      json.RawMessage `json:"metadata"`
-	CreatedAt     time.Time       `json:"createdAt"`
+	ID            string               `json:"id"`
+	EventType     string               `json:"eventType"`
+	ActorUserID   string               `json:"actorUserId,omitempty"`
+	AuthMethod    string               `json:"authMethod"`
+	WorkspaceID   identity.WorkspaceID `json:"workspaceId,omitempty"`
+	TargetType    string               `json:"targetType"`
+	TargetID      string               `json:"targetId,omitempty"`
+	Action        string               `json:"action"`
+	Outcome       string               `json:"outcome"`
+	RequestID     string               `json:"requestId,omitempty"`
+	SourceAddress string               `json:"sourceAddress,omitempty"`
+	Metadata      json.RawMessage      `json:"metadata"`
+	CreatedAt     time.Time            `json:"createdAt"`
 }
 
 type Service struct {
@@ -108,7 +108,7 @@ type ImportResult struct {
 func (s *Service) Import(
 	ctx context.Context,
 	actor identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	input ImportInput,
 	audit identity.AuditContext,
 ) (ImportResult, error) {
@@ -217,7 +217,7 @@ func parseCSV(encoded []byte) ([]items.ImportItem, error) {
 func (s *Service) recordImportFailure(
 	ctx context.Context,
 	actor identity.Principal,
-	workspaceID, format string,
+	workspaceID identity.WorkspaceID, format string,
 	audit identity.AuditContext,
 ) {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
@@ -241,14 +241,14 @@ func (s *Service) recordImportAudit(
 	ctx context.Context,
 	tx *sql.Tx,
 	actor identity.Principal,
-	workspaceID, outcome, format string,
+	workspaceID identity.WorkspaceID, outcome, format string,
 	records int,
 	audit identity.AuditContext,
 ) error {
 	return s.identity.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "workspace.imported", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "workspace", TargetID: workspaceID, Action: "workspace.import",
+		TargetType: "workspace", TargetID: workspaceID.String(), Action: "workspace.import",
 		Outcome: outcome, RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata:  fmt.Sprintf(`{"format":%q,"records":%d}`, format, records),
 		CreatedAt: s.now().UTC(),
@@ -258,7 +258,7 @@ func (s *Service) recordImportAudit(
 func (s *Service) Export(
 	ctx context.Context,
 	actor identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	audit identity.AuditContext,
 ) ([]byte, error) {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
@@ -282,11 +282,13 @@ func (s *Service) Export(
 		},
 	}
 	var createdAt string
+	var workspaceKey identity.WorkspaceID
 	if err := s.queryRow(ctx, tx,
 		"SELECT id, name, locale, created_at FROM workspaces WHERE id = ?", workspaceID,
-	).Scan(&result.Workspace.ID, &result.Workspace.Name, &result.Workspace.Locale, &createdAt); err != nil {
+	).Scan(&workspaceKey, &result.Workspace.Name, &result.Workspace.Locale, &createdAt); err != nil {
 		return nil, err
 	}
+	result.Workspace.ID = workspaceKey.String()
 	result.Workspace.CreatedAt, err = parseTime(createdAt)
 	if err != nil {
 		return nil, err
@@ -323,7 +325,7 @@ func (s *Service) Export(
 	return encoded, nil
 }
 
-func (s *Service) members(ctx context.Context, tx *sql.Tx, workspaceID string) ([]Member, error) {
+func (s *Service) members(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID) ([]Member, error) {
 	rows, err := tx.QueryContext(ctx, s.bind(`
 		SELECT m.user_id, u.email, m.role, m.created_at
 		FROM workspace_members m JOIN users u ON u.id = m.user_id
@@ -349,7 +351,7 @@ func (s *Service) members(ctx context.Context, tx *sql.Tx, workspaceID string) (
 	return result, rows.Err()
 }
 
-func (s *Service) itemRecords(ctx context.Context, tx *sql.Tx, workspaceID string) ([]items.Item, error) {
+func (s *Service) itemRecords(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID) ([]items.Item, error) {
 	rows, err := tx.QueryContext(ctx, s.bind(`
 		SELECT id, workspace_id, created_by_user_id, title, status,
 			version, created_at, updated_at
@@ -386,7 +388,7 @@ func (s *Service) itemRecords(ctx context.Context, tx *sql.Tx, workspaceID strin
 	return result, rows.Err()
 }
 
-func (s *Service) auditEvents(ctx context.Context, tx *sql.Tx, workspaceID string) ([]AuditEvent, error) {
+func (s *Service) auditEvents(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID) ([]AuditEvent, error) {
 	rows, err := tx.QueryContext(ctx, s.bind(`
 		SELECT id, event_type, actor_user_id, auth_method, workspace_id,
 			target_type, target_id, action, outcome, request_id,
@@ -400,7 +402,8 @@ func (s *Service) auditEvents(ctx context.Context, tx *sql.Tx, workspaceID strin
 	result := make([]AuditEvent, 0)
 	for rows.Next() {
 		var value AuditEvent
-		var actor, scope, target, requestID, source sql.NullString
+		var actor, target, requestID, source sql.NullString
+		var scope sql.NullInt64
 		var metadata, createdAt string
 		if err := rows.Scan(
 			&value.ID, &value.EventType, &actor, &value.AuthMethod, &scope,
@@ -409,7 +412,10 @@ func (s *Service) auditEvents(ctx context.Context, tx *sql.Tx, workspaceID strin
 		); err != nil {
 			return nil, err
 		}
-		value.ActorUserID, value.WorkspaceID, value.TargetID = actor.String, scope.String, target.String
+		value.ActorUserID, value.TargetID = actor.String, target.String
+		if scope.Valid {
+			value.WorkspaceID = identity.WorkspaceID(scope.Int64)
+		}
 		value.RequestID, value.SourceAddress = requestID.String, source.String
 		if !json.Valid([]byte(metadata)) {
 			return nil, errors.New("audit metadata is invalid")
@@ -428,7 +434,7 @@ func (s *Service) recordAudit(
 	ctx context.Context,
 	tx *sql.Tx,
 	actor identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	outcome string,
 	audit identity.AuditContext,
 	now time.Time,
@@ -436,7 +442,7 @@ func (s *Service) recordAudit(
 	return s.identity.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "workspace.exported", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "workspace", TargetID: workspaceID, Action: "workspace.export",
+		TargetType: "workspace", TargetID: workspaceID.String(), Action: "workspace.export",
 		Outcome: outcome, RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: fmt.Sprintf(`{"format_version":%q}`, FormatVersion), CreatedAt: now,
 	})

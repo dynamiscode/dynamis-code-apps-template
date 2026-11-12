@@ -37,7 +37,7 @@ CREATE TABLE user_notification_preferences (
 );
 
 CREATE TABLE workspace_notification_preferences (
-    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     notification_type TEXT NOT NULL,
     enabled BOOLEAN NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE workspace_notification_preferences (
 CREATE TABLE notifications (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    workspace_id TEXT REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id BIGINT REFERENCES workspaces(id) ON DELETE CASCADE,
     notification_type TEXT NOT NULL,
     title TEXT NOT NULL,
     body TEXT NOT NULL,

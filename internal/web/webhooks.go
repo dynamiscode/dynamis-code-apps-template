@@ -11,11 +11,11 @@ import (
 
 type webhookManager interface {
 	SecretKeyConfigured() bool
-	List(context.Context, identity.Principal, string) ([]webhooks.Webhook, error)
-	ListDeliveries(context.Context, identity.Principal, string, string) ([]webhooks.Delivery, error)
-	Create(context.Context, identity.Principal, string, webhooks.CreateInput, identity.AuditContext) (webhooks.NewWebhook, error)
-	RotateSecret(context.Context, identity.Principal, string, string, identity.AuditContext) (string, error)
-	Delete(context.Context, identity.Principal, string, string, identity.AuditContext) error
+	List(context.Context, identity.Principal, identity.WorkspaceID) ([]webhooks.Webhook, error)
+	ListDeliveries(context.Context, identity.Principal, identity.WorkspaceID, string) ([]webhooks.Delivery, error)
+	Create(context.Context, identity.Principal, identity.WorkspaceID, webhooks.CreateInput, identity.AuditContext) (webhooks.NewWebhook, error)
+	RotateSecret(context.Context, identity.Principal, identity.WorkspaceID, string, identity.AuditContext) (string, error)
+	Delete(context.Context, identity.Principal, identity.WorkspaceID, string, identity.AuditContext) error
 }
 
 func (h *Handler) webhooksPage(writer http.ResponseWriter, request *http.Request) {
@@ -35,7 +35,7 @@ func (h *Handler) webhookDeliveriesPage(writer http.ResponseWriter, request *htt
 }
 
 func (h *Handler) renderWebhooksPage(writer http.ResponseWriter, request *http.Request, selectedID, secret string) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WebhooksRead)
 	if !ok {
 		return
@@ -46,7 +46,7 @@ func (h *Handler) renderWebhooksPage(writer http.ResponseWriter, request *http.R
 func (h *Handler) renderWebhooksPageForPrincipal(
 	writer http.ResponseWriter,
 	request *http.Request,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	principal identity.Principal,
 	session identity.Session,
 	csrf, selectedID, secret string,
@@ -57,7 +57,7 @@ func (h *Handler) renderWebhooksPageForPrincipal(
 func (h *Handler) renderWebhookMutationError(
 	writer http.ResponseWriter,
 	request *http.Request,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	principal identity.Principal,
 	session identity.Session,
 	csrf, message string,
@@ -68,7 +68,7 @@ func (h *Handler) renderWebhookMutationError(
 func (h *Handler) renderWebhooksPageForPrincipalWithStatus(
 	writer http.ResponseWriter,
 	request *http.Request,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	principal identity.Principal,
 	session identity.Session,
 	csrf, selectedID, secret, message string,
@@ -131,7 +131,7 @@ func (h *Handler) webhookMutation(writer http.ResponseWriter, request *http.Requ
 		h.renderError(writer, http.StatusNotFound)
 		return
 	}
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, session, csrf, ok := h.managementPrincipal(writer, request, workspaceID, identity.WebhooksManage)
 	if !ok {
 		return
@@ -191,7 +191,7 @@ func (h *Handler) webhookMutation(writer http.ResponseWriter, request *http.Requ
 			h.renderWebhookMutationError(writer, request, workspaceID, principal, session, csrf, "The webhook could not be deleted.")
 			return
 		}
-		h.redirect(writer, request, "/workspaces/"+workspaceID+"/settings/webhooks")
+		h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/settings/webhooks")
 	default:
 		h.renderWebhookMutationError(writer, request, workspaceID, principal, session, csrf, "The requested webhook action is invalid.")
 	}

@@ -30,8 +30,9 @@ func TestSQLiteBackupRestoreAndEvidence(t *testing.T) {
 	if err := database.Migrate(ctx, db, config.SQLite); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)",
-		"backup-workspace", "Known backup record", "2026-08-25T12:00:00Z"); err != nil {
+	var backupWorkspaceID int64
+	if err := db.QueryRow("INSERT INTO workspaces (name, created_at) VALUES (?, ?) RETURNING id",
+		"Known backup record", "2026-08-25T12:00:00Z").Scan(&backupWorkspaceID); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Date(2026, 8, 25, 13, 0, 0, 0, time.UTC)
@@ -53,7 +54,7 @@ func TestSQLiteBackupRestoreAndEvidence(t *testing.T) {
 	}
 	defer restoredDB.Close()
 	var name string
-	if err := restoredDB.QueryRow("SELECT name FROM workspaces WHERE id = ?", "backup-workspace").Scan(&name); err != nil || name != "Known backup record" {
+	if err := restoredDB.QueryRow("SELECT name FROM workspaces WHERE id = ?", backupWorkspaceID).Scan(&name); err != nil || name != "Known backup record" {
 		t.Fatalf("restored name = %q, error = %v", name, err)
 	}
 
@@ -96,11 +97,11 @@ func TestPostgresBackupRestoreAndEvidence(t *testing.T) {
 	if err := database.Migrate(ctx, source, config.Postgres); err != nil {
 		t.Fatal(err)
 	}
-	workspaceID := fmt.Sprintf("backup-%d", time.Now().UnixNano())
-	if _, err := source.Exec(
-		"INSERT INTO workspaces (id, name, created_at) VALUES ($1, $2, $3)",
-		workspaceID, "Known PostgreSQL backup record", "2026-08-25T12:00:00Z",
-	); err != nil {
+	var workspaceID int64
+	if err := source.QueryRow(
+		"INSERT INTO workspaces (name, created_at) VALUES ($1, $2) RETURNING id",
+		"Known PostgreSQL backup record", "2026-08-25T12:00:00Z",
+	).Scan(&workspaceID); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _, _ = source.Exec("DELETE FROM workspaces WHERE id = $1", workspaceID) })

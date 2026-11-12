@@ -90,7 +90,8 @@ func (s *Service) AuthenticateAPIToken(
 	}
 	defer tx.Rollback()
 	now := s.now().UTC()
-	var tokenID, userID, workspaceID, encodedScopes string
+	var tokenID, userID, encodedScopes string
+	var workspaceID WorkspaceID
 	var expiresAt, revokedAt sql.NullString
 	err = s.queryRow(ctx, tx, `
 		SELECT id, user_id, workspace_id, scopes, expires_at, revoked_at

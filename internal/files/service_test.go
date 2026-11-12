@@ -78,7 +78,7 @@ func TestLocalFileLifecycleAndValidation(t *testing.T) {
 	if err := store.Put(context.Background(), service.objectKey(pending), strings.NewReader("123456"), 6, "text/plain"); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := service.PresignedPut(context.Background(), actor, strings.Repeat("0", 32), pending.ID); err != identity.ErrForbidden {
+	if _, _, err := service.PresignedPut(context.Background(), actor, identity.WorkspaceID(999), pending.ID); err != identity.ErrForbidden {
 		t.Fatalf("cross-workspace presign error = %v, want forbidden", err)
 	}
 	if _, err := service.Complete(context.Background(), actor, owner.WorkspaceID, pending.ID, identity.AuditContext{}); err != ErrInvalidInput {
@@ -124,7 +124,7 @@ func TestWorkspaceQuotaAndIsolation(t *testing.T) {
 	if _, err := service.Upload(context.Background(), actor, first.WorkspaceID, "two.txt", strings.NewReader("x"), identity.AuditContext{}); err != ErrLimit {
 		t.Fatalf("quota error = %v, want ErrLimit", err)
 	}
-	if _, err := service.List(context.Background(), actor, strings.Repeat("0", 32), 10); err != identity.ErrForbidden {
+	if _, err := service.List(context.Background(), actor, identity.WorkspaceID(999), 10); err != identity.ErrForbidden {
 		t.Fatalf("cross-workspace list error = %v, want forbidden", err)
 	}
 }

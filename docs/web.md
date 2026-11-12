@@ -1,5 +1,9 @@
 # Web and Realtime Interface
 
+Workspace paths carry the workspace short ID. A malformed, unknown, or non-member
+ID returns `404`, the same as a missing workspace. A member without the required
+permission gets `403`.
+
 The browser interface is server-rendered and reaches the same application use
 cases as REST. Sign in at `/login`, create or choose a workspace, then use the
 workspace home and sidebar. `/workspaces/{workspaceId}` is the workspace home;

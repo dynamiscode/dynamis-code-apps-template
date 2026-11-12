@@ -14,7 +14,7 @@ func (h *Handler) shareMutation(writer http.ResponseWriter, request *http.Reques
 		h.renderError(writer, http.StatusNotFound)
 		return
 	}
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	itemID := request.PathValue("itemId")
 	principal, _, _, ok := h.managementPrincipal(writer, request, workspaceID, identity.ResourcesWrite)
 	if !ok {

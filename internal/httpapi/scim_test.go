@@ -81,7 +81,11 @@ func TestSCIMDemotedTokenReturnsForbidden(t *testing.T) {
 	if err := json.Unmarshal(management.Body.Bytes(), &token); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("UPDATE workspace_members SET role = ? WHERE workspace_id = ?", "member", workspaceID); err != nil {
+	workspaceKey, err := identity.ParseWorkspaceID(workspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("UPDATE workspace_members SET role = ? WHERE workspace_id = ?", "member", workspaceKey); err != nil {
 		t.Fatal(err)
 	}
 	response := serveSCIM(handler, http.MethodGet, "/scim/v2/"+workspaceID+"/Users", "", token.Secret, nil)
