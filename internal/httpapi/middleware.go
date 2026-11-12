@@ -3,6 +3,8 @@ package httpapi
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"log/slog"
@@ -12,7 +14,6 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/platform/config"
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -64,7 +65,7 @@ func requestIDMiddleware(next http.Handler) http.Handler {
 		requestID := request.Header.Get("X-Request-ID")
 		if !validRequestID(requestID) {
 			var err error
-			requestID, err = id.New()
+			requestID, err = newRequestID()
 			if err != nil {
 				writeProblem(
 					writer, request, http.StatusInternalServerError,
@@ -81,12 +82,29 @@ func requestIDMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// newRequestID mints 128 random bits as unpadded base64url, which validRequestID accepts.
+func newRequestID() (string, error) {
+	var value [16]byte
+	if _, err := rand.Read(value[:]); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(value[:]), nil
+}
+
+// validRequestID accepts any bounded token, so existing hex request IDs stay valid.
 func validRequestID(value string) bool {
-	if len(value) != 32 || strings.ToLower(value) != value {
+	if len(value) == 0 || len(value) > 128 {
 		return false
 	}
-	decoded, err := hex.DecodeString(value)
-	return err == nil && len(decoded) == 16
+	for index := range len(value) {
+		char := value[index]
+		isToken := char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' ||
+			char >= '0' && char <= '9' || char == '_' || char == '-'
+		if !isToken {
+			return false
+		}
+	}
+	return true
 }
 
 func securityHeadersMiddleware(next http.Handler, secure bool) http.Handler {

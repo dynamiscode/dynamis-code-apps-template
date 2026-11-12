@@ -98,3 +98,34 @@ func TestFileStreamingPathGetsRequestDeadline(t *testing.T) {
 		t.Fatalf("response = %d, want %d", response.Code, http.StatusNoContent)
 	}
 }
+
+func TestRequestIDTokenBounds(t *testing.T) {
+	handler := requestIDMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	hexID := "0123456789abcdef0123456789abcdef"
+	tests := map[string]struct {
+		header string
+		kept   bool
+	}{
+		"legacy hex":       {hexID, true},
+		"token":            {"abc_DEF-123", true},
+		"128 chars":        {strings.Repeat("a", 128), true},
+		"129 chars":        {strings.Repeat("a", 129), false},
+		"empty":            {"", false},
+		"space":            {"bad id", false},
+		"path traversal":   {"../etc", false},
+		"newline in value": {"a\nb", false},
+	}
+	for name, test := range tests {
+		request := httptest.NewRequest(http.MethodGet, "/health/live", nil)
+		request.Header.Set("X-Request-ID", test.header)
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		got := response.Header().Get("X-Request-ID")
+		if test.kept && got != test.header {
+			t.Fatalf("%s: request ID = %q, want the inbound value kept", name, got)
+		}
+		if !test.kept && (got == test.header || !validRequestID(got) || len(got) != 22) {
+			t.Fatalf("%s: request ID = %q, want a minted 22-char token", name, got)
+		}
+	}
+}
