@@ -2,7 +2,7 @@ GOVULNCHECK_VERSION ?= v1.7.0
 ACTIONLINT_VERSION ?= v1.7.12
 GITLEAKS_VERSION ?= v8.30.1
 
-.PHONY: setup setup-hooks fmt-check lint test vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check build image docker-smoke accessibility-smoke webmcp-smoke template-smoke verify js-check test-unit test-postgres logger-injection commit-msg-hook
+.PHONY: setup setup-hooks fmt-check lint test ci-local vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check build image docker-smoke accessibility-smoke webmcp-smoke template-smoke verify js-check test-unit test-postgres logger-injection commit-msg-hook
 
 setup: setup-hooks
 	test -f .env || cp .env.example .env
@@ -99,5 +99,11 @@ template-smoke:
 	work="$$(mktemp -d /tmp/dynamis-code-template-smoke.XXXXXX)"; \
 	go run ./cmd/template-init -output "$$work/app" -name "Smoke App" -module example.com/smoke/app -repository https://github.com/smoke/app -security-url https://github.com/smoke/app/security/advisories/new -maintainer @smoke/maintainers -profiles Core,Identity,Agent -source https://example.com/dynamis-code/template -commit 0000000000000000000000000000000000000000; \
 	cd "$$work/app" && go test ./...
+
+# ci-local mirrors the CI jobs that run without Docker, Postgres, or browser smoke.
+# race (go test -race ./...) replaces plain go test to avoid running the suite twice.
+# Excluded (CI-only): workflow-check, vuln-check, docker-smoke, accessibility-smoke,
+# webmcp-smoke, template-smoke, and the Postgres job. See docs/development.md.
+ci-local: lint test-unit race deps-check generate-check build secret-check
 
 verify: lint test race deps-check workflow-check generate-check build template-smoke
