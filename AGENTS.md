@@ -48,7 +48,7 @@ When sources conflict, stop and resolve the contract or decision first.
 
 ## Change obligations
 
-- Make one reviewable change; no drive-by refactors.
+- Make one reviewable change per PR; no drive-by refactors. A large change is a sequence of reviewable PRs, each one change. The reason is that small, single-purpose changes are faster to review and to roll back.
 - Update implementation, canonical contract, smallest regression test,
   capability evidence, changelog, and behavior docs together when applicable.
 - When working in parallel agent worktrees or swarms, do not edit CHANGELOG.md
