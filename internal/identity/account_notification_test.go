@@ -7,51 +7,7 @@ import (
 	"strconv"
 	"testing"
 	"time"
-
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
-
-// A row's integer key, or its short ID, must never verify or reset an account.
-// Lookups stay on the secret hash, so both forms fail and the emailed secret works.
-func TestAccountTokenRowKeysAreNotSecrets(t *testing.T) {
-	service, db := newTestService(t)
-	ctx := context.Background()
-	userID := insertUser(t, service, db, "row-key@example.com")
-
-	verification, err := service.BeginEmailVerification(ctx, userID, AuditContext{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var verificationKey int64
-	if err := db.QueryRow("SELECT id FROM email_verifications WHERE user_id = ?", userID).Scan(&verificationKey); err != nil {
-		t.Fatal(err)
-	}
-	for _, candidate := range []string{strconv.FormatInt(verificationKey, 10), id.EncodeKey(id.TypeEmailVerification, verificationKey)} {
-		if err := service.VerifyEmail(ctx, candidate, AuditContext{}); !errors.Is(err, ErrInvalidVerification) {
-			t.Fatalf("VerifyEmail(row key %q) error = %v, want ErrInvalidVerification", candidate, err)
-		}
-	}
-	if err := service.VerifyEmail(ctx, verification.Secret, AuditContext{}); err != nil {
-		t.Fatalf("VerifyEmail(secret) error = %v", err)
-	}
-
-	reset, err := service.BeginPasswordReset(ctx, "row-key@example.com", AuditContext{})
-	if err != nil || reset.Secret == "" {
-		t.Fatalf("BeginPasswordReset() = %+v, %v", reset, err)
-	}
-	var resetKey int64
-	if err := db.QueryRow("SELECT id FROM password_resets WHERE user_id = ?", userID).Scan(&resetKey); err != nil {
-		t.Fatal(err)
-	}
-	for _, candidate := range []string{strconv.FormatInt(resetKey, 10), id.EncodeKey(id.TypePasswordReset, resetKey)} {
-		if err := service.CompletePasswordReset(ctx, candidate, "row-key-password", AuditContext{}); !errors.Is(err, ErrInvalidReset) {
-			t.Fatalf("CompletePasswordReset(row key %q) error = %v, want ErrInvalidReset", candidate, err)
-		}
-	}
-	if err := service.CompletePasswordReset(ctx, reset.Secret, "row-key-password", AuditContext{}); err != nil {
-		t.Fatalf("CompletePasswordReset(secret) error = %v", err)
-	}
-}
 
 func TestNotificationCursorAndReadRejectMalformedIDs(t *testing.T) {
 	service, _ := newTestService(t)

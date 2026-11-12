@@ -2,14 +2,14 @@ package id
 
 import "testing"
 
-func TestNotificationAndAccountTokenTypesAreRegistered(t *testing.T) {
+func TestNotificationTypeIsRegistered(t *testing.T) {
 	t.Parallel()
 
 	registered := make(map[TypeCode]bool)
 	for _, code := range TypeCodes() {
 		registered[code] = true
 	}
-	for _, code := range []TypeCode{TypeNotification, TypeEmailVerification, TypePasswordReset} {
+	for _, code := range []TypeCode{TypeNotification} {
 		if !registered[code] {
 			t.Fatalf("type code %q is not registered", code)
 		}
