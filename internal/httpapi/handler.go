@@ -479,7 +479,7 @@ func (h *handler) createItem(writer http.ResponseWriter, request *http.Request) 
 	}
 	writer.Header().Set("ETag", etag(result.Item.Version))
 	writer.Header().Set(
-		"Location", "/api/v1/workspaces/"+workspaceID.String()+"/items/"+result.Item.ID,
+		"Location", "/api/v1/workspaces/"+workspaceID.String()+"/items/"+result.Item.ID.String(),
 	)
 	if result.Replay {
 		writer.Header().Set("Idempotency-Replayed", "true")
@@ -489,8 +489,8 @@ func (h *handler) createItem(writer http.ResponseWriter, request *http.Request) 
 
 func (h *handler) getItem(writer http.ResponseWriter, request *http.Request) {
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	itemID := request.PathValue("itemId")
-	if !validID(itemID) || len(request.URL.Query()) != 0 {
+	itemID := items.ParseItemIDOrZero(request.PathValue("itemId"))
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -517,8 +517,8 @@ func (h *handler) getItem(writer http.ResponseWriter, request *http.Request) {
 
 func (h *handler) updateItem(writer http.ResponseWriter, request *http.Request) {
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	itemID := request.PathValue("itemId")
-	if !validID(itemID) || len(request.URL.Query()) != 0 {
+	itemID := items.ParseItemIDOrZero(request.PathValue("itemId"))
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -567,8 +567,8 @@ func (h *handler) updateItem(writer http.ResponseWriter, request *http.Request) 
 
 func (h *handler) deleteItem(writer http.ResponseWriter, request *http.Request) {
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	itemID := request.PathValue("itemId")
-	if !validID(itemID) || len(request.URL.Query()) != 0 {
+	itemID := items.ParseItemIDOrZero(request.PathValue("itemId"))
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}

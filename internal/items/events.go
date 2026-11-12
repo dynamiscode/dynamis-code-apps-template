@@ -20,7 +20,7 @@ type Change struct {
 	SchemaVersion int                  `json:"schemaVersion"`
 	OccurredAt    time.Time            `json:"occurredAt"`
 	WorkspaceID   identity.WorkspaceID `json:"workspaceId"`
-	ItemID        string               `json:"itemId"`
+	ItemID        ItemID               `json:"itemId"`
 	Action        string               `json:"action"`
 	ItemVersion   int64                `json:"itemVersion"`
 }
@@ -125,7 +125,7 @@ func (s *Service) recordChange(
 	ctx context.Context,
 	tx *sql.Tx,
 	workspaceID identity.WorkspaceID,
-	itemID string,
+	itemID ItemID,
 	action string,
 	version int64,
 	occurredAt time.Time,

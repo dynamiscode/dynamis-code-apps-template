@@ -134,7 +134,7 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}
 	jsonImport, err := json.Marshal(Export{
 		FormatVersion: FormatVersion,
-		Items:         []items.Item{{ID: "source-id", WorkspaceID: identity.WorkspaceID(999), Title: "JSON item", Status: items.Active}},
+		Items:         []items.Item{{ID: items.ItemID(7), WorkspaceID: identity.WorkspaceID(999), Title: "JSON item", Status: items.Active}},
 	})
 	if err != nil {
 		t.Fatal(err)

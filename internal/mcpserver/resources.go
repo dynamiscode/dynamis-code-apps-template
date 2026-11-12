@@ -55,18 +55,22 @@ func (h *handler) readItemResource(ctx context.Context, request *mcp.ReadResourc
 	}}}, nil
 }
 
-func parseItemURI(uri string) (identity.WorkspaceID, string, bool) {
+func parseItemURI(uri string) (identity.WorkspaceID, items.ItemID, bool) {
 	rest, ok := strings.CutPrefix(uri, itemResourcePrefix)
 	if !ok {
-		return 0, "", false
+		return 0, 0, false
 	}
-	shortID, itemID, ok := strings.Cut(rest, itemResourceInfix)
-	if !ok || !validID(itemID) {
-		return 0, "", false
+	shortID, itemShort, ok := strings.Cut(rest, itemResourceInfix)
+	if !ok {
+		return 0, 0, false
 	}
 	workspaceID, err := identity.ParseWorkspaceID(shortID)
 	if err != nil {
-		return 0, "", false
+		return 0, 0, false
+	}
+	itemID, err := items.ParseItemID(itemShort)
+	if err != nil {
+		return 0, 0, false
 	}
 	return workspaceID, itemID, true
 }

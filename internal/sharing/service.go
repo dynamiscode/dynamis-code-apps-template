@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
@@ -41,7 +42,7 @@ const (
 type Link struct {
 	ID          string
 	WorkspaceID identity.WorkspaceID
-	ItemID      string
+	ItemID      items.ItemID
 	CreatedAt   time.Time
 	ExpiresAt   time.Time
 	RevokedAt   *time.Time
@@ -68,7 +69,7 @@ func (s *Service) Create(
 	ctx context.Context,
 	actor identity.Principal,
 	workspaceID identity.WorkspaceID,
-	itemID string,
+	itemID items.ItemID,
 	lifetime time.Duration,
 	audit identity.AuditContext,
 ) (Link, error) {
@@ -160,7 +161,7 @@ func (s *Service) Revoke(
 	ctx context.Context,
 	actor identity.Principal,
 	workspaceID identity.WorkspaceID,
-	itemID string,
+	itemID items.ItemID,
 	linkID string,
 	audit identity.AuditContext,
 ) error {
@@ -204,7 +205,8 @@ func (s *Service) Resolve(ctx context.Context, token string, audit identity.Audi
 		return PublicItem{}, err
 	}
 	defer tx.Rollback()
-	var linkID, itemID, title, status, expiresAtStr string
+	var linkID, title, status, expiresAtStr string
+	var itemID items.ItemID
 	var workspaceID identity.WorkspaceID
 	var revokedAtStr sql.NullString
 	err = s.queryRow(ctx, tx, `

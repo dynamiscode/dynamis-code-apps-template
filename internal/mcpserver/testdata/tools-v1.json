@@ -46,7 +46,7 @@
           ]
         },
         "id": {
-          "pattern": "^[0-9a-f]{32}$",
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
           "type": "string"
         },
         "status": {
@@ -97,7 +97,7 @@
       "additionalProperties": false,
       "properties": {
         "itemId": {
-          "pattern": "^[0-9a-f]{32}$",
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
           "type": "string"
         },
         "version": {
@@ -123,7 +123,7 @@
           "type": "boolean"
         },
         "itemId": {
-          "pattern": "^[0-9a-f]{32}$",
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
           "type": "string"
         }
       },
@@ -146,7 +146,7 @@
       "additionalProperties": false,
       "properties": {
         "itemId": {
-          "pattern": "^[0-9a-f]{32}$",
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
           "type": "string"
         },
         "workspaceId": {
@@ -174,7 +174,7 @@
           ]
         },
         "id": {
-          "pattern": "^[0-9a-f]{32}$",
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
           "type": "string"
         },
         "status": {
@@ -283,7 +283,7 @@
                 ]
               },
               "id": {
-                "pattern": "^[0-9a-f]{32}$",
+                "pattern": "^[2-9a-hjkmnp-z]{4,}$",
                 "type": "string"
               },
               "status": {
@@ -359,7 +359,7 @@
       ],
       "properties": {
         "itemId": {
-          "pattern": "^[0-9a-f]{32}$",
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
           "type": "string"
         },
         "status": {
@@ -404,7 +404,7 @@
           ]
         },
         "id": {
-          "pattern": "^[0-9a-f]{32}$",
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
           "type": "string"
         },
         "status": {

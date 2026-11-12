@@ -35,8 +35,8 @@ func (h *handler) addPrompts(server *mcp.Server) {
 
 func (h *handler) itemReviewPrompt(ctx context.Context, request *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 	arguments := request.Params.Arguments
-	workspaceID, itemID, status := identity.ParseWorkspaceIDOrZero(arguments["workspaceId"]), arguments["itemId"], arguments["status"]
-	if workspaceID == 0 || !validID(itemID) || !isItemStatus(status) {
+	workspaceID, itemID, status := identity.ParseWorkspaceIDOrZero(arguments["workspaceId"]), items.ParseItemIDOrZero(arguments["itemId"]), arguments["status"]
+	if workspaceID == 0 || itemID == 0 || !isItemStatus(status) {
 		return nil, invalidParameters()
 	}
 	item, err := h.items.Get(ctx, principalFromExtra(request.Extra), workspaceID, itemID)
@@ -102,8 +102,8 @@ func (h *handler) completeItemIDs(ctx context.Context, request *mcp.CompleteRequ
 	}
 	ids := make([]string, 0, len(page.Items))
 	for _, item := range page.Items {
-		if strings.HasPrefix(item.ID, request.Params.Argument.Value) {
-			ids = append(ids, item.ID)
+		if shortID := item.ID.String(); strings.HasPrefix(shortID, request.Params.Argument.Value) {
+			ids = append(ids, shortID)
 		}
 	}
 	return ids, page.NextCursor != "", nil

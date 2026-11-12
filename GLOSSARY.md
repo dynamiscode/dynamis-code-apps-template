@@ -21,6 +21,7 @@ the source wins and this file gets fixed.
 | Instance administrator | Installation-level administration. Never grants workspace access. | [Authentication](docs/authentication.md) |
 | Workspace | The tenant boundary. Workspace authority comes only from an active membership. | [Authentication](docs/authentication.md) |
 | Workspace short ID | The public form of a workspace's integer key: a Sqids string. The only form in paths, arguments, bodies, and responses. | [Architecture](docs/architecture.md#ids-time-and-transactions) |
+| Item short ID | The public form of an item's integer key: a Sqids string under the item type code. The only form in item paths, arguments, bodies, and responses. | [Architecture](docs/architecture.md#ids-time-and-transactions) |
 | Workspace mode | The instance setting that selects `single` or `multi` workspace operation. | [Configuration](docs/configuration.md) |
 | Membership | A user's link to one workspace, carrying one role. | [Authentication](docs/authentication.md) |
 | Role | A protected permission collection: `owner`, `admin`, `member`, or `viewer`. Prose may say "administrator" for `admin`. | [Authentication](docs/authentication.md#workspace-permissions) |

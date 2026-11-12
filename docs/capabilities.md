@@ -387,6 +387,17 @@ Verified 2026-11-11 with Go 1.27.4. Issue #189 moves workspace keys to integers
 and exposes only the ADR 0009 short ID. Implemented and verified as recorded above; the
 exception is [2026-11-11-workspace-short-id-migration-rewrite](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md).
 
+## Item short ID evidence
+
+Verified 2026-11-11 with Go 1.27.4. Issue #190 moves item keys to integers
+(`items.ItemID`, item type code) and exposes only the item short ID on web, REST,
+MCP, CLI, webhooks, exports, and audit metadata. Malformed, unknown, foreign, and
+workspace short IDs on item routes return the same not-found. `go test -count=1 ./...`
+passed on SQLite, with `make lint` and `make test-unit` passing. A fresh PostgreSQL
+14.24 container passed `go test -p 1` for the items, sharing, database,
+maintenance, identity, portability, and files packages. The migration rewrite is
+covered by the workspace exception record, whose item-key scope the user approved
+for #190.
 ## Member, invitation, and API token short ID evidence
 
 Verified 2026-11-11. Issue #193 gives members, invitations, and API tokens integer

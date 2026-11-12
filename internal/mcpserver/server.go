@@ -11,7 +11,6 @@ import (
 	"net"
 	"net/http"
 	"reflect"
-	"strings"
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
@@ -52,7 +51,7 @@ type handler struct {
 // Contract types. The SDK derives each tool schema from these Go types, so the
 // published constraints live on the types in contractTypes.
 type (
-	resourceID       string
+	itemShortID      string
 	workspaceShortID string
 	newTitle         string
 	itemTitle        string
@@ -68,7 +67,7 @@ type (
 // contractTypes holds the keyword constraints that jsonschema-go cannot derive
 // from a Go type: patterns, bounds, enums, and defaults.
 var contractTypes = map[reflect.Type]*jsonschema.Schema{
-	reflect.TypeFor[resourceID]():     {Type: "string", Pattern: "^[0-9a-f]{32}$"},
+	reflect.TypeFor[itemShortID]():    {Type: "string", Pattern: "^[2-9a-hjkmnp-z]{4,}$"},
 	reflect.TypeFor[newTitle]():       {Type: "string", MinLength: new(1), MaxLength: new(200)},
 	reflect.TypeFor[itemTitle]():      {Type: "string", MaxLength: new(200)},
 	reflect.TypeFor[idempotencyKey](): {Type: "string", MinLength: new(1), MaxLength: new(255)},
@@ -100,7 +99,7 @@ type listInput struct {
 
 type itemInput struct {
 	WorkspaceID workspaceShortID `json:"workspaceId"`
-	ItemID      resourceID       `json:"itemId"`
+	ItemID      itemShortID      `json:"itemId"`
 }
 
 type createInput struct {
@@ -111,7 +110,7 @@ type createInput struct {
 
 type updateInput struct {
 	WorkspaceID workspaceShortID `json:"workspaceId"`
-	ItemID      resourceID       `json:"itemId"`
+	ItemID      itemShortID      `json:"itemId"`
 	Version     itemVersion      `json:"version"`
 	Title       newTitle         `json:"title,omitempty"`
 	Status      items.Status     `json:"status,omitempty"`
@@ -119,12 +118,12 @@ type updateInput struct {
 
 type deleteInput struct {
 	WorkspaceID workspaceShortID `json:"workspaceId"`
-	ItemID      resourceID       `json:"itemId"`
+	ItemID      itemShortID      `json:"itemId"`
 	Version     itemVersion      `json:"version"`
 }
 
 type itemOutput struct {
-	ID              resourceID       `json:"id"`
+	ID              itemShortID      `json:"id"`
 	WorkspaceID     workspaceShortID `json:"workspaceId"`
 	CreatedByUserID *string          `json:"createdByUserId"`
 	Title           itemTitle        `json:"title"`
@@ -140,8 +139,8 @@ type pageOutput struct {
 }
 
 type deleteOutput struct {
-	Deleted bool       `json:"deleted"`
-	ItemID  resourceID `json:"itemId"`
+	Deleted bool        `json:"deleted"`
+	ItemID  itemShortID `json:"itemId"`
 }
 
 type toolError struct {
@@ -356,7 +355,7 @@ func (h *handler) listItems(ctx context.Context, request *mcp.CallToolRequest, i
 
 func (h *handler) getItem(ctx context.Context, request *mcp.CallToolRequest, input itemInput) (itemOutput, toolRun) {
 	run := toolRun{workspaceID: identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), targetID: string(input.ItemID)}
-	item, err := h.items.Get(ctx, principal(request), identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), string(input.ItemID))
+	item, err := h.items.Get(ctx, principal(request), identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), items.ParseItemIDOrZero(string(input.ItemID)))
 	run.err = publicError(err)
 	return toItemOutput(item), run
 }
@@ -365,7 +364,7 @@ func (h *handler) createItem(ctx context.Context, request *mcp.CallToolRequest, 
 	result, err := h.items.Create(ctx, principal(request), identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), string(input.Title),
 		string(input.IdempotencyKey), auditContext(request))
 	return toItemOutput(result.Item), toolRun{
-		workspaceID: identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), targetID: result.Item.ID, err: publicError(err),
+		workspaceID: identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), targetID: result.Item.ID.String(), err: publicError(err),
 	}
 }
 
@@ -386,7 +385,7 @@ func (h *handler) updateItem(ctx context.Context, request *mcp.CallToolRequest, 
 		status := input.Status
 		update.Status = &status
 	}
-	item, err := h.items.Update(ctx, principal(request), identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), string(input.ItemID),
+	item, err := h.items.Update(ctx, principal(request), identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), items.ParseItemIDOrZero(string(input.ItemID)),
 		int64(input.Version), update, auditContext(request))
 	run.err = publicError(err)
 	return toItemOutput(item), run
@@ -399,7 +398,7 @@ func (h *handler) deleteItem(ctx context.Context, request *mcp.CallToolRequest, 
 		run.pending, run.err = pending, err
 		return deleteOutput{}, run
 	}
-	err := h.items.Delete(ctx, principal(request), identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), string(input.ItemID),
+	err := h.items.Delete(ctx, principal(request), identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), items.ParseItemIDOrZero(string(input.ItemID)),
 		int64(input.Version), auditContext(request))
 	run.err = publicError(err)
 	return deleteOutput{Deleted: err == nil, ItemID: input.ItemID}, run
@@ -407,7 +406,7 @@ func (h *handler) deleteItem(ctx context.Context, request *mcp.CallToolRequest, 
 
 func toItemOutput(item items.Item) itemOutput {
 	return itemOutput{
-		ID: resourceID(item.ID), WorkspaceID: workspaceShortID(item.WorkspaceID.String()),
+		ID: itemShortID(item.ID.String()), WorkspaceID: workspaceShortID(item.WorkspaceID.String()),
 		CreatedByUserID: item.CreatedByUserID, Title: itemTitle(item.Title), Status: item.Status,
 		Version: itemVersion(item.Version), CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt,
 	}
@@ -653,12 +652,4 @@ func sourceHost(address string) string {
 		return ""
 	}
 	return host
-}
-
-func validID(value string) bool {
-	if len(value) != 32 || strings.ToLower(value) != value {
-		return false
-	}
-	decoded, err := hex.DecodeString(value)
-	return err == nil && len(decoded) == 16
 }
