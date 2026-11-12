@@ -1,5 +1,5 @@
 CREATE TABLE public_links (
-    id TEXT PRIMARY KEY,
+    id {{integer_pk}},
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     item_id BIGINT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
     token_hash TEXT NOT NULL UNIQUE,

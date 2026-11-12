@@ -58,7 +58,10 @@ Migrations 000002 through 000016 and 000018 were rewritten in place for workspac
 member, invitation, API token, item, webhook, and job short IDs under recorded
 exceptions: [workspaces, members, invitations, API tokens, and items](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md)
 and [webhooks and jobs](decisions/exceptions/2026-11-11-webhook-job-short-id-migration-rewrite.md),
-accepted by the repository owner on 2026-11-12. Upgrades use a documented
+accepted by the repository owner on 2026-11-12.
+Migrations 000011, 000012, 000013, and 000016 were rewritten again for sharing, SCIM,
+and MCP OAuth record keys under [recorded exception](decisions/exceptions/2026-11-11-sharing-scim-oauth-short-id-migration-rewrite.md).
+Upgrades use a documented
 stop-the-world procedure; SQLite snapshots and PostgreSQL dumps have separate
 verified restore paths.
 

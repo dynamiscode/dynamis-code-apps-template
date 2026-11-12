@@ -26,6 +26,10 @@ const (
 	TypeInvitation      TypeCode = "invitation"
 	TypeMember          TypeCode = "member"
 	TypeToken           TypeCode = "token"
+	TypePublicLink      TypeCode = "public_link"
+	TypeSCIMToken       TypeCode = "scim_token"
+	TypeOAuthClient     TypeCode = "oauth_client"
+	TypeOAuthGrant      TypeCode = "oauth_grant"
 )
 
 // TypeCodes returns every registered type code.
@@ -33,7 +37,43 @@ func TypeCodes() []TypeCode {
 	return []TypeCode{
 		TypeItem, TypeWorkspace, TypeWebhook, TypeWebhookDelivery,
 		TypeWebhookEvent, TypeJob, TypeInvitation, TypeMember, TypeToken,
+		TypePublicLink, TypeSCIMToken, TypeOAuthClient, TypeOAuthGrant,
 	}
+}
+
+// entityCodecs holds one codec per registered type code, built once at init.
+var entityCodecs = mustEntityCodecs()
+
+func mustEntityCodecs() map[TypeCode]*Codec {
+	codecs := make(map[TypeCode]*Codec)
+	for _, code := range TypeCodes() {
+		codec, err := NewCodec(code, "")
+		if err != nil {
+			panic("id: short-id codec for " + string(code) + ": " + err.Error())
+		}
+		codecs[code] = codec
+	}
+	return codecs
+}
+
+// EncodeKey returns the short ID for a positive integer key of type code.
+// Callers pass only keys from the database; a non-positive key yields "".
+func EncodeKey(code TypeCode, key int64) string {
+	if key <= 0 {
+		return ""
+	}
+	short, _ := entityCodecs[code].Encode(uint64(key))
+	return short
+}
+
+// DecodeKey strictly decodes a short ID of type code to its integer key.
+// Malformed input and IDs of another type return ErrInvalidID.
+func DecodeKey(code TypeCode, short string) (int64, error) {
+	value, err := entityCodecs[code].Decode(short)
+	if err != nil || value == 0 || value > math.MaxInt64 {
+		return 0, ErrInvalidID
+	}
+	return int64(value), nil
 }
 
 // ShortIDAlphabet is the alphabet every short ID uses; the CLI validates against it.

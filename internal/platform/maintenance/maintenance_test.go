@@ -72,15 +72,19 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	// Invitation and token keys are integers assigned by the database.
 	var invitationID, tokenID int64
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO invitations (workspace_id, invited_by_user_id, email, role, secret_hash, created_at, expires_at, accepted_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`), workspaceID, "user-maint", "old@example.com", "viewer", "invite-secret", old, old, old).Scan(&invitationID); err != nil {
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`), workspaceID, "user-maint", "old.com", "viewer", "invite-secret", old, old, old).Scan(&invitationID); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO api_tokens (user_id, workspace_id, name, secret_hash, scopes, created_at, revoked_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`), "user-maint", workspaceID, "old", "token-secret", "items:read", old, old).Scan(&tokenID); err != nil {
 		t.Fatal(err)
 	}
-	exec(`INSERT INTO scim_tokens (id, workspace_id, created_by_user_id, secret_hash, created_at, revoked_at)
-		VALUES (?, ?, ?, ?, ?, ?)`, "scim-old", workspaceID, "user-maint", "scim-secret", old, old)
+	var scimOldID int64
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO scim_tokens (workspace_id, created_by_user_id, secret_hash, created_at, revoked_at)
+		VALUES (?, ?, ?, ?, ?)
+		RETURNING id`), workspaceID, "user-maint", "scim-secret", old, old).Scan(&scimOldID); err != nil {
+		t.Fatal(err)
+	}
 	exec(`INSERT INTO oidc_transactions (state_hash, provider_id, browser_session_hash, pkce_verifier_hash, nonce_hash, redirect_uri, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "state-old", "provider", "browser", "pkce", "nonce", "https://example.com/callback", old, old)
 	exec(`INSERT INTO mfa_challenges (id, token_hash, user_id, purpose, created_at, expires_at)
@@ -110,8 +114,12 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}
 	exec(`INSERT INTO background_jobs (workspace_id, kind, deduplication_key, payload, status, attempt_count, available_at, completed_at, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, workspaceID, "webhook.delivery", strconv.FormatInt(deliveryID, 10), "{}", "succeeded", 1, old, old, old)
-	exec(`INSERT INTO public_links (id, workspace_id, item_id, token_hash, created_at, expires_at, revoked_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`, "public-link-old", workspaceID, itemOld, "public-hash", old, old, old)
+	var publicLinkOldID int64
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO public_links (workspace_id, item_id, token_hash, created_at, expires_at, revoked_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+		RETURNING id`), workspaceID, itemOld, "public-hash", old, old, old).Scan(&publicLinkOldID); err != nil {
+		t.Fatal(err)
+	}
 	exec(`INSERT INTO audit_events (id, event_type, auth_method, target_type, action, outcome, metadata, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "audit-old", "old", "system", "instance", "test", "success", "{}", old)
 
@@ -127,12 +135,12 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}
 	for table, key := range map[string]any{
 		"sessions": "session-old", "invitations": invitationID,
-		"api_tokens": tokenID, "scim_tokens": "scim-old", "oidc_transactions": "state-old",
+		"api_tokens": tokenID, "scim_tokens": scimOldID, "oidc_transactions": "state-old",
 		"mfa_challenges":      "mfa-challenge-old",
 		"idempotency_records": "key-old", "item_events": "event-old",
 		"notifications":       "notification-old",
 		"email_verifications": "verification-old", "password_resets": "reset-old",
-		"public_links": "public-link-old",
+		"public_links": publicLinkOldID,
 	} {
 		var count int
 		column := "id"

@@ -3,6 +3,7 @@ package sharing
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -68,14 +69,24 @@ func TestPublicSharingLifecycleAndRedaction(t *testing.T) {
 	if _, err := service.List(ctx, readOnly, owner.WorkspaceID); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("read-only List() error = %v", err)
 	}
-	if err := service.Revoke(ctx, principal, owner.WorkspaceID, item.Item.ID, link.ID, identity.AuditContext{RequestID: "revoke-share"}); err != nil {
+	if err := service.Revoke(ctx, principal, owner.WorkspaceID, item.Item.ID, link.ID.String(), identity.AuditContext{RequestID: "revoke-share"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := service.Resolve(ctx, link.Token, identity.AuditContext{RequestID: "revoked-access"}); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("revoked Resolve() error = %v", err)
 	}
-	if err := service.Revoke(ctx, principal, owner.WorkspaceID, item.Item.ID, link.ID, identity.AuditContext{}); !errors.Is(err, ErrNotFound) {
+	if err := service.Revoke(ctx, principal, owner.WorkspaceID, item.Item.ID, link.ID.String(), identity.AuditContext{}); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("second Revoke() error = %v", err)
+	}
+	// A non-writer gets Forbidden for malformed input too, so the decode result does not leak.
+	if err := service.Revoke(ctx, identity.Principal{}, owner.WorkspaceID, item.Item.ID, "not-a-short-id", identity.AuditContext{}); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("non-writer Revoke() error = %v, want ErrForbidden", err)
+	}
+	// The integer key is internal: its decimal form and malformed IDs are the same not-found.
+	for _, input := range []string{strconv.FormatInt(int64(link.ID), 10), "not-a-short-id"} {
+		if err := service.Revoke(ctx, principal, owner.WorkspaceID, item.Item.ID, input, identity.AuditContext{}); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("Revoke(%q) error = %v, want ErrNotFound", input, err)
+		}
 	}
 	var auditCount int
 	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_events WHERE event_type = 'public_share.accessed'`).Scan(&auditCount); err != nil || auditCount != 2 {

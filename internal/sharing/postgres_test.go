@@ -65,7 +65,7 @@ func TestPostgresPublicSharingLifecycle(t *testing.T) {
 	if err != nil || public.Title != "PostgreSQL public" {
 		t.Fatalf("Resolve() = %+v, %v", public, err)
 	}
-	if err := service.Revoke(ctx, principal, workspaceID, item.Item.ID, link.ID, identity.AuditContext{}); err != nil {
+	if err := service.Revoke(ctx, principal, workspaceID, item.Item.ID, link.ID.String(), identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := service.Resolve(ctx, link.Token, identity.AuditContext{}); err != ErrUnavailable {
