@@ -85,7 +85,7 @@ These remain out of the build plan until their trigger is demonstrated.
 | Public sharing or guest access | conforming for bounded Item browser links | Files, public APIs, guest collaboration, or other resource types require a separate contract |
 | Fine-grained permissions | deferred | Baseline roles cannot express a measured requirement |
 | External-issuer OAuth access tokens for MCP | deferred | An accepted requirement needs `/mcp` to accept access tokens from an external authorization server; see [decision 0007](decisions/0007-mcp-oauth-protected-resource-metadata.md) |
-| Email providers | deferred | A workspace needs an HTTP email provider, or a sender other than SMTP. Per-workspace SMTP is implemented (issue 203); each HTTP provider needs its own contract and evidence. Architecture is accepted in [decision 0009](decisions/0009-workspace-email-settings.md). |
+| Email providers | deferred | A workspace needs an HTTP email provider beyond Resend. Per-workspace SMTP (issue 203) and Resend (issue 204) are implemented; each further HTTP provider needs its own contract and evidence. Architecture is accepted in [decision 0009](decisions/0009-workspace-email-settings.md). |
 | Encryption key rotation command | deferred | Stored provider credentials must be re-encrypted under a new key after a compromise or policy change. Design is accepted in [decision 0009](decisions/0009-workspace-email-settings.md); no rotation command exists yet. |
 
 When a trigger is accepted, record the requirement and architecture decision,
@@ -281,6 +281,18 @@ by `TestWorkspaceEmailSettingsAreAdminOnlyAndLoginTested` in `internal/web`, the
 `internal/platform/mail`. Not covered by automated tests: a delivered message
 through a live STARTTLS server. Verify that manually against a real provider
 before release.
+
+## Workspace Resend evidence
+
+Workspace email can use Resend (`provider = resend`, migration 000019). The
+save path runs a read-only `GET /domains` check with the submitted key and stores
+nothing if it fails. Sending uses `POST /emails` over HTTPS with the sealed key.
+Evidence: `internal/platform/mail` tests against a fake HTTP server (bearer
+auth, payload shape, rejected key, no response body echoed), the
+`internal/workspaceemail` tests (bad key blocks save, sealed key, blank-key reuse,
+invitation delivered through Resend), and `TestResendSettingsRequireAPIKeyCheckBeforeSaving`
+in `internal/web`. Not covered by automated tests: a real Resend account. Verify
+a sent invitation against Resend before release.
 
 ## General encryption key evidence
 
