@@ -87,8 +87,11 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}
 	exec(`INSERT INTO oidc_transactions (state_hash, provider_id, browser_session_hash, pkce_verifier_hash, nonce_hash, redirect_uri, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "state-old", "provider", "browser", "pkce", "nonce", "https://example.com/callback", old, old)
-	exec(`INSERT INTO mfa_challenges (id, token_hash, user_id, purpose, created_at, expires_at)
-		VALUES (?, ?, ?, ?, ?, ?)`, "mfa-challenge-old", "mfa-token-hash", "user-maint", "login", old, old)
+	var mfaOldID int64
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO mfa_challenges (token_hash, user_id, purpose, created_at, expires_at)
+		VALUES (?, ?, ?, ?, ?) RETURNING id`), "mfa-token-hash", "user-maint", "login", old, old).Scan(&mfaOldID); err != nil {
+		t.Fatal(err)
+	}
 	// Account token and notification keys are integers assigned by the database.
 	var verificationOldID, resetOldID, notificationOldID int64
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO email_verifications (user_id, email, token_hash, created_at, expires_at)
@@ -147,7 +150,7 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	for table, key := range map[string]any{
 		"sessions": "session-old", "invitations": invitationID,
 		"api_tokens": tokenID, "scim_tokens": scimOldID, "oidc_transactions": "state-old",
-		"mfa_challenges":      "mfa-challenge-old",
+		"mfa_challenges":      mfaOldID,
 		"idempotency_records": "key-old", "item_events": eventOldID,
 		"notifications":       notificationOldID,
 		"email_verifications": verificationOldID, "password_resets": resetOldID,

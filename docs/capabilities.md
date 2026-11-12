@@ -524,6 +524,34 @@ packages passed; `make generate-check` produced no drift. PostgreSQL: the full
 `go test -p 1 ./...` suite was run against a fresh pinned PostgreSQL 14.24
 container; its result is recorded in the change's pull request description.
 
+## MFA short ID evidence
+
+Verified 2026-11-12. Ticket #246 of spec #243 gives MFA challenges, recovery codes,
+and passkeys integer keys under the `mfa_challenge`, `mfa_recovery_code`, and
+`mfa_passkey` type codes. Passkey IDs in list and removal responses are short IDs;
+`mfa_passkeys.credential_id` stays text. The challenge cookie still carries the
+token, and lookups stay on `token_hash` and `code_hash`. Migration 000015 is
+rewritten in place under the [recorded exception](decisions/exceptions/2026-11-12-mfa-short-id-migration-rewrite.md).
+
+- Covered: `TestMFARowIDsAreNotCredentials` (SQLite) shows that challenge and
+  recovery-code row IDs, as integers or short IDs, are rejected as the bearer
+  secret, that the real recovery code still works after those probes, and that a
+  malformed or integer passkey ID gets the same error as a missing passkey. `TestSQLiteMFATablesUseIntegerPrimaryKeys`
+  and `TestPostgresMFATablesUseIntegerPrimaryKeys` check the key types, and the
+  expired-challenge audit test checks that audit targets carry the short ID.
+- Checks run: `make lint` passed; `make generate-check` produced no drift;
+  `make test-postgres` passed for `internal/identity` and `internal/files` against
+  PostgreSQL 14.24; the `POSTGRES_TEST_URL` run against a fresh PostgreSQL 14.24
+  container passed for `internal/platform/database` and `internal/platform/maintenance`.
+  `make test` passed on SQLite for all packages.
+- Not covered: a real WebAuthn enrollment and passkey list, since the test harness
+  has no WebAuthn ceremony; the passkey REST routes have no short-ID probe test of
+  their own beyond the service-level check.
+- Known limitation: SQLite `INTEGER PRIMARY KEY` without `AUTOINCREMENT` reuses the
+  key of a deleted maximum row, and retention deletes expired challenges. A reused
+  challenge key is not a credential, but an older audit event may name a newer
+  challenge. PostgreSQL identities never reuse keys.
+
 ## Files evidence
 
 Files metadata migration and workspace authorization, local filesystem uploads

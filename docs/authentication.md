@@ -99,6 +99,10 @@ fallback. SMS is not supported. Passkey ceremonies bind to deployment-owned RP
 ID and exact origin configuration, store challenge state server-side, expire
 once, and update the authenticator sign counter on successful use. Credentials
 are per-user, revocable, and listed without public-key or challenge material.
+Passkeys are listed and removed by their ADR 0009 short ID (type `mfa_passkey`);
+the WebAuthn credential ID stays a protocol identifier. MFA challenge tokens and
+recovery codes are bearer secrets matched by hash only, so their row IDs are never
+accepted in their place.
 
 TOTP enrollment requires fresh authentication (current password, recent OIDC
 sign-in, or an MFA-authenticated session), encrypts the seed with the
