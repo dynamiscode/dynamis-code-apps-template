@@ -201,7 +201,7 @@ func (h *Handler) invitationMutation(writer http.ResponseWriter, request *http.R
 		}
 		link := invitationURL(h.publicURL, invitation.Secret)
 		workspaceLocale, _ := h.identity.GetWorkspaceLocale(request.Context(), workspaceID)
-		_, warning := h.deliverInvitation(request, workspaceID, invitation.Email, link, workspaceLocale)
+		_, warning := h.deliverInvitation(request, workspaceID.String(), invitation.Email, link, workspaceLocale)
 		h.renderInvitationResult(writer, request, workspaceID, csrf, link, warning)
 		return
 	}
@@ -222,7 +222,7 @@ func (h *Handler) invitationMutation(writer http.ResponseWriter, request *http.R
 			if invitation.ID == invitationID {
 				link := invitationURL(h.publicURL, secret)
 				workspaceLocale, _ := h.identity.GetWorkspaceLocale(request.Context(), workspaceID)
-				_, warning := h.deliverInvitation(request, workspaceID, invitation.Email, link, workspaceLocale)
+				_, warning := h.deliverInvitation(request, workspaceID.String(), invitation.Email, link, workspaceLocale)
 				h.renderInvitationResult(writer, request, workspaceID, csrf, link, warning)
 				return
 			}

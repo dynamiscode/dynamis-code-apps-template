@@ -20,7 +20,7 @@ import (
 func TestWorkspaceEmailSettingsAreAdminOnlyAndLoginTested(t *testing.T) {
 	ctx := context.Background()
 	handler, db, auth, _, workspaceID, owner := emailWebTest(t)
-	base := "/workspaces/" + workspaceID + "/settings/email"
+	base := "/workspaces/" + workspaceID.String() + "/settings/email"
 
 	invitation, err := auth.CreateInvitation(ctx, mustPrincipal(t, auth, owner.UserID, workspaceID, identity.InvitationsManage), "member@example.com", identity.Member, time.Hour, identity.AuditContext{})
 	if err != nil {
@@ -88,7 +88,7 @@ func countWorkspaceEmail(t *testing.T, db *sql.DB) int {
 	return count
 }
 
-func emailWebTest(t *testing.T) (http.Handler, *sql.DB, *identity.Service, *workspaceemail.Service, string, identity.BootstrapResult) {
+func emailWebTest(t *testing.T) (http.Handler, *sql.DB, *identity.Service, *workspaceemail.Service, identity.WorkspaceID, identity.BootstrapResult) {
 	t.Helper()
 	ctx := context.Background()
 	cfg, err := config.LoadFrom(func(string) (string, bool) { return "", false })

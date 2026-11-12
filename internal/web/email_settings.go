@@ -14,8 +14,8 @@ import (
 // workspaceEmailManager is the workspace SMTP service. At runtime the handler's
 // mailer is that service, so the assertion below keeps constructor signatures unchanged.
 type workspaceEmailManager interface {
-	Get(context.Context, identity.Principal, string) (workspaceemail.Settings, error)
-	Save(context.Context, identity.Principal, string, workspaceemail.SaveInput, identity.AuditContext) error
+	Get(context.Context, identity.Principal, identity.WorkspaceID) (workspaceemail.Settings, error)
+	Save(context.Context, identity.Principal, identity.WorkspaceID, workspaceemail.SaveInput, identity.AuditContext) error
 }
 
 func (h *Handler) emailManager() (workspaceEmailManager, bool) {
@@ -29,7 +29,7 @@ func (h *Handler) emailSettingsPage(writer http.ResponseWriter, request *http.Re
 		h.renderError(writer, http.StatusNotFound)
 		return
 	}
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceUpdate)
 	if !ok {
 		return
@@ -43,7 +43,7 @@ func (h *Handler) emailSettingsSave(writer http.ResponseWriter, request *http.Re
 		h.renderError(writer, http.StatusNotFound)
 		return
 	}
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, session, csrf, ok := h.managementPrincipal(writer, request, workspaceID, identity.WorkspaceUpdate)
 	if !ok {
 		return
@@ -57,7 +57,7 @@ func (h *Handler) emailSettingsSave(writer http.ResponseWriter, request *http.Re
 	}
 	err := manager.Save(request.Context(), principal, workspaceID, input, auditContext(request))
 	if err == nil {
-		h.redirect(writer, request, "/workspaces/"+workspaceID+"/settings/email?saved=1")
+		h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/settings/email?saved=1")
 		return
 	}
 	var loginErr *workspaceemail.LoginError
@@ -83,7 +83,7 @@ func (h *Handler) renderEmailSettings(
 	writer http.ResponseWriter,
 	request *http.Request,
 	manager workspaceEmailManager,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	principal identity.Principal,
 	session identity.Session,
 	csrf, message, loginReason string,

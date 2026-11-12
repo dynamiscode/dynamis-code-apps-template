@@ -112,7 +112,11 @@ func (s *Service) Available() bool { return s.fallback != nil }
 // SendFor sends invitation mail through the workspace's SMTP when configured,
 // otherwise through the instance sender. The caller must already have authorized
 // the invitation.
-func (s *Service) SendFor(ctx context.Context, workspaceID, recipient, subject, body string) error {
+func (s *Service) SendFor(ctx context.Context, shortID, recipient, subject, body string) error {
+	workspaceID, err := identity.ParseWorkspaceID(shortID)
+	if err != nil {
+		return err
+	}
 	row, found, err := s.load(ctx, workspaceID)
 	if err != nil {
 		return err
@@ -132,7 +136,7 @@ func (s *Service) SendFor(ctx context.Context, workspaceID, recipient, subject, 
 }
 
 // Get returns the masked settings to a principal who can update the workspace.
-func (s *Service) Get(ctx context.Context, actor identity.Principal, workspaceID string) (Settings, error) {
+func (s *Service) Get(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID) (Settings, error) {
 	if _, err := s.auth.AuthorizePrincipal(ctx, actor, workspaceID, identity.WorkspaceUpdate); err != nil {
 		return Settings{}, identity.ErrForbidden
 	}
@@ -150,7 +154,7 @@ func (s *Service) Get(ctx context.Context, actor identity.Principal, workspaceID
 }
 
 // Save runs an SMTP login test with the submitted settings and stores them only if it passes.
-func (s *Service) Save(ctx context.Context, actor identity.Principal, workspaceID string, input SaveInput, audit identity.AuditContext) error {
+func (s *Service) Save(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, input SaveInput, audit identity.AuditContext) error {
 	input, err := normalize(input)
 	if err != nil {
 		return err
@@ -207,7 +211,7 @@ func (s *Service) resolvePassword(input SaveInput, existing stored, found bool) 
 func (s *Service) store(
 	ctx context.Context,
 	actor identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	input SaveInput,
 	ciphertext string,
 	keyVersion int,
@@ -243,7 +247,7 @@ func (s *Service) store(
 	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "workspace_email.updated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: workspaceID, TargetType: "workspace_email", TargetID: workspaceID,
+		WorkspaceID: workspaceID, TargetType: "workspace_email", TargetID: workspaceID.String(),
 		Action: "workspace_email.update", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress,
 		Metadata: metadata(map[string]any{
@@ -256,7 +260,7 @@ func (s *Service) store(
 	return tx.Commit()
 }
 
-func (s *Service) load(ctx context.Context, workspaceID string) (stored, bool, error) {
+func (s *Service) load(ctx context.Context, workspaceID identity.WorkspaceID) (stored, bool, error) {
 	var row stored
 	var updated string
 	err := s.queryRow(ctx, s.db, `

@@ -2,7 +2,7 @@
 
 - Profile and requirement: architecture invariant that migrations are
   forward-only ([architecture](../../architecture.md#data-and-scaling)); applied
-  migrations 000002 through 000016 are rewritten in place.
+  migrations 000002 through 000016 and 000018 are rewritten in place.
 - Status: accepted
 - Responsible owner: repository maintainers (issue #189)
 - Approving maintainer: repository maintainer, approved in the implementation
@@ -25,7 +25,7 @@ PostgreSQL 14.24 container (see [capabilities](../../capabilities.md#workspace-s
 
 ## User, security, compatibility, and operational risk
 
-- Any database that already applied versions 000002 through 000016 keeps the old
+- Any database that already applied versions 000002 through 000016 and 000018 keeps the old
   schema and records those versions as applied. The new build does not reapply
   them and fails on integer workspace keys. Such databases cannot be upgraded in
   place.

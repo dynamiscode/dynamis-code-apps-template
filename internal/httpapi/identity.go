@@ -288,7 +288,7 @@ func (h *handler) writeInvitation(writer http.ResponseWriter, request *http.Requ
 func (h *handler) writeInvitationLink(writer http.ResponseWriter, request *http.Request, status int, invitation identity.Invitation, secret string) {
 	writer.Header().Set("Cache-Control", "no-store")
 	link := invitationURL(h.publicURL, secret)
-	delivered, warning := h.deliverInvitation(request, invitation.WorkspaceID, invitation.Email, link)
+	delivered, warning := h.deliverInvitation(request, invitation.WorkspaceID.String(), invitation.Email, link)
 	writeJSON(writer, status, invitationLinkResponse{
 		Invitation: invitationDTO(invitation), InvitationURL: link,
 		EmailDelivered: delivered, DeliveryWarning: warning,
