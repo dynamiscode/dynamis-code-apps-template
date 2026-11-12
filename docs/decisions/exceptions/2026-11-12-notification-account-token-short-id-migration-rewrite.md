@@ -3,7 +3,7 @@
 - Profile and requirement: architecture invariant that migrations are
   forward-only ([architecture](../../architecture.md#data-and-scaling)); applied
   migration 000007 is rewritten in place for the `notifications` primary key.
-- Status: proposed (pending repository owner approval; scope narrowed to
+- Status: accepted (approved by repository owner 2026-11-12; scope narrowed to
   `notifications` only on 2026-11-12)
 - Responsible owner: repository maintainers (spec #243, ticket #245)
 - Approving maintainer: pending. The earlier approval in spec #243 covered

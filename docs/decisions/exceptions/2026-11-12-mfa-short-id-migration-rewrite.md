@@ -5,7 +5,7 @@
   migration 000015 is rewritten in place. Its `mfa_passkeys` primary key changes
   from `TEXT` to an integer key. The `mfa_challenges` and `mfa_recovery_codes`
   keys, and the `sessions` columns in the same file, are unchanged.
-- Status: proposed (pending repository owner approval; scope narrowed to
+- Status: accepted (approved by repository owner 2026-11-12; scope narrowed to
   `mfa_passkeys` only on 2026-11-12)
 - Responsible owner: repository maintainers (spec #243, ticket #246)
 - Approving maintainer: pending. The earlier approval in spec #243 covered
