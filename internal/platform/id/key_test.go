@@ -2,6 +2,23 @@ package id
 
 import "testing"
 
+func TestNotificationAndAccountTokenTypesAreRegistered(t *testing.T) {
+	t.Parallel()
+
+	registered := make(map[TypeCode]bool)
+	for _, code := range TypeCodes() {
+		registered[code] = true
+	}
+	for _, code := range []TypeCode{TypeNotification, TypeEmailVerification, TypePasswordReset} {
+		if !registered[code] {
+			t.Fatalf("type code %q is not registered", code)
+		}
+		if got, err := DecodeKey(code, EncodeKey(code, 42)); err != nil || got != 42 {
+			t.Fatalf("DecodeKey(%q, EncodeKey) = %d, %v; want 42", code, got, err)
+		}
+	}
+}
+
 func TestEntityKeysRoundTripForSharingAndOAuthTypes(t *testing.T) {
 	t.Parallel()
 

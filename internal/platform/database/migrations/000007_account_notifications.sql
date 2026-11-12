@@ -4,7 +4,7 @@ ALTER TABLE users ADD COLUMN theme TEXT NOT NULL DEFAULT 'system';
 ALTER TABLE users ADD COLUMN email_verified_at TEXT;
 
 CREATE TABLE email_verifications (
-    id TEXT PRIMARY KEY,
+    id {{integer_pk}},
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     email TEXT NOT NULL,
     token_hash TEXT NOT NULL UNIQUE,
@@ -17,7 +17,7 @@ CREATE INDEX email_verifications_user_idx
     ON email_verifications (user_id, created_at);
 
 CREATE TABLE password_resets (
-    id TEXT PRIMARY KEY,
+    id {{integer_pk}},
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
@@ -46,7 +46,7 @@ CREATE TABLE workspace_notification_preferences (
 );
 
 CREATE TABLE notifications (
-    id TEXT PRIMARY KEY,
+    id {{integer_pk}},
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     workspace_id BIGINT REFERENCES workspaces(id) ON DELETE CASCADE,
     notification_type TEXT NOT NULL,

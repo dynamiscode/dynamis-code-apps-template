@@ -145,7 +145,7 @@ type NewPasswordReset struct {
 }
 
 type Notification struct {
-	ID               string
+	ID               NotificationID
 	UserID           string
 	WorkspaceID      WorkspaceID
 	NotificationType string

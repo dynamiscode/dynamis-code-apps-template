@@ -89,10 +89,16 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "state-old", "provider", "browser", "pkce", "nonce", "https://example.com/callback", old, old)
 	exec(`INSERT INTO mfa_challenges (id, token_hash, user_id, purpose, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?)`, "mfa-challenge-old", "mfa-token-hash", "user-maint", "login", old, old)
-	exec(`INSERT INTO email_verifications (id, user_id, email, token_hash, created_at, expires_at)
-		VALUES (?, ?, ?, ?, ?, ?)`, "verification-old", "user-maint", "maint@example.com", "verification-secret", old, old)
-	exec(`INSERT INTO password_resets (id, user_id, token_hash, created_at, expires_at)
-		VALUES (?, ?, ?, ?, ?)`, "reset-old", "user-maint", "reset-secret", old, old)
+	// Account token and notification keys are integers assigned by the database.
+	var verificationOldID, resetOldID, notificationOldID int64
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO email_verifications (user_id, email, token_hash, created_at, expires_at)
+		VALUES (?, ?, ?, ?, ?) RETURNING id`), "user-maint", "maint@example.com", "verification-secret", old, old).Scan(&verificationOldID); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO password_resets (user_id, token_hash, created_at, expires_at)
+		VALUES (?, ?, ?, ?) RETURNING id`), "user-maint", "reset-secret", old, old).Scan(&resetOldID); err != nil {
+		t.Fatal(err)
+	}
 	exec(`INSERT INTO idempotency_records (key_hash, principal_id, workspace_id, operation, request_hash, result_json, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "key-old", "user-maint", workspaceID, "create", "request", "{}", old, old)
 	var eventOldID int64
@@ -100,8 +106,10 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		VALUES (?, ?, ?, ?, ?) RETURNING id`), workspaceID, itemOld, "deleted", 1, old).Scan(&eventOldID); err != nil {
 		t.Fatal(err)
 	}
-	exec(`INSERT INTO notifications (id, user_id, workspace_id, notification_type, title, body, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`, "notification-old", "user-maint", workspaceID, "system", "Old", "Old", old)
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO notifications (user_id, workspace_id, notification_type, title, body, created_at)
+		VALUES (?, ?, ?, ?, ?, ?) RETURNING id`), "user-maint", workspaceID, "system", "Old", "Old", old).Scan(&notificationOldID); err != nil {
+		t.Fatal(err)
+	}
 	var webhookID, eventKey, deliveryID int64
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO webhooks (workspace_id, name, url, secret_ciphertext, events, created_at)
 		VALUES (?, ?, ?, ?, ?, ?) RETURNING id`), workspaceID, "old", "https://example.com/hook", "ciphertext", "[\"item.created\"]", old).Scan(&webhookID); err != nil {
@@ -141,8 +149,8 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		"api_tokens": tokenID, "scim_tokens": scimOldID, "oidc_transactions": "state-old",
 		"mfa_challenges":      "mfa-challenge-old",
 		"idempotency_records": "key-old", "item_events": eventOldID,
-		"notifications":       "notification-old",
-		"email_verifications": "verification-old", "password_resets": "reset-old",
+		"notifications":       notificationOldID,
+		"email_verifications": verificationOldID, "password_resets": resetOldID,
 		"public_links": publicLinkOldID,
 	} {
 		var count int

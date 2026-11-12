@@ -308,14 +308,14 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	notification, err := auth.CreateNotification(context.Background(), PrincipalSystem(), identity.NotificationInput{
 		RecipientUserID: owner.UserID, WorkspaceID: workspaceID, NotificationType: "workspace", Title: "Update", Body: "A workspace update",
 	}, identity.AuditContext{})
-	if err != nil || notification.ID == "" {
+	if err != nil || notification.ID == 0 {
 		t.Fatalf("notification = %+v, %v", notification, err)
 	}
 	notifications := request(handler, http.MethodGet, "/notifications", nil, cookies, nil)
 	if notifications.Code != http.StatusOK || !strings.Contains(notifications.Body.String(), "A workspace update") {
 		t.Fatalf("notifications page = %d, %s", notifications.Code, notifications.Body.String())
 	}
-	marked := request(handler, http.MethodPost, "/notifications/"+notification.ID, url.Values{
+	marked := request(handler, http.MethodPost, "/notifications/"+notification.ID.String(), url.Values{
 		"csrf": {session.CSRFSecret},
 	}, cookies, nil)
 	if marked.Code != http.StatusSeeOther {
@@ -786,7 +786,7 @@ func TestNotificationSSEIsScopedAndRedactedToRecipient(t *testing.T) {
 	resyncReader := bufio.NewReader(resyncResponse.Body)
 	resync := readUntil(t, resyncReader, "\n\n")
 	resyncResponse.Body.Close()
-	if !strings.Contains(resync, "id: "+newNotification.ID) || !strings.Contains(resync, "event: resync") {
+	if !strings.Contains(resync, "id: "+newNotification.ID.String()) || !strings.Contains(resync, "event: resync") {
 		t.Fatalf("notification resync = %q", resync)
 	}
 	wrong := request(handler, http.MethodGet, "/notifications", nil, []*http.Cookie{{Name: "session", Value: "missing"}}, nil)

@@ -17,21 +17,24 @@ type TypeCode string
 // Type-code registry. Add every new code to TypeCodes; the registry test
 // enforces that codes are non-empty and unique.
 const (
-	TypeItem            TypeCode = "item"
-	TypeWorkspace       TypeCode = "workspace"
-	TypeFile            TypeCode = "file"
-	TypeWebhook         TypeCode = "webhook"
-	TypeWebhookDelivery TypeCode = "webhook_delivery"
-	TypeWebhookEvent    TypeCode = "webhook_event"
-	TypeJob             TypeCode = "job"
-	TypeInvitation      TypeCode = "invitation"
-	TypeMember          TypeCode = "member"
-	TypeToken           TypeCode = "token"
-	TypePublicLink      TypeCode = "public_link"
-	TypeSCIMToken       TypeCode = "scim_token"
-	TypeOAuthClient     TypeCode = "oauth_client"
-	TypeOAuthGrant      TypeCode = "oauth_grant"
-	TypeItemEvent       TypeCode = "item_event"
+	TypeItem              TypeCode = "item"
+	TypeWorkspace         TypeCode = "workspace"
+	TypeFile              TypeCode = "file"
+	TypeWebhook           TypeCode = "webhook"
+	TypeWebhookDelivery   TypeCode = "webhook_delivery"
+	TypeWebhookEvent      TypeCode = "webhook_event"
+	TypeJob               TypeCode = "job"
+	TypeInvitation        TypeCode = "invitation"
+	TypeMember            TypeCode = "member"
+	TypeToken             TypeCode = "token"
+	TypePublicLink        TypeCode = "public_link"
+	TypeSCIMToken         TypeCode = "scim_token"
+	TypeOAuthClient       TypeCode = "oauth_client"
+	TypeOAuthGrant        TypeCode = "oauth_grant"
+	TypeItemEvent         TypeCode = "item_event"
+	TypeNotification      TypeCode = "notification"
+	TypeEmailVerification TypeCode = "email_verification"
+	TypePasswordReset     TypeCode = "password_reset"
 )
 
 // TypeCodes returns every registered type code.
@@ -40,6 +43,7 @@ func TypeCodes() []TypeCode {
 		TypeItem, TypeWorkspace, TypeFile, TypeWebhook, TypeWebhookDelivery,
 		TypeWebhookEvent, TypeJob, TypeInvitation, TypeMember, TypeToken,
 		TypePublicLink, TypeSCIMToken, TypeOAuthClient, TypeOAuthGrant, TypeItemEvent,
+		TypeNotification, TypeEmailVerification, TypePasswordReset,
 	}
 }
 

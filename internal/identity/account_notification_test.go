@@ -4,9 +4,82 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strconv"
 	"testing"
 	"time"
+
+	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
+
+// A row's integer key, or its short ID, must never verify or reset an account.
+// Lookups stay on the secret hash, so both forms fail and the emailed secret works.
+func TestAccountTokenRowKeysAreNotSecrets(t *testing.T) {
+	service, db := newTestService(t)
+	ctx := context.Background()
+	userID := insertUser(t, service, db, "row-key@example.com")
+
+	verification, err := service.BeginEmailVerification(ctx, userID, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var verificationKey int64
+	if err := db.QueryRow("SELECT id FROM email_verifications WHERE user_id = ?", userID).Scan(&verificationKey); err != nil {
+		t.Fatal(err)
+	}
+	for _, candidate := range []string{strconv.FormatInt(verificationKey, 10), id.EncodeKey(id.TypeEmailVerification, verificationKey)} {
+		if err := service.VerifyEmail(ctx, candidate, AuditContext{}); !errors.Is(err, ErrInvalidVerification) {
+			t.Fatalf("VerifyEmail(row key %q) error = %v, want ErrInvalidVerification", candidate, err)
+		}
+	}
+	if err := service.VerifyEmail(ctx, verification.Secret, AuditContext{}); err != nil {
+		t.Fatalf("VerifyEmail(secret) error = %v", err)
+	}
+
+	reset, err := service.BeginPasswordReset(ctx, "row-key@example.com", AuditContext{})
+	if err != nil || reset.Secret == "" {
+		t.Fatalf("BeginPasswordReset() = %+v, %v", reset, err)
+	}
+	var resetKey int64
+	if err := db.QueryRow("SELECT id FROM password_resets WHERE user_id = ?", userID).Scan(&resetKey); err != nil {
+		t.Fatal(err)
+	}
+	for _, candidate := range []string{strconv.FormatInt(resetKey, 10), id.EncodeKey(id.TypePasswordReset, resetKey)} {
+		if err := service.CompletePasswordReset(ctx, candidate, "row-key-password", AuditContext{}); !errors.Is(err, ErrInvalidReset) {
+			t.Fatalf("CompletePasswordReset(row key %q) error = %v, want ErrInvalidReset", candidate, err)
+		}
+	}
+	if err := service.CompletePasswordReset(ctx, reset.Secret, "row-key-password", AuditContext{}); err != nil {
+		t.Fatalf("CompletePasswordReset(secret) error = %v", err)
+	}
+}
+
+func TestNotificationCursorAndReadRejectMalformedIDs(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := context.Background()
+	owner := bootstrapOwner(t, service)
+	input := NotificationInput{RecipientUserID: owner.UserID, NotificationType: "system", Title: "One", Body: "First"}
+	first, err := service.CreateNotification(ctx, Principal{AuthMethod: "system"}, input, AuditContext{})
+	if err != nil || first.ID == 0 {
+		t.Fatalf("CreateNotification(first) = %+v, %v", first, err)
+	}
+	input.Title = "Two"
+	if _, err := service.CreateNotification(ctx, Principal{AuthMethod: "system"}, input, AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+
+	after, err := service.NotificationsAfter(ctx, owner.UserID, first.ID.String(), 10)
+	if err != nil || len(after) != 1 || after[0].Title != "Two" {
+		t.Fatalf("NotificationsAfter(short ID) = %+v, %v", after, err)
+	}
+	for _, cursor := range []string{strconv.FormatInt(int64(first.ID), 10), "NOT-VALID", "0000"} {
+		if _, err := service.NotificationsAfter(ctx, owner.UserID, cursor, 10); !errors.Is(err, ErrInvalidNotification) {
+			t.Fatalf("NotificationsAfter(%q) error = %v, want ErrInvalidNotification", cursor, err)
+		}
+		if err := service.MarkNotificationRead(ctx, owner.UserID, cursor, AuditContext{}); !errors.Is(err, ErrForbidden) {
+			t.Fatalf("MarkNotificationRead(%q) error = %v, want ErrForbidden", cursor, err)
+		}
+	}
+}
 
 func TestAccountLifecycleAndDeletionBoundaries(t *testing.T) {
 	service, db := newTestService(t)
@@ -149,7 +222,7 @@ func TestNotificationsHonorUserAndWorkspacePreferences(t *testing.T) {
 		RecipientUserID: owner.UserID, WorkspaceID: owner.WorkspaceID, NotificationType: "system",
 		Title: "Welcome", Body: "A private notification",
 	}, AuditContext{})
-	if err != nil || created.ID == "" {
+	if err != nil || created.ID == 0 {
 		t.Fatalf("CreateNotification() = %+v, %v", created, err)
 	}
 	if err := service.SetNotificationPreference(ctx, owner.UserID, "system", false, AuditContext{}); err != nil {
@@ -158,7 +231,7 @@ func TestNotificationsHonorUserAndWorkspacePreferences(t *testing.T) {
 	suppressed, err := service.CreateNotification(ctx, Principal{AuthMethod: "system"}, NotificationInput{
 		RecipientUserID: owner.UserID, NotificationType: "system", Title: "Hidden", Body: "Not stored",
 	}, AuditContext{})
-	if err != nil || suppressed.ID != "" {
+	if err != nil || suppressed.ID != 0 {
 		t.Fatalf("suppressed notification = %+v, %v", suppressed, err)
 	}
 	if err := service.SetNotificationPreference(ctx, owner.UserID, "system", true, AuditContext{}); err != nil {
@@ -170,7 +243,7 @@ func TestNotificationsHonorUserAndWorkspacePreferences(t *testing.T) {
 	suppressed, err = service.CreateNotification(ctx, Principal{AuthMethod: "system"}, NotificationInput{
 		RecipientUserID: owner.UserID, WorkspaceID: owner.WorkspaceID, NotificationType: "system", Title: "Hidden workspace", Body: "Not stored",
 	}, AuditContext{})
-	if err != nil || suppressed.ID != "" {
+	if err != nil || suppressed.ID != 0 {
 		t.Fatalf("workspace-suppressed notification = %+v, %v", suppressed, err)
 	}
 	if err := service.SetWorkspaceNotificationPreference(ctx, ownerPrincipal, "system", true, AuditContext{}); err != nil {
@@ -181,13 +254,13 @@ func TestNotificationsHonorUserAndWorkspacePreferences(t *testing.T) {
 	if err != nil || len(list) != 1 || list[0].ID != created.ID {
 		t.Fatalf("ListNotifications() = %+v, %v", list, err)
 	}
-	if err := service.MarkNotificationRead(ctx, owner.UserID, created.ID, AuditContext{}); err != nil {
+	if err := service.MarkNotificationRead(ctx, owner.UserID, created.ID.String(), AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
 	if unread, err := service.UnreadNotificationCount(ctx, owner.UserID); err != nil || unread != 0 {
 		t.Fatalf("unread count = %d, %v", unread, err)
 	}
-	if err := service.MarkNotificationRead(ctx, "other-user", created.ID, AuditContext{}); !errors.Is(err, ErrForbidden) {
+	if err := service.MarkNotificationRead(ctx, "other-user", created.ID.String(), AuditContext{}); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("cross-user read error = %v", err)
 	}
 	if after, err := service.NotificationsAfter(ctx, owner.UserID, "", 10); err != nil || len(after) != 1 {

@@ -15,6 +15,12 @@ const (
 	maxNotifications     = 100
 )
 
+// NotificationID is a notification's integer key. The inbox, SSE events, and
+// the after cursor expose only its short ID (String).
+type NotificationID int64
+
+func (n NotificationID) String() string { return id.EncodeKey(id.TypeNotification, int64(n)) }
+
 func (s *Service) CreateNotification(
 	ctx context.Context,
 	actor Principal,
@@ -59,22 +65,20 @@ func (s *Service) CreateNotification(
 	if !enabled {
 		return Notification{}, nil
 	}
-	notificationID, err := id.New()
-	if err != nil {
-		return Notification{}, err
-	}
 	now := s.now().UTC()
-	if _, err := s.exec(ctx, tx, `
-		INSERT INTO notifications (id, user_id, workspace_id, notification_type, title, body, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, notificationID, input.RecipientUserID, nullableWorkspaceID(input.WorkspaceID), input.NotificationType,
-		input.Title, input.Body, timestamp(now)); err != nil {
+	var notificationKey int64
+	if err := s.queryRow(ctx, tx, `
+		INSERT INTO notifications (user_id, workspace_id, notification_type, title, body, created_at)
+		VALUES (?, ?, ?, ?, ?, ?) RETURNING id
+	`, input.RecipientUserID, nullableWorkspaceID(input.WorkspaceID), input.NotificationType,
+		input.Title, input.Body, timestamp(now)).Scan(&notificationKey); err != nil {
 		return Notification{}, err
 	}
+	notificationID := NotificationID(notificationKey)
 	if actor.AuthMethod != "system" {
 		if err := s.audit(ctx, tx, AuditEvent{
 			EventType: "notification.created", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-			WorkspaceID: input.WorkspaceID, TargetType: "notification", TargetID: notificationID,
+			WorkspaceID: input.WorkspaceID, TargetType: "notification", TargetID: notificationID.String(),
 			Action: "notification.create", Outcome: "success", RequestID: audit.RequestID,
 			SourceAddress: audit.SourceAddress,
 			Metadata:      metadata(map[string]any{"type": input.NotificationType}), CreatedAt: now,
@@ -305,9 +309,13 @@ func (s *Service) NotificationsAfter(
 			WHERE user_id = ? ORDER BY created_at, id LIMIT ?
 		`, userID, limit)
 	}
+	afterKey, err := id.DecodeKey(id.TypeNotification, afterID)
+	if err != nil {
+		return nil, ErrInvalidNotification
+	}
 	var createdAt string
 	if err := s.queryRow(ctx, s.db,
-		"SELECT created_at FROM notifications WHERE id = ? AND user_id = ?", afterID, userID,
+		"SELECT created_at FROM notifications WHERE id = ? AND user_id = ?", afterKey, userID,
 	).Scan(&createdAt); err != nil {
 		return nil, ErrInvalidNotification
 	}
@@ -316,7 +324,7 @@ func (s *Service) NotificationsAfter(
 			title, body, created_at, read_at FROM notifications
 		WHERE user_id = ? AND (created_at > ? OR (created_at = ? AND id > ?))
 		ORDER BY created_at, id LIMIT ?
-	`, userID, createdAt, createdAt, afterID, limit)
+	`, userID, createdAt, createdAt, afterKey, limit)
 }
 
 func (s *Service) scanNotifications(ctx context.Context, query string, args ...any) ([]Notification, error) {
@@ -356,11 +364,16 @@ func (s *Service) MarkNotificationRead(
 	userID, notificationID string,
 	audit AuditContext,
 ) error {
+	// A malformed ID is the same denial as an unknown one.
+	notificationKey, err := id.DecodeKey(id.TypeNotification, notificationID)
+	if err != nil {
+		return ErrForbidden
+	}
 	now := s.now().UTC()
 	result, err := s.exec(ctx, s.db, `
 		UPDATE notifications SET read_at = ?
 		WHERE id = ? AND user_id = ? AND read_at IS NULL
-	`, timestamp(now), notificationID, userID)
+	`, timestamp(now), notificationKey, userID)
 	if err != nil {
 		return err
 	}
@@ -371,7 +384,7 @@ func (s *Service) MarkNotificationRead(
 	if changed == 0 {
 		var exists int
 		if err := s.queryRow(ctx, s.db,
-			"SELECT 1 FROM notifications WHERE id = ? AND user_id = ?", notificationID, userID,
+			"SELECT 1 FROM notifications WHERE id = ? AND user_id = ?", notificationKey, userID,
 		).Scan(&exists); err != nil {
 			return ErrForbidden
 		}
