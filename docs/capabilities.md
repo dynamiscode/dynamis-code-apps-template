@@ -423,6 +423,19 @@ passes on SQLite; `go test -p 1 -count=1 ./...` passes on a fresh PostgreSQL 14.
 `make lint` and `go generate ./api` show no drift.
 
 
+## Notification short ID evidence
+
+Issue #245 moves notification keys to integers and exposes only the ADR 0009 short
+ID in web JSON, SSE events, and the `after` cursor, using the type code
+`notification`. A malformed notification cursor resyncs, and a malformed mark-read ID
+returns the same denial as an unknown one. Email verification and password reset rows
+keep text keys. The exception is
+[2026-11-12-notification-account-token-short-id-migration-rewrite](decisions/exceptions/2026-11-12-notification-account-token-short-id-migration-rewrite.md).
+Verified 2026-11-12 with Go 1.27.4: focused tests for the type-code registry and notification
+cursor and mark-read rejection pass on SQLite and PostgreSQL 14.24; `make test` and `make lint`
+pass on SQLite; `go test -p 1 -count=1 ./internal/identity/... ./internal/files/...` passes on a
+fresh PostgreSQL 14.24 container; `go generate ./api` shows no drift.
+
 ## Item short ID evidence
 
 Verified 2026-11-11 with Go 1.27.4. Issue #190 moves item keys to integers

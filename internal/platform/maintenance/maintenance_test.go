@@ -100,8 +100,11 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		VALUES (?, ?, ?, ?, ?) RETURNING id`), workspaceID, itemOld, "deleted", 1, old).Scan(&eventOldID); err != nil {
 		t.Fatal(err)
 	}
-	exec(`INSERT INTO notifications (id, user_id, workspace_id, notification_type, title, body, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`, "notification-old", "user-maint", workspaceID, "system", "Old", "Old", old)
+	var notificationOldID int64
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO notifications (user_id, workspace_id, notification_type, title, body, created_at)
+		VALUES (?, ?, ?, ?, ?, ?) RETURNING id`), "user-maint", workspaceID, "system", "Old", "Old", old).Scan(&notificationOldID); err != nil {
+		t.Fatal(err)
+	}
 	var webhookID, eventKey, deliveryID int64
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO webhooks (workspace_id, name, url, secret_ciphertext, events, created_at)
 		VALUES (?, ?, ?, ?, ?, ?) RETURNING id`), workspaceID, "old", "https://example.com/hook", "ciphertext", "[\"item.created\"]", old).Scan(&webhookID); err != nil {
@@ -141,7 +144,7 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		"api_tokens": tokenID, "scim_tokens": scimOldID, "oidc_transactions": "state-old",
 		"mfa_challenges":      "mfa-challenge-old",
 		"idempotency_records": "key-old", "item_events": eventOldID,
-		"notifications":       "notification-old",
+		"notifications":       notificationOldID,
 		"email_verifications": "verification-old", "password_resets": "reset-old",
 		"public_links": publicLinkOldID,
 	} {

@@ -79,7 +79,7 @@ func (h *Handler) notificationEvents(writer http.ResponseWriter, request *http.R
 			return
 		}
 		if len(existing) == 1 {
-			after = existing[0].ID
+			after = existing[0].ID.String()
 		}
 	}
 	writer.WriteHeader(http.StatusOK)
@@ -138,8 +138,8 @@ func (h *Handler) sendNotifications(
 				return false
 			}
 			if len(latest) == 1 {
-				_, _ = fmt.Fprintf(writer, "id: %s\n", latest[0].ID)
-				*after = latest[0].ID
+				_, _ = fmt.Fprintf(writer, "id: %s\n", latest[0].ID.String())
+				*after = latest[0].ID.String()
 			} else {
 				*after = ""
 			}
@@ -150,15 +150,15 @@ func (h *Handler) sendNotifications(
 	}
 	for _, notification := range notifications {
 		encoded, err := json.Marshal(notificationEvent{
-			ID: notification.ID, Type: notification.NotificationType,
+			ID: notification.ID.String(), Type: notification.NotificationType,
 			Title: notification.Title, Body: notification.Body,
 			CreatedAt: notification.CreatedAt.UTC(),
 		})
 		if err != nil {
 			return false
 		}
-		_, _ = fmt.Fprintf(writer, "id: %s\nevent: notification.created\ndata: %s\n\n", notification.ID, encoded)
-		*after = notification.ID
+		_, _ = fmt.Fprintf(writer, "id: %s\nevent: notification.created\ndata: %s\n\n", notification.ID.String(), encoded)
+		*after = notification.ID.String()
 	}
 	return true
 }

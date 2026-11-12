@@ -32,6 +32,7 @@ const (
 	TypeOAuthClient     TypeCode = "oauth_client"
 	TypeOAuthGrant      TypeCode = "oauth_grant"
 	TypeItemEvent       TypeCode = "item_event"
+	TypeNotification    TypeCode = "notification"
 )
 
 // TypeCodes returns every registered type code.
@@ -40,6 +41,7 @@ func TypeCodes() []TypeCode {
 		TypeItem, TypeWorkspace, TypeFile, TypeWebhook, TypeWebhookDelivery,
 		TypeWebhookEvent, TypeJob, TypeInvitation, TypeMember, TypeToken,
 		TypePublicLink, TypeSCIMToken, TypeOAuthClient, TypeOAuthGrant, TypeItemEvent,
+		TypeNotification,
 	}
 }
 

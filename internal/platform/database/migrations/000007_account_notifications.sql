@@ -46,7 +46,7 @@ CREATE TABLE workspace_notification_preferences (
 );
 
 CREATE TABLE notifications (
-    id TEXT PRIMARY KEY,
+    id {{integer_pk}},
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     workspace_id BIGINT REFERENCES workspaces(id) ON DELETE CASCADE,
     notification_type TEXT NOT NULL,
