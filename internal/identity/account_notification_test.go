@@ -72,7 +72,7 @@ func TestAccountDeletionRetainsCreatedItems(t *testing.T) {
 			id, workspace_id, created_by_user_id, title, status,
 			version, created_at, updated_at
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-	`, "retained-item", workspaceID, userID, "Keep this item", "complete", 2, now, now); err != nil {
+	`, 1, workspaceID, userID, "Keep this item", "complete", 2, now, now); err != nil {
 		t.Fatal(err)
 	}
 
@@ -84,7 +84,7 @@ func TestAccountDeletionRetainsCreatedItems(t *testing.T) {
 	var title, status string
 	if err := db.QueryRow(
 		"SELECT created_by_user_id, title, status FROM items WHERE id = ?",
-		"retained-item",
+		1,
 	).Scan(&creator, &title, &status); err != nil {
 		t.Fatal(err)
 	}

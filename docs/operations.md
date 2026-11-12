@@ -119,9 +119,20 @@ loss of encrypted data.
 
 ## Upgrades and alerts
 
-Short IDs changed the schema in place for workspaces, members, invitations, API
-tokens, webhooks, and background jobs. Do not run this version against a database
-that applied migrations 000002 through 000016 and 000018 from an earlier build:
+Workspace, member, invitation, API token, item, webhook, and background job short
+IDs changed the schema in place. Do not run this version against a database that
+applied migrations 000002 through 000016 and 000018 from an earlier build:
+those versions are already recorded, so the new schema is not applied and the
+application fails against the old text keys. Create a new database and migrate
+it, or reset local development databases. Drain pending webhook deliveries and
+jobs before the reset, because they are not carried over. See the [workspace
+exception](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md)
+and the [webhook and job exception](decisions/exceptions/2026-11-11-webhook-job-short-id-migration-rewrite.md),
+which is proposed and not yet approved.
+
+Item IDs in webhook payloads, workspace exports, and audit metadata are now item
+short IDs, not 32-character hex. Consumers that stored the old hex form must map
+or re-key those values before reading events from this version.
 those versions are already recorded, so the new schema is not applied and the
 application fails against the old text keys. Create a new database and migrate
 it, or reset local development databases. Drain pending webhook deliveries and
@@ -135,8 +146,8 @@ instance or all PostgreSQL application instances, start one new version to run
 forward-only migrations, then check readiness and smoke paths before restoring
 traffic. PostgreSQL migrations take a transaction advisory lock. All migration
 steps and history writes share one transaction; interruption rolls them back.
-Migration 000009 rebuilds `items` transactionally to retain item content when a
-creator account is deleted. Migration 000013 preserves upgrades from
+Migration 000003 declares the nullable item creator that deleting an account
+relies on; migration 000009 is an empty placeholder kept for history. Migration 000013 preserves upgrades from
 pre-merge SCIM-at-000010 and files-at-000012 histories while adding missing
 schemas; migration 000014 applies the Files schema for both histories; migration
 000015 applies the MFA schema after the SCIM and Files migrations and records

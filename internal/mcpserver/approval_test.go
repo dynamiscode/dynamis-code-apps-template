@@ -46,12 +46,12 @@ func TestMCPApprovalUsesMRTRAndStaysStateless(t *testing.T) {
 		"workspaceId": state.workspaceID, "title": "approval title", "idempotencyKey": "mrtr-key-1",
 	}))
 	args := map[string]any{
-		"workspaceId": state.workspaceID, "itemId": created.ID, "version": 1, "status": "complete",
+		"workspaceId": state.workspaceID, "itemId": created.ID.String(), "version": 1, "status": "complete",
 	}
 	requireItem := func(wantVersion int64, wantStatus items.Status) {
 		t.Helper()
 		got := decodeOutput[items.Item](t, callTool(t, first, "items_get_v1", map[string]any{
-			"workspaceId": state.workspaceID, "itemId": created.ID,
+			"workspaceId": state.workspaceID, "itemId": created.ID.String(),
 		}))
 		if got.Version != wantVersion || got.Status != wantStatus {
 			t.Fatalf("item = version %d status %s, want version %d status %s", got.Version, got.Status, wantVersion, wantStatus)
@@ -67,7 +67,7 @@ func TestMCPApprovalUsesMRTRAndStaysStateless(t *testing.T) {
 		t.Fatalf("prompt = %+v, want input_required with request state", prompt)
 	}
 	request, ok := prompt.InputRequests["human-approval"].(*mcp.ElicitParams)
-	if !ok || !strings.Contains(request.Message, created.ID) {
+	if !ok || !strings.Contains(request.Message, created.ID.String()) {
 		t.Fatalf("input request = %#v, want elicitation naming the item", prompt.InputRequests)
 	}
 	requireItem(1, items.Active)
@@ -95,7 +95,7 @@ func TestMCPApprovalUsesMRTRAndStaysStateless(t *testing.T) {
 		t.Fatalf("forged state result = %+v, error = %v; want input_required", forged, err)
 	}
 	changed := map[string]any{
-		"workspaceId": state.workspaceID, "itemId": created.ID, "version": 1, "status": "active",
+		"workspaceId": state.workspaceID, "itemId": created.ID.String(), "version": 1, "status": "active",
 	}
 	mismatched, err := second.CallTool(ctx, &mcp.CallToolParams{
 		Name: "items_update_v1", Arguments: changed, InputResponses: accept, RequestState: prompt.RequestState,
@@ -146,13 +146,13 @@ func TestMCPLegacyProtocolCannotConfirmWithHeader(t *testing.T) {
 
 	// A pre-MRTR protocol request carrying the old header must not mutate the item.
 	body := fmt.Sprintf(`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"items_update_v1","arguments":{"workspaceId":%q,"itemId":%q,"version":1,"status":"complete"}}}`,
-		state.workspaceID, created.ID)
+		state.workspaceID, created.ID.String())
 	response := postToolCall(state.handler, state.token.Secret, "2025-11-25", true, body)
 	if strings.Contains(response.Body.String(), `"version":2`) || !strings.Contains(response.Body.String(), `"error"`) {
 		t.Fatalf("legacy header call = %d %s, want a protocol error and no update", response.Code, response.Body.String())
 	}
 	got := decodeOutput[items.Item](t, callTool(t, session, "items_get_v1", map[string]any{
-		"workspaceId": state.workspaceID, "itemId": created.ID,
+		"workspaceId": state.workspaceID, "itemId": created.ID.String(),
 	}))
 	if got.Version != 1 || got.Status != items.Active {
 		t.Fatalf("item after legacy header call = version %d status %s", got.Version, got.Status)

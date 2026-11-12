@@ -16,7 +16,6 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 )
 
@@ -40,7 +39,7 @@ const (
 )
 
 type Item struct {
-	ID              string               `json:"id"`
+	ID              ItemID               `json:"id"`
 	WorkspaceID     identity.WorkspaceID `json:"workspaceId"`
 	CreatedByUserID *string              `json:"createdByUserId"`
 	Title           string               `json:"title"`
@@ -157,22 +156,19 @@ func (s *Service) ImportInTx(
 		if err != nil {
 			return nil, err
 		}
-		itemID, err := id.New()
-		if err != nil {
-			return nil, err
-		}
 		item := Item{
-			ID: itemID, WorkspaceID: workspaceID, CreatedByUserID: &actor.UserID,
+			WorkspaceID: workspaceID, CreatedByUserID: &actor.UserID,
 			Title: normalized.Title, Status: normalized.Status, Version: 1,
 			CreatedAt: now, UpdatedAt: now,
 		}
-		if _, err := s.exec(ctx, tx, `
+		if err := s.queryRow(ctx, tx, `
 			INSERT INTO items (
-				id, workspace_id, created_by_user_id, title, status,
+				workspace_id, created_by_user_id, title, status,
 				version, created_at, updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		`, item.ID, item.WorkspaceID, actor.UserID, item.Title,
-			item.Status, item.Version, formatTime(now), formatTime(now)); err != nil {
+			) VALUES (?, ?, ?, ?, ?, ?, ?)
+			RETURNING id
+		`, item.WorkspaceID, actor.UserID, item.Title,
+			item.Status, item.Version, formatTime(now), formatTime(now)).Scan(&item.ID); err != nil {
 			return nil, err
 		}
 		if err := s.recordChange(
@@ -253,22 +249,19 @@ func (s *Service) create(
 		return CreateResult{}, ErrLimit
 	}
 
-	itemID, err := id.New()
-	if err != nil {
-		return CreateResult{}, err
-	}
 	item := Item{
-		ID: itemID, WorkspaceID: workspaceID,
+		WorkspaceID:     workspaceID,
 		CreatedByUserID: &actor.UserID, Title: title, Status: Active,
 		Version: 1, CreatedAt: now, UpdatedAt: now,
 	}
-	if _, err := s.exec(ctx, tx, `
+	if err := s.queryRow(ctx, tx, `
 		INSERT INTO items (
-			id, workspace_id, created_by_user_id, title, status,
+			workspace_id, created_by_user_id, title, status,
 			version, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-	`, item.ID, item.WorkspaceID, actor.UserID, item.Title,
-		item.Status, item.Version, formatTime(now), formatTime(now)); err != nil {
+		) VALUES (?, ?, ?, ?, ?, ?, ?)
+		RETURNING id
+	`, item.WorkspaceID, actor.UserID, item.Title,
+		item.Status, item.Version, formatTime(now), formatTime(now)).Scan(&item.ID); err != nil {
 		return CreateResult{}, err
 	}
 	if err := s.recordChange(
@@ -308,7 +301,7 @@ func (s *Service) create(
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "item.created", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "item", TargetID: item.ID, Action: "item.create",
+		TargetType: "item", TargetID: item.ID.String(), Action: "item.create",
 		Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
@@ -324,7 +317,7 @@ func (s *Service) Get(
 	ctx context.Context,
 	actor identity.Principal,
 	workspaceID identity.WorkspaceID,
-	itemID string,
+	itemID ItemID,
 ) (Item, error) {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: true})
 	if err != nil {
@@ -443,7 +436,7 @@ func (s *Service) Update(
 	ctx context.Context,
 	actor identity.Principal,
 	workspaceID identity.WorkspaceID,
-	itemID string,
+	itemID ItemID,
 	version int64,
 	input UpdateInput,
 	audit identity.AuditContext,
@@ -513,7 +506,7 @@ func (s *Service) Update(
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "item.updated", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "item", TargetID: item.ID, Action: "item.update",
+		TargetType: "item", TargetID: item.ID.String(), Action: "item.update",
 		Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress,
 		Metadata:      fmt.Sprintf(`{"version":%d}`, item.Version),
@@ -531,7 +524,7 @@ func (s *Service) Delete(
 	ctx context.Context,
 	actor identity.Principal,
 	workspaceID identity.WorkspaceID,
-	itemID string,
+	itemID ItemID,
 	version int64,
 	audit identity.AuditContext,
 ) error {
@@ -581,7 +574,7 @@ func (s *Service) Delete(
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "item.deleted", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "item", TargetID: item.ID, Action: "item.delete",
+		TargetType: "item", TargetID: item.ID.String(), Action: "item.delete",
 		Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress,
 		Metadata:      fmt.Sprintf(`{"version":%d,"permanent":true}`, item.Version),
@@ -598,7 +591,7 @@ func (s *Service) get(
 		QueryRowContext(context.Context, string, ...any) *sql.Row
 	},
 	workspaceID identity.WorkspaceID,
-	itemID string,
+	itemID ItemID,
 ) (Item, error) {
 	item, err := scanItem(s.queryRow(ctx, queryer, `
 		SELECT id, workspace_id, created_by_user_id, title, status,
@@ -660,7 +653,7 @@ type cursor struct {
 	Search    string `json:"search"`
 	Sort      string `json:"sort"`
 	CreatedAt string `json:"createdAt"`
-	ID        string `json:"id"`
+	ID        ItemID `json:"id"`
 }
 
 func encodeCursor(input ListInput, item Item) (string, error) {
@@ -685,7 +678,7 @@ func decodeCursor(encoded string, input ListInput) (*cursor, error) {
 	var value cursor
 	if err := json.Unmarshal(raw, &value); err != nil ||
 		value.Status != input.Status || value.Search != input.Search ||
-		value.Sort != input.Sort || !validCursorID(value.ID) {
+		value.Sort != input.Sort || value.ID == 0 {
 		return nil, ErrInvalidCursor
 	}
 	if _, err := parseTime(value.CreatedAt); err != nil {
@@ -700,14 +693,6 @@ func validateTitle(value string) (string, error) {
 		return "", ErrInvalidInput
 	}
 	return value, nil
-}
-
-func validCursorID(value string) bool {
-	if len(value) != 32 || strings.ToLower(value) != value {
-		return false
-	}
-	decoded, err := hex.DecodeString(value)
-	return err == nil && len(decoded) == 16
 }
 
 func validateSearch(value string) (string, error) {

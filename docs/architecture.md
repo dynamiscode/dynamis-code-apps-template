@@ -54,8 +54,9 @@ required before multiple application instances.
 Migrations are forward-only and run in one transaction. Applied versions and
 UTC timestamps live in `schema_migrations`. Integer primary keys are the one
 dialect-specific fragment: the runner renders `{{integer_pk}}` per driver.
-Migrations 000002 through 000016 and 000018 were rewritten in place for short IDs
-under recorded exceptions: [workspaces, members, invitations, and API tokens](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md)
+Migrations 000002 through 000016 and 000018 were rewritten in place for workspace,
+member, invitation, API token, item, webhook, and job short IDs under recorded
+exceptions: [workspaces, members, invitations, API tokens, and items](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md)
 and [webhooks and jobs](decisions/exceptions/2026-11-11-webhook-job-short-id-migration-rewrite.md),
 which is proposed and not yet approved. Upgrades use a documented
 stop-the-world procedure; SQLite snapshots and PostgreSQL dumps have separate
@@ -71,9 +72,10 @@ not start hidden transactions.
 Workspaces are the exception to opaque IDs. They use an integer key
 (`INTEGER PRIMARY KEY` on SQLite, `BIGINT GENERATED ALWAYS AS IDENTITY` on
 PostgreSQL). `identity.WorkspaceID` marshals to its short ID, the only form that
-leaves the process. Webhooks, webhook deliveries, webhook events, and background
-jobs use integer keys too; `internal/webhooks/ids.go` marshals the first three to
-their short IDs under their own type codes. The short-ID codec is [ADR 0009](decisions/0009-short-id-codec.md).
+leaves the process. Items use the same pattern with `items.ItemID` and the item
+type code. Webhooks, webhook deliveries, webhook events, and background jobs use
+integer keys too; `internal/webhooks/ids.go` marshals the first three to their
+short IDs under their own type codes. The short-ID codec is [ADR 0009](decisions/0009-short-id-codec.md).
 
 ## Domain state machines
 

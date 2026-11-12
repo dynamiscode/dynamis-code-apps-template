@@ -191,7 +191,7 @@ func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
 		t.Fatalf("items = %+v, %v", itemsPage, err)
 	}
 	item := itemsPage.Items[0]
-	deleted := request(handler, http.MethodPost, path+"/"+item.ID, url.Values{
+	deleted := request(handler, http.MethodPost, path+"/"+item.ID.String(), url.Values{
 		"action": {"delete"}, "version": {"1"}, "csrf": {csrf},
 	}, cookies, map[string]string{"HX-Request": "true"})
 	if deleted.Code != http.StatusOK || strings.Contains(deleted.Body.String(), item.Title) {
@@ -215,7 +215,7 @@ func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
 		t.Fatal(err)
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	path := "/workspaces/" + workspaceID.String() + "/items/" + created.Item.ID + "/share"
+	path := "/workspaces/" + workspaceID.String() + "/items/" + created.Item.ID.String() + "/share"
 	response := request(handler, http.MethodPost, path, url.Values{
 		"action": {"create"}, "lifetime": {"7"}, "csrf": {session.CSRFSecret},
 	}, cookies, nil)
@@ -238,7 +238,7 @@ func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
 	if public.Code != http.StatusOK || !strings.Contains(publicBody, "Public title") || !strings.Contains(publicBody, "active") {
 		t.Fatalf("public page = %d, %s", public.Code, publicBody)
 	}
-	for _, forbidden := range []string{"Example", "owner@example.com", created.Item.ID, workspaceID.String()} {
+	for _, forbidden := range []string{"Example", "owner@example.com", created.Item.ID.String(), workspaceID.String()} {
 		if strings.Contains(publicBody, forbidden) {
 			t.Fatalf("public page leaked %q: %s", forbidden, publicBody)
 		}
@@ -576,7 +576,7 @@ func TestSSEScopeReconnectHeartbeatAndLimits(t *testing.T) {
 		t.Fatal(err)
 	}
 	event := readUntil(t, reader, "event: item.changed") + readUntil(t, reader, "\n\n")
-	if !strings.Contains(event, created.Item.ID) || strings.Contains(event, "Secret title") || !strings.Contains(event, `"schemaVersion":1`) {
+	if !strings.Contains(event, created.Item.ID.String()) || strings.Contains(event, "Secret title") || !strings.Contains(event, `"schemaVersion":1`) {
 		t.Fatalf("change event = %q", event)
 	}
 	eventID := sseID(event)
@@ -672,7 +672,7 @@ func TestItemEvents(t *testing.T) {
 		t.Fatal("expected sendChanges with new items to succeed")
 	}
 	body = rec.Body.String()
-	if !strings.Contains(body, "event: item.changed\n") || !strings.Contains(body, created1.Item.ID) || !strings.Contains(body, created2.Item.ID) {
+	if !strings.Contains(body, "event: item.changed\n") || !strings.Contains(body, created1.Item.ID.String()) || !strings.Contains(body, created2.Item.ID.String()) {
 		t.Fatalf("expected change events for both items, got %q", body)
 	}
 	if nextCursor == "" || nextCursor == "0" {
@@ -1308,7 +1308,7 @@ func TestWebImportIsAuthorizedExplicitAndAtomic(t *testing.T) {
 	}
 	jsonImport, err := json.Marshal(portability.Export{
 		FormatVersion: portability.FormatVersion,
-		Items:         []items.Item{{Title: "Imported JSON", Status: items.Active}},
+		Items:         []items.Item{{ID: 1, Title: "Imported JSON", Status: items.Active}},
 	})
 	if err != nil {
 		t.Fatal(err)

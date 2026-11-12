@@ -96,9 +96,9 @@ func TestMCPCompletionAndPromptAreWorkspaceScoped(t *testing.T) {
 		t.Fatalf("filtered status values = %v", filtered.Completion.Values)
 	}
 
-	ids := complete(t, session, "itemId", created.ID[:12], map[string]string{"workspaceId": state.workspaceID})
-	if fmt.Sprint(ids.Completion.Values) != fmt.Sprintf("[%s]", created.ID) {
-		t.Fatalf("item id values = %v, want [%s]", ids.Completion.Values, created.ID)
+	ids := complete(t, session, "itemId", created.ID.String(), map[string]string{"workspaceId": state.workspaceID})
+	if fmt.Sprint(ids.Completion.Values) != fmt.Sprintf("[%s]", created.ID.String()) {
+		t.Fatalf("item id values = %v, want [%s]", ids.Completion.Values, created.ID.String())
 	}
 	statusScoped := complete(t, session, "itemId", "", map[string]string{
 		"workspaceId": state.workspaceID, "status": "complete",
@@ -134,20 +134,20 @@ func TestMCPCompletionAndPromptAreWorkspaceScoped(t *testing.T) {
 
 	prompt, err := session.GetPrompt(context.Background(), &mcp.GetPromptParams{
 		Name: itemReviewPromptName, Arguments: map[string]string{
-			"workspaceId": state.workspaceID, "itemId": created.ID, "status": "complete",
+			"workspaceId": state.workspaceID, "itemId": created.ID.String(), "status": "complete",
 		},
 	})
 	if err != nil || len(prompt.Messages) != 1 {
 		t.Fatalf("GetPrompt() = %+v, error = %v", prompt, err)
 	}
 	text := fmt.Sprint(prompt.Messages[0].Content)
-	if !strings.Contains(text, created.ID) || !strings.Contains(text, "complete") ||
+	if !strings.Contains(text, created.ID.String()) || !strings.Contains(text, "complete") ||
 		strings.Contains(text, "secret-shaped") {
 		t.Fatalf("prompt text = %q", text)
 	}
 	for _, arguments := range []map[string]string{
-		{"workspaceId": state.workspaceID, "itemId": created.ID, "status": "archived"},
-		{"workspaceId": "00000000000000000000000000000000", "itemId": created.ID, "status": "complete"},
+		{"workspaceId": state.workspaceID, "itemId": created.ID.String(), "status": "archived"},
+		{"workspaceId": "00000000000000000000000000000000", "itemId": created.ID.String(), "status": "complete"},
 		{"workspaceId": state.workspaceID, "itemId": "00000000000000000000000000000000", "status": "complete"},
 		{"workspaceId": state.workspaceID, "status": "complete"},
 	} {
