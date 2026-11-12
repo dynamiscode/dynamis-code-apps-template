@@ -1159,3 +1159,37 @@ func assertAuditEvent(t *testing.T, db *sql.DB, eventType string) {
 		t.Fatalf("audit event %q count = 0", eventType)
 	}
 }
+
+func TestDefaultWorkspaceIsOldestMembership(t *testing.T) {
+	service, db := newTestService(t)
+	ctx := context.Background()
+	userID := insertUser(t, service, db, "member@example.com")
+	base := service.now()
+	older := insertWorkspace(t, service, db, "Zeta")
+	newer := insertWorkspace(t, service, db, "Alpha")
+	service.now = func() time.Time { return base.Add(2 * time.Hour) }
+	insertMembership(t, service, db, newer, userID, Member)
+	service.now = func() time.Time { return base }
+	insertMembership(t, service, db, older, userID, Member)
+
+	got, ok, err := service.DefaultWorkspaceID(ctx, userID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || got != older {
+		t.Fatalf("DefaultWorkspaceID = %q, %t; want oldest membership %q", got, ok, older)
+	}
+}
+
+func TestDefaultWorkspaceReportsNoMemberships(t *testing.T) {
+	service, db := newTestService(t)
+	userID := insertUser(t, service, db, "lonely@example.com")
+
+	got, ok, err := service.DefaultWorkspaceID(context.Background(), userID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok || got != "" {
+		t.Fatalf("DefaultWorkspaceID = %q, %t; want no workspace", got, ok)
+	}
+}

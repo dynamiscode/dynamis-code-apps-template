@@ -16,7 +16,7 @@ trap cleanup EXIT INT TERM
 
 BOOTSTRAP_ADMIN_PASSWORD=webmcp-password-123 DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" \
   go run ./cmd/bootstrap-admin -email webmcp@example.com -workspace WebMCP >/dev/null
-DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" HTTP_ADDRESS="127.0.0.1:$port" \
+MULTI_WORKSPACE_ENABLED=true DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" HTTP_ADDRESS="127.0.0.1:$port" \
   go run ./cmd/server >"$work/server.log" 2>&1 &
 pid=$!
 

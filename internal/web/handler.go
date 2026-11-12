@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"crypto/subtle"
 	"embed"
 	"encoding/json"
@@ -50,6 +51,11 @@ type Handler struct {
 	streams        *streamLimit
 	catalog        *i18n.Catalog
 	mcpResource    string
+	workspaceMode  config.WorkspaceMode
+}
+
+func (h *Handler) workspaceCreationEnabled() bool {
+	return h.workspaceMode != config.WorkspaceModeSingle
 }
 
 type pageData struct {
@@ -64,6 +70,8 @@ type pageData struct {
 	CSRF                             string
 	Workspace                        identity.WorkspaceSummary
 	Workspaces                       []identity.WorkspaceSummary
+	SingleWorkspace                  bool
+	DefaultWorkspaceHref             string
 	Items                            []items.Item
 	Files                            []appfiles.File
 	FilesEnabled                     bool
@@ -102,6 +110,7 @@ type pageData struct {
 	SCIMTokenSecret                  string
 	DeliveryWarning                  string
 	CanManage                        bool
+	CanCreateWorkspace               bool
 	CanTransfer                      bool
 	CanShare                         bool
 	ShareLinks                       []sharing.Link
@@ -285,6 +294,12 @@ func firstWebhook(values []*webhooks.Service) webhookManager {
 	return values[0]
 }
 
+// SetWorkspaceMode selects the browser root behavior. The zero value keeps the
+// multi-workspace list, so handlers built without it are unchanged.
+func (h *Handler) SetWorkspaceMode(mode config.WorkspaceMode) {
+	h.workspaceMode = mode
+}
+
 func (h *Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
 	assets, _ := fs.Sub(files, "assets")
@@ -321,7 +336,9 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /auth/oidc/{providerId}", h.oidcLogin)
 	mux.HandleFunc("GET /auth/oidc/{providerId}/callback", h.oidcCallback)
 	mux.HandleFunc("GET /{$}", h.home)
-	mux.HandleFunc("POST /workspaces", h.createWorkspace)
+	if h.workspaceCreationEnabled() {
+		mux.HandleFunc("POST /workspaces", h.createWorkspace)
+	}
 	mux.HandleFunc("GET /workspaces/{workspaceId}", h.workspaceHome)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/items", h.itemList)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/items", h.createItem)
@@ -605,6 +622,19 @@ func (h *Handler) home(writer http.ResponseWriter, request *http.Request) {
 	if !ok {
 		return
 	}
+	// Only an explicit single mode lands users in a workspace; the zero value
+	// keeps the multi-workspace list.
+	if h.workspaceMode == config.WorkspaceModeSingle {
+		workspaceID, found, err := h.identity.DefaultWorkspaceID(request.Context(), session.UserID)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+		if found {
+			http.Redirect(writer, request, "/workspaces/"+workspaceID, http.StatusFound)
+			return
+		}
+	}
 	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
 	if err != nil {
 		h.renderError(writer, http.StatusInternalServerError)
@@ -612,6 +642,7 @@ func (h *Handler) home(writer http.ResponseWriter, request *http.Request) {
 	}
 	h.render(writer, http.StatusOK, "home.html", pageData{
 		Title: "Workspaces", NavPage: "home", CSRF: csrf, Workspaces: workspaces,
+		CanCreateWorkspace: h.workspaceCreationEnabled(),
 	})
 }
 
@@ -906,8 +937,26 @@ func (h *Handler) redirect(writer http.ResponseWriter, request *http.Request, pa
 	http.Redirect(writer, request, path, http.StatusSeeOther)
 }
 
+// defaultHomeHref returns the home of the user's default workspace in single
+// mode. It is empty in multi mode, or when the user has no membership.
+func (h *Handler) defaultHomeHref(ctx context.Context, userID string) string {
+	if h.workspaceMode != config.WorkspaceModeSingle {
+		return ""
+	}
+	workspaceID, found, err := h.identity.DefaultWorkspaceID(ctx, userID)
+	if err != nil {
+		h.logger.Error("default workspace lookup failed", "error", err)
+		return ""
+	}
+	if !found {
+		return ""
+	}
+	return "/workspaces/" + workspaceID
+}
+
 func (h *Handler) render(writer http.ResponseWriter, status int, name string, data pageData) {
 	data.FilesEnabled = h.files != nil
+	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
 	h.localizePage(writer, &data)
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.Header().Set("Cache-Control", "no-store")

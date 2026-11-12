@@ -63,7 +63,8 @@ func (h *Handler) createWorkspace(writer http.ResponseWriter, request *http.Requ
 		}
 		h.render(writer, http.StatusUnprocessableEntity, "home.html", pageData{
 			Title: "Workspaces", NavPage: "home", CSRF: csrf, Workspaces: workspaces,
-			Error: "Enter a workspace name between 1 and 120 characters.",
+			CanCreateWorkspace: h.workspaceCreationEnabled(),
+			Error:              "Enter a workspace name between 1 and 120 characters.",
 		})
 		return
 	}
@@ -439,6 +440,7 @@ func (h *Handler) exportPage(writer http.ResponseWriter, request *http.Request) 
 	h.render(writer, http.StatusOK, "export.html", pageData{
 		Title: "Export", NavPage: "export", NavSection: "settings", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
+		DefaultWorkspaceHref: h.defaultHomeHref(request.Context(), session.UserID),
 	})
 }
 
@@ -461,7 +463,7 @@ func (h *Handler) auditHistoryPage(writer http.ResponseWriter, request *http.Req
 	h.render(writer, http.StatusOK, "audit-history.html", pageData{
 		Title: "Audit history", NavPage: "audit", NavSection: "settings", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		AuditHistory: history,
+		AuditHistory: history, DefaultWorkspaceHref: h.defaultHomeHref(request.Context(), session.UserID),
 	})
 }
 

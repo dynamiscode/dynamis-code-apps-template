@@ -87,6 +87,7 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); }
 .subnav a.active { color: var(--ink); font-weight: 700; background: var(--accent-surface); }
 .subnav { display: flex; gap: .25rem; margin: 1rem 0 1.5rem; border-bottom: 1px solid var(--border); }
 .workspace-switcher, .account-menu { position: relative; }
+.workspace-name { display: inline-flex; align-items: center; min-height: 2.75rem; max-width: 20rem; padding: .45rem .65rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-switcher summary, .account-menu summary { display: inline-flex; align-items: center; min-height: 2.75rem; max-width: 20rem; padding: .45rem .65rem; border: 1px solid var(--border); border-radius: .25rem; background: var(--surface); cursor: pointer; font-weight: 700; list-style: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-switcher summary::-webkit-details-marker, .account-menu summary::-webkit-details-marker { display: none; }
 .workspace-switcher summary::after, .account-menu summary::after { content: "▾"; margin-left: .5rem; font-size: .8em; }
