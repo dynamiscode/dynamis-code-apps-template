@@ -2,7 +2,7 @@ GOVULNCHECK_VERSION ?= v1.7.0
 ACTIONLINT_VERSION ?= v1.7.12
 GITLEAKS_VERSION ?= v8.30.1
 
-.PHONY: setup setup-hooks fmt-check lint test vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check build image docker-smoke accessibility-smoke webmcp-smoke template-smoke verify js-check test-unit test-postgres logger-injection
+.PHONY: setup setup-hooks fmt-check lint test vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check build image docker-smoke accessibility-smoke webmcp-smoke template-smoke verify js-check test-unit test-postgres logger-injection test-afk
 
 setup: setup-hooks
 	test -f .env || cp .env.example .env
@@ -26,6 +26,9 @@ web-conformance:
 
 test-unit:
 	node --test internal/web/assets/*.test.mjs
+
+test-afk:
+	./scripts/afk_test.sh
 
 test-postgres:
 	set -e; \
@@ -97,4 +100,4 @@ template-smoke:
 	go run ./cmd/template-init -output "$$work/app" -name "Smoke App" -module example.com/smoke/app -repository https://github.com/smoke/app -security-url https://github.com/smoke/app/security/advisories/new -maintainer @smoke/maintainers -profiles Core,Identity,Agent -source https://example.com/dynamis-code/template -commit 0000000000000000000000000000000000000000; \
 	cd "$$work/app" && go test ./...
 
-verify: lint test race deps-check workflow-check generate-check build template-smoke
+verify: lint test race deps-check workflow-check generate-check build template-smoke test-afk
