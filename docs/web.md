@@ -42,11 +42,10 @@ Baseline browser surfaces:
 
 - `/` lists memberships and creates workspaces in multi mode (`MULTI_WORKSPACE_ENABLED=true`). In single mode
   (`MULTI_WORKSPACE_ENABLED=false`) it redirects with `302` to the home of the
-  oldest membership, or shows the no-memberships message when there is none.
-  Workspace creation is not blocked in single mode on this base; the capability
-  ledger's workspace mode evidence section records this.
-  Workspace cards and the `/workspaces/{workspaceId}` route open the
-  authenticated workspace home, which links to Items and Settings.
+  oldest membership, or shows the no-memberships message when there is none;
+  the create form is hidden and `POST /workspaces` returns 404. Workspace cards
+  and the `/workspaces/{workspaceId}` route open the authenticated workspace
+  home, which links to Items and Settings.
 - `/workspaces/{workspaceId}/settings/general` reads workspace settings and lets authorized owners/admins
   change the workspace language fallback with CSRF protection.
 - `/workspaces/{workspaceId}/settings/members` lists members; authorized owners/admins
@@ -59,7 +58,7 @@ Baseline browser surfaces:
 - `/workspaces/{workspaceId}/settings/webhooks` lists workspace webhook registrations,
   lets owners/admins create, rotate, and delete them, and shows redacted delivery
   history. Creation and rotation display the webhook secret once. When
-  `WEBHOOK_ENCRYPTION_KEY` is missing, managers see an actionable warning and
+  neither `ENCRYPTION_KEY` nor `WEBHOOK_ENCRYPTION_KEY` is set, managers see an actionable warning and
   create/rotate controls are disabled. Stale form submissions keep the user on
   this page with an inline error.
 - `/workspaces/{workspaceId}/settings/provisioning` is restricted to workspace

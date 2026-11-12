@@ -85,6 +85,8 @@ These remain out of the build plan until their trigger is demonstrated.
 | Public sharing or guest access | conforming for bounded Item browser links | Files, public APIs, guest collaboration, or other resource types require a separate contract |
 | Fine-grained permissions | deferred | Baseline roles cannot express a measured requirement |
 | External-issuer OAuth access tokens for MCP | deferred | An accepted requirement needs `/mcp` to accept access tokens from an external authorization server; see [decision 0007](decisions/0007-mcp-oauth-protected-resource-metadata.md) |
+| Email providers | deferred | A workspace needs a provider or sender identity other than the instance default. Architecture is accepted in [decision 0009](decisions/0009-workspace-email-settings.md); no provider is implemented yet, and each one needs its own contract and evidence. |
+| Encryption key rotation command | deferred | Stored provider credentials must be re-encrypted under a new key after a compromise or policy change. Design is accepted in [decision 0009](decisions/0009-workspace-email-settings.md); no rotation command exists yet. |
 
 When a trigger is accepted, record the requirement and architecture decision,
 then update implementation, contracts, tests, operations, and this ledger
@@ -150,7 +152,7 @@ axe-core 4.10.2, Chrome, and VoiceOver:
   SQLite and isolated PostgreSQL
 - full-page and HTMX fragment behavior, ordinary form fallback, session-bound
   CSRF, authorization, escaped output, validation, and safe errors
-- browser surfaces cover workspace creation, baseline identity management,
+- browser surfaces cover workspace creation in multi mode, baseline identity management,
   invitation registration/acceptance, one-time token display, sessions,
   security linking, and export download
 - SSE scope, initial/expired resync, valid reconnect replay, stable versioned
@@ -267,6 +269,18 @@ retention pruning, REST/OpenAPI behavior, and the CSRF-protected browser
 management surface pass the focused webhook, item, browser, HTTP, configuration,
 maintenance, and migration tests. PostgreSQL execution and Docker smoke remain
 part of the final verification ladder.
+
+## General encryption key evidence
+
+Webhook secrets seal with `ENCRYPTION_KEY` and record `secret_key_version`
+(migration 000017). `WEBHOOK_ENCRYPTION_KEY` is key version 1 and still opens
+rows sealed before `ENCRYPTION_KEY` was set. Evidence: the legacy-ciphertext
+vector test in `internal/platform/secretbox`, the key-selection matrix in
+`internal/platform/config`, `TestLegacyWebhookSecretsDeliverAfterGeneralKeyIsAdded`
+in `internal/webhooks`, and `TestPostgresMigrations` in `internal/platform/database`,
+which applies every embedded migration including 000017. A manual startup with
+no key set logged the warning and reached the listener (the smoke was not
+committed as a test). Key rotation remains deferred.
 
 ## Phase 09 evidence
 
@@ -585,9 +599,12 @@ documented in [web](web.md) and
 - the accessibility and WebMCP smoke scripts run the server with
   `MULTI_WORKSPACE_ENABLED=true` so their workspace-list flows stay covered
 
-Not covered by this section: blocking browser workspace creation in single mode
-(`POST /workspaces` and the create form). That behavior is not on this branch's
-base; it is tracked by #187 and is not yet evidenced here.
+- single mode blocks browser workspace creation: the create form is hidden and
+  `POST /workspaces` returns `404`. Evidence:
+  `TestSingleWorkspaceModeHidesCreationAndReturnsNotFound` in
+  [workspace mode tests](../internal/web/workspace_mode_test.go)
+- multi mode keeps browser workspace creation: `TestMultiWorkspaceModeKeepsCreation`
+  in [workspace mode tests](../internal/web/workspace_mode_test.go)
 
 - passed: `make test`, `make lint`, `make doc-links`, `make secret-check`, and
   `go test -count=1 -run` for the named config and web mode tests

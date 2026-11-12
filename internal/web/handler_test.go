@@ -1686,15 +1686,15 @@ func loginWorkspaceUser(t *testing.T, handler http.Handler, email, password stri
 }
 
 func TestWebRootLandsInOldestWorkspaceInSingleMode(t *testing.T) {
-	handler, _, _, workspaceID, _ := testWebConfigured(t, 10, false, func(h *Handler) {
+	handler, auth, _, workspaceID, owner := testWebConfigured(t, 10, false, func(h *Handler) {
 		h.SetWorkspaceMode(config.WorkspaceModeSingle)
 	})
-	cookies, csrf := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
-	created := request(handler, http.MethodPost, "/workspaces", url.Values{
-		"name": {"Newer"}, "csrf": {csrf},
-	}, cookies, nil)
-	if created.Code != http.StatusSeeOther {
-		t.Fatalf("create workspace = %d, %s", created.Code, created.Body.String())
+	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
+	// Browser creation is closed in single mode; add the newer membership through the service.
+	if _, err := auth.CreateWorkspace(context.Background(), identity.Principal{
+		UserID: owner.UserID, AuthMethod: "local", AuthLevel: identity.AuthLevelPassword,
+	}, identity.WorkspaceCreateInput{Name: "Newer"}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
 	}
 	root := request(handler, http.MethodGet, "/", nil, cookies, nil)
 	if root.Code != http.StatusFound || root.Header().Get("Location") != "/workspaces/"+workspaceID {
@@ -1730,6 +1730,9 @@ func TestWebRootShowsNoMembershipsInSingleMode(t *testing.T) {
 	root := request(handler, http.MethodGet, "/", nil, cookies, nil)
 	if root.Code != http.StatusOK || !strings.Contains(root.Body.String(), "No workspace memberships.") {
 		t.Fatalf("single-mode root without memberships = %d, %s", root.Code, root.Body.String())
+	}
+	if strings.Contains(root.Body.String(), `action="/workspaces"`) {
+		t.Fatal("single-mode root shows the create-workspace form")
 	}
 }
 
