@@ -23,6 +23,11 @@ across sixteen tables. The issue accepts a reset of local development databases
 instead. Verification: the full suite passes on SQLite and on a fresh pinned
 PostgreSQL 14.24 container (see [capabilities](../../capabilities.md#workspace-short-id-evidence)).
 
+Issue #193 extends the same in-place rewrite of migration 000002 to give
+`workspace_members`, `invitations`, and `api_tokens` integer keys. Their
+`(workspace_id, user_id)` membership key becomes a `UNIQUE` constraint. Existing
+databases need the same reset described below.
+
 ## User, security, compatibility, and operational risk
 
 - Any database that already applied versions 000002 through 000016 and 000018 keeps the old

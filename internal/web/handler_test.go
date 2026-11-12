@@ -945,7 +945,20 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := auth.ChangeMemberRole(context.Background(), ownerPrincipal, scimUser.UserID, identity.Admin, identity.AuditContext{}); err != nil {
+	members, err := auth.ListMembers(context.Background(), ownerPrincipal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var memberID identity.MemberID
+	for _, member := range members {
+		if member.UserID == scimUser.UserID {
+			memberID = member.ID
+		}
+	}
+	if memberID == 0 {
+		t.Fatal("scim user is not a workspace member")
+	}
+	if err := auth.ChangeMemberRole(context.Background(), ownerPrincipal, memberID, identity.Admin, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
 	if adminPage := request(handler, http.MethodGet, path, nil, adminCookies, nil); adminPage.Code != http.StatusOK {
@@ -1723,7 +1736,20 @@ func TestWebRootShowsNoMembershipsInSingleMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := auth.RemoveMember(ctx, remover, formerID, identity.AuditContext{}); err != nil {
+	members, err := auth.ListMembers(ctx, remover)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var formerMember identity.MemberID
+	for _, member := range members {
+		if member.UserID == formerID {
+			formerMember = member.ID
+		}
+	}
+	if formerMember == 0 {
+		t.Fatal("former member was not listed")
+	}
+	if err := auth.RemoveMember(ctx, remover, formerMember, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
 	cookies, _ := loginWorkspaceUser(t, handler, "former@example.com", "former-long-password")

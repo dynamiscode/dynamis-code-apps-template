@@ -110,7 +110,7 @@ func renderMigration(sql string, driver config.DatabaseDriver) string {
 	if driver == config.Postgres {
 		pk = "BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY"
 	}
-	return strings.ReplaceAll(sql, "{{workspace_id_pk}}", pk)
+	return strings.ReplaceAll(sql, "{{integer_pk}}", pk)
 }
 
 func mfaMigrationAlreadyApplied(

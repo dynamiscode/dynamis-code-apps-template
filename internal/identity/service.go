@@ -408,7 +408,7 @@ func (s *Service) ListMembers(
 		return nil, ErrForbidden
 	}
 	rows, err := s.db.QueryContext(ctx, s.bind(`
-		SELECT m.user_id, u.email, m.role, m.created_at
+		SELECT m.id, m.user_id, u.email, m.role, m.created_at
 		FROM workspace_members m JOIN users u ON u.id = m.user_id
 		WHERE m.workspace_id = ? ORDER BY lower(u.email), m.user_id
 	`), actor.WorkspaceID)
@@ -420,7 +420,7 @@ func (s *Service) ListMembers(
 	for rows.Next() {
 		var member MemberSummary
 		var createdAt string
-		if err := rows.Scan(&member.UserID, &member.Email, &member.Role, &createdAt); err != nil {
+		if err := rows.Scan(&member.ID, &member.UserID, &member.Email, &member.Role, &createdAt); err != nil {
 			return nil, err
 		}
 		member.CreatedAt, err = parseTimestamp(createdAt)
@@ -551,7 +551,7 @@ func (s *Service) AddMember(
 func (s *Service) ChangeMemberRole(
 	ctx context.Context,
 	actor Principal,
-	userID string,
+	memberID MemberID,
 	role Role,
 	audit AuditContext,
 ) error {
@@ -567,12 +567,13 @@ func (s *Service) ChangeMemberRole(
 	if s.requireTx(ctx, tx, actor, MembersManage) != nil {
 		return ErrForbidden
 	}
+	var userID string
 	var current Role
 	if err := s.queryRow(ctx, tx, `
-		SELECT role FROM workspace_members
-		WHERE workspace_id = ? AND user_id = ?
-	`, actor.WorkspaceID, userID).Scan(&current); err != nil {
-		return ErrForbidden
+		SELECT user_id, role FROM workspace_members
+		WHERE workspace_id = ? AND id = ?
+	`, actor.WorkspaceID, memberID).Scan(&userID, &current); err != nil {
+		return ErrNotFound
 	}
 	if current == Owner {
 		return ErrLastOwner
@@ -602,10 +603,10 @@ func (s *Service) ChangeMemberRole(
 func (s *Service) TransferOwnership(
 	ctx context.Context,
 	actor Principal,
-	newOwnerUserID string,
+	newOwnerMemberID MemberID,
 	audit AuditContext,
 ) error {
-	if s.require(ctx, actor, OwnershipTransfer) != nil || actor.UserID == newOwnerUserID {
+	if s.require(ctx, actor, OwnershipTransfer) != nil {
 		return ErrForbidden
 	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
@@ -614,6 +615,7 @@ func (s *Service) TransferOwnership(
 	}
 	defer tx.Rollback()
 	var actorRole, targetRole Role
+	var newOwnerUserID string
 	if err := s.queryRow(ctx, tx, `
 		SELECT role FROM workspace_members
 		WHERE workspace_id = ? AND user_id = ?
@@ -621,9 +623,12 @@ func (s *Service) TransferOwnership(
 		return ErrForbidden
 	}
 	if err := s.queryRow(ctx, tx, `
-		SELECT role FROM workspace_members
-		WHERE workspace_id = ? AND user_id = ?
-	`, actor.WorkspaceID, newOwnerUserID).Scan(&targetRole); err != nil {
+		SELECT user_id, role FROM workspace_members
+		WHERE workspace_id = ? AND id = ?
+	`, actor.WorkspaceID, newOwnerMemberID).Scan(&newOwnerUserID, &targetRole); err != nil {
+		return ErrNotFound
+	}
+	if actor.UserID == newOwnerUserID {
 		return ErrForbidden
 	}
 	if _, err := s.exec(ctx, tx, `
@@ -661,7 +666,7 @@ func (s *Service) TransferOwnership(
 func (s *Service) RemoveMember(
 	ctx context.Context,
 	actor Principal,
-	userID string,
+	memberID MemberID,
 	audit AuditContext,
 ) error {
 	if s.require(ctx, actor, MembersManage) != nil {
@@ -676,12 +681,13 @@ func (s *Service) RemoveMember(
 	if s.requireTx(ctx, tx, actor, MembersManage) != nil {
 		return ErrForbidden
 	}
+	var userID string
 	var role Role
 	if err := s.queryRow(ctx, tx, `
-		SELECT role FROM workspace_members
-		WHERE workspace_id = ? AND user_id = ?
-	`, actor.WorkspaceID, userID).Scan(&role); err != nil {
-		return ErrForbidden
+		SELECT user_id, role FROM workspace_members
+		WHERE workspace_id = ? AND id = ?
+	`, actor.WorkspaceID, memberID).Scan(&userID, &role); err != nil {
+		return ErrNotFound
 	}
 	if role == Owner {
 		return ErrLastOwner

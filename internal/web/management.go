@@ -131,7 +131,7 @@ func (h *Handler) memberMutation(writer http.ResponseWriter, request *http.Reque
 	if !ok {
 		return
 	}
-	userID := request.FormValue("user_id")
+	memberID, _ := identity.ParseMemberID(request.FormValue("member_id")) // malformed IDs match no member
 	var err error
 	switch request.FormValue("action") {
 	case "role":
@@ -140,11 +140,11 @@ func (h *Handler) memberMutation(writer http.ResponseWriter, request *http.Reque
 			h.managementError(writer, request, workspaceID, "The member role is invalid.")
 			return
 		}
-		err = h.identity.ChangeMemberRole(request.Context(), principal, userID, role, auditContext(request))
+		err = h.identity.ChangeMemberRole(request.Context(), principal, memberID, role, auditContext(request))
 	case "remove":
-		err = h.identity.RemoveMember(request.Context(), principal, userID, auditContext(request))
+		err = h.identity.RemoveMember(request.Context(), principal, memberID, auditContext(request))
 	case "transfer":
-		err = h.identity.TransferOwnership(request.Context(), principal, userID, auditContext(request))
+		err = h.identity.TransferOwnership(request.Context(), principal, memberID, auditContext(request))
 	default:
 		h.managementError(writer, request, workspaceID, "The requested member action is invalid.")
 		return
@@ -205,7 +205,7 @@ func (h *Handler) invitationMutation(writer http.ResponseWriter, request *http.R
 		h.renderInvitationResult(writer, request, workspaceID, csrf, link, warning)
 		return
 	}
-	invitationID := request.FormValue("invitation_id")
+	invitationID, _ := identity.ParseInvitationID(request.FormValue("invitation_id")) // malformed IDs match no invitation
 	switch request.FormValue("action") {
 	case "resend":
 		secret, err := h.identity.ResendInvitation(request.Context(), principal, invitationID, 0, auditContext(request))
@@ -316,7 +316,7 @@ func (h *Handler) tokenMutation(writer http.ResponseWriter, request *http.Reques
 		})
 		return
 	}
-	tokenID := request.PathValue("tokenId")
+	tokenID, _ := identity.ParseAPITokenID(request.PathValue("tokenId")) // malformed IDs match no token
 	if request.FormValue("action") == "revoke" {
 		if err := h.identity.RevokeAPIToken(request.Context(), principal, tokenID, auditContext(request)); err != nil {
 			h.managementError(writer, request, workspaceID, "The token could not be revoked.")
