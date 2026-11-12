@@ -4,7 +4,7 @@
   forward-only ([architecture](../../architecture.md#data-and-scaling)); applied
   migration 000002 is rewritten in place to change `audit_events.id` from `TEXT`
   to an integer key. The `sessions` table in the same file is unchanged.
-- Status: proposed (pending repository owner approval)
+- Status: accepted (approved by repository owner 2026-11-12)
 - Responsible owner: repository maintainers (issue #243, ticket #248)
 - Approving maintainer: pending. The repository owner must approve this record
   before it is marked accepted.
