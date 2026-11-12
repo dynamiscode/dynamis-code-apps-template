@@ -43,8 +43,8 @@ Baseline browser surfaces:
 - `/` lists memberships and creates workspaces in multi mode (`MULTI_WORKSPACE_ENABLED=true`). In single mode
   (`MULTI_WORKSPACE_ENABLED=false`) it redirects with `302` to the home of the
   oldest membership, or shows the no-memberships message when there is none.
-  Workspace creation is not blocked in single mode on this base; see
-  [capabilities](capabilities.md#workspace-mode-evidence).
+  Workspace creation is not blocked in single mode on this base; the capability
+  ledger's workspace mode evidence section records this.
   Workspace cards and the `/workspaces/{workspaceId}` route open the
   authenticated workspace home, which links to Items and Settings.
 - `/workspaces/{workspaceId}/settings/general` reads workspace settings and lets authorized owners/admins
