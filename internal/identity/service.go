@@ -387,6 +387,26 @@ func (s *Service) ListWorkspaces(
 	return workspaces, rows.Err()
 }
 
+// DefaultWorkspaceID returns the workspace a user lands in by default: their
+// oldest membership. The boolean is false when the user has no memberships.
+func (s *Service) DefaultWorkspaceID(
+	ctx context.Context,
+	userID string,
+) (string, bool, error) {
+	var workspaceID string
+	err := s.db.QueryRowContext(ctx, s.bind(`
+		SELECT workspace_id FROM workspace_members
+		WHERE user_id = ? ORDER BY created_at, workspace_id LIMIT 1
+	`), userID).Scan(&workspaceID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return workspaceID, true, nil
+}
+
 func (s *Service) ListMembers(
 	ctx context.Context,
 	actor Principal,

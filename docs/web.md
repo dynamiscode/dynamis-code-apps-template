@@ -40,9 +40,11 @@ stable and English for machine clients.
 
 Baseline browser surfaces:
 
-- `/` lists memberships and creates workspaces. Workspace cards and the
-  `/workspaces/{workspaceId}` route open the authenticated workspace home, which
-  links to Items and Settings.
+- `/` lists memberships and creates workspaces in multi mode. In single mode
+  (`MULTI_WORKSPACE_ENABLED=false`) it redirects with `302` to the home of the
+  oldest membership, or shows the no-memberships message when there is none.
+  Workspace cards and the `/workspaces/{workspaceId}` route open the
+  authenticated workspace home, which links to Items and Settings.
 - `/workspaces/{workspaceId}/settings/general` reads workspace settings and lets authorized owners/admins
   change the workspace language fallback with CSRF protection.
 - `/workspaces/{workspaceId}/settings/members` lists members; authorized owners/admins
