@@ -1,0 +1,28 @@
+name: PR body
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  issue-link:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require an issue link or explicit opt-out
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if printf '%s\n' "$PR_BODY" | grep -Eiq '(closes|fixes|refs) #[0-9]+'; then
+            echo "Issue link found."
+            exit 0
+          fi
+          if printf '%s\n' "$PR_BODY" | grep -Eq '^No issue: [^[:space:]]'; then
+            echo "Explicit opt-out found."
+            exit 0
+          fi
+          echo "PR body must contain 'Closes #<n>', 'Fixes #<n>', or 'Refs #<n>'," >&2
+          echo "or an opt-out line 'No issue: <reason>'." >&2
+          exit 1
