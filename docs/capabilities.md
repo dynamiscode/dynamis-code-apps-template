@@ -297,7 +297,7 @@ a sent invitation against Resend before release.
 ## Workspace Postmark evidence
 
 Workspace email can use Postmark (`provider = postmark`, migrations 000019 and
-000020). The save path runs a read-only `GET /server` check with the submitted
+000021). The save path runs a read-only `GET /server` check with the submitted
 Server API token and a read-only `GET /domains` check with the Account API token,
 and stores nothing if either fails. Sending uses `POST /email` over HTTPS with the
 sealed Server API token. The Account API token is sealed in its own column with
