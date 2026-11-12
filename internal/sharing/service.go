@@ -38,8 +38,14 @@ const (
 	LinkNotFound LinkStatus = "not_found"
 )
 
+// LinkID is a public link's integer key. Responses and audit see only its
+// short ID (String); Revoke accepts only that short ID.
+type LinkID int64
+
+func (l LinkID) String() string { return id.EncodeKey(id.TypePublicLink, int64(l)) }
+
 type Link struct {
-	ID          string
+	ID          LinkID
 	WorkspaceID identity.WorkspaceID
 	ItemID      string
 	CreatedAt   time.Time
@@ -91,25 +97,22 @@ func (s *Service) Create(
 	} else if err != nil {
 		return Link{}, err
 	}
-	linkID, err := id.New()
-	if err != nil {
-		return Link{}, err
-	}
 	token, err := newToken()
 	if err != nil {
 		return Link{}, err
 	}
 	now := s.now().UTC()
-	link := Link{ID: linkID, WorkspaceID: workspaceID, ItemID: itemID, CreatedAt: now, ExpiresAt: now.Add(lifetime), Token: token}
-	if _, err := s.exec(ctx, tx, `
-		INSERT INTO public_links (id, workspace_id, item_id, token_hash, created_at, expires_at)
-		VALUES (?, ?, ?, ?, ?, ?)
-	`, link.ID, link.WorkspaceID, link.ItemID, identity.SecretHash(token), stamp(now), stamp(link.ExpiresAt)); err != nil {
+	link := Link{WorkspaceID: workspaceID, ItemID: itemID, CreatedAt: now, ExpiresAt: now.Add(lifetime), Token: token}
+	if err := s.queryRow(ctx, tx, `
+		INSERT INTO public_links (workspace_id, item_id, token_hash, created_at, expires_at)
+		VALUES (?, ?, ?, ?, ?)
+		RETURNING id
+	`, link.WorkspaceID, link.ItemID, identity.SecretHash(token), stamp(now), stamp(link.ExpiresAt)).Scan(&link.ID); err != nil {
 		return Link{}, err
 	}
 	if err := s.audit(ctx, tx, identity.AuditEvent{
 		EventType: "public_share.created", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: workspaceID, TargetType: "public_share", TargetID: link.ID,
+		WorkspaceID: workspaceID, TargetType: "public_share", TargetID: link.ID.String(),
 		Action: "public_share.create", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"item_id": itemID}), CreatedAt: now,
 	}); err != nil {
@@ -172,11 +175,17 @@ func (s *Service) Revoke(
 	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesWrite); err != nil {
 		return ErrForbidden
 	}
+	// Decode only after authorization, so a non-writer cannot tell malformed from well-formed
+	// input. A malformed or foreign-type ID is the same not-found as a missing link.
+	linkKey, err := id.DecodeKey(id.TypePublicLink, linkID)
+	if err != nil {
+		return ErrNotFound
+	}
 	now := s.now().UTC()
 	result, err := s.exec(ctx, tx, `
 		UPDATE public_links SET revoked_at = ?
 		WHERE id = ? AND workspace_id = ? AND item_id = ? AND revoked_at IS NULL
-	`, stamp(now), linkID, workspaceID, itemID)
+	`, stamp(now), linkKey, workspaceID, itemID)
 	if err != nil {
 		return err
 	}
@@ -204,7 +213,8 @@ func (s *Service) Resolve(ctx context.Context, token string, audit identity.Audi
 		return PublicItem{}, err
 	}
 	defer tx.Rollback()
-	var linkID, itemID, title, status, expiresAtStr string
+	var linkID LinkID
+	var itemID, title, status, expiresAtStr string
 	var workspaceID identity.WorkspaceID
 	var revokedAtStr sql.NullString
 	err = s.queryRow(ctx, tx, `
@@ -239,7 +249,7 @@ func (s *Service) Resolve(ctx context.Context, token string, audit identity.Audi
 	}
 	if auditErr := s.audit(ctx, tx, identity.AuditEvent{
 		EventType: "public_share.accessed", AuthMethod: "public", WorkspaceID: workspaceID,
-		TargetType: "public_share", TargetID: linkID, Action: "public_share.access",
+		TargetType: "public_share", TargetID: linkID.String(), Action: "public_share.access",
 		Outcome: outcome, RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: metadata(map[string]any{"item_id": itemID}), CreatedAt: now,
 	}); auditErr != nil {

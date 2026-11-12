@@ -52,10 +52,12 @@ PostgreSQL migrations take a transaction-scoped advisory lock. PostgreSQL is
 required before multiple application instances.
 
 Migrations are forward-only and run in one transaction. Applied versions and
-UTC timestamps live in `schema_migrations`. The workspace primary key is the one
-dialect-specific fragment: the runner renders `{{workspace_id_pk}}` per driver.
+UTC timestamps live in `schema_migrations`. The integer primary key is the one
+dialect-specific fragment: the runner renders `{{integer_pk}}` per driver.
 Migrations 000002 through 000016 were rewritten in place for workspace short IDs
-under a [recorded exception](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md). Upgrades use a documented
+under a [recorded exception](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md), and
+000011, 000012, 000013, and 000016 were rewritten again for sharing, SCIM, and MCP
+OAuth record keys under [recorded exception](decisions/exceptions/2026-11-11-sharing-scim-oauth-short-id-migration-rewrite.md). Upgrades use a documented
 stop-the-world procedure; SQLite snapshots and PostgreSQL dumps have separate
 verified restore paths.
 

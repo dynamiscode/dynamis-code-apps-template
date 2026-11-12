@@ -25,7 +25,7 @@ CREATE TABLE instance_admins (
 );
 
 CREATE TABLE workspaces (
-    id {{workspace_id_pk}},
+    id {{integer_pk}},
     name TEXT NOT NULL,
     created_at TEXT NOT NULL
 );

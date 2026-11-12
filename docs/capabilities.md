@@ -349,6 +349,20 @@ Verified 2026-11-11 with Go 1.27.4. Issue #189 moves workspace keys to integers
 and exposes only the ADR 0009 short ID. Implemented and verified as recorded above; the
 exception is [2026-11-11-workspace-short-id-migration-rewrite](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md).
 
+## Sharing, SCIM, and MCP OAuth short ID evidence
+
+Issue #194 moves public link, SCIM token, OAuth client, and OAuth grant keys to
+integers and exposes only the ADR 0009 short ID, using the type codes
+`public_link`, `scim_token`, `oauth_client`, and `oauth_grant`. Public-share
+tokens, SCIM secrets, OAuth codes, access and refresh tokens, and OAuth client
+IDs stay random and are not encoded. A malformed or foreign-type public link ID
+returns the same not-found as a missing link. The exception is
+[2026-11-11-sharing-scim-oauth-short-id-migration-rewrite](decisions/exceptions/2026-11-11-sharing-scim-oauth-short-id-migration-rewrite.md).
+Verified 2026-11-11 with Go 1.27.4 and PostgreSQL 14.24: focused tests for the codec, sharing
+revoke, SCIM token audit targets, and OAuth grant and client audit targets pass; `make test`
+passes on SQLite; `go test -p 1 -count=1 ./...` passes on a fresh PostgreSQL 14.24 container;
+`make lint` and `go generate ./api` show no drift.
+
 ## Files evidence
 
 Files metadata migration and workspace authorization, local filesystem uploads

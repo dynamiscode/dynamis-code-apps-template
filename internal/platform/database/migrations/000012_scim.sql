@@ -1,7 +1,7 @@
 -- Keep this migration rerunnable for databases that recorded the original
 -- SCIM migration as version 10 before background jobs took that version.
 CREATE TABLE IF NOT EXISTS scim_tokens (
-    id TEXT PRIMARY KEY,
+    id {{integer_pk}},
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     created_by_user_id TEXT NOT NULL REFERENCES users(id),
     secret_hash TEXT NOT NULL UNIQUE,

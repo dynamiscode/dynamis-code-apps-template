@@ -2,7 +2,7 @@
 -- Version 12 was files on the pre-merge branch and SCIM on main.
 -- Recreate whichever schema a previously applied version skipped.
 CREATE TABLE IF NOT EXISTS scim_tokens (
-    id TEXT PRIMARY KEY,
+    id {{integer_pk}},
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     created_by_user_id TEXT NOT NULL REFERENCES users(id),
     secret_hash TEXT NOT NULL UNIQUE,
