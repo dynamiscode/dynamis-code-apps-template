@@ -10,7 +10,7 @@ setup: setup-hooks
 	npm ci
 
 setup-hooks:
-	if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then git config core.hooksPath .githooks && test "$$(git config --get core.hooksPath)" = .githooks; fi
+	if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then git config core.hooksPath .githooks && test "$$(git config --get core.hooksPath)" = .githooks && git config --local rerere.enabled true && test "$$(git config --get rerere.enabled)" = true; fi
 
 fmt-check:
 	test -z "$$(gofmt -l $$(find . -name '*.go' -not -path './vendor/*'))"
