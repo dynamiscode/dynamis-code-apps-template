@@ -126,13 +126,13 @@ func TestMCPToolsUseSharedScopedItemService(t *testing.T) {
 		t.Fatalf("page = %+v", page)
 	}
 	got := decodeOutput[items.Item](t, callTool(t, session, "items_get_v1", map[string]any{
-		"workspaceId": state.workspaceID, "itemId": created.ID,
+		"workspaceId": state.workspaceID, "itemId": created.ID.String(),
 	}))
 	if got.ID != created.ID {
 		t.Fatalf("got = %+v", got)
 	}
 	updateArgs := map[string]any{
-		"workspaceId": state.workspaceID, "itemId": created.ID, "version": 1, "status": "complete",
+		"workspaceId": state.workspaceID, "itemId": created.ID.String(), "version": 1, "status": "complete",
 	}
 	withoutUpdateApproval := callTool(t, session, "items_update_v1", updateArgs)
 	if !withoutUpdateApproval.IsError || !strings.Contains(contentText(withoutUpdateApproval), "human approval") {
@@ -146,16 +146,16 @@ func TestMCPToolsUseSharedScopedItemService(t *testing.T) {
 
 	humanConfirms.Store(false)
 	withoutApproval := callTool(t, session, "items_delete_v1", map[string]any{
-		"workspaceId": state.workspaceID, "itemId": created.ID, "version": 2,
+		"workspaceId": state.workspaceID, "itemId": created.ID.String(), "version": 2,
 	})
 	if !withoutApproval.IsError || !strings.Contains(contentText(withoutApproval), "human approval") {
 		t.Fatalf("delete without approval = %+v", withoutApproval)
 	}
 	humanConfirms.Store(true)
 	deleted := decodeOutput[deleteOutput](t, callTool(t, session, "items_delete_v1", map[string]any{
-		"workspaceId": state.workspaceID, "itemId": created.ID, "version": 2,
+		"workspaceId": state.workspaceID, "itemId": created.ID.String(), "version": 2,
 	}))
-	if !deleted.Deleted || string(deleted.ItemID) != created.ID {
+	if !deleted.Deleted || string(deleted.ItemID) != created.ID.String() {
 		t.Fatalf("deleted = %+v", deleted)
 	}
 

@@ -61,8 +61,11 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		t.Fatal(err)
 	}
 	exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", workspaceID, "user-maint", "owner", old)
-	exec(`INSERT INTO items (id, workspace_id, created_by_user_id, title, status, version, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "item-old", workspaceID, "user-maint", "Old", "active", 1, old, old)
+	var itemOld int64
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO items (workspace_id, created_by_user_id, title, status, version, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`), workspaceID, "user-maint", "Old", "active", 1, old, old).Scan(&itemOld); err != nil {
+		t.Fatal(err)
+	}
 	exec(`INSERT INTO sessions (id, user_id, secret_hash, csrf_hash, auth_method, created_at, expires_at, revoked_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "session-old", "user-maint", "session-secret", "csrf", "local", old, future, old)
 	// Invitation and token keys are integers assigned by the database.
@@ -92,7 +95,7 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	exec(`INSERT INTO idempotency_records (key_hash, principal_id, workspace_id, operation, request_hash, result_json, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "key-old", "user-maint", workspaceID, "create", "request", "{}", old, old)
 	exec(`INSERT INTO item_events (id, workspace_id, item_id, event_type, item_version, occurred_at)
-		VALUES (?, ?, ?, ?, ?, ?)`, "event-old", workspaceID, "item-old", "deleted", 1, old)
+		VALUES (?, ?, ?, ?, ?, ?)`, "event-old", workspaceID, itemOld, "deleted", 1, old)
 	exec(`INSERT INTO notifications (id, user_id, workspace_id, notification_type, title, body, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`, "notification-old", "user-maint", workspaceID, "system", "Old", "Old", old)
 	exec(`INSERT INTO webhooks (id, workspace_id, name, url, secret_ciphertext, events, created_at)
@@ -104,7 +107,7 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	var publicLinkOldID int64
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO public_links (workspace_id, item_id, token_hash, created_at, expires_at, revoked_at)
 		VALUES (?, ?, ?, ?, ?, ?)
-		RETURNING id`), workspaceID, "item-old", "public-hash", old, old, old).Scan(&publicLinkOldID); err != nil {
+		RETURNING id`), workspaceID, itemOld, "public-hash", old, old, old).Scan(&publicLinkOldID); err != nil {
 		t.Fatal(err)
 	}
 	exec(`INSERT INTO audit_events (id, event_type, auth_method, target_type, action, outcome, metadata, created_at)

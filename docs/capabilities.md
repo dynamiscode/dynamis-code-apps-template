@@ -401,6 +401,18 @@ revoke, SCIM token audit targets, and OAuth grant and client audit targets pass;
 passes on SQLite; `go test -p 1 -count=1 ./...` passes on a fresh PostgreSQL 14.24 container;
 `make lint` and `go generate ./api` show no drift.
 
+
+## Item short ID evidence
+
+Verified 2026-11-11 with Go 1.27.4. Issue #190 moves item keys to integers
+(`items.ItemID`, item type code) and exposes only the item short ID on web, REST,
+MCP, CLI, webhooks, exports, and audit metadata. Malformed, unknown, foreign, and
+workspace short IDs on item routes return the same not-found. `go test -count=1 ./...`
+passed on SQLite, with `make lint` and `make test-unit` passing. A fresh PostgreSQL
+14.24 container passed `go test -p 1` for the items, sharing, database,
+maintenance, identity, portability, and files packages. The migration rewrite is
+covered by the workspace exception record, whose item-key scope the user approved
+for #190.
 ## Member, invitation, and API token short ID evidence
 
 Verified 2026-11-11. Issue #193 gives members, invitations, and API tokens integer

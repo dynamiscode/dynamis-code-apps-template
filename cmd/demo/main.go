@@ -73,7 +73,7 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		itemIDs = append(itemIDs, created.Item.ID)
+		itemIDs = append(itemIDs, created.Item.ID.String())
 	}
 	return json.NewEncoder(os.Stdout).Encode(result{WorkspaceID: workspaceID, ItemIDs: itemIDs})
 }

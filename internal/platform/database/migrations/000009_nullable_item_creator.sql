@@ -1,26 +1,4 @@
-CREATE TABLE items_account_deletion (
-    id TEXT PRIMARY KEY,
-    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-    created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
-    title TEXT NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('active', 'complete')),
-    version BIGINT NOT NULL,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-
-INSERT INTO items_account_deletion (
-    id, workspace_id, created_by_user_id, title, status,
-    version, created_at, updated_at
-)
-SELECT id, workspace_id, created_by_user_id, title, status,
-    version, created_at, updated_at
-FROM items;
-
-DROP TABLE items;
-ALTER TABLE items_account_deletion RENAME TO items;
-
-CREATE INDEX items_workspace_created_idx
-    ON items (workspace_id, created_at, id);
-CREATE INDEX items_workspace_status_created_idx
-    ON items (workspace_id, status, created_at, id);
+-- Intentionally empty. The nullable creator (created_by_user_id) is declared in
+-- 000003_items_http.sql. Rebuilding items here would copy explicit IDs into
+-- PostgreSQL identity columns, which GENERATED ALWAYS rejects. See
+-- docs/decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md.
