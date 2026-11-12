@@ -25,7 +25,10 @@ auto-merge (`gh pr merge <pr-number> --squash --delete-branch --auto`) to
 sequence clean merges once CI passes, preserving all concurrent unreleased
 `CHANGELOG.md` entries during rebases.
 
-Dependabot opens weekly updates for Go, npm, Docker, and GitHub Actions.
+Dependabot opens weekly updates for Go, npm, Docker, and GitHub Actions. Minor
+and patch updates are grouped per ecosystem into one PR, and CodeQL action
+updates (including majors) are grouped into one PR; other major updates stay
+separate for review.
 Review dependency changes through CI; keep workflow actions pinned to full
 commit SHAs with the release version in a comment. Do not merge an update that
 introduces a vulnerability or generated drift.
