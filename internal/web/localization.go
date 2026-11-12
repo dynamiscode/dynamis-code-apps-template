@@ -124,7 +124,7 @@ func localizedLegacy(catalog *i18n.Catalog, locale i18n.Locale, value string) st
 		"Webhook secret encryption is not configured. Set ENCRYPTION_KEY and restart the server.":  "errors.webhook_secret_key",
 		"SMTP login test failed. Check the host, port, username, and password. Nothing was saved.": "errors.email_login",
 		"SMTP password encryption is not configured. Set ENCRYPTION_KEY and restart the server.":   "errors.email_secret_key",
-		"The SMTP settings are invalid.": "errors.email_invalid", "The SMTP settings could not be saved.": "errors.email_save",
+		"The SMTP settings are invalid.": "errors.email_invalid", "Enter the SMTP password again when the server, port, or username changes.": "errors.email_password_required", "The SMTP settings could not be saved.": "errors.email_save",
 		"The webhook could not be rotated.": "errors.webhook_rotate", "The webhook could not be deleted.": "errors.webhook_delete",
 		"The webhook could not be found.": "errors.webhook_not_found", "The requested webhook action is invalid.": "errors.invalid_webhook_action",
 		"The SCIM credential could not be created.": "errors.scim_create", "The SCIM credential could not be revoked.": "errors.scim_revoke", "The requested SCIM action is invalid.": "errors.invalid_scim_action",

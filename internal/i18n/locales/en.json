@@ -374,5 +374,6 @@
   "errors.email_login": "SMTP login test failed. Check the host, port, username, and password. Nothing was saved.",
   "errors.email_secret_key": "SMTP password encryption is not configured. Set ENCRYPTION_KEY and restart the server.",
   "errors.email_invalid": "The SMTP settings are invalid.",
-  "errors.email_save": "The SMTP settings could not be saved."
+  "errors.email_save": "The SMTP settings could not be saved.",
+  "errors.email_password_required": "Enter the SMTP password again when the server, port, or username changes."
 }

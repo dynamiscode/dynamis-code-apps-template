@@ -29,7 +29,15 @@ var (
 	ErrInvalidInput = errors.New("workspace email settings are invalid")
 	ErrSecretKey    = errors.New("workspace email encryption key is unavailable")
 	ErrUnreadable   = errors.New("workspace email password cannot be opened")
+	// ErrPasswordRequired means the server or login changed, so the password must be re-entered.
+	ErrPasswordRequired = errors.New("workspace email password must be entered when the server changes")
 )
+
+func smtpConfig(input SaveInput, password string) config.Mail {
+	return config.Mail{
+		Host: input.Host, Port: input.Port, Username: input.Username, Password: password, From: input.SenderAddress,
+	}
+}
 
 // LoginError reports a failed SMTP login test. Reason is fixed text from the
 // SMTP client and never contains the password.
@@ -116,9 +124,7 @@ func (s *Service) SendFor(ctx context.Context, workspaceID, recipient, subject, 
 	if err != nil {
 		return ErrUnreadable
 	}
-	sender, err := appmail.NewWorkspaceSMTP(config.Mail{
-		Host: row.Host, Port: row.Port, Username: row.Username, Password: password, From: row.SenderAddress,
-	}, row.SenderName)
+	sender, err := appmail.NewWorkspaceSMTP(smtpConfig(row.SaveInput, password), row.SenderName)
 	if err != nil {
 		return ErrInvalidInput
 	}
@@ -160,9 +166,7 @@ func (s *Service) Save(ctx context.Context, actor identity.Principal, workspaceI
 	if err != nil {
 		return err
 	}
-	cfg := config.Mail{
-		Host: input.Host, Port: input.Port, Username: input.Username, Password: password, From: input.SenderAddress,
-	}
+	cfg := smtpConfig(input, password)
 	if _, err := appmail.NewWorkspaceSMTP(cfg, input.SenderName); err != nil {
 		return ErrInvalidInput
 	}
@@ -187,6 +191,11 @@ func (s *Service) resolvePassword(input SaveInput, existing stored, found bool) 
 	}
 	if !found {
 		return "", 0, "", ErrInvalidInput
+	}
+	// The stored password is reused only for the same server and login; a changed
+	// host must not receive the stored secret.
+	if input.Host != existing.Host || input.Port != existing.Port || input.Username != existing.Username {
+		return "", 0, "", ErrPasswordRequired
 	}
 	password, err := s.secrets.Open(existing.keyVersion, existing.ciphertext)
 	if err != nil {

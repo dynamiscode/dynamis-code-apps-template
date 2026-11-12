@@ -194,3 +194,20 @@ func TestNormalizeRejectsUnsafeInput(t *testing.T) {
 		}
 	}
 }
+
+func TestBlankPasswordIsRefusedWhenServerChanges(t *testing.T) {
+	ctx := context.Background()
+	service, _, owner, seen := testService(t, nil)
+	if err := service.Save(ctx, owner, owner.WorkspaceID, validInput("stored-pass"), identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	*seen = "not-called"
+	moved := validInput("")
+	moved.Host = "attacker.example.net"
+	if err := service.Save(ctx, owner, owner.WorkspaceID, moved, identity.AuditContext{}); !errors.Is(err, ErrPasswordRequired) {
+		t.Fatalf("Save() with changed host error = %v, want ErrPasswordRequired", err)
+	}
+	if *seen != "not-called" {
+		t.Fatalf("login test ran against changed host with stored password %q", *seen)
+	}
+}

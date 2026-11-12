@@ -374,5 +374,6 @@
   "errors.email_login": "La prueba de inicio de sesión SMTP falló. Revisa el servidor, el puerto, el usuario y la contraseña. No se guardó nada.",
   "errors.email_secret_key": "El cifrado de la contraseña SMTP no está configurado. Define ENCRYPTION_KEY y reinicia el servidor.",
   "errors.email_invalid": "La configuración SMTP no es válida.",
-  "errors.email_save": "No se pudo guardar la configuración SMTP."
+  "errors.email_save": "No se pudo guardar la configuración SMTP.",
+  "errors.email_password_required": "Vuelve a escribir la contraseña SMTP cuando cambien el servidor, el puerto o el usuario."
 }

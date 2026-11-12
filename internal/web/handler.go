@@ -61,6 +61,7 @@ func (h *Handler) workspaceCreationEnabled() bool {
 type pageData struct {
 	EmailSettings                    workspaceemail.Settings
 	EmailSaved                       bool
+	EmailLoginReason                 string
 	MCPConsent                       *mcpConsentView
 	Locale                           string
 	Theme                            string

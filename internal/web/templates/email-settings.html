@@ -5,6 +5,7 @@
 <h1>{{.T "email.title"}}</h1>
 <p>{{.T "email.intro"}}</p>
 {{if .Error}}<p class="error" role="alert" tabindex="-1">{{.Error}}</p>{{end}}
+{{if .EmailLoginReason}}<p><code>{{.EmailLoginReason}}</code></p>{{end}}
 {{if .EmailSaved}}<p role="status">{{.T "email.saved"}}</p>{{end}}
 <p>{{if .EmailSettings.Configured}}{{.T "email.configured"}}{{else}}{{.T "email.not_configured"}}{{end}}</p>
 <form action="/workspaces/{{.Workspace.ID}}/settings/email" method="post">
