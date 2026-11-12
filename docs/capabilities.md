@@ -85,6 +85,8 @@ These remain out of the build plan until their trigger is demonstrated.
 | Public sharing or guest access | conforming for bounded Item browser links | Files, public APIs, guest collaboration, or other resource types require a separate contract |
 | Fine-grained permissions | deferred | Baseline roles cannot express a measured requirement |
 | External-issuer OAuth access tokens for MCP | deferred | An accepted requirement needs `/mcp` to accept access tokens from an external authorization server; see [decision 0007](decisions/0007-mcp-oauth-protected-resource-metadata.md) |
+| Email providers | deferred | Workspaces need their own provider or sender identity; accepted in [decision 0009](decisions/0009-workspace-email-settings.md). Each provider needs its own contract and evidence before it is added. |
+| Encryption key rotation command | deferred | Stored provider credentials must be re-encrypted under a new key after a compromise or policy change; accepted in [decision 0009](decisions/0009-workspace-email-settings.md). |
 
 When a trigger is accepted, record the requirement and architecture decision,
 then update implementation, contracts, tests, operations, and this ledger
