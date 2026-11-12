@@ -41,6 +41,8 @@ const (
 	TypeOAuthToken        TypeCode = "oauth_token"
 	TypeSession           TypeCode = "session"
 	TypeAuditEvent        TypeCode = "audit_event"
+	TypeUser              TypeCode = "user"
+	TypeExternalIdentity  TypeCode = "external_identity"
 )
 
 // TypeCodes returns every registered type code.
@@ -51,7 +53,7 @@ func TypeCodes() []TypeCode {
 		TypePublicLink, TypeSCIMToken, TypeOAuthClient, TypeOAuthGrant, TypeItemEvent,
 		TypeNotification, TypeEmailVerification, TypePasswordReset,
 		TypeMFAChallenge, TypeMFARecoveryCode, TypeMFAPasskey, TypeOAuthToken,
-		TypeSession, TypeAuditEvent,
+		TypeSession, TypeAuditEvent, TypeUser, TypeExternalIdentity,
 	}
 }
 

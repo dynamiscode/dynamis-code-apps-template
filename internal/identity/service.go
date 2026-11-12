@@ -13,7 +13,6 @@ import (
 
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 	webauthnlib "github.com/go-webauthn/webauthn/webauthn"
 )
 
@@ -103,10 +102,6 @@ func (s *Service) BootstrapFirstOwner(
 	if err != nil {
 		return BootstrapResult{}, err
 	}
-	userID, err := id.New()
-	if err != nil {
-		return BootstrapResult{}, err
-	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return BootstrapResult{}, fmt.Errorf("begin bootstrap: %w", err)
@@ -120,10 +115,11 @@ func (s *Service) BootstrapFirstOwner(
 	); err != nil {
 		return BootstrapResult{}, ErrAlreadyBootstrapped
 	}
-	if _, err := s.exec(ctx, tx,
-		"INSERT INTO users (id, email, password_hash, email_verified_at, created_at) VALUES (?, ?, ?, ?, ?)",
-		userID, email, passwordHash, timestamp(now), timestamp(now),
-	); err != nil {
+	var userID UserID
+	if err := s.queryRow(ctx, tx,
+		"INSERT INTO users (email, password_hash, email_verified_at, created_at) VALUES (?, ?, ?, ?) RETURNING id",
+		email, passwordHash, timestamp(now), timestamp(now),
+	).Scan(&userID); err != nil {
 		return BootstrapResult{}, fmt.Errorf("create first user: %w", err)
 	}
 	var workspaceID WorkspaceID
@@ -195,7 +191,7 @@ func (s *Service) CreateWorkspace(
 	input WorkspaceCreateInput,
 	audit AuditContext,
 ) (WorkspaceID, error) {
-	if actor.UserID == "" || actor.AuthMethod == "" {
+	if actor.UserID == 0 || actor.AuthMethod == "" {
 		return 0, ErrForbidden
 	}
 	if actor.AuthLevel < AuthLevelMFA {
@@ -266,9 +262,10 @@ func (s *Service) AuthenticateLocal(
 	ctx context.Context,
 	email string,
 	password string,
-) (string, error) {
+) (UserID, error) {
 	normalized, normalizeErr := normalizeEmail(email)
-	var userID, encoded string
+	var userID UserID
+	var encoded string
 	err := sql.ErrNoRows
 	if normalizeErr == nil {
 		err = s.queryRow(ctx, s.db,
@@ -281,14 +278,14 @@ func (s *Service) AuthenticateLocal(
 	}
 	valid := verifyPassword(password, encoded)
 	if err != nil || !valid {
-		return "", ErrInvalidCredentials
+		return 0, ErrInvalidCredentials
 	}
 	return userID, nil
 }
 
 func (s *Service) ReauthenticateLocal(
 	ctx context.Context,
-	userID string,
+	userID UserID,
 	password string,
 ) error {
 	var encoded string
@@ -302,7 +299,7 @@ func (s *Service) ReauthenticateLocal(
 
 func (s *Service) Authorize(
 	ctx context.Context,
-	userID string,
+	userID UserID,
 	workspaceID WorkspaceID,
 	permission Permission,
 ) (Principal, error) {
@@ -312,7 +309,7 @@ func (s *Service) Authorize(
 func (s *Service) authorize(
 	ctx context.Context,
 	queryer rowQueryer,
-	userID string,
+	userID UserID,
 	workspaceID WorkspaceID,
 	permission Permission,
 ) (Principal, error) {
@@ -357,7 +354,7 @@ func (s *Service) AuthorizePrincipalInTx(
 
 func (s *Service) ListWorkspaces(
 	ctx context.Context,
-	userID string,
+	userID UserID,
 ) ([]WorkspaceSummary, error) {
 	rows, err := s.db.QueryContext(ctx, s.bind(`
 		SELECT w.id, w.name, m.role, w.locale
@@ -384,7 +381,7 @@ func (s *Service) ListWorkspaces(
 // oldest membership. The boolean is false when the user has no memberships.
 func (s *Service) DefaultWorkspaceID(
 	ctx context.Context,
-	userID string,
+	userID UserID,
 ) (WorkspaceID, bool, error) {
 	var workspaceID WorkspaceID
 	err := s.db.QueryRowContext(ctx, s.bind(`
@@ -499,7 +496,7 @@ func (s *Service) authorizePrincipal(
 	return current, nil
 }
 
-func (s *Service) IsInstanceAdmin(ctx context.Context, userID string) bool {
+func (s *Service) IsInstanceAdmin(ctx context.Context, userID UserID) bool {
 	var one int
 	return s.queryRow(ctx, s.db,
 		"SELECT 1 FROM instance_admins WHERE user_id = ?",
@@ -510,7 +507,7 @@ func (s *Service) IsInstanceAdmin(ctx context.Context, userID string) bool {
 func (s *Service) AddMember(
 	ctx context.Context,
 	actor Principal,
-	userID string,
+	userID UserID,
 	role Role,
 	audit AuditContext,
 ) error {
@@ -538,7 +535,7 @@ func (s *Service) AddMember(
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "workspace.member.added", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID,
-		TargetType: "user", TargetID: userID, Action: "member.add",
+		TargetType: "user", TargetID: userID.String(), Action: "member.add",
 		Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress,
 		Metadata:      metadata(map[string]any{"role": role}), CreatedAt: now,
@@ -567,7 +564,7 @@ func (s *Service) ChangeMemberRole(
 	if s.requireTx(ctx, tx, actor, MembersManage) != nil {
 		return ErrForbidden
 	}
-	var userID string
+	var userID UserID
 	var current Role
 	if err := s.queryRow(ctx, tx, `
 		SELECT user_id, role FROM workspace_members
@@ -590,7 +587,7 @@ func (s *Service) ChangeMemberRole(
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "workspace.member.role_changed", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID,
-		TargetType: "user", TargetID: userID, Action: "member.role.change",
+		TargetType: "user", TargetID: userID.String(), Action: "member.role.change",
 		Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress,
 		Metadata:      metadata(map[string]any{"from": current, "to": role}), CreatedAt: now,
@@ -615,7 +612,7 @@ func (s *Service) TransferOwnership(
 	}
 	defer tx.Rollback()
 	var actorRole, targetRole Role
-	var newOwnerUserID string
+	var newOwnerUserID UserID
 	if err := s.queryRow(ctx, tx, `
 		SELECT role FROM workspace_members
 		WHERE workspace_id = ? AND user_id = ?
@@ -653,7 +650,7 @@ func (s *Service) TransferOwnership(
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "workspace.ownership.transferred", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID,
-		TargetType: "user", TargetID: newOwnerUserID,
+		TargetType: "user", TargetID: newOwnerUserID.String(),
 		Action: "ownership.transfer", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: metadata(map[string]any{"previous_role": targetRole}), CreatedAt: now,
@@ -681,7 +678,7 @@ func (s *Service) RemoveMember(
 	if s.requireTx(ctx, tx, actor, MembersManage) != nil {
 		return ErrForbidden
 	}
-	var userID string
+	var userID UserID
 	var role Role
 	if err := s.queryRow(ctx, tx, `
 		SELECT user_id, role FROM workspace_members
@@ -710,7 +707,7 @@ func (s *Service) RemoveMember(
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "workspace.member.removed", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID,
-		TargetType: "user", TargetID: userID, Action: "member.remove",
+		TargetType: "user", TargetID: userID.String(), Action: "member.remove",
 		Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
@@ -801,7 +798,7 @@ func (s *Service) audit(
 			target_type, target_id, action, outcome, request_id,
 			source_address, metadata, created_at
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, event.EventType, nullable(event.ActorUserID), event.AuthMethod,
+	`, event.EventType, nullableUserID(event.ActorUserID), event.AuthMethod,
 		nullableWorkspaceID(event.WorkspaceID), event.TargetType, nullable(event.TargetID),
 		event.Action, event.Outcome, nullable(event.RequestID),
 		nullable(event.SourceAddress), event.Metadata, timestamp(event.CreatedAt))

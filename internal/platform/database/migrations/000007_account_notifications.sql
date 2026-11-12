@@ -5,7 +5,7 @@ ALTER TABLE users ADD COLUMN email_verified_at TEXT;
 
 CREATE TABLE email_verifications (
     id {{integer_pk}},
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     email TEXT NOT NULL,
     token_hash TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
@@ -18,7 +18,7 @@ CREATE INDEX email_verifications_user_idx
 
 CREATE TABLE password_resets (
     id {{integer_pk}},
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
     expires_at TEXT NOT NULL,
@@ -29,7 +29,7 @@ CREATE INDEX password_resets_user_idx
     ON password_resets (user_id, created_at);
 
 CREATE TABLE user_notification_preferences (
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     notification_type TEXT NOT NULL,
     enabled BOOLEAN NOT NULL,
     updated_at TEXT NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE user_notification_preferences (
 
 CREATE TABLE workspace_notification_preferences (
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     notification_type TEXT NOT NULL,
     enabled BOOLEAN NOT NULL,
     updated_at TEXT NOT NULL,
@@ -47,7 +47,7 @@ CREATE TABLE workspace_notification_preferences (
 
 CREATE TABLE notifications (
     id {{integer_pk}},
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     workspace_id BIGINT REFERENCES workspaces(id) ON DELETE CASCADE,
     notification_type TEXT NOT NULL,
     title TEXT NOT NULL,

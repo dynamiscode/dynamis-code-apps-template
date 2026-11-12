@@ -32,7 +32,7 @@ type invitationResponse struct {
 
 type tokenResponse struct {
 	ID          identity.APITokenID   `json:"id"`
-	UserID      string                `json:"userId"`
+	UserID      identity.UserID       `json:"userId"`
 	WorkspaceID identity.WorkspaceID  `json:"workspaceId"`
 	Name        string                `json:"name"`
 	Scopes      []identity.Permission `json:"scopes"`
@@ -44,7 +44,7 @@ type tokenResponse struct {
 
 type sessionResponse struct {
 	ID             string             `json:"id"`
-	UserID         string             `json:"userId"`
+	UserID         identity.UserID    `json:"userId"`
 	AuthMethod     string             `json:"authMethod"`
 	AuthLevel      identity.AuthLevel `json:"authLevel"`
 	OIDCProviderID string             `json:"oidcProviderId,omitempty"`

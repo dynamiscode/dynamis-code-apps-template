@@ -41,7 +41,7 @@ const (
 type Item struct {
 	ID              ItemID               `json:"id"`
 	WorkspaceID     identity.WorkspaceID `json:"workspaceId"`
-	CreatedByUserID *string              `json:"createdByUserId"`
+	CreatedByUserID *identity.UserID     `json:"createdByUserId"`
 	Title           string               `json:"title"`
 	Status          Status               `json:"status"`
 	Version         int64                `json:"version"`
@@ -628,7 +628,7 @@ type scanner interface {
 
 func scanItem(row scanner) (Item, error) {
 	var item Item
-	var createdByUserID sql.NullString
+	var createdByUserID sql.NullInt64
 	var createdAt, updatedAt string
 	err := row.Scan(
 		&item.ID, &item.WorkspaceID, &createdByUserID,
@@ -638,7 +638,8 @@ func scanItem(row scanner) (Item, error) {
 		return Item{}, err
 	}
 	if createdByUserID.Valid {
-		item.CreatedByUserID = &createdByUserID.String
+		userID := identity.UserID(createdByUserID.Int64)
+		item.CreatedByUserID = &userID
 	}
 	item.CreatedAt, err = parseTime(createdAt)
 	if err != nil {
@@ -738,7 +739,7 @@ func principalID(actor identity.Principal) string {
 	if actor.TokenID != "" {
 		return "token:" + actor.TokenID
 	}
-	return "user:" + actor.UserID
+	return "user:" + actor.UserID.String()
 }
 
 func hash(value string) string {

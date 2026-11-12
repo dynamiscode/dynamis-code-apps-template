@@ -248,7 +248,7 @@ func NewHandler(
 			}
 		}
 		return &auth.TokenInfo{
-			Scopes: scopes, UserID: principal.UserID,
+			Scopes: scopes, UserID: principal.UserID.String(),
 			Extra: map[string]any{"principal": principal, "sourceAddress": sourceHost(request.RemoteAddr)},
 		}, nil
 	}
@@ -404,10 +404,20 @@ func (h *handler) deleteItem(ctx context.Context, request *mcp.CallToolRequest, 
 	return deleteOutput{Deleted: err == nil, ItemID: input.ItemID}, run
 }
 
+// userIDString keeps the published MCP output as a string short ID. The schema
+// is inferred from Go types, so an integer-kind user ID would publish as integer.
+func userIDString(userID *identity.UserID) *string {
+	if userID == nil {
+		return nil
+	}
+	short := userID.String()
+	return &short
+}
+
 func toItemOutput(item items.Item) itemOutput {
 	return itemOutput{
 		ID: itemShortID(item.ID.String()), WorkspaceID: workspaceShortID(item.WorkspaceID.String()),
-		CreatedByUserID: item.CreatedByUserID, Title: itemTitle(item.Title), Status: item.Status,
+		CreatedByUserID: userIDString(item.CreatedByUserID), Title: itemTitle(item.Title), Status: item.Status,
 		Version: itemVersion(item.Version), CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt,
 	}
 }

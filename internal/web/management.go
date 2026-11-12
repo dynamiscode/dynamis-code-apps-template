@@ -666,7 +666,7 @@ func (h *Handler) securityPage(writer http.ResponseWriter, request *http.Request
 	passkeys, _ := h.identity.ListPasskeys(request.Context(), session.UserID)
 	h.render(writer, http.StatusOK, "security.html", pageData{
 		Title: "Security", NavPage: "security", CSRF: csrf, OIDCProviders: h.providers(),
-		Error: request.URL.Query().Get("error"), Email: session.UserID, MFAStatus: status, Passkeys: passkeys,
+		Error: request.URL.Query().Get("error"), Email: session.UserID.String(), MFAStatus: status, Passkeys: passkeys,
 	})
 }
 
@@ -856,10 +856,10 @@ func invitationURL(publicURL, secret string) string {
 	return strings.TrimRight(publicURL, "/") + path
 }
 
-func cookieUserID(request *http.Request, service *identity.Service) string {
+func cookieUserID(request *http.Request, service *identity.Service) identity.UserID {
 	session, err := service.AuthenticateSession(request.Context(), cookieValue(request, "session"))
 	if err != nil {
-		return ""
+		return 0
 	}
 	return session.UserID
 }

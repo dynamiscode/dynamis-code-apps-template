@@ -27,7 +27,7 @@ func (s *Service) CreateNotification(
 	input NotificationInput,
 	audit AuditContext,
 ) (Notification, error) {
-	if actor.AuthMethod == "" || input.RecipientUserID == "" ||
+	if actor.AuthMethod == "" || input.RecipientUserID == 0 ||
 		strings.TrimSpace(input.NotificationType) == "" ||
 		len(input.NotificationType) > 64 || strings.TrimSpace(input.Title) == "" ||
 		len(input.Title) > maxNotificationTitle || len(input.Body) > maxNotificationBody {
@@ -98,7 +98,7 @@ func (s *Service) CreateNotification(
 func (s *Service) notificationEnabled(
 	ctx context.Context,
 	queryer rowQueryer,
-	userID string, workspaceID WorkspaceID, notificationType string,
+	userID UserID, workspaceID WorkspaceID, notificationType string,
 ) (bool, error) {
 	var enabled bool
 	err := s.queryRow(ctx, queryer, `
@@ -126,7 +126,8 @@ func (s *Service) notificationEnabled(
 
 func (s *Service) SetNotificationPreference(
 	ctx context.Context,
-	userID, notificationType string,
+	userID UserID,
+	notificationType string,
 	enabled bool,
 	audit AuditContext,
 ) error {
@@ -146,7 +147,7 @@ func (s *Service) SetWorkspaceNotificationPreference(
 	if err := validateNotificationType(notificationType); err != nil {
 		return err
 	}
-	if actor.UserID == "" || actor.WorkspaceID == 0 {
+	if actor.UserID == 0 || actor.WorkspaceID == 0 {
 		return ErrForbidden
 	}
 	if _, err := s.Authorize(ctx, actor.UserID, actor.WorkspaceID, WorkspaceRead); err != nil {
@@ -157,7 +158,7 @@ func (s *Service) SetWorkspaceNotificationPreference(
 
 func (s *Service) setNotificationPreference(
 	ctx context.Context,
-	userID string, workspaceID WorkspaceID, notificationType string,
+	userID UserID, workspaceID WorkspaceID, notificationType string,
 	enabled bool,
 	audit AuditContext,
 ) error {
@@ -213,7 +214,7 @@ func validateNotificationType(value string) error {
 
 func (s *Service) GetNotificationPreferences(
 	ctx context.Context,
-	userID string, workspaceID WorkspaceID,
+	userID UserID, workspaceID WorkspaceID,
 ) ([]NotificationPreference, error) {
 	if _, err := s.GetUserProfile(ctx, userID); err != nil {
 		return nil, err
@@ -267,7 +268,7 @@ func (s *Service) GetNotificationPreferences(
 
 func (s *Service) ListNotifications(
 	ctx context.Context,
-	userID string, workspaceID WorkspaceID,
+	userID UserID, workspaceID WorkspaceID,
 	includeRead bool,
 	limit int,
 ) ([]Notification, error) {
@@ -296,7 +297,8 @@ func (s *Service) ListNotifications(
 
 func (s *Service) NotificationsAfter(
 	ctx context.Context,
-	userID, afterID string,
+	userID UserID,
+	afterID string,
 	limit int,
 ) ([]Notification, error) {
 	if limit <= 0 || limit > maxNotifications {
@@ -361,7 +363,8 @@ func (s *Service) scanNotifications(ctx context.Context, query string, args ...a
 
 func (s *Service) MarkNotificationRead(
 	ctx context.Context,
-	userID, notificationID string,
+	userID UserID,
+	notificationID string,
 	audit AuditContext,
 ) error {
 	// A malformed ID is the same denial as an unknown one.
@@ -398,7 +401,7 @@ func (s *Service) MarkNotificationRead(
 	})
 }
 
-func (s *Service) UnreadNotificationCount(ctx context.Context, userID string) (int, error) {
+func (s *Service) UnreadNotificationCount(ctx context.Context, userID UserID) (int, error) {
 	var count int
 	if err := s.queryRow(ctx, s.db,
 		"SELECT COUNT(*) FROM notifications WHERE user_id = ? AND read_at IS NULL", userID,

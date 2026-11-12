@@ -5,7 +5,7 @@ UPDATE sessions SET fresh_at = created_at WHERE fresh_at IS NULL;
 CREATE TABLE mfa_challenges (
     id {{file_id_pk}},
     token_hash TEXT NOT NULL UNIQUE,
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     purpose TEXT NOT NULL CHECK (purpose IN ('login', 'passkey_enrollment', 'totp_enrollment')),
     session_id BIGINT REFERENCES sessions(id) ON DELETE CASCADE,
     auth_method TEXT NOT NULL DEFAULT 'local',
@@ -21,7 +21,7 @@ CREATE TABLE mfa_challenges (
 CREATE INDEX mfa_challenges_user_idx ON mfa_challenges (user_id, created_at);
 
 CREATE TABLE mfa_totp (
-    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     encrypted_secret TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -29,7 +29,7 @@ CREATE TABLE mfa_totp (
 
 CREATE TABLE mfa_recovery_codes (
     id {{integer_pk}},
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     code_hash TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
     used_at TEXT
@@ -39,7 +39,7 @@ CREATE INDEX mfa_recovery_codes_user_idx ON mfa_recovery_codes (user_id, used_at
 
 CREATE TABLE mfa_passkeys (
     id {{integer_pk}},
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     credential_id TEXT NOT NULL UNIQUE,
     credential_json TEXT NOT NULL,
     name TEXT NOT NULL,

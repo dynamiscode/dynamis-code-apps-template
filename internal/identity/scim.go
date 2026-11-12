@@ -139,7 +139,7 @@ func (s *Service) AuthenticateSCIMToken(ctx context.Context, secret string, work
 	if strings.TrimSpace(secret) == "" || workspaceID == 0 {
 		return Principal{}, ErrInvalidToken
 	}
-	var userID string
+	var userID UserID
 	var role Role
 	var tokenID SCIMTokenID
 	if err := s.queryRow(ctx, s.db, `
@@ -260,7 +260,7 @@ func (s *Service) CreateSCIMUser(ctx context.Context, actor Principal, input SCI
 	if len(externalID) > 256 || externalID == "." || externalID == ".." || strings.ContainsAny(externalID, "/\\") {
 		return SCIMUser{}, ErrSCIMInvalid
 	}
-	var userID string
+	var userID UserID
 	if externalID != "" {
 		var existingEmail string
 		err = s.queryRow(ctx, tx, `
@@ -286,14 +286,10 @@ func (s *Service) CreateSCIMUser(ctx context.Context, actor Principal, input SCI
 	}
 	err = s.queryRow(ctx, tx, "SELECT id FROM users WHERE email = ?", email).Scan(&userID)
 	if errors.Is(err, sql.ErrNoRows) {
-		userID, err = id.New()
-		if err != nil {
-			return SCIMUser{}, err
-		}
-		if _, err := s.exec(ctx, tx, `
-			INSERT INTO users (id, email, password_hash, display_name, created_at)
-			VALUES (?, ?, NULL, ?, ?)
-		`, userID, email, displayName, timestamp(s.now().UTC())); err != nil {
+		if err := s.queryRow(ctx, tx, `
+			INSERT INTO users (email, password_hash, display_name, created_at)
+			VALUES (?, NULL, ?, ?) RETURNING id
+		`, email, displayName, timestamp(s.now().UTC())).Scan(&userID); err != nil {
 			return SCIMUser{}, fmt.Errorf("create SCIM user: %w", err)
 		}
 	} else if err != nil {
@@ -321,7 +317,7 @@ func (s *Service) CreateSCIMUser(ctx context.Context, actor Principal, input SCI
 		return SCIMUser{}, err
 	}
 	if externalID == "" {
-		externalID = userID
+		externalID = userID.String()
 	}
 	var mapped int
 	if err := s.queryRow(ctx, tx, `SELECT 1 FROM scim_users WHERE workspace_id = ? AND user_id = ?`, actor.WorkspaceID, userID).Scan(&mapped); err == nil {
@@ -519,7 +515,7 @@ func (s *Service) PatchSCIMGroup(ctx context.Context, actor Principal, groupID s
 			return SCIMGroup{}, ErrSCIMInvalid
 		}
 		for _, externalID := range operation.Members {
-			var userID string
+			var userID UserID
 			var currentRole Role
 			var active bool
 			if err := s.queryRow(ctx, tx, `
@@ -609,7 +605,7 @@ func normalizeSCIMEmail(userName, email string) (string, error) {
 	return normalizedEmail, nil
 }
 
-func (s *Service) ensureSCIMMembership(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, userID string, role Role, active bool, now string) error {
+func (s *Service) ensureSCIMMembership(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, userID UserID, role Role, active bool, now string) error {
 	var currentRole Role
 	var currentActive bool
 	err := s.queryRow(ctx, tx, `
@@ -634,7 +630,7 @@ func (s *Service) ensureSCIMMembership(ctx context.Context, tx *sql.Tx, workspac
 	if _, err := s.exec(ctx, tx, `
 		INSERT INTO scim_users (workspace_id, external_id, user_id, role, active, version, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-	`, workspaceID, userID, userID, role, active, now, now); err != nil {
+	`, workspaceID, userID.String(), userID, role, active, now, now); err != nil {
 		return err
 	}
 	return s.bumpSCIMGroupVersions(ctx, tx, workspaceID, role)
@@ -660,7 +656,7 @@ func (s *Service) bumpSCIMGroupVersions(ctx context.Context, tx *sql.Tx, workspa
 	return nil
 }
 
-func (s *Service) syncSCIMMembership(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, userID string, role Role, active bool, now string) error {
+func (s *Service) syncSCIMMembership(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, userID UserID, role Role, active bool, now string) error {
 	var currentRole Role
 	var currentActive bool
 	err := s.queryRow(ctx, tx, `
@@ -783,7 +779,8 @@ type scimScanner interface{ Scan(...any) error }
 
 func scanSCIMUser(scanner scimScanner) (SCIMUser, error) {
 	var user SCIMUser
-	var userID, role, createdAt, updatedAt string
+	var userID UserID
+	var role, createdAt, updatedAt string
 	var memberID sql.NullString
 	var active bool
 	if err := scanner.Scan(&user.ExternalID, &userID, &user.Email, &user.DisplayName, &role, &user.Version, &createdAt, &updatedAt, &active, &memberID); err != nil {

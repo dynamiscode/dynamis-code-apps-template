@@ -127,7 +127,7 @@ func (s *Service) ApproveOAuthConsent(
 	audit AuditContext,
 ) (string, error) {
 	now := s.now().UTC()
-	if session.RevokedAt != nil || !now.Before(session.ExpiresAt) || session.UserID == "" {
+	if session.RevokedAt != nil || !now.Before(session.ExpiresAt) || session.UserID == 0 {
 		return "", ErrForbidden
 	}
 	if len(scopes) == 0 || !mcpScopesOnly(scopes) || codeChallenge == "" || !validOAuthResource(resource) {
@@ -313,7 +313,8 @@ func (s *Service) RefreshOAuthToken(
 func (s *Service) AuthenticateOAuthAccessToken(ctx context.Context, token string) (Principal, error) {
 	now := s.now().UTC()
 	var tokenID int64
-	var userID, encodedScopes string
+	var userID UserID
+	var encodedScopes string
 	var workspaceID WorkspaceID
 	var tokenExpires, tokenRevoked, grantRevoked, sessionRevoked, sessionExpires sql.NullString
 	var authLevel int
@@ -388,7 +389,7 @@ type oauthSecretRow struct {
 	redirectURI    string
 	codeChallenge  string
 	resource       string
-	userID         string
+	userID         UserID
 	workspaceID    WorkspaceID
 	scopes         []Permission
 	expiresAt      sql.NullString

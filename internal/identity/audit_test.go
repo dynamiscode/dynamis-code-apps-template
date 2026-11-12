@@ -44,7 +44,7 @@ func TestListAuditHistoryIsScopedBoundedAndRedacted(t *testing.T) {
 	if history[0].EventType != "test.100" || history[len(history)-1].EventType != "test.001" {
 		t.Fatalf("history order = %q ... %q", history[0].EventType, history[len(history)-1].EventType)
 	}
-	if history[0].ActorUserID != owner.UserID || history[0].TargetType != "item" ||
+	if history[0].ActorUserID != owner.UserID.String() || history[0].TargetType != "item" ||
 		history[0].Action != "test.action" || history[0].Outcome != "success" {
 		t.Fatalf("history entry = %+v", history[0])
 	}

@@ -12,7 +12,6 @@ import (
 
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 	"golang.org/x/oauth2"
 )
 
@@ -53,7 +52,7 @@ func TestCredentialErrorsDoNotContainInputs(t *testing.T) {
 	)
 	checks = append(checks, err)
 	_, err = service.AcceptInvitation(
-		context.Background(), secret, "missing", AuditContext{},
+		context.Background(), secret, UserID(987654), AuditContext{},
 	)
 	checks = append(checks, err)
 	for _, err := range checks {
@@ -132,7 +131,7 @@ func TestAuthorizationMatrixAndOwnershipTransfer(t *testing.T) {
 	bootstrap := bootstrapOwner(t, service)
 
 	roles := []Role{Owner, Admin, Member, Viewer}
-	users := map[Role]string{Owner: bootstrap.UserID}
+	users := map[Role]UserID{Owner: bootstrap.UserID}
 	for _, role := range roles[1:] {
 		userID := insertUser(t, service, db, string(role)+"@example.com")
 		insertMembership(t, service, db, bootstrap.WorkspaceID, userID, role)
@@ -707,8 +706,8 @@ func TestInvitedLocalUserAndExistingMemberSafety(t *testing.T) {
 	userID, workspaceID, err := service.CreateInvitedLocalUser(
 		ctx, invitation.Secret, "invited-user-password", AuditContext{},
 	)
-	if err != nil || userID == "" || workspaceID != bootstrap.WorkspaceID {
-		t.Fatalf("CreateInvitedLocalUser() = %q, %q, %v", userID, workspaceID, err)
+	if err != nil || userID == 0 || workspaceID != bootstrap.WorkspaceID {
+		t.Fatalf("CreateInvitedLocalUser() = %v, %v, %v", userID, workspaceID, err)
 	}
 	if _, err := service.AuthenticateLocal(ctx, "new@example.com", "invited-user-password"); err != nil {
 		t.Fatalf("AuthenticateLocal(invited) error = %v", err)
@@ -853,11 +852,11 @@ func TestBeginOIDCTransactionForRejectsInvalidPurpose(t *testing.T) {
 
 	for name, tc := range map[string]struct {
 		purpose OIDCPurpose
-		userID  string
+		userID  UserID
 	}{
 		"unknown purpose":   {purpose: OIDCPurpose("admin"), userID: bootstrap.UserID},
-		"empty purpose":     {purpose: "", userID: ""},
-		"link without user": {purpose: OIDCPurposeLink, userID: ""},
+		"empty purpose":     {purpose: "", userID: 0},
+		"link without user": {purpose: OIDCPurposeLink, userID: 0},
 		"login with user":   {purpose: OIDCPurposeLogin, userID: bootstrap.UserID},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -969,8 +968,8 @@ func TestOIDCTransactionBindingAndIdentityLinking(t *testing.T) {
 		Subject: "subject-1", Email: "oidc@example.com",
 	}
 	userID, err := service.AuthenticateOIDC(ctx, claims, AuditContext{})
-	if err != nil || userID == "" {
-		t.Fatalf("AuthenticateOIDC() = %q, %v", userID, err)
+	if err != nil || userID == 0 {
+		t.Fatalf("AuthenticateOIDC() = %v, %v", userID, err)
 	}
 	again, err := service.AuthenticateOIDC(ctx, claims, AuditContext{})
 	if err != nil || again != userID {
@@ -1047,7 +1046,7 @@ func bootstrapOwner(t *testing.T, service *Service) BootstrapResult {
 
 // memberIDFor returns the member key for userID, read through ListMembers so
 // tests never guess keys.
-func memberIDFor(t *testing.T, service *Service, actor Principal, userID string) MemberID {
+func memberIDFor(t *testing.T, service *Service, actor Principal, userID UserID) MemberID {
 	t.Helper()
 	members, err := service.ListMembers(context.Background(), actor)
 	if err != nil {
@@ -1062,20 +1061,17 @@ func memberIDFor(t *testing.T, service *Service, actor Principal, userID string)
 	return 0
 }
 
-func insertUser(t *testing.T, service *Service, db *sql.DB, email string) string {
+func insertUser(t *testing.T, service *Service, db *sql.DB, email string) UserID {
 	t.Helper()
-	userID, err := id.New()
-	if err != nil {
-		t.Fatal(err)
-	}
 	passwordHash, err := hashPassword("user-long-password", service.passwordParams)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`
-		INSERT INTO users (id, email, password_hash, created_at)
-		VALUES (?, ?, ?, ?)
-	`, userID, email, passwordHash, timestamp(service.now())); err != nil {
+	var userID UserID
+	if err := db.QueryRow(`
+		INSERT INTO users (email, password_hash, created_at)
+		VALUES (?, ?, ?) RETURNING id
+	`, email, passwordHash, timestamp(service.now())).Scan(&userID); err != nil {
 		t.Fatal(err)
 	}
 	return userID
@@ -1098,7 +1094,7 @@ func insertMembership(
 	service *Service,
 	db *sql.DB,
 	workspaceID WorkspaceID,
-	userID string,
+	userID UserID,
 	role Role,
 ) {
 	t.Helper()
@@ -1113,7 +1109,7 @@ func insertMembership(
 func mustAuthorize(
 	t *testing.T,
 	service *Service,
-	userID string,
+	userID UserID,
 	workspaceID WorkspaceID,
 	permission Permission,
 ) Principal {

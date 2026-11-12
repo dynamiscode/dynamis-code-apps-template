@@ -110,7 +110,7 @@ func TestAccountLifecycleAndDeletionBoundaries(t *testing.T) {
 	if err := service.ChangePassword(ctx, owner.UserID, "owner-long-password", "changed-owner-password", AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.AuthenticateLocal(ctx, owner.UserID, "owner-long-password"); !errors.Is(err, ErrInvalidCredentials) {
+	if _, err := service.AuthenticateLocal(ctx, "owner@example.com", "owner-long-password"); !errors.Is(err, ErrInvalidCredentials) {
 		t.Fatalf("old password error = %v", err)
 	}
 	if _, err := service.AuthenticateLocal(ctx, "owner@example.com", "changed-owner-password"); err != nil {
@@ -260,7 +260,7 @@ func TestNotificationsHonorUserAndWorkspacePreferences(t *testing.T) {
 	if unread, err := service.UnreadNotificationCount(ctx, owner.UserID); err != nil || unread != 0 {
 		t.Fatalf("unread count = %d, %v", unread, err)
 	}
-	if err := service.MarkNotificationRead(ctx, "other-user", created.ID.String(), AuditContext{}); !errors.Is(err, ErrForbidden) {
+	if err := service.MarkNotificationRead(ctx, UserID(987654), created.ID.String(), AuditContext{}); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("cross-user read error = %v", err)
 	}
 	if after, err := service.NotificationsAfter(ctx, owner.UserID, "", 10); err != nil || len(after) != 1 {

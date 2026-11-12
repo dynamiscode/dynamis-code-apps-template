@@ -447,6 +447,18 @@ Evidence: `TestSQLiteSessionAndAuditTablesUseIntegerPrimaryKeys`,
 maintenance and portability tests. `make lint` and `go generate ./api` show no drift.
 
 
+## User and external identity short ID evidence
+
+Ticket #249 moves `users` and `external_identities` to integer keys with the `user` and
+`external_identity` short IDs. Every text `users(id)` foreign key (21 columns) becomes `BIGINT`.
+`oidc_transactions.state_hash` stays hash-keyed. Both tables use `AUTOINCREMENT` on SQLite, so a
+deleted maximum key is never reused. REST and MCP responses that carry user IDs expose the user short
+ID. The exception is
+[2026-11-12-user-identity-short-id-migration-rewrite](decisions/exceptions/2026-11-12-user-identity-short-id-migration-rewrite.md).
+Evidence: `TestSQLiteUserTablesUseIntegerKeysAndForeignKeys`, `TestSQLiteUserAndExternalIdentityKeysAreNeverReused`,
+`TestPostgresUserTablesUseIntegerKeysAndForeignKeys`, and the identity, httpapi, MCP, SCIM, and
+session tests. `make lint` and `go generate ./api` show no drift.
+
 ## Notification and account token short ID evidence
 
 Issue #245 moves notification keys to integers and exposes only the ADR 0009 short

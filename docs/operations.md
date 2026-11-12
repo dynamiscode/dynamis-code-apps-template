@@ -130,6 +130,7 @@ the [webhook and job exception](decisions/exceptions/2026-11-11-webhook-job-shor
 and the [sharing, SCIM, and MCP OAuth exception](decisions/exceptions/2026-11-11-sharing-scim-oauth-short-id-migration-rewrite.md),
 the [notification and account token exception](decisions/exceptions/2026-11-12-notification-account-token-short-id-migration-rewrite.md),
 and the [MFA exception](decisions/exceptions/2026-11-12-mfa-short-id-migration-rewrite.md).
+The users and external identities tables, and every user foreign key, also changed in place; see the [user and external identity exception](decisions/exceptions/2026-11-12-user-identity-short-id-migration-rewrite.md). Databases must be recreated, and users must sign in again and re-enroll passkeys.
 The sessions and audit events tables, and the session foreign keys in the MFA and OAuth tables, also changed in place; see the [session and audit exception](decisions/exceptions/2026-11-12-session-audit-short-id-migration-rewrite.md). Sessions must be recreated and users must sign in again.
 The MCP OAuth token table also changed in place; see the [OAuth token exception](decisions/exceptions/2026-11-12-oauth-tokens-short-id-migration-rewrite.md).
 

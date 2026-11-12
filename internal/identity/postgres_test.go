@@ -64,7 +64,7 @@ func TestPostgresIdentityLifecycle(t *testing.T) {
 	if _, err := service.PatchSCIMUser(ctx, scim, scimUser.ExternalID, SCIMUserPatch{Active: boolPtr(false)}, scimUser.Version, AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
-	roleUsers := map[Role]string{Owner: bootstrap.UserID}
+	roleUsers := map[Role]UserID{Owner: bootstrap.UserID}
 	for _, role := range []Role{Admin, Member, Viewer} {
 		userID := postgresInsertUser(t, service, string(role)+"-matrix@example.com")
 		if _, err := service.exec(ctx, db, `
@@ -219,20 +219,17 @@ func TestPostgresMFA(t *testing.T) {
 	}
 }
 
-func postgresInsertUser(t *testing.T, service *Service, email string) string {
+func postgresInsertUser(t *testing.T, service *Service, email string) UserID {
 	t.Helper()
-	userID, err := id.New()
-	if err != nil {
-		t.Fatal(err)
-	}
 	passwordHash, err := hashPassword("postgres-user-password", service.passwordParams)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.exec(context.Background(), service.db, `
-		INSERT INTO users (id, email, password_hash, created_at)
-		VALUES (?, ?, ?, ?)
-	`, userID, email, passwordHash, timestamp(service.now())); err != nil {
+	var userID UserID
+	if err := service.db.QueryRow(service.bind(`
+		INSERT INTO users (email, password_hash, created_at)
+		VALUES (?, ?, ?) RETURNING id
+	`), email, passwordHash, timestamp(service.now())).Scan(&userID); err != nil {
 		t.Fatal(err)
 	}
 	return userID

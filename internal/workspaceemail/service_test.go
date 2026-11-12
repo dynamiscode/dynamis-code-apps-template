@@ -138,7 +138,7 @@ func TestBlankPasswordKeepsStoredValue(t *testing.T) {
 func TestNonMemberIsDeniedSettings(t *testing.T) {
 	ctx := context.Background()
 	service, _, owner, _ := testService(t, nil)
-	outsider := identity.Principal{UserID: "not-a-member", WorkspaceID: owner.WorkspaceID}
+	outsider := identity.Principal{UserID: identity.UserID(987654), WorkspaceID: owner.WorkspaceID}
 	if _, err := service.Get(ctx, outsider, owner.WorkspaceID); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("Get() error = %v, want forbidden", err)
 	}

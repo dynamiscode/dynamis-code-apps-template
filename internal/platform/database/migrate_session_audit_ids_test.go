@@ -57,14 +57,15 @@ func TestSQLiteSessionAndAuditKeysAreNeverReused(t *testing.T) {
 		t.Fatalf("Migrate() error = %v", err)
 	}
 	const created = "2026-01-01T00:00:00Z"
-	if _, err := db.ExecContext(ctx, "INSERT INTO users (id, email, created_at) VALUES (?, ?, ?)", "user-keys", "keys@example.com", created); err != nil {
+	var userKey int64
+	if err := db.QueryRowContext(ctx, "INSERT INTO users (email, created_at) VALUES (?, ?) RETURNING id", "keys@example.com", created).Scan(&userKey); err != nil {
 		t.Fatal(err)
 	}
 
 	insertSession := func(secretHash string) int64 {
 		var key int64
 		if err := db.QueryRowContext(ctx, `INSERT INTO sessions (user_id, secret_hash, csrf_hash, auth_method, created_at, expires_at)
-			VALUES (?, ?, 'csrf', 'local', ?, ?) RETURNING id`, "user-keys", secretHash, created, "2026-01-02T00:00:00Z").Scan(&key); err != nil {
+			VALUES (?, ?, 'csrf', 'local', ?, ?) RETURNING id`, userKey, secretHash, created, "2026-01-02T00:00:00Z").Scan(&key); err != nil {
 			t.Fatal(err)
 		}
 		return key

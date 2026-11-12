@@ -87,7 +87,7 @@ func (u webAuthnUser) WebAuthnDisplayName() string {
 }
 func (u webAuthnUser) WebAuthnCredentials() []webauthnlib.Credential { return u.credentials }
 
-func (s *Service) MFAEnrolled(ctx context.Context, userID string) (bool, error) {
+func (s *Service) MFAEnrolled(ctx context.Context, userID UserID) (bool, error) {
 	status, err := s.MFAStatus(ctx, userID)
 	if err != nil {
 		return false, err
@@ -95,15 +95,15 @@ func (s *Service) MFAEnrolled(ctx context.Context, userID string) (bool, error) 
 	return status.TOTPEnabled || status.PasskeyCount > 0 || status.RecoveryRemain > 0, nil
 }
 
-func (s *Service) MFARequired(ctx context.Context, userID string) (bool, error) {
+func (s *Service) MFARequired(ctx context.Context, userID UserID) (bool, error) {
 	return s.mfaRequiredForRole(ctx, userID, "")
 }
 
-func (s *Service) mfaRequiredForRole(ctx context.Context, userID string, targetRole Role) (bool, error) {
+func (s *Service) mfaRequiredForRole(ctx context.Context, userID UserID, targetRole Role) (bool, error) {
 	return s.mfaRequiredForRoleQuery(ctx, s.db, userID, targetRole)
 }
 
-func (s *Service) mfaRequiredForRoleQuery(ctx context.Context, queryer rowQueryer, userID string, targetRole Role) (bool, error) {
+func (s *Service) mfaRequiredForRoleQuery(ctx context.Context, queryer rowQueryer, userID UserID, targetRole Role) (bool, error) {
 	if !s.mfa.Enabled || !s.mfa.RequireForAdmins {
 		return false, nil
 	}
@@ -127,11 +127,11 @@ func (s *Service) mfaRequiredForRoleQuery(ctx context.Context, queryer rowQuerye
 	return admins > 0, nil
 }
 
-func (s *Service) MFAStatus(ctx context.Context, userID string) (MFAStatus, error) {
+func (s *Service) MFAStatus(ctx context.Context, userID UserID) (MFAStatus, error) {
 	return s.mfaStatusQuery(ctx, s.db, userID)
 }
 
-func (s *Service) mfaStatusQuery(ctx context.Context, queryer rowQueryer, userID string) (MFAStatus, error) {
+func (s *Service) mfaStatusQuery(ctx context.Context, queryer rowQueryer, userID UserID) (MFAStatus, error) {
 	if !s.mfa.Enabled {
 		return MFAStatus{}, nil
 	}
@@ -149,11 +149,11 @@ func (s *Service) mfaStatusQuery(ctx context.Context, queryer rowQueryer, userID
 	return MFAStatus{Enabled: true, TOTPEnabled: totp == 1, PasskeyCount: passkeys, RecoveryRemain: recovery}, nil
 }
 
-func (s *Service) BeginMFALogin(ctx context.Context, userID string, audit AuditContext) (MFALoginChallenge, error) {
+func (s *Service) BeginMFALogin(ctx context.Context, userID UserID, audit AuditContext) (MFALoginChallenge, error) {
 	return s.BeginMFALoginWithMethod(ctx, userID, "local", "", audit)
 }
 
-func (s *Service) BeginMFALoginWithMethod(ctx context.Context, userID, authMethod, oidcProviderID string, audit AuditContext) (MFALoginChallenge, error) {
+func (s *Service) BeginMFALoginWithMethod(ctx context.Context, userID UserID, authMethod, oidcProviderID string, audit AuditContext) (MFALoginChallenge, error) {
 	if !s.mfa.Enabled {
 		return MFALoginChallenge{}, ErrMFAUnavailable
 	}
@@ -208,7 +208,7 @@ func (s *Service) BeginMFALoginWithMethod(ctx context.Context, userID, authMetho
 		return MFALoginChallenge{}, err
 	}
 	if required {
-		if err := s.audit(ctx, s.db, AuditEvent{EventType: "mfa.policy.enforced", ActorUserID: userID, AuthMethod: "policy", TargetType: "user", TargetID: userID, Action: "mfa.policy.enforce", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: s.now().UTC()}); err != nil {
+		if err := s.audit(ctx, s.db, AuditEvent{EventType: "mfa.policy.enforced", ActorUserID: userID, AuthMethod: "policy", TargetType: "user", TargetID: userID.String(), Action: "mfa.policy.enforce", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: s.now().UTC()}); err != nil {
 			return MFALoginChallenge{}, err
 		}
 	}
@@ -237,7 +237,7 @@ func (s *Service) MFALoginOptions(ctx context.Context, token string) (MFALoginCh
 	return MFALoginChallenge{Token: token, UserID: challenge.UserID, Methods: methods, PasskeyJSON: json.RawMessage(challenge.webauthnJSON), ExpiresAt: challenge.expiresAt}, nil
 }
 
-func (s *Service) BeginTOTPEnrollment(ctx context.Context, userID, sessionID, password string, audit AuditContext) (TOTPEnrollment, error) {
+func (s *Service) BeginTOTPEnrollment(ctx context.Context, userID UserID, sessionID, password string, audit AuditContext) (TOTPEnrollment, error) {
 	if !s.mfa.Enabled {
 		return TOTPEnrollment{}, ErrMFAUnavailable
 	}
@@ -315,7 +315,7 @@ func (s *Service) CompleteTOTPEnrollment(ctx context.Context, sessionID, token, 
 	if err != nil {
 		return nil, err
 	}
-	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.totp.enrolled", ActorUserID: challenge.UserID, AuthMethod: "session", TargetType: "user", TargetID: challenge.UserID, Action: "mfa.totp.enroll", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now}); err != nil {
+	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.totp.enrolled", ActorUserID: challenge.UserID, AuthMethod: "session", TargetType: "user", TargetID: challenge.UserID.String(), Action: "mfa.totp.enroll", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now}); err != nil {
 		return nil, err
 	}
 	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.challenge.completed", ActorUserID: challenge.UserID, AuthMethod: "totp", TargetType: "mfa_challenge", TargetID: id.EncodeKey(id.TypeMFAChallenge, challenge.ID), Action: "mfa.challenge.complete", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": "totp_enrollment"}), CreatedAt: now}); err != nil {
@@ -327,7 +327,7 @@ func (s *Service) CompleteTOTPEnrollment(ctx context.Context, sessionID, token, 
 	return codes, nil
 }
 
-func (s *Service) BeginPasskeyEnrollment(ctx context.Context, userID, sessionID, password string, audit AuditContext) (PasskeyEnrollment, error) {
+func (s *Service) BeginPasskeyEnrollment(ctx context.Context, userID UserID, sessionID, password string, audit AuditContext) (PasskeyEnrollment, error) {
 	if !s.mfa.Enabled {
 		return PasskeyEnrollment{}, ErrMFAUnavailable
 	}
@@ -361,7 +361,7 @@ func (s *Service) BeginPasskeyEnrollment(ctx context.Context, userID, sessionID,
 	return PasskeyEnrollment{Challenge: token, Options: json.RawMessage(optionsJSON), ExpiresAt: expires}, nil
 }
 
-func (s *Service) CompletePasskeyEnrollment(ctx context.Context, userID, sessionID, token, name string, request *http.Request, audit AuditContext) ([]string, error) {
+func (s *Service) CompletePasskeyEnrollment(ctx context.Context, userID UserID, sessionID, token, name string, request *http.Request, audit AuditContext) ([]string, error) {
 	challenge, _, err := s.loadChallenge(ctx, token, "passkey_enrollment")
 	if err != nil {
 		s.auditMFAChallengeFailure(ctx, token, "passkey_enrollment", "passkey_enrollment", audit)
@@ -584,7 +584,7 @@ func (s *Service) CompletePasskeyLogin(ctx context.Context, token string, reques
 	return newSession, nil
 }
 
-func (s *Service) ListPasskeys(ctx context.Context, userID string) ([]Passkey, error) {
+func (s *Service) ListPasskeys(ctx context.Context, userID UserID) ([]Passkey, error) {
 	rows, err := s.db.QueryContext(ctx, s.bind("SELECT id, name, created_at, last_used_at, revoked_at FROM mfa_passkeys WHERE user_id = ? ORDER BY created_at, id"), userID)
 	if err != nil {
 		return nil, err
@@ -623,7 +623,7 @@ func (s *Service) ListPasskeys(ctx context.Context, userID string) ([]Passkey, e
 	return result, rows.Err()
 }
 
-func (s *Service) RemovePasskey(ctx context.Context, userID, sessionID, passkeyID, password string, audit AuditContext) error {
+func (s *Service) RemovePasskey(ctx context.Context, userID UserID, sessionID, passkeyID, password string, audit AuditContext) error {
 	if err := s.VerifyFreshAuthentication(ctx, userID, sessionID, password); err != nil {
 		return ErrInvalidCredentials
 	}
@@ -668,7 +668,7 @@ func (s *Service) RemovePasskey(ctx context.Context, userID, sessionID, passkeyI
 	return tx.Commit()
 }
 
-func (s *Service) RemoveTOTP(ctx context.Context, userID, sessionID, password string, audit AuditContext) error {
+func (s *Service) RemoveTOTP(ctx context.Context, userID UserID, sessionID, password string, audit AuditContext) error {
 	if err := s.VerifyFreshAuthentication(ctx, userID, sessionID, password); err != nil {
 		return ErrInvalidCredentials
 	}
@@ -697,31 +697,31 @@ func (s *Service) RemoveTOTP(ctx context.Context, userID, sessionID, password st
 	if _, err := s.exec(ctx, tx, "UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL", timestamp(now), userID); err != nil {
 		return err
 	}
-	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.totp.removed", ActorUserID: userID, AuthMethod: "session", TargetType: "user", TargetID: userID, Action: "mfa.totp.remove", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now}); err != nil {
+	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.totp.removed", ActorUserID: userID, AuthMethod: "session", TargetType: "user", TargetID: userID.String(), Action: "mfa.totp.remove", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now}); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
-func (s *Service) lockMFAUser(ctx context.Context, tx *sql.Tx, userID string) error {
+func (s *Service) lockMFAUser(ctx context.Context, tx *sql.Tx, userID UserID) error {
 	query := "SELECT id FROM users WHERE id = ?"
 	if s.driver == config.Postgres {
 		query += " FOR UPDATE"
 	}
-	var lockedUserID string
+	var lockedUserID UserID
 	return s.queryRow(ctx, tx, query, userID).Scan(&lockedUserID)
 }
 
-func (s *Service) verifyMFAEnrollmentSession(ctx context.Context, tx *sql.Tx, userID, sessionID string) error {
+func (s *Service) verifyMFAEnrollmentSession(ctx context.Context, tx *sql.Tx, userID UserID, sessionID string) error {
 	key, err := parseSessionKey(sessionID)
 	if err != nil {
 		return err
 	}
-	var sessionUserID string
+	var sessionUserID UserID
 	return s.queryRow(ctx, tx, "SELECT user_id FROM sessions WHERE id = ? AND user_id = ? AND revoked_at IS NULL AND expires_at > ?", key, userID, timestamp(s.now().UTC())).Scan(&sessionUserID)
 }
 
-func (s *Service) VerifyFreshAuthentication(ctx context.Context, userID, sessionID, password string) error {
+func (s *Service) VerifyFreshAuthentication(ctx context.Context, userID UserID, sessionID, password string) error {
 	if sessionID == "" {
 		return ErrInvalidSession
 	}
@@ -730,7 +730,7 @@ func (s *Service) VerifyFreshAuthentication(ctx context.Context, userID, session
 		return err
 	}
 	if password != "" {
-		var sessionUserID string
+		var sessionUserID UserID
 		now := s.now().UTC()
 		if err := s.queryRow(ctx, s.db, "SELECT user_id FROM sessions WHERE id = ? AND revoked_at IS NULL AND expires_at > ?", key, timestamp(now)).Scan(&sessionUserID); err != nil || sessionUserID != userID {
 			return ErrInvalidSession
@@ -752,7 +752,8 @@ func (s *Service) VerifyFreshAuthentication(ctx context.Context, userID, session
 		}
 		return nil
 	}
-	var sessionUserID, authMethod string
+	var sessionUserID UserID
+	var authMethod string
 	var level AuthLevel
 	var fresh sql.NullString
 	now := s.now().UTC()
@@ -772,21 +773,22 @@ func (s *Service) VerifyFreshAuthentication(ctx context.Context, userID, session
 	return ErrInvalidCredentials
 }
 
-func (s *Service) CreateMFASession(ctx context.Context, userID, authMethod, oidcProviderID string, lifetime time.Duration, audit AuditContext) (NewSession, error) {
+func (s *Service) CreateMFASession(ctx context.Context, userID UserID, authMethod, oidcProviderID string, lifetime time.Duration, audit AuditContext) (NewSession, error) {
 	return s.createSession(ctx, userID, authMethod, oidcProviderID, lifetime, AuthLevelMFA, audit)
 }
 
-func (s *Service) createSession(ctx context.Context, userID, authMethod, oidcProviderID string, lifetime time.Duration, level AuthLevel, audit AuditContext) (NewSession, error) {
+func (s *Service) createSession(ctx context.Context, userID UserID, authMethod, oidcProviderID string, lifetime time.Duration, level AuthLevel, audit AuditContext) (NewSession, error) {
 	// Kept separate from CreateSession so ordinary password/OIDC callers retain their existing contract.
 	return s.createSessionWithLevel(ctx, userID, authMethod, oidcProviderID, lifetime, level, audit)
 }
 
 type loadedChallenge struct {
-	ID                                                                           int64
-	UserID, authMethod, oidcProviderID, sessionID, webauthnJSON, encryptedSecret string
-	attempts                                                                     int
-	expiresAt                                                                    time.Time
-	state                                                                        MFAChallengeState
+	ID                                                                   int64
+	UserID                                                               UserID
+	authMethod, oidcProviderID, sessionID, webauthnJSON, encryptedSecret string
+	attempts                                                             int
+	expiresAt                                                            time.Time
+	state                                                                MFAChallengeState
 }
 
 func (s *Service) insertMFAChallenge(ctx context.Context, challenge MFALoginChallenge, purpose, sessionID, webauthnJSON, encryptedSecret string, audit AuditContext) error {
@@ -925,12 +927,12 @@ func (s *Service) completeMFAChallenge(ctx context.Context, challenge loadedChal
 	return newSession, nil
 }
 
-func (s *Service) loadWebAuthnUser(ctx context.Context, queryer rowQueryer, userID string) (webAuthnUser, error) {
+func (s *Service) loadWebAuthnUser(ctx context.Context, queryer rowQueryer, userID UserID) (webAuthnUser, error) {
 	var user webAuthnUser
 	if err := s.queryRow(ctx, queryer, "SELECT email, COALESCE(display_name, '') FROM users WHERE id = ?", userID).Scan(&user.email, &user.displayName); err != nil {
 		return webAuthnUser{}, ErrForbidden
 	}
-	user.id = userID
+	user.id = userID.String()
 	rows, err := queryer.QueryContext(ctx, s.bind("SELECT credential_json FROM mfa_passkeys WHERE user_id = ? AND revoked_at IS NULL"), userID)
 	if err != nil {
 		return webAuthnUser{}, err
@@ -950,7 +952,7 @@ func (s *Service) loadWebAuthnUser(ctx context.Context, queryer rowQueryer, user
 	return user, rows.Err()
 }
 
-func (s *Service) loadCredential(ctx context.Context, queryer rowQueryer, userID, credentialID string) (webauthnlib.Credential, error) {
+func (s *Service) loadCredential(ctx context.Context, queryer rowQueryer, userID UserID, credentialID string) (webauthnlib.Credential, error) {
 	var encoded string
 	if err := s.queryRow(ctx, queryer, "SELECT credential_json FROM mfa_passkeys WHERE user_id = ? AND credential_id = ? AND revoked_at IS NULL", userID, credentialID).Scan(&encoded); err != nil {
 		return webauthnlib.Credential{}, err
@@ -960,7 +962,7 @@ func (s *Service) loadCredential(ctx context.Context, queryer rowQueryer, userID
 	return credential, err
 }
 
-func (s *Service) ensureRecoveryCodes(ctx context.Context, tx *sql.Tx, userID string, now time.Time) ([]string, error) {
+func (s *Service) ensureRecoveryCodes(ctx context.Context, tx *sql.Tx, userID UserID, now time.Time) ([]string, error) {
 	var existing int
 	if err := s.queryRow(ctx, tx, "SELECT COUNT(*) FROM mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL", userID).Scan(&existing); err != nil {
 		return nil, err

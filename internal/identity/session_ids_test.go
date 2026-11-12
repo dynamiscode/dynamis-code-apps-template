@@ -90,7 +90,7 @@ func TestSessionShortIDsAreExposedAndNeverAccepted(t *testing.T) {
 
 	var targetID string
 	if err := db.QueryRow(`SELECT target_id FROM audit_events
-		WHERE event_type = 'session.created' AND actor_user_id = ? ORDER BY id DESC LIMIT 1`, bootstrap.UserID).Scan(&targetID); err != nil {
+		WHERE event_type = 'session.created' AND actor_user_id = ? ORDER BY id DESC LIMIT 1`, bootstrap.UserID.String()).Scan(&targetID); err != nil {
 		t.Fatal(err)
 	}
 	if targetID != session.ID {

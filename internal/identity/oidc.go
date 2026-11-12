@@ -152,7 +152,7 @@ func (r *OIDCRegistry) BeginLink(
 	service *Service,
 	providerID string,
 	browserSession string,
-	userID string,
+	userID UserID,
 ) (OIDCTransaction, string, error) {
 	provider, ok := r.providers[providerID]
 	if !ok {
@@ -192,7 +192,7 @@ func (r *OIDCRegistry) Complete(
 type OIDCCompletion struct {
 	Claims  ExternalClaims
 	Purpose OIDCPurpose
-	UserID  string
+	UserID  UserID
 }
 
 func (r *OIDCRegistry) CompleteFlow(
@@ -283,7 +283,7 @@ func (s *Service) beginOIDCTransaction(
 	browserSession string,
 	redirectURI string,
 ) (OIDCTransaction, error) {
-	return s.beginOIDCTransactionFor(ctx, providerID, browserSession, OIDCPurposeLogin, "", redirectURI)
+	return s.beginOIDCTransactionFor(ctx, providerID, browserSession, OIDCPurposeLogin, 0, redirectURI)
 }
 
 func (s *Service) beginOIDCTransactionFor(
@@ -291,11 +291,11 @@ func (s *Service) beginOIDCTransactionFor(
 	providerID string,
 	browserSession string,
 	purpose OIDCPurpose,
-	userID string,
+	userID UserID,
 	redirectURI string,
 ) (OIDCTransaction, error) {
 	if browserSession == "" || (purpose != OIDCPurposeLogin && purpose != OIDCPurposeLink) ||
-		(purpose == OIDCPurposeLink && userID == "") || (purpose == OIDCPurposeLogin && userID != "") {
+		(purpose == OIDCPurposeLink && userID == 0) || (purpose == OIDCPurposeLogin && userID != 0) {
 		return OIDCTransaction{}, ErrOIDCTransaction
 	}
 	state, err := newSecret()
@@ -323,7 +323,7 @@ func (s *Service) beginOIDCTransactionFor(
 			nonce_hash, redirect_uri, purpose, user_id, created_at, expires_at
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, hashSecret(state), providerID, hashSecret(browserSession),
-		hashSecret(verifier), hashSecret(nonce), redirectURI, string(purpose), nullable(userID),
+		hashSecret(verifier), hashSecret(nonce), redirectURI, string(purpose), nullableUserKey(userID),
 		timestamp(now), timestamp(transaction.ExpiresAt))
 	if err != nil {
 		return OIDCTransaction{}, fmt.Errorf("create OIDC transaction: %w", err)
@@ -363,7 +363,7 @@ func (s *Service) consumeOIDCTransactionFlow(
 	defer tx.Rollback()
 	var storedProvider, browserHash, verifierHash, nonceHash, storedRedirect string
 	var purpose string
-	var userID sql.NullString
+	var userID sql.NullInt64
 	var expiresAt string
 	var consumedAt sql.NullString
 	if err := s.queryRow(ctx, tx, `
@@ -399,7 +399,7 @@ func (s *Service) consumeOIDCTransactionFlow(
 	}
 	return OIDCTransaction{
 		ProviderID: providerID, BrowserSession: browserSession,
-		Purpose: OIDCPurpose(purpose), UserID: userID.String, RedirectURI: redirectURI,
+		Purpose: OIDCPurpose(purpose), UserID: UserID(userID.Int64), RedirectURI: redirectURI,
 		ExpiresAt: expires,
 	}, nil
 }
@@ -408,15 +408,15 @@ func (s *Service) AuthenticateOIDC(
 	ctx context.Context,
 	claims ExternalClaims,
 	audit AuditContext,
-) (string, error) {
+) (UserID, error) {
 	if claims.Issuer == "" || claims.Subject == "" || claims.ProviderID == "" {
-		return "", ErrInvalidCredentials
+		return 0, ErrInvalidCredentials
 	}
 	email, err := normalizeEmail(claims.Email)
 	if err != nil {
-		return "", ErrInvalidCredentials
+		return 0, ErrInvalidCredentials
 	}
-	var userID string
+	var userID UserID
 	err = s.queryRow(ctx, s.db, `
 		SELECT user_id FROM external_identities
 		WHERE issuer = ? AND subject = ?
@@ -425,59 +425,57 @@ func (s *Service) AuthenticateOIDC(
 		return userID, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
-		return "", err
+		return 0, err
 	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	defer tx.Rollback()
 	var bootstrapped int
 	if err := s.queryRow(ctx, tx,
 		"SELECT 1 FROM bootstrap_state WHERE id = 1",
 	).Scan(&bootstrapped); err != nil {
-		return "", ErrInvalidCredentials
+		return 0, ErrInvalidCredentials
 	}
-	var existingID string
+	var existingID UserID
 	var existingPassword sql.NullString
 	if err := s.queryRow(ctx, tx,
 		"SELECT id, password_hash FROM users WHERE email = ?", email,
 	).Scan(&existingID, &existingPassword); err == nil {
 		if existingPassword.Valid {
-			return "", ErrInvalidCredentials
+			return 0, ErrInvalidCredentials
 		}
 		var provisioned int
 		if err := s.queryRow(ctx, tx,
 			"SELECT 1 FROM scim_users WHERE user_id = ? LIMIT 1", existingID,
 		).Scan(&provisioned); err != nil {
-			return "", ErrInvalidCredentials
+			return 0, ErrInvalidCredentials
 		}
 		var linked int
 		if err := s.queryRow(ctx, tx,
 			"SELECT 1 FROM external_identities WHERE user_id = ? LIMIT 1", existingID,
 		).Scan(&linked); err == nil {
-			return "", ErrInvalidCredentials
+			return 0, ErrInvalidCredentials
 		} else if !errors.Is(err, sql.ErrNoRows) {
-			return "", err
-		}
-		identityID, err := id.New()
-		if err != nil {
-			return "", err
+			return 0, err
 		}
 		now := s.now().UTC()
-		if _, err := s.exec(ctx, tx, `
+		var identityKey int64
+		if err := s.queryRow(ctx, tx, `
 			INSERT INTO external_identities (
-				id, user_id, provider_id, issuer, subject, email, created_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?)
-		`, identityID, existingID, claims.ProviderID, claims.Issuer,
-			claims.Subject, email, timestamp(now)); err != nil {
-			return "", ErrInvalidCredentials
+				user_id, provider_id, issuer, subject, email, created_at
+			) VALUES (?, ?, ?, ?, ?, ?) RETURNING id
+		`, existingID, claims.ProviderID, claims.Issuer,
+			claims.Subject, email, timestamp(now)).Scan(&identityKey); err != nil {
+			return 0, ErrInvalidCredentials
 		}
+		identityID := id.EncodeKey(id.TypeExternalIdentity, identityKey)
 		if _, err := s.exec(ctx, tx,
 			"UPDATE users SET email_verified_at = COALESCE(email_verified_at, ?) WHERE id = ?",
 			timestamp(now), existingID,
 		); err != nil {
-			return "", ErrInvalidCredentials
+			return 0, ErrInvalidCredentials
 		}
 		if err := s.audit(ctx, tx, AuditEvent{
 			EventType: "external_identity.created", ActorUserID: existingID,
@@ -487,38 +485,32 @@ func (s *Service) AuthenticateOIDC(
 			Metadata:  metadata(map[string]any{"provider_id": claims.ProviderID}),
 			CreatedAt: now,
 		}); err != nil {
-			return "", err
+			return 0, err
 		}
 		if err := tx.Commit(); err != nil {
-			return "", err
+			return 0, err
 		}
 		return existingID, nil
 	} else if !errors.Is(err, sql.ErrNoRows) {
-		return "", err
-	}
-	userID, err = id.New()
-	if err != nil {
-		return "", err
-	}
-	identityID, err := id.New()
-	if err != nil {
-		return "", err
+		return 0, err
 	}
 	now := s.now().UTC()
-	if _, err := s.exec(ctx, tx, `
-		INSERT INTO users (id, email, password_hash, email_verified_at, created_at)
-		VALUES (?, ?, NULL, ?, ?)
-	`, userID, email, timestamp(now), timestamp(now)); err != nil {
-		return "", ErrInvalidCredentials
+	if err := s.queryRow(ctx, tx, `
+		INSERT INTO users (email, password_hash, email_verified_at, created_at)
+		VALUES (?, NULL, ?, ?) RETURNING id
+	`, email, timestamp(now), timestamp(now)).Scan(&userID); err != nil {
+		return 0, ErrInvalidCredentials
 	}
-	if _, err := s.exec(ctx, tx, `
+	var identityKey int64
+	if err := s.queryRow(ctx, tx, `
 		INSERT INTO external_identities (
-			id, user_id, provider_id, issuer, subject, email, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, identityID, userID, claims.ProviderID, claims.Issuer,
-		claims.Subject, email, timestamp(now)); err != nil {
-		return "", ErrInvalidCredentials
+			user_id, provider_id, issuer, subject, email, created_at
+		) VALUES (?, ?, ?, ?, ?, ?) RETURNING id
+	`, userID, claims.ProviderID, claims.Issuer,
+		claims.Subject, email, timestamp(now)).Scan(&identityKey); err != nil {
+		return 0, ErrInvalidCredentials
 	}
+	identityID := id.EncodeKey(id.TypeExternalIdentity, identityKey)
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "external_identity.created", ActorUserID: userID,
 		AuthMethod: "oidc", TargetType: "external_identity", TargetID: identityID,
@@ -527,10 +519,10 @@ func (s *Service) AuthenticateOIDC(
 		Metadata:  metadata(map[string]any{"provider_id": claims.ProviderID}),
 		CreatedAt: now,
 	}); err != nil {
-		return "", err
+		return 0, err
 	}
 	if err := tx.Commit(); err != nil {
-		return "", err
+		return 0, err
 	}
 	return userID, nil
 }
@@ -542,7 +534,7 @@ func (s *Service) LinkOIDCIdentity(
 	reauthenticated bool,
 	audit AuditContext,
 ) error {
-	if !reauthenticated || principal.UserID == "" ||
+	if !reauthenticated || principal.UserID == 0 ||
 		claims.Issuer == "" || claims.Subject == "" || claims.ProviderID == "" {
 		return ErrForbidden
 	}
@@ -550,24 +542,22 @@ func (s *Service) LinkOIDCIdentity(
 	if err != nil {
 		return ErrForbidden
 	}
-	identityID, err := id.New()
-	if err != nil {
-		return err
-	}
 	now := s.now().UTC()
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := s.exec(ctx, tx, `
+	var identityKey int64
+	if err := s.queryRow(ctx, tx, `
 		INSERT INTO external_identities (
-			id, user_id, provider_id, issuer, subject, email, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, identityID, principal.UserID, claims.ProviderID, claims.Issuer,
-		claims.Subject, email, timestamp(now)); err != nil {
+			user_id, provider_id, issuer, subject, email, created_at
+		) VALUES (?, ?, ?, ?, ?, ?) RETURNING id
+	`, principal.UserID, claims.ProviderID, claims.Issuer,
+		claims.Subject, email, timestamp(now)).Scan(&identityKey); err != nil {
 		return ErrForbidden
 	}
+	identityID := id.EncodeKey(id.TypeExternalIdentity, identityKey)
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "external_identity.linked", ActorUserID: principal.UserID,
 		AuthMethod: principal.AuthMethod, TargetType: "external_identity",

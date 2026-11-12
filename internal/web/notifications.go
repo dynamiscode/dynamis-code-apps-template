@@ -127,7 +127,7 @@ func (h *Handler) notificationSession(
 func (h *Handler) sendNotifications(
 	writer http.ResponseWriter,
 	request *http.Request,
-	userID string,
+	userID identity.UserID,
 	after *string,
 ) bool {
 	notifications, err := h.identity.NotificationsAfter(request.Context(), userID, *after, 100)
