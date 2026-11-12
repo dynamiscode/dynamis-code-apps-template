@@ -82,6 +82,7 @@ func (r *Resend) Send(ctx context.Context, recipient, subject, body string) erro
 
 // ResendDomains lists the account's sending domains. It sends nothing and is the read-only key check.
 func ResendDomains(ctx context.Context, baseURL, apiKey string) ([]ResendDomain, error) {
+	// ponytail: first 100 domains only, no pagination; a sender domain past that reads as not_found. Follow has_more when accounts grow past it.
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/domains?limit=100", nil)
 	if err != nil {
 		return nil, errors.New("Resend request failed")
@@ -93,8 +94,12 @@ func ResendDomains(ctx context.Context, baseURL, apiKey string) ([]ResendDomain,
 		return nil, errors.New("Resend request failed")
 	}
 	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
+	// Only auth failures mean the key is bad; rate limits and outages are reported as such.
+	if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden {
 		return nil, errors.New("Resend rejected the API key")
+	}
+	if response.StatusCode != http.StatusOK {
+		return nil, errors.New("Resend check failed")
 	}
 	var page struct {
 		Data []ResendDomain `json:"data"`

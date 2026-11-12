@@ -50,7 +50,7 @@ func (h *Handler) emailSettingsSave(writer http.ResponseWriter, request *http.Re
 	}
 	// A non-numeric port becomes 0, which the service rejects as invalid input.
 	port, _ := strconv.Atoi(strings.TrimSpace(request.FormValue("port")))
-	provider := request.FormValue("provider")
+	provider := strings.TrimSpace(request.FormValue("provider"))
 	// Resend reads its key from api_key; SMTP reads its password from password.
 	secret := request.FormValue("password")
 	if provider == workspaceemail.ProviderResend {
