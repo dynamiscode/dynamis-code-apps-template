@@ -28,6 +28,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 	"example.com/dynamis-code/apps-template/internal/sharing"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
+	"example.com/dynamis-code/apps-template/internal/workspaceemail"
 )
 
 //go:embed assets/* templates/*
@@ -59,6 +60,9 @@ func (h *Handler) workspaceCreationEnabled() bool {
 }
 
 type pageData struct {
+	EmailSettings                    workspaceemail.Settings
+	EmailSaved                       bool
+	EmailLoginReason                 string
 	MCPConsent                       *mcpConsentView
 	Locale                           string
 	Theme                            string
@@ -364,6 +368,8 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/webhooks", h.webhookMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/webhooks/{webhookId}/deliveries", h.webhookDeliveriesPage)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/webhooks/{webhookId}", h.webhookMutation)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/email", h.emailSettingsPage)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/email", h.emailSettingsSave)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/provisioning", h.provisioningPage)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/provisioning", h.provisioningMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/export", h.exportPage)

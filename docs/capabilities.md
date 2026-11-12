@@ -85,7 +85,7 @@ These remain out of the build plan until their trigger is demonstrated.
 | Public sharing or guest access | conforming for bounded Item browser links | Files, public APIs, guest collaboration, or other resource types require a separate contract |
 | Fine-grained permissions | deferred | Baseline roles cannot express a measured requirement |
 | External-issuer OAuth access tokens for MCP | deferred | An accepted requirement needs `/mcp` to accept access tokens from an external authorization server; see [decision 0007](decisions/0007-mcp-oauth-protected-resource-metadata.md) |
-| Email providers | deferred | A workspace needs a provider or sender identity other than the instance default. Architecture is accepted in [decision 0009](decisions/0009-workspace-email-settings.md); no provider is implemented yet, and each one needs its own contract and evidence. |
+| Email providers | deferred | A workspace needs an HTTP email provider, or a sender other than SMTP. Per-workspace SMTP is implemented (issue 203); each HTTP provider needs its own contract and evidence. Architecture is accepted in [decision 0009](decisions/0009-workspace-email-settings.md). |
 | Encryption key rotation command | deferred | Stored provider credentials must be re-encrypted under a new key after a compromise or policy change. Design is accepted in [decision 0009](decisions/0009-workspace-email-settings.md); no rotation command exists yet. |
 
 When a trigger is accepted, record the requirement and architecture decision,
@@ -269,6 +269,18 @@ retention pruning, REST/OpenAPI behavior, and the CSRF-protected browser
 management surface pass the focused webhook, item, browser, HTTP, configuration,
 maintenance, and migration tests. PostgreSQL execution and Docker smoke remain
 part of the final verification ladder.
+
+## Workspace email evidence
+
+Workspace SMTP settings seal the password under `ENCRYPTION_KEY` and record
+`secret_key_version` (migration 000018). Admin-only management, a failed login
+test blocking save, blank-password retention, invitation routing to the
+workspace sender with instance fallback, and env-only account email are covered
+by `TestWorkspaceEmailSettingsAreAdminOnlyAndLoginTested` in `internal/web`, the
+`internal/workspaceemail` service tests, and the display-name test in
+`internal/platform/mail`. Not covered by automated tests: a delivered message
+through a live STARTTLS server. Verify that manually against a real provider
+before release.
 
 ## General encryption key evidence
 
@@ -585,3 +597,35 @@ new dated section here: date, endpoint kind (no account ID), Go version, and
 Not verified against R2 until that run passes: SigV4 signature validity for
 presigned URLs, the SDK's default request checksum behavior, conditional PUT
 with `If-None-Match`, and browser CORS preflight for presigned uploads.
+
+## Workspace mode evidence
+
+Verified 2026-11-11 with Go 1.27.4 on SQLite. Behavior for both modes is
+documented in [web](web.md) and
+[configuration](configuration.md). Evidence:
+
+- mode parsing: `TestLoadFromWorkspaceModeDefaultsToSingle` and
+  `TestLoadFromRejectsInvalidWorkspaceMode` in
+  [config tests](../internal/platform/config/config_test.go)
+- single mode: `TestWebRootLandsInOldestWorkspaceInSingleMode`,
+  `TestWebRootShowsNoMembershipsInSingleMode`, and
+  `TestSingleModeHidesWorkspaceListNavigation` in
+  [browser mode tests](../internal/web/handler_test.go)
+- multi mode: `TestWebRootListsWorkspacesInMultiMode` and
+  `TestMultiModeKeepsWorkspaceListNavigation` in
+  [browser mode tests](../internal/web/handler_test.go)
+- the accessibility and WebMCP smoke scripts run the server with
+  `MULTI_WORKSPACE_ENABLED=true` so their workspace-list flows stay covered
+
+- single mode blocks browser workspace creation: the create form is hidden and
+  `POST /workspaces` returns `404`. Evidence:
+  `TestSingleWorkspaceModeHidesCreationAndReturnsNotFound` in
+  [workspace mode tests](../internal/web/workspace_mode_test.go)
+- multi mode keeps browser workspace creation: `TestMultiWorkspaceModeKeepsCreation`
+  in [workspace mode tests](../internal/web/workspace_mode_test.go)
+
+- passed: `make test`, `make lint`, `make doc-links`, `make secret-check`, and
+  `go test -count=1 -run` for the named config and web mode tests
+- not run: PostgreSQL (`POSTGRES_TEST_URL` unset; no data change), `make race`
+  (no concurrent code changed), `make generate-check` (no API change), and
+  `make docker-smoke` (no runtime change)

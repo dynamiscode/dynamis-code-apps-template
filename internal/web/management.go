@@ -17,6 +17,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
+	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/portability"
 )
 
@@ -200,7 +201,7 @@ func (h *Handler) invitationMutation(writer http.ResponseWriter, request *http.R
 		}
 		link := invitationURL(h.publicURL, invitation.Secret)
 		workspaceLocale, _ := h.identity.GetWorkspaceLocale(request.Context(), workspaceID)
-		_, warning := h.deliverInvitation(request, invitation.Email, link, workspaceLocale)
+		_, warning := h.deliverInvitation(request, workspaceID, invitation.Email, link, workspaceLocale)
 		h.renderInvitationResult(writer, request, workspaceID, csrf, link, warning)
 		return
 	}
@@ -221,7 +222,7 @@ func (h *Handler) invitationMutation(writer http.ResponseWriter, request *http.R
 			if invitation.ID == invitationID {
 				link := invitationURL(h.publicURL, secret)
 				workspaceLocale, _ := h.identity.GetWorkspaceLocale(request.Context(), workspaceID)
-				_, warning := h.deliverInvitation(request, invitation.Email, link, workspaceLocale)
+				_, warning := h.deliverInvitation(request, workspaceID, invitation.Email, link, workspaceLocale)
 				h.renderInvitationResult(writer, request, workspaceID, csrf, link, warning)
 				return
 			}
@@ -795,17 +796,17 @@ func (h *Handler) providers() []identity.OIDCProviderInfo {
 	return h.oidc.Providers()
 }
 
-func (h *Handler) deliverInvitation(request *http.Request, recipient, link, workspaceLocale string) (bool, string) {
-	if h.mailer == nil {
-		return false, ""
-	}
+func (h *Handler) deliverInvitation(request *http.Request, workspaceID, recipient, link, workspaceLocale string) (bool, string) {
 	locale, ok := i18n.ParseLocale(workspaceLocale)
 	if !ok {
 		locale = i18n.English
 	}
 	subject := h.catalog.Translate(locale, "email.invitation_subject", nil)
 	body := h.catalog.Translate(locale, "email.invitation_body", map[string]any{"link": link})
-	if err := h.mailer.Send(request.Context(), recipient, subject, body); err != nil {
+	if err := appmail.SendFor(request.Context(), h.mailer, workspaceID, recipient, subject, body); err != nil {
+		if errors.Is(err, appmail.ErrNotConfigured) {
+			return false, ""
+		}
 		return false, "Invitation email could not be delivered. Share the invitation link manually."
 	}
 	return true, ""

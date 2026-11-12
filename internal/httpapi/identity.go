@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
+	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 )
 
 type memberResponse struct {
@@ -287,18 +288,19 @@ func (h *handler) writeInvitation(writer http.ResponseWriter, request *http.Requ
 func (h *handler) writeInvitationLink(writer http.ResponseWriter, request *http.Request, status int, invitation identity.Invitation, secret string) {
 	writer.Header().Set("Cache-Control", "no-store")
 	link := invitationURL(h.publicURL, secret)
-	delivered, warning := h.deliverInvitation(request, invitation.Email, link)
+	delivered, warning := h.deliverInvitation(request, invitation.WorkspaceID, invitation.Email, link)
 	writeJSON(writer, status, invitationLinkResponse{
 		Invitation: invitationDTO(invitation), InvitationURL: link,
 		EmailDelivered: delivered, DeliveryWarning: warning,
 	})
 }
 
-func (h *handler) deliverInvitation(request *http.Request, recipient, link string) (bool, string) {
-	if h.mailer == nil {
+func (h *handler) deliverInvitation(request *http.Request, workspaceID, recipient, link string) (bool, string) {
+	err := appmail.SendFor(request.Context(), h.mailer, workspaceID, recipient, "You are invited to Dynamis Code", "Open this invitation link: "+link)
+	if errors.Is(err, appmail.ErrNotConfigured) {
 		return false, ""
 	}
-	if err := h.mailer.Send(request.Context(), recipient, "You are invited to Dynamis Code", "Open this invitation link: "+link); err != nil {
+	if err != nil {
 		return false, "Invitation email could not be delivered. Share the invitation link manually."
 	}
 	return true, ""
