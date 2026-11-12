@@ -233,6 +233,7 @@ if (fileUploadForm) {
 	const object = (value) => value && typeof value === "object" && !Array.isArray(value);
 	const text = (value, maxLength) => typeof value === "string" && value.length > 0 && value.length <= maxLength;
 	const validId = (value) => typeof value === "string" && /^[0-9a-f]{32}$/.test(value);
+	const validShortId = (value) => typeof value === "string" && new RegExp(shortIdSchema.pattern).test(value);
 	const result = (tool, status) => ({tool, status});
 	const formFor = (action, id) => [...document.querySelectorAll("form[data-webmcp-actions]")]
 		.find((form) => form.dataset.webmcpActions.split(" ").includes(action) && (!id || form.dataset.webmcpId === id));
@@ -257,7 +258,8 @@ if (fileUploadForm) {
 		if (name === "item-delete-v1") return validId(input.itemId) ? prepare(name, formFor(actions[name], input.itemId), {}, "delete") : result(name, "invalid-input");
 		const idField = {"member-role-update-v1": "memberId", "member-remove-v1": "memberId", "ownership-transfer-v1": "memberId", "invitation-revoke-v1": "invitationId", "token-revoke-v1": "tokenId", "session-revoke-v1": "sessionId"}[name];
 		if (idField) {
-			if (!validId(input[idField])) return result(name, "invalid-input");
+			const idValid = name === "session-revoke-v1" ? validId : validShortId;
+			if (!idValid(input[idField])) return result(name, "invalid-input");
 			if (name === "member-role-update-v1" && !["admin", "member", "viewer"].includes(input.role)) return result(name, "invalid-input");
 			const button = name === "member-role-update-v1" ? "role" : name === "member-remove-v1" ? "remove" : name === "ownership-transfer-v1" ? "transfer" : "revoke";
 			return prepare(name, formFor(actions[name], input[idField]), name === "member-role-update-v1" ? {role: input.role} : {}, button);
