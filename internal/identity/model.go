@@ -268,7 +268,7 @@ type NewAPIToken struct {
 }
 
 type NewSCIMToken struct {
-	ID          string
+	ID          SCIMTokenID
 	WorkspaceID WorkspaceID
 	CreatedAt   time.Time
 	Secret      string

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 const (
@@ -245,7 +247,7 @@ func TestOAuthRevokeAndRefreshAfterRevoke(t *testing.T) {
 
 func TestOAuthClientLookupAndRegistrationLimit(t *testing.T) {
 	t.Parallel()
-	service, _ := newTestService(t)
+	service, db := newTestService(t)
 	ctx := context.Background()
 	service.oauthClientLimit = 2
 
@@ -256,6 +258,10 @@ func TestOAuthClientLookupAndRegistrationLimit(t *testing.T) {
 	found, err := service.OAuthClientByID(ctx, client.ClientID)
 	if err != nil || found.Name != "Lookup" || found.RedirectURIs[0] != testRedirectURI {
 		t.Fatalf("OAuthClientByID() = %#v, %v", found, err)
+	}
+	var audited int
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM audit_events WHERE event_type = ? AND target_id = ?", "oauth.client.registered", id.EncodeKey(id.TypeOAuthClient, client.ID)).Scan(&audited); err != nil || audited != 1 {
+		t.Fatalf("registration audit target count = %d, %v; want one short-ID target", audited, err)
 	}
 	if _, err := service.OAuthClientByID(ctx, "missing-client"); !errors.Is(err, ErrOAuthInvalidClient) {
 		t.Fatalf("missing client error = %v", err)

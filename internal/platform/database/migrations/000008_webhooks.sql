@@ -1,5 +1,5 @@
 CREATE TABLE webhooks (
-    id TEXT PRIMARY KEY,
+    id {{integer_pk}},
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     url TEXT NOT NULL,
@@ -11,10 +11,20 @@ CREATE TABLE webhooks (
 CREATE INDEX webhooks_workspace_idx
     ON webhooks (workspace_id, created_at, id);
 
+CREATE TABLE webhook_events (
+    id {{integer_pk}},
+    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    event_type TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX webhook_events_workspace_idx
+    ON webhook_events (workspace_id, created_at, id);
+
 CREATE TABLE webhook_deliveries (
-    id TEXT PRIMARY KEY,
-    webhook_id TEXT NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
-    event_id TEXT NOT NULL,
+    id {{integer_pk}},
+    webhook_id BIGINT NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+    event_id BIGINT NOT NULL REFERENCES webhook_events(id) ON DELETE CASCADE,
     event_type TEXT NOT NULL,
     payload TEXT NOT NULL,
     attempt_count INTEGER NOT NULL DEFAULT 0,

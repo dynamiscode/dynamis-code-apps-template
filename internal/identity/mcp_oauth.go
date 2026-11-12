@@ -37,7 +37,7 @@ const defaultOAuthClientLimit = 1000
 // OAuthClient is a dynamically registered MCP client. Clients are public and
 // authenticate with PKCE rather than a client secret.
 type OAuthClient struct {
-	ID           string
+	ID           int64
 	ClientID     string
 	Name         string
 	RedirectURIs []string
@@ -70,10 +70,6 @@ func (s *Service) RegisterOAuthClient(
 			return OAuthClient{}, ErrOAuthInvalidRequest
 		}
 	}
-	rowID, err := id.New()
-	if err != nil {
-		return OAuthClient{}, err
-	}
 	clientID, err := id.New()
 	if err != nil {
 		return OAuthClient{}, err
@@ -94,15 +90,17 @@ func (s *Service) RegisterOAuthClient(
 	if registered >= s.oauthClientLimit {
 		return OAuthClient{}, ErrOAuthClientLimit
 	}
-	if _, err := s.exec(ctx, tx, `
-		INSERT INTO oauth_clients (id, client_id, name, redirect_uris, created_at)
-		VALUES (?, ?, ?, ?, ?)
-	`, rowID, clientID, name, encoded, timestamp(now)); err != nil {
+	var rowID int64
+	if err := s.queryRow(ctx, tx, `
+		INSERT INTO oauth_clients (client_id, name, redirect_uris, created_at)
+		VALUES (?, ?, ?, ?)
+		RETURNING id
+	`, clientID, name, encoded, timestamp(now)).Scan(&rowID); err != nil {
 		return OAuthClient{}, err
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "oauth.client.registered", AuthMethod: "oauth",
-		TargetType: "oauth_client", TargetID: rowID, Action: "oauth.client.register",
+		TargetType: "oauth_client", TargetID: id.EncodeKey(id.TypeOAuthClient, rowID), Action: "oauth.client.register",
 		Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: "{}", CreatedAt: now,
 	}); err != nil {
@@ -140,7 +138,7 @@ func (s *Service) ApproveOAuthConsent(
 		return "", err
 	}
 	defer tx.Rollback()
-	var clientRowID string
+	var clientRowID int64
 	var redirectsEncoded string
 	if err := s.queryRow(ctx, tx, `
 		SELECT id, redirect_uris FROM oauth_clients
@@ -156,24 +154,20 @@ func (s *Service) ApproveOAuthConsent(
 			return "", ErrForbidden
 		}
 	}
-	grantID, err := id.New()
-	if err != nil {
-		return "", err
-	}
 	if _, err := s.exec(ctx, tx, `
-		INSERT INTO oauth_grants (id, user_id, workspace_id, client_id, session_id, scopes, auth_level, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO oauth_grants (user_id, workspace_id, client_id, session_id, scopes, auth_level, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (user_id, workspace_id, client_id) DO UPDATE SET
 			session_id = excluded.session_id,
 			scopes = excluded.scopes,
 			auth_level = excluded.auth_level,
 			created_at = excluded.created_at,
 			revoked_at = NULL
-	`, grantID, session.UserID, workspaceID, clientRowID, session.ID,
+	`, session.UserID, workspaceID, clientRowID, session.ID,
 		encodeScopes(scopes), int(session.AuthLevel), timestamp(now)); err != nil {
 		return "", err
 	}
-	var storedGrantID string
+	var storedGrantID int64
 	if err := s.queryRow(ctx, tx, `
 		SELECT id FROM oauth_grants WHERE user_id = ? AND workspace_id = ? AND client_id = ?
 	`, session.UserID, workspaceID, clientRowID).Scan(&storedGrantID); err != nil {
@@ -204,7 +198,7 @@ func (s *Service) ApproveOAuthConsent(
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "oauth.grant.created", ActorUserID: session.UserID, AuthMethod: "oauth",
-		WorkspaceID: workspaceID, TargetType: "oauth_grant", TargetID: storedGrantID,
+		WorkspaceID: workspaceID, TargetType: "oauth_grant", TargetID: id.EncodeKey(id.TypeOAuthGrant, storedGrantID),
 		Action: "oauth.grant.create", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
@@ -373,7 +367,7 @@ func (s *Service) RevokeOAuthToken(ctx context.Context, token string, audit Audi
 		return err
 	}
 	defer tx.Rollback()
-	var grantID string
+	var grantID int64
 	if err := s.queryRow(ctx, tx, `
 		SELECT grant_id FROM oauth_tokens WHERE secret_hash = ? AND kind IN ('access', 'refresh')
 	`, hashSecret(token)).Scan(&grantID); err != nil {
@@ -387,8 +381,8 @@ func (s *Service) RevokeOAuthToken(ctx context.Context, token string, audit Audi
 
 type oauthSecretRow struct {
 	tokenID        string
-	grantID        string
-	clientRowID    string
+	grantID        int64
+	clientRowID    int64
 	clientPublicID string
 	redirectURI    string
 	codeChallenge  string
@@ -457,8 +451,8 @@ func (s *Service) consumeOAuthSecret(ctx context.Context, tx *sql.Tx, tokenID st
 func (s *Service) issueOAuthTokens(
 	ctx context.Context,
 	tx *sql.Tx,
-	grantID string,
-	clientRowID string,
+	grantID int64,
+	clientRowID int64,
 	parentID string,
 	scopes []Permission,
 	now time.Time,
@@ -505,7 +499,7 @@ func (s *Service) issueOAuthTokens(
 func (s *Service) revokeOAuthGrant(
 	ctx context.Context,
 	tx *sql.Tx,
-	grantID string,
+	grantID int64,
 	now time.Time,
 	audit AuditContext,
 	action string,
@@ -521,7 +515,7 @@ func (s *Service) revokeOAuthGrant(
 		return err
 	}
 	return s.audit(ctx, tx, AuditEvent{
-		EventType: action, AuthMethod: "oauth", TargetType: "oauth_grant", TargetID: grantID,
+		EventType: action, AuthMethod: "oauth", TargetType: "oauth_grant", TargetID: id.EncodeKey(id.TypeOAuthGrant, grantID),
 		Action: action, Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	})

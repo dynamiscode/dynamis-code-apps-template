@@ -15,6 +15,12 @@ const (
 	maxSCIMPageSize     = 100
 )
 
+// SCIMTokenID is a SCIM credential row key. Responses and audit see only its
+// short ID (String).
+type SCIMTokenID int64
+
+func (t SCIMTokenID) String() string { return id.EncodeKey(id.TypeSCIMToken, int64(t)) }
+
 func (s *Service) CreateSCIMToken(ctx context.Context, actor Principal, audit AuditContext) (NewSCIMToken, error) {
 	if s.require(ctx, actor, SCIMManage) != nil {
 		return NewSCIMToken{}, ErrForbidden
@@ -23,12 +29,8 @@ func (s *Service) CreateSCIMToken(ctx context.Context, actor Principal, audit Au
 	if err != nil {
 		return NewSCIMToken{}, err
 	}
-	tokenID, err := id.New()
-	if err != nil {
-		return NewSCIMToken{}, err
-	}
 	now := s.now().UTC()
-	token := NewSCIMToken{ID: tokenID, WorkspaceID: actor.WorkspaceID, CreatedAt: now, Secret: secret}
+	token := NewSCIMToken{WorkspaceID: actor.WorkspaceID, CreatedAt: now, Secret: secret}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return NewSCIMToken{}, err
@@ -44,9 +46,9 @@ func (s *Service) CreateSCIMToken(ctx context.Context, actor Principal, audit Au
 	if err != nil {
 		return NewSCIMToken{}, err
 	}
-	var revokedIDs []string
+	var revokedIDs []SCIMTokenID
 	for rows.Next() {
-		var revokedID string
+		var revokedID SCIMTokenID
 		if err := rows.Scan(&revokedID); err != nil {
 			rows.Close()
 			return NewSCIMToken{}, err
@@ -64,16 +66,17 @@ func (s *Service) CreateSCIMToken(ctx context.Context, actor Principal, audit Au
 	`, timestamp(now), actor.WorkspaceID); err != nil {
 		return NewSCIMToken{}, err
 	}
-	if _, err := s.exec(ctx, tx, `
-		INSERT INTO scim_tokens (id, workspace_id, created_by_user_id, secret_hash, created_at)
-		VALUES (?, ?, ?, ?, ?)
-	`, token.ID, token.WorkspaceID, actor.UserID, hashSecret(secret), timestamp(now)); err != nil {
+	if err := s.queryRow(ctx, tx, `
+		INSERT INTO scim_tokens (workspace_id, created_by_user_id, secret_hash, created_at)
+		VALUES (?, ?, ?, ?)
+		RETURNING id
+	`, token.WorkspaceID, actor.UserID, hashSecret(secret), timestamp(now)).Scan(&token.ID); err != nil {
 		return NewSCIMToken{}, err
 	}
 	for _, revokedID := range revokedIDs {
 		if err := s.audit(ctx, tx, AuditEvent{
 			EventType: "scim.token.revoked", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-			WorkspaceID: actor.WorkspaceID, TargetType: "scim_token", TargetID: revokedID,
+			WorkspaceID: actor.WorkspaceID, TargetType: "scim_token", TargetID: revokedID.String(),
 			Action: "scim.token.revoke", Outcome: "success", RequestID: audit.RequestID,
 			SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 		}); err != nil {
@@ -82,7 +85,7 @@ func (s *Service) CreateSCIMToken(ctx context.Context, actor Principal, audit Au
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "scim.token.created", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: actor.WorkspaceID, TargetType: "scim_token", TargetID: token.ID,
+		WorkspaceID: actor.WorkspaceID, TargetType: "scim_token", TargetID: token.ID.String(),
 		Action: "scim.token.create", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
@@ -138,7 +141,7 @@ func (s *Service) AuthenticateSCIMToken(ctx context.Context, secret string, work
 	}
 	var userID string
 	var role Role
-	var tokenID string
+	var tokenID SCIMTokenID
 	if err := s.queryRow(ctx, s.db, `
 		SELECT t.id, t.created_by_user_id, m.role
 		FROM scim_tokens t JOIN workspace_members m
@@ -153,7 +156,7 @@ func (s *Service) AuthenticateSCIMToken(ctx context.Context, secret string, work
 	}
 	return Principal{
 		UserID: userID, WorkspaceID: workspaceID, Role: role,
-		Permissions: permissions, AuthMethod: "scim_token", TokenID: tokenID,
+		Permissions: permissions, AuthMethod: "scim_token", TokenID: tokenID.String(),
 	}, nil
 }
 

@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+# Reject AI attribution trailers so commit messages stay free of them.
+message_file="$1"
+
+if grep -Eqi '^Co-Authored-By:.*Claude' "$message_file" ||
+	grep -Fqi 'Generated with [Claude Code]' "$message_file" ||
+	grep -Fqi 'Generated with Claude Code' "$message_file"; then
+	echo "Commit message rejected: AI attribution (Co-Authored-By: Claude or 'Generated with Claude Code') is not allowed." >&2
+	echo "Remove the attribution line and commit again." >&2
+	exit 1
+fi

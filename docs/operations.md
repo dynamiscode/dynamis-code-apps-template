@@ -119,17 +119,19 @@ loss of encrypted data.
 
 ## Upgrades and alerts
 
-Item IDs in webhook payloads, workspace exports, and audit metadata are now item
-short IDs, not 32-character hex. Consumers that stored the old hex form must
-map or re-key those values before reading events from this version.
+Workspace, member, invitation, API token, item, webhook, background job, sharing, SCIM,
+and MCP OAuth short IDs changed the schema in place. Do not run this version against a
+database that applied migrations 000002 through 000016 and 000018 from an earlier build:
+those versions are already recorded, so the new schema is not applied and the application
+fails against the old text keys. Create a new database and migrate it, or reset local
+development databases. Drain pending webhook deliveries and jobs before the reset, because
+they are not carried over. See the [workspace exception](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md),
+the [webhook and job exception](decisions/exceptions/2026-11-11-webhook-job-short-id-migration-rewrite.md),
+and the [sharing, SCIM, and MCP OAuth exception](decisions/exceptions/2026-11-11-sharing-scim-oauth-short-id-migration-rewrite.md).
 
-Workspace, member, invitation, API token, and item short IDs changed the schema in place.
-Do not run this version against a database that applied migrations 000002 through
-000016 and 000018 from an earlier build:
-those versions are already recorded, so the new schema is not applied and the
-application fails against the old text keys. Create a new database and migrate
-it, or reset local development databases. See the
-[recorded exception](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md).
+Item IDs in webhook payloads, workspace exports, and audit metadata are now item
+short IDs, not 32-character hex. Consumers that stored the old hex form must map
+or re-key those values before reading events from this version.
 
 Migration 000020 rebuilds the `files` table to integer keys. It is forward-only
 and copies existing rows with their object keys, so it is safe to apply to a

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"io/fs"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -108,35 +109,46 @@ func TestSQLiteBackgroundJobsMigrationBackfillsPendingWebhook(t *testing.T) {
 	).Scan(&workspaceID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`
-		INSERT INTO webhooks (id, workspace_id, name, url, secret_ciphertext, events, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, "webhook-migration", workspaceID, "Webhook", "https://example.com/hook", "ciphertext", `["item.created"]`, "2026-08-28T00:00:00Z"); err != nil {
+	var webhookID int64
+	if err := db.QueryRow(`
+		INSERT INTO webhooks (workspace_id, name, url, secret_ciphertext, events, created_at)
+		VALUES (?, ?, ?, ?, ?, ?) RETURNING id
+	`, workspaceID, "Webhook", "https://example.com/hook", "ciphertext", `["item.created"]`, "2026-08-28T00:00:00Z").Scan(&webhookID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`
+	var eventID int64
+	if err := db.QueryRow(`
+		INSERT INTO webhook_events (workspace_id, event_type, created_at)
+		VALUES (?, ?, ?) RETURNING id
+	`, workspaceID, "item.created", "2026-08-28T00:00:00Z").Scan(&eventID); err != nil {
+		t.Fatal(err)
+	}
+	var deliveryID int64
+	if err := db.QueryRow(`
 		INSERT INTO webhook_deliveries (
-			id, webhook_id, event_id, event_type, payload, attempt_count,
+			webhook_id, event_id, event_type, payload, attempt_count,
 			status, next_attempt_at, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "delivery-migration", "webhook-migration", "event-migration", "item.created", `{}`, 2, "pending", "2026-08-28T00:00:01Z", "2026-08-28T00:00:00Z"); err != nil {
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+	`, webhookID, eventID, "item.created", `{}`, 2, "pending", "2026-08-28T00:00:01Z", "2026-08-28T00:00:00Z").Scan(&deliveryID); err != nil {
 		t.Fatal(err)
 	}
 	if err := Migrate(ctx, db, config.SQLite); err != nil {
 		t.Fatal(err)
 	}
-	var gotWorkspaceID int64
+	var gotWorkspaceID, jobID int64
 	var kind, key, payload, status string
 	var attempts int
+	wantKey := strconv.FormatInt(deliveryID, 10)
 	if err := db.QueryRow(`
-		SELECT workspace_id, kind, deduplication_key, payload, status, attempt_count
+		SELECT id, workspace_id, kind, deduplication_key, payload, status, attempt_count
 		FROM background_jobs WHERE deduplication_key = ?
-	`, "delivery-migration").Scan(&gotWorkspaceID, &kind, &key, &payload, &status, &attempts); err != nil {
+	`, wantKey).Scan(&jobID, &gotWorkspaceID, &kind, &key, &payload, &status, &attempts); err != nil {
 		t.Fatal(err)
 	}
-	if gotWorkspaceID != workspaceID || kind != "webhook.delivery" || key != "delivery-migration" ||
-		payload != `{"deliveryId":"delivery-migration"}` || status != "pending" || attempts != 2 {
-		t.Fatalf("backfilled job = %d, %q, %q, %q, %q, %d", gotWorkspaceID, kind, key, payload, status, attempts)
+	wantPayload := `{"deliveryId":` + wantKey + `}`
+	if jobID < 1 || gotWorkspaceID != workspaceID || kind != "webhook.delivery" || key != wantKey ||
+		payload != wantPayload || status != "pending" || attempts != 2 {
+		t.Fatalf("backfilled job = %d, %d, %q, %q, %q, %q, %d", jobID, gotWorkspaceID, kind, key, payload, status, attempts)
 	}
 }
 

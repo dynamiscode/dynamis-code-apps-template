@@ -248,3 +248,17 @@ func TestSeededCodecRoundTripsAndRejectsNonCanonicalInput(t *testing.T) {
 		}
 	}
 }
+
+func TestRegistryNamesEveryWebhookAndJobType(t *testing.T) {
+	t.Parallel()
+
+	registered := make(map[TypeCode]bool)
+	for _, code := range TypeCodes() {
+		registered[code] = true
+	}
+	for _, code := range []TypeCode{TypeWebhook, TypeWebhookDelivery, TypeWebhookEvent, TypeJob} {
+		if !registered[code] {
+			t.Fatalf("type code %q is not in the registry", code)
+		}
+	}
+}

@@ -2,7 +2,7 @@
 -- Version 12 was files on the pre-merge branch and SCIM on main.
 -- Recreate whichever schema a previously applied version skipped.
 CREATE TABLE IF NOT EXISTS scim_tokens (
-    id TEXT PRIMARY KEY,
+    id {{integer_pk}},
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     created_by_user_id TEXT NOT NULL REFERENCES users(id),
     secret_hash TEXT NOT NULL UNIQUE,
@@ -62,7 +62,7 @@ WHERE NOT EXISTS (
 );
 
 CREATE TABLE IF NOT EXISTS background_jobs (
-    id TEXT PRIMARY KEY,
+    id {{integer_pk}},
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     kind TEXT NOT NULL,
     deduplication_key TEXT NOT NULL,
@@ -80,11 +80,11 @@ CREATE TABLE IF NOT EXISTS background_jobs (
 );
 
 INSERT INTO background_jobs (
-    id, workspace_id, kind, deduplication_key, payload, status,
+    workspace_id, kind, deduplication_key, payload, status,
     attempt_count, available_at, created_at
 )
-SELECT 'webhook-delivery-' || d.id, w.workspace_id, 'webhook.delivery', d.id,
-    '{"deliveryId":"' || d.id || '"}', 'pending', d.attempt_count,
+SELECT w.workspace_id, 'webhook.delivery', CAST(d.id AS TEXT),
+    '{"deliveryId":' || CAST(d.id AS TEXT) || '}', 'pending', d.attempt_count,
     COALESCE(d.next_attempt_at, d.created_at), d.created_at
 FROM webhook_deliveries d
 JOIN webhooks w ON w.id = d.webhook_id
@@ -94,7 +94,7 @@ WHERE d.status = 'pending'
       FROM background_jobs existing
       WHERE existing.workspace_id = w.workspace_id
         AND existing.kind = 'webhook.delivery'
-        AND existing.deduplication_key = d.id
+        AND existing.deduplication_key = CAST(d.id AS TEXT)
   );
 
 CREATE INDEX IF NOT EXISTS background_jobs_due_idx

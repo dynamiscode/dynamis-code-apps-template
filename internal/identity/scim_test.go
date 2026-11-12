@@ -150,7 +150,7 @@ func TestSCIMProvisioningLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	var rotationRevocations int
-	if err := db.QueryRow("SELECT COUNT(*) FROM audit_events WHERE event_type = ? AND target_id = ?", "scim.token.revoked", token.ID).Scan(&rotationRevocations); err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM audit_events WHERE event_type = ? AND target_id = ?", "scim.token.revoked", token.ID.String()).Scan(&rotationRevocations); err != nil {
 		t.Fatal(err)
 	}
 	if rotationRevocations != 1 {

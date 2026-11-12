@@ -110,7 +110,7 @@ func (h *handler) createSCIMToken(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 	writer.Header().Set("Cache-Control", "no-store")
-	writeJSON(writer, http.StatusCreated, scimTokenResponse{ID: token.ID, WorkspaceID: token.WorkspaceID, Secret: token.Secret})
+	writeJSON(writer, http.StatusCreated, scimTokenResponse{ID: token.ID.String(), WorkspaceID: token.WorkspaceID, Secret: token.Secret})
 }
 
 func (h *handler) revokeSCIMToken(writer http.ResponseWriter, request *http.Request) {

@@ -7,7 +7,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
 
-func TestRenderMigrationChoosesWorkspacePrimaryKeyPerDriver(t *testing.T) {
+func TestRenderMigrationChoosesIntegerPrimaryKeyPerDriver(t *testing.T) {
 	const source = "CREATE TABLE workspaces (\n    id {{integer_pk}},\n    name TEXT NOT NULL\n);"
 
 	sqlite := renderMigration(source, config.SQLite)
