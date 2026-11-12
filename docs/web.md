@@ -40,7 +40,7 @@ stable and English for machine clients.
 
 Baseline browser surfaces:
 
-- `/` lists memberships and creates workspaces in multi mode. In single mode
+- `/` lists memberships in multi mode (`MULTI_WORKSPACE_ENABLED=true`). In single mode
   (`MULTI_WORKSPACE_ENABLED=false`) it redirects with `302` to the home of the
   oldest membership, or shows the no-memberships message when there is none.
   Workspace cards and the `/workspaces/{workspaceId}` route open the

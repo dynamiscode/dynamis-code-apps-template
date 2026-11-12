@@ -565,3 +565,31 @@ new dated section here: date, endpoint kind (no account ID), Go version, and
 Not verified against R2 until that run passes: SigV4 signature validity for
 presigned URLs, the SDK's default request checksum behavior, conditional PUT
 with `If-None-Match`, and browser CORS preflight for presigned uploads.
+
+## Workspace mode evidence
+
+Instance workspace mode is parsed at startup from `MULTI_WORKSPACE_ENABLED`, defaults
+to single, and rejects values other than `true` or `false`. Browser behavior is
+covered for both modes:
+
+- single mode: `/` redirects a signed-in user with `302` to the oldest membership's
+  home, shows the no-memberships message when there is none, hides workspace-list
+  navigation, and shows the workspace name as plain text in the switcher. Evidence:
+  [config tests](../internal/platform/config/config_test.go) and
+  [browser mode tests](../internal/web/handler_test.go) (`TestWebRootLandsInOldestWorkspaceInSingleMode`,
+  `TestWebRootShowsNoMembershipsInSingleMode`, `TestSingleModeHidesWorkspaceListNavigation`)
+- multi mode: `/` lists memberships and keeps workspace-list navigation. Evidence:
+  [browser mode tests](../internal/web/handler_test.go) (`TestWebRootListsWorkspacesInMultiMode`,
+  `TestMultiModeKeepsWorkspaceListNavigation`)
+- the accessibility and WebMCP smoke scripts run the server with
+  `MULTI_WORKSPACE_ENABLED=true` so their workspace-list flows stay covered
+
+Not covered by this section: blocking browser workspace creation in single mode
+(`POST /workspaces` and the create form). That behavior is not on this branch's
+base; it is tracked by #187 and is not yet evidenced here.
+
+- passed: `make test`, `make lint`, `make doc-links`, `make secret-check`, and
+  `go test -count=1 -run` for the named config and web mode tests
+- not run: PostgreSQL (`POSTGRES_TEST_URL` unset; no data change), `make race`
+  (no concurrent code changed), `make generate-check` (no API change), and
+  `make docker-smoke` (no runtime change)
