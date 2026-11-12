@@ -568,19 +568,20 @@ with `If-None-Match`, and browser CORS preflight for presigned uploads.
 
 ## Workspace mode evidence
 
-Instance workspace mode is parsed at startup from `MULTI_WORKSPACE_ENABLED`, defaults
-to single, and rejects values other than `true` or `false`. Browser behavior is
-covered for both modes:
+Verified 2026-11-11 with Go 1.27.4 on SQLite. Behavior for both modes is
+documented in [web](web.md) and
+[configuration](configuration.md). Evidence:
 
-- single mode: `/` redirects a signed-in user with `302` to the oldest membership's
-  home, shows the no-memberships message when there is none, hides workspace-list
-  navigation, and shows the workspace name as plain text in the switcher. Evidence:
-  [config tests](../internal/platform/config/config_test.go) and
-  [browser mode tests](../internal/web/handler_test.go) (`TestWebRootLandsInOldestWorkspaceInSingleMode`,
-  `TestWebRootShowsNoMembershipsInSingleMode`, `TestSingleModeHidesWorkspaceListNavigation`)
-- multi mode: `/` lists memberships and keeps workspace-list navigation. Evidence:
-  [browser mode tests](../internal/web/handler_test.go) (`TestWebRootListsWorkspacesInMultiMode`,
-  `TestMultiModeKeepsWorkspaceListNavigation`)
+- mode parsing: `TestLoadFromWorkspaceModeDefaultsToSingle` and
+  `TestLoadFromRejectsInvalidWorkspaceMode` in
+  [config tests](../internal/platform/config/config_test.go)
+- single mode: `TestWebRootLandsInOldestWorkspaceInSingleMode`,
+  `TestWebRootShowsNoMembershipsInSingleMode`, and
+  `TestSingleModeHidesWorkspaceListNavigation` in
+  [browser mode tests](../internal/web/handler_test.go)
+- multi mode: `TestWebRootListsWorkspacesInMultiMode` and
+  `TestMultiModeKeepsWorkspaceListNavigation` in
+  [browser mode tests](../internal/web/handler_test.go)
 - the accessibility and WebMCP smoke scripts run the server with
   `MULTI_WORKSPACE_ENABLED=true` so their workspace-list flows stay covered
 
