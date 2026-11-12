@@ -579,3 +579,35 @@ new dated section here: date, endpoint kind (no account ID), Go version, and
 Not verified against R2 until that run passes: SigV4 signature validity for
 presigned URLs, the SDK's default request checksum behavior, conditional PUT
 with `If-None-Match`, and browser CORS preflight for presigned uploads.
+
+## Workspace mode evidence
+
+Verified 2026-11-11 with Go 1.27.4 on SQLite. Behavior for both modes is
+documented in [web](web.md) and
+[configuration](configuration.md). Evidence:
+
+- mode parsing: `TestLoadFromWorkspaceModeDefaultsToSingle` and
+  `TestLoadFromRejectsInvalidWorkspaceMode` in
+  [config tests](../internal/platform/config/config_test.go)
+- single mode: `TestWebRootLandsInOldestWorkspaceInSingleMode`,
+  `TestWebRootShowsNoMembershipsInSingleMode`, and
+  `TestSingleModeHidesWorkspaceListNavigation` in
+  [browser mode tests](../internal/web/handler_test.go)
+- multi mode: `TestWebRootListsWorkspacesInMultiMode` and
+  `TestMultiModeKeepsWorkspaceListNavigation` in
+  [browser mode tests](../internal/web/handler_test.go)
+- the accessibility and WebMCP smoke scripts run the server with
+  `MULTI_WORKSPACE_ENABLED=true` so their workspace-list flows stay covered
+
+- single mode blocks browser workspace creation: the create form is hidden and
+  `POST /workspaces` returns `404`. Evidence:
+  `TestSingleWorkspaceModeHidesCreationAndReturnsNotFound` in
+  [workspace mode tests](../internal/web/workspace_mode_test.go)
+- multi mode keeps browser workspace creation: `TestMultiWorkspaceModeKeepsCreation`
+  in [workspace mode tests](../internal/web/workspace_mode_test.go)
+
+- passed: `make test`, `make lint`, `make doc-links`, `make secret-check`, and
+  `go test -count=1 -run` for the named config and web mode tests
+- not run: PostgreSQL (`POSTGRES_TEST_URL` unset; no data change), `make race`
+  (no concurrent code changed), `make generate-check` (no API change), and
+  `make docker-smoke` (no runtime change)
