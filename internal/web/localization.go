@@ -60,7 +60,7 @@ func (h *Handler) pageLocale(writer http.ResponseWriter, data pageData) i18n.Loc
 	if workspaceLocale == "" {
 		workspaceLocale = data.Invitation.WorkspaceLocale
 	}
-	if data.Invitation.ID != "" {
+	if data.Invitation.ID != 0 {
 		userLocale = ""
 	}
 	locale := h.catalog.Resolve(userLocale, cookieLocale, workspaceLocale, acceptLanguage)
