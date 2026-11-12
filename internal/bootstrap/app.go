@@ -24,6 +24,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/sharing"
 	"example.com/dynamis-code/apps-template/internal/web"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
+	"example.com/dynamis-code/apps-template/internal/workspaceemail"
 )
 
 type App struct {
@@ -150,12 +151,17 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,
 		cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService,
 	)
-	mailer, err := appmail.NewSender(cfg.Mail, cfg.Cloudflare)
+	instanceMailer, err := appmail.NewSender(cfg.Mail, cfg.Cloudflare)
 	if err != nil {
 		db.Close()
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("initialize invitation mail: %w", err)
 	}
+	// Routes invitations through each workspace's SMTP and account email through the instance sender.
+	mailer := workspaceemail.NewService(
+		db, cfg.Database.Driver, identityService,
+		secretbox.New(cfg.Encryption.Keys, cfg.Encryption.Primary), instanceMailer,
+	)
 	handler, err := httpapi.NewHandlerWithWebhooksAndFiles(
 		db, identityService, itemService, portabilityService, oidcRegistry, cfg.HTTP, slog.Default(),
 		webhookService, fileService, cfg.PublicURL, mailer,

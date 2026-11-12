@@ -53,6 +53,7 @@ Baseline browser surfaces:
 - `/workspaces/{workspaceId}/settings/invitations` creates, resends, revokes, and shows
   copyable links. `/invitations/{secret}` accepts or registers an invitee with
   safe invalid, expired, revoked, duplicate, and wrong-email failures.
+- `/workspaces/{workspaceId}/settings/email` lets owners/admins save the workspace SMTP sender for invitations. Saving runs an SMTP login test first and stores nothing on failure. The password is never shown again, and a blank password keeps the stored one. Members cannot view or change it.
 - `/workspaces/{workspaceId}/settings/tokens` manages current-user scoped tokens and
   shows a new secret once.
 - `/workspaces/{workspaceId}/settings/webhooks` lists workspace webhook registrations,
