@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"example.com/dynamis-code/apps-template/internal/webhooks"
 )
 
 func TestWebhookRESTContracts(t *testing.T) {
@@ -28,6 +30,9 @@ func TestWebhookRESTContracts(t *testing.T) {
 	if err := json.Unmarshal(created.Body.Bytes(), &createdValue); err != nil || createdValue.ID == "" || createdValue.Secret == "" {
 		t.Fatalf("webhook response = %+v, %v", createdValue, err)
 	}
+	if _, err := webhooks.ParseWebhookID(createdValue.ID); err != nil {
+		t.Fatalf("webhook id %q is not a short ID: %v", createdValue.ID, err)
+	}
 	listed := serveAuthorized(handler, http.MethodGet, base, "", token, nil)
 	if listed.Code != http.StatusOK || strings.Contains(listed.Body.String(), createdValue.Secret) {
 		t.Fatalf("webhook list leaked secret: %d, %s", listed.Code, listed.Body.String())
@@ -48,5 +53,26 @@ func TestWebhookRESTContracts(t *testing.T) {
 	deleted := serveAuthorized(handler, http.MethodDelete, base+"/"+createdValue.ID, "", token, nil)
 	if deleted.Code != http.StatusNoContent {
 		t.Fatalf("webhook delete = %d, %s", deleted.Code, deleted.Body.String())
+	}
+}
+
+// Integer keys and the old hex form are not webhook IDs: every webhook route
+// answers them with the same not-found as a missing webhook.
+func TestWebhookRoutesAnswerIntegerAndHexIDsAsNotFound(t *testing.T) {
+	handler, _, workspaceID, token := testHandler(t)
+	base := "/api/v1/workspaces/" + workspaceID + "/webhooks"
+	for _, input := range []string{"1", strings.Repeat("a", 32)} {
+		for _, call := range []struct {
+			method, path string
+		}{
+			{http.MethodDelete, base + "/" + input},
+			{http.MethodPost, base + "/" + input + "/secret"},
+			{http.MethodGet, base + "/" + input + "/deliveries"},
+		} {
+			response := serveAuthorized(handler, call.method, call.path, "", token, nil)
+			if response.Code != http.StatusNotFound {
+				t.Fatalf("%s %s = %d, %s; want 404", call.method, call.path, response.Code, response.Body.String())
+			}
+		}
 	}
 }

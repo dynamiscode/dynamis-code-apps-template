@@ -45,8 +45,10 @@ type JobOutcome struct {
 	FailureCategory string
 }
 
+// Job's ID is an integer key. Jobs have no public surface; the short-ID type
+// code is reserved in the registry (id.TypeJob) for one.
 type Job struct {
-	ID           string
+	ID           int64
 	WorkspaceID  identity.WorkspaceID
 	Kind         string
 	Payload      string
@@ -136,17 +138,13 @@ func (queue *Queue) EnqueueTx(
 		len(payload) > maxPayloadBytes || !json.Valid([]byte(payload)) {
 		return errors.New("job input is invalid")
 	}
-	jobID, err := id.New()
-	if err != nil {
-		return err
-	}
-	_, err = tx.ExecContext(ctx, database.Rebind(queue.driver, `
+	_, err := tx.ExecContext(ctx, database.Rebind(queue.driver, `
 		INSERT INTO background_jobs (
-			id, workspace_id, kind, deduplication_key, payload, status,
+			workspace_id, kind, deduplication_key, payload, status,
 			attempt_count, available_at, created_at
-		) VALUES (?, ?, ?, ?, ?, 'pending', 0, ?, ?)
+		) VALUES (?, ?, ?, ?, 'pending', 0, ?, ?)
 		ON CONFLICT (workspace_id, kind, deduplication_key) DO NOTHING
-	`), jobID, workspaceID, kind, deduplicationKey, payload,
+	`), workspaceID, kind, deduplicationKey, payload,
 		stamp(availableAt), stamp(availableAt))
 	if err == nil {
 		select {

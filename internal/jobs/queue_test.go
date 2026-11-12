@@ -311,3 +311,55 @@ func insertJobsWorkspace(t *testing.T, db *sql.DB) identity.WorkspaceID {
 	}
 	return workspaceID
 }
+
+// Jobs are keyed by integer. Handlers receive the stored row key, and each
+// enqueued job gets its own key, so the key can name a job without any
+// text ID format.
+func TestEnqueuedJobsUseIntegerKeysMatchingStoredRows(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, config.Database{
+		Driver: config.SQLite, SQLitePath: filepath.Join(t.TempDir(), "jobs.db"),
+		MaxOpenConns: 1, MaxIdleConns: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	if err := database.Migrate(ctx, db, config.SQLite); err != nil {
+		t.Fatal(err)
+	}
+	workspaceID := insertJobsWorkspace(t, db)
+
+	queue := NewQueue(db, config.SQLite, nil)
+	var handled []int64
+	if err := queue.Register("keys", func(_ context.Context, job Job) error {
+		handled = append(handled, job.ID)
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"first", "second"} {
+		if err := queue.EnqueueTx(ctx, tx, workspaceID, "keys", key, `{"value":1}`, time.Now()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if processed, err := queue.Process(ctx, 2); err != nil || processed != 2 {
+		t.Fatalf("Process() = %d, %v; want 2", processed, err)
+	}
+	if len(handled) != 2 || handled[0] < 1 || handled[1] < 1 || handled[0] == handled[1] {
+		t.Fatalf("handled job keys = %v; want two distinct positive integers", handled)
+	}
+	for _, key := range handled {
+		var stored int64
+		if err := db.QueryRowContext(ctx, "SELECT id FROM background_jobs WHERE id = ?", key).Scan(&stored); err != nil || stored != key {
+			t.Fatalf("job key %d not found as stored row: %v", key, err)
+		}
+	}
+}

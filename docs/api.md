@@ -216,6 +216,11 @@ signature, reject stale timestamps, and deduplicate by `Webhook-Id` because
 retries are at-least-once. The server records at most five attempts and
 exposes only redacted delivery status and error categories.
 
+Webhook, delivery, and event IDs are short IDs, and `Webhook-Id` is the event's
+short ID (type `webhook_event`). Integer keys and malformed IDs are never
+accepted: a malformed, integer, or unknown webhook ID gets the same not-found
+problem as a missing webhook.
+
 ## Contract rules
 
 Errors use RFC 9457 `application/problem+json` with a stable `type`, `code`,
