@@ -126,8 +126,8 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		RETURNING id`), workspaceID, itemOld, "public-hash", old, old, old).Scan(&publicLinkOldID); err != nil {
 		t.Fatal(err)
 	}
-	exec(`INSERT INTO audit_events (id, event_type, auth_method, target_type, action, outcome, metadata, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "audit-old", "old", "system", "instance", "test", "success", "{}", old)
+	exec(`INSERT INTO audit_events (event_type, auth_method, target_type, action, outcome, metadata, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`, "old", "system", "instance", "test", "success", "{}", old)
 
 	result, err := Run(ctx, db, driver, now, 365*24*time.Hour)
 	if err != nil {

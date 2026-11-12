@@ -543,6 +543,20 @@ secrets matched by hash only. Migration 000015 is rewritten in place under the
   their own beyond the service-level check.
 - Known limitation: none new for passkeys. PostgreSQL identities never reuse keys.
 
+## Audit event short ID evidence
+
+Issue #248 gives `audit_events` an integer key under the `audit_event` type code.
+Audit event IDs in workspace exports are short IDs. Sessions keep their text key
+until the owner decides whether session IDs are element identifiers. The exception is
+[2026-11-12-audit-event-short-id-migration-rewrite](decisions/exceptions/2026-11-12-audit-event-short-id-migration-rewrite.md).
+Evidence: `TestSQLiteAuditTablesUseIntegerPrimaryKeys`, `TestSQLiteAuditKeysAreNeverReused`,
+`TestPostgresAuditTablesUseIntegerPrimaryKeys`, and the portability and maintenance tests.
+Checks run 2026-11-12 with Go 1.27.4: `make test` and `make lint` passed on SQLite;
+`go generate ./api` produced no drift; the focused packages (`internal/identity`,
+`internal/files`, `internal/platform/database`, `internal/platform/maintenance`,
+`internal/platform/id`, `internal/web`, `internal/portability`) passed against a fresh
+PostgreSQL 14.24 container.
+
 ## Files evidence
 
 Files metadata migration and workspace authorization, local filesystem uploads

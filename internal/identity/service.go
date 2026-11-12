@@ -791,20 +791,17 @@ func (s *Service) audit(
 	executor queryExecutor,
 	event AuditEvent,
 ) error {
-	eventID, err := id.New()
-	if err != nil {
-		return err
-	}
 	if event.Metadata == "" {
 		event.Metadata = "{}"
 	}
-	_, err = s.exec(ctx, executor, `
+	// The database assigns the integer key, which is never reused on SQLite.
+	_, err := s.exec(ctx, executor, `
 		INSERT INTO audit_events (
-			id, event_type, actor_user_id, auth_method, workspace_id,
+			event_type, actor_user_id, auth_method, workspace_id,
 			target_type, target_id, action, outcome, request_id,
 			source_address, metadata, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, eventID, event.EventType, nullable(event.ActorUserID), event.AuthMethod,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, event.EventType, nullable(event.ActorUserID), event.AuthMethod,
 		nullableWorkspaceID(event.WorkspaceID), event.TargetType, nullable(event.TargetID),
 		event.Action, event.Outcome, nullable(event.RequestID),
 		nullable(event.SourceAddress), event.Metadata, timestamp(event.CreatedAt))
