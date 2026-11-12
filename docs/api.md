@@ -177,7 +177,9 @@ documented in [authentication](authentication.md).
 - Files: `GET/POST /api/v1/workspaces/{workspaceId}/files` lists, uploads, or
   initiates a file; `GET /files/{fileId}` returns metadata and a short-lived
   download URL; `PUT /files/{fileId}/content` finalizes app-streamed uploads;
-  `POST /files/{fileId}/complete` verifies S3 uploads.
+  `POST /files/{fileId}/complete` verifies S3 uploads. File IDs are the file
+  short ID (ADR 0009, type `file`) and the only form in paths and bodies;
+  malformed, unknown, and integer-key IDs return the same not-found problem.
 - SCIM: create/revoke the dedicated credential with
   `POST/DELETE /api/v1/workspaces/{workspaceId}/scim-token`, then use
   `GET/POST /scim/v2/{workspaceId}/Users`, `GET/PATCH/DELETE

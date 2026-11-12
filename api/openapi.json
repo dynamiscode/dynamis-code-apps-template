@@ -468,7 +468,7 @@
     "parameters": {
       "WorkspaceId": {"name": "workspaceId", "in": "path", "required": true, "description": "Workspace short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "ItemId": {"name": "itemId", "in": "path", "required": true, "description": "Item short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
-      "FileId": {"name": "fileId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
+      "FileId": {"name": "fileId", "in": "path", "required": true, "description": "File short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "MemberId": {"name": "memberId", "in": "path", "required": true, "description": "Member short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "InvitationId": {"name": "invitationId", "in": "path", "required": true, "description": "Invitation short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "TokenId": {"name": "tokenId", "in": "path", "required": true, "description": "API token short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},

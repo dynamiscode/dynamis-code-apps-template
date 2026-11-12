@@ -6,6 +6,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
+	"strconv"
 	"testing"
 
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
@@ -48,10 +50,10 @@ func TestFileRESTLifecycle(t *testing.T) {
 		t.Fatal("download filename missing")
 	}
 	wrongWorkspace := serveAuthorized(handler, http.MethodGet,
-		"/api/v1/workspaces/00000000000000000000000000000000/files/"+uploaded.ID, "", token, nil)
+		"/api/v1/workspaces/00000000000000000000000000000000/files/"+uploaded.ID.String(), "", token, nil)
 	assertProblem(t, wrongWorkspace, http.StatusNotFound, "not-found")
 	list := serveAuthorized(handler, http.MethodGet, "/api/v1/workspaces/"+workspaceID+"/files", "", token, nil)
-	if list.Code != http.StatusOK || !bytes.Contains(list.Body.Bytes(), []byte(uploaded.ID)) {
+	if list.Code != http.StatusOK || !bytes.Contains(list.Body.Bytes(), []byte(uploaded.ID.String())) {
 		t.Fatalf("list = %d, %s", list.Code, list.Body.String())
 	}
 }
@@ -85,4 +87,68 @@ func TestFileProblemMapsBodyLimit(t *testing.T) {
 	response := httptest.NewRecorder()
 	(&handler{}).fileProblem(response, request, &http.MaxBytesError{Limit: 1})
 	assertProblem(t, response, http.StatusRequestEntityTooLarge, "body-too-large")
+}
+
+// File paths and bodies carry only the file short ID. Integer keys, malformed
+// and unknown IDs, and files reached through another workspace must return the
+// same not-found response.
+func TestFileRoutesAreShortIDOnlyAndUniform(t *testing.T) {
+	handler, db, workspaceID, token := testHandler(t)
+	response := serveAuthorized(handler, http.MethodPost,
+		"/api/v1/workspaces/"+workspaceID+"/files/uploads",
+		`{"originalName":"notes.txt","size":5,"contentType":"text/plain"}`,
+		token, map[string]string{"Content-Type": "application/json"})
+	if response.Code != http.StatusCreated {
+		t.Fatalf("initiate = %d, %s", response.Code, response.Body.String())
+	}
+	var initiated fileResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &initiated); err != nil {
+		t.Fatal(err)
+	}
+	if initiated.ID == 0 || !bytes.Contains(response.Body.Bytes(), []byte(`"id":"`+initiated.ID.String()+`"`)) {
+		t.Fatalf("initiate body = %s, want the file short ID", response.Body.String())
+	}
+	fileKey := int64(initiated.ID)
+
+	var otherKey, foreignFileKey int64
+	if err := db.QueryRow(
+		"INSERT INTO workspaces (name, created_at) VALUES (?, ?) RETURNING id",
+		"Foreign", "2026-11-11T00:00:00Z",
+	).Scan(&otherKey); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`
+		INSERT INTO files (workspace_id, object_key, original_name, size, status, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+		otherKey, "foreign/object", "foreign.txt", 5, "ready", "2026-11-11T00:00:00Z", "2026-11-11T00:00:00Z",
+	).Scan(&foreignFileKey); err != nil {
+		t.Fatal(err)
+	}
+
+	base := "/api/v1/workspaces/" + workspaceID + "/files/"
+	probes := map[string]string{
+		"integer key":               "/api/v1/workspaces/" + workspaceID + "/files/" + strconv.FormatInt(fileKey, 10),
+		"malformed":                 base + "not-a-short-id!",
+		"hex legacy form":           base + "00000000000000000000000000000000",
+		"unknown short ID":          base + appfiles.FileID(fileKey+1000).String(),
+		"file in another workspace": base + appfiles.FileID(foreignFileKey).String(),
+	}
+	var reference map[string]any
+	for name, path := range probes {
+		probe := serveAuthorized(handler, http.MethodGet, path, "", token, nil)
+		assertProblem(t, probe, http.StatusNotFound, "not-found")
+		var body map[string]any
+		if err := json.Unmarshal(probe.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		delete(body, "instance")
+		delete(body, "requestId")
+		if reference == nil {
+			reference = body
+			continue
+		}
+		if !reflect.DeepEqual(reference, body) {
+			t.Fatalf("%s response = %v, want the same body as %v", name, body, reference)
+		}
+	}
 }

@@ -68,7 +68,7 @@ func (h *Handler) filesInitiateUpload(writer http.ResponseWriter, request *http.
 	writer.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(writer).Encode(map[string]any{
 		"uploadUrl": upload.URL, "uploadHeaders": upload.Headers,
-		"completeUrl": "/workspaces/" + workspaceID.String() + "/files/" + file.ID + "/complete",
+		"completeUrl": "/workspaces/" + workspaceID.String() + "/files/" + file.ID.String() + "/complete",
 	})
 }
 
@@ -99,7 +99,7 @@ func (h *Handler) filesUpload(writer http.ResponseWriter, request *http.Request)
 }
 
 func (h *Handler) filesCompleteUpload(writer http.ResponseWriter, request *http.Request) {
-	workspaceID, fileID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), request.PathValue("fileId")
+	workspaceID, fileID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), appfiles.ParseFileIDOrZero(request.PathValue("fileId"))
 	principal, _, _, ok := h.managementPrincipal(writer, request, workspaceID, identity.ResourcesWrite)
 	if !ok {
 		return
@@ -135,7 +135,7 @@ func (h *Handler) renderFilesError(writer http.ResponseWriter, request *http.Req
 }
 
 func (h *Handler) fileDownload(writer http.ResponseWriter, request *http.Request) {
-	workspaceID, fileID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), request.PathValue("fileId")
+	workspaceID, fileID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), appfiles.ParseFileIDOrZero(request.PathValue("fileId"))
 	principal, _, _, ok := h.workspaceSession(writer, request, workspaceID, identity.ResourcesRead)
 	if !ok {
 		return
