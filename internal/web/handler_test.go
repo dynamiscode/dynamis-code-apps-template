@@ -1181,7 +1181,9 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 }
 
 func TestWebBaselineManagementRoutes(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, _, workspaceID, owner := testWebConfigured(t, 10, false, func(h *Handler) {
+		h.SetWorkspaceMode(config.WorkspaceModeMulti)
+	})
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)

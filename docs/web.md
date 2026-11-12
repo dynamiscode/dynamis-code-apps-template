@@ -40,7 +40,8 @@ stable and English for machine clients.
 
 Baseline browser surfaces:
 
-- `/` lists memberships and creates workspaces. Workspace cards and the
+- `/` lists memberships. In multi workspace mode it creates workspaces; in single
+  mode the create form is hidden and `POST /workspaces` returns 404. Workspace cards and the
   `/workspaces/{workspaceId}` route open the authenticated workspace home, which
   links to Items and Settings.
 - `/workspaces/{workspaceId}/settings/general` reads workspace settings and lets authorized owners/admins
