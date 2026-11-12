@@ -318,7 +318,7 @@ func (s *Service) CompleteTOTPEnrollment(ctx context.Context, sessionID, token, 
 	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.totp.enrolled", ActorUserID: challenge.UserID, AuthMethod: "session", TargetType: "user", TargetID: challenge.UserID, Action: "mfa.totp.enroll", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now}); err != nil {
 		return nil, err
 	}
-	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.challenge.completed", ActorUserID: challenge.UserID, AuthMethod: "totp", TargetType: "mfa_challenge", TargetID: id.EncodeKey(id.TypeMFAChallenge, challenge.ID), Action: "mfa.challenge.complete", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": "totp_enrollment"}), CreatedAt: now}); err != nil {
+	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.challenge.completed", ActorUserID: challenge.UserID, AuthMethod: "totp", TargetType: "mfa_challenge", TargetID: challenge.ID, Action: "mfa.challenge.complete", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": "totp_enrollment"}), CreatedAt: now}); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -427,7 +427,7 @@ func (s *Service) CompletePasskeyEnrollment(ctx context.Context, userID, session
 	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.passkey.enrolled", ActorUserID: userID, AuthMethod: "session", TargetType: "passkey", TargetID: id.EncodeKey(id.TypeMFAPasskey, passkeyKey), Action: "mfa.passkey.enroll", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now}); err != nil {
 		return nil, err
 	}
-	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.challenge.completed", ActorUserID: userID, AuthMethod: "passkey", TargetType: "mfa_challenge", TargetID: id.EncodeKey(id.TypeMFAChallenge, challenge.ID), Action: "mfa.challenge.complete", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": "passkey_enrollment"}), CreatedAt: now}); err != nil {
+	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.challenge.completed", ActorUserID: userID, AuthMethod: "passkey", TargetType: "mfa_challenge", TargetID: challenge.ID, Action: "mfa.challenge.complete", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": "passkey_enrollment"}), CreatedAt: now}); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -471,7 +471,7 @@ func (s *Service) CompleteRecoveryLogin(ctx context.Context, token, code string,
 	if err := s.lockMFAUser(ctx, tx, challenge.UserID); err != nil {
 		return NewSession{}, err
 	}
-	var codeID int64
+	var codeID string
 	if err := s.queryRow(ctx, tx, "SELECT id FROM mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL AND code_hash = ?", challenge.UserID, hashSecret(strings.TrimSpace(code))).Scan(&codeID); err != nil {
 		_ = tx.Commit()
 		s.auditMFAFailure(ctx, challenge, "recovery", audit)
@@ -492,10 +492,10 @@ func (s *Service) CompleteRecoveryLogin(ctx context.Context, token, code string,
 		s.auditMFAFailure(ctx, challenge, "recovery", audit)
 		return NewSession{}, ErrInvalidMFACode
 	}
-	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.recovery.used", ActorUserID: challenge.UserID, AuthMethod: "recovery", TargetType: "mfa_challenge", TargetID: id.EncodeKey(id.TypeMFAChallenge, challenge.ID), Action: "mfa.recovery.use", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: s.now().UTC()}); err != nil {
+	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.recovery.used", ActorUserID: challenge.UserID, AuthMethod: "recovery", TargetType: "mfa_challenge", TargetID: challenge.ID, Action: "mfa.recovery.use", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: s.now().UTC()}); err != nil {
 		return NewSession{}, err
 	}
-	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.challenge.completed", ActorUserID: challenge.UserID, AuthMethod: "recovery", TargetType: "mfa_challenge", TargetID: id.EncodeKey(id.TypeMFAChallenge, challenge.ID), Action: "mfa.challenge.complete", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": "recovery"}), CreatedAt: s.now().UTC()}); err != nil {
+	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.challenge.completed", ActorUserID: challenge.UserID, AuthMethod: "recovery", TargetType: "mfa_challenge", TargetID: challenge.ID, Action: "mfa.challenge.complete", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": "recovery"}), CreatedAt: s.now().UTC()}); err != nil {
 		return NewSession{}, err
 	}
 	newSession, err := s.createSessionWithLevelTx(ctx, tx, challenge.UserID, challenge.authMethod, challenge.oidcProviderID, 0, AuthLevelMFA, audit)
@@ -571,7 +571,7 @@ func (s *Service) CompletePasskeyLogin(ctx context.Context, token string, reques
 	if err != nil || changed != 1 {
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
-	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.challenge.completed", ActorUserID: challenge.UserID, AuthMethod: "passkey", TargetType: "mfa_challenge", TargetID: id.EncodeKey(id.TypeMFAChallenge, challenge.ID), Action: "mfa.challenge.complete", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": "passkey"}), CreatedAt: s.now().UTC()}); err != nil {
+	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.challenge.completed", ActorUserID: challenge.UserID, AuthMethod: "passkey", TargetType: "mfa_challenge", TargetID: challenge.ID, Action: "mfa.challenge.complete", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": "passkey"}), CreatedAt: s.now().UTC()}); err != nil {
 		return NewSession{}, err
 	}
 	newSession, err := s.createSessionWithLevelTx(ctx, tx, challenge.UserID, challenge.authMethod, challenge.oidcProviderID, 0, AuthLevelMFA, audit)
@@ -774,24 +774,27 @@ func (s *Service) createSession(ctx context.Context, userID, authMethod, oidcPro
 }
 
 type loadedChallenge struct {
-	ID                                                                           int64
-	UserID, authMethod, oidcProviderID, sessionID, webauthnJSON, encryptedSecret string
-	attempts                                                                     int
-	expiresAt                                                                    time.Time
-	state                                                                        MFAChallengeState
+	ID, UserID, authMethod, oidcProviderID, sessionID, webauthnJSON, encryptedSecret string
+	attempts                                                                         int
+	expiresAt                                                                        time.Time
+	state                                                                            MFAChallengeState
 }
 
 func (s *Service) insertMFAChallenge(ctx context.Context, challenge MFALoginChallenge, purpose, sessionID, webauthnJSON, encryptedSecret string, audit AuditContext) error {
+	idValue, err := id.New()
+	if err != nil {
+		return err
+	}
 	now := s.now().UTC()
 	authMethod := challenge.AuthMethod
 	if authMethod == "" {
 		authMethod = "local"
 	}
-	var challengeKey int64
-	if err := s.queryRow(ctx, s.db, "INSERT INTO mfa_challenges (token_hash, user_id, purpose, session_id, auth_method, oidc_provider_id, webauthn_session_json, encrypted_secret, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id", hashSecret(challenge.Token), challenge.UserID, purpose, nullable(sessionID), authMethod, nullable(challenge.OIDCProviderID), nullable(webauthnJSON), nullable(encryptedSecret), timestamp(now), timestamp(challenge.ExpiresAt)).Scan(&challengeKey); err != nil {
+	_, err = s.exec(ctx, s.db, "INSERT INTO mfa_challenges (id, token_hash, user_id, purpose, session_id, auth_method, oidc_provider_id, webauthn_session_json, encrypted_secret, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", idValue, hashSecret(challenge.Token), challenge.UserID, purpose, nullable(sessionID), authMethod, nullable(challenge.OIDCProviderID), nullable(webauthnJSON), nullable(encryptedSecret), timestamp(now), timestamp(challenge.ExpiresAt))
+	if err != nil {
 		return err
 	}
-	return s.audit(ctx, s.db, AuditEvent{EventType: "mfa.challenge.created", ActorUserID: challenge.UserID, AuthMethod: "session", TargetType: "mfa_challenge", TargetID: id.EncodeKey(id.TypeMFAChallenge, challengeKey), Action: "mfa.challenge.create", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"purpose": purpose}), CreatedAt: now})
+	return s.audit(ctx, s.db, AuditEvent{EventType: "mfa.challenge.created", ActorUserID: challenge.UserID, AuthMethod: "session", TargetType: "mfa_challenge", TargetID: idValue, Action: "mfa.challenge.create", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"purpose": purpose}), CreatedAt: now})
 }
 
 func (s *Service) loadChallenge(ctx context.Context, token, purpose string) (loadedChallenge, string, error) {
@@ -842,7 +845,7 @@ func (s *Service) loadChallenge(ctx context.Context, token, purpose string) (loa
 	return c, secret, nil
 }
 
-func (s *Service) reserveMFAAttempt(ctx context.Context, challengeID int64) bool {
+func (s *Service) reserveMFAAttempt(ctx context.Context, challengeID string) bool {
 	result, err := s.exec(ctx, s.db, "UPDATE mfa_challenges SET attempts = attempts + 1 WHERE id = ? AND consumed_at IS NULL AND attempts < ?", challengeID, maxMFAAttempts)
 	if err != nil {
 		return false
@@ -852,7 +855,7 @@ func (s *Service) reserveMFAAttempt(ctx context.Context, challengeID int64) bool
 }
 
 func (s *Service) auditMFAFailure(ctx context.Context, challenge loadedChallenge, method string, audit AuditContext) {
-	_ = s.audit(ctx, s.db, AuditEvent{EventType: "mfa.challenge.failed", ActorUserID: challenge.UserID, AuthMethod: method, TargetType: "mfa_challenge", TargetID: id.EncodeKey(id.TypeMFAChallenge, challenge.ID), Action: "mfa.challenge.complete", Outcome: "failure", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": method}), CreatedAt: s.now().UTC()})
+	_ = s.audit(ctx, s.db, AuditEvent{EventType: "mfa.challenge.failed", ActorUserID: challenge.UserID, AuthMethod: method, TargetType: "mfa_challenge", TargetID: challenge.ID, Action: "mfa.challenge.complete", Outcome: "failure", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": method}), CreatedAt: s.now().UTC()})
 }
 
 func (s *Service) auditMFAChallengeFailure(ctx context.Context, token, purpose, method string, audit AuditContext) {
@@ -866,7 +869,7 @@ func (s *Service) auditMFAChallengeFailure(ctx context.Context, token, purpose, 
 	s.auditMFAFailure(ctx, challenge, method, audit)
 }
 
-func (s *Service) consumeChallenge(ctx context.Context, tx *sql.Tx, challengeID int64) bool {
+func (s *Service) consumeChallenge(ctx context.Context, tx *sql.Tx, challengeID string) bool {
 	now := timestamp(s.now().UTC())
 	result, err := s.exec(ctx, tx, "UPDATE mfa_challenges SET consumed_at = ? WHERE id = ? AND consumed_at IS NULL AND expires_at > ?", now, challengeID, now)
 	if err != nil {
@@ -894,7 +897,7 @@ func (s *Service) completeMFAChallenge(ctx context.Context, challenge loadedChal
 	if !s.consumeChallenge(ctx, tx, challenge.ID) {
 		return NewSession{}, ErrInvalidMFAChallenge
 	}
-	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.challenge.completed", ActorUserID: challenge.UserID, AuthMethod: method, TargetType: "mfa_challenge", TargetID: id.EncodeKey(id.TypeMFAChallenge, challenge.ID), Action: "mfa.challenge.complete", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": method}), CreatedAt: s.now().UTC()}); err != nil {
+	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.challenge.completed", ActorUserID: challenge.UserID, AuthMethod: method, TargetType: "mfa_challenge", TargetID: challenge.ID, Action: "mfa.challenge.complete", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": method}), CreatedAt: s.now().UTC()}); err != nil {
 		return NewSession{}, err
 	}
 	newSession, err := s.createSessionWithLevelTx(ctx, tx, challenge.UserID, challenge.authMethod, challenge.oidcProviderID, 0, AuthLevelMFA, audit)
@@ -958,7 +961,11 @@ func (s *Service) ensureRecoveryCodes(ctx context.Context, tx *sql.Tx, userID st
 		}
 		code := strings.ToUpper(raw[:10])
 		code = code[:5] + "-" + code[5:]
-		if _, err := s.exec(ctx, tx, "INSERT INTO mfa_recovery_codes (user_id, code_hash, created_at) VALUES (?, ?, ?)", userID, hashSecret(code), timestamp(now)); err != nil {
+		codeID, err := id.New()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := s.exec(ctx, tx, "INSERT INTO mfa_recovery_codes (id, user_id, code_hash, created_at) VALUES (?, ?, ?, ?)", codeID, userID, hashSecret(code), timestamp(now)); err != nil {
 			return nil, err
 		}
 		codes = append(codes, code)

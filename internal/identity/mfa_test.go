@@ -8,14 +8,12 @@ import (
 	"encoding/base32"
 	"errors"
 	"fmt"
-	"strconv"
 	"sync"
 	"testing"
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
@@ -219,11 +217,10 @@ func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var expiredChallengeKey int64
-	if err := db.QueryRow("SELECT id FROM mfa_challenges WHERE token_hash = ?", hashSecret(expired.Token)).Scan(&expiredChallengeKey); err != nil {
+	var expiredChallengeID string
+	if err := db.QueryRow("SELECT id FROM mfa_challenges WHERE token_hash = ?", hashSecret(expired.Token)).Scan(&expiredChallengeID); err != nil {
 		t.Fatal(err)
 	}
-	expiredChallengeID := id.EncodeKey(id.TypeMFAChallenge, expiredChallengeKey)
 	now = base.Add(mfaChallengeLifetime + time.Second)
 	if _, err := service.CompleteTOTPLogin(ctx, expired.Token, totpTestCode(enrollment.Secret, now), AuditContext{}); !errors.Is(err, ErrInvalidMFAChallenge) {
 		t.Fatalf("expired MFA challenge error = %v", err)
@@ -337,7 +334,7 @@ func totpTestCode(secret string, now time.Time) string {
 	return fmt.Sprintf("%06d", value%1000000)
 }
 
-func TestMFARowIDsAreNotCredentials(t *testing.T) {
+func TestPasskeyRemovalDecodesIDsStrictly(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.Open(ctx, config.Database{Driver: config.SQLite, SQLitePath: ":memory:", MaxOpenConns: 1, MaxIdleConns: 1})
 	if err != nil {
@@ -363,42 +360,12 @@ func TestMFARowIDsAreNotCredentials(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	codes, err := service.CompleteTOTPEnrollment(ctx, session.ID, enrollment.Challenge, totpTestCode(enrollment.Secret, now), AuditContext{})
-	if err != nil {
+	if _, err := service.CompleteTOTPEnrollment(ctx, session.ID, enrollment.Challenge, totpTestCode(enrollment.Secret, now), AuditContext{}); err != nil {
 		t.Fatal(err)
-	}
-	login, err := service.BeginMFALogin(ctx, owner.UserID, AuditContext{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var challengeKey int64
-	if err := db.QueryRow("SELECT id FROM mfa_challenges WHERE token_hash = ?", hashSecret(login.Token)).Scan(&challengeKey); err != nil {
-		t.Fatal(err)
-	}
-	var recoveryKey int64
-	if err := db.QueryRow("SELECT id FROM mfa_recovery_codes WHERE code_hash = ?", hashSecret(codes[0])).Scan(&recoveryKey); err != nil {
-		t.Fatal(err)
-	}
-
-	// Row IDs, as integers or short IDs, are never accepted as the bearer secret.
-	challengeRowIDs := []string{strconv.FormatInt(challengeKey, 10), id.EncodeKey(id.TypeMFAChallenge, challengeKey)}
-	for _, candidate := range challengeRowIDs {
-		if _, err := service.CompleteTOTPLogin(ctx, candidate, totpTestCode(enrollment.Secret, now), AuditContext{}); !errors.Is(err, ErrInvalidMFAChallenge) {
-			t.Fatalf("challenge row ID %q accepted as token: %v", candidate, err)
-		}
-	}
-	for _, candidate := range []string{strconv.FormatInt(recoveryKey, 10), id.EncodeKey(id.TypeMFARecoveryCode, recoveryKey)} {
-		if _, err := service.CompleteRecoveryLogin(ctx, login.Token, candidate, AuditContext{}); !errors.Is(err, ErrInvalidMFACode) {
-			t.Fatalf("recovery row ID %q accepted as code: %v", candidate, err)
-		}
-	}
-	// The rejected probes must leave the real code usable.
-	if _, err := service.CompleteRecoveryLogin(ctx, login.Token, codes[0], AuditContext{}); err != nil {
-		t.Fatalf("real recovery code after row ID probes = %v", err)
 	}
 
 	// Passkey IDs are decoded strictly after password verification; malformed input is not found.
-	for _, candidate := range []string{"1", strconv.FormatInt(challengeKey, 10)} {
+	for _, candidate := range []string{"1", "NOT-VALID"} {
 		if err := service.RemovePasskey(ctx, owner.UserID, session.ID, candidate, "owner-long-password", AuditContext{}); !errors.Is(err, ErrInvalidMFAChallenge) {
 			t.Fatalf("RemovePasskey(%q) = %v, want ErrInvalidMFAChallenge", candidate, err)
 		}

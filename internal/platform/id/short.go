@@ -33,8 +33,6 @@ const (
 	TypeOAuthGrant      TypeCode = "oauth_grant"
 	TypeItemEvent       TypeCode = "item_event"
 	TypeNotification    TypeCode = "notification"
-	TypeMFAChallenge    TypeCode = "mfa_challenge"
-	TypeMFARecoveryCode TypeCode = "mfa_recovery_code"
 	TypeMFAPasskey      TypeCode = "mfa_passkey"
 )
 
@@ -44,7 +42,7 @@ func TypeCodes() []TypeCode {
 		TypeItem, TypeWorkspace, TypeFile, TypeWebhook, TypeWebhookDelivery,
 		TypeWebhookEvent, TypeJob, TypeInvitation, TypeMember, TypeToken,
 		TypePublicLink, TypeSCIMToken, TypeOAuthClient, TypeOAuthGrant, TypeItemEvent,
-		TypeNotification, TypeMFAChallenge, TypeMFARecoveryCode, TypeMFAPasskey,
+		TypeNotification, TypeMFAPasskey,
 	}
 }
 

@@ -3,7 +3,7 @@ ALTER TABLE sessions ADD COLUMN fresh_at TEXT;
 UPDATE sessions SET fresh_at = created_at WHERE fresh_at IS NULL;
 
 CREATE TABLE mfa_challenges (
-    id {{file_id_pk}},
+    id TEXT PRIMARY KEY,
     token_hash TEXT NOT NULL UNIQUE,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     purpose TEXT NOT NULL CHECK (purpose IN ('login', 'passkey_enrollment', 'totp_enrollment')),
@@ -28,7 +28,7 @@ CREATE TABLE mfa_totp (
 );
 
 CREATE TABLE mfa_recovery_codes (
-    id {{integer_pk}},
+    id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     code_hash TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL,

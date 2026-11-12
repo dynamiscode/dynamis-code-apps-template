@@ -120,7 +120,7 @@ loss of encrypted data.
 ## Upgrades and alerts
 
 Workspace, member, invitation, API token, item, webhook, background job, sharing, SCIM,
-and MCP OAuth short IDs, the notification key, and MFA short IDs changed the schema in place. Do not run this version against a
+and MCP OAuth short IDs, the notification key, and the MFA passkey key changed the schema in place. Do not run this version against a
 database that applied migrations 000002 through 000016 and 000018 from an earlier build:
 those versions are already recorded, so the new schema is not applied and the application
 fails against the old text keys. Create a new database and migrate it, or reset local
