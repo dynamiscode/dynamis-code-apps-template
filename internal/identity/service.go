@@ -385,17 +385,17 @@ func (s *Service) ListWorkspaces(
 func (s *Service) DefaultWorkspaceID(
 	ctx context.Context,
 	userID string,
-) (string, bool, error) {
-	var workspaceID string
+) (WorkspaceID, bool, error) {
+	var workspaceID WorkspaceID
 	err := s.db.QueryRowContext(ctx, s.bind(`
 		SELECT workspace_id FROM workspace_members
 		WHERE user_id = ? ORDER BY created_at, workspace_id LIMIT 1
 	`), userID).Scan(&workspaceID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", false, nil
+		return 0, false, nil
 	}
 	if err != nil {
-		return "", false, err
+		return 0, false, err
 	}
 	return workspaceID, true, nil
 }

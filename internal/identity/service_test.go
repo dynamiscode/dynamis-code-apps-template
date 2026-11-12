@@ -1189,7 +1189,7 @@ func TestDefaultWorkspaceReportsNoMemberships(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ok || got != "" {
+	if ok || got != 0 {
 		t.Fatalf("DefaultWorkspaceID = %q, %t; want no workspace", got, ok)
 	}
 }

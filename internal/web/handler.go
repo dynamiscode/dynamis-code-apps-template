@@ -631,7 +631,7 @@ func (h *Handler) home(writer http.ResponseWriter, request *http.Request) {
 			return
 		}
 		if found {
-			http.Redirect(writer, request, "/workspaces/"+workspaceID, http.StatusFound)
+			http.Redirect(writer, request, "/workspaces/"+workspaceID.String(), http.StatusFound)
 			return
 		}
 	}
@@ -951,7 +951,7 @@ func (h *Handler) defaultHomeHref(ctx context.Context, userID string) string {
 	if !found {
 		return ""
 	}
-	return "/workspaces/" + workspaceID
+	return "/workspaces/" + workspaceID.String()
 }
 
 func (h *Handler) render(writer http.ResponseWriter, status int, name string, data pageData) {

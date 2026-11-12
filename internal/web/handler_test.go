@@ -1697,7 +1697,7 @@ func TestWebRootLandsInOldestWorkspaceInSingleMode(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := request(handler, http.MethodGet, "/", nil, cookies, nil)
-	if root.Code != http.StatusFound || root.Header().Get("Location") != "/workspaces/"+workspaceID {
+	if root.Code != http.StatusFound || root.Header().Get("Location") != "/workspaces/"+workspaceID.String() {
 		t.Fatalf("single-mode root = %d, Location %q; want 302 to oldest workspace", root.Code, root.Header().Get("Location"))
 	}
 }
@@ -1742,7 +1742,7 @@ func TestWebRootListsWorkspacesInMultiMode(t *testing.T) {
 	})
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
 	root := request(handler, http.MethodGet, "/", nil, cookies, nil)
-	if root.Code != http.StatusOK || !strings.Contains(root.Body.String(), workspaceID) {
+	if root.Code != http.StatusOK || !strings.Contains(root.Body.String(), workspaceID.String()) {
 		t.Fatalf("multi-mode root = %d, %s; want workspace list", root.Code, root.Body.String())
 	}
 }
@@ -1752,7 +1752,7 @@ func TestSingleModeHidesWorkspaceListNavigation(t *testing.T) {
 		h.SetWorkspaceMode(config.WorkspaceModeSingle)
 	})
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
-	workspaceRoot := "/workspaces/" + workspaceID
+	workspaceRoot := "/workspaces/" + workspaceID.String()
 	for _, path := range []string{workspaceRoot + "/items", workspaceRoot + "/settings/members", workspaceRoot + "/settings/tokens", workspaceRoot + "/settings/provisioning", workspaceRoot + "/settings/import"} {
 		response := request(handler, http.MethodGet, path, nil, cookies, nil)
 		if response.Code != http.StatusOK {
@@ -1782,7 +1782,7 @@ func TestMultiModeKeepsWorkspaceListNavigation(t *testing.T) {
 		h.SetWorkspaceMode(config.WorkspaceModeMulti)
 	})
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
-	body := request(handler, http.MethodGet, "/workspaces/"+workspaceID+"/items", nil, cookies, nil).Body.String()
+	body := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/items", nil, cookies, nil).Body.String()
 	if !strings.Contains(body, `class="workspace-switcher"`) || !strings.Contains(body, `<a class="sidebar-back" href="/">← Workspaces</a>`) {
 		t.Error("multi-mode items page lost workspace list navigation")
 	}
