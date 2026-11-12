@@ -14,6 +14,7 @@ var (
 	ErrInvalidCredentials   = errors.New("invalid email or password")
 	ErrInvalidBootstrap     = errors.New("bootstrap input is invalid")
 	ErrInvalidInvitation    = errors.New("invitation is invalid or expired")
+	ErrNotFound             = errors.New("record not found")
 	ErrInvalidSession       = errors.New("session is invalid or expired")
 	ErrInvalidToken         = errors.New("token is invalid or expired")
 	ErrInvalidLocale        = errors.New("locale is invalid")
@@ -107,6 +108,7 @@ type WorkspaceCreateInput struct {
 }
 
 type MemberSummary struct {
+	ID        MemberID
 	UserID    string
 	Email     string
 	Role      Role
@@ -231,7 +233,7 @@ type NewSession struct {
 }
 
 type Invitation struct {
-	ID              string
+	ID              InvitationID
 	WorkspaceID     WorkspaceID
 	WorkspaceLocale string
 	Email           string
@@ -249,7 +251,7 @@ type NewInvitation struct {
 }
 
 type APIToken struct {
-	ID          string
+	ID          APITokenID
 	UserID      string
 	WorkspaceID WorkspaceID
 	Name        string

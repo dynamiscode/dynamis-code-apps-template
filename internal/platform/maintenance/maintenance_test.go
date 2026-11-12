@@ -65,10 +65,16 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "item-old", workspaceID, "user-maint", "Old", "active", 1, old, old)
 	exec(`INSERT INTO sessions (id, user_id, secret_hash, csrf_hash, auth_method, created_at, expires_at, revoked_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "session-old", "user-maint", "session-secret", "csrf", "local", old, future, old)
-	exec(`INSERT INTO invitations (id, workspace_id, invited_by_user_id, email, role, secret_hash, created_at, expires_at, accepted_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, "invite-old", workspaceID, "user-maint", "old@example.com", "viewer", "invite-secret", old, old, old)
-	exec(`INSERT INTO api_tokens (id, user_id, workspace_id, name, secret_hash, scopes, created_at, revoked_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "token-old", "user-maint", workspaceID, "old", "token-secret", "items:read", old, old)
+	// Invitation and token keys are integers assigned by the database.
+	var invitationID, tokenID int64
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO invitations (workspace_id, invited_by_user_id, email, role, secret_hash, created_at, expires_at, accepted_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`), workspaceID, "user-maint", "old.com", "viewer", "invite-secret", old, old, old).Scan(&invitationID); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO api_tokens (user_id, workspace_id, name, secret_hash, scopes, created_at, revoked_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`), "user-maint", workspaceID, "old", "token-secret", "items:read", old, old).Scan(&tokenID); err != nil {
+		t.Fatal(err)
+	}
 	var scimOldID int64
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO scim_tokens (workspace_id, created_by_user_id, secret_hash, created_at, revoked_at)
 		VALUES (?, ?, ?, ?, ?)
@@ -115,8 +121,8 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		t.Fatalf("Run() result = %+v", result)
 	}
 	for table, key := range map[string]any{
-		"sessions": "session-old", "invitations": "invite-old",
-		"api_tokens": "token-old", "scim_tokens": scimOldID, "oidc_transactions": "state-old",
+		"sessions": "session-old", "invitations": invitationID,
+		"api_tokens": tokenID, "scim_tokens": scimOldID, "oidc_transactions": "state-old",
 		"mfa_challenges":      "mfa-challenge-old",
 		"idempotency_records": "key-old", "item_events": "event-old",
 		"notifications":       "notification-old",

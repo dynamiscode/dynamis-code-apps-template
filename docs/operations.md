@@ -119,13 +119,12 @@ loss of encrypted data.
 
 ## Upgrades and alerts
 
-Workspace, sharing, SCIM, and MCP OAuth short IDs changed the schema in place. Do not
-run this version against a database that applied migrations 000002 through 000016
-from an earlier build:
-those versions are already recorded, so the new schema is not applied and the
-application fails against the old text keys. Create a new database and migrate
-it, or reset local development databases. See the
-[recorded exception](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md) and
+Workspace, member, invitation, API token, sharing, SCIM, and MCP OAuth short IDs changed
+the schema in place. Do not run this version against a database that applied
+migrations 000002 through 000016 and 000018 from an earlier build: those versions are
+already recorded, so the new schema is not applied and the application fails against the
+old keys. Create a new database and migrate it, or reset local development databases. See the
+[workspace exception](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md) and
 [sharing, SCIM, and MCP OAuth exception](decisions/exceptions/2026-11-11-sharing-scim-oauth-short-id-migration-rewrite.md).
 
 Upgrades are stop-the-world: create and verify a backup, stop the one SQLite

@@ -55,7 +55,7 @@ func NewSender(smtpCfg config.Mail, cloudflareCfg config.CloudflareEmail) (Sende
 	if cloudflareSender != nil {
 		return cloudflareSender, nil
 	}
-	return smtpSender, nil
+	return nil, nil
 }
 
 func (c *Cloudflare) Send(ctx context.Context, recipient, subject, body string) error {

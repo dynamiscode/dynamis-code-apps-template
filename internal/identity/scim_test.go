@@ -220,7 +220,7 @@ func TestSCIMGroupETagsTrackMembershipChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 	memberVersion, adminVersion := groups[1].Version, groups[0].Version
-	if err := service.ChangeMemberRole(ctx, owner, user.UserID, Admin, AuditContext{}); err != nil {
+	if err := service.ChangeMemberRole(ctx, owner, memberIDFor(t, service, owner, user.UserID), Admin, AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
 	groups, err = service.ListSCIMGroups(ctx, scim)
@@ -313,7 +313,7 @@ func TestSCIMDeactivationScopesCredentialsToWorkspace(t *testing.T) {
 	if err := service.AddMember(ctx, secondOwner, user.UserID, Member, AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := service.ChangeMemberRole(ctx, secondOwner, user.UserID, Admin, AuditContext{}); err != nil {
+	if err := service.ChangeMemberRole(ctx, secondOwner, memberIDFor(t, service, secondOwner, user.UserID), Admin, AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
 	secondAdmin := mustAuthorize(t, service, user.UserID, workspaceID, SCIMManage)

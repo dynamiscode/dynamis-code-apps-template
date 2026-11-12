@@ -24,8 +24,8 @@ func main() {
 		slog.Error("configuration invalid", "error", err)
 		os.Exit(1)
 	}
-	if len(cfg.Webhooks.SecretKey) != 32 {
-		slog.Warn("webhook creation and rotation disabled; configure WEBHOOK_ENCRYPTION_KEY")
+	if !cfg.Encryption.Configured() {
+		slog.Warn("webhook creation and rotation disabled; configure ENCRYPTION_KEY")
 	}
 
 	if err := bootstrap.Run(ctx, cfg); err != nil {
