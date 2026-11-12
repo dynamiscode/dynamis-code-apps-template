@@ -334,6 +334,44 @@ func totpTestCode(secret string, now time.Time) string {
 	return fmt.Sprintf("%06d", value%1000000)
 }
 
+func TestPasskeyRemovalDecodesIDsStrictly(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, config.Database{Driver: config.SQLite, SQLitePath: ":memory:", MaxOpenConns: 1, MaxIdleConns: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	if err := database.Migrate(ctx, db, config.SQLite); err != nil {
+		t.Fatal(err)
+	}
+	service, err := NewServiceWithMFA(db, config.SQLite, MFAConfig{Enabled: true, EncryptionKey: []byte("01234567890123456789012345678901"), RelyingPartyID: "localhost", Origins: []string{"http://localhost:8080"}, DisplayName: "Dynamis Code", RequireForAdmins: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service.passwordParams = passwordParams{memory: 64, iterations: 1, parallelism: 1, saltLength: 16, keyLength: 32}
+	now := time.Date(2026, 8, 28, 12, 0, 0, 0, time.UTC)
+	service.now = func() time.Time { return now }
+	owner := bootstrapOwner(t, service)
+	session, err := service.CreateSession(ctx, owner.UserID, "local", "", time.Hour, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	enrollment, err := service.BeginTOTPEnrollment(ctx, owner.UserID, session.ID, "owner-long-password", AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.CompleteTOTPEnrollment(ctx, session.ID, enrollment.Challenge, totpTestCode(enrollment.Secret, now), AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Passkey IDs are decoded strictly after password verification; malformed input is not found.
+	for _, candidate := range []string{"1", "NOT-VALID"} {
+		if err := service.RemovePasskey(ctx, owner.UserID, session.ID, candidate, "owner-long-password", AuditContext{}); !errors.Is(err, ErrInvalidMFAChallenge) {
+			t.Fatalf("RemovePasskey(%q) = %v, want ErrInvalidMFAChallenge", candidate, err)
+		}
+	}
+}
+
 func TestEvaluateChallengeState(t *testing.T) {
 	now := time.Date(2026, 8, 28, 12, 0, 0, 0, time.UTC)
 	future := now.Add(5 * time.Minute)

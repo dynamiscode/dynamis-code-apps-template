@@ -145,7 +145,10 @@ the server returns the accepted or generated request ID.
   or MFA-authenticated session can satisfy the same step-up. Enrollment
   responses show recovery codes once only.
   TOTP enrollment material is `no-store`; factor secrets are never returned
-  after enrollment.
+  after enrollment. Passkey IDs in list and removal (`DELETE
+  /api/v1/auth/mfa/passkeys/{passkeyId}`) are short IDs; a malformed or unknown
+  ID returns the same `mfa-invalid` problem as a missing passkey. Challenge tokens and
+  recovery codes are secrets, never row IDs.
 - `/api/v1/workspaces/{workspaceId}/items` proves shared, workspace-scoped
   list, create, read, and update behavior.
   Item responses retain `createdByUserId` as a required field but return `null`

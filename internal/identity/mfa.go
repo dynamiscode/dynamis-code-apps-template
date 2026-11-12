@@ -416,18 +416,15 @@ func (s *Service) CompletePasskeyEnrollment(ctx context.Context, userID, session
 		s.auditMFAFailure(ctx, challenge, "passkey_enrollment", audit)
 		return nil, ErrInvalidMFAChallenge
 	}
-	passkeyID, err := id.New()
-	if err != nil {
-		return nil, err
-	}
-	if _, err := s.exec(ctx, tx, "INSERT INTO mfa_passkeys (id, user_id, credential_id, credential_json, name, created_at) VALUES (?, ?, ?, ?, ?, ?)", passkeyID, userID, credentialID, string(encoded), name, timestamp(now)); err != nil {
+	var passkeyKey int64
+	if err := s.queryRow(ctx, tx, "INSERT INTO mfa_passkeys (user_id, credential_id, credential_json, name, created_at) VALUES (?, ?, ?, ?, ?) RETURNING id", userID, credentialID, string(encoded), name, timestamp(now)).Scan(&passkeyKey); err != nil {
 		return nil, ErrInvalidMFAChallenge
 	}
 	codes, err := s.ensureRecoveryCodes(ctx, tx, userID, now)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.passkey.enrolled", ActorUserID: userID, AuthMethod: "session", TargetType: "passkey", TargetID: passkeyID, Action: "mfa.passkey.enroll", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now}); err != nil {
+	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.passkey.enrolled", ActorUserID: userID, AuthMethod: "session", TargetType: "passkey", TargetID: id.EncodeKey(id.TypeMFAPasskey, passkeyKey), Action: "mfa.passkey.enroll", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now}); err != nil {
 		return nil, err
 	}
 	if err := s.audit(ctx, tx, AuditEvent{EventType: "mfa.challenge.completed", ActorUserID: userID, AuthMethod: "passkey", TargetType: "mfa_challenge", TargetID: challenge.ID, Action: "mfa.challenge.complete", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"method": "passkey_enrollment"}), CreatedAt: now}); err != nil {
@@ -598,9 +595,11 @@ func (s *Service) ListPasskeys(ctx context.Context, userID string) ([]Passkey, e
 		var p Passkey
 		var created string
 		var last, revoked sql.NullString
-		if err := rows.Scan(&p.ID, &p.Name, &created, &last, &revoked); err != nil {
+		var key int64
+		if err := rows.Scan(&key, &p.Name, &created, &last, &revoked); err != nil {
 			return nil, err
 		}
+		p.ID = id.EncodeKey(id.TypeMFAPasskey, key)
 		p.CreatedAt, err = parseTimestamp(created)
 		if err != nil {
 			return nil, err
@@ -628,6 +627,11 @@ func (s *Service) RemovePasskey(ctx context.Context, userID, sessionID, passkeyI
 	if err := s.VerifyFreshAuthentication(ctx, userID, sessionID, password); err != nil {
 		return ErrInvalidCredentials
 	}
+	// Decode after password verification. A malformed or foreign-type ID gets the same error as a missing passkey.
+	passkeyKey, err := id.DecodeKey(id.TypeMFAPasskey, passkeyID)
+	if err != nil {
+		return ErrInvalidMFAChallenge
+	}
 	now := s.now().UTC()
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -647,7 +651,7 @@ func (s *Service) RemovePasskey(ctx context.Context, userID, sessionID, passkeyI
 	if passkeyCount+totpCount <= 1 {
 		return ErrLastMFAFactor
 	}
-	result, err := s.exec(ctx, tx, "UPDATE mfa_passkeys SET revoked_at = ? WHERE id = ? AND user_id = ? AND revoked_at IS NULL", timestamp(now), passkeyID, userID)
+	result, err := s.exec(ctx, tx, "UPDATE mfa_passkeys SET revoked_at = ? WHERE id = ? AND user_id = ? AND revoked_at IS NULL", timestamp(now), passkeyKey, userID)
 	if err != nil {
 		return err
 	}

@@ -62,6 +62,8 @@ accepted by the repository owner on 2026-11-12.
 Migrations 000011, 000012, 000013, and 000016 were rewritten again for sharing, SCIM,
 and MCP OAuth record keys under [recorded exception](decisions/exceptions/2026-11-11-sharing-scim-oauth-short-id-migration-rewrite.md).
 Migration 000007 was rewritten in place for the notification key under [recorded exception](decisions/exceptions/2026-11-12-notification-account-token-short-id-migration-rewrite.md).
+Migration 000015 was rewritten in place for the MFA passkey key
+under [recorded exception](decisions/exceptions/2026-11-12-mfa-short-id-migration-rewrite.md).
 Upgrades use a documented
 stop-the-world procedure; SQLite snapshots and PostgreSQL dumps have separate
 verified restore paths.

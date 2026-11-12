@@ -522,6 +522,27 @@ packages passed; `make generate-check` produced no drift. PostgreSQL: the full
 `go test -p 1 ./...` suite was run against a fresh pinned PostgreSQL 14.24
 container; its result is recorded in the change's pull request description.
 
+## MFA passkey short ID evidence
+
+Issue #246 gives `mfa_passkeys` an integer key under the `mfa_passkey` type code.
+Passkey IDs in list and removal responses are short IDs; `mfa_passkeys.credential_id`
+stays text. MFA challenges and recovery codes keep their text keys and are bearer
+secrets matched by hash only. Migration 000015 is rewritten in place under the
+[recorded exception](decisions/exceptions/2026-11-12-mfa-short-id-migration-rewrite.md).
+
+- Covered: `TestPasskeyRemovalDecodesIDsStrictly` (SQLite) shows that a malformed
+  passkey ID gets the same error as a missing passkey. `TestSQLiteMFATablesUseIntegerPrimaryKeys`
+  and `TestPostgresMFATablesUseIntegerPrimaryKeys` check the `mfa_passkeys` key type
+  and that `credential_id` stays text.
+- Checks run 2026-11-12 with Go 1.27.4: `make test` and `make lint` passed on SQLite;
+  `go generate ./api` produced no drift; the focused packages (`internal/identity`,
+  `internal/files`, `internal/platform/database`, `internal/platform/maintenance`,
+  `internal/platform/id`, `internal/web`) passed against a fresh PostgreSQL 14.24 container.
+- Not covered: a real WebAuthn enrollment and passkey list, since the test harness
+  has no WebAuthn ceremony; the passkey REST routes have no short-ID probe test of
+  their own beyond the service-level check.
+- Known limitation: none new for passkeys. PostgreSQL identities never reuse keys.
+
 ## Files evidence
 
 Files metadata migration and workspace authorization, local filesystem uploads

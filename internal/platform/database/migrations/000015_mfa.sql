@@ -38,7 +38,7 @@ CREATE TABLE mfa_recovery_codes (
 CREATE INDEX mfa_recovery_codes_user_idx ON mfa_recovery_codes (user_id, used_at);
 
 CREATE TABLE mfa_passkeys (
-    id TEXT PRIMARY KEY,
+    id {{integer_pk}},
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     credential_id TEXT NOT NULL UNIQUE,
     credential_json TEXT NOT NULL,
