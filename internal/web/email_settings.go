@@ -50,10 +50,16 @@ func (h *Handler) emailSettingsSave(writer http.ResponseWriter, request *http.Re
 	}
 	// A non-numeric port becomes 0, which the service rejects as invalid input.
 	port, _ := strconv.Atoi(strings.TrimSpace(request.FormValue("port")))
+	provider := request.FormValue("provider")
+	// Resend reads its key from api_key; SMTP reads its password from password.
+	secret := request.FormValue("password")
+	if provider == workspaceemail.ProviderResend {
+		secret = request.FormValue("api_key")
+	}
 	input := workspaceemail.SaveInput{
-		SenderAddress: request.FormValue("sender_address"), SenderName: request.FormValue("sender_name"),
+		Provider: provider, SenderAddress: request.FormValue("sender_address"), SenderName: request.FormValue("sender_name"),
 		Host: request.FormValue("host"), Port: port, Username: request.FormValue("username"),
-		Password: request.FormValue("password"),
+		Password: secret,
 	}
 	err := manager.Save(request.Context(), principal, workspaceID, input, auditContext(request))
 	if err == nil {
@@ -61,20 +67,23 @@ func (h *Handler) emailSettingsSave(writer http.ResponseWriter, request *http.Re
 		return
 	}
 	var loginErr *workspaceemail.LoginError
-	message, loginReason := "The SMTP settings could not be saved.", ""
+	message, loginReason := "The email settings could not be saved.", ""
 	switch {
 	case errors.Is(err, identity.ErrForbidden):
 		h.renderError(writer, http.StatusForbidden)
 		return
+	case errors.As(err, &loginErr) && provider == workspaceemail.ProviderResend:
+		message = "Resend check failed. Check the API key, then save again. Nothing was saved."
+		loginReason = loginErr.Reason
 	case errors.As(err, &loginErr):
 		message = "SMTP login test failed. Check the host, port, username, and password. Nothing was saved."
 		loginReason = loginErr.Reason
 	case errors.Is(err, workspaceemail.ErrPasswordRequired):
-		message = "Enter the SMTP password again when the server, port, or username changes."
+		message = "Enter the password or API key again when the provider, server, port, or username changes."
 	case errors.Is(err, workspaceemail.ErrSecretKey):
-		message = "SMTP password encryption is not configured. Set ENCRYPTION_KEY and restart the server."
+		message = "Secret encryption is not configured. Set ENCRYPTION_KEY and restart the server."
 	case errors.Is(err, workspaceemail.ErrInvalidInput):
-		message = "The SMTP settings are invalid."
+		message = "The email settings are invalid."
 	}
 	h.renderEmailSettings(writer, request, manager, workspaceID, principal, session, csrf, message, loginReason, http.StatusUnprocessableEntity, false)
 }

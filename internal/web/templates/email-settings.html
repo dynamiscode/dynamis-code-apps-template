@@ -8,14 +8,33 @@
 {{if .EmailLoginReason}}<p><code>{{.EmailLoginReason}}</code></p>{{end}}
 {{if .EmailSaved}}<p role="status">{{.T "email.saved"}}</p>{{end}}
 <p>{{if .EmailSettings.Configured}}{{.T "email.configured"}}{{else}}{{.T "email.not_configured"}}{{end}}</p>
+{{if eq .EmailSettings.Provider "resend"}}<p>{{.T "email.domain_status"}}: <code>{{if .EmailSettings.DomainStatus}}{{.EmailSettings.DomainStatus}}{{else}}{{.T "email.domain_status_none"}}{{end}}</code></p>{{end}}
 <form action="/workspaces/{{.Workspace.ID}}/settings/email" method="post">
 <input type="hidden" name="csrf" value="{{.CSRF}}">
+<label for="email-provider">{{.T "email.provider"}}</label>
+<select id="email-provider" name="provider">
+<option value="smtp"{{if ne .EmailSettings.Provider "resend"}} selected{{end}}>{{.T "email.provider_smtp"}}</option>
+<option value="resend"{{if eq .EmailSettings.Provider "resend"}} selected{{end}}>{{.T "email.provider_resend"}}</option>
+</select>
 <label for="email-sender-name">{{.T "email.sender_name"}}</label><input id="email-sender-name" name="sender_name" maxlength="100" value="{{.EmailSettings.SenderName}}">
 <label for="email-sender-address">{{.T "email.sender_address"}}</label><input id="email-sender-address" name="sender_address" type="email" required maxlength="254" value="{{.EmailSettings.SenderAddress}}">
-<label for="email-host">{{.T "email.host"}}</label><input id="email-host" name="host" required maxlength="253" value="{{.EmailSettings.Host}}">
-<label for="email-port">{{.T "email.port"}}</label><input id="email-port" name="port" type="number" min="1" max="65535" required value="{{if .EmailSettings.Configured}}{{.EmailSettings.Port}}{{else}}587{{end}}">
-<label for="email-username">{{.T "email.username"}}</label><input id="email-username" name="username" required maxlength="254" autocomplete="off" value="{{.EmailSettings.Username}}">
-<label for="email-password">{{.T "email.password"}}</label><p id="email-password-help">{{.T "email.password_help"}}</p><input id="email-password" name="password" type="password" autocomplete="new-password" maxlength="1024" aria-describedby="email-password-help"{{if not .EmailSettings.PasswordSet}} required{{end}}>
+<fieldset>
+<legend>{{.T "email.smtp_section"}}</legend>
+<label for="email-host">{{.T "email.host"}}</label><input id="email-host" name="host" maxlength="253" value="{{if ne .EmailSettings.Provider "resend"}}{{.EmailSettings.Host}}{{end}}">
+<label for="email-port">{{.T "email.port"}}</label><input id="email-port" name="port" type="number" min="1" max="65535" value="{{if and .EmailSettings.Configured (ne .EmailSettings.Provider "resend")}}{{.EmailSettings.Port}}{{else}}587{{end}}">
+<label for="email-username">{{.T "email.username"}}</label><input id="email-username" name="username" maxlength="254" autocomplete="off" value="{{if ne .EmailSettings.Provider "resend"}}{{.EmailSettings.Username}}{{end}}">
+<label for="email-password">{{.T "email.password"}}</label><p id="email-password-help">{{.T "email.password_help"}}</p><input id="email-password" name="password" type="password" autocomplete="new-password" maxlength="1024" aria-describedby="email-password-help">
+</fieldset>
+<fieldset>
+<legend>{{.T "email.resend_section"}}</legend>
+<ol>
+<li>{{.T "email.resend_step_1"}}</li>
+<li>{{.T "email.resend_step_2"}}</li>
+<li>{{.T "email.resend_step_3"}}</li>
+<li>{{.T "email.resend_step_4"}}</li>
+</ol>
+<label for="email-api-key">{{.T "email.api_key"}}</label><p id="email-api-key-help">{{.T "email.api_key_help"}}</p><input id="email-api-key" name="api_key" type="password" autocomplete="new-password" maxlength="1024" aria-describedby="email-api-key-help">
+</fieldset>
 <button type="submit">{{.T "email.save"}}</button>
 </form>
 </main></div></body></html>{{end}}
