@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"crypto/subtle"
 	"embed"
 	"encoding/json"
@@ -64,6 +65,8 @@ type pageData struct {
 	CSRF                             string
 	Workspace                        identity.WorkspaceSummary
 	Workspaces                       []identity.WorkspaceSummary
+	SingleWorkspace                  bool
+	DefaultWorkspaceHref             string
 	Items                            []items.Item
 	Files                            []appfiles.File
 	FilesEnabled                     bool
@@ -925,8 +928,22 @@ func (h *Handler) redirect(writer http.ResponseWriter, request *http.Request, pa
 	http.Redirect(writer, request, path, http.StatusSeeOther)
 }
 
+// defaultHomeHref returns the home of the user's default workspace in single
+// mode. It is empty in multi mode, or when the user has no membership.
+func (h *Handler) defaultHomeHref(ctx context.Context, userID string) string {
+	if h.workspaceMode != config.WorkspaceModeSingle {
+		return ""
+	}
+	workspaceID, found, err := h.identity.DefaultWorkspaceID(ctx, userID)
+	if err != nil || !found {
+		return ""
+	}
+	return "/workspaces/" + workspaceID
+}
+
 func (h *Handler) render(writer http.ResponseWriter, status int, name string, data pageData) {
 	data.FilesEnabled = h.files != nil
+	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
 	h.localizePage(writer, &data)
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.Header().Set("Cache-Control", "no-store")
