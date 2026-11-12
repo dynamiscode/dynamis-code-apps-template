@@ -26,3 +26,24 @@ jobs:
           echo "PR body must contain 'Closes #<n>', 'Fixes #<n>', or 'Refs #<n>'," >&2
           echo "or an opt-out line 'No issue: <reason>'." >&2
           exit 1
+  stacked-base:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require a stacked-on line when the base is not the default branch
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_BASE: ${{ github.base_ref }}
+          # Repo default branch is main (checked with gh repo view on 2026-11-12).
+          DEFAULT_BRANCH: main
+        run: |
+          if [ "$PR_BASE" = "$DEFAULT_BRANCH" ]; then
+            echo "Base is the default branch; no stacked-on line required."
+            exit 0
+          fi
+          if printf '%s\n' "$PR_BODY" | grep -Eq '^[[:space:]]*Stacked on (#[0-9]+|[A-Za-z0-9._/-]+)'; then
+            echo "Stacked-on line found."
+            exit 0
+          fi
+          echo "PR base is '$PR_BASE', not '$DEFAULT_BRANCH'." >&2
+          echo "PR body must contain 'Stacked on #<n>' or 'Stacked on <branch>'." >&2
+          exit 1
