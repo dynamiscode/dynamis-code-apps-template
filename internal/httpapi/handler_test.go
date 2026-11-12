@@ -268,14 +268,16 @@ func TestIdentityRESTContracts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", workspaceKey, newUser, "member", time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+	var memberKey int64
+	if err := db.QueryRow("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?) RETURNING id", workspaceKey, newUser, "member", time.Now().UTC().Format(time.RFC3339Nano)).Scan(&memberKey); err != nil {
 		t.Fatal(err)
 	}
-	changed := serveAuthorized(handler, http.MethodPatch, base+"/members/"+newUser, `{"role":"viewer"}`, token, nil)
+	memberPath := base + "/members/" + identity.MemberID(memberKey).String()
+	changed := serveAuthorized(handler, http.MethodPatch, memberPath, `{"role":"viewer"}`, token, nil)
 	if changed.Code != http.StatusNoContent {
 		t.Fatalf("member role = %d, %s", changed.Code, changed.Body.String())
 	}
-	removed := serveAuthorized(handler, http.MethodDelete, base+"/members/"+newUser, "", token, nil)
+	removed := serveAuthorized(handler, http.MethodDelete, memberPath, "", token, nil)
 	if removed.Code != http.StatusNoContent {
 		t.Fatalf("member remove = %d, %s", removed.Code, removed.Body.String())
 	}

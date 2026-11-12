@@ -945,7 +945,20 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := auth.ChangeMemberRole(context.Background(), ownerPrincipal, scimUser.UserID, identity.Admin, identity.AuditContext{}); err != nil {
+	members, err := auth.ListMembers(context.Background(), ownerPrincipal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var memberID identity.MemberID
+	for _, member := range members {
+		if member.UserID == scimUser.UserID {
+			memberID = member.ID
+		}
+	}
+	if memberID == 0 {
+		t.Fatal("scim user is not a workspace member")
+	}
+	if err := auth.ChangeMemberRole(context.Background(), ownerPrincipal, memberID, identity.Admin, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
 	if adminPage := request(handler, http.MethodGet, path, nil, adminCookies, nil); adminPage.Code != http.StatusOK {
