@@ -18,6 +18,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
+	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 	"example.com/dynamis-code/apps-template/internal/portability"
 	"example.com/dynamis-code/apps-template/internal/sharing"
@@ -113,7 +114,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	}
 	jobQueue := jobs.NewQueue(db, cfg.Database.Driver, slog.Default())
 	webhookService := webhooks.NewService(
-		db, cfg.Database.Driver, identityService, cfg.Webhooks.SecretKey, jobQueue,
+		db, cfg.Database.Driver, identityService, secretbox.New(cfg.Encryption.Keys, cfg.Encryption.Primary), jobQueue,
 	)
 	storageConfig := cfg.Storage
 	if storageConfig.Driver == config.StorageLocal {

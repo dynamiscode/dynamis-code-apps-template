@@ -21,6 +21,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
+	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 	"example.com/dynamis-code/apps-template/internal/portability"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
 )
@@ -329,7 +330,7 @@ func testHandler(t *testing.T) (http.Handler, *sql.DB, string, string) {
 		t.Fatal(err)
 	}
 	jobQueue := jobs.NewQueue(db, cfg.Database.Driver, nil)
-	webhookService := webhooks.NewService(db, cfg.Database.Driver, auth, []byte("01234567890123456789012345678901"), jobQueue)
+	webhookService := webhooks.NewService(db, cfg.Database.Driver, auth, secretbox.New(map[int][]byte{config.GeneralKeyVersion: []byte("01234567890123456789012345678901")}, config.GeneralKeyVersion), jobQueue)
 	if err := jobQueue.Register(webhooks.JobKind, webhookService.HandleJob); err != nil {
 		t.Fatal(err)
 	}

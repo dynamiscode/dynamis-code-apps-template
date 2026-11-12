@@ -58,7 +58,7 @@ Baseline browser surfaces:
 - `/workspaces/{workspaceId}/settings/webhooks` lists workspace webhook registrations,
   lets owners/admins create, rotate, and delete them, and shows redacted delivery
   history. Creation and rotation display the webhook secret once. When
-  `WEBHOOK_ENCRYPTION_KEY` is missing, managers see an actionable warning and
+  neither `ENCRYPTION_KEY` nor `WEBHOOK_ENCRYPTION_KEY` is set, managers see an actionable warning and
   create/rotate controls are disabled. Stale form submissions keep the user on
   this page with an inline error.
 - `/workspaces/{workspaceId}/settings/provisioning` is restricted to workspace

@@ -76,7 +76,8 @@ begins. Changes require restart.
 | `STORAGE_MAX_OBJECT_BYTES` | bytes 1-1073741824 | `16777216` | No | No |
 | `STORAGE_MAX_WORKSPACE_BYTES` | bytes, at least object limit | `1073741824` | No | No |
 | `STORAGE_SIGNED_URL_TTL` | duration 1m-15m | `5m` | No | No |
-| `WEBHOOK_ENCRYPTION_KEY` | exactly 32 random bytes as hex or base64 | none | Webhook create/rotation only | Yes |
+| `ENCRYPTION_KEY` | exactly 32 random bytes as hex or base64 | none | Webhook create/rotation (primary general key) | Yes |
+| `WEBHOOK_ENCRYPTION_KEY` | exactly 32 random bytes as hex or base64 | none | Webhook fallback when `ENCRYPTION_KEY` is unset; still opens webhook secrets sealed before `ENCRYPTION_KEY` was set | Yes |
 | `OTEL_SERVICE_NAME` | string 1-255 | `dynamis-code-apps-template` | No | No |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | HTTPS or loopback HTTP base URL | none | No | No |
 | `OTEL_EXPORTER_OTLP_HEADERS` | OTLP header list | none | Authenticated exporter only | Yes |
@@ -173,10 +174,15 @@ receives its copyable link.
 
 ## Webhooks
 
-Webhook registration is available without the key, but creation and rotation
-fail safely until `WEBHOOK_ENCRYPTION_KEY` is configured. Keep this key in the
-deployment secret store and back it up separately from the database; losing it
-makes stored webhook secrets undecryptable. Delivery accepts HTTPS endpoints
+Webhook registration is available without a key, but creation and rotation
+fail safely until `ENCRYPTION_KEY` (or `WEBHOOK_ENCRYPTION_KEY` as a fallback)
+is configured. New secrets are sealed with `ENCRYPTION_KEY` and record key
+version 2. Secrets sealed with `WEBHOOK_ENCRYPTION_KEY` record version 1 and
+keep decrypting while that variable is set, so keep it configured after
+switching until no version 1 rows remain. Keep keys in the deployment secret
+store and back them up separately from the database; losing a key makes its
+secrets undecryptable. The app starts without either key; only webhook secret
+saving is disabled. Delivery accepts HTTPS endpoints
 and local loopback HTTP for development, and rejects private resolved addresses.
 
 ## Files

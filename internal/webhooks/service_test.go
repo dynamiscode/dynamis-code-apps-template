@@ -19,6 +19,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
+	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 )
 
 func TestItemEventsAreSignedEncryptedAndDeliveredOnce(t *testing.T) {
@@ -36,9 +37,8 @@ func TestItemEventsAreSignedEncryptedAndDeliveredOnce(t *testing.T) {
 	}))
 	defer server.Close()
 
-	secretKey := []byte("01234567890123456789012345678901")
 	queue := jobs.NewQueue(db, config.SQLite, nil)
-	service := NewService(db, config.SQLite, auth, secretKey, queue)
+	service := NewService(db, config.SQLite, auth, testKeyring(), queue)
 	if err := queue.Register(JobKind, service.HandleJob); err != nil {
 		t.Fatal(err)
 	}
@@ -61,6 +61,10 @@ func TestItemEventsAreSignedEncryptedAndDeliveredOnce(t *testing.T) {
 	}
 	if encrypted == created.Secret || strings.Contains(encrypted, created.Secret) {
 		t.Fatal("webhook secret stored in plaintext")
+	}
+	var version int
+	if err := db.QueryRow("SELECT secret_key_version FROM webhooks WHERE id = ?", created.ID).Scan(&version); err != nil || version != config.GeneralKeyVersion {
+		t.Fatalf("secret key version = %d, err = %v", version, err)
 	}
 
 	itemService := items.NewService(db, config.SQLite, auth, 100, service)
@@ -105,7 +109,7 @@ func TestDeliveryRetriesAreBoundedAndRedacted(t *testing.T) {
 	}))
 	defer server.Close()
 	queue := jobs.NewQueue(db, config.SQLite, nil)
-	service := NewService(db, config.SQLite, auth, []byte("01234567890123456789012345678901"), queue)
+	service := NewService(db, config.SQLite, auth, testKeyring(), queue)
 	if err := queue.Register(JobKind, service.HandleJob); err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +167,7 @@ func TestExhaustedWebhookJobSettlesDelivery(t *testing.T) {
 	}))
 	defer server.Close()
 	queue := jobs.NewQueue(db, config.SQLite, nil)
-	service := NewService(db, config.SQLite, auth, []byte("01234567890123456789012345678901"), queue)
+	service := NewService(db, config.SQLite, auth, testKeyring(), queue)
 	if err := queue.Register(JobKind, service.HandleJob); err != nil {
 		t.Fatal(err)
 	}
@@ -343,4 +347,93 @@ func webhookTestDB(t *testing.T) (*sql.DB, *identity.Service, identity.Principal
 		t.Fatal(err)
 	}
 	return db, auth, owner
+}
+
+func testKeyring() secretbox.Keyring {
+	return secretbox.New(map[int][]byte{config.GeneralKeyVersion: []byte("01234567890123456789012345678901")}, config.GeneralKeyVersion)
+}
+
+// Webhook secrets sealed before ENCRYPTION_KEY existed (version 1) must still
+// deliver after the general key becomes primary.
+func TestLegacyWebhookSecretsDeliverAfterGeneralKeyIsAdded(t *testing.T) {
+	ctx := context.Background()
+	db, auth, owner := webhookTestDB(t)
+	type capturedRequest struct {
+		headers http.Header
+		body    []byte
+	}
+	received := make(chan capturedRequest, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		body, _ := io.ReadAll(request.Body)
+		received <- capturedRequest{headers: request.Header.Clone(), body: body}
+		writer.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	legacyKey := []byte("01234567890123456789012345678901")
+	queue := jobs.NewQueue(db, config.SQLite, nil)
+	before := NewService(db, config.SQLite, auth, secretbox.New(map[int][]byte{config.WebhookKeyVersion: legacyKey}, config.WebhookKeyVersion), queue)
+	before.client = server.Client()
+	created, err := before.Create(ctx, owner, owner.WorkspaceID, CreateInput{
+		Name: "items", URL: server.URL + "/hook", Events: []string{"item.created"},
+	}, identity.AuditContext{RequestID: "webhook-create"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	both := secretbox.New(map[int][]byte{
+		config.WebhookKeyVersion: legacyKey,
+		config.GeneralKeyVersion: []byte("abcdefghijklmnopqrstuvwxyz012345"),
+	}, config.GeneralKeyVersion)
+	after := NewService(db, config.SQLite, auth, both, queue)
+	after.client = server.Client()
+	if err := queue.Register(JobKind, after.HandleJob); err != nil {
+		t.Fatal(err)
+	}
+
+	itemService := items.NewService(db, config.SQLite, auth, 100, before)
+	if _, err := itemService.Create(ctx, owner, owner.WorkspaceID, "Legacy title", "legacy-item-key", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := after.DeliverPending(ctx, 1); err != nil {
+		t.Fatal(err)
+	}
+	receivedRequest := <-received
+	eventID, timestamp := receivedRequest.headers.Get("Webhook-Id"), receivedRequest.headers.Get("Webhook-Timestamp")
+	mac := hmac.New(sha256.New, []byte(created.Secret))
+	_, _ = mac.Write([]byte(eventID + "." + timestamp + "." + string(receivedRequest.body)))
+	if receivedRequest.headers.Get("Webhook-Signature") != "v1,"+base64.RawStdEncoding.EncodeToString(mac.Sum(nil)) {
+		t.Fatalf("legacy secret did not sign delivery: %v", receivedRequest.headers)
+	}
+	var version int
+	if err := db.QueryRow("SELECT secret_key_version FROM webhooks WHERE id = ?", created.ID).Scan(&version); err != nil || version != config.WebhookKeyVersion {
+		t.Fatalf("legacy row version = %d, err = %v", version, err)
+	}
+}
+
+// Without a primary key, creation is refused. With one, creation and rotation
+// both record the general key version.
+func TestCreateRefusesWithoutKeyAndRotateRecordsGeneralVersion(t *testing.T) {
+	ctx := context.Background()
+	db, auth, owner := webhookTestDB(t)
+	input := CreateInput{Name: "items", URL: "https://hooks.example.com/items", Events: []string{"item.created"}}
+	queue := jobs.NewQueue(db, config.SQLite, nil)
+
+	unconfigured := NewService(db, config.SQLite, auth, secretbox.New(nil, 0), queue)
+	if _, err := unconfigured.Create(ctx, owner, owner.WorkspaceID, input, identity.AuditContext{}); !errors.Is(err, ErrSecretKey) {
+		t.Fatalf("create without key error = %v", err)
+	}
+
+	service := NewService(db, config.SQLite, auth, testKeyring(), queue)
+	created, err := service.Create(ctx, owner, owner.WorkspaceID, input, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.RotateSecret(ctx, owner, owner.WorkspaceID, created.ID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	var version int
+	if err := db.QueryRow("SELECT secret_key_version FROM webhooks WHERE id = ?", created.ID).Scan(&version); err != nil || version != config.GeneralKeyVersion {
+		t.Fatalf("rotated version = %d, err = %v", version, err)
+	}
 }
