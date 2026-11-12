@@ -537,7 +537,9 @@ rewritten in place under the [recorded exception](decisions/exceptions/2026-11-1
   recovery-code row IDs, as integers or short IDs, are rejected as the bearer
   secret, that the real recovery code still works after those probes, and that a
   malformed or integer passkey ID gets the same error as a missing passkey. `TestSQLiteMFATablesUseIntegerPrimaryKeys`
-  and `TestPostgresMFATablesUseIntegerPrimaryKeys` check the key types, and the
+  and `TestPostgresMFATablesUseIntegerPrimaryKeys` check the key types;
+  `TestSQLiteMFAChallengeKeysAreNeverReused` checks that a deleted maximum challenge
+  key is not reused on SQLite; and the
   expired-challenge audit test checks that audit targets carry the short ID.
 - Checks run: `make lint` passed; `make generate-check` produced no drift;
   `make test-postgres` passed for `internal/identity` and `internal/files` against

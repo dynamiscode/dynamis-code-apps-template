@@ -21,8 +21,9 @@
 ## Reason and evidence
 
 Spec #243 requires MFA challenges, recovery codes, and passkeys to use integer
-primary keys (`INTEGER PRIMARY KEY` on SQLite, `BIGINT GENERATED ALWAYS AS
-IDENTITY` on PostgreSQL) and to expose only their ADR 0009 short IDs under the
+primary keys (`INTEGER PRIMARY KEY` on SQLite, `INTEGER PRIMARY KEY AUTOINCREMENT`
+for `mfa_challenges` so that a deleted challenge key is never reused, and
+`BIGINT GENERATED ALWAYS AS IDENTITY` on PostgreSQL) and to expose only their ADR 0009 short IDs under the
 `mfa_challenge`, `mfa_recovery_code`, and `mfa_passkey` type codes. No other
 table references these three tables, so the rewrite touches only them. It
 follows the reset approach of the workspace exception
@@ -52,7 +53,8 @@ Verification is in [capabilities](../../capabilities.md#mfa-short-id-evidence).
   migrated database ([operations](../../operations.md#upgrades-and-alerts)).
 - The migration runner renders the integer key per driver and is covered by a
   SQLite schema test and an isolated PostgreSQL schema test from a fresh
-  database.
+  database. `TestSQLiteMFAChallengeKeysAreNeverReused` checks that a deleted
+  maximum challenge key is not reused on SQLite.
 - The identity tests check that challenge and recovery-code row IDs, as integers
   or short IDs, are rejected as the bearer secret, and that the real code still
   works afterward.

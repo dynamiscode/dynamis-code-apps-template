@@ -46,6 +46,43 @@ func TestSQLiteMFATablesUseIntegerPrimaryKeys(t *testing.T) {
 	}
 }
 
+// A deleted challenge key must never be handed out again, so a stale challenge
+// ID cannot resolve to a newer challenge on SQLite.
+func TestSQLiteMFAChallengeKeysAreNeverReused(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db, err := Open(ctx, config.Database{
+		Driver: config.SQLite, SQLitePath: filepath.Join(t.TempDir(), "app.db"),
+		MaxOpenConns: 1, MaxIdleConns: 1,
+	})
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+	if err := Migrate(ctx, db, config.SQLite); err != nil {
+		t.Fatalf("Migrate() error = %v", err)
+	}
+	if _, err := db.ExecContext(ctx, "INSERT INTO users (id, email, created_at) VALUES (?, ?, ?)", "user-mfa", "mfa@example.com", "2026-01-01T00:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+	insert := func(tokenHash string) int64 {
+		var challengeID int64
+		if err := db.QueryRowContext(ctx, `INSERT INTO mfa_challenges (token_hash, user_id, purpose, created_at, expires_at)
+			VALUES (?, ?, 'login', ?, ?) RETURNING id`, tokenHash, "user-mfa", "2026-01-01T00:00:00Z", "2026-01-01T00:05:00Z").Scan(&challengeID); err != nil {
+			t.Fatal(err)
+		}
+		return challengeID
+	}
+	first := insert("token-hash-first")
+	if _, err := db.ExecContext(ctx, "DELETE FROM mfa_challenges"); err != nil {
+		t.Fatal(err)
+	}
+	if second := insert("token-hash-second"); second == first {
+		t.Fatalf("mfa challenge key %d was reused", first)
+	}
+}
+
 func TestPostgresMFATablesUseIntegerPrimaryKeys(t *testing.T) {
 	url := os.Getenv("POSTGRES_TEST_URL")
 	if url == "" {
