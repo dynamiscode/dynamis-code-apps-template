@@ -2,8 +2,6 @@ package webhooks
 
 import (
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -24,6 +22,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
+	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 )
 
@@ -96,30 +95,30 @@ type Delivery struct {
 }
 
 type Service struct {
-	db        *sql.DB
-	driver    config.DatabaseDriver
-	auth      *identity.Service
-	secretKey []byte
-	client    *http.Client
-	queue     *jobs.Queue
+	db      *sql.DB
+	driver  config.DatabaseDriver
+	auth    *identity.Service
+	secrets secretbox.Keyring
+	client  *http.Client
+	queue   *jobs.Queue
 }
 
 func NewService(
 	db *sql.DB,
 	driver config.DatabaseDriver,
 	auth *identity.Service,
-	secretKey []byte,
+	secrets secretbox.Keyring,
 	queue *jobs.Queue,
 ) *Service {
 	return &Service{
 		db: db, driver: driver, auth: auth,
-		secretKey: append([]byte(nil), secretKey...),
-		client:    newHTTPClient(), queue: queue,
+		secrets: secrets,
+		client:  newHTTPClient(), queue: queue,
 	}
 }
 
 func (s *Service) SecretKeyConfigured() bool {
-	return len(s.secretKey) == 32
+	return s.secrets.Configured()
 }
 
 func (s *Service) Create(
@@ -135,10 +134,10 @@ func (s *Service) Create(
 		return NewWebhook{}, ErrInvalidInput
 	}
 	events, err := validateEvents(input.Events)
-	if err != nil || len(s.secretKey) != 32 {
-		if len(s.secretKey) != 32 {
-			return NewWebhook{}, ErrSecretKey
-		}
+	if !s.secrets.Configured() {
+		return NewWebhook{}, ErrSecretKey
+	}
+	if err != nil {
 		return NewWebhook{}, ErrInvalidInput
 	}
 	if _, err := s.auth.AuthorizePrincipal(ctx, actor, workspaceID, identity.WebhooksManage); err != nil {
@@ -148,7 +147,7 @@ func (s *Service) Create(
 	if err != nil {
 		return NewWebhook{}, err
 	}
-	ciphertext, err := s.encrypt(secret)
+	ciphertext, keyVersion, err := s.secrets.Seal(secret)
 	if err != nil {
 		return NewWebhook{}, err
 	}
@@ -173,9 +172,9 @@ func (s *Service) Create(
 		return NewWebhook{}, ErrLimit
 	}
 	if _, err := s.exec(ctx, tx, `
-		INSERT INTO webhooks (id, workspace_id, name, url, secret_ciphertext, events, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, webhookID, workspaceID, name, urlValue, ciphertext, encodeEvents(events), stamp(now)); err != nil {
+		INSERT INTO webhooks (id, workspace_id, name, url, secret_ciphertext, secret_key_version, events, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, webhookID, workspaceID, name, urlValue, ciphertext, keyVersion, encodeEvents(events), stamp(now)); err != nil {
 		return NewWebhook{}, err
 	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
@@ -266,7 +265,7 @@ func (s *Service) RotateSecret(
 	webhookID string,
 	audit identity.AuditContext,
 ) (string, error) {
-	if len(s.secretKey) != 32 {
+	if !s.secrets.Configured() {
 		return "", ErrSecretKey
 	}
 	if _, err := s.auth.AuthorizePrincipal(ctx, actor, workspaceID, identity.WebhooksManage); err != nil {
@@ -276,7 +275,7 @@ func (s *Service) RotateSecret(
 	if err != nil {
 		return "", err
 	}
-	ciphertext, err := s.encrypt(secret)
+	ciphertext, keyVersion, err := s.secrets.Seal(secret)
 	if err != nil {
 		return "", err
 	}
@@ -289,7 +288,7 @@ func (s *Service) RotateSecret(
 	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.WebhooksManage); err != nil {
 		return "", identity.ErrForbidden
 	}
-	result, err := s.exec(ctx, tx, "UPDATE webhooks SET secret_ciphertext = ? WHERE id = ? AND workspace_id = ?", ciphertext, webhookID, workspaceID)
+	result, err := s.exec(ctx, tx, "UPDATE webhooks SET secret_ciphertext = ?, secret_key_version = ? WHERE id = ? AND workspace_id = ?", ciphertext, keyVersion, webhookID, workspaceID)
 	if err != nil {
 		return "", err
 	}
@@ -518,13 +517,13 @@ func jobDeliveryID(job jobs.Job) (string, error) {
 func (s *Service) deliverOne(ctx context.Context, workspaceID, deliveryID string, jobAttempt int) error {
 	now := time.Now().UTC()
 	var webhookID, eventID, eventType, payload, urlValue, encrypted string
-	var attempt int
+	var attempt, keyVersion int
 	err := s.queryRow(ctx, s.db, `
 		SELECT d.id, d.webhook_id, d.event_id, d.event_type, d.payload,
-			d.attempt_count, w.url, w.secret_ciphertext
+			d.attempt_count, w.url, w.secret_ciphertext, w.secret_key_version
 		FROM webhook_deliveries d JOIN webhooks w ON w.id = d.webhook_id
 		WHERE d.id = ? AND d.status = 'pending' AND w.workspace_id = ?
-	`, deliveryID, workspaceID).Scan(&deliveryID, &webhookID, &eventID, &eventType, &payload, &attempt, &urlValue, &encrypted)
+	`, deliveryID, workspaceID).Scan(&deliveryID, &webhookID, &eventID, &eventType, &payload, &attempt, &urlValue, &encrypted, &keyVersion)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}
@@ -538,7 +537,7 @@ func (s *Service) deliverOne(ctx context.Context, workspaceID, deliveryID string
 	if _, err := s.exec(ctx, s.db, "UPDATE webhook_deliveries SET attempt_count = ? WHERE id = ? AND status = 'pending'", attempt, deliveryID); err != nil {
 		return jobs.Failure{Category: "storage-error"}
 	}
-	secret, err := s.decrypt(encrypted)
+	secret, err := s.secrets.Open(keyVersion, encrypted)
 	if err != nil {
 		return s.deliveryFailure(ctx, deliveryID, attempt, 0, "secret-unavailable", now)
 	}
@@ -713,43 +712,6 @@ func newSecret() (string, error) {
 		return "", err
 	}
 	return "whsec_" + base64.RawURLEncoding.EncodeToString(value), nil
-}
-
-func (s *Service) encrypt(secret string) (string, error) {
-	block, err := aes.NewCipher(s.secretKey)
-	if err != nil {
-		return "", err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := rand.Read(nonce); err != nil {
-		return "", err
-	}
-	sealed := gcm.Seal(nil, nonce, []byte(secret), nil)
-	return base64.RawStdEncoding.EncodeToString(append(nonce, sealed...)), nil
-}
-
-func (s *Service) decrypt(value string) (string, error) {
-	block, err := aes.NewCipher(s.secretKey)
-	if err != nil {
-		return "", err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-	encoded, err := base64.RawStdEncoding.DecodeString(value)
-	if err != nil || len(encoded) < gcm.NonceSize() {
-		return "", ErrSecretKey
-	}
-	plain, err := gcm.Open(nil, encoded[:gcm.NonceSize()], encoded[gcm.NonceSize():], nil)
-	if err != nil {
-		return "", ErrSecretKey
-	}
-	return string(plain), nil
 }
 
 func (s *Service) exec(ctx context.Context, executor interface {

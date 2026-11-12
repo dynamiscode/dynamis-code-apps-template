@@ -270,6 +270,18 @@ management surface pass the focused webhook, item, browser, HTTP, configuration,
 maintenance, and migration tests. PostgreSQL execution and Docker smoke remain
 part of the final verification ladder.
 
+## General encryption key evidence
+
+Webhook secrets seal with `ENCRYPTION_KEY` and record `secret_key_version`
+(migration 000017). `WEBHOOK_ENCRYPTION_KEY` is key version 1 and still opens
+rows sealed before `ENCRYPTION_KEY` was set. Evidence: the legacy-ciphertext
+vector test in `internal/platform/secretbox`, the key-selection matrix in
+`internal/platform/config`, `TestLegacyWebhookSecretsDeliverAfterGeneralKeyIsAdded`
+in `internal/webhooks`, and `TestPostgresMigrations` in `internal/platform/database`,
+which applies every embedded migration including 000017. A manual startup with
+no key set logged the warning and reached the listener (the smoke was not
+committed as a test). Key rotation remains deferred.
+
 ## Phase 09 evidence
 
 SCIM 2.0 Users and role Groups are REST-only and workspace-scoped. The browser
