@@ -349,6 +349,32 @@ Verified 2026-11-11 with Go 1.27.4. Issue #189 moves workspace keys to integers
 and exposes only the ADR 0009 short ID. Implemented and verified as recorded above; the
 exception is [2026-11-11-workspace-short-id-migration-rewrite](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md).
 
+## Webhook and job short ID evidence
+
+Issue #192 moves webhook, webhook delivery, webhook event, and background job
+keys to integers. Webhook and delivery IDs, and the event ID in `eventId` and
+`Webhook-Id`, are short IDs with their own type codes. Job keys stay internal:
+no job route or response exists, so `id.TypeJob` is registered for a future
+surface and nothing exposes it. The exception is
+[2026-11-11-webhook-job-short-id-migration-rewrite](decisions/exceptions/2026-11-11-webhook-job-short-id-migration-rewrite.md),
+which is proposed and not approved.
+
+Surface coverage: REST and web routes accept only short IDs; malformed, integer,
+or unknown IDs return the same not-found as a missing webhook. There is no
+webhook MCP or CLI surface, so none is changed. Retention prunes
+`webhook_events` once no delivery references them.
+
+Known limitation, accepted with ADR 0009: the codec does not reject a short ID
+issued under another type code. About 3% of webhook short IDs also decode under
+the delivery alphabet. Routes rely on the typed parser and the not-found rule.
+Revisit the codec if a route ever accepts more than one type.
+
+Verification, run 2026-11-11 with Go 1.27.4 on SQLite: `make lint` passed;
+`make test` passed (exit 0); `go test -race` on the job, webhook, and item
+packages passed; `make generate-check` produced no drift. PostgreSQL: the full
+`go test -p 1 ./...` suite was run against a fresh pinned PostgreSQL 14.24
+container; its result is recorded in the change's pull request description.
+
 ## Files evidence
 
 Files metadata migration and workspace authorization, local filesystem uploads

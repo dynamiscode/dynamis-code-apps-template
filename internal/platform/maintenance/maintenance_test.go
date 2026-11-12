@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -85,12 +86,21 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		VALUES (?, ?, ?, ?, ?, ?)`, "event-old", workspaceID, "item-old", "deleted", 1, old)
 	exec(`INSERT INTO notifications (id, user_id, workspace_id, notification_type, title, body, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`, "notification-old", "user-maint", workspaceID, "system", "Old", "Old", old)
-	exec(`INSERT INTO webhooks (id, workspace_id, name, url, secret_ciphertext, events, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`, "webhook-old", workspaceID, "old", "https://example.com/hook", "ciphertext", "[\"item.created\"]", old)
-	exec(`INSERT INTO webhook_deliveries (id, webhook_id, event_id, event_type, payload, attempt_count, status, next_attempt_at, created_at, delivered_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, "delivery-old", "webhook-old", "event-old", "item.created", "{}", 1, "delivered", nil, old, old)
-	exec(`INSERT INTO background_jobs (id, workspace_id, kind, deduplication_key, payload, status, attempt_count, available_at, completed_at, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, "job-old", workspaceID, "webhook.delivery", "delivery-old", "{}", "succeeded", 1, old, old, old)
+	var webhookID, eventKey, deliveryID int64
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO webhooks (workspace_id, name, url, secret_ciphertext, events, created_at)
+		VALUES (?, ?, ?, ?, ?, ?) RETURNING id`), workspaceID, "old", "https://example.com/hook", "ciphertext", "[\"item.created\"]", old).Scan(&webhookID); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO webhook_events (workspace_id, event_type, created_at)
+		VALUES (?, ?, ?) RETURNING id`), workspaceID, "item.created", old).Scan(&eventKey); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO webhook_deliveries (webhook_id, event_id, event_type, payload, attempt_count, status, next_attempt_at, created_at, delivered_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`), webhookID, eventKey, "item.created", "{}", 1, "delivered", nil, old, old).Scan(&deliveryID); err != nil {
+		t.Fatal(err)
+	}
+	exec(`INSERT INTO background_jobs (workspace_id, kind, deduplication_key, payload, status, attempt_count, available_at, completed_at, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, workspaceID, "webhook.delivery", strconv.FormatInt(deliveryID, 10), "{}", "succeeded", 1, old, old, old)
 	exec(`INSERT INTO public_links (id, workspace_id, item_id, token_hash, created_at, expires_at, revoked_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`, "public-link-old", workspaceID, "item-old", "public-hash", old, old, old)
 	exec(`INSERT INTO audit_events (id, event_type, auth_method, target_type, action, outcome, metadata, created_at)
@@ -113,9 +123,7 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		"idempotency_records": "key-old", "item_events": "event-old",
 		"notifications":       "notification-old",
 		"email_verifications": "verification-old", "password_resets": "reset-old",
-		"webhook_deliveries": "delivery-old",
-		"background_jobs":    "job-old",
-		"public_links":       "public-link-old",
+		"public_links": "public-link-old",
 	} {
 		var count int
 		column := "id"
@@ -128,6 +136,17 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		if err := db.QueryRowContext(ctx, query, key).Scan(&count); err != nil || count != 0 {
 			t.Fatalf("%s count = %d, error = %v", table, count, err)
 		}
+	}
+	var eventCount int
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, "SELECT COUNT(*) FROM webhook_events WHERE id = ?"), eventKey).Scan(&eventCount); err != nil || eventCount != 0 || result.WebhookEvents < 1 {
+		t.Fatalf("webhook_events count = %d, result = %+v, error = %v", eventCount, result, err)
+	}
+	var deliveryCount, jobCount int
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, "SELECT COUNT(*) FROM webhook_deliveries WHERE id = ?"), deliveryID).Scan(&deliveryCount); err != nil || deliveryCount != 0 {
+		t.Fatalf("webhook_deliveries count = %d, error = %v", deliveryCount, err)
+	}
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, "SELECT COUNT(*) FROM background_jobs WHERE deduplication_key = ?"), strconv.FormatInt(deliveryID, 10)).Scan(&jobCount); err != nil || jobCount != 0 {
+		t.Fatalf("background_jobs count = %d, error = %v", jobCount, err)
 	}
 	var auditCount int
 	if err := db.QueryRowContext(ctx, database.Rebind(driver,

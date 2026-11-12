@@ -12,10 +12,10 @@ import (
 type webhookManager interface {
 	SecretKeyConfigured() bool
 	List(context.Context, identity.Principal, identity.WorkspaceID) ([]webhooks.Webhook, error)
-	ListDeliveries(context.Context, identity.Principal, identity.WorkspaceID, string) ([]webhooks.Delivery, error)
+	ListDeliveries(context.Context, identity.Principal, identity.WorkspaceID, webhooks.WebhookID) ([]webhooks.Delivery, error)
 	Create(context.Context, identity.Principal, identity.WorkspaceID, webhooks.CreateInput, identity.AuditContext) (webhooks.NewWebhook, error)
-	RotateSecret(context.Context, identity.Principal, identity.WorkspaceID, string, identity.AuditContext) (string, error)
-	Delete(context.Context, identity.Principal, identity.WorkspaceID, string, identity.AuditContext) error
+	RotateSecret(context.Context, identity.Principal, identity.WorkspaceID, webhooks.WebhookID, identity.AuditContext) (string, error)
+	Delete(context.Context, identity.Principal, identity.WorkspaceID, webhooks.WebhookID, identity.AuditContext) error
 }
 
 func (h *Handler) webhooksPage(writer http.ResponseWriter, request *http.Request) {
@@ -103,17 +103,18 @@ func (h *Handler) renderWebhooksPageForPrincipalWithStatus(
 	data.Workspace = workspaceByID(workspaces, workspaceID)
 	data.Workspaces = workspaces
 	if selectedID != "" {
+		selected := webhooks.ParseWebhookIDOrZero(selectedID)
 		for _, webhook := range registered {
-			if webhook.ID == selectedID {
+			if webhook.ID == selected {
 				data.SelectedWebhook = webhook
 				break
 			}
 		}
-		if data.SelectedWebhook.ID == "" {
+		if data.SelectedWebhook.ID == 0 {
 			h.renderError(writer, http.StatusNotFound)
 			return
 		}
-		data.WebhookDeliveries, err = h.webhooks.ListDeliveries(request.Context(), principal, workspaceID, selectedID)
+		data.WebhookDeliveries, err = h.webhooks.ListDeliveries(request.Context(), principal, workspaceID, selected)
 		if err != nil {
 			if errors.Is(err, webhooks.ErrNotFound) {
 				h.renderError(writer, http.StatusNotFound)
@@ -136,10 +137,11 @@ func (h *Handler) webhookMutation(writer http.ResponseWriter, request *http.Requ
 	if !ok {
 		return
 	}
-	action, webhookID := request.FormValue("action"), request.PathValue("webhookId")
+	action, webhookPath := request.FormValue("action"), request.PathValue("webhookId")
+	webhookID := webhooks.ParseWebhookIDOrZero(webhookPath)
 	switch action {
 	case "create":
-		if webhookID != "" {
+		if webhookPath != "" {
 			h.renderWebhookMutationError(writer, request, workspaceID, principal, session, csrf, "The requested webhook action is invalid.")
 			return
 		}
@@ -161,7 +163,7 @@ func (h *Handler) webhookMutation(writer http.ResponseWriter, request *http.Requ
 		}
 		h.renderWebhooksPageForPrincipal(writer, request, workspaceID, principal, session, csrf, "", created.Secret)
 	case "rotate":
-		if webhookID == "" {
+		if webhookPath == "" {
 			h.renderWebhookMutationError(writer, request, workspaceID, principal, session, csrf, "The requested webhook action is invalid.")
 			return
 		}
@@ -179,7 +181,7 @@ func (h *Handler) webhookMutation(writer http.ResponseWriter, request *http.Requ
 		}
 		h.renderWebhooksPageForPrincipal(writer, request, workspaceID, principal, session, csrf, "", secret)
 	case "delete":
-		if webhookID == "" {
+		if webhookPath == "" {
 			h.renderWebhookMutationError(writer, request, workspaceID, principal, session, csrf, "The requested webhook action is invalid.")
 			return
 		}

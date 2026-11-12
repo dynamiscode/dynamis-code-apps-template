@@ -61,7 +61,9 @@ Baseline browser surfaces:
   history. Creation and rotation display the webhook secret once. When
   `WEBHOOK_ENCRYPTION_KEY` is missing, managers see an actionable warning and
   create/rotate controls are disabled. Stale form submissions keep the user on
-  this page with an inline error.
+  this page with an inline error. Webhook IDs in paths and forms are short IDs;
+  a malformed, integer, or unknown ID shows the not-found page for the history
+  view and a "could not be found" message for rotate and delete.
 - `/workspaces/{workspaceId}/settings/provisioning` is restricted to workspace
   owners and admins. It shows the workspace SCIM endpoint and setup instructions,
   creates or rotates the dedicated SCIM credential with its secret shown once,

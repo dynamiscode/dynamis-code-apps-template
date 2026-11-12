@@ -17,15 +17,21 @@ type TypeCode string
 // Type-code registry. Add every new code to TypeCodes; the registry test
 // enforces that codes are non-empty and unique.
 const (
-	TypeItem       TypeCode = "item"
-	TypeWorkspace  TypeCode = "workspace"
-	TypeWebhook    TypeCode = "webhook"
-	TypeInvitation TypeCode = "invitation"
+	TypeItem            TypeCode = "item"
+	TypeWorkspace       TypeCode = "workspace"
+	TypeWebhook         TypeCode = "webhook"
+	TypeWebhookDelivery TypeCode = "webhook_delivery"
+	TypeWebhookEvent    TypeCode = "webhook_event"
+	TypeJob             TypeCode = "job"
+	TypeInvitation      TypeCode = "invitation"
 )
 
 // TypeCodes returns every registered type code.
 func TypeCodes() []TypeCode {
-	return []TypeCode{TypeItem, TypeWorkspace, TypeWebhook, TypeInvitation}
+	return []TypeCode{
+		TypeItem, TypeWorkspace, TypeWebhook, TypeWebhookDelivery,
+		TypeWebhookEvent, TypeJob, TypeInvitation,
+	}
 }
 
 // ShortIDAlphabet is the alphabet every short ID uses; the CLI validates against it.
