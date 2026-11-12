@@ -4,15 +4,39 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      go-minor-and-patch:
+        update-types:
+          - minor
+          - patch
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
+    groups:
+      npm-minor-and-patch:
+        update-types:
+          - minor
+          - patch
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: weekly
+    groups:
+      docker-minor-and-patch:
+        update-types:
+          - minor
+          - patch
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      # CodeQL sub-actions release together; group every major too.
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
+      github-actions-minor-and-patch:
+        update-types:
+          - minor
+          - patch

@@ -51,15 +51,21 @@ func (h *Handler) emailSettingsSave(writer http.ResponseWriter, request *http.Re
 	// A non-numeric port becomes 0, which the service rejects as invalid input.
 	port, _ := strconv.Atoi(strings.TrimSpace(request.FormValue("port")))
 	provider := strings.TrimSpace(request.FormValue("provider"))
-	// Resend reads its key from api_key; SMTP reads its password from password.
+	// Resend reads its key from api_key; Postmark reads its Server Token from server_token
+	// and its Account Token from account_token; SMTP reads its password from password.
 	secret := request.FormValue("password")
-	if provider == workspaceemail.ProviderResend {
+	accountToken := ""
+	switch provider {
+	case workspaceemail.ProviderResend:
 		secret = request.FormValue("api_key")
+	case workspaceemail.ProviderPostmark:
+		secret = request.FormValue("server_token")
+		accountToken = request.FormValue("account_token")
 	}
 	input := workspaceemail.SaveInput{
 		Provider: provider, SenderAddress: request.FormValue("sender_address"), SenderName: request.FormValue("sender_name"),
 		Host: request.FormValue("host"), Port: port, Username: request.FormValue("username"),
-		Password: secret,
+		Password: secret, AccountToken: accountToken,
 	}
 	err := manager.Save(request.Context(), principal, workspaceID, input, auditContext(request))
 	if err == nil {
@@ -75,9 +81,14 @@ func (h *Handler) emailSettingsSave(writer http.ResponseWriter, request *http.Re
 	case errors.As(err, &loginErr) && provider == workspaceemail.ProviderResend:
 		message = "Resend check failed. Check the API key, then save again. Nothing was saved."
 		loginReason = loginErr.Reason
+	case errors.As(err, &loginErr) && provider == workspaceemail.ProviderPostmark:
+		message = "Postmark check failed. Check the server and account tokens, then save again. Nothing was saved."
+		loginReason = loginErr.Reason
 	case errors.As(err, &loginErr):
 		message = "SMTP login test failed. Check the host, port, username, and password. Nothing was saved."
 		loginReason = loginErr.Reason
+	case errors.Is(err, workspaceemail.ErrAccountTokenRequired):
+		message = "Enter the Postmark account token on the first save. Nothing was saved."
 	case errors.Is(err, workspaceemail.ErrPasswordRequired):
 		message = "Enter the password or API key again when the provider, server, port, or username changes."
 	case errors.Is(err, workspaceemail.ErrSecretKey):
