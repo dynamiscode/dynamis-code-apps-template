@@ -22,11 +22,13 @@ const (
 	TypeFile       TypeCode = "file"
 	TypeWebhook    TypeCode = "webhook"
 	TypeInvitation TypeCode = "invitation"
+	TypeMember     TypeCode = "member"
+	TypeToken      TypeCode = "token"
 )
 
 // TypeCodes returns every registered type code.
 func TypeCodes() []TypeCode {
-	return []TypeCode{TypeItem, TypeWorkspace, TypeFile, TypeWebhook, TypeInvitation}
+	return []TypeCode{TypeItem, TypeWorkspace, TypeFile, TypeWebhook, TypeInvitation, TypeMember, TypeToken}
 }
 
 // ShortIDAlphabet is the alphabet every short ID uses; the CLI validates against it.

@@ -25,17 +25,18 @@ CREATE TABLE instance_admins (
 );
 
 CREATE TABLE workspaces (
-    id {{workspace_id_pk}},
+    id {{integer_pk}},
     name TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
 
 CREATE TABLE workspace_members (
+    id {{integer_pk}},
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'member', 'viewer')),
     created_at TEXT NOT NULL,
-    PRIMARY KEY (workspace_id, user_id)
+    UNIQUE (workspace_id, user_id)
 );
 
 CREATE INDEX workspace_members_user_idx
@@ -61,7 +62,7 @@ CREATE INDEX sessions_user_idx
     ON sessions (user_id, created_at);
 
 CREATE TABLE invitations (
-    id TEXT PRIMARY KEY,
+    id {{integer_pk}},
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     invited_by_user_id TEXT NOT NULL REFERENCES users(id),
     email TEXT NOT NULL,
@@ -80,7 +81,7 @@ CREATE INDEX invitations_workspace_idx
     ON invitations (workspace_id, created_at);
 
 CREATE TABLE api_tokens (
-    id TEXT PRIMARY KEY,
+    id {{integer_pk}},
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     name TEXT NOT NULL,

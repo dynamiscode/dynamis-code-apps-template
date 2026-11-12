@@ -10,7 +10,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
 
-// Migration 000017 rebuilds files with integer keys. Existing rows must keep
+// Migration 000020 rebuilds files with integer keys. Existing rows must keep
 // their object keys, and a deleted key must never be reused.
 func TestSQLiteFileShortIDMigrationPreservesRowsAndNeverReusesKeys(t *testing.T) {
 	t.Parallel()
@@ -30,7 +30,7 @@ func TestSQLiteFileShortIDMigrationPreservesRowsAndNeverReusesKeys(t *testing.T)
 		t.Fatal(err)
 	}
 	for _, entry := range entries {
-		if entry.Name() == "000017_file_short_ids.sql" {
+		if entry.Name() == "000020_file_short_ids.sql" {
 			continue
 		}
 		data, err := fs.ReadFile(migrationFiles, "migrations/"+entry.Name())

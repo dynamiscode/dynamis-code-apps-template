@@ -50,7 +50,7 @@ type Config struct {
 	MCP           MCP
 	Data          Data
 	Telemetry     Telemetry
-	Webhooks      Webhooks
+	Encryption    Encryption
 	Storage       Storage
 }
 
@@ -91,8 +91,22 @@ type Telemetry struct {
 	ExportTimeout  time.Duration
 }
 
-type Webhooks struct {
-	SecretKey []byte
+// Key versions recorded on encrypted rows. Version 1 is the legacy
+// WEBHOOK_ENCRYPTION_KEY, so existing webhook secrets are version 1.
+const (
+	WebhookKeyVersion = 1
+	GeneralKeyVersion = 2
+)
+
+// Encryption holds the general encryption keys by version. Primary is the
+// version used for new values.
+type Encryption struct {
+	Keys    map[int][]byte
+	Primary int
+}
+
+func (e Encryption) Configured() bool {
+	return len(e.Keys[e.Primary]) == 32
 }
 
 type StorageDriver string
@@ -266,7 +280,7 @@ func LoadFrom(lookup LookupEnv) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	webhookConfig, err := loadWebhooks(lookup)
+	encryptionConfig, err := loadEncryption(lookup)
 	if err != nil {
 		return Config{}, err
 	}
@@ -283,7 +297,7 @@ func LoadFrom(lookup LookupEnv) (Config, error) {
 		Database: database, WorkspaceMode: workspaceMode,
 		Bootstrap: bootstrap, OIDC: oidc, MFA: mfa, Mail: mailConfig,
 		Cloudflare: cloudflareConfig, PublicURL: publicURL, HTTP: httpConfig, MCP: mcpConfig,
-		Data: dataConfig, Telemetry: telemetryConfig, Webhooks: webhookConfig,
+		Data: dataConfig, Telemetry: telemetryConfig, Encryption: encryptionConfig,
 		Storage: storageConfig,
 	}, nil
 }
@@ -350,19 +364,42 @@ func loadStorage(lookup LookupEnv) (Storage, error) {
 	return storage, nil
 }
 
-func loadWebhooks(lookup LookupEnv) (Webhooks, error) {
-	raw := strings.TrimSpace(valueOrDefault(lookup, "WEBHOOK_ENCRYPTION_KEY", ""))
+// loadEncryption reads ENCRYPTION_KEY as the primary key. WEBHOOK_ENCRYPTION_KEY
+// is kept as the version 1 key: it is the primary only when ENCRYPTION_KEY is
+// unset, and otherwise it still opens rows sealed before ENCRYPTION_KEY.
+func loadEncryption(lookup LookupEnv) (Encryption, error) {
+	keys := map[int][]byte{}
+	primary := 0
+	if key, err := loadKey(lookup, "ENCRYPTION_KEY"); err != nil {
+		return Encryption{}, err
+	} else if key != nil {
+		keys[GeneralKeyVersion] = key
+		primary = GeneralKeyVersion
+	}
+	if key, err := loadKey(lookup, "WEBHOOK_ENCRYPTION_KEY"); err != nil {
+		return Encryption{}, err
+	} else if key != nil {
+		keys[WebhookKeyVersion] = key
+		if primary == 0 {
+			primary = WebhookKeyVersion
+		}
+	}
+	return Encryption{Keys: keys, Primary: primary}, nil
+}
+
+func loadKey(lookup LookupEnv, name string) ([]byte, error) {
+	raw := strings.TrimSpace(valueOrDefault(lookup, name, ""))
 	if raw == "" {
-		return Webhooks{}, nil
+		return nil, nil
 	}
 	key, err := hex.DecodeString(raw)
 	if err != nil || len(key) != 32 {
 		key, err = base64.StdEncoding.DecodeString(raw)
 	}
 	if err != nil || len(key) != 32 {
-		return Webhooks{}, fmt.Errorf("WEBHOOK_ENCRYPTION_KEY must encode exactly 32 bytes")
+		return nil, fmt.Errorf("%s must encode exactly 32 bytes", name)
 	}
-	return Webhooks{SecretKey: key}, nil
+	return key, nil
 }
 
 func loadPublicURL(lookup LookupEnv) (string, error) {

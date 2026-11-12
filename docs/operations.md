@@ -119,14 +119,15 @@ loss of encrypted data.
 
 ## Upgrades and alerts
 
-Workspace short IDs changed the schema in place. Do not run this version against
-a database that applied migrations 000002 through 000016 from an earlier build:
+Workspace, member, invitation, and API token short IDs changed the schema in place.
+Do not run this version against a database that applied migrations 000002 through
+000016 and 000018 from an earlier build:
 those versions are already recorded, so the new schema is not applied and the
 application fails against the old text keys. Create a new database and migrate
 it, or reset local development databases. See the
 [recorded exception](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md).
 
-Migration 000017 rebuilds the `files` table to integer keys. It is forward-only
+Migration 000020 rebuilds the `files` table to integer keys. It is forward-only
 and copies existing rows with their object keys, so it is safe to apply to a
 database that already has 000016, but it takes a table rebuild, so run it inside
 the stop-the-world window below.
