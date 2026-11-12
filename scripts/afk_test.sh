@@ -19,6 +19,7 @@ for name in gh herdr-app hc; do
 echo "$name \$*" >> "$STUB_LOG"
 case "$name \$1 \$2" in
   "gh repo view") echo "example/repo" ;;
+  "gh api user") echo example-user ;;
   "gh api "*) echo 0 ;;
   "gh issue list") printf '101\tExample ready issue\n' ;;
   "herdr-app status") echo ok ;;
@@ -30,11 +31,23 @@ done
 export AFK_LOG_DIR="$TMP/logs" AFK_WORKTREE_ROOT="$TMP/worktrees"
 out="$TMP/stdout.txt"
 status=0
-PATH="$STUB_BIN:$PATH" "$ROOT/scripts/afk.sh" > "$out" 2>&1 || status=$?
+AFK_GH_LOGIN=example-user PATH="$STUB_BIN:$PATH" "$ROOT/scripts/afk.sh" > "$out" 2>&1 || status=$?
 
 fail() { echo "afk_test: FAIL: $*" >&2; cat "$out" >&2; exit 1; }
 
 [ "$status" -eq 0 ] || fail "expected exit 0, got $status"
+
+# Preflight refusals: exit 2 before any issue read or write.
+refuse_out="$TMP/refuse.txt"
+status=0
+env -u AFK_GH_LOGIN PATH="$STUB_BIN:$PATH" "$ROOT/scripts/afk.sh" > "$refuse_out" 2>&1 || status=$?
+[ "$status" -eq 2 ] || { cat "$refuse_out" >&2; fail "unset AFK_GH_LOGIN: expected exit 2, got $status"; }
+grep -q 'AFK_GH_LOGIN is not set' "$refuse_out" || { cat "$refuse_out" >&2; fail "unset AFK_GH_LOGIN: message does not name the variable"; }
+
+status=0
+AFK_GH_LOGIN=other-user PATH="$STUB_BIN:$PATH" "$ROOT/scripts/afk.sh" > "$refuse_out" 2>&1 || status=$?
+[ "$status" -eq 2 ] || { cat "$refuse_out" >&2; fail "mismatched login: expected exit 2, got $status"; }
+grep -q 'example-user' "$refuse_out" && grep -q 'other-user' "$refuse_out" || { cat "$refuse_out" >&2; fail "mismatched login: message does not name both logins"; }
 
 # Stubs must actually have been reached, or the write check below proves nothing.
 grep -q '^gh repo view' "$STUB_LOG" || fail "gh stub was not invoked"

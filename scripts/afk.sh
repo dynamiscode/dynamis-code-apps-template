@@ -8,7 +8,7 @@
 #   default   dry run: plans only, changes nothing
 #   --run     live: assigns issues, creates worktrees, starts Claude, opens Herdr spaces
 #   --max N   start at most N issues this run (default 3)
-# Needs: the Herdr app running (herdr-app status), gh logged in.
+# Needs: the Herdr app running (herdr-app status), gh logged in as $AFK_GH_LOGIN (required, exit 2 otherwise).
 # Logs: stdout plus $AFK_LOG_DIR/run-<timestamp>.log (default ~/.local/state/dynamis-afk).
 set -euo pipefail
 
@@ -38,6 +38,18 @@ trap 'log ERROR "script failed at line $LINENO (exit $?). See $RUN_LOG"' ERR
 MODE=live
 [ "$DRY_RUN" -eq 1 ] && MODE=dry-run
 log INFO "run start mode=$MODE max=$MAX log=$RUN_LOG"
+
+# Account preflight, in dry-run too: every write below must run as the expected login.
+if [ -z "${AFK_GH_LOGIN:-}" ]; then
+  log ERROR "AFK_GH_LOGIN is not set. Set it to the GitHub login this run must act as."
+  exit 2
+fi
+GH_LOGIN=$(gh api user --jq .login)
+if [ "$GH_LOGIN" != "$AFK_GH_LOGIN" ]; then
+  log ERROR "gh acts as $GH_LOGIN but AFK_GH_LOGIN expects $AFK_GH_LOGIN. Run 'gh auth switch' and re-run."
+  exit 2
+fi
+log INFO "gh account $GH_LOGIN matches AFK_GH_LOGIN"
 
 if [ "$DRY_RUN" -eq 0 ]; then
   if ! herdr-app status >> "$RUN_LOG" 2>&1; then
