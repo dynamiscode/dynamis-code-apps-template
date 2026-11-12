@@ -34,6 +34,7 @@ const (
 	TypeItemEvent       TypeCode = "item_event"
 	TypeNotification    TypeCode = "notification"
 	TypeMFAPasskey      TypeCode = "mfa_passkey"
+	TypeAuditEvent      TypeCode = "audit_event"
 )
 
 // TypeCodes returns every registered type code.
@@ -42,7 +43,7 @@ func TypeCodes() []TypeCode {
 		TypeItem, TypeWorkspace, TypeFile, TypeWebhook, TypeWebhookDelivery,
 		TypeWebhookEvent, TypeJob, TypeInvitation, TypeMember, TypeToken,
 		TypePublicLink, TypeSCIMToken, TypeOAuthClient, TypeOAuthGrant, TypeItemEvent,
-		TypeNotification, TypeMFAPasskey,
+		TypeNotification, TypeMFAPasskey, TypeAuditEvent,
 	}
 }
 

@@ -111,7 +111,7 @@ CREATE TABLE oidc_transactions (
 );
 
 CREATE TABLE audit_events (
-    id TEXT PRIMARY KEY,
+    id {{file_id_pk}},
     event_type TEXT NOT NULL,
     actor_user_id TEXT,
     auth_method TEXT NOT NULL,

@@ -16,6 +16,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
+	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 var (
@@ -405,13 +406,15 @@ func (s *Service) auditEvents(ctx context.Context, tx *sql.Tx, workspaceID ident
 		var actor, target, requestID, source sql.NullString
 		var scope sql.NullInt64
 		var metadata, createdAt string
+		var key int64
 		if err := rows.Scan(
-			&value.ID, &value.EventType, &actor, &value.AuthMethod, &scope,
+			&key, &value.EventType, &actor, &value.AuthMethod, &scope,
 			&value.TargetType, &target, &value.Action, &value.Outcome, &requestID,
 			&source, &metadata, &createdAt,
 		); err != nil {
 			return nil, err
 		}
+		value.ID = id.EncodeKey(id.TypeAuditEvent, key)
 		value.ActorUserID, value.TargetID = actor.String, target.String
 		if scope.Valid {
 			value.WorkspaceID = identity.WorkspaceID(scope.Int64)
