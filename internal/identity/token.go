@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 func (s *Service) CreateAPIToken(
@@ -39,14 +37,10 @@ func (s *Service) CreateAPIToken(
 	if err != nil {
 		return NewAPIToken{}, err
 	}
-	tokenID, err := id.New()
-	if err != nil {
-		return NewAPIToken{}, err
-	}
 	scopes = normalizeScopes(scopes)
 	token := NewAPIToken{
 		APIToken: APIToken{
-			ID: tokenID, UserID: actor.UserID, WorkspaceID: actor.WorkspaceID,
+			UserID: actor.UserID, WorkspaceID: actor.WorkspaceID,
 			Name: name, Scopes: scopes, CreatedAt: now, ExpiresAt: expiresAt,
 		},
 		Secret: secret,
@@ -59,14 +53,15 @@ func (s *Service) CreateAPIToken(
 	if !s.scopesAllowedTx(ctx, tx, actor, scopes) {
 		return NewAPIToken{}, ErrForbidden
 	}
-	if _, err := s.exec(ctx, tx, `
+	if err := s.queryRow(ctx, tx, `
 		INSERT INTO api_tokens (
-			id, user_id, workspace_id, name, secret_hash, scopes,
+			user_id, workspace_id, name, secret_hash, scopes,
 			created_at, expires_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-	`, token.ID, token.UserID, token.WorkspaceID, token.Name,
+		) VALUES (?, ?, ?, ?, ?, ?, ?)
+		RETURNING id
+	`, token.UserID, token.WorkspaceID, token.Name,
 		hashSecret(secret), encodeScopes(scopes), timestamp(now),
-		nullableTime(expiresAt)); err != nil {
+		nullableTime(expiresAt)).Scan(&token.ID); err != nil {
 		return NewAPIToken{}, fmt.Errorf("create API token: %w", err)
 	}
 	if err := s.auditToken(ctx, tx, actor, token.ID, "created", scopes, audit, now); err != nil {
@@ -90,7 +85,8 @@ func (s *Service) AuthenticateAPIToken(
 	}
 	defer tx.Rollback()
 	now := s.now().UTC()
-	var tokenID, userID, encodedScopes string
+	var tokenID APITokenID
+	var userID, encodedScopes string
 	var workspaceID WorkspaceID
 	var expiresAt, revokedAt sql.NullString
 	err = s.queryRow(ctx, tx, `
@@ -151,7 +147,7 @@ func (s *Service) AuthenticateAPIToken(
 	}
 	principal := Principal{
 		UserID: userID, WorkspaceID: workspaceID, Role: role,
-		Permissions: permissions, AuthMethod: "api_token", TokenID: tokenID,
+		Permissions: permissions, AuthMethod: "api_token", TokenID: tokenID.String(),
 	}
 	usedScopes := []Permission{needed}
 	if needed == "" {
@@ -175,7 +171,7 @@ func (s *Service) AuthenticateAPIToken(
 func (s *Service) UpdateAPITokenScopes(
 	ctx context.Context,
 	actor Principal,
-	tokenID string,
+	tokenID APITokenID,
 	scopes []Permission,
 	audit AuditContext,
 ) error {
@@ -202,7 +198,7 @@ func (s *Service) UpdateAPITokenScopes(
 		return err
 	}
 	if changed, _ := result.RowsAffected(); changed != 1 {
-		return ErrInvalidToken
+		return ErrNotFound
 	}
 	if err := s.auditToken(ctx, tx, actor, tokenID, "scopes_changed", scopes, audit, now); err != nil {
 		return err
@@ -213,7 +209,7 @@ func (s *Service) UpdateAPITokenScopes(
 func (s *Service) RevokeAPIToken(
 	ctx context.Context,
 	actor Principal,
-	tokenID string,
+	tokenID APITokenID,
 	audit AuditContext,
 ) error {
 	if s.require(ctx, actor, WorkspaceRead) != nil {
@@ -236,7 +232,7 @@ func (s *Service) RevokeAPIToken(
 		return err
 	}
 	if changed, _ := result.RowsAffected(); changed != 1 {
-		return ErrInvalidToken
+		return ErrNotFound
 	}
 	if err := s.auditToken(ctx, tx, actor, tokenID, "revoked", nil, audit, now); err != nil {
 		return err
@@ -312,7 +308,7 @@ func (s *Service) auditToken(
 	ctx context.Context,
 	tx *sql.Tx,
 	actor Principal,
-	tokenID string,
+	tokenID APITokenID,
 	action string,
 	scopes []Permission,
 	audit AuditContext,
@@ -321,7 +317,7 @@ func (s *Service) auditToken(
 	return s.audit(ctx, tx, AuditEvent{
 		EventType: "api_token." + action, ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID,
-		TargetType: "api_token", TargetID: tokenID,
+		TargetType: "api_token", TargetID: tokenID.String(),
 		Action: "api_token." + action, Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: metadata(map[string]any{"scopes": scopes}), CreatedAt: now,

@@ -21,6 +21,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
+	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 	"example.com/dynamis-code/apps-template/internal/portability"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
 )
@@ -268,14 +269,16 @@ func TestIdentityRESTContracts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", workspaceKey, newUser, "member", time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+	var memberKey int64
+	if err := db.QueryRow("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?) RETURNING id", workspaceKey, newUser, "member", time.Now().UTC().Format(time.RFC3339Nano)).Scan(&memberKey); err != nil {
 		t.Fatal(err)
 	}
-	changed := serveAuthorized(handler, http.MethodPatch, base+"/members/"+newUser, `{"role":"viewer"}`, token, nil)
+	memberPath := base + "/members/" + identity.MemberID(memberKey).String()
+	changed := serveAuthorized(handler, http.MethodPatch, memberPath, `{"role":"viewer"}`, token, nil)
 	if changed.Code != http.StatusNoContent {
 		t.Fatalf("member role = %d, %s", changed.Code, changed.Body.String())
 	}
-	removed := serveAuthorized(handler, http.MethodDelete, base+"/members/"+newUser, "", token, nil)
+	removed := serveAuthorized(handler, http.MethodDelete, memberPath, "", token, nil)
 	if removed.Code != http.StatusNoContent {
 		t.Fatalf("member remove = %d, %s", removed.Code, removed.Body.String())
 	}
@@ -333,7 +336,7 @@ func testHandler(t *testing.T) (http.Handler, *sql.DB, string, string) {
 		t.Fatal(err)
 	}
 	jobQueue := jobs.NewQueue(db, cfg.Database.Driver, nil)
-	webhookService := webhooks.NewService(db, cfg.Database.Driver, auth, []byte("01234567890123456789012345678901"), jobQueue)
+	webhookService := webhooks.NewService(db, cfg.Database.Driver, auth, secretbox.New(map[int][]byte{config.GeneralKeyVersion: []byte("01234567890123456789012345678901")}, config.GeneralKeyVersion), jobQueue)
 	if err := jobQueue.Register(webhooks.JobKind, webhookService.HandleJob); err != nil {
 		t.Fatal(err)
 	}

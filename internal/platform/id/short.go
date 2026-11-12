@@ -24,13 +24,15 @@ const (
 	TypeWebhookEvent    TypeCode = "webhook_event"
 	TypeJob             TypeCode = "job"
 	TypeInvitation      TypeCode = "invitation"
+	TypeMember          TypeCode = "member"
+	TypeToken           TypeCode = "token"
 )
 
 // TypeCodes returns every registered type code.
 func TypeCodes() []TypeCode {
 	return []TypeCode{
 		TypeItem, TypeWorkspace, TypeWebhook, TypeWebhookDelivery,
-		TypeWebhookEvent, TypeJob, TypeInvitation,
+		TypeWebhookEvent, TypeJob, TypeInvitation, TypeMember, TypeToken,
 	}
 }
 

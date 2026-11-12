@@ -44,9 +44,12 @@ stable and English for machine clients.
 
 Baseline browser surfaces:
 
-- `/` lists memberships and creates workspaces. Workspace cards and the
-  `/workspaces/{workspaceId}` route open the authenticated workspace home, which
-  links to Items and Settings.
+- `/` lists memberships and creates workspaces in multi mode (`MULTI_WORKSPACE_ENABLED=true`). In single mode
+  (`MULTI_WORKSPACE_ENABLED=false`) it redirects with `302` to the home of the
+  oldest membership, or shows the no-memberships message when there is none;
+  the create form is hidden and `POST /workspaces` returns 404. Workspace cards
+  and the `/workspaces/{workspaceId}` route open the authenticated workspace
+  home, which links to Items and Settings.
 - `/workspaces/{workspaceId}/settings/general` reads workspace settings and lets authorized owners/admins
   change the workspace language fallback with CSRF protection.
 - `/workspaces/{workspaceId}/settings/members` lists members; authorized owners/admins
@@ -54,12 +57,13 @@ Baseline browser surfaces:
 - `/workspaces/{workspaceId}/settings/invitations` creates, resends, revokes, and shows
   copyable links. `/invitations/{secret}` accepts or registers an invitee with
   safe invalid, expired, revoked, duplicate, and wrong-email failures.
+- `/workspaces/{workspaceId}/settings/email` lets owners/admins save the workspace invitation sender, either SMTP or Resend. Saving runs a provider check first (an SMTP login test, or a read-only Resend domain check) and stores nothing on failure. The Resend page shows setup steps and the sender domain status from the last save. The password or API key is never shown again, and a blank value keeps the stored one for the same provider. Members cannot view or change it.
 - `/workspaces/{workspaceId}/settings/tokens` manages current-user scoped tokens and
   shows a new secret once.
 - `/workspaces/{workspaceId}/settings/webhooks` lists workspace webhook registrations,
   lets owners/admins create, rotate, and delete them, and shows redacted delivery
   history. Creation and rotation display the webhook secret once. When
-  `WEBHOOK_ENCRYPTION_KEY` is missing, managers see an actionable warning and
+  neither `ENCRYPTION_KEY` nor `WEBHOOK_ENCRYPTION_KEY` is set, managers see an actionable warning and
   create/rotate controls are disabled. Stale form submissions keep the user on
   this page with an inline error. Webhook IDs in paths and forms are short IDs;
   a malformed, integer, or unknown ID shows the not-found page for the history
@@ -116,10 +120,13 @@ Home is active at `/workspaces/{workspaceId}`. Settings uses the nested
 `API tokens`, `Webhooks`, `Export`, and `Import` sub-items. Owners and admins also see
 `Provisioning (SCIM)` and `Audit history`. The Settings group is separated by
 flexible space and anchored at the bottom in the workspace context. The members screen and
-invitations screen retain local tabs behind the combined entry. The Items page offers
+invitations screen retain local tabs behind the combined entry. In multi mode the Items page offers
 `Back to Workspaces`, returning to the workspace selector; each Settings page offers
 `Back to home`, returning to the current workspace home. The native workspace switcher and account menu use ordinary
-`details` controls, so they work without JavaScript. On narrow screens the
+`details` controls, so they work without JavaScript. In single mode the Items and Members screens show the workspace name as plain text
+and omit the switcher list link and the top-bar `Workspaces` crumb; Items also omits `Back to Workspaces`. Tokens,
+Provisioning, and Import omit the switcher list link and the top-bar crumb. The Account, Audit history,
+and Export crumbs point to the default workspace home. On narrow screens the
 settings sidebar becomes a compact stacked navigation region. Provisioning is
 shown only to owners and admins. Item deletion is
 explicitly permanent and asks for confirmation when the browser script is
@@ -167,9 +174,9 @@ tool contract is:
 | `item-create-v1` | `{title}` | Fill item title and focus the control |
 | `item-update-v1` | `{itemId,title,status}` | Fill visible title/status and focus Save |
 | `item-delete-v1` | `{itemId}` | Focus Delete permanently |
-| `member-role-update-v1` | `{userId,role}` | Fill visible role and focus Change role |
-| `member-remove-v1` | `{userId}` | Focus Remove |
-| `ownership-transfer-v1` | `{userId}` | Focus Transfer ownership |
+| `member-role-update-v1` | `{memberId,role}` | Fill visible role and focus Change role |
+| `member-remove-v1` | `{memberId}` | Focus Remove |
+| `ownership-transfer-v1` | `{memberId}` | Focus Transfer ownership |
 | `invitation-revoke-v1` | `{invitationId}` | Focus Revoke |
 | `token-revoke-v1` | `{tokenId}` | Focus Revoke |
 | `session-revoke-v1` | `{sessionId}` | Focus Revoke |

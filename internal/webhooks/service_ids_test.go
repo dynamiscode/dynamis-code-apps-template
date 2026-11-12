@@ -18,7 +18,7 @@ func TestWebhookResponsesExposeShortIDsOnly(t *testing.T) {
 	ctx := context.Background()
 	db, auth, owner := webhookTestDB(t)
 	queue := jobs.NewQueue(db, config.SQLite, nil)
-	service := NewService(db, config.SQLite, auth, []byte("01234567890123456789012345678901"), queue)
+	service := NewService(db, config.SQLite, auth, testKeyring(), queue)
 
 	created, err := service.Create(ctx, owner, owner.WorkspaceID, CreateInput{
 		Name: "ids", URL: "https://example.com/hook", Events: []string{"item.created"},
@@ -50,7 +50,7 @@ func TestMalformedAndIntegerWebhookIDsAreNotFound(t *testing.T) {
 	ctx := context.Background()
 	db, auth, owner := webhookTestDB(t)
 	queue := jobs.NewQueue(db, config.SQLite, nil)
-	service := NewService(db, config.SQLite, auth, []byte("01234567890123456789012345678901"), queue)
+	service := NewService(db, config.SQLite, auth, testKeyring(), queue)
 	created, err := service.Create(ctx, owner, owner.WorkspaceID, CreateInput{
 		Name: "missing", URL: "https://example.com/hook", Events: []string{"item.created"},
 	}, identity.AuditContext{})
@@ -74,7 +74,7 @@ func TestDeliveriesCarryTypedShortIDsAndSharedEventID(t *testing.T) {
 	ctx := context.Background()
 	db, auth, owner := webhookTestDB(t)
 	queue := jobs.NewQueue(db, config.SQLite, nil)
-	service := NewService(db, config.SQLite, auth, []byte("01234567890123456789012345678901"), queue)
+	service := NewService(db, config.SQLite, auth, testKeyring(), queue)
 	if err := queue.Register(JobKind, service.HandleJob); err != nil {
 		t.Fatal(err)
 	}

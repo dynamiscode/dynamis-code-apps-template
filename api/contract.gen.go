@@ -9,7 +9,7 @@ type Operation struct {
 }
 
 const OpenAPIVersion = "3.1.0"
-const OpenAPISHA256 = "e39152825f01c399b56f155f6e66d2feb208dd0e578ad178899e1e2272846f12"
+const OpenAPISHA256 = "73cc328b33f39b4b4c4321530864bfe0bccce8267f010bf97920968f487522a5"
 
 var Operations = []Operation{
 	{Method: "GET", Path: "/api/openapi.json", ID: "getOpenAPI"},
@@ -46,8 +46,8 @@ var Operations = []Operation{
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/items/{itemId}", ID: "getItem"},
 	{Method: "PATCH", Path: "/api/v1/workspaces/{workspaceId}/items/{itemId}", ID: "updateItem"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/members", ID: "listMembers"},
-	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/members/{userId}", ID: "removeMember"},
-	{Method: "PATCH", Path: "/api/v1/workspaces/{workspaceId}/members/{userId}", ID: "changeMemberRole"},
+	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/members/{memberId}", ID: "removeMember"},
+	{Method: "PATCH", Path: "/api/v1/workspaces/{workspaceId}/members/{memberId}", ID: "changeMemberRole"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/ownership", ID: "transferOwnership"},
 	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/scim-token", ID: "revokeSCIMToken"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/scim-token", ID: "createSCIMToken"},

@@ -119,13 +119,14 @@ loss of encrypted data.
 
 ## Upgrades and alerts
 
-Short IDs changed the schema in place for workspaces, webhooks, and background
-jobs. Do not run this version against a database that applied migrations 000002
-through 000016 from an earlier build: those versions are already recorded, so the
-new schema is not applied and the application fails against the old text keys.
-Create a new database and migrate it, or reset local development databases. Drain
-pending webhook deliveries and jobs before the reset, because they are not carried
-over. See the [workspace exception](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md)
+Short IDs changed the schema in place for workspaces, members, invitations, API
+tokens, webhooks, and background jobs. Do not run this version against a database
+that applied migrations 000002 through 000016 and 000018 from an earlier build:
+those versions are already recorded, so the new schema is not applied and the
+application fails against the old text keys. Create a new database and migrate
+it, or reset local development databases. Drain pending webhook deliveries and
+jobs before the reset, because they are not carried over. See the [workspace
+exception](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md)
 and the [webhook and job exception](decisions/exceptions/2026-11-11-webhook-job-short-id-migration-rewrite.md),
 which is proposed and not yet approved.
 

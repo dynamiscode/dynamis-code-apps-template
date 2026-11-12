@@ -17,6 +17,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
+	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/portability"
 )
 
@@ -63,7 +64,8 @@ func (h *Handler) createWorkspace(writer http.ResponseWriter, request *http.Requ
 		}
 		h.render(writer, http.StatusUnprocessableEntity, "home.html", pageData{
 			Title: "Workspaces", NavPage: "home", CSRF: csrf, Workspaces: workspaces,
-			Error: "Enter a workspace name between 1 and 120 characters.",
+			CanCreateWorkspace: h.workspaceCreationEnabled(),
+			Error:              "Enter a workspace name between 1 and 120 characters.",
 		})
 		return
 	}
@@ -129,7 +131,7 @@ func (h *Handler) memberMutation(writer http.ResponseWriter, request *http.Reque
 	if !ok {
 		return
 	}
-	userID := request.FormValue("user_id")
+	memberID, _ := identity.ParseMemberID(request.FormValue("member_id")) // malformed IDs match no member
 	var err error
 	switch request.FormValue("action") {
 	case "role":
@@ -138,11 +140,11 @@ func (h *Handler) memberMutation(writer http.ResponseWriter, request *http.Reque
 			h.managementError(writer, request, workspaceID, "The member role is invalid.")
 			return
 		}
-		err = h.identity.ChangeMemberRole(request.Context(), principal, userID, role, auditContext(request))
+		err = h.identity.ChangeMemberRole(request.Context(), principal, memberID, role, auditContext(request))
 	case "remove":
-		err = h.identity.RemoveMember(request.Context(), principal, userID, auditContext(request))
+		err = h.identity.RemoveMember(request.Context(), principal, memberID, auditContext(request))
 	case "transfer":
-		err = h.identity.TransferOwnership(request.Context(), principal, userID, auditContext(request))
+		err = h.identity.TransferOwnership(request.Context(), principal, memberID, auditContext(request))
 	default:
 		h.managementError(writer, request, workspaceID, "The requested member action is invalid.")
 		return
@@ -199,11 +201,11 @@ func (h *Handler) invitationMutation(writer http.ResponseWriter, request *http.R
 		}
 		link := invitationURL(h.publicURL, invitation.Secret)
 		workspaceLocale, _ := h.identity.GetWorkspaceLocale(request.Context(), workspaceID)
-		_, warning := h.deliverInvitation(request, invitation.Email, link, workspaceLocale)
+		_, warning := h.deliverInvitation(request, workspaceID.String(), invitation.Email, link, workspaceLocale)
 		h.renderInvitationResult(writer, request, workspaceID, csrf, link, warning)
 		return
 	}
-	invitationID := request.FormValue("invitation_id")
+	invitationID, _ := identity.ParseInvitationID(request.FormValue("invitation_id")) // malformed IDs match no invitation
 	switch request.FormValue("action") {
 	case "resend":
 		secret, err := h.identity.ResendInvitation(request.Context(), principal, invitationID, 0, auditContext(request))
@@ -220,7 +222,7 @@ func (h *Handler) invitationMutation(writer http.ResponseWriter, request *http.R
 			if invitation.ID == invitationID {
 				link := invitationURL(h.publicURL, secret)
 				workspaceLocale, _ := h.identity.GetWorkspaceLocale(request.Context(), workspaceID)
-				_, warning := h.deliverInvitation(request, invitation.Email, link, workspaceLocale)
+				_, warning := h.deliverInvitation(request, workspaceID.String(), invitation.Email, link, workspaceLocale)
 				h.renderInvitationResult(writer, request, workspaceID, csrf, link, warning)
 				return
 			}
@@ -314,7 +316,7 @@ func (h *Handler) tokenMutation(writer http.ResponseWriter, request *http.Reques
 		})
 		return
 	}
-	tokenID := request.PathValue("tokenId")
+	tokenID, _ := identity.ParseAPITokenID(request.PathValue("tokenId")) // malformed IDs match no token
 	if request.FormValue("action") == "revoke" {
 		if err := h.identity.RevokeAPIToken(request.Context(), principal, tokenID, auditContext(request)); err != nil {
 			h.managementError(writer, request, workspaceID, "The token could not be revoked.")
@@ -439,6 +441,7 @@ func (h *Handler) exportPage(writer http.ResponseWriter, request *http.Request) 
 	h.render(writer, http.StatusOK, "export.html", pageData{
 		Title: "Export", NavPage: "export", NavSection: "settings", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
+		DefaultWorkspaceHref: h.defaultHomeHref(request.Context(), session.UserID),
 	})
 }
 
@@ -461,7 +464,7 @@ func (h *Handler) auditHistoryPage(writer http.ResponseWriter, request *http.Req
 	h.render(writer, http.StatusOK, "audit-history.html", pageData{
 		Title: "Audit history", NavPage: "audit", NavSection: "settings", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		AuditHistory: history,
+		AuditHistory: history, DefaultWorkspaceHref: h.defaultHomeHref(request.Context(), session.UserID),
 	})
 }
 
@@ -793,17 +796,17 @@ func (h *Handler) providers() []identity.OIDCProviderInfo {
 	return h.oidc.Providers()
 }
 
-func (h *Handler) deliverInvitation(request *http.Request, recipient, link, workspaceLocale string) (bool, string) {
-	if h.mailer == nil {
-		return false, ""
-	}
+func (h *Handler) deliverInvitation(request *http.Request, workspaceID, recipient, link, workspaceLocale string) (bool, string) {
 	locale, ok := i18n.ParseLocale(workspaceLocale)
 	if !ok {
 		locale = i18n.English
 	}
 	subject := h.catalog.Translate(locale, "email.invitation_subject", nil)
 	body := h.catalog.Translate(locale, "email.invitation_body", map[string]any{"link": link})
-	if err := h.mailer.Send(request.Context(), recipient, subject, body); err != nil {
+	if err := appmail.SendFor(request.Context(), h.mailer, workspaceID, recipient, subject, body); err != nil {
+		if errors.Is(err, appmail.ErrNotConfigured) {
+			return false, ""
+		}
 		return false, "Invitation email could not be delivered. Share the invitation link manually."
 	}
 	return true, ""

@@ -60,7 +60,7 @@ func (h *Handler) pageLocale(writer http.ResponseWriter, data pageData) i18n.Loc
 	if workspaceLocale == "" {
 		workspaceLocale = data.Invitation.WorkspaceLocale
 	}
-	if data.Invitation.ID != "" {
+	if data.Invitation.ID != 0 {
 		userLocale = ""
 	}
 	locale := h.catalog.Resolve(userLocale, cookieLocale, workspaceLocale, acceptLanguage)
@@ -120,9 +120,13 @@ func localizedLegacy(catalog *i18n.Catalog, locale i18n.Locale, value string) st
 		"The token expiration is invalid.":                                             "errors.invalid_token_expiration", "The token could not be created.": "errors.token_create",
 		"The token could not be revoked.": "errors.token_revoke", "The requested token action is invalid.": "errors.invalid_token_action",
 		"The webhook input is invalid.": "errors.webhook_invalid", "The webhook could not be created.": "errors.webhook_create",
-		"The workspace webhook limit was reached. Delete one before retrying.":                            "errors.webhook_limit",
-		"Webhook secret encryption is not configured. Set WEBHOOK_ENCRYPTION_KEY and restart the server.": "errors.webhook_secret_key",
-		"The webhook could not be rotated.":                                                               "errors.webhook_rotate", "The webhook could not be deleted.": "errors.webhook_delete",
+		"The workspace webhook limit was reached. Delete one before retrying.":                     "errors.webhook_limit",
+		"Webhook secret encryption is not configured. Set ENCRYPTION_KEY and restart the server.":  "errors.webhook_secret_key",
+		"SMTP login test failed. Check the host, port, username, and password. Nothing was saved.": "errors.email_login",
+		"Secret encryption is not configured. Set ENCRYPTION_KEY and restart the server.":          "errors.email_secret_key",
+		"The email settings are invalid.": "errors.email_invalid", "Enter the password or API key again when the provider, server, port, or username changes.": "errors.email_password_required", "The email settings could not be saved.": "errors.email_save",
+		"Resend check failed. Check the API key, then save again. Nothing was saved.": "errors.email_resend_check",
+		"The webhook could not be rotated.":                                           "errors.webhook_rotate", "The webhook could not be deleted.": "errors.webhook_delete",
 		"The webhook could not be found.": "errors.webhook_not_found", "The requested webhook action is invalid.": "errors.invalid_webhook_action",
 		"The SCIM credential could not be created.": "errors.scim_create", "The SCIM credential could not be revoked.": "errors.scim_revoke", "The requested SCIM action is invalid.": "errors.invalid_scim_action",
 		"No OIDC provider is configured.": "errors.no_oidc", "Reauthentication failed.": "errors.reauthentication",

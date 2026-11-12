@@ -14,6 +14,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
+	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
 )
 
@@ -185,7 +186,7 @@ func TestWebhookSecretKeyErrorIsActionable(t *testing.T) {
 	rawHandler.webhooks = failingWebhookManager{service: service, createErr: webhooks.ErrSecretKey}
 
 	page := request(handler, http.MethodGet, base, nil, cookies, nil)
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `class="warning"`) || !strings.Contains(page.Body.String(), "Webhook configuration required") || !strings.Contains(page.Body.String(), "WEBHOOK_ENCRYPTION_KEY") || !strings.Contains(page.Body.String(), "disabled aria-describedby=\"webhook-secret-key-warning\"") {
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `class="warning"`) || !strings.Contains(page.Body.String(), "Webhook configuration required") || !strings.Contains(page.Body.String(), "ENCRYPTION_KEY") || !strings.Contains(page.Body.String(), "disabled aria-describedby=\"webhook-secret-key-warning\"") {
 		t.Fatalf("missing webhook secret key page = %d, %s", page.Code, page.Body.String())
 	}
 
@@ -193,7 +194,7 @@ func TestWebhookSecretKeyErrorIsActionable(t *testing.T) {
 		"action": {"create"}, "csrf": {session.CSRFSecret}, "name": {"items"},
 		"url": {"https://hooks.example.test"}, "events": {"item.created"},
 	}, cookies, nil)
-	if response.Code != http.StatusUnprocessableEntity || !strings.Contains(response.Body.String(), "WEBHOOK_ENCRYPTION_KEY") {
+	if response.Code != http.StatusUnprocessableEntity || !strings.Contains(response.Body.String(), "ENCRYPTION_KEY") {
 		t.Fatalf("webhook secret key error = %d, %s", response.Code, response.Body.String())
 	}
 	if strings.Contains(response.Body.String(), "<h1>Request failed</h1>") || !strings.Contains(response.Body.String(), "<h1>Example Webhooks</h1>") {
@@ -265,7 +266,7 @@ func webhookWebTest(t *testing.T) (http.Handler, *sql.DB, *identity.Service, *we
 	if err != nil {
 		t.Fatal(err)
 	}
-	service := webhooks.NewService(db, cfg.Database.Driver, auth, []byte("01234567890123456789012345678901"), nil)
+	service := webhooks.NewService(db, cfg.Database.Driver, auth, secretbox.New(map[int][]byte{config.GeneralKeyVersion: []byte("01234567890123456789012345678901")}, config.GeneralKeyVersion), nil)
 	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace)
 	handler, err := NewHandlerWithServices(
 		auth, itemService, nil, nil, nil, cfg.HTTP, "", "", nil, service,
