@@ -70,7 +70,7 @@ func TestWebhooksBrowserLifecycleAndRedaction(t *testing.T) {
 	if err != nil || len(registered) != 1 {
 		t.Fatalf("registered webhooks = %+v, %v", registered, err)
 	}
-	webhookID := registered[0].ID
+	webhookID := registered[0].ID.String()
 
 	rotated := request(handler, http.MethodPost, base+"/"+webhookID, url.Values{
 		"action": {"rotate"}, "csrf": {session.CSRFSecret},
@@ -84,11 +84,16 @@ func TestWebhooksBrowserLifecycleAndRedaction(t *testing.T) {
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339Nano)
+	var eventKey int64
+	if err := db.QueryRow(`INSERT INTO webhook_events (workspace_id, event_type, created_at)
+		VALUES (?, ?, ?) RETURNING id`, registered[0].WorkspaceID, "item.created", now).Scan(&eventKey); err != nil {
+		t.Fatal(err)
+	}
 	_, err = db.Exec(`INSERT INTO webhook_deliveries (
-		id, webhook_id, event_id, event_type, payload, attempt_count, status,
+		webhook_id, event_id, event_type, payload, attempt_count, status,
 		next_attempt_at, last_status_code, last_error, created_at, delivered_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, NULL)`,
-		strings.Repeat("a", 32), webhookID, strings.Repeat("b", 32), "item.created",
+	) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, NULL)`,
+		int64(registered[0].ID), eventKey, "item.created",
 		`{"privatePayload":"must not render"}`, 3, "failed", 500, "network-error", now)
 	if err != nil {
 		t.Fatal(err)
@@ -151,10 +156,11 @@ func TestWebhookSecretSurvivesReadbackFailure(t *testing.T) {
 	if strings.Contains(created.Body.String(), "No webhooks yet.") || !strings.Contains(created.Body.String(), secret) {
 		t.Fatalf("create readback fallback = %s", created.Body.String())
 	}
-	var webhookID string
-	if err := db.QueryRow(`SELECT id FROM webhooks WHERE name = ?`, "readback").Scan(&webhookID); err != nil {
+	var webhookKey int64
+	if err := db.QueryRow(`SELECT id FROM webhooks WHERE name = ?`, "readback").Scan(&webhookKey); err != nil {
 		t.Fatal(err)
 	}
+	webhookID := webhooks.WebhookID(webhookKey).String()
 
 	rotated := request(handler, http.MethodPost, base+"/"+webhookID, url.Values{
 		"action": {"rotate"}, "csrf": {session.CSRFSecret},
@@ -214,7 +220,7 @@ func (f failingWebhookManager) List(ctx context.Context, actor identity.Principa
 	return f.service.List(ctx, actor, workspaceID)
 }
 
-func (f failingWebhookManager) ListDeliveries(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, webhookID string) ([]webhooks.Delivery, error) {
+func (f failingWebhookManager) ListDeliveries(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, webhookID webhooks.WebhookID) ([]webhooks.Delivery, error) {
 	return f.service.ListDeliveries(ctx, actor, workspaceID, webhookID)
 }
 
@@ -225,11 +231,11 @@ func (f failingWebhookManager) Create(ctx context.Context, actor identity.Princi
 	return f.service.Create(ctx, actor, workspaceID, input, audit)
 }
 
-func (f failingWebhookManager) RotateSecret(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, webhookID string, audit identity.AuditContext) (string, error) {
+func (f failingWebhookManager) RotateSecret(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, webhookID webhooks.WebhookID, audit identity.AuditContext) (string, error) {
 	return f.service.RotateSecret(ctx, actor, workspaceID, webhookID, audit)
 }
 
-func (f failingWebhookManager) Delete(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, webhookID string, audit identity.AuditContext) error {
+func (f failingWebhookManager) Delete(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, webhookID webhooks.WebhookID, audit identity.AuditContext) error {
 	return f.service.Delete(ctx, actor, workspaceID, webhookID, audit)
 }
 

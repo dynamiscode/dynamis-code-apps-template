@@ -21,7 +21,6 @@ import (
 	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 )
@@ -52,7 +51,7 @@ type CreateInput struct {
 }
 
 type Webhook struct {
-	ID          string               `json:"id"`
+	ID          WebhookID            `json:"id"`
 	WorkspaceID identity.WorkspaceID `json:"workspaceId"`
 	Name        string               `json:"name"`
 	URL         string               `json:"url"`
@@ -81,9 +80,9 @@ type deliveryOutcome struct {
 }
 
 type Delivery struct {
-	ID             string         `json:"id"`
-	WebhookID      string         `json:"webhookId"`
-	EventID        string         `json:"eventId"`
+	ID             DeliveryID     `json:"id"`
+	WebhookID      WebhookID      `json:"webhookId"`
+	EventID        EventID        `json:"eventId"`
 	EventType      string         `json:"eventType"`
 	AttemptCount   int            `json:"attemptCount"`
 	Status         DeliveryStatus `json:"status"`
@@ -151,10 +150,6 @@ func (s *Service) Create(
 	if err != nil {
 		return NewWebhook{}, err
 	}
-	webhookID, err := id.New()
-	if err != nil {
-		return NewWebhook{}, err
-	}
 	now := time.Now().UTC()
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
@@ -171,15 +166,17 @@ func (s *Service) Create(
 	if count >= maxWebhooks {
 		return NewWebhook{}, ErrLimit
 	}
-	if _, err := s.exec(ctx, tx, `
-		INSERT INTO webhooks (id, workspace_id, name, url, secret_ciphertext, secret_key_version, events, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-	`, webhookID, workspaceID, name, urlValue, ciphertext, keyVersion, encodeEvents(events), stamp(now)); err != nil {
+	var key int64
+	if err := s.queryRow(ctx, tx, `
+		INSERT INTO webhooks (workspace_id, name, url, secret_ciphertext, secret_key_version, events, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id
+	`, workspaceID, name, urlValue, ciphertext, keyVersion, encodeEvents(events), stamp(now)).Scan(&key); err != nil {
 		return NewWebhook{}, err
 	}
+	webhookID := WebhookID(key)
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "webhook.created", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: workspaceID, TargetType: "webhook", TargetID: webhookID,
+		WorkspaceID: workspaceID, TargetType: "webhook", TargetID: webhookID.String(),
 		Action: "webhook.create", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress,
 		Metadata:      metadata(map[string]any{"events": events, "host": parsedHost(urlValue)}), CreatedAt: now,
@@ -222,7 +219,7 @@ func (s *Service) Delete(
 	ctx context.Context,
 	actor identity.Principal,
 	workspaceID identity.WorkspaceID,
-	webhookID string,
+	webhookID WebhookID,
 	audit identity.AuditContext,
 ) error {
 	if _, err := s.auth.AuthorizePrincipal(ctx, actor, workspaceID, identity.WebhooksManage); err != nil {
@@ -249,7 +246,7 @@ func (s *Service) Delete(
 	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "webhook.deleted", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: workspaceID, TargetType: "webhook", TargetID: webhookID,
+		WorkspaceID: workspaceID, TargetType: "webhook", TargetID: webhookID.String(),
 		Action: "webhook.delete", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: time.Now().UTC(),
 	}); err != nil {
@@ -262,7 +259,7 @@ func (s *Service) RotateSecret(
 	ctx context.Context,
 	actor identity.Principal,
 	workspaceID identity.WorkspaceID,
-	webhookID string,
+	webhookID WebhookID,
 	audit identity.AuditContext,
 ) (string, error) {
 	if !s.secrets.Configured() {
@@ -301,7 +298,7 @@ func (s *Service) RotateSecret(
 	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "webhook.secret.rotated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: workspaceID, TargetType: "webhook", TargetID: webhookID,
+		WorkspaceID: workspaceID, TargetType: "webhook", TargetID: webhookID.String(),
 		Action: "webhook.secret.rotate", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
@@ -317,7 +314,7 @@ func (s *Service) ListDeliveries(
 	ctx context.Context,
 	actor identity.Principal,
 	workspaceID identity.WorkspaceID,
-	webhookID string,
+	webhookID WebhookID,
 ) ([]Delivery, error) {
 	if _, err := s.auth.AuthorizePrincipal(ctx, actor, workspaceID, identity.WebhooksRead); err != nil {
 		return nil, identity.ErrForbidden
@@ -343,15 +340,17 @@ func (s *Service) ListDeliveries(
 	result := make([]Delivery, 0)
 	for rows.Next() {
 		var delivery Delivery
+		var deliveryKey, webhookKey, eventKey int64
 		var nextAttempt, delivered sql.NullString
 		var lastError sql.NullString
 		var lastStatusCode sql.NullInt64
 		var created string
-		if err := rows.Scan(&delivery.ID, &delivery.WebhookID, &delivery.EventID, &delivery.EventType,
+		if err := rows.Scan(&deliveryKey, &webhookKey, &eventKey, &delivery.EventType,
 			&delivery.AttemptCount, &delivery.Status, &nextAttempt, &lastStatusCode,
 			&lastError, &created, &delivered); err != nil {
 			return nil, err
 		}
+		delivery.ID, delivery.WebhookID, delivery.EventID = DeliveryID(deliveryKey), WebhookID(webhookKey), EventID(eventKey)
 		if lastStatusCode.Valid {
 			delivery.LastStatusCode = int(lastStatusCode.Int64)
 		}
@@ -394,7 +393,10 @@ func (s *Service) PublishInTx(
 	if err != nil {
 		return err
 	}
-	type target struct{ id, events string }
+	type target struct {
+		id     int64
+		events string
+	}
 	targets := make([]target, 0)
 	for rows.Next() {
 		var value target
@@ -412,10 +414,17 @@ func (s *Service) PublishInTx(
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	eventID, err := id.New()
-	if err != nil {
+	if len(targets) == 0 {
+		return nil
+	}
+	var eventKey int64
+	if err := s.queryRow(ctx, tx, `
+		INSERT INTO webhook_events (workspace_id, event_type, created_at)
+		VALUES (?, ?, ?) RETURNING id
+	`, workspaceID, eventType, stamp(occurredAt)).Scan(&eventKey); err != nil {
 		return err
 	}
+	eventID := EventID(eventKey)
 	for _, target := range targets {
 		envelope, err := json.Marshal(map[string]any{
 			"id": eventID, "type": eventType, "timestamp": occurredAt.UTC(),
@@ -424,35 +433,30 @@ func (s *Service) PublishInTx(
 		if err != nil {
 			return err
 		}
-		deliveryID, err := id.New()
-		if err != nil {
-			return err
-		}
-		result, err := s.exec(ctx, tx, `
+		var deliveryKey int64
+		err = s.queryRow(ctx, tx, `
 			INSERT INTO webhook_deliveries (
-				id, webhook_id, event_id, event_type, payload, attempt_count,
+				webhook_id, event_id, event_type, payload, attempt_count,
 				status, next_attempt_at, last_status_code, last_error, created_at
-			) VALUES (?, ?, ?, ?, ?, 0, 'pending', ?, NULL, NULL, ?)
+			) VALUES (?, ?, ?, ?, 0, 'pending', ?, NULL, NULL, ?)
 			ON CONFLICT (webhook_id, event_id) DO NOTHING
-		`, deliveryID, target.id, eventID, eventType, string(envelope), stamp(occurredAt), stamp(occurredAt))
+			RETURNING id
+		`, target.id, eventKey, eventType, string(envelope), stamp(occurredAt), stamp(occurredAt)).Scan(&deliveryKey)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
 		if err != nil {
 			return err
 		}
-		changed, err := result.RowsAffected()
+		if s.queue == nil {
+			return errors.New("webhook job queue is unavailable")
+		}
+		jobPayload, err := json.Marshal(map[string]int64{"deliveryId": deliveryKey})
 		if err != nil {
 			return err
 		}
-		if changed == 1 {
-			if s.queue == nil {
-				return errors.New("webhook job queue is unavailable")
-			}
-			jobPayload, err := json.Marshal(map[string]string{"deliveryId": deliveryID})
-			if err != nil {
-				return err
-			}
-			if err := s.queue.EnqueueTx(ctx, tx, workspaceID, JobKind, deliveryID, string(jobPayload), occurredAt); err != nil {
-				return err
-			}
+		if err := s.queue.EnqueueTx(ctx, tx, workspaceID, JobKind, strconv.FormatInt(deliveryKey, 10), string(jobPayload), occurredAt); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -504,26 +508,27 @@ func (s *Service) HandleExhaustedJob(ctx context.Context, job jobs.Job) error {
 	return nil
 }
 
-func jobDeliveryID(job jobs.Job) (string, error) {
+func jobDeliveryID(job jobs.Job) (int64, error) {
 	var payload struct {
-		DeliveryID string `json:"deliveryId"`
+		DeliveryID int64 `json:"deliveryId"`
 	}
-	if err := json.Unmarshal([]byte(job.Payload), &payload); err != nil || payload.DeliveryID == "" {
-		return "", errors.New("job payload is invalid")
+	if err := json.Unmarshal([]byte(job.Payload), &payload); err != nil || payload.DeliveryID <= 0 {
+		return 0, errors.New("job payload is invalid")
 	}
 	return payload.DeliveryID, nil
 }
 
-func (s *Service) deliverOne(ctx context.Context, workspaceID identity.WorkspaceID, deliveryID string, jobAttempt int) error {
+func (s *Service) deliverOne(ctx context.Context, workspaceID identity.WorkspaceID, deliveryID int64, jobAttempt int) error {
 	now := time.Now().UTC()
-	var webhookID, eventID, eventType, payload, urlValue, encrypted string
+	var webhookID, eventKey int64
+	var eventType, payload, urlValue, encrypted string
 	var attempt, keyVersion int
 	err := s.queryRow(ctx, s.db, `
 		SELECT d.id, d.webhook_id, d.event_id, d.event_type, d.payload,
 			d.attempt_count, w.url, w.secret_ciphertext, w.secret_key_version
 		FROM webhook_deliveries d JOIN webhooks w ON w.id = d.webhook_id
 		WHERE d.id = ? AND d.status = 'pending' AND w.workspace_id = ?
-	`, deliveryID, workspaceID).Scan(&deliveryID, &webhookID, &eventID, &eventType, &payload, &attempt, &urlValue, &encrypted, &keyVersion)
+	`, deliveryID, workspaceID).Scan(&deliveryID, &webhookID, &eventKey, &eventType, &payload, &attempt, &urlValue, &encrypted, &keyVersion)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}
@@ -541,6 +546,7 @@ func (s *Service) deliverOne(ctx context.Context, workspaceID identity.Workspace
 	if err != nil {
 		return s.deliveryFailure(ctx, deliveryID, attempt, 0, "secret-unavailable", now)
 	}
+	eventID := EventID(eventKey).String()
 	timestamp := strconv.FormatInt(now.Unix(), 10)
 	message := eventID + "." + timestamp + "." + payload
 	mac := hmac.New(sha256.New, []byte(secret))
@@ -576,7 +582,7 @@ func (s *Service) deliverOne(ctx context.Context, workspaceID identity.Workspace
 
 func (s *Service) deliveryFailure(
 	ctx context.Context,
-	deliveryID string,
+	deliveryID int64,
 	attempt, statusCode int,
 	reason string,
 	now time.Time,
@@ -730,10 +736,12 @@ func (s *Service) bind(query string) string { return database.Rebind(s.driver, q
 
 func scanWebhook(row interface{ Scan(...any) error }) (Webhook, error) {
 	var webhook Webhook
+	var key int64
 	var events, created string
-	if err := row.Scan(&webhook.ID, &webhook.WorkspaceID, &webhook.Name, &webhook.URL, &events, &created); err != nil {
+	if err := row.Scan(&key, &webhook.WorkspaceID, &webhook.Name, &webhook.URL, &events, &created); err != nil {
 		return Webhook{}, err
 	}
+	webhook.ID = WebhookID(key)
 	var err error
 	webhook.Events = decodeEvents(events)
 	webhook.CreatedAt, err = time.Parse(time.RFC3339Nano, created)

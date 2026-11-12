@@ -32,6 +32,7 @@ type Result struct {
 	RealtimeReplay     int64 `json:"realtimeReplay"`
 	Notifications      int64 `json:"notifications"`
 	WebhookDeliveries  int64 `json:"webhookDeliveries"`
+	WebhookEvents      int64 `json:"webhookEvents"`
 	BackgroundJobs     int64 `json:"backgroundJobs"`
 	PublicLinks        int64 `json:"publicLinks"`
 }
@@ -74,6 +75,10 @@ func Run(
 		{"DELETE FROM item_events WHERE occurred_at <= ?", []any{stamp(now.Add(-replayRetention))}, &result.RealtimeReplay},
 		{"DELETE FROM notifications WHERE created_at <= ?", []any{stamp(now.Add(-historyRetention))}, &result.Notifications},
 		{"DELETE FROM webhook_deliveries WHERE status <> 'pending' AND created_at <= ?", []any{stamp(now.Add(-historyRetention))}, &result.WebhookDeliveries},
+		// Runs after the delivery prune, so events whose deliveries are gone are
+		// removed here. Events that still have deliveries are kept.
+		{`DELETE FROM webhook_events WHERE created_at <= ? AND NOT EXISTS (
+			SELECT 1 FROM webhook_deliveries d WHERE d.event_id = webhook_events.id)`, []any{stamp(now.Add(-historyRetention))}, &result.WebhookEvents},
 		{"DELETE FROM background_jobs WHERE status IN ('succeeded', 'failed') AND completed_at <= ?", []any{stamp(now.Add(-historyRetention))}, &result.BackgroundJobs},
 		{"DELETE FROM public_links WHERE expires_at <= ? OR (revoked_at IS NOT NULL AND revoked_at <= ?)", []any{stamp(now), stamp(now.Add(-historyRetention))}, &result.PublicLinks},
 		{"DELETE FROM audit_events WHERE created_at <= ?", []any{stamp(now.Add(-auditRetention))}, &result.AuditEvents},
