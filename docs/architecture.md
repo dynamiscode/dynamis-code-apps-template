@@ -80,6 +80,12 @@ type code. Webhooks, webhook deliveries, webhook events, and background jobs use
 integer keys too; `internal/webhooks/ids.go` marshals the first three to their
 short IDs under their own type codes. The short-ID codec is [ADR 0009](decisions/0009-short-id-codec.md).
 
+Files follow the same pattern with an integer key and the `file` type code.
+Migration 000020 rebuilds `files` through a new table and renames it, copying `object_key` unchanged so
+stored objects stay addressable. SQLite uses `AUTOINCREMENT` for file keys so a
+deleted key is never reused; PostgreSQL identities never reuse keys either.
+Object keys use an opaque token, not the integer key.
+
 ## Domain state machines
 
 Domain entities with non-trivial lifecycles (such as invitations, jobs, webhooks,

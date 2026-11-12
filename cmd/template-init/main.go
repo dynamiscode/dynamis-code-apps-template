@@ -264,7 +264,9 @@ func filesPath(relative string) bool {
 		relative == "internal/httpapi/files.go" || relative == "internal/httpapi/files_test.go" || relative == "internal/web/files.go" || relative == "internal/web/files_test.go" ||
 		relative == "internal/web/templates/files.html" ||
 		relative == "internal/platform/database/migrations/000014_files.sql" ||
-		relative == "internal/platform/database/migrate_files_test.go"
+		relative == "internal/platform/database/migrations/000020_file_short_ids.sql" ||
+		relative == "internal/platform/database/migrate_files_test.go" ||
+		relative == "internal/platform/database/migrate_file_ids_test.go"
 }
 
 func disableFilesSource(relative string, raw []byte) []byte {

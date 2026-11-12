@@ -67,7 +67,7 @@ func isValidTransition(fromStatus, toStatus FileStatus) bool {
 }
 
 type File struct {
-	ID           string               `json:"id"`
+	ID           FileID               `json:"id"`
 	WorkspaceID  identity.WorkspaceID `json:"workspaceId"`
 	OwnerUserID  *string              `json:"ownerUserId"`
 	storageKey   string
@@ -152,7 +152,7 @@ func (s *Service) Upload(ctx context.Context, actor identity.Principal, workspac
 	return s.complete(ctx, actor, file, size, detected, digest, audit)
 }
 
-func (s *Service) PutContent(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID string, source io.Reader, audit identity.AuditContext) (File, error) {
+func (s *Service) PutContent(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID FileID, source io.Reader, audit identity.AuditContext) (File, error) {
 	file, err := s.pending(ctx, actor, workspaceID, fileID)
 	if err != nil {
 		return File{}, err
@@ -192,9 +192,12 @@ func (s *Service) PutContent(ctx context.Context, actor identity.Principal, work
 	return s.completeDB(ctx, actor, file, size, detected, digest, audit)
 }
 
-func (s *Service) Complete(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID string, audit identity.AuditContext) (File, error) {
-	if workspaceID == 0 || !validID(fileID) {
+func (s *Service) Complete(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID FileID, audit identity.AuditContext) (File, error) {
+	if workspaceID == 0 {
 		return File{}, ErrInvalidInput
+	}
+	if fileID == 0 {
+		return File{}, ErrNotFound
 	}
 	s.finalizationMu.Lock()
 	defer s.finalizationMu.Unlock()
@@ -271,13 +274,16 @@ func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceI
 	return result, rows.Err()
 }
 
-func (s *Service) Get(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID string) (File, error) {
+func (s *Service) Get(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID FileID) (File, error) {
 	return s.get(ctx, actor, workspaceID, fileID, identity.ResourcesRead)
 }
 
-func (s *Service) pending(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID string) (File, error) {
-	if workspaceID == 0 || !validID(fileID) {
+func (s *Service) pending(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID FileID) (File, error) {
+	if workspaceID == 0 {
 		return File{}, ErrInvalidInput
+	}
+	if fileID == 0 {
+		return File{}, ErrNotFound
 	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
@@ -299,7 +305,7 @@ func (s *Service) pending(ctx context.Context, actor identity.Principal, workspa
 	return file, err
 }
 
-func (s *Service) Open(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID string) (File, io.ReadCloser, error) {
+func (s *Service) Open(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID FileID) (File, io.ReadCloser, error) {
 	file, err := s.Get(ctx, actor, workspaceID, fileID)
 	if err != nil {
 		return File{}, nil, err
@@ -314,7 +320,7 @@ func (s *Service) Open(ctx context.Context, actor identity.Principal, workspaceI
 	return file, reader, nil
 }
 
-func (s *Service) PresignedGet(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID string) (File, string, error) {
+func (s *Service) PresignedGet(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID FileID) (File, string, error) {
 	file, err := s.Get(ctx, actor, workspaceID, fileID)
 	if err != nil {
 		return File{}, "", err
@@ -323,7 +329,7 @@ func (s *Service) PresignedGet(ctx context.Context, actor identity.Principal, wo
 	return file, url, err
 }
 
-func (s *Service) PresignedPut(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID string) (File, PresignedUpload, error) {
+func (s *Service) PresignedPut(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID FileID) (File, PresignedUpload, error) {
 	file, err := s.pending(ctx, actor, workspaceID, fileID)
 	if err != nil {
 		return File{}, PresignedUpload{}, err
@@ -336,7 +342,7 @@ func (s *Service) PresignedPut(ctx context.Context, actor identity.Principal, wo
 }
 
 func (s *Service) reserve(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, name string, size int64, audit identity.AuditContext) (File, error) {
-	fileID, err := id.New()
+	objectToken, err := id.New()
 	if err != nil {
 		return File{}, err
 	}
@@ -358,12 +364,13 @@ func (s *Service) reserve(ctx context.Context, actor identity.Principal, workspa
 	if used > s.maxWorkspaceBytes-size {
 		return File{}, ErrLimit
 	}
-	file := File{ID: fileID, WorkspaceID: workspaceID, OwnerUserID: stringPtr(actor.UserID), OriginalName: name, Size: size, Status: Pending, CreatedAt: now, UpdatedAt: now}
-	file.storageKey = s.objectKey(file)
-	if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, `
-		INSERT INTO files (id, workspace_id, owner_user_id, object_key, original_name, size, status, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`), file.ID, workspaceID, actor.UserID, file.storageKey, name, size, Pending, stamp(now), stamp(now)); err != nil {
+	file := File{WorkspaceID: workspaceID, OwnerUserID: stringPtr(actor.UserID), OriginalName: name, Size: size, Status: Pending, CreatedAt: now, UpdatedAt: now}
+	file.storageKey = s.objectKey(workspaceID, objectToken)
+	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `
+		INSERT INTO files (workspace_id, owner_user_id, object_key, original_name, size, status, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		RETURNING id
+	`), workspaceID, actor.UserID, file.storageKey, name, size, Pending, stamp(now), stamp(now)).Scan(&file.ID); err != nil {
 		return File{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -418,7 +425,7 @@ func (s *Service) completeDB(ctx context.Context, actor identity.Principal, file
 	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "file.uploaded", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: file.WorkspaceID, TargetType: "file", TargetID: file.ID,
+		WorkspaceID: file.WorkspaceID, TargetType: "file", TargetID: file.ID.String(),
 		Action: "file.upload", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
@@ -433,9 +440,12 @@ func (s *Service) completeDB(ctx context.Context, actor identity.Principal, file
 	return file, nil
 }
 
-func (s *Service) get(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID string, permission identity.Permission) (File, error) {
-	if workspaceID == 0 || !validID(fileID) {
+func (s *Service) get(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID FileID, permission identity.Permission) (File, error) {
+	if workspaceID == 0 {
 		return File{}, ErrInvalidInput
+	}
+	if fileID == 0 {
+		return File{}, ErrNotFound
 	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
@@ -468,7 +478,7 @@ type dbExecutor interface {
 // transitionFile validates and executes a state transition from fromStatus to toStatus for fileID.
 // A nil db runs against the service database; pass an untyped nil, never a typed-nil *sql.Tx. It returns ErrInvalidTransition if the transition is
 // disallowed by validTransitions or if the file in the database has already transitioned past fromStatus.
-func (s *Service) transitionFile(ctx context.Context, db dbExecutor, fileID string, fromStatus, toStatus FileStatus) error {
+func (s *Service) transitionFile(ctx context.Context, db dbExecutor, fileID FileID, fromStatus, toStatus FileStatus) error {
 	if !isValidTransition(fromStatus, toStatus) {
 		return ErrInvalidTransition
 	}
@@ -502,9 +512,9 @@ func (s *Service) transitionFile(ctx context.Context, db dbExecutor, fileID stri
 	return nil
 }
 
-func (s *Service) markFailed(ctx context.Context, fileID string) {
+func (s *Service) markFailed(ctx context.Context, fileID FileID) {
 	if err := s.transitionFile(ctx, nil, fileID, Pending, Failed); err != nil {
-		s.logger.ErrorContext(ctx, "mark file failed", "file_id", fileID, "error", err)
+		s.logger.ErrorContext(ctx, "mark file failed", "file_id", fileID.String(), "error", err)
 	}
 }
 
@@ -684,18 +694,19 @@ func safeFilename(value string) (string, error) {
 	return name, nil
 }
 
-func (s *Service) objectKey(file File) string {
+// objectKey uses an opaque token, not the integer file key, so the key exists
+// before the row is inserted and never exposes the key.
+func (s *Service) objectKey(workspaceID identity.WorkspaceID, token string) string {
 	if s.prefix == "" {
-		return file.WorkspaceID.String() + "/" + file.ID
+		return workspaceID.String() + "/" + token
 	}
-	return s.prefix + "/" + file.WorkspaceID.String() + "/" + file.ID
+	return s.prefix + "/" + workspaceID.String() + "/" + token
 }
 
+// storedObjectKey returns the key recorded at reservation time. Every file read
+// from the database carries one.
 func (s *Service) storedObjectKey(file File) string {
-	if file.storageKey != "" {
-		return file.storageKey
-	}
-	return s.objectKey(file)
+	return file.storageKey
 }
 
 func contentType(file File) string {
@@ -708,15 +719,3 @@ func contentType(file File) string {
 func stringPtr(value string) *string { return &value }
 
 func stamp(value time.Time) string { return value.UTC().Format(time.RFC3339Nano) }
-
-func validID(value string) bool {
-	if len(value) != 32 {
-		return false
-	}
-	for _, character := range value {
-		if !(character >= '0' && character <= '9') && !(character >= 'a' && character <= 'f') {
-			return false
-		}
-	}
-	return true
-}

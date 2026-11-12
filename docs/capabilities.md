@@ -446,6 +446,28 @@ Checks run: `make test` (all packages, SQLite) and `make lint` passed; `go gener
 retention test were not run on PostgreSQL. The migration rewrite is covered by the
 [recorded exception](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md).
 
+## File short ID evidence
+
+Verified 2026-11-11 with Go 1.27.4. Issue #191 moves file keys to integers and
+exposes only the ADR 0009 short ID under the `file` type code. Forward migration
+000020 rebuilds `files`, preserving rows and object keys.
+
+- Passed: `make verify` (lint, test, race, deps, workflow, generate drift, build,
+  template smoke); `make secret-check`; `make vuln-check` (no affecting
+  vulnerabilities); `make test-postgres` (identity and files packages on
+  PostgreSQL 14.24); `make docker-smoke`. The smoke script's readiness loop
+  absorbed one transient connection reset while the container started.
+- `internal/bootstrap` `TestAgentSurfacesLiveSmoke` hit a 5-second login client
+  timeout under full parallel `-race` load on 2026-11-11 and again on 2026-11-12.
+  It passes alone under `-race` and in a rerun of `make race`; the test is not
+  changed by this issue.
+- Covered: codec and JSON round trips, REST probes for integer, malformed,
+  hex, unknown, and other-workspace file IDs returning identical not-found
+  bodies, a SQLite migration test for row preservation and no key reuse, and
+  the presign-release test that fails if keys are reused.
+- Gap: web file routes have no short-ID probe test of their own; REST probes
+  cover the shared service path.
+
 ## Webhook and job short ID evidence
 
 Issue #192 moves webhook, webhook delivery, webhook event, and background job

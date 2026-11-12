@@ -19,6 +19,7 @@ type TypeCode string
 const (
 	TypeItem            TypeCode = "item"
 	TypeWorkspace       TypeCode = "workspace"
+	TypeFile            TypeCode = "file"
 	TypeWebhook         TypeCode = "webhook"
 	TypeWebhookDelivery TypeCode = "webhook_delivery"
 	TypeWebhookEvent    TypeCode = "webhook_event"
@@ -35,7 +36,7 @@ const (
 // TypeCodes returns every registered type code.
 func TypeCodes() []TypeCode {
 	return []TypeCode{
-		TypeItem, TypeWorkspace, TypeWebhook, TypeWebhookDelivery,
+		TypeItem, TypeWorkspace, TypeFile, TypeWebhook, TypeWebhookDelivery,
 		TypeWebhookEvent, TypeJob, TypeInvitation, TypeMember, TypeToken,
 		TypePublicLink, TypeSCIMToken, TypeOAuthClient, TypeOAuthGrant,
 	}

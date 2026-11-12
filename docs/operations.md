@@ -133,6 +133,11 @@ Item IDs in webhook payloads, workspace exports, and audit metadata are now item
 short IDs, not 32-character hex. Consumers that stored the old hex form must map
 or re-key those values before reading events from this version.
 
+Migration 000020 rebuilds the `files` table to integer keys. It is forward-only
+and copies existing rows with their object keys, so it is safe to apply to a
+database that already has 000016, but it takes a table rebuild, so run it inside
+the stop-the-world window below.
+
 Upgrades are stop-the-world: create and verify a backup, stop the one SQLite
 instance or all PostgreSQL application instances, start one new version to run
 forward-only migrations, then check readiness and smoke paths before restoring
