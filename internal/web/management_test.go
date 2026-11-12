@@ -102,7 +102,7 @@ func TestMultiInstanceImportFlashStateless(t *testing.T) {
 	// 4. Test JSON import on instance 2, follow redirect on instance 1
 	jsonExport, err := json.Marshal(portability.Export{
 		FormatVersion: portability.FormatVersion,
-		Items:         []items.Item{{Title: "Imported JSON", Status: items.Active}},
+		Items:         []items.Item{{ID: 1, Title: "Imported JSON", Status: items.Active}},
 	})
 	if err != nil {
 		t.Fatal(err)

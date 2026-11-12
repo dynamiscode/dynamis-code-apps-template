@@ -127,12 +127,12 @@ func TestMCPResourcesIsolateWorkspacesAndRejectMalformedURIs(t *testing.T) {
 		t.Fatalf("own-workspace positive control error = %v", err)
 	}
 
-	crossWorkspace := "dynamis://workspaces/" + otherWorkspace.String() + "/items/" + other.Item.ID
+	crossWorkspace := "dynamis://workspaces/" + otherWorkspace.String() + "/items/" + other.Item.ID.String()
 	if _, err := session.ReadResource(ctx, &mcp.ReadResourceParams{URI: crossWorkspace}); err == nil ||
 		strings.Contains(err.Error(), "secret") || !strings.Contains(err.Error(), "access is denied") {
 		t.Fatalf("cross-workspace read error = %v, want access denied without item data", err)
 	}
-	wrongPath := "dynamis://workspaces/" + state.workspaceID + "/items/" + other.Item.ID
+	wrongPath := "dynamis://workspaces/" + state.workspaceID + "/items/" + other.Item.ID.String()
 	if _, err := session.ReadResource(ctx, &mcp.ReadResourceParams{URI: wrongPath}); resourceCode(err) != mcp.CodeResourceNotFound {
 		t.Fatalf("item in other workspace error = %v, want resource not found", err)
 	}
@@ -176,7 +176,7 @@ func TestMCPResourcesRequireResourcesReadScope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
-	uri := "dynamis://workspaces/" + state.workspaceID + "/items/" + seeded.Item.ID
+	uri := "dynamis://workspaces/" + state.workspaceID + "/items/" + seeded.Item.ID.String()
 	read, err := session.ReadResource(ctx, &mcp.ReadResourceParams{URI: uri})
 	if err != nil || len(read.Contents) != 1 || !strings.Contains(read.Contents[0].Text, "Readable") {
 		t.Fatalf("read-only token read = %#v, %v; want the item", read, err)

@@ -76,7 +76,7 @@ Copy the returned `id` and `ETag` (for example, `"v1"`) into `ITEM_ID` and
 value in `If-Match` and return a new ETag after an update.
 
 ```sh
-export ITEM_ID='0123456789abcdef0123456789abcdef'
+export ITEM_ID='<item short ID>'
 export ETAG='"v1"'
 
 curl --silent --show-error --include \
@@ -119,6 +119,9 @@ Errors use RFC 9457 Problem Details with content type
 - Workspace path: a malformed, unknown, or foreign `workspaceId` returns `404`,
   code `not-found`, with the same body as a missing workspace. Workspace IDs are
   short IDs; integer keys are never accepted or returned.
+- Item path: a malformed, unknown, or foreign `itemId`, including a workspace
+  short ID, returns `404`, code `not-found`, with the same body as a missing
+  item. Item IDs are short IDs; integer keys are never accepted or returned.
 - Rate limit: `429`, code `rate-limited`; wait the number of seconds in
   `Retry-After` before retrying.
 

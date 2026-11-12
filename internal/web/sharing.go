@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/sharing"
 )
 
@@ -15,7 +16,7 @@ func (h *Handler) shareMutation(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	itemID := request.PathValue("itemId")
+	itemID := items.ParseItemIDOrZero(request.PathValue("itemId"))
 	principal, _, _, ok := h.managementPrincipal(writer, request, workspaceID, identity.ResourcesWrite)
 	if !ok {
 		return

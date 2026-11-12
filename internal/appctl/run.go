@@ -3,7 +3,6 @@ package appctl
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -100,7 +99,7 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 	if err != nil {
 		return usage(stderr, err.Error())
 	}
-	if !validWorkspaceShortID(*workspaceID) {
+	if !validShortID(*workspaceID) {
 		return usage(stderr, "--workspace must be a workspace short ID")
 	}
 	path := "/api/v1/workspaces/" + *workspaceID + "/items"
@@ -127,8 +126,8 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 		}
 		path += "?" + query.Encode()
 	case "get":
-		if !validID(*itemID) {
-			return usage(stderr, "--item must be a 32-character lowercase hexadecimal ID")
+		if !validShortID(*itemID) {
+			return usage(stderr, "--item must be an item short ID")
 		}
 		path += "/" + *itemID
 	case "create":
@@ -138,7 +137,7 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 		method, body = http.MethodPost, map[string]string{"title": *title}
 		headers.Set("Idempotency-Key", *idempotencyKey)
 	case "update":
-		if !validID(*itemID) || *version < 1 || (!updateTitle.set && !updateStatus.set) {
+		if !validShortID(*itemID) || *version < 1 || (!updateTitle.set && !updateStatus.set) {
 			return usage(stderr, "update requires --item, --version, and --set-title or --set-status")
 		}
 		if updateStatus.set && updateStatus.value != "active" && updateStatus.value != "complete" {
@@ -154,7 +153,7 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 		method, body, path = http.MethodPatch, values, path+"/"+*itemID
 		headers.Set("If-Match", fmt.Sprintf(`"v%d"`, *version))
 	case "delete":
-		if !validID(*itemID) || *version < 1 {
+		if !validShortID(*itemID) || *version < 1 {
 			return usage(stderr, "delete requires --item and --version")
 		}
 		method, path = http.MethodDelete, path+"/"+*itemID
@@ -264,14 +263,6 @@ func failure(stderr io.Writer, status int, code string) int {
 	return status
 }
 
-func validID(value string) bool {
-	if len(value) != 32 || strings.ToLower(value) != value {
-		return false
-	}
-	decoded, err := hex.DecodeString(value)
-	return err == nil && len(decoded) == 16
-}
-
 func pathWithoutQuery(value string) string {
 	path, _, _ := strings.Cut(value, "?")
 	return path
@@ -289,9 +280,9 @@ func envOr(getenv func(string) string, key, fallback string) string {
 	return fallback
 }
 
-// validWorkspaceShortID checks only the shape of a workspace short ID, because
+// validShortID checks only the shape of a workspace or item short ID, because
 // the value becomes a URL path segment. The server decodes it strictly.
-func validWorkspaceShortID(value string) bool {
+func validShortID(value string) bool {
 	if len(value) < 4 || len(value) > 32 {
 		return false
 	}
