@@ -145,8 +145,8 @@ func TestPostmarkFirstSaveRequiresAccountToken(t *testing.T) {
 	ctx := context.Background()
 	service, _, owner, _ := testService(t, nil)
 	err := service.Save(ctx, owner, owner.WorkspaceID, postmarkInput("pm_server_good", ""), identity.AuditContext{})
-	if !errors.Is(err, ErrInvalidInput) {
-		t.Fatalf("Save() error = %v, want ErrInvalidInput", err)
+	if !errors.Is(err, ErrAccountTokenRequired) {
+		t.Fatalf("Save() error = %v, want ErrAccountTokenRequired", err)
 	}
 }
 

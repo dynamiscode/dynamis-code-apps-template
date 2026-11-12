@@ -398,6 +398,7 @@
   "errors.email_save": "No se pudo guardar la configuración de correo.",
   "errors.email_resend_check": "La comprobación de Resend falló. Revisa la clave de API y guarda de nuevo. No se guardó nada.",
   "errors.email_postmark_check": "La comprobación de Postmark falló. Revisa los tokens del servidor y de la cuenta, y guarda de nuevo. No se guardó nada.",
+  "errors.email_account_token_required": "Introduce el token de API de la cuenta de Postmark en el primer guardado. No se guardó nada.",
   "errors.email_login": "La prueba de inicio de sesión SMTP falló. Revisa el servidor, el puerto, el usuario y la contraseña. No se guardó nada.",
   "errors.email_secret_key": "El cifrado de secretos no está configurado. Define ENCRYPTION_KEY y reinicia el servidor.",
   "errors.email_invalid": "La configuración de correo no es válida.",

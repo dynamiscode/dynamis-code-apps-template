@@ -309,6 +309,12 @@ through Postmark), and `TestPostmarkSettingsRequireTokenChecksBeforeSaving` in
 `internal/web`. Not covered by automated tests: a real Postmark account. Verify a
 sent invitation against Postmark before release.
 
+Surfaces omitted: REST/OpenAPI (sender settings are browser-only; no API client
+needs them yet), CLI/MCP (no automation needs to change sender settings), and
+realtime (no client needs change delivery for sender settings). The browser
+surface is the workspace email settings form, with CSRF and ordinary form
+submission.
+
 ## General encryption key evidence
 
 Webhook secrets seal with `ENCRYPTION_KEY` and record `secret_key_version`

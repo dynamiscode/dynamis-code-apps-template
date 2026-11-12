@@ -87,6 +87,8 @@ func (h *Handler) emailSettingsSave(writer http.ResponseWriter, request *http.Re
 	case errors.As(err, &loginErr):
 		message = "SMTP login test failed. Check the host, port, username, and password. Nothing was saved."
 		loginReason = loginErr.Reason
+	case errors.Is(err, workspaceemail.ErrAccountTokenRequired):
+		message = "Enter the Postmark account token on the first save. Nothing was saved."
 	case errors.Is(err, workspaceemail.ErrPasswordRequired):
 		message = "Enter the password or API key again when the provider, server, port, or username changes."
 	case errors.Is(err, workspaceemail.ErrSecretKey):

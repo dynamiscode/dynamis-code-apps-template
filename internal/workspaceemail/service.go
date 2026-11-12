@@ -23,6 +23,11 @@ const (
 	ProviderResend   = "resend"
 	ProviderPostmark = "postmark"
 
+	// Sender domain statuses. They are stored as text, so the values must not change.
+	DomainStatusVerified = "verified"
+	DomainStatusPending  = "pending"
+	DomainStatusNotFound = "not_found"
+
 	maxSenderNameLength = 100
 	maxHostLength       = 253
 	maxUsernameLength   = 254
@@ -35,6 +40,8 @@ var (
 	ErrUnreadable   = errors.New("workspace email password cannot be opened")
 	// ErrPasswordRequired means the server or login changed, so the password must be re-entered.
 	ErrPasswordRequired = errors.New("workspace email password must be entered when the server changes")
+	// ErrAccountTokenRequired means a Postmark save has no stored Account API token to reuse.
+	ErrAccountTokenRequired = errors.New("Postmark account token must be entered on the first save")
 )
 
 func smtpConfig(input SaveInput, password string) config.Mail {
@@ -233,19 +240,19 @@ func (s *Service) Save(ctx context.Context, actor identity.Principal, workspaceI
 		}
 		domainStatus = senderDomainStatus(domains, input.SenderAddress)
 	case ProviderPostmark:
-		accountCiphertext, accountKeyVersion, accountSecret, err := s.resolveAccountSecret(input, existing, found)
+		account, err := s.resolveAccountSecret(input, existing, found)
 		if err != nil {
 			return err
 		}
 		if err := appmail.PostmarkServerCheck(ctx, s.postmarkBase, secret); err != nil {
 			return &LoginError{Reason: err.Error()}
 		}
-		domains, err := appmail.PostmarkDomains(ctx, s.postmarkBase, accountSecret)
+		domains, err := appmail.PostmarkDomains(ctx, s.postmarkBase, account.plaintext)
 		if err != nil {
 			return &LoginError{Reason: err.Error()}
 		}
 		domainStatus = postmarkDomainStatus(domains, input.SenderAddress)
-		sealed.accountCiphertext, sealed.accountKeyVersion = accountCiphertext, accountKeyVersion
+		sealed.accountCiphertext, sealed.accountKeyVersion = account.ciphertext, account.keyVersion
 	default:
 		cfg := smtpConfig(input, secret)
 		if _, err := appmail.NewWorkspaceSMTP(cfg, input.SenderName); err != nil {
@@ -270,24 +277,32 @@ func (s *Service) Save(ctx context.Context, actor identity.Principal, workspaceI
 	return s.store(ctx, actor, workspaceID, input, sealed, domainStatus, found, input.Password != "", audit)
 }
 
+// resolvedSecret is the Postmark account token for a save: the sealed value to store,
+// its key version, and the plaintext to check with.
+type resolvedSecret struct {
+	ciphertext string
+	keyVersion int
+	plaintext  string
+}
+
 // resolveAccountSecret returns the Postmark account token to check with. A new token
 // is returned unsealed for the caller to seal; a blank one reuses the stored token
 // only when the stored provider is Postmark too.
-func (s *Service) resolveAccountSecret(input SaveInput, existing stored, found bool) (string, int, string, error) {
+func (s *Service) resolveAccountSecret(input SaveInput, existing stored, found bool) (resolvedSecret, error) {
 	if input.AccountToken != "" {
 		if !s.secrets.Configured() {
-			return "", 0, "", ErrSecretKey
+			return resolvedSecret{}, ErrSecretKey
 		}
-		return "", 0, input.AccountToken, nil
+		return resolvedSecret{plaintext: input.AccountToken}, nil
 	}
 	if !found || existing.Provider != ProviderPostmark || existing.accountCiphertext == "" {
-		return "", 0, "", ErrInvalidInput
+		return resolvedSecret{}, ErrAccountTokenRequired
 	}
 	token, err := s.secrets.Open(existing.accountKeyVersion, existing.accountCiphertext)
 	if err != nil {
-		return "", 0, "", ErrUnreadable
+		return resolvedSecret{}, ErrUnreadable
 	}
-	return existing.accountCiphertext, existing.accountKeyVersion, token, nil
+	return resolvedSecret{ciphertext: existing.accountCiphertext, keyVersion: existing.accountKeyVersion, plaintext: token}, nil
 }
 
 // postmarkDomainStatus maps the sender address's domain to verified (DKIM and Return-Path
@@ -297,12 +312,12 @@ func postmarkDomainStatus(domains []appmail.PostmarkDomain, address string) stri
 	for _, candidate := range domains {
 		if strings.ToLower(candidate.Name) == domain {
 			if candidate.DKIMVerified && candidate.ReturnPathDomainVerified {
-				return "verified"
+				return DomainStatusVerified
 			}
-			return "pending"
+			return DomainStatusPending
 		}
 	}
-	return "not_found"
+	return DomainStatusNotFound
 }
 
 // resolveSecret returns the secret to check with. A blank password reuses the stored
@@ -339,7 +354,7 @@ func senderDomainStatus(domains []appmail.ResendDomain, address string) string {
 			return candidate.Status
 		}
 	}
-	return "not_found"
+	return DomainStatusNotFound
 }
 
 func (s *Service) store(

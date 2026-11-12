@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/mail"
@@ -23,8 +24,12 @@ type Postmark struct {
 	name    string
 }
 
-// postmarkClient bounds every Postmark call.
-var postmarkClient = &http.Client{Timeout: 10 * time.Second}
+// postmarkClient bounds every Postmark call. It never follows redirects, so the
+// server and account tokens cannot be forwarded to another origin.
+var postmarkClient = &http.Client{
+	Timeout:       10 * time.Second,
+	CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+}
 
 // PostmarkDomain is one sending domain on the Postmark account.
 type PostmarkDomain struct {
@@ -110,29 +115,53 @@ func PostmarkServerCheck(ctx context.Context, baseURL, serverToken string) error
 
 // PostmarkDomains lists the account's sending domains. It sends nothing.
 func PostmarkDomains(ctx context.Context, baseURL, accountToken string) ([]PostmarkDomain, error) {
-	// ponytail: first 500 domains only, no paging past offset 0; a sender domain beyond that reads as not_found. Follow TotalCount when accounts grow past it.
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/domains?count=500&offset=0", nil)
+	var all []PostmarkDomain
+	for page := 0; page < postmarkDomainPageCap; page++ {
+		domains, total, err := postmarkDomainPage(ctx, baseURL, accountToken, page*postmarkDomainPageSize)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, domains...)
+		if len(all) >= total || len(domains) == 0 {
+			return all, nil
+		}
+	}
+	// A sender domain past the cap would read as not_found, so fail the check instead.
+	return nil, errors.New("Postmark account has too many sending domains to check")
+}
+
+// postmarkDomainPageSize is the page size requested from /domains. Postmark caps pages at 500; 100 keeps responses small.
+const postmarkDomainPageSize = 100
+
+// postmarkDomainPageCap bounds the paging loop: 1000 domains. Accounts beyond it fail the check clearly.
+const postmarkDomainPageCap = 10
+
+// postmarkDomainPage reads one page of /domains and returns it with the account's total domain count.
+func postmarkDomainPage(ctx context.Context, baseURL, accountToken string, offset int) ([]PostmarkDomain, int, error) {
+	url := fmt.Sprintf("%s/domains?count=%d&offset=%d", baseURL, postmarkDomainPageSize, offset)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, errors.New("Postmark request failed")
+		return nil, 0, errors.New("Postmark request failed")
 	}
 	request.Header.Set("X-Postmark-Account-Token", accountToken)
 	request.Header.Set("Accept", "application/json")
 	response, err := postmarkClient.Do(request)
 	if err != nil {
-		return nil, errors.New("Postmark request failed")
+		return nil, 0, errors.New("Postmark request failed")
 	}
 	defer response.Body.Close()
 	if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden {
-		return nil, errors.New("Postmark rejected the account token")
+		return nil, 0, errors.New("Postmark rejected the account token")
 	}
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.New("Postmark check failed")
+		return nil, 0, errors.New("Postmark check failed")
 	}
 	var page struct {
-		Domains []PostmarkDomain `json:"Domains"`
+		TotalCount int              `json:"TotalCount"`
+		Domains    []PostmarkDomain `json:"Domains"`
 	}
 	if err := json.NewDecoder(io.LimitReader(response.Body, 256<<10)).Decode(&page); err != nil {
-		return nil, errors.New("Postmark response was unreadable")
+		return nil, 0, errors.New("Postmark response was unreadable")
 	}
-	return page.Domains, nil
+	return page.Domains, page.TotalCount, nil
 }

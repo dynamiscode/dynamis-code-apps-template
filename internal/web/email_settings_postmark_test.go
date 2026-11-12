@@ -12,6 +12,25 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 )
 
+func TestPostmarkFirstSaveWithoutAccountTokenExplainsWhatIsMissing(t *testing.T) {
+	handler, _, auth, _, workspaceID, owner := emailWebTest(t)
+	ownerSession, err := auth.CreateSession(t.Context(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: ownerSession.Secret}, {Name: "csrf", Value: ownerSession.CSRFSecret}}
+	base := "/workspaces/" + workspaceID.String() + "/settings/email"
+	form := url.Values{
+		"csrf": {ownerSession.CSRFSecret}, "provider": {"postmark"}, "sender_name": {"Dynamis"},
+		"sender_address": {"mailer@example.com"}, "server_token": {"pm_server_good"}, "account_token": {""},
+	}
+	res := request(handler, http.MethodPost, base, form, cookies, nil)
+	want := "Enter the Postmark account token on the first save. Nothing was saved."
+	if res.Code != http.StatusUnprocessableEntity || !strings.Contains(res.Body.String(), want) {
+		t.Fatalf("first save without account token = %d, want message %q; body=%s", res.Code, want, res.Body.String())
+	}
+}
+
 func TestPostmarkSettingsRequireTokenChecksBeforeSaving(t *testing.T) {
 	fake := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {

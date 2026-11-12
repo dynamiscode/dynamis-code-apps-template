@@ -401,5 +401,6 @@
   "errors.email_save": "The email settings could not be saved.",
   "errors.email_resend_check": "Resend check failed. Check the API key, then save again. Nothing was saved.",
   "errors.email_postmark_check": "Postmark check failed. Check the server and account tokens, then save again. Nothing was saved.",
+  "errors.email_account_token_required": "Enter the Postmark account token on the first save. Nothing was saved.",
   "errors.email_password_required": "Enter the password or API key again when the provider, server, port, or username changes."
 }
