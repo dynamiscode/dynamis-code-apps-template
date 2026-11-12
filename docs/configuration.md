@@ -162,13 +162,16 @@ SMTP requires `APP_PUBLIC_URL`, `SMTP_FROM`, and matching username/password
 values; port defaults to 587. Delivery negotiates STARTTLS before optional
 authentication.
 
-Workspace administrators can set their own SMTP sender on the Email settings
-page (`/workspaces/{workspaceId}/settings/email`). A workspace with saved
-settings sends its invitations through them; workspaces without them use the
-instance provider above. Saving runs an SMTP login test first and stores nothing
-if it fails. The workspace password is sealed with `ENCRYPTION_KEY`, so that
-key must be set before it can be saved, and it is never shown again. Account
-email (verification and password reset) always uses only the instance provider.
+Workspace administrators can set their own invitation sender on the Email
+settings page (`/workspaces/{workspaceId}/settings/email`), either SMTP or
+Resend. A workspace with saved settings sends its invitations through them;
+workspaces without them use the instance provider above. Saving runs a provider
+check first and stores nothing if it fails: an SMTP login test, or for Resend a
+read-only `GET /domains` call that sends nothing. The Resend key needs Full access
+so the check can read domains. The workspace password or Resend key is sealed
+with `ENCRYPTION_KEY`, so that key must be set before it can be saved, and it is
+never shown again. Account email (verification and password reset) always uses
+only the instance provider.
 
 Cloudflare Email Sending requires `APP_PUBLIC_URL`, `CLOUDFLARE_EMAIL_ACCOUNT_ID`,
 `CLOUDFLARE_EMAIL_API_TOKEN`, and `CLOUDFLARE_EMAIL_FROM`. The sender domain
