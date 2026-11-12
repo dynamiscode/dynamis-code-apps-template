@@ -6,6 +6,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 const (
@@ -185,6 +187,10 @@ func (s *Service) BeginEmailVerification(
 	if err != nil {
 		return NewEmailVerification{}, err
 	}
+	verificationID, err := id.New()
+	if err != nil {
+		return NewEmailVerification{}, err
+	}
 	now := s.now().UTC()
 	verification := NewEmailVerification{Email: email, Secret: secret, ExpiresAt: now.Add(accountTokenLifetime)}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
@@ -199,9 +205,9 @@ func (s *Service) BeginEmailVerification(
 		return NewEmailVerification{}, err
 	}
 	if _, err := s.exec(ctx, tx, `
-		INSERT INTO email_verifications (user_id, email, token_hash, created_at, expires_at)
-		VALUES (?, ?, ?, ?, ?)
-	`, userID, email, hashSecret(secret), timestamp(now), timestamp(verification.ExpiresAt)); err != nil {
+		INSERT INTO email_verifications (id, user_id, email, token_hash, created_at, expires_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, verificationID, userID, email, hashSecret(secret), timestamp(now), timestamp(verification.ExpiresAt)); err != nil {
 		return NewEmailVerification{}, err
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
@@ -283,6 +289,10 @@ func (s *Service) BeginPasswordReset(
 	if err != nil {
 		return NewPasswordReset{}, err
 	}
+	resetID, err := id.New()
+	if err != nil {
+		return NewPasswordReset{}, err
+	}
 	now := s.now().UTC()
 	reset := NewPasswordReset{Email: normalized, Secret: secret, ExpiresAt: now.Add(accountTokenLifetime)}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
@@ -297,9 +307,9 @@ func (s *Service) BeginPasswordReset(
 		return NewPasswordReset{}, err
 	}
 	if _, err := s.exec(ctx, tx, `
-		INSERT INTO password_resets (user_id, token_hash, created_at, expires_at)
-		VALUES (?, ?, ?, ?)
-	`, userID, hashSecret(secret), timestamp(now), timestamp(reset.ExpiresAt)); err != nil {
+		INSERT INTO password_resets (id, user_id, token_hash, created_at, expires_at)
+		VALUES (?, ?, ?, ?, ?)
+	`, resetID, userID, hashSecret(secret), timestamp(now), timestamp(reset.ExpiresAt)); err != nil {
 		return NewPasswordReset{}, err
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
