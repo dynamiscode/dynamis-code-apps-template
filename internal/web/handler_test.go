@@ -1181,9 +1181,7 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 }
 
 func TestWebBaselineManagementRoutes(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWebConfigured(t, 10, false, func(h *Handler) {
-		h.SetWorkspaceMode(config.WorkspaceModeMulti)
-	})
+	handler, auth, _, workspaceID, owner := testWeb(t, 10)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -1671,4 +1669,80 @@ func assertAccessiblePage(t *testing.T, body string, label string) {
 // make the assertion brittle.
 func hasHTMLRootLang(body, locale string) bool {
 	return strings.Contains(body, `<html lang="`+locale+`"`)
+}
+
+func loginWorkspaceUser(t *testing.T, handler http.Handler, email, password string) ([]*http.Cookie, string) {
+	t.Helper()
+	loginPage := request(handler, http.MethodGet, "/login", nil, nil, nil)
+	loginCSRF := responseCookie(loginPage, "login_csrf")
+	loggedIn := request(handler, http.MethodPost, "/login", url.Values{
+		"email": {email}, "password": {password}, "csrf": {loginCSRF.Value},
+	}, []*http.Cookie{loginCSRF}, nil)
+	if loggedIn.Code != http.StatusSeeOther {
+		t.Fatalf("login %s = %d", email, loggedIn.Code)
+	}
+	csrf := responseCookie(loggedIn, "csrf")
+	return []*http.Cookie{responseCookie(loggedIn, "session"), csrf}, csrf.Value
+}
+
+func TestWebRootLandsInOldestWorkspaceInSingleMode(t *testing.T) {
+	handler, auth, _, workspaceID, owner := testWebConfigured(t, 10, false, func(h *Handler) {
+		h.SetWorkspaceMode(config.WorkspaceModeSingle)
+	})
+	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
+	// Browser creation is closed in single mode; add the newer membership through the service.
+	if _, err := auth.CreateWorkspace(context.Background(), identity.Principal{
+		UserID: owner.UserID, AuthMethod: "local", AuthLevel: identity.AuthLevelPassword,
+	}, identity.WorkspaceCreateInput{Name: "Newer"}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	root := request(handler, http.MethodGet, "/", nil, cookies, nil)
+	if root.Code != http.StatusFound || root.Header().Get("Location") != "/workspaces/"+workspaceID {
+		t.Fatalf("single-mode root = %d, Location %q; want 302 to oldest workspace", root.Code, root.Header().Get("Location"))
+	}
+}
+
+func TestWebRootShowsNoMembershipsInSingleMode(t *testing.T) {
+	handler, auth, _, workspaceID, owner := testWebConfigured(t, 10, false, func(h *Handler) {
+		h.SetWorkspaceMode(config.WorkspaceModeSingle)
+	})
+	ctx := context.Background()
+	inviter, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.InvitationsManage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	invitation, err := auth.CreateInvitation(ctx, inviter, "former@example.com", identity.Member, time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	formerID, _, err := auth.CreateInvitedLocalUser(ctx, invitation.Secret, "former-long-password", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	remover, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.MembersManage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.RemoveMember(ctx, remover, formerID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	cookies, _ := loginWorkspaceUser(t, handler, "former@example.com", "former-long-password")
+	root := request(handler, http.MethodGet, "/", nil, cookies, nil)
+	if root.Code != http.StatusOK || !strings.Contains(root.Body.String(), "No workspace memberships.") {
+		t.Fatalf("single-mode root without memberships = %d, %s", root.Code, root.Body.String())
+	}
+	if strings.Contains(root.Body.String(), `action="/workspaces"`) {
+		t.Fatal("single-mode root shows the create-workspace form")
+	}
+}
+
+func TestWebRootListsWorkspacesInMultiMode(t *testing.T) {
+	handler, _, _, workspaceID, _ := testWebConfigured(t, 10, false, func(h *Handler) {
+		h.SetWorkspaceMode(config.WorkspaceModeMulti)
+	})
+	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
+	root := request(handler, http.MethodGet, "/", nil, cookies, nil)
+	if root.Code != http.StatusOK || !strings.Contains(root.Body.String(), workspaceID) {
+		t.Fatalf("multi-mode root = %d, %s; want workspace list", root.Code, root.Body.String())
+	}
 }

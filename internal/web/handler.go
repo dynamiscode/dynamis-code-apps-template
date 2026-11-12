@@ -52,14 +52,8 @@ type Handler struct {
 	workspaceMode  config.WorkspaceMode
 }
 
-// SetWorkspaceMode selects whether the browser exposes workspace creation.
-// Call before Routes. The zero value is treated as single mode.
-func (h *Handler) SetWorkspaceMode(mode config.WorkspaceMode) {
-	h.workspaceMode = mode
-}
-
 func (h *Handler) workspaceCreationEnabled() bool {
-	return h.workspaceMode == config.WorkspaceModeMulti
+	return h.workspaceMode != config.WorkspaceModeSingle
 }
 
 type pageData struct {
@@ -294,6 +288,12 @@ func firstWebhook(values []*webhooks.Service) webhookManager {
 		return nil
 	}
 	return values[0]
+}
+
+// SetWorkspaceMode selects the browser root behavior. The zero value keeps the
+// multi-workspace list, so handlers built without it are unchanged.
+func (h *Handler) SetWorkspaceMode(mode config.WorkspaceMode) {
+	h.workspaceMode = mode
 }
 
 func (h *Handler) Routes() http.Handler {
@@ -617,6 +617,19 @@ func (h *Handler) home(writer http.ResponseWriter, request *http.Request) {
 	session, csrf, ok := h.session(writer, request)
 	if !ok {
 		return
+	}
+	// Only an explicit single mode lands users in a workspace; the zero value
+	// keeps the multi-workspace list.
+	if h.workspaceMode == config.WorkspaceModeSingle {
+		workspaceID, found, err := h.identity.DefaultWorkspaceID(request.Context(), session.UserID)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+		if found {
+			http.Redirect(writer, request, "/workspaces/"+workspaceID, http.StatusFound)
+			return
+		}
 	}
 	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
 	if err != nil {

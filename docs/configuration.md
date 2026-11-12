@@ -88,12 +88,13 @@ variables because one instance owns the file.
 
 `MULTI_WORKSPACE_ENABLED` is parsed at startup and stored as the instance
 workspace mode. It defaults to `false`, which selects single workspace mode;
-`true` selects multi workspace mode. In single mode the browser hides the
-workspace creation form on `/` and `POST /workspaces` returns 404; the first
-workspace comes from `cmd/bootstrap-admin`. Multi mode keeps browser creation.
-Other single-mode browser behaviour is not yet changed. The default change
-applies to existing deployments: those that create workspaces in the browser
-must set `MULTI_WORKSPACE_ENABLED=true` before upgrading.
+`true` selects multi workspace mode. In single mode the browser root (`/`)
+redirects a signed-in user to the home of their oldest workspace membership,
+hides the workspace creation form, and `POST /workspaces` returns 404; the
+first workspace comes from `cmd/bootstrap-admin`. In multi mode `/` lists
+memberships and creates workspaces. The default change applies to existing
+deployments: those that create workspaces in the browser must set
+`MULTI_WORKSPACE_ENABLED=true` before upgrading.
 
 The three `BOOTSTRAP_ADMIN_*` variables enable unattended first-owner
 bootstrap only when all are non-empty. A partial set fails startup; an empty

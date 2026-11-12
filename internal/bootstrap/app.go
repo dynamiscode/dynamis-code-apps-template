@@ -173,12 +173,12 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("initialize web handler: %w", err)
 	}
+	webHandler.SetWorkspaceMode(cfg.WorkspaceMode)
 	jobQueue.Start(ctx)
 	mux := http.NewServeMux()
 	mux.Handle("/api/", handler)
 	mux.Handle("/health/", handler)
 	registerAgent(mux, identityService, itemService, cfg)
-	webHandler.SetWorkspaceMode(cfg.WorkspaceMode)
 	if cfg.MCP.OAuthBuiltIn {
 		webHandler.EnableMCPOAuth(cfg.MCP.OAuthResourceURL)
 	}

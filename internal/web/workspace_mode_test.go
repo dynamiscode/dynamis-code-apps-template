@@ -24,8 +24,8 @@ func TestSingleWorkspaceModeHidesCreationAndReturnsNotFound(t *testing.T) {
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 
 	home := request(handler, http.MethodGet, "/", nil, cookies, nil)
-	if home.Code != http.StatusOK || strings.Contains(home.Body.String(), `action="/workspaces"`) {
-		t.Fatalf("single mode home = %d, create form shown", home.Code)
+	if home.Code != http.StatusFound || strings.Contains(home.Body.String(), `action="/workspaces"`) {
+		t.Fatalf("single mode home = %d, want 302 to the oldest workspace", home.Code)
 	}
 
 	created := request(handler, http.MethodPost, "/workspaces", url.Values{
