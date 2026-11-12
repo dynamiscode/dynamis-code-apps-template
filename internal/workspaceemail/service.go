@@ -19,8 +19,9 @@ import (
 )
 
 const (
-	ProviderSMTP   = "smtp"
-	ProviderResend = "resend"
+	ProviderSMTP     = "smtp"
+	ProviderResend   = "resend"
+	ProviderPostmark = "postmark"
 
 	maxSenderNameLength = 100
 	maxHostLength       = 253
@@ -58,13 +59,21 @@ type Settings struct {
 	Port          int    `json:"port"`
 	Username      string `json:"username"`
 	PasswordSet   bool   `json:"passwordSet"`
-	// DomainStatus is the sender domain's Resend status as of the last save.
+	// AccountTokenSet reports whether a Postmark account token is stored. The token is never returned.
+	AccountTokenSet bool `json:"accountTokenSet"`
+	// DomainStatus is the sender domain's status as of the last save (Resend or Postmark).
 	DomainStatus string    `json:"senderDomainStatus"`
 	UpdatedAt    time.Time `json:"updatedAt,omitzero"`
 }
 
+// UsesSMTP reports whether the SMTP fields apply. An unconfigured form defaults to SMTP.
+func (s Settings) UsesSMTP() bool {
+	return s.Provider != ProviderResend && s.Provider != ProviderPostmark
+}
+
 // SaveInput is the form data. For SMTP, Password is the SMTP password; for Resend
-// it is the API key. An empty Password keeps the stored secret for the same provider.
+// it is the API key; for Postmark it is the Server Token and AccountToken is the
+// Account Token. An empty secret keeps the stored one for the same provider.
 type SaveInput struct {
 	Provider      string
 	SenderAddress string
@@ -73,14 +82,26 @@ type SaveInput struct {
 	Port          int
 	Username      string
 	Password      string
+	AccountToken  string
 }
 
 type stored struct {
 	SaveInput
-	ciphertext   string
-	keyVersion   int
-	domainStatus string
-	updatedAt    time.Time
+	ciphertext        string
+	keyVersion        int
+	accountCiphertext string
+	accountKeyVersion int
+	domainStatus      string
+	updatedAt         time.Time
+}
+
+// sealedSecrets are the encrypted values written to a row. An empty account
+// ciphertext clears any stored Postmark account token.
+type sealedSecrets struct {
+	ciphertext        string
+	keyVersion        int
+	accountCiphertext string
+	accountKeyVersion int
 }
 
 type Service struct {
@@ -89,8 +110,9 @@ type Service struct {
 	auth     *identity.Service
 	secrets  secretbox.Keyring
 	fallback appmail.Sender
-	// resendBase is the Resend API origin; tests point it at a fake server.
-	resendBase string
+	// resendBase and postmarkBase are provider API origins; tests point them at fake servers.
+	resendBase   string
+	postmarkBase string
 	// login runs the SMTP login test; tests replace it to avoid a network server.
 	login func(context.Context, config.Mail, string) error
 }
@@ -99,7 +121,8 @@ type Service struct {
 func NewService(db *sql.DB, driver config.DatabaseDriver, auth *identity.Service, secrets secretbox.Keyring, fallback appmail.Sender) *Service {
 	return &Service{
 		db: db, driver: driver, auth: auth, secrets: secrets, fallback: fallback,
-		resendBase: appmail.ResendBaseURL,
+		resendBase:   appmail.ResendBaseURL,
+		postmarkBase: appmail.PostmarkBaseURL,
 		login: func(ctx context.Context, cfg config.Mail, senderName string) error {
 			sender, err := appmail.NewWorkspaceSMTP(cfg, senderName)
 			if err != nil {
@@ -147,6 +170,13 @@ func (s *Service) SendFor(ctx context.Context, shortID, recipient, subject, body
 		}
 		return sender.Send(ctx, recipient, subject, body)
 	}
+	if row.Provider == ProviderPostmark {
+		sender, err := appmail.NewPostmark(s.postmarkBase, secret, row.SenderAddress, row.SenderName)
+		if err != nil {
+			return ErrInvalidInput
+		}
+		return sender.Send(ctx, recipient, subject, body)
+	}
 	sender, err := appmail.NewWorkspaceSMTP(smtpConfig(row.SaveInput, secret), row.SenderName)
 	if err != nil {
 		return ErrInvalidInput
@@ -169,12 +199,14 @@ func (s *Service) Get(ctx context.Context, actor identity.Principal, workspaceID
 	return Settings{
 		Configured: true, Provider: row.Provider, SenderAddress: row.SenderAddress, SenderName: row.SenderName,
 		Host: row.Host, Port: row.Port, Username: row.Username, PasswordSet: true,
-		DomainStatus: row.domainStatus, UpdatedAt: row.updatedAt,
+		AccountTokenSet: row.accountCiphertext != "",
+		DomainStatus:    row.domainStatus, UpdatedAt: row.updatedAt,
 	}, nil
 }
 
 // Save runs the provider check with the submitted settings and stores them only if it passes.
-// SMTP runs a login test; Resend reads the account's sending domains, which sends nothing.
+// SMTP runs a login test; Resend reads the account's sending domains; Postmark checks the
+// server token and reads sending domains with the account token. Nothing is sent.
 func (s *Service) Save(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, input SaveInput, audit identity.AuditContext) error {
 	input, err := normalize(input)
 	if err != nil {
@@ -191,14 +223,30 @@ func (s *Service) Save(ctx context.Context, actor identity.Principal, workspaceI
 	if err != nil {
 		return err
 	}
+	sealed := sealedSecrets{ciphertext: ciphertext, keyVersion: keyVersion}
 	domainStatus := ""
-	if input.Provider == ProviderResend {
+	switch input.Provider {
+	case ProviderResend:
 		domains, err := appmail.ResendDomains(ctx, s.resendBase, secret)
 		if err != nil {
 			return &LoginError{Reason: err.Error()}
 		}
 		domainStatus = senderDomainStatus(domains, input.SenderAddress)
-	} else {
+	case ProviderPostmark:
+		accountCiphertext, accountKeyVersion, accountSecret, err := s.resolveAccountSecret(input, existing, found)
+		if err != nil {
+			return err
+		}
+		if err := appmail.PostmarkServerCheck(ctx, s.postmarkBase, secret); err != nil {
+			return &LoginError{Reason: err.Error()}
+		}
+		domains, err := appmail.PostmarkDomains(ctx, s.postmarkBase, accountSecret)
+		if err != nil {
+			return &LoginError{Reason: err.Error()}
+		}
+		domainStatus = postmarkDomainStatus(domains, input.SenderAddress)
+		sealed.accountCiphertext, sealed.accountKeyVersion = accountCiphertext, accountKeyVersion
+	default:
 		cfg := smtpConfig(input, secret)
 		if _, err := appmail.NewWorkspaceSMTP(cfg, input.SenderName); err != nil {
 			return ErrInvalidInput
@@ -208,12 +256,53 @@ func (s *Service) Save(ctx context.Context, actor identity.Principal, workspaceI
 		}
 	}
 	if input.Password != "" {
-		ciphertext, keyVersion, err = s.secrets.Seal(input.Password)
+		sealed.ciphertext, sealed.keyVersion, err = s.secrets.Seal(input.Password)
 		if err != nil {
 			return ErrSecretKey
 		}
 	}
-	return s.store(ctx, actor, workspaceID, input, ciphertext, keyVersion, domainStatus, found, input.Password != "", audit)
+	if input.AccountToken != "" {
+		sealed.accountCiphertext, sealed.accountKeyVersion, err = s.secrets.Seal(input.AccountToken)
+		if err != nil {
+			return ErrSecretKey
+		}
+	}
+	return s.store(ctx, actor, workspaceID, input, sealed, domainStatus, found, input.Password != "", audit)
+}
+
+// resolveAccountSecret returns the Postmark account token to check with. A new token
+// is returned unsealed for the caller to seal; a blank one reuses the stored token
+// only when the stored provider is Postmark too.
+func (s *Service) resolveAccountSecret(input SaveInput, existing stored, found bool) (string, int, string, error) {
+	if input.AccountToken != "" {
+		if !s.secrets.Configured() {
+			return "", 0, "", ErrSecretKey
+		}
+		return "", 0, input.AccountToken, nil
+	}
+	if !found || existing.Provider != ProviderPostmark || existing.accountCiphertext == "" {
+		return "", 0, "", ErrInvalidInput
+	}
+	token, err := s.secrets.Open(existing.accountKeyVersion, existing.accountCiphertext)
+	if err != nil {
+		return "", 0, "", ErrUnreadable
+	}
+	return existing.accountCiphertext, existing.accountKeyVersion, token, nil
+}
+
+// postmarkDomainStatus maps the sender address's domain to verified (DKIM and Return-Path
+// both verified), pending (listed but not verified), or not_found.
+func postmarkDomainStatus(domains []appmail.PostmarkDomain, address string) string {
+	domain := strings.ToLower(address[strings.LastIndex(address, "@")+1:])
+	for _, candidate := range domains {
+		if strings.ToLower(candidate.Name) == domain {
+			if candidate.DKIMVerified && candidate.ReturnPathDomainVerified {
+				return "verified"
+			}
+			return "pending"
+		}
+	}
+	return "not_found"
 }
 
 // resolveSecret returns the secret to check with. A blank password reuses the stored
@@ -258,8 +347,7 @@ func (s *Service) store(
 	actor identity.Principal,
 	workspaceID identity.WorkspaceID,
 	input SaveInput,
-	ciphertext string,
-	keyVersion int,
+	sealed sealedSecrets,
 	domainStatus string,
 	existed, passwordChanged bool,
 	audit identity.AuditContext,
@@ -276,8 +364,9 @@ func (s *Service) store(
 	if _, err := s.exec(ctx, tx, `
 		INSERT INTO workspace_email_settings (
 			workspace_id, provider, sender_address, sender_name, host, port, username,
-			encrypted_password, secret_key_version, sender_domain_status, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			encrypted_password, secret_key_version, encrypted_account_token, account_secret_key_version,
+			sender_domain_status, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (workspace_id) DO UPDATE SET
 			provider = excluded.provider,
 			sender_address = excluded.sender_address,
@@ -287,10 +376,13 @@ func (s *Service) store(
 			username = excluded.username,
 			encrypted_password = excluded.encrypted_password,
 			secret_key_version = excluded.secret_key_version,
+			encrypted_account_token = excluded.encrypted_account_token,
+			account_secret_key_version = excluded.account_secret_key_version,
 			sender_domain_status = excluded.sender_domain_status,
 			updated_at = excluded.updated_at
 	`, workspaceID, input.Provider, input.SenderAddress, input.SenderName, input.Host, input.Port, input.Username,
-		ciphertext, keyVersion, domainStatus, stamp(now), stamp(now)); err != nil {
+		sealed.ciphertext, sealed.keyVersion, sealed.accountCiphertext, sealed.accountKeyVersion,
+		domainStatus, stamp(now), stamp(now)); err != nil {
 		return err
 	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
@@ -313,10 +405,11 @@ func (s *Service) load(ctx context.Context, workspaceID identity.WorkspaceID) (s
 	var updated string
 	err := s.queryRow(ctx, s.db, `
 		SELECT provider, sender_address, sender_name, host, port, username,
-			encrypted_password, secret_key_version, sender_domain_status, updated_at
+			encrypted_password, secret_key_version, encrypted_account_token, account_secret_key_version,
+			sender_domain_status, updated_at
 		FROM workspace_email_settings WHERE workspace_id = ?
 	`, workspaceID).Scan(&row.Provider, &row.SenderAddress, &row.SenderName, &row.Host, &row.Port, &row.Username,
-		&row.ciphertext, &row.keyVersion, &row.domainStatus, &updated)
+		&row.ciphertext, &row.keyVersion, &row.accountCiphertext, &row.accountKeyVersion, &row.domainStatus, &updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return stored{}, false, nil
 	}
@@ -332,7 +425,7 @@ func normalize(input SaveInput) (SaveInput, error) {
 	if input.Provider == "" {
 		input.Provider = ProviderSMTP
 	}
-	if input.Provider != ProviderSMTP && input.Provider != ProviderResend {
+	if input.Provider != ProviderSMTP && input.Provider != ProviderResend && input.Provider != ProviderPostmark {
 		return SaveInput{}, ErrInvalidInput
 	}
 	input.SenderAddress = strings.TrimSpace(input.SenderAddress)
@@ -344,10 +437,16 @@ func normalize(input SaveInput) (SaveInput, error) {
 	if len(input.SenderName) > maxSenderNameLength || strings.ContainsAny(input.SenderName, "\r\n") {
 		return SaveInput{}, ErrInvalidInput
 	}
-	if input.Provider == ProviderResend {
-		// Resend uses only the API key and sender; SMTP fields stay empty.
+	if input.Provider != ProviderSMTP {
+		// Resend and Postmark use only API tokens and sender; SMTP fields stay empty.
 		input.Host, input.Port, input.Username = "", 0, ""
-	} else {
+	}
+	if input.Provider != ProviderPostmark {
+		input.AccountToken = ""
+	} else if len(input.AccountToken) > maxPasswordLength || strings.ContainsAny(input.AccountToken, "\r\n") {
+		return SaveInput{}, ErrInvalidInput
+	}
+	if input.Provider == ProviderSMTP {
 		input.Host = strings.TrimSpace(input.Host)
 		input.Username = strings.TrimSpace(input.Username)
 		if input.Host == "" || len(input.Host) > maxHostLength || strings.ContainsAny(input.Host, " \t\r\n/@:") {
@@ -393,3 +492,6 @@ func metadata(value map[string]any) string {
 // SetResendBaseURL points Resend calls at another origin. Production keeps the
 // default; handler tests use it to reach a fake Resend server.
 func (s *Service) SetResendBaseURL(base string) { s.resendBase = base }
+
+// SetPostmarkBaseURL points Postmark calls at another origin, for the same reason.
+func (s *Service) SetPostmarkBaseURL(base string) { s.postmarkBase = base }

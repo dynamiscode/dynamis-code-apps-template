@@ -85,7 +85,7 @@ These remain out of the build plan until their trigger is demonstrated.
 | Public sharing or guest access | conforming for bounded Item browser links | Files, public APIs, guest collaboration, or other resource types require a separate contract |
 | Fine-grained permissions | deferred | Baseline roles cannot express a measured requirement |
 | External-issuer OAuth access tokens for MCP | deferred | An accepted requirement needs `/mcp` to accept access tokens from an external authorization server; see [decision 0007](decisions/0007-mcp-oauth-protected-resource-metadata.md) |
-| Email providers | deferred | A workspace needs an HTTP email provider beyond Resend. Per-workspace SMTP (issue 203) and Resend (issue 204) are implemented; each further HTTP provider needs its own contract and evidence. Architecture is accepted in [decision 0009](decisions/0009-workspace-email-settings.md). |
+| Email providers | deferred | A workspace needs an HTTP email provider beyond Resend and Postmark. Per-workspace SMTP (issue 203), Resend (issue 204), and Postmark (issue 205) are implemented; each further HTTP provider needs its own contract and evidence. Architecture is accepted in [decision 0009](decisions/0009-workspace-email-settings.md). |
 | Encryption key rotation command | deferred | Stored provider credentials must be re-encrypted under a new key after a compromise or policy change. Design is accepted in [decision 0009](decisions/0009-workspace-email-settings.md); no rotation command exists yet. |
 
 When a trigger is accepted, record the requirement and architecture decision,
@@ -293,6 +293,21 @@ auth, payload shape, rejected key, no response body echoed), the
 invitation delivered through Resend), and `TestResendSettingsRequireAPIKeyCheckBeforeSaving`
 in `internal/web`. Not covered by automated tests: a real Resend account. Verify
 a sent invitation against Resend before release.
+
+## Workspace Postmark evidence
+
+Workspace email can use Postmark (`provider = postmark`, migrations 000019 and
+000020). The save path runs a read-only `GET /server` check with the submitted
+Server API token and a read-only `GET /domains` check with the Account API token,
+and stores nothing if either fails. Sending uses `POST /email` over HTTPS with the
+sealed Server API token. The Account API token is sealed in its own column with
+its own key version. Evidence: `internal/platform/mail` tests against a fake HTTP
+server (server token header, payload shape, rejected token, no response body
+echoed, read-only checks), the `internal/workspaceemail` tests (bad server or
+account token blocks save, sealed tokens, blank-token reuse, invitation delivered
+through Postmark), and `TestPostmarkSettingsRequireTokenChecksBeforeSaving` in
+`internal/web`. Not covered by automated tests: a real Postmark account. Verify a
+sent invitation against Postmark before release.
 
 ## General encryption key evidence
 
