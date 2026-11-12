@@ -85,6 +85,8 @@ These remain out of the build plan until their trigger is demonstrated.
 | Public sharing or guest access | conforming for bounded Item browser links | Files, public APIs, guest collaboration, or other resource types require a separate contract |
 | Fine-grained permissions | deferred | Baseline roles cannot express a measured requirement |
 | External-issuer OAuth access tokens for MCP | deferred | An accepted requirement needs `/mcp` to accept access tokens from an external authorization server; see [decision 0007](decisions/0007-mcp-oauth-protected-resource-metadata.md) |
+| Email providers | deferred | A workspace needs an HTTP email provider beyond Resend. Per-workspace SMTP (issue 203) and Resend (issue 204) are implemented; each further HTTP provider needs its own contract and evidence. Architecture is accepted in [decision 0009](decisions/0009-workspace-email-settings.md). |
+| Encryption key rotation command | deferred | Stored provider credentials must be re-encrypted under a new key after a compromise or policy change. Design is accepted in [decision 0009](decisions/0009-workspace-email-settings.md); no rotation command exists yet. |
 
 When a trigger is accepted, record the requirement and architecture decision,
 then update implementation, contracts, tests, operations, and this ledger
@@ -150,7 +152,7 @@ axe-core 4.10.2, Chrome, and VoiceOver:
   SQLite and isolated PostgreSQL
 - full-page and HTMX fragment behavior, ordinary form fallback, session-bound
   CSRF, authorization, escaped output, validation, and safe errors
-- browser surfaces cover workspace creation, baseline identity management,
+- browser surfaces cover workspace creation in multi mode, baseline identity management,
   invitation registration/acceptance, one-time token display, sessions,
   security linking, and export download
 - SSE scope, initial/expired resync, valid reconnect replay, stable versioned
@@ -268,6 +270,42 @@ management surface pass the focused webhook, item, browser, HTTP, configuration,
 maintenance, and migration tests. PostgreSQL execution and Docker smoke remain
 part of the final verification ladder.
 
+## Workspace email evidence
+
+Workspace SMTP settings seal the password under `ENCRYPTION_KEY` and record
+`secret_key_version` (migration 000018). Admin-only management, a failed login
+test blocking save, blank-password retention, invitation routing to the
+workspace sender with instance fallback, and env-only account email are covered
+by `TestWorkspaceEmailSettingsAreAdminOnlyAndLoginTested` in `internal/web`, the
+`internal/workspaceemail` service tests, and the display-name test in
+`internal/platform/mail`. Not covered by automated tests: a delivered message
+through a live STARTTLS server. Verify that manually against a real provider
+before release.
+
+## Workspace Resend evidence
+
+Workspace email can use Resend (`provider = resend`, migration 000019). The
+save path runs a read-only `GET /domains` check with the submitted key and stores
+nothing if it fails. Sending uses `POST /emails` over HTTPS with the sealed key.
+Evidence: `internal/platform/mail` tests against a fake HTTP server (bearer
+auth, payload shape, rejected key, no response body echoed), the
+`internal/workspaceemail` tests (bad key blocks save, sealed key, blank-key reuse,
+invitation delivered through Resend), and `TestResendSettingsRequireAPIKeyCheckBeforeSaving`
+in `internal/web`. Not covered by automated tests: a real Resend account. Verify
+a sent invitation against Resend before release.
+
+## General encryption key evidence
+
+Webhook secrets seal with `ENCRYPTION_KEY` and record `secret_key_version`
+(migration 000017). `WEBHOOK_ENCRYPTION_KEY` is key version 1 and still opens
+rows sealed before `ENCRYPTION_KEY` was set. Evidence: the legacy-ciphertext
+vector test in `internal/platform/secretbox`, the key-selection matrix in
+`internal/platform/config`, `TestLegacyWebhookSecretsDeliverAfterGeneralKeyIsAdded`
+in `internal/webhooks`, and `TestPostgresMigrations` in `internal/platform/database`,
+which applies every embedded migration including 000017. A manual startup with
+no key set logged the warning and reached the listener (the smoke was not
+committed as a test). Key rotation remains deferred.
+
 ## Phase 09 evidence
 
 SCIM 2.0 Users and role Groups are REST-only and workspace-scoped. The browser
@@ -358,8 +396,19 @@ workspace short IDs on item routes return the same not-found. `go test -count=1 
 passed on SQLite, with `make lint` and `make test-unit` passing. A fresh PostgreSQL
 14.24 container passed `go test -p 1` for the items, sharing, database,
 maintenance, identity, portability, and files packages. The migration rewrite is
-covered by the workspace exception record; its approval scope still needs a
-maintainer decision before this evidence is final.
+covered by the workspace exception record, whose item-key scope the user approved
+for #190.
+## Member, invitation, and API token short ID evidence
+
+Verified 2026-11-11. Issue #193 gives members, invitations, and API tokens integer
+keys and exposes only their ADR 0009 short IDs. Token secrets remain random values and
+are never encoded. Malformed, unknown, and foreign IDs return the same `not-found`
+problem, covered by `TestIdentityRecordPathsAreShortIDOnlyAndUniform` on SQLite.
+Checks run: `make test` (all packages, SQLite) and `make lint` passed; `go generate
+./api` produced no drift; `make test-postgres` passed for `internal/identity` and
+`internal/files` against PostgreSQL 14.24. `internal/httpapi` and the PostgreSQL
+retention test were not run on PostgreSQL. The migration rewrite is covered by the
+[recorded exception](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md).
 
 ## Files evidence
 
@@ -583,3 +632,35 @@ new dated section here: date, endpoint kind (no account ID), Go version, and
 Not verified against R2 until that run passes: SigV4 signature validity for
 presigned URLs, the SDK's default request checksum behavior, conditional PUT
 with `If-None-Match`, and browser CORS preflight for presigned uploads.
+
+## Workspace mode evidence
+
+Verified 2026-11-11 with Go 1.27.4 on SQLite. Behavior for both modes is
+documented in [web](web.md) and
+[configuration](configuration.md). Evidence:
+
+- mode parsing: `TestLoadFromWorkspaceModeDefaultsToSingle` and
+  `TestLoadFromRejectsInvalidWorkspaceMode` in
+  [config tests](../internal/platform/config/config_test.go)
+- single mode: `TestWebRootLandsInOldestWorkspaceInSingleMode`,
+  `TestWebRootShowsNoMembershipsInSingleMode`, and
+  `TestSingleModeHidesWorkspaceListNavigation` in
+  [browser mode tests](../internal/web/handler_test.go)
+- multi mode: `TestWebRootListsWorkspacesInMultiMode` and
+  `TestMultiModeKeepsWorkspaceListNavigation` in
+  [browser mode tests](../internal/web/handler_test.go)
+- the accessibility and WebMCP smoke scripts run the server with
+  `MULTI_WORKSPACE_ENABLED=true` so their workspace-list flows stay covered
+
+- single mode blocks browser workspace creation: the create form is hidden and
+  `POST /workspaces` returns `404`. Evidence:
+  `TestSingleWorkspaceModeHidesCreationAndReturnsNotFound` in
+  [workspace mode tests](../internal/web/workspace_mode_test.go)
+- multi mode keeps browser workspace creation: `TestMultiWorkspaceModeKeepsCreation`
+  in [workspace mode tests](../internal/web/workspace_mode_test.go)
+
+- passed: `make test`, `make lint`, `make doc-links`, `make secret-check`, and
+  `go test -count=1 -run` for the named config and web mode tests
+- not run: PostgreSQL (`POSTGRES_TEST_URL` unset; no data change), `make race`
+  (no concurrent code changed), `make generate-check` (no API change), and
+  `make docker-smoke` (no runtime change)

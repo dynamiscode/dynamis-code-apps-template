@@ -38,6 +38,13 @@ the source wins and this file gets fixed.
 | Webhook | A workspace-scoped HTTP delivery of item events, signed with HMAC-SHA256. | [Webhooks decision](docs/decisions/0004-webhooks.md) |
 | Outbox | Database rows written in the same transaction as an item change, delivered later by a `webhook.delivery` job. | [Background jobs decision](docs/decisions/0005-background-jobs.md), [Operations](docs/operations.md) |
 | Background job | A durable database-queued job, claimed under a lease. | [Background jobs decision](docs/decisions/0005-background-jobs.md) |
+| Workspace email settings | A workspace's own email provider and sender identity. Unconfigured workspaces use the instance default. | [Workspace email settings decision](docs/decisions/0009-workspace-email-settings.md) |
+| Provider | The external service that delivers email. Configured per workspace, or by the instance default. | [Workspace email settings decision](docs/decisions/0009-workspace-email-settings.md) |
+| Sender identity | The address and display name email appears to come from. | [Workspace email settings decision](docs/decisions/0009-workspace-email-settings.md) |
+| Account email | Email about a person's own account, such as verification or password recovery. Always uses the instance default. | [Workspace email settings decision](docs/decisions/0009-workspace-email-settings.md) |
+| Workspace email | Email sent on behalf of a workspace, such as invitations. Uses that workspace's email settings. | [Workspace email settings decision](docs/decisions/0009-workspace-email-settings.md) |
+| Instance default | The email configuration owned by the deployment. Fills in for unconfigured workspaces. | [Workspace email settings decision](docs/decisions/0009-workspace-email-settings.md) |
+| Encryption key | A deployment-owned secret that protects credentials stored in the database. | [Workspace email settings decision](docs/decisions/0009-workspace-email-settings.md) |
 | Realtime | One-way SSE delivery, such as recipient-scoped notification events. | [Web](docs/web.md#realtime-contract) |
 | MCP | Server-side Model Context Protocol tools. Never access SQL or run shell commands. | [MCP](docs/mcp.md) |
 | WebMCP | Optional browser-tab enhancement, separate from server MCP. Feature-detected; the ordinary form path always works. | [Web](docs/web.md#webmcp-progressive-enhancement) |

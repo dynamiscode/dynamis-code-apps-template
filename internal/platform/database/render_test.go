@@ -8,7 +8,7 @@ import (
 )
 
 func TestRenderMigrationChoosesWorkspacePrimaryKeyPerDriver(t *testing.T) {
-	const source = "CREATE TABLE workspaces (\n    id {{workspace_id_pk}},\n    name TEXT NOT NULL\n);"
+	const source = "CREATE TABLE workspaces (\n    id {{integer_pk}},\n    name TEXT NOT NULL\n);"
 
 	sqlite := renderMigration(source, config.SQLite)
 	if !strings.Contains(sqlite, "id INTEGER PRIMARY KEY,") {
@@ -21,7 +21,7 @@ func TestRenderMigrationChoosesWorkspacePrimaryKeyPerDriver(t *testing.T) {
 }
 
 func TestRenderMigrationChoosesItemPrimaryKeyPerDriver(t *testing.T) {
-	const source = "CREATE TABLE items (\n    id {{item_id_pk}},\n    title TEXT NOT NULL\n);"
+	const source = "CREATE TABLE items (\n    id {{integer_pk}},\n    title TEXT NOT NULL\n);"
 
 	if sqlite := renderMigration(source, config.SQLite); !strings.Contains(sqlite, "id INTEGER PRIMARY KEY,") {
 		t.Fatalf("SQLite render = %q", sqlite)

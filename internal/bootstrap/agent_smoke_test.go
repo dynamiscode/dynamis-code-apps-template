@@ -87,7 +87,7 @@ func TestAgentSurfacesLiveSmoke(t *testing.T) {
 		t.Fatal(err)
 	}
 	loginResponse.Body.Close()
-	if loginResponse.StatusCode != http.StatusOK || !strings.HasSuffix(loginResponse.Request.URL.Path, "/") {
+	if loginResponse.StatusCode != http.StatusOK || loginResponse.Request.URL.Path != "/workspaces/"+owner.WorkspaceID.String() {
 		t.Fatalf("browser login status=%d path=%s", loginResponse.StatusCode, loginResponse.Request.URL.Path)
 	}
 	itemsPage, err := browser.Get(server.URL + "/workspaces/" + owner.WorkspaceID.String() + "/items")

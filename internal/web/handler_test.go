@@ -945,7 +945,20 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := auth.ChangeMemberRole(context.Background(), ownerPrincipal, scimUser.UserID, identity.Admin, identity.AuditContext{}); err != nil {
+	members, err := auth.ListMembers(context.Background(), ownerPrincipal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var memberID identity.MemberID
+	for _, member := range members {
+		if member.UserID == scimUser.UserID {
+			memberID = member.ID
+		}
+	}
+	if memberID == 0 {
+		t.Fatal("scim user is not a workspace member")
+	}
+	if err := auth.ChangeMemberRole(context.Background(), ownerPrincipal, memberID, identity.Admin, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
 	if adminPage := request(handler, http.MethodGet, path, nil, adminCookies, nil); adminPage.Code != http.StatusOK {
@@ -1669,4 +1682,134 @@ func assertAccessiblePage(t *testing.T, body string, label string) {
 // make the assertion brittle.
 func hasHTMLRootLang(body, locale string) bool {
 	return strings.Contains(body, `<html lang="`+locale+`"`)
+}
+
+func loginWorkspaceUser(t *testing.T, handler http.Handler, email, password string) ([]*http.Cookie, string) {
+	t.Helper()
+	loginPage := request(handler, http.MethodGet, "/login", nil, nil, nil)
+	loginCSRF := responseCookie(loginPage, "login_csrf")
+	loggedIn := request(handler, http.MethodPost, "/login", url.Values{
+		"email": {email}, "password": {password}, "csrf": {loginCSRF.Value},
+	}, []*http.Cookie{loginCSRF}, nil)
+	if loggedIn.Code != http.StatusSeeOther {
+		t.Fatalf("login %s = %d", email, loggedIn.Code)
+	}
+	csrf := responseCookie(loggedIn, "csrf")
+	return []*http.Cookie{responseCookie(loggedIn, "session"), csrf}, csrf.Value
+}
+
+func TestWebRootLandsInOldestWorkspaceInSingleMode(t *testing.T) {
+	handler, auth, _, workspaceID, owner := testWebConfigured(t, 10, false, func(h *Handler) {
+		h.SetWorkspaceMode(config.WorkspaceModeSingle)
+	})
+	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
+	// Browser creation is closed in single mode; add the newer membership through the service.
+	if _, err := auth.CreateWorkspace(context.Background(), identity.Principal{
+		UserID: owner.UserID, AuthMethod: "local", AuthLevel: identity.AuthLevelPassword,
+	}, identity.WorkspaceCreateInput{Name: "Newer"}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	root := request(handler, http.MethodGet, "/", nil, cookies, nil)
+	if root.Code != http.StatusFound || root.Header().Get("Location") != "/workspaces/"+workspaceID.String() {
+		t.Fatalf("single-mode root = %d, Location %q; want 302 to oldest workspace", root.Code, root.Header().Get("Location"))
+	}
+}
+
+func TestWebRootShowsNoMembershipsInSingleMode(t *testing.T) {
+	handler, auth, _, workspaceID, owner := testWebConfigured(t, 10, false, func(h *Handler) {
+		h.SetWorkspaceMode(config.WorkspaceModeSingle)
+	})
+	ctx := context.Background()
+	inviter, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.InvitationsManage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	invitation, err := auth.CreateInvitation(ctx, inviter, "former@example.com", identity.Member, time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	formerID, _, err := auth.CreateInvitedLocalUser(ctx, invitation.Secret, "former-long-password", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	remover, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.MembersManage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	members, err := auth.ListMembers(ctx, remover)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var formerMember identity.MemberID
+	for _, member := range members {
+		if member.UserID == formerID {
+			formerMember = member.ID
+		}
+	}
+	if formerMember == 0 {
+		t.Fatal("former member was not listed")
+	}
+	if err := auth.RemoveMember(ctx, remover, formerMember, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	cookies, _ := loginWorkspaceUser(t, handler, "former@example.com", "former-long-password")
+	root := request(handler, http.MethodGet, "/", nil, cookies, nil)
+	if root.Code != http.StatusOK || !strings.Contains(root.Body.String(), "No workspace memberships.") {
+		t.Fatalf("single-mode root without memberships = %d, %s", root.Code, root.Body.String())
+	}
+	if strings.Contains(root.Body.String(), `action="/workspaces"`) {
+		t.Fatal("single-mode root shows the create-workspace form")
+	}
+}
+
+func TestWebRootListsWorkspacesInMultiMode(t *testing.T) {
+	handler, _, _, workspaceID, _ := testWebConfigured(t, 10, false, func(h *Handler) {
+		h.SetWorkspaceMode(config.WorkspaceModeMulti)
+	})
+	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
+	root := request(handler, http.MethodGet, "/", nil, cookies, nil)
+	if root.Code != http.StatusOK || !strings.Contains(root.Body.String(), workspaceID.String()) {
+		t.Fatalf("multi-mode root = %d, %s; want workspace list", root.Code, root.Body.String())
+	}
+}
+
+func TestSingleModeHidesWorkspaceListNavigation(t *testing.T) {
+	handler, _, _, workspaceID, _ := testWebConfigured(t, 10, false, func(h *Handler) {
+		h.SetWorkspaceMode(config.WorkspaceModeSingle)
+	})
+	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
+	workspaceRoot := "/workspaces/" + workspaceID.String()
+	for _, path := range []string{workspaceRoot + "/items", workspaceRoot + "/settings/members", workspaceRoot + "/settings/tokens", workspaceRoot + "/settings/provisioning", workspaceRoot + "/settings/import"} {
+		response := request(handler, http.MethodGet, path, nil, cookies, nil)
+		if response.Code != http.StatusOK {
+			t.Errorf("%s = %d in single mode; want 200", path, response.Code)
+		}
+		body := response.Body.String()
+		if strings.Contains(body, `class="workspace-switcher"`) || strings.Contains(body, `>Workspaces</a>`) || strings.Contains(body, `href="/">← Workspaces</a>`) {
+			t.Errorf("%s shows a workspace list link in single mode", path)
+		}
+	}
+	for _, path := range []string{workspaceRoot + "/items", workspaceRoot + "/settings/members"} {
+		body := request(handler, http.MethodGet, path, nil, cookies, nil).Body.String()
+		if !strings.Contains(body, `<span class="workspace-name">`) {
+			t.Errorf("%s lacks plain-text workspace name in single mode", path)
+		}
+	}
+	for _, path := range []string{"/account", workspaceRoot + "/settings/audit", workspaceRoot + "/settings/export"} {
+		body := request(handler, http.MethodGet, path, nil, cookies, nil).Body.String()
+		if !strings.Contains(body, `<a href="`+workspaceRoot+`">Workspaces</a>`) {
+			t.Errorf("%s crumb does not point to the default workspace home in single mode", path)
+		}
+	}
+}
+
+func TestMultiModeKeepsWorkspaceListNavigation(t *testing.T) {
+	handler, _, _, workspaceID, _ := testWebConfigured(t, 10, false, func(h *Handler) {
+		h.SetWorkspaceMode(config.WorkspaceModeMulti)
+	})
+	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
+	body := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/items", nil, cookies, nil).Body.String()
+	if !strings.Contains(body, `class="workspace-switcher"`) || !strings.Contains(body, `<a class="sidebar-back" href="/">← Workspaces</a>`) {
+		t.Error("multi-mode items page lost workspace list navigation")
+	}
 }

@@ -164,21 +164,21 @@ func TestAuthorizationMatrixAndOwnershipTransfer(t *testing.T) {
 	}
 
 	owner := mustAuthorize(t, service, bootstrap.UserID, bootstrap.WorkspaceID, OwnershipTransfer)
-	if err := service.ChangeMemberRole(ctx, owner, bootstrap.UserID, Admin, AuditContext{}); !errors.Is(err, ErrLastOwner) {
+	if err := service.ChangeMemberRole(ctx, owner, memberIDFor(t, service, owner, bootstrap.UserID), Admin, AuditContext{}); !errors.Is(err, ErrLastOwner) {
 		t.Fatalf("owner demotion error = %v", err)
 	}
 	admin := mustAuthorize(t, service, users[Admin], bootstrap.WorkspaceID, MembersManage)
-	if err := service.TransferOwnership(ctx, admin, users[Member], AuditContext{}); !errors.Is(err, ErrForbidden) {
+	if err := service.TransferOwnership(ctx, admin, memberIDFor(t, service, owner, users[Member]), AuditContext{}); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("admin transfer error = %v", err)
 	}
-	if err := service.TransferOwnership(ctx, owner, users[Member], AuditContext{}); err != nil {
+	if err := service.TransferOwnership(ctx, owner, memberIDFor(t, service, owner, users[Member]), AuditContext{}); err != nil {
 		t.Fatalf("TransferOwnership() error = %v", err)
 	}
 	if _, err := service.Authorize(ctx, users[Member], bootstrap.WorkspaceID, OwnershipTransfer); err != nil {
 		t.Fatalf("new owner authorization error = %v", err)
 	}
 	newOwner := mustAuthorize(t, service, users[Member], bootstrap.WorkspaceID, MembersManage)
-	if err := service.RemoveMember(ctx, newOwner, users[Member], AuditContext{}); !errors.Is(err, ErrLastOwner) {
+	if err := service.RemoveMember(ctx, newOwner, memberIDFor(t, service, newOwner, users[Member]), AuditContext{}); !errors.Is(err, ErrLastOwner) {
 		t.Fatalf("remove current owner error = %v", err)
 	}
 }
@@ -366,7 +366,7 @@ func TestInvitationLifecycle(t *testing.T) {
 	if err := db.QueryRow(`
 		SELECT COUNT(*) FROM audit_events
 		WHERE event_type = 'invitation.expired' AND target_id = ?
-	`, expired.ID).Scan(&expirationEvents); err != nil || expirationEvents != 1 {
+	`, expired.ID.String()).Scan(&expirationEvents); err != nil || expirationEvents != 1 {
 		t.Fatalf("expiration audit count = %d, error = %v", expirationEvents, err)
 	}
 	revivedSecret, err := service.ResendInvitation(
@@ -775,7 +775,7 @@ func TestAPITokenScopesRevocationAndRoleReevaluation(t *testing.T) {
 	principal, err := service.AuthenticateAPIToken(
 		ctx, token.Secret, ResourcesRead, AuditContext{},
 	)
-	if err != nil || principal.TokenID != token.ID {
+	if err != nil || principal.TokenID != token.ID.String() {
 		t.Fatalf("AuthenticateAPIToken() = %+v, %v", principal, err)
 	}
 	tokens, err := service.ListAPITokens(ctx, member)
@@ -1045,6 +1045,23 @@ func bootstrapOwner(t *testing.T, service *Service) BootstrapResult {
 	return result
 }
 
+// memberIDFor returns the member key for userID, read through ListMembers so
+// tests never guess keys.
+func memberIDFor(t *testing.T, service *Service, actor Principal, userID string) MemberID {
+	t.Helper()
+	members, err := service.ListMembers(context.Background(), actor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, member := range members {
+		if member.UserID == userID {
+			return member.ID
+		}
+	}
+	t.Fatalf("user %s is not a workspace member", userID)
+	return 0
+}
+
 func insertUser(t *testing.T, service *Service, db *sql.DB, email string) string {
 	t.Helper()
 	userID, err := id.New()
@@ -1157,5 +1174,39 @@ func assertAuditEvent(t *testing.T, db *sql.DB, eventType string) {
 	}
 	if count == 0 {
 		t.Fatalf("audit event %q count = 0", eventType)
+	}
+}
+
+func TestDefaultWorkspaceIsOldestMembership(t *testing.T) {
+	service, db := newTestService(t)
+	ctx := context.Background()
+	userID := insertUser(t, service, db, "member@example.com")
+	base := service.now()
+	older := insertWorkspace(t, service, db, "Zeta")
+	newer := insertWorkspace(t, service, db, "Alpha")
+	service.now = func() time.Time { return base.Add(2 * time.Hour) }
+	insertMembership(t, service, db, newer, userID, Member)
+	service.now = func() time.Time { return base }
+	insertMembership(t, service, db, older, userID, Member)
+
+	got, ok, err := service.DefaultWorkspaceID(ctx, userID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || got != older {
+		t.Fatalf("DefaultWorkspaceID = %q, %t; want oldest membership %q", got, ok, older)
+	}
+}
+
+func TestDefaultWorkspaceReportsNoMemberships(t *testing.T) {
+	service, db := newTestService(t)
+	userID := insertUser(t, service, db, "lonely@example.com")
+
+	got, ok, err := service.DefaultWorkspaceID(context.Background(), userID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok || got != 0 {
+		t.Fatalf("DefaultWorkspaceID = %q, %t; want no workspace", got, ok)
 	}
 }

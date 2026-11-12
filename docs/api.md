@@ -161,11 +161,14 @@ documented in [authentication](authentication.md).
   item records from that JSON export format or strict `title,status` CSV.
   It requires `workspace:update`; source IDs, timestamps, memberships, audit
   events, and credentials are ignored.
-- Members: `GET /members`, `PATCH /members/{userId}`, `DELETE /members/{userId}`,
-  and `POST /ownership`.
+- Members: `GET /members`, `PATCH /members/{memberId}`, `DELETE /members/{memberId}`,
+  and `POST /ownership` with body `{"memberId": "<short ID>"}`.
 - Invitations: `GET/POST /invitations`, `POST /invitations/{invitationId}/resend`,
   and `DELETE /invitations/{invitationId}`.
 - Current-user tokens: `GET/POST /tokens`, `PATCH/DELETE /tokens/{tokenId}`.
+- Member, invitation, and token paths take short IDs only. A malformed,
+  unknown, or foreign ID returns `404`, code `not-found`, with the same body.
+  Token secrets are random values, not encoded IDs, and are returned once on create.
 - Current-user sessions: `GET /api/v1/sessions` and
   `DELETE /api/v1/sessions/{sessionId}`.
 - Webhooks: `GET/POST /api/v1/workspaces/{workspaceId}/webhooks`,

@@ -76,7 +76,8 @@ begins. Changes require restart.
 | `STORAGE_MAX_OBJECT_BYTES` | bytes 1-1073741824 | `16777216` | No | No |
 | `STORAGE_MAX_WORKSPACE_BYTES` | bytes, at least object limit | `1073741824` | No | No |
 | `STORAGE_SIGNED_URL_TTL` | duration 1m-15m | `5m` | No | No |
-| `WEBHOOK_ENCRYPTION_KEY` | exactly 32 random bytes as hex or base64 | none | Webhook create/rotation only | Yes |
+| `ENCRYPTION_KEY` | exactly 32 random bytes as hex or base64 | none | Webhook create/rotation (primary general key) | Yes |
+| `WEBHOOK_ENCRYPTION_KEY` | exactly 32 random bytes as hex or base64 | none | Webhook fallback when `ENCRYPTION_KEY` is unset; still opens webhook secrets sealed before `ENCRYPTION_KEY` was set | Yes |
 | `OTEL_SERVICE_NAME` | string 1-255 | `dynamis-code-apps-template` | No | No |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | HTTPS or loopback HTTP base URL | none | No | No |
 | `OTEL_EXPORTER_OTLP_HEADERS` | OTLP header list | none | Authenticated exporter only | Yes |
@@ -88,11 +89,13 @@ variables because one instance owns the file.
 
 `MULTI_WORKSPACE_ENABLED` is parsed at startup and stored as the instance
 workspace mode. It defaults to `false`, which selects single workspace mode;
-`true` selects multi workspace mode. In this release no runtime path reads the
-stored mode, so behaviour is the same for either value and the browser is
-unchanged. When a later change makes the mode take effect, the default change
-will apply to existing deployments: those that rely on multi-workspace
-operation must set `MULTI_WORKSPACE_ENABLED=true` before upgrading.
+`true` selects multi workspace mode. In single mode the browser root (`/`)
+redirects a signed-in user to the home of their oldest workspace membership,
+hides the workspace creation form, and `POST /workspaces` returns 404; the
+first workspace comes from `cmd/bootstrap-admin`. In multi mode `/` lists
+memberships and creates workspaces. The default change applies to existing
+deployments: those that create workspaces in the browser must set
+`MULTI_WORKSPACE_ENABLED=true` before upgrading.
 
 The three `BOOTSTRAP_ADMIN_*` variables enable unattended first-owner
 bootstrap only when all are non-empty. A partial set fails startup; an empty
@@ -159,6 +162,17 @@ SMTP requires `APP_PUBLIC_URL`, `SMTP_FROM`, and matching username/password
 values; port defaults to 587. Delivery negotiates STARTTLS before optional
 authentication.
 
+Workspace administrators can set their own invitation sender on the Email
+settings page (`/workspaces/{workspaceId}/settings/email`), either SMTP or
+Resend. A workspace with saved settings sends its invitations through them;
+workspaces without them use the instance provider above. Saving runs a provider
+check first and stores nothing if it fails: an SMTP login test, or for Resend a
+read-only `GET /domains` call that sends nothing. The Resend key needs Full access
+so the check can read domains. The workspace password or Resend key is sealed
+with `ENCRYPTION_KEY`, so that key must be set before it can be saved, and it is
+never shown again. Account email (verification and password reset) always uses
+only the instance provider.
+
 Cloudflare Email Sending requires `APP_PUBLIC_URL`, `CLOUDFLARE_EMAIL_ACCOUNT_ID`,
 `CLOUDFLARE_EMAIL_API_TOKEN`, and `CLOUDFLARE_EMAIL_FROM`. The sender domain
 must be verified in Cloudflare before any message is delivered. Delivery calls
@@ -171,10 +185,15 @@ receives its copyable link.
 
 ## Webhooks
 
-Webhook registration is available without the key, but creation and rotation
-fail safely until `WEBHOOK_ENCRYPTION_KEY` is configured. Keep this key in the
-deployment secret store and back it up separately from the database; losing it
-makes stored webhook secrets undecryptable. Delivery accepts HTTPS endpoints
+Webhook registration is available without a key, but creation and rotation
+fail safely until `ENCRYPTION_KEY` (or `WEBHOOK_ENCRYPTION_KEY` as a fallback)
+is configured. New secrets are sealed with `ENCRYPTION_KEY` and record key
+version 2. Secrets sealed with `WEBHOOK_ENCRYPTION_KEY` record version 1 and
+keep decrypting while that variable is set, so keep it configured after
+switching until no version 1 rows remain. Keep keys in the deployment secret
+store and back them up separately from the database; losing a key makes its
+secrets undecryptable. The app starts without either key; only webhook secret
+saving is disabled. Delivery accepts HTTPS endpoints
 and local loopback HTTP for development, and rejects private resolved addresses.
 
 ## Files

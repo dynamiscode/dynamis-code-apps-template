@@ -208,18 +208,19 @@ if (fileUploadForm) {
 	const context = document.modelContext;
 	if (!context || typeof context.registerTool !== "function" || !document.querySelector("[data-webmcp-page]")) return;
 	const idSchema = {type: "string", pattern: "^[0-9a-f]{32}$"};
-	const itemIdSchema = {type: "string", pattern: "^[2-9a-hjkmnp-z]{4,}$"};
+	// Member, invitation, and token IDs are short IDs over the ADR 0009 alphabet.
+	const shortIdSchema = {type: "string", pattern: "^[2-9a-hjkmnp-z]{4,}$"};
 	const textSchema = (maxLength) => ({type: "string", minLength: 1, maxLength});
 	const schemas = {
 		"workspace-create-v1": {type: "object", properties: {name: textSchema(120)}, required: ["name"], additionalProperties: false},
 		"item-create-v1": {type: "object", properties: {title: textSchema(200)}, required: ["title"], additionalProperties: false},
-		"item-update-v1": {type: "object", properties: {itemId: itemIdSchema, title: textSchema(200), status: {type: "string", enum: ["active", "complete"]}}, required: ["itemId", "title", "status"], additionalProperties: false},
-		"item-delete-v1": {type: "object", properties: {itemId: itemIdSchema}, required: ["itemId"], additionalProperties: false},
-		"member-role-update-v1": {type: "object", properties: {userId: idSchema, role: {type: "string", enum: ["admin", "member", "viewer"]}}, required: ["userId", "role"], additionalProperties: false},
-		"member-remove-v1": {type: "object", properties: {userId: idSchema}, required: ["userId"], additionalProperties: false},
-		"ownership-transfer-v1": {type: "object", properties: {userId: idSchema}, required: ["userId"], additionalProperties: false},
-		"invitation-revoke-v1": {type: "object", properties: {invitationId: idSchema}, required: ["invitationId"], additionalProperties: false},
-		"token-revoke-v1": {type: "object", properties: {tokenId: idSchema}, required: ["tokenId"], additionalProperties: false},
+		"item-update-v1": {type: "object", properties: {itemId: shortIdSchema, title: textSchema(200), status: {type: "string", enum: ["active", "complete"]}}, required: ["itemId", "title", "status"], additionalProperties: false},
+		"item-delete-v1": {type: "object", properties: {itemId: shortIdSchema}, required: ["itemId"], additionalProperties: false},
+		"member-role-update-v1": {type: "object", properties: {memberId: shortIdSchema, role: {type: "string", enum: ["admin", "member", "viewer"]}}, required: ["memberId", "role"], additionalProperties: false},
+		"member-remove-v1": {type: "object", properties: {memberId: shortIdSchema}, required: ["memberId"], additionalProperties: false},
+		"ownership-transfer-v1": {type: "object", properties: {memberId: shortIdSchema}, required: ["memberId"], additionalProperties: false},
+		"invitation-revoke-v1": {type: "object", properties: {invitationId: shortIdSchema}, required: ["invitationId"], additionalProperties: false},
+		"token-revoke-v1": {type: "object", properties: {tokenId: shortIdSchema}, required: ["tokenId"], additionalProperties: false},
 		"session-revoke-v1": {type: "object", properties: {sessionId: idSchema}, required: ["sessionId"], additionalProperties: false},
 		"workspace-export-v1": {type: "object", properties: {}, additionalProperties: false}
 	};
@@ -232,7 +233,7 @@ if (fileUploadForm) {
 	const object = (value) => value && typeof value === "object" && !Array.isArray(value);
 	const text = (value, maxLength) => typeof value === "string" && value.length > 0 && value.length <= maxLength;
 	const validId = (value) => typeof value === "string" && /^[0-9a-f]{32}$/.test(value);
-	const validItemId = (value) => typeof value === "string" && /^[2-9a-hjkmnp-z]{4,}$/.test(value);
+	const validShortId = (value) => typeof value === "string" && new RegExp(shortIdSchema.pattern).test(value);
 	const result = (tool, status) => ({tool, status});
 	const formFor = (action, id) => [...document.querySelectorAll("form[data-webmcp-actions]")]
 		.find((form) => form.dataset.webmcpActions.split(" ").includes(action) && (!id || form.dataset.webmcpId === id));
@@ -252,12 +253,13 @@ if (fileUploadForm) {
 		if (!object(input)) return result(name, "invalid-input");
 		if (name === "workspace-create-v1") return text(input.name, 120) ? prepare(name, formFor(actions[name]), {name: input.name}) : result(name, "invalid-input");
 		if (name === "item-create-v1") return text(input.title, 200) ? prepare(name, formFor(actions[name]), {title: input.title}) : result(name, "invalid-input");
-		if (name === "item-update-v1") return validItemId(input.itemId) && text(input.title, 200) && ["active", "complete"].includes(input.status)
+		if (name === "item-update-v1") return validShortId(input.itemId) && text(input.title, 200) && ["active", "complete"].includes(input.status)
 			? prepare(name, formFor(actions[name], input.itemId), {title: input.title, status: input.status}, "update") : result(name, "invalid-input");
-		if (name === "item-delete-v1") return validItemId(input.itemId) ? prepare(name, formFor(actions[name], input.itemId), {}, "delete") : result(name, "invalid-input");
-		const idField = {"member-role-update-v1": "userId", "member-remove-v1": "userId", "ownership-transfer-v1": "userId", "invitation-revoke-v1": "invitationId", "token-revoke-v1": "tokenId", "session-revoke-v1": "sessionId"}[name];
+		if (name === "item-delete-v1") return validShortId(input.itemId) ? prepare(name, formFor(actions[name], input.itemId), {}, "delete") : result(name, "invalid-input");
+		const idField = {"member-role-update-v1": "memberId", "member-remove-v1": "memberId", "ownership-transfer-v1": "memberId", "invitation-revoke-v1": "invitationId", "token-revoke-v1": "tokenId", "session-revoke-v1": "sessionId"}[name];
 		if (idField) {
-			if (!validId(input[idField])) return result(name, "invalid-input");
+			const idValid = name === "session-revoke-v1" ? validId : validShortId;
+			if (!idValid(input[idField])) return result(name, "invalid-input");
 			if (name === "member-role-update-v1" && !["admin", "member", "viewer"].includes(input.role)) return result(name, "invalid-input");
 			const button = name === "member-role-update-v1" ? "role" : name === "member-remove-v1" ? "remove" : name === "ownership-transfer-v1" ? "transfer" : "revoke";
 			return prepare(name, formFor(actions[name], input[idField]), name === "member-role-update-v1" ? {role: input.role} : {}, button);

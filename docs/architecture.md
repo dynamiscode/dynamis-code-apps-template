@@ -55,7 +55,7 @@ Migrations are forward-only and run in one transaction. Applied versions and
 UTC timestamps live in `schema_migrations`. The workspace and item primary keys
 are the dialect-specific fragments: the runner renders `{{workspace_id_pk}}` and
 `{{item_id_pk}}` per driver.
-Migrations 000002 through 000016 were rewritten in place for workspace and item short IDs
+Migrations 000002 through 000016 and 000018 were rewritten in place for workspace, member, invitation, API token, and item short IDs
 under a [recorded exception](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md). Upgrades use a documented
 stop-the-world procedure; SQLite snapshots and PostgreSQL dumps have separate
 verified restore paths.

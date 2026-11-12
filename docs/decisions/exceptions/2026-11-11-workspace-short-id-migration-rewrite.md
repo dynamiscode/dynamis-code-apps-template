@@ -2,8 +2,8 @@
 
 - Profile and requirement: architecture invariant that migrations are
   forward-only ([architecture](../../architecture.md#data-and-scaling)); applied
-  migrations 000002 through 000016 are rewritten in place. Issue #190 extends
-  the same rewrite to item keys: `items.id` becomes an integer key, and
+  migrations 000002 through 000016 and 000018 are rewritten in place. Issue #190
+  extends the same rewrite to item keys: `items.id` becomes an integer key, and
   `item_events.item_id` and `public_links.item_id` become integer references.
   Migration 000009 becomes an empty placeholder because its table rebuild
   copied explicit IDs, which PostgreSQL identity columns reject.
@@ -28,9 +28,14 @@ across sixteen tables. The issue accepts a reset of local development databases
 instead. Verification: the full suite passes on SQLite and on a fresh pinned
 PostgreSQL 14.24 container (see [capabilities](../../capabilities.md#workspace-short-id-evidence)).
 
+Issue #193 extends the same in-place rewrite of migration 000002 to give
+`workspace_members`, `invitations`, and `api_tokens` integer keys. Their
+`(workspace_id, user_id)` membership key becomes a `UNIQUE` constraint. Existing
+databases need the same reset described below.
+
 ## User, security, compatibility, and operational risk
 
-- Any database that already applied versions 000002 through 000016 keeps the old
+- Any database that already applied versions 000002 through 000016 and 000018 keeps the old
   schema and records those versions as applied. The new build does not reapply
   them and fails on integer workspace keys. Such databases cannot be upgraded in
   place.

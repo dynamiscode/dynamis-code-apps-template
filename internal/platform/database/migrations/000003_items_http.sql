@@ -1,5 +1,5 @@
 CREATE TABLE items (
-    id {{item_id_pk}},
+    id {{integer_pk}},
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     title TEXT NOT NULL,
