@@ -434,6 +434,21 @@ passed on SQLite, with `make lint` and `make test-unit` passing. A fresh Postgre
 maintenance, identity, portability, and files packages. The migration rewrite is
 covered by the workspace exception record, whose item-key scope the user approved
 for #190.
+## Item event short ID evidence
+
+Issue #244 moves `item_events` keys to integers under the `item_event` type
+code. Change-feed cursors and the `item.changed` event `id` are short IDs.
+A malformed cursor, including one stored before this change, returns
+`ErrInvalidChangeID` from the service and `resync` on the stream. Retention is
+unchanged. The exception is
+[2026-11-12-item-event-short-id-migration-rewrite](decisions/exceptions/2026-11-12-item-event-short-id-migration-rewrite.md),
+pending owner approval.
+
+Evidence: service cursor and JSON tests in `internal/items`, the SSE malformed
+cursor test in `internal/web`, the never-reused key test in
+`internal/platform/database`, and the maintenance retention test in
+`internal/platform/maintenance`.
+
 ## Member, invitation, and API token short ID evidence
 
 Verified 2026-11-11. Issue #193 gives members, invitations, and API tokens integer

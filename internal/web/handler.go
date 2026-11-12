@@ -1136,6 +1136,10 @@ func (h *Handler) sendChanges(
 	page, err := h.items.Changes(
 		request.Context(), principal, workspaceID, cursor, 100,
 	)
+	if errors.Is(err, items.ErrInvalidChangeID) {
+		// A malformed cursor, such as one stored before short IDs, is unknown: resync.
+		page, err = h.items.Changes(request.Context(), principal, workspaceID, "", 100)
+	}
 	if err != nil {
 		return cursor, false
 	}
@@ -1156,7 +1160,7 @@ func (h *Handler) sendChanges(
 			writer, "id: %s\nevent: item.changed\ndata: %s\n\n",
 			change.ID, encoded,
 		)
-		nextCursor = change.ID
+		nextCursor = change.ID.String()
 	}
 	return nextCursor, true
 }

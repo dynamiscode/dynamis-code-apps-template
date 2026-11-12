@@ -550,7 +550,7 @@ func TestSSEScopeReconnectHeartbeatAndLimits(t *testing.T) {
 	defer response.Body.Close()
 	reader := bufio.NewReader(response.Body)
 	initial := readUntil(t, reader, "event: resync")
-	if !strings.Contains(initial, "id: 0") {
+	if !strings.Contains(initial, "id: cayx") {
 		t.Fatalf("initial resync = %q", initial)
 	}
 	secondRequest, _ := http.NewRequest(http.MethodGet, server.URL+"/workspaces/"+workspaceID.String()+"/items/events", nil)
@@ -613,6 +613,33 @@ func TestSSEScopeReconnectHeartbeatAndLimits(t *testing.T) {
 	reconnected.Body.Close()
 	reconnectCancel()
 	time.Sleep(30 * time.Millisecond)
+	// The previous stream's slot is released asynchronously, so retry on 429.
+	var malformedResponse *http.Response
+	for attempt := 0; attempt < 100; attempt++ {
+		malformedCtx, malformedCancel := context.WithTimeout(context.Background(), time.Second)
+		malformed, _ := http.NewRequestWithContext(
+			malformedCtx, http.MethodGet,
+			server.URL+"/workspaces/"+workspaceID.String()+"/items/events", nil,
+		)
+		malformed.Header.Set("Last-Event-ID", "0123456789abcdef0123456789abcdef")
+		addCookies(malformed, cookies)
+		malformedResponse, err = server.Client().Do(malformed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if malformedResponse.StatusCode == http.StatusOK {
+			defer malformedCancel()
+			break
+		}
+		malformedResponse.Body.Close()
+		malformedCancel()
+		time.Sleep(10 * time.Millisecond)
+	}
+	resync := readUntil(t, bufio.NewReader(malformedResponse.Body), "event: resync")
+	malformedResponse.Body.Close()
+	if !strings.Contains(resync, "event: resync") {
+		t.Fatalf("malformed cursor = %q", resync)
+	}
 
 	wrong := request(handler, http.MethodGet, "/workspaces/00000000000000000000000000000000/items/events", nil, cookies, nil)
 	if wrong.Code != http.StatusNotFound {
@@ -637,11 +664,11 @@ func TestItemEvents(t *testing.T) {
 	if !ok {
 		t.Fatal("expected sendChanges with empty cursor to succeed")
 	}
-	if nextCursor != "0" {
-		t.Fatalf("expected nextCursor '0', got %q", nextCursor)
+	if nextCursor != "cayx" {
+		t.Fatalf("expected nextCursor 'cayx', got %q", nextCursor)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, "id: 0\n") || !strings.Contains(body, "event: resync\n") || !strings.Contains(body, "data: {\"reason\":\"cursor\"}\n\n") {
+	if !strings.Contains(body, "id: cayx\n") || !strings.Contains(body, "event: resync\n") || !strings.Contains(body, "data: {\"reason\":\"cursor\"}\n\n") {
 		t.Fatalf("unexpected resync event body: %q", body)
 	}
 
@@ -650,8 +677,8 @@ func TestItemEvents(t *testing.T) {
 	if !ok {
 		t.Fatal("expected sendChanges with no changes to succeed")
 	}
-	if nextCursor != "0" {
-		t.Fatalf("expected nextCursor '0', got %q", nextCursor)
+	if nextCursor != "cayx" {
+		t.Fatalf("expected nextCursor 'cayx', got %q", nextCursor)
 	}
 	if rec.Body.Len() != 0 {
 		t.Fatalf("expected no output when no changes, got %q", rec.Body.String())
@@ -675,8 +702,8 @@ func TestItemEvents(t *testing.T) {
 	if !strings.Contains(body, "event: item.changed\n") || !strings.Contains(body, created1.Item.ID.String()) || !strings.Contains(body, created2.Item.ID.String()) {
 		t.Fatalf("expected change events for both items, got %q", body)
 	}
-	if nextCursor == "" || nextCursor == "0" {
-		t.Fatalf("expected nextCursor to advance beyond '0', got %q", nextCursor)
+	if nextCursor == "" || nextCursor == "cayx" {
+		t.Fatalf("expected nextCursor to advance beyond 'cayx', got %q", nextCursor)
 	}
 
 	rec = httptest.NewRecorder()

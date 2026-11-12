@@ -95,8 +95,11 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		VALUES (?, ?, ?, ?, ?)`, "reset-old", "user-maint", "reset-secret", old, old)
 	exec(`INSERT INTO idempotency_records (key_hash, principal_id, workspace_id, operation, request_hash, result_json, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "key-old", "user-maint", workspaceID, "create", "request", "{}", old, old)
-	exec(`INSERT INTO item_events (id, workspace_id, item_id, event_type, item_version, occurred_at)
-		VALUES (?, ?, ?, ?, ?, ?)`, "event-old", workspaceID, itemOld, "deleted", 1, old)
+	var eventOldID int64
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO item_events (workspace_id, item_id, event_type, item_version, occurred_at)
+		VALUES (?, ?, ?, ?, ?) RETURNING id`), workspaceID, itemOld, "deleted", 1, old).Scan(&eventOldID); err != nil {
+		t.Fatal(err)
+	}
 	exec(`INSERT INTO notifications (id, user_id, workspace_id, notification_type, title, body, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`, "notification-old", "user-maint", workspaceID, "system", "Old", "Old", old)
 	var webhookID, eventKey, deliveryID int64
@@ -137,7 +140,7 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		"sessions": "session-old", "invitations": invitationID,
 		"api_tokens": tokenID, "scim_tokens": scimOldID, "oidc_transactions": "state-old",
 		"mfa_challenges":      "mfa-challenge-old",
-		"idempotency_records": "key-old", "item_events": "event-old",
+		"idempotency_records": "key-old", "item_events": eventOldID,
 		"notifications":       "notification-old",
 		"email_verifications": "verification-old", "password_resets": "reset-old",
 		"public_links": publicLinkOldID,

@@ -2,6 +2,7 @@ package items
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -123,6 +124,15 @@ func TestItemLifecycleContracts(t *testing.T) {
 	changes, err := service.Changes(ctx, principal, owner.WorkspaceID, checkpoint.Next, 10)
 	if err != nil || changes.Resync || len(changes.Changes) != 1 || changes.Changes[0].Action != "created" {
 		t.Fatalf("incremental changes = %+v, %v", changes, err)
+	}
+	if encoded, err := json.Marshal(changes.Changes[0].ID); err != nil || len(encoded) < 6 || encoded[0] != '"' {
+		t.Fatalf("change ID JSON = %s, %v", encoded, err)
+	}
+	if _, err := service.Changes(ctx, principal, owner.WorkspaceID, "1", 10); !errors.Is(err, ErrInvalidChangeID) {
+		t.Fatalf("integer cursor error = %v", err)
+	}
+	if _, err := service.Changes(ctx, principal, owner.WorkspaceID, "not-a-cursor", 10); !errors.Is(err, ErrInvalidChangeID) {
+		t.Fatalf("malformed cursor error = %v", err)
 	}
 	if err := service.Delete(ctx, principal, owner.WorkspaceID, third.Item.ID, third.Item.Version, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
