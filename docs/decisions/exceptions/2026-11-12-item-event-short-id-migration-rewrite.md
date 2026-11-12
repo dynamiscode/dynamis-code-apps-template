@@ -5,7 +5,7 @@
   migration 000004 (`item_events`) is rewritten in place. Its `id` changes from
   `TEXT` to an integer key. The table is rebuilt only by replacing its creation
   SQL, and no other migration changes.
-- Status: proposed (pending repository owner approval)
+- Status: accepted (approved by repository owner 2026-11-12)
 - Responsible owner: repository maintainers (issue #244, spec #243)
 - Approving maintainer: pending
 - Security-owner approval, when required: not required; no security control is
