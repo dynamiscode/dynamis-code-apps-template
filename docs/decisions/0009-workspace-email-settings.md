@@ -23,7 +23,7 @@ template has no vendor SDK dependencies today.
 - Workspace settings win. Environment configuration (the instance default)
   fills in for workspaces that have not configured email.
 - Provider tokens are encrypted in the database with a general
-  `ENCRYPTION_KEY`. Each encrypted row records its key version.
+  `ENCRYPTION_KEY`. Each encrypted row must record its key version.
 - `WEBHOOK_ENCRYPTION_KEY` remains supported as a fallback for webhook secrets
   until those secrets move to the general key.
 - Account email (verification and password recovery) uses only the instance
@@ -32,10 +32,11 @@ template has no vendor SDK dependencies today.
 
 ## Consequences
 
-Workspaces can use their own delivery path without changing deployment
-configuration, and account recovery stays independent of workspace state.
-Stored provider credentials are encrypted at rest with versioned keys, which
-makes later rotation possible.
+Once implemented, workspaces will be able to use their own delivery path
+without changing deployment configuration, and account recovery stays
+independent of workspace state. Stored provider credentials will be encrypted
+at rest with versioned keys, which will make later rotation possible. Today the
+template still has only the instance SMTP sender and the MFA and webhook keys.
 
 Costs: until the keys are consolidated, operators manage both
 `ENCRYPTION_KEY` and `WEBHOOK_ENCRYPTION_KEY`. Plain HTTPS and SMTP means each
@@ -51,6 +52,6 @@ Key rotation and new providers remain deferred until their triggers in
 
 ## Revisit when
 
-A provider is required that plain HTTPS or SMTP cannot practically serve,
+A provider is required whose API cannot be called over plain HTTPS or SMTP,
 credentials must be rotated after a compromise or policy change, or multiple
 application instances need shared email delivery ownership.
