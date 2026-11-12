@@ -15,6 +15,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 const maxResponseBytes = 1 << 20
@@ -62,7 +64,7 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 	flags.StringVar(&common.baseURL, "base-url", common.baseURL, "remote server URL")
 	flags.StringVar(&common.token, "token", common.token, "API bearer token")
 	flags.DurationVar(&common.timeout, "timeout", common.timeout, "request timeout")
-	workspaceID := flags.String("workspace", "", "workspace ID")
+	workspaceID := flags.String("workspace", "", "workspace short ID")
 	itemID := flags.String("item", "", "item ID")
 	title := flags.String("title", "", "item title")
 	status := flags.String("status", "", "item status")
@@ -98,8 +100,8 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 	if err != nil {
 		return usage(stderr, err.Error())
 	}
-	if !validID(*workspaceID) {
-		return usage(stderr, "--workspace must be a 32-character lowercase hexadecimal ID")
+	if !validWorkspaceShortID(*workspaceID) {
+		return usage(stderr, "--workspace must be a workspace short ID")
 	}
 	path := "/api/v1/workspaces/" + *workspaceID + "/items"
 	method, body := http.MethodGet, any(nil)
@@ -285,4 +287,18 @@ func envOr(getenv func(string) string, key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+// validWorkspaceShortID checks only the shape of a workspace short ID, because
+// the value becomes a URL path segment. The server decodes it strictly.
+func validWorkspaceShortID(value string) bool {
+	if len(value) < 4 || len(value) > 32 {
+		return false
+	}
+	for index := range len(value) {
+		if !strings.ContainsRune(id.ShortIDAlphabet, rune(value[index])) {
+			return false
+		}
+	}
+	return true
 }

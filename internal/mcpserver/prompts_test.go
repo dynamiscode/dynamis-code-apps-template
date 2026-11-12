@@ -161,7 +161,6 @@ func TestMCPPromptsValidateArgumentsAndNames(t *testing.T) {
 		arguments map[string]string
 	}{
 		{"missing workspace", "items_summarize_v1", map[string]string{}},
-		{"malformed workspace", "items_triage_v1", map[string]string{"workspaceId": "NOT-HEX"}},
 		{"unknown argument", "items_summarize_v1", map[string]string{"workspaceId": ws, "limit": "5"}},
 		{"status not allowed on triage", "items_triage_v1", map[string]string{"workspaceId": ws, "status": "active"}},
 		{"unsupported status", "items_summarize_v1", map[string]string{"workspaceId": ws, "status": "deleted"}},
@@ -204,6 +203,10 @@ func TestMCPPromptsEnforceScopeAndWorkspaceAuthorization(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "access is denied") {
 		t.Fatalf("foreign workspace = %v, %v; want access is denied", foreign, err)
+	}
+	malformed, err := getPrompt(readSession, "items_triage_v1", map[string]string{"workspaceId": "NOT-HEX"})
+	if err == nil || !strings.Contains(err.Error(), "access is denied") {
+		t.Fatalf("malformed workspace = %v, %v; want the same access is denied as a missing workspace", malformed, err)
 	}
 
 	get := `{"jsonrpc":"2.0","id":1,"method":"prompts/get","params":{"name":"items_triage_v1","arguments":{"workspaceId":"` + state.workspaceID + `"}}}`

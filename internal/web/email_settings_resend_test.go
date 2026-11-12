@@ -24,7 +24,7 @@ func TestResendSettingsRequireAPIKeyCheckBeforeSaving(t *testing.T) {
 
 	handler, db, auth, email, workspaceID, owner := emailWebTest(t)
 	email.SetResendBaseURL(fake.URL)
-	base := "/workspaces/" + workspaceID + "/settings/email"
+	base := "/workspaces/" + workspaceID.String() + "/settings/email"
 	ownerSession, err := auth.CreateSession(t.Context(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)

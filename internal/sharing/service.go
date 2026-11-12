@@ -40,7 +40,7 @@ const (
 
 type Link struct {
 	ID          string
-	WorkspaceID string
+	WorkspaceID identity.WorkspaceID
 	ItemID      string
 	CreatedAt   time.Time
 	ExpiresAt   time.Time
@@ -67,7 +67,7 @@ func NewService(db *sql.DB, driver config.DatabaseDriver, auth *identity.Service
 func (s *Service) Create(
 	ctx context.Context,
 	actor identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	itemID string,
 	lifetime time.Duration,
 	audit identity.AuditContext,
@@ -121,7 +121,7 @@ func (s *Service) Create(
 	return link, nil
 }
 
-func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceID string) ([]Link, error) {
+func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID) ([]Link, error) {
 	if _, err := s.auth.AuthorizePrincipal(ctx, actor, workspaceID, identity.ResourcesWrite); err != nil {
 		return nil, ErrForbidden
 	}
@@ -159,7 +159,7 @@ func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceI
 func (s *Service) Revoke(
 	ctx context.Context,
 	actor identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	itemID string,
 	linkID string,
 	audit identity.AuditContext,
@@ -204,7 +204,8 @@ func (s *Service) Resolve(ctx context.Context, token string, audit identity.Audi
 		return PublicItem{}, err
 	}
 	defer tx.Rollback()
-	var linkID, workspaceID, itemID, title, status, expiresAtStr string
+	var linkID, itemID, title, status, expiresAtStr string
+	var workspaceID identity.WorkspaceID
 	var revokedAtStr sql.NullString
 	err = s.queryRow(ctx, tx, `
 		SELECT p.id, p.workspace_id, p.item_id, p.expires_at, p.revoked_at, i.title, i.status

@@ -297,16 +297,16 @@
         "responses": {"200": {"description": "Workspace members", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/MemberPage"}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}
       }
     },
-    "/api/v1/workspaces/{workspaceId}/members/{userId}": {
+    "/api/v1/workspaces/{workspaceId}/members/{memberId}": {
       "patch": {
         "operationId": "changeMemberRole", "security": [{"bearerAuth": []}],
-        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/UserId"}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/MemberId"}],
         "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/MemberRoleRequest"}}}},
         "responses": {"204": {"description": "Member role changed"}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}
       },
       "delete": {
         "operationId": "removeMember", "security": [{"bearerAuth": []}],
-        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/UserId"}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/MemberId"}],
         "responses": {"204": {"description": "Member removed"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}
       }
     },
@@ -466,12 +466,12 @@
       "sessionCookie": {"type": "apiKey", "in": "cookie", "name": "session"}
     },
     "parameters": {
-      "WorkspaceId": {"name": "workspaceId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
+      "WorkspaceId": {"name": "workspaceId", "in": "path", "required": true, "description": "Workspace short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "ItemId": {"name": "itemId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
       "FileId": {"name": "fileId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
-      "UserId": {"name": "userId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
-      "InvitationId": {"name": "invitationId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
-      "TokenId": {"name": "tokenId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
+      "MemberId": {"name": "memberId", "in": "path", "required": true, "description": "Member short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
+      "InvitationId": {"name": "invitationId", "in": "path", "required": true, "description": "Invitation short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
+      "TokenId": {"name": "tokenId", "in": "path", "required": true, "description": "API token short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "SessionId": {"name": "sessionId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
       "WebhookId": {"name": "webhookId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
       "ItemStatus": {"name": "status", "in": "query", "description": "Optional exact status filter.", "schema": {"type": "string", "enum": ["active", "complete"]}},
@@ -510,10 +510,10 @@
       "ExportAuditEvent": {"type": "object", "required": ["id", "eventType", "authMethod", "targetType", "action", "outcome", "metadata", "createdAt"], "properties": {"id": {"type": "string"}, "eventType": {"type": "string"}, "actorUserId": {"type": "string"}, "authMethod": {"type": "string"}, "workspaceId": {"type": "string"}, "targetType": {"type": "string"}, "targetId": {"type": "string"}, "action": {"type": "string"}, "outcome": {"type": "string"}, "requestId": {"type": "string"}, "sourceAddress": {"type": "string"}, "metadata": {}, "createdAt": {"type": "string", "format": "date-time"}}},
       "WorkspaceExport": {"type": "object", "required": ["formatVersion", "exportedAt", "workspace", "members", "items", "auditEvents", "excluded"], "properties": {"formatVersion": {"const": "dynamis-code.workspace/v1"}, "exportedAt": {"type": "string", "format": "date-time"}, "workspace": {"$ref": "#/components/schemas/ExportWorkspace"}, "members": {"type": "array", "items": {"$ref": "#/components/schemas/ExportMember"}}, "items": {"type": "array", "items": {"$ref": "#/components/schemas/Item"}}, "auditEvents": {"type": "array", "items": {"$ref": "#/components/schemas/ExportAuditEvent"}}, "excluded": {"type": "array", "items": {"type": "string"}}}},
       "WorkspaceImportResult": {"type": "object", "required": ["imported"], "properties": {"imported": {"type": "integer", "minimum": 1}}},
-      "Member": {"type": "object", "required": ["userId", "email", "role", "createdAt"], "properties": {"userId": {"type": "string"}, "email": {"type": "string", "format": "email"}, "role": {"type": "string", "enum": ["owner", "admin", "member", "viewer"]}, "createdAt": {"type": "string", "format": "date-time"}}},
+      "Member": {"type": "object", "required": ["id", "email", "role", "createdAt"], "properties": {"id": {"type": "string"}, "email": {"type": "string", "format": "email"}, "role": {"type": "string", "enum": ["owner", "admin", "member", "viewer"]}, "createdAt": {"type": "string", "format": "date-time"}}},
       "MemberPage": {"type": "object", "required": ["members"], "properties": {"members": {"type": "array", "items": {"$ref": "#/components/schemas/Member"}}}},
       "MemberRoleRequest": {"type": "object", "additionalProperties": false, "required": ["role"], "properties": {"role": {"type": "string", "enum": ["admin", "member", "viewer"]}}},
-      "OwnershipRequest": {"type": "object", "additionalProperties": false, "required": ["userId"], "properties": {"userId": {"type": "string"}}},
+      "OwnershipRequest": {"type": "object", "additionalProperties": false, "required": ["memberId"], "properties": {"memberId": {"type": "string"}}},
       "Invitation": {"type": "object", "required": ["id", "workspaceId", "email", "role", "createdAt", "expiresAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "email": {"type": "string", "format": "email"}, "role": {"type": "string", "enum": ["admin", "member", "viewer"]}, "createdAt": {"type": "string", "format": "date-time"}, "expiresAt": {"type": "string", "format": "date-time"}, "acceptedAt": {"type": ["string", "null"], "format": "date-time"}, "expiredAt": {"type": ["string", "null"], "format": "date-time"}, "revokedAt": {"type": ["string", "null"], "format": "date-time"}}},
       "InvitationPage": {"type": "object", "required": ["invitations"], "properties": {"invitations": {"type": "array", "items": {"$ref": "#/components/schemas/Invitation"}}}},
       "CreateInvitationRequest": {"type": "object", "additionalProperties": false, "required": ["email", "role"], "properties": {"email": {"type": "string", "format": "email"}, "role": {"type": "string", "enum": ["admin", "member", "viewer"]}, "lifetimeSeconds": {"type": "integer", "minimum": 60, "maximum": 2592000}}},

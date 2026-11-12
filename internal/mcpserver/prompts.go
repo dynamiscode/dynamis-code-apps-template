@@ -34,7 +34,7 @@ func (h *handler) addItemListPrompts(server *mcp.Server) {
 		Name:        "items_summarize_v1",
 		Description: "Summarize the newest items in one workspace, optionally filtered by status.",
 		Arguments: []*mcp.PromptArgument{
-			{Name: "workspaceId", Description: "Workspace ID: 32 lowercase hexadecimal characters.", Required: true},
+			{Name: "workspaceId", Description: "Workspace short ID.", Required: true},
 			{Name: "status", Description: "Optional item status: active or complete."},
 		},
 	}, func(ctx context.Context, actor identity.Principal, arguments map[string]string) (*mcp.GetPromptResult, error) {
@@ -45,7 +45,7 @@ func (h *handler) addItemListPrompts(server *mcp.Server) {
 			}
 			input.Status = items.Status(status)
 		}
-		page, err := h.items.List(ctx, actor, arguments["workspaceId"], input)
+		page, err := h.items.List(ctx, actor, identity.ParseWorkspaceIDOrZero(arguments["workspaceId"]), input)
 		if err != nil {
 			return nil, publicError(err)
 		}
@@ -58,10 +58,10 @@ func (h *handler) addItemListPrompts(server *mcp.Server) {
 		Name:        "items_triage_v1",
 		Description: "Triage the newest open (active) items in one workspace. Read-only; recommends and changes nothing.",
 		Arguments: []*mcp.PromptArgument{
-			{Name: "workspaceId", Description: "Workspace ID: 32 lowercase hexadecimal characters.", Required: true},
+			{Name: "workspaceId", Description: "Workspace short ID.", Required: true},
 		},
 	}, func(ctx context.Context, actor identity.Principal, arguments map[string]string) (*mcp.GetPromptResult, error) {
-		page, err := h.items.List(ctx, actor, arguments["workspaceId"], items.ListInput{
+		page, err := h.items.List(ctx, actor, identity.ParseWorkspaceIDOrZero(arguments["workspaceId"]), items.ListInput{
 			Status: items.Active, Sort: "-created_at", Limit: promptItemLimit,
 		})
 		if err != nil {
@@ -82,7 +82,7 @@ func (h *handler) addPrompt(server *mcp.Server, prompt *mcp.Prompt, build prompt
 		if err == nil {
 			result, err = build(ctx, promptPrincipal(request), arguments)
 		}
-		if auditErr := h.auditPrompt(ctx, request, prompt.Name, arguments["workspaceId"], err, started); auditErr != nil {
+		if auditErr := h.auditPrompt(ctx, request, prompt.Name, identity.ParseWorkspaceIDOrZero(arguments["workspaceId"]), err, started); auditErr != nil {
 			h.logger.Error("MCP audit failed", "request_id", promptRequestID(request))
 			return nil, &toolError{category: "internal", message: "internal failure"}
 		}
@@ -95,7 +95,7 @@ func (h *handler) addPrompt(server *mcp.Server, prompt *mcp.Prompt, build prompt
 }
 
 // promptArguments accepts exactly the declared keys, requires the declared
-// required keys, and requires a well-formed workspaceId on every prompt.
+// required keys, and requires the workspaceId argument on every prompt; a malformed value is denied by the item use case.
 func promptArguments(request *mcp.GetPromptRequest, declared []*mcp.PromptArgument) (map[string]string, error) {
 	if request.Params == nil {
 		return nil, invalidParameters()
@@ -113,7 +113,7 @@ func promptArguments(request *mcp.GetPromptRequest, declared []*mcp.PromptArgume
 			return nil, invalidParameters()
 		}
 	}
-	if !validID(provided["workspaceId"]) {
+	if _, ok := provided["workspaceId"]; !ok {
 		return nil, invalidParameters()
 	}
 	return provided, nil
@@ -146,7 +146,7 @@ func promptError(err error) error {
 	return err
 }
 
-func (h *handler) auditPrompt(ctx context.Context, request *mcp.GetPromptRequest, name, workspaceID string, err error, started time.Time) error {
+func (h *handler) auditPrompt(ctx context.Context, request *mcp.GetPromptRequest, name string, workspaceID identity.WorkspaceID, err error, started time.Time) error {
 	actor := promptPrincipal(request)
 	clientName, clientVersion := "", ""
 	if client := request.ClientInfo(); client != nil {
@@ -168,7 +168,7 @@ func (h *handler) auditPrompt(ctx context.Context, request *mcp.GetPromptRequest
 	return h.identity.RecordAudit(ctx, identity.AuditEvent{
 		EventType: "mcp.prompt.called", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "workspace", TargetID: workspaceID, Action: name,
+		TargetType: "workspace", TargetID: workspaceID.String(), Action: name,
 		Outcome: outcome, RequestID: promptRequestID(request),
 		SourceAddress: promptSourceAddress(request), Metadata: string(metadata), CreatedAt: time.Now().UTC(),
 	})

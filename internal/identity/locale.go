@@ -68,7 +68,7 @@ func (s *Service) SetUserLocale(ctx context.Context, userID, locale string, audi
 	return tx.Commit()
 }
 
-func (s *Service) GetWorkspaceLocale(ctx context.Context, workspaceID string) (string, error) {
+func (s *Service) GetWorkspaceLocale(ctx context.Context, workspaceID WorkspaceID) (string, error) {
 	var locale string
 	if err := s.queryRow(ctx, s.db, "SELECT locale FROM workspaces WHERE id = ?", workspaceID).Scan(&locale); err != nil {
 		return "", err
@@ -97,7 +97,7 @@ func (s *Service) UpdateWorkspaceLocale(ctx context.Context, actor Principal, lo
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "workspace.locale.updated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: actor.WorkspaceID, TargetType: "workspace", TargetID: actor.WorkspaceID,
+		WorkspaceID: actor.WorkspaceID, TargetType: "workspace", TargetID: actor.WorkspaceID.String(),
 		Action: "workspace.locale.update", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"locale": normalized}), CreatedAt: s.now().UTC(),
 	}); err != nil {

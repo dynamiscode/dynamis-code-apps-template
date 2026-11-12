@@ -12,28 +12,28 @@ import (
 )
 
 type memberResponse struct {
-	UserID    string        `json:"userId"`
-	Email     string        `json:"email"`
-	Role      identity.Role `json:"role"`
-	CreatedAt time.Time     `json:"createdAt"`
+	ID        identity.MemberID `json:"id"`
+	Email     string            `json:"email"`
+	Role      identity.Role     `json:"role"`
+	CreatedAt time.Time         `json:"createdAt"`
 }
 
 type invitationResponse struct {
-	ID         string        `json:"id"`
-	Workspace  string        `json:"workspaceId"`
-	Email      string        `json:"email"`
-	Role       identity.Role `json:"role"`
-	CreatedAt  time.Time     `json:"createdAt"`
-	ExpiresAt  time.Time     `json:"expiresAt"`
-	AcceptedAt *time.Time    `json:"acceptedAt,omitempty"`
-	ExpiredAt  *time.Time    `json:"expiredAt,omitempty"`
-	RevokedAt  *time.Time    `json:"revokedAt,omitempty"`
+	ID         identity.InvitationID `json:"id"`
+	Workspace  identity.WorkspaceID  `json:"workspaceId"`
+	Email      string                `json:"email"`
+	Role       identity.Role         `json:"role"`
+	CreatedAt  time.Time             `json:"createdAt"`
+	ExpiresAt  time.Time             `json:"expiresAt"`
+	AcceptedAt *time.Time            `json:"acceptedAt,omitempty"`
+	ExpiredAt  *time.Time            `json:"expiredAt,omitempty"`
+	RevokedAt  *time.Time            `json:"revokedAt,omitempty"`
 }
 
 type tokenResponse struct {
-	ID          string                `json:"id"`
+	ID          identity.APITokenID   `json:"id"`
 	UserID      string                `json:"userId"`
-	WorkspaceID string                `json:"workspaceId"`
+	WorkspaceID identity.WorkspaceID  `json:"workspaceId"`
 	Name        string                `json:"name"`
 	Scopes      []identity.Permission `json:"scopes"`
 	CreatedAt   time.Time             `json:"createdAt"`
@@ -58,7 +58,7 @@ type memberRoleRequest struct {
 }
 
 type ownershipRequest struct {
-	UserID string `json:"userId"`
+	MemberID identity.MemberID `json:"memberId"`
 }
 
 type createInvitationRequest struct {
@@ -87,23 +87,23 @@ type tokenScopesRequest struct {
 func (h *handler) workspaceBearer(
 	writer http.ResponseWriter,
 	request *http.Request,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	permission identity.Permission,
 ) (identity.Principal, bool) {
 	principal, ok := h.bearerPrincipal(writer, request, permission)
 	if !ok {
 		return identity.Principal{}, false
 	}
-	if principal.WorkspaceID != workspaceID {
-		writeProblem(writer, request, http.StatusForbidden, "forbidden", "Access is denied.")
+	if workspaceID == 0 || principal.WorkspaceID != workspaceID {
+		writeProblem(writer, request, http.StatusNotFound, "not-found", "The workspace was not found.")
 		return identity.Principal{}, false
 	}
 	return principal, true
 }
 
 func (h *handler) listMembers(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
-	if !validID(workspaceID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -118,14 +118,15 @@ func (h *handler) listMembers(writer http.ResponseWriter, request *http.Request)
 	}
 	result := make([]memberResponse, len(members))
 	for index, member := range members {
-		result[index] = memberResponse{UserID: member.UserID, Email: member.Email, Role: member.Role, CreatedAt: member.CreatedAt}
+		result[index] = memberResponse{ID: member.ID, Email: member.Email, Role: member.Role, CreatedAt: member.CreatedAt}
 	}
 	writeJSON(writer, http.StatusOK, map[string]any{"members": result})
 }
 
 func (h *handler) changeMemberRole(writer http.ResponseWriter, request *http.Request) {
-	workspaceID, userID := request.PathValue("workspaceId"), request.PathValue("userId")
-	if !validID(workspaceID) || !validID(userID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	memberID, _ := identity.ParseMemberID(request.PathValue("memberId")) // malformed IDs match no member
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -139,7 +140,7 @@ func (h *handler) changeMemberRole(writer http.ResponseWriter, request *http.Req
 		h.badJSON(writer, request, errors.New("invalid member role"))
 		return
 	}
-	if err := h.identity.ChangeMemberRole(request.Context(), principal, userID, input.Role, h.auditContext(request)); err != nil {
+	if err := h.identity.ChangeMemberRole(request.Context(), principal, memberID, input.Role, h.auditContext(request)); err != nil {
 		h.identityProblem(writer, request, err)
 		return
 	}
@@ -147,8 +148,9 @@ func (h *handler) changeMemberRole(writer http.ResponseWriter, request *http.Req
 }
 
 func (h *handler) removeMember(writer http.ResponseWriter, request *http.Request) {
-	workspaceID, userID := request.PathValue("workspaceId"), request.PathValue("userId")
-	if !validID(workspaceID) || !validID(userID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	memberID, _ := identity.ParseMemberID(request.PathValue("memberId")) // malformed IDs match no member
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -156,7 +158,7 @@ func (h *handler) removeMember(writer http.ResponseWriter, request *http.Request
 	if !ok {
 		return
 	}
-	if err := h.identity.RemoveMember(request.Context(), principal, userID, h.auditContext(request)); err != nil {
+	if err := h.identity.RemoveMember(request.Context(), principal, memberID, h.auditContext(request)); err != nil {
 		h.identityProblem(writer, request, err)
 		return
 	}
@@ -164,8 +166,8 @@ func (h *handler) removeMember(writer http.ResponseWriter, request *http.Request
 }
 
 func (h *handler) transferOwnership(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
-	if !validID(workspaceID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -174,11 +176,11 @@ func (h *handler) transferOwnership(writer http.ResponseWriter, request *http.Re
 		return
 	}
 	var input ownershipRequest
-	if err := decodeJSON(request, &input); err != nil || !validID(input.UserID) {
+	if err := decodeJSON(request, &input); err != nil {
 		h.badJSON(writer, request, errors.New("invalid owner"))
 		return
 	}
-	if err := h.identity.TransferOwnership(request.Context(), principal, input.UserID, h.auditContext(request)); err != nil {
+	if err := h.identity.TransferOwnership(request.Context(), principal, input.MemberID, h.auditContext(request)); err != nil {
 		h.identityProblem(writer, request, err)
 		return
 	}
@@ -186,8 +188,8 @@ func (h *handler) transferOwnership(writer http.ResponseWriter, request *http.Re
 }
 
 func (h *handler) listInvitations(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
-	if !validID(workspaceID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -208,8 +210,8 @@ func (h *handler) listInvitations(writer http.ResponseWriter, request *http.Requ
 }
 
 func (h *handler) createInvitation(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
-	if !validID(workspaceID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -236,8 +238,9 @@ func (h *handler) createInvitation(writer http.ResponseWriter, request *http.Req
 }
 
 func (h *handler) resendInvitation(writer http.ResponseWriter, request *http.Request) {
-	workspaceID, invitationID := request.PathValue("workspaceId"), request.PathValue("invitationId")
-	if !validID(workspaceID) || !validID(invitationID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	invitationID, _ := identity.ParseInvitationID(request.PathValue("invitationId")) // malformed IDs match no invitation
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -265,8 +268,9 @@ func (h *handler) resendInvitation(writer http.ResponseWriter, request *http.Req
 }
 
 func (h *handler) revokeInvitation(writer http.ResponseWriter, request *http.Request) {
-	workspaceID, invitationID := request.PathValue("workspaceId"), request.PathValue("invitationId")
-	if !validID(workspaceID) || !validID(invitationID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	invitationID, _ := identity.ParseInvitationID(request.PathValue("invitationId")) // malformed IDs match no invitation
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -288,7 +292,7 @@ func (h *handler) writeInvitation(writer http.ResponseWriter, request *http.Requ
 func (h *handler) writeInvitationLink(writer http.ResponseWriter, request *http.Request, status int, invitation identity.Invitation, secret string) {
 	writer.Header().Set("Cache-Control", "no-store")
 	link := invitationURL(h.publicURL, secret)
-	delivered, warning := h.deliverInvitation(request, invitation.WorkspaceID, invitation.Email, link)
+	delivered, warning := h.deliverInvitation(request, invitation.WorkspaceID.String(), invitation.Email, link)
 	writeJSON(writer, status, invitationLinkResponse{
 		Invitation: invitationDTO(invitation), InvitationURL: link,
 		EmailDelivered: delivered, DeliveryWarning: warning,
@@ -307,8 +311,8 @@ func (h *handler) deliverInvitation(request *http.Request, workspaceID, recipien
 }
 
 func (h *handler) listTokens(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
-	if !validID(workspaceID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -329,8 +333,8 @@ func (h *handler) listTokens(writer http.ResponseWriter, request *http.Request) 
 }
 
 func (h *handler) createToken(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
-	if !validID(workspaceID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -353,8 +357,9 @@ func (h *handler) createToken(writer http.ResponseWriter, request *http.Request)
 }
 
 func (h *handler) updateToken(writer http.ResponseWriter, request *http.Request) {
-	workspaceID, tokenID := request.PathValue("workspaceId"), request.PathValue("tokenId")
-	if !validID(workspaceID) || !validID(tokenID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	tokenID, _ := identity.ParseAPITokenID(request.PathValue("tokenId")) // malformed IDs match no token
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -375,8 +380,9 @@ func (h *handler) updateToken(writer http.ResponseWriter, request *http.Request)
 }
 
 func (h *handler) revokeToken(writer http.ResponseWriter, request *http.Request) {
-	workspaceID, tokenID := request.PathValue("workspaceId"), request.PathValue("tokenId")
-	if !validID(workspaceID) || !validID(tokenID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	tokenID, _ := identity.ParseAPITokenID(request.PathValue("tokenId")) // malformed IDs match no token
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -434,6 +440,8 @@ func (h *handler) identityProblem(writer http.ResponseWriter, request *http.Requ
 	switch {
 	case errors.Is(err, identity.ErrForbidden):
 		writeProblem(writer, request, http.StatusForbidden, "forbidden", "Access is denied.")
+	case errors.Is(err, identity.ErrNotFound):
+		notFoundProblem(writer, request)
 	case errors.Is(err, identity.ErrActiveInvitation):
 		writeProblem(writer, request, http.StatusConflict, "active-invitation", "An active invitation already exists.")
 	case errors.Is(err, identity.ErrLastOwner):

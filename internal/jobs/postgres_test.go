@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
@@ -25,15 +26,16 @@ func TestPostgresQueueClaimAndFinish(t *testing.T) {
 	if err := database.Migrate(ctx, db, config.Postgres); err != nil {
 		t.Fatal(err)
 	}
-	workspaceID, kind := "workspace-jobs-"+mustID(t), "test-postgres-"+mustID(t)
-	if _, err := db.ExecContext(ctx, database.Rebind(config.Postgres, "INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)"), workspaceID, "Jobs", stamp(time.Now())); err != nil {
+	kind := "test-postgres-" + mustID(t)
+	var workspaceID identity.WorkspaceID
+	if err := db.QueryRowContext(ctx, database.Rebind(config.Postgres, "INSERT INTO workspaces (name, created_at) VALUES (?, ?) RETURNING id"), "Jobs", stamp(time.Now())).Scan(&workspaceID); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _, _ = db.ExecContext(ctx, "DELETE FROM workspaces WHERE id = $1", workspaceID) })
 	queue := NewQueue(db, config.Postgres, nil)
 	if err := queue.Register(kind, func(_ context.Context, job Job) error {
 		if job.WorkspaceID != workspaceID {
-			t.Fatalf("workspace scope = %q", job.WorkspaceID)
+			t.Fatalf("workspace scope = %v", job.WorkspaceID)
 		}
 		return nil
 	}); err != nil {

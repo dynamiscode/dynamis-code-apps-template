@@ -122,7 +122,7 @@ func TestResendInvitationIsDeliveredThroughResend(t *testing.T) {
 	if err := service.Save(ctx, owner, owner.WorkspaceID, resendInput("re_good"), identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := service.SendFor(ctx, owner.WorkspaceID, "invitee@example.com", "s", "b"); err != nil {
+	if err := service.SendFor(ctx, owner.WorkspaceID.String(), "invitee@example.com", "s", "b"); err != nil {
 		t.Fatalf("SendFor() error = %v", err)
 	}
 	if fake.sent != 1 || len(instance.sent) != 0 {

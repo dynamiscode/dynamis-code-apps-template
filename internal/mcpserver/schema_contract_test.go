@@ -108,7 +108,7 @@ func TestMCPRejectedArgumentsAreAuditedAsInvalidParameters(t *testing.T) {
 				t.Fatalf("result = %+v", result)
 			}
 			var action, outcome, workspaceID, metadata string
-			err := state.db.QueryRow(`SELECT action, outcome, COALESCE(workspace_id, ''), metadata
+			err := state.db.QueryRow(`SELECT action, outcome, COALESCE(CAST(workspace_id AS TEXT), ''), metadata
 				FROM audit_events WHERE event_type = 'mcp.tool.called' ORDER BY rowid DESC LIMIT 1`).
 				Scan(&action, &outcome, &workspaceID, &metadata)
 			if err != nil {

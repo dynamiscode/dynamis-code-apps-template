@@ -101,16 +101,17 @@ func TestSQLiteBackgroundJobsMigrationBackfillsPendingWebhook(t *testing.T) {
 	if err := migrateFS(ctx, db, config.SQLite, legacy); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(
-		"INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)",
-		"workspace-migration", "Migration", "2026-08-28T00:00:00Z",
-	); err != nil {
+	var workspaceID int64
+	if err := db.QueryRow(
+		"INSERT INTO workspaces (name, created_at) VALUES (?, ?) RETURNING id",
+		"Migration", "2026-08-28T00:00:00Z",
+	).Scan(&workspaceID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec(`
 		INSERT INTO webhooks (id, workspace_id, name, url, secret_ciphertext, events, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, "webhook-migration", "workspace-migration", "Webhook", "https://example.com/hook", "ciphertext", `["item.created"]`, "2026-08-28T00:00:00Z"); err != nil {
+	`, "webhook-migration", workspaceID, "Webhook", "https://example.com/hook", "ciphertext", `["item.created"]`, "2026-08-28T00:00:00Z"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec(`
@@ -124,17 +125,18 @@ func TestSQLiteBackgroundJobsMigrationBackfillsPendingWebhook(t *testing.T) {
 	if err := Migrate(ctx, db, config.SQLite); err != nil {
 		t.Fatal(err)
 	}
-	var workspaceID, kind, key, payload, status string
+	var gotWorkspaceID int64
+	var kind, key, payload, status string
 	var attempts int
 	if err := db.QueryRow(`
 		SELECT workspace_id, kind, deduplication_key, payload, status, attempt_count
 		FROM background_jobs WHERE deduplication_key = ?
-	`, "delivery-migration").Scan(&workspaceID, &kind, &key, &payload, &status, &attempts); err != nil {
+	`, "delivery-migration").Scan(&gotWorkspaceID, &kind, &key, &payload, &status, &attempts); err != nil {
 		t.Fatal(err)
 	}
-	if workspaceID != "workspace-migration" || kind != "webhook.delivery" || key != "delivery-migration" ||
+	if gotWorkspaceID != workspaceID || kind != "webhook.delivery" || key != "delivery-migration" ||
 		payload != `{"deliveryId":"delivery-migration"}` || status != "pending" || attempts != 2 {
-		t.Fatalf("backfilled job = %q, %q, %q, %q, %q, %d", workspaceID, kind, key, payload, status, attempts)
+		t.Fatalf("backfilled job = %d, %q, %q, %q, %q, %d", gotWorkspaceID, kind, key, payload, status, attempts)
 	}
 }
 

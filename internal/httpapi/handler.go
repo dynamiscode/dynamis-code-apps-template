@@ -184,12 +184,12 @@ func newHandler(
 }
 
 func (h *handler) exportWorkspace(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
-	if !validID(workspaceID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The export parameters are invalid.")
 		return
 	}
-	principal, ok := h.bearerPrincipal(writer, request, identity.WorkspaceExport)
+	principal, ok := h.workspaceBearer(writer, request, workspaceID, identity.WorkspaceExport)
 	if !ok {
 		return
 	}
@@ -219,12 +219,12 @@ func (h *handler) exportWorkspace(writer http.ResponseWriter, request *http.Requ
 }
 
 func (h *handler) importWorkspace(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
-	if !validID(workspaceID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The import parameters are invalid.")
 		return
 	}
-	principal, ok := h.bearerPrincipal(writer, request, identity.WorkspaceUpdate)
+	principal, ok := h.workspaceBearer(writer, request, workspaceID, identity.WorkspaceUpdate)
 	if !ok {
 		return
 	}
@@ -399,8 +399,8 @@ func (h *handler) logout(writer http.ResponseWriter, request *http.Request) {
 }
 
 func (h *handler) listItems(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
-	if !validID(workspaceID) || !onlyQuery(
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	if !onlyQuery(
 		request, "status", "search", "sort", "limit", "cursor",
 	) {
 		h.invalidRequest(writer, request, "The collection parameters are invalid.")
@@ -412,8 +412,8 @@ func (h *handler) listItems(writer http.ResponseWriter, request *http.Request) {
 		h.invalidRequest(writer, request, "The search parameter is invalid.")
 		return
 	}
-	principal, ok := h.bearerPrincipal(
-		writer, request, identity.ResourcesRead,
+	principal, ok := h.workspaceBearer(
+		writer, request, workspaceID, identity.ResourcesRead,
 	)
 	if !ok {
 		return
@@ -443,8 +443,8 @@ func (h *handler) listItems(writer http.ResponseWriter, request *http.Request) {
 }
 
 func (h *handler) createItem(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
-	if !validID(workspaceID) || len(request.URL.Query()) != 0 {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -456,8 +456,8 @@ func (h *handler) createItem(writer http.ResponseWriter, request *http.Request) 
 		)
 		return
 	}
-	principal, ok := h.bearerPrincipal(
-		writer, request, identity.ResourcesWrite,
+	principal, ok := h.workspaceBearer(
+		writer, request, workspaceID, identity.ResourcesWrite,
 	)
 	if !ok {
 		return
@@ -479,7 +479,7 @@ func (h *handler) createItem(writer http.ResponseWriter, request *http.Request) 
 	}
 	writer.Header().Set("ETag", etag(result.Item.Version))
 	writer.Header().Set(
-		"Location", "/api/v1/workspaces/"+workspaceID+"/items/"+result.Item.ID,
+		"Location", "/api/v1/workspaces/"+workspaceID.String()+"/items/"+result.Item.ID,
 	)
 	if result.Replay {
 		writer.Header().Set("Idempotency-Replayed", "true")
@@ -488,14 +488,14 @@ func (h *handler) createItem(writer http.ResponseWriter, request *http.Request) 
 }
 
 func (h *handler) getItem(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	itemID := request.PathValue("itemId")
-	if !validID(workspaceID) || !validID(itemID) || len(request.URL.Query()) != 0 {
+	if !validID(itemID) || len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
-	principal, ok := h.bearerPrincipal(
-		writer, request, identity.ResourcesRead,
+	principal, ok := h.workspaceBearer(
+		writer, request, workspaceID, identity.ResourcesRead,
 	)
 	if !ok {
 		return
@@ -516,9 +516,9 @@ func (h *handler) getItem(writer http.ResponseWriter, request *http.Request) {
 }
 
 func (h *handler) updateItem(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	itemID := request.PathValue("itemId")
-	if !validID(workspaceID) || !validID(itemID) || len(request.URL.Query()) != 0 {
+	if !validID(itemID) || len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -538,8 +538,8 @@ func (h *handler) updateItem(writer http.ResponseWriter, request *http.Request) 
 		)
 		return
 	}
-	principal, ok := h.bearerPrincipal(
-		writer, request, identity.ResourcesWrite,
+	principal, ok := h.workspaceBearer(
+		writer, request, workspaceID, identity.ResourcesWrite,
 	)
 	if !ok {
 		return
@@ -566,9 +566,9 @@ func (h *handler) updateItem(writer http.ResponseWriter, request *http.Request) 
 }
 
 func (h *handler) deleteItem(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	itemID := request.PathValue("itemId")
-	if !validID(workspaceID) || !validID(itemID) || len(request.URL.Query()) != 0 {
+	if !validID(itemID) || len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -585,7 +585,7 @@ func (h *handler) deleteItem(writer http.ResponseWriter, request *http.Request) 
 		writeProblem(writer, request, status, code, detail)
 		return
 	}
-	principal, ok := h.bearerPrincipal(writer, request, identity.ResourcesWrite)
+	principal, ok := h.workspaceBearer(writer, request, workspaceID, identity.ResourcesWrite)
 	if !ok {
 		return
 	}

@@ -6,6 +6,12 @@ profile. Core and Identity applications do not include `cmd/appctl`.
 `appctl` is a REST-only client for the versioned item API. It has no database,
 shell, or local application-service dependency.
 
+`--workspace` takes the workspace short ID: 4 to 32 characters from
+`23456789abcdefghjkmnpqrstuvwxyz`. The CLI checks only that shape, because the
+value becomes a URL path segment. A malformed or unknown value gets the same
+`not-found` from the server as a missing workspace. `--item` remains a
+32-character lowercase hexadecimal item ID.
+
 Configure a remote origin and token through environment variables. Prefer the
 environment for the token because command-line values may appear in process
 listings.

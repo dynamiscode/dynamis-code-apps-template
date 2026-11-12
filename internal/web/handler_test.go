@@ -94,14 +94,14 @@ func TestMFAPolicyRedirectStartsBrowserChallenge(t *testing.T) {
 	}
 
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	response := request(handler, http.MethodGet, "/workspaces/"+workspaceID+"/items", nil, cookies, nil)
+	response := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/items", nil, cookies, nil)
 	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/mfa" {
 		t.Fatalf("MFA redirect = %d, %s", response.Code, response.Body.String())
 	}
 	if challenge := responseCookie(response, "mfa_challenge"); challenge.Value == "" {
 		t.Fatal("MFA challenge cookie missing")
 	}
-	if returnTo := responseCookie(response, "mfa_return_to"); returnTo.Value != "/workspaces/"+workspaceID+"/items" {
+	if returnTo := responseCookie(response, "mfa_return_to"); returnTo.Value != "/workspaces/"+workspaceID.String()+"/items" {
 		t.Fatalf("MFA return path = %q", returnTo.Value)
 	}
 }
@@ -144,10 +144,10 @@ func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
 	}
 	cookies := []*http.Cookie{responseCookie(loggedIn, "session"), responseCookie(loggedIn, "csrf")}
 	home := request(handler, http.MethodGet, "/", nil, cookies, nil)
-	if home.Code != http.StatusOK || !strings.Contains(home.Body.String(), workspaceID) {
+	if home.Code != http.StatusOK || !strings.Contains(home.Body.String(), workspaceID.String()) {
 		t.Fatalf("home = %d, %s", home.Code, home.Body.String())
 	}
-	path := "/workspaces/" + workspaceID + "/items"
+	path := "/workspaces/" + workspaceID.String() + "/items"
 	page := request(handler, http.MethodGet, path, nil, cookies, nil)
 	assertAccessiblePage(t, page.Body.String(), "New item title")
 	if !strings.Contains(page.Body.String(), `hx-target="#item-list"`) {
@@ -215,7 +215,7 @@ func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
 		t.Fatal(err)
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	path := "/workspaces/" + workspaceID + "/items/" + created.Item.ID + "/share"
+	path := "/workspaces/" + workspaceID.String() + "/items/" + created.Item.ID + "/share"
 	response := request(handler, http.MethodPost, path, url.Values{
 		"action": {"create"}, "lifetime": {"7"}, "csrf": {session.CSRFSecret},
 	}, cookies, nil)
@@ -238,7 +238,7 @@ func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
 	if public.Code != http.StatusOK || !strings.Contains(publicBody, "Public title") || !strings.Contains(publicBody, "active") {
 		t.Fatalf("public page = %d, %s", public.Code, publicBody)
 	}
-	for _, forbidden := range []string{"Example", "owner@example.com", created.Item.ID, workspaceID} {
+	for _, forbidden := range []string{"Example", "owner@example.com", created.Item.ID, workspaceID.String()} {
 		if strings.Contains(publicBody, forbidden) {
 			t.Fatalf("public page leaked %q: %s", forbidden, publicBody)
 		}
@@ -379,7 +379,7 @@ func TestWebLocalePrecedenceAndWorkspaceFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	workspace := requestFrom(handler, http.MethodGet, "/workspaces/"+workspaceID, nil, cookies, map[string]string{"Accept-Language": "en"}, "example.com", "192.0.2.1:1234")
+	workspace := requestFrom(handler, http.MethodGet, "/workspaces/"+workspaceID.String(), nil, cookies, map[string]string{"Accept-Language": "en"}, "example.com", "192.0.2.1:1234")
 	if workspace.Header().Get("Content-Language") != "en" {
 		t.Fatalf("workspace default locale = %q", workspace.Header().Get("Content-Language"))
 	}
@@ -390,7 +390,7 @@ func TestWebLocalePrecedenceAndWorkspaceFallback(t *testing.T) {
 	if err := auth.UpdateWorkspaceLocale(context.Background(), ownerPrincipal, "es", identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
-	workspace = requestFrom(handler, http.MethodGet, "/workspaces/"+workspaceID, nil, cookies, map[string]string{"Accept-Language": "en"}, "example.com", "192.0.2.1:1234")
+	workspace = requestFrom(handler, http.MethodGet, "/workspaces/"+workspaceID.String(), nil, cookies, map[string]string{"Accept-Language": "en"}, "example.com", "192.0.2.1:1234")
 	if workspace.Header().Get("Content-Language") != "es" || !hasHTMLRootLang(workspace.Body.String(), "es") {
 		t.Fatalf("workspace fallback = %q, %s", workspace.Header().Get("Content-Language"), workspace.Body.String())
 	}
@@ -420,7 +420,7 @@ func TestInvitationEmailUsesWorkspaceLocale(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	request(handler, http.MethodPost, "/workspaces/"+workspaceID+"/settings/invitations", url.Values{
+	request(handler, http.MethodPost, "/workspaces/"+workspaceID.String()+"/settings/invitations", url.Values{
 		"action": {"create"}, "csrf": {session.CSRFSecret}, "email": {"invite@example.com"}, "role": {"member"},
 	}, []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}, nil)
 	if mailer.subject != "Has sido invitado a Dynamis Code" || !strings.HasPrefix(mailer.body, "Abre este enlace de invitación:") {
@@ -467,10 +467,10 @@ func TestWebLanguageSettingsRoutes(t *testing.T) {
 		t.Fatalf("reset user locale = %q, %v", locale, err)
 	}
 
-	general := request(handler, http.MethodPost, "/workspaces/"+workspaceID+"/settings/general", url.Values{
+	general := request(handler, http.MethodPost, "/workspaces/"+workspaceID.String()+"/settings/general", url.Values{
 		"csrf": {session.CSRFSecret}, "locale": {"es"},
 	}, cookies, nil)
-	if general.Code != http.StatusSeeOther || general.Header().Get("Location") != "/workspaces/"+workspaceID+"/settings/general?saved=1" {
+	if general.Code != http.StatusSeeOther || general.Header().Get("Location") != "/workspaces/"+workspaceID.String()+"/settings/general?saved=1" {
 		t.Fatalf("workspace language = %d, %q", general.Code, general.Header().Get("Location"))
 	}
 	if locale, err := auth.GetWorkspaceLocale(context.Background(), workspaceID); err != nil || locale != "es" {
@@ -506,12 +506,12 @@ func TestBrowserPagesRenderSpanishDocuments(t *testing.T) {
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}, {Name: "locale", Value: "es"}}
 	paths := []string{
-		"/", "/workspaces/" + workspaceID, "/workspaces/" + workspaceID + "/items",
-		"/workspaces/" + workspaceID + "/settings/general", "/workspaces/" + workspaceID + "/settings/members",
-		"/workspaces/" + workspaceID + "/settings/invitations", "/workspaces/" + workspaceID + "/settings/tokens",
-		"/workspaces/" + workspaceID + "/settings/provisioning", "/workspaces/" + workspaceID + "/settings/export",
-		"/workspaces/" + workspaceID + "/settings/audit",
-		"/workspaces/" + workspaceID + "/settings/import", "/settings/language", "/sessions", "/security",
+		"/", "/workspaces/" + workspaceID.String(), "/workspaces/" + workspaceID.String() + "/items",
+		"/workspaces/" + workspaceID.String() + "/settings/general", "/workspaces/" + workspaceID.String() + "/settings/members",
+		"/workspaces/" + workspaceID.String() + "/settings/invitations", "/workspaces/" + workspaceID.String() + "/settings/tokens",
+		"/workspaces/" + workspaceID.String() + "/settings/provisioning", "/workspaces/" + workspaceID.String() + "/settings/export",
+		"/workspaces/" + workspaceID.String() + "/settings/audit",
+		"/workspaces/" + workspaceID.String() + "/settings/import", "/settings/language", "/sessions", "/security",
 	}
 	for _, path := range paths {
 		response := requestFrom(handler, http.MethodGet, path, nil, cookies, map[string]string{"Accept-Language": "en"}, "example.com", "192.0.2.1:1234")
@@ -541,7 +541,7 @@ func TestSSEScopeReconnectHeartbeatAndLimits(t *testing.T) {
 	t.Cleanup(server.Close)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	streamRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/workspaces/"+workspaceID+"/items/events", nil)
+	streamRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/workspaces/"+workspaceID.String()+"/items/events", nil)
 	addCookies(streamRequest, cookies)
 	response, err := server.Client().Do(streamRequest)
 	if err != nil {
@@ -553,7 +553,7 @@ func TestSSEScopeReconnectHeartbeatAndLimits(t *testing.T) {
 	if !strings.Contains(initial, "id: 0") {
 		t.Fatalf("initial resync = %q", initial)
 	}
-	secondRequest, _ := http.NewRequest(http.MethodGet, server.URL+"/workspaces/"+workspaceID+"/items/events", nil)
+	secondRequest, _ := http.NewRequest(http.MethodGet, server.URL+"/workspaces/"+workspaceID.String()+"/items/events", nil)
 	addCookies(secondRequest, cookies)
 	second, err := server.Client().Do(secondRequest)
 	if err != nil {
@@ -597,7 +597,7 @@ func TestSSEScopeReconnectHeartbeatAndLimits(t *testing.T) {
 	defer reconnectCancel()
 	reconnect, _ := http.NewRequestWithContext(
 		reconnectCtx, http.MethodGet,
-		server.URL+"/workspaces/"+workspaceID+"/items/events", nil,
+		server.URL+"/workspaces/"+workspaceID.String()+"/items/events", nil,
 	)
 	reconnect.Header.Set("Last-Event-ID", eventID)
 	addCookies(reconnect, cookies)
@@ -615,7 +615,7 @@ func TestSSEScopeReconnectHeartbeatAndLimits(t *testing.T) {
 	time.Sleep(30 * time.Millisecond)
 
 	wrong := request(handler, http.MethodGet, "/workspaces/00000000000000000000000000000000/items/events", nil, cookies, nil)
-	if wrong.Code != http.StatusForbidden {
+	if wrong.Code != http.StatusNotFound {
 		t.Fatalf("wrong-workspace stream = %d", wrong.Code)
 	}
 }
@@ -630,7 +630,7 @@ func TestItemEvents(t *testing.T) {
 	}
 	principal.AuthMethod = "test"
 
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "/workspaces/"+workspaceID+"/items/events", nil)
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "/workspaces/"+workspaceID.String()+"/items/events", nil)
 
 	rec := httptest.NewRecorder()
 	nextCursor, ok := webHandler.sendChanges(rec, req, principal, workspaceID, "")
@@ -784,7 +784,7 @@ func TestCriticalPagesAccessibilityContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	for _, target := range []string{"/", "/workspaces/" + workspaceID, "/workspaces/" + workspaceID + "/items", "/workspaces/" + workspaceID + "/settings/audit"} {
+	for _, target := range []string{"/", "/workspaces/" + workspaceID.String(), "/workspaces/" + workspaceID.String() + "/items", "/workspaces/" + workspaceID.String() + "/settings/audit"} {
 		response := request(handler, http.MethodGet, target, nil, cookies, nil)
 		assertAccessiblePage(t, response.Body.String(), "")
 	}
@@ -816,7 +816,7 @@ func TestWebAuditHistoryIsScopedRedactedAndNotWebMCP(t *testing.T) {
 		t.Fatal(err)
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	page := request(handler, http.MethodGet, "/workspaces/"+workspaceID+"/settings/audit", nil, cookies, nil)
+	page := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/audit", nil, cookies, nil)
 	body := page.Body.String()
 	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" ||
 		!strings.Contains(body, "Audit history") || !strings.Contains(body, "test.audit.visible") ||
@@ -844,13 +844,13 @@ func TestWebAuditHistoryIsScopedRedactedAndNotWebMCP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	viewerResponse := request(handler, http.MethodGet, "/workspaces/"+workspaceID+"/settings/audit", nil, []*http.Cookie{
+	viewerResponse := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/audit", nil, []*http.Cookie{
 		{Name: "session", Value: viewerSession.Secret}, {Name: "csrf", Value: viewerSession.CSRFSecret},
 	}, nil)
 	if viewerResponse.Code != http.StatusForbidden {
 		t.Fatalf("viewer audit page = %d, %s", viewerResponse.Code, viewerResponse.Body.String())
 	}
-	viewerSettings := request(handler, http.MethodGet, "/workspaces/"+workspaceID+"/settings/members", nil, []*http.Cookie{
+	viewerSettings := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/members", nil, []*http.Cookie{
 		{Name: "session", Value: viewerSession.Secret}, {Name: "csrf", Value: viewerSession.CSRFSecret},
 	}, nil)
 	if viewerSettings.Code != http.StatusOK || strings.Contains(viewerSettings.Body.String(), "/settings/audit") {
@@ -863,8 +863,8 @@ func TestWebAuditHistoryIsScopedRedactedAndNotWebMCP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	crossWorkspace := request(handler, http.MethodGet, "/workspaces/"+otherWorkspace+"/settings/audit", nil, cookies, nil)
-	if crossWorkspace.Code != http.StatusForbidden {
+	crossWorkspace := request(handler, http.MethodGet, "/workspaces/"+otherWorkspace.String()+"/settings/audit", nil, cookies, nil)
+	if crossWorkspace.Code != http.StatusNotFound {
 		t.Fatalf("cross-workspace audit page = %d, %s", crossWorkspace.Code, crossWorkspace.Body.String())
 	}
 }
@@ -884,7 +884,7 @@ func TestTokensPageLabelsWorkspaceUpdateScope(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	response := request(handler, http.MethodGet, "/workspaces/"+workspaceID+"/settings/tokens", nil, []*http.Cookie{
+	response := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/tokens", nil, []*http.Cookie{
 		{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret},
 	}, nil)
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Workspace update") {
@@ -899,11 +899,11 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	path := "/workspaces/" + workspaceID + "/settings/provisioning"
+	path := "/workspaces/" + workspaceID.String() + "/settings/provisioning"
 
 	page := request(handler, http.MethodGet, path, nil, cookies, nil)
 	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" ||
-		!strings.Contains(page.Body.String(), "http://example.com/scim/v2/"+workspaceID) ||
+		!strings.Contains(page.Body.String(), "http://example.com/scim/v2/"+workspaceID.String()) ||
 		strings.Contains(page.Body.String(), "/assets/app.js") || strings.Contains(page.Body.String(), "data-webmcp-page") {
 		t.Fatalf("SCIM provisioning page = %d, headers=%v, body=%s", page.Code, page.Header(), page.Body.String())
 	}
@@ -945,7 +945,20 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := auth.ChangeMemberRole(context.Background(), ownerPrincipal, scimUser.UserID, identity.Admin, identity.AuditContext{}); err != nil {
+	members, err := auth.ListMembers(context.Background(), ownerPrincipal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var memberID identity.MemberID
+	for _, member := range members {
+		if member.UserID == scimUser.UserID {
+			memberID = member.ID
+		}
+	}
+	if memberID == 0 {
+		t.Fatal("scim user is not a workspace member")
+	}
+	if err := auth.ChangeMemberRole(context.Background(), ownerPrincipal, memberID, identity.Admin, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
 	if adminPage := request(handler, http.MethodGet, path, nil, adminCookies, nil); adminPage.Code != http.StatusOK {
@@ -1007,14 +1020,14 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 	}
 
 	wrongWorkspace := request(handler, http.MethodGet, "/workspaces/00000000000000000000000000000000/settings/provisioning", nil, cookies, nil)
-	if wrongWorkspace.Code != http.StatusForbidden || strings.Contains(wrongWorkspace.Body.String(), secret) || strings.Contains(wrongWorkspace.Body.String(), rotatedSecret) {
+	if wrongWorkspace.Code != http.StatusNotFound || strings.Contains(wrongWorkspace.Body.String(), secret) || strings.Contains(wrongWorkspace.Body.String(), rotatedSecret) {
 		t.Fatalf("cross-workspace SCIM page = %d, %s", wrongWorkspace.Code, wrongWorkspace.Body.String())
 	}
 }
 
 func TestSCIMEndpointUsesConfiguredPublicURL(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "https://browser.example/workspaces/workspace/settings/provisioning", nil)
-	if got := scimEndpoint("https://app.example/base/", false, request, "workspace"); got != "https://app.example/base/scim/v2/workspace" {
+	if got := scimEndpoint("https://app.example/base/", false, request, identity.WorkspaceID(42)); got != "https://app.example/base/scim/v2/"+identity.WorkspaceID(42).String() {
 		t.Fatalf("SCIM endpoint = %q", got)
 	}
 }
@@ -1077,11 +1090,11 @@ func TestWebMCPBrowserSurfaceContract(t *testing.T) {
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	pages := map[string]string{
-		"/": "home", "/workspaces/" + workspaceID + "/items": "items",
-		"/workspaces/" + workspaceID + "/settings/members":     "members",
-		"/workspaces/" + workspaceID + "/settings/invitations": "invitations",
-		"/workspaces/" + workspaceID + "/settings/tokens":      "tokens",
-		"/workspaces/" + workspaceID + "/settings/export":      "export", "/sessions": "sessions",
+		"/": "home", "/workspaces/" + workspaceID.String() + "/items": "items",
+		"/workspaces/" + workspaceID.String() + "/settings/members":     "members",
+		"/workspaces/" + workspaceID.String() + "/settings/invitations": "invitations",
+		"/workspaces/" + workspaceID.String() + "/settings/tokens":      "tokens",
+		"/workspaces/" + workspaceID.String() + "/settings/export":      "export", "/sessions": "sessions",
 	}
 	for target, page := range pages {
 		body := request(handler, http.MethodGet, target, nil, cookies, nil).Body.String()
@@ -1095,7 +1108,7 @@ func TestWebMCPBrowserSurfaceContract(t *testing.T) {
 			t.Errorf("secret-bearing page %s exposes WebMCP", target)
 		}
 	}
-	provisioning := request(handler, http.MethodGet, "/workspaces/"+workspaceID+"/settings/provisioning", nil, cookies, nil)
+	provisioning := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/provisioning", nil, cookies, nil)
 	if strings.Contains(provisioning.Body.String(), "data-webmcp-page") || strings.Contains(provisioning.Body.String(), "/assets/app.js") {
 		t.Fatal("SCIM provisioning page exposes WebMCP")
 	}
@@ -1108,7 +1121,7 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 		t.Fatal(err)
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	workspaceRoot := "/workspaces/" + workspaceID
+	workspaceRoot := "/workspaces/" + workspaceID.String()
 	workspaceHome := request(handler, http.MethodGet, workspaceRoot, nil, cookies, nil)
 	if workspaceHome.Code != http.StatusOK || !strings.Contains(workspaceHome.Body.String(), `data-workspace-home`) || !strings.Contains(workspaceHome.Body.String(), `class="active" aria-current="page" href="`+workspaceRoot+`">Home</a>`) || !strings.Contains(workspaceHome.Body.String(), `href="`+workspaceRoot+`/items"`) || !strings.Contains(workspaceHome.Body.String(), `href="`+workspaceRoot+`/settings"`) {
 		t.Fatalf("workspace home = %d, %s", workspaceHome.Code, workspaceHome.Body.String())
@@ -1188,23 +1201,23 @@ func TestWebBaselineManagementRoutes(t *testing.T) {
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	for _, target := range []string{
-		"/workspaces/" + workspaceID + "/settings/members",
-		"/workspaces/" + workspaceID + "/settings/invitations",
-		"/workspaces/" + workspaceID + "/settings/tokens",
-		"/sessions", "/security", "/workspaces/" + workspaceID + "/settings/export",
-		"/workspaces/" + workspaceID + "/settings/audit",
-		"/workspaces/" + workspaceID + "/settings/import",
+		"/workspaces/" + workspaceID.String() + "/settings/members",
+		"/workspaces/" + workspaceID.String() + "/settings/invitations",
+		"/workspaces/" + workspaceID.String() + "/settings/tokens",
+		"/sessions", "/security", "/workspaces/" + workspaceID.String() + "/settings/export",
+		"/workspaces/" + workspaceID.String() + "/settings/audit",
+		"/workspaces/" + workspaceID.String() + "/settings/import",
 	} {
 		response := request(handler, http.MethodGet, target, nil, cookies, nil)
 		if response.Code != http.StatusOK {
 			t.Fatalf("baseline route %s = %d, %s", target, response.Code, response.Body.String())
 		}
 	}
-	exportPage := request(handler, http.MethodGet, "/workspaces/"+workspaceID+"/settings/export", nil, cookies, nil)
+	exportPage := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/export", nil, cookies, nil)
 	if !strings.Contains(exportPage.Body.String(), "Download JSON") || !strings.Contains(exportPage.Body.String(), "/settings/export/download") {
 		t.Fatal("browser export screen lacks download action")
 	}
-	exportDownload := request(handler, http.MethodGet, "/workspaces/"+workspaceID+"/settings/export/download", nil, cookies, nil)
+	exportDownload := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/export/download", nil, cookies, nil)
 	if exportDownload.Code != http.StatusOK || exportDownload.Header().Get("Content-Disposition") == "" || exportDownload.Header().Get("Content-Type") != "application/json" {
 		t.Fatalf("browser export download = %d, %s", exportDownload.Code, exportDownload.Header().Get("Content-Type"))
 	}
@@ -1223,7 +1236,7 @@ func TestWebImportIsAuthorizedExplicitAndAtomic(t *testing.T) {
 		t.Fatal(err)
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	root := "/workspaces/" + workspaceID + "/settings/import"
+	root := "/workspaces/" + workspaceID.String() + "/settings/import"
 
 	page := request(handler, http.MethodGet, root, nil, cookies, nil)
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `enctype="multipart/form-data"`) ||
@@ -1476,21 +1489,21 @@ func TestWebSetupRejectsCSRFAndPasswordMismatch(t *testing.T) {
 	}
 }
 
-func testWeb(t *testing.T, maximumStreams int, mailers ...appmail.Sender) (http.Handler, *identity.Service, *items.Service, string, identity.BootstrapResult) {
+func testWeb(t *testing.T, maximumStreams int, mailers ...appmail.Sender) (http.Handler, *identity.Service, *items.Service, identity.WorkspaceID, identity.BootstrapResult) {
 	return testWebWithMFA(t, maximumStreams, false, mailers...)
 }
 
-func testWebRaw(t *testing.T, maximumStreams int, mailers ...appmail.Sender) (*Handler, *identity.Service, *items.Service, string, identity.BootstrapResult) {
+func testWebRaw(t *testing.T, maximumStreams int, mailers ...appmail.Sender) (*Handler, *identity.Service, *items.Service, identity.WorkspaceID, identity.BootstrapResult) {
 	t.Helper()
 	return testWebWithMFARaw(t, maximumStreams, false, mailers...)
 }
 
-func testWebWithMFA(t *testing.T, maximumStreams int, mfaEnabled bool, mailers ...appmail.Sender) (http.Handler, *identity.Service, *items.Service, string, identity.BootstrapResult) {
+func testWebWithMFA(t *testing.T, maximumStreams int, mfaEnabled bool, mailers ...appmail.Sender) (http.Handler, *identity.Service, *items.Service, identity.WorkspaceID, identity.BootstrapResult) {
 	t.Helper()
 	return testWebConfigured(t, maximumStreams, mfaEnabled, nil, mailers...)
 }
 
-func testWebConfigured(t *testing.T, maximumStreams int, mfaEnabled bool, configure func(*Handler), mailers ...appmail.Sender) (http.Handler, *identity.Service, *items.Service, string, identity.BootstrapResult) {
+func testWebConfigured(t *testing.T, maximumStreams int, mfaEnabled bool, configure func(*Handler), mailers ...appmail.Sender) (http.Handler, *identity.Service, *items.Service, identity.WorkspaceID, identity.BootstrapResult) {
 	t.Helper()
 	webHandler, auth, itemService, workspaceID, owner := testWebWithMFARaw(t, maximumStreams, mfaEnabled, mailers...)
 	if configure != nil {
@@ -1499,7 +1512,7 @@ func testWebConfigured(t *testing.T, maximumStreams int, mfaEnabled bool, config
 	return webHandler.Routes(), auth, itemService, workspaceID, owner
 }
 
-func testWebWithMFARaw(t *testing.T, maximumStreams int, mfaEnabled bool, mailers ...appmail.Sender) (*Handler, *identity.Service, *items.Service, string, identity.BootstrapResult) {
+func testWebWithMFARaw(t *testing.T, maximumStreams int, mfaEnabled bool, mailers ...appmail.Sender) (*Handler, *identity.Service, *items.Service, identity.WorkspaceID, identity.BootstrapResult) {
 	t.Helper()
 	ctx := context.Background()
 	cfg, err := config.LoadFrom(func(string) (string, bool) { return "", false })
@@ -1697,7 +1710,7 @@ func TestWebRootLandsInOldestWorkspaceInSingleMode(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := request(handler, http.MethodGet, "/", nil, cookies, nil)
-	if root.Code != http.StatusFound || root.Header().Get("Location") != "/workspaces/"+workspaceID {
+	if root.Code != http.StatusFound || root.Header().Get("Location") != "/workspaces/"+workspaceID.String() {
 		t.Fatalf("single-mode root = %d, Location %q; want 302 to oldest workspace", root.Code, root.Header().Get("Location"))
 	}
 }
@@ -1723,7 +1736,20 @@ func TestWebRootShowsNoMembershipsInSingleMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := auth.RemoveMember(ctx, remover, formerID, identity.AuditContext{}); err != nil {
+	members, err := auth.ListMembers(ctx, remover)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var formerMember identity.MemberID
+	for _, member := range members {
+		if member.UserID == formerID {
+			formerMember = member.ID
+		}
+	}
+	if formerMember == 0 {
+		t.Fatal("former member was not listed")
+	}
+	if err := auth.RemoveMember(ctx, remover, formerMember, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
 	cookies, _ := loginWorkspaceUser(t, handler, "former@example.com", "former-long-password")
@@ -1742,7 +1768,7 @@ func TestWebRootListsWorkspacesInMultiMode(t *testing.T) {
 	})
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
 	root := request(handler, http.MethodGet, "/", nil, cookies, nil)
-	if root.Code != http.StatusOK || !strings.Contains(root.Body.String(), workspaceID) {
+	if root.Code != http.StatusOK || !strings.Contains(root.Body.String(), workspaceID.String()) {
 		t.Fatalf("multi-mode root = %d, %s; want workspace list", root.Code, root.Body.String())
 	}
 }
@@ -1752,7 +1778,7 @@ func TestSingleModeHidesWorkspaceListNavigation(t *testing.T) {
 		h.SetWorkspaceMode(config.WorkspaceModeSingle)
 	})
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
-	workspaceRoot := "/workspaces/" + workspaceID
+	workspaceRoot := "/workspaces/" + workspaceID.String()
 	for _, path := range []string{workspaceRoot + "/items", workspaceRoot + "/settings/members", workspaceRoot + "/settings/tokens", workspaceRoot + "/settings/provisioning", workspaceRoot + "/settings/import"} {
 		response := request(handler, http.MethodGet, path, nil, cookies, nil)
 		if response.Code != http.StatusOK {
@@ -1782,7 +1808,7 @@ func TestMultiModeKeepsWorkspaceListNavigation(t *testing.T) {
 		h.SetWorkspaceMode(config.WorkspaceModeMulti)
 	})
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
-	body := request(handler, http.MethodGet, "/workspaces/"+workspaceID+"/items", nil, cookies, nil).Body.String()
+	body := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/items", nil, cookies, nil).Body.String()
 	if !strings.Contains(body, `class="workspace-switcher"`) || !strings.Contains(body, `<a class="sidebar-back" href="/">← Workspaces</a>`) {
 		t.Error("multi-mode items page lost workspace list navigation")
 	}

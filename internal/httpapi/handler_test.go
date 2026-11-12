@@ -97,7 +97,7 @@ func TestHTTPContracts(t *testing.T) {
 	}
 	assertProblem(t, serveAuthorized(handler, http.MethodGet, resource, "", token, nil), http.StatusNotFound, "not-found")
 	wrongWorkspace := serveAuthorized(handler, http.MethodGet, "/api/v1/workspaces/00000000000000000000000000000000/items", "", token, nil)
-	assertProblem(t, wrongWorkspace, http.StatusForbidden, "forbidden")
+	assertProblem(t, wrongWorkspace, http.StatusNotFound, "not-found")
 
 	if err := db.Close(); err != nil {
 		t.Fatal(err)
@@ -265,14 +265,20 @@ func TestIdentityRESTContracts(t *testing.T) {
 	if _, err := db.Exec("INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, NULL, ?)", newUser, "member@example.com", time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", workspaceID, newUser, "member", time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+	workspaceKey, err := identity.ParseWorkspaceID(workspaceID)
+	if err != nil {
 		t.Fatal(err)
 	}
-	changed := serveAuthorized(handler, http.MethodPatch, base+"/members/"+newUser, `{"role":"viewer"}`, token, nil)
+	var memberKey int64
+	if err := db.QueryRow("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?) RETURNING id", workspaceKey, newUser, "member", time.Now().UTC().Format(time.RFC3339Nano)).Scan(&memberKey); err != nil {
+		t.Fatal(err)
+	}
+	memberPath := base + "/members/" + identity.MemberID(memberKey).String()
+	changed := serveAuthorized(handler, http.MethodPatch, memberPath, `{"role":"viewer"}`, token, nil)
 	if changed.Code != http.StatusNoContent {
 		t.Fatalf("member role = %d, %s", changed.Code, changed.Body.String())
 	}
-	removed := serveAuthorized(handler, http.MethodDelete, base+"/members/"+newUser, "", token, nil)
+	removed := serveAuthorized(handler, http.MethodDelete, memberPath, "", token, nil)
 	if removed.Code != http.StatusNoContent {
 		t.Fatalf("member remove = %d, %s", removed.Code, removed.Body.String())
 	}
@@ -351,7 +357,7 @@ func testHandler(t *testing.T) (http.Handler, *sql.DB, string, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return handler, db, owner.WorkspaceID, token.Secret
+	return handler, db, owner.WorkspaceID.String(), token.Secret
 }
 
 func serve(handler http.Handler, method, target, body, contentType string) *httptest.ResponseRecorder {

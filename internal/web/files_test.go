@@ -61,12 +61,12 @@ func TestFileDownloadMissingReturnsNotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 	response := request(handler.Routes(), http.MethodGet,
-		"/workspaces/"+owner.WorkspaceID+"/files/"+strings.Repeat("0", 32)+"/content", nil,
+		"/workspaces/"+owner.WorkspaceID.String()+"/files/"+strings.Repeat("0", 32)+"/content", nil,
 		[]*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}, nil)
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("missing file response = %d, want %d", response.Code, http.StatusNotFound)
 	}
-	page := request(handler.Routes(), http.MethodGet, "/workspaces/"+owner.WorkspaceID+"/files", nil,
+	page := request(handler.Routes(), http.MethodGet, "/workspaces/"+owner.WorkspaceID.String()+"/files", nil,
 		[]*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}, nil)
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `data-file-upload`) || strings.Contains(page.Body.String(), `data-presigned="true"`) {
 		t.Fatalf("local files page does not retain ordinary upload fallback: %d, %s", page.Code, page.Body.String())

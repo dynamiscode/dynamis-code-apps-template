@@ -22,11 +22,11 @@ import (
 )
 
 type exporter interface {
-	Export(context.Context, identity.Principal, string, identity.AuditContext) ([]byte, error)
+	Export(context.Context, identity.Principal, identity.WorkspaceID, identity.AuditContext) ([]byte, error)
 }
 
 type importer interface {
-	Import(context.Context, identity.Principal, string, portability.ImportInput, identity.AuditContext) (portability.ImportResult, error)
+	Import(context.Context, identity.Principal, identity.WorkspaceID, portability.ImportInput, identity.AuditContext) (portability.ImportResult, error)
 }
 
 func importerFor(service exporter) importer {
@@ -75,7 +75,7 @@ func (h *Handler) createWorkspace(writer http.ResponseWriter, request *http.Requ
 func (h *Handler) managementPrincipal(
 	writer http.ResponseWriter,
 	request *http.Request,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	permission identity.Permission,
 ) (identity.Principal, identity.Session, string, bool) {
 	if err := request.ParseForm(); err != nil {
@@ -94,15 +94,15 @@ func (h *Handler) managementPrincipal(
 }
 
 func (h *Handler) settingsPage(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	if _, _, _, ok := h.workspaceSession(writer, request, workspaceID, identity.MembersRead); !ok {
 		return
 	}
-	h.redirect(writer, request, "/workspaces/"+workspaceID+"/settings/members")
+	h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/settings/members")
 }
 
 func (h *Handler) membersPage(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.MembersRead)
 	if !ok {
 		return
@@ -126,12 +126,12 @@ func (h *Handler) membersPage(writer http.ResponseWriter, request *http.Request)
 }
 
 func (h *Handler) memberMutation(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, _, _, ok := h.managementPrincipal(writer, request, workspaceID, identity.MembersManage)
 	if !ok {
 		return
 	}
-	userID := request.FormValue("user_id")
+	memberID, _ := identity.ParseMemberID(request.FormValue("member_id")) // malformed IDs match no member
 	var err error
 	switch request.FormValue("action") {
 	case "role":
@@ -140,11 +140,11 @@ func (h *Handler) memberMutation(writer http.ResponseWriter, request *http.Reque
 			h.managementError(writer, request, workspaceID, "The member role is invalid.")
 			return
 		}
-		err = h.identity.ChangeMemberRole(request.Context(), principal, userID, role, auditContext(request))
+		err = h.identity.ChangeMemberRole(request.Context(), principal, memberID, role, auditContext(request))
 	case "remove":
-		err = h.identity.RemoveMember(request.Context(), principal, userID, auditContext(request))
+		err = h.identity.RemoveMember(request.Context(), principal, memberID, auditContext(request))
 	case "transfer":
-		err = h.identity.TransferOwnership(request.Context(), principal, userID, auditContext(request))
+		err = h.identity.TransferOwnership(request.Context(), principal, memberID, auditContext(request))
 	default:
 		h.managementError(writer, request, workspaceID, "The requested member action is invalid.")
 		return
@@ -157,11 +157,11 @@ func (h *Handler) memberMutation(writer http.ResponseWriter, request *http.Reque
 		h.managementError(writer, request, workspaceID, "The member action could not be completed.")
 		return
 	}
-	h.redirect(writer, request, "/workspaces/"+workspaceID+"/settings/members")
+	h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/settings/members")
 }
 
 func (h *Handler) invitationsPage(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.InvitationsManage)
 	if !ok {
 		return
@@ -183,7 +183,7 @@ func (h *Handler) invitationsPage(writer http.ResponseWriter, request *http.Requ
 }
 
 func (h *Handler) invitationMutation(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, _, csrf, ok := h.managementPrincipal(writer, request, workspaceID, identity.InvitationsManage)
 	if !ok {
 		return
@@ -201,11 +201,11 @@ func (h *Handler) invitationMutation(writer http.ResponseWriter, request *http.R
 		}
 		link := invitationURL(h.publicURL, invitation.Secret)
 		workspaceLocale, _ := h.identity.GetWorkspaceLocale(request.Context(), workspaceID)
-		_, warning := h.deliverInvitation(request, workspaceID, invitation.Email, link, workspaceLocale)
+		_, warning := h.deliverInvitation(request, workspaceID.String(), invitation.Email, link, workspaceLocale)
 		h.renderInvitationResult(writer, request, workspaceID, csrf, link, warning)
 		return
 	}
-	invitationID := request.FormValue("invitation_id")
+	invitationID, _ := identity.ParseInvitationID(request.FormValue("invitation_id")) // malformed IDs match no invitation
 	switch request.FormValue("action") {
 	case "resend":
 		secret, err := h.identity.ResendInvitation(request.Context(), principal, invitationID, 0, auditContext(request))
@@ -222,7 +222,7 @@ func (h *Handler) invitationMutation(writer http.ResponseWriter, request *http.R
 			if invitation.ID == invitationID {
 				link := invitationURL(h.publicURL, secret)
 				workspaceLocale, _ := h.identity.GetWorkspaceLocale(request.Context(), workspaceID)
-				_, warning := h.deliverInvitation(request, workspaceID, invitation.Email, link, workspaceLocale)
+				_, warning := h.deliverInvitation(request, workspaceID.String(), invitation.Email, link, workspaceLocale)
 				h.renderInvitationResult(writer, request, workspaceID, csrf, link, warning)
 				return
 			}
@@ -233,13 +233,13 @@ func (h *Handler) invitationMutation(writer http.ResponseWriter, request *http.R
 			h.managementError(writer, request, workspaceID, "The invitation could not be revoked.")
 			return
 		}
-		h.redirect(writer, request, "/workspaces/"+workspaceID+"/settings/invitations")
+		h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/settings/invitations")
 	default:
 		h.managementError(writer, request, workspaceID, "The requested invitation action is invalid.")
 	}
 }
 
-func (h *Handler) renderInvitationResult(writer http.ResponseWriter, request *http.Request, workspaceID, csrf, link, warning string) {
+func (h *Handler) renderInvitationResult(writer http.ResponseWriter, request *http.Request, workspaceID identity.WorkspaceID, csrf, link, warning string) {
 	principal, session, _, ok := h.workspaceSession(writer, request, workspaceID, identity.InvitationsManage)
 	if !ok {
 		return
@@ -262,7 +262,7 @@ func (h *Handler) renderInvitationResult(writer http.ResponseWriter, request *ht
 }
 
 func (h *Handler) tokensPage(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceRead)
 	if !ok {
 		return
@@ -284,7 +284,7 @@ func (h *Handler) tokensPage(writer http.ResponseWriter, request *http.Request) 
 }
 
 func (h *Handler) tokenMutation(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, _, _, ok := h.managementPrincipal(writer, request, workspaceID, identity.WorkspaceRead)
 	if !ok {
 		return
@@ -316,20 +316,20 @@ func (h *Handler) tokenMutation(writer http.ResponseWriter, request *http.Reques
 		})
 		return
 	}
-	tokenID := request.PathValue("tokenId")
+	tokenID, _ := identity.ParseAPITokenID(request.PathValue("tokenId")) // malformed IDs match no token
 	if request.FormValue("action") == "revoke" {
 		if err := h.identity.RevokeAPIToken(request.Context(), principal, tokenID, auditContext(request)); err != nil {
 			h.managementError(writer, request, workspaceID, "The token could not be revoked.")
 			return
 		}
-		h.redirect(writer, request, "/workspaces/"+workspaceID+"/settings/tokens")
+		h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/settings/tokens")
 		return
 	}
 	h.managementError(writer, request, workspaceID, "The requested token action is invalid.")
 }
 
 func (h *Handler) provisioningPage(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.SCIMManage)
 	if !ok {
 		return
@@ -338,7 +338,7 @@ func (h *Handler) provisioningPage(writer http.ResponseWriter, request *http.Req
 }
 
 func (h *Handler) provisioningMutation(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, session, csrf, ok := h.managementPrincipal(writer, request, workspaceID, identity.SCIMManage)
 	if !ok {
 		return
@@ -356,7 +356,7 @@ func (h *Handler) provisioningMutation(writer http.ResponseWriter, request *http
 			h.managementError(writer, request, workspaceID, "The SCIM credential could not be revoked.")
 			return
 		}
-		h.redirect(writer, request, "/workspaces/"+workspaceID+"/settings/provisioning")
+		h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/settings/provisioning")
 	default:
 		h.managementError(writer, request, workspaceID, "The requested SCIM action is invalid.")
 	}
@@ -383,7 +383,7 @@ func (h *Handler) renderProvisioningPage(
 	})
 }
 
-func scimEndpoint(publicURL string, secure bool, request *http.Request, workspaceID string) string {
+func scimEndpoint(publicURL string, secure bool, request *http.Request, workspaceID identity.WorkspaceID) string {
 	base := strings.TrimRight(strings.TrimSpace(publicURL), "/")
 	if base == "" {
 		scheme := request.URL.Scheme
@@ -395,7 +395,7 @@ func scimEndpoint(publicURL string, secure bool, request *http.Request, workspac
 		}
 		base = scheme + "://" + request.Host
 	}
-	return base + "/scim/v2/" + url.PathEscape(workspaceID)
+	return base + "/scim/v2/" + url.PathEscape(workspaceID.String())
 }
 
 func (h *Handler) sessionsPage(writer http.ResponseWriter, request *http.Request) {
@@ -424,7 +424,7 @@ func (h *Handler) sessionMutation(writer http.ResponseWriter, request *http.Requ
 }
 
 func (h *Handler) exportPage(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	_, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceExport)
 	if !ok {
 		return
@@ -446,7 +446,7 @@ func (h *Handler) exportPage(writer http.ResponseWriter, request *http.Request) 
 }
 
 func (h *Handler) auditHistoryPage(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceExport)
 	if !ok {
 		return
@@ -469,7 +469,7 @@ func (h *Handler) auditHistoryPage(writer http.ResponseWriter, request *http.Req
 }
 
 func (h *Handler) exportWorkspace(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, _, _, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceExport)
 	if !ok {
 		return
@@ -493,7 +493,7 @@ func (h *Handler) exportWorkspace(writer http.ResponseWriter, request *http.Requ
 const importMultipartMemory = 32 * 1024
 
 func (h *Handler) importPage(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	_, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceUpdate)
 	if !ok {
 		return
@@ -514,7 +514,7 @@ func (h *Handler) importPage(writer http.ResponseWriter, request *http.Request) 
 }
 
 func (h *Handler) importMutation(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceUpdate)
 	if !ok {
 		return
@@ -598,7 +598,7 @@ func (h *Handler) importMutation(writer http.ResponseWriter, request *http.Reque
 	case err != nil:
 		h.renderError(writer, http.StatusInternalServerError)
 	default:
-		currentPath := "/workspaces/" + workspaceID + "/settings/import"
+		currentPath := "/workspaces/" + workspaceID.String() + "/settings/import"
 		h.redirect(writer, request, currentPath+"?imported="+url.QueryEscape(fmt.Sprintf("%d", result.Imported)))
 	}
 }
@@ -617,11 +617,11 @@ func (h *Handler) renderImportPage(
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	h.render(writer, status, "import.html", pageData{
 		Title: "Import", NavPage: "import", NavSection: "settings", Error: message,
 		CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		CurrentPath:     "/workspaces/" + workspaceID + "/settings/import",
+		CurrentPath:     "/workspaces/" + workspaceID.String() + "/settings/import",
 		ImportCompleted: completed, Imported: imported,
 	})
 }
@@ -752,7 +752,7 @@ func (h *Handler) invitationPost(writer http.ResponseWriter, request *http.Reque
 		h.setCookie(writer, "session", session.Secret, session.ExpiresAt, true)
 		h.setCookie(writer, "csrf", session.CSRFSecret, session.ExpiresAt, true)
 		h.clearCookie(writer, "invitation_csrf")
-		h.redirect(writer, request, "/workspaces/"+workspaceID+"/items")
+		h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/items")
 		return
 	}
 	session, ok := h.validCSRFSession(writer, request)
@@ -764,7 +764,7 @@ func (h *Handler) invitationPost(writer http.ResponseWriter, request *http.Reque
 		h.render(writer, http.StatusUnprocessableEntity, "error.html", pageData{Title: "Invitation unavailable", Error: "This invitation is invalid, expired, revoked, already used, or belongs to another email."})
 		return
 	}
-	h.redirect(writer, request, "/workspaces/"+workspaceID+"/items")
+	h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/items")
 }
 
 func invitationFormLifetime(raw string) (time.Duration, bool) {
@@ -778,7 +778,7 @@ func invitationFormLifetime(raw string) (time.Duration, bool) {
 	return time.Duration(minutes) * time.Minute, true
 }
 
-func (h *Handler) managementError(writer http.ResponseWriter, request *http.Request, workspaceID, message string) {
+func (h *Handler) managementError(writer http.ResponseWriter, request *http.Request, workspaceID identity.WorkspaceID, message string) {
 	workspaces, err := h.identity.ListWorkspaces(request.Context(), cookieUserID(request, h.identity))
 	if err != nil {
 		h.renderError(writer, http.StatusInternalServerError)

@@ -56,29 +56,29 @@ func TestRunManipulatesItemsThroughREST(t *testing.T) {
 		}
 	}
 
-	createdRaw := runOK(t, env, "items", "create", "--workspace", owner.WorkspaceID,
+	createdRaw := runOK(t, env, "items", "create", "--workspace", owner.WorkspaceID.String(),
 		"--title", "CLI item", "--idempotency-key", "cli-key-1")
 	var created items.Item
 	if err := json.Unmarshal([]byte(createdRaw), &created); err != nil || created.Title != "CLI item" {
 		t.Fatalf("created = %s, error = %v", createdRaw, err)
 	}
-	listedRaw := runOK(t, env, "items", "list", "--workspace", owner.WorkspaceID, "--limit", "1")
+	listedRaw := runOK(t, env, "items", "list", "--workspace", owner.WorkspaceID.String(), "--limit", "1")
 	var page items.Page
 	if err := json.Unmarshal([]byte(listedRaw), &page); err != nil || len(page.Items) != 1 || page.Items[0].ID != created.ID {
 		t.Fatalf("listed = %s, error = %v", listedRaw, err)
 	}
-	gotRaw := runOK(t, env, "items", "get", "--workspace", owner.WorkspaceID, "--item", created.ID)
+	gotRaw := runOK(t, env, "items", "get", "--workspace", owner.WorkspaceID.String(), "--item", created.ID)
 	var got items.Item
 	if err := json.Unmarshal([]byte(gotRaw), &got); err != nil || got.ID != created.ID {
 		t.Fatalf("got = %s, error = %v", gotRaw, err)
 	}
-	updatedRaw := runOK(t, env, "items", "update", "--workspace", owner.WorkspaceID,
+	updatedRaw := runOK(t, env, "items", "update", "--workspace", owner.WorkspaceID.String(),
 		"--item", created.ID, "--version", "1", "--set-status", "complete")
 	var updated items.Item
 	if err := json.Unmarshal([]byte(updatedRaw), &updated); err != nil || updated.Status != items.Complete {
 		t.Fatalf("updated = %s, error = %v", updatedRaw, err)
 	}
-	deletedRaw := runOK(t, env, "items", "delete", "--workspace", owner.WorkspaceID,
+	deletedRaw := runOK(t, env, "items", "delete", "--workspace", owner.WorkspaceID.String(),
 		"--item", created.ID, "--version", "2")
 	if strings.TrimSpace(deletedRaw) != `{"deleted":true}` {
 		t.Fatalf("deleted = %s", deletedRaw)
@@ -96,7 +96,7 @@ func TestRunManipulatesItemsThroughREST(t *testing.T) {
 		return env(key)
 	}
 	var stdout, stderr bytes.Buffer
-	exit := Run([]string{"items", "create", "--workspace", owner.WorkspaceID,
+	exit := Run([]string{"items", "create", "--workspace", owner.WorkspaceID.String(),
 		"--title", "blocked", "--idempotency-key", "cli-key-2"}, readEnv, &stdout, &stderr)
 	if exit != 3 || stdout.Len() != 0 || !json.Valid(stderr.Bytes()) || strings.Contains(stderr.String(), readToken.Secret) {
 		t.Fatalf("scoped failure exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
@@ -140,7 +140,7 @@ func TestRunRejectsUnsafeConfigurationAndRedirects(t *testing.T) {
 	t.Cleanup(redirect.Close)
 	stdout.Reset()
 	stderr.Reset()
-	exit = Run([]string{"items", "list", "--workspace", "0123456789abcdef0123456789abcdef"},
+	exit = Run([]string{"items", "list", "--workspace", "23456789abcd"},
 		func(key string) string {
 			if key == "APPCTL_TOKEN" {
 				return secret

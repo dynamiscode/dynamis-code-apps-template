@@ -23,12 +23,13 @@ import (
 const testRequestID = "0123456789abcdef0123456789abcdef"
 
 type testState struct {
-	db          *sql.DB
-	auth        *identity.Service
-	actor       identity.Principal
-	workspaceID string
-	token       identity.NewAPIToken
-	handler     http.Handler
+	db           *sql.DB
+	auth         *identity.Service
+	actor        identity.Principal
+	workspaceID  string
+	workspaceKey identity.WorkspaceID
+	token        identity.NewAPIToken
+	handler      http.Handler
 }
 
 type authTransport struct {
@@ -114,7 +115,7 @@ func TestMCPToolsUseSharedScopedItemService(t *testing.T) {
 		t.Fatalf("create result = %+v", createdResult)
 	}
 	created := decodeOutput[items.Item](t, createdResult)
-	if created.Title != "MCP secret-shaped title" || created.WorkspaceID != state.workspaceID {
+	if created.Title != "MCP secret-shaped title" || created.WorkspaceID != state.workspaceKey {
 		t.Fatalf("created = %+v", created)
 	}
 
@@ -294,7 +295,7 @@ func newTestState(t *testing.T, mcpConfig config.MCP) *testState {
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	return &testState{
-		db: db, auth: authService, actor: actor, workspaceID: owner.WorkspaceID, token: token,
+		db: db, auth: authService, actor: actor, workspaceID: owner.WorkspaceID.String(), workspaceKey: owner.WorkspaceID, token: token,
 		handler: NewHandler(authService, items.NewService(db, cfg.Database.Driver, authService, cfg.Data.ItemsMaxPerWorkspace), mcpConfig, logger),
 	}
 }

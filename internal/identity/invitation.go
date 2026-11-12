@@ -98,15 +98,11 @@ func (s *Service) CreateInvitation(
 	if err != nil {
 		return NewInvitation{}, err
 	}
-	invitationID, err := id.New()
-	if err != nil {
-		return NewInvitation{}, err
-	}
 	now := s.now().UTC()
 	invitation := NewInvitation{
 		Invitation: Invitation{
-			ID: invitationID, WorkspaceID: actor.WorkspaceID,
-			Email: email, Role: role, CreatedAt: now, ExpiresAt: now.Add(lifetime),
+			WorkspaceID: actor.WorkspaceID,
+			Email:       email, Role: role, CreatedAt: now, ExpiresAt: now.Add(lifetime),
 		},
 		Secret: secret,
 	}
@@ -146,13 +142,15 @@ func (s *Service) CreateInvitation(
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return NewInvitation{}, err
 	}
-	if _, err := s.exec(ctx, tx, `
+	if err := s.queryRow(ctx, tx, `
 		INSERT INTO invitations (
-			id, workspace_id, invited_by_user_id, email, active_email,
+			workspace_id, invited_by_user_id, email, active_email,
 			role, secret_hash, created_at, expires_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, invitation.ID, invitation.WorkspaceID, actor.UserID, email, email,
-		role, hashSecret(secret), timestamp(now), timestamp(invitation.ExpiresAt)); err != nil {
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		RETURNING id
+	`, invitation.WorkspaceID, actor.UserID, email, email,
+		role, hashSecret(secret), timestamp(now), timestamp(invitation.ExpiresAt),
+	).Scan(&invitation.ID); err != nil {
 		return NewInvitation{}, fmt.Errorf("create invitation: %w", err)
 	}
 	if err := s.auditInvitation(
@@ -169,7 +167,7 @@ func (s *Service) CreateInvitation(
 func (s *Service) ResendInvitation(
 	ctx context.Context,
 	actor Principal,
-	invitationID string,
+	invitationID InvitationID,
 	lifetime time.Duration,
 	audit AuditContext,
 ) (string, error) {
@@ -205,7 +203,7 @@ func (s *Service) ResendInvitation(
 	`, invitationID, actor.WorkspaceID).Scan(
 		&email, &role, &expiresAt, &acceptedAt, &expiredAt, &revokedAt,
 	); err != nil {
-		return "", ErrInvalidInvitation
+		return "", ErrNotFound
 	}
 	expires, err := parseTimestamp(expiresAt)
 	if err != nil {
@@ -269,7 +267,7 @@ func (s *Service) ResendInvitation(
 func (s *Service) RevokeInvitation(
 	ctx context.Context,
 	actor Principal,
-	invitationID string,
+	invitationID InvitationID,
 	audit AuditContext,
 ) error {
 	if s.require(ctx, actor, InvitationsManage) != nil {
@@ -291,7 +289,7 @@ func (s *Service) RevokeInvitation(
 		SELECT role, expires_at, accepted_at, expired_at, revoked_at FROM invitations
 		WHERE id = ? AND workspace_id = ?
 	`, invitationID, actor.WorkspaceID).Scan(&role, &expiresAt, &acceptedAt, &expiredAt, &revokedAt); err != nil {
-		return ErrInvalidInvitation
+		return ErrNotFound
 	}
 	expires, err := parseTimestamp(expiresAt)
 	if err != nil {
@@ -377,7 +375,7 @@ func (s *Service) ListInvitations(
 	}
 	defer rows.Close()
 	var invitations []Invitation
-	var newlyExpired []string
+	var newlyExpired []InvitationID
 	now := s.now().UTC()
 	for rows.Next() {
 		var invitation Invitation
@@ -441,30 +439,30 @@ func (s *Service) AcceptInvitation(
 	secret string,
 	userID string,
 	audit AuditContext,
-) (string, error) {
+) (WorkspaceID, error) {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	defer tx.Rollback()
 	var userEmail string
 	if err := s.queryRow(ctx, tx,
 		"SELECT email FROM users WHERE id = ?", userID,
 	).Scan(&userEmail); err != nil {
-		return "", ErrInvalidInvitation
+		return 0, ErrInvalidInvitation
 	}
 	invitation, err := s.acceptInvitation(ctx, tx, secret, userID, userEmail, audit)
 	if err != nil {
 		if errors.Is(err, errInvitationExpired) {
 			if commitErr := tx.Commit(); commitErr != nil {
-				return "", commitErr
+				return 0, commitErr
 			}
-			return "", ErrInvalidInvitation
+			return 0, ErrInvalidInvitation
 		}
-		return "", err
+		return 0, err
 	}
 	if err := tx.Commit(); err != nil {
-		return "", err
+		return 0, err
 	}
 	return invitation.WorkspaceID, nil
 }
@@ -474,56 +472,56 @@ func (s *Service) CreateInvitedLocalUser(
 	secret string,
 	password string,
 	audit AuditContext,
-) (string, string, error) {
+) (string, WorkspaceID, error) {
 	if len(password) < 12 || len(password) > 1024 {
-		return "", "", ErrInvalidInvitation
+		return "", 0, ErrInvalidInvitation
 	}
 	passwordHash, err := hashPassword(password, s.passwordParams)
 	if err != nil {
-		return "", "", ErrInvalidInvitation
+		return "", 0, ErrInvalidInvitation
 	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		return "", "", err
+		return "", 0, err
 	}
 	defer tx.Rollback()
 	invitation, err := s.findInvitation(ctx, tx, secret)
 	if err != nil {
 		if errors.Is(err, errInvitationExpired) {
 			if commitErr := tx.Commit(); commitErr != nil {
-				return "", "", commitErr
+				return "", 0, commitErr
 			}
-			return "", "", ErrInvalidInvitation
+			return "", 0, ErrInvalidInvitation
 		}
-		return "", "", err
+		return "", 0, err
 	}
 	var existing int
 	if err := s.queryRow(ctx, tx,
 		"SELECT 1 FROM users WHERE email = ?", invitation.Email,
 	).Scan(&existing); err == nil {
-		return "", "", ErrInvalidInvitation
+		return "", 0, ErrInvalidInvitation
 	} else if !errors.Is(err, sql.ErrNoRows) {
-		return "", "", err
+		return "", 0, err
 	}
 	userID, err := id.New()
 	if err != nil {
-		return "", "", err
+		return "", 0, err
 	}
 	now := s.now().UTC()
 	if _, err := s.exec(ctx, tx, `
 		INSERT INTO users (id, email, password_hash, email_verified_at, created_at)
 		VALUES (?, ?, ?, ?, ?)
 	`, userID, invitation.Email, passwordHash, timestamp(now), timestamp(now)); err != nil {
-		return "", "", ErrInvalidInvitation
+		return "", 0, ErrInvalidInvitation
 	}
 	invitation, err = s.acceptLoadedInvitation(
 		ctx, tx, invitation, userID, audit, now,
 	)
 	if err != nil {
-		return "", "", err
+		return "", 0, err
 	}
 	if err := tx.Commit(); err != nil {
-		return "", "", err
+		return "", 0, err
 	}
 	return userID, invitation.WorkspaceID, nil
 }
@@ -650,7 +648,7 @@ func (s *Service) acceptLoadedInvitation(
 func (s *Service) expireInvitations(
 	ctx context.Context,
 	tx *sql.Tx,
-	workspaceID string,
+	workspaceID WorkspaceID,
 	email string,
 	now time.Time,
 ) error {
@@ -662,9 +660,9 @@ func (s *Service) expireInvitations(
 	if err != nil {
 		return err
 	}
-	var ids []string
+	var ids []InvitationID
 	for rows.Next() {
-		var invitationID string
+		var invitationID InvitationID
 		if err := rows.Scan(&invitationID); err != nil {
 			rows.Close()
 			return err
@@ -693,8 +691,8 @@ func (s *Service) expireInvitations(
 func (s *Service) markInvitationExpired(
 	ctx context.Context,
 	tx *sql.Tx,
-	invitationID string,
-	workspaceID string,
+	invitationID InvitationID,
+	workspaceID WorkspaceID,
 	now time.Time,
 ) error {
 	if err := ValidateInvitationTransition(InvitationPending, InvitationExpired); err != nil {
@@ -718,7 +716,7 @@ func (s *Service) markInvitationExpired(
 	return s.audit(ctx, tx, AuditEvent{
 		EventType: "invitation.expired", AuthMethod: "system",
 		WorkspaceID: workspaceID, TargetType: "invitation",
-		TargetID: invitationID, Action: "invitation.expire",
+		TargetID: invitationID.String(), Action: "invitation.expire",
 		Outcome: "success", Metadata: "{}", CreatedAt: now,
 	})
 }
@@ -727,7 +725,7 @@ func (s *Service) auditInvitation(
 	ctx context.Context,
 	tx *sql.Tx,
 	actor Principal,
-	invitationID string,
+	invitationID InvitationID,
 	action string,
 	role Role,
 	audit AuditContext,
@@ -736,7 +734,7 @@ func (s *Service) auditInvitation(
 	return s.audit(ctx, tx, AuditEvent{
 		EventType: "invitation." + action, ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID,
-		TargetType: "invitation", TargetID: invitationID,
+		TargetType: "invitation", TargetID: invitationID.String(),
 		Action: "invitation." + action, Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: metadata(map[string]any{"role": role}), CreatedAt: now,

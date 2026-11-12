@@ -1,6 +1,6 @@
 CREATE TABLE background_jobs (
     id TEXT PRIMARY KEY,
-    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     kind TEXT NOT NULL,
     deduplication_key TEXT NOT NULL,
     payload TEXT NOT NULL,

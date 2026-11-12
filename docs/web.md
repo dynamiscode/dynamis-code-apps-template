@@ -1,5 +1,9 @@
 # Web and Realtime Interface
 
+Workspace paths carry the workspace short ID. A malformed, unknown, or non-member
+ID returns `404`, the same as a missing workspace. A member without the required
+permission gets `403`.
+
 The browser interface is server-rendered and reaches the same application use
 cases as REST. Sign in at `/login`, create or choose a workspace, then use the
 workspace home and sidebar. `/workspaces/{workspaceId}` is the workspace home;
@@ -168,9 +172,9 @@ tool contract is:
 | `item-create-v1` | `{title}` | Fill item title and focus the control |
 | `item-update-v1` | `{itemId,title,status}` | Fill visible title/status and focus Save |
 | `item-delete-v1` | `{itemId}` | Focus Delete permanently |
-| `member-role-update-v1` | `{userId,role}` | Fill visible role and focus Change role |
-| `member-remove-v1` | `{userId}` | Focus Remove |
-| `ownership-transfer-v1` | `{userId}` | Focus Transfer ownership |
+| `member-role-update-v1` | `{memberId,role}` | Fill visible role and focus Change role |
+| `member-remove-v1` | `{memberId}` | Focus Remove |
+| `ownership-transfer-v1` | `{memberId}` | Focus Transfer ownership |
 | `invitation-revoke-v1` | `{invitationId}` | Focus Revoke |
 | `token-revoke-v1` | `{tokenId}` | Focus Revoke |
 | `session-revoke-v1` | `{sessionId}` | Focus Revoke |

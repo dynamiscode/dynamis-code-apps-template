@@ -1,6 +1,6 @@
 CREATE TABLE items_account_deletion (
     id TEXT PRIMARY KEY,
-    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     title TEXT NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('active', 'complete')),

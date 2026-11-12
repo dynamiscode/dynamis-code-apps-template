@@ -32,15 +32,12 @@ func TestPostgresPublicSharingLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	workspaceID, err := id.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	var workspaceID identity.WorkspaceID
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	if _, err := db.ExecContext(ctx, "INSERT INTO users (id, email, created_at) VALUES ($1, $2, $3)", userID, fmt.Sprintf("share-%s@example.com", userID), now); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.ExecContext(ctx, "INSERT INTO workspaces (id, name, created_at) VALUES ($1, $2, $3)", workspaceID, "Sharing PostgreSQL", now); err != nil {
+	if err := db.QueryRowContext(ctx, "INSERT INTO workspaces (name, created_at) VALUES ($1, $2) RETURNING id", "Sharing PostgreSQL", now).Scan(&workspaceID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.ExecContext(ctx, "INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES ($1, $2, 'owner', $3)", workspaceID, userID, now); err != nil {

@@ -33,7 +33,7 @@ func (h *Handler) accountData(request *http.Request, userID, csrf string) (pageD
 	if err != nil {
 		return pageData{}, false
 	}
-	preferences, err := h.identity.GetNotificationPreferences(request.Context(), userID, "")
+	preferences, err := h.identity.GetNotificationPreferences(request.Context(), userID, 0)
 	if err != nil {
 		return pageData{}, false
 	}

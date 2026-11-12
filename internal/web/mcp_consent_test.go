@@ -57,7 +57,7 @@ func TestMCPConsentRequiresSessionAndApprovesOnce(t *testing.T) {
 
 	page := request(handler, http.MethodGet, "/oauth/authorize?"+query, nil, cookies, nil)
 	body := page.Body.String()
-	if page.Code != http.StatusOK || !strings.Contains(body, `name="workspace_id" value="`+workspaceID+`"`) ||
+	if page.Code != http.StatusOK || !strings.Contains(body, `name="workspace_id" value="`+workspaceID.String()+`"`) ||
 		strings.Contains(body, "<script>alert(1)") || !strings.Contains(body, "&lt;script&gt;") {
 		t.Fatalf("consent page = %d %s", page.Code, body)
 	}
@@ -75,7 +75,7 @@ func TestMCPConsentRequiresSessionAndApprovesOnce(t *testing.T) {
 	}
 
 	form := url.Values{
-		"decision": {"approve"}, "workspace_id": {workspaceID}, "csrf": {csrf},
+		"decision": {"approve"}, "workspace_id": {workspaceID.String()}, "csrf": {csrf},
 	}
 	for key, values := range consentQuery(client.ClientID) {
 		form[key] = values

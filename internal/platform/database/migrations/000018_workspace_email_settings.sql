@@ -1,5 +1,5 @@
 CREATE TABLE workspace_email_settings (
-    workspace_id TEXT PRIMARY KEY REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id BIGINT PRIMARY KEY REFERENCES workspaces(id) ON DELETE CASCADE,
     sender_address TEXT NOT NULL,
     sender_name TEXT NOT NULL,
     host TEXT NOT NULL,

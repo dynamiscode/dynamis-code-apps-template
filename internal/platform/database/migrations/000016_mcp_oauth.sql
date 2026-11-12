@@ -10,7 +10,7 @@ CREATE TABLE oauth_clients (
 CREATE TABLE oauth_grants (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     client_id TEXT NOT NULL REFERENCES oauth_clients(id) ON DELETE CASCADE,
     session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
     scopes TEXT NOT NULL,

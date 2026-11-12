@@ -381,6 +381,24 @@ Verified 2026-08-29 with focused Go tests on SQLite:
   full-suite listener-dependent tests require execution outside the restricted
   sandbox
 
+## Workspace short ID evidence
+
+Verified 2026-11-11 with Go 1.27.4. Issue #189 moves workspace keys to integers
+and exposes only the ADR 0009 short ID. Implemented and verified as recorded above; the
+exception is [2026-11-11-workspace-short-id-migration-rewrite](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md).
+
+## Member, invitation, and API token short ID evidence
+
+Verified 2026-11-11. Issue #193 gives members, invitations, and API tokens integer
+keys and exposes only their ADR 0009 short IDs. Token secrets remain random values and
+are never encoded. Malformed, unknown, and foreign IDs return the same `not-found`
+problem, covered by `TestIdentityRecordPathsAreShortIDOnlyAndUniform` on SQLite.
+Checks run: `make test` (all packages, SQLite) and `make lint` passed; `go generate
+./api` produced no drift; `make test-postgres` passed for `internal/identity` and
+`internal/files` against PostgreSQL 14.24. `internal/httpapi` and the PostgreSQL
+retention test were not run on PostgreSQL. The migration rewrite is covered by the
+[recorded exception](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md).
+
 ## Files evidence
 
 Files metadata migration and workspace authorization, local filesystem uploads

@@ -13,7 +13,7 @@ import (
 )
 
 func (h *Handler) filesPage(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.ResourcesRead)
 	if !ok {
 		return
@@ -32,12 +32,12 @@ func (h *Handler) filesPage(writer http.ResponseWriter, request *http.Request) {
 		Title: "Files", NavPage: "files", NavSection: "workspace", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		Files: fileList, FilesPresigned: h.files.SupportsPresignedPut(),
-		CurrentPath: "/workspaces/" + workspaceID + "/files",
+		CurrentPath: "/workspaces/" + workspaceID.String() + "/files",
 	})
 }
 
 func (h *Handler) filesInitiateUpload(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, _, _, ok := h.managementPrincipal(writer, request, workspaceID, identity.ResourcesWrite)
 	if !ok {
 		return
@@ -68,12 +68,12 @@ func (h *Handler) filesInitiateUpload(writer http.ResponseWriter, request *http.
 	writer.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(writer).Encode(map[string]any{
 		"uploadUrl": upload.URL, "uploadHeaders": upload.Headers,
-		"completeUrl": "/workspaces/" + workspaceID + "/files/" + file.ID + "/complete",
+		"completeUrl": "/workspaces/" + workspaceID.String() + "/files/" + file.ID + "/complete",
 	})
 }
 
 func (h *Handler) filesUpload(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, _, _, ok := h.managementPrincipal(writer, request, workspaceID, identity.ResourcesWrite)
 	if !ok {
 		return
@@ -95,11 +95,11 @@ func (h *Handler) filesUpload(writer http.ResponseWriter, request *http.Request)
 		h.renderFilesError(writer, request, message)
 		return
 	}
-	h.redirect(writer, request, "/workspaces/"+workspaceID+"/files")
+	h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/files")
 }
 
 func (h *Handler) filesCompleteUpload(writer http.ResponseWriter, request *http.Request) {
-	workspaceID, fileID := request.PathValue("workspaceId"), request.PathValue("fileId")
+	workspaceID, fileID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), request.PathValue("fileId")
 	principal, _, _, ok := h.managementPrincipal(writer, request, workspaceID, identity.ResourcesWrite)
 	if !ok {
 		return
@@ -112,7 +112,7 @@ func (h *Handler) filesCompleteUpload(writer http.ResponseWriter, request *http.
 }
 
 func (h *Handler) renderFilesError(writer http.ResponseWriter, request *http.Request, message string) {
-	workspaceID := request.PathValue("workspaceId")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.ResourcesRead)
 	if !ok {
 		return
@@ -130,12 +130,12 @@ func (h *Handler) renderFilesError(writer http.ResponseWriter, request *http.Req
 	h.render(writer, http.StatusUnprocessableEntity, "files.html", pageData{
 		Title: "Files", NavPage: "files", NavSection: "workspace", CSRF: csrf, Error: message,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		Files: fileList, FilesPresigned: h.files.SupportsPresignedPut(), CurrentPath: "/workspaces/" + workspaceID + "/files",
+		Files: fileList, FilesPresigned: h.files.SupportsPresignedPut(), CurrentPath: "/workspaces/" + workspaceID.String() + "/files",
 	})
 }
 
 func (h *Handler) fileDownload(writer http.ResponseWriter, request *http.Request) {
-	workspaceID, fileID := request.PathValue("workspaceId"), request.PathValue("fileId")
+	workspaceID, fileID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), request.PathValue("fileId")
 	principal, _, _, ok := h.workspaceSession(writer, request, workspaceID, identity.ResourcesRead)
 	if !ok {
 		return

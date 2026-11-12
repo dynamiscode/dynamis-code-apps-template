@@ -1,6 +1,6 @@
 CREATE TABLE public_links (
     id TEXT PRIMARY KEY,
-    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
     token_hash TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL,

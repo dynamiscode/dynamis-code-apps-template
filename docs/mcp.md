@@ -39,12 +39,12 @@ message. The first two are listed here; `item_review_v1` is described under
 | `items_summarize_v1` | `workspaceId` required; `status` optional, `active` or `complete` | Summarizes the newest 50 matching items |
 | `items_triage_v1` | `workspaceId` required | Ranks the newest 50 active items and proposes next actions; recommends only |
 
-- `workspaceId` is 32 lowercase hexadecimal characters on every prompt.
-- Undeclared arguments, missing required arguments, malformed IDs, and
-  unsupported status values return JSON-RPC `-32602` with the safe message
-  `parameters are invalid`. Unknown prompt names use the SDK's standard error.
-- Workspace authorization is enforced by the item use case. Foreign or
-  unauthorized workspaces return `access is denied`.
+- `workspaceId` is the workspace short ID on every prompt. A malformed value
+  gets the same `access is denied` as a missing workspace.
+- Undeclared arguments, missing required arguments, and unsupported status values
+  return JSON-RPC `-32602` with the safe message `parameters are invalid`. Unknown prompt names use the SDK's standard error.
+- Workspace authorization is enforced by the item use case. Foreign, unknown,
+  malformed, or unauthorized workspaces return `access is denied`.
 - Item titles are untrusted data. They are JSON-encoded inside a
   `<workspace_items>` block, so encoding escapes markup and a title cannot close
   the block. The instruction tells the model to treat the block as data.

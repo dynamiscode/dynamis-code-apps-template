@@ -127,7 +127,7 @@ func TestMCPResourcesIsolateWorkspacesAndRejectMalformedURIs(t *testing.T) {
 		t.Fatalf("own-workspace positive control error = %v", err)
 	}
 
-	crossWorkspace := "dynamis://workspaces/" + otherWorkspace + "/items/" + other.Item.ID
+	crossWorkspace := "dynamis://workspaces/" + otherWorkspace.String() + "/items/" + other.Item.ID
 	if _, err := session.ReadResource(ctx, &mcp.ReadResourceParams{URI: crossWorkspace}); err == nil ||
 		strings.Contains(err.Error(), "secret") || !strings.Contains(err.Error(), "access is denied") {
 		t.Fatalf("cross-workspace read error = %v, want access denied without item data", err)
@@ -172,7 +172,7 @@ func TestMCPResourcesRequireResourcesReadScope(t *testing.T) {
 	}
 	session, _ := connectResourceSession(t, server.URL, readOnly.Secret)
 	seeded, err := items.NewService(state.db, config.SQLite, state.auth, 100).Create(
-		ctx, state.actor, state.workspaceID, "Readable", "resource-readable", identity.AuditContext{})
+		ctx, state.actor, state.workspaceKey, "Readable", "resource-readable", identity.AuditContext{})
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}

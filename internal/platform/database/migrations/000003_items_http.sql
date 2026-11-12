@@ -1,6 +1,6 @@
 CREATE TABLE items (
     id TEXT PRIMARY KEY,
-    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     created_by_user_id TEXT NOT NULL REFERENCES users(id),
     title TEXT NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('active', 'complete')),
@@ -17,7 +17,7 @@ CREATE INDEX items_workspace_status_created_idx
 CREATE TABLE idempotency_records (
     key_hash TEXT NOT NULL,
     principal_id TEXT NOT NULL,
-    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     operation TEXT NOT NULL,
     request_hash TEXT NOT NULL,
     result_json TEXT NOT NULL,

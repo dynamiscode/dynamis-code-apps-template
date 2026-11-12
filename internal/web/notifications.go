@@ -16,7 +16,7 @@ func (h *Handler) notificationsPage(writer http.ResponseWriter, request *http.Re
 	if !ok {
 		return
 	}
-	notifications, err := h.identity.ListNotifications(request.Context(), session.UserID, "", true, 100)
+	notifications, err := h.identity.ListNotifications(request.Context(), session.UserID, 0, true, 100)
 	if err != nil {
 		h.renderError(writer, http.StatusInternalServerError)
 		return
@@ -73,7 +73,7 @@ func (h *Handler) notificationEvents(writer http.ResponseWriter, request *http.R
 	writer.Header().Set("X-Accel-Buffering", "no")
 	after := request.Header.Get("Last-Event-ID")
 	if after == "" {
-		existing, err := h.identity.ListNotifications(request.Context(), session.UserID, "", true, 1)
+		existing, err := h.identity.ListNotifications(request.Context(), session.UserID, 0, true, 1)
 		if err != nil {
 			h.renderError(writer, http.StatusInternalServerError)
 			return
@@ -133,7 +133,7 @@ func (h *Handler) sendNotifications(
 	notifications, err := h.identity.NotificationsAfter(request.Context(), userID, *after, 100)
 	if err != nil {
 		if errors.Is(err, identity.ErrInvalidNotification) {
-			latest, listErr := h.identity.ListNotifications(request.Context(), userID, "", true, 1)
+			latest, listErr := h.identity.ListNotifications(request.Context(), userID, 0, true, 1)
 			if listErr != nil {
 				return false
 			}

@@ -151,7 +151,7 @@ func TestInvitationRoutesToInstanceSenderWhenWorkspaceUnconfigured(t *testing.T)
 	ctx := context.Background()
 	instance := &recordingSender{}
 	service, _, owner, _ := testService(t, instance)
-	if err := service.SendFor(ctx, owner.WorkspaceID, "invitee@example.com", "s", "b"); err != nil {
+	if err := service.SendFor(ctx, owner.WorkspaceID.String(), "invitee@example.com", "s", "b"); err != nil {
 		t.Fatal(err)
 	}
 	if len(instance.sent) != 1 || instance.sent[0] != "invitee@example.com" {
@@ -161,7 +161,7 @@ func TestInvitationRoutesToInstanceSenderWhenWorkspaceUnconfigured(t *testing.T)
 
 func TestInvitationWithNoSenderAnywhereIsNotConfigured(t *testing.T) {
 	service, _, owner, _ := testService(t, nil)
-	if err := service.SendFor(context.Background(), owner.WorkspaceID, "invitee@example.com", "s", "b"); !errors.Is(err, appmail.ErrNotConfigured) {
+	if err := service.SendFor(context.Background(), owner.WorkspaceID.String(), "invitee@example.com", "s", "b"); !errors.Is(err, appmail.ErrNotConfigured) {
 		t.Fatalf("SendFor() error = %v, want not configured", err)
 	}
 }

@@ -106,8 +106,8 @@ func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
 	if _, err := service.CreateWorkspace(ctx, Principal{UserID: memberID, AuthMethod: "local", AuthLevel: AuthLevelPassword}, WorkspaceCreateInput{Name: "Member blocked"}, AuditContext{}); !errors.Is(err, ErrMFARequired) {
 		t.Fatalf("member password workspace creation error = %v", err)
 	}
-	secondWorkspaceID := "member-mfa-workspace"
-	if _, err := db.Exec("INSERT INTO workspaces (id, name, locale, created_at) VALUES (?, ?, ?, ?)", secondWorkspaceID, "Member workspace", "en", timestamp(now)); err != nil {
+	var secondWorkspaceID WorkspaceID
+	if err := db.QueryRow("INSERT INTO workspaces (name, locale, created_at) VALUES (?, ?, ?) RETURNING id", "Member workspace", "en", timestamp(now)).Scan(&secondWorkspaceID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", owner.WorkspaceID, memberID, Admin, timestamp(now)); err != nil {

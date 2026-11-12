@@ -14,6 +14,7 @@ var (
 	ErrInvalidCredentials   = errors.New("invalid email or password")
 	ErrInvalidBootstrap     = errors.New("bootstrap input is invalid")
 	ErrInvalidInvitation    = errors.New("invitation is invalid or expired")
+	ErrNotFound             = errors.New("record not found")
 	ErrInvalidSession       = errors.New("session is invalid or expired")
 	ErrInvalidToken         = errors.New("token is invalid or expired")
 	ErrInvalidLocale        = errors.New("locale is invalid")
@@ -74,7 +75,7 @@ const (
 
 type Principal struct {
 	UserID      string
-	WorkspaceID string
+	WorkspaceID WorkspaceID
 	Role        Role
 	Permissions map[Permission]bool
 	AuthMethod  string
@@ -91,11 +92,11 @@ type BootstrapInput struct {
 
 type BootstrapResult struct {
 	UserID      string
-	WorkspaceID string
+	WorkspaceID WorkspaceID
 }
 
 type WorkspaceSummary struct {
-	ID     string
+	ID     WorkspaceID
 	Name   string
 	Role   Role
 	Locale string
@@ -107,6 +108,7 @@ type WorkspaceCreateInput struct {
 }
 
 type MemberSummary struct {
+	ID        MemberID
 	UserID    string
 	Email     string
 	Role      Role
@@ -145,7 +147,7 @@ type NewPasswordReset struct {
 type Notification struct {
 	ID               string
 	UserID           string
-	WorkspaceID      string
+	WorkspaceID      WorkspaceID
 	NotificationType string
 	Title            string
 	Body             string
@@ -155,7 +157,7 @@ type Notification struct {
 
 type NotificationInput struct {
 	RecipientUserID  string
-	WorkspaceID      string
+	WorkspaceID      WorkspaceID
 	NotificationType string
 	Title            string
 	Body             string
@@ -231,8 +233,8 @@ type NewSession struct {
 }
 
 type Invitation struct {
-	ID              string
-	WorkspaceID     string
+	ID              InvitationID
+	WorkspaceID     WorkspaceID
 	WorkspaceLocale string
 	Email           string
 	Role            Role
@@ -249,9 +251,9 @@ type NewInvitation struct {
 }
 
 type APIToken struct {
-	ID          string
+	ID          APITokenID
 	UserID      string
-	WorkspaceID string
+	WorkspaceID WorkspaceID
 	Name        string
 	Scopes      []Permission
 	CreatedAt   time.Time
@@ -267,7 +269,7 @@ type NewAPIToken struct {
 
 type NewSCIMToken struct {
 	ID          string
-	WorkspaceID string
+	WorkspaceID WorkspaceID
 	CreatedAt   time.Time
 	Secret      string
 }
@@ -343,7 +345,7 @@ type AuditEvent struct {
 	EventType     string
 	ActorUserID   string
 	AuthMethod    string
-	WorkspaceID   string
+	WorkspaceID   WorkspaceID
 	TargetType    string
 	TargetID      string
 	Action        string

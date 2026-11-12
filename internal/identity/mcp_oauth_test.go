@@ -18,7 +18,7 @@ type oauthFixture struct {
 	service     *Service
 	db          *sql.DB
 	ownerID     string
-	workspaceID string
+	workspaceID WorkspaceID
 	session     NewSession
 	client      OAuthClient
 }

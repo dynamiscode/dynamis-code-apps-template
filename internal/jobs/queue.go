@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
@@ -46,7 +47,7 @@ type JobOutcome struct {
 
 type Job struct {
 	ID           string
-	WorkspaceID  string
+	WorkspaceID  identity.WorkspaceID
 	Kind         string
 	Payload      string
 	AttemptCount int
@@ -125,10 +126,11 @@ func (queue *Queue) RegisterExhausted(kind string, handler Handler) error {
 func (queue *Queue) EnqueueTx(
 	ctx context.Context,
 	tx *sql.Tx,
-	workspaceID, kind, deduplicationKey, payload string,
+	workspaceID identity.WorkspaceID,
+	kind, deduplicationKey, payload string,
 	availableAt time.Time,
 ) error {
-	if strings.TrimSpace(workspaceID) == "" || strings.TrimSpace(kind) == "" ||
+	if workspaceID == 0 || strings.TrimSpace(kind) == "" ||
 		len(kind) > maxKindLength || strings.TrimSpace(deduplicationKey) == "" ||
 		len(deduplicationKey) > maxKeyLength || len(payload) == 0 ||
 		len(payload) > maxPayloadBytes || !json.Valid([]byte(payload)) {

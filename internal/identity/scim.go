@@ -132,8 +132,8 @@ func (s *Service) RevokeSCIMToken(ctx context.Context, actor Principal, audit Au
 	return tx.Commit()
 }
 
-func (s *Service) AuthenticateSCIMToken(ctx context.Context, secret, workspaceID string) (Principal, error) {
-	if strings.TrimSpace(secret) == "" || workspaceID == "" {
+func (s *Service) AuthenticateSCIMToken(ctx context.Context, secret string, workspaceID WorkspaceID) (Principal, error) {
+	if strings.TrimSpace(secret) == "" || workspaceID == 0 {
 		return Principal{}, ErrInvalidToken
 	}
 	var userID string
@@ -606,7 +606,7 @@ func normalizeSCIMEmail(userName, email string) (string, error) {
 	return normalizedEmail, nil
 }
 
-func (s *Service) ensureSCIMMembership(ctx context.Context, tx *sql.Tx, workspaceID, userID string, role Role, active bool, now string) error {
+func (s *Service) ensureSCIMMembership(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, userID string, role Role, active bool, now string) error {
 	var currentRole Role
 	var currentActive bool
 	err := s.queryRow(ctx, tx, `
@@ -637,7 +637,7 @@ func (s *Service) ensureSCIMMembership(ctx context.Context, tx *sql.Tx, workspac
 	return s.bumpSCIMGroupVersions(ctx, tx, workspaceID, role)
 }
 
-func (s *Service) bumpSCIMGroupVersions(ctx context.Context, tx *sql.Tx, workspaceID string, roles ...Role) error {
+func (s *Service) bumpSCIMGroupVersions(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, roles ...Role) error {
 	seen := make(map[Role]struct{}, len(roles))
 	for _, role := range roles {
 		if role != Admin && role != Member && role != Viewer {
@@ -657,7 +657,7 @@ func (s *Service) bumpSCIMGroupVersions(ctx context.Context, tx *sql.Tx, workspa
 	return nil
 }
 
-func (s *Service) syncSCIMMembership(ctx context.Context, tx *sql.Tx, workspaceID, userID string, role Role, active bool, now string) error {
+func (s *Service) syncSCIMMembership(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, userID string, role Role, active bool, now string) error {
 	var currentRole Role
 	var currentActive bool
 	err := s.queryRow(ctx, tx, `
@@ -688,7 +688,7 @@ func (s *Service) syncSCIMMembership(ctx context.Context, tx *sql.Tx, workspaceI
 	return nil
 }
 
-func (s *Service) ensureSCIMGroups(ctx context.Context, tx *sql.Tx, workspaceID string, actor Principal, audit AuditContext) error {
+func (s *Service) ensureSCIMGroups(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, actor Principal, audit AuditContext) error {
 	createdAt := s.now().UTC()
 	now := timestamp(createdAt)
 	for _, role := range []Role{Admin, Member, Viewer} {
@@ -720,7 +720,7 @@ func (s *Service) ensureSCIMGroups(ctx context.Context, tx *sql.Tx, workspaceID 
 	return nil
 }
 
-func (s *Service) getSCIMUserTx(ctx context.Context, tx *sql.Tx, workspaceID, externalID string) (SCIMUser, error) {
+func (s *Service) getSCIMUserTx(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, externalID string) (SCIMUser, error) {
 	row := tx.QueryRowContext(ctx, s.bind(`
 		SELECT s.external_id, s.user_id, u.email, u.display_name, s.role, s.version,
 			s.created_at, s.updated_at, s.active, m.user_id
@@ -731,7 +731,7 @@ func (s *Service) getSCIMUserTx(ctx context.Context, tx *sql.Tx, workspaceID, ex
 	return scanSCIMUser(row)
 }
 
-func (s *Service) listSCIMGroupsTx(ctx context.Context, tx *sql.Tx, workspaceID string) ([]SCIMGroup, error) {
+func (s *Service) listSCIMGroupsTx(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID) ([]SCIMGroup, error) {
 	groups := make([]SCIMGroup, 0, 3)
 	for _, role := range []Role{Admin, Member, Viewer} {
 		group, err := s.getSCIMGroupTx(ctx, tx, workspaceID, string(role))
@@ -743,7 +743,7 @@ func (s *Service) listSCIMGroupsTx(ctx context.Context, tx *sql.Tx, workspaceID 
 	return groups, nil
 }
 
-func (s *Service) getSCIMGroupTx(ctx context.Context, tx *sql.Tx, workspaceID, groupID string) (SCIMGroup, error) {
+func (s *Service) getSCIMGroupTx(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, groupID string) (SCIMGroup, error) {
 	role := Role(strings.ToLower(strings.TrimSpace(groupID)))
 	if role != Admin && role != Member && role != Viewer {
 		return SCIMGroup{}, ErrSCIMNotFound

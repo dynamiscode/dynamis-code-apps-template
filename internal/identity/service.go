@@ -107,11 +107,6 @@ func (s *Service) BootstrapFirstOwner(
 	if err != nil {
 		return BootstrapResult{}, err
 	}
-	workspaceID, err := id.New()
-	if err != nil {
-		return BootstrapResult{}, err
-	}
-
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return BootstrapResult{}, fmt.Errorf("begin bootstrap: %w", err)
@@ -131,10 +126,11 @@ func (s *Service) BootstrapFirstOwner(
 	); err != nil {
 		return BootstrapResult{}, fmt.Errorf("create first user: %w", err)
 	}
-	if _, err := s.exec(ctx, tx,
-		"INSERT INTO workspaces (id, name, locale, created_at) VALUES (?, ?, ?, ?)",
-		workspaceID, workspaceName, workspaceLocale, timestamp(now),
-	); err != nil {
+	var workspaceID WorkspaceID
+	if err := s.queryRow(ctx, tx,
+		"INSERT INTO workspaces (name, locale, created_at) VALUES (?, ?, ?) RETURNING id",
+		workspaceName, workspaceLocale, timestamp(now),
+	).Scan(&workspaceID); err != nil {
 		return BootstrapResult{}, fmt.Errorf("create first workspace: %w", err)
 	}
 	if _, err := s.exec(ctx, tx, `
@@ -163,7 +159,7 @@ func (s *Service) BootstrapFirstOwner(
 		AuthMethod:    "bootstrap",
 		WorkspaceID:   workspaceID,
 		TargetType:    "workspace",
-		TargetID:      workspaceID,
+		TargetID:      workspaceID.String(),
 		Action:        "bootstrap",
 		Outcome:       "success",
 		RequestID:     audit.RequestID,
@@ -198,73 +194,70 @@ func (s *Service) CreateWorkspace(
 	actor Principal,
 	input WorkspaceCreateInput,
 	audit AuditContext,
-) (string, error) {
+) (WorkspaceID, error) {
 	if actor.UserID == "" || actor.AuthMethod == "" {
-		return "", ErrForbidden
+		return 0, ErrForbidden
 	}
 	if actor.AuthLevel < AuthLevelMFA {
 		required, err := s.mfaRequiredForRole(ctx, actor.UserID, Owner)
 		if err != nil {
-			return "", err
+			return 0, err
 		}
 		if required {
-			return "", ErrMFARequired
+			return 0, ErrMFARequired
 		}
 	}
 	name, err := validateWorkspaceName(input.Name)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	workspaceLocale, err := defaultLocale(input.Locale)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	var exists int
 	if err := s.queryRow(ctx, s.db,
 		"SELECT 1 FROM users WHERE id = ?", actor.UserID,
 	).Scan(&exists); err != nil {
-		return "", ErrForbidden
-	}
-	workspaceID, err := id.New()
-	if err != nil {
-		return "", err
+		return 0, ErrForbidden
 	}
 	now := s.now().UTC()
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	defer tx.Rollback()
-	if _, err := s.exec(ctx, tx,
-		"INSERT INTO workspaces (id, name, locale, created_at) VALUES (?, ?, ?, ?)",
-		workspaceID, name, workspaceLocale, timestamp(now),
-	); err != nil {
-		return "", fmt.Errorf("create workspace: %w", err)
+	var workspaceID WorkspaceID
+	if err := s.queryRow(ctx, tx,
+		"INSERT INTO workspaces (name, locale, created_at) VALUES (?, ?, ?) RETURNING id",
+		name, workspaceLocale, timestamp(now),
+	).Scan(&workspaceID); err != nil {
+		return 0, fmt.Errorf("create workspace: %w", err)
 	}
 	if _, err := s.exec(ctx, tx, `
 		INSERT INTO workspace_members (workspace_id, user_id, role, created_at)
 		VALUES (?, ?, ?, ?)
 	`, workspaceID, actor.UserID, Owner, timestamp(now)); err != nil {
-		return "", fmt.Errorf("create workspace owner: %w", err)
+		return 0, fmt.Errorf("create workspace owner: %w", err)
 	}
 	if err := s.ensureSCIMMembership(ctx, tx, workspaceID, actor.UserID, Owner, true, timestamp(now)); err != nil {
-		return "", err
+		return 0, err
 	}
 	if err := s.ensureSCIMGroups(ctx, tx, workspaceID, actor, audit); err != nil {
-		return "", err
+		return 0, err
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "workspace.created", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "workspace", TargetID: workspaceID,
+		TargetType: "workspace", TargetID: workspaceID.String(),
 		Action: "workspace.create", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: "{}", CreatedAt: now,
 	}); err != nil {
-		return "", err
+		return 0, err
 	}
 	if err := tx.Commit(); err != nil {
-		return "", err
+		return 0, err
 	}
 	return workspaceID, nil
 }
@@ -310,7 +303,7 @@ func (s *Service) ReauthenticateLocal(
 func (s *Service) Authorize(
 	ctx context.Context,
 	userID string,
-	workspaceID string,
+	workspaceID WorkspaceID,
 	permission Permission,
 ) (Principal, error) {
 	return s.authorize(ctx, s.db, userID, workspaceID, permission)
@@ -320,7 +313,7 @@ func (s *Service) authorize(
 	ctx context.Context,
 	queryer rowQueryer,
 	userID string,
-	workspaceID string,
+	workspaceID WorkspaceID,
 	permission Permission,
 ) (Principal, error) {
 	var role Role
@@ -346,7 +339,7 @@ func (s *Service) authorize(
 func (s *Service) AuthorizePrincipal(
 	ctx context.Context,
 	actor Principal,
-	workspaceID string,
+	workspaceID WorkspaceID,
 	permission Permission,
 ) (Principal, error) {
 	return s.authorizePrincipal(ctx, s.db, actor, workspaceID, permission)
@@ -356,7 +349,7 @@ func (s *Service) AuthorizePrincipalInTx(
 	ctx context.Context,
 	tx *sql.Tx,
 	actor Principal,
-	workspaceID string,
+	workspaceID WorkspaceID,
 	permission Permission,
 ) (Principal, error) {
 	return s.authorizePrincipal(ctx, tx, actor, workspaceID, permission)
@@ -392,17 +385,17 @@ func (s *Service) ListWorkspaces(
 func (s *Service) DefaultWorkspaceID(
 	ctx context.Context,
 	userID string,
-) (string, bool, error) {
-	var workspaceID string
+) (WorkspaceID, bool, error) {
+	var workspaceID WorkspaceID
 	err := s.db.QueryRowContext(ctx, s.bind(`
 		SELECT workspace_id FROM workspace_members
 		WHERE user_id = ? ORDER BY created_at, workspace_id LIMIT 1
 	`), userID).Scan(&workspaceID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", false, nil
+		return 0, false, nil
 	}
 	if err != nil {
-		return "", false, err
+		return 0, false, err
 	}
 	return workspaceID, true, nil
 }
@@ -415,7 +408,7 @@ func (s *Service) ListMembers(
 		return nil, ErrForbidden
 	}
 	rows, err := s.db.QueryContext(ctx, s.bind(`
-		SELECT m.user_id, u.email, m.role, m.created_at
+		SELECT m.id, m.user_id, u.email, m.role, m.created_at
 		FROM workspace_members m JOIN users u ON u.id = m.user_id
 		WHERE m.workspace_id = ? ORDER BY lower(u.email), m.user_id
 	`), actor.WorkspaceID)
@@ -427,7 +420,7 @@ func (s *Service) ListMembers(
 	for rows.Next() {
 		var member MemberSummary
 		var createdAt string
-		if err := rows.Scan(&member.UserID, &member.Email, &member.Role, &createdAt); err != nil {
+		if err := rows.Scan(&member.ID, &member.UserID, &member.Email, &member.Role, &createdAt); err != nil {
 			return nil, err
 		}
 		member.CreatedAt, err = parseTimestamp(createdAt)
@@ -442,7 +435,7 @@ func (s *Service) ListMembers(
 func (s *Service) ListAuditHistory(
 	ctx context.Context,
 	actor Principal,
-	workspaceID string,
+	workspaceID WorkspaceID,
 ) ([]AuditHistoryEntry, error) {
 	if _, err := s.AuthorizePrincipal(ctx, actor, workspaceID, WorkspaceExport); err != nil {
 		return nil, ErrForbidden
@@ -486,7 +479,7 @@ func (s *Service) authorizePrincipal(
 	ctx context.Context,
 	queryer rowQueryer,
 	actor Principal,
-	workspaceID string,
+	workspaceID WorkspaceID,
 	permission Permission,
 ) (Principal, error) {
 	if actor.WorkspaceID != workspaceID || !actor.Permissions[permission] {
@@ -558,7 +551,7 @@ func (s *Service) AddMember(
 func (s *Service) ChangeMemberRole(
 	ctx context.Context,
 	actor Principal,
-	userID string,
+	memberID MemberID,
 	role Role,
 	audit AuditContext,
 ) error {
@@ -574,12 +567,13 @@ func (s *Service) ChangeMemberRole(
 	if s.requireTx(ctx, tx, actor, MembersManage) != nil {
 		return ErrForbidden
 	}
+	var userID string
 	var current Role
 	if err := s.queryRow(ctx, tx, `
-		SELECT role FROM workspace_members
-		WHERE workspace_id = ? AND user_id = ?
-	`, actor.WorkspaceID, userID).Scan(&current); err != nil {
-		return ErrForbidden
+		SELECT user_id, role FROM workspace_members
+		WHERE workspace_id = ? AND id = ?
+	`, actor.WorkspaceID, memberID).Scan(&userID, &current); err != nil {
+		return ErrNotFound
 	}
 	if current == Owner {
 		return ErrLastOwner
@@ -609,10 +603,10 @@ func (s *Service) ChangeMemberRole(
 func (s *Service) TransferOwnership(
 	ctx context.Context,
 	actor Principal,
-	newOwnerUserID string,
+	newOwnerMemberID MemberID,
 	audit AuditContext,
 ) error {
-	if s.require(ctx, actor, OwnershipTransfer) != nil || actor.UserID == newOwnerUserID {
+	if s.require(ctx, actor, OwnershipTransfer) != nil {
 		return ErrForbidden
 	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
@@ -621,6 +615,7 @@ func (s *Service) TransferOwnership(
 	}
 	defer tx.Rollback()
 	var actorRole, targetRole Role
+	var newOwnerUserID string
 	if err := s.queryRow(ctx, tx, `
 		SELECT role FROM workspace_members
 		WHERE workspace_id = ? AND user_id = ?
@@ -628,9 +623,12 @@ func (s *Service) TransferOwnership(
 		return ErrForbidden
 	}
 	if err := s.queryRow(ctx, tx, `
-		SELECT role FROM workspace_members
-		WHERE workspace_id = ? AND user_id = ?
-	`, actor.WorkspaceID, newOwnerUserID).Scan(&targetRole); err != nil {
+		SELECT user_id, role FROM workspace_members
+		WHERE workspace_id = ? AND id = ?
+	`, actor.WorkspaceID, newOwnerMemberID).Scan(&newOwnerUserID, &targetRole); err != nil {
+		return ErrNotFound
+	}
+	if actor.UserID == newOwnerUserID {
 		return ErrForbidden
 	}
 	if _, err := s.exec(ctx, tx, `
@@ -668,7 +666,7 @@ func (s *Service) TransferOwnership(
 func (s *Service) RemoveMember(
 	ctx context.Context,
 	actor Principal,
-	userID string,
+	memberID MemberID,
 	audit AuditContext,
 ) error {
 	if s.require(ctx, actor, MembersManage) != nil {
@@ -683,12 +681,13 @@ func (s *Service) RemoveMember(
 	if s.requireTx(ctx, tx, actor, MembersManage) != nil {
 		return ErrForbidden
 	}
+	var userID string
 	var role Role
 	if err := s.queryRow(ctx, tx, `
-		SELECT role FROM workspace_members
-		WHERE workspace_id = ? AND user_id = ?
-	`, actor.WorkspaceID, userID).Scan(&role); err != nil {
-		return ErrForbidden
+		SELECT user_id, role FROM workspace_members
+		WHERE workspace_id = ? AND id = ?
+	`, actor.WorkspaceID, memberID).Scan(&userID, &role); err != nil {
+		return ErrNotFound
 	}
 	if role == Owner {
 		return ErrLastOwner
@@ -806,7 +805,7 @@ func (s *Service) audit(
 			source_address, metadata, created_at
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, eventID, event.EventType, nullable(event.ActorUserID), event.AuthMethod,
-		nullable(event.WorkspaceID), event.TargetType, nullable(event.TargetID),
+		nullableWorkspaceID(event.WorkspaceID), event.TargetType, nullable(event.TargetID),
 		event.Action, event.Outcome, nullable(event.RequestID),
 		nullable(event.SourceAddress), event.Metadata, timestamp(event.CreatedAt))
 	if err != nil {

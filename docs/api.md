@@ -25,7 +25,7 @@ environment variable; do not commit or log it.
 
 ```sh
 export BASE_URL=http://127.0.0.1:8080 # no trailing slash
-export WORKSPACE_ID='0123456789abcdef0123456789abcdef'
+export WORKSPACE_ID='<workspace short ID>'
 export TOKEN='<token secret>'
 ```
 
@@ -116,6 +116,9 @@ Errors use RFC 9457 Problem Details with content type
   `412`, code `precondition-failed`.
 - Invalid parameters or cursor: `400`, code `invalid-request`; missing item:
   `404`, code `not-found`.
+- Workspace path: a malformed, unknown, or foreign `workspaceId` returns `404`,
+  code `not-found`, with the same body as a missing workspace. Workspace IDs are
+  short IDs; integer keys are never accepted or returned.
 - Rate limit: `429`, code `rate-limited`; wait the number of seconds in
   `Retry-After` before retrying.
 
@@ -155,11 +158,14 @@ documented in [authentication](authentication.md).
   item records from that JSON export format or strict `title,status` CSV.
   It requires `workspace:update`; source IDs, timestamps, memberships, audit
   events, and credentials are ignored.
-- Members: `GET /members`, `PATCH /members/{userId}`, `DELETE /members/{userId}`,
-  and `POST /ownership`.
+- Members: `GET /members`, `PATCH /members/{memberId}`, `DELETE /members/{memberId}`,
+  and `POST /ownership` with body `{"memberId": "<short ID>"}`.
 - Invitations: `GET/POST /invitations`, `POST /invitations/{invitationId}/resend`,
   and `DELETE /invitations/{invitationId}`.
 - Current-user tokens: `GET/POST /tokens`, `PATCH/DELETE /tokens/{tokenId}`.
+- Member, invitation, and token paths take short IDs only. A malformed,
+  unknown, or foreign ID returns `404`, code `not-found`, with the same body.
+  Token secrets are random values, not encoded IDs, and are returned once on create.
 - Current-user sessions: `GET /api/v1/sessions` and
   `DELETE /api/v1/sessions/{sessionId}`.
 - Webhooks: `GET/POST /api/v1/workspaces/{workspaceId}/webhooks`,

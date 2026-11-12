@@ -40,14 +40,14 @@ const (
 )
 
 type Item struct {
-	ID              string    `json:"id"`
-	WorkspaceID     string    `json:"workspaceId"`
-	CreatedByUserID *string   `json:"createdByUserId"`
-	Title           string    `json:"title"`
-	Status          Status    `json:"status"`
-	Version         int64     `json:"version"`
-	CreatedAt       time.Time `json:"createdAt"`
-	UpdatedAt       time.Time `json:"updatedAt"`
+	ID              string               `json:"id"`
+	WorkspaceID     identity.WorkspaceID `json:"workspaceId"`
+	CreatedByUserID *string              `json:"createdByUserId"`
+	Title           string               `json:"title"`
+	Status          Status               `json:"status"`
+	Version         int64                `json:"version"`
+	CreatedAt       time.Time            `json:"createdAt"`
+	UpdatedAt       time.Time            `json:"updatedAt"`
 }
 
 type CreateResult struct {
@@ -88,7 +88,7 @@ type Service struct {
 }
 
 type EventPublisher interface {
-	PublishInTx(context.Context, *sql.Tx, string, string, []byte, time.Time) error
+	PublishInTx(context.Context, *sql.Tx, identity.WorkspaceID, string, []byte, time.Time) error
 }
 
 func NewService(
@@ -108,7 +108,7 @@ func NewService(
 func (s *Service) Create(
 	ctx context.Context,
 	actor identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	title string,
 	idempotencyKey string,
 	audit identity.AuditContext,
@@ -129,7 +129,7 @@ func (s *Service) ImportInTx(
 	ctx context.Context,
 	tx *sql.Tx,
 	actor identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	input []ImportItem,
 	now time.Time,
 ) ([]Item, error) {
@@ -188,7 +188,7 @@ func (s *Service) ImportInTx(
 func (s *Service) create(
 	ctx context.Context,
 	actor identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	title string,
 	idempotencyKey string,
 	audit identity.AuditContext,
@@ -323,7 +323,7 @@ func (s *Service) create(
 func (s *Service) Get(
 	ctx context.Context,
 	actor identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	itemID string,
 ) (Item, error) {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: true})
@@ -349,7 +349,7 @@ func (s *Service) Get(
 func (s *Service) List(
 	ctx context.Context,
 	actor identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	input ListInput,
 ) (Page, error) {
 	search, err := validateSearch(input.Search)
@@ -442,7 +442,7 @@ func (s *Service) List(
 func (s *Service) Update(
 	ctx context.Context,
 	actor identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	itemID string,
 	version int64,
 	input UpdateInput,
@@ -530,7 +530,7 @@ func (s *Service) Update(
 func (s *Service) Delete(
 	ctx context.Context,
 	actor identity.Principal,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	itemID string,
 	version int64,
 	audit identity.AuditContext,
@@ -597,7 +597,7 @@ func (s *Service) get(
 	queryer interface {
 		QueryRowContext(context.Context, string, ...any) *sql.Row
 	},
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	itemID string,
 ) (Item, error) {
 	item, err := scanItem(s.queryRow(ctx, queryer, `
@@ -614,7 +614,7 @@ func (s *Service) get(
 func (s *Service) publish(
 	ctx context.Context,
 	tx *sql.Tx,
-	workspaceID string,
+	workspaceID identity.WorkspaceID,
 	eventType string,
 	item Item,
 	occurredAt time.Time,

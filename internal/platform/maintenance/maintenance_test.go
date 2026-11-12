@@ -56,18 +56,27 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		}
 	}
 	exec("INSERT INTO users (id, email, created_at) VALUES (?, ?, ?)", "user-maint", "maint@example.com", old)
-	exec("INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)", "workspace-maint", "Maintenance", old)
-	exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", "workspace-maint", "user-maint", "owner", old)
+	var workspaceID int64
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, "INSERT INTO workspaces (name, created_at) VALUES (?, ?) RETURNING id"), "Maintenance", old).Scan(&workspaceID); err != nil {
+		t.Fatal(err)
+	}
+	exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", workspaceID, "user-maint", "owner", old)
 	exec(`INSERT INTO items (id, workspace_id, created_by_user_id, title, status, version, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "item-old", "workspace-maint", "user-maint", "Old", "active", 1, old, old)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "item-old", workspaceID, "user-maint", "Old", "active", 1, old, old)
 	exec(`INSERT INTO sessions (id, user_id, secret_hash, csrf_hash, auth_method, created_at, expires_at, revoked_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "session-old", "user-maint", "session-secret", "csrf", "local", old, future, old)
-	exec(`INSERT INTO invitations (id, workspace_id, invited_by_user_id, email, role, secret_hash, created_at, expires_at, accepted_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, "invite-old", "workspace-maint", "user-maint", "old@example.com", "viewer", "invite-secret", old, old, old)
-	exec(`INSERT INTO api_tokens (id, user_id, workspace_id, name, secret_hash, scopes, created_at, revoked_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "token-old", "user-maint", "workspace-maint", "old", "token-secret", "items:read", old, old)
+	// Invitation and token keys are integers assigned by the database.
+	var invitationID, tokenID int64
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO invitations (workspace_id, invited_by_user_id, email, role, secret_hash, created_at, expires_at, accepted_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`), workspaceID, "user-maint", "old@example.com", "viewer", "invite-secret", old, old, old).Scan(&invitationID); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO api_tokens (user_id, workspace_id, name, secret_hash, scopes, created_at, revoked_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`), "user-maint", workspaceID, "old", "token-secret", "items:read", old, old).Scan(&tokenID); err != nil {
+		t.Fatal(err)
+	}
 	exec(`INSERT INTO scim_tokens (id, workspace_id, created_by_user_id, secret_hash, created_at, revoked_at)
-		VALUES (?, ?, ?, ?, ?, ?)`, "scim-old", "workspace-maint", "user-maint", "scim-secret", old, old)
+		VALUES (?, ?, ?, ?, ?, ?)`, "scim-old", workspaceID, "user-maint", "scim-secret", old, old)
 	exec(`INSERT INTO oidc_transactions (state_hash, provider_id, browser_session_hash, pkce_verifier_hash, nonce_hash, redirect_uri, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "state-old", "provider", "browser", "pkce", "nonce", "https://example.com/callback", old, old)
 	exec(`INSERT INTO mfa_challenges (id, token_hash, user_id, purpose, created_at, expires_at)
@@ -77,19 +86,19 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	exec(`INSERT INTO password_resets (id, user_id, token_hash, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?)`, "reset-old", "user-maint", "reset-secret", old, old)
 	exec(`INSERT INTO idempotency_records (key_hash, principal_id, workspace_id, operation, request_hash, result_json, created_at, expires_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "key-old", "user-maint", "workspace-maint", "create", "request", "{}", old, old)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "key-old", "user-maint", workspaceID, "create", "request", "{}", old, old)
 	exec(`INSERT INTO item_events (id, workspace_id, item_id, event_type, item_version, occurred_at)
-		VALUES (?, ?, ?, ?, ?, ?)`, "event-old", "workspace-maint", "item-old", "deleted", 1, old)
+		VALUES (?, ?, ?, ?, ?, ?)`, "event-old", workspaceID, "item-old", "deleted", 1, old)
 	exec(`INSERT INTO notifications (id, user_id, workspace_id, notification_type, title, body, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`, "notification-old", "user-maint", "workspace-maint", "system", "Old", "Old", old)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`, "notification-old", "user-maint", workspaceID, "system", "Old", "Old", old)
 	exec(`INSERT INTO webhooks (id, workspace_id, name, url, secret_ciphertext, events, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`, "webhook-old", "workspace-maint", "old", "https://example.com/hook", "ciphertext", "[\"item.created\"]", old)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`, "webhook-old", workspaceID, "old", "https://example.com/hook", "ciphertext", "[\"item.created\"]", old)
 	exec(`INSERT INTO webhook_deliveries (id, webhook_id, event_id, event_type, payload, attempt_count, status, next_attempt_at, created_at, delivered_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, "delivery-old", "webhook-old", "event-old", "item.created", "{}", 1, "delivered", nil, old, old)
 	exec(`INSERT INTO background_jobs (id, workspace_id, kind, deduplication_key, payload, status, attempt_count, available_at, completed_at, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, "job-old", "workspace-maint", "webhook.delivery", "delivery-old", "{}", "succeeded", 1, old, old, old)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, "job-old", workspaceID, "webhook.delivery", "delivery-old", "{}", "succeeded", 1, old, old, old)
 	exec(`INSERT INTO public_links (id, workspace_id, item_id, token_hash, created_at, expires_at, revoked_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`, "public-link-old", "workspace-maint", "item-old", "public-hash", old, old, old)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`, "public-link-old", workspaceID, "item-old", "public-hash", old, old, old)
 	exec(`INSERT INTO audit_events (id, event_type, auth_method, target_type, action, outcome, metadata, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "audit-old", "old", "system", "instance", "test", "success", "{}", old)
 
@@ -103,9 +112,9 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		result.RealtimeReplay < 1 || result.WebhookDeliveries < 1 || result.BackgroundJobs < 1 || result.PublicLinks < 1 || result.AuditEvents < 1 {
 		t.Fatalf("Run() result = %+v", result)
 	}
-	for table, key := range map[string]string{
-		"sessions": "session-old", "invitations": "invite-old",
-		"api_tokens": "token-old", "scim_tokens": "scim-old", "oidc_transactions": "state-old",
+	for table, key := range map[string]any{
+		"sessions": "session-old", "invitations": invitationID,
+		"api_tokens": tokenID, "scim_tokens": "scim-old", "oidc_transactions": "state-old",
 		"mfa_challenges":      "mfa-challenge-old",
 		"idempotency_records": "key-old", "item_events": "event-old",
 		"notifications":       "notification-old",
