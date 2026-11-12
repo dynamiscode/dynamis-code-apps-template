@@ -8,7 +8,7 @@ set -a; . ./.env; set +a
 go run ./cmd/server
 ```
 
-Running `make setup` configures `.githooks` (enforcing `gofmt` on staged Go files, plus `go vet` and generate drift checks on commit, and `go test ./...` on push) and installs dependencies. Refresh only the hook path with `make setup-hooks`.
+Running `make setup` configures `.githooks` (enforcing `gofmt` on staged Go files, plus `go vet` and generate drift checks on commit, and `go test ./...` on push) and installs dependencies. Refresh only the hook path with `make setup-hooks`. The `commit-msg` hook rejects AI attribution trailers (`Co-Authored-By: Claude` and `Generated with Claude Code`), and `make lint` tests that hook via `scripts/test-commit-msg-hook.sh`.
 
 Use Go 1.26 or newer; the module records the development toolchain. Use an
 isolated PostgreSQL database through `POSTGRES_TEST_URL` (for example,
