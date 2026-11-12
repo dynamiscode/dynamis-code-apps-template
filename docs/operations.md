@@ -128,7 +128,7 @@ it, or reset local development databases. Drain pending webhook deliveries and
 jobs before the reset, because they are not carried over. See the [workspace
 exception](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md)
 and the [webhook and job exception](decisions/exceptions/2026-11-11-webhook-job-short-id-migration-rewrite.md),
-which is proposed and not yet approved.
+accepted by the repository owner on 2026-11-12.
 
 Item IDs in webhook payloads, workspace exports, and audit metadata are now item
 short IDs, not 32-character hex. Consumers that stored the old hex form must map
@@ -139,7 +139,7 @@ it, or reset local development databases. Drain pending webhook deliveries and
 jobs before the reset, because they are not carried over. See the [workspace
 exception](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md)
 and the [webhook and job exception](decisions/exceptions/2026-11-11-webhook-job-short-id-migration-rewrite.md),
-which is proposed and not yet approved.
+accepted by the repository owner on 2026-11-12.
 
 Upgrades are stop-the-world: create and verify a backup, stop the one SQLite
 instance or all PostgreSQL application instances, start one new version to run

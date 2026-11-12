@@ -6,11 +6,10 @@
   (merge compatibility, including the `background_jobs` backfill) are rewritten
   in place. The same range was already rewritten by the
   [workspace exception](2026-11-11-workspace-short-id-migration-rewrite.md).
-- Status: proposed. Not approved. Until a maintainer records approval here, this
-  rewrite is non-conforming.
+- Status: accepted
 - Responsible owner: repository maintainers (issue #192)
-- Approving maintainer: pending. The implementation request for #192 did not
-  name a migration approach, so no approval is claimed.
+- Approving maintainer: David Londono (repository owner), approved in chat on
+  2026-11-12 after the migration approach was presented.
 - Security-owner approval, when required: not required; no security control is
   weakened, and webhook authorization, secret encryption, and signing are
   unchanged.
@@ -54,3 +53,11 @@ so each event has a short ID for the `eventId` response field and the
 Before any release with deployed instances, a forward migration path is
 required if in-place conversion is needed. Otherwise, remove this exception once
 the release notes state the reset requirement. Review on or before 2027-02-09.
+
+## Verification
+
+- `make lint` and `make test` pass on SQLite on the merged tree (25c63ac).
+- The full `go test -p 1 ./...` suite passes on a fresh pinned PostgreSQL 14.24
+  container on the same tree. See [capabilities](../../capabilities.md#webhook-and-job-short-id-evidence).
+- The migration backfill is covered by
+  `TestSQLiteBackgroundJobsMigrationBackfillsPendingWebhook`.

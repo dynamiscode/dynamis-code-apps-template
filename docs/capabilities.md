@@ -418,7 +418,7 @@ keys to integers. Webhook and delivery IDs, and the event ID in `eventId` and
 no job route or response exists, so `id.TypeJob` is registered for a future
 surface and nothing exposes it. The exception is
 [2026-11-11-webhook-job-short-id-migration-rewrite](decisions/exceptions/2026-11-11-webhook-job-short-id-migration-rewrite.md),
-which is proposed and not approved.
+accepted by the repository owner on 2026-11-12.
 
 Surface coverage: REST and web routes accept only short IDs; malformed, integer,
 or unknown IDs return the same not-found as a missing webhook. There is no
