@@ -82,7 +82,7 @@ func TestPostgresFileStateTransitions(t *testing.T) {
 		}
 		return file
 	}
-	statusOf := func(fileID string) FileStatus {
+	statusOf := func(fileID FileID) FileStatus {
 		t.Helper()
 		var status FileStatus
 		if err := db.QueryRowContext(ctx, "SELECT status FROM files WHERE id = $1", fileID).Scan(&status); err != nil {

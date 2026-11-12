@@ -75,7 +75,7 @@ func TestLocalFileLifecycleAndValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := store.Put(context.Background(), service.objectKey(pending), strings.NewReader("123456"), 6, "text/plain"); err != nil {
+	if err := store.Put(context.Background(), service.storedObjectKey(pending), strings.NewReader("123456"), 6, "text/plain"); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := service.PresignedPut(context.Background(), actor, identity.WorkspaceID(999), pending.ID); err != identity.ErrForbidden {
@@ -287,7 +287,7 @@ func TestFileStateTransitions(t *testing.T) {
 	}
 
 	// 8. Transition on non-existent file
-	if err := service.transitionFile(ctx, nil, strings.Repeat("a", 32), Pending, Ready); !errors.Is(err, ErrNotFound) {
+	if err := service.transitionFile(ctx, nil, FileID(999999), Pending, Ready); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("non-existent file transition error = %v, want ErrNotFound", err)
 	}
 
@@ -392,7 +392,7 @@ func TestQuotaCalculationCleanupStaleAndFailedFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected initiate to succeed after cleanup, got: %v", err)
 	}
-	if file3.ID == "" {
+	if file3.ID == 0 {
 		t.Fatal("expected valid file ID")
 	}
 }
@@ -401,10 +401,10 @@ func TestMarkFailedLogsTransitionError(t *testing.T) {
 	var logs bytes.Buffer
 	service := NewService(openTestDB(t), config.SQLite, nil, nil, 0, 0, 0, "")
 	service.logger = slog.New(slog.NewTextHandler(&logs, nil))
-	missingID := strings.Repeat("a", 32)
+	missingID := FileID(999999)
 	service.markFailed(context.Background(), missingID)
 
-	if !strings.Contains(logs.String(), "file_id="+missingID) || !strings.Contains(logs.String(), ErrNotFound.Error()) {
+	if !strings.Contains(logs.String(), "file_id="+missingID.String()) || !strings.Contains(logs.String(), ErrNotFound.Error()) {
 		t.Fatalf("markFailed did not log its transition error; logs = %q", logs.String())
 	}
 }

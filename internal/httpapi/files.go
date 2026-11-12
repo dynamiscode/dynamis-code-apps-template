@@ -94,7 +94,7 @@ func (h *handler) createFile(writer http.ResponseWriter, request *http.Request) 
 				h.internal(writer, request)
 				return
 			}
-			writer.Header().Set("Location", "/api/v1/workspaces/"+workspaceID.String()+"/files/"+file.ID)
+			writer.Header().Set("Location", "/api/v1/workspaces/"+workspaceID.String()+"/files/"+file.ID.String())
 			writer.Header().Set("Cache-Control", "private, no-store")
 			writeJSON(writer, http.StatusCreated, fileResponse)
 			return
@@ -115,7 +115,7 @@ func (h *handler) createFile(writer http.ResponseWriter, request *http.Request) 
 			return
 		}
 	}
-	writer.Header().Set("Location", "/api/v1/workspaces/"+workspaceID.String()+"/files/"+file.ID)
+	writer.Header().Set("Location", "/api/v1/workspaces/"+workspaceID.String()+"/files/"+file.ID.String())
 	if response.DownloadURL != "" && file.Status == appfiles.Ready {
 		writer.Header().Set("Cache-Control", "private, no-store")
 	}
@@ -127,8 +127,8 @@ func (h *handler) initiateFileUpload(writer http.ResponseWriter, request *http.R
 }
 
 func (h *handler) uploadFileContent(writer http.ResponseWriter, request *http.Request) {
-	workspaceID, fileID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), request.PathValue("fileId")
-	if h.files == nil || !validID(fileID) || len(request.URL.Query()) != 0 {
+	workspaceID, fileID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), appfiles.ParseFileIDOrZero(request.PathValue("fileId"))
+	if h.files == nil || len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The file parameters are invalid.")
 		return
 	}
@@ -145,8 +145,8 @@ func (h *handler) uploadFileContent(writer http.ResponseWriter, request *http.Re
 }
 
 func (h *handler) completeFileUpload(writer http.ResponseWriter, request *http.Request) {
-	workspaceID, fileID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), request.PathValue("fileId")
-	if h.files == nil || !validID(fileID) || len(request.URL.Query()) != 0 {
+	workspaceID, fileID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), appfiles.ParseFileIDOrZero(request.PathValue("fileId"))
+	if h.files == nil || len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The file parameters are invalid.")
 		return
 	}
@@ -163,8 +163,8 @@ func (h *handler) completeFileUpload(writer http.ResponseWriter, request *http.R
 }
 
 func (h *handler) getFile(writer http.ResponseWriter, request *http.Request) {
-	workspaceID, fileID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), request.PathValue("fileId")
-	if h.files == nil || !validID(fileID) || len(request.URL.Query()) != 0 {
+	workspaceID, fileID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), appfiles.ParseFileIDOrZero(request.PathValue("fileId"))
+	if h.files == nil || len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The file parameters are invalid.")
 		return
 	}
@@ -191,8 +191,8 @@ func (h *handler) getFileContent(writer http.ResponseWriter, request *http.Reque
 }
 
 func (h *handler) fileContent(writer http.ResponseWriter, request *http.Request) {
-	workspaceID, fileID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), request.PathValue("fileId")
-	if h.files == nil || !validID(fileID) || len(request.URL.Query()) != 0 {
+	workspaceID, fileID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), appfiles.ParseFileIDOrZero(request.PathValue("fileId"))
+	if h.files == nil || len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The file parameters are invalid.")
 		return
 	}
@@ -227,13 +227,13 @@ func (h *handler) fileUploadResponse(request *http.Request, principal identity.P
 	response := fileResponse{File: file}
 	_, upload, err := h.files.PresignedPut(request.Context(), principal, file.WorkspaceID, file.ID)
 	if errors.Is(err, appfiles.ErrNotSupported) {
-		response.UploadURL = "/api/v1/workspaces/" + file.WorkspaceID.String() + "/files/" + file.ID + "/content"
+		response.UploadURL = "/api/v1/workspaces/" + file.WorkspaceID.String() + "/files/" + file.ID.String() + "/content"
 		return response, nil
 	}
 	if err != nil {
 		return fileResponse{}, err
 	}
-	response.CompleteURL = "/api/v1/workspaces/" + file.WorkspaceID.String() + "/files/" + file.ID + "/complete"
+	response.CompleteURL = "/api/v1/workspaces/" + file.WorkspaceID.String() + "/files/" + file.ID.String() + "/complete"
 	response.UploadURL = upload.URL
 	response.UploadHeaders = upload.Headers
 	return response, nil
@@ -243,7 +243,7 @@ func (h *handler) fileDownloadResponse(request *http.Request, principal identity
 	response := fileResponse{File: file}
 	_, url, err := h.files.PresignedGet(request.Context(), principal, file.WorkspaceID, file.ID)
 	if errors.Is(err, appfiles.ErrNotSupported) {
-		response.DownloadURL = "/api/v1/workspaces/" + file.WorkspaceID.String() + "/files/" + file.ID + "/content"
+		response.DownloadURL = "/api/v1/workspaces/" + file.WorkspaceID.String() + "/files/" + file.ID.String() + "/content"
 		return response, nil
 	}
 	if err != nil {

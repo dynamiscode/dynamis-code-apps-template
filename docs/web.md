@@ -77,7 +77,8 @@ Baseline browser surfaces:
   events. Notification records are created only through the shared identity
   service, and user plus workspace preferences are checked before storage.
 - `/workspaces/{workspaceId}/files` lists ready private workspace files and
-  accepts an ordinary multipart upload form. S3-enabled browsers use a
+  accepts an ordinary multipart upload form. File paths carry the file short
+  ID; malformed, unknown, and integer-key IDs return not-found. S3-enabled browsers use a
   short-lived presigned PUT orchestrated by a client-side state machine
   (`PresignedUploader` with IDLE, INITIATING, UPLOADING, COMPLETING, SUCCESS,
   and ERROR phases, in-flight button locking, and polite live-region status feedback)

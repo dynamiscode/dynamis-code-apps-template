@@ -349,6 +349,27 @@ Verified 2026-11-11 with Go 1.27.4. Issue #189 moves workspace keys to integers
 and exposes only the ADR 0009 short ID. Implemented and verified as recorded above; the
 exception is [2026-11-11-workspace-short-id-migration-rewrite](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md).
 
+## File short ID evidence
+
+Verified 2026-11-11 with Go 1.27.4. Issue #191 moves file keys to integers and
+exposes only the ADR 0009 short ID under the `file` type code. Forward migration
+000017 rebuilds `files`, preserving rows and object keys.
+
+- Passed: `make verify` (lint, test, race, deps, workflow, generate drift, build,
+  template smoke); `make secret-check`; `make vuln-check` (no affecting
+  vulnerabilities); `make test-postgres` (identity and files packages on
+  PostgreSQL 14.24); `make docker-smoke`. The smoke script's readiness loop
+  absorbed one transient connection reset while the container started.
+- One earlier `internal/bootstrap` race-run timeout under full parallel load did
+  not reproduce when that package ran alone under `-race` or in the next full
+  `make verify`.
+- Covered: codec and JSON round trips, REST probes for integer, malformed,
+  hex, unknown, and other-workspace file IDs returning identical not-found
+  bodies, a SQLite migration test for row preservation and no key reuse, and
+  the presign-release test that fails if keys are reused.
+- Gap: web file routes have no short-ID probe test of their own; REST probes
+  cover the shared service path.
+
 ## Files evidence
 
 Files metadata migration and workspace authorization, local filesystem uploads

@@ -20,6 +20,17 @@ func TestRenderMigrationChoosesWorkspacePrimaryKeyPerDriver(t *testing.T) {
 	}
 }
 
+func TestRenderMigrationChoosesFilePrimaryKeyPerDriver(t *testing.T) {
+	const source = "CREATE TABLE files_next (\n    id {{file_id_pk}},\n    name TEXT NOT NULL\n);"
+
+	if got := renderMigration(source, config.SQLite); !strings.Contains(got, "id INTEGER PRIMARY KEY AUTOINCREMENT,") {
+		t.Fatalf("SQLite render = %q", got)
+	}
+	if got := renderMigration(source, config.Postgres); !strings.Contains(got, "id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,") {
+		t.Fatalf("PostgreSQL render = %q", got)
+	}
+}
+
 func TestEmbeddedMigrationsUseIntegerWorkspaceKeys(t *testing.T) {
 	for _, driver := range []config.DatabaseDriver{config.SQLite, config.Postgres} {
 		entries, err := loadMigrations(migrationFiles)
