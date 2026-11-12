@@ -21,8 +21,10 @@ type Resend struct {
 	apiKey  string
 	from    string
 	name    string
-	client  *http.Client
 }
+
+// resendClient bounds every Resend call. Shared, so both paths reuse one connection pool.
+var resendClient = &http.Client{Timeout: 10 * time.Second}
 
 // ResendDomain is one sending domain on the Resend account.
 type ResendDomain struct {
@@ -40,7 +42,6 @@ func NewResend(baseURL, apiKey, from, senderName string) (*Resend, error) {
 	}
 	return &Resend{
 		baseURL: baseURL, apiKey: apiKey, from: from, name: senderName,
-		client: &http.Client{Timeout: 10 * time.Second},
 	}, nil
 }
 
@@ -68,7 +69,7 @@ func (r *Resend) Send(ctx context.Context, recipient, subject, body string) erro
 	}
 	request.Header.Set("Authorization", "Bearer "+r.apiKey)
 	request.Header.Set("Content-Type", "application/json")
-	response, err := r.client.Do(request)
+	response, err := resendClient.Do(request)
 	if err != nil {
 		return errors.New("Resend request failed")
 	}
@@ -88,8 +89,7 @@ func ResendDomains(ctx context.Context, baseURL, apiKey string) ([]ResendDomain,
 		return nil, errors.New("Resend request failed")
 	}
 	request.Header.Set("Authorization", "Bearer "+apiKey)
-	client := &http.Client{Timeout: 10 * time.Second}
-	response, err := client.Do(request)
+	response, err := resendClient.Do(request)
 	if err != nil {
 		return nil, errors.New("Resend request failed")
 	}
