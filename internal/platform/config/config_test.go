@@ -478,3 +478,46 @@ func env(values map[string]string) LookupEnv {
 		return value, ok
 	}
 }
+
+func TestLoadFromWorkspaceModeDefaultsToSingle(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name  string
+		value *string
+		want  WorkspaceMode
+	}{
+		{name: "unset", want: WorkspaceModeSingle},
+		{name: "false", value: strPtr("false"), want: WorkspaceModeSingle},
+		{name: "true", value: strPtr("true"), want: WorkspaceModeMulti},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			values := map[string]string{}
+			if tc.value != nil {
+				values["MULTI_WORKSPACE_ENABLED"] = *tc.value
+			}
+			cfg, err := LoadFrom(env(values))
+			if err != nil {
+				t.Fatalf("LoadFrom() error = %v", err)
+			}
+			if cfg.WorkspaceMode != tc.want {
+				t.Fatalf("WorkspaceMode = %q, want %q", cfg.WorkspaceMode, tc.want)
+			}
+		})
+	}
+}
+
+func TestLoadFromRejectsInvalidWorkspaceMode(t *testing.T) {
+	t.Parallel()
+
+	_, err := LoadFrom(env(map[string]string{"MULTI_WORKSPACE_ENABLED": "yes"}))
+	if err == nil {
+		t.Fatal("invalid MULTI_WORKSPACE_ENABLED accepted")
+	}
+	if !strings.Contains(err.Error(), "MULTI_WORKSPACE_ENABLED must be true or false") {
+		t.Fatalf("error = %v, want boolean rejection naming the variable", err)
+	}
+}
+
+func strPtr(value string) *string { return &value }
