@@ -67,8 +67,11 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`), workspaceID, "user-maint", "Old", "active", 1, old, old).Scan(&itemOld); err != nil {
 		t.Fatal(err)
 	}
-	exec(`INSERT INTO sessions (id, user_id, secret_hash, csrf_hash, auth_method, created_at, expires_at, revoked_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "session-old", "user-maint", "session-secret", "csrf", "local", old, future, old)
+	var sessionOldID int64
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO sessions (user_id, secret_hash, csrf_hash, auth_method, created_at, expires_at, revoked_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`), "user-maint", "session-secret", "csrf", "local", old, future, old).Scan(&sessionOldID); err != nil {
+		t.Fatal(err)
+	}
 	// Invitation and token keys are integers assigned by the database.
 	var invitationID, tokenID int64
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO invitations (workspace_id, invited_by_user_id, email, role, secret_hash, created_at, expires_at, accepted_at)
@@ -134,8 +137,8 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		RETURNING id`), workspaceID, itemOld, "public-hash", old, old, old).Scan(&publicLinkOldID); err != nil {
 		t.Fatal(err)
 	}
-	exec(`INSERT INTO audit_events (id, event_type, auth_method, target_type, action, outcome, metadata, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "audit-old", "old", "system", "instance", "test", "success", "{}", old)
+	exec(`INSERT INTO audit_events (event_type, auth_method, target_type, action, outcome, metadata, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`, "old", "system", "instance", "test", "success", "{}", old)
 
 	result, err := Run(ctx, db, driver, now, 365*24*time.Hour)
 	if err != nil {
@@ -148,7 +151,7 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		t.Fatalf("Run() result = %+v", result)
 	}
 	for table, key := range map[string]any{
-		"sessions": "session-old", "invitations": invitationID,
+		"sessions": sessionOldID, "invitations": invitationID,
 		"api_tokens": tokenID, "scim_tokens": scimOldID, "oidc_transactions": "state-old",
 		"mfa_challenges":      mfaOldID,
 		"idempotency_records": "key-old", "item_events": eventOldID,

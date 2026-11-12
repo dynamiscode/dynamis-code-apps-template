@@ -43,7 +43,7 @@ CREATE INDEX workspace_members_user_idx
     ON workspace_members (user_id, workspace_id);
 
 CREATE TABLE sessions (
-    id TEXT PRIMARY KEY,
+    id {{file_id_pk}},
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     secret_hash TEXT NOT NULL UNIQUE,
     csrf_hash TEXT NOT NULL,
@@ -111,7 +111,7 @@ CREATE TABLE oidc_transactions (
 );
 
 CREATE TABLE audit_events (
-    id TEXT PRIMARY KEY,
+    id {{file_id_pk}},
     event_type TEXT NOT NULL,
     actor_user_id TEXT,
     auth_method TEXT NOT NULL,

@@ -7,7 +7,7 @@ CREATE TABLE mfa_challenges (
     token_hash TEXT NOT NULL UNIQUE,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     purpose TEXT NOT NULL CHECK (purpose IN ('login', 'passkey_enrollment', 'totp_enrollment')),
-    session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE,
+    session_id BIGINT REFERENCES sessions(id) ON DELETE CASCADE,
     auth_method TEXT NOT NULL DEFAULT 'local',
     oidc_provider_id TEXT,
     webauthn_session_json TEXT,

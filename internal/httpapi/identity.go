@@ -421,7 +421,7 @@ func (h *handler) listSessions(writer http.ResponseWriter, request *http.Request
 
 func (h *handler) revokeSession(writer http.ResponseWriter, request *http.Request) {
 	sessionID := request.PathValue("sessionId")
-	if !validID(sessionID) || len(request.URL.Query()) != 0 {
+	if len(request.URL.Query()) != 0 {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}

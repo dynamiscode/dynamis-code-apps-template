@@ -9,7 +9,6 @@ import (
 
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 const (
@@ -99,17 +98,13 @@ func Run(
 	if err != nil {
 		return Result{}, err
 	}
-	eventID, err := id.New()
-	if err != nil {
-		return Result{}, err
-	}
 	_, err = tx.ExecContext(ctx, database.Rebind(driver, `
 		INSERT INTO audit_events (
-			id, event_type, actor_user_id, auth_method, workspace_id,
+			event_type, actor_user_id, auth_method, workspace_id,
 			target_type, target_id, action, outcome, request_id,
 			source_address, metadata, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`), eventID, "maintenance.retention_pruned", nil, "system", nil,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`), "maintenance.retention_pruned", nil, "system", nil,
 		"instance", nil, "maintenance.prune", "success", nil, nil,
 		string(metadata), stamp(now))
 	if err != nil {

@@ -258,6 +258,14 @@ func TestIdentityRESTContracts(t *testing.T) {
 	if revoked := serveAuthorized(handler, http.MethodDelete, "/api/v1/sessions/"+sessionPage.Sessions[0].ID, "", token, nil); revoked.Code != http.StatusNoContent {
 		t.Fatalf("session revoke = %d, %s", revoked.Code, revoked.Body.String())
 	}
+	// A malformed session ID gets the same response as an already-revoked one.
+	malformed := serveAuthorized(handler, http.MethodDelete, "/api/v1/sessions/not-a-session", "", token, nil)
+	revokedAgain := serveAuthorized(handler, http.MethodDelete, "/api/v1/sessions/"+sessionPage.Sessions[0].ID, "", token, nil)
+	for _, response := range []*httptest.ResponseRecorder{malformed, revokedAgain} {
+		if response.Code != http.StatusConflict || !strings.Contains(response.Body.String(), `"code":"invalid-session"`) {
+			t.Fatalf("session revoke = %d, %s; want invalid-session conflict", response.Code, response.Body.String())
+		}
+	}
 	newUser, err := id.New()
 	if err != nil {
 		t.Fatal(err)

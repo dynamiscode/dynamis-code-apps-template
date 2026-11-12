@@ -12,6 +12,17 @@ import (
 
 const maxActiveSessionsPerUser = 10
 
+// parseSessionKey strictly decodes a session short ID. A malformed, integer,
+// or foreign-type ID is the same invalid-session error as an unknown session,
+// and the session secret is never accepted here.
+func parseSessionKey(short string) (int64, error) {
+	key, err := id.DecodeKey(id.TypeSession, short)
+	if err != nil {
+		return 0, ErrInvalidSession
+	}
+	return key, nil
+}
+
 func (s *Service) CreateSession(
 	ctx context.Context,
 	userID string,
@@ -76,14 +87,10 @@ func (s *Service) createSessionWithLevelTx(
 	if err != nil {
 		return NewSession{}, err
 	}
-	sessionID, err := id.New()
-	if err != nil {
-		return NewSession{}, err
-	}
 	now := s.now().UTC()
 	session := NewSession{
 		Session: Session{
-			ID: sessionID, UserID: userID, AuthMethod: authMethod,
+			UserID: userID, AuthMethod: authMethod,
 			AuthLevel:      authLevel,
 			OIDCProviderID: oidcProviderID,
 			CreatedAt:      now, ExpiresAt: now.Add(lifetime),
@@ -93,16 +100,19 @@ func (s *Service) createSessionWithLevelTx(
 	if err := s.enforceSessionLimit(ctx, tx, userID, now, audit); err != nil {
 		return NewSession{}, err
 	}
-	if _, err := s.exec(ctx, tx, `
+	var key int64
+	if err := s.queryRow(ctx, tx, `
 		INSERT INTO sessions (
-			id, user_id, secret_hash, csrf_hash, auth_method,
+			user_id, secret_hash, csrf_hash, auth_method,
 			oidc_provider_id, auth_level, fresh_at, created_at, expires_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, session.ID, userID, hashSecret(secret), hashSecret(csrfSecret),
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		RETURNING id
+	`, userID, hashSecret(secret), hashSecret(csrfSecret),
 		authMethod, nullable(oidcProviderID), session.AuthLevel, timestamp(now), timestamp(now),
-		timestamp(session.ExpiresAt)); err != nil {
+		timestamp(session.ExpiresAt)).Scan(&key); err != nil {
 		return NewSession{}, fmt.Errorf("create session: %w", err)
 	}
+	session.ID = id.EncodeKey(id.TypeSession, key)
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "session.created", ActorUserID: userID,
 		AuthMethod: authMethod, TargetType: "session", TargetID: session.ID,
@@ -138,13 +148,13 @@ func (s *Service) enforceSessionLimit(
 		return err
 	}
 	defer rows.Close()
-	var active []string
+	var active []int64
 	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
+		var key int64
+		if err := rows.Scan(&key); err != nil {
 			return err
 		}
-		active = append(active, id)
+		active = append(active, key)
 	}
 	if err := rows.Err(); err != nil {
 		return err
@@ -152,14 +162,14 @@ func (s *Service) enforceSessionLimit(
 	if len(active) < maxActiveSessionsPerUser {
 		return nil
 	}
-	for _, sessionID := range active[maxActiveSessionsPerUser-1:] {
+	for _, sessionKey := range active[maxActiveSessionsPerUser-1:] {
 		if _, err := s.exec(ctx, tx, `UPDATE sessions SET revoked_at = ? WHERE id = ?`,
-			timestamp(now), sessionID); err != nil {
+			timestamp(now), sessionKey); err != nil {
 			return err
 		}
 		if err := s.audit(ctx, tx, AuditEvent{
 			EventType: "session.limit_revoked", ActorUserID: userID,
-			AuthMethod: "system", TargetType: "session", TargetID: sessionID,
+			AuthMethod: "system", TargetType: "session", TargetID: id.EncodeKey(id.TypeSession, sessionKey),
 			Action: "session.revoke", Outcome: "success", RequestID: audit.RequestID,
 			SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 		}); err != nil {
@@ -179,17 +189,19 @@ func (s *Service) AuthenticateSession(
 	var freshAt sql.NullString
 	var oidcProviderID sql.NullString
 	var revokedAt sql.NullString
+	var key int64
 	err := s.queryRow(ctx, s.db, `
 		SELECT id, user_id, auth_method, oidc_provider_id, auth_level, fresh_at,
 			created_at, expires_at, revoked_at
 		FROM sessions WHERE secret_hash = ?
 	`, hashSecret(secret)).Scan(
-		&session.ID, &session.UserID, &session.AuthMethod, &oidcProviderID, &authLevel, &freshAt,
+		&key, &session.UserID, &session.AuthMethod, &oidcProviderID, &authLevel, &freshAt,
 		&createdAt, &expiresAt, &revokedAt,
 	)
 	if err != nil {
 		return Session{}, ErrInvalidSession
 	}
+	session.ID = id.EncodeKey(id.TypeSession, key)
 	session.CreatedAt, err = parseTimestamp(createdAt)
 	if err != nil {
 		return Session{}, ErrInvalidSession
@@ -238,13 +250,17 @@ func (s *Service) VerifyCSRF(
 	sessionID string,
 	csrfSecret string,
 ) bool {
+	key, err := parseSessionKey(sessionID)
+	if err != nil {
+		return false
+	}
 	var encoded string
 	var expiresAt string
 	var revokedAt sql.NullString
-	err := s.queryRow(ctx, s.db, `
+	err = s.queryRow(ctx, s.db, `
 		SELECT csrf_hash, expires_at, revoked_at
 		FROM sessions WHERE id = ?
-	`, sessionID).Scan(&encoded, &expiresAt, &revokedAt)
+	`, key).Scan(&encoded, &expiresAt, &revokedAt)
 	if err != nil || revokedAt.Valid || !equalSecretHash(csrfSecret, encoded) {
 		return false
 	}
@@ -258,6 +274,10 @@ func (s *Service) RevokeSession(
 	sessionID string,
 	audit AuditContext,
 ) (string, error) {
+	key, err := parseSessionKey(sessionID)
+	if err != nil {
+		return "", err
+	}
 	now := s.now().UTC()
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -269,13 +289,13 @@ func (s *Service) RevokeSession(
 	if err := s.queryRow(ctx, tx, `
 		SELECT auth_method, oidc_provider_id FROM sessions
 		WHERE id = ? AND user_id = ? AND revoked_at IS NULL
-	`, sessionID, userID).Scan(&authMethod, &oidcProviderID); err != nil {
+	`, key, userID).Scan(&authMethod, &oidcProviderID); err != nil {
 		return "", ErrInvalidSession
 	}
 	result, err := s.exec(ctx, tx, `
 		UPDATE sessions SET revoked_at = ?
 		WHERE id = ? AND user_id = ? AND revoked_at IS NULL
-	`, timestamp(now), sessionID, userID)
+	`, timestamp(now), key, userID)
 	if err != nil {
 		return "", err
 	}
@@ -284,7 +304,7 @@ func (s *Service) RevokeSession(
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "session.revoked", ActorUserID: userID,
-		AuthMethod: authMethod, TargetType: "session", TargetID: sessionID,
+		AuthMethod: authMethod, TargetType: "session", TargetID: id.EncodeKey(id.TypeSession, key),
 		Action: "session.revoke", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
@@ -312,12 +332,14 @@ func (s *Service) ListSessions(ctx context.Context, userID string) ([]Session, e
 		var createdAt, expiresAt string
 		var oidcProviderID, revokedAt sql.NullString
 		var authLevel AuthLevel
+		var key int64
 		if err := rows.Scan(
-			&session.ID, &session.UserID, &session.AuthMethod, &oidcProviderID, &authLevel,
+			&key, &session.UserID, &session.AuthMethod, &oidcProviderID, &authLevel,
 			&createdAt, &expiresAt, &revokedAt,
 		); err != nil {
 			return nil, err
 		}
+		session.ID = id.EncodeKey(id.TypeSession, key)
 		session.CreatedAt, err = parseTimestamp(createdAt)
 		if err != nil {
 			return nil, err

@@ -182,7 +182,7 @@ func TestOAuthAccessFollowsExpiryMembershipAndSession(t *testing.T) {
 		t.Fatalf("fresh access token error = %v", err)
 	}
 	if _, err := fixture.db.Exec(
-		"UPDATE sessions SET revoked_at = ? WHERE id = ?", timestamp(start), fixture.session.ID,
+		"UPDATE sessions SET revoked_at = ? WHERE id = ?", timestamp(start), sessionRowKey(t, fixture.session.ID),
 	); err != nil {
 		t.Fatal(err)
 	}

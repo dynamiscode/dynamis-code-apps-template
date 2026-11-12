@@ -39,6 +39,8 @@ const (
 	TypeMFARecoveryCode   TypeCode = "mfa_recovery_code"
 	TypeMFAPasskey        TypeCode = "mfa_passkey"
 	TypeOAuthToken        TypeCode = "oauth_token"
+	TypeSession           TypeCode = "session"
+	TypeAuditEvent        TypeCode = "audit_event"
 )
 
 // TypeCodes returns every registered type code.
@@ -49,6 +51,7 @@ func TypeCodes() []TypeCode {
 		TypePublicLink, TypeSCIMToken, TypeOAuthClient, TypeOAuthGrant, TypeItemEvent,
 		TypeNotification, TypeEmailVerification, TypePasswordReset,
 		TypeMFAChallenge, TypeMFARecoveryCode, TypeMFAPasskey, TypeOAuthToken,
+		TypeSession, TypeAuditEvent,
 	}
 }
 

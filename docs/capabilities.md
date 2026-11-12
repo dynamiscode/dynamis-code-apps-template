@@ -431,6 +431,21 @@ authentication, refresh, and revoke. The principal's token ID is the short ID. T
 is [2026-11-12-oauth-tokens-short-id-migration-rewrite](decisions/exceptions/2026-11-12-oauth-tokens-short-id-migration-rewrite.md).
 Verification results are recorded in the pull request for ticket #247.
 
+## Session and audit short ID evidence
+
+Ticket #248 moves `sessions` and `audit_events` to integer keys with the `session` and
+`audit_event` short IDs, and converts `mfa_challenges.session_id` and `oauth_grants.session_id`
+to `BIGINT`. The session cookie value and its `secret_hash` lookups are unchanged. An integer,
+decimal, malformed, or foreign-type ID is rejected as the session secret, as a CSRF session,
+and as a revoke target, and gets the same invalid-session problem as an unknown session. Session
+audit targets and exported audit event IDs are short IDs. Both tables use `AUTOINCREMENT` on
+SQLite, so a deleted maximum key is never reused. The exception is
+[2026-11-12-session-audit-short-id-migration-rewrite](decisions/exceptions/2026-11-12-session-audit-short-id-migration-rewrite.md).
+Evidence: `TestSQLiteSessionAndAuditTablesUseIntegerPrimaryKeys`,
+`TestSQLiteSessionAndAuditKeysAreNeverReused`, `TestPostgresSessionAndAuditTablesUseIntegerPrimaryKeys`,
+`TestSessionShortIDsAreExposedAndNeverAccepted`, `TestIdentityRESTContracts`, and the
+maintenance and portability tests. `make lint` and `go generate ./api` show no drift.
+
 
 ## Notification and account token short ID evidence
 

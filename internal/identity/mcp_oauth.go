@@ -154,6 +154,10 @@ func (s *Service) ApproveOAuthConsent(
 			return "", ErrForbidden
 		}
 	}
+	sessionKey, err := parseSessionKey(session.ID)
+	if err != nil {
+		return "", err
+	}
 	if _, err := s.exec(ctx, tx, `
 		INSERT INTO oauth_grants (user_id, workspace_id, client_id, session_id, scopes, auth_level, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -163,7 +167,7 @@ func (s *Service) ApproveOAuthConsent(
 			auth_level = excluded.auth_level,
 			created_at = excluded.created_at,
 			revoked_at = NULL
-	`, session.UserID, workspaceID, clientRowID, session.ID,
+	`, session.UserID, workspaceID, clientRowID, sessionKey,
 		encodeScopes(scopes), int(session.AuthLevel), timestamp(now)); err != nil {
 		return "", err
 	}

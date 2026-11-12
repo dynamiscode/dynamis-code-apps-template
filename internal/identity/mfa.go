@@ -713,25 +713,33 @@ func (s *Service) lockMFAUser(ctx context.Context, tx *sql.Tx, userID string) er
 }
 
 func (s *Service) verifyMFAEnrollmentSession(ctx context.Context, tx *sql.Tx, userID, sessionID string) error {
+	key, err := parseSessionKey(sessionID)
+	if err != nil {
+		return err
+	}
 	var sessionUserID string
-	return s.queryRow(ctx, tx, "SELECT user_id FROM sessions WHERE id = ? AND user_id = ? AND revoked_at IS NULL AND expires_at > ?", sessionID, userID, timestamp(s.now().UTC())).Scan(&sessionUserID)
+	return s.queryRow(ctx, tx, "SELECT user_id FROM sessions WHERE id = ? AND user_id = ? AND revoked_at IS NULL AND expires_at > ?", key, userID, timestamp(s.now().UTC())).Scan(&sessionUserID)
 }
 
 func (s *Service) VerifyFreshAuthentication(ctx context.Context, userID, sessionID, password string) error {
 	if sessionID == "" {
 		return ErrInvalidSession
 	}
+	key, err := parseSessionKey(sessionID)
+	if err != nil {
+		return err
+	}
 	if password != "" {
 		var sessionUserID string
 		now := s.now().UTC()
-		if err := s.queryRow(ctx, s.db, "SELECT user_id FROM sessions WHERE id = ? AND revoked_at IS NULL AND expires_at > ?", sessionID, timestamp(now)).Scan(&sessionUserID); err != nil || sessionUserID != userID {
+		if err := s.queryRow(ctx, s.db, "SELECT user_id FROM sessions WHERE id = ? AND revoked_at IS NULL AND expires_at > ?", key, timestamp(now)).Scan(&sessionUserID); err != nil || sessionUserID != userID {
 			return ErrInvalidSession
 		}
 		if err := s.ReauthenticateLocal(ctx, userID, password); err != nil {
 			return ErrInvalidCredentials
 		}
 		now = s.now().UTC()
-		result, err := s.exec(ctx, s.db, "UPDATE sessions SET fresh_at = ? WHERE id = ? AND revoked_at IS NULL AND expires_at > ?", timestamp(now), sessionID, timestamp(now))
+		result, err := s.exec(ctx, s.db, "UPDATE sessions SET fresh_at = ? WHERE id = ? AND revoked_at IS NULL AND expires_at > ?", timestamp(now), key, timestamp(now))
 		if err != nil {
 			return err
 		}
@@ -748,7 +756,7 @@ func (s *Service) VerifyFreshAuthentication(ctx context.Context, userID, session
 	var level AuthLevel
 	var fresh sql.NullString
 	now := s.now().UTC()
-	if err := s.queryRow(ctx, s.db, "SELECT user_id, auth_method, auth_level, fresh_at FROM sessions WHERE id = ? AND revoked_at IS NULL AND expires_at > ?", sessionID, timestamp(now)).Scan(&sessionUserID, &authMethod, &level, &fresh); err != nil || sessionUserID != userID {
+	if err := s.queryRow(ctx, s.db, "SELECT user_id, auth_method, auth_level, fresh_at FROM sessions WHERE id = ? AND revoked_at IS NULL AND expires_at > ?", key, timestamp(now)).Scan(&sessionUserID, &authMethod, &level, &fresh); err != nil || sessionUserID != userID {
 		return ErrInvalidSession
 	}
 	if !fresh.Valid {
@@ -787,8 +795,16 @@ func (s *Service) insertMFAChallenge(ctx context.Context, challenge MFALoginChal
 	if authMethod == "" {
 		authMethod = "local"
 	}
+	var sessionKeyValue sql.NullInt64
+	if sessionID != "" {
+		key, err := parseSessionKey(sessionID)
+		if err != nil {
+			return err
+		}
+		sessionKeyValue = sql.NullInt64{Int64: key, Valid: true}
+	}
 	var challengeKey int64
-	if err := s.queryRow(ctx, s.db, "INSERT INTO mfa_challenges (token_hash, user_id, purpose, session_id, auth_method, oidc_provider_id, webauthn_session_json, encrypted_secret, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id", hashSecret(challenge.Token), challenge.UserID, purpose, nullable(sessionID), authMethod, nullable(challenge.OIDCProviderID), nullable(webauthnJSON), nullable(encryptedSecret), timestamp(now), timestamp(challenge.ExpiresAt)).Scan(&challengeKey); err != nil {
+	if err := s.queryRow(ctx, s.db, "INSERT INTO mfa_challenges (token_hash, user_id, purpose, session_id, auth_method, oidc_provider_id, webauthn_session_json, encrypted_secret, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id", hashSecret(challenge.Token), challenge.UserID, purpose, sessionKeyValue, authMethod, nullable(challenge.OIDCProviderID), nullable(webauthnJSON), nullable(encryptedSecret), timestamp(now), timestamp(challenge.ExpiresAt)).Scan(&challengeKey); err != nil {
 		return err
 	}
 	return s.audit(ctx, s.db, AuditEvent{EventType: "mfa.challenge.created", ActorUserID: challenge.UserID, AuthMethod: "session", TargetType: "mfa_challenge", TargetID: id.EncodeKey(id.TypeMFAChallenge, challengeKey), Action: "mfa.challenge.create", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"purpose": purpose}), CreatedAt: now})
@@ -799,14 +815,16 @@ func (s *Service) loadChallenge(ctx context.Context, token, purpose string) (loa
 	var expires string
 	var encrypted sql.NullString
 	var webauthn sql.NullString
-	var sessionID sql.NullString
+	var sessionKey sql.NullInt64
 	var consumed sql.NullString
 	var provider sql.NullString
-	err := s.queryRow(ctx, s.db, "SELECT id, user_id, session_id, auth_method, oidc_provider_id, webauthn_session_json, encrypted_secret, attempts, expires_at, consumed_at FROM mfa_challenges WHERE token_hash = ? AND purpose = ?", hashSecret(token), purpose).Scan(&c.ID, &c.UserID, &sessionID, &c.authMethod, &provider, &webauthn, &encrypted, &c.attempts, &expires, &consumed)
+	err := s.queryRow(ctx, s.db, "SELECT id, user_id, session_id, auth_method, oidc_provider_id, webauthn_session_json, encrypted_secret, attempts, expires_at, consumed_at FROM mfa_challenges WHERE token_hash = ? AND purpose = ?", hashSecret(token), purpose).Scan(&c.ID, &c.UserID, &sessionKey, &c.authMethod, &provider, &webauthn, &encrypted, &c.attempts, &expires, &consumed)
 	if err != nil {
 		return loadedChallenge{}, "", ErrInvalidMFAChallenge
 	}
-	c.sessionID = sessionID.String
+	if sessionKey.Valid {
+		c.sessionID = id.EncodeKey(id.TypeSession, sessionKey.Int64)
+	}
 	c.oidcProviderID = provider.String
 	c.webauthnJSON = webauthn.String
 	c.encryptedSecret = encrypted.String
