@@ -10,6 +10,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
+	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 )
 
 func (h *Handler) accountPage(writer http.ResponseWriter, request *http.Request) {
@@ -195,7 +196,7 @@ func (h *Handler) emailVerificationMutation(writer http.ResponseWriter, request 
 		return
 	}
 	link := accountURL(h.publicURL, "/account/verify-email/", verification.Secret)
-	if h.mailer == nil {
+	if !appmail.Enabled(h.mailer) {
 		data, loaded := h.accountData(request, session.UserID, csrf)
 		if !loaded {
 			h.renderError(writer, http.StatusInternalServerError)
@@ -253,7 +254,7 @@ func (h *Handler) passwordResetRequest(writer http.ResponseWriter, request *http
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	if reset.Secret != "" && h.mailer != nil {
+	if reset.Secret != "" && appmail.Enabled(h.mailer) {
 		link := accountURL(h.publicURL, "/password-reset/", reset.Secret)
 		locale := h.pageLocale(writer, pageData{})
 		_ = h.mailer.Send(request.Context(), reset.Email,
