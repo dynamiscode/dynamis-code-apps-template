@@ -183,16 +183,12 @@ func (s *Service) ApproveOAuthConsent(
 	if err != nil {
 		return "", err
 	}
-	codeID, err := id.New()
-	if err != nil {
-		return "", err
-	}
 	if _, err := s.exec(ctx, tx, `
 		INSERT INTO oauth_tokens (
-			id, grant_id, kind, secret_hash, client_id, redirect_uri, code_challenge, resource,
+			grant_id, kind, secret_hash, client_id, redirect_uri, code_challenge, resource,
 			created_at, expires_at
-		) VALUES (?, ?, 'code', ?, ?, ?, ?, ?, ?, ?)
-	`, codeID, storedGrantID, hashSecret(code), clientRowID, redirectURI, codeChallenge, resource,
+		) VALUES (?, 'code', ?, ?, ?, ?, ?, ?, ?)
+	`, storedGrantID, hashSecret(code), clientRowID, redirectURI, codeChallenge, resource,
 		timestamp(now), timestamp(now.Add(oauthCodeLifetime))); err != nil {
 		return "", err
 	}
@@ -250,7 +246,7 @@ func (s *Service) ExchangeOAuthCode(
 	if err := s.consumeOAuthSecret(ctx, tx, row.tokenID, now); err != nil {
 		return OAuthTokenSet{}, err
 	}
-	tokens, err := s.issueOAuthTokens(ctx, tx, row.grantID, row.clientRowID, "", row.scopes, now)
+	tokens, err := s.issueOAuthTokens(ctx, tx, row.grantID, row.clientRowID, 0, row.scopes, now)
 	if err != nil {
 		return OAuthTokenSet{}, err
 	}
@@ -312,7 +308,8 @@ func (s *Service) RefreshOAuthToken(
 // without separate revocation hooks.
 func (s *Service) AuthenticateOAuthAccessToken(ctx context.Context, token string) (Principal, error) {
 	now := s.now().UTC()
-	var tokenID, userID, encodedScopes string
+	var tokenID int64
+	var userID, encodedScopes string
 	var workspaceID WorkspaceID
 	var tokenExpires, tokenRevoked, grantRevoked, sessionRevoked, sessionExpires sql.NullString
 	var authLevel int
@@ -353,7 +350,7 @@ func (s *Service) AuthenticateOAuthAccessToken(ctx context.Context, token string
 	}
 	return Principal{
 		UserID: userID, WorkspaceID: workspaceID, Role: role,
-		Permissions: permissions, AuthMethod: "mcp_oauth", TokenID: tokenID,
+		Permissions: permissions, AuthMethod: "mcp_oauth", TokenID: id.EncodeKey(id.TypeOAuthToken, tokenID),
 		AuthLevel: AuthLevel(authLevel),
 	}, nil
 }
@@ -380,7 +377,7 @@ func (s *Service) RevokeOAuthToken(ctx context.Context, token string, audit Audi
 }
 
 type oauthSecretRow struct {
-	tokenID        string
+	tokenID        int64
 	grantID        int64
 	clientRowID    int64
 	clientPublicID string
@@ -435,7 +432,7 @@ func (s *Service) loadOAuthSecret(
 	return row, nil
 }
 
-func (s *Service) consumeOAuthSecret(ctx context.Context, tx *sql.Tx, tokenID string, now time.Time) error {
+func (s *Service) consumeOAuthSecret(ctx context.Context, tx *sql.Tx, tokenID int64, now time.Time) error {
 	result, err := s.exec(ctx, tx, `
 		UPDATE oauth_tokens SET consumed_at = ? WHERE id = ? AND consumed_at IS NULL
 	`, timestamp(now), tokenID)
@@ -453,7 +450,7 @@ func (s *Service) issueOAuthTokens(
 	tx *sql.Tx,
 	grantID int64,
 	clientRowID int64,
-	parentID string,
+	parentID int64,
 	scopes []Permission,
 	now time.Time,
 ) (OAuthTokenSet, error) {
@@ -465,29 +462,21 @@ func (s *Service) issueOAuthTokens(
 	if err != nil {
 		return OAuthTokenSet{}, err
 	}
-	accessID, err := id.New()
-	if err != nil {
-		return OAuthTokenSet{}, err
-	}
-	refreshID, err := id.New()
-	if err != nil {
-		return OAuthTokenSet{}, err
-	}
 	var parent any
-	if parentID != "" {
+	if parentID != 0 {
 		parent = parentID
 	}
 	accessExpires := now.Add(OAuthAccessLifetime)
 	if _, err := s.exec(ctx, tx, `
-		INSERT INTO oauth_tokens (id, grant_id, kind, secret_hash, client_id, parent_id, created_at, expires_at)
-		VALUES (?, ?, 'access', ?, ?, ?, ?, ?)
-	`, accessID, grantID, hashSecret(access), clientRowID, parent, timestamp(now), timestamp(accessExpires)); err != nil {
+		INSERT INTO oauth_tokens (grant_id, kind, secret_hash, client_id, parent_id, created_at, expires_at)
+		VALUES (?, 'access', ?, ?, ?, ?, ?)
+	`, grantID, hashSecret(access), clientRowID, parent, timestamp(now), timestamp(accessExpires)); err != nil {
 		return OAuthTokenSet{}, err
 	}
 	if _, err := s.exec(ctx, tx, `
-		INSERT INTO oauth_tokens (id, grant_id, kind, secret_hash, client_id, parent_id, created_at, expires_at)
-		VALUES (?, ?, 'refresh', ?, ?, ?, ?, ?)
-	`, refreshID, grantID, hashSecret(refresh), clientRowID, parent, timestamp(now),
+		INSERT INTO oauth_tokens (grant_id, kind, secret_hash, client_id, parent_id, created_at, expires_at)
+		VALUES (?, 'refresh', ?, ?, ?, ?, ?)
+	`, grantID, hashSecret(refresh), clientRowID, parent, timestamp(now),
 		timestamp(now.Add(oauthRefreshLifetime))); err != nil {
 		return OAuthTokenSet{}, err
 	}

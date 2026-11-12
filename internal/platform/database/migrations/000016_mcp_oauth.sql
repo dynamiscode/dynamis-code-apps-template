@@ -23,7 +23,7 @@ CREATE TABLE oauth_grants (
 CREATE INDEX oauth_grants_session_idx ON oauth_grants (session_id);
 
 CREATE TABLE oauth_tokens (
-    id TEXT PRIMARY KEY,
+    id {{integer_pk}},
     grant_id BIGINT NOT NULL REFERENCES oauth_grants(id) ON DELETE CASCADE,
     kind TEXT NOT NULL CHECK (kind IN ('code', 'access', 'refresh')),
     secret_hash TEXT NOT NULL UNIQUE,
@@ -31,7 +31,7 @@ CREATE TABLE oauth_tokens (
     redirect_uri TEXT,
     code_challenge TEXT,
     resource TEXT,
-    parent_id TEXT,
+    parent_id BIGINT,
     created_at TEXT NOT NULL,
     expires_at TEXT NOT NULL,
     consumed_at TEXT,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -242,6 +243,54 @@ func TestOAuthRevokeAndRefreshAfterRevoke(t *testing.T) {
 	}
 	if err := fixture.service.RevokeOAuthToken(ctx, "unknown-token-value", AuditContext{}); err != nil {
 		t.Fatalf("unknown token revoke = %v, want nil (RFC 7009)", err)
+	}
+}
+
+func TestOAuthTokenRowIDIsNotBearerCredential(t *testing.T) {
+	t.Parallel()
+	fixture, _ := newOAuthFixture(t)
+	ctx := context.Background()
+	tokens := fixture.exchange(t, fixture.approve(t, []Permission{ResourcesRead}))
+
+	var rowID int64
+	if err := fixture.db.QueryRowContext(ctx, "SELECT id FROM oauth_tokens WHERE kind = 'access'").Scan(&rowID); err != nil {
+		t.Fatal(err)
+	}
+	for _, probe := range []string{id.EncodeKey(id.TypeOAuthToken, rowID), strconv.FormatInt(rowID, 10)} {
+		if _, err := fixture.service.AuthenticateOAuthAccessToken(ctx, probe); !errors.Is(err, ErrInvalidToken) {
+			t.Fatalf("AuthenticateOAuthAccessToken(row ID %q) = %v, want ErrInvalidToken", probe, err)
+		}
+		if _, err := fixture.service.RefreshOAuthToken(ctx, probe, fixture.client.ClientID, AuditContext{}); !errors.Is(err, ErrOAuthInvalidGrant) {
+			t.Fatalf("RefreshOAuthToken(row ID %q) = %v, want ErrOAuthInvalidGrant", probe, err)
+		}
+		if err := fixture.service.RevokeOAuthToken(ctx, probe, AuditContext{}); err != nil {
+			t.Fatalf("RevokeOAuthToken(row ID %q) = %v, want nil", probe, err)
+		}
+	}
+	if _, err := fixture.service.AuthenticateOAuthAccessToken(ctx, tokens.AccessToken); err != nil {
+		t.Fatalf("real access token after row-ID probes = %v; probes must not revoke", err)
+	}
+}
+
+func TestOAuthAccessPrincipalReportsShortTokenID(t *testing.T) {
+	t.Parallel()
+	fixture, _ := newOAuthFixture(t)
+	ctx := context.Background()
+	tokens := fixture.exchange(t, fixture.approve(t, []Permission{ResourcesRead}))
+
+	var rowID int64
+	if err := fixture.db.QueryRowContext(ctx, "SELECT id FROM oauth_tokens WHERE kind = 'access'").Scan(&rowID); err != nil {
+		t.Fatal(err)
+	}
+	principal, err := fixture.service.AuthenticateOAuthAccessToken(ctx, tokens.AccessToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := id.EncodeKey(id.TypeOAuthToken, rowID); principal.TokenID != want {
+		t.Fatalf("principal.TokenID = %q, want short ID %q", principal.TokenID, want)
+	}
+	if got, err := id.DecodeKey(id.TypeOAuthToken, principal.TokenID); err != nil || got != rowID {
+		t.Fatalf("DecodeKey(principal.TokenID) = %d, %v; want %d", got, err, rowID)
 	}
 }
 

@@ -130,6 +130,7 @@ the [webhook and job exception](decisions/exceptions/2026-11-11-webhook-job-shor
 and the [sharing, SCIM, and MCP OAuth exception](decisions/exceptions/2026-11-11-sharing-scim-oauth-short-id-migration-rewrite.md),
 the [notification and account token exception](decisions/exceptions/2026-11-12-notification-account-token-short-id-migration-rewrite.md),
 and the [MFA exception](decisions/exceptions/2026-11-12-mfa-short-id-migration-rewrite.md).
+The MCP OAuth token table also changed in place; see the [OAuth token exception](decisions/exceptions/2026-11-12-oauth-tokens-short-id-migration-rewrite.md).
 
 Item IDs in webhook payloads, workspace exports, and audit metadata are now item
 short IDs, not 32-character hex. Consumers that stored the old hex form must map

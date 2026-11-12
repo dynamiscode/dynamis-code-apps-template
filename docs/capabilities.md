@@ -422,6 +422,15 @@ revoke, SCIM token audit targets, and OAuth grant and client audit targets pass;
 passes on SQLite; `go test -p 1 -count=1 ./...` passes on a fresh PostgreSQL 14.24 container;
 `make lint` and `go generate ./api` show no drift.
 
+## OAuth token short ID evidence
+
+Ticket #247 moves `oauth_tokens` to an integer key with the `oauth_token` short ID, and
+converts `parent_id` to match. Token secrets and their `secret_hash` lookups are unchanged,
+and an integer, decimal, or short row ID is rejected as a bearer token by access
+authentication, refresh, and revoke. The principal's token ID is the short ID. The exception
+is [2026-11-12-oauth-tokens-short-id-migration-rewrite](decisions/exceptions/2026-11-12-oauth-tokens-short-id-migration-rewrite.md).
+Verification results are recorded in the pull request for ticket #247.
+
 
 ## Notification and account token short ID evidence
 

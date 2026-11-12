@@ -22,7 +22,7 @@ func TestNotificationAndAccountTokenTypesAreRegistered(t *testing.T) {
 func TestEntityKeysRoundTripForSharingAndOAuthTypes(t *testing.T) {
 	t.Parallel()
 
-	for _, code := range []TypeCode{TypePublicLink, TypeSCIMToken, TypeOAuthClient, TypeOAuthGrant, TypeMFAChallenge, TypeMFARecoveryCode, TypeMFAPasskey} {
+	for _, code := range []TypeCode{TypePublicLink, TypeSCIMToken, TypeOAuthClient, TypeOAuthGrant, TypeMFAChallenge, TypeMFARecoveryCode, TypeMFAPasskey, TypeOAuthToken} {
 		for _, key := range []int64{1, 2, 42, 1 << 40} {
 			short := EncodeKey(code, key)
 			got, err := DecodeKey(code, short)
