@@ -2,11 +2,16 @@
 
 - Profile and requirement: architecture invariant that migrations are
   forward-only ([architecture](../../architecture.md#data-and-scaling)); applied
-  migrations 000002 through 000016 are rewritten in place.
+  migrations 000002 through 000016 are rewritten in place. Issue #190 extends
+  the same rewrite to item keys: `items.id` becomes an integer key, and
+  `item_events.item_id` and `public_links.item_id` become integer references.
+  Migration 000009 becomes an empty placeholder because its table rebuild
+  copied explicit IDs, which PostgreSQL identity columns reject.
 - Status: accepted
 - Responsible owner: repository maintainers (issue #189)
 - Approving maintainer: repository maintainer, approved in the implementation
-  request for issue #189 ("implement as written")
+  request for issue #189 ("implement as written") and, for the item-key
+  extension in issue #190, in the user's approval of the #190 scope ("approve 190")
 - Security-owner approval, when required: not required; no security control is
   weakened, and workspace authorization is unchanged.
 - Created: 2026-11-11
@@ -48,6 +53,10 @@ the release notes state the reset requirement. Review on or before 2027-02-09.
 
 ## Verification
 
+- Issue #190 item-key extension: `go test -count=1 ./...` passed on SQLite;
+  `go test -p 1 -count=1` passed on a fresh PostgreSQL 14.24 container for the
+  items, sharing, database, maintenance, identity, portability, and files
+  packages. See [capabilities](../../capabilities.md#item-short-id-evidence).
 - `go test -count=1 ./...` passed on SQLite.
 - `POSTGRES_TEST_URL` set to a fresh PostgreSQL container, `go test -p 1 -count=1 ./...`
   passed.

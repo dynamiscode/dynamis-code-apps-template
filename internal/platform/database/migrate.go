@@ -102,7 +102,7 @@ func migrateFS(
 	return nil
 }
 
-// renderMigration fills the one dialect-specific fragment in the shared
+// renderMigration fills the dialect-specific primary-key fragments in the shared
 // migrations. SQLite needs INTEGER PRIMARY KEY for a rowid alias; PostgreSQL
 // needs an identity column, which SQLite cannot parse.
 func renderMigration(sql string, driver config.DatabaseDriver) string {
@@ -110,7 +110,8 @@ func renderMigration(sql string, driver config.DatabaseDriver) string {
 	if driver == config.Postgres {
 		pk = "BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY"
 	}
-	return strings.ReplaceAll(sql, "{{workspace_id_pk}}", pk)
+	sql = strings.ReplaceAll(sql, "{{workspace_id_pk}}", pk)
+	return strings.ReplaceAll(sql, "{{item_id_pk}}", pk)
 }
 
 func mfaMigrationAlreadyApplied(

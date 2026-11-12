@@ -119,7 +119,11 @@ loss of encrypted data.
 
 ## Upgrades and alerts
 
-Workspace short IDs changed the schema in place. Do not run this version against
+Item IDs in webhook payloads, workspace exports, and audit metadata are now item
+short IDs, not 32-character hex. Consumers that stored the old hex form must
+map or re-key those values before reading events from this version.
+
+Workspace and item short IDs changed the schema in place. Do not run this version against
 a database that applied migrations 000002 through 000016 from an earlier build:
 those versions are already recorded, so the new schema is not applied and the
 application fails against the old text keys. Create a new database and migrate
@@ -131,8 +135,8 @@ instance or all PostgreSQL application instances, start one new version to run
 forward-only migrations, then check readiness and smoke paths before restoring
 traffic. PostgreSQL migrations take a transaction advisory lock. All migration
 steps and history writes share one transaction; interruption rolls them back.
-Migration 000009 rebuilds `items` transactionally to retain item content when a
-creator account is deleted. Migration 000013 preserves upgrades from
+Migration 000003 declares the nullable item creator that deleting an account
+relies on; migration 000009 is an empty placeholder kept for history. Migration 000013 preserves upgrades from
 pre-merge SCIM-at-000010 and files-at-000012 histories while adding missing
 schemas; migration 000014 applies the Files schema for both histories; migration
 000015 applies the MFA schema after the SCIM and Files migrations and records

@@ -118,7 +118,7 @@ func TestAgentSurfacesLiveSmoke(t *testing.T) {
 	}
 
 	var stdout, stderr bytes.Buffer
-	exit := appctl.Run([]string{"items", "get", "--workspace", owner.WorkspaceID.String(), "--item", created.ID},
+	exit := appctl.Run([]string{"items", "get", "--workspace", owner.WorkspaceID.String(), "--item", created.ID.String()},
 		func(key string) string {
 			if key == "APPCTL_BASE_URL" {
 				return server.URL
@@ -144,14 +144,14 @@ func TestAgentSurfacesLiveSmoke(t *testing.T) {
 	t.Cleanup(func() { session.Close() })
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{
 		Name: "items_get_v1", Arguments: map[string]any{
-			"workspaceId": owner.WorkspaceID.String(), "itemId": created.ID,
+			"workspaceId": owner.WorkspaceID.String(), "itemId": created.ID.String(),
 		},
 	})
 	if err != nil || result.IsError || len(result.Content) != 1 {
 		t.Fatalf("MCP get result=%+v error=%v", result, err)
 	}
 	text, ok := result.Content[0].(*mcp.TextContent)
-	if !ok || !bytes.Contains([]byte(text.Text), []byte(created.ID)) {
+	if !ok || !bytes.Contains([]byte(text.Text), []byte(created.ID.String())) {
 		t.Fatalf("MCP content = %#v", result.Content)
 	}
 
@@ -217,8 +217,8 @@ func TestAgentSurfacesLiveSmoke(t *testing.T) {
 	}
 	select {
 	case event := <-events:
-		if !strings.Contains(event, second.ID) {
-			t.Fatalf("SSE event = %s, want item %s", event, second.ID)
+		if !strings.Contains(event, second.ID.String()) {
+			t.Fatalf("SSE event = %s, want item %s", event, second.ID.String())
 		}
 	case <-streamContext.Done():
 		t.Fatal("SSE item notification timed out")

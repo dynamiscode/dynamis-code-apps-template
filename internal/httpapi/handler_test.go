@@ -57,7 +57,7 @@ func TestHTTPContracts(t *testing.T) {
 		"/api/v1/workspaces/"+workspaceID+"/export", "", token, nil)
 	if exported.Code != http.StatusOK || exported.Header().Get("Cache-Control") != "no-store" ||
 		!strings.Contains(exported.Header().Get("Content-Disposition"), "attachment") ||
-		!strings.Contains(exported.Body.String(), item.ID) ||
+		!strings.Contains(exported.Body.String(), item.ID.String()) ||
 		!strings.Contains(exported.Body.String(), portability.FormatVersion) ||
 		strings.Contains(exported.Body.String(), token) {
 		t.Fatalf("export response = %d, headers %v, body %s", exported.Code, exported.Header(), exported.Body.String())
@@ -72,12 +72,12 @@ func TestHTTPContracts(t *testing.T) {
 	unsupported := serveAuthorized(handler, http.MethodGet, collection+"?filter=no", "", token, nil)
 	assertProblem(t, unsupported, http.StatusBadRequest, "invalid-request")
 	searched := serveAuthorized(handler, http.MethodGet, collection+"?search=first&limit=1&sort=created_at", "", token, nil)
-	if searched.Code != http.StatusOK || !strings.Contains(searched.Body.String(), item.ID) {
+	if searched.Code != http.StatusOK || !strings.Contains(searched.Body.String(), item.ID.String()) {
 		t.Fatalf("search response = %d, %s", searched.Code, searched.Body.String())
 	}
 	assertProblem(t, serveAuthorized(handler, http.MethodGet, collection+"?search=", "", token, nil), http.StatusBadRequest, "invalid-request")
 
-	resource := collection + "/" + item.ID
+	resource := collection + "/" + item.ID.String()
 	got := serveAuthorized(handler, http.MethodGet, resource, "", token, nil)
 	if got.Code != http.StatusOK || got.Header().Get("ETag") != `"v1"` {
 		t.Fatalf("get response = %d, %s", got.Code, got.Body.String())

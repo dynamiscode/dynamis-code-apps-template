@@ -122,7 +122,7 @@ func promptArguments(request *mcp.GetPromptRequest, declared []*mcp.PromptArgume
 func itemsPromptResult(instruction string, page items.Page) (*mcp.GetPromptResult, error) {
 	rows := make([]promptItem, 0, len(page.Items))
 	for _, item := range page.Items {
-		rows = append(rows, promptItem{ID: item.ID, Title: item.Title, Status: item.Status, CreatedAt: item.CreatedAt})
+		rows = append(rows, promptItem{ID: item.ID.String(), Title: item.Title, Status: item.Status, CreatedAt: item.CreatedAt})
 	}
 	encoded, err := json.Marshal(rows)
 	if err != nil {

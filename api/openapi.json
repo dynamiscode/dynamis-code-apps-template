@@ -467,7 +467,7 @@
     },
     "parameters": {
       "WorkspaceId": {"name": "workspaceId", "in": "path", "required": true, "description": "Workspace short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
-      "ItemId": {"name": "itemId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
+      "ItemId": {"name": "itemId", "in": "path", "required": true, "description": "Item short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "FileId": {"name": "fileId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
       "UserId": {"name": "userId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
       "InvitationId": {"name": "invitationId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},

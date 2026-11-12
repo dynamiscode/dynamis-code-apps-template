@@ -106,7 +106,7 @@ type pageData struct {
 	CanShare                         bool
 	ShareLinks                       []sharing.Link
 	PublicShareURL                   string
-	PublicShareItemID                string
+	PublicShareItemID                items.ItemID
 	PublicItem                       sharing.PublicItem
 	ReturnTo                         string
 	MFAChallenge                     string
@@ -668,7 +668,7 @@ func (h *Handler) changeItem(writer http.ResponseWriter, request *http.Request) 
 		return
 	}
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	itemID := request.PathValue("itemId")
+	itemID := items.ParseItemIDOrZero(request.PathValue("itemId"))
 	switch request.FormValue("action") {
 	case "delete":
 		err = h.items.Delete(
@@ -750,7 +750,7 @@ func (h *Handler) renderItems(
 	}
 	if len(shareURL) > 0 {
 		data.PublicShareURL = shareURL[0]
-		data.PublicShareItemID = request.PathValue("itemId")
+		data.PublicShareItemID = items.ParseItemIDOrZero(request.PathValue("itemId"))
 	}
 	name := "items.html"
 	if request.Header.Get("HX-Request") == "true" {

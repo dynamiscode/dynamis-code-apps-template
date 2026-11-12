@@ -67,19 +67,19 @@ func TestRunManipulatesItemsThroughREST(t *testing.T) {
 	if err := json.Unmarshal([]byte(listedRaw), &page); err != nil || len(page.Items) != 1 || page.Items[0].ID != created.ID {
 		t.Fatalf("listed = %s, error = %v", listedRaw, err)
 	}
-	gotRaw := runOK(t, env, "items", "get", "--workspace", owner.WorkspaceID.String(), "--item", created.ID)
+	gotRaw := runOK(t, env, "items", "get", "--workspace", owner.WorkspaceID.String(), "--item", created.ID.String())
 	var got items.Item
 	if err := json.Unmarshal([]byte(gotRaw), &got); err != nil || got.ID != created.ID {
 		t.Fatalf("got = %s, error = %v", gotRaw, err)
 	}
 	updatedRaw := runOK(t, env, "items", "update", "--workspace", owner.WorkspaceID.String(),
-		"--item", created.ID, "--version", "1", "--set-status", "complete")
+		"--item", created.ID.String(), "--version", "1", "--set-status", "complete")
 	var updated items.Item
 	if err := json.Unmarshal([]byte(updatedRaw), &updated); err != nil || updated.Status != items.Complete {
 		t.Fatalf("updated = %s, error = %v", updatedRaw, err)
 	}
 	deletedRaw := runOK(t, env, "items", "delete", "--workspace", owner.WorkspaceID.String(),
-		"--item", created.ID, "--version", "2")
+		"--item", created.ID.String(), "--version", "2")
 	if strings.TrimSpace(deletedRaw) != `{"deleted":true}` {
 		t.Fatalf("deleted = %s", deletedRaw)
 	}
