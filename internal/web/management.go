@@ -63,7 +63,8 @@ func (h *Handler) createWorkspace(writer http.ResponseWriter, request *http.Requ
 		}
 		h.render(writer, http.StatusUnprocessableEntity, "home.html", pageData{
 			Title: "Workspaces", NavPage: "home", CSRF: csrf, Workspaces: workspaces,
-			Error: "Enter a workspace name between 1 and 120 characters.",
+			CanCreateWorkspace: h.workspaceCreationEnabled(),
+			Error:              "Enter a workspace name between 1 and 120 characters.",
 		})
 		return
 	}

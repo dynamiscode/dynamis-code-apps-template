@@ -52,6 +52,10 @@ type Handler struct {
 	workspaceMode  config.WorkspaceMode
 }
 
+func (h *Handler) workspaceCreationEnabled() bool {
+	return h.workspaceMode != config.WorkspaceModeSingle
+}
+
 type pageData struct {
 	MCPConsent                       *mcpConsentView
 	Locale                           string
@@ -102,6 +106,7 @@ type pageData struct {
 	SCIMTokenSecret                  string
 	DeliveryWarning                  string
 	CanManage                        bool
+	CanCreateWorkspace               bool
 	CanTransfer                      bool
 	CanShare                         bool
 	ShareLinks                       []sharing.Link
@@ -327,7 +332,9 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /auth/oidc/{providerId}", h.oidcLogin)
 	mux.HandleFunc("GET /auth/oidc/{providerId}/callback", h.oidcCallback)
 	mux.HandleFunc("GET /{$}", h.home)
-	mux.HandleFunc("POST /workspaces", h.createWorkspace)
+	if h.workspaceCreationEnabled() {
+		mux.HandleFunc("POST /workspaces", h.createWorkspace)
+	}
 	mux.HandleFunc("GET /workspaces/{workspaceId}", h.workspaceHome)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/items", h.itemList)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/items", h.createItem)
@@ -631,6 +638,7 @@ func (h *Handler) home(writer http.ResponseWriter, request *http.Request) {
 	}
 	h.render(writer, http.StatusOK, "home.html", pageData{
 		Title: "Workspaces", NavPage: "home", CSRF: csrf, Workspaces: workspaces,
+		CanCreateWorkspace: h.workspaceCreationEnabled(),
 	})
 }
 

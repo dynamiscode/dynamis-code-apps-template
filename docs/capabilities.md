@@ -150,7 +150,7 @@ axe-core 4.10.2, Chrome, and VoiceOver:
   SQLite and isolated PostgreSQL
 - full-page and HTMX fragment behavior, ordinary form fallback, session-bound
   CSRF, authorization, escaped output, validation, and safe errors
-- browser surfaces cover workspace creation, baseline identity management,
+- browser surfaces cover workspace creation in multi mode, baseline identity management,
   invitation registration/acceptance, one-time token display, sessions,
   security linking, and export download
 - SSE scope, initial/expired resync, valid reconnect replay, stable versioned
