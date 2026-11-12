@@ -1746,3 +1746,44 @@ func TestWebRootListsWorkspacesInMultiMode(t *testing.T) {
 		t.Fatalf("multi-mode root = %d, %s; want workspace list", root.Code, root.Body.String())
 	}
 }
+
+func TestSingleModeHidesWorkspaceListNavigation(t *testing.T) {
+	handler, _, _, workspaceID, _ := testWebConfigured(t, 10, false, func(h *Handler) {
+		h.SetWorkspaceMode(config.WorkspaceModeSingle)
+	})
+	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
+	workspaceRoot := "/workspaces/" + workspaceID
+	for _, path := range []string{workspaceRoot + "/items", workspaceRoot + "/settings/members", workspaceRoot + "/settings/tokens", workspaceRoot + "/settings/provisioning", workspaceRoot + "/settings/import"} {
+		response := request(handler, http.MethodGet, path, nil, cookies, nil)
+		if response.Code != http.StatusOK {
+			t.Errorf("%s = %d in single mode; want 200", path, response.Code)
+		}
+		body := response.Body.String()
+		if strings.Contains(body, `class="workspace-switcher"`) || strings.Contains(body, `>Workspaces</a>`) || strings.Contains(body, `href="/">← Workspaces</a>`) {
+			t.Errorf("%s shows a workspace list link in single mode", path)
+		}
+	}
+	for _, path := range []string{workspaceRoot + "/items", workspaceRoot + "/settings/members"} {
+		body := request(handler, http.MethodGet, path, nil, cookies, nil).Body.String()
+		if !strings.Contains(body, `<span class="workspace-name">`) {
+			t.Errorf("%s lacks plain-text workspace name in single mode", path)
+		}
+	}
+	for _, path := range []string{"/account", workspaceRoot + "/settings/audit", workspaceRoot + "/settings/export"} {
+		body := request(handler, http.MethodGet, path, nil, cookies, nil).Body.String()
+		if !strings.Contains(body, `<a href="`+workspaceRoot+`">Workspaces</a>`) {
+			t.Errorf("%s crumb does not point to the default workspace home in single mode", path)
+		}
+	}
+}
+
+func TestMultiModeKeepsWorkspaceListNavigation(t *testing.T) {
+	handler, _, _, workspaceID, _ := testWebConfigured(t, 10, false, func(h *Handler) {
+		h.SetWorkspaceMode(config.WorkspaceModeMulti)
+	})
+	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
+	body := request(handler, http.MethodGet, "/workspaces/"+workspaceID+"/items", nil, cookies, nil).Body.String()
+	if !strings.Contains(body, `class="workspace-switcher"`) || !strings.Contains(body, `<a class="sidebar-back" href="/">← Workspaces</a>`) {
+		t.Error("multi-mode items page lost workspace list navigation")
+	}
+}

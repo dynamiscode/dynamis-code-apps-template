@@ -39,6 +39,7 @@ func (h *Handler) accountData(request *http.Request, userID, csrf string) (pageD
 	return pageData{
 		Title: "Account", NavPage: "account", CSRF: csrf, Profile: profile,
 		NotificationPreferences: preferences,
+		DefaultWorkspaceHref:    h.defaultHomeHref(request.Context(), userID),
 	}, true
 }
 

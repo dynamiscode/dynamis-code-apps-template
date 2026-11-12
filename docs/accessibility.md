@@ -40,8 +40,8 @@ and anchored at the bottom. Settings routes show `Members & invitations`,
 and `Audit history`.
 The audit history uses a captioned table with scoped column headers and a
 bounded overflow wrapper for narrow screens. The workspace home exposes Items and
-Settings cards. The Items page provides `Back to Workspaces`, returning to the
-workspace selector. Settings pages provide `Back to home`, returning to the
+Settings cards. In multi mode the Items page provides `Back to Workspaces`, returning to the
+workspace selector; single mode omits it. Settings pages provide `Back to home`, returning to the
 current workspace home.
 The workspace switcher and account menu use keyboard-accessible native disclosure controls;
 narrow screens stack the same links without horizontal overflow. The item page
