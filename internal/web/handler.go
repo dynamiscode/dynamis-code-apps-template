@@ -935,7 +935,11 @@ func (h *Handler) defaultHomeHref(ctx context.Context, userID string) string {
 		return ""
 	}
 	workspaceID, found, err := h.identity.DefaultWorkspaceID(ctx, userID)
-	if err != nil || !found {
+	if err != nil {
+		h.logger.Error("default workspace lookup failed", "error", err)
+		return ""
+	}
+	if !found {
 		return ""
 	}
 	return "/workspaces/" + workspaceID

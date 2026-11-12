@@ -115,9 +115,10 @@ flexible space and anchored at the bottom in the workspace context. The members 
 invitations screen retain local tabs behind the combined entry. In multi mode the Items page offers
 `Back to Workspaces`, returning to the workspace selector; each Settings page offers
 `Back to home`, returning to the current workspace home. The native workspace switcher and account menu use ordinary
-`details` controls, so they work without JavaScript. In single mode no screen links to the workspace
-list: the switcher shows the workspace name as plain text, the top bar and `Back to Workspaces` links are
-omitted, and the Account, Audit history, and Export crumbs point to the default workspace home. On narrow screens the
+`details` controls, so they work without JavaScript. In single mode the Items and Members screens show the workspace name as plain text
+and omit the switcher list link and the top-bar `Workspaces` crumb; Items also omits `Back to Workspaces`. Tokens,
+Provisioning, and Import omit the switcher list link and the top-bar crumb. The Account, Audit history,
+and Export crumbs point to the default workspace home. On narrow screens the
 settings sidebar becomes a compact stacked navigation region. Provisioning is
 shown only to owners and admins. Item deletion is
 explicitly permanent and asks for confirmation when the browser script is

@@ -1750,11 +1750,18 @@ func TestSingleModeHidesWorkspaceListNavigation(t *testing.T) {
 	})
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
 	workspaceRoot := "/workspaces/" + workspaceID
-	for _, path := range []string{workspaceRoot + "/items", workspaceRoot + "/settings/members"} {
-		body := request(handler, http.MethodGet, path, nil, cookies, nil).Body.String()
+	for _, path := range []string{workspaceRoot + "/items", workspaceRoot + "/settings/members", workspaceRoot + "/settings/tokens", workspaceRoot + "/settings/provisioning", workspaceRoot + "/settings/import"} {
+		response := request(handler, http.MethodGet, path, nil, cookies, nil)
+		if response.Code != http.StatusOK {
+			t.Errorf("%s = %d in single mode; want 200", path, response.Code)
+		}
+		body := response.Body.String()
 		if strings.Contains(body, `class="workspace-switcher"`) || strings.Contains(body, `>Workspaces</a>`) || strings.Contains(body, `href="/">← Workspaces</a>`) {
 			t.Errorf("%s shows a workspace list link in single mode", path)
 		}
+	}
+	for _, path := range []string{workspaceRoot + "/items", workspaceRoot + "/settings/members"} {
+		body := request(handler, http.MethodGet, path, nil, cookies, nil).Body.String()
 		if !strings.Contains(body, `<span class="workspace-name">`) {
 			t.Errorf("%s lacks plain-text workspace name in single mode", path)
 		}
