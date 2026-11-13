@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Removed the `VOLUME ["/data"]` instruction from the container image. Railway
+  rejects it and requires its own volumes; Compose still mounts `app-data` at
+  `/data` explicitly, so the Compose deployment is unchanged.
 - Replaced the MCP update and delete `Mcp-Human-Approval` header with stateless
   multi round-trip `input_required` confirmation bound to the prompted arguments
   through `requestState`. The header is removed; no released clients depend on it.
