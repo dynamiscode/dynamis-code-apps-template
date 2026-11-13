@@ -124,6 +124,11 @@ func fakeS3PresignExpired(r *http.Request, now time.Time) bool {
 	return now.After(issued.Add(time.Duration(expires) * time.Second))
 }
 
+// maxFakeS3ChunkSize bounds the size a request may declare for one aws-chunked
+// chunk, so a hostile size header cannot force a huge allocation. It matches
+// the default per-object limit.
+const maxFakeS3ChunkSize = 16 << 20
+
 // readFakeS3ChunkedBody decodes an aws-chunked payload and ignores trailers.
 func readFakeS3ChunkedBody(source io.Reader) ([]byte, error) {
 	reader := bufio.NewReader(source)
@@ -140,6 +145,9 @@ func readFakeS3ChunkedBody(source io.Reader) ([]byte, error) {
 		}
 		if size == 0 {
 			return out.Bytes(), nil
+		}
+		if size < 0 || size > maxFakeS3ChunkSize {
+			return nil, fmt.Errorf("aws-chunked chunk size %d exceeds %d", size, maxFakeS3ChunkSize)
 		}
 		chunk := make([]byte, size)
 		if _, err := io.ReadFull(reader, chunk); err != nil {
