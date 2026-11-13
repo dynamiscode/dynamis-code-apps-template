@@ -1,3 +1,8 @@
 /.env
 /data/
 /node_modules/
+
+# Generated statechart output (regenerate with the statechart script)
+docs/statecharts/*/chart/tlc.out
+docs/statecharts/*/chart/tlc-*.out
+docs/statecharts/*/chart/report.md

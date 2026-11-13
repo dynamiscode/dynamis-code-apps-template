@@ -1,0 +1,36 @@
+---
+title: "Opening and accepting a workspace invitation"
+---
+stateDiagram-v2
+  direction LR
+  state "At the same time" as all {
+    state "Invitation" as r0 {
+      s0: Pending
+      s1: Expired
+      s2: Revoked by the owner
+      s3: Accepted
+      [*] --> s0
+      s0 --> s1: its time runs out
+      s0 --> s2: the owner revokes it
+      s0 --> s3: you accept [when Sees invitation, email matches]
+    }
+    --
+    state "Person" as r1 {
+      s4: Has not opened the link
+      s5: Opened the link
+      s6: Asked to sign in
+      s7: Sees invitation, email matches
+      s8: Sees: invitation not usable
+      s9: Signed in with another email
+      s10: Joined the workspace
+      [*] --> s4
+      s4 --> s5: you open the link
+      s5 --> s6: the link asks you to sign in [when Pending]
+      s5 --> s8: the link is no longer usable [unless Pending]
+      s6 --> s9: you sign in with another email
+      s6 --> s7: you sign in with the invited email
+      s7 --> s10: you accept [when Pending]
+      s9 --> s6: you switch accounts
+      s7 --> s8: you try to accept after it changed [unless Pending]
+    }
+  }
