@@ -32,12 +32,23 @@ func TestSCIMRESTContract(t *testing.T) {
 	var user struct {
 		ID string `json:"id"`
 	}
-	if err := json.Unmarshal(created.Body.Bytes(), &user); err != nil || user.ID != "hr-1" {
+	if err := json.Unmarshal(created.Body.Bytes(), &user); err != nil || user.ID == "" || user.ID == "hr-1" {
 		t.Fatalf("SCIM user = %s", created.Body.String())
 	}
+	if _, err := identity.ParseUserID(user.ID); err != nil {
+		t.Fatalf("SCIM resource id %q is not a short user ID", user.ID)
+	}
+	byExternalID := serveSCIM(handler, http.MethodGet, base+"/Users/hr-1", "", token.Secret, nil)
+	byUnknownID := serveSCIM(handler, http.MethodGet, base+"/Users/not-an-id", "", token.Secret, nil)
+	if byExternalID.Code != http.StatusNotFound || byUnknownID.Code != http.StatusNotFound {
+		t.Fatalf("SCIM external-id lookup = %d; unknown id = %d", byExternalID.Code, byUnknownID.Code)
+	}
 	special := serveSCIM(handler, http.MethodPost, base+"/Users", `{"externalId":"hr?2#x","userName":"special@example.com"}`, token.Secret, nil)
-	if special.Code != http.StatusCreated || !strings.HasSuffix(special.Header().Get("Location"), "/hr%3F2%23x") {
-		t.Fatalf("SCIM escaped location = %d, %s", special.Code, special.Header().Get("Location"))
+	var specialUser struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(special.Body.Bytes(), &specialUser); err != nil || special.Code != http.StatusCreated || special.Header().Get("Location") != base+"/Users/"+specialUser.ID {
+		t.Fatalf("SCIM location = %d, %s", special.Code, special.Header().Get("Location"))
 	}
 	orderedEmail := serveSCIM(handler, http.MethodPost, base+"/Users", `{"externalId":"ordered-email","userName":"ordered@example.com","emails":[{"value":"alias@example.com"},{"value":"ordered@example.com","primary":true}]}`, token.Secret, nil)
 	if orderedEmail.Code != http.StatusCreated {
@@ -51,7 +62,7 @@ func TestSCIMRESTContract(t *testing.T) {
 	if groups.Code != http.StatusOK || strings.Contains(groups.Body.String(), `"created":""`) || strings.Contains(groups.Body.String(), `"lastModified":""`) {
 		t.Fatalf("SCIM groups metadata = %d, %s", groups.Code, groups.Body.String())
 	}
-	updated := serveSCIM(handler, http.MethodPatch, base+"/Users/hr-1", `{"Operations":[{"op":"Replace","path":"active","value":false}]}`, token.Secret, map[string]string{"If-Match": `"v1"`})
+	updated := serveSCIM(handler, http.MethodPatch, base+"/Users/"+user.ID, `{"Operations":[{"op":"Replace","path":"active","value":false}]}`, token.Secret, map[string]string{"If-Match": `"v1"`})
 	if updated.Code != http.StatusOK || strings.Contains(updated.Body.String(), `"active":true`) {
 		t.Fatalf("SCIM deactivate = %d, %s", updated.Code, updated.Body.String())
 	}
