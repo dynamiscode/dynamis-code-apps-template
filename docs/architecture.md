@@ -67,7 +67,7 @@ under [recorded exception](decisions/exceptions/2026-11-12-mfa-short-id-migratio
 Migrations 000002, 000003, 000005, 000007, 000012, 000013, 000014, 000015, 000016,
 and 000020 were rewritten in place for the user key (`BIGINT` user references and
 the `user` short ID) under [recorded exception](decisions/exceptions/2026-11-13-users-short-id-migration-rewrite.md),
-which is `proposed` until the owner approves it.
+which is `accepted`.
 Upgrades use a documented
 stop-the-world procedure; SQLite snapshots and PostgreSQL dumps have separate
 verified restore paths.
