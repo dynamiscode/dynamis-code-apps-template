@@ -84,12 +84,14 @@ Baseline browser surfaces:
   service, and user plus workspace preferences are checked before storage.
 - `/workspaces/{workspaceId}/files` lists ready private workspace files and
   accepts an ordinary multipart upload form. File paths carry the file short
-  ID; malformed, unknown, and integer-key IDs return not-found. S3-enabled browsers use a
-  short-lived presigned PUT orchestrated by a client-side state machine
-  (`PresignedUploader` with IDLE, INITIATING, UPLOADING, COMPLETING, SUCCESS,
-  and ERROR phases, in-flight button locking, and polite live-region status feedback)
-  when JavaScript is available; the form remains the fallback. Local uploads and
-  downloads stream through the app; S3 downloads redirect to a short-lived private URL.
+  ID; malformed, unknown, and integer-key IDs return not-found. Browsers with
+  JavaScript send the same form in one request to that route through a client-side
+  `FileUploader` state machine (IDLE, UPLOADING, SUCCESS, and ERROR phases). The
+  button and file input stay locked while the request is in flight, and a polite
+  live region reports success or the server's safe message for an oversize file,
+  a full workspace, or an invalid file. The form works without JavaScript. Uploads
+  stream through the app for local and S3 storage; S3 downloads redirect to a
+  short-lived private URL, and local downloads stream through the app.
 - `/workspaces/{workspaceId}/settings/export` presents the authorized export screen;
   its `Download JSON` link downloads the export from
   `/workspaces/{workspaceId}/settings/export/download`.
