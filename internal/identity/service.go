@@ -454,7 +454,10 @@ func (s *Service) ListAuditHistory(
 			return nil, err
 		}
 		if actorUserID.Valid {
-			entry.ActorUserID, _ = ParseUserID(actorUserID.String)
+			entry.ActorUserID, err = ParseUserID(actorUserID.String)
+			if err != nil {
+				return nil, err
+			}
 		}
 		entry.CreatedAt, err = parseTimestamp(createdAt)
 		if err != nil {
