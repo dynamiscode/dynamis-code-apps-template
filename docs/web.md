@@ -150,7 +150,7 @@ each driven by a template attribute:
 
 | Pattern | Attribute or place | Behavior |
 |---|---|---|
-| Busy state and double-submit prevention | every form | A submit marks the form `aria-busy`, disables its buttons with "Saving…", and cancels a second submit. The presigned upload form keeps its own state machine. |
+| Busy state and double-submit prevention | every form | A submit marks the form `aria-busy`, disables its buttons with "Saving…", and cancels a second submit. The file upload form keeps its own state machine. |
 | Inline validation and error summary | every form | Fields are checked when left and on submit; invalid fields get a message and `aria-invalid`, and a focused summary links to each one. A full-page server error takes focus on load. |
 | Forgiving format | `data-trim`, MFA codes | Text is trimmed. The server accepts authenticator codes with spaces or dashes and recovery codes in any case. |
 | Input masks | `data-mask="digits"`, `data-mask="upper"` | Authenticator codes keep digits only; recovery codes become upper case. |
@@ -173,7 +173,7 @@ is being edited and refreshes when focus leaves it.
 
 The rules behind these behaviors, and how to check them, are in the
 `item-create-submission`, `form-drafts`, `form-field-input`, `form-wizard`,
-`async-feedback`, and `form-markup` skills under `.claude/skills/`. `make ux-smoke`
+`async-feedback`, `form-markup`, and `file-upload-form` skills under `.agents/skills/`. `make ux-smoke`
 drives them in headless Chrome against a fresh server; `docs/statecharts/` charts
 the item create, item delete, draft, and setup flows.
 
