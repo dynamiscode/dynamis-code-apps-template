@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+// nonRecipientUserID is a user key that is not the notification recipient, so
+// it must not read the recipient's notification.
+const nonRecipientUserID UserID = 999999
+
 func TestNotificationCursorAndReadRejectMalformedIDs(t *testing.T) {
 	service, _ := newTestService(t)
 	ctx := context.Background()
@@ -216,7 +220,7 @@ func TestNotificationsHonorUserAndWorkspacePreferences(t *testing.T) {
 	if unread, err := service.UnreadNotificationCount(ctx, owner.UserID); err != nil || unread != 0 {
 		t.Fatalf("unread count = %d, %v", unread, err)
 	}
-	if err := service.MarkNotificationRead(ctx, UserID(999999), created.ID.String(), AuditContext{}); !errors.Is(err, ErrForbidden) {
+	if err := service.MarkNotificationRead(ctx, nonRecipientUserID, created.ID.String(), AuditContext{}); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("cross-user read error = %v", err)
 	}
 	if after, err := service.NotificationsAfter(ctx, owner.UserID, "", 10); err != nil || len(after) != 1 {
