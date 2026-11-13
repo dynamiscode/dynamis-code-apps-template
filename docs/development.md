@@ -111,9 +111,9 @@ agent-assisted development:
   rather than loading entire multi-thousand-line files unconditionally.
 
 Claude Code entry points: root `CLAUDE.md` imports `AGENTS.md`, and
-`.claude/skills/` holds a copy of each `.agents/skills/` skill. Edit the skill
-in `.agents/skills/` and copy it to `.claude/skills/`; the permanent handoff
-conformance test fails on drift.
+`.claude/skills` is a relative symlink to `../.agents/skills`, the single source
+for every skill. Edit skills in `.agents/skills/` only. The permanent handoff
+conformance test fails if the link changes.
 
 ## Pull requests and merge guidance
 
@@ -163,6 +163,7 @@ Prior to PR creation, verify changes with the following checklist:
 - Run `make lint` (runs `fmt-check` and `go vet`) so mechanical formatting failures are caught before pushing.
 - Run focused tests and `go test ./...` across affected packages.
 - Run `make verify` before submitting changes for review.
+- When adding, changing, or removing a mock, example, sample, demo, or fake, update the map in `.agents/skills/setup-generated-app/SKILL.md` and run `make doc-links`.
 - Run `npm ci && make accessibility-smoke`, `make webmcp-smoke`, and `make docker-smoke` when interface or container delivery are affected.
 - Run security gates (`make secret-check`, `make vuln-check`, `make fuzz-smoke`) and database tests against PostgreSQL when applicable.
 

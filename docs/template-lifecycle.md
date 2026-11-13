@@ -5,7 +5,9 @@
 Generate only from a verified semantic release checkout. `template-init`
 requires the release source URL and full commit SHA, application repository,
 private security-reporting URL, maintainer, and selected profiles. It refuses
-symlinks and an existing output directory, regenerates OpenAPI, and writes a
+any symlink except a relative one that stays inside the template (the
+`.claude/skills` link to `../.agents/skills`), refuses an existing output
+directory, regenerates OpenAPI, and writes a
 mode-0600 `template.lock` containing:
 
 - template source, semantic version, and commit;
@@ -32,6 +34,10 @@ The command is documented in the root [README](../README.md). Commit the lock
 with the generated application; it contains provenance, not credentials.
 
 ## Set up agent docs in a generated application
+
+For the full post-generation map (identity, sample feature, demo seed, and the
+verify gate), use the [`setup-generated-app`](../.agents/skills/setup-generated-app/SKILL.md)
+skill. The steps below cover its agent-docs part.
 
 `template-init` does not copy the agent setup. After generation, before the
 first feature change:
