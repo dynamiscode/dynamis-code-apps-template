@@ -1,6 +1,6 @@
 # 0011: Identity entities use integer keys with short-ID public forms
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-13
 - Owners: template maintainers
 
@@ -76,10 +76,9 @@ Typed keys outside entity tables
 - Background job deduplication: `deduplication_key` is `BIGINT`. For webhook
   delivery jobs it is the delivery integer key.
 
-Open decisions for owner review
+Owner decisions
 
-These two points are not settled. This record stays `proposed` until the owner
-decides them.
+The owner approved both points below on 2026-11-13.
 
 1. Principal kinds. The first design sketch named two kinds, `user` and
    `token`. The implementation also uses `scim_token` and `oauth_grant`,
@@ -87,8 +86,7 @@ decides them.
    let integer keys collide. This also changes the OAuth replay scope: an MCP
    OAuth actor's idempotency scope moves from the access-token row, which
    changes on every refresh, to the grant. A retry after a token refresh now
-   replays instead of creating a second item. The owner approves or rejects
-   both points.
+   replays instead of creating a second item.
 2. Key-less audit targets. `session`, `mfa_challenge`, and `external_identity`
    store `NULL` as the target key, because their identifiers are text
    credentials that stay text. Their audit rows no longer identify one object.
@@ -132,7 +130,7 @@ Rejected alternatives
 
 - A route accepts more than one type code, which would make the cross-type
   limit a correctness problem for that route.
-- The owner rejects either open decision, or an audit or idempotency record
+- The owner rejects either decision above, or an audit or idempotency record
   needs object identity that a key-less target cannot provide.
 - A word-blocking requirement applies to short IDs. Then enable the Sqids
   default blocklist as ADR 0009 describes.
