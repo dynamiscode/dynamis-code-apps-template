@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 var errInvitationExpired = errors.New("invitation expired")
@@ -437,7 +435,7 @@ func (s *Service) ListInvitations(
 func (s *Service) AcceptInvitation(
 	ctx context.Context,
 	secret string,
-	userID string,
+	userID UserID,
 	audit AuditContext,
 ) (WorkspaceID, error) {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
@@ -472,56 +470,54 @@ func (s *Service) CreateInvitedLocalUser(
 	secret string,
 	password string,
 	audit AuditContext,
-) (string, WorkspaceID, error) {
+) (UserID, WorkspaceID, error) {
 	if len(password) < 12 || len(password) > 1024 {
-		return "", 0, ErrInvalidInvitation
+		return 0, 0, ErrInvalidInvitation
 	}
 	passwordHash, err := hashPassword(password, s.passwordParams)
 	if err != nil {
-		return "", 0, ErrInvalidInvitation
+		return 0, 0, ErrInvalidInvitation
 	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		return "", 0, err
+		return 0, 0, err
 	}
 	defer tx.Rollback()
 	invitation, err := s.findInvitation(ctx, tx, secret)
 	if err != nil {
 		if errors.Is(err, errInvitationExpired) {
 			if commitErr := tx.Commit(); commitErr != nil {
-				return "", 0, commitErr
+				return 0, 0, commitErr
 			}
-			return "", 0, ErrInvalidInvitation
+			return 0, 0, ErrInvalidInvitation
 		}
-		return "", 0, err
+		return 0, 0, err
 	}
 	var existing int
 	if err := s.queryRow(ctx, tx,
 		"SELECT 1 FROM users WHERE email = ?", invitation.Email,
 	).Scan(&existing); err == nil {
-		return "", 0, ErrInvalidInvitation
+		return 0, 0, ErrInvalidInvitation
 	} else if !errors.Is(err, sql.ErrNoRows) {
-		return "", 0, err
-	}
-	userID, err := id.New()
-	if err != nil {
-		return "", 0, err
+		return 0, 0, err
 	}
 	now := s.now().UTC()
-	if _, err := s.exec(ctx, tx, `
-		INSERT INTO users (id, email, password_hash, email_verified_at, created_at)
-		VALUES (?, ?, ?, ?, ?)
-	`, userID, invitation.Email, passwordHash, timestamp(now), timestamp(now)); err != nil {
-		return "", 0, ErrInvalidInvitation
+	var userID UserID
+	if err := s.queryRow(ctx, tx, `
+		INSERT INTO users (email, password_hash, email_verified_at, created_at)
+		VALUES (?, ?, ?, ?)
+		RETURNING id
+	`, invitation.Email, passwordHash, timestamp(now), timestamp(now)).Scan(&userID); err != nil {
+		return 0, 0, ErrInvalidInvitation
 	}
 	invitation, err = s.acceptLoadedInvitation(
 		ctx, tx, invitation, userID, audit, now,
 	)
 	if err != nil {
-		return "", 0, err
+		return 0, 0, err
 	}
 	if err := tx.Commit(); err != nil {
-		return "", 0, err
+		return 0, 0, err
 	}
 	return userID, invitation.WorkspaceID, nil
 }
@@ -530,7 +526,7 @@ func (s *Service) acceptInvitation(
 	ctx context.Context,
 	tx *sql.Tx,
 	secret string,
-	userID string,
+	userID UserID,
 	userEmail string,
 	audit AuditContext,
 ) (Invitation, error) {
@@ -604,7 +600,7 @@ func (s *Service) acceptLoadedInvitation(
 	ctx context.Context,
 	tx *sql.Tx,
 	invitation Invitation,
-	userID string,
+	userID UserID,
 	audit AuditContext,
 	now time.Time,
 ) (Invitation, error) {

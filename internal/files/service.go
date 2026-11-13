@@ -69,7 +69,7 @@ func isValidTransition(fromStatus, toStatus FileStatus) bool {
 type File struct {
 	ID           FileID               `json:"id"`
 	WorkspaceID  identity.WorkspaceID `json:"workspaceId"`
-	OwnerUserID  *string              `json:"ownerUserId"`
+	OwnerUserID  *identity.UserID     `json:"ownerUserId"`
 	storageKey   string
 	OriginalName string     `json:"originalName"`
 	DetectedMIME *string    `json:"detectedMime,omitempty"`
@@ -364,7 +364,7 @@ func (s *Service) reserve(ctx context.Context, actor identity.Principal, workspa
 	if used > s.maxWorkspaceBytes-size {
 		return File{}, ErrLimit
 	}
-	file := File{WorkspaceID: workspaceID, OwnerUserID: stringPtr(actor.UserID), OriginalName: name, Size: size, Status: Pending, CreatedAt: now, UpdatedAt: now}
+	file := File{WorkspaceID: workspaceID, OwnerUserID: &actor.UserID, OriginalName: name, Size: size, Status: Pending, CreatedAt: now, UpdatedAt: now}
 	file.storageKey = s.objectKey(workspaceID, objectToken)
 	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `
 		INSERT INTO files (workspace_id, owner_user_id, object_key, original_name, size, status, created_at, updated_at)
@@ -552,7 +552,8 @@ type scanner interface {
 }
 
 func scanRow(row scanner, file *File) error {
-	var owner, detected, digest sql.NullString
+	var detected, digest sql.NullString
+	var owner sql.NullInt64
 	var createdAt, updatedAt string
 	if err := row.Scan(&file.ID, &file.WorkspaceID, &owner, &file.storageKey, &file.OriginalName, &detected, &file.Size, &digest, &file.Status, &createdAt, &updatedAt); err != nil {
 		return err
@@ -567,7 +568,8 @@ func scanRow(row scanner, file *File) error {
 		return err
 	}
 	if owner.Valid {
-		file.OwnerUserID = &owner.String
+		ownerID := identity.UserID(owner.Int64)
+		file.OwnerUserID = &ownerID
 	}
 	if detected.Valid {
 		file.DetectedMIME = &detected.String

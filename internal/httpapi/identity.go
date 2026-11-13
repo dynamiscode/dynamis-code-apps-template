@@ -469,7 +469,7 @@ func invitationDTO(value identity.Invitation) invitationResponse {
 
 func tokenDTO(value identity.APIToken) tokenResponse {
 	return tokenResponse{
-		ID: value.ID, UserID: value.UserID, WorkspaceID: value.WorkspaceID,
+		ID: value.ID, UserID: value.UserID.String(), WorkspaceID: value.WorkspaceID,
 		Name: value.Name, Scopes: value.Scopes, CreatedAt: value.CreatedAt,
 		ExpiresAt: value.ExpiresAt, LastUsedAt: value.LastUsedAt, RevokedAt: value.RevokedAt,
 	}
@@ -477,7 +477,7 @@ func tokenDTO(value identity.APIToken) tokenResponse {
 
 func sessionDTO(value identity.Session) sessionResponse {
 	return sessionResponse{
-		ID: value.ID, UserID: value.UserID, AuthMethod: value.AuthMethod,
+		ID: value.ID, UserID: value.UserID.String(), AuthMethod: value.AuthMethod,
 		AuthLevel:      value.AuthLevel,
 		OIDCProviderID: value.OIDCProviderID, CreatedAt: value.CreatedAt,
 		ExpiresAt: value.ExpiresAt, RevokedAt: value.RevokedAt,

@@ -74,7 +74,7 @@ const (
 )
 
 type Principal struct {
-	UserID      string
+	UserID      UserID
 	WorkspaceID WorkspaceID
 	Role        Role
 	Permissions map[Permission]bool
@@ -91,7 +91,7 @@ type BootstrapInput struct {
 }
 
 type BootstrapResult struct {
-	UserID      string
+	UserID      UserID
 	WorkspaceID WorkspaceID
 }
 
@@ -109,7 +109,7 @@ type WorkspaceCreateInput struct {
 
 type MemberSummary struct {
 	ID        MemberID
-	UserID    string
+	UserID    UserID
 	Email     string
 	Role      Role
 	CreatedAt time.Time
@@ -146,7 +146,7 @@ type NewPasswordReset struct {
 
 type Notification struct {
 	ID               NotificationID
-	UserID           string
+	UserID           UserID
 	WorkspaceID      WorkspaceID
 	NotificationType string
 	Title            string
@@ -156,7 +156,7 @@ type Notification struct {
 }
 
 type NotificationInput struct {
-	RecipientUserID  string
+	RecipientUserID  UserID
 	WorkspaceID      WorkspaceID
 	NotificationType string
 	Title            string
@@ -170,7 +170,7 @@ type NotificationPreference struct {
 }
 type Session struct {
 	ID             string
-	UserID         string
+	UserID         UserID
 	AuthMethod     string
 	AuthLevel      AuthLevel
 	OIDCProviderID string
@@ -197,7 +197,7 @@ type MFAStatus struct {
 
 type MFALoginChallenge struct {
 	Token          string          `json:"challenge"`
-	UserID         string          `json:"-"`
+	UserID         UserID          `json:"-"`
 	AuthMethod     string          `json:"-"`
 	OIDCProviderID string          `json:"-"`
 	Methods        []string        `json:"methods"`
@@ -252,7 +252,7 @@ type NewInvitation struct {
 
 type APIToken struct {
 	ID          APITokenID
-	UserID      string
+	UserID      UserID
 	WorkspaceID WorkspaceID
 	Name        string
 	Scopes      []Permission
@@ -276,7 +276,7 @@ type NewSCIMToken struct {
 
 type SCIMUser struct {
 	ID          string
-	UserID      string
+	UserID      UserID
 	ExternalID  string
 	UserName    string
 	Email       string
@@ -327,7 +327,7 @@ type OIDCTransaction struct {
 	ProviderID     string
 	BrowserSession string
 	Purpose        OIDCPurpose
-	UserID         string
+	UserID         UserID
 	State          string
 	PKCEVerifier   string
 	Nonce          string
@@ -343,7 +343,7 @@ type AuditContext struct {
 type AuditEvent struct {
 	ID            string
 	EventType     string
-	ActorUserID   string
+	ActorUserID   UserID
 	AuthMethod    string
 	WorkspaceID   WorkspaceID
 	TargetType    string
@@ -362,7 +362,7 @@ const AuditHistoryLimit = 100
 // AuditHistoryEntry contains only fields safe for the workspace browser.
 type AuditHistoryEntry struct {
 	EventType   string
-	ActorUserID string
+	ActorUserID UserID
 	AuthMethod  string
 	TargetType  string
 	Action      string

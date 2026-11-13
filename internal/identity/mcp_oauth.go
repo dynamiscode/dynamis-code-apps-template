@@ -5,12 +5,11 @@ import (
 	"crypto/subtle"
 	"database/sql"
 	"errors"
+	"example.com/dynamis-code/apps-template/internal/platform/id"
 	"net"
 	"net/url"
 	"strings"
 	"time"
-
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 // OAuth lifetimes for MCP grants. Codes are single-use; access tokens are short
@@ -19,7 +18,6 @@ const (
 	oauthCodeLifetime    = 60 * time.Second
 	oauthRefreshLifetime = 30 * 24 * time.Hour
 	oauthMaxRedirectURIs = 5
-
 	// OAuthAccessLifetime is the MCP access-token lifetime advertised as expires_in.
 	OAuthAccessLifetime = 15 * time.Minute
 )
@@ -127,7 +125,7 @@ func (s *Service) ApproveOAuthConsent(
 	audit AuditContext,
 ) (string, error) {
 	now := s.now().UTC()
-	if session.RevokedAt != nil || !now.Before(session.ExpiresAt) || session.UserID == "" {
+	if session.RevokedAt != nil || !now.Before(session.ExpiresAt) || session.UserID == 0 {
 		return "", ErrForbidden
 	}
 	if len(scopes) == 0 || !mcpScopesOnly(scopes) || codeChallenge == "" || !validOAuthResource(resource) {
@@ -312,7 +310,9 @@ func (s *Service) RefreshOAuthToken(
 // without separate revocation hooks.
 func (s *Service) AuthenticateOAuthAccessToken(ctx context.Context, token string) (Principal, error) {
 	now := s.now().UTC()
-	var tokenID, userID, encodedScopes string
+	var tokenID string
+	var userID UserID
+	var encodedScopes string
 	var workspaceID WorkspaceID
 	var tokenExpires, tokenRevoked, grantRevoked, sessionRevoked, sessionExpires sql.NullString
 	var authLevel int
@@ -387,7 +387,7 @@ type oauthSecretRow struct {
 	redirectURI    string
 	codeChallenge  string
 	resource       string
-	userID         string
+	userID         UserID
 	workspaceID    WorkspaceID
 	scopes         []Permission
 	expiresAt      sql.NullString
