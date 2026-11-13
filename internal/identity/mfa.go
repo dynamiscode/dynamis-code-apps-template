@@ -472,7 +472,7 @@ func (s *Service) CompleteRecoveryLogin(ctx context.Context, token, code string,
 		return NewSession{}, err
 	}
 	var codeID string
-	if err := s.queryRow(ctx, tx, "SELECT id FROM mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL AND code_hash = ?", challenge.UserID, hashSecret(strings.TrimSpace(code))).Scan(&codeID); err != nil {
+	if err := s.queryRow(ctx, tx, "SELECT id FROM mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL AND code_hash = ?", challenge.UserID, hashSecret(normalizeRecoveryCode(code))).Scan(&codeID); err != nil {
 		_ = tx.Commit()
 		s.auditMFAFailure(ctx, challenge, "recovery", audit)
 		return NewSession{}, ErrInvalidMFACode
@@ -1007,7 +1007,7 @@ func (s *Service) decrypt(encoded string) ([]byte, error) {
 }
 
 func validTOTP(secret, code string, now time.Time) bool {
-	code = strings.TrimSpace(code)
+	code = normalizeTOTPCode(code)
 	if len(code) != 6 {
 		return false
 	}
@@ -1036,4 +1036,22 @@ func validTOTP(secret, code string, now time.Time) bool {
 		}
 	}
 	return false
+}
+
+// normalizeTOTPCode accepts an authenticator code as people type or paste it:
+// "123 456", "123-456", and " 123456 " all become "123456". It only removes
+// spaces and dashes, so any other character still fails validation.
+func normalizeTOTPCode(code string) string {
+	return strings.Map(func(r rune) rune {
+		if r == ' ' || r == '-' || r == '\t' {
+			return -1
+		}
+		return r
+	}, code)
+}
+
+// normalizeRecoveryCode accepts a recovery code in any letter case and with
+// stray spaces. Dashes are kept: the code alphabet itself contains '-' and '_'.
+func normalizeRecoveryCode(code string) string {
+	return strings.ToUpper(strings.Join(strings.Fields(code), ""))
 }
