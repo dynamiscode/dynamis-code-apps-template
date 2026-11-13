@@ -887,3 +887,37 @@ documented in [web](web.md) and
 - not run: PostgreSQL (`POSTGRES_TEST_URL` unset; no data change), `make race`
   (no concurrent code changed), `make generate-check` (no API change), and
   `make docker-smoke` (no runtime change)
+
+## Identity key and short-ID documentation evidence
+
+Ticket #196 records the identity key design and aligns the public docs with it.
+[ADR 0011](decisions/0011-identity-integer-keys.md) covers integer entity keys,
+the ADR 0009 codec with its optional seed and type codes, strict decode, and the
+typed audit, idempotency, and job keys. It is `proposed`: the owner must review
+two open points (principal kinds, and key-less audit targets) before acceptance.
+The ADR is linked from the [documentation router](README.md). The glossary defines
+short ID, type code, and integer key. Architecture, API, MCP, CLI, and the upgrade
+note describe short IDs and typed keys; `id.New()` values are described only as
+credentials and protocol state.
+
+- Covered: the ADR's statements match the code. `internal/platform/id` holds
+  the 19-code registry and the empty-seed production codecs, and
+  `TestTypeRegistryCodesAreUniqueAndNonEmpty`, `TestCodecRoundTripsEachTypeCode`,
+  `TestDifferentSeedChangesEncodingForSameTypeAndInteger`, and
+  `TestEntityKeysRejectMalformedShortIDs` cover the registry, codec, seed, and
+  strict decode. The cross-type limit is the known limitation in the
+  [webhook evidence](#webhook-and-job-short-id-evidence).
+- Covered: `make doc-links` passed, and every relative link added in this change
+  resolves to an existing file. Anchors added in this change point to existing
+  headings.
+- Stale hex check: `git grep -n -i hex -- docs` finds no current-tense claim that
+  an entity ID is hex. Remaining hits are credential encodings in configuration,
+  the `id.New()` description in architecture, the retired-format note in the CLI
+  and upgrade docs, and the file-route probe in the file evidence. Dated evidence
+  and exception records are unchanged.
+- Not applicable: no code, migration, OpenAPI, or runtime change. `make generate-check`
+  passed with no drift, and `make docker-smoke` was not run (no runtime change).
+- Passed: `make test`, `make lint`, `make generate-check`, and `make doc-links`
+  on branch `docs-short-id-196`.
+- Open: owner approval of ADR 0011 and of the two open points. Owner approval of the
+  audit and idempotency exception remains pending; no exception status changed here.

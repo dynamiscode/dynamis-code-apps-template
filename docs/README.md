@@ -8,6 +8,7 @@ Read only the route needed for the change.
 | Change schema, migrations, repositories, retention, export, or restore | [Architecture](architecture.md), [data lifecycle](data-lifecycle.md), [operations](operations.md) | `change-go-data` |
 | Change authentication, authorization, workspaces, roles, credentials, or OIDC | [Authentication](authentication.md), [configuration](configuration.md), [security](../SECURITY.md) | `change-go-identity` |
 | Change MCP or CLI behavior | [API](api.md), [MCP](mcp.md), [CLI](cli.md) | `change-go-agent-surfaces` |
+| Change entity keys, short IDs, type codes, or typed audit, idempotency, and job keys | [Identity keys decision](decisions/0011-identity-integer-keys.md), [Short-ID codec decision](decisions/0009-short-id-codec.md), [Architecture](architecture.md#ids-time-and-transactions) | `change-go-data` |
 | Change web, WebMCP, or realtime behavior | [Web](web.md), [accessibility](accessibility.md), [API](api.md) | `implement-go-feature` |
 | Deploy, operate, back up, restore, or upgrade | [Deployment](deployment.md), [operations](operations.md), [configuration](configuration.md) | None |
 | Generate, update, or release the template | [Template lifecycle](template-lifecycle.md), [release](release.md), [capabilities](capabilities.md) | `verify-template-conformance` for verification |

@@ -206,8 +206,13 @@ documented in [authentication](authentication.md).
   sessions, `ExportMember.userId`, item `createdByUserId`, file `ownerUserId`,
   and audit `actorUserId` and user `targetId`. Integer keys are never emitted.
   An audit `targetId` is the short ID of the entity named by `targetType`; a
-  target with no integer key (a session, MFA challenge, or external identity)
-  has no `targetId`.
+  target with no integer key (a session, MFA challenge, external identity,
+  notification preference, or SCIM group) has no `targetId`.
+- Audit `targetType` for a keyed target is that entity's registry type code,
+  for example `user`, `token`, `public_link`, `mfa_passkey`, or `workspace`
+  (registry in `internal/platform/id`). Key-less targets use their own names (`session`, `mfa_challenge`, `external_identity`,
+  `notification_preference`, `scim_group`). The earlier names `scim_user`,
+  `api_token`, `public_share`, `passkey`, and `workspace_email` are retired.
 
 Identity and workspace routes use `Authorization: Bearer <token>`. The token
 must belong to the path workspace and include the permission required by the
@@ -262,8 +267,8 @@ empty, or malformed parameters fail with Problem Details `400`.
 Item reads return strong version ETags in the form `"vN"`. `If-None-Match` can
 return `304`. Updates and deletes require `If-Match`; missing, malformed, or
 stale versions return `428` or `412`. Creates require an
-`Idempotency-Key`. Keys are hashed and scoped to principal, workspace, and
-operation for 24 hours. An identical retry replays the result; a changed
+`Idempotency-Key`. Keys are hashed and scoped to the principal (its kind and
+typed key), workspace, and operation for 24 hours. An identical retry replays the result; a changed
 request returns `409`.
 
 Item deletion also requires `If-Match` and permanently removes live data.

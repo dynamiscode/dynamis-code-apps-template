@@ -10,7 +10,9 @@ shell, or local application-service dependency.
 `23456789abcdefghjkmnpqrstuvwxyz`. The CLI checks only that shape, because the
 value becomes a URL path segment. A malformed or unknown value gets the same
 `not-found` from the server as a missing workspace. `--item` takes the item
-short ID with the same shape check and the same `not-found` rule.
+short ID with the same shape check and the same `not-found` rule. A value in the
+retired 32-character hex form fails the server's strict decode and gets that
+same `not-found`.
 
 Configure a remote origin and token through environment variables. Prefer the
 environment for the token because command-line values may appear in process
