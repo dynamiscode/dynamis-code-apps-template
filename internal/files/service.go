@@ -107,6 +107,10 @@ func NewService(db *sql.DB, driver config.DatabaseDriver, auth *identity.Service
 
 func (s *Service) SupportsPresignedPut() bool { return s.store.SupportsPresignedPut() }
 
+// RequiresCompletion reports whether a content write leaves the file pending
+// until Complete verifies the stored object.
+func (s *Service) RequiresCompletion() bool { return s.store.RequiresCompletion() }
+
 func (s *Service) Initiate(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, input InitiateInput, audit identity.AuditContext) (File, error) {
 	name, err := safeFilename(input.OriginalName)
 	if err != nil || input.Size < 1 || input.Size > s.maxObjectBytes || !allowedDeclaredType(input.ContentType, name) {
@@ -184,10 +188,14 @@ func (s *Service) PutContent(ctx context.Context, actor identity.Principal, work
 	putErr := s.store.Put(ctx, s.storedObjectKey(file), input, size, detected)
 	closeErr := input.Close()
 	if putErr != nil {
+		s.releasePending(ctx, file)
 		return File{}, putErr
 	}
 	if closeErr != nil {
 		return File{}, closeErr
+	}
+	if s.store.RequiresCompletion() {
+		return file, nil
 	}
 	return s.completeDB(ctx, actor, file, size, detected, digest, audit)
 }

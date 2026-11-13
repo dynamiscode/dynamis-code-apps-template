@@ -110,6 +110,10 @@ func (s *s3Store) PresignPut(ctx context.Context, key string, size int64, conten
 	return PresignedUpload{URL: result.URL, Headers: headers}, nil
 }
 
+// RequiresCompletion is true because a streamed object written through the
+// application is verified by Complete before the file becomes ready.
+func (*s3Store) RequiresCompletion() bool { return true }
+
 func (*s3Store) SupportsPresignedPut() bool { return true }
 
 func (s *s3Store) PresignGet(ctx context.Context, key string, ttl time.Duration) (string, error) {
