@@ -102,6 +102,11 @@ func ParseInvitationID(short string) (InvitationID, error) {
 // String returns the API token's short ID. The token secret is never encoded.
 func (a APITokenID) String() string { return encodeShortKey(apiTokenCodec, a) }
 
+// TokenShortID returns the short ID of the credential that authenticated the
+// principal, or "" for a session. It is for display; authorization and
+// idempotency use TokenKind and TokenKey.
+func (p Principal) TokenShortID() string { return id.EncodeKey(id.TypeCode(p.TokenKind), p.TokenKey) }
+
 // MarshalJSON emits the short ID, never the integer key.
 func (a APITokenID) MarshalJSON() ([]byte, error) { return json.Marshal(a.String()) }
 

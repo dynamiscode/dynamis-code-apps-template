@@ -570,7 +570,7 @@ func (h *handler) audit(
 		outcome = "failure"
 	}
 	fields := map[string]any{
-		"token_id": actor.TokenID, "client_name": clientName,
+		"credential_id": actor.TokenShortID(), "client_name": clientName,
 		"client_version": clientVersion, "error_category": category,
 		"duration_ms": time.Since(started).Milliseconds(),
 	}

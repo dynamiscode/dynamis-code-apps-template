@@ -156,7 +156,7 @@ func (s *Service) AuthenticateSCIMToken(ctx context.Context, secret string, work
 	}
 	return Principal{
 		UserID: userID, WorkspaceID: workspaceID, Role: role,
-		Permissions: permissions, AuthMethod: "scim_token", TokenID: tokenID.String(),
+		Permissions: permissions, AuthMethod: "scim_token", TokenKind: string(id.TypeSCIMToken), TokenKey: int64(tokenID),
 	}, nil
 }
 

@@ -16,14 +16,15 @@ CREATE INDEX items_workspace_status_created_idx
 
 CREATE TABLE idempotency_records (
     key_hash TEXT NOT NULL,
-    principal_id TEXT NOT NULL,
+    principal_kind TEXT NOT NULL CHECK (principal_kind IN ('user', 'token', 'scim_token', 'oauth_grant')),
+    principal_key BIGINT NOT NULL,
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     operation TEXT NOT NULL,
     request_hash TEXT NOT NULL,
     result_json TEXT NOT NULL,
     created_at TEXT NOT NULL,
     expires_at TEXT NOT NULL,
-    PRIMARY KEY (key_hash, principal_id, workspace_id, operation)
+    PRIMARY KEY (key_hash, principal_kind, principal_key, workspace_id, operation)
 );
 
 CREATE INDEX idempotency_records_expiry_idx

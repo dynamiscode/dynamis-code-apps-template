@@ -493,7 +493,7 @@ func (s *Service) authorizePrincipal(
 		return Principal{}, ErrForbidden
 	}
 	current.AuthMethod = actor.AuthMethod
-	current.TokenID = actor.TokenID
+	current.TokenKind, current.TokenKey = actor.TokenKind, actor.TokenKey
 	if actor.AuthMethod == "api_token" {
 		current.Permissions = actor.Permissions
 	}

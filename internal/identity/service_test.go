@@ -774,7 +774,7 @@ func TestAPITokenScopesRevocationAndRoleReevaluation(t *testing.T) {
 	principal, err := service.AuthenticateAPIToken(
 		ctx, token.Secret, ResourcesRead, AuditContext{},
 	)
-	if err != nil || principal.TokenID != token.ID.String() {
+	if err != nil || principal.TokenShortID() != token.ID.String() {
 		t.Fatalf("AuthenticateAPIToken() = %+v, %v", principal, err)
 	}
 	tokens, err := service.ListAPITokens(ctx, member)

@@ -312,21 +312,21 @@ func (s *Service) RefreshOAuthToken(
 // without separate revocation hooks.
 func (s *Service) AuthenticateOAuthAccessToken(ctx context.Context, token string) (Principal, error) {
 	now := s.now().UTC()
-	var tokenID string
+	var grantKey int64
 	var userID UserID
 	var encodedScopes string
 	var workspaceID WorkspaceID
 	var tokenExpires, tokenRevoked, grantRevoked, sessionRevoked, sessionExpires sql.NullString
 	var authLevel int
 	if err := s.queryRow(ctx, s.db, `
-		SELECT t.id, g.user_id, g.workspace_id, g.scopes, g.auth_level,
+		SELECT g.id, g.user_id, g.workspace_id, g.scopes, g.auth_level,
 			t.expires_at, t.revoked_at, g.revoked_at, s.revoked_at, s.expires_at
 		FROM oauth_tokens t
 		JOIN oauth_grants g ON g.id = t.grant_id
 		JOIN sessions s ON s.id = g.session_id
 		WHERE t.secret_hash = ? AND t.kind = 'access'
 	`, hashSecret(token)).Scan(
-		&tokenID, &userID, &workspaceID, &encodedScopes, &authLevel,
+		&grantKey, &userID, &workspaceID, &encodedScopes, &authLevel,
 		&tokenExpires, &tokenRevoked, &grantRevoked, &sessionRevoked, &sessionExpires,
 	); err != nil {
 		return Principal{}, ErrInvalidToken
@@ -355,7 +355,7 @@ func (s *Service) AuthenticateOAuthAccessToken(ctx context.Context, token string
 	}
 	return Principal{
 		UserID: userID, WorkspaceID: workspaceID, Role: role,
-		Permissions: permissions, AuthMethod: "mcp_oauth", TokenID: tokenID,
+		Permissions: permissions, AuthMethod: "mcp_oauth", TokenKind: string(id.TypeOAuthGrant), TokenKey: grantKey,
 		AuthLevel: AuthLevel(authLevel),
 	}, nil
 }

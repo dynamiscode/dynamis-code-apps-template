@@ -193,7 +193,7 @@ func (s *Service) create(
 	now := s.now().UTC()
 	keyHash := hash(idempotencyKey)
 	requestHash := hash(title)
-	principalID := principalID(actor)
+	principalKind, principalKey := idempotencyPrincipal(actor)
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return CreateResult{}, err
@@ -208,9 +208,9 @@ func (s *Service) create(
 	err = s.queryRow(ctx, tx, `
 		SELECT request_hash, result_json, expires_at
 		FROM idempotency_records
-		WHERE key_hash = ? AND principal_id = ?
+		WHERE key_hash = ? AND principal_kind = ? AND principal_key = ?
 		AND workspace_id = ? AND operation = ?
-	`, keyHash, principalID, workspaceID, "items.create").Scan(
+	`, keyHash, principalKind, principalKey, workspaceID, "items.create").Scan(
 		&storedRequestHash, &resultJSON, &expiresAt,
 	)
 	if err == nil {
@@ -230,9 +230,9 @@ func (s *Service) create(
 		}
 		if _, err := s.exec(ctx, tx, `
 			DELETE FROM idempotency_records
-			WHERE key_hash = ? AND principal_id = ?
+			WHERE key_hash = ? AND principal_kind = ? AND principal_key = ?
 			AND workspace_id = ? AND operation = ?
-		`, keyHash, principalID, workspaceID, "items.create"); err != nil {
+		`, keyHash, principalKind, principalKey, workspaceID, "items.create"); err != nil {
 			return CreateResult{}, err
 		}
 	} else if !errors.Is(err, sql.ErrNoRows) {
@@ -278,11 +278,11 @@ func (s *Service) create(
 	}
 	result, err := s.exec(ctx, tx, `
 		INSERT INTO idempotency_records (
-			key_hash, principal_id, workspace_id, operation, request_hash,
+			key_hash, principal_kind, principal_key, workspace_id, operation, request_hash,
 			result_json, created_at, expires_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		ON CONFLICT (key_hash, principal_id, workspace_id, operation) DO NOTHING
-	`, keyHash, principalID, workspaceID, "items.create", requestHash,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT (key_hash, principal_kind, principal_key, workspace_id, operation) DO NOTHING
+	`, keyHash, principalKind, principalKey, workspaceID, "items.create", requestHash,
 		string(encoded), formatTime(now), formatTime(now.Add(idempotencyRetention)))
 	if err != nil {
 		return CreateResult{}, err
@@ -735,11 +735,13 @@ func validIdempotencyKey(value string) bool {
 	return true
 }
 
-func principalID(actor identity.Principal) string {
-	if actor.TokenID != "" {
-		return "token:" + actor.TokenID
+// idempotencyPrincipal names the typed principal that scopes an idempotency
+// record: the authenticating credential's type code and key, or the user for a session.
+func idempotencyPrincipal(actor identity.Principal) (string, int64) {
+	if actor.TokenKind != "" {
+		return actor.TokenKind, actor.TokenKey
 	}
-	return "user:" + actor.UserID.String()
+	return "user", int64(actor.UserID)
 }
 
 func hash(value string) string {

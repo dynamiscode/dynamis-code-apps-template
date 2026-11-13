@@ -79,8 +79,11 @@ type Principal struct {
 	Role        Role
 	Permissions map[Permission]bool
 	AuthMethod  string
-	TokenID     string
-	AuthLevel   AuthLevel
+	// TokenKind and TokenKey name the integer-keyed credential row that authenticated
+	// the request (the type code and key); both are zero for a session.
+	TokenKind string
+	TokenKey  int64
+	AuthLevel AuthLevel
 }
 
 type BootstrapInput struct {

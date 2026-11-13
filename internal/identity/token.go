@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 func (s *Service) CreateAPIToken(
@@ -148,7 +150,7 @@ func (s *Service) AuthenticateAPIToken(
 	}
 	principal := Principal{
 		UserID: userID, WorkspaceID: workspaceID, Role: role,
-		Permissions: permissions, AuthMethod: "api_token", TokenID: tokenID.String(),
+		Permissions: permissions, AuthMethod: "api_token", TokenKind: string(id.TypeToken), TokenKey: int64(tokenID),
 	}
 	usedScopes := []Permission{needed}
 	if needed == "" {
