@@ -203,11 +203,13 @@ func checkSkills(t *testing.T, root string) {
 				t.Errorf("skill references temporary source %s: %s", temporary, path)
 			}
 		}
-		// .claude/skills is a real copy for Claude Code; the template generator rejects symlinks.
-		mirror := filepath.Join(root, ".claude/skills", filepath.Base(filepath.Dir(path)), "SKILL.md")
-		if readFile(t, mirror) != content {
-			t.Errorf("%s drifted from %s; copy the skill into .claude/skills", mirror, path)
-		}
+	}
+	// .claude/skills must stay a relative link to the single source in .agents/skills.
+	link := filepath.Join(root, ".claude/skills")
+	if info, err := os.Lstat(link); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Errorf("%s must be a symlink to ../.agents/skills", link)
+	} else if target, _ := os.Readlink(link); target != "../.agents/skills" {
+		t.Errorf("%s links to %q; want ../.agents/skills", link, target)
 	}
 }
 

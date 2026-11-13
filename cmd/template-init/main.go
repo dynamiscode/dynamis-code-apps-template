@@ -218,7 +218,7 @@ func copyTemplate(
 			return os.MkdirAll(target, 0o750)
 		}
 		if entry.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("template symlink is unsupported: %s", relative)
+			return copySymlink(root, path, target, relative)
 		}
 		raw, err := os.ReadFile(path)
 		if err != nil {
@@ -256,6 +256,25 @@ func copyTemplate(
 		}
 		return os.WriteFile(target, raw, info.Mode().Perm())
 	})
+}
+
+// copySymlink recreates a relative symlink whose target stays inside the
+// template tree, such as .claude/skills -> ../.agents/skills. Targets are copied
+// as-is and not pruned by profile, so use it only for paths that are always kept.
+// Any other symlink is rejected.
+func copySymlink(root, path, target, relative string) error {
+	link, err := os.Readlink(path)
+	if err != nil {
+		return err
+	}
+	if filepath.IsAbs(link) {
+		return fmt.Errorf("template symlink must be relative: %s", relative)
+	}
+	resolved, err := filepath.Rel(root, filepath.Join(filepath.Dir(path), link))
+	if err != nil || resolved == ".." || strings.HasPrefix(resolved, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("template symlink escapes the template: %s", relative)
+	}
+	return os.Symlink(link, target)
 }
 
 func filesPath(relative string) bool {
