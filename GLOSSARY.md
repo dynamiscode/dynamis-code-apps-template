@@ -18,6 +18,8 @@ the source wins and this file gets fixed.
 | Identity | Always composed with Core. The shared authentication and authorization boundary. | [Authentication](docs/authentication.md) |
 | Agent | Optional. Adds the MCP server, the REST-only `appctl` client, a bootstrap route, and an Agent smoke test. | [Template lifecycle](docs/template-lifecycle.md) |
 | Files | Optional. Adds file support on object storage; requires Identity. | [Files decision](docs/decisions/0005-files-object-storage.md) |
+| Streamed upload | A file upload whose bytes pass through the application to the object store, on every storage driver. Replaces the retired term "presigned upload". | [Streamed S3 uploads decision](docs/decisions/0010-streamed-s3-uploads.md) |
+| Presigned URL | A short-lived, signed object-store URL. Used for S3 downloads. Presigned PUT is not a REST upload path; uploads are streamed uploads. | [Streamed S3 uploads decision](docs/decisions/0010-streamed-s3-uploads.md), [Files decision](docs/decisions/0005-files-object-storage.md) |
 | Instance administrator | Installation-level administration. Never grants workspace access. | [Authentication](docs/authentication.md) |
 | Workspace | The tenant boundary. Workspace authority comes only from an active membership. | [Authentication](docs/authentication.md) |
 | Workspace short ID | The public form of a workspace's integer key: a Sqids string. The only form in paths, arguments, bodies, and responses. | [Architecture](docs/architecture.md#ids-time-and-transactions) |
