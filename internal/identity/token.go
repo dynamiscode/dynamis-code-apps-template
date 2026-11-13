@@ -112,7 +112,7 @@ func (s *Service) AuthenticateAPIToken(
 		if err := s.audit(ctx, tx, AuditEvent{
 			EventType: "mfa.policy.enforced", ActorUserID: userID,
 			AuthMethod: "policy", WorkspaceID: workspaceID,
-			TargetType: "user", TargetID: userID.String(), Action: "mfa.policy.enforce",
+			TargetType: "user", TargetKey: int64(userID), Action: "mfa.policy.enforce",
 			Outcome: "success", RequestID: audit.RequestID,
 			SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 		}); err != nil {
@@ -318,7 +318,7 @@ func (s *Service) auditToken(
 	return s.audit(ctx, tx, AuditEvent{
 		EventType: "api_token." + action, ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID,
-		TargetType: "api_token", TargetID: tokenID.String(),
+		TargetType: "token", TargetKey: int64(tokenID),
 		Action: "api_token." + action, Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: metadata(map[string]any{"scopes": scopes}), CreatedAt: now,

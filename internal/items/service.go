@@ -301,7 +301,7 @@ func (s *Service) create(
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "item.created", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "item", TargetID: item.ID.String(), Action: "item.create",
+		TargetType: "item", TargetKey: int64(item.ID), Action: "item.create",
 		Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
@@ -506,7 +506,7 @@ func (s *Service) Update(
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "item.updated", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "item", TargetID: item.ID.String(), Action: "item.update",
+		TargetType: "item", TargetKey: int64(item.ID), Action: "item.update",
 		Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress,
 		Metadata:      fmt.Sprintf(`{"version":%d}`, item.Version),
@@ -574,7 +574,7 @@ func (s *Service) Delete(
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "item.deleted", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "item", TargetID: item.ID.String(), Action: "item.delete",
+		TargetType: "item", TargetKey: int64(item.ID), Action: "item.delete",
 		Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress,
 		Metadata:      fmt.Sprintf(`{"version":%d,"permanent":true}`, item.Version),

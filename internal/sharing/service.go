@@ -113,7 +113,7 @@ func (s *Service) Create(
 	}
 	if err := s.audit(ctx, tx, identity.AuditEvent{
 		EventType: "public_share.created", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: workspaceID, TargetType: "public_share", TargetID: link.ID.String(),
+		WorkspaceID: workspaceID, TargetType: "public_link", TargetKey: int64(link.ID),
 		Action: "public_share.create", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"item_id": itemID}), CreatedAt: now,
 	}); err != nil {
@@ -199,7 +199,7 @@ func (s *Service) Revoke(
 	}
 	if err := s.audit(ctx, tx, identity.AuditEvent{
 		EventType: "public_share.revoked", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: workspaceID, TargetType: "public_share", TargetID: linkID,
+		WorkspaceID: workspaceID, TargetType: "public_link", TargetKey: linkKey,
 		Action: "public_share.revoke", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"item_id": itemID}), CreatedAt: now,
 	}); err != nil {
@@ -251,7 +251,7 @@ func (s *Service) Resolve(ctx context.Context, token string, audit identity.Audi
 	}
 	if auditErr := s.audit(ctx, tx, identity.AuditEvent{
 		EventType: "public_share.accessed", AuthMethod: "public", WorkspaceID: workspaceID,
-		TargetType: "public_share", TargetID: linkID.String(), Action: "public_share.access",
+		TargetType: "public_link", TargetKey: int64(linkID), Action: "public_share.access",
 		Outcome: outcome, RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: metadata(map[string]any{"item_id": itemID}), CreatedAt: now,
 	}); auditErr != nil {

@@ -588,10 +588,23 @@ func (h *handler) audit(
 	return h.identity.RecordAudit(ctx, identity.AuditEvent{
 		EventType: eventType, ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: record.workspaceID,
-		TargetType: targetType, TargetID: record.targetID, Action: action,
+		TargetType: targetType, TargetKey: auditTargetKey(targetType, record.targetID), Action: action,
 		Outcome: outcome, RequestID: requestID(req),
 		SourceAddress: sourceAddress(req), Metadata: string(metadata), CreatedAt: time.Now().UTC(),
 	})
+}
+
+// auditTargetKey decodes an item short ID to its key. Other target types, and
+// malformed item IDs, have no key.
+func auditTargetKey(targetType, shortID string) int64 {
+	if targetType != "item" {
+		return 0
+	}
+	itemID, err := items.ParseItemID(shortID)
+	if err != nil {
+		return 0
+	}
+	return int64(itemID)
 }
 
 func errorCategory(err error) string {

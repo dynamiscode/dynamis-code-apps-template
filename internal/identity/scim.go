@@ -76,7 +76,7 @@ func (s *Service) CreateSCIMToken(ctx context.Context, actor Principal, audit Au
 	for _, revokedID := range revokedIDs {
 		if err := s.audit(ctx, tx, AuditEvent{
 			EventType: "scim.token.revoked", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-			WorkspaceID: actor.WorkspaceID, TargetType: "scim_token", TargetID: revokedID.String(),
+			WorkspaceID: actor.WorkspaceID, TargetType: "scim_token", TargetKey: int64(revokedID),
 			Action: "scim.token.revoke", Outcome: "success", RequestID: audit.RequestID,
 			SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 		}); err != nil {
@@ -85,7 +85,7 @@ func (s *Service) CreateSCIMToken(ctx context.Context, actor Principal, audit Au
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "scim.token.created", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: actor.WorkspaceID, TargetType: "scim_token", TargetID: token.ID.String(),
+		WorkspaceID: actor.WorkspaceID, TargetType: "scim_token", TargetKey: int64(token.ID),
 		Action: "scim.token.create", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
@@ -358,7 +358,7 @@ func (s *Service) CreateSCIMUser(ctx context.Context, actor Principal, input SCI
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "scim.user.created", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: actor.WorkspaceID, TargetType: "scim_user", TargetID: userID.String(),
+		WorkspaceID: actor.WorkspaceID, TargetType: "user", TargetKey: int64(userID),
 		Action: "scim.user.create", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"role": Member}), CreatedAt: now,
 	}); err != nil {
@@ -446,7 +446,7 @@ func (s *Service) PatchSCIMUser(ctx context.Context, actor Principal, resourceID
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "scim.user.updated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: actor.WorkspaceID, TargetType: "scim_user", TargetID: current.ID,
+		WorkspaceID: actor.WorkspaceID, TargetType: "user", TargetKey: int64(current.UserID),
 		Action: "scim.user.update", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"active": active}), CreatedAt: now,
 	}); err != nil {
@@ -567,7 +567,7 @@ func (s *Service) PatchSCIMGroup(ctx context.Context, actor Principal, groupID s
 					return SCIMGroup{}, err
 				}
 				if !active || currentRole != group.Role {
-					if err := s.audit(ctx, tx, AuditEvent{EventType: "scim.group.member.added", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID, TargetType: "scim_user", TargetID: userID.String(), Action: "scim.group.member.add", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"role": group.Role}), CreatedAt: now}); err != nil {
+					if err := s.audit(ctx, tx, AuditEvent{EventType: "scim.group.member.added", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID, TargetType: "user", TargetKey: int64(userID), Action: "scim.group.member.add", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"role": group.Role}), CreatedAt: now}); err != nil {
 						return SCIMGroup{}, err
 					}
 				}
@@ -593,7 +593,7 @@ func (s *Service) PatchSCIMGroup(ctx context.Context, actor Principal, groupID s
 				if _, err := s.exec(ctx, tx, "UPDATE scim_tokens SET revoked_at = ? WHERE created_by_user_id = ? AND workspace_id = ? AND revoked_at IS NULL", timestamp(now), userID, actor.WorkspaceID); err != nil {
 					return SCIMGroup{}, err
 				}
-				if err := s.audit(ctx, tx, AuditEvent{EventType: "scim.group.member.removed", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID, TargetType: "scim_user", TargetID: userID.String(), Action: "scim.group.member.remove", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"role": group.Role}), CreatedAt: now}); err != nil {
+				if err := s.audit(ctx, tx, AuditEvent{EventType: "scim.group.member.removed", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID, TargetType: "user", TargetKey: int64(userID), Action: "scim.group.member.remove", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"role": group.Role}), CreatedAt: now}); err != nil {
 					return SCIMGroup{}, err
 				}
 			}
@@ -602,7 +602,7 @@ func (s *Service) PatchSCIMGroup(ctx context.Context, actor Principal, groupID s
 	if err := s.bumpSCIMGroupVersions(ctx, tx, actor.WorkspaceID, changedRoles...); err != nil {
 		return SCIMGroup{}, err
 	}
-	if err := s.audit(ctx, tx, AuditEvent{EventType: "scim.group.updated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID, TargetType: "scim_group", TargetID: group.ID, Action: "scim.group.update", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"role": group.Role}), CreatedAt: now}); err != nil {
+	if err := s.audit(ctx, tx, AuditEvent{EventType: "scim.group.updated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID, TargetType: "scim_group", Action: "scim.group.update", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"role": group.Role}), CreatedAt: now}); err != nil {
 		return SCIMGroup{}, err
 	}
 	updated, err := s.getSCIMGroupTx(ctx, tx, actor.WorkspaceID, groupID)
@@ -729,9 +729,8 @@ func (s *Service) ensureSCIMGroups(ctx context.Context, tx *sql.Tx, workspaceID 
 		}
 		if err := s.audit(ctx, tx, AuditEvent{
 			EventType: "scim.group.created", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-			WorkspaceID: workspaceID, TargetType: "scim_group", TargetID: string(role),
-			Action: "scim.group.create", Outcome: "success", RequestID: audit.RequestID,
-			SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: createdAt,
+			WorkspaceID: workspaceID, TargetType: "scim_group", Action: "scim.group.create", Outcome: "success", RequestID: audit.RequestID,
+			SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"role": string(role)}), CreatedAt: createdAt,
 		}); err != nil {
 			return err
 		}

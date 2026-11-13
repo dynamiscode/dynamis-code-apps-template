@@ -249,7 +249,7 @@ func (s *Service) recordImportAudit(
 	return s.identity.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "workspace.imported", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "workspace", TargetID: workspaceID.String(), Action: "workspace.import",
+		TargetType: "workspace", TargetKey: int64(workspaceID), Action: "workspace.import",
 		Outcome: outcome, RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata:  fmt.Sprintf(`{"format":%q,"records":%d}`, format, records),
 		CreatedAt: s.now().UTC(),
@@ -393,7 +393,7 @@ func (s *Service) itemRecords(ctx context.Context, tx *sql.Tx, workspaceID ident
 func (s *Service) auditEvents(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID) ([]AuditEvent, error) {
 	rows, err := tx.QueryContext(ctx, s.bind(`
 		SELECT id, event_type, actor_user_id, auth_method, workspace_id,
-			target_type, target_id, action, outcome, request_id,
+			target_type, target_key, action, outcome, request_id,
 			source_address, metadata, created_at
 		FROM audit_events WHERE workspace_id = ? ORDER BY created_at, id LIMIT ?
 	`), workspaceID, s.maxRecords+1)
@@ -405,7 +405,8 @@ func (s *Service) auditEvents(ctx context.Context, tx *sql.Tx, workspaceID ident
 	for rows.Next() {
 		var value AuditEvent
 		var actor sql.NullInt64
-		var target, requestID, source sql.NullString
+		var target sql.NullInt64
+		var requestID, source sql.NullString
 		var scope sql.NullInt64
 		var metadata, createdAt string
 		var key int64
@@ -420,7 +421,10 @@ func (s *Service) auditEvents(ctx context.Context, tx *sql.Tx, workspaceID ident
 		if actor.Valid {
 			value.ActorUserID = identity.UserID(actor.Int64).String()
 		}
-		value.TargetID = target.String
+		if target.Valid {
+			// The short ID is derived from the row's type and key; key-less targets have none.
+			value.TargetID = id.EncodeKey(id.TypeCode(value.TargetType), target.Int64)
+		}
 		if scope.Valid {
 			value.WorkspaceID = identity.WorkspaceID(scope.Int64)
 		}
@@ -450,7 +454,7 @@ func (s *Service) recordAudit(
 	return s.identity.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "workspace.exported", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "workspace", TargetID: workspaceID.String(), Action: "workspace.export",
+		TargetType: "workspace", TargetKey: int64(workspaceID), Action: "workspace.export",
 		Outcome: outcome, RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: fmt.Sprintf(`{"format_version":%q}`, FormatVersion), CreatedAt: now,
 	})

@@ -155,7 +155,7 @@ func (s *Service) BootstrapFirstOwner(
 		AuthMethod:    "bootstrap",
 		WorkspaceID:   workspaceID,
 		TargetType:    "workspace",
-		TargetID:      workspaceID.String(),
+		TargetKey:     int64(workspaceID),
 		Action:        "bootstrap",
 		Outcome:       "success",
 		RequestID:     audit.RequestID,
@@ -245,7 +245,7 @@ func (s *Service) CreateWorkspace(
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "workspace.created", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "workspace", TargetID: workspaceID.String(),
+		TargetType: "workspace", TargetKey: int64(workspaceID),
 		Action: "workspace.create", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: "{}", CreatedAt: now,
@@ -539,7 +539,7 @@ func (s *Service) AddMember(
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "workspace.member.added", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID,
-		TargetType: "user", TargetID: userID.String(), Action: "member.add",
+		TargetType: "user", TargetKey: int64(userID), Action: "member.add",
 		Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress,
 		Metadata:      metadata(map[string]any{"role": role}), CreatedAt: now,
@@ -591,7 +591,7 @@ func (s *Service) ChangeMemberRole(
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "workspace.member.role_changed", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID,
-		TargetType: "user", TargetID: userID.String(), Action: "member.role.change",
+		TargetType: "user", TargetKey: int64(userID), Action: "member.role.change",
 		Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress,
 		Metadata:      metadata(map[string]any{"from": current, "to": role}), CreatedAt: now,
@@ -654,7 +654,7 @@ func (s *Service) TransferOwnership(
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "workspace.ownership.transferred", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID,
-		TargetType: "user", TargetID: newOwnerUserID.String(),
+		TargetType: "user", TargetKey: int64(newOwnerUserID),
 		Action: "ownership.transfer", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: metadata(map[string]any{"previous_role": targetRole}), CreatedAt: now,
@@ -711,7 +711,7 @@ func (s *Service) RemoveMember(
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "workspace.member.removed", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID,
-		TargetType: "user", TargetID: userID.String(), Action: "member.remove",
+		TargetType: "user", TargetKey: int64(userID), Action: "member.remove",
 		Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
@@ -799,11 +799,11 @@ func (s *Service) audit(
 	_, err := s.exec(ctx, executor, `
 		INSERT INTO audit_events (
 			event_type, actor_user_id, auth_method, workspace_id,
-			target_type, target_id, action, outcome, request_id,
+			target_type, target_key, action, outcome, request_id,
 			source_address, metadata, created_at
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, event.EventType, nullableUserID(event.ActorUserID), event.AuthMethod,
-		nullableWorkspaceID(event.WorkspaceID), event.TargetType, nullable(event.TargetID),
+		nullableWorkspaceID(event.WorkspaceID), event.TargetType, nullableTargetKey(event.TargetKey),
 		event.Action, event.Outcome, nullable(event.RequestID),
 		nullable(event.SourceAddress), event.Metadata, timestamp(event.CreatedAt))
 	if err != nil {
@@ -829,6 +829,14 @@ func nullable(value string) any {
 		return nil
 	}
 	return value
+}
+
+// nullableTargetKey stores a key-less target as SQL NULL.
+func nullableTargetKey(key int64) any {
+	if key <= 0 {
+		return nil
+	}
+	return key
 }
 
 func (s *Service) require(

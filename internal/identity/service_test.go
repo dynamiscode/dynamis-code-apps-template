@@ -364,8 +364,8 @@ func TestInvitationLifecycle(t *testing.T) {
 	var expirationEvents int
 	if err := db.QueryRow(`
 		SELECT COUNT(*) FROM audit_events
-		WHERE event_type = 'invitation.expired' AND target_id = ?
-	`, expired.ID.String()).Scan(&expirationEvents); err != nil || expirationEvents != 1 {
+		WHERE event_type = 'invitation.expired' AND target_type = 'invitation' AND target_key = ?
+	`, int64(expired.ID)).Scan(&expirationEvents); err != nil || expirationEvents != 1 {
 		t.Fatalf("expiration audit count = %d, error = %v", expirationEvents, err)
 	}
 	revivedSecret, err := service.ResendInvitation(

@@ -105,8 +105,7 @@ func (s *Service) createSessionWithLevelTx(
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "session.created", ActorUserID: userID,
-		AuthMethod: authMethod, TargetType: "session", TargetID: session.ID,
-		Action: "session.create", Outcome: "success", RequestID: audit.RequestID,
+		AuthMethod: authMethod, TargetType: "session", Action: "session.create", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
 		return NewSession{}, err
@@ -159,8 +158,7 @@ func (s *Service) enforceSessionLimit(
 		}
 		if err := s.audit(ctx, tx, AuditEvent{
 			EventType: "session.limit_revoked", ActorUserID: userID,
-			AuthMethod: "system", TargetType: "session", TargetID: sessionID,
-			Action: "session.revoke", Outcome: "success", RequestID: audit.RequestID,
+			AuthMethod: "system", TargetType: "session", Action: "session.revoke", Outcome: "success", RequestID: audit.RequestID,
 			SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 		}); err != nil {
 			return err
@@ -284,8 +282,7 @@ func (s *Service) RevokeSession(
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "session.revoked", ActorUserID: userID,
-		AuthMethod: authMethod, TargetType: "session", TargetID: sessionID,
-		Action: "session.revoke", Outcome: "success", RequestID: audit.RequestID,
+		AuthMethod: authMethod, TargetType: "session", Action: "session.revoke", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
 		return "", err

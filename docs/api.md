@@ -205,6 +205,9 @@ documented in [authentication](authentication.md).
 - User IDs in responses and exports are short IDs only: `userId` on tokens and
   sessions, `ExportMember.userId`, item `createdByUserId`, file `ownerUserId`,
   and audit `actorUserId` and user `targetId`. Integer keys are never emitted.
+  An audit `targetId` is the short ID of the entity named by `targetType`; a
+  target with no integer key (a session, MFA challenge, or external identity)
+  has no `targetId`.
 
 Identity and workspace routes use `Authorization: Bearer <token>`. The token
 must belong to the path workspace and include the permission required by the

@@ -117,7 +117,7 @@ CREATE TABLE audit_events (
     auth_method TEXT NOT NULL,
     workspace_id BIGINT,
     target_type TEXT NOT NULL,
-    target_id TEXT,
+    target_key BIGINT,
     action TEXT NOT NULL,
     outcome TEXT NOT NULL,
     request_id TEXT,

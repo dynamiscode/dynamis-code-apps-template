@@ -481,8 +481,7 @@ func (s *Service) AuthenticateOIDC(
 		}
 		if err := s.audit(ctx, tx, AuditEvent{
 			EventType: "external_identity.created", ActorUserID: existingID,
-			AuthMethod: "oidc", TargetType: "external_identity", TargetID: identityID,
-			Action: "external_identity.create", Outcome: "success",
+			AuthMethod: "oidc", TargetType: "external_identity", Action: "external_identity.create", Outcome: "success",
 			RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 			Metadata:  metadata(map[string]any{"provider_id": claims.ProviderID}),
 			CreatedAt: now,
@@ -518,8 +517,7 @@ func (s *Service) AuthenticateOIDC(
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "external_identity.created", ActorUserID: userID,
-		AuthMethod: "oidc", TargetType: "external_identity", TargetID: identityID,
-		Action: "external_identity.create", Outcome: "success",
+		AuthMethod: "oidc", TargetType: "external_identity", Action: "external_identity.create", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata:  metadata(map[string]any{"provider_id": claims.ProviderID}),
 		CreatedAt: now,
@@ -568,7 +566,7 @@ func (s *Service) LinkOIDCIdentity(
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "external_identity.linked", ActorUserID: principal.UserID,
 		AuthMethod: principal.AuthMethod, TargetType: "external_identity",
-		TargetID: identityID, Action: "external_identity.link",
+		Action:  "external_identity.link",
 		Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress,
 		Metadata:      metadata(map[string]any{"provider_id": claims.ProviderID}),

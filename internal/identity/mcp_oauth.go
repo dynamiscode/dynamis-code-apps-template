@@ -100,7 +100,7 @@ func (s *Service) RegisterOAuthClient(
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "oauth.client.registered", AuthMethod: "oauth",
-		TargetType: "oauth_client", TargetID: id.EncodeKey(id.TypeOAuthClient, rowID), Action: "oauth.client.register",
+		TargetType: "oauth_client", TargetKey: int64(rowID), Action: "oauth.client.register",
 		Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: "{}", CreatedAt: now,
 	}); err != nil {
@@ -198,7 +198,7 @@ func (s *Service) ApproveOAuthConsent(
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "oauth.grant.created", ActorUserID: session.UserID, AuthMethod: "oauth",
-		WorkspaceID: workspaceID, TargetType: "oauth_grant", TargetID: id.EncodeKey(id.TypeOAuthGrant, storedGrantID),
+		WorkspaceID: workspaceID, TargetType: "oauth_grant", TargetKey: int64(storedGrantID),
 		Action: "oauth.grant.create", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
@@ -517,7 +517,7 @@ func (s *Service) revokeOAuthGrant(
 		return err
 	}
 	return s.audit(ctx, tx, AuditEvent{
-		EventType: action, AuthMethod: "oauth", TargetType: "oauth_grant", TargetID: id.EncodeKey(id.TypeOAuthGrant, grantID),
+		EventType: action, AuthMethod: "oauth", TargetType: "oauth_grant", TargetKey: int64(grantID),
 		Action: action, Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	})

@@ -78,7 +78,7 @@ func (s *Service) CreateNotification(
 	if actor.AuthMethod != "system" {
 		if err := s.audit(ctx, tx, AuditEvent{
 			EventType: "notification.created", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-			WorkspaceID: input.WorkspaceID, TargetType: "notification", TargetID: notificationID.String(),
+			WorkspaceID: input.WorkspaceID, TargetType: "notification", TargetKey: int64(notificationID),
 			Action: "notification.create", Outcome: "success", RequestID: audit.RequestID,
 			SourceAddress: audit.SourceAddress,
 			Metadata:      metadata(map[string]any{"type": input.NotificationType}), CreatedAt: now,
@@ -194,8 +194,7 @@ func (s *Service) setNotificationPreference(
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "notification.preference.updated", ActorUserID: userID, AuthMethod: "session",
-		WorkspaceID: workspaceID, TargetType: "notification_preference", TargetID: notificationType,
-		Action: "notification.preference.update", Outcome: "success", RequestID: audit.RequestID,
+		WorkspaceID: workspaceID, TargetType: "notification_preference", Action: "notification.preference.update", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress,
 		Metadata:      metadata(map[string]any{"type": notificationType, "enabled": enabled}), CreatedAt: now,
 	}); err != nil {
@@ -392,7 +391,7 @@ func (s *Service) MarkNotificationRead(
 	}
 	return s.RecordAudit(ctx, AuditEvent{
 		EventType: "notification.read", ActorUserID: userID, AuthMethod: "session",
-		TargetType: "notification", TargetID: notificationID, Action: "notification.read",
+		TargetType: "notification", TargetKey: int64(notificationKey), Action: "notification.read",
 		Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: "{}", CreatedAt: now,
 	})

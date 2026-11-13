@@ -221,15 +221,20 @@ func TestMFAEnrollmentLoginRecoveryAndReplay(t *testing.T) {
 	if err := db.QueryRow("SELECT id FROM mfa_challenges WHERE token_hash = ?", hashSecret(expired.Token)).Scan(&expiredChallengeID); err != nil {
 		t.Fatal(err)
 	}
+	// Challenge IDs are credentials, so a failed challenge has no target key; count the delta instead.
+	var failedBefore int
+	if err := db.QueryRow("SELECT COUNT(*) FROM audit_events WHERE event_type = 'mfa.challenge.failed' AND target_type = 'mfa_challenge' AND target_key IS NULL").Scan(&failedBefore); err != nil {
+		t.Fatal(err)
+	}
 	now = base.Add(mfaChallengeLifetime + time.Second)
 	if _, err := service.CompleteTOTPLogin(ctx, expired.Token, totpTestCode(enrollment.Secret, now), AuditContext{}); !errors.Is(err, ErrInvalidMFAChallenge) {
 		t.Fatalf("expired MFA challenge error = %v", err)
 	}
 	var expiredAuditCount int
-	if err := db.QueryRow("SELECT COUNT(*) FROM audit_events WHERE event_type = 'mfa.challenge.failed' AND target_id = ?", expiredChallengeID).Scan(&expiredAuditCount); err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM audit_events WHERE event_type = 'mfa.challenge.failed' AND target_type = 'mfa_challenge' AND target_key IS NULL").Scan(&expiredAuditCount); err != nil {
 		t.Fatal(err)
 	}
-	if expiredAuditCount != 1 {
+	if expiredAuditCount != failedBefore+1 {
 		t.Fatalf("expired MFA challenge audit count = %d", expiredAuditCount)
 	}
 	now = base

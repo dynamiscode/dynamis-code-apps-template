@@ -150,7 +150,7 @@ func TestSCIMProvisioningLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	var rotationRevocations int
-	if err := db.QueryRow("SELECT COUNT(*) FROM audit_events WHERE event_type = ? AND target_id = ?", "scim.token.revoked", token.ID.String()).Scan(&rotationRevocations); err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM audit_events WHERE event_type = ? AND target_type = 'scim_token' AND target_key = ?", "scim.token.revoked", int64(token.ID)).Scan(&rotationRevocations); err != nil {
 		t.Fatal(err)
 	}
 	if rotationRevocations != 1 {
@@ -424,7 +424,7 @@ func TestSCIMGroupRemovalCleansUpAndReturnsAfterSelfDeactivation(t *testing.T) {
 	if err := db.QueryRow("SELECT COUNT(*) FROM workspace_notification_preferences WHERE workspace_id = ? AND user_id = ?", bootstrap.WorkspaceID, user.UserID).Scan(&preferences); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.QueryRow("SELECT COUNT(*) FROM audit_events WHERE event_type = ? AND target_id = ?", "scim.group.member.removed", user.ID).Scan(&removals); err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM audit_events WHERE event_type = ? AND target_type = 'user' AND target_key = ?", "scim.group.member.removed", int64(user.UserID)).Scan(&removals); err != nil {
 		t.Fatal(err)
 	}
 	if preferences != 0 || removals != 1 {

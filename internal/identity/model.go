@@ -341,13 +341,14 @@ type AuditContext struct {
 }
 
 type AuditEvent struct {
-	ID            string
-	EventType     string
-	ActorUserID   UserID
-	AuthMethod    string
-	WorkspaceID   WorkspaceID
-	TargetType    string
-	TargetID      string
+	ID          string
+	EventType   string
+	ActorUserID UserID
+	AuthMethod  string
+	WorkspaceID WorkspaceID
+	TargetType  string
+	// TargetKey is the target's integer key in TargetType's table; zero means no key.
+	TargetKey     int64
 	Action        string
 	Outcome       string
 	RequestID     string

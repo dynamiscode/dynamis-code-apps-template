@@ -168,7 +168,7 @@ func (h *handler) auditPrompt(ctx context.Context, request *mcp.GetPromptRequest
 	return h.identity.RecordAudit(ctx, identity.AuditEvent{
 		EventType: "mcp.prompt.called", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "workspace", TargetID: workspaceID.String(), Action: name,
+		TargetType: "workspace", TargetKey: int64(workspaceID), Action: name,
 		Outcome: outcome, RequestID: promptRequestID(request),
 		SourceAddress: promptSourceAddress(request), Metadata: string(metadata), CreatedAt: time.Now().UTC(),
 	})
