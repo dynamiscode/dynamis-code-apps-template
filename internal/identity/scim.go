@@ -4,9 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 	"fmt"
 	"strings"
+
+	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 const (
@@ -19,6 +20,7 @@ const (
 type SCIMTokenID int64
 
 func (t SCIMTokenID) String() string { return id.EncodeKey(id.TypeSCIMToken, int64(t)) }
+
 func (s *Service) CreateSCIMToken(ctx context.Context, actor Principal, audit AuditContext) (NewSCIMToken, error) {
 	if s.require(ctx, actor, SCIMManage) != nil {
 		return NewSCIMToken{}, ErrForbidden
@@ -94,6 +96,7 @@ func (s *Service) CreateSCIMToken(ctx context.Context, actor Principal, audit Au
 	}
 	return token, nil
 }
+
 func (s *Service) RevokeSCIMToken(ctx context.Context, actor Principal, audit AuditContext) error {
 	if s.require(ctx, actor, SCIMManage) != nil {
 		return ErrForbidden
@@ -131,6 +134,7 @@ func (s *Service) RevokeSCIMToken(ctx context.Context, actor Principal, audit Au
 	}
 	return tx.Commit()
 }
+
 func (s *Service) AuthenticateSCIMToken(ctx context.Context, secret string, workspaceID WorkspaceID) (Principal, error) {
 	if strings.TrimSpace(secret) == "" || workspaceID == 0 {
 		return Principal{}, ErrInvalidToken
@@ -155,6 +159,7 @@ func (s *Service) AuthenticateSCIMToken(ctx context.Context, secret string, work
 		Permissions: permissions, AuthMethod: "scim_token", TokenID: tokenID.String(),
 	}, nil
 }
+
 func (s *Service) ListSCIMUsers(ctx context.Context, actor Principal, filterField, filterValue string, startIndex, count int) ([]SCIMUser, int, error) {
 	if s.require(ctx, actor, SCIMManage) != nil {
 		return nil, 0, ErrForbidden
@@ -211,6 +216,7 @@ func (s *Service) ListSCIMUsers(ctx context.Context, actor Principal, filterFiel
 	}
 	return users, total, nil
 }
+
 func (s *Service) GetSCIMUser(ctx context.Context, actor Principal, externalID string) (SCIMUser, error) {
 	if s.require(ctx, actor, SCIMManage) != nil {
 		return SCIMUser{}, ErrForbidden
@@ -229,6 +235,7 @@ func (s *Service) GetSCIMUser(ctx context.Context, actor Principal, externalID s
 	}
 	return user, nil
 }
+
 func (s *Service) CreateSCIMUser(ctx context.Context, actor Principal, input SCIMUserInput, audit AuditContext) (SCIMUser, error) {
 	if s.require(ctx, actor, SCIMManage) != nil {
 		return SCIMUser{}, ErrForbidden
@@ -348,6 +355,7 @@ func (s *Service) CreateSCIMUser(ctx context.Context, actor Principal, input SCI
 	}
 	return SCIMUser{ID: externalID, UserID: userID, ExternalID: externalID, UserName: email, Email: email, DisplayName: displayName, Active: true, Role: Member, Version: 1, CreatedAt: now, UpdatedAt: now}, nil
 }
+
 func (s *Service) PatchSCIMUser(ctx context.Context, actor Principal, externalID string, patch SCIMUserPatch, version int64, audit AuditContext) (SCIMUser, error) {
 	if s.require(ctx, actor, SCIMManage) != nil {
 		return SCIMUser{}, ErrForbidden
@@ -431,10 +439,12 @@ func (s *Service) PatchSCIMUser(ctx context.Context, actor Principal, externalID
 	}
 	return SCIMUser{ID: externalID, UserID: current.UserID, ExternalID: externalID, UserName: current.UserName, Email: current.Email, DisplayName: current.DisplayName, Active: active, Role: current.Role, Version: newVersion, CreatedAt: current.CreatedAt, UpdatedAt: now}, nil
 }
+
 func (s *Service) DeleteSCIMUser(ctx context.Context, actor Principal, externalID string, version int64, audit AuditContext) error {
 	_, err := s.PatchSCIMUser(ctx, actor, externalID, SCIMUserPatch{Active: boolPtr(false)}, version, audit)
 	return err
 }
+
 func (s *Service) ListSCIMGroups(ctx context.Context, actor Principal) ([]SCIMGroup, error) {
 	if s.require(ctx, actor, SCIMManage) != nil {
 		return nil, ErrForbidden
@@ -453,6 +463,7 @@ func (s *Service) ListSCIMGroups(ctx context.Context, actor Principal) ([]SCIMGr
 	}
 	return groups, nil
 }
+
 func (s *Service) GetSCIMGroup(ctx context.Context, actor Principal, groupID string) (SCIMGroup, error) {
 	if s.require(ctx, actor, SCIMManage) != nil {
 		return SCIMGroup{}, ErrForbidden
@@ -471,6 +482,7 @@ func (s *Service) GetSCIMGroup(ctx context.Context, actor Principal, groupID str
 	}
 	return group, nil
 }
+
 func (s *Service) PatchSCIMGroup(ctx context.Context, actor Principal, groupID string, operations []SCIMGroupOperation, version int64, audit AuditContext) (SCIMGroup, error) {
 	if s.require(ctx, actor, SCIMManage) != nil {
 		return SCIMGroup{}, ErrForbidden
@@ -581,6 +593,7 @@ func (s *Service) PatchSCIMGroup(ctx context.Context, actor Principal, groupID s
 	}
 	return updated, nil
 }
+
 func normalizeSCIMEmail(userName, email string) (string, error) {
 	userName = strings.TrimSpace(userName)
 	if email == "" {
@@ -622,6 +635,7 @@ func (s *Service) ensureSCIMMembership(ctx context.Context, tx *sql.Tx, workspac
 	}
 	return s.bumpSCIMGroupVersions(ctx, tx, workspaceID, role)
 }
+
 func (s *Service) bumpSCIMGroupVersions(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, roles ...Role) error {
 	seen := make(map[Role]struct{}, len(roles))
 	for _, role := range roles {
@@ -671,6 +685,7 @@ func (s *Service) syncSCIMMembership(ctx context.Context, tx *sql.Tx, workspaceI
 	}
 	return nil
 }
+
 func (s *Service) ensureSCIMGroups(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, actor Principal, audit AuditContext) error {
 	createdAt := s.now().UTC()
 	now := timestamp(createdAt)
@@ -702,6 +717,7 @@ func (s *Service) ensureSCIMGroups(ctx context.Context, tx *sql.Tx, workspaceID 
 	}
 	return nil
 }
+
 func (s *Service) getSCIMUserTx(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, externalID string) (SCIMUser, error) {
 	row := tx.QueryRowContext(ctx, s.bind(`
 		SELECT s.external_id, s.user_id, u.email, u.display_name, s.role, s.version,
@@ -712,6 +728,7 @@ func (s *Service) getSCIMUserTx(ctx context.Context, tx *sql.Tx, workspaceID Wor
 	`), workspaceID, externalID)
 	return scanSCIMUser(row)
 }
+
 func (s *Service) listSCIMGroupsTx(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID) ([]SCIMGroup, error) {
 	groups := make([]SCIMGroup, 0, 3)
 	for _, role := range []Role{Admin, Member, Viewer} {
@@ -723,6 +740,7 @@ func (s *Service) listSCIMGroupsTx(ctx context.Context, tx *sql.Tx, workspaceID 
 	}
 	return groups, nil
 }
+
 func (s *Service) getSCIMGroupTx(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, groupID string) (SCIMGroup, error) {
 	role := Role(strings.ToLower(strings.TrimSpace(groupID)))
 	if role != Admin && role != Member && role != Viewer {

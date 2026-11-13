@@ -4,9 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 	"strings"
 	"time"
+
+	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 const (
@@ -39,6 +40,7 @@ func (s *Service) GetUserProfile(ctx context.Context, userID UserID) (UserProfil
 	}
 	return profile, nil
 }
+
 func (s *Service) UpdateUserProfile(
 	ctx context.Context,
 	userID UserID,
@@ -90,6 +92,7 @@ func (s *Service) UpdateUserProfile(
 	}
 	return tx.Commit()
 }
+
 func normalizeTimezone(raw string) (string, error) {
 	value := strings.TrimSpace(raw)
 	if value == "" || len(value) > 128 || value == "Local" {
@@ -101,6 +104,7 @@ func normalizeTimezone(raw string) (string, error) {
 	}
 	return value, nil
 }
+
 func normalizeTheme(raw string) (string, error) {
 	switch strings.TrimSpace(raw) {
 	case "system", "light", "dark":
@@ -109,12 +113,14 @@ func normalizeTheme(raw string) (string, error) {
 		return "", errors.New("theme is invalid")
 	}
 }
+
 func validateNewPassword(password string) error {
 	if len(password) < 12 || len(password) > 1024 {
 		return ErrInvalidPassword
 	}
 	return nil
 }
+
 func (s *Service) ChangePassword(
 	ctx context.Context,
 	userID UserID, currentPassword, newPassword string,
@@ -158,6 +164,7 @@ func (s *Service) ChangePassword(
 	}
 	return tx.Commit()
 }
+
 func (s *Service) BeginEmailVerification(
 	ctx context.Context,
 	userID UserID,
@@ -215,6 +222,7 @@ func (s *Service) BeginEmailVerification(
 	}
 	return verification, nil
 }
+
 func (s *Service) VerifyEmail(ctx context.Context, secret string, audit AuditContext) error {
 	if secret == "" {
 		return ErrInvalidVerification
@@ -261,6 +269,7 @@ func (s *Service) VerifyEmail(ctx context.Context, secret string, audit AuditCon
 	}
 	return tx.Commit()
 }
+
 func (s *Service) BeginPasswordReset(
 	ctx context.Context,
 	email string,
@@ -316,6 +325,7 @@ func (s *Service) BeginPasswordReset(
 	}
 	return reset, nil
 }
+
 func (s *Service) CompletePasswordReset(
 	ctx context.Context,
 	secret, newPassword string,

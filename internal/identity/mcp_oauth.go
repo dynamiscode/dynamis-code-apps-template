@@ -5,11 +5,12 @@ import (
 	"crypto/subtle"
 	"database/sql"
 	"errors"
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 	"net"
 	"net/url"
 	"strings"
 	"time"
+
+	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 // OAuth lifetimes for MCP grants. Codes are single-use; access tokens are short
@@ -18,6 +19,7 @@ const (
 	oauthCodeLifetime    = 60 * time.Second
 	oauthRefreshLifetime = 30 * 24 * time.Hour
 	oauthMaxRedirectURIs = 5
+
 	// OAuthAccessLifetime is the MCP access-token lifetime advertised as expires_in.
 	OAuthAccessLifetime = 15 * time.Minute
 )

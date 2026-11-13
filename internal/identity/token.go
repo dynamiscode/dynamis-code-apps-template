@@ -72,6 +72,7 @@ func (s *Service) CreateAPIToken(
 	}
 	return token, nil
 }
+
 func (s *Service) AuthenticateAPIToken(
 	ctx context.Context,
 	secret string,

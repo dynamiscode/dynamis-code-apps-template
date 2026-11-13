@@ -5,14 +5,15 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"example.com/dynamis-code/apps-template/internal/platform/config"
-	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"fmt"
-	webauthnlib "github.com/go-webauthn/webauthn/webauthn"
 	"net/mail"
 	"strings"
 	"sync"
 	"time"
+
+	"example.com/dynamis-code/apps-template/internal/platform/config"
+	"example.com/dynamis-code/apps-template/internal/platform/database"
+	webauthnlib "github.com/go-webauthn/webauthn/webauthn"
 )
 
 const (
@@ -42,6 +43,7 @@ type Service struct {
 func NewService(db *sql.DB, driver config.DatabaseDriver) (*Service, error) {
 	return NewServiceWithMFA(db, driver, MFAConfig{})
 }
+
 func NewServiceWithMFA(db *sql.DB, driver config.DatabaseDriver, mfa MFAConfig) (*Service, error) {
 	dummyHashOnce.Do(func() {
 		dummyHash, dummyHashErr = hashPassword(
@@ -73,6 +75,7 @@ func NewServiceWithMFA(db *sql.DB, driver config.DatabaseDriver, mfa MFAConfig) 
 	service.webauthn = webAuthn
 	return service, nil
 }
+
 func (s *Service) BootstrapFirstOwner(
 	ctx context.Context,
 	input BootstrapInput,
@@ -104,6 +107,7 @@ func (s *Service) BootstrapFirstOwner(
 		return BootstrapResult{}, fmt.Errorf("begin bootstrap: %w", err)
 	}
 	defer tx.Rollback()
+
 	now := s.now().UTC()
 	if _, err := s.exec(ctx, tx,
 		"INSERT INTO bootstrap_state (id, completed_at) VALUES (?, ?)",
@@ -166,6 +170,7 @@ func (s *Service) BootstrapFirstOwner(
 	}
 	return BootstrapResult{UserID: userID, WorkspaceID: workspaceID}, nil
 }
+
 func (s *Service) IsBootstrapped(ctx context.Context) (bool, error) {
 	var one int
 	err := s.queryRow(ctx, s.db,
@@ -179,6 +184,7 @@ func (s *Service) IsBootstrapped(ctx context.Context) (bool, error) {
 	}
 	return true, nil
 }
+
 func (s *Service) CreateWorkspace(
 	ctx context.Context,
 	actor Principal,
@@ -251,6 +257,7 @@ func (s *Service) CreateWorkspace(
 	}
 	return workspaceID, nil
 }
+
 func (s *Service) AuthenticateLocal(
 	ctx context.Context,
 	email string,
