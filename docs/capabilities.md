@@ -629,6 +629,9 @@ which is `proposed` until the owner approves it.
   key (`session`, `mfa_challenge`, `external_identity`, `notification_preference`,
   `scim_group`) store `NULL` and no longer identify the specific object. Both are
   recorded in the exception.
+- Checks run with Go 1.27.4 at `97f5b50`: `make test` and `make lint` passed on SQLite;
+  `go generate ./api` produced no drift on two runs; `go test -p 1 -count=1 ./...` with
+  `POSTGRES_TEST_URL` passed against a fresh `postgres:14.24-alpine3.24` container.
 
 ## Files evidence
 
