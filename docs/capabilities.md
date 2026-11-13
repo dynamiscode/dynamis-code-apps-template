@@ -557,6 +557,35 @@ Checks run 2026-11-12 with Go 1.27.4: `make test` and `make lint` passed on SQLi
 `internal/platform/id`, `internal/web`, `internal/portability`) passed against a fresh
 PostgreSQL 14.24 container.
 
+## users short ID evidence
+
+Ticket #249 gives `users` an integer key under the `user` type code. Every
+column that references `users(id)` (21 columns) is `BIGINT`, and user IDs in
+REST, MCP, web, audit, and portability output are short IDs. `external_identities.id`,
+`sessions.id`, `oidc_transactions.state_hash`, and the MFA challenge and recovery-code keys
+keep text keys. Migrations 000002, 000005, 000007, 000012, 000013, 000014, 000015,
+000016, and 000020 are rewritten in place under the
+[recorded exception](decisions/exceptions/2026-11-13-users-short-id-migration-rewrite.md),
+which is `proposed` until the owner approves it.
+
+- Covered: `TestSQLiteUserKeysUseIntegerReferences` and
+  `TestPostgresUserKeysUseIntegerReferences` check `users.id` and the 21 referencing
+  columns are integer typed, and that `external_identities.id`, `sessions.id`, and
+  `oidc_transactions.state_hash` stay text. `TestUserIDJSONEmitsShortIDNotIntegerKey`
+  and `TestParseUserIDRejectsMalformedAndZero` check that the typed key emits and
+  accepts only short IDs. Login, OIDC, invitation, token, and SCIM flows run on
+  their existing identity tests with the new IDs.
+- Known limitation: the SCIM backfill in migrations 000012 and 000013 casts the user
+  key to text for `scim_users.external_id`. It runs only over existing `workspace_members`,
+  which is empty on a fresh database, so it has no effect on the reset path.
+- Known limitation: `idempotency_records.principal_id` now holds `user:<short ID>`,
+  and audit actor and target user IDs hold short IDs. Existing values from before
+  this change are not converted, because the databases are reset.
+- Not covered: the #250 contract surfaces (OpenAPI, generated contract, MCP tool
+  snapshot, SCIM `id` and `members.value`, `ExportMember.userId`, and the `userId`,
+  `ownerUserId`, and `createdByUserId` field names). They keep their names and string
+  shape in this change.
+
 ## Files evidence
 
 Files metadata migration and workspace authorization, local filesystem uploads

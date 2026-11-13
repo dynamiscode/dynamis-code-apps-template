@@ -156,6 +156,12 @@ Binary rollback is safe only when the old binary accepts the new schema.
 Otherwise restore the pre-upgrade backup. Future breaking schema work must use
 expand-contract or publish its explicit outage and recovery procedure.
 
+This version rewrites applied migrations for user short IDs
+([exception](decisions/exceptions/2026-11-13-users-short-id-migration-rewrite.md)).
+A database that applied the earlier versions of those migrations cannot be
+upgraded in place. Create a new database instead; existing accounts, sessions,
+memberships, and API tokens are not carried across.
+
 Measured 2026-08-25 on Apple M1 Pro, macOS 26.5, Go 1.27.0, SQLite: idle RSS
 33.9 MiB and 0% CPU. A 5,000-request readiness run at concurrency 16 completed
 in 0.749 seconds with zero failures (6,673 requests/second, 2.398 ms mean),
