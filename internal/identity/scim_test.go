@@ -59,7 +59,7 @@ func TestSCIMProvisioningLifecycle(t *testing.T) {
 		}
 	}
 	changedEmail := "attacker@example.com"
-	if _, err := service.PatchSCIMUser(ctx, scimPrincipal, user.ExternalID, SCIMUserPatch{Email: &changedEmail}, user.Version, AuditContext{}); !errors.Is(err, ErrSCIMInvalid) {
+	if _, err := service.PatchSCIMUser(ctx, scimPrincipal, user.ID, SCIMUserPatch{Email: &changedEmail}, user.Version, AuditContext{}); !errors.Is(err, ErrSCIMInvalid) {
 		t.Fatalf("SCIM account email mutation = %v", err)
 	}
 	var unchangedEmail string
@@ -70,7 +70,7 @@ func TestSCIMProvisioningLifecycle(t *testing.T) {
 		t.Fatalf("SCIM changed account email to %q", unchangedEmail)
 	}
 	changedDisplayName := "Workspace A name"
-	if _, err := service.PatchSCIMUser(ctx, scimPrincipal, user.ExternalID, SCIMUserPatch{DisplayName: &changedDisplayName}, user.Version, AuditContext{}); !errors.Is(err, ErrSCIMInvalid) {
+	if _, err := service.PatchSCIMUser(ctx, scimPrincipal, user.ID, SCIMUserPatch{DisplayName: &changedDisplayName}, user.Version, AuditContext{}); !errors.Is(err, ErrSCIMInvalid) {
 		t.Fatalf("SCIM account display-name mutation = %v", err)
 	}
 	var unchangedDisplayName string
@@ -117,10 +117,10 @@ func TestSCIMProvisioningLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.PatchSCIMUser(ctx, scimPrincipal, user.ExternalID, SCIMUserPatch{Active: boolPtr(false)}, user.Version, AuditContext{}); err != nil {
+	if _, err := service.PatchSCIMUser(ctx, scimPrincipal, user.ID, SCIMUserPatch{Active: boolPtr(false)}, user.Version, AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
-	deactivated, err := service.GetSCIMUser(ctx, scimPrincipal, user.ExternalID)
+	deactivated, err := service.GetSCIMUser(ctx, scimPrincipal, user.ID)
 	if err != nil || deactivated.Active {
 		t.Fatalf("deactivated SCIM user = %+v, %v", deactivated, err)
 	}
@@ -137,8 +137,8 @@ func TestSCIMProvisioningLifecycle(t *testing.T) {
 	if groups[1].DisplayName != "member" {
 		t.Fatalf("SCIM groups order = %+v", groups)
 	}
-	adminGroup, err := service.PatchSCIMGroup(ctx, scimPrincipal, "admin", []SCIMGroupOperation{{Operation: "add", Members: []string{user.ExternalID}}}, groups[0].Version, AuditContext{})
-	if err != nil || len(adminGroup.Members) != 1 || adminGroup.Members[0] != user.ExternalID {
+	adminGroup, err := service.PatchSCIMGroup(ctx, scimPrincipal, "admin", []SCIMGroupOperation{{Operation: "add", Members: []string{user.ID}}}, groups[0].Version, AuditContext{})
+	if err != nil || len(adminGroup.Members) != 1 || adminGroup.Members[0] != user.ID {
 		t.Fatalf("SCIM admin group = %+v, %v", adminGroup, err)
 	}
 	role, err := service.Authorize(ctx, userID, bootstrap.WorkspaceID, SCIMManage)
@@ -232,11 +232,11 @@ func TestSCIMGroupETagsTrackMembershipChanges(t *testing.T) {
 	}
 
 	adminVersion = groups[0].Version
-	currentUser, err := service.GetSCIMUser(ctx, scim, user.ExternalID)
+	currentUser, err := service.GetSCIMUser(ctx, scim, user.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	deactivated, err := service.PatchSCIMUser(ctx, scim, user.ExternalID, SCIMUserPatch{Active: boolPtr(false)}, currentUser.Version, AuditContext{})
+	deactivated, err := service.PatchSCIMUser(ctx, scim, user.ID, SCIMUserPatch{Active: boolPtr(false)}, currentUser.Version, AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +248,7 @@ func TestSCIMGroupETagsTrackMembershipChanges(t *testing.T) {
 		t.Fatalf("deactivation did not advance admin group ETag: %+v", groups[0])
 	}
 	adminVersion = groups[0].Version
-	if _, err := service.PatchSCIMUser(ctx, scim, user.ExternalID, SCIMUserPatch{Active: boolPtr(true)}, deactivated.Version, AuditContext{}); err != nil {
+	if _, err := service.PatchSCIMUser(ctx, scim, user.ID, SCIMUserPatch{Active: boolPtr(true)}, deactivated.Version, AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
 	groups, err = service.ListSCIMGroups(ctx, scim)
@@ -271,7 +271,7 @@ func TestSCIMGroupETagsTrackMembershipChanges(t *testing.T) {
 	}
 	memberVersion = groups[1].Version
 	adminVersion = groups[0].Version
-	if _, err := service.PatchSCIMGroup(ctx, scim, "admin", []SCIMGroupOperation{{Operation: "add", Members: []string{second.ExternalID}}}, adminVersion, AuditContext{}); err != nil {
+	if _, err := service.PatchSCIMGroup(ctx, scim, "admin", []SCIMGroupOperation{{Operation: "add", Members: []string{second.ID}}}, adminVersion, AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
 	groups, err = service.ListSCIMGroups(ctx, scim)
@@ -281,7 +281,7 @@ func TestSCIMGroupETagsTrackMembershipChanges(t *testing.T) {
 	if groups[1].Version == memberVersion {
 		t.Fatalf("SCIM group move did not advance old group ETag: %+v", groups[1])
 	}
-	if _, err := service.PatchSCIMGroup(ctx, scim, "member", []SCIMGroupOperation{{Operation: "remove", Members: []string{second.ExternalID}}}, memberVersion, AuditContext{}); !errors.Is(err, ErrSCIMPrecondition) {
+	if _, err := service.PatchSCIMGroup(ctx, scim, "member", []SCIMGroupOperation{{Operation: "remove", Members: []string{second.ID}}}, memberVersion, AuditContext{}); !errors.Is(err, ErrSCIMPrecondition) {
 		t.Fatalf("stale old-group ETag error = %v", err)
 	}
 }
@@ -325,7 +325,7 @@ func TestSCIMDeactivationScopesCredentialsToWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.PatchSCIMUser(ctx, provisioner, user.ExternalID, SCIMUserPatch{Active: boolPtr(false)}, user.Version, AuditContext{}); err != nil {
+	if _, err := service.PatchSCIMUser(ctx, provisioner, user.ID, SCIMUserPatch{Active: boolPtr(false)}, user.Version, AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := service.AuthenticateAPIToken(ctx, secondAPIToken.Secret, ResourcesRead, AuditContext{}); err != nil {
@@ -397,7 +397,7 @@ func TestSCIMGroupRemovalCleansUpAndReturnsAfterSelfDeactivation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.PatchSCIMGroup(ctx, provisioner, "admin", []SCIMGroupOperation{{Operation: "add", Members: []string{user.ExternalID}}}, groups[0].Version, AuditContext{}); err != nil {
+	if _, err := service.PatchSCIMGroup(ctx, provisioner, "admin", []SCIMGroupOperation{{Operation: "add", Members: []string{user.ID}}}, groups[0].Version, AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
 	admin := mustAuthorize(t, service, user.UserID, bootstrap.WorkspaceID, SCIMManage)
@@ -416,7 +416,7 @@ func TestSCIMGroupRemovalCleansUpAndReturnsAfterSelfDeactivation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	removed, err := service.PatchSCIMGroup(ctx, adminSCIM, "admin", []SCIMGroupOperation{{Operation: "remove", Members: []string{user.ExternalID}}}, groups[0].Version, AuditContext{})
+	removed, err := service.PatchSCIMGroup(ctx, adminSCIM, "admin", []SCIMGroupOperation{{Operation: "remove", Members: []string{user.ID}}}, groups[0].Version, AuditContext{})
 	if err != nil || len(removed.Members) != 0 {
 		t.Fatalf("self-removing group = %+v, %v", removed, err)
 	}
@@ -424,7 +424,7 @@ func TestSCIMGroupRemovalCleansUpAndReturnsAfterSelfDeactivation(t *testing.T) {
 	if err := db.QueryRow("SELECT COUNT(*) FROM workspace_notification_preferences WHERE workspace_id = ? AND user_id = ?", bootstrap.WorkspaceID, user.UserID).Scan(&preferences); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.QueryRow("SELECT COUNT(*) FROM audit_events WHERE event_type = ? AND target_id = ?", "scim.group.member.removed", user.ExternalID).Scan(&removals); err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM audit_events WHERE event_type = ? AND target_id = ?", "scim.group.member.removed", user.ID).Scan(&removals); err != nil {
 		t.Fatal(err)
 	}
 	if preferences != 0 || removals != 1 {

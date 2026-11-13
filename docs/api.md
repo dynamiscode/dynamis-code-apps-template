@@ -186,7 +186,7 @@ documented in [authentication](authentication.md).
 - SCIM: create/revoke the dedicated credential with
   `POST/DELETE /api/v1/workspaces/{workspaceId}/scim-token`, then use
   `GET/POST /scim/v2/{workspaceId}/Users`, `GET/PATCH/DELETE
-  /scim/v2/{workspaceId}/Users/{externalId}`, `GET
+  /scim/v2/{workspaceId}/Users/{userId}`, `GET
   /scim/v2/{workspaceId}/Groups`, and `GET/PATCH
   /scim/v2/{workspaceId}/Groups/{admin|member|viewer}`. SCIM uses
   `application/scim+json`, exact `userName`/`externalId` filters, bounded
@@ -196,6 +196,15 @@ documented in [authentication](authentication.md).
   member arrays and bounded filtered member removals. User DELETE deactivates
   the workspace mapping; POST retries without `externalId` return the existing
   normalized workspace mapping.
+- SCIM resource `id` and group `members.value` are the user's short ID. The
+  `{userId}` path takes only that short ID; the IdP `externalId` is stored and
+  filtered as an IdP value but is never accepted in a path or member value.
+  Malformed, unknown, and foreign IDs, and external IDs, return the same SCIM
+  not-found error. When `externalId` is omitted, the stored external ID defaults
+  to the user's short ID.
+- User IDs in responses and exports are short IDs only: `userId` on tokens and
+  sessions, `ExportMember.userId`, item `createdByUserId`, file `ownerUserId`,
+  and audit `actorUserId` and user `targetId`. Integer keys are never emitted.
 
 Identity and workspace routes use `Authorization: Bearer <token>`. The token
 must belong to the path workspace and include the permission required by the

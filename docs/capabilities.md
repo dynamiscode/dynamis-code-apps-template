@@ -584,10 +584,22 @@ which is `proposed` until the owner approves it.
 - Known limitation: `idempotency_records.principal_id` now holds `user:<short ID>`,
   and audit actor and target user IDs hold short IDs. Existing values from before
   this change are not converted, because the databases are reset.
-- Not covered: the #250 contract surfaces (OpenAPI, generated contract, MCP tool
-  snapshot, SCIM `id` and `members.value`, `ExportMember.userId`, and the `userId`,
-  `ownerUserId`, and `createdByUserId` field names). They keep their names and string
-  shape in this change.
+- Ticket #250 contract surfaces are covered in
+  [SCIM and MCP user ID evidence](#scim-and-mcp-user-id-evidence). Field names are unchanged.
+
+## SCIM and MCP user ID evidence
+
+Ticket #250 makes the SCIM resource `id` and group `members.value` the user short
+ID. The IdP `externalId` keeps its value and its filter; when omitted it defaults to
+the short ID, as #249 set it, so an IdP that never sends `externalId` sees the same
+value in `externalId` and `id`. Covered by `TestSCIMResourceIDsAreShortUserIDs`
+(lookup and group add by short ID only, not-found for external, malformed, zero,
+and unmapped IDs, `scim.user.created` audit target) and `TestSCIMRESTContract`
+(HTTP path, Location, and external-ID not-found). The MCP `createdByUserId` schema
+declares the short-ID pattern, recorded in `internal/mcpserver/testdata/tools-v1.json`.
+`TestIdempotencyPrincipalUsesShortUserID` pins the `user:<short ID>` principal.
+OpenAPI describes the SCIM path parameter and member value; `go generate ./api`
+shows no drift. Breaking changes for SCIM IdPs and MCP clients are in the PR body.
 
 ## Files evidence
 

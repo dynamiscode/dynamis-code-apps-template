@@ -217,16 +217,30 @@ func (s *Service) ListSCIMUsers(ctx context.Context, actor Principal, filterFiel
 	return users, total, nil
 }
 
-func (s *Service) GetSCIMUser(ctx context.Context, actor Principal, externalID string) (SCIMUser, error) {
+// parseSCIMUserID reads a SCIM user resource id, which is the user's short ID.
+// Malformed, zero, and unmapped IDs are not found, so they answer alike.
+func parseSCIMUserID(resourceID string) (UserID, error) {
+	userID, err := ParseUserID(resourceID)
+	if err != nil || userID == 0 {
+		return 0, ErrSCIMNotFound
+	}
+	return userID, nil
+}
+
+func (s *Service) GetSCIMUser(ctx context.Context, actor Principal, resourceID string) (SCIMUser, error) {
 	if s.require(ctx, actor, SCIMManage) != nil {
 		return SCIMUser{}, ErrForbidden
+	}
+	userID, err := parseSCIMUserID(resourceID)
+	if err != nil {
+		return SCIMUser{}, err
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return SCIMUser{}, err
 	}
 	defer tx.Rollback()
-	user, err := s.getSCIMUserTx(ctx, tx, actor.WorkspaceID, externalID)
+	user, err := s.getSCIMUserTx(ctx, tx, actor.WorkspaceID, userID)
 	if err != nil {
 		return SCIMUser{}, err
 	}
@@ -271,7 +285,7 @@ func (s *Service) CreateSCIMUser(ctx context.Context, actor Principal, input SCI
 			if existingEmail != email {
 				return SCIMUser{}, ErrSCIMConflict
 			}
-			user, loadErr := s.getSCIMUserTx(ctx, tx, actor.WorkspaceID, externalID)
+			user, loadErr := s.getSCIMUserTx(ctx, tx, actor.WorkspaceID, userID)
 			if loadErr != nil {
 				return SCIMUser{}, loadErr
 			}
@@ -301,7 +315,7 @@ func (s *Service) CreateSCIMUser(ctx context.Context, actor Principal, input SCI
 		if externalID == "" {
 			var mappedExternalID string
 			if mapErr := s.queryRow(ctx, tx, `SELECT external_id FROM scim_users WHERE workspace_id = ? AND user_id = ?`, actor.WorkspaceID, userID).Scan(&mappedExternalID); mapErr == nil {
-				user, loadErr := s.getSCIMUserTx(ctx, tx, actor.WorkspaceID, mappedExternalID)
+				user, loadErr := s.getSCIMUserTx(ctx, tx, actor.WorkspaceID, userID)
 				if loadErr != nil {
 					return SCIMUser{}, loadErr
 				}
@@ -344,7 +358,7 @@ func (s *Service) CreateSCIMUser(ctx context.Context, actor Principal, input SCI
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "scim.user.created", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: actor.WorkspaceID, TargetType: "scim_user", TargetID: externalID,
+		WorkspaceID: actor.WorkspaceID, TargetType: "scim_user", TargetID: userID.String(),
 		Action: "scim.user.create", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"role": Member}), CreatedAt: now,
 	}); err != nil {
@@ -353,10 +367,10 @@ func (s *Service) CreateSCIMUser(ctx context.Context, actor Principal, input SCI
 	if err := tx.Commit(); err != nil {
 		return SCIMUser{}, err
 	}
-	return SCIMUser{ID: externalID, UserID: userID, ExternalID: externalID, UserName: email, Email: email, DisplayName: displayName, Active: true, Role: Member, Version: 1, CreatedAt: now, UpdatedAt: now}, nil
+	return SCIMUser{ID: userID.String(), UserID: userID, ExternalID: externalID, UserName: email, Email: email, DisplayName: displayName, Active: true, Role: Member, Version: 1, CreatedAt: now, UpdatedAt: now}, nil
 }
 
-func (s *Service) PatchSCIMUser(ctx context.Context, actor Principal, externalID string, patch SCIMUserPatch, version int64, audit AuditContext) (SCIMUser, error) {
+func (s *Service) PatchSCIMUser(ctx context.Context, actor Principal, resourceID string, patch SCIMUserPatch, version int64, audit AuditContext) (SCIMUser, error) {
 	if s.require(ctx, actor, SCIMManage) != nil {
 		return SCIMUser{}, ErrForbidden
 	}
@@ -371,7 +385,11 @@ func (s *Service) PatchSCIMUser(ctx context.Context, actor Principal, externalID
 	if s.requireTx(ctx, tx, actor, SCIMManage) != nil {
 		return SCIMUser{}, ErrForbidden
 	}
-	current, err := s.getSCIMUserTx(ctx, tx, actor.WorkspaceID, externalID)
+	userID, err := parseSCIMUserID(resourceID)
+	if err != nil {
+		return SCIMUser{}, err
+	}
+	current, err := s.getSCIMUserTx(ctx, tx, actor.WorkspaceID, userID)
 	if err != nil {
 		return SCIMUser{}, err
 	}
@@ -417,8 +435,8 @@ func (s *Service) PatchSCIMUser(ctx context.Context, actor Principal, externalID
 	newVersion := current.Version + 1
 	if _, err := s.exec(ctx, tx, `
 		UPDATE scim_users SET active = ?, version = ?, updated_at = ?
-		WHERE workspace_id = ? AND external_id = ?
-	`, active, newVersion, timestamp(now), actor.WorkspaceID, externalID); err != nil {
+		WHERE workspace_id = ? AND user_id = ?
+	`, active, newVersion, timestamp(now), actor.WorkspaceID, userID); err != nil {
 		return SCIMUser{}, err
 	}
 	if active != current.Active {
@@ -428,7 +446,7 @@ func (s *Service) PatchSCIMUser(ctx context.Context, actor Principal, externalID
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "scim.user.updated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: actor.WorkspaceID, TargetType: "scim_user", TargetID: externalID,
+		WorkspaceID: actor.WorkspaceID, TargetType: "scim_user", TargetID: current.ID,
 		Action: "scim.user.update", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"active": active}), CreatedAt: now,
 	}); err != nil {
@@ -437,11 +455,11 @@ func (s *Service) PatchSCIMUser(ctx context.Context, actor Principal, externalID
 	if err := tx.Commit(); err != nil {
 		return SCIMUser{}, err
 	}
-	return SCIMUser{ID: externalID, UserID: current.UserID, ExternalID: externalID, UserName: current.UserName, Email: current.Email, DisplayName: current.DisplayName, Active: active, Role: current.Role, Version: newVersion, CreatedAt: current.CreatedAt, UpdatedAt: now}, nil
+	return SCIMUser{ID: current.ID, UserID: current.UserID, ExternalID: current.ExternalID, UserName: current.UserName, Email: current.Email, DisplayName: current.DisplayName, Active: active, Role: current.Role, Version: newVersion, CreatedAt: current.CreatedAt, UpdatedAt: now}, nil
 }
 
-func (s *Service) DeleteSCIMUser(ctx context.Context, actor Principal, externalID string, version int64, audit AuditContext) error {
-	_, err := s.PatchSCIMUser(ctx, actor, externalID, SCIMUserPatch{Active: boolPtr(false)}, version, audit)
+func (s *Service) DeleteSCIMUser(ctx context.Context, actor Principal, resourceID string, version int64, audit AuditContext) error {
+	_, err := s.PatchSCIMUser(ctx, actor, resourceID, SCIMUserPatch{Active: boolPtr(false)}, version, audit)
 	return err
 }
 
@@ -515,16 +533,19 @@ func (s *Service) PatchSCIMGroup(ctx context.Context, actor Principal, groupID s
 		if (op != "add" && op != "remove") || len(operation.Members) == 0 {
 			return SCIMGroup{}, ErrSCIMInvalid
 		}
-		for _, externalID := range operation.Members {
-			var userID UserID
+		for _, resourceID := range operation.Members {
+			userID, err := parseSCIMUserID(resourceID)
+			if err != nil {
+				return SCIMGroup{}, err
+			}
 			var currentRole Role
 			var active bool
 			if err := s.queryRow(ctx, tx, `
-				SELECT s.user_id, COALESCE(m.role, s.role), s.active AND m.user_id IS NOT NULL
+				SELECT COALESCE(m.role, s.role), s.active AND m.user_id IS NOT NULL
 				FROM scim_users s LEFT JOIN workspace_members m
 				  ON m.workspace_id = s.workspace_id AND m.user_id = s.user_id
-				WHERE s.workspace_id = ? AND s.external_id = ?
-			`, actor.WorkspaceID, externalID).Scan(&userID, &currentRole, &active); err != nil {
+				WHERE s.workspace_id = ? AND s.user_id = ?
+			`, actor.WorkspaceID, userID).Scan(&currentRole, &active); err != nil {
 				return SCIMGroup{}, ErrSCIMNotFound
 			}
 			if currentRole == Owner {
@@ -542,11 +563,11 @@ func (s *Service) PatchSCIMGroup(ctx context.Context, actor Principal, groupID s
 				} else if _, err := s.exec(ctx, tx, "INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", actor.WorkspaceID, userID, group.Role, timestamp(now)); err != nil {
 					return SCIMGroup{}, err
 				}
-				if _, err := s.exec(ctx, tx, "UPDATE scim_users SET role = ?, active = TRUE, version = version + 1, updated_at = ? WHERE workspace_id = ? AND external_id = ?", group.Role, timestamp(now), actor.WorkspaceID, externalID); err != nil {
+				if _, err := s.exec(ctx, tx, "UPDATE scim_users SET role = ?, active = TRUE, version = version + 1, updated_at = ? WHERE workspace_id = ? AND user_id = ?", group.Role, timestamp(now), actor.WorkspaceID, userID); err != nil {
 					return SCIMGroup{}, err
 				}
 				if !active || currentRole != group.Role {
-					if err := s.audit(ctx, tx, AuditEvent{EventType: "scim.group.member.added", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID, TargetType: "scim_user", TargetID: externalID, Action: "scim.group.member.add", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"role": group.Role}), CreatedAt: now}); err != nil {
+					if err := s.audit(ctx, tx, AuditEvent{EventType: "scim.group.member.added", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID, TargetType: "scim_user", TargetID: userID.String(), Action: "scim.group.member.add", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"role": group.Role}), CreatedAt: now}); err != nil {
 						return SCIMGroup{}, err
 					}
 				}
@@ -560,7 +581,7 @@ func (s *Service) PatchSCIMGroup(ctx context.Context, actor Principal, groupID s
 				if _, err := s.exec(ctx, tx, "DELETE FROM workspace_notification_preferences WHERE workspace_id = ? AND user_id = ?", actor.WorkspaceID, userID); err != nil {
 					return SCIMGroup{}, err
 				}
-				if _, err := s.exec(ctx, tx, "UPDATE scim_users SET active = FALSE, version = version + 1, updated_at = ? WHERE workspace_id = ? AND external_id = ?", timestamp(now), actor.WorkspaceID, externalID); err != nil {
+				if _, err := s.exec(ctx, tx, "UPDATE scim_users SET active = FALSE, version = version + 1, updated_at = ? WHERE workspace_id = ? AND user_id = ?", timestamp(now), actor.WorkspaceID, userID); err != nil {
 					return SCIMGroup{}, err
 				}
 				if _, err := s.exec(ctx, tx, "UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL", timestamp(now), userID); err != nil {
@@ -572,7 +593,7 @@ func (s *Service) PatchSCIMGroup(ctx context.Context, actor Principal, groupID s
 				if _, err := s.exec(ctx, tx, "UPDATE scim_tokens SET revoked_at = ? WHERE created_by_user_id = ? AND workspace_id = ? AND revoked_at IS NULL", timestamp(now), userID, actor.WorkspaceID); err != nil {
 					return SCIMGroup{}, err
 				}
-				if err := s.audit(ctx, tx, AuditEvent{EventType: "scim.group.member.removed", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID, TargetType: "scim_user", TargetID: externalID, Action: "scim.group.member.remove", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"role": group.Role}), CreatedAt: now}); err != nil {
+				if err := s.audit(ctx, tx, AuditEvent{EventType: "scim.group.member.removed", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID, TargetType: "scim_user", TargetID: userID.String(), Action: "scim.group.member.remove", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"role": group.Role}), CreatedAt: now}); err != nil {
 					return SCIMGroup{}, err
 				}
 			}
@@ -718,14 +739,14 @@ func (s *Service) ensureSCIMGroups(ctx context.Context, tx *sql.Tx, workspaceID 
 	return nil
 }
 
-func (s *Service) getSCIMUserTx(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, externalID string) (SCIMUser, error) {
+func (s *Service) getSCIMUserTx(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, userID UserID) (SCIMUser, error) {
 	row := tx.QueryRowContext(ctx, s.bind(`
 		SELECT s.external_id, s.user_id, u.email, u.display_name, s.role, s.version,
 			s.created_at, s.updated_at, s.active, m.user_id
 		FROM scim_users s JOIN users u ON u.id = s.user_id
 		LEFT JOIN workspace_members m ON m.workspace_id = s.workspace_id AND m.user_id = s.user_id
-		WHERE s.workspace_id = ? AND s.external_id = ?
-	`), workspaceID, externalID)
+		WHERE s.workspace_id = ? AND s.user_id = ?
+	`), workspaceID, userID)
 	return scanSCIMUser(row)
 }
 
@@ -751,7 +772,7 @@ func (s *Service) getSCIMGroupTx(ctx context.Context, tx *sql.Tx, workspaceID Wo
 		return SCIMGroup{}, ErrSCIMNotFound
 	}
 	rows, err := tx.QueryContext(ctx, s.bind(`
-		SELECT s.external_id FROM scim_users s JOIN workspace_members m
+		SELECT s.user_id FROM scim_users s JOIN workspace_members m
 		  ON m.workspace_id = s.workspace_id AND m.user_id = s.user_id
 		WHERE s.workspace_id = ? AND m.role = ? AND s.active = TRUE
 		ORDER BY s.external_id
@@ -762,11 +783,11 @@ func (s *Service) getSCIMGroupTx(ctx context.Context, tx *sql.Tx, workspaceID Wo
 	defer rows.Close()
 	members := make([]string, 0)
 	for rows.Next() {
-		var externalID string
-		if err := rows.Scan(&externalID); err != nil {
+		var userID UserID
+		if err := rows.Scan(&userID); err != nil {
 			return SCIMGroup{}, err
 		}
-		members = append(members, externalID)
+		members = append(members, userID.String())
 	}
 	if err := rows.Err(); err != nil {
 		return SCIMGroup{}, err
@@ -788,7 +809,7 @@ func scanSCIMUser(scanner scimScanner) (SCIMUser, error) {
 		}
 		return SCIMUser{}, err
 	}
-	user.ID, user.UserID, user.UserName, user.Role = user.ExternalID, userID, user.Email, Role(role)
+	user.ID, user.UserID, user.UserName, user.Role = userID.String(), userID, user.Email, Role(role)
 	user.Active = active && memberID.Valid
 	var err error
 	user.CreatedAt, err = parseTimestamp(createdAt)

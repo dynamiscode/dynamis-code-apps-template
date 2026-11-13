@@ -40,6 +40,7 @@
           "type": "string"
         },
         "createdByUserId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
           "type": [
             "string",
             "null"
@@ -168,6 +169,7 @@
           "type": "string"
         },
         "createdByUserId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
           "type": [
             "string",
             "null"
@@ -277,6 +279,7 @@
                 "type": "string"
               },
               "createdByUserId": {
+                "pattern": "^[2-9a-hjkmnp-z]{4,}$",
                 "type": [
                   "string",
                   "null"
@@ -398,6 +401,7 @@
           "type": "string"
         },
         "createdByUserId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
           "type": [
             "string",
             "null"

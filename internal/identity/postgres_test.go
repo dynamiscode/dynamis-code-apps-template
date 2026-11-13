@@ -61,7 +61,7 @@ func TestPostgresIdentityLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.PatchSCIMUser(ctx, scim, scimUser.ExternalID, SCIMUserPatch{Active: boolPtr(false)}, scimUser.Version, AuditContext{}); err != nil {
+	if _, err := service.PatchSCIMUser(ctx, scim, scimUser.ID, SCIMUserPatch{Active: boolPtr(false)}, scimUser.Version, AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
 	roleUsers := map[Role]UserID{Owner: bootstrap.UserID}

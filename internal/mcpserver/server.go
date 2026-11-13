@@ -53,6 +53,7 @@ type handler struct {
 type (
 	itemShortID      string
 	workspaceShortID string
+	userShortID      string
 	newTitle         string
 	itemTitle        string
 	idempotencyKey   string
@@ -68,6 +69,7 @@ type (
 // from a Go type: patterns, bounds, enums, and defaults.
 var contractTypes = map[reflect.Type]*jsonschema.Schema{
 	reflect.TypeFor[itemShortID]():    {Type: "string", Pattern: "^[2-9a-hjkmnp-z]{4,}$"},
+	reflect.TypeFor[userShortID]():    {Type: "string", Pattern: "^[2-9a-hjkmnp-z]{4,}$"},
 	reflect.TypeFor[newTitle]():       {Type: "string", MinLength: new(1), MaxLength: new(200)},
 	reflect.TypeFor[itemTitle]():      {Type: "string", MaxLength: new(200)},
 	reflect.TypeFor[idempotencyKey](): {Type: "string", MinLength: new(1), MaxLength: new(255)},
@@ -125,7 +127,7 @@ type deleteInput struct {
 type itemOutput struct {
 	ID              itemShortID      `json:"id"`
 	WorkspaceID     workspaceShortID `json:"workspaceId"`
-	CreatedByUserID *string          `json:"createdByUserId"`
+	CreatedByUserID *userShortID     `json:"createdByUserId"`
 	Title           itemTitle        `json:"title"`
 	Status          items.Status     `json:"status"`
 	Version         itemVersion      `json:"version"`
@@ -413,11 +415,11 @@ func toItemOutput(item items.Item) itemOutput {
 }
 
 // optionalUserShortID renders an optional user key as its short ID; nil stays nil.
-func optionalUserShortID(userID *identity.UserID) *string {
+func optionalUserShortID(userID *identity.UserID) *userShortID {
 	if userID == nil {
 		return nil
 	}
-	short := userID.String()
+	short := userShortID(userID.String())
 	return &short
 }
 
