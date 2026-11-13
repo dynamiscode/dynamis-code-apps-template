@@ -22,9 +22,9 @@ function loadUploader() {
     addEventListener: () => {}
   };
 
-  const fn = new Function("window", "document", `${appJsCode}; return { window, PresignedUploader: window.PresignedUploader };`);
+  const fn = new Function("window", "document", `${appJsCode}; return { window, FileUploader: window.FileUploader };`);
   const result = fn(window, document);
-  return { uploaderClass: result.PresignedUploader, window: result.window };
+  return { uploaderClass: result.FileUploader, window: result.window };
 }
 
 function createMockForm(options = {}) {
@@ -43,14 +43,14 @@ function createMockForm(options = {}) {
   };
   const submitButton = { disabled: false };
   const fileInput = {
-    files: options.files || [{ name: "test.pdf", size: 512, type: "application/pdf" }],
+    files: options.files || [new File(["%PDF-1.4"], "test.pdf", { type: "application/pdf" })],
     disabled: false
   };
   const csrfInput = { value: "mock-csrf-token" };
 
   const listeners = {};
   const form = {
-    dataset: options.dataset || { initiate: "/workspaces/ws1/files/initiate" },
+    dataset: {},
     action: options.action || "/workspaces/ws1/files",
     querySelector(sel) {
       if (sel === "button" || sel === 'button[type="submit"]') return submitButton;
@@ -67,29 +67,37 @@ function createMockForm(options = {}) {
   return { form, submitButton, fileInput, statusElement, listeners };
 }
 
-test("PresignedUploader defines explicit phases and phase messages", () => {
+// A minimal stand-in for DOMParser: finds the first role="alert" element in the HTML.
+function withAlertParser(run) {
+  const original = globalThis.DOMParser;
+  globalThis.DOMParser = class {
+    parseFromString(text) {
+      const match = /role="alert"[^>]*>([^<]*)</.exec(text);
+      return { querySelector: () => (match ? { textContent: match[1] } : null) };
+    }
+  };
+  return Promise.resolve().then(run).finally(() => { globalThis.DOMParser = original; });
+}
+
+test("FileUploader defines single-request phases and messages", () => {
   const { uploaderClass } = loadUploader();
-  assert.ok(uploaderClass, "PresignedUploader class should be exported to window");
+  assert.ok(uploaderClass, "FileUploader class should be exported to window");
 
   const expectedPhases = {
     IDLE: "IDLE",
-    INITIATING: "INITIATING",
     UPLOADING: "UPLOADING",
-    COMPLETING: "COMPLETING",
     SUCCESS: "SUCCESS",
     ERROR: "ERROR"
   };
   assert.deepEqual(uploaderClass.PHASES, expectedPhases);
   assert.deepEqual(uploaderClass.Phases, expectedPhases);
 
-  assert.equal(uploaderClass.PHASE_MESSAGES.INITIATING, "Initiating upload...");
   assert.equal(uploaderClass.PHASE_MESSAGES.UPLOADING, "Uploading file...");
-  assert.equal(uploaderClass.PHASE_MESSAGES.COMPLETING, "Completing upload...");
   assert.equal(uploaderClass.PHASE_MESSAGES.SUCCESS, "Upload complete.");
   assert.equal(uploaderClass.PHASE_MESSAGES.ERROR, "Upload failed. Please try again.");
 });
 
-test("PresignedUploader initial state is IDLE with enabled controls", () => {
+test("FileUploader initial state is IDLE with enabled controls", () => {
   const { uploaderClass } = loadUploader();
   const { form, submitButton, fileInput } = createMockForm();
   const uploader = new uploaderClass(form);
@@ -99,39 +107,27 @@ test("PresignedUploader initial state is IDLE with enabled controls", () => {
   assert.equal(fileInput.disabled, false);
 });
 
-test("PresignedUploader disables controls during in-flight states and updates status", () => {
+test("FileUploader locks controls while UPLOADING and shows status", () => {
   const { uploaderClass } = loadUploader();
   const { form, submitButton, fileInput, statusElement } = createMockForm();
   const uploader = new uploaderClass(form);
-
-  uploader.transition(uploaderClass.PHASES.INITIATING);
-  assert.equal(uploader.phase, "INITIATING");
-  assert.equal(submitButton.disabled, true);
-  assert.equal(fileInput.disabled, true);
-  assert.equal(statusElement.textContent, "Initiating upload...");
-  assert.equal(statusElement.hasAttribute("hidden"), false);
-  assert.ok(statusElement.classList.contains("status"));
-  assert.ok(!statusElement.classList.contains("error"));
 
   uploader.transition(uploaderClass.PHASES.UPLOADING);
   assert.equal(uploader.phase, "UPLOADING");
   assert.equal(submitButton.disabled, true);
   assert.equal(fileInput.disabled, true);
   assert.equal(statusElement.textContent, "Uploading file...");
-
-  uploader.transition(uploaderClass.PHASES.COMPLETING);
-  assert.equal(uploader.phase, "COMPLETING");
-  assert.equal(submitButton.disabled, true);
-  assert.equal(fileInput.disabled, true);
-  assert.equal(statusElement.textContent, "Completing upload...");
+  assert.equal(statusElement.hasAttribute("hidden"), false);
+  assert.ok(statusElement.classList.contains("status"));
+  assert.ok(!statusElement.classList.contains("error"));
 });
 
-test("PresignedUploader transitions to ERROR, re-enables controls, and displays friendly error without reload", () => {
+test("FileUploader transitions to ERROR, re-enables controls, and displays error without reload", () => {
   const { uploaderClass, window } = loadUploader();
   const { form, submitButton, fileInput, statusElement } = createMockForm();
   const uploader = new uploaderClass(form);
 
-  uploader.transition(uploaderClass.PHASES.INITIATING);
+  uploader.transition(uploaderClass.PHASES.UPLOADING);
   assert.equal(submitButton.disabled, true);
 
   uploader.transition(uploaderClass.PHASES.ERROR, "File size exceeds limit.");
@@ -144,53 +140,121 @@ test("PresignedUploader transitions to ERROR, re-enables controls, and displays 
   assert.equal(window.location.reloadCalls, 0, "window.location.reload must NOT be called");
 });
 
-test("PresignedUploader handleSubmit validates presence of file", async () => {
+test("FileUploader handleSubmit validates presence of file without sending a request", async () => {
   const { uploaderClass } = loadUploader();
   const { form, submitButton, statusElement } = createMockForm({ files: [] });
   const uploader = new uploaderClass(form);
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error("fetch must not be called"); };
 
-  await uploader.handleSubmit();
+  try {
+    await uploader.handleSubmit();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
   assert.equal(uploader.phase, "ERROR");
   assert.equal(submitButton.disabled, false);
   assert.equal(statusElement.textContent, "Choose a file to upload.");
 });
 
-test("PresignedUploader handles successful upload lifecycle", async () => {
+test("FileUploader sends the file as one multipart request, locks while in flight, and reports success", async () => {
   const { uploaderClass, window } = loadUploader();
   const { form, submitButton, statusElement } = createMockForm();
   const originalFetch = globalThis.fetch;
 
   const fetchCalls = [];
   globalThis.fetch = async (url, opts) => {
-    fetchCalls.push({ url, method: opts.method });
-    if (url.endsWith("/initiate")) {
-      return {
-        ok: true,
-        json: async () => ({
-          uploadUrl: "https://storage.example.com/object-key",
-          completeUrl: "/workspaces/ws1/files/file-1/complete",
-          uploadHeaders: { "x-custom-header": "test" }
-        })
-      };
-    }
-    if (new URL(url, "https://app.example.test").hostname === "storage.example.com") {
-      return { ok: true };
-    }
-    if (url.endsWith("/complete")) {
-      return { ok: true };
-    }
-    throw new Error(`Unexpected URL: ${url}`);
+    fetchCalls.push({ url, method: opts.method, body: opts.body, lockedDuringRequest: submitButton.disabled });
+    return { ok: true, status: 200, text: async () => "" };
   };
 
   try {
     const uploader = new uploaderClass(form);
     await uploader.handleSubmit();
 
+    assert.equal(fetchCalls.length, 1, "exactly one request");
+    const [call] = fetchCalls;
+    assert.equal(call.url, "/workspaces/ws1/files");
+    assert.equal(call.method, "POST");
+    assert.ok(call.body instanceof FormData, "body is multipart form data");
+    assert.equal(call.body.get("csrf"), "mock-csrf-token");
+    assert.equal(call.body.get("file").name, "test.pdf");
+    assert.equal(call.lockedDuringRequest, true, "button is locked while the request is in flight");
+
     assert.equal(uploader.phase, "SUCCESS");
     assert.equal(statusElement.textContent, "Upload complete.");
-    assert.equal(window.location.assignCalls.length, 1);
-    assert.equal(window.location.assignCalls[0], "/workspaces/ws1/files");
-    assert.equal(fetchCalls.length, 3);
+    assert.equal(submitButton.disabled, true, "button stays locked until the page navigates");
+    assert.deepEqual(window.location.assignCalls, ["/workspaces/ws1/files"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("FileUploader shows oversize, storage limit, and invalid file messages and unlocks after failure", async () => {
+  const cases = [
+    "The file exceeds the per-file size limit.",
+    "The workspace file storage limit was reached.",
+    "The selected file is invalid."
+  ];
+  for (const message of cases) {
+    const { uploaderClass, window } = loadUploader();
+    const { form, submitButton, fileInput, statusElement } = createMockForm();
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+      ok: false,
+      status: 422,
+      text: async () => `<p class="error" role="alert" tabindex="-1">${message}</p>`
+    });
+
+    try {
+      await withAlertParser(async () => {
+        const uploader = new uploaderClass(form);
+        await uploader.handleSubmit();
+
+        assert.equal(uploader.phase, "ERROR", message);
+        assert.equal(statusElement.textContent, message);
+        assert.ok(statusElement.classList.contains("error"));
+        assert.equal(submitButton.disabled, false, `button unlocked after: ${message}`);
+        assert.equal(fileInput.disabled, false, `file input unlocked after: ${message}`);
+        assert.deepEqual(window.location.assignCalls, [], "no navigation on failure");
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  }
+});
+
+test("FileUploader reports network failure and unlocks controls", async () => {
+  const { uploaderClass, window } = loadUploader();
+  const { form, submitButton, statusElement } = createMockForm();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new TypeError("Failed to fetch"); };
+
+  try {
+    const uploader = new uploaderClass(form);
+    await uploader.handleSubmit();
+
+    assert.equal(uploader.phase, "ERROR");
+    assert.equal(statusElement.textContent, "Upload failed. Please try again.");
+    assert.equal(submitButton.disabled, false);
+    assert.deepEqual(window.location.assignCalls, []);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("FileUploader falls back to the default failure message when the server gives no alert", async () => {
+  const { uploaderClass } = loadUploader();
+  const { form, statusElement } = createMockForm();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: false, status: 500, text: async () => "" });
+
+  try {
+    const uploader = new uploaderClass(form);
+    await uploader.handleSubmit();
+
+    assert.equal(uploader.phase, "ERROR");
+    assert.equal(statusElement.textContent, "Upload failed. Please try again.");
   } finally {
     globalThis.fetch = originalFetch;
   }

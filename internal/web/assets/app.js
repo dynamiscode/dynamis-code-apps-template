@@ -4,21 +4,17 @@ const list=document.querySelector("#item-list[data-events]");
 const realtimeStatus=document.querySelector("#realtime-status");
 if(list&&window.EventSource){const messages={connecting:list.dataset.liveConnecting,connected:list.dataset.liveConnected,unavailable:list.dataset.liveUnavailable,reconnecting:list.dataset.liveReconnecting};if(realtimeStatus)realtimeStatus.textContent=messages.connecting;const events=new EventSource(list.dataset.events);events.addEventListener("open",()=>{if(realtimeStatus)realtimeStatus.textContent=messages.connected});events.addEventListener("error",()=>{if(realtimeStatus)realtimeStatus.textContent=events.readyState===EventSource.CLOSED?messages.unavailable:messages.reconnecting});for(const name of["item.changed","resync"]){events.addEventListener(name,()=>window.htmx?.ajax("GET",location.pathname,{target:"#item-list",swap:"outerHTML"}))}events.addEventListener("close",()=>events.close())}
 document.addEventListener("click",event=>{const button=event.target instanceof Element?event.target.closest("button[data-confirm]"):null;if(button&&!window.confirm(button.dataset.confirm))event.preventDefault()});
-class PresignedUploader {
+class FileUploader {
 	static PHASES = Object.freeze({
 		IDLE: "IDLE",
-		INITIATING: "INITIATING",
 		UPLOADING: "UPLOADING",
-		COMPLETING: "COMPLETING",
 		SUCCESS: "SUCCESS",
 		ERROR: "ERROR"
 	});
 
 	static PHASE_MESSAGES = Object.freeze({
 		IDLE: "",
-		INITIATING: "Initiating upload...",
 		UPLOADING: "Uploading file...",
-		COMPLETING: "Completing upload...",
 		SUCCESS: "Upload complete.",
 		ERROR: "Upload failed. Please try again."
 	});
@@ -30,7 +26,7 @@ class PresignedUploader {
 		this.statusElement = form?.querySelector("[data-upload-status]")
 			|| form?.querySelector('[role="status"]')
 			|| form?.querySelector('[aria-live="polite"]');
-		this.phase = PresignedUploader.PHASES.IDLE;
+		this.phase = FileUploader.PHASES.IDLE;
 	}
 
 	ensureStatusElement() {
@@ -51,19 +47,17 @@ class PresignedUploader {
 			const custom = this.form.dataset[`status${phaseKey}`] || this.form.dataset[`phase${phaseKey}`];
 			if (custom) return custom;
 		}
-		return PresignedUploader.PHASE_MESSAGES[phase] || "";
+		return FileUploader.PHASE_MESSAGES[phase] || "";
 	}
 
 	isInFlight() {
-		return this.phase === PresignedUploader.PHASES.INITIATING ||
-			this.phase === PresignedUploader.PHASES.UPLOADING ||
-			this.phase === PresignedUploader.PHASES.COMPLETING ||
-			this.phase === PresignedUploader.PHASES.SUCCESS;
+		return this.phase === FileUploader.PHASES.UPLOADING ||
+			this.phase === FileUploader.PHASES.SUCCESS;
 	}
 
 	transition(phase, message) {
 		this.phase = phase;
-		const isError = phase === PresignedUploader.PHASES.ERROR;
+		const isError = phase === FileUploader.PHASES.ERROR;
 		const inFlight = this.isInFlight();
 
 		if (this.submitButton) {
@@ -98,65 +92,35 @@ class PresignedUploader {
 
 		const file = this.fileInput?.files?.[0];
 		if (!file) {
-			this.transition(PresignedUploader.PHASES.ERROR, "Choose a file to upload.");
+			this.transition(FileUploader.PHASES.ERROR, "Choose a file to upload.");
 			return;
 		}
 
 		const csrf = this.form?.querySelector('input[name="csrf"]')?.value || "";
-		const initiateUrl = this.form?.dataset?.initiate || (this.form?.action ? `${this.form.action}/initiate` : "");
+		const body = new FormData();
+		body.append("csrf", csrf);
+		body.append("file", file, file.name);
 
 		try {
-			this.transition(PresignedUploader.PHASES.INITIATING);
-			const initiate = await fetch(initiateUrl, {
-				method: "POST",
-				headers: { "Content-Type": "application/x-www-form-urlencoded" },
-				body: new URLSearchParams({
-					csrf,
-					originalName: file.name,
-					size: String(file.size),
-					contentType: file.type || "application/octet-stream"
-				}),
-				credentials: "same-origin"
-			});
-			if (!initiate.ok) {
-				const errMsg = await PresignedUploader.extractErrorMessage(initiate, "Failed to initiate file upload. Please try again.");
-				throw new Error(errMsg);
+			this.transition(FileUploader.PHASES.UPLOADING);
+			let response;
+			try {
+				response = await fetch(this.form.action, { method: "POST", body, credentials: "same-origin" });
+			} catch (_) {
+				throw new Error("Upload failed. Please try again.");
 			}
-			const upload = await initiate.json();
-			if (!upload || !upload.uploadUrl || !upload.completeUrl) {
-				throw new Error("Invalid upload initiation response. Please try again.");
-			}
-
-			this.transition(PresignedUploader.PHASES.UPLOADING);
-			const stored = await fetch(upload.uploadUrl, {
-				method: "PUT",
-				headers: upload.uploadHeaders || {},
-				body: file,
-				credentials: "omit"
-			});
-			if (!stored.ok) {
-				throw new Error("Failed to upload file to storage. Please try again.");
-			}
-
-			this.transition(PresignedUploader.PHASES.COMPLETING);
-			const complete = await fetch(upload.completeUrl, {
-				method: "POST",
-				headers: { "Content-Type": "application/x-www-form-urlencoded" },
-				body: new URLSearchParams({ csrf }),
-				credentials: "same-origin"
-			});
-			if (!complete.ok) {
-				const errMsg = await PresignedUploader.extractErrorMessage(complete, "Failed to finalize file upload. Please try again.");
+			if (!response.ok) {
+				const errMsg = await FileUploader.extractErrorMessage(response, "Upload failed. Please try again.");
 				throw new Error(errMsg);
 			}
 
-			this.transition(PresignedUploader.PHASES.SUCCESS);
+			this.transition(FileUploader.PHASES.SUCCESS);
 			if (this.form?.action && typeof window !== "undefined" && window.location) {
 				window.location.assign(this.form.action);
 			}
 		} catch (err) {
 			const message = err?.message || "Upload failed. Please try again.";
-			this.transition(PresignedUploader.PHASES.ERROR, message);
+			this.transition(FileUploader.PHASES.ERROR, message);
 		}
 	}
 
@@ -188,19 +152,19 @@ class PresignedUploader {
 	}
 }
 
-PresignedUploader.Phases = PresignedUploader.PHASES;
-PresignedUploader.PhaseMessages = PresignedUploader.PHASE_MESSAGES;
+FileUploader.Phases = FileUploader.PHASES;
+FileUploader.PhaseMessages = FileUploader.PHASE_MESSAGES;
 
 if (typeof window !== "undefined") {
-	window.PresignedUploader = PresignedUploader;
+	window.FileUploader = FileUploader;
 }
 if (typeof module !== "undefined" && module.exports) {
-	module.exports = { PresignedUploader };
+	module.exports = { FileUploader };
 }
 
-const fileUploadForm = document.querySelector("form[data-file-upload][data-presigned='true']");
+const fileUploadForm = document.querySelector("form[data-file-upload]");
 if (fileUploadForm) {
-	const uploader = new PresignedUploader(fileUploadForm);
+	const uploader = new FileUploader(fileUploadForm);
 	uploader.init();
 }
 
