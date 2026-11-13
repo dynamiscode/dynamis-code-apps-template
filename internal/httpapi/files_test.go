@@ -2,15 +2,22 @@ package httpapi
 
 import (
 	"bytes"
+	"context"
+	"database/sql"
 	"encoding/json"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
+	"time"
 
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
+	"example.com/dynamis-code/apps-template/internal/files/filestest"
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
 
 func TestFileRESTLifecycle(t *testing.T) {
@@ -79,6 +86,118 @@ func TestLocalInitiatedUploadOmitsCompletionURL(t *testing.T) {
 	if uploaded.Code != http.StatusOK {
 		t.Fatalf("local upload = %d, %s", uploaded.Code, uploaded.Body.String())
 	}
+}
+
+// On S3 storage the initiate response points at the application's content
+// route with no upload headers. The bytes stream through the application, the
+// file stays pending until complete verifies it, and downloads still redirect
+// to a presigned URL.
+func TestS3InitiatedUploadStreamsThroughApplication(t *testing.T) {
+	handler, db, workspaceID, token := testHandlerWithStorage(t, func(storage *config.Storage) {
+		storage.Driver = config.StorageS3
+		storage.S3Endpoint = filestest.S3Endpoint(t)
+		storage.S3Region = "us-east-1"
+		storage.S3Bucket = "files"
+		storage.S3ForcePathStyle = true
+	})
+	base := "/api/v1/workspaces/" + workspaceID + "/files"
+	initiateBody := `{"originalName":"notes.txt","size":5,"contentType":"text/plain"}`
+	jsonHeaders := map[string]string{"Content-Type": "application/json"}
+	octetHeaders := map[string]string{"Content-Type": "application/octet-stream"}
+
+	initiate := serveAuthorized(handler, http.MethodPost, base+"/uploads", initiateBody, token, jsonHeaders)
+	if initiate.Code != http.StatusCreated {
+		t.Fatalf("initiate = %d, %s", initiate.Code, initiate.Body.String())
+	}
+	var initiated fileResponse
+	if err := json.Unmarshal(initiate.Body.Bytes(), &initiated); err != nil {
+		t.Fatal(err)
+	}
+	fileBase := base + "/" + initiated.ID.String()
+	if initiated.UploadURL != fileBase+"/content" || initiated.CompleteURL != fileBase+"/complete" {
+		t.Fatalf("upload URLs = %q, %q; want application routes", initiated.UploadURL, initiated.CompleteURL)
+	}
+	if len(initiated.UploadHeaders) != 0 {
+		t.Fatalf("upload headers = %v, want none", initiated.UploadHeaders)
+	}
+
+	anonymous := httptest.NewRecorder()
+	handler.ServeHTTP(anonymous, httptest.NewRequest(http.MethodPut, initiated.UploadURL, strings.NewReader("hello")))
+	if anonymous.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous content write = %d, want 401", anonymous.Code)
+	}
+
+	written := serveAuthorized(handler, http.MethodPut, initiated.UploadURL, "hello", token, octetHeaders)
+	if written.Code != http.StatusOK {
+		t.Fatalf("content write = %d, %s", written.Code, written.Body.String())
+	}
+	var stored fileResponse
+	if err := json.Unmarshal(written.Body.Bytes(), &stored); err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != appfiles.Pending {
+		t.Fatalf("status after content write = %s, want pending", stored.Status)
+	}
+
+	completed := serveAuthorized(handler, http.MethodPost, initiated.CompleteURL, "", token, nil)
+	if completed.Code != http.StatusOK {
+		t.Fatalf("complete = %d, %s", completed.Code, completed.Body.String())
+	}
+	var ready fileResponse
+	if err := json.Unmarshal(completed.Body.Bytes(), &ready); err != nil {
+		t.Fatal(err)
+	}
+	if ready.Status != appfiles.Ready || ready.Size != 5 {
+		t.Fatalf("completed file = %+v", ready)
+	}
+
+	download := serveAuthorized(handler, http.MethodGet, fileBase+"/content", "", token, nil)
+	if download.Code != http.StatusFound || !strings.Contains(download.Header().Get("Location"), "X-Amz-Signature") {
+		t.Fatalf("download = %d, location %q; want presigned redirect", download.Code, download.Header().Get("Location"))
+	}
+
+	second := serveAuthorized(handler, http.MethodPost, base+"/uploads", initiateBody, token, jsonHeaders)
+	if second.Code != http.StatusCreated {
+		t.Fatalf("second initiate = %d, %s", second.Code, second.Body.String())
+	}
+	var pending fileResponse
+	if err := json.Unmarshal(second.Body.Bytes(), &pending); err != nil {
+		t.Fatal(err)
+	}
+	denied := serveAuthorized(handler, http.MethodPut, pending.UploadURL, "hello", viewerAPIToken(t, db, workspaceID), octetHeaders)
+	assertProblem(t, denied, http.StatusForbidden, "insufficient-scope")
+}
+
+// viewerAPIToken returns a read-only bearer token for a new viewer member of the
+// workspace. A viewer cannot grant write scope, so the token carries only read.
+func viewerAPIToken(t *testing.T, db *sql.DB, workspaceID string) string {
+	t.Helper()
+	ctx := context.Background()
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	var userID identity.UserID
+	if err := db.QueryRow("INSERT INTO users (email, password_hash, created_at) VALUES (?, NULL, ?) RETURNING id", "viewer@example.com", now).Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	workspaceKey, err := identity.ParseWorkspaceID(workspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", workspaceKey, userID, "viewer", now); err != nil {
+		t.Fatal(err)
+	}
+	auth, err := identity.NewService(db, config.SQLite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	principal, err := auth.Authorize(ctx, userID, workspaceKey, identity.ResourcesRead)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := auth.CreateAPIToken(ctx, principal, "viewer", []identity.Permission{identity.ResourcesRead}, nil, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return token.Secret
 }
 
 func TestFileProblemMapsBodyLimit(t *testing.T) {

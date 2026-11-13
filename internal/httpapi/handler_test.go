@@ -282,6 +282,13 @@ func TestIdentityRESTContracts(t *testing.T) {
 
 func testHandler(t *testing.T) (http.Handler, *sql.DB, string, string) {
 	t.Helper()
+	return testHandlerWithStorage(t, nil)
+}
+
+// testHandlerWithStorage adjusts the storage configuration before the file
+// service starts, for tests that need a different object store driver.
+func testHandlerWithStorage(t *testing.T, storage func(*config.Storage)) (http.Handler, *sql.DB, string, string) {
+	t.Helper()
 	ctx := context.Background()
 	cfg, err := config.LoadFrom(func(key string) (string, bool) {
 		if key == "HTTP_MAX_BODY_BYTES" {
@@ -296,6 +303,9 @@ func testHandler(t *testing.T) (http.Handler, *sql.DB, string, string) {
 	cfg.Database.MaxOpenConns = 1
 	cfg.Database.MaxIdleConns = 1
 	cfg.Storage.LocalPath = t.TempDir()
+	if storage != nil {
+		storage(&cfg.Storage)
+	}
 	db, err := database.Open(ctx, cfg.Database)
 	if err != nil {
 		t.Fatal(err)

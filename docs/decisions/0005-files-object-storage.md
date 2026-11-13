@@ -1,6 +1,6 @@
 # 0005: Files and object storage
 
-- Status: accepted
+- Status: accepted; upload clause amended by [0010](0010-streamed-s3-uploads.md)
 - Date: 2026-08-28
 - Owners: application maintainers
 
@@ -18,8 +18,10 @@ scoped metadata in the database and object bytes in `data/files` by default or
 one AWS-S3-compatible adapter selected by `STORAGE_DRIVER`. Use random
 workspace-prefixed keys, retain original names only as metadata, reject unsafe
 filenames and disallowed or signature-mismatched content, and enforce 16 MiB
-object and 1 GiB workspace defaults. S3 flows use short-lived presigned PUT/GET
-URLs; local flows stream through the application. Expose browser and REST only.
+object and 1 GiB workspace defaults. S3 downloads use short-lived presigned GET
+URLs. Uploads stream through the application on every driver; see
+[0010](0010-streamed-s3-uploads.md) for the S3 upload clause, which replaced
+presigned PUT. Expose browser and REST only.
 
 Pending, ready, and failed metadata rows provide bounded reconciliation hooks.
 Deletion, scanning, reconciliation, workspace deletion, public sharing, and

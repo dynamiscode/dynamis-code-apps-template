@@ -89,14 +89,9 @@ func (h *handler) createFile(writer http.ResponseWriter, request *http.Request) 
 			OriginalName: input.OriginalName, Size: input.Size, ContentType: input.ContentType,
 		}, h.auditContext(request))
 		if err == nil {
-			fileResponse, urlErr := h.fileUploadResponse(request, principal, file)
-			if urlErr != nil {
-				h.internal(writer, request)
-				return
-			}
 			writer.Header().Set("Location", "/api/v1/workspaces/"+workspaceID.String()+"/files/"+file.ID.String())
 			writer.Header().Set("Cache-Control", "private, no-store")
-			writeJSON(writer, http.StatusCreated, fileResponse)
+			writeJSON(writer, http.StatusCreated, h.fileUploadResponse(file))
 			return
 		}
 	default:
@@ -223,20 +218,15 @@ func (h *handler) fileContent(writer http.ResponseWriter, request *http.Request)
 	_, _ = io.Copy(writer, reader)
 }
 
-func (h *handler) fileUploadResponse(request *http.Request, principal identity.Principal, file appfiles.File) (fileResponse, error) {
-	response := fileResponse{File: file}
-	_, upload, err := h.files.PresignedPut(request.Context(), principal, file.WorkspaceID, file.ID)
-	if errors.Is(err, appfiles.ErrNotSupported) {
-		response.UploadURL = "/api/v1/workspaces/" + file.WorkspaceID.String() + "/files/" + file.ID.String() + "/content"
-		return response, nil
+// fileUploadResponse points every initiated upload at the application's content
+// route. Stores that require completion also get the complete route.
+func (h *handler) fileUploadResponse(file appfiles.File) fileResponse {
+	base := "/api/v1/workspaces/" + file.WorkspaceID.String() + "/files/" + file.ID.String()
+	response := fileResponse{File: file, UploadURL: base + "/content"}
+	if h.files.RequiresCompletion() {
+		response.CompleteURL = base + "/complete"
 	}
-	if err != nil {
-		return fileResponse{}, err
-	}
-	response.CompleteURL = "/api/v1/workspaces/" + file.WorkspaceID.String() + "/files/" + file.ID.String() + "/complete"
-	response.UploadURL = upload.URL
-	response.UploadHeaders = upload.Headers
-	return response, nil
+	return response
 }
 
 func (h *handler) fileDownloadResponse(request *http.Request, principal identity.Principal, file appfiles.File) (fileResponse, error) {

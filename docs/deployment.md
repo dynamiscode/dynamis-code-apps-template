@@ -9,9 +9,8 @@ a "Deploy on Railway" button for each.
   file storage live on the volume. Run one instance only.
 - **Full:** the app, a PostgreSQL service, and a Railway bucket. `DATABASE_URL`
   is referenced from the PostgreSQL service. The app reads the bucket's
-  S3-compatible values with `STORAGE_DRIVER=s3`. Browser uploads to the bucket
-  need the CORS fix tracked in
-  [issue 269](https://github.com/dynamiscode/dynamis-code-apps-template/issues/269).
+  S3-compatible values with `STORAGE_DRIVER=s3`. Uploads stream through the
+  application, so the bucket needs no CORS rule for uploads.
 
 Both templates generate `BOOTSTRAP_SETUP_TOKEN`. After the deploy finishes,
 open the generated public domain at `/setup`, paste the token from the app
@@ -84,25 +83,7 @@ object bytes go to one private bucket. Variables are described in
    AWS_SECRET_ACCESS_KEY=<token-secret-access-key>
    ```
 
-4. Add a bucket CORS rule so browsers can upload. Allow the origin of
-   `APP_PUBLIC_URL` and the headers the upload initiation returns:
-
-   ```json
-   [
-     {
-       "AllowedOrigins": ["https://app.example.com"],
-       "AllowedMethods": ["PUT"],
-       "AllowedHeaders": ["Content-Type", "If-None-Match"],
-       "MaxAgeSeconds": 3600
-     }
-   ]
-   ```
-
-   The server's `Content-Security-Policy` already allows the storage origin in
-   `connect-src` for presigned uploads (for example `https://<bucket>.<endpoint
-   host>` for virtual-host addressing). The bucket CORS rule is still required.
-
-5. Verify the endpoint from a source checkout with a dedicated test bucket. The
+4. Verify the endpoint from a source checkout with a dedicated test bucket. The
    suite writes and deletes objects under a random `conformance-` prefix. Enter
    the secret without putting it in shell history:
 
