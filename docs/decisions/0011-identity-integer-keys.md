@@ -1,4 +1,4 @@
-# 0010: Identity entities use integer keys with short-ID public forms
+# 0011: Identity entities use integer keys with short-ID public forms
 
 - Status: proposed
 - Date: 2026-11-13

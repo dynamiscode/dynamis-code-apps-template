@@ -75,7 +75,7 @@ verified restore paths.
 ## IDs, time, and transactions
 
 Entity records are keyed by integers, and their public IDs are short IDs from
-`internal/platform/id` ([decision 0010](decisions/0010-identity-integer-keys.md),
+`internal/platform/id` ([decision 0011](decisions/0011-identity-integer-keys.md),
 [ADR 0009](decisions/0009-short-id-codec.md)). `id.New()` creates 128 random bits
 from `crypto/rand`, hex-encoded, for credentials and protocol state only, such as
 session, CSRF, OAuth, MFA, and verification values. Those values are never entity IDs.

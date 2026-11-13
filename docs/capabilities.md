@@ -891,7 +891,7 @@ documented in [web](web.md) and
 ## Identity key and short-ID documentation evidence
 
 Ticket #196 records the identity key design and aligns the public docs with it.
-[ADR 0010](decisions/0010-identity-integer-keys.md) covers integer entity keys,
+[ADR 0011](decisions/0011-identity-integer-keys.md) covers integer entity keys,
 the ADR 0009 codec with its optional seed and type codes, strict decode, and the
 typed audit, idempotency, and job keys. It is `proposed`: the owner must review
 two open points (principal kinds, and key-less audit targets) before acceptance.
@@ -919,5 +919,5 @@ credentials and protocol state.
   passed with no drift, and `make docker-smoke` was not run (no runtime change).
 - Passed: `make test`, `make lint`, `make generate-check`, and `make doc-links`
   on branch `docs-short-id-196`.
-- Open: owner approval of ADR 0010 and of the two open points. Owner approval of the
+- Open: owner approval of ADR 0011 and of the two open points. Owner approval of the
   audit and idempotency exception remains pending; no exception status changed here.
