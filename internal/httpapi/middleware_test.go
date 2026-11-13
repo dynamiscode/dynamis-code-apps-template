@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"log/slog"
 	"mime/multipart"
@@ -11,6 +12,22 @@ import (
 	"testing"
 	"time"
 )
+
+func TestSecurityHeadersConnectSrcAllowsOnlyStorageOrigin(t *testing.T) {
+	t.Parallel()
+
+	const policy = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src %s; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+	for origin, connectSrc := range map[string]string{
+		"": "'self'",
+		"https://structured-closet-bnlu44g.t3.storageapi.dev": "'self' https://structured-closet-bnlu44g.t3.storageapi.dev",
+	} {
+		recorder := httptest.NewRecorder()
+		securityHeadersMiddleware(http.NotFoundHandler(), true, origin).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
+		if got, want := recorder.Header().Get("Content-Security-Policy"), fmt.Sprintf(policy, connectSrc); got != want {
+			t.Fatalf("origin %q: CSP = %q, want %q", origin, got, want)
+		}
+	}
+}
 
 func TestBodyLimitFileOverrideIsRequestLocal(t *testing.T) {
 	next := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {

@@ -80,6 +80,10 @@ object bytes go to one private bucket. Variables are described in
    ]
    ```
 
+   The server's `Content-Security-Policy` already allows the storage origin in
+   `connect-src` for presigned uploads (for example `https://<bucket>.<endpoint
+   host>` for virtual-host addressing). The bucket CORS rule is still required.
+
 5. Verify the endpoint from a source checkout with a dedicated test bucket. The
    suite writes and deletes objects under a random `conformance-` prefix. Enter
    the secret without putting it in shell history:
