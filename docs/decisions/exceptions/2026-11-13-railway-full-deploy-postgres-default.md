@@ -3,14 +3,14 @@
 - Profile and requirement: `AGENTS.md` "Default to SQLite for one instance."
   The Railway full template, drafted in
   [#262](https://github.com/dynamiscode/dynamis-code-apps-template/issues/262)
-  and not yet published, defaults to Railway-managed PostgreSQL injected through
+  and published in [PR #273](https://github.com/dynamiscode/dynamis-code-apps-template/pull/273), defaults to Railway-managed PostgreSQL injected through
   `DATABASE_URL` for a single instance. The rule "PostgreSQL is required before
   multiple instances" is unchanged, and the full template is single-instance
   only. The minimal template, manual Compose, and the "SQLite: one instance"
   guidance in [deployment](../../deployment.md) are unchanged.
-- Status: proposed
+- Status: accepted
 - Responsible owner: David Londono (@davidlondono)
-- Approving maintainer: David Londono (@davidlondono), pending approval
+- Approving maintainer: David Londono (@davidlondono), approved 2026-11-13
 - Security-owner approval, when required: not required. No security control is
   weakened. Postgres traffic stays on Railway's private network, which Railway
   documents as WireGuard-encrypted. TLS is recommended, not enforced.
