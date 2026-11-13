@@ -1,9 +1,7 @@
 if(window.htmx)htmx.config.noSwap=[204,304,"4xx","5xx"];
-document.addEventListener("htmx:after:swap",()=>document.querySelector('[role="alert"]')?.focus());
 const list=document.querySelector("#item-list[data-events]");
 const realtimeStatus=document.querySelector("#realtime-status");
-if(list&&window.EventSource){const messages={connecting:list.dataset.liveConnecting,connected:list.dataset.liveConnected,unavailable:list.dataset.liveUnavailable,reconnecting:list.dataset.liveReconnecting};if(realtimeStatus)realtimeStatus.textContent=messages.connecting;const events=new EventSource(list.dataset.events);events.addEventListener("open",()=>{if(realtimeStatus)realtimeStatus.textContent=messages.connected});events.addEventListener("error",()=>{if(realtimeStatus)realtimeStatus.textContent=events.readyState===EventSource.CLOSED?messages.unavailable:messages.reconnecting});for(const name of["item.changed","resync"]){events.addEventListener(name,()=>window.htmx?.ajax("GET",location.pathname,{target:"#item-list",swap:"outerHTML"}))}events.addEventListener("close",()=>events.close())}
-document.addEventListener("click",event=>{const button=event.target instanceof Element?event.target.closest("button[data-confirm]"):null;if(button&&!window.confirm(button.dataset.confirm))event.preventDefault()});
+if(list&&window.EventSource){const messages={connecting:list.dataset.liveConnecting,connected:list.dataset.liveConnected,unavailable:list.dataset.liveUnavailable,reconnecting:list.dataset.liveReconnecting};if(realtimeStatus)realtimeStatus.textContent=messages.connecting;const events=new EventSource(list.dataset.events);events.addEventListener("open",()=>{if(realtimeStatus)realtimeStatus.textContent=messages.connected});events.addEventListener("error",()=>{if(realtimeStatus)realtimeStatus.textContent=events.readyState===EventSource.CLOSED?messages.unavailable:messages.reconnecting});let waiting=false;const refresh=()=>{const current=document.querySelector("#item-list");if(current&&window.dynamisForms?.refreshDecision(window.dynamisForms.isEditing(current))==="defer"){waiting=true;if(realtimeStatus)realtimeStatus.textContent=list.dataset.liveWaiting||messages.connected;return}waiting=false;if(realtimeStatus)realtimeStatus.textContent=messages.connected;window.htmx?.ajax("GET",location.pathname,{target:"#item-list",swap:"outerHTML"})};for(const name of["item.changed","resync"]){events.addEventListener(name,refresh)}document.addEventListener("focusout",()=>setTimeout(()=>{if(waiting)refresh()},0));document.addEventListener("htmx:finally:request",()=>setTimeout(()=>{if(waiting)refresh()},0));events.addEventListener("close",()=>events.close())}
 class FileUploader {
 	static PHASES = Object.freeze({
 		IDLE: "IDLE",
@@ -208,6 +206,8 @@ if (fileUploadForm) {
 			const element = control(form, name);
 			if (!element) return result(tool, "visible-control-not-found");
 			element.value = value;
+			// Tell forms.js the field changed, so dirty tracking enables the Save button.
+			element.dispatchEvent(new Event("input", {bubbles: true}));
 		}
 		const target = button ? form.querySelector(`button[value="${button}"]`) : control(form, Object.keys(fields || {})[0]);
 		(target || form.querySelector("button"))?.focus();

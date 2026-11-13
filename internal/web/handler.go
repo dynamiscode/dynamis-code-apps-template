@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf16"
 
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/i18n"
@@ -81,6 +82,8 @@ type pageData struct {
 	FilesEnabled                     bool
 	NextCursor                       string
 	CreateKey                        string
+	NewTitle                         string
+	ToastKey                         string
 	CurrentPath                      string
 	Email                            string
 	UserLocale                       string
@@ -93,6 +96,7 @@ type pageData struct {
 	Tokens                           []identity.APIToken
 	Sessions                         []identity.Session
 	AuditHistory                     []identity.AuditHistoryEntry
+	AuditLazy                        bool
 	Profile                          identity.UserProfile
 	NotificationPreferences          []identity.NotificationPreference
 	WorkspaceNotificationPreferences []identity.NotificationPreference
@@ -152,6 +156,12 @@ func (p pageData) Date(value time.Time) string {
 
 func (p pageData) DateTime(value time.Time) string {
 	return i18n.FormatDateTime(i18n.Locale(p.Locale), value)
+}
+
+// DefaultTokenExpiry is the smart default for a new API token: 90 days from
+// today. The user can change it or clear it for a token without expiry.
+func (p pageData) DefaultTokenExpiry() string {
+	return time.Now().UTC().AddDate(0, 0, 90).Format("2006-01-02")
 }
 
 func (p pageData) Role(value identity.Role) string {
@@ -563,7 +573,7 @@ func (h *Handler) login(writer http.ResponseWriter, request *http.Request) {
 	)
 	if err != nil {
 		h.render(writer, http.StatusUnauthorized, "login.html", pageData{
-			Title: "Sign in", CSRF: request.FormValue("csrf"),
+			Title: "Sign in", CSRF: request.FormValue("csrf"), Email: strings.TrimSpace(request.FormValue("email")),
 			Error:         "The email or password is invalid.",
 			OIDCProviders: h.providers(), ReturnTo: safeReturnTo(request.FormValue("return_to")),
 		})
@@ -782,6 +792,13 @@ func (h *Handler) renderItems(
 			return
 		}
 	}
+	if status == http.StatusOK && message == "" && request.Method == http.MethodPost {
+		data.ToastKey = itemToastKey(request)
+	}
+	// A rejected create keeps what the user typed in the new-title box.
+	if status >= http.StatusBadRequest && request.Method == http.MethodPost && request.PathValue("itemId") == "" {
+		data.NewTitle = request.FormValue("title")
+	}
 	if len(shareURL) > 0 {
 		data.PublicShareURL = shareURL[0]
 		data.PublicShareItemID = items.ParseItemIDOrZero(request.PathValue("itemId"))
@@ -795,6 +812,36 @@ func (h *Handler) renderItems(
 		}
 	}
 	h.render(writer, status, name, data)
+}
+
+// asciiJSON escapes non-ASCII runes as \uXXXX so a JSON value is safe in an
+// HTTP header, which browsers decode as Latin-1.
+func asciiJSON(raw []byte) string {
+	var out strings.Builder
+	for _, r := range string(raw) {
+		if r < 0x80 {
+			out.WriteRune(r)
+			continue
+		}
+		for _, unit := range utf16.Encode([]rune{r}) {
+			fmt.Fprintf(&out, "\\u%04x", unit)
+		}
+	}
+	return out.String()
+}
+
+// itemToastKey names the confirmation toast for a successful item mutation.
+func itemToastKey(request *http.Request) string {
+	switch {
+	case strings.HasSuffix(request.URL.Path, "/share"):
+		return ""
+	case request.PathValue("itemId") == "":
+		return "ui.item_added"
+	case request.FormValue("action") == "delete":
+		return "ui.item_deleted"
+	default:
+		return "ui.item_saved"
+	}
 }
 
 func (h *Handler) mutationPrincipal(
@@ -830,6 +877,8 @@ func (h *Handler) itemError(writer http.ResponseWriter, request *http.Request, e
 		h.renderItems(writer, request, http.StatusUnprocessableEntity, "The item values are invalid.")
 	case errors.Is(err, items.ErrLimit):
 		h.renderItems(writer, request, http.StatusConflict, "The workspace item limit was reached. Delete an item before retrying.")
+	case errors.Is(err, items.ErrIdempotencyConflict):
+		h.renderItems(writer, request, http.StatusConflict, "This form was already used for another title. Check the list, then press Add again.")
 	default:
 		h.renderError(writer, http.StatusInternalServerError)
 	}
@@ -961,6 +1010,12 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 	data.FilesEnabled = h.files != nil
 	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
 	h.localizePage(writer, &data)
+	if data.ToastKey != "" {
+		// htmx raises app:toast with this message; forms.js shows it in a live region.
+		if trigger, err := json.Marshal(map[string]string{"app:toast": data.T(data.ToastKey)}); err == nil {
+			writer.Header().Set("HX-Trigger", asciiJSON(trigger))
+		}
+	}
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)

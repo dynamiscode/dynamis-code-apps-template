@@ -124,7 +124,8 @@ input, select, button { font: inherit; min-height: 2.75rem; border: 2px solid va
 input, select { width: 100%; }
 button { border-color: var(--accent); background: var(--accent); color: var(--on-accent); font-weight: 700; cursor: pointer; }
 button:disabled { border-color: var(--border-muted); background: var(--disabled-surface); color: var(--muted); cursor: not-allowed; }
-main form:not(.inline) > :is(input:not([type="hidden"]), select, textarea) + button { margin-top: .75rem; }
+main form:not(.inline) > :is(input:not([type="hidden"]), select, textarea, .reveal, .strength, .wizard-nav) + button { margin-top: .75rem; }
+main form:not(.inline) > button.reveal { display: block; margin-top: .35rem; min-height: 2.75rem; }
 .secondary { background: var(--surface); color: var(--accent); }
 .danger { background: var(--danger); border-color: var(--danger); }
 :focus-visible { outline: .2rem solid var(--focus-outline); outline-offset: 0; box-shadow: 0 0 0 .4rem var(--focus-halo); }
@@ -165,3 +166,24 @@ code { overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }
+/* forms.js: progressive-enhancement states (see the form-* and async-feedback skills). */
+.skip-link { position: absolute; left: .5rem; top: -3rem; z-index: 10; padding: .5rem .75rem; background: var(--surface); color: var(--ink); border: 2px solid var(--accent); }
+.skip-link:focus { top: .5rem; }
+.field-error { margin: .25rem 0 0; color: var(--danger); font-weight: 700; }
+[aria-invalid="true"] { border-color: var(--danger); }
+.error-summary { border-left: .35rem solid var(--danger); background: var(--danger-surface); padding: .75rem 1rem; margin-bottom: 1rem; }
+.error-summary p { margin: 0; font-weight: 700; }
+.error-summary a { color: var(--danger); }
+form[aria-busy="true"] button { cursor: progress; }
+.loading::before, form[aria-busy="true"] button:disabled::before { content: ""; display: inline-block; width: .8em; height: .8em; margin-right: .4em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; vertical-align: -.1em; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .loading::before, form[aria-busy="true"] button:disabled::before { animation: none; } }
+li[data-optimistic="hidden"] { display: none; }
+.toasts { position: fixed; right: 1rem; bottom: 1rem; z-index: 20; display: grid; gap: .5rem; max-width: min(24rem, calc(100vw - 2rem)); }
+.toast { display: flex; gap: .75rem; align-items: center; justify-content: space-between; margin: 0; padding: .75rem 1rem; background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-left: .35rem solid var(--success); box-shadow: 0 .25rem 1rem var(--shadow); }
+.toast.error { border-left-color: var(--danger); }
+.strength { display: flex; gap: .5rem; align-items: center; margin: .35rem 0 0; color: var(--muted); }
+.strength meter { width: 8rem; }
+.wizard-status { color: var(--muted); font-weight: 700; }
+.wizard-nav { display: flex; gap: .5rem; margin-top: 1rem; }
+.draft-notice { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; padding: .5rem .75rem; background: var(--accent-surface); }
