@@ -843,7 +843,18 @@ func TestWebAuditHistoryIsScopedRedactedAndNotWebMCP(t *testing.T) {
 		t.Fatal(err)
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	page := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/audit", nil, cookies, nil)
+	auditPath := "/workspaces/" + workspaceID.String() + "/settings/audit"
+	shell := request(handler, http.MethodGet, auditPath, nil, cookies, nil)
+	if shell.Code != http.StatusOK || !strings.Contains(shell.Body.String(), `data-lazy-src="`+auditPath+`?part=table"`) ||
+		!strings.Contains(shell.Body.String(), `href="`+auditPath+`?all=1"`) || strings.Contains(shell.Body.String(), "test.audit.visible") {
+		t.Fatalf("lazy audit shell = %d, %s", shell.Code, shell.Body.String())
+	}
+	fragment := request(handler, http.MethodGet, auditPath+"?part=table", nil, cookies, map[string]string{"HX-Request": "true"})
+	if fragment.Code != http.StatusOK || !strings.HasPrefix(fragment.Body.String(), `<div id="audit-table">`) ||
+		!strings.Contains(fragment.Body.String(), "test.audit.visible") || strings.Contains(fragment.Body.String(), "198.51.100.9") {
+		t.Fatalf("audit fragment = %d, %s", fragment.Code, fragment.Body.String())
+	}
+	page := request(handler, http.MethodGet, auditPath+"?all=1", nil, cookies, nil)
 	body := page.Body.String()
 	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" ||
 		!strings.Contains(body, "Audit history") || !strings.Contains(body, "test.audit.visible") ||
@@ -1210,11 +1221,11 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 			t.Errorf("items page lacks %q", required)
 		}
 	}
-	source, err := files.ReadFile("assets/app.js")
+	source, err := files.ReadFile("assets/forms.js")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(source), `button[data-confirm]`) {
+	if !strings.Contains(string(source), `button[data-confirm]`) || !strings.Contains(body, `src="/assets/forms.js"`) {
 		t.Error("browser script lacks destructive-action confirmation hook")
 	}
 }

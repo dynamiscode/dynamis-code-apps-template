@@ -451,9 +451,22 @@ func (h *Handler) auditHistoryPage(writer http.ResponseWriter, request *http.Req
 	if !ok {
 		return
 	}
-	history, err := h.identity.ListAuditHistory(request.Context(), principal, workspaceID)
-	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
+	// The page shell renders first and forms.js fetches the table as a fragment
+	// (lazy loading). Without JavaScript, the placeholder links to ?all=1, which
+	// renders the table inline.
+	fragment := request.Header.Get("HX-Request") == "true" && request.URL.Query().Get("part") == "table"
+	lazy := !fragment && request.URL.Query().Get("all") != "1"
+	var history []identity.AuditHistoryEntry
+	if !lazy {
+		var err error
+		history, err = h.identity.ListAuditHistory(request.Context(), principal, workspaceID)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+	}
+	if fragment {
+		h.render(writer, http.StatusOK, "audit-table", pageData{AuditHistory: history})
 		return
 	}
 	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
@@ -464,7 +477,8 @@ func (h *Handler) auditHistoryPage(writer http.ResponseWriter, request *http.Req
 	h.render(writer, http.StatusOK, "audit-history.html", pageData{
 		Title: "Audit history", NavPage: "audit", NavSection: "settings", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		AuditHistory: history, DefaultWorkspaceHref: h.defaultHomeHref(request.Context(), session.UserID),
+		AuditHistory: history, AuditLazy: lazy, CurrentPath: request.URL.Path,
+		DefaultWorkspaceHref: h.defaultHomeHref(request.Context(), session.UserID),
 	})
 }
 

@@ -164,7 +164,7 @@ Prior to PR creation, verify changes with the following checklist:
 - Run focused tests and `go test ./...` across affected packages.
 - Run `make verify` before submitting changes for review.
 - When adding, changing, or removing a mock, example, sample, demo, or fake, update the map in `.agents/skills/setup-generated-app/SKILL.md` and run `make doc-links`.
-- Run `npm ci && make accessibility-smoke`, `make webmcp-smoke`, and `make docker-smoke` when interface or container delivery are affected.
+- Run `npm ci && make accessibility-smoke`, `make webmcp-smoke`, `make ux-smoke`, and `make docker-smoke` when interface or container delivery are affected. `make ux-smoke` drives the form patterns in headless Chrome against a fresh server (set `UX_PORT` if 58093 is taken).
 - Run security gates (`make secret-check`, `make vuln-check`, `make fuzz-smoke`) and database tests against PostgreSQL when applicable.
 
 ## Worktree and branch lifecycle

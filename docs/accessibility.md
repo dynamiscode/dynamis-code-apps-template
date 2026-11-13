@@ -21,7 +21,7 @@ never prints the password.
 
 | Check | Result | Evidence |
 |---|---|---|
-| Keyboard-only order and actions | Pass | Sign-in order reached email, password, then submit; native links, forms, selects, and buttons require no pointer |
+| Keyboard-only order and actions | Pass | Sign-in order reached the skip link, email, password, the reveal toggle, then submit; native links, forms, selects, and buttons require no pointer |
 | Focus order and visibility | Pass | DOM order is visual order; the two-color focus ring remained visible on light and colored controls |
 | Forms and errors | Pass | Labels are programmatic; HTMX validation returns a `role=alert` target, focuses it after swap, and the import form supplies a required confirmation plus useful `role=status`/`role=alert` text |
 | 200% zoom and reflow | Pass | Equivalent 320 CSS-pixel viewport had no horizontal page overflow; controls stack at the narrow breakpoint |
@@ -30,7 +30,10 @@ never prints the password.
 | Screen reader | Pass | VoiceOver cursor traversed sign-in, workspace, and item flows in a disposable browser; Chrome AX-tree checks confirmed named headings, text fields, and buttons |
 
 HTMX updates replace one named section, error alerts receive focus after a
-swap, and the realtime status uses a polite live region. No accessibility
+swap, full-page errors receive focus on load, client validation focuses an error
+summary that links to each invalid field, toasts use a polite live region, and
+the realtime status uses a polite live region. Every page starts with a "Skip to
+content" link. No accessibility
 exception is open.
 
 The workspace home keeps brand, workspace, and account controls. The workspace
@@ -46,7 +49,8 @@ current workspace home.
 The workspace switcher and account menu use keyboard-accessible native disclosure controls;
 narrow screens stack the same links without horizontal overflow. The item page
 reports connecting, connected, reconnecting, or unavailable realtime states;
-permanent deletion confirms before submission when scripting is available.
+permanent deletion, member removal, ownership transfer, account deletion, and
+every revoke confirm before submission when scripting is available.
 
 Optional WebMCP preparation uses the same visible controls and focus ring as
 ordinary keyboard interaction. `make webmcp-smoke` verifies focus after native

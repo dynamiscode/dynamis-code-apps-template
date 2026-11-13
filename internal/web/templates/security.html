@@ -7,8 +7,8 @@
   <title>{{.Title}} · Dynamis Code</title>
   <link rel="stylesheet" href="/assets/app.css">
   <script src="/assets/mfa.js" defer></script>
-</head>
-<body>
+{{template "ui-head" .}}</head>
+<body>{{template "skip-link" .}}
   <header class="topbar">
     <a class="brand" href="/">Dynamis Code</a>
     <div class="topbar-context">{{template "workspace-list-crumb" .}}<span>{{.T "common.account"}}</span></div>
@@ -59,7 +59,7 @@
         <input type="hidden" name="csrf" value="{{.CSRF}}">
         <input type="hidden" name="challenge" value="{{.TOTPEnrollment.Challenge}}">
         <label for="totp-enrollment-code">{{.T "security.mfa_authenticator_code"}}</label>
-        <input id="totp-enrollment-code" name="code" inputmode="numeric" minlength="6" maxlength="6" required>
+        <input id="totp-enrollment-code" name="code" inputmode="numeric" autocomplete="one-time-code" minlength="6" maxlength="9" required data-mask="digits" data-mask-length="6">
         <button type="submit">{{.T "security.mfa_confirm_authenticator"}}</button>
       </form>
       {{end}}

@@ -141,6 +141,42 @@ HTMX 2.x non-swap behavior for `204`, `304`, `4xx`, and `5xx` responses so
 error pages never replace the list. The exact upstream license is served from
 `internal/web/assets/HTMX-LICENSE`.
 
+## Form enhancements
+
+Every page loads `internal/web/assets/forms.js` through the `ui-head` partial in
+`navigation.html`. Pages work without it: forms post, the server validates, and
+errors render as `role="alert"`. With scripting, forms gain these behaviors,
+each driven by a template attribute:
+
+| Pattern | Attribute or place | Behavior |
+|---|---|---|
+| Busy state and double-submit prevention | every form | A submit marks the form `aria-busy`, disables its buttons with "Saving…", and cancels a second submit. The file upload form keeps its own state machine. |
+| Inline validation and error summary | every form | Fields are checked when left and on submit; invalid fields get a message and `aria-invalid`, and a focused summary links to each one. A full-page server error takes focus on load. |
+| Forgiving format | `data-trim`, MFA codes | Text is trimmed. The server accepts authenticator codes with spaces or dashes and recovery codes in any case. |
+| Input masks | `data-mask="digits"`, `data-mask="upper"` | Authenticator codes keep digits only; recovery codes become upper case. |
+| Password strength and reveal | `data-strength`, every password | A meter scores 0 below 12 characters (the server minimum); a toggle shows or hides the value. `data-match` checks a confirmation. |
+| Smart defaults | `data-default="timezone"`, token expiry | An empty timezone is filled from the browser; API tokens default to 90 days. |
+| Dirty detection | `data-dirty-track`, `data-requires-change` | Save stays disabled until a field changes. |
+| Unsaved-changes warning | `data-unsaved-warning` | Leaving a changed form asks first. |
+| Draft persistence | `data-persist` | Unsent text is kept in `sessionStorage` (never passwords, hidden values, or files), restored after a rejected submit or a return visit, and discarded after a save. |
+| Wizard | `data-wizard`, `fieldset data-step` | First-run setup shows one step at a time; Next validates the current step. |
+| Progressive disclosure | `data-show-when="control=value"` | Email settings show only the chosen provider's section. |
+| Optimistic UI | `data-optimistic="remove"` | A confirmed item delete hides the row at once and restores it on failure. |
+| Autosave | `data-autosave` | Changing an item's status saves the row. |
+| Toasts | `HX-Trigger: {"app:toast": …}` | Item saves, additions, deletions, and request failures show in a polite live region. |
+| Lazy loading | `data-lazy-src` | The audit page renders first and fetches its table; without scripting, a link shows it. |
+| Keyboard | skip link, Escape | The first Tab reaches "Skip to content"; Escape closes an open menu or the newest toast; focus returns to the same field after an htmx swap. |
+
+A rejected item create keeps the typed title, and a reused create form answers
+`409` with a message instead of `500`. The realtime item list waits while a row
+is being edited and refreshes when focus leaves it.
+
+The rules behind these behaviors, and how to check them, are in the
+`item-create-submission`, `form-drafts`, `form-field-input`, `form-wizard`,
+`async-feedback`, `form-markup`, and `file-upload-form` skills under `.agents/skills/`. `make ux-smoke`
+drives them in headless Chrome against a fresh server; `docs/statecharts/` charts
+the item create, item delete, draft, and setup flows.
+
 ## Theme
 
 Light, dark, and system appearance. The signed-in user's `users.theme`

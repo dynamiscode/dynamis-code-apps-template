@@ -1,0 +1,36 @@
+---
+title: "First-run setup in two steps"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: done
+    lg1: error
+    lg2: active
+  }
+  class lg0 teal
+  class lg1 orange
+  class lg2 blue
+  s0: Step 1: account incomplete
+  s1: Step 1: account filled
+  s2: Step 2: workspace incomplete
+  s3: Step 2: workspace filled
+  s4: Owner and workspace created
+  s5: Server rejected the setup
+  [*] --> s0
+  s0 --> s1: you fill the account step
+  s1 --> s0: you break an account field
+  s1 --> s2: you press Next
+  s2 --> s1: you press Back
+  s2 --> s3: you fill the workspace step
+  s3 --> s2: you clear the workspace name
+  s3 --> s4: you press Create owner
+  s3 --> s1: you press Back
+  s3 --> s5: you press Create owner, the server refuses
+  s1 --> s3: you press Next
+  s5 --> s0: the page shows the error on step 1
+  class s0 blue
+  class s1 blue
+  class s2 blue
+  class s3 blue
+  class s4 teal
+  class s5 orange
