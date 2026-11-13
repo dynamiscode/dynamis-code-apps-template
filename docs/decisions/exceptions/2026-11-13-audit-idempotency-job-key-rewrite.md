@@ -10,12 +10,14 @@
   `target_id TEXT` is replaced by `target_key BIGINT`. In `idempotency_records`,
   `principal_id TEXT` is replaced by `principal_kind TEXT` and `principal_key BIGINT`.
   In `background_jobs`, `deduplication_key` changes from `TEXT` to `BIGINT`.
-- Status: proposed (owner approval pending)
+- Status: accepted (approved by repository owner 2026-11-13)
 - Responsible owner: repository maintainers (spec #243, ticket #195)
-- Approving maintainer: pending. The owner decision on #243 (comment
-  https://github.com/dynamiscode/dynamis-code-apps-template/issues/243#issuecomment-6860178488)
+- Approving maintainer: repository owner, 2026-11-13. The owner decision on #243
+  (comment https://github.com/dynamiscode/dynamis-code-apps-template/issues/243#issuecomment-6860178488)
   requires no narrowing of "no text entity ID column remains in the migrations",
-  and this record is the in-place reset that follows from it. It is not yet approved.
+  and this record is the in-place reset that follows from it. The owner accepted the
+  reset; the two open design points (principal kinds and key-less audit targets) are
+  not covered by this acceptance and remain open on #243.
 - Security-owner approval, when required: pending. Audit and idempotency records
   stop storing session IDs and MFA challenge tokens (see Known limitations), which
   narrows what the audit log holds. No authorization check changes. Sessions, OIDC
