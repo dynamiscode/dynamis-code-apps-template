@@ -404,7 +404,8 @@ func (s *Service) auditEvents(ctx context.Context, tx *sql.Tx, workspaceID ident
 	result := make([]AuditEvent, 0)
 	for rows.Next() {
 		var value AuditEvent
-		var actor, target, requestID, source sql.NullString
+		var actor sql.NullInt64
+		var target, requestID, source sql.NullString
 		var scope sql.NullInt64
 		var metadata, createdAt string
 		var key int64
@@ -416,7 +417,10 @@ func (s *Service) auditEvents(ctx context.Context, tx *sql.Tx, workspaceID ident
 			return nil, err
 		}
 		value.ID = id.EncodeKey(id.TypeAuditEvent, key)
-		value.ActorUserID, value.TargetID = actor.String, target.String
+		if actor.Valid {
+			value.ActorUserID = identity.UserID(actor.Int64).String()
+		}
+		value.TargetID = target.String
 		if scope.Valid {
 			value.WorkspaceID = identity.WorkspaceID(scope.Int64)
 		}

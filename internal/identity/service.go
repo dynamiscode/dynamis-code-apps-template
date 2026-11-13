@@ -452,7 +452,7 @@ func (s *Service) ListAuditHistory(
 	history := make([]AuditHistoryEntry, 0, AuditHistoryLimit)
 	for rows.Next() {
 		var entry AuditHistoryEntry
-		var actorUserID sql.NullString
+		var actorUserID sql.NullInt64
 		var createdAt string
 		if err := rows.Scan(
 			&entry.EventType, &actorUserID, &entry.AuthMethod, &entry.TargetType,
@@ -461,10 +461,11 @@ func (s *Service) ListAuditHistory(
 			return nil, err
 		}
 		if actorUserID.Valid {
-			entry.ActorUserID, err = ParseUserID(actorUserID.String)
-			if err != nil {
-				return nil, err
+			// A stored actor key must be a positive user key; anything else is corrupt.
+			if actorUserID.Int64 <= 0 {
+				return nil, ErrInvalidShortID
 			}
+			entry.ActorUserID = UserID(actorUserID.Int64)
 		}
 		entry.CreatedAt, err = parseTimestamp(createdAt)
 		if err != nil {
@@ -801,7 +802,7 @@ func (s *Service) audit(
 			target_type, target_id, action, outcome, request_id,
 			source_address, metadata, created_at
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, event.EventType, nullable(event.ActorUserID.String()), event.AuthMethod,
+	`, event.EventType, nullableUserID(event.ActorUserID), event.AuthMethod,
 		nullableWorkspaceID(event.WorkspaceID), event.TargetType, nullable(event.TargetID),
 		event.Action, event.Outcome, nullable(event.RequestID),
 		nullable(event.SourceAddress), event.Metadata, timestamp(event.CreatedAt))

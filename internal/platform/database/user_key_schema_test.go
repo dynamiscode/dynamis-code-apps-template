@@ -39,6 +39,7 @@ var userReferenceColumns = []userKeyColumn{
 	{"mfa_recovery_codes", "user_id"},
 	{"mfa_passkeys", "user_id"},
 	{"oauth_grants", "user_id"},
+	{"audit_events", "actor_user_id"},
 }
 
 // textKeyColumns stay TEXT: they hold bearer or hashed values, or non-user IDs.

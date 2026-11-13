@@ -22,7 +22,8 @@ func TestListAuditHistoryRejectsUnparseableActorRow(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.ExecContext(ctx, `UPDATE audit_events SET actor_user_id = ? WHERE event_type = ?`, "NOT-VALID", "test.corrupt"); err != nil {
+	// Actor keys are positive integers; a zero or negative stored key is corrupt.
+	if _, err := db.ExecContext(ctx, `UPDATE audit_events SET actor_user_id = ? WHERE event_type = ?`, -1, "test.corrupt"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := service.ListAuditHistory(ctx, owner, bootstrap.WorkspaceID); !errors.Is(err, ErrInvalidShortID) {
