@@ -212,7 +212,8 @@ Groups remain REST/IdP-only. CLI, MCP, and WebMCP surfaces do not manage SCIM
 or expose its credentials.
 
 SCIM normalizes `userName` and email to the account email and keeps a stable
-workspace external ID. Account email, `userName`, and `displayName` are
+workspace mapping from the user's short ID (the SCIM resource `id`) to the IdP
+`externalId`. Account email, `userName`, and `displayName` are
 immutable through SCIM; `displayName` is read-only because account profile
 fields are not workspace-scoped.
 New users are active members with no local password and

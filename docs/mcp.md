@@ -25,7 +25,8 @@ filesystem, code execution, or external networks.
 Names include their contract version. A breaking schema, scope, output, or
 side-effect change requires a new name such as `_v2`. Item outputs retain their
 record after account deletion and return `createdByUserId: null` when the
-creator no longer exists.
+creator no longer exists. `createdByUserId` is a user short ID, and the tool
+output schema declares the short-ID pattern.
 
 ## Prompts
 
