@@ -570,8 +570,11 @@ which is `proposed` until the owner approves it.
 
 - Covered: `TestSQLiteUserKeysUseIntegerReferences` and
   `TestPostgresUserKeysUseIntegerReferences` check `users.id` and the 21 referencing
-  columns are integer typed, and that `external_identities.id`, `sessions.id`, and
-  `oidc_transactions.state_hash` stay text. `TestUserIDJSONEmitsShortIDNotIntegerKey`
+  columns are integer typed, and that `external_identities.id`, `sessions.id`,
+  `oidc_transactions.state_hash`, `mfa_challenges.session_id`, and
+  `oauth_grants.session_id` stay text. A missing table fails the test unless it is
+  the Files profile table that generated apps without that profile remove, and no
+  embedded migration creates it. `TestUserIDJSONEmitsShortIDNotIntegerKey`
   and `TestParseUserIDRejectsMalformedAndZero` check that the typed key emits and
   accepts only short IDs. Login, OIDC, invitation, token, and SCIM flows run on
   their existing identity tests with the new IDs.
