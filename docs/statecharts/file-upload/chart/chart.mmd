@@ -1,0 +1,42 @@
+---
+title: "Uploading a private file"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: done
+    lg1: blocked
+    lg2: active
+  }
+  class lg0 teal
+  class lg1 pink
+  class lg2 blue
+  s0: Choose a file
+  s1: Asking the server for an upload slot
+  s2: Failed before anything was sent
+  s3: Sending the file
+  s4: Asking the server to finish
+  s5: Failed while sending: server copy stays pending
+  s6: Failed after the bytes arrived: server copy stays pending
+  s7: Upload complete, page reloads
+  s8: Failed before sending, and an earlier server copy stays pending
+  [*] --> s0
+  s0 --> s1: you choose the file and submit
+  s1 --> s2: the server refuses the upload
+  s1 --> s3: the server reserves space
+  s2 --> s1: you try again
+  s3 --> s4: the file is sent
+  s3 --> s5: sending the file fails
+  s4 --> s6: finishing the upload fails
+  s4 --> s7: the server marks the file ready
+  s5 --> s1: you try again
+  s6 --> s1: you try again
+  s1 --> s8: the server refuses the upload
+  class s0 blue
+  class s1 blue
+  class s2 pink
+  class s3 blue
+  class s4 blue
+  class s5 pink
+  class s6 pink
+  class s7 teal
+  class s8 pink

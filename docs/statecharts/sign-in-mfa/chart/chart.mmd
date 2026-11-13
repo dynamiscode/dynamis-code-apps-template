@@ -1,0 +1,49 @@
+---
+title: "Sign-in with a second factor"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: done
+    lg1: blocked
+    lg2: active
+  }
+  class lg0 teal
+  class lg1 pink
+  class lg2 blue
+  s0: Sign-in form
+  s1: Asks for a code (0 of 5 wrong so far)
+  s2: Challenge expired after 5 minutes
+  s3: Signed in
+  s4: Asks for a code (1 of 5 wrong so far)
+  s5: Asks for a code (2 of 5 wrong so far)
+  s6: Asks for a code (3 of 5 wrong so far)
+  s7: Asks for a code (4 of 5 wrong so far)
+  s8: Locked after 5 wrong codes
+  [*] --> s0
+  s0 --> s1: you submit your password
+  s1 --> s2: 5 minutes pass
+  s1 --> s3: you enter the right code
+  s1 --> s4: you enter a wrong code
+  s2 --> s0: you start sign-in again
+  s4 --> s2: 5 minutes pass
+  s4 --> s3: you enter the right code
+  s4 --> s5: you enter a wrong code
+  s5 --> s2: 5 minutes pass
+  s5 --> s3: you enter the right code
+  s5 --> s6: you enter a wrong code
+  s6 --> s2: 5 minutes pass
+  s6 --> s3: you enter the right code
+  s6 --> s7: you enter a wrong code
+  s7 --> s2: 5 minutes pass
+  s7 --> s3: you enter the right code
+  s7 --> s8: you enter a fifth wrong code
+  s8 --> s0: you start sign-in again
+  class s0 blue
+  class s1 blue
+  class s2 pink
+  class s3 teal
+  class s4 blue
+  class s5 blue
+  class s6 blue
+  class s7 blue
+  class s8 pink

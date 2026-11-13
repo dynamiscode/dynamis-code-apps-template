@@ -1,0 +1,28 @@
+---
+title: "Sharing one item with a public link"
+---
+stateDiagram-v2
+  direction LR
+  state "At the same time" as all {
+    state "Owner" as r0 {
+      s0: No link
+      s1: Link active
+      s2: Link expired after 7 days
+      s3: Link revoked
+      [*] --> s0
+      s0 --> s1: the owner creates a link
+      s1 --> s2: 7 days pass
+      s1 --> s3: the owner revokes the link
+    }
+    --
+    state "Visitor" as r1 {
+      s4: Has not opened the link
+      s5: Sees: not found
+      s6: Sees the item title and status
+      [*] --> s4
+      s4 --> s5: the visitor opens a dead link [unless Link active]
+      s4 --> s6: the visitor opens the link [when Link active]
+      s5 --> s6: the visitor opens the link [when Link active]
+      s6 --> s5: the visitor opens a dead link [unless Link active]
+    }
+  }
