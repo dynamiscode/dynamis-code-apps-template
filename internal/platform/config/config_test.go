@@ -89,6 +89,39 @@ func TestLoadFromValidatesStorage(t *testing.T) {
 	}
 }
 
+func TestStorageBrowserOriginMatchesSDKAddressing(t *testing.T) {
+	t.Parallel()
+
+	const bucket = "structured-closet-bnlu44g"
+	for name, tc := range map[string]struct {
+		storage Storage
+		want    string
+	}{
+		"local driver adds no origin": {Storage{Driver: StorageLocal, S3Endpoint: "https://t3.storageapi.dev", S3Bucket: bucket}, ""},
+		"virtual host":                {Storage{Driver: StorageS3, S3Endpoint: "https://t3.storageapi.dev", S3Bucket: bucket}, "https://" + bucket + ".t3.storageapi.dev"},
+		"path style":                  {Storage{Driver: StorageS3, S3Endpoint: "https://t3.storageapi.dev", S3Bucket: bucket, S3ForcePathStyle: true}, "https://t3.storageapi.dev"},
+		"endpoint port kept":          {Storage{Driver: StorageS3, S3Endpoint: "https://storage.example.test:8443", S3Bucket: "files"}, "https://files.storage.example.test:8443"},
+		"dotted bucket uses path":     {Storage{Driver: StorageS3, S3Endpoint: "https://t3.storageapi.dev", S3Bucket: "my.files"}, "https://t3.storageapi.dev"},
+		"uppercase bucket uses path":  {Storage{Driver: StorageS3, S3Endpoint: "https://t3.storageapi.dev", S3Bucket: "Files"}, "https://t3.storageapi.dev"},
+		"default AWS host":            {Storage{Driver: StorageS3, S3Region: "us-east-1", S3Bucket: "files"}, "https://files.s3.us-east-1.amazonaws.com"},
+		"default AWS China host":      {Storage{Driver: StorageS3, S3Region: "cn-north-1", S3Bucket: "files"}, "https://files.s3.cn-north-1.amazonaws.com.cn"},
+	} {
+		if got := tc.storage.BrowserOrigin(); got != tc.want {
+			t.Fatalf("%s: BrowserOrigin() = %q, want %q", name, got, tc.want)
+		}
+	}
+
+	cfg, err := LoadFrom(env(map[string]string{
+		"STORAGE_DRIVER": "s3", "STORAGE_S3_BUCKET": bucket, "STORAGE_S3_ENDPOINT": "https://t3.storageapi.dev",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.HTTP.StorageOrigin != "https://"+bucket+".t3.storageapi.dev" {
+		t.Fatalf("HTTP.StorageOrigin = %q", cfg.HTTP.StorageOrigin)
+	}
+}
+
 func TestLoadFromValidatesTelemetryAndOperationalLimits(t *testing.T) {
 	t.Parallel()
 

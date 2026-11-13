@@ -172,6 +172,7 @@ type HTTP struct {
 	MaxHeaderBytes     int
 	MaxBodyBytes       int64
 	FileMaxBodyBytes   int64
+	StorageOrigin      string
 	DefaultPageSize    int
 	MaxPageSize        int
 	RequestsPerMinute  int
@@ -289,6 +290,7 @@ func LoadFrom(lookup LookupEnv) (Config, error) {
 		return Config{}, err
 	}
 	httpConfig.FileMaxBodyBytes = storageConfig.MaxObjectBytes
+	httpConfig.StorageOrigin = storageConfig.BrowserOrigin()
 	workspaceMode, err := loadWorkspaceMode(lookup)
 	if err != nil {
 		return Config{}, err
@@ -311,6 +313,35 @@ func loadWorkspaceMode(lookup LookupEnv) (WorkspaceMode, error) {
 		return WorkspaceModeMulti, nil
 	}
 	return WorkspaceModeSingle, nil
+}
+
+// dnsBucketPattern matches bucket names the SDK addresses in the host. Dotted
+// names are excluded because they fail TLS wildcard certificates over HTTPS.
+var dnsBucketPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`)
+
+// BrowserOrigin returns the origin a browser contacts for presigned S3 transfers,
+// or "" for the local driver. It mirrors the SDK addressing: the bucket goes in
+// the host unless path style is forced or the name is not DNS-compatible.
+// ponytail: unset endpoint assumes the regional AWS host; other partitions need a custom endpoint.
+func (s Storage) BrowserOrigin() string {
+	if s.Driver != StorageS3 {
+		return ""
+	}
+	scheme, host := "https", "s3."+s.S3Region+".amazonaws.com"
+	if strings.HasPrefix(s.S3Region, "cn-") {
+		host = "s3." + s.S3Region + ".amazonaws.com.cn"
+	}
+	if s.S3Endpoint != "" {
+		endpoint, err := url.Parse(s.S3Endpoint)
+		if err != nil {
+			return ""
+		}
+		scheme, host = endpoint.Scheme, endpoint.Host
+	}
+	if !s.S3ForcePathStyle && dnsBucketPattern.MatchString(s.S3Bucket) {
+		host = s.S3Bucket + "." + host
+	}
+	return scheme + "://" + host
 }
 
 func loadStorage(lookup LookupEnv) (Storage, error) {

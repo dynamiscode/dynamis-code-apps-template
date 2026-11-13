@@ -34,7 +34,7 @@ func middleware(
 	next = concurrencyMiddleware(next, cfg.MaxConcurrent)
 	next = rateLimitMiddleware(next, limiter)
 	next = bodyLimitMiddleware(next, cfg.MaxBodyBytes, cfg.FileMaxBodyBytes)
-	next = securityHeadersMiddleware(next, cfg.Secure)
+	next = securityHeadersMiddleware(next, cfg.Secure, cfg.StorageOrigin)
 	next = loggingMiddleware(next, logger)
 	return requestIDMiddleware(next)
 }
@@ -107,13 +107,15 @@ func validRequestID(value string) bool {
 	return true
 }
 
-func securityHeadersMiddleware(next http.Handler, secure bool) http.Handler {
+func securityHeadersMiddleware(next http.Handler, secure bool, storageOrigin string) http.Handler {
+	connectSrc := "'self'"
+	if storageOrigin != "" {
+		connectSrc += " " + storageOrigin
+	}
+	csp := "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src " + connectSrc + "; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		headers := writer.Header()
-		headers.Set(
-			"Content-Security-Policy",
-			"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
-		)
+		headers.Set("Content-Security-Policy", csp)
 		headers.Set("X-Content-Type-Options", "nosniff")
 		headers.Set("X-Frame-Options", "DENY")
 		headers.Set("Referrer-Policy", "no-referrer")
