@@ -923,8 +923,8 @@ documented in [web](web.md) and
 Ticket #196 records the identity key design and aligns the public docs with it.
 [ADR 0011](decisions/0011-identity-integer-keys.md) covers integer entity keys,
 the ADR 0009 codec with its optional seed and type codes, strict decode, and the
-typed audit, idempotency, and job keys. It is `proposed`: the owner must review
-two open points (principal kinds, and key-less audit targets) before acceptance.
+typed audit, idempotency, and job keys. It is `accepted`: the owner approved its
+two points (principal kinds, and key-less audit targets) on 2026-11-13.
 The ADR is linked from the [documentation router](README.md). The glossary defines
 short ID, type code, and integer key. Architecture, API, MCP, CLI, and the upgrade
 note describe short IDs and typed keys; `id.New()` values are described only as
@@ -949,5 +949,5 @@ credentials and protocol state.
   passed with no drift, and `make docker-smoke` was not run (no runtime change).
 - Passed: `make test`, `make lint`, `make generate-check`, and `make doc-links`
   on branch `docs-short-id-196`.
-- Open: owner approval of ADR 0011 and of the two open points. Owner approval of the
+- Owner approval: ADR 0011 and its two points, on 2026-11-13. Owner approval of the
   audit and idempotency exception remains pending; no exception status changed here.
