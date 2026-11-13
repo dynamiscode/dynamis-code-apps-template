@@ -23,6 +23,10 @@ try {
   await audit("login");
 	await expectFormActionSpacing("#password", 'form[action="/login"] button[type="submit"]', "login");
 	await driver.findElement(By.css("body")).sendKeys(Key.TAB);
+	if ((await driver.switchTo().activeElement().getAttribute("class")) !== "skip-link") {
+		throw new Error("first Tab does not reach the skip link");
+	}
+	await driver.actions().sendKeys(Key.TAB).perform();
 	await expectActive("email");
 	await driver.actions().sendKeys(Key.TAB).perform();
 	await expectActive("password");

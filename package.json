@@ -6,7 +6,8 @@
     "test:a11y": "node scripts/accessibility.mjs",
     "test:webmcp": "node scripts/webmcp.mjs",
     "test:unit": "node --test internal/web/assets/*.test.mjs",
-    "check:js": "for f in internal/web/assets/*.js; do node --check \"$f\"; done"
+    "check:js": "for f in internal/web/assets/*.js; do node --check \"$f\"; done",
+    "test:ux": "node scripts/ux-patterns.mjs"
   },
   "devDependencies": {
     "axe-core": "4.14.0",
