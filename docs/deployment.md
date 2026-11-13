@@ -1,5 +1,23 @@
 # Deployment
 
+## Railway one-click deploy
+
+Two Railway templates deploy the app with no required inputs. The README has
+a "Deploy on Railway" button for each.
+
+- **Minimal:** the app plus one volume mounted at `/data`. SQLite and local
+  file storage live on the volume. Run one instance only.
+- **Full:** the app, a PostgreSQL service, and a Railway bucket. `DATABASE_URL`
+  is referenced from the PostgreSQL service. The app reads the bucket's
+  S3-compatible values with `STORAGE_DRIVER=s3`. Browser uploads to the bucket
+  need the CORS fix tracked in
+  [issue 269](https://github.com/dynamiscode/dynamis-code-apps-template/issues/269).
+
+Both templates generate `BOOTSTRAP_SETUP_TOKEN`. After the deploy finishes,
+open the generated public domain at `/setup`, paste the token from the app
+service's Variables tab, and create the first admin. Back up the PostgreSQL
+service and the bucket. The templates do not enforce backups.
+
 ## SQLite: one instance
 
 ```sh

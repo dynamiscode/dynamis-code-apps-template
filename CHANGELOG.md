@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added "Deploy on Railway" buttons to the README and a Railway one-click
+  deploy section to `docs/deployment.md`, linking the minimal (SQLite, one
+  volume) and full (PostgreSQL and bucket) Railway templates.
+
 - Removed the `VOLUME ["/data"]` instruction from the container image. Railway
   rejects it and requires its own volumes; Compose still mounts `app-data` at
   `/data` explicitly, so the Compose deployment is unchanged.
