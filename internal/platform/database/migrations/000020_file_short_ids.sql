@@ -5,7 +5,7 @@
 CREATE TABLE files_next (
     id {{file_id_pk}},
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-    owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    owner_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
     object_key TEXT NOT NULL UNIQUE,
     original_name TEXT NOT NULL,
     detected_mime TEXT,

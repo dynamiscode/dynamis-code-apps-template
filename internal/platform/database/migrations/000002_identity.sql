@@ -1,5 +1,5 @@
 CREATE TABLE users (
-    id TEXT PRIMARY KEY,
+    id {{file_id_pk}},
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT,
     created_at TEXT NOT NULL
@@ -7,7 +7,7 @@ CREATE TABLE users (
 
 CREATE TABLE external_identities (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     provider_id TEXT NOT NULL,
     issuer TEXT NOT NULL,
     subject TEXT NOT NULL,
@@ -20,7 +20,7 @@ CREATE INDEX external_identities_user_idx
     ON external_identities (user_id);
 
 CREATE TABLE instance_admins (
-    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     created_at TEXT NOT NULL
 );
 
@@ -33,7 +33,7 @@ CREATE TABLE workspaces (
 CREATE TABLE workspace_members (
     id {{integer_pk}},
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'member', 'viewer')),
     created_at TEXT NOT NULL,
     UNIQUE (workspace_id, user_id)
@@ -44,7 +44,7 @@ CREATE INDEX workspace_members_user_idx
 
 CREATE TABLE sessions (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     secret_hash TEXT NOT NULL UNIQUE,
     csrf_hash TEXT NOT NULL,
     auth_method TEXT NOT NULL CHECK (auth_method IN ('local', 'oidc')),
@@ -64,7 +64,7 @@ CREATE INDEX sessions_user_idx
 CREATE TABLE invitations (
     id {{integer_pk}},
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-    invited_by_user_id TEXT NOT NULL REFERENCES users(id),
+    invited_by_user_id BIGINT NOT NULL REFERENCES users(id),
     email TEXT NOT NULL,
     active_email TEXT,
     role TEXT NOT NULL CHECK (role IN ('admin', 'member', 'viewer')),
@@ -82,7 +82,7 @@ CREATE INDEX invitations_workspace_idx
 
 CREATE TABLE api_tokens (
     id {{integer_pk}},
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     secret_hash TEXT NOT NULL UNIQUE,

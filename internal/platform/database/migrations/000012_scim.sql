@@ -3,7 +3,7 @@
 CREATE TABLE IF NOT EXISTS scim_tokens (
     id {{integer_pk}},
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-    created_by_user_id TEXT NOT NULL REFERENCES users(id),
+    created_by_user_id BIGINT NOT NULL REFERENCES users(id),
     secret_hash TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
     revoked_at TEXT
@@ -15,7 +15,7 @@ CREATE INDEX IF NOT EXISTS scim_tokens_workspace_idx
 CREATE TABLE IF NOT EXISTS scim_users (
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     external_id TEXT NOT NULL,
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'member', 'viewer')),
     active BOOLEAN NOT NULL,
     version BIGINT NOT NULL,
@@ -39,13 +39,13 @@ CREATE TABLE IF NOT EXISTS scim_groups (
 INSERT INTO scim_users (
     workspace_id, external_id, user_id, role, active, version, created_at, updated_at
 )
-SELECT workspace_id, user_id, user_id, role, TRUE, 1, created_at, created_at
+SELECT workspace_id, CAST(user_id AS TEXT), user_id, role, TRUE, 1, created_at, created_at
 FROM workspace_members
 WHERE NOT EXISTS (
     SELECT 1
     FROM scim_users existing
     WHERE existing.workspace_id = workspace_members.workspace_id
-      AND existing.external_id = workspace_members.user_id
+      AND existing.external_id = CAST(workspace_members.user_id AS TEXT)
 );
 
 INSERT INTO scim_groups (workspace_id, role, version, created_at)
