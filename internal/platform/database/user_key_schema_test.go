@@ -2,8 +2,11 @@ package database
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	"example.com/dynamis-code/apps-template/internal/platform/config"
@@ -47,6 +50,35 @@ var textKeyColumns = []userKeyColumn{
 	{"oauth_grants", "session_id"},
 }
 
+// profilePrunedTables are tables whose migrations cmd/template-init removes for
+// apps generated without the Files profile.
+var profilePrunedTables = map[string]bool{"files": true}
+
+// prunedTableAllowed reports whether a missing table is an absent profile table.
+// It is allowed only when no embedded migration creates or renames it. In this
+// repository the Files migrations exist, so a dropped files table still fails.
+func prunedTableAllowed(t *testing.T, table string) bool {
+	t.Helper()
+	if !profilePrunedTables[table] {
+		return false
+	}
+	create := regexp.MustCompile(`(?i)(CREATE TABLE (IF NOT EXISTS )?|RENAME TO )` + regexp.QuoteMeta(table) + `\b`)
+	entries, err := migrationFiles.ReadDir("migrations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		raw, err := migrationFiles.ReadFile("migrations/" + entry.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if create.Match(raw) {
+			return false
+		}
+	}
+	return true
+}
+
 func TestSQLiteUserKeysUseIntegerReferences(t *testing.T) {
 	t.Parallel()
 
@@ -75,6 +107,9 @@ func TestSQLiteUserKeysUseIntegerReferences(t *testing.T) {
 			t.Fatal(err)
 		}
 		if tables == 0 {
+			if prunedTableAllowed(t, column.table) {
+				continue
+			}
 			t.Fatalf("table %s is missing", column.table)
 		}
 		var columnType string
@@ -91,6 +126,9 @@ func TestSQLiteUserKeysUseIntegerReferences(t *testing.T) {
 			t.Fatal(err)
 		}
 		if tables == 0 {
+			if prunedTableAllowed(t, text.table) {
+				continue
+			}
 			t.Fatalf("table %s is missing", text.table)
 		}
 		var columnType string
@@ -120,8 +158,7 @@ func TestPostgresUserKeysUseIntegerReferences(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// dataType returns an error when the table or column is missing, so a
-	// dropped table cannot pass as an absent optional feature.
+	// dataType returns sql.ErrNoRows when the table or column is missing.
 	dataType := func(table, column string) (string, error) {
 		var value string
 		err := db.QueryRow(`SELECT data_type FROM information_schema.columns
@@ -134,12 +171,18 @@ func TestPostgresUserKeysUseIntegerReferences(t *testing.T) {
 	}
 	for _, column := range userReferenceColumns {
 		value, err := dataType(column.table, column.column)
+		if errors.Is(err, sql.ErrNoRows) && prunedTableAllowed(t, column.table) {
+			continue
+		}
 		if err != nil || value != "bigint" {
 			t.Fatalf("%s.%s type = %q, %v, want bigint", column.table, column.column, value, err)
 		}
 	}
 	for _, text := range textKeyColumns {
 		value, err := dataType(text.table, text.column)
+		if errors.Is(err, sql.ErrNoRows) && prunedTableAllowed(t, text.table) {
+			continue
+		}
 		if err != nil || value != "text" {
 			t.Fatalf("%s.%s type = %q, %v, want text", text.table, text.column, value, err)
 		}
