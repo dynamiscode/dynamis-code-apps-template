@@ -290,7 +290,7 @@ func webhookSecret(t *testing.T, body string) string {
 	return body[start : start+end]
 }
 
-func mustPrincipal(t *testing.T, auth *identity.Service, userID string, workspaceID identity.WorkspaceID, permission identity.Permission) identity.Principal {
+func mustPrincipal(t *testing.T, auth *identity.Service, userID identity.UserID, workspaceID identity.WorkspaceID, permission identity.Permission) identity.Principal {
 	t.Helper()
 	principal, err := auth.Authorize(context.Background(), userID, workspaceID, permission)
 	if err != nil {

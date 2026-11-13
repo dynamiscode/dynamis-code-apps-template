@@ -20,7 +20,6 @@ import (
 	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 	"example.com/dynamis-code/apps-template/internal/portability"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
@@ -258,11 +257,8 @@ func TestIdentityRESTContracts(t *testing.T) {
 	if revoked := serveAuthorized(handler, http.MethodDelete, "/api/v1/sessions/"+sessionPage.Sessions[0].ID, "", token, nil); revoked.Code != http.StatusNoContent {
 		t.Fatalf("session revoke = %d, %s", revoked.Code, revoked.Body.String())
 	}
-	newUser, err := id.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.Exec("INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, NULL, ?)", newUser, "member@example.com", time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+	var newUser int64
+	if err := db.QueryRow("INSERT INTO users (email, password_hash, created_at) VALUES (?, NULL, ?) RETURNING id", "member@example.com", time.Now().UTC().Format(time.RFC3339Nano)).Scan(&newUser); err != nil {
 		t.Fatal(err)
 	}
 	workspaceKey, err := identity.ParseWorkspaceID(workspaceID)

@@ -9,7 +9,6 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 func TestPostgresItemLifecycle(t *testing.T) {
@@ -28,16 +27,13 @@ func TestPostgresItemLifecycle(t *testing.T) {
 	if err := database.Migrate(ctx, db, config.Postgres); err != nil {
 		t.Fatal(err)
 	}
-	userID, err := id.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	var userID identity.UserID
 	var workspaceID identity.WorkspaceID
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	if _, err := db.ExecContext(ctx,
-		"INSERT INTO users (id, email, created_at) VALUES ($1, $2, $3)",
-		userID, "items-postgres@example.com", now,
-	); err != nil {
+	if err := db.QueryRowContext(ctx,
+		"INSERT INTO users (email, created_at) VALUES ($1, $2) RETURNING id",
+		"items-postgres@example.com", now,
+	).Scan(&userID); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.QueryRowContext(ctx,
