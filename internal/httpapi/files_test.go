@@ -18,7 +18,6 @@ import (
 	"example.com/dynamis-code/apps-template/internal/files/filestest"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 func TestFileRESTLifecycle(t *testing.T) {
@@ -174,12 +173,9 @@ func TestS3InitiatedUploadStreamsThroughApplication(t *testing.T) {
 func viewerAPIToken(t *testing.T, db *sql.DB, workspaceID string) string {
 	t.Helper()
 	ctx := context.Background()
-	userID, err := id.New()
-	if err != nil {
-		t.Fatal(err)
-	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	if _, err := db.Exec("INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, NULL, ?)", userID, "viewer@example.com", now); err != nil {
+	var userID identity.UserID
+	if err := db.QueryRow("INSERT INTO users (email, password_hash, created_at) VALUES (?, NULL, ?) RETURNING id", "viewer@example.com", now).Scan(&userID); err != nil {
 		t.Fatal(err)
 	}
 	workspaceKey, err := identity.ParseWorkspaceID(workspaceID)

@@ -11,7 +11,6 @@ import (
 	"example.com/dynamis-code/apps-template/internal/files/filestest"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 // A streamed S3 upload is written by the application, so the content write
@@ -152,12 +151,9 @@ func TestStreamedS3ContentWriteDeniesViewer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	viewerID, err := id.New()
-	if err != nil {
-		t.Fatal(err)
-	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	if _, err := db.Exec("INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, NULL, ?)", viewerID, "viewer-only@example.com", now); err != nil {
+	var viewerID identity.UserID
+	if err := db.QueryRow("INSERT INTO users (email, password_hash, created_at) VALUES (?, NULL, ?) RETURNING id", "viewer-only@example.com", now).Scan(&viewerID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", owner.WorkspaceID, viewerID, "viewer", now); err != nil {
