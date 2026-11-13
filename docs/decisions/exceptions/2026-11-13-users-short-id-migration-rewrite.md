@@ -18,7 +18,7 @@
 - Approving maintainer: repository owner, 2026-11-13. The owner decisions on #243
   (comment https://github.com/dynamiscode/dynamis-code-apps-template/issues/243#issuecomment-6860178488)
   choose the in-place reset and the `{{file_id_pk}}` key for users.
-- Security-owner approval, when required: pending. No security control is
+- Security-owner approval, when required: approved by the security owner, 2026-11-13. No security control is
   weakened. Sessions, OIDC state, MFA challenge, recovery-code, and token
   secrets stay text keys matched by hash. `external_identities.id` stays text
   and is never accepted as a user key.
