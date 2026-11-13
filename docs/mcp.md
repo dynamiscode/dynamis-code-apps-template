@@ -162,8 +162,9 @@ return JSON-RPC method-not-found and write no audit record. Client notifications
 use a separate SDK path and are not audited.
 
 Each accepted tool call writes an audit record containing safe principal,
-workspace, token/client, tool/version, request ID, target, annotation, outcome,
-duration, and error-category fields. Each prompt call writes an
+workspace, credential (`credential_id`, the token's short ID), client,
+tool/version, request ID, target, annotation, outcome, duration, and
+error-category fields. Each prompt call writes an
 `mcp.prompt.called` record with the same safe principal, request, client, and
 outcome fields, a `workspace` target, and the prompt version.
 Raw arguments, item titles, bearer values, and unrestricted payloads are

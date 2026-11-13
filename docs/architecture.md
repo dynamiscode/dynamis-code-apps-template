@@ -74,18 +74,24 @@ verified restore paths.
 
 ## IDs, time, and transactions
 
-`internal/platform/id` creates portable 128-bit opaque IDs with `crypto/rand`.
+Entity records are keyed by integers, and their public IDs are short IDs from
+`internal/platform/id` ([decision 0010](decisions/0010-identity-integer-keys.md),
+[ADR 0009](decisions/0009-short-id-codec.md)). `id.New()` creates 128 random bits
+from `crypto/rand`, hex-encoded, for credentials and protocol state only, such as
+session, CSRF, OAuth, MFA, and verification values. Those values are never entity IDs.
 Persisted timestamps use UTC RFC 3339 with nanosecond precision. Application
 use cases own transactions spanning multiple data operations; repositories do
 not start hidden transactions.
 
-Workspaces are the exception to opaque IDs. They use an integer key
-(`INTEGER PRIMARY KEY` on SQLite, `BIGINT GENERATED ALWAYS AS IDENTITY` on
-PostgreSQL). `identity.WorkspaceID` marshals to its short ID, the only form that
-leaves the process. Items use the same pattern with `items.ItemID` and the item
-type code. Webhooks, webhook deliveries, webhook events, and background jobs use
-integer keys too; `internal/webhooks/ids.go` marshals the first three to their
-short IDs under their own type codes. The short-ID codec is [ADR 0009](decisions/0009-short-id-codec.md).
+Workspaces use an integer key (`INTEGER PRIMARY KEY` on SQLite,
+`BIGINT GENERATED ALWAYS AS IDENTITY` on PostgreSQL). `identity.WorkspaceID`
+marshals to its short ID, the only form that leaves the process. Items use the
+same pattern with `items.ItemID` and the item type code. Webhooks, webhook
+deliveries, webhook events, and background jobs use integer keys too;
+`internal/webhooks/ids.go` marshals the first three to their short IDs under
+their own type codes. Audit targets and actors, idempotency principals, and job
+deduplication keys are typed integer keys as well; see the decision for the
+exact columns and the two open owner decisions.
 
 Files follow the same pattern with an integer key and the `file` type code.
 Migration 000020 rebuilds `files` through a new table and renames it, copying `object_key` unchanged so

@@ -132,8 +132,8 @@ the [notification exception](decisions/exceptions/2026-11-12-notification-accoun
 the [MFA exception](decisions/exceptions/2026-11-12-mfa-short-id-migration-rewrite.md),
 and the [audit event exception](decisions/exceptions/2026-11-12-audit-event-short-id-migration-rewrite.md).
 
-Item IDs in webhook payloads, workspace exports, and audit metadata are now item
-short IDs, not 32-character hex. Consumers that stored the old hex form must map
+Item IDs in webhook payloads, workspace exports, and audit metadata are item
+short IDs. Earlier versions wrote 32-character hex. Consumers that stored that form must map
 or re-key those values before reading events from this version.
 
 Migration 000020 rebuilds the `files` table to integer keys. It is forward-only
