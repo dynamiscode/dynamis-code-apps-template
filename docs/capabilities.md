@@ -563,7 +563,7 @@ Ticket #249 gives `users` an integer key under the `user` type code. Every
 column that references `users(id)` (21 columns) is `BIGINT`, and user IDs in
 REST, MCP, web, audit, and portability output are short IDs. `external_identities.id`,
 `sessions.id`, `oidc_transactions.state_hash`, and the MFA challenge and recovery-code keys
-keep text keys. Migrations 000002, 000005, 000007, 000012, 000013, 000014, 000015,
+keep text keys. Migrations 000002, 000003, 000005, 000007, 000012, 000013, 000014, 000015,
 000016, and 000020 are rewritten in place under the
 [recorded exception](decisions/exceptions/2026-11-13-users-short-id-migration-rewrite.md),
 which is `proposed` until the owner approves it.

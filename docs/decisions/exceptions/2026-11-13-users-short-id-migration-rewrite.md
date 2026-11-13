@@ -3,7 +3,8 @@
 - Profile and requirement: architecture invariant that migrations are
   forward-only ([architecture](../../architecture.md#data-and-scaling)). Applied
   migrations 000002 (users, external identities, instance admins, workspace
-  members, sessions, invitations, API tokens), 000005 (OIDC transaction user),
+  members, sessions, invitations, API tokens), 000003 (items
+  `created_by_user_id`), 000005 (OIDC transaction user),
   000007 (account, notification, and preference tables), 000012 and 000013
   (SCIM tokens and users), 000014 (files, superseded by 000020), 000015 (MFA),
   000016 (OAuth grants), and 000020 (files rebuild) are rewritten in place.
@@ -60,6 +61,18 @@ SQLite) keeps a deleted user's short ID from being reused. Verification is in
   under two type codes. Callers must decode a user short ID only with the user
   codec, which the strict `ParseUserID` path does. The collision is accepted here
   as the webhook and workspace records accepted it.
+
+## Known limitations
+
+- `CreateSCIMUser` now defaults `external_id` to the user short ID when the
+  request omits it (`internal/identity/scim.go`, `externalID = userID.String()`).
+  Previously the default was the raw integer key.
+- The SCIM backfill in migrations 000012 and 000013 casts the user key to decimal
+  text for `scim_users.external_id`. It runs only over existing
+  `workspace_members`, so it is inert on a reset database.
+- Audit `actor_user_id` and `target_id`, and `idempotency_records.principal_id`
+  (`user:<short ID>`), now hold short IDs. Values written before this change are
+  not converted, because the databases are reset.
 
 ## Compensating controls
 
