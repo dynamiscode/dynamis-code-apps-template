@@ -854,7 +854,29 @@ new dated section here: date, endpoint kind (no account ID), Go version, and
 
 Not verified against R2 until that run passes: SigV4 signature validity for
 presigned URLs, the SDK's default request checksum behavior, conditional PUT
-with `If-None-Match`, and browser CORS preflight for presigned uploads.
+with `If-None-Match`. Browser CORS preflight for presigned uploads is not
+applicable to REST uploads, which stream through the application
+([ADR 0010](decisions/0010-streamed-s3-uploads.md)); it cannot be verified
+against a real bucket for uploads and is recorded as not applicable.
+
+## Streamed S3 upload evidence
+
+Verified 2026-11-13 with the in-process S3 endpoint ([ADR 0010](decisions/0010-streamed-s3-uploads.md)):
+
+- REST initiate on S3 returns an application `uploadUrl` with no upload headers
+  and a `completeUrl`; the content route requires a bearer token; a read-only
+  token is refused with `insufficient-scope`
+  (`TestS3InitiatedUploadStreamsThroughApplication`, `internal/httpapi/files_test.go`)
+- the content write stores bytes and leaves the file pending; `complete` makes it
+  ready; a viewer's content write is refused; a failed store write releases its
+  quota (`TestStreamedS3UploadStaysPendingUntilComplete`,
+  `TestStreamedS3ContentWriteDeniesViewer`, `TestStreamedS3WriteFailureReleasesQuota`,
+  `internal/files/s3_streamed_test.go`)
+- passed: `make test`, `make lint`, `go test -race ./internal/files/... ./internal/httpapi/...`,
+  and `go generate ./api` with no drift on two runs (no OpenAPI text changed)
+- blocked: `TestS3ConformanceConfiguredEndpoint` against R2 or S3 needs
+  `S3_CONFORMANCE_ENDPOINT` and `S3_CONFORMANCE_BUCKET`, which were not set in this run
+- not applicable: `make docker-smoke` (no delivery files changed)
 
 ## Workspace mode evidence
 

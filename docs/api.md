@@ -179,8 +179,11 @@ documented in [authentication](authentication.md).
   or rotate at `/secret`), and `GET /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries`.
 - Files: `GET/POST /api/v1/workspaces/{workspaceId}/files` lists, uploads, or
   initiates a file; `GET /files/{fileId}` returns metadata and a short-lived
-  download URL; `PUT /files/{fileId}/content` finalizes app-streamed uploads;
-  `POST /files/{fileId}/complete` verifies S3 uploads. File IDs are the file
+  download URL; `PUT /files/{fileId}/content` streams the bytes of an initiated
+  upload through the application on every driver, and the file becomes ready
+  there for local storage. On S3 the file stays pending until
+  `POST /files/{fileId}/complete` verifies the stored object, and the initiate
+  response's `uploadUrl` points at the content route. File IDs are the file
   short ID (ADR 0009, type `file`) and the only form in paths and bodies;
   malformed, unknown, and integer-key IDs return the same not-found problem.
 - SCIM: create/revoke the dedicated credential with

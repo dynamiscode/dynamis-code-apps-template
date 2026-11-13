@@ -206,13 +206,12 @@ The optional Files profile stores metadata in SQLite or PostgreSQL and object
 bytes in the local filesystem by default. S3 mode uses the AWS SDK standard
 credential chain and one S3-compatible endpoint configuration for AWS S3, R2,
 MinIO, Wasabi, Backblaze, and similar services. Credentials are never logged.
-Objects remain private; S3 clients receive short-lived presigned PUT/GET URLs,
-while local objects stream through the application. The object and workspace
-limits default to 16 MiB and 1 GiB. File routes use their separate object
-limit; do not raise `HTTP_MAX_BODY_BYTES` globally. Browser S3 uploads also
-require bucket CORS permitting PUT from the application origin and the signed
-upload headers returned by the initiation response. For a Cloudflare R2 setup
-walkthrough, including the CORS rule and the conformance check, see
+Objects remain private. Uploads stream through the application on both drivers,
+so S3 uploads need no bucket CORS rule. S3 downloads redirect to short-lived
+presigned GET URLs. The object and workspace limits default to 16 MiB and 1 GiB.
+File routes use their separate object limit; do not raise
+`HTTP_MAX_BODY_BYTES` globally. For a Cloudflare R2 setup walkthrough and the
+conformance check, see
 [deployment](deployment.md#cloudflare-r2-object-storage).
 
 ## HTTP
