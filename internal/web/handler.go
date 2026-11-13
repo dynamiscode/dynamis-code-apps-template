@@ -79,7 +79,6 @@ type pageData struct {
 	Items                            []items.Item
 	Files                            []appfiles.File
 	FilesEnabled                     bool
-	FilesPresigned                   bool
 	NextCursor                       string
 	CreateKey                        string
 	CurrentPath                      string
@@ -352,8 +351,6 @@ func (h *Handler) Routes() http.Handler {
 	if h.files != nil {
 		mux.HandleFunc("GET /workspaces/{workspaceId}/files", h.filesPage)
 		mux.HandleFunc("POST /workspaces/{workspaceId}/files", h.filesUpload)
-		mux.HandleFunc("POST /workspaces/{workspaceId}/files/initiate", h.filesInitiateUpload)
-		mux.HandleFunc("POST /workspaces/{workspaceId}/files/{fileId}/complete", h.filesCompleteUpload)
 		mux.HandleFunc("GET /workspaces/{workspaceId}/files/{fileId}/content", h.fileDownload)
 	}
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings", h.settingsPage)
