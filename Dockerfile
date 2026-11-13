@@ -38,7 +38,6 @@ USER 65532:65532
 ENV HTTP_ADDRESS=0.0.0.0:8080 \
     SQLITE_PATH=/data/app.db
 EXPOSE 8080
-VOLUME ["/data"]
 STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 CMD ["/healthcheck"]
 ENTRYPOINT ["/server"]
