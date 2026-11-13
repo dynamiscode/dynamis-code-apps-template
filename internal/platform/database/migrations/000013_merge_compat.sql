@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS background_jobs (
     id {{integer_pk}},
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     kind TEXT NOT NULL,
-    deduplication_key TEXT NOT NULL,
+    deduplication_key BIGINT NOT NULL,
     payload TEXT NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'succeeded', 'failed')),
     attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
@@ -83,7 +83,7 @@ INSERT INTO background_jobs (
     workspace_id, kind, deduplication_key, payload, status,
     attempt_count, available_at, created_at
 )
-SELECT w.workspace_id, 'webhook.delivery', CAST(d.id AS TEXT),
+SELECT w.workspace_id, 'webhook.delivery', d.id,
     '{"deliveryId":' || CAST(d.id AS TEXT) || '}', 'pending', d.attempt_count,
     COALESCE(d.next_attempt_at, d.created_at), d.created_at
 FROM webhook_deliveries d
@@ -94,7 +94,7 @@ WHERE d.status = 'pending'
       FROM background_jobs existing
       WHERE existing.workspace_id = w.workspace_id
         AND existing.kind = 'webhook.delivery'
-        AND existing.deduplication_key = CAST(d.id AS TEXT)
+        AND existing.deduplication_key = d.id
   );
 
 CREATE INDEX IF NOT EXISTS background_jobs_due_idx

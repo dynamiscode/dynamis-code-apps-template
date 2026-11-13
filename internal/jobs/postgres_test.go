@@ -45,7 +45,7 @@ func TestPostgresQueueClaimAndFinish(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := queue.EnqueueTx(ctx, tx, workspaceID, kind, "once", `{"ok":true}`, time.Now()); err != nil {
+	if err := queue.EnqueueTx(ctx, tx, workspaceID, kind, 1, `{"ok":true}`, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if err := tx.Commit(); err != nil {

@@ -23,7 +23,6 @@ const MaxAttempts = 5
 const (
 	maxPayloadBytes = 1 << 20
 	maxKindLength   = 100
-	maxKeyLength    = 255
 	maxAttempts     = MaxAttempts
 	leaseDuration   = time.Minute
 	initialRetry    = time.Second
@@ -129,12 +128,12 @@ func (queue *Queue) EnqueueTx(
 	ctx context.Context,
 	tx *sql.Tx,
 	workspaceID identity.WorkspaceID,
-	kind, deduplicationKey, payload string,
+	kind string, deduplicationKey int64, payload string,
 	availableAt time.Time,
 ) error {
+	// The key names an entity row (for example a webhook delivery), so it is its integer key.
 	if workspaceID == 0 || strings.TrimSpace(kind) == "" ||
-		len(kind) > maxKindLength || strings.TrimSpace(deduplicationKey) == "" ||
-		len(deduplicationKey) > maxKeyLength || len(payload) == 0 ||
+		len(kind) > maxKindLength || deduplicationKey <= 0 || len(payload) == 0 ||
 		len(payload) > maxPayloadBytes || !json.Valid([]byte(payload)) {
 		return errors.New("job input is invalid")
 	}

@@ -455,7 +455,7 @@ func (s *Service) PublishInTx(
 		if err != nil {
 			return err
 		}
-		if err := s.queue.EnqueueTx(ctx, tx, workspaceID, JobKind, strconv.FormatInt(deliveryKey, 10), string(jobPayload), occurredAt); err != nil {
+		if err := s.queue.EnqueueTx(ctx, tx, workspaceID, JobKind, deliveryKey, string(jobPayload), occurredAt); err != nil {
 			return err
 		}
 	}

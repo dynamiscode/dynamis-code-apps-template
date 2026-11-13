@@ -2,7 +2,7 @@ CREATE TABLE background_jobs (
     id {{integer_pk}},
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     kind TEXT NOT NULL,
-    deduplication_key TEXT NOT NULL,
+    deduplication_key BIGINT NOT NULL,
     payload TEXT NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'succeeded', 'failed')),
     attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
