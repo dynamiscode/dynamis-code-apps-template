@@ -14,7 +14,7 @@ const maxActiveSessionsPerUser = 10
 
 func (s *Service) CreateSession(
 	ctx context.Context,
-	userID string,
+	userID UserID,
 	authMethod string,
 	oidcProviderID string,
 	lifetime time.Duration,
@@ -25,7 +25,7 @@ func (s *Service) CreateSession(
 
 func (s *Service) createSessionWithLevel(
 	ctx context.Context,
-	userID string,
+	userID UserID,
 	authMethod string,
 	oidcProviderID string,
 	lifetime time.Duration,
@@ -50,7 +50,7 @@ func (s *Service) createSessionWithLevel(
 func (s *Service) createSessionWithLevelTx(
 	ctx context.Context,
 	tx *sql.Tx,
-	userID string,
+	userID UserID,
 	authMethod string,
 	oidcProviderID string,
 	lifetime time.Duration,
@@ -117,7 +117,7 @@ func (s *Service) createSessionWithLevelTx(
 func (s *Service) enforceSessionLimit(
 	ctx context.Context,
 	tx *sql.Tx,
-	userID string,
+	userID UserID,
 	now time.Time,
 	audit AuditContext,
 ) error {
@@ -125,7 +125,7 @@ func (s *Service) enforceSessionLimit(
 	if s.driver == config.Postgres {
 		lockQuery += " FOR UPDATE"
 	}
-	var lockedUserID string
+	var lockedUserID UserID
 	if err := tx.QueryRowContext(ctx, s.bind(lockQuery), userID).Scan(&lockedUserID); err != nil {
 		return err
 	}
@@ -254,7 +254,7 @@ func (s *Service) VerifyCSRF(
 
 func (s *Service) RevokeSession(
 	ctx context.Context,
-	userID string,
+	userID UserID,
 	sessionID string,
 	audit AuditContext,
 ) (string, error) {
@@ -296,7 +296,7 @@ func (s *Service) RevokeSession(
 	return oidcProviderID.String, nil
 }
 
-func (s *Service) ListSessions(ctx context.Context, userID string) ([]Session, error) {
+func (s *Service) ListSessions(ctx context.Context, userID UserID) ([]Session, error) {
 	rows, err := s.db.QueryContext(ctx, s.bind(`
 		SELECT id, user_id, auth_method, oidc_provider_id, auth_level,
 			created_at, expires_at, revoked_at

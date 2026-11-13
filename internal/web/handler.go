@@ -945,7 +945,7 @@ func (h *Handler) redirect(writer http.ResponseWriter, request *http.Request, pa
 
 // defaultHomeHref returns the home of the user's default workspace in single
 // mode. It is empty in multi mode, or when the user has no membership.
-func (h *Handler) defaultHomeHref(ctx context.Context, userID string) string {
+func (h *Handler) defaultHomeHref(ctx context.Context, userID identity.UserID) string {
 	if h.workspaceMode != config.WorkspaceModeSingle {
 		return ""
 	}
@@ -1031,16 +1031,16 @@ func auditContext(request *http.Request) identity.AuditContext {
 type streamLimit struct {
 	mu      sync.Mutex
 	total   int
-	users   map[string]int
+	users   map[identity.UserID]int
 	maximum int
 	perUser int
 }
 
 func newStreamLimit(maximum, perUser int) *streamLimit {
-	return &streamLimit{users: make(map[string]int), maximum: maximum, perUser: perUser}
+	return &streamLimit{users: make(map[identity.UserID]int), maximum: maximum, perUser: perUser}
 }
 
-func (limit *streamLimit) acquire(userID string) bool {
+func (limit *streamLimit) acquire(userID identity.UserID) bool {
 	limit.mu.Lock()
 	defer limit.mu.Unlock()
 	if limit.total >= limit.maximum || limit.users[userID] >= limit.perUser {
@@ -1051,7 +1051,7 @@ func (limit *streamLimit) acquire(userID string) bool {
 	return true
 }
 
-func (limit *streamLimit) release(userID string) {
+func (limit *streamLimit) release(userID identity.UserID) {
 	limit.mu.Lock()
 	defer limit.mu.Unlock()
 	limit.total--
@@ -1168,7 +1168,7 @@ func (h *Handler) sendChanges(
 // workspaceDenialStatus answers a denied workspace request. A user who is not a
 // member gets the same not-found as a missing workspace, so IDs cannot be
 // probed. A member who lacks the permission gets forbidden.
-func (h *Handler) workspaceDenialStatus(request *http.Request, userID string, workspaceID identity.WorkspaceID) int {
+func (h *Handler) workspaceDenialStatus(request *http.Request, userID identity.UserID, workspaceID identity.WorkspaceID) int {
 	workspaces, err := h.identity.ListWorkspaces(request.Context(), userID)
 	if err == nil && slices.ContainsFunc(workspaces, func(workspace identity.WorkspaceSummary) bool {
 		return workspace.ID == workspaceID

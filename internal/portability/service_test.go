@@ -14,7 +14,6 @@ import (
 	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 func TestSQLiteWorkspaceExport(t *testing.T) {
@@ -39,9 +38,8 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	userID, _ := id.New()
+	var userID, viewerID identity.UserID
 	var workspaceID identity.WorkspaceID
-	viewerID, _ := id.New()
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	exec := func(query string, args ...any) {
 		t.Helper()
@@ -49,8 +47,14 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 			t.Fatal(err)
 		}
 	}
-	exec("INSERT INTO users (id, email, created_at) VALUES (?, ?, ?)", userID, "portability-owner@example.com", now)
-	exec("INSERT INTO users (id, email, created_at) VALUES (?, ?, ?)", viewerID, "portability-viewer@example.com", now)
+	for _, seed := range []struct {
+		key   *identity.UserID
+		email string
+	}{{&userID, "portability-owner@example.com"}, {&viewerID, "portability-viewer@example.com"}} {
+		if err := db.QueryRowContext(ctx, database.Rebind(driver, "INSERT INTO users (email, created_at) VALUES (?, ?) RETURNING id"), seed.email, now).Scan(seed.key); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, "INSERT INTO workspaces (name, locale, created_at) VALUES (?, ?, ?) RETURNING id"), "Portable", "es", now).Scan(&workspaceID); err != nil {
 		t.Fatal(err)
 	}

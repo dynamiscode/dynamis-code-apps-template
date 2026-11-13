@@ -9,6 +9,27 @@ import (
 	"time"
 )
 
+func TestListAuditHistoryRejectsUnparseableActorRow(t *testing.T) {
+	service, db := newTestService(t)
+	ctx := context.Background()
+	bootstrap := bootstrapOwner(t, service)
+	owner := mustAuthorize(t, service, bootstrap.UserID, bootstrap.WorkspaceID, WorkspaceExport)
+
+	if err := service.RecordAudit(ctx, AuditEvent{
+		EventType: "test.corrupt", ActorUserID: owner.UserID, AuthMethod: "session",
+		WorkspaceID: bootstrap.WorkspaceID, TargetType: "item", Action: "test.action",
+		Outcome: "success", CreatedAt: service.now(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE audit_events SET actor_user_id = ? WHERE event_type = ?`, "NOT-VALID", "test.corrupt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.ListAuditHistory(ctx, owner, bootstrap.WorkspaceID); !errors.Is(err, ErrInvalidShortID) {
+		t.Fatalf("corrupt actor history error = %v, want ErrInvalidShortID", err)
+	}
+}
+
 func TestListAuditHistoryIsScopedBoundedAndRedacted(t *testing.T) {
 	service, db := newTestService(t)
 	ctx := context.Background()

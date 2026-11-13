@@ -19,7 +19,7 @@ const (
 type oauthFixture struct {
 	service     *Service
 	db          *sql.DB
-	ownerID     string
+	ownerID     UserID
 	workspaceID WorkspaceID
 	session     NewSession
 	client      OAuthClient

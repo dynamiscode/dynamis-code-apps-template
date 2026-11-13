@@ -26,7 +26,7 @@ func defaultLocale(raw string) (string, error) {
 	return normalizeLocale(raw, false)
 }
 
-func (s *Service) GetUserLocale(ctx context.Context, userID string) (string, error) {
+func (s *Service) GetUserLocale(ctx context.Context, userID UserID) (string, error) {
 	var locale sql.NullString
 	if err := s.queryRow(ctx, s.db, "SELECT locale FROM users WHERE id = ?", userID).Scan(&locale); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -37,7 +37,7 @@ func (s *Service) GetUserLocale(ctx context.Context, userID string) (string, err
 	return locale.String, nil
 }
 
-func (s *Service) SetUserLocale(ctx context.Context, userID, locale string, audit AuditContext) error {
+func (s *Service) SetUserLocale(ctx context.Context, userID UserID, locale string, audit AuditContext) error {
 	normalized, err := normalizeLocale(locale, true)
 	if err != nil {
 		return err
@@ -59,7 +59,7 @@ func (s *Service) SetUserLocale(ctx context.Context, userID, locale string, audi
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "user.locale.updated", ActorUserID: userID, AuthMethod: "session",
-		TargetType: "user", TargetID: userID, Action: "user.locale.update", Outcome: "success",
+		TargetType: "user", TargetID: userID.String(), Action: "user.locale.update", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: metadata(map[string]any{"locale": normalized}), CreatedAt: s.now().UTC(),
 	}); err != nil {

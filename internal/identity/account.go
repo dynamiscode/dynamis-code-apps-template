@@ -15,7 +15,7 @@ const (
 	maxDisplayNameLength = 120
 )
 
-func (s *Service) GetUserProfile(ctx context.Context, userID string) (UserProfile, error) {
+func (s *Service) GetUserProfile(ctx context.Context, userID UserID) (UserProfile, error) {
 	var profile UserProfile
 	var locale, verifiedAt sql.NullString
 	if err := s.queryRow(ctx, s.db, `
@@ -43,7 +43,7 @@ func (s *Service) GetUserProfile(ctx context.Context, userID string) (UserProfil
 
 func (s *Service) UpdateUserProfile(
 	ctx context.Context,
-	userID string,
+	userID UserID,
 	input ProfileUpdateInput,
 	audit AuditContext,
 ) error {
@@ -83,7 +83,7 @@ func (s *Service) UpdateUserProfile(
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "user.profile.updated", ActorUserID: userID, AuthMethod: "session",
-		TargetType: "user", TargetID: userID, Action: "user.profile.update", Outcome: "success",
+		TargetType: "user", TargetID: userID.String(), Action: "user.profile.update", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata:  metadata(map[string]any{"locale": locale, "timezone": timezone, "theme": theme}),
 		CreatedAt: s.now().UTC(),
@@ -123,7 +123,7 @@ func validateNewPassword(password string) error {
 
 func (s *Service) ChangePassword(
 	ctx context.Context,
-	userID, currentPassword, newPassword string,
+	userID UserID, currentPassword, newPassword string,
 	audit AuditContext,
 ) error {
 	if validateNewPassword(newPassword) != nil {
@@ -156,7 +156,7 @@ func (s *Service) ChangePassword(
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "user.password.changed", ActorUserID: userID, AuthMethod: "session",
-		TargetType: "user", TargetID: userID, Action: "user.password.change", Outcome: "success",
+		TargetType: "user", TargetID: userID.String(), Action: "user.password.change", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}",
 		CreatedAt: s.now().UTC(),
 	}); err != nil {
@@ -167,7 +167,7 @@ func (s *Service) ChangePassword(
 
 func (s *Service) BeginEmailVerification(
 	ctx context.Context,
-	userID string,
+	userID UserID,
 	audit AuditContext,
 ) (NewEmailVerification, error) {
 	var email string
@@ -212,7 +212,7 @@ func (s *Service) BeginEmailVerification(
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "user.email_verification.requested", ActorUserID: userID, AuthMethod: "session",
-		TargetType: "user", TargetID: userID, Action: "user.email.verify.request", Outcome: "success",
+		TargetType: "user", TargetID: userID.String(), Action: "user.email.verify.request", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
 		return NewEmailVerification{}, err
@@ -233,7 +233,8 @@ func (s *Service) VerifyEmail(ctx context.Context, secret string, audit AuditCon
 		return err
 	}
 	defer tx.Rollback()
-	var userID, email, expiresAt string
+	var userID UserID
+	var email, expiresAt string
 	var consumedAt sql.NullString
 	if err := s.queryRow(ctx, tx, `
 		SELECT user_id, email, expires_at, consumed_at FROM email_verifications
@@ -260,7 +261,7 @@ func (s *Service) VerifyEmail(ctx context.Context, secret string, audit AuditCon
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "user.email_verified", ActorUserID: userID, AuthMethod: "email",
-		TargetType: "user", TargetID: userID, Action: "user.email.verify", Outcome: "success",
+		TargetType: "user", TargetID: userID.String(), Action: "user.email.verify", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: metadata(map[string]any{"email": email}), CreatedAt: now,
 	}); err != nil {
@@ -278,7 +279,7 @@ func (s *Service) BeginPasswordReset(
 	if err != nil {
 		return NewPasswordReset{}, nil
 	}
-	var userID string
+	var userID UserID
 	if err := s.queryRow(ctx, s.db, "SELECT id FROM users WHERE email = ?", normalized).Scan(&userID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return NewPasswordReset{}, nil
@@ -313,7 +314,7 @@ func (s *Service) BeginPasswordReset(
 		return NewPasswordReset{}, err
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
-		EventType: "user.password_reset.requested", TargetType: "user", TargetID: userID,
+		EventType: "user.password_reset.requested", TargetType: "user", TargetID: userID.String(),
 		AuthMethod: "anonymous", Action: "user.password.reset.request", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
@@ -343,7 +344,8 @@ func (s *Service) CompletePasswordReset(
 		return err
 	}
 	defer tx.Rollback()
-	var userID, expiresAt string
+	var userID UserID
+	var expiresAt string
 	var consumedAt sql.NullString
 	if err := s.queryRow(ctx, tx, `
 		SELECT user_id, expires_at, consumed_at FROM password_resets WHERE token_hash = ?
@@ -372,7 +374,7 @@ func (s *Service) CompletePasswordReset(
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "user.password_reset.completed", ActorUserID: userID, AuthMethod: "password_reset",
-		TargetType: "user", TargetID: userID, Action: "user.password.reset", Outcome: "success",
+		TargetType: "user", TargetID: userID.String(), Action: "user.password.reset", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
 		return err
@@ -382,7 +384,7 @@ func (s *Service) CompletePasswordReset(
 
 func (s *Service) DeleteAccount(
 	ctx context.Context,
-	userID, password string,
+	userID UserID, password string,
 	audit AuditContext,
 ) error {
 	if err := s.ReauthenticateLocal(ctx, userID, password); err != nil {
@@ -405,7 +407,7 @@ func (s *Service) DeleteAccount(
 	now := s.now().UTC()
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "user.account_deleted", ActorUserID: userID, AuthMethod: "session",
-		TargetType: "user", TargetID: userID, Action: "user.delete", Outcome: "success",
+		TargetType: "user", TargetID: userID.String(), Action: "user.delete", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
 		return err

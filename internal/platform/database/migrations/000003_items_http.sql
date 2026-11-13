@@ -1,7 +1,7 @@
 CREATE TABLE items (
     id {{integer_pk}},
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-    created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    created_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
     title TEXT NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('active', 'complete')),
     version BIGINT NOT NULL,

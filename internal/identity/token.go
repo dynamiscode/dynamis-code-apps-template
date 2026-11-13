@@ -86,7 +86,8 @@ func (s *Service) AuthenticateAPIToken(
 	defer tx.Rollback()
 	now := s.now().UTC()
 	var tokenID APITokenID
-	var userID, encodedScopes string
+	var userID UserID
+	var encodedScopes string
 	var workspaceID WorkspaceID
 	var expiresAt, revokedAt sql.NullString
 	err = s.queryRow(ctx, tx, `
@@ -111,7 +112,7 @@ func (s *Service) AuthenticateAPIToken(
 		if err := s.audit(ctx, tx, AuditEvent{
 			EventType: "mfa.policy.enforced", ActorUserID: userID,
 			AuthMethod: "policy", WorkspaceID: workspaceID,
-			TargetType: "user", TargetID: userID, Action: "mfa.policy.enforce",
+			TargetType: "user", TargetID: userID.String(), Action: "mfa.policy.enforce",
 			Outcome: "success", RequestID: audit.RequestID,
 			SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 		}); err != nil {

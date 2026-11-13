@@ -104,7 +104,7 @@ func TestSCIMProvisioningLifecycle(t *testing.T) {
 	if err != nil || replayed.ID != user.ID {
 		t.Fatalf("SCIM replay = %+v, %v", replayed, err)
 	}
-	var userID string
+	var userID UserID
 	if err := db.QueryRow("SELECT user_id FROM scim_users WHERE workspace_id = ? AND external_id = ?", bootstrap.WorkspaceID, user.ExternalID).Scan(&userID); err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestSCIMProvisioningLifecycle(t *testing.T) {
 	if _, err := service.AuthenticateSCIMToken(ctx, rotated.Secret, bootstrap.WorkspaceID); !errors.Is(err, ErrInvalidToken) {
 		t.Fatalf("revoked SCIM token = %v", err)
 	}
-	if _, err := service.PatchSCIMUser(ctx, scimPrincipal, bootstrap.UserID, SCIMUserPatch{Active: boolPtr(false)}, 1, AuditContext{}); !errors.Is(err, ErrLastOwner) {
+	if _, err := service.PatchSCIMUser(ctx, scimPrincipal, bootstrap.UserID.String(), SCIMUserPatch{Active: boolPtr(false)}, 1, AuditContext{}); !errors.Is(err, ErrLastOwner) {
 		t.Fatalf("owner deactivation = %v", err)
 	}
 	assertAuditEvent(t, db, "scim.user.created")

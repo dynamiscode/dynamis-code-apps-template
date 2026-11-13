@@ -174,7 +174,7 @@ func (h *Handler) consentSession(request *http.Request) (identity.Session, strin
 }
 
 // consentWorkspaces lists workspaces where the user holds every requested scope.
-func (h *Handler) consentWorkspaces(ctx context.Context, userID string, scopes []identity.Permission) []mcpWorkspaceChoice {
+func (h *Handler) consentWorkspaces(ctx context.Context, userID identity.UserID, scopes []identity.Permission) []mcpWorkspaceChoice {
 	workspaces, err := h.identity.ListWorkspaces(ctx, userID)
 	if err != nil {
 		return nil

@@ -45,10 +45,10 @@ type Workspace struct {
 }
 
 type Member struct {
-	UserID    string        `json:"userId"`
-	Email     string        `json:"email"`
-	Role      identity.Role `json:"role"`
-	CreatedAt time.Time     `json:"createdAt"`
+	UserID    identity.UserID `json:"userId"`
+	Email     string          `json:"email"`
+	Role      identity.Role   `json:"role"`
+	CreatedAt time.Time       `json:"createdAt"`
 }
 
 type AuditEvent struct {
@@ -365,7 +365,7 @@ func (s *Service) itemRecords(ctx context.Context, tx *sql.Tx, workspaceID ident
 	result := make([]items.Item, 0)
 	for rows.Next() {
 		var value items.Item
-		var createdByUserID sql.NullString
+		var createdByUserID sql.NullInt64
 		var createdAt, updatedAt string
 		if err := rows.Scan(
 			&value.ID, &value.WorkspaceID, &createdByUserID, &value.Title,
@@ -374,7 +374,8 @@ func (s *Service) itemRecords(ctx context.Context, tx *sql.Tx, workspaceID ident
 			return nil, err
 		}
 		if createdByUserID.Valid {
-			value.CreatedByUserID = &createdByUserID.String
+			creator := identity.UserID(createdByUserID.Int64)
+			value.CreatedByUserID = &creator
 		}
 		value.CreatedAt, err = parseTime(createdAt)
 		if err != nil {

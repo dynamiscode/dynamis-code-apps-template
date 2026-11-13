@@ -28,7 +28,7 @@ func (h *Handler) accountPage(writer http.ResponseWriter, request *http.Request)
 	h.render(writer, http.StatusOK, "account.html", data)
 }
 
-func (h *Handler) accountData(request *http.Request, userID, csrf string) (pageData, bool) {
+func (h *Handler) accountData(request *http.Request, userID identity.UserID, csrf string) (pageData, bool) {
 	profile, err := h.identity.GetUserProfile(request.Context(), userID)
 	if err != nil {
 		return pageData{}, false
@@ -326,7 +326,7 @@ func accountURL(publicURL, prefix, secret string) string {
 	return strings.TrimRight(publicURL, "/") + path
 }
 
-func (h *Handler) accountLocale(request *http.Request, userID string) i18n.Locale {
+func (h *Handler) accountLocale(request *http.Request, userID identity.UserID) i18n.Locale {
 	profile, err := h.identity.GetUserProfile(request.Context(), userID)
 	if err == nil {
 		if locale, ok := i18n.ParseLocale(profile.Locale); ok {

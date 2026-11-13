@@ -11,7 +11,6 @@ import (
 	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 func TestPostgresPublicSharingLifecycle(t *testing.T) {
@@ -28,13 +27,10 @@ func TestPostgresPublicSharingLifecycle(t *testing.T) {
 	if err := database.Migrate(ctx, db, config.Postgres); err != nil {
 		t.Fatal(err)
 	}
-	userID, err := id.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	var userID identity.UserID
 	var workspaceID identity.WorkspaceID
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	if _, err := db.ExecContext(ctx, "INSERT INTO users (id, email, created_at) VALUES ($1, $2, $3)", userID, fmt.Sprintf("share-%s@example.com", userID), now); err != nil {
+	if err := db.QueryRowContext(ctx, "INSERT INTO users (email, created_at) VALUES ($1, $2) RETURNING id", fmt.Sprintf("share-%d@example.com", time.Now().UnixNano()), now).Scan(&userID); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.QueryRowContext(ctx, "INSERT INTO workspaces (name, created_at) VALUES ($1, $2) RETURNING id", "Sharing PostgreSQL", now).Scan(&workspaceID); err != nil {
@@ -52,7 +48,7 @@ func TestPostgresPublicSharingLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	principal.AuthMethod = "test"
-	item, err := items.NewService(db, config.Postgres, auth, 10000).Create(ctx, principal, workspaceID, "PostgreSQL public", "postgres-public-share-"+userID, identity.AuditContext{})
+	item, err := items.NewService(db, config.Postgres, auth, 10000).Create(ctx, principal, workspaceID, "PostgreSQL public", "postgres-public-share-"+userID.String(), identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}

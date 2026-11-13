@@ -248,7 +248,7 @@ func NewHandler(
 			}
 		}
 		return &auth.TokenInfo{
-			Scopes: scopes, UserID: principal.UserID,
+			Scopes: scopes, UserID: principal.UserID.String(),
 			Extra: map[string]any{"principal": principal, "sourceAddress": sourceHost(request.RemoteAddr)},
 		}, nil
 	}
@@ -407,9 +407,18 @@ func (h *handler) deleteItem(ctx context.Context, request *mcp.CallToolRequest, 
 func toItemOutput(item items.Item) itemOutput {
 	return itemOutput{
 		ID: itemShortID(item.ID.String()), WorkspaceID: workspaceShortID(item.WorkspaceID.String()),
-		CreatedByUserID: item.CreatedByUserID, Title: itemTitle(item.Title), Status: item.Status,
+		CreatedByUserID: optionalUserShortID(item.CreatedByUserID), Title: itemTitle(item.Title), Status: item.Status,
 		Version: itemVersion(item.Version), CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt,
 	}
+}
+
+// optionalUserShortID renders an optional user key as its short ID; nil stays nil.
+func optionalUserShortID(userID *identity.UserID) *string {
+	if userID == nil {
+		return nil
+	}
+	short := userID.String()
+	return &short
 }
 
 func toPageOutput(page items.Page) pageOutput {
