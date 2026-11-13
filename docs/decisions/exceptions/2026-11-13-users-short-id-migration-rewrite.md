@@ -13,12 +13,11 @@
   to `BIGINT`. The `users` key becomes an integer key. `oidc_transactions.state_hash`
   stays `TEXT`: it is a hash of a bearer value, not an entity ID, and it is not
   converted by this change.
-- Status: proposed (owner approval pending)
+- Status: accepted (approved by repository owner 2026-11-13)
 - Responsible owner: repository maintainers (spec #243, ticket #249)
-- Approving maintainer: pending. The owner decisions on #243 (comment
-  https://github.com/dynamiscode/dynamis-code-apps-template/issues/243#issuecomment-6860178488)
-  choose the in-place reset and the `{{file_id_pk}}` key for users, but this record
-  is not yet approved.
+- Approving maintainer: repository owner, 2026-11-13. The owner decisions on #243
+  (comment https://github.com/dynamiscode/dynamis-code-apps-template/issues/243#issuecomment-6860178488)
+  choose the in-place reset and the `{{file_id_pk}}` key for users.
 - Security-owner approval, when required: pending. No security control is
   weakened. Sessions, OIDC state, MFA challenge, recovery-code, and token
   secrets stay text keys matched by hash. `external_identities.id` stays text
