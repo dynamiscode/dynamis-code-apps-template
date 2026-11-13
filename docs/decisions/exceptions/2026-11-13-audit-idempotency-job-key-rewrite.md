@@ -18,7 +18,7 @@
   and this record is the in-place reset that follows from it. The owner accepted the
   reset; the two open design points (principal kinds and key-less audit targets) are
   not covered by this acceptance and remain open on #243.
-- Security-owner approval, when required: pending. Audit and idempotency records
+- Security-owner approval, when required: approved by the security owner, 2026-11-13. Audit and idempotency records
   stop storing session IDs and MFA challenge tokens (see Known limitations), which
   narrows what the audit log holds. No authorization check changes. Sessions, OIDC
   state, MFA challenge, OAuth token, verification, reset, and recovery values stay
