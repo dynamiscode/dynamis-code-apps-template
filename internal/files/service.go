@@ -105,8 +105,6 @@ func NewService(db *sql.DB, driver config.DatabaseDriver, auth *identity.Service
 	return &Service{db: db, driver: driver, auth: auth, store: store, maxObjectBytes: maxObjectBytes, maxWorkspaceBytes: maxWorkspaceBytes, signedURLTTL: signedURLTTL, prefix: prefix, now: time.Now, logger: slog.Default()}
 }
 
-func (s *Service) SupportsPresignedPut() bool { return s.store.SupportsPresignedPut() }
-
 // RequiresCompletion reports whether a content write leaves the file pending
 // until Complete verifies the stored object.
 func (s *Service) RequiresCompletion() bool { return s.store.RequiresCompletion() }
@@ -335,18 +333,6 @@ func (s *Service) PresignedGet(ctx context.Context, actor identity.Principal, wo
 	}
 	url, err := s.store.PresignGet(ctx, s.storedObjectKey(file), s.signedURLTTL)
 	return file, url, err
-}
-
-func (s *Service) PresignedPut(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID FileID) (File, PresignedUpload, error) {
-	file, err := s.pending(ctx, actor, workspaceID, fileID)
-	if err != nil {
-		return File{}, PresignedUpload{}, err
-	}
-	upload, err := s.store.PresignPut(ctx, s.storedObjectKey(file), file.Size, contentType(file), s.signedURLTTL)
-	if err != nil && !errors.Is(err, ErrNotSupported) {
-		s.releasePending(ctx, file)
-	}
-	return file, upload, err
 }
 
 func (s *Service) reserve(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, name string, size int64, audit identity.AuditContext) (File, error) {
@@ -717,13 +703,6 @@ func (s *Service) objectKey(workspaceID identity.WorkspaceID, token string) stri
 // from the database carries one.
 func (s *Service) storedObjectKey(file File) string {
 	return file.storageKey
-}
-
-func contentType(file File) string {
-	if file.DetectedMIME != nil {
-		return *file.DetectedMIME
-	}
-	return mimeByExtension(filepath.Ext(file.OriginalName))
 }
 
 func stringPtr(value string) *string { return &value }

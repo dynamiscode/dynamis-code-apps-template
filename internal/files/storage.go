@@ -25,14 +25,7 @@ type ObjectStore interface {
 	// RequiresCompletion reports whether a content write leaves the file pending
 	// until Complete verifies the stored object.
 	RequiresCompletion() bool
-	SupportsPresignedPut() bool
-	PresignPut(context.Context, string, int64, string, time.Duration) (PresignedUpload, error)
 	PresignGet(context.Context, string, time.Duration) (string, error)
-}
-
-type PresignedUpload struct {
-	URL     string
-	Headers map[string]string
 }
 
 type ObjectInfo struct {
@@ -116,13 +109,7 @@ func (s *localStore) Head(_ context.Context, key string) (ObjectInfo, error) {
 	return ObjectInfo{Size: info.Size()}, nil
 }
 
-func (*localStore) PresignPut(context.Context, string, int64, string, time.Duration) (PresignedUpload, error) {
-	return PresignedUpload{}, ErrNotSupported
-}
-
 func (*localStore) RequiresCompletion() bool { return false }
-
-func (*localStore) SupportsPresignedPut() bool { return false }
 
 func (*localStore) PresignGet(context.Context, string, time.Duration) (string, error) {
 	return "", ErrNotSupported
