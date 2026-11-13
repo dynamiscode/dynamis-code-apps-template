@@ -643,6 +643,14 @@ pruning are covered by focused SQLite tests and generated-app checks. Deletion,
 reconciliation, scanning, background jobs, and PostgreSQL/Docker execution
 remain follow-up verification or deferred behavior for this slice.
 
+Browser uploads use one multipart request to the files route. Evidence:
+`TestFilesMultipartUploadStoresFileAndRedirects`, `TestFilesUploadStatusMessages`,
+`TestFilesMultipartUploadDeniesViewer`, and `TestFilesInitiateAndCompleteRoutesReturnNotFound`
+in `internal/web/files_test.go`; `FileUploader` lock and status transitions in
+`internal/web/assets/app.test.mjs`. Verified with `go test ./internal/web/...`
+and `node --test internal/web/assets/*.test.mjs`. Not run against a real S3
+bucket for this path.
+
 ## HTMX 4 upgrade evidence
 
 Verified 2026-11-10 with Go 1.27.0, HTMX 4.0.1, axe-core, and Chrome:

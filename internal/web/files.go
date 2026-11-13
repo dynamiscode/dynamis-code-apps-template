@@ -1,7 +1,6 @@
 package web
 
 import (
-	"encoding/json"
 	"errors"
 	"io"
 	"mime"
@@ -10,6 +9,16 @@ import (
 
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
+)
+
+const (
+	// uploadMultipartMemory is how much of a multipart upload stays in memory
+	// before it spills to a temporary file.
+	uploadMultipartMemory = 1 << 20
+	// uploadFramingBytes allows for multipart boundaries and the CSRF field
+	// around a file at the per-object limit. The service enforces the exact
+	// object limit; this only bounds how much request body is buffered.
+	uploadFramingBytes = 1 << 20
 )
 
 func (h *Handler) filesPage(writer http.ResponseWriter, request *http.Request) {
@@ -31,51 +40,35 @@ func (h *Handler) filesPage(writer http.ResponseWriter, request *http.Request) {
 	h.render(writer, http.StatusOK, "files.html", pageData{
 		Title: "Files", NavPage: "files", NavSection: "workspace", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		Files: fileList, FilesPresigned: h.files.SupportsPresignedPut(),
+		Files:       fileList,
 		CurrentPath: "/workspaces/" + workspaceID.String() + "/files",
 	})
 }
 
-func (h *Handler) filesInitiateUpload(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	principal, _, _, ok := h.managementPrincipal(writer, request, workspaceID, identity.ResourcesWrite)
-	if !ok {
-		return
-	}
-	if !h.files.SupportsPresignedPut() {
-		h.renderError(writer, http.StatusNotFound)
-		return
-	}
-	size, err := strconv.ParseInt(request.FormValue("size"), 10, 64)
-	if err != nil {
-		h.renderFilesError(writer, request, "The selected file is invalid.")
-		return
-	}
-	file, err := h.files.Initiate(request.Context(), principal, workspaceID, appfiles.InitiateInput{
-		OriginalName: request.FormValue("originalName"), Size: size, ContentType: request.FormValue("contentType"),
-	}, auditContext(request))
-	if err != nil {
-		h.renderFilesError(writer, request, "The selected file is invalid.")
-		return
-	}
-	_, upload, err := h.files.PresignedPut(request.Context(), principal, workspaceID, file.ID)
-	if err != nil {
-		h.renderFilesError(writer, request, "The file upload could not be started.")
-		return
-	}
-	writer.Header().Set("Content-Type", "application/json")
-	writer.Header().Set("Cache-Control", "private, no-store")
-	writer.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(writer).Encode(map[string]any{
-		"uploadUrl": upload.URL, "uploadHeaders": upload.Headers,
-		"completeUrl": "/workspaces/" + workspaceID.String() + "/files/" + file.ID.String() + "/complete",
-	})
-}
-
+// filesUpload accepts the one browser upload request: an ordinary multipart
+// form with the CSRF token and the file. The browser uploader and the plain
+// form both post here.
 func (h *Handler) filesUpload(writer http.ResponseWriter, request *http.Request) {
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	principal, _, _, ok := h.managementPrincipal(writer, request, workspaceID, identity.ResourcesWrite)
+	principal, session, _, ok := h.workspaceSession(writer, request, workspaceID, identity.ResourcesWrite)
 	if !ok {
+		return
+	}
+	if h.cfg.FileMaxBodyBytes > 0 {
+		request.Body = http.MaxBytesReader(writer, request.Body, h.cfg.FileMaxBodyBytes+uploadFramingBytes)
+	}
+	if err := request.ParseMultipartForm(uploadMultipartMemory); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			h.renderFilesError(writer, request, "The file exceeds the per-file size limit.")
+			return
+		}
+		h.renderFilesError(writer, request, "Choose a supported file to upload.")
+		return
+	}
+	// ParseMultipartForm fills the form values; ParseForm would not read the CSRF field here.
+	if !h.identity.VerifyCSRF(request.Context(), session.ID, request.FormValue("csrf")) {
+		h.renderError(writer, http.StatusForbidden)
 		return
 	}
 	upload, header, err := request.FormFile("file")
@@ -91,24 +84,13 @@ func (h *Handler) filesUpload(writer http.ResponseWriter, request *http.Request)
 			message = "The file exceeds the per-file size limit."
 		case errors.Is(err, appfiles.ErrLimit):
 			message = "The workspace file storage limit was reached."
+		case errors.Is(err, appfiles.ErrInvalidInput):
+			message = "The selected file is invalid."
 		}
 		h.renderFilesError(writer, request, message)
 		return
 	}
 	h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/files")
-}
-
-func (h *Handler) filesCompleteUpload(writer http.ResponseWriter, request *http.Request) {
-	workspaceID, fileID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), appfiles.ParseFileIDOrZero(request.PathValue("fileId"))
-	principal, _, _, ok := h.managementPrincipal(writer, request, workspaceID, identity.ResourcesWrite)
-	if !ok {
-		return
-	}
-	if _, err := h.files.Complete(request.Context(), principal, workspaceID, fileID, auditContext(request)); err != nil {
-		h.renderFilesError(writer, request, "The file upload could not be completed.")
-		return
-	}
-	writer.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) renderFilesError(writer http.ResponseWriter, request *http.Request, message string) {
@@ -130,7 +112,7 @@ func (h *Handler) renderFilesError(writer http.ResponseWriter, request *http.Req
 	h.render(writer, http.StatusUnprocessableEntity, "files.html", pageData{
 		Title: "Files", NavPage: "files", NavSection: "workspace", CSRF: csrf, Error: message,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		Files: fileList, FilesPresigned: h.files.SupportsPresignedPut(), CurrentPath: "/workspaces/" + workspaceID.String() + "/files",
+		Files: fileList, CurrentPath: "/workspaces/" + workspaceID.String() + "/files",
 	})
 }
 
