@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
@@ -39,6 +38,15 @@ var userReferenceColumns = []userKeyColumn{
 	{"oauth_grants", "user_id"},
 }
 
+// textKeyColumns stay TEXT: they hold bearer or hashed values, or non-user IDs.
+var textKeyColumns = []userKeyColumn{
+	{"external_identities", "id"},
+	{"oidc_transactions", "state_hash"},
+	{"sessions", "id"},
+	{"mfa_challenges", "session_id"},
+	{"oauth_grants", "session_id"},
+}
+
 func TestSQLiteUserKeysUseIntegerReferences(t *testing.T) {
 	t.Parallel()
 
@@ -67,7 +75,7 @@ func TestSQLiteUserKeysUseIntegerReferences(t *testing.T) {
 			t.Fatal(err)
 		}
 		if tables == 0 {
-			continue // the table belongs to a feature pruned from generated apps
+			t.Fatalf("table %s is missing", column.table)
 		}
 		var columnType string
 		if err := db.QueryRow("SELECT type FROM pragma_table_info(?) WHERE name = ?", column.table, column.column).Scan(&columnType); err != nil {
@@ -77,7 +85,14 @@ func TestSQLiteUserKeysUseIntegerReferences(t *testing.T) {
 			t.Fatalf("%s.%s type = %q, want BIGINT", column.table, column.column, columnType)
 		}
 	}
-	for _, text := range []userKeyColumn{{"external_identities", "id"}, {"oidc_transactions", "state_hash"}, {"sessions", "id"}} {
+	for _, text := range textKeyColumns {
+		var tables int
+		if err := db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", text.table).Scan(&tables); err != nil {
+			t.Fatal(err)
+		}
+		if tables == 0 {
+			t.Fatalf("table %s is missing", text.table)
+		}
 		var columnType string
 		if err := db.QueryRow("SELECT type FROM pragma_table_info(?) WHERE name = ?", text.table, text.column).Scan(&columnType); err != nil {
 			t.Fatal(err)
@@ -105,14 +120,13 @@ func TestPostgresUserKeysUseIntegerReferences(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// dataType returns an error when the table or column is missing, so a
+	// dropped table cannot pass as an absent optional feature.
 	dataType := func(table, column string) (string, error) {
 		var value string
 		err := db.QueryRow(`SELECT data_type FROM information_schema.columns
 			WHERE table_schema = current_schema() AND table_name = $1 AND column_name = $2`,
 			table, column).Scan(&value)
-		if err == sql.ErrNoRows {
-			return "", nil
-		}
 		return value, err
 	}
 	if value, err := dataType("users", "id"); err != nil || value != "bigint" {
@@ -120,11 +134,14 @@ func TestPostgresUserKeysUseIntegerReferences(t *testing.T) {
 	}
 	for _, column := range userReferenceColumns {
 		value, err := dataType(column.table, column.column)
-		if err == nil && value == "" {
-			continue // the table belongs to a feature pruned from generated apps
-		}
 		if err != nil || value != "bigint" {
 			t.Fatalf("%s.%s type = %q, %v, want bigint", column.table, column.column, value, err)
+		}
+	}
+	for _, text := range textKeyColumns {
+		value, err := dataType(text.table, text.column)
+		if err != nil || value != "text" {
+			t.Fatalf("%s.%s type = %q, %v, want text", text.table, text.column, value, err)
 		}
 	}
 }
