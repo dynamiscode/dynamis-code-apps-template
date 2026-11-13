@@ -55,7 +55,7 @@ func TestPostgresQueueClaimAndFinish(t *testing.T) {
 		t.Fatalf("Process() = %d, %v", processed, err)
 	}
 	var status string
-	if err := db.QueryRowContext(ctx, "SELECT status FROM background_jobs WHERE kind = $1 AND deduplication_key = $2", kind, "once").Scan(&status); err != nil {
+	if err := db.QueryRowContext(ctx, "SELECT status FROM background_jobs WHERE kind = $1 AND deduplication_key = $2", kind, 1).Scan(&status); err != nil {
 		t.Fatal(err)
 	}
 	if status != "succeeded" {
