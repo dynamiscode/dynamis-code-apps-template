@@ -53,7 +53,7 @@ func TestQueueRetriesWithLeaseAndRedactsHandlerErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := queue.EnqueueTx(ctx, tx, workspaceID, "test", "dedup-1", `{"value":1}`, time.Now()); err != nil {
+	if err := queue.EnqueueTx(ctx, tx, workspaceID, "test", 1, `{"value":1}`, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -64,20 +64,20 @@ func TestQueueRetriesWithLeaseAndRedactsHandlerErrors(t *testing.T) {
 	}
 	var status, lastError string
 	var attemptCount int
-	if err := db.QueryRow("SELECT status, attempt_count, last_error FROM background_jobs WHERE deduplication_key = ?", "dedup-1").Scan(&status, &attemptCount, &lastError); err != nil {
+	if err := db.QueryRow("SELECT status, attempt_count, last_error FROM background_jobs WHERE deduplication_key = ?", 1).Scan(&status, &attemptCount, &lastError); err != nil {
 		t.Fatal(err)
 	}
 	if status != "pending" || attemptCount != 1 || lastError != "handler-error" {
 		t.Fatalf("first job state = %q, %d, %q", status, attemptCount, lastError)
 	}
-	if _, err := db.Exec("UPDATE background_jobs SET available_at = ? WHERE deduplication_key = ?", stamp(time.Now().Add(-time.Second)), "dedup-1"); err != nil {
+	if _, err := db.Exec("UPDATE background_jobs SET available_at = ? WHERE deduplication_key = ?", stamp(time.Now().Add(-time.Second)), 1); err != nil {
 		t.Fatal(err)
 	}
 	if processed, err := queue.Process(ctx, 1); err != nil || processed != 1 {
 		t.Fatalf("second Process() = %d, %v", processed, err)
 	}
 	var startedAt, completedAt, finalError sql.NullString
-	if err := db.QueryRow("SELECT status, attempt_count, started_at, completed_at, last_error FROM background_jobs WHERE deduplication_key = ?", "dedup-1").Scan(&status, &attemptCount, &startedAt, &completedAt, &finalError); err != nil {
+	if err := db.QueryRow("SELECT status, attempt_count, started_at, completed_at, last_error FROM background_jobs WHERE deduplication_key = ?", 1).Scan(&status, &attemptCount, &startedAt, &completedAt, &finalError); err != nil {
 		t.Fatal(err)
 	}
 	if status != "succeeded" || attemptCount != 2 || !startedAt.Valid || !completedAt.Valid || finalError.Valid {
@@ -87,19 +87,19 @@ func TestQueueRetriesWithLeaseAndRedactsHandlerErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := queue.EnqueueTx(ctx, tx, workspaceID, "test", "lease-1", `{"value":1}`, time.Now()); err != nil {
+	if err := queue.EnqueueTx(ctx, tx, workspaceID, "test", 2, `{"value":1}`, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if err := tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("UPDATE background_jobs SET status = 'running', attempt_count = 1, lease_token = ?, leased_until = ?, started_at = ? WHERE deduplication_key = ?", "stale-lease", stamp(time.Now().Add(-time.Minute)), stamp(time.Now().Add(-2*time.Minute)), "lease-1"); err != nil {
+	if _, err := db.Exec("UPDATE background_jobs SET status = 'running', attempt_count = 1, lease_token = ?, leased_until = ?, started_at = ? WHERE deduplication_key = ?", "stale-lease", stamp(time.Now().Add(-time.Minute)), stamp(time.Now().Add(-2*time.Minute)), 2); err != nil {
 		t.Fatal(err)
 	}
 	if processed, err := queue.Process(ctx, 1); err != nil || processed != 1 {
 		t.Fatalf("lease Process() = %d, %v", processed, err)
 	}
-	if err := db.QueryRow("SELECT status, attempt_count FROM background_jobs WHERE deduplication_key = ?", "lease-1").Scan(&status, &attemptCount); err != nil {
+	if err := db.QueryRow("SELECT status, attempt_count FROM background_jobs WHERE deduplication_key = ?", 2).Scan(&status, &attemptCount); err != nil {
 		t.Fatal(err)
 	}
 	if status != "succeeded" || attemptCount != 2 {
@@ -109,19 +109,19 @@ func TestQueueRetriesWithLeaseAndRedactsHandlerErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := queue.EnqueueTx(ctx, tx, workspaceID, "test", "final-lease", `{"value":1}`, time.Now()); err != nil {
+	if err := queue.EnqueueTx(ctx, tx, workspaceID, "test", 3, `{"value":1}`, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if err := tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("UPDATE background_jobs SET status = 'running', attempt_count = ?, lease_token = ?, leased_until = ?, started_at = ? WHERE deduplication_key = ?", maxAttempts, "final-stale-lease", stamp(time.Now().Add(-time.Minute)), stamp(time.Now().Add(-2*time.Minute)), "final-lease"); err != nil {
+	if _, err := db.Exec("UPDATE background_jobs SET status = 'running', attempt_count = ?, lease_token = ?, leased_until = ?, started_at = ? WHERE deduplication_key = ?", maxAttempts, "final-stale-lease", stamp(time.Now().Add(-time.Minute)), stamp(time.Now().Add(-2*time.Minute)), 3); err != nil {
 		t.Fatal(err)
 	}
 	if processed, err := queue.Process(ctx, 1); err != nil || processed != 1 {
 		t.Fatalf("final lease Process() = %d, %v", processed, err)
 	}
-	if err := db.QueryRow("SELECT status, attempt_count FROM background_jobs WHERE deduplication_key = ?", "final-lease").Scan(&status, &attemptCount); err != nil {
+	if err := db.QueryRow("SELECT status, attempt_count FROM background_jobs WHERE deduplication_key = ?", 3).Scan(&status, &attemptCount); err != nil {
 		t.Fatal(err)
 	}
 	if status != "failed" || attemptCount != maxAttempts+1 || !exhausted {
@@ -164,7 +164,7 @@ func TestQueueExhaustionTriggeredOnMaxAttempts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := queue.EnqueueTx(ctx, tx, workspaceID, "fail-job", "exhaust-key", `{"test":true}`, time.Now()); err != nil {
+	if err := queue.EnqueueTx(ctx, tx, workspaceID, "fail-job", 4, `{"test":true}`, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -173,7 +173,7 @@ func TestQueueExhaustionTriggeredOnMaxAttempts(t *testing.T) {
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		if attempt > 1 {
-			if _, err := db.Exec("UPDATE background_jobs SET available_at = ? WHERE deduplication_key = ?", stamp(time.Now().Add(-time.Second)), "exhaust-key"); err != nil {
+			if _, err := db.Exec("UPDATE background_jobs SET available_at = ? WHERE deduplication_key = ?", stamp(time.Now().Add(-time.Second)), 4); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -342,7 +342,7 @@ func TestEnqueuedJobsUseIntegerKeysMatchingStoredRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"first", "second"} {
+	for _, key := range []int64{1, 2} {
 		if err := queue.EnqueueTx(ctx, tx, workspaceID, "keys", key, `{"value":1}`, time.Now()); err != nil {
 			t.Fatal(err)
 		}

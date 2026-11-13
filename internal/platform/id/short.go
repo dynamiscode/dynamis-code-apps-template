@@ -66,10 +66,11 @@ func mustEntityCodecs() map[TypeCode]*Codec {
 // EncodeKey returns the short ID for a positive integer key of type code.
 // Callers pass only keys from the database; a non-positive key yields "".
 func EncodeKey(code TypeCode, key int64) string {
-	if key <= 0 {
-		return ""
+	codec, ok := entityCodecs[code]
+	if !ok || key <= 0 {
+		return "" // an unregistered code has no short-ID alphabet
 	}
-	short, _ := entityCodecs[code].Encode(uint64(key))
+	short, _ := codec.Encode(uint64(key))
 	return short
 }
 

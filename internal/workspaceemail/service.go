@@ -402,7 +402,7 @@ func (s *Service) store(
 	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "workspace_email.updated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: workspaceID, TargetType: "workspace_email", TargetID: workspaceID.String(),
+		WorkspaceID: workspaceID, TargetType: "workspace", TargetKey: int64(workspaceID),
 		Action: "workspace_email.update", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress,
 		Metadata: metadata(map[string]any{

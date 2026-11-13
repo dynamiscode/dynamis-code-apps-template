@@ -65,11 +65,16 @@ func TestSCIMResourceIDsAreShortUserIDs(t *testing.T) {
 	if _, err := service.PatchSCIMGroup(ctx, scimPrincipal, string(Viewer), byShortID, viewers.Version, AuditContext{}); err != nil {
 		t.Fatalf("group add by short ID = %v", err)
 	}
-	var targetID string
-	if err := db.QueryRow("SELECT target_id FROM audit_events WHERE event_type = 'scim.user.created'").Scan(&targetID); err != nil {
+	var targetType string
+	var targetKey int64
+	if err := db.QueryRow("SELECT target_type, target_key FROM audit_events WHERE event_type = 'scim.user.created'").Scan(&targetType, &targetKey); err != nil {
 		t.Fatal(err)
 	}
-	if targetID != user.ID {
-		t.Fatalf("scim.user.created target_id = %q; want short user ID %q", targetID, user.ID)
+	userKey, err := ParseUserID(user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if targetType != "user" || targetKey != int64(userKey) {
+		t.Fatalf("scim.user.created target = %q/%d; want user key for %q", targetType, targetKey, user.ID)
 	}
 }

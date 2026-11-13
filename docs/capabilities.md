@@ -581,9 +581,9 @@ which is `proposed` until the owner approves it.
 - Known limitation: the SCIM backfill in migrations 000012 and 000013 casts the user
   key to text for `scim_users.external_id`. It runs only over existing `workspace_members`,
   which is empty on a fresh database, so it has no effect on the reset path.
-- Known limitation: `idempotency_records.principal_id` now holds `user:<short ID>`,
-  and audit actor and target user IDs hold short IDs. Existing values from before
-  this change are not converted, because the databases are reset.
+- Superseded: audit actor, audit target, idempotency principal, and job dedup
+  columns are typed integer keys as recorded in
+  [audit and idempotency short ID evidence](#audit-and-idempotency-short-id-evidence).
 - Ticket #250 contract surfaces are covered in
   [SCIM and MCP user ID evidence](#scim-and-mcp-user-id-evidence). Field names are unchanged.
 
@@ -597,9 +597,41 @@ value in `externalId` and `id`. Covered by `TestSCIMResourceIDsAreShortUserIDs`
 and unmapped IDs, `scim.user.created` audit target) and `TestSCIMRESTContract`
 (HTTP path, Location, and external-ID not-found). The MCP `createdByUserId` schema
 declares the short-ID pattern, recorded in `internal/mcpserver/testdata/tools-v1.json`.
-`TestIdempotencyPrincipalUsesShortUserID` pins the `user:<short ID>` principal.
+The idempotency principal pin (`TestIdempotencyPrincipalUsesShortUserID`) is superseded by
+`TestIdempotencyPrincipalIsTypedKey` in the audit and idempotency evidence.
 OpenAPI describes the SCIM path parameter and member value; `go generate ./api`
 shows no drift. Breaking changes for SCIM IdPs and MCP clients are in the PR body.
+
+## audit and idempotency short ID evidence
+
+Ticket #195 removes the last text entity IDs from audit and idempotency storage.
+`audit_events.actor_user_id` is a `BIGINT` user key. `audit_events.target_id` is
+replaced by `target_type` (the registry type code) and `target_key BIGINT`.
+`idempotency_records.principal_id` is replaced by `principal_kind` and
+`principal_key BIGINT`. `background_jobs.deduplication_key` is `BIGINT`, the webhook
+delivery key. Migrations 000002, 000003, 000010, and 000013 are rewritten in place under
+the [recorded exception](decisions/exceptions/2026-11-13-audit-idempotency-job-key-rewrite.md),
+which is `proposed` until the owner approves it.
+
+- Covered: `TestSQLiteShortIDKeyColumns` and `TestPostgresShortIDKeyColumns` check
+  the typed columns and that `audit_events.target_id` and `idempotency_records.principal_id`
+  no longer exist. `TestAuditTargetStoresTypedKeyOrNull` checks that a keyed target
+  stores type and key and a key-less target stores `NULL`.
+  `TestListAuditHistoryRejectsUnparseableActorRow` checks that a non-positive stored
+  actor key is rejected. `TestIdempotencyPrincipalIsTypedKey` checks that a session
+  and an API-token principal use separate scopes. `TestEnqueueRejectsNonPositiveDedupKey`
+  checks job keys. `TestSQLiteWorkspaceExport` and `TestPostgresWorkspaceExport` check
+  that an exported item audit event carries the item's short ID and the actor's
+  short user ID.
+- Design points for owner review: `principal_kind` also holds `scim_token` and
+  `oauth_grant` (not only `user` and `token`), and an MCP OAuth actor's idempotency
+  scope moves from the access-token row to the grant. Audit targets with no integer
+  key (`session`, `mfa_challenge`, `external_identity`, `notification_preference`,
+  `scim_group`) store `NULL` and no longer identify the specific object. Both are
+  recorded in the exception.
+- Checks run with Go 1.27.4 at `97f5b50`: `make test` and `make lint` passed on SQLite;
+  `go generate ./api` produced no drift on two runs; `go test -p 1 -count=1 ./...` with
+  `POSTGRES_TEST_URL` passed against a fresh `postgres:14.24-alpine3.24` container.
 
 ## Files evidence
 

@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 )
@@ -97,8 +96,8 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		VALUES (?, ?, ?, ?, ?, ?)`, "verification-old", userKey, "maint@example.com", "verification-secret", old, old)
 	exec(`INSERT INTO password_resets (id, user_id, token_hash, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?)`, "reset-old", userKey, "reset-secret", old, old)
-	exec(`INSERT INTO idempotency_records (key_hash, principal_id, workspace_id, operation, request_hash, result_json, created_at, expires_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "key-old", "user:"+identity.UserID(userKey).String(), workspaceID, "create", "request", "{}", old, old)
+	exec(`INSERT INTO idempotency_records (key_hash, principal_kind, principal_key, workspace_id, operation, request_hash, result_json, created_at, expires_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, "key-old", "user", int64(userKey), workspaceID, "create", "request", "{}", old, old)
 	var eventOldID int64
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO item_events (workspace_id, item_id, event_type, item_version, occurred_at)
 		VALUES (?, ?, ?, ?, ?) RETURNING id`), workspaceID, itemOld, "deleted", 1, old).Scan(&eventOldID); err != nil {

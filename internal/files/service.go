@@ -425,7 +425,7 @@ func (s *Service) completeDB(ctx context.Context, actor identity.Principal, file
 	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "file.uploaded", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: file.WorkspaceID, TargetType: "file", TargetID: file.ID.String(),
+		WorkspaceID: file.WorkspaceID, TargetType: "file", TargetKey: int64(file.ID),
 		Action: "file.upload", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {

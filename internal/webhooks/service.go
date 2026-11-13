@@ -176,7 +176,7 @@ func (s *Service) Create(
 	webhookID := WebhookID(key)
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "webhook.created", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: workspaceID, TargetType: "webhook", TargetID: webhookID.String(),
+		WorkspaceID: workspaceID, TargetType: "webhook", TargetKey: int64(webhookID),
 		Action: "webhook.create", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress,
 		Metadata:      metadata(map[string]any{"events": events, "host": parsedHost(urlValue)}), CreatedAt: now,
@@ -246,7 +246,7 @@ func (s *Service) Delete(
 	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "webhook.deleted", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: workspaceID, TargetType: "webhook", TargetID: webhookID.String(),
+		WorkspaceID: workspaceID, TargetType: "webhook", TargetKey: int64(webhookID),
 		Action: "webhook.delete", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: time.Now().UTC(),
 	}); err != nil {
@@ -298,7 +298,7 @@ func (s *Service) RotateSecret(
 	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "webhook.secret.rotated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: workspaceID, TargetType: "webhook", TargetID: webhookID.String(),
+		WorkspaceID: workspaceID, TargetType: "webhook", TargetKey: int64(webhookID),
 		Action: "webhook.secret.rotate", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
@@ -455,7 +455,7 @@ func (s *Service) PublishInTx(
 		if err != nil {
 			return err
 		}
-		if err := s.queue.EnqueueTx(ctx, tx, workspaceID, JobKind, strconv.FormatInt(deliveryKey, 10), string(jobPayload), occurredAt); err != nil {
+		if err := s.queue.EnqueueTx(ctx, tx, workspaceID, JobKind, deliveryKey, string(jobPayload), occurredAt); err != nil {
 			return err
 		}
 	}

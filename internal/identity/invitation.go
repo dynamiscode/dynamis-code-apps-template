@@ -712,7 +712,7 @@ func (s *Service) markInvitationExpired(
 	return s.audit(ctx, tx, AuditEvent{
 		EventType: "invitation.expired", AuthMethod: "system",
 		WorkspaceID: workspaceID, TargetType: "invitation",
-		TargetID: invitationID.String(), Action: "invitation.expire",
+		TargetKey: int64(invitationID), Action: "invitation.expire",
 		Outcome: "success", Metadata: "{}", CreatedAt: now,
 	})
 }
@@ -730,7 +730,7 @@ func (s *Service) auditInvitation(
 	return s.audit(ctx, tx, AuditEvent{
 		EventType: "invitation." + action, ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: actor.WorkspaceID,
-		TargetType: "invitation", TargetID: invitationID.String(),
+		TargetType: "invitation", TargetKey: int64(invitationID),
 		Action: "invitation." + action, Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: metadata(map[string]any{"role": role}), CreatedAt: now,

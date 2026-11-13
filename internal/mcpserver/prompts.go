@@ -161,14 +161,14 @@ func (h *handler) auditPrompt(ctx context.Context, request *mcp.GetPromptRequest
 		}
 	}
 	metadata, _ := json.Marshal(map[string]any{
-		"token_id": actor.TokenID, "client_name": clientName,
+		"credential_id": actor.TokenShortID(), "client_name": clientName,
 		"client_version": clientVersion, "prompt_version": "v1",
 		"error_category": category, "duration_ms": time.Since(started).Milliseconds(),
 	})
 	return h.identity.RecordAudit(ctx, identity.AuditEvent{
 		EventType: "mcp.prompt.called", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "workspace", TargetID: workspaceID.String(), Action: name,
+		TargetType: "workspace", TargetKey: int64(workspaceID), Action: name,
 		Outcome: outcome, RequestID: promptRequestID(request),
 		SourceAddress: promptSourceAddress(request), Metadata: string(metadata), CreatedAt: time.Now().UTC(),
 	})

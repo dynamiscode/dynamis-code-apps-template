@@ -59,7 +59,7 @@ func (s *Service) SetUserLocale(ctx context.Context, userID UserID, locale strin
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "user.locale.updated", ActorUserID: userID, AuthMethod: "session",
-		TargetType: "user", TargetID: userID.String(), Action: "user.locale.update", Outcome: "success",
+		TargetType: "user", TargetKey: int64(userID), Action: "user.locale.update", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: metadata(map[string]any{"locale": normalized}), CreatedAt: s.now().UTC(),
 	}); err != nil {
@@ -97,7 +97,7 @@ func (s *Service) UpdateWorkspaceLocale(ctx context.Context, actor Principal, lo
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "workspace.locale.updated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod,
-		WorkspaceID: actor.WorkspaceID, TargetType: "workspace", TargetID: actor.WorkspaceID.String(),
+		WorkspaceID: actor.WorkspaceID, TargetType: "workspace", TargetKey: int64(actor.WorkspaceID),
 		Action: "workspace.locale.update", Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: metadata(map[string]any{"locale": normalized}), CreatedAt: s.now().UTC(),
 	}); err != nil {

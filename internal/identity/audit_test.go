@@ -22,7 +22,8 @@ func TestListAuditHistoryRejectsUnparseableActorRow(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.ExecContext(ctx, `UPDATE audit_events SET actor_user_id = ? WHERE event_type = ?`, "NOT-VALID", "test.corrupt"); err != nil {
+	// Actor keys are positive integers; a zero or negative stored key is corrupt.
+	if _, err := db.ExecContext(ctx, `UPDATE audit_events SET actor_user_id = ? WHERE event_type = ?`, -1, "test.corrupt"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := service.ListAuditHistory(ctx, owner, bootstrap.WorkspaceID); !errors.Is(err, ErrInvalidShortID) {
@@ -43,7 +44,7 @@ func TestListAuditHistoryIsScopedBoundedAndRedacted(t *testing.T) {
 			AuthMethod:    "session",
 			WorkspaceID:   bootstrap.WorkspaceID,
 			TargetType:    "item",
-			TargetID:      "target-secret",
+			TargetKey:     987654321,
 			Action:        "test.action",
 			Outcome:       "success",
 			RequestID:     "request-secret",
@@ -70,7 +71,7 @@ func TestListAuditHistoryIsScopedBoundedAndRedacted(t *testing.T) {
 		t.Fatalf("history entry = %+v", history[0])
 	}
 	rendered := fmt.Sprintf("%+v", history[0])
-	for _, forbidden := range []string{"target-secret", "request-secret", "192.0.2.1", "invitation-secret", "signed_url"} {
+	for _, forbidden := range []string{"request-secret", "192.0.2.1", "invitation-secret", "signed_url"} {
 		if strings.Contains(rendered, forbidden) {
 			t.Fatalf("history projection contains redacted data %q: %s", forbidden, rendered)
 		}

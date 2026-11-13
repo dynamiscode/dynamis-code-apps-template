@@ -83,7 +83,7 @@ func (s *Service) UpdateUserProfile(
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "user.profile.updated", ActorUserID: userID, AuthMethod: "session",
-		TargetType: "user", TargetID: userID.String(), Action: "user.profile.update", Outcome: "success",
+		TargetType: "user", TargetKey: int64(userID), Action: "user.profile.update", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata:  metadata(map[string]any{"locale": locale, "timezone": timezone, "theme": theme}),
 		CreatedAt: s.now().UTC(),
@@ -156,7 +156,7 @@ func (s *Service) ChangePassword(
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "user.password.changed", ActorUserID: userID, AuthMethod: "session",
-		TargetType: "user", TargetID: userID.String(), Action: "user.password.change", Outcome: "success",
+		TargetType: "user", TargetKey: int64(userID), Action: "user.password.change", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}",
 		CreatedAt: s.now().UTC(),
 	}); err != nil {
@@ -212,7 +212,7 @@ func (s *Service) BeginEmailVerification(
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "user.email_verification.requested", ActorUserID: userID, AuthMethod: "session",
-		TargetType: "user", TargetID: userID.String(), Action: "user.email.verify.request", Outcome: "success",
+		TargetType: "user", TargetKey: int64(userID), Action: "user.email.verify.request", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
 		return NewEmailVerification{}, err
@@ -261,7 +261,7 @@ func (s *Service) VerifyEmail(ctx context.Context, secret string, audit AuditCon
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "user.email_verified", ActorUserID: userID, AuthMethod: "email",
-		TargetType: "user", TargetID: userID.String(), Action: "user.email.verify", Outcome: "success",
+		TargetType: "user", TargetKey: int64(userID), Action: "user.email.verify", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
 		Metadata: metadata(map[string]any{"email": email}), CreatedAt: now,
 	}); err != nil {
@@ -314,7 +314,7 @@ func (s *Service) BeginPasswordReset(
 		return NewPasswordReset{}, err
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
-		EventType: "user.password_reset.requested", TargetType: "user", TargetID: userID.String(),
+		EventType: "user.password_reset.requested", TargetType: "user", TargetKey: int64(userID),
 		AuthMethod: "anonymous", Action: "user.password.reset.request", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
@@ -374,7 +374,7 @@ func (s *Service) CompletePasswordReset(
 	}
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "user.password_reset.completed", ActorUserID: userID, AuthMethod: "password_reset",
-		TargetType: "user", TargetID: userID.String(), Action: "user.password.reset", Outcome: "success",
+		TargetType: "user", TargetKey: int64(userID), Action: "user.password.reset", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
 		return err
@@ -407,7 +407,7 @@ func (s *Service) DeleteAccount(
 	now := s.now().UTC()
 	if err := s.audit(ctx, tx, AuditEvent{
 		EventType: "user.account_deleted", ActorUserID: userID, AuthMethod: "session",
-		TargetType: "user", TargetID: userID.String(), Action: "user.delete", Outcome: "success",
+		TargetType: "user", TargetKey: int64(userID), Action: "user.delete", Outcome: "success",
 		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	}); err != nil {
 		return err

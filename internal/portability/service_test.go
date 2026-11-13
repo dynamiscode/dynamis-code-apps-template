@@ -93,6 +93,20 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		len(result.AuditEvents) == 0 || len(result.Excluded) == 0 {
 		t.Fatalf("export = %+v", result)
 	}
+	// The export derives each target short ID from its type and key; the item event must match.
+	sawItemTarget := false
+	for _, event := range result.AuditEvents {
+		if event.TargetType != "item" {
+			continue
+		}
+		sawItemTarget = true
+		if event.TargetID != result.Items[0].ID.String() || event.ActorUserID != userID.String() {
+			t.Fatalf("item audit target = %q/%q by %q; want item %q by %q", event.TargetType, event.TargetID, event.ActorUserID, result.Items[0].ID, userID.String())
+		}
+	}
+	if !sawItemTarget {
+		t.Fatal("export audit events lack an item target")
+	}
 	if strings.Contains(string(encoded), token.Secret) || strings.Contains(string(encoded), "secret_hash") {
 		t.Fatal("export contains credential material")
 	}

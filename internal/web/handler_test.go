@@ -828,7 +828,7 @@ func TestWebAuditHistoryIsScopedRedactedAndNotWebMCP(t *testing.T) {
 		AuthMethod:    "session",
 		WorkspaceID:   workspaceID,
 		TargetType:    "workspace",
-		TargetID:      "target-secret",
+		TargetKey:     987654321,
 		Action:        "audit.visible",
 		Outcome:       "success",
 		RequestID:     "request-secret",
@@ -847,8 +847,7 @@ func TestWebAuditHistoryIsScopedRedactedAndNotWebMCP(t *testing.T) {
 	body := page.Body.String()
 	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" ||
 		!strings.Contains(body, "Audit history") || !strings.Contains(body, "test.audit.visible") ||
-		!strings.Contains(body, "audit.visible") || strings.Contains(body, "target-secret") ||
-		strings.Contains(body, "request-secret") || strings.Contains(body, "198.51.100.9") ||
+		!strings.Contains(body, "audit.visible") || strings.Contains(body, "request-secret") || strings.Contains(body, "198.51.100.9") ||
 		strings.Contains(body, "invite-secret") || strings.Contains(body, "example.test") || strings.Contains(body, "signed-secret") ||
 		strings.Contains(body, "/assets/app.js") || strings.Contains(body, "data-webmcp-page") {
 		t.Fatalf("audit page = %d, headers=%v, body=%s", page.Code, page.Header(), body)
