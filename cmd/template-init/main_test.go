@@ -257,3 +257,45 @@ func TestGenerateWithClientsProfileRecordsLockAndBuilds(t *testing.T) {
 		t.Fatalf("generated Clients application tests: %v", err)
 	}
 }
+
+func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	output := filepath.Join(t.TempDir(), "agent-app")
+	err := run([]string{
+		"-template-dir", root, "-output", output, "-name", "Agent Application",
+		"-module", "example.com/acme/agent-app",
+		"-repository", "https://github.com/acme/agent-app",
+		"-security-url", "https://github.com/acme/agent-app/security/advisories/new",
+		"-maintainer", "@acme/platform", "-profiles", "Core,Identity,Agent",
+		"-source", "https://example.com/acme/template", "-commit", strings.Repeat("f", 40),
+	}, time.Now)
+	if err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+	for _, path := range []string{
+		"internal/clients", "internal/httpapi/clients.go", "internal/web/clients.go",
+		"internal/web/templates/clients.html", "internal/web/templates/client.html",
+		"internal/platform/database/migrations/000022_clients.sql",
+	} {
+		if _, err := os.Stat(filepath.Join(output, path)); !os.IsNotExist(err) {
+			t.Errorf("generated application without Clients still has %s: %v", path, err)
+		}
+	}
+	openAPI, err := os.ReadFile(filepath.Join(output, "api/openapi.json"))
+	if err != nil || strings.Contains(string(openAPI), "/clients") {
+		t.Fatalf("generated OpenAPI retains Clients paths: error = %v", err)
+	}
+	for path, retained := range map[string]string{
+		"docs/api.md": "/clients", "docs/web.md": "/clients", "docs/capabilities.md": "| Clients |",
+		"internal/web/templates/navigation.html": "clients",
+	} {
+		content, err := os.ReadFile(filepath.Join(output, path))
+		if err != nil || strings.Contains(string(content), retained) {
+			t.Fatalf("generated %s retains Clients documentation %q: error = %v", path, retained, err)
+		}
+	}
+	if err := runCommand(output, "go", "build", "./..."); err != nil {
+		t.Fatalf("generated application without Clients does not build: %v", err)
+	}
+}

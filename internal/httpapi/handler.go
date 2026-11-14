@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/api"
+	"example.com/dynamis-code/apps-template/internal/clients"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
@@ -37,6 +38,7 @@ type handler struct {
 	mailer      appmail.Sender
 	webhooks    *webhooks.Service
 	files       *appfiles.Service
+	clients     *clients.Service
 }
 
 func NewHandler(
@@ -66,8 +68,9 @@ func NewHandlerWithWebhooksAndFiles(
 	fileService *appfiles.Service,
 	publicURL string,
 	mailer appmail.Sender,
+	clientServices ...*clients.Service,
 ) (http.Handler, error) {
-	return newHandler(db, identityService, itemService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer)
+	return newHandler(db, identityService, itemService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, clientServices...)
 }
 
 func NewHandlerWithMail(
@@ -98,8 +101,9 @@ func NewHandlerWithWebhooks(
 	webhookService *webhooks.Service,
 	publicURL string,
 	mailer appmail.Sender,
+	clientServices ...*clients.Service,
 ) (http.Handler, error) {
-	return newHandler(db, identityService, itemService, portabilityService, oidcRegistry, cfg, logger, webhookService, nil, publicURL, mailer)
+	return newHandler(db, identityService, itemService, portabilityService, oidcRegistry, cfg, logger, webhookService, nil, publicURL, mailer, clientServices...)
 }
 
 func newHandler(
@@ -114,6 +118,7 @@ func newHandler(
 	fileService *appfiles.Service,
 	publicURL string,
 	mailer appmail.Sender,
+	clientServices ...*clients.Service,
 ) (http.Handler, error) {
 	if logger == nil {
 		logger = slog.Default()
@@ -122,6 +127,7 @@ func newHandler(
 		db: db, identity: identityService, items: itemService,
 		oidc: oidcRegistry, cfg: cfg, logger: logger, portability: portabilityService,
 		publicURL: publicURL, mailer: mailer, webhooks: webhookService, files: fileService,
+		clients: firstClient(clientServices),
 	}
 	handlers := map[string]http.HandlerFunc{
 		"getLiveness": h.liveness, "getReadiness": h.readiness,
@@ -149,6 +155,8 @@ func newHandler(
 		"getFile": h.getFile, "getFileContent": h.getFileContent,
 		"initiateFileUpload": h.initiateFileUpload,
 		"completeFileUpload": h.completeFileUpload, "uploadFileContent": h.uploadFileContent,
+		"listClients": h.listClients, "createClient": h.createClient,
+		"getClient": h.getClient, "updateClient": h.updateClient,
 		"createSCIMToken": h.createSCIMToken, "revokeSCIMToken": h.revokeSCIMToken,
 		"listSCIMUsers": h.listSCIMUsers, "createSCIMUser": h.createSCIMUser,
 		"getSCIMUser": h.getSCIMUser, "patchSCIMUser": h.patchSCIMUser,

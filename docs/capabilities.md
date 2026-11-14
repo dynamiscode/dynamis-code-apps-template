@@ -14,7 +14,7 @@ of what was verified on its date.
 | Identity | conforming | [Phase 02 evidence](#phase-02-evidence) |
 | Agent | conforming | [Phase 05 evidence](#phase-05-evidence) |
 | Files | conforming | [Files evidence](#files-evidence) |
-| Clients | composition only | Profile requirements and short-ID codes: [ADR 0013](decisions/0013-clients-profile.md), template-init tests (`cmd/template-init`), [short-ID registry test](../internal/platform/id/short_test.go); feature not implemented |
+| Clients | partial | Create and edit over REST and web: [service tests](../internal/clients/service_test.go), [PostgreSQL lifecycle](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/clients_test.go), [web tests](../internal/web/clients_test.go), template-init generation tests (`cmd/template-init`); archive, custom fields, export, webhooks, MCP, and `appctl` not implemented |
 | Production | not applicable | No deployment serves real users or durable data |
 
 `Production` becomes applicable only when a deployment serves real users or

@@ -290,6 +290,243 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspaceId}/clients": {
+        "get": {
+          "operationId": "listClients",
+          "description": "Returns a deterministic page, newest first. Clients have no free-text search or custom-field filter in v1; the list uses paging only.",
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "$ref": "#/components/parameters/WorkspaceId"
+            },
+            {
+              "$ref": "#/components/parameters/PageLimit"
+            },
+            {
+              "$ref": "#/components/parameters/PageCursor"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Stable cursor page",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ClientPage"
+                  }
+                }
+              }
+            },
+            "400": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "401": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "403": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "429": {
+              "$ref": "#/components/responses/RateLimited"
+            }
+          }
+        },
+        "post": {
+          "operationId": "createClient",
+          "description": "Creates a client. Members and above may write; viewers are refused.",
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "$ref": "#/components/parameters/WorkspaceId"
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateClientRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Client created",
+              "headers": {
+                "ETag": {
+                  "schema": {
+                    "type": "string"
+                  }
+                },
+                "Location": {
+                  "schema": {
+                    "type": "string"
+                  }
+                }
+              },
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Client"
+                  }
+                }
+              }
+            },
+            "400": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "401": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "403": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "413": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "429": {
+              "$ref": "#/components/responses/RateLimited"
+            }
+          }
+        }
+      },
+    "/api/v1/workspaces/{workspaceId}/clients/{clientId}": {
+        "get": {
+          "operationId": "getClient",
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "$ref": "#/components/parameters/WorkspaceId"
+            },
+            {
+              "$ref": "#/components/parameters/ClientId"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Client",
+              "headers": {
+                "ETag": {
+                  "schema": {
+                    "type": "string"
+                  }
+                }
+              },
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Client"
+                  }
+                }
+              }
+            },
+            "401": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "403": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "404": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "429": {
+              "$ref": "#/components/responses/RateLimited"
+            }
+          }
+        },
+        "patch": {
+          "operationId": "updateClient",
+          "description": "Changes only the fields sent. Send the ETag from the latest read in If-Match.",
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "$ref": "#/components/parameters/WorkspaceId"
+            },
+            {
+              "$ref": "#/components/parameters/ClientId"
+            },
+            {
+              "name": "If-Match",
+              "in": "header",
+              "required": true,
+              "description": "Strong client ETag previously returned by this resource.",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateClientRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Updated client",
+              "headers": {
+                "ETag": {
+                  "schema": {
+                    "type": "string"
+                  }
+                }
+              },
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Client"
+                  }
+                }
+              }
+            },
+            "400": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "401": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "403": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "404": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "412": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "413": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "428": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "429": {
+              "$ref": "#/components/responses/RateLimited"
+            }
+          }
+        }
+      },
     "/api/v1/workspaces/{workspaceId}/members": {
       "get": {
         "operationId": "listMembers", "security": [{"bearerAuth": []}],
@@ -467,6 +704,7 @@
     },
     "parameters": {
       "WorkspaceId": {"name": "workspaceId", "in": "path", "required": true, "description": "Workspace short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
+      "ClientId": {"name": "clientId", "in": "path", "required": true, "description": "Client short ID. Malformed, unknown, foreign, and integer IDs return the same not-found problem.", "schema": {"type": "string"}},
       "ItemId": {"name": "itemId", "in": "path", "required": true, "description": "Item short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "FileId": {"name": "fileId", "in": "path", "required": true, "description": "File short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "MemberId": {"name": "memberId", "in": "path", "required": true, "description": "Member short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
@@ -499,6 +737,10 @@
       "CreateItemRequest": {"type": "object", "additionalProperties": false, "required": ["title"], "properties": {"title": {"type": "string", "minLength": 1, "maxLength": 200}}},
       "UpdateItemRequest": {"type": "object", "additionalProperties": false, "minProperties": 1, "properties": {"title": {"type": "string", "minLength": 1, "maxLength": 200}, "status": {"type": "string", "enum": ["active", "complete"]}}},
       "Item": {"type": "object", "required": ["id", "workspaceId", "createdByUserId", "title", "status", "version", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "createdByUserId": {"type": ["string", "null"]}, "title": {"type": "string"}, "status": {"type": "string", "enum": ["active", "complete"]}, "version": {"type": "integer", "minimum": 1}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}}},
+      "Client": {"type": "object", "required": ["id", "workspaceId", "createdByUserId", "displayName", "email", "phone", "notes", "version", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "createdByUserId": {"type": ["string", "null"]}, "version": {"type": "integer", "minimum": 1}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}, "displayName": {"type": "string", "minLength": 1, "maxLength": 200}, "email": {"type": "string", "maxLength": 254, "description": "Optional. A bare email address when present."}, "phone": {"type": "string", "maxLength": 50}, "notes": {"type": "string", "maxLength": 5000}}},
+      "ClientPage": {"type": "object", "required": ["clients"], "properties": {"clients": {"type": "array", "items": {"$ref": "#/components/schemas/Client"}}, "nextCursor": {"type": "string"}}},
+      "CreateClientRequest": {"type": "object", "additionalProperties": false, "required": ["displayName"], "properties": {"displayName": {"type": "string", "minLength": 1, "maxLength": 200}, "email": {"type": "string", "maxLength": 254, "description": "Optional. A bare email address when present."}, "phone": {"type": "string", "maxLength": 50}, "notes": {"type": "string", "maxLength": 5000}}},
+      "UpdateClientRequest": {"type": "object", "additionalProperties": false, "minProperties": 1, "properties": {"displayName": {"type": "string", "minLength": 1, "maxLength": 200}, "email": {"type": "string", "maxLength": 254, "description": "Optional. A bare email address when present."}, "phone": {"type": "string", "maxLength": 50}, "notes": {"type": "string", "maxLength": 5000}}},
       "ItemPage": {"type": "object", "required": ["items"], "properties": {"items": {"type": "array", "items": {"$ref": "#/components/schemas/Item"}}, "nextCursor": {"type": "string"}}},
       "UploadFileRequest": {"type": "object", "required": ["file"], "properties": {"file": {"type": "string", "format": "binary"}}},
       "InitiateFileRequest": {"type": "object", "additionalProperties": false, "required": ["originalName", "size"], "properties": {"originalName": {"type": "string", "maxLength": 255}, "size": {"type": "integer", "minimum": 1}, "contentType": {"type": "string", "maxLength": 255}}},

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"example.com/dynamis-code/apps-template/internal/clients"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/httpapi"
 	"example.com/dynamis-code/apps-template/internal/identity"
@@ -145,6 +146,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	itemService := items.NewService(
 		db, cfg.Database.Driver, identityService, cfg.Data.ItemsMaxPerWorkspace, webhookService,
 	)
+	clientService := clients.NewService(db, cfg.Database.Driver, identityService)
 	sharingService := sharing.NewService(db, cfg.Database.Driver, identityService)
 	portabilityService := portability.NewService(
 		db, cfg.Database.Driver, identityService,
@@ -164,7 +166,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	)
 	handler, err := httpapi.NewHandlerWithWebhooksAndFiles(
 		db, identityService, itemService, portabilityService, oidcRegistry, cfg.HTTP, slog.Default(),
-		webhookService, fileService, cfg.PublicURL, mailer,
+		webhookService, fileService, cfg.PublicURL, mailer, clientService,
 	)
 	if err != nil {
 		db.Close()
@@ -181,6 +183,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, fmt.Errorf("initialize web handler: %w", err)
 	}
 	webHandler.SetWorkspaceMode(cfg.WorkspaceMode)
+	webHandler.EnableClients(clientService)
 	jobQueue.Start(ctx)
 	mux := http.NewServeMux()
 	mux.Handle("/api/", handler)

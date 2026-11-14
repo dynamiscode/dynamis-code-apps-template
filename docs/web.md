@@ -244,6 +244,16 @@ missing WebMCP support is a passing fallback result. Debug registration with
 the browser's `document.modelContext.getTools()` inspection without copying
 session values or hidden inputs into logs.
 
+`/workspaces/{workspaceId}/clients` lists clients newest first. Members,
+admins, and owners see the create form; viewers see the list read-only.
+`/workspaces/{workspaceId}/clients/{clientId}` shows one client. Writers get an
+edit form that carries the client's version; a stale version shows a retry
+message. Writes are ordinary CSRF-protected POST forms that redirect after
+success, with no HTMX or WebMCP enhancement. Labels come from the locale catalog
+and follow the workspace locale. The Clients navigation link appears only when
+the Clients profile is composed. WebMCP is omitted for Clients in v1 (see
+[ADR 0013](decisions/0013-clients-profile.md)).
+
 ## Realtime contract
 
 `GET /workspaces/{workspaceId}/items/events` is an authenticated SSE stream.

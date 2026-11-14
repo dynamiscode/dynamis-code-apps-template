@@ -18,7 +18,7 @@ func TestCopyTemplateKeepsInTreeSymlinkAndRejectsEscape(t *testing.T) {
 		t.Fatal(err)
 	}
 	output := filepath.Join(t.TempDir(), "app")
-	if err := copyTemplate(root, output, nil, "app", "app", true, true); err != nil {
+	if err := copyTemplate(root, output, nil, "app", "app", true, true, true); err != nil {
 		t.Fatalf("copyTemplate() error = %v", err)
 	}
 	link, err := os.Readlink(filepath.Join(output, ".claude", "skills"))
@@ -30,7 +30,7 @@ func TestCopyTemplateKeepsInTreeSymlinkAndRejectsEscape(t *testing.T) {
 	if err := os.Symlink("../../outside", filepath.Join(escaping, "linked")); err != nil {
 		t.Fatal(err)
 	}
-	if err := copyTemplate(escaping, filepath.Join(t.TempDir(), "app"), nil, "app", "app", true, true); err == nil {
+	if err := copyTemplate(escaping, filepath.Join(t.TempDir(), "app"), nil, "app", "app", true, true, true); err == nil {
 		t.Fatal("copyTemplate() accepted a symlink that escapes the template")
 	}
 }

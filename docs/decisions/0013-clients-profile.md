@@ -118,3 +118,16 @@ Choice options have their own short-ID type code, `client_field_option`,
 registered beside `client` and `client_field`. Options stay in a separate table
 keyed to a single-choice field, and integer keys are never exposed. This follows
 the decision recorded for spec [#294](https://github.com/dynamiscode/dynamis-code-apps-template/issues/294).
+
+## Addendum: v1 slice scope and omissions (2026-11-13)
+
+- **Search:** v1 clients have no free-text search. The client list pages newest
+  first with an opaque cursor. Filtering and sorting arrive with custom fields
+  (see Querying above). Search across common fields remains deferred.
+- **WebMCP:** the Clients pages omit WebMCP in v1. They are ordinary
+  server-rendered forms. No WebMCP tool contract (non-secret schemas or control
+  mapping) exists for Clients, so enabling it needs a reviewed contract first.
+  Reason recorded per [development](../development.md#feature-completeness) omission rules.
+- **Not yet implemented:** archive and unarchive, custom fields, permanent
+  delete, export, webhook events, realtime, MCP tools, and `appctl` commands.
+  Each lands in a later ticket and updates [capabilities](../capabilities.md).
