@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -117,7 +118,25 @@ func renderMigration(sql string, driver config.DatabaseDriver) string {
 		filePK = "INTEGER PRIMARY KEY AUTOINCREMENT"
 	}
 	sql = strings.ReplaceAll(sql, "{{integer_pk}}", pk)
-	return strings.ReplaceAll(sql, "{{file_id_pk}}", filePK)
+	sql = strings.ReplaceAll(sql, "{{file_id_pk}}", filePK)
+	return renderJSONTextExpr(sql, driver)
+}
+
+// jsonTextExprPattern matches {{json_text_expr:COLUMN:KEY}}, the only JSON
+// placeholder. It names a text column and a top-level key (ADR 0012 slot keys).
+var jsonTextExprPattern = regexp.MustCompile(`\{\{json_text_expr:([a-z_]+):([a-z0-9_]+)\}\}`)
+
+// renderJSONTextExpr turns a top-level JSON text value into its dialect's
+// expression, which migrations use to index one custom-field slot.
+func renderJSONTextExpr(sql string, driver config.DatabaseDriver) string {
+	return jsonTextExprPattern.ReplaceAllStringFunc(sql, func(match string) string {
+		parts := jsonTextExprPattern.FindStringSubmatch(match)
+		column, key := parts[1], parts[2]
+		if driver == config.Postgres {
+			return fmt.Sprintf("%s::jsonb ->> '%s'", column, key)
+		}
+		return fmt.Sprintf("json_extract(%s, '$.%s')", column, key)
+	})
 }
 
 func mfaMigrationAlreadyApplied(

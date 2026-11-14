@@ -11,5 +11,6 @@
 <label for="client-notes">{{.T "clients.notes"}} {{.T "ui.optional"}}</label><textarea id="client-notes" name="notes" maxlength="5000">{{.ClientDraft.Notes}}</textarea>
 <div class="actions"><button type="submit">{{.T "clients.add"}}</button></div></form>
 {{else}}<p class="status">{{.T "clients.read_only"}}</p>{{end}}
+{{if .CanManageFields}}<p><a href="{{.FieldsPath}}">{{.T "clients.fields_link"}}</a></p>{{end}}
 {{if .Clients}}<ul class="clients">{{range .Clients}}<li><a href="{{$.CurrentPath}}/{{.ID}}">{{.DisplayName}}</a>{{if .Email}} <span>{{.Email}}</span>{{end}}</li>{{end}}</ul>{{else}}<p>{{.T "clients.none"}}</p>{{end}}
 {{if .NextCursor}}<p><a href="{{.CurrentPath}}?cursor={{.NextCursor}}">{{.T "items.next_page"}}</a></p>{{end}}</section>{{end}}

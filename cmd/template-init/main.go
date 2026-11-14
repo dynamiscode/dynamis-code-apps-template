@@ -308,7 +308,13 @@ func clientsPath(relative string) bool {
 		relative == "internal/httpapi/clients.go" || relative == "internal/httpapi/clients_test.go" ||
 		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" ||
 		relative == "internal/web/templates/clients.html" || relative == "internal/web/templates/client.html" ||
-		relative == "internal/platform/database/migrations/000022_clients.sql"
+		relative == "internal/platform/database/migrations/000022_clients.sql" ||
+		relative == "internal/platform/database/migrations/000023_client_fields.sql" ||
+		relative == "internal/platform/database/client_slot_indexes_test.go" ||
+		relative == "internal/platform/database/client_slot_indexes_postgres_test.go" ||
+		relative == "internal/httpapi/client_fields.go" || relative == "internal/httpapi/client_fields_test.go" ||
+		relative == "internal/web/client_fields.go" || relative == "internal/web/client_fields_test.go" ||
+		relative == "internal/web/templates/client-fields.html"
 }
 
 // disableClientsSource removes Clients wiring from shared files when the profile
@@ -329,15 +335,19 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.ReplaceAll(value, ", clientServices...)", ")")
 		value = removeLinesContaining(value, `"listClients": h.listClients`)
 		value = removeLinesContaining(value, `"getClient": h.getClient`)
+		value = removeLinesContaining(value, `"listClientFields": h.listClientFields`)
+		value = removeLinesContaining(value, `"archiveClientField": h.archiveClientField`)
 	case "internal/httpapi/handler_test.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
-		value = strings.Replace(value, "\n\t\tclients.NewService(db, cfg.Database.Driver, auth))", ")", 1)
+		value = strings.Replace(value, "\n\t\tclients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace))", ")", 1)
 	case "internal/web/handler.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, "*clients.Service")
 		value = removeLinesContaining(value, "clients.Client")
 		value = removeLinesContaining(value, "clients.Input")
 		value = removeLinesContaining(value, "h.clients != nil")
+		value = removeLinesContaining(value, "clients.Field")
+		value = removeLinesContaining(value, "/workspaces/{workspaceId}/client-fields")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/clients")
 	case "internal/web/templates/navigation.html":
 		value = strings.ReplaceAll(value, `{{if .ClientsEnabled}}<a{{if eq .NavPage "clients"}} class="active" aria-current="page"{{end}} href="/workspaces/{{.Workspace.ID}}/clients">{{.T "clients.title"}}</a>{{end}}`, "")
@@ -375,7 +385,7 @@ func stripClientsOpenAPI(raw []byte) string {
 		return string(raw)
 	}
 	for path := range paths {
-		if strings.Contains(path, "/clients") {
+		if strings.Contains(path, "/clients") || strings.Contains(path, "/client-fields") {
 			delete(paths, path)
 		}
 	}

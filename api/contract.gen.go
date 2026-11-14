@@ -9,7 +9,7 @@ type Operation struct {
 }
 
 const OpenAPIVersion = "3.1.0"
-const OpenAPISHA256 = "f1422b6b43449f308a66ab4d3f6f7c06f557793b3d98647fb4de4ecafff51343"
+const OpenAPISHA256 = "dbd427fbf5e57036f975725332810be3815485eb3dca53fefef9785bb217c7ee"
 
 var Operations = []Operation{
 	{Method: "GET", Path: "/api/openapi.json", ID: "getOpenAPI"},
@@ -27,6 +27,10 @@ var Operations = []Operation{
 	{Method: "POST", Path: "/api/v1/auth/mfa/totp/enroll", ID: "mfaTotpEnroll"},
 	{Method: "GET", Path: "/api/v1/sessions", ID: "listSessions"},
 	{Method: "DELETE", Path: "/api/v1/sessions/{sessionId}", ID: "revokeSession"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/client-fields", ID: "listClientFields"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/client-fields", ID: "createClientField"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/client-fields/{fieldId}/archive", ID: "archiveClientField"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/client-fields/{fieldId}/restore", ID: "restoreClientField"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/clients", ID: "listClients"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/clients", ID: "createClient"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/clients/{clientId}", ID: "getClient"},
