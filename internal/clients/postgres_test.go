@@ -158,12 +158,48 @@ func TestPostgresClientLifecycle(t *testing.T) {
 	if err != nil || cleared.Version != set.Version+1 {
 		t.Fatalf("ClearValue() = %+v, %v", cleared, err)
 	}
-	if err := service.setFieldType(ctx, owner, workspaceID, tier.ID, "number", identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
-		t.Fatalf("setFieldType() after clearing error = %v, want ErrInvalidInput (lock lifted)", err)
+	if err := service.setFieldType(ctx, owner, workspaceID, tier.ID, FieldTypeDate, identity.AuditContext{}); err != nil {
+		t.Fatalf("setFieldType() after clearing error = %v, want nil (lock lifted)", err)
 	}
 	listed, err = service.ListValues(ctx, viewer, workspaceID, created.ID)
 	if err != nil || len(listed) != 2 || listed[1].Value != nil {
 		t.Fatalf("ListValues() after clear = %+v, %v", listed, err)
+	}
+	// Typed values on PostgreSQL: a number is stored in canonical text, and a
+	// date or yes/no value is validated the same way as on SQLite.
+	amount, err := service.DefineField(ctx, owner, workspaceID, FieldInput{Label: "Amount", Type: FieldTypeNumber}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	withAmount, err := service.SetValue(ctx, owner, workspaceID, created.ID, cleared.Version, amount.ID, " 12.50 ", identity.AuditContext{})
+	if err != nil {
+		t.Fatalf("SetValue(number) error = %v", err)
+	}
+	if _, err := service.SetValue(ctx, owner, workspaceID, created.ID, withAmount.Version, amount.ID, "abc", identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("SetValue(number abc) error = %v, want ErrInvalidInput", err)
+	}
+	listed, err = service.ListValues(ctx, viewer, workspaceID, created.ID)
+	if err != nil || len(listed) != 3 || listed[2].Value == nil || *listed[2].Value != "12.5" {
+		t.Fatalf("ListValues() with number = %+v, %v; want 12.5", listed, err)
+	}
+	// Date and yes/no lock on PostgreSQL once a value is stored.
+	current := withAmount
+	for _, fieldType := range []string{FieldTypeDate, FieldTypeYesNo} {
+		field, err := service.DefineField(ctx, owner, workspaceID, FieldInput{Label: fieldType, Type: fieldType}, identity.AuditContext{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		value := "2026-02-28"
+		if fieldType == FieldTypeYesNo {
+			value = "false"
+		}
+		current, err = service.SetValue(ctx, owner, workspaceID, created.ID, current.Version, field.ID, value, identity.AuditContext{})
+		if err != nil {
+			t.Fatalf("SetValue(%s) error = %v", fieldType, err)
+		}
+		if err := service.setFieldType(ctx, owner, workspaceID, field.ID, FieldTypeText, identity.AuditContext{}); !errors.Is(err, ErrFieldTypeLocked) {
+			t.Fatalf("setFieldType(%s) with a stored value error = %v, want ErrFieldTypeLocked", fieldType, err)
+		}
 	}
 	limited := NewService(db, config.Postgres, auth, 1)
 	if _, err := limited.DefineField(ctx, owner, workspaceID, FieldInput{Label: "Over", Type: FieldTypeText}, identity.AuditContext{}); !errors.Is(err, ErrLimit) {

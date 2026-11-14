@@ -67,6 +67,25 @@ Rejected alternatives:
 - Per-workspace generated columns or tables: per-tenant DDL that migrations
   manage poorly.
 
+## Value representation
+
+Every value is stored as text under its slot key, so one text expression index
+per slot covers every type. The stored form is the form the API returns
+(ticket #299):
+
+- Text: trimmed, as typed, at most 500 characters.
+- Number: a finite decimal in canonical form, such as `12.5`. Precision is
+  float64's, about 15 significant digits.
+- Date: `YYYY-MM-DD`, a real calendar date.
+- Yes/no: `true` or `false`.
+
+A blank value is refused on every type, and clearing removes the key. Text
+order is correct for dates and yes/no. It is wrong for numbers: `"10"` sorts
+before `"9"`. Ordering filters and sort on number slots need a typed numeric
+expression and its own index, which the filter ticket (#301) adds. Equality on
+number slots works on canonical text when the filter value is canonicalized the
+same way.
+
 ## Revisit when
 
 - Measured write or query cost on a large workspace makes the 50 indexes too

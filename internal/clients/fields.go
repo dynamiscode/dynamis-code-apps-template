@@ -13,8 +13,13 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 )
 
-// FieldTypeText is the only custom-field type in this slice.
-const FieldTypeText = "text"
+// Custom-field types. Single choice is not in this slice.
+const (
+	FieldTypeText   = "text"
+	FieldTypeNumber = "number"
+	FieldTypeDate   = "date"
+	FieldTypeYesNo  = "yes_no"
+)
 
 const (
 	maxFieldLabelRunes = 100
@@ -50,7 +55,8 @@ type ListFieldsInput struct {
 	IncludeArchived bool
 }
 
-// DefineField adds a text field at the lowest free slot. Owners and admins only.
+// DefineField adds a text, number, date, or yes/no field at the lowest free slot.
+// Owners and admins only.
 // Archived fields keep their slots and count toward the limit.
 func (s *Service) DefineField(
 	ctx context.Context,
@@ -73,7 +79,7 @@ func (s *Service) DefineField(
 	if err != nil {
 		return Field{}, err
 	}
-	if input.Type != FieldTypeText {
+	if !validFieldType(input.Type) {
 		return Field{}, ErrInvalidInput
 	}
 	var count int
@@ -91,7 +97,7 @@ func (s *Service) DefineField(
 	}
 	now := s.now().UTC()
 	field := Field{
-		WorkspaceID: workspaceID, Label: label, Type: FieldTypeText,
+		WorkspaceID: workspaceID, Label: label, Type: input.Type,
 		CreatedAt: now, UpdatedAt: now,
 	}
 	var key int64
@@ -100,7 +106,7 @@ func (s *Service) DefineField(
 			workspace_id, created_by_user_id, label, field_type, slot, created_at, updated_at
 		) VALUES (?, ?, ?, ?, ?, ?, ?)
 		RETURNING id
-	`, workspaceID, actor.UserID, label, FieldTypeText, slot,
+	`, workspaceID, actor.UserID, label, input.Type, slot,
 		formatTime(now), formatTime(now)).Scan(&key); err != nil {
 		return Field{}, err
 	}
@@ -304,6 +310,16 @@ func (s *Service) recordFieldAudit(
 		Outcome: "success", RequestID: audit.RequestID,
 		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
 	})
+}
+
+// validFieldType reports whether a custom field may take the type. Single choice
+// is not in this slice.
+func validFieldType(fieldType string) bool {
+	switch fieldType {
+	case FieldTypeText, FieldTypeNumber, FieldTypeDate, FieldTypeYesNo:
+		return true
+	}
+	return false
 }
 
 // validFieldLabel trims the label and keeps the rest as typed.

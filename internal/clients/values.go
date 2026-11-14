@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
+	"strconv"
+	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
@@ -150,7 +153,7 @@ func (s *Service) setFieldType(
 	if inUse {
 		return ErrFieldTypeLocked
 	}
-	if fieldType != FieldTypeText {
+	if !validFieldType(fieldType) {
 		return ErrInvalidInput
 	}
 	now := s.now().UTC()
@@ -254,21 +257,68 @@ func (s *Service) writeValue(
 	return client, nil
 }
 
-// validFieldValue is the validation hook for value writes. Text is the only type
-// in this slice; a new type adds a case here.
+// validFieldValue is the validation hook for value writes. It returns the stored
+// text form of the value: text as typed, a number as canonical decimal, a date
+// as YYYY-MM-DD, and yes/no as true or false (ADR 0012 value representation).
 func validFieldValue(fieldType, value string) (string, error) {
-	switch fieldType {
-	case FieldTypeText:
-		value, err := validText(value, maxFieldValueRunes)
-		if err != nil {
-			return "", err
-		}
-		if value == "" {
-			return "", ErrValueRequired
-		}
-		return value, nil
+	if !validFieldType(fieldType) {
+		return "", ErrInvalidInput
 	}
-	return "", ErrInvalidInput
+	value, err := validText(value, maxFieldValueRunes)
+	if err != nil {
+		return "", err
+	}
+	if value == "" {
+		return "", ErrValueRequired
+	}
+	switch fieldType {
+	case FieldTypeNumber:
+		return validNumber(value)
+	case FieldTypeDate:
+		return validDate(value)
+	case FieldTypeYesNo:
+		return validYesNo(value)
+	}
+	return value, nil
+}
+
+// numberPattern takes plain decimals with an optional exponent. It rejects NaN,
+// Inf, hex floats, and separators, which ParseFloat would otherwise accept.
+var numberPattern = regexp.MustCompile(`^[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?$`)
+
+// validNumber stores a finite number as canonical decimal text. Precision is
+// float64's, about 15 significant digits. ponytail: float64 ceiling, use an
+// exact decimal type if a workspace needs more.
+func validNumber(value string) (string, error) {
+	if !numberPattern.MatchString(value) {
+		return "", ErrInvalidInput
+	}
+	number, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return "", ErrInvalidInput
+	}
+	if number == 0 {
+		number = 0 // drop the sign of -0
+	}
+	return strconv.FormatFloat(number, 'f', -1, 64), nil
+}
+
+// validDate accepts only ISO YYYY-MM-DD calendar dates. time.Parse rejects a day
+// past the month's end, such as 2026-02-30.
+func validDate(value string) (string, error) {
+	date, err := time.Parse("2006-01-02", value)
+	if err != nil {
+		return "", ErrInvalidInput
+	}
+	return date.Format("2006-01-02"), nil
+}
+
+// validYesNo accepts exactly true or false.
+func validYesNo(value string) (string, error) {
+	if value != "true" && value != "false" {
+		return "", ErrInvalidInput
+	}
+	return value, nil
 }
 
 // fieldRef is the internal view of a field's slot, type, and archive state.

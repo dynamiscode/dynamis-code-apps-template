@@ -62,8 +62,12 @@ func TestClientFieldDefineArchiveRestoreOverREST(t *testing.T) {
 		t.Fatalf("restore = %d %s", restored.Code, restored.Body.String())
 	}
 
-	blank := serveAuthorized(handler, http.MethodPost, base, `{"label":"Age","type":"number"}`, token, nil)
-	assertProblem(t, blank, http.StatusBadRequest, "invalid-request")
+	number := serveAuthorized(handler, http.MethodPost, base, `{"label":"Age","type":"number"}`, token, nil)
+	if number.Code != http.StatusCreated || !strings.Contains(number.Body.String(), `"type":"number"`) {
+		t.Fatalf("define number = %d %s", number.Code, number.Body.String())
+	}
+	unsupported := serveAuthorized(handler, http.MethodPost, base, `{"label":"Tier","type":"single_choice"}`, token, nil)
+	assertProblem(t, unsupported, http.StatusBadRequest, "invalid-request")
 	unknown := serveAuthorized(handler, http.MethodPost, base+"/"+clients.FieldID(999999).String()+"/archive", "", token, nil)
 	assertProblem(t, unknown, http.StatusNotFound, "not-found")
 	integer := serveAuthorized(handler, http.MethodPost, base+"/1/archive", "", token, nil)
