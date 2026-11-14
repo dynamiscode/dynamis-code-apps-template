@@ -338,3 +338,7 @@ func TestPostgresClientArchiveAndDelete(t *testing.T) {
 		t.Fatalf("client rows after delete = %d, %v; want 0", rows, err)
 	}
 }
+
+func TestPostgresServiceIsolatesWorkspaces(t *testing.T) {
+	assertWorkspaceIsolation(t, newPostgresFixture(t))
+}
