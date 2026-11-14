@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"example.com/dynamis-code/apps-template/internal/clients"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
@@ -359,7 +360,8 @@ func testHandlerWithStorage(t *testing.T, storage func(*config.Storage)) (http.H
 	handler, err := NewHandlerWithWebhooksAndFiles(db, auth, itemService,
 		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,
 			cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService),
-		oidc, cfg.HTTP, slog.New(slog.NewTextHandler(io.Discard, nil)), webhookService, fileService, "", nil)
+		oidc, cfg.HTTP, slog.New(slog.NewTextHandler(io.Discard, nil)), webhookService, fileService, "", nil,
+		clients.NewService(db, cfg.Database.Driver, auth))
 	if err != nil {
 		t.Fatal(err)
 	}

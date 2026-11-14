@@ -19,6 +19,7 @@ import (
 	"time"
 	"unicode/utf16"
 
+	"example.com/dynamis-code/apps-template/internal/clients"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
@@ -39,6 +40,7 @@ type Handler struct {
 	logger         *slog.Logger
 	identity       *identity.Service
 	items          *items.Service
+	clients        *clients.Service
 	files          *appfiles.Service
 	sharing        *sharing.Service
 	webhooks       webhookManager
@@ -78,6 +80,12 @@ type pageData struct {
 	SingleWorkspace                  bool
 	DefaultWorkspaceHref             string
 	Items                            []items.Item
+	Clients                          []clients.Client
+	Client                           clients.Client
+	ClientDraft                      clients.Input
+	CanEditClients                   bool
+	ClientsEnabled                   bool
+	ErrorKey                         string
 	Files                            []appfiles.File
 	FilesEnabled                     bool
 	NextCursor                       string
@@ -358,6 +366,10 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/items/{itemId}", h.changeItem)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/items/{itemId}/share", h.shareMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/items/events", h.itemEvents)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/clients", h.clientList)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/clients", h.createClient)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/clients/{clientId}", h.clientDetail)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}", h.changeClient)
 	if h.files != nil {
 		mux.HandleFunc("GET /workspaces/{workspaceId}/files", h.filesPage)
 		mux.HandleFunc("POST /workspaces/{workspaceId}/files", h.filesUpload)
@@ -1008,6 +1020,7 @@ func (h *Handler) defaultHomeHref(ctx context.Context, userID identity.UserID) s
 
 func (h *Handler) render(writer http.ResponseWriter, status int, name string, data pageData) {
 	data.FilesEnabled = h.files != nil
+	data.ClientsEnabled = h.clients != nil
 	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
 	h.localizePage(writer, &data)
 	if data.ToastKey != "" {

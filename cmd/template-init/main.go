@@ -141,6 +141,7 @@ func run(args []string, now func() time.Time) error {
 	}
 	if err := copyTemplate(
 		root, destination, replacements, templateSlug, slug, hasProfile(selectedProfiles, "Agent"), hasProfile(selectedProfiles, "Files"),
+		hasProfile(selectedProfiles, "Clients"),
 	); err != nil {
 		return err
 	}
@@ -176,6 +177,7 @@ func copyTemplate(
 	newSlug string,
 	agent bool,
 	files bool,
+	clients bool,
 ) error {
 	return filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -208,6 +210,12 @@ func copyTemplate(
 			return nil
 		}
 		if !files && filesPath(relative) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !clients && clientsPath(relative) {
 			if entry.IsDir() {
 				return filepath.SkipDir
 			}
@@ -250,6 +258,9 @@ func copyTemplate(
 		if !files {
 			raw = disableFilesSource(filepath.ToSlash(relative), raw)
 		}
+		if !clients {
+			raw = disableClientsSource(filepath.ToSlash(relative), raw)
+		}
 		info, err := entry.Info()
 		if err != nil {
 			return err
@@ -286,6 +297,93 @@ func filesPath(relative string) bool {
 		relative == "internal/platform/database/migrations/000020_file_short_ids.sql" ||
 		relative == "internal/platform/database/migrate_files_test.go" ||
 		relative == "internal/platform/database/migrate_file_ids_test.go"
+}
+
+// clientsPath lists the Clients feature files. Generation without the Clients
+// profile removes them; disableClientsSource removes the shared wiring that
+// refers to them.
+func clientsPath(relative string) bool {
+	relative = filepath.ToSlash(relative)
+	return relative == "internal/clients" || strings.HasPrefix(relative, "internal/clients/") ||
+		relative == "internal/httpapi/clients.go" || relative == "internal/httpapi/clients_test.go" ||
+		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" ||
+		relative == "internal/web/templates/clients.html" || relative == "internal/web/templates/client.html" ||
+		relative == "internal/platform/database/migrations/000022_clients.sql"
+}
+
+// disableClientsSource removes Clients wiring from shared files when the profile
+// is not selected. Each rewrite drops whole lines that name Clients symbols, so
+// the rest of the file compiles unchanged.
+func disableClientsSource(relative string, raw []byte) []byte {
+	value := string(raw)
+	switch relative {
+	case "internal/bootstrap/app.go":
+		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLineStarting(value, "\tclientService := clients.NewService(")
+		value = strings.ReplaceAll(value, " clientService,", "")
+		value = removeLineStarting(value, "\twebHandler.EnableClients(")
+	case "internal/httpapi/handler.go":
+		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, "*clients.Service")
+		value = removeLinesContaining(value, "clients: firstClient(")
+		value = strings.ReplaceAll(value, ", clientServices...)", ")")
+		value = removeLinesContaining(value, `"listClients": h.listClients`)
+		value = removeLinesContaining(value, `"getClient": h.getClient`)
+	case "internal/httpapi/handler_test.go":
+		value = removeLinesContaining(value, `/internal/clients"`)
+		value = strings.Replace(value, "\n\t\tclients.NewService(db, cfg.Database.Driver, auth))", ")", 1)
+	case "internal/web/handler.go":
+		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, "*clients.Service")
+		value = removeLinesContaining(value, "clients.Client")
+		value = removeLinesContaining(value, "clients.Input")
+		value = removeLinesContaining(value, "h.clients != nil")
+		value = removeLinesContaining(value, "/workspaces/{workspaceId}/clients")
+	case "internal/web/templates/navigation.html":
+		value = strings.ReplaceAll(value, `{{if .ClientsEnabled}}<a{{if eq .NavPage "clients"}} class="active" aria-current="page"{{end}} href="/workspaces/{{.Workspace.ID}}/clients">{{.T "clients.title"}}</a>{{end}}`, "")
+	case "docs/capabilities.md":
+		value = removeLineStarting(value, "| Clients |")
+	case "docs/api.md":
+		value = removeText(value, "\n- Clients (Clients profile):", "\n\n## Webhooks")
+	case "docs/web.md":
+		value = removeText(value, "\n\n`/workspaces/{workspaceId}/clients` lists", "\n\n## Realtime contract")
+	case "api/openapi.json":
+		value = stripClientsOpenAPI([]byte(value))
+	}
+	return []byte(value)
+}
+
+// removeLinesContaining drops every whole line that contains substring.
+func removeLinesContaining(value, substring string) string {
+	lines := strings.SplitAfter(value, "\n")
+	kept := lines[:0]
+	for _, line := range lines {
+		if !strings.Contains(line, substring) {
+			kept = append(kept, line)
+		}
+	}
+	return strings.Join(kept, "")
+}
+
+func stripClientsOpenAPI(raw []byte) string {
+	var document map[string]any
+	if json.Unmarshal(raw, &document) != nil {
+		return string(raw)
+	}
+	paths, ok := document["paths"].(map[string]any)
+	if !ok {
+		return string(raw)
+	}
+	for path := range paths {
+		if strings.Contains(path, "/clients") {
+			delete(paths, path)
+		}
+	}
+	encoded, err := json.MarshalIndent(document, "", "  ")
+	if err != nil {
+		return string(raw)
+	}
+	return string(encoded) + "\n"
 }
 
 func disableFilesSource(relative string, raw []byte) []byte {

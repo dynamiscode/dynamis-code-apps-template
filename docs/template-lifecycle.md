@@ -20,8 +20,8 @@ application. Selecting Agent additionally composes the MCP server and
 REST-only `appctl` packages, commands, bootstrap route, and Agent smoke test;
 omitting Agent or Files removes those files. Files requires Identity. Clients
 requires Identity and Agent; generation refuses it otherwise. Selecting Clients
-currently records the profile and checks those requirements only: its feature
-code is not yet generated, and the sample Item is not a Clients dependency. No
+adds the client module, its REST and web surfaces, and migration 000022; omitting
+it removes those files and their wiring. The sample Item is not a Clients dependency. No
 other profile content is currently defined, including CompanySite and
 Integrations.
 The generated application receives repository-specific README, support and

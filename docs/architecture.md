@@ -154,7 +154,8 @@ adds workspace-scoped private file metadata with explicit state transitions
 (Pending -> Ready, Pending -> Failed), local or S3-compatible object storage,
 quota reservations across active and failed uploads, and browser/REST surfaces.
 Clients is optional and requires Identity and Agent; generation refuses it
-without both. Its feature code is not yet implemented, so selecting it currently
-changes only the lock's profile list and the requirement check. Clients does not
-depend on the sample Item.
+without both. It adds the `internal/clients` module (common client fields,
+validation, authorization, audit), REST and web create and edit, and migration
+000022. Clients does not depend on the sample Item. Omitting it removes its files
+and wiring.
 CompanySite and Integrations remain unimplemented.
