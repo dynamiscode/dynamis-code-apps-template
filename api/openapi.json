@@ -595,6 +595,52 @@
           }
         }
       },
+      "/api/v1/workspaces/{workspaceId}/client-fields/{fieldId}/options": {
+        "get": {
+          "operationId": "listClientFieldOptions",
+          "description": "Choices of a single-choice field in slot order. Any role may read.",
+          "security": [{"bearerAuth": []}],
+          "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/FieldId"}],
+          "responses": {
+            "200": {"description": "Field choices", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ClientFieldOptionList"}}}},
+            "401": {"$ref": "#/components/responses/Problem"},
+            "403": {"$ref": "#/components/responses/Problem"},
+            "404": {"$ref": "#/components/responses/Problem"},
+            "429": {"$ref": "#/components/responses/RateLimited"}
+          }
+        },
+        "post": {
+          "operationId": "createClientFieldOption",
+          "description": "Adds a choice to a single-choice field. A field has at most 100 choices. Owners and admins only.",
+          "security": [{"bearerAuth": []}],
+          "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/FieldId"}],
+          "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateClientFieldOptionRequest"}}}},
+          "responses": {
+            "201": {"description": "Choice created", "headers": {"Location": {"schema": {"type": "string"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ClientFieldOption"}}}},
+            "400": {"$ref": "#/components/responses/Problem"},
+            "401": {"$ref": "#/components/responses/Problem"},
+            "403": {"$ref": "#/components/responses/Problem"},
+            "404": {"$ref": "#/components/responses/Problem"},
+            "409": {"$ref": "#/components/responses/Problem"},
+            "429": {"$ref": "#/components/responses/RateLimited"}
+          }
+        }
+      },
+      "/api/v1/workspaces/{workspaceId}/client-fields/{fieldId}/options/{optionId}": {
+        "delete": {
+          "operationId": "deleteClientFieldOption",
+          "description": "Deletes a choice and clears it from every client that holds it, in one transaction. Owners and admins only.",
+          "security": [{"bearerAuth": []}],
+          "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/FieldId"}, {"$ref": "#/components/parameters/OptionId"}],
+          "responses": {
+            "204": {"description": "Choice deleted"},
+            "401": {"$ref": "#/components/responses/Problem"},
+            "403": {"$ref": "#/components/responses/Problem"},
+            "404": {"$ref": "#/components/responses/Problem"},
+            "429": {"$ref": "#/components/responses/RateLimited"}
+          }
+        }
+      },
     "/api/v1/workspaces/{workspaceId}/clients/{clientId}/values": {
       "get": {
         "operationId": "listClientValues",
@@ -962,6 +1008,7 @@
       "WorkspaceId": {"name": "workspaceId", "in": "path", "required": true, "description": "Workspace short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "ClientId": {"name": "clientId", "in": "path", "required": true, "description": "Client short ID. Malformed, unknown, foreign, and integer IDs return the same not-found problem.", "schema": {"type": "string"}},
       "FieldId": {"name": "fieldId", "in": "path", "required": true, "description": "Client field short ID. Malformed, unknown, foreign, and integer IDs return the same not-found problem.", "schema": {"type": "string"}},
+      "OptionId": {"name": "optionId", "in": "path", "required": true, "description": "Client field option short ID. Malformed, unknown, foreign, and integer IDs return the same not-found problem.", "schema": {"type": "string"}},
       "ItemId": {"name": "itemId", "in": "path", "required": true, "description": "Item short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "FileId": {"name": "fileId", "in": "path", "required": true, "description": "File short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "MemberId": {"name": "memberId", "in": "path", "required": true, "description": "Member short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
@@ -995,15 +1042,18 @@
       "UpdateItemRequest": {"type": "object", "additionalProperties": false, "minProperties": 1, "properties": {"title": {"type": "string", "minLength": 1, "maxLength": 200}, "status": {"type": "string", "enum": ["active", "complete"]}}},
       "Item": {"type": "object", "required": ["id", "workspaceId", "createdByUserId", "title", "status", "version", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "createdByUserId": {"type": ["string", "null"]}, "title": {"type": "string"}, "status": {"type": "string", "enum": ["active", "complete"]}, "version": {"type": "integer", "minimum": 1}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}}},
       "Client": {"type": "object", "required": ["id", "workspaceId", "createdByUserId", "displayName", "email", "phone", "notes", "version", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "createdByUserId": {"type": ["string", "null"]}, "version": {"type": "integer", "minimum": 1}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}, "displayName": {"type": "string", "minLength": 1, "maxLength": 200}, "email": {"type": "string", "maxLength": 254, "description": "Optional. A bare email address when present."}, "phone": {"type": "string", "maxLength": 50}, "notes": {"type": "string", "maxLength": 5000}}},
-      "ClientField": {"type": "object", "required": ["id", "workspaceId", "label", "type", "archivedAt", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "label": {"type": "string", "minLength": 1, "maxLength": 100, "description": "Workspace-entered text, shown as typed."}, "type": {"type": "string", "enum": ["text", "number", "date", "yes_no"]}, "archivedAt": {"type": ["string", "null"], "format": "date-time"}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}}},
+      "ClientField": {"type": "object", "required": ["id", "workspaceId", "label", "type", "archivedAt", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "label": {"type": "string", "minLength": 1, "maxLength": 100, "description": "Workspace-entered text, shown as typed."}, "type": {"type": "string", "enum": ["text", "number", "date", "yes_no", "single_choice"]}, "archivedAt": {"type": ["string", "null"], "format": "date-time"}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}}},
       "ClientFieldList": {"type": "object", "required": ["fields"], "properties": {"fields": {"type": "array", "items": {"$ref": "#/components/schemas/ClientField"}}}},
-      "CreateClientFieldRequest": {"type": "object", "additionalProperties": false, "required": ["label", "type"], "properties": {"label": {"type": "string", "minLength": 1, "maxLength": 100}, "type": {"type": "string", "enum": ["text", "number", "date", "yes_no"]}}},
+      "ClientFieldOption": {"type": "object", "required": ["id", "fieldId", "label", "createdAt"], "properties": {"id": {"type": "string"}, "fieldId": {"type": "string"}, "label": {"type": "string", "minLength": 1, "maxLength": 100, "description": "Workspace-entered text, shown as typed."}, "createdAt": {"type": "string", "format": "date-time"}}},
+      "ClientFieldOptionList": {"type": "object", "required": ["options"], "properties": {"options": {"type": "array", "items": {"$ref": "#/components/schemas/ClientFieldOption"}}}},
+      "CreateClientFieldOptionRequest": {"type": "object", "additionalProperties": false, "required": ["label"], "properties": {"label": {"type": "string", "minLength": 1, "maxLength": 100}}},
+      "CreateClientFieldRequest": {"type": "object", "additionalProperties": false, "required": ["label", "type"], "properties": {"label": {"type": "string", "minLength": 1, "maxLength": 100}, "type": {"type": "string", "enum": ["text", "number", "date", "yes_no", "single_choice"]}}},
       "ClientPage": {"type": "object", "required": ["clients"], "properties": {"clients": {"type": "array", "items": {"$ref": "#/components/schemas/Client"}}, "nextCursor": {"type": "string"}}},
       "CreateClientRequest": {"type": "object", "additionalProperties": false, "required": ["displayName"], "properties": {"displayName": {"type": "string", "minLength": 1, "maxLength": 200}, "email": {"type": "string", "maxLength": 254, "description": "Optional. A bare email address when present."}, "phone": {"type": "string", "maxLength": 50}, "notes": {"type": "string", "maxLength": 5000}}},
       "UpdateClientRequest": {"type": "object", "additionalProperties": false, "minProperties": 1, "properties": {"displayName": {"type": "string", "minLength": 1, "maxLength": 200}, "email": {"type": "string", "maxLength": 254, "description": "Optional. A bare email address when present."}, "phone": {"type": "string", "maxLength": 50}, "notes": {"type": "string", "maxLength": 5000}}},
-      "ClientValue": {"type": "object", "required": ["fieldId", "label", "type", "value"], "properties": {"fieldId": {"type": "string"}, "label": {"type": "string", "description": "Workspace-entered text, shown as typed."}, "type": {"type": "string", "enum": ["text", "number", "date", "yes_no"]}, "value": {"type": ["string", "null"], "maxLength": 500, "description": "Null when the field has no value. Otherwise the stored text: a decimal for number, YYYY-MM-DD for date, true or false for yes_no."}}},
+      "ClientValue": {"type": "object", "required": ["fieldId", "label", "type", "value"], "properties": {"fieldId": {"type": "string"}, "label": {"type": "string", "description": "Workspace-entered text, shown as typed."}, "type": {"type": "string", "enum": ["text", "number", "date", "yes_no", "single_choice"]}, "value": {"type": ["string", "null"], "maxLength": 500, "description": "Null when the field has no value. Otherwise the stored text: a decimal for number, YYYY-MM-DD for date, true or false for yes_no, and the option's short ID for single_choice."}}},
       "ClientValueList": {"type": "object", "required": ["values"], "properties": {"values": {"type": "array", "items": {"$ref": "#/components/schemas/ClientValue"}}}},
-      "SetClientValueRequest": {"type": "object", "additionalProperties": false, "required": ["value"], "properties": {"value": {"type": "string", "minLength": 1, "maxLength": 500, "description": "Text value. Blank values are refused; use DELETE to clear."}}},
+      "SetClientValueRequest": {"type": "object", "additionalProperties": false, "required": ["value"], "properties": {"value": {"type": "string", "minLength": 1, "maxLength": 500, "description": "Text value, or the short ID of a choice option of a single-choice field. Blank values are refused; use DELETE to clear."}}},
       "ItemPage": {"type": "object", "required": ["items"], "properties": {"items": {"type": "array", "items": {"$ref": "#/components/schemas/Item"}}, "nextCursor": {"type": "string"}}},
       "UploadFileRequest": {"type": "object", "required": ["file"], "properties": {"file": {"type": "string", "format": "binary"}}},
       "InitiateFileRequest": {"type": "object", "additionalProperties": false, "required": ["originalName", "size"], "properties": {"originalName": {"type": "string", "maxLength": 255}, "size": {"type": "integer", "minimum": 1}, "contentType": {"type": "string", "maxLength": 255}}},

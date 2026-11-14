@@ -41,6 +41,11 @@ func (h *Handler) renderClientFieldList(
 		h.clientError(writer, request, err)
 		return
 	}
+	rows, err := h.clientFieldRows(request, principal, workspaceID, fields)
+	if err != nil {
+		h.clientError(writer, request, err)
+		return
+	}
 	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
 	if err != nil {
 		h.renderError(writer, http.StatusInternalServerError)
@@ -51,7 +56,7 @@ func (h *Handler) renderClientFieldList(
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		NavPage: "clients", NavSection: "clients",
 		CurrentPath:     h.clientFieldsPath(workspaceID),
-		ClientFields:    fields,
+		ClientFields:    rows,
 		CanManageFields: principal.Permissions[identity.WorkspaceUpdate],
 		FieldDraft:      draft,
 		FieldsPath:      h.clientFieldsPath(workspaceID),

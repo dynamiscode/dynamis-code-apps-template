@@ -57,7 +57,7 @@ func TestDefineFieldRefusesBlankLongAndUnsupportedTypes(t *testing.T) {
 	cases := map[string]FieldInput{
 		"blank label":      {Label: "   ", Type: FieldTypeText},
 		"long label":       {Label: strings.Repeat("x", 101), Type: FieldTypeText},
-		"unsupported type": {Label: "Age", Type: "single_choice"},
+		"unsupported type": {Label: "Age", Type: "multi_choice"},
 	}
 	for name, input := range cases {
 		if _, err := f.service.DefineField(f.ctx, f.owner, f.workspaceID, input, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {

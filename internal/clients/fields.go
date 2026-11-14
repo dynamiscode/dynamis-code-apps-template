@@ -13,7 +13,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 )
 
-// Custom-field types. Single choice is not in this slice.
+// Custom-field types. FieldTypeSingleChoice is in options.go.
 const (
 	FieldTypeText   = "text"
 	FieldTypeNumber = "number"
@@ -312,11 +312,10 @@ func (s *Service) recordFieldAudit(
 	})
 }
 
-// validFieldType reports whether a custom field may take the type. Single choice
-// is not in this slice.
+// validFieldType reports whether a custom field may take the type.
 func validFieldType(fieldType string) bool {
 	switch fieldType {
-	case FieldTypeText, FieldTypeNumber, FieldTypeDate, FieldTypeYesNo:
+	case FieldTypeText, FieldTypeNumber, FieldTypeDate, FieldTypeYesNo, FieldTypeSingleChoice:
 		return true
 	}
 	return false

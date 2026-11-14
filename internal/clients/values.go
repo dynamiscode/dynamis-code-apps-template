@@ -44,8 +44,8 @@ func (s *Service) SetValue(
 	audit identity.AuditContext,
 ) (Client, error) {
 	return s.writeValue(ctx, actor, workspaceID, clientID, version, fieldID, audit, "client.value.set",
-		func(fieldType string) (*string, error) {
-			normalized, err := validFieldValue(fieldType, value)
+		func(tx *sql.Tx, ref fieldRef) (*string, error) {
+			normalized, err := s.validFieldValue(ctx, tx, workspaceID, fieldID, ref.fieldType, value)
 			if err != nil {
 				return nil, err
 			}
@@ -64,7 +64,7 @@ func (s *Service) ClearValue(
 	audit identity.AuditContext,
 ) (Client, error) {
 	return s.writeValue(ctx, actor, workspaceID, clientID, version, fieldID, audit, "client.value.clear",
-		func(string) (*string, error) { return nil, nil })
+		func(*sql.Tx, fieldRef) (*string, error) { return nil, nil })
 }
 
 // ListValues returns the client's values for the workspace's active fields in
@@ -171,7 +171,8 @@ func (s *Service) setFieldType(
 }
 
 // writeValue applies next to the stored value under the field's slot. next
-// receives the field type, returns the new value, or nil to remove it.
+// receives the transaction and the field, returns the new value, or nil to
+// remove it.
 func (s *Service) writeValue(
 	ctx context.Context,
 	actor identity.Principal,
@@ -181,7 +182,7 @@ func (s *Service) writeValue(
 	fieldID FieldID,
 	audit identity.AuditContext,
 	action string,
-	next func(fieldType string) (*string, error),
+	next func(tx *sql.Tx, ref fieldRef) (*string, error),
 ) (Client, error) {
 	if version < 1 {
 		return Client{}, ErrInvalidInput
@@ -203,7 +204,7 @@ func (s *Service) writeValue(
 	if ref.archived {
 		return Client{}, ErrFieldArchived
 	}
-	value, err := next(ref.fieldType)
+	value, err := next(tx, ref)
 	if err != nil {
 		return Client{}, err
 	}
@@ -259,8 +260,16 @@ func (s *Service) writeValue(
 
 // validFieldValue is the validation hook for value writes. It returns the stored
 // text form of the value: text as typed, a number as canonical decimal, a date
-// as YYYY-MM-DD, and yes/no as true or false (ADR 0012 value representation).
-func validFieldValue(fieldType, value string) (string, error) {
+// as YYYY-MM-DD, yes/no as true or false, and a choice as its option's short ID
+// (ADR 0012 value representation). A choice must name an option of this field,
+// checked in tx.
+func (s *Service) validFieldValue(
+	ctx context.Context,
+	tx *sql.Tx,
+	workspaceID identity.WorkspaceID,
+	fieldID FieldID,
+	fieldType, value string,
+) (string, error) {
 	if !validFieldType(fieldType) {
 		return "", ErrInvalidInput
 	}
@@ -278,6 +287,8 @@ func validFieldValue(fieldType, value string) (string, error) {
 		return validDate(value)
 	case FieldTypeYesNo:
 		return validYesNo(value)
+	case FieldTypeSingleChoice:
+		return s.validChoice(ctx, tx, workspaceID, fieldID, value)
 	}
 	return value, nil
 }
@@ -319,6 +330,33 @@ func validYesNo(value string) (string, error) {
 		return "", ErrInvalidInput
 	}
 	return value, nil
+}
+
+// validChoice accepts only the short ID of an option of this field. Any other
+// value, including an option of another field or a label, is ErrInvalidOption.
+func (s *Service) validChoice(
+	ctx context.Context,
+	tx *sql.Tx,
+	workspaceID identity.WorkspaceID,
+	fieldID FieldID,
+	value string,
+) (string, error) {
+	optionID, err := ParseOptionID(value)
+	if err != nil {
+		return "", ErrInvalidOption
+	}
+	var found int
+	err = s.queryRow(ctx, tx, `
+		SELECT 1 FROM client_field_options
+		WHERE workspace_id = ? AND field_id = ? AND id = ?
+	`, workspaceID, fieldID, optionID).Scan(&found)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrInvalidOption
+	}
+	if err != nil {
+		return "", err
+	}
+	return optionID.String(), nil
 }
 
 // fieldRef is the internal view of a field's slot, type, and archive state.

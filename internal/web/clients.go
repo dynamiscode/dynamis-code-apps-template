@@ -125,6 +125,11 @@ func (h *Handler) renderClientDetail(
 		h.clientError(writer, request, err)
 		return
 	}
+	rows, err := h.clientValueRows(request, principal, workspaceID, values)
+	if err != nil {
+		h.clientError(writer, request, err)
+		return
+	}
 	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
 	if err != nil {
 		h.renderError(writer, http.StatusInternalServerError)
@@ -135,7 +140,7 @@ func (h *Handler) renderClientDetail(
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		NavPage: "clients", NavSection: "clients",
 		CurrentPath: h.clientsPath(workspaceID),
-		Client:      client, ClientValues: values, CanEditClients: principal.Permissions[identity.ResourcesWrite],
+		Client:      client, ClientValues: rows, CanEditClients: principal.Permissions[identity.ResourcesWrite],
 	})
 }
 
@@ -191,6 +196,8 @@ func (h *Handler) clientValueError(writer http.ResponseWriter, request *http.Req
 		h.renderClientDetail(writer, request, http.StatusPreconditionFailed, "clients.error_changed")
 	case errors.Is(err, clients.ErrFieldArchived):
 		h.renderClientDetail(writer, request, http.StatusConflict, "clients.error_field_archived")
+	case errors.Is(err, clients.ErrInvalidOption):
+		h.renderClientDetail(writer, request, http.StatusUnprocessableEntity, "clients.error_value_option")
 	case errors.Is(err, clients.ErrValueRequired):
 		h.renderClientDetail(writer, request, http.StatusUnprocessableEntity, "clients.error_value_required")
 	case errors.Is(err, clients.ErrInvalidInput):
@@ -250,7 +257,7 @@ func (h *Handler) clientError(writer http.ResponseWriter, _ *http.Request, err e
 	switch {
 	case errors.Is(err, identity.ErrForbidden):
 		h.renderError(writer, http.StatusForbidden)
-	case errors.Is(err, clients.ErrNotFound), errors.Is(err, clients.ErrFieldNotFound), errors.Is(err, clients.ErrInvalidCursor):
+	case errors.Is(err, clients.ErrNotFound), errors.Is(err, clients.ErrFieldNotFound), errors.Is(err, clients.ErrOptionNotFound), errors.Is(err, clients.ErrInvalidCursor):
 		h.renderError(writer, http.StatusNotFound)
 	default:
 		h.renderError(writer, http.StatusInternalServerError)

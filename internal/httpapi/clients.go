@@ -198,6 +198,19 @@ func (h *handler) clientError(writer http.ResponseWriter, request *http.Request,
 		h.invalidRequest(writer, request, "The value is required. Use DELETE to clear a value.")
 	case errors.Is(err, clients.ErrFieldArchived):
 		h.invalidRequest(writer, request, "The custom field is archived.")
+	case errors.Is(err, clients.ErrOptionNotFound):
+		notFoundProblem(writer, request)
+	case errors.Is(err, clients.ErrOptionLimit):
+		writeProblem(
+			writer, request, http.StatusConflict, "resource-limit",
+			"A choice field can have at most 100 options.",
+		)
+	case errors.Is(err, clients.ErrOptionLabelRequired):
+		h.invalidRequest(writer, request, "The option label is required.")
+	case errors.Is(err, clients.ErrNotChoiceField):
+		h.invalidRequest(writer, request, "The custom field is not a single-choice field.")
+	case errors.Is(err, clients.ErrInvalidOption):
+		h.invalidRequest(writer, request, "The value must be an option of this field.")
 	case errors.Is(err, clients.ErrInvalidInput):
 		h.invalidRequest(writer, request, "The client input is invalid.")
 	case errors.Is(err, clients.ErrPreconditionFailed):
