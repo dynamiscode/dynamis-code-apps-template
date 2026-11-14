@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -204,5 +205,32 @@ func TestPostgresClientLifecycle(t *testing.T) {
 	limited := NewService(db, config.Postgres, auth, 1)
 	if _, err := limited.DefineField(ctx, owner, workspaceID, FieldInput{Label: "Over", Type: FieldTypeText}, identity.AuditContext{}); !errors.Is(err, ErrLimit) {
 		t.Fatalf("DefineField() over limit error = %v, want ErrLimit", err)
+	}
+	// Choice options on PostgreSQL: a value must name an option of its own
+	// field, and deleting the option clears it from the client.
+	choice, err := service.DefineField(ctx, owner, workspaceID, FieldInput{Label: "Tier choice", Type: FieldTypeSingleChoice}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	gold, err := service.AddOption(ctx, owner, workspaceID, choice.ID, "Gold", identity.AuditContext{})
+	if err != nil {
+		t.Fatalf("AddOption() error = %v", err)
+	}
+	withChoice, err := service.SetValue(ctx, owner, workspaceID, created.ID, current.Version, choice.ID, gold.ID.String(), identity.AuditContext{})
+	if err != nil {
+		t.Fatalf("SetValue(choice) error = %v", err)
+	}
+	if _, err := service.SetValue(ctx, owner, workspaceID, created.ID, withChoice.Version, choice.ID, "Gold", identity.AuditContext{}); !errors.Is(err, ErrInvalidOption) {
+		t.Fatalf("SetValue(choice label) error = %v, want ErrInvalidOption", err)
+	}
+	if err := service.DeleteOption(ctx, owner, workspaceID, choice.ID, gold.ID, identity.AuditContext{}); err != nil {
+		t.Fatalf("DeleteOption() error = %v", err)
+	}
+	var stored string
+	if err := db.QueryRowContext(ctx, `SELECT custom_values FROM clients WHERE id = $1`, int64(created.ID)).Scan(&stored); err != nil || strings.Contains(stored, gold.ID.String()) {
+		t.Fatalf("custom_values after option delete = %q, %v; want the option cleared", stored, err)
+	}
+	if options, err := service.ListOptions(ctx, viewer, workspaceID, choice.ID); err != nil || len(options) != 0 {
+		t.Fatalf("ListOptions() after delete = %+v, %v; want none", options, err)
 	}
 }

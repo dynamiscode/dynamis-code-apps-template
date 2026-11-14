@@ -134,3 +134,45 @@ the decision recorded for spec [#294](https://github.com/dynamiscode/dynamis-cod
 - **Not yet implemented:** archive and unarchive, custom fields, permanent
   delete, export, webhook events, MCP tools, and `appctl` commands.
   Each lands in a later ticket and updates [capabilities](../capabilities.md).
+
+## Addendum: choice option storage (ticket #300, 2026-11-13)
+
+- **Table `client_field_options`:** integer key with short-ID type code
+  `client_field_option` (D3, no integer keys exposed), `workspace_id` (cascade
+  from workspaces), `field_id` (cascade from `client_fields`), `slot` (1 to 100,
+  CHECK), `label` (text, trimmed, at most 100 characters), `created_at`, and
+  `UNIQUE (field_id, slot)`. An index covers `(workspace_id, field_id, slot)`.
+- **Limit:** at most 100 options per single-choice field. The limit is a
+  constant, not configuration, because the spec fixes it. The 101st add is
+  refused with 409 `resource-limit`. Slots are the lowest free in the field, and
+  the list is in slot order.
+- **Workspace binding:** the `field_id` foreign key alone does not bind an
+  option's workspace to its field. Every option query filters by `workspace_id`
+  and `field_id` together. A composite foreign key would need a unique
+  constraint on `client_fields (workspace_id, id)`, which this slice does not add.
+- **Stored value:** a single-choice value is the option's short ID under the
+  field's slot. It is accepted only when it names an option of that field in
+  that workspace. Anything else (a label, an integer key, another field's
+  option, a malformed ID) is refused as invalid input. Filter and sort (#301)
+  compare option short IDs.
+- **Delete:** one serializable transaction. It authorizes, finds the option,
+  clears its short ID from every client that holds it under the field's slot
+  (each cleared client's version bumps and gets a list change), deletes the row,
+  and writes audit `client_field_option.deleted` with `clearedClients`. Option
+  keys can be reused after a delete (SQLite `INTEGER PRIMARY KEY` without
+  AUTOINCREMENT). That is safe because no client holds the deleted short ID after
+  commit.
+- **Audit:** `client_field_option.created` and `client_field_option.deleted`,
+  target type `client_field_option`.
+- **Roles:** add and delete need `WorkspaceUpdate`. Reads need `ResourcesRead`.
+  Adding to an archived field is refused. Deleting an option of an archived
+  field is allowed, so its values can be cleared.
+- **Open for later tickets:** the field type change path (`setFieldType`, with no
+  surface yet) does not remove options. Permanent field delete (#302) must delete
+  a field's options with the field, after it clears their values. Option deletion
+  emits no webhook event in this slice. Webhook events arrive in a later ticket.
+- **Surfaces in this slice:** REST `GET` and `POST
+  /client-fields/{fieldId}/options` and `DELETE
+  /client-fields/{fieldId}/options/{optionId}`, plus the custom-fields page and
+  the client value select. MCP and `appctl` option commands are not in this
+  slice.

@@ -154,7 +154,7 @@ func TestFieldTypeLocksOnceAnyClientHoldsAValue(t *testing.T) {
 	field := defineTextField(t, f, "Source")
 	client := createClientForValues(t, f, "Ada")
 
-	if err := f.service.setFieldType(f.ctx, f.owner, f.workspaceID, field.ID, "single_choice", identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+	if err := f.service.setFieldType(f.ctx, f.owner, f.workspaceID, field.ID, "multi_choice", identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("unlocked change to unsupported type error = %v, want ErrInvalidInput", err)
 	}
 	if err := f.service.setFieldType(f.ctx, f.member, f.workspaceID, field.ID, "number", identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {

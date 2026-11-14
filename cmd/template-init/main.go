@@ -317,6 +317,9 @@ func clientsPath(relative string) bool {
 		relative == "internal/web/client_fields.go" || relative == "internal/web/client_fields_test.go" ||
 		relative == "internal/httpapi/client_values.go" || relative == "internal/httpapi/client_values_test.go" ||
 		relative == "internal/web/client_values_test.go" ||
+		relative == "internal/platform/database/migrations/000025_client_field_options.sql" ||
+		relative == "internal/httpapi/client_options.go" || relative == "internal/httpapi/client_options_test.go" ||
+		relative == "internal/web/client_options.go" || relative == "internal/web/client_options_test.go" ||
 		relative == "internal/web/templates/client-fields.html"
 }
 
@@ -342,6 +345,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `"archiveClientField": h.archiveClientField`)
 		value = removeLinesContaining(value, `"listClientValues": h.listClientValues`)
 		value = removeLinesContaining(value, `"clearClientValue": h.clearClientValue`)
+		value = removeLinesContaining(value, `"listClientFieldOptions": h.listClientFieldOptions`)
+		value = removeLinesContaining(value, `"deleteClientFieldOption": h.deleteClientFieldOption`)
 	case "internal/httpapi/handler_test.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = strings.Replace(value, "\n\t\tclients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace))", ")", 1)
@@ -352,6 +357,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "clients.Input")
 		value = removeLinesContaining(value, "h.clients != nil")
 		value = removeLinesContaining(value, "clients.Field")
+		value = removeLinesContaining(value, "clientFieldRow")
+		value = removeLinesContaining(value, "clientValueRow")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/client-fields")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/clients")
 	case "internal/web/templates/navigation.html":
