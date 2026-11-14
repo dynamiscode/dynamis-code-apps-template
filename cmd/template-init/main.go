@@ -20,7 +20,7 @@ var (
 	modulePattern     = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._~/-]+$`)
 	slugPattern       = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
 	maintainerPattern = regexp.MustCompile(`^@[A-Za-z0-9][A-Za-z0-9-]*(/[A-Za-z0-9][A-Za-z0-9-]*)?$`)
-	knownProfiles     = []string{"Core", "Identity", "Agent", "Files"}
+	knownProfiles     = []string{"Core", "Identity", "Agent", "Files", "Clients"}
 )
 
 const (
@@ -518,6 +518,9 @@ func parseProfiles(value string) ([]string, error) {
 			return nil, fmt.Errorf("profile %q is unknown or duplicated", profile)
 		}
 		selected[profile] = true
+	}
+	if selected["Clients"] && (!selected["Identity"] || !selected["Agent"]) {
+		return nil, errors.New("Clients profile requires Identity and Agent")
 	}
 	if selected["Agent"] && !selected["Identity"] {
 		return nil, errors.New("Agent profile requires Identity")

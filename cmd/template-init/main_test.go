@@ -213,3 +213,47 @@ func runCommand(directory, name string, args ...string) error {
 	}
 	return nil
 }
+
+func TestParseProfilesClientsRequiresIdentityAndAgent(t *testing.T) {
+	for _, value := range []string{"Core,Identity,Clients", "Core,Agent,Clients"} {
+		_, err := parseProfiles(value)
+		if err == nil || !strings.Contains(err.Error(), "Clients profile requires Identity and Agent") {
+			t.Fatalf("parseProfiles(%q) error = %v, want Clients requirement refusal", value, err)
+		}
+	}
+	for value, want := range map[string]string{
+		"Core,Identity,Agent,Clients":       "Core,Identity,Agent,Clients",
+		"Clients,Agent,Identity,Core":       "Core,Identity,Agent,Clients",
+		"Core,Identity,Agent,Files,Clients": "Core,Identity,Agent,Files,Clients",
+	} {
+		got, err := parseProfiles(value)
+		if err != nil || strings.Join(got, ",") != want {
+			t.Fatalf("parseProfiles(%q) = %v, %v; want %s", value, got, err, want)
+		}
+	}
+}
+
+func TestGenerateWithClientsProfileRecordsLockAndBuilds(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	output := filepath.Join(t.TempDir(), "clients-app")
+	err := run([]string{
+		"-template-dir", root, "-output", output, "-name", "Clients Application",
+		"-module", "example.com/acme/clients-app",
+		"-repository", "https://github.com/acme/clients-app",
+		"-security-url", "https://github.com/acme/clients-app/security/advisories/new",
+		"-maintainer", "@acme/platform", "-profiles", "Core,Identity,Agent,Clients",
+		"-source", "https://example.com/acme/template", "-commit", strings.Repeat("e", 40),
+	}, time.Now)
+	if err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+	var lock lockFile
+	raw, err := os.ReadFile(filepath.Join(output, "template.lock"))
+	if err != nil || json.Unmarshal(raw, &lock) != nil || strings.Join(lock.Profiles, ",") != "Core,Identity,Agent,Clients" {
+		t.Fatalf("template.lock = %q, error = %v", raw, err)
+	}
+	if err := runCommand(output, "go", "test", "./..."); err != nil {
+		t.Fatalf("generated Clients application tests: %v", err)
+	}
+}

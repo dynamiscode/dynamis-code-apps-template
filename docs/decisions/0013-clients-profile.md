@@ -111,3 +111,10 @@ Rejected alternatives:
 - Integrators need MCP or `appctl` without the Agent profile.
 - Synchronous clearing exceeds the request budget on a measured workspace.
 - Integrators need field-definition events.
+
+## Addendum: choice-option type code (2026-11-13)
+
+Choice options have their own short-ID type code, `client_field_option`,
+registered beside `client` and `client_field`. Options stay in a separate table
+keyed to a single-choice field, and integer keys are never exposed. This follows
+the decision recorded for spec [#294](https://github.com/dynamiscode/dynamis-code-apps-template/issues/294).
