@@ -236,3 +236,33 @@ the decision recorded for spec [#294](https://github.com/dynamiscode/dynamis-cod
   feed, as option delete does.
 - **Omissions:** MCP and `appctl` field delete are not in this slice and arrive
   with the agent-surface ticket.
+
+## Addendum: archive, unarchive, and permanent client delete (ticket #303, 2026-11-13)
+
+- **Roles:** archive and unarchive need `ResourcesWrite`, so members and above
+  may use them and viewers are refused. The Roles section above does not name
+  client archive, so this slice records members and above, as the spec's
+  acceptance criteria say. Permanent client delete needs `WorkspaceUpdate`
+  (owners and admins).
+- **Archive:** sets `archived_at` and bumps the version. Archiving an archived
+  client and unarchiving an active client change nothing: no version bump, no
+  change-feed entry, no audit event. Like field archive, the call takes no
+  version precondition.
+- **Delete:** one serializable transaction. It authorizes, reads the client,
+  deletes its row, records one change-feed entry, and writes audit
+  `client.deleted`. Custom values live in the row's `custom_values`, so the row
+  delete removes them. No other table holds a client's values. An active client
+  can be deleted directly.
+- **Audit:** `client.archived`, `client.unarchived`, and `client.deleted`, with
+  actions `client.archive`, `client.unarchive`, and `client.delete`. Target type
+  `client`, target key the client's integer key. Metadata is `{}`, so no values
+  are recorded.
+- **Change feed:** actions `archived`, `unarchived`, and `deleted` on
+  `client.changed`. The realtime stream sends every feed entry, so open client
+  lists refresh for each action.
+- **Archived selector:** `archived=active` (default), `archived` (archived
+  clients only), or `all`. The cursor binds it with the sort and filters. The
+  web list form has the matching select.
+- **Omissions:** webhook events `client.archived` and `client.deleted` arrive in
+  #307, and client export in #306. MCP and `appctl` archive and delete arrive
+  with the agent-surface ticket (#309).

@@ -165,6 +165,7 @@ func (h *Handler) renderClientDetail(
 		NavPage: "clients", NavSection: "clients",
 		CurrentPath: h.clientsPath(workspaceID),
 		Client:      client, ClientValues: rows, CanEditClients: principal.Permissions[identity.ResourcesWrite],
+		CanDeleteClients: principal.Permissions[identity.WorkspaceUpdate],
 	})
 }
 
@@ -299,6 +300,7 @@ type clientQueryForm struct {
 	FilterOp      string
 	FilterValue   string
 	FilterValueTo string
+	Archived      string
 }
 
 func clientQueryFromValues(query url.Values) clientQueryForm {
@@ -306,11 +308,12 @@ func clientQueryFromValues(query url.Values) clientQueryForm {
 		Sort: query.Get("sort"), Order: query.Get("order"),
 		FilterField: query.Get("filter_field"), FilterOp: query.Get("filter_op"),
 		FilterValue: query.Get("filter_value"), FilterValueTo: query.Get("filter_value_to"),
+		Archived: query.Get("archived"),
 	}
 }
 
 func (form clientQueryForm) listInput(limit int, cursor string) clients.ListInput {
-	input := clients.ListInput{Limit: limit, Cursor: cursor}
+	input := clients.ListInput{Limit: limit, Cursor: cursor, Archived: form.Archived}
 	if form.Sort != "" {
 		input.Sort = clients.SortInput{Field: form.Sort, Descending: form.Order == "desc"}
 	}

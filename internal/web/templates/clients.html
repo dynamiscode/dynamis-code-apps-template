@@ -41,5 +41,7 @@
 {{if .ClientFilterOptions}}<label for="client-filter-option">{{.T "clients.option_value"}}</label><select id="client-filter-option" name="filter_value">{{range .ClientFilterOptions}}<option value="{{.ID}}"{{if eq .ID.String $.ClientQuery.FilterValue}} selected{{end}}>{{.Label}}</option>{{end}}</select>
 {{else}}<label for="client-filter-value">{{.T "clients.filter_value"}} {{.T "ui.optional"}}</label><input id="client-filter-value" name="filter_value" value="{{.ClientQuery.FilterValue}}">
 <label for="client-filter-value-to">{{.T "clients.filter_value_to"}} {{.T "ui.optional"}}</label><input id="client-filter-value-to" name="filter_value_to" value="{{.ClientQuery.FilterValueTo}}">
-{{end}}</fieldset>
+{{end}}</fieldset><fieldset><legend>{{.T "clients.archived_legend"}}</legend>
+<label for="client-archived">{{.T "clients.archived_label"}}</label><select id="client-archived" name="archived"><option value="active"{{if or (eq .ClientQuery.Archived "") (eq .ClientQuery.Archived "active")}} selected{{end}}>{{.T "clients.archived_active"}}</option><option value="archived"{{if eq .ClientQuery.Archived "archived"}} selected{{end}}>{{.T "clients.archived_only"}}</option><option value="all"{{if eq .ClientQuery.Archived "all"}} selected{{end}}>{{.T "clients.archived_all"}}</option></select>
+</fieldset>
 <div class="actions"><button type="submit">{{.T "clients.apply"}}</button> <a href="{{.CurrentPath}}">{{.T "clients.clear"}}</a></div></form>{{end}}

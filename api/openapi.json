@@ -314,6 +314,9 @@
             },
             {
               "$ref": "#/components/parameters/ClientFilter"
+            },
+            {
+              "$ref": "#/components/parameters/ClientArchived"
             }
           ],
           "responses": {
@@ -849,8 +852,59 @@
               "$ref": "#/components/responses/RateLimited"
             }
           }
+        },
+      "delete": {
+        "operationId": "deleteClient",
+        "description": "Permanently deletes a client and its custom values in one transaction. Owners and admins only.",
+        "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/ClientId"}],
+        "responses": {
+          "204": {"description": "Client deleted"},
+          "401": {"$ref": "#/components/responses/Problem"},
+          "403": {"$ref": "#/components/responses/Problem"},
+          "404": {"$ref": "#/components/responses/Problem"},
+          "429": {"$ref": "#/components/responses/RateLimited"}
         }
-      },
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/clients/{clientId}/archive": {
+      "post": {
+        "operationId": "archiveClient",
+        "description": "Sets archivedAt. An archived client leaves the default list and shows with archived=archived or archived=all. Archiving an archived client changes nothing. Members and above only.",
+        "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/ClientId"}],
+        "responses": {
+          "200": {
+            "description": "Archived client",
+            "headers": {"ETag": {"schema": {"type": "string"}}},
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Client"}}}
+          },
+          "401": {"$ref": "#/components/responses/Problem"},
+          "403": {"$ref": "#/components/responses/Problem"},
+          "404": {"$ref": "#/components/responses/Problem"},
+          "429": {"$ref": "#/components/responses/RateLimited"}
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/clients/{clientId}/unarchive": {
+      "post": {
+        "operationId": "unarchiveClient",
+        "description": "Clears archivedAt so the client returns to the default list. Unarchiving an active client changes nothing. Members and above only.",
+        "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/ClientId"}],
+        "responses": {
+          "200": {
+            "description": "Unarchived client",
+            "headers": {"ETag": {"schema": {"type": "string"}}},
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Client"}}}
+          },
+          "401": {"$ref": "#/components/responses/Problem"},
+          "403": {"$ref": "#/components/responses/Problem"},
+          "404": {"$ref": "#/components/responses/Problem"},
+          "429": {"$ref": "#/components/responses/RateLimited"}
+        }
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/members": {
       "get": {
         "operationId": "listMembers", "security": [{"bearerAuth": []}],
@@ -1045,6 +1099,7 @@
       "PageCursor": {"name": "cursor", "in": "query", "description": "Opaque cursor from the previous page; do not modify or combine with different query parameters.", "schema": {"type": "string", "maxLength": 512}},
       "ClientSort": {"name": "sort", "in": "query", "description": "Optional sort field: a common field (displayName, email, phone, notes, createdAt, updatedAt) or a custom field's short ID. A leading minus sorts descending. Number fields sort numerically. Text sorts by bytes. Empty values sort last.", "schema": {"type": "string", "minLength": 1, "maxLength": 64}},
       "ClientFilter": {"name": "filter", "in": "query", "description": "Optional condition as field:operator:value. May repeat; conditions combine with AND. Common text fields (displayName, email, phone, notes) take equals or contains. Custom fields are named by short ID. Text takes equals or contains, case-insensitive for ASCII letters. Number and date take equals, before, after, or between (value from,to, inclusive). Before and after are strict. Yes/no takes equals with true or false. Single choice takes equals with one or more comma-separated option IDs. Equals on a number compares canonical decimal text, so 10.0 matches 10. Operators are documented in docs/api.md.", "schema": {"type": "string", "minLength": 1, "maxLength": 1024}},
+      "ClientArchived": {"name": "archived", "in": "query", "description": "Which clients the list shows. active (the default) excludes archived clients, archived shows only archived clients, and all shows both. The cursor binds this value.", "schema": {"type": "string", "enum": ["active", "archived", "all"]}},
       "IdempotencyKey": {"name": "Idempotency-Key", "in": "header", "required": true, "description": "1-255 visible ASCII characters; scoped to credential, workspace, and operation; retained 24 hours", "schema": {"type": "string", "minLength": 1, "maxLength": 255}},
       "CSRFToken": {"name": "X-CSRF-Token", "in": "header", "required": true, "schema": {"type": "string"}},
       "SCIMUserId": {"name": "userId", "in": "path", "required": true, "description": "SCIM resource id: the user's short ID. The IdP externalId, malformed, unknown, and foreign IDs return the same SCIM not-found error.", "schema": {"type": "string", "maxLength": 256}},
@@ -1065,7 +1120,7 @@
       "CreateItemRequest": {"type": "object", "additionalProperties": false, "required": ["title"], "properties": {"title": {"type": "string", "minLength": 1, "maxLength": 200}}},
       "UpdateItemRequest": {"type": "object", "additionalProperties": false, "minProperties": 1, "properties": {"title": {"type": "string", "minLength": 1, "maxLength": 200}, "status": {"type": "string", "enum": ["active", "complete"]}}},
       "Item": {"type": "object", "required": ["id", "workspaceId", "createdByUserId", "title", "status", "version", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "createdByUserId": {"type": ["string", "null"]}, "title": {"type": "string"}, "status": {"type": "string", "enum": ["active", "complete"]}, "version": {"type": "integer", "minimum": 1}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}}},
-      "Client": {"type": "object", "required": ["id", "workspaceId", "createdByUserId", "displayName", "email", "phone", "notes", "version", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "createdByUserId": {"type": ["string", "null"]}, "version": {"type": "integer", "minimum": 1}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}, "displayName": {"type": "string", "minLength": 1, "maxLength": 200}, "email": {"type": "string", "maxLength": 254, "description": "Optional. A bare email address when present."}, "phone": {"type": "string", "maxLength": 50}, "notes": {"type": "string", "maxLength": 5000}}},
+      "Client": {"type": "object", "required": ["id", "workspaceId", "createdByUserId", "displayName", "email", "phone", "notes", "archivedAt", "version", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "createdByUserId": {"type": ["string", "null"]}, "version": {"type": "integer", "minimum": 1}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}, "displayName": {"type": "string", "minLength": 1, "maxLength": 200}, "email": {"type": "string", "maxLength": 254, "description": "Optional. A bare email address when present."}, "phone": {"type": "string", "maxLength": 50}, "notes": {"type": "string", "maxLength": 5000}, "archivedAt": {"type": ["string", "null"], "format": "date-time", "description": "Set while the client is archived. Null when active."}}},
       "ClientField": {"type": "object", "required": ["id", "workspaceId", "label", "type", "archivedAt", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "label": {"type": "string", "minLength": 1, "maxLength": 100, "description": "Workspace-entered text, shown as typed."}, "type": {"type": "string", "enum": ["text", "number", "date", "yes_no", "single_choice"]}, "archivedAt": {"type": ["string", "null"], "format": "date-time"}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}}},
       "ClientFieldList": {"type": "object", "required": ["fields"], "properties": {"fields": {"type": "array", "items": {"$ref": "#/components/schemas/ClientField"}}}},
       "ClientFieldOption": {"type": "object", "required": ["id", "fieldId", "label", "createdAt"], "properties": {"id": {"type": "string"}, "fieldId": {"type": "string"}, "label": {"type": "string", "minLength": 1, "maxLength": 100, "description": "Workspace-entered text, shown as typed."}, "createdAt": {"type": "string", "format": "date-time"}}},

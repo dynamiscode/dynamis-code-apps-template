@@ -298,3 +298,43 @@ func TestPostgresClientLifecycle(t *testing.T) {
 		t.Fatalf("slot of the field defined after delete = %d, %v; want the freed slot %d", reusedSlot, err, retiredSlot)
 	}
 }
+
+func TestPostgresClientArchiveAndDelete(t *testing.T) {
+	f := newPostgresFixture(t)
+	created, err := f.service.Create(f.ctx, f.member, f.workspaceID, Input{DisplayName: "Archive PostgreSQL"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.service.Archive(f.ctx, f.viewer, f.workspaceID, created.ID, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer archive error = %v, want ErrForbidden", err)
+	}
+	archived, err := f.service.Archive(f.ctx, f.member, f.workspaceID, created.ID, identity.AuditContext{})
+	if err != nil || archived.ArchivedAt == nil || archived.Version != 2 {
+		t.Fatalf("Archive() = %+v, %v; want ArchivedAt set and version 2", archived, err)
+	}
+	active, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{Limit: 10})
+	if err != nil || len(active.Clients) != 0 {
+		t.Fatalf("default List() after archive = %+v, %v; want none", active, err)
+	}
+	only, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{Limit: 10, Archived: ArchivedOnly})
+	if err != nil || len(only.Clients) != 1 || only.Clients[0].ID != created.ID || only.Clients[0].ArchivedAt == nil {
+		t.Fatalf("archived List() = %+v, %v; want the archived client", only, err)
+	}
+	restored, err := f.service.Unarchive(f.ctx, f.member, f.workspaceID, created.ID, identity.AuditContext{})
+	if err != nil || restored.ArchivedAt != nil || restored.Version != 3 {
+		t.Fatalf("Unarchive() = %+v, %v; want ArchivedAt cleared and version 3", restored, err)
+	}
+	if err := f.service.Delete(f.ctx, f.member, f.workspaceID, created.ID, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("member delete error = %v, want ErrForbidden", err)
+	}
+	if err := f.service.Delete(f.ctx, f.owner, f.workspaceID, created.ID, identity.AuditContext{}); err != nil {
+		t.Fatalf("owner delete error = %v", err)
+	}
+	if _, err := f.service.Get(f.ctx, f.viewer, f.workspaceID, created.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("Get() after delete error = %v, want ErrNotFound", err)
+	}
+	var rows int
+	if err := f.db.QueryRowContext(f.ctx, "SELECT COUNT(*) FROM clients WHERE id = $1", int64(created.ID)).Scan(&rows); err != nil || rows != 0 {
+		t.Fatalf("client rows after delete = %d, %v; want 0", rows, err)
+	}
+}

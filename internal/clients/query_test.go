@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/platform/database"
 )
 
 // queryCase is one list request and the display names it returns, in order.
@@ -189,11 +188,9 @@ func exerciseClientQueries(t *testing.T, f fixture) {
 		}
 	}
 
-	// Archived clients leave every list. The archive use case lands in #303, so
-	// this sets the column directly.
-	if _, err := f.db.ExecContext(f.ctx, database.Rebind(f.service.driver,
-		"UPDATE clients SET archived_at = ? WHERE id = ?"), "2026-02-01T00:00:00.000000000Z", int64(eve.ID)); err != nil {
-		t.Fatal(err)
+	// Archived clients leave every list.
+	if _, err := f.service.Archive(f.ctx, f.owner, f.workspaceID, eve.ID, identity.AuditContext{}); err != nil {
+		t.Fatalf("Archive() error = %v", err)
 	}
 	if got := listNamesForQuery(t, f, SortInput{}); !slices.Equal(got, []string{"Fay", "Dan", "Cy", "Bea", "Ada"}) {
 		t.Fatalf("default order with an archived client = %v", got)
