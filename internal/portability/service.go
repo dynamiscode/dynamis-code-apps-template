@@ -33,8 +33,66 @@ type Export struct {
 	Workspace     Workspace    `json:"workspace"`
 	Members       []Member     `json:"members"`
 	Items         []items.Item `json:"items"`
-	AuditEvents   []AuditEvent `json:"auditEvents"`
-	Excluded      []string     `json:"excluded"`
+	// ClientExport adds the additive client keys. It is nil, and the keys are
+	// absent, unless a ClientSource is wired (the Clients profile).
+	*ClientExport
+	AuditEvents []AuditEvent `json:"auditEvents"`
+	Excluded    []string     `json:"excluded"`
+}
+
+// ClientSource supplies the client section of an export. Only the Clients
+// profile implements it. Bootstrap passes it through WithClients, and generation
+// without that profile removes the call.
+type ClientSource interface {
+	ExportClients(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID, limit int) (ClientExport, error)
+}
+
+// ClientExport is the additive client section of dynamis-code.workspace/v1.
+// Its keys are documented in docs/data-lifecycle.md.
+type ClientExport struct {
+	Clients            []ClientRecord      `json:"clients"`
+	ClientFields       []ClientField       `json:"clientFields"`
+	ClientFieldOptions []ClientFieldOption `json:"clientFieldOptions"`
+}
+
+// The client record types are declared here, not in the Clients package, so
+// this package does not import internal/clients. The generator prunes that
+// package from apps without the Clients profile, and the export ships in every
+// app. IDs are short IDs.
+
+// ClientRecord is one client. CustomValues is keyed by field short ID.
+type ClientRecord struct {
+	ID              string               `json:"id"`
+	WorkspaceID     identity.WorkspaceID `json:"workspaceId"`
+	CreatedByUserID *identity.UserID     `json:"createdByUserId"`
+	DisplayName     string               `json:"displayName"`
+	Email           string               `json:"email"`
+	Phone           string               `json:"phone"`
+	Notes           string               `json:"notes"`
+	ArchivedAt      *time.Time           `json:"archivedAt"`
+	Version         int64                `json:"version"`
+	CreatedAt       time.Time            `json:"createdAt"`
+	UpdatedAt       time.Time            `json:"updatedAt"`
+	CustomValues    map[string]string    `json:"customValues"`
+}
+
+// ClientField is a workspace-defined custom field, archived ones included.
+type ClientField struct {
+	ID          string               `json:"id"`
+	WorkspaceID identity.WorkspaceID `json:"workspaceId"`
+	Label       string               `json:"label"`
+	Type        string               `json:"type"`
+	ArchivedAt  *time.Time           `json:"archivedAt"`
+	CreatedAt   time.Time            `json:"createdAt"`
+	UpdatedAt   time.Time            `json:"updatedAt"`
+}
+
+// ClientFieldOption is one choice of a single-choice client field.
+type ClientFieldOption struct {
+	ID        string    `json:"id"`
+	FieldID   string    `json:"fieldId"`
+	Label     string    `json:"label"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 type Workspace struct {
@@ -72,6 +130,7 @@ type Service struct {
 	driver           config.DatabaseDriver
 	identity         *identity.Service
 	items            *items.Service
+	clients          ClientSource
 	maxRecords       int
 	maxBytes         int
 	maxImportRecords int
@@ -95,6 +154,13 @@ func NewService(
 		maxImportRecords: maxImportRecords, maxImportBytes: maxImportBytes,
 		now: time.Now,
 	}
+}
+
+// WithClients adds the client section to exports. Bootstrap calls it only in
+// apps composed with the Clients profile.
+func (s *Service) WithClients(source ClientSource) *Service {
+	s.clients = source
+	return s
 }
 
 type ImportInput struct {
@@ -300,10 +366,20 @@ func (s *Service) Export(
 	if result.Items, err = s.itemRecords(ctx, tx, workspaceID); err != nil {
 		return nil, err
 	}
+	if s.clients != nil {
+		section, err := s.clients.ExportClients(ctx, tx, workspaceID, s.maxRecords+1)
+		if err != nil {
+			return nil, err
+		}
+		result.ClientExport = &section
+	}
 	if result.AuditEvents, err = s.auditEvents(ctx, tx, workspaceID); err != nil {
 		return nil, err
 	}
 	records := 1 + len(result.Members) + len(result.Items) + len(result.AuditEvents)
+	if result.ClientExport != nil {
+		records += len(result.Clients) + len(result.ClientFields) + len(result.ClientFieldOptions)
+	}
 	encoded, encodeErr := json.Marshal(result)
 	if records > s.maxRecords || (encodeErr == nil && len(encoded) > s.maxBytes) {
 		if err := s.recordAudit(ctx, tx, actor, workspaceID, "failure", audit, result.ExportedAt); err != nil {

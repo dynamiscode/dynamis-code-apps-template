@@ -299,4 +299,26 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 	if err := runCommand(output, "go", "build", "./..."); err != nil {
 		t.Fatalf("generated application without Clients does not build: %v", err)
 	}
+	// The export ships in every app, so a Clients-off app must not query client tables
+	// or wire a client exporter.
+	for _, dir := range []string{"internal/portability", "internal/bootstrap"} {
+		files, err := filepath.Glob(filepath.Join(output, dir, "*.go"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, file := range files {
+			raw, err := os.ReadFile(file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, retained := range []string{"client_fields", "client_field_options", "FROM clients", "WithClients(clientService)"} {
+				if strings.Contains(string(raw), retained) {
+					t.Errorf("generated application without Clients retains %q in %s", retained, file)
+				}
+			}
+		}
+	}
+	if err := runCommand(output, "go", "test", "./..."); err != nil {
+		t.Fatalf("generated application without Clients does not pass its tests: %v", err)
+	}
 }
