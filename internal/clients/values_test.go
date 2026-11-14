@@ -154,7 +154,7 @@ func TestFieldTypeLocksOnceAnyClientHoldsAValue(t *testing.T) {
 	field := defineTextField(t, f, "Source")
 	client := createClientForValues(t, f, "Ada")
 
-	if err := f.service.setFieldType(f.ctx, f.owner, f.workspaceID, field.ID, "number", identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+	if err := f.service.setFieldType(f.ctx, f.owner, f.workspaceID, field.ID, "single_choice", identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("unlocked change to unsupported type error = %v, want ErrInvalidInput", err)
 	}
 	if err := f.service.setFieldType(f.ctx, f.member, f.workspaceID, field.ID, "number", identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
@@ -172,8 +172,8 @@ func TestFieldTypeLocksOnceAnyClientHoldsAValue(t *testing.T) {
 	if _, err := f.service.ClearValue(f.ctx, f.member, f.workspaceID, client.ID, set.Version, field.ID, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := f.service.setFieldType(f.ctx, f.owner, f.workspaceID, field.ID, "number", identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
-		t.Fatalf("change after clearing error = %v, want ErrInvalidInput (lock lifted)", err)
+	if err := f.service.setFieldType(f.ctx, f.owner, f.workspaceID, field.ID, FieldTypeDate, identity.AuditContext{}); err != nil {
+		t.Fatalf("change after clearing error = %v, want nil (lock lifted)", err)
 	}
 }
 

@@ -241,10 +241,13 @@ session values, invitation values, connection strings, and signed URLs.
   stores a text value (`{"value": "..."}`, 1 to 500 characters after trimming) and
   `DELETE` on the same path clears it. Both need `If-Match` with the client ETag and
   return the client with a new ETag. Archived fields refuse writes. A blank value
-  is refused; use `DELETE` to clear.
+  is refused; use `DELETE` to clear. A value is returned as text: a canonical
+  decimal for `number`, `YYYY-MM-DD` for `date`, and `true` or `false` for
+  `yes_no`.
 - Client custom fields: `GET` and `POST /api/v1/workspaces/{workspaceId}/client-fields`
-  list fields (archived ones only with `includeArchived=true`) and define a text
-  field. `POST .../client-fields/{fieldId}/archive` and `.../restore` change a
+  list fields (archived ones only with `includeArchived=true`) and define a text,
+  number, date, or yes/no field (`type`: `text`, `number`, `date`, or `yes_no`).
+  `POST .../client-fields/{fieldId}/archive` and `.../restore` change a
   field's archive state. These writes need the owner or admin role. A field has
   no slot in responses. Refused definitions return `resource-limit` (409) when
   `CLIENT_FIELDS_MAX_PER_WORKSPACE` is reached.

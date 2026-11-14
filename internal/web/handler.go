@@ -283,6 +283,13 @@ func newHandler(
 		return nil, err
 	}
 	templates, err := template.New("root").Funcs(template.FuncMap{
+		// deref reads an optional string, such as a client value, as text.
+		"deref": func(value *string) string {
+			if value == nil {
+				return ""
+			}
+			return *value
+		},
 		"dict": func(values ...any) map[string]any {
 			result := make(map[string]any, len(values)/2)
 			for index := 0; index+1 < len(values); index += 2 {

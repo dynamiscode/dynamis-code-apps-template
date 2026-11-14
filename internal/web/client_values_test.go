@@ -81,6 +81,70 @@ func TestClientValuesSetAndClearThroughForms(t *testing.T) {
 	}
 }
 
+func TestClientValuesUseTypedInputsAndValidate(t *testing.T) {
+	env := newClientsTestEnv(t)
+	created := request(env.routes, http.MethodPost, env.listPath(), url.Values{
+		"csrf": {env.csrf}, "display_name": {"Ada"},
+	}, env.cookies, nil)
+	if created.Code != http.StatusSeeOther {
+		t.Fatalf("create client = %d: %s", created.Code, created.Body.String())
+	}
+	detail := created.Header().Get("Location")
+	fieldsPath := "/workspaces/" + env.workspaceID.String() + "/client-fields"
+	for _, fieldType := range []string{"number", "date", "yes_no"} {
+		defined := request(env.routes, http.MethodPost, fieldsPath, url.Values{
+			"csrf": {env.csrf}, "label": {"Field " + fieldType}, "type": {fieldType},
+		}, env.cookies, nil)
+		if defined.Code != http.StatusSeeOther {
+			t.Fatalf("define %s field = %d: %s", fieldType, defined.Code, defined.Body.String())
+		}
+	}
+	fieldIDs := map[string]string{}
+	rows, err := env.db.Query("SELECT id, field_type FROM client_fields")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var key int64
+		var fieldType string
+		if err := rows.Scan(&key, &fieldType); err != nil {
+			t.Fatal(err)
+		}
+		fieldIDs[fieldType] = clients.FieldID(key).String()
+	}
+	if err := rows.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	page := request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
+	for _, want := range []string{`type="number"`, `type="date"`, `<option value="true">`, `<option value="false">`} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("detail page lacks %s: %s", want, page)
+		}
+	}
+
+	invalid := request(env.routes, http.MethodPost, detail+"/values/"+fieldIDs["number"], url.Values{
+		"csrf": {env.csrf}, "version": {"1"}, "value": {"abc"},
+	}, env.cookies, nil)
+	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "The value is invalid.") {
+		t.Fatalf("invalid number = %d, want 422 with the invalid-value message: %s", invalid.Code, invalid.Body.String())
+	}
+	yes := request(env.routes, http.MethodPost, detail+"/values/"+fieldIDs["yes_no"], url.Values{
+		"csrf": {env.csrf}, "version": {"1"}, "value": {"true"},
+	}, env.cookies, nil)
+	if yes.Code != http.StatusSeeOther {
+		t.Fatalf("set yes/no = %d: %s", yes.Code, yes.Body.String())
+	}
+	shown := request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
+	if !strings.Contains(shown, `<option value="true" selected>`) {
+		t.Fatalf("stored yes/no value is not selected: %s", shown)
+	}
+	viewerPage := request(env.routes, http.MethodGet, detail, nil, env.viewerCookies, nil).Body.String()
+	if !strings.Contains(viewerPage, "<dd>Yes</dd>") {
+		t.Fatalf("viewer does not see the yes/no value as Yes: %s", viewerPage)
+	}
+}
+
 func TestClientValuesShowReadOnlyToViewersAndRefuseTheirWrites(t *testing.T) {
 	env := newClientsTestEnv(t)
 	created := request(env.routes, http.MethodPost, env.listPath(), url.Values{
