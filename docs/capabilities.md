@@ -566,7 +566,7 @@ REST, MCP, web, audit, and portability output are short IDs. `external_identitie
 keep text keys. Migrations 000002, 000003, 000005, 000007, 000012, 000013, 000014, 000015,
 000016, and 000020 are rewritten in place under the
 [recorded exception](decisions/exceptions/2026-11-13-users-short-id-migration-rewrite.md),
-which is `proposed` until the owner approves it.
+which is `accepted`.
 
 - Covered: `TestSQLiteUserKeysUseIntegerReferences` and
   `TestPostgresUserKeysUseIntegerReferences` check `users.id` and the 21 referencing
@@ -611,7 +611,7 @@ replaced by `target_type` (the registry type code) and `target_key BIGINT`.
 `principal_key BIGINT`. `background_jobs.deduplication_key` is `BIGINT`, the webhook
 delivery key. Migrations 000002, 000003, 000010, and 000013 are rewritten in place under
 the [recorded exception](decisions/exceptions/2026-11-13-audit-idempotency-job-key-rewrite.md),
-which is `proposed` until the owner approves it.
+which is `accepted`.
 
 - Covered: `TestSQLiteShortIDKeyColumns` and `TestPostgresShortIDKeyColumns` check
   the typed columns and that `audit_events.target_id` and `idempotency_records.principal_id`
@@ -949,5 +949,6 @@ credentials and protocol state.
   passed with no drift, and `make docker-smoke` was not run (no runtime change).
 - Passed: `make test`, `make lint`, `make generate-check`, and `make doc-links`
   on branch `docs-short-id-196`.
-- Owner approval: ADR 0011 and its two points, on 2026-11-13. Owner approval of the
-  audit and idempotency exception remains pending; no exception status changed here.
+- Owner approval: ADR 0011 and its two points, on 2026-11-13. The audit and idempotency
+  exception was accepted by the owner and security owner on 2026-11-13 (PR #288); this
+  change does not touch it.

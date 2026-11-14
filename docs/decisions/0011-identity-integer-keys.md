@@ -108,7 +108,7 @@ Costs
 - Applied migrations were rewritten in place for these keys. The migrations
   and the recorded exceptions are listed in
   [architecture](../architecture.md#ids-time-and-transactions). Upgrading resets
-  existing data. The audit and idempotency exception is `proposed`.
+  existing data. The audit and idempotency exception is `accepted`.
 - Audit target type names changed. `scim_user`, `api_token`, `public_share`,
   `passkey`, and `workspace_email` became `user`, `token`, `public_link`,
   `mfa_passkey`, and `workspace`. The MCP audit metadata field `token_id` is
