@@ -20,6 +20,33 @@ import (
 
 const maxResponseBytes = 1 << 20
 
+const usageLine = "usage: appctl <items|clients|fields> <command> [flags]"
+
+// collections maps each resource to its collection path under a workspace.
+var collections = map[string]string{
+	"items":   "/items",
+	"clients": "/clients",
+	"fields":  "/client-fields",
+}
+
+// commandFlags names the flags each "resource command" accepts, beyond the
+// connection flags that every command takes.
+var commandFlags = map[string][]string{
+	"items list":        {"status", "search", "cursor", "sort", "limit"},
+	"items get":         {"item"},
+	"items create":      {"title", "idempotency-key"},
+	"items update":      {"item", "version", "set-title", "set-status"},
+	"items delete":      {"item", "version"},
+	"clients list":      {"archived", "filter", "sort", "cursor", "limit"},
+	"clients show":      {"client"},
+	"clients create":    {"display-name", "email", "phone", "notes"},
+	"clients edit":      {"client", "version", "set-display-name", "set-email", "set-phone", "set-notes"},
+	"clients archive":   {"client"},
+	"clients unarchive": {"client"},
+	"fields define":     {"label", "type"},
+	"fields archive":    {"field"},
+}
+
 type options struct {
 	baseURL string
 	token   string
@@ -37,16 +64,29 @@ func (value *optionalString) Set(raw string) error {
 	return nil
 }
 
+// multiValue is a flag that may repeat; the values keep their order.
+type multiValue []string
+
+func (values *multiValue) String() string { return strings.Join(*values, ",") }
+func (values *multiValue) Set(raw string) error {
+	*values = append(*values, raw)
+	return nil
+}
+
 func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) int {
-	if len(args) < 2 || args[0] != "items" {
-		return usage(stderr, "usage: appctl items <list|get|create|update|delete> [flags]")
+	if len(args) < 2 {
+		return usage(stderr, usageLine)
 	}
-	command := args[1]
-	if command != "list" && command != "get" && command != "create" &&
-		command != "update" && command != "delete" {
-		return usage(stderr, "unknown items command")
+	resource, command := args[0], args[1]
+	if _, ok := collections[resource]; !ok {
+		return usage(stderr, usageLine)
 	}
-	flags := flag.NewFlagSet("appctl items "+command, flag.ContinueOnError)
+	key := resource + " " + command
+	allowed, known := commandFlags[key]
+	if !known {
+		return usage(stderr, "unknown "+resource+" command")
+	}
+	flags := flag.NewFlagSet("appctl "+key, flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	defaultTimeout := 30 * time.Second
 	if raw := getenv("APPCTL_TIMEOUT"); raw != "" {
@@ -69,25 +109,40 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 	status := flags.String("status", "", "item status")
 	search := flags.String("search", "", "case-insensitive title substring")
 	cursor := flags.String("cursor", "", "page cursor")
-	sort := flags.String("sort", "-created_at", "created_at or -created_at")
+	defaultSort := ""
+	if resource == "items" {
+		defaultSort = "-created_at"
+	}
+	sort := flags.String("sort", defaultSort, "sort order")
 	limit := flags.Int("limit", 50, "page size")
-	version := flags.Int64("version", 0, "item version")
+	version := flags.Int64("version", 0, "record version")
 	idempotencyKey := flags.String("idempotency-key", "", "caller-generated idempotency key")
 	var updateTitle, updateStatus optionalString
 	flags.Var(&updateTitle, "set-title", "new title")
 	flags.Var(&updateStatus, "set-status", "active or complete")
+	clientID := flags.String("client", "", "client short ID")
+	fieldID := flags.String("field", "", "client field short ID")
+	displayName := flags.String("display-name", "", "client display name")
+	email := flags.String("email", "", "client email")
+	phone := flags.String("phone", "", "client phone")
+	notes := flags.String("notes", "", "client notes")
+	archived := flags.String("archived", "", "active, archived, or all (default active)")
+	var filters multiValue
+	flags.Var(&filters, "filter", "field:operator:value condition; repeat to combine with AND")
+	var setDisplayName, setEmail, setPhone, setNotes optionalString
+	flags.Var(&setDisplayName, "set-display-name", "new display name")
+	flags.Var(&setEmail, "set-email", "new email; empty clears it")
+	flags.Var(&setPhone, "set-phone", "new phone; empty clears it")
+	flags.Var(&setNotes, "set-notes", "new notes; empty clears them")
+	label := flags.String("label", "", "field label")
+	fieldType := flags.String("type", "", "text, number, date, yes_no, or single_choice")
 	if err := flags.Parse(args[2:]); err != nil || len(flags.Args()) != 0 {
 		return usage(stderr, "flags are invalid")
 	}
 	allowedFlags := map[string]bool{
 		"base-url": true, "token": true, "timeout": true, "workspace": true,
 	}
-	for _, name := range map[string][]string{
-		"list": {"status", "search", "cursor", "sort", "limit"},
-		"get":  {"item"}, "create": {"title", "idempotency-key"},
-		"update": {"item", "version", "set-title", "set-status"},
-		"delete": {"item", "version"},
-	}[command] {
+	for _, name := range allowed {
 		allowedFlags[name] = true
 	}
 	invalidFlag := false
@@ -102,11 +157,11 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 	if !validShortID(*workspaceID) {
 		return usage(stderr, "--workspace must be a workspace short ID")
 	}
-	path := "/api/v1/workspaces/" + *workspaceID + "/items"
+	path := "/api/v1/workspaces/" + *workspaceID + collections[resource]
 	method, body := http.MethodGet, any(nil)
 	headers := make(http.Header)
-	switch command {
-	case "list":
+	switch key {
+	case "items list":
 		if *limit < 1 || *limit > 100 || (*status != "" && *status != "active" && *status != "complete") ||
 			(*search != "" && (!utf8.ValidString(*search) || strings.TrimSpace(*search) == "" || utf8.RuneCountInString(strings.TrimSpace(*search)) > 100)) ||
 			(*sort != "created_at" && *sort != "-created_at") {
@@ -125,18 +180,18 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 			query.Set("cursor", *cursor)
 		}
 		path += "?" + query.Encode()
-	case "get":
+	case "items get":
 		if !validShortID(*itemID) {
 			return usage(stderr, "--item must be an item short ID")
 		}
 		path += "/" + *itemID
-	case "create":
+	case "items create":
 		if strings.TrimSpace(*title) == "" || *idempotencyKey == "" {
 			return usage(stderr, "create requires --title and --idempotency-key")
 		}
 		method, body = http.MethodPost, map[string]string{"title": *title}
 		headers.Set("Idempotency-Key", *idempotencyKey)
-	case "update":
+	case "items update":
 		if !validShortID(*itemID) || *version < 1 || (!updateTitle.set && !updateStatus.set) {
 			return usage(stderr, "update requires --item, --version, and --set-title or --set-status")
 		}
@@ -152,12 +207,91 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 		}
 		method, body, path = http.MethodPatch, values, path+"/"+*itemID
 		headers.Set("If-Match", fmt.Sprintf(`"v%d"`, *version))
-	case "delete":
+	case "items delete":
 		if !validShortID(*itemID) || *version < 1 {
 			return usage(stderr, "delete requires --item and --version")
 		}
 		method, path = http.MethodDelete, path+"/"+*itemID
 		headers.Set("If-Match", fmt.Sprintf(`"v%d"`, *version))
+	case "clients list":
+		if *limit < 1 || *limit > 100 || (*archived != "" && *archived != "active" && *archived != "archived" && *archived != "all") {
+			return usage(stderr, "list flags are invalid")
+		}
+		query := make(url.Values)
+		query.Set("limit", strconv.Itoa(*limit))
+		if *sort != "" {
+			query.Set("sort", *sort)
+		}
+		if *archived != "" {
+			query.Set("archived", *archived)
+		}
+		if *cursor != "" {
+			query.Set("cursor", *cursor)
+		}
+		for _, filter := range filters {
+			query.Add("filter", filter)
+		}
+		path += "?" + query.Encode()
+	case "clients show":
+		if !validShortID(*clientID) {
+			return usage(stderr, "--client must be a client short ID")
+		}
+		path += "/" + *clientID
+	case "clients create":
+		if strings.TrimSpace(*displayName) == "" {
+			return usage(stderr, "create requires --display-name")
+		}
+		payload := map[string]string{"displayName": *displayName}
+		if *email != "" {
+			payload["email"] = *email
+		}
+		if *phone != "" {
+			payload["phone"] = *phone
+		}
+		if *notes != "" {
+			payload["notes"] = *notes
+		}
+		method, body = http.MethodPost, payload
+	case "clients edit":
+		if !validShortID(*clientID) || *version < 1 ||
+			(!setDisplayName.set && !setEmail.set && !setPhone.set && !setNotes.set) {
+			return usage(stderr, "edit requires --client, --version, and at least one --set- flag")
+		}
+		values := make(map[string]string)
+		if setDisplayName.set {
+			values["displayName"] = setDisplayName.value
+		}
+		if setEmail.set {
+			values["email"] = setEmail.value
+		}
+		if setPhone.set {
+			values["phone"] = setPhone.value
+		}
+		if setNotes.set {
+			values["notes"] = setNotes.value
+		}
+		method, body, path = http.MethodPatch, values, path+"/"+*clientID
+		headers.Set("If-Match", fmt.Sprintf(`"v%d"`, *version))
+	case "clients archive", "clients unarchive":
+		if !validShortID(*clientID) {
+			return usage(stderr, "--client must be a client short ID")
+		}
+		method, path = http.MethodPost, path+"/"+*clientID+"/"+command
+	case "fields define":
+		if strings.TrimSpace(*label) == "" || *fieldType == "" {
+			return usage(stderr, "define requires --label and --type")
+		}
+		switch *fieldType {
+		case "text", "number", "date", "yes_no", "single_choice":
+		default:
+			return usage(stderr, "--type must be text, number, date, yes_no, or single_choice")
+		}
+		method, body = http.MethodPost, map[string]string{"label": *label, "type": *fieldType}
+	case "fields archive":
+		if !validShortID(*fieldID) {
+			return usage(stderr, "--field must be a client field short ID")
+		}
+		method, path = http.MethodPost, path+"/"+*fieldID+"/archive"
 	}
 	return execute(common, base.ResolveReference(&url.URL{Path: pathWithoutQuery(path), RawQuery: rawQuery(path)}), method, body, headers, stdout, stderr)
 }

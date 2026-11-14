@@ -279,9 +279,21 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		"internal/platform/database/migrations/000022_clients.sql",
 		"internal/web/clients_events.go",
 		"internal/mcpserver/clients.go", "internal/mcpserver/clients_test.go",
+		"internal/appctl/clients_test.go",
 	} {
 		if _, err := os.Stat(filepath.Join(output, path)); !os.IsNotExist(err) {
 			t.Errorf("generated application without Clients still has %s: %v", path, err)
+		}
+	}
+	// The CLI's client and field commands are Clients wiring, so a Clients-off
+	// CLI keeps no client or field command, flag, or collection.
+	appctlRun, err := os.ReadFile(filepath.Join(output, "internal/appctl/run.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, retained := range []string{`"clients`, `"fields`, "client-fields", "clientID", "fieldID"} {
+		if strings.Contains(string(appctlRun), retained) {
+			t.Errorf("generated appctl without Clients retains %q in run.go", retained)
 		}
 	}
 	for _, path := range []string{"internal/bootstrap/agent.go", "internal/mcpserver/server_test.go"} {

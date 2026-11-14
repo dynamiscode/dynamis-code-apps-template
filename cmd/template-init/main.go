@@ -326,7 +326,8 @@ func clientsPath(relative string) bool {
 		relative == "internal/web/client_lifecycle.go" || relative == "internal/web/client_lifecycle_test.go" ||
 		relative == "internal/mcpserver/clients.go" || relative == "internal/mcpserver/clients_test.go" ||
 		relative == "internal/mcpserver/testdata/clients-tools-v1.json" ||
-		relative == "internal/bootstrap/client_authorization_matrix_test.go"
+		relative == "internal/bootstrap/client_authorization_matrix_test.go" ||
+		relative == "internal/appctl/clients_test.go"
 }
 
 // disableClientsSource removes Clients wiring from shared files when the profile
@@ -341,6 +342,34 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.ReplaceAll(value, " clientService,", "")
 		value = strings.ReplaceAll(value, ").WithClients(clientService)", ")")
 		value = removeLineStarting(value, "\twebHandler.EnableClients(")
+	case "internal/appctl/run.go":
+		// The client and field commands call the Clients REST routes, which a
+		// Clients-off application does not serve. Each command's collection, its
+		// command table row, its flags, and its switch cases go; items stay.
+		// The switch cases go first: their header lines also match the command-table
+		// filter below.
+		value = removeText(value, "\tcase \"clients list\":", "\t}\n\treturn execute(")
+		value = strings.ReplaceAll(value, "<items|clients|fields>", "<items>")
+		value = removeLinesContaining(value, `"clients": "/clients",`)
+		value = removeLinesContaining(value, `"fields":  "/client-fields",`)
+		value = removeLinesContaining(value, `"clients `)
+		value = removeLinesContaining(value, `"fields `)
+		value = removeLinesContaining(value, "clientID := flags.String(")
+		value = removeLinesContaining(value, "fieldID := flags.String(")
+		value = removeLinesContaining(value, "displayName := flags.String(")
+		value = removeLinesContaining(value, "email := flags.String(")
+		value = removeLinesContaining(value, "phone := flags.String(")
+		value = removeLinesContaining(value, "notes := flags.String(")
+		value = removeLinesContaining(value, "archived := flags.String(")
+		value = removeLinesContaining(value, "var filters multiValue")
+		value = removeLinesContaining(value, "flags.Var(&filters,")
+		value = removeLinesContaining(value, "var setDisplayName, setEmail, setPhone, setNotes optionalString")
+		value = removeLinesContaining(value, "flags.Var(&setDisplayName,")
+		value = removeLinesContaining(value, "flags.Var(&setEmail,")
+		value = removeLinesContaining(value, "flags.Var(&setPhone,")
+		value = removeLinesContaining(value, "flags.Var(&setNotes,")
+		value = removeLinesContaining(value, "label := flags.String(")
+		value = removeLinesContaining(value, "fieldType := flags.String(")
 	case "internal/httpapi/handler.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, "*clients.Service")
