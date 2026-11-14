@@ -64,6 +64,9 @@ When sources conflict, stop and resolve the contract or decision first.
   invitation values, connection strings, or signed URLs.
 - Record an approved deviation under `docs/decisions/exceptions/` before
   violating an invariant. Expired exceptions are non-conforming.
+- Write approval text in an exception record only when the user tells you to
+  approve it in the current conversation. Never edit an existing approval line
+  on your own.
 
 ## Verification ladder
 
