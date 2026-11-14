@@ -13,9 +13,10 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 )
 
-// TestPostgresClientLifecycle runs the same client rules on PostgreSQL. It is
-// skipped unless POSTGRES_TEST_URL is set.
-func TestPostgresClientLifecycle(t *testing.T) {
+// newPostgresFixture builds a fresh workspace on PostgreSQL with an owner, a
+// member, and a viewer. It skips the test unless POSTGRES_TEST_URL is set.
+func newPostgresFixture(t *testing.T) fixture {
+	t.Helper()
 	databaseURL := os.Getenv("POSTGRES_TEST_URL")
 	if databaseURL == "" {
 		t.Skip("POSTGRES_TEST_URL is not set")
@@ -33,7 +34,7 @@ func TestPostgresClientLifecycle(t *testing.T) {
 	}
 	suffix := time.Now().UTC().Format("20060102150405.000000000")
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	var ownerID, viewerID identity.UserID
+	var ownerID, memberID, viewerID identity.UserID
 	var workspaceID identity.WorkspaceID
 	if err := db.QueryRowContext(ctx,
 		"INSERT INTO users (email, created_at) VALUES ($1, $2) RETURNING id",
@@ -48,6 +49,12 @@ func TestPostgresClientLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := db.QueryRowContext(ctx,
+		"INSERT INTO users (email, created_at) VALUES ($1, $2) RETURNING id",
+		"clients-member-"+suffix+"@example.com", now,
+	).Scan(&memberID); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx,
 		"INSERT INTO workspaces (name, created_at) VALUES ($1, $2) RETURNING id",
 		"Clients PostgreSQL", now,
 	).Scan(&workspaceID); err != nil {
@@ -55,8 +62,8 @@ func TestPostgresClientLifecycle(t *testing.T) {
 	}
 	if _, err := db.ExecContext(ctx, `
 		INSERT INTO workspace_members (workspace_id, user_id, role, created_at)
-		VALUES ($1, $2, 'owner', $3), ($1, $4, 'viewer', $3)
-	`, workspaceID, ownerID, now, viewerID); err != nil {
+		VALUES ($1, $2, 'owner', $3), ($1, $4, 'viewer', $3), ($1, $5, 'member', $3)
+	`, workspaceID, ownerID, now, viewerID, memberID); err != nil {
 		t.Fatal(err)
 	}
 	auth, err := identity.NewService(db, config.Postgres)
@@ -73,7 +80,24 @@ func TestPostgresClientLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	viewer.AuthMethod = "test"
+	member, err := auth.Authorize(ctx, memberID, workspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	member.AuthMethod = "test"
 	service := NewService(db, config.Postgres, auth, 50)
+	return fixture{
+		ctx: ctx, db: db, auth: auth, service: service,
+		owner: owner, member: member, viewer: viewer, workspaceID: workspaceID,
+	}
+}
+
+// TestPostgresClientLifecycle runs the same client rules on PostgreSQL. It is
+// skipped unless POSTGRES_TEST_URL is set.
+func TestPostgresClientLifecycle(t *testing.T) {
+	f := newPostgresFixture(t)
+	ctx, db, auth, service := f.ctx, f.db, f.auth, f.service
+	owner, viewer, workspaceID := f.owner, f.viewer, f.workspaceID
 
 	created, err := service.Create(ctx, owner, workspaceID, Input{DisplayName: "PostgreSQL", Email: "pg@example.com"}, identity.AuditContext{})
 	if err != nil {

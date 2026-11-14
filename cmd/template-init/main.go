@@ -359,6 +359,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "clients.Input")
 		value = removeLinesContaining(value, "h.clients != nil")
 		value = removeLinesContaining(value, "clients.Field")
+		value = removeLinesContaining(value, "clients.Option")
+		value = removeLinesContaining(value, "clientQueryForm")
 		value = removeLinesContaining(value, "clientFieldRow")
 		value = removeLinesContaining(value, "clientValueRow")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/client-fields")

@@ -233,7 +233,8 @@ session values, invitation values, connection strings, and signed URLs.
 - Clients (Clients profile): `GET` and `POST /api/v1/workspaces/{workspaceId}/clients`
   list and create clients. `GET` and `PATCH /api/v1/workspaces/{workspaceId}/clients/{clientId}`
   read and edit one client; `PATCH` requires `If-Match` with the client ETag.
-  The list pages newest first with a cursor and has no free-text search in v1.
+  The list pages newest first by default with a cursor, takes the `sort` and
+  `filter` parameters below, and has no free-text search in v1.
   Client IDs are short IDs. Malformed, integer, unknown, and foreign IDs return
   the same `not-found` problem. Viewers read; members and above write.
 - Client custom values: `GET .../clients/{clientId}/values` lists the active
@@ -244,6 +245,26 @@ session values, invitation values, connection strings, and signed URLs.
   is refused; use `DELETE` to clear. A value is returned as text: a canonical
   decimal for `number`, `YYYY-MM-DD` for `date`, and `true` or `false` for
   `yes_no`.
+- Client list query: `sort=<field>` orders the list by one field, and
+  `sort=-<field>` descends. A field is `displayName`, `email`, `phone`, `notes`,
+  `createdAt`, `updatedAt`, or a custom field's short ID. Number fields sort
+  numerically, and other text sorts by bytes. Empty values sort last in both
+  directions. Ties break by client ID in the same direction.
+  `filter=<field>:<operator>:<value>` may repeat, and conditions combine with AND.
+  The value may contain colons. Operators by field kind:
+  - Text (`displayName`, `email`, `phone`, `notes`, and custom text): `equals` or
+    `contains`. Matching is case-insensitive for ASCII letters only, in both
+    dialects. Non-ASCII letters match as typed.
+  - Number and date: `equals`, `before`, `after`, or `between`. `before` and
+    `after` are strict. `between` takes `from,to` and is inclusive. A number's
+    `equals` compares canonical decimal text, so `10.0` matches `10`.
+  - Yes/no: `equals` with `true` or `false`.
+  - Single choice: `equals` with one or more comma-separated option IDs. It
+    matches any listed option.
+  Clients with an archive time set are excluded. No endpoint sets it yet. A
+  cursor is valid only with the sort and filters that issued it, and a sort or
+  filter that is unknown, archived, or malformed returns `invalid-request` (400).
+  Clients have no free-text search in v1.
 - Client custom fields: `GET` and `POST /api/v1/workspaces/{workspaceId}/client-fields`
   list fields (archived ones only with `includeArchived=true`) and define a text,
   number, date, or yes/no field (`type`: `text`, `number`, `date`, or `yes_no`).

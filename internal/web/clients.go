@@ -3,6 +3,7 @@ package web
 import (
 	"errors"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"example.com/dynamis-code/apps-template/internal/clients"
@@ -39,12 +40,34 @@ func (h *Handler) renderClientList(
 	if !ok {
 		return
 	}
-	page, err := h.clients.List(request.Context(), principal, workspaceID, clients.ListInput{
-		Limit: h.cfg.DefaultPageSize, Cursor: request.URL.Query().Get("cursor"),
-	})
+	query := request.URL.Query()
+	form := clientQueryFromValues(query)
+	page, err := h.clients.List(request.Context(), principal, workspaceID,
+		form.listInput(h.cfg.DefaultPageSize, query.Get("cursor")))
+	if errors.Is(err, clients.ErrInvalidQuery) {
+		status, errorKey, page = http.StatusBadRequest, "clients.query_invalid", clients.Page{}
+	} else if err != nil {
+		h.clientError(writer, request, err)
+		return
+	}
+	fields, err := h.clients.ListFields(request.Context(), principal, workspaceID, clients.ListFieldsInput{})
 	if err != nil {
 		h.clientError(writer, request, err)
 		return
+	}
+	filterOptions, err := h.choiceOptionsFor(request, principal, workspaceID, fields, form.FilterField)
+	if err != nil {
+		h.clientError(writer, request, err)
+		return
+	}
+	nextPath := ""
+	if page.NextCursor != "" {
+		next := url.Values{}
+		for key, values := range query {
+			next[key] = values
+		}
+		next.Set("cursor", page.NextCursor)
+		nextPath = request.URL.Path + "?" + next.Encode()
 	}
 	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
 	if err != nil {
@@ -61,7 +84,8 @@ func (h *Handler) renderClientList(
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		NavPage: "clients", NavSection: "clients",
 		CurrentPath: h.clientsPath(workspaceID),
-		Clients:     page.Clients, NextCursor: page.NextCursor,
+		Clients:     page.Clients, NextCursor: page.NextCursor, NextPath: nextPath,
+		ClientQuery: form, ClientQueryFields: fields, ClientFilterOptions: filterOptions,
 		CanEditClients:  principal.Permissions[identity.ResourcesWrite],
 		ClientDraft:     draft,
 		FieldsPath:      h.clientFieldsPath(workspaceID),
@@ -262,4 +286,57 @@ func (h *Handler) clientError(writer http.ResponseWriter, _ *http.Request, err e
 	default:
 		h.renderError(writer, http.StatusInternalServerError)
 	}
+}
+
+// clientQueryForm holds the list's GET form values. The web list maps them to
+// one sort and at most one filter. A filter with no value is not applied, so
+// choosing a field shows its options before any value is set. A between filter
+// takes FilterValue and FilterValueTo.
+type clientQueryForm struct {
+	Sort          string
+	Order         string
+	FilterField   string
+	FilterOp      string
+	FilterValue   string
+	FilterValueTo string
+}
+
+func clientQueryFromValues(query url.Values) clientQueryForm {
+	return clientQueryForm{
+		Sort: query.Get("sort"), Order: query.Get("order"),
+		FilterField: query.Get("filter_field"), FilterOp: query.Get("filter_op"),
+		FilterValue: query.Get("filter_value"), FilterValueTo: query.Get("filter_value_to"),
+	}
+}
+
+func (form clientQueryForm) listInput(limit int, cursor string) clients.ListInput {
+	input := clients.ListInput{Limit: limit, Cursor: cursor}
+	if form.Sort != "" {
+		input.Sort = clients.SortInput{Field: form.Sort, Descending: form.Order == "desc"}
+	}
+	if form.FilterField != "" && form.FilterValue != "" {
+		value := form.FilterValue
+		if form.FilterOp == clients.OpBetween {
+			value += "," + form.FilterValueTo
+		}
+		input.Filters = []clients.FilterInput{{Field: form.FilterField, Op: form.FilterOp, Value: value}}
+	}
+	return input
+}
+
+// choiceOptionsFor returns the options of the filtered field when it is a
+// single-choice field, so the form can offer them. Other fields return none.
+func (h *Handler) choiceOptionsFor(
+	request *http.Request,
+	principal identity.Principal,
+	workspaceID identity.WorkspaceID,
+	fields []clients.Field,
+	filterField string,
+) ([]clients.Option, error) {
+	for _, field := range fields {
+		if field.ID.String() == filterField && field.Type == clients.FieldTypeSingleChoice {
+			return h.clients.ListOptions(request.Context(), principal, workspaceID, field.ID)
+		}
+	}
+	return nil, nil
 }

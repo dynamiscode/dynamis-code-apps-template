@@ -217,3 +217,56 @@ func mustOwnerPrincipal(t *testing.T, env clientsTestEnv) identity.Principal {
 	}
 	return principal
 }
+
+// The list filters and sorts from an ordinary GET form, for every role that
+// can read. An invalid choice gets a message, not a server error.
+func TestClientsListFilterAndSortFromTheForm(t *testing.T) {
+	env := newClientsTestEnv(t)
+	for _, name := range []string{"Ada", "Bea", "Cy"} {
+		created := request(env.routes, http.MethodPost, env.listPath(), url.Values{
+			"csrf": {env.csrf}, "display_name": {name},
+		}, env.cookies, nil)
+		if created.Code != http.StatusSeeOther {
+			t.Fatalf("create %s = %d", name, created.Code)
+		}
+	}
+	list := func(t *testing.T, query string) (int, string) {
+		t.Helper()
+		response := request(env.routes, http.MethodGet, env.listPath()+query, nil, env.viewerCookies, nil)
+		return response.Code, response.Body.String()
+	}
+	code, body := list(t, "?sort=displayName&order=desc")
+	if code != http.StatusOK || strings.Index(body, ">Cy<") > strings.Index(body, ">Bea<") ||
+		strings.Index(body, ">Bea<") > strings.Index(body, ">Ada<") {
+		t.Fatalf("sorted list = %d: %s", code, body)
+	}
+	code, body = list(t, "?filter_field=displayName&filter_op=contains&filter_value=A")
+	if code != http.StatusOK || !strings.Contains(body, ">Ada<") || !strings.Contains(body, ">Bea<") ||
+		strings.Contains(body, ">Cy<") {
+		t.Fatalf("filtered list = %d: %s", code, body)
+	}
+	if !strings.Contains(body, `name="filter_op"`) || !strings.Contains(body, `name="sort"`) {
+		t.Fatalf("list lacks the query form: %s", body)
+	}
+	code, body = list(t, "?filter_field=displayName&filter_op=before&filter_value=x")
+	if code != http.StatusBadRequest || !strings.Contains(body, "Choose a valid sort or filter.") {
+		t.Fatalf("invalid filter = %d: %s", code, body)
+	}
+
+	// A choice field's form offers its options, and filtering by one works.
+	service := clients.NewService(env.db, config.SQLite, env.auth, 50)
+	owner := mustOwnerPrincipal(t, env)
+	tier, err := service.DefineField(context.Background(), owner, env.workspaceID,
+		clients.FieldInput{Label: "Tier", Type: clients.FieldTypeSingleChoice}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	gold, err := service.AddOption(context.Background(), owner, env.workspaceID, tier.ID, "Gold", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, body = list(t, "?filter_field="+tier.ID.String()+"&filter_op=equals")
+	if code != http.StatusOK || !strings.Contains(body, `value="`+gold.ID.String()+`"`) || !strings.Contains(body, "Gold") {
+		t.Fatalf("choice form = %d: %s", code, body)
+	}
+}
