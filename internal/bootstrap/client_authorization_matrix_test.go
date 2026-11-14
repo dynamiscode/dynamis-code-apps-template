@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"example.com/dynamis-code/apps-template/internal/appctl"
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
@@ -75,6 +76,9 @@ type clientAuthorizationRow struct {
 	// reported as restOK, the REST status for the same action, and a refusal as
 	// the REST status for its safe message.
 	mcp func(ws matrixWorkspace) matrixRequest
+	// appctl builds the arguments of the appctl command for the action. Rows
+	// without it have no appctl surface. Allowed roles exit 0.
+	appctl func(ws matrixWorkspace) []string
 }
 
 func restBase(ws matrixWorkspace) string { return "/api/v1/workspaces/" + ws.id.String() }
@@ -221,6 +225,9 @@ func matrixStatusOnly(code int, body string) *httptest.ResponseRecorder {
 var clientAuthorizationMatrix = []clientAuthorizationRow{
 	{
 		action: "list clients", allow: allMatrixRoles,
+		appctl: func(ws matrixWorkspace) []string {
+			return []string{"clients", "list", "--workspace", ws.id.String()}
+		},
 		mcp: func(ws matrixWorkspace) matrixRequest {
 			return mcpCall("clients_list_v1", map[string]any{"workspaceId": ws.id.String()})
 		},
@@ -235,6 +242,9 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "get client", allow: allMatrixRoles,
+		appctl: func(ws matrixWorkspace) []string {
+			return []string{"clients", "show", "--workspace", ws.id.String(), "--client", ws.client.String()}
+		},
 		mcp: func(ws matrixWorkspace) matrixRequest {
 			return mcpCall("clients_get_v1", map[string]any{"workspaceId": ws.id.String(), "clientId": ws.client.String()})
 		},
@@ -249,6 +259,9 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "create client", allow: writerRoles,
+		appctl: func(ws matrixWorkspace) []string {
+			return []string{"clients", "create", "--workspace", ws.id.String(), "--display-name", "Matrix"}
+		},
 		mcp: func(ws matrixWorkspace) matrixRequest {
 			return mcpCall("clients_create_v1", map[string]any{"workspaceId": ws.id.String(), "displayName": "Matrix"})
 		},
@@ -263,6 +276,10 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "edit client", allow: writerRoles,
+		appctl: func(ws matrixWorkspace) []string {
+			return []string{"clients", "edit", "--workspace", ws.id.String(), "--client", ws.client.String(),
+				"--version", strconv.FormatInt(ws.version, 10), "--set-display-name", "Edited"}
+		},
 		mcp: func(ws matrixWorkspace) matrixRequest {
 			return mcpCall("clients_update_v1", map[string]any{
 				"workspaceId": ws.id.String(), "clientId": ws.client.String(), "version": ws.version, "displayName": "Edited",
@@ -319,6 +336,9 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "archive client", allow: writerRoles,
+		appctl: func(ws matrixWorkspace) []string {
+			return []string{"clients", "archive", "--workspace", ws.id.String(), "--client", ws.client.String()}
+		},
 		mcp: func(ws matrixWorkspace) matrixRequest {
 			return mcpCall("clients_archive_v1", map[string]any{"workspaceId": ws.id.String(), "clientId": ws.client.String()})
 		},
@@ -333,6 +353,9 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "unarchive client", allow: writerRoles,
+		appctl: func(ws matrixWorkspace) []string {
+			return []string{"clients", "unarchive", "--workspace", ws.id.String(), "--client", ws.archivedClient.String()}
+		},
 		mcp: func(ws matrixWorkspace) matrixRequest {
 			return mcpCall("clients_unarchive_v1", map[string]any{"workspaceId": ws.id.String(), "clientId": ws.archivedClient.String()})
 		},
@@ -361,6 +384,9 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "define field", allow: managerRoles,
+		appctl: func(ws matrixWorkspace) []string {
+			return []string{"fields", "define", "--workspace", ws.id.String(), "--label", "Tier", "--type", "text"}
+		},
 		mcp: func(ws matrixWorkspace) matrixRequest {
 			return mcpCall("client_fields_define_v1", map[string]any{"workspaceId": ws.id.String(), "label": "Tier", "type": "text"})
 		},
@@ -375,6 +401,9 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "archive field", allow: managerRoles,
+		appctl: func(ws matrixWorkspace) []string {
+			return []string{"fields", "archive", "--workspace", ws.id.String(), "--field", ws.archiveField.String()}
+		},
 		mcp: func(ws matrixWorkspace) matrixRequest {
 			return mcpCall("client_fields_archive_v1", map[string]any{"workspaceId": ws.id.String(), "fieldId": ws.archiveField.String()})
 		},
@@ -668,6 +697,47 @@ func serveMatrixWeb(handler http.Handler, actor matrixActor, req matrixRequest) 
 	return response
 }
 
+// refusedCode reports whether a surface's code is a refusal: an HTTP status of
+// 400 or more, or a nonzero appctl exit status.
+func refusedCode(surface string, code int) bool {
+	if surface == "appctl" {
+		return code != 0
+	}
+	return code >= 400
+}
+
+// serveMatrixAppctl runs one appctl command over httptest, authenticated as the
+// actor's API token. The recorder's code is the appctl exit status, which is how
+// the matrix compares it: 0 for success, 3 for authorization, 4 for not found.
+// Stderr on a failure is the server's Problem Details body, so it is marked as
+// one and compared the same way as REST.
+func serveMatrixAppctl(handler http.Handler, actor matrixActor, args []string) *httptest.ResponseRecorder {
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	env := func(key string) string {
+		switch key {
+		case "APPCTL_BASE_URL":
+			return server.URL
+		case "APPCTL_TOKEN":
+			return actor.token
+		default:
+			return ""
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	code := appctl.Run(args, env, &stdout, &stderr)
+	response := httptest.NewRecorder()
+	if code == 0 {
+		response.WriteString(stdout.String())
+	} else {
+		response.Header().Set("Content-Type", "application/problem+json")
+		response.WriteString(stderr.String())
+	}
+	// Set last: writing the body records status 200, which would hide the exit code.
+	response.Code = code
+	return response
+}
+
 // matrixProblem keeps the parts of a Problem Details body that must match
 // between a foreign and a missing record. Request IDs and instances differ per
 // request by design.
@@ -691,14 +761,20 @@ func matrixProblem(t *testing.T, response *httptest.ResponseRecorder) string {
 
 func TestClientAuthorizationMatrix(t *testing.T) {
 	t.Parallel()
+	// denied is the code an out-of-role caller gets: 403 on REST, web, and MCP,
+	// and exit 3, the authorization failure, on appctl. supports, when set, limits
+	// a surface to the rows that define it.
 	surfaces := []struct {
-		name    string
-		allowed func(row clientAuthorizationRow) int
-		call    func(f matrixFixture, actor matrixActor, row clientAuthorizationRow) *httptest.ResponseRecorder
+		name     string
+		allowed  func(row clientAuthorizationRow) int
+		denied   int
+		supports func(row clientAuthorizationRow) bool
+		call     func(f matrixFixture, actor matrixActor, row clientAuthorizationRow) *httptest.ResponseRecorder
 	}{
 		{
 			name:    "rest",
 			allowed: func(row clientAuthorizationRow) int { return row.restOK },
+			denied:  http.StatusForbidden,
 			call: func(f matrixFixture, actor matrixActor, row clientAuthorizationRow) *httptest.ResponseRecorder {
 				return serveMatrixREST(f.app.Handler, actor, row.rest(f.a))
 			},
@@ -706,6 +782,7 @@ func TestClientAuthorizationMatrix(t *testing.T) {
 		{
 			name:    "web",
 			allowed: func(row clientAuthorizationRow) int { return row.webOK },
+			denied:  http.StatusForbidden,
 			call: func(f matrixFixture, actor matrixActor, row clientAuthorizationRow) *httptest.ResponseRecorder {
 				return serveMatrixWeb(f.app.Handler, actor, row.web(f.a))
 			},
@@ -713,13 +790,26 @@ func TestClientAuthorizationMatrix(t *testing.T) {
 		{
 			name:    "mcp",
 			allowed: func(row clientAuthorizationRow) int { return row.restOK },
+			denied:  http.StatusForbidden,
 			call: func(f matrixFixture, actor matrixActor, row clientAuthorizationRow) *httptest.ResponseRecorder {
 				return serveMatrixMCP(f.app.Handler, actor, row.mcp(f.a), row.restOK)
+			},
+		},
+		{
+			name:     "appctl",
+			allowed:  func(clientAuthorizationRow) int { return 0 },
+			denied:   3,
+			supports: func(row clientAuthorizationRow) bool { return row.appctl != nil },
+			call: func(f matrixFixture, actor matrixActor, row clientAuthorizationRow) *httptest.ResponseRecorder {
+				return serveMatrixAppctl(f.app.Handler, actor, row.appctl(f.a))
 			},
 		},
 	}
 	for _, surface := range surfaces {
 		for _, row := range clientAuthorizationMatrix {
+			if surface.supports != nil && !surface.supports(row) {
+				continue
+			}
 			for _, role := range clientAuthorizationRoles {
 				t.Run(surface.name+"/"+row.action+"/"+string(role), func(t *testing.T) {
 					t.Parallel()
@@ -731,8 +821,8 @@ func TestClientAuthorizationMatrix(t *testing.T) {
 						}
 						return
 					}
-					if response.Code != http.StatusForbidden {
-						t.Fatalf("%s %s as %s = %d, want 403: %s", surface.name, row.action, role, response.Code, response.Body.String())
+					if response.Code != surface.denied {
+						t.Fatalf("%s %s as %s = %d, want %d: %s", surface.name, row.action, role, response.Code, surface.denied, response.Body.String())
 					}
 				})
 			}
@@ -746,8 +836,11 @@ func TestClientAuthorizationMatrix(t *testing.T) {
 // permission check in B, so the answer comes from the data layer.
 func TestClientAuthorizationIsolatesWorkspaces(t *testing.T) {
 	t.Parallel()
-	for _, surface := range []string{"rest", "web", "mcp"} {
+	for _, surface := range []string{"rest", "web", "mcp", "appctl"} {
 		for _, row := range clientAuthorizationMatrix {
+			if surface == "appctl" && row.appctl == nil {
+				continue
+			}
 			t.Run(surface+"/"+row.action, func(t *testing.T) {
 				t.Parallel()
 				f := newClientAuthorizationFixture(t)
@@ -757,6 +850,8 @@ func TestClientAuthorizationIsolatesWorkspaces(t *testing.T) {
 						return serveMatrixREST(f.app.Handler, f.bAdmin, row.rest(ws))
 					case "mcp":
 						return serveMatrixMCP(f.app.Handler, f.bAdmin, row.mcp(ws), row.restOK)
+					case "appctl":
+						return serveMatrixAppctl(f.app.Handler, f.bAdmin, row.appctl(ws))
 					}
 					return serveMatrixWeb(f.app.Handler, f.bAdmin, row.web(ws))
 				}
@@ -774,7 +869,7 @@ func TestClientAuthorizationIsolatesWorkspaces(t *testing.T) {
 					row.mcp(foreign).body != row.mcp(missing).body {
 					foreignResponse := call(foreign)
 					missingResponse := call(missing)
-					if foreignResponse.Code < 400 || missingResponse.Code < 400 {
+					if !refusedCode(surface, foreignResponse.Code) || !refusedCode(surface, missingResponse.Code) {
 						t.Fatalf("B admin reached %s with status %d/%d, want a refusal", row.action, foreignResponse.Code, missingResponse.Code)
 					}
 					if foreignResponse.Code != missingResponse.Code || matrixProblem(t, foreignResponse) != matrixProblem(t, missingResponse) {
@@ -797,6 +892,9 @@ func TestClientAuthorizationIsolatesWorkspaces(t *testing.T) {
 				wantOwn := http.StatusNotFound
 				if surface == "mcp" {
 					wantOwn = http.StatusForbidden
+				}
+				if surface == "appctl" {
+					wantOwn = 4 // exit status for not found, per docs/cli.md
 				}
 				ownWorkspace := f.a
 				ownResponse := call(ownWorkspace)
