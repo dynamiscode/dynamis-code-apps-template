@@ -15,9 +15,15 @@ description: Check the private file lifecycle (pending, ready, failed), its quot
 
 - Model: `verification/files/FileUpload.tla`, config `verification/files/FileUpload.cfg`.
 - Bounds: two files, workspace limit 3 bytes, object limit 2 bytes. About 176 distinct states.
-- Actions map to code: `Reserve` is `reserve()` (quota check, then INSERT as pending), `PutObject` and `PutWrongSize` are the stored object (validated by `PutContent`, or a client-chosen size written through the content route), `CompleteAccepts` and `CompleteRejects` are `Complete` and `completeDB`, `Abort` is `markFailed` during `PutContent`, and `Cleanup` is `CleanupStaleFiles`.
+- Actions map to code: `Reserve` is `reserve()` (quota check, then INSERT as pending),
+  `PutObject` stores validated bytes, `PutWrongSize` models a mismatched object
+  rejected by `Complete`, `CompleteAccepts` and `CompleteRejects` are `Complete`
+  and `completeDB`, `Abort` is `markFailed` during `PutContent`, and `Cleanup` is
+  `CleanupStaleFiles`.
 - Each action is treated as one serializable transaction, matching the `SERIALIZABLE` transactions in `service.go`.
-- Abstracted away: MIME types, owners, signed URLs, transient store errors (they leave a file pending, which the model already allows), and real timing for cleanup.
+- Abstracted away: MIME types, owners, signed URLs, and real cleanup timing.
+  Store errors are not modeled; `TestStreamedWriteFailureReleasesPendingQuota`
+  verifies quota release for a failed `PutContent` write.
 
 ## Coverage record
 
