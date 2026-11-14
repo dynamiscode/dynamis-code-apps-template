@@ -321,7 +321,9 @@ func clientsPath(relative string) bool {
 		relative == "internal/httpapi/client_options.go" || relative == "internal/httpapi/client_options_test.go" ||
 		relative == "internal/web/client_options.go" || relative == "internal/web/client_options_test.go" ||
 		relative == "internal/web/templates/client-fields.html" ||
-		relative == "internal/httpapi/client_field_delete_test.go" || relative == "internal/web/client_field_delete_test.go"
+		relative == "internal/httpapi/client_field_delete_test.go" || relative == "internal/web/client_field_delete_test.go" ||
+		relative == "internal/httpapi/client_lifecycle.go" || relative == "internal/httpapi/client_lifecycle_test.go" ||
+		relative == "internal/web/client_lifecycle.go" || relative == "internal/web/client_lifecycle_test.go"
 }
 
 // disableClientsSource removes Clients wiring from shared files when the profile
@@ -349,6 +351,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `"listClientFieldOptions": h.listClientFieldOptions`)
 		value = removeLinesContaining(value, `"deleteClientFieldOption": h.deleteClientFieldOption`)
 		value = removeLinesContaining(value, `"deleteClientField":`)
+		value = removeLinesContaining(value, `"archiveClient":`)
+		value = removeLinesContaining(value, `"deleteClient":`)
 	case "internal/httpapi/handler_test.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = strings.Replace(value, "\n\t\tclients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace))", ")", 1)

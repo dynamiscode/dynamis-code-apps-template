@@ -41,6 +41,7 @@ type Client struct {
 	Email           string               `json:"email"`
 	Phone           string               `json:"phone"`
 	Notes           string               `json:"notes"`
+	ArchivedAt      *time.Time           `json:"archivedAt"`
 	Version         int64                `json:"version"`
 	CreatedAt       time.Time            `json:"createdAt"`
 	UpdatedAt       time.Time            `json:"updatedAt"`
@@ -51,6 +52,8 @@ type ListInput struct {
 	Cursor  string
 	Sort    SortInput
 	Filters []FilterInput
+	// Archived is ArchivedActive when empty, ArchivedOnly, or ArchivedAll.
+	Archived string
 }
 
 // Page is one keyset page of clients, newest first. The cursor is opaque.
@@ -281,9 +284,10 @@ func normalizeUpdate(input *UpdateInput) error {
 	return nil
 }
 
-// List returns one page of clients. Archived clients are excluded. Without a
-// sort the page is newest first. A sort orders by one field with empty values
-// last, and a filter narrows the rows. The cursor binds the sort and filters.
+// List returns one page of clients. The archived selector picks active (the
+// default), archived, or all clients. Without a sort the page is newest first.
+// A sort orders by one field with empty values last, and a filter narrows the
+// rows. The cursor binds the sort, filters, and archived selector.
 func (s *Service) List(
 	ctx context.Context,
 	actor identity.Principal,
@@ -361,7 +365,7 @@ func (s *Service) get(
 	}
 	client, err := scanClient(s.queryRow(ctx, queryer, `
 		SELECT id, workspace_id, created_by_user_id, display_name, email, phone, notes,
-			version, created_at, updated_at
+			version, created_at, updated_at, archived_at
 		FROM clients
 		WHERE workspace_id = ? AND id = ?
 	`, workspaceID, clientID))
@@ -379,9 +383,11 @@ func scanClient(row scanner) (Client, error) {
 	var client Client
 	var createdByUserID sql.NullInt64
 	var createdAt, updatedAt string
+	var archivedAt sql.NullString
 	if err := row.Scan(
 		&client.ID, &client.WorkspaceID, &createdByUserID, &client.DisplayName,
 		&client.Email, &client.Phone, &client.Notes, &client.Version, &createdAt, &updatedAt,
+		&archivedAt,
 	); err != nil {
 		return Client{}, err
 	}
@@ -393,8 +399,17 @@ func scanClient(row scanner) (Client, error) {
 	if client.CreatedAt, err = parseTime(createdAt); err != nil {
 		return Client{}, err
 	}
-	client.UpdatedAt, err = parseTime(updatedAt)
-	return client, err
+	if client.UpdatedAt, err = parseTime(updatedAt); err != nil {
+		return Client{}, err
+	}
+	if archivedAt.Valid {
+		value, err := parseTime(archivedAt.String)
+		if err != nil {
+			return Client{}, err
+		}
+		client.ArchivedAt = &value
+	}
+	return client, nil
 }
 
 // normalizeInput trims the common fields and refuses values outside the rules.

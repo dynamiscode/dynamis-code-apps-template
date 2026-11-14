@@ -257,6 +257,10 @@ The client page shows a value for each active custom field. Members and above
 get one save form per field and a separate clear control; viewers see the values
 read-only. Value writes are CSRF-protected POST forms that redirect to the client
 page, and a stale or refused write re-renders it with a message.
+Members and above see archive and unarchive buttons on the client page. Owners
+and admins also see a confirmed permanent delete, which returns to the list. The
+list form has an archived selector (active, archived, or all), and the next-page
+link keeps it.
 `/workspaces/{workspaceId}/client-fields` lists custom fields, archived ones
 included. Owners and admins see the define form and the archive or restore
 buttons; other roles see the list read-only. Writes are CSRF-protected POST

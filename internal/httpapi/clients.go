@@ -56,13 +56,13 @@ func (h *handler) listClients(writer http.ResponseWriter, request *http.Request)
 	writeJSON(writer, http.StatusOK, page)
 }
 
-// clientListQuery reads the list parameters: limit, cursor, and sort appear
-// once, and filter may repeat. A sort takes a leading minus for descending.
+// clientListQuery reads the list parameters: limit, cursor, sort, and archived
+// appear once, and filter may repeat. A sort takes a leading minus for descending.
 // Each filter is field:operator:value, and the value may contain colons.
 func clientListQuery(query url.Values) (clients.ListInput, bool) {
 	for key, values := range query {
 		switch key {
-		case "limit", "cursor", "sort":
+		case "limit", "cursor", "sort", "archived":
 			if len(values) != 1 || values[0] == "" {
 				return clients.ListInput{}, false
 			}
@@ -74,7 +74,7 @@ func clientListQuery(query url.Values) (clients.ListInput, bool) {
 			return clients.ListInput{}, false
 		}
 	}
-	input := clients.ListInput{Cursor: query.Get("cursor")}
+	input := clients.ListInput{Cursor: query.Get("cursor"), Archived: query.Get("archived")}
 	if raw := query.Get("sort"); raw != "" {
 		input.Sort = clients.SortInput{
 			Field:      strings.TrimPrefix(raw, "-"),

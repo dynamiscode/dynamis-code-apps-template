@@ -233,6 +233,11 @@ session values, invitation values, connection strings, and signed URLs.
 - Clients (Clients profile): `GET` and `POST /api/v1/workspaces/{workspaceId}/clients`
   list and create clients. `GET` and `PATCH /api/v1/workspaces/{workspaceId}/clients/{clientId}`
   read and edit one client; `PATCH` requires `If-Match` with the client ETag.
+  `POST .../clients/{clientId}/archive` sets `archivedAt` and `POST .../unarchive`
+  clears it. Both are idempotent, need write scope (members and above), and return
+  the client with its ETag. `DELETE .../clients/{clientId}` permanently deletes a
+  client and its custom values in one transaction. It needs owner or admin
+  rights and returns `204`. Viewers and members get `forbidden` (403).
   The list pages newest first by default with a cursor, takes the `sort` and
   `filter` parameters below, and has no free-text search in v1.
   Client IDs are short IDs. Malformed, integer, unknown, and foreign IDs return
@@ -261,9 +266,11 @@ session values, invitation values, connection strings, and signed URLs.
   - Yes/no: `equals` with `true` or `false`.
   - Single choice: `equals` with one or more comma-separated option IDs. It
     matches any listed option.
-  Clients with an archive time set are excluded. No endpoint sets it yet. A
-  cursor is valid only with the sort and filters that issued it, and a sort or
-  filter that is unknown, archived, or malformed returns `invalid-request` (400).
+  `archived=<value>` selects which clients the list shows. `active` (the default)
+  excludes archived clients, `archived` shows only archived clients, and `all`
+  shows both. Any other value returns `invalid-request` (400). A cursor is valid
+  only with the sort, filters, and archived value that issued it. A sort or filter
+  that is unknown, archived, or malformed also returns `invalid-request` (400).
   Clients have no free-text search in v1.
 - Client custom fields: `GET` and `POST /api/v1/workspaces/{workspaceId}/client-fields`
   list fields (archived ones only with `includeArchived=true`) and define a text,

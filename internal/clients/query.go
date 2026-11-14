@@ -295,16 +295,27 @@ func asciiLower(value string) string {
 
 // listQuery is one list request's SQL, its arguments, and its sort binding.
 type listQuery struct {
-	sql     string
-	args    []any
-	sortKey string
-	desc    bool
-	sorted  bool
+	sql      string
+	args     []any
+	sortKey  string
+	desc     bool
+	sorted   bool
+	archived string
 }
 
-// buildListQuery turns a request into SQL. Archived clients are always
-// excluded. Filters AND together. A sorted request pages by keyset on the sort
-// value and then the ID, and a cursor must come from this same sort and filters.
+// archivedScope maps the archived selector to one of its values. An empty
+// selector means active, so a request that omits it reads the default list.
+func archivedScope(value string) string {
+	if value == "" {
+		return ArchivedActive
+	}
+	return value
+}
+
+// buildListQuery turns a request into SQL. The archived selector picks active,
+// archived, or all clients. Filters AND together. A sorted request pages by
+// keyset on the sort value and then the ID, and a cursor must come from this
+// same sort, filters, and archived selector.
 func (s *Service) buildListQuery(
 	ctx context.Context,
 	tx *sql.Tx,
@@ -316,7 +327,16 @@ func (s *Service) buildListQuery(
 	if input.Sort.Descending && !query.sorted {
 		return listQuery{}, ErrInvalidQuery
 	}
-	where := []string{"workspace_id = ?", "archived_at IS NULL"}
+	where := []string{"workspace_id = ?"}
+	switch query.archived = archivedScope(input.Archived); query.archived {
+	case ArchivedActive:
+		where = append(where, "archived_at IS NULL")
+	case ArchivedOnly:
+		where = append(where, "archived_at IS NOT NULL")
+	case ArchivedAll:
+	default:
+		return listQuery{}, ErrInvalidQuery
+	}
 	args := []any{workspaceID}
 	for _, filter := range input.Filters {
 		t, err := s.resolveField(ctx, tx, workspaceID, filter.Field)
@@ -369,7 +389,7 @@ func (s *Service) buildListQuery(
 		}
 	}
 	query.sql = "SELECT id, workspace_id, created_by_user_id, display_name, email, phone, notes, " +
-		"version, created_at, updated_at, " + sortExpr + " AS sort_value " +
+		"version, created_at, updated_at, archived_at, " + sortExpr + " AS sort_value " +
 		"FROM clients WHERE " + strings.Join(where, " AND ") + " ORDER BY " + order + " LIMIT ?"
 	query.args = args
 	return query, nil
@@ -382,16 +402,19 @@ type listCursor struct {
 	Sort       string        `json:"sort"`
 	Descending bool          `json:"descending"`
 	Filters    []FilterInput `json:"filters"`
+	Archived   string        `json:"archived"`
 	Value      *string       `json:"value"`
 	ID         int64         `json:"id"`
 }
 
-// checkCursorBinding refuses a cursor from another sort or filter set.
+// checkCursorBinding refuses a cursor from another sort, filter set, or archived
+// selector. A cursor with no selector came from the default list.
 func checkCursorBinding(cursor *listCursor, query listQuery, input ListInput) error {
 	if cursor == nil {
 		return nil
 	}
 	if cursor.Sort != query.sortKey || cursor.Descending != query.desc ||
+		archivedScope(cursor.Archived) != query.archived ||
 		!slices.Equal(cursor.Filters, input.Filters) {
 		return ErrInvalidCursor
 	}
@@ -405,7 +428,8 @@ const maxCursorBytes = 8192
 // encodeListCursor names the last row of a page. The cursor is base64url JSON.
 func encodeListCursor(query listQuery, input ListInput, sortValue sql.NullString, id ClientID) (string, error) {
 	cursor := listCursor{
-		Sort: query.sortKey, Descending: query.desc, Filters: input.Filters, ID: int64(id),
+		Sort: query.sortKey, Descending: query.desc, Filters: input.Filters,
+		Archived: query.archived, ID: int64(id),
 	}
 	if sortValue.Valid {
 		cursor.Value = &sortValue.String
