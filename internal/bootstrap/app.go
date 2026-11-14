@@ -152,7 +152,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		db, cfg.Database.Driver, identityService,
 		cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,
 		cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService,
-	)
+	).WithClients(clientService)
 	instanceMailer, err := appmail.NewSender(cfg.Mail, cfg.Cloudflare)
 	if err != nil {
 		db.Close()

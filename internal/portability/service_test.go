@@ -87,6 +87,16 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if err := json.Unmarshal(encoded, &result); err != nil {
 		t.Fatal(err)
 	}
+	// Without a client source the export has no client keys, so a Clients-off app keeps the v1 shape it had.
+	var keys map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &keys); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"clients", "clientFields", "clientFieldOptions"} {
+		if _, ok := keys[key]; ok {
+			t.Fatalf("export without a client source has key %q", key)
+		}
+	}
 	if result.FormatVersion != FormatVersion || result.Workspace.ID != workspaceID.String() ||
 		result.Workspace.Locale != "es" ||
 		len(result.Members) != 2 || len(result.Items) != 1 || result.Items[0].ID != created.Item.ID ||

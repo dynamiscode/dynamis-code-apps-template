@@ -97,6 +97,18 @@ and an explicit exclusion list. Defaults cap it at 1,000 records and 4 MiB;
 over-limit exports fail with `409 export-limit` and are audited. No server-side
 download copy remains.
 
+The export also includes `clients`, `clientFields`, and `clientFieldOptions`.
+Archived clients and archived fields are included. Each client carries
+`customValues`, keyed by field short ID; internal slot numbers never appear,
+and unset fields are absent. Client, field, and option records count toward
+the record limit. These keys are additive to `dynamis-code.workspace/v1`, as
+the workspace locale was. The version is unchanged because the REST contract
+requires clients to ignore unknown response fields
+([API compatibility](api.md#compatibility)). The importer declares the keys and
+accepts them, but it imports items only. A build that predates these keys
+rejects an export that contains them, because its importer rejects unknown
+JSON fields.
+
 Import supports only item records through `POST /api/v1/workspaces/{workspaceId}/import`.
 Authorized owners and admins with `workspace:update` may submit the versioned
 workspace JSON export or strict UTF-8 `title,status` CSV. Source IDs,

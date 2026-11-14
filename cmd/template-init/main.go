@@ -337,6 +337,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLineStarting(value, "\tclientService := clients.NewService(")
 		value = strings.ReplaceAll(value, " clientService,", "")
+		value = strings.ReplaceAll(value, ").WithClients(clientService)", ")")
 		value = removeLineStarting(value, "\twebHandler.EnableClients(")
 	case "internal/httpapi/handler.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
