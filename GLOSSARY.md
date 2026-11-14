@@ -37,6 +37,12 @@ the source wins and this file gets fixed.
 | Theme preference | A user's profile appearance setting: `system` (follows the OS), `light`, or `dark`. Owned by the user, not the workspace. | [Authentication](docs/authentication.md) |
 | Token | A bearer credential for REST, MCP, or CLI access. Shown once; intersected with the user's current role on every use. | [Authentication](docs/authentication.md#workspace-permissions) |
 | Item | The sample workspace-scoped resource used by the item API and browser. | [API](docs/api.md) |
+| Clients profile | Planned optional profile for workspace clients and their custom fields. Requires Identity and Agent. | [Clients decision](docs/decisions/0013-clients-profile.md) |
+| Client | Planned. A workspace-scoped record of a party the workspace manages, such as a customer. Holds common fields and custom values. | [Clients decision](docs/decisions/0013-clients-profile.md) |
+| Common field | Planned. A fixed client field every workspace has: display name, email, phone, notes, and archived-at. Defined by the template. | [Clients decision](docs/decisions/0013-clients-profile.md) |
+| Custom field | Planned. A client field a workspace defines, typed as text, number, date, yes/no, or single choice. | [Clients decision](docs/decisions/0013-clients-profile.md) |
+| Choice option | Planned. A selectable value of a single-choice custom field. | [Clients decision](docs/decisions/0013-clients-profile.md) |
+| Archive | Planned. Hides a client or custom field from default views and keeps its data. Reversible. A client is archived by setting its archived-at date. | [Clients decision](docs/decisions/0013-clients-profile.md) |
 | Public item sharing | A bounded, browser-only public link to one Item. | [Public sharing decision](docs/decisions/0005-public-sharing.md) |
 | Audit event | An append-only identity record, shown read-only in Settings → Audit history. | [Audit decision](docs/decisions/0006-workspace-audit-history.md) |
 | Export | The authorized `dynamis-code.workspace/v1` workspace export. | [Data lifecycle](docs/data-lifecycle.md) |
