@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/httpapi"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
@@ -15,10 +16,11 @@ func registerAgent(
 	mux *http.ServeMux,
 	identityService *identity.Service,
 	itemService *items.Service,
+	clientService *clients.Service,
 	cfg config.Config,
 ) {
 	mux.Handle("/mcp", httpapi.Wrap(
-		mcpserver.NewHandler(identityService, itemService, cfg.MCP, slog.Default()),
+		mcpserver.NewHandler(identityService, itemService, cfg.MCP, slog.Default(), mcpserver.WithClients(clientService)),
 		cfg.HTTP, slog.Default(),
 	))
 	if metadata := mcpserver.NewProtectedResourceMetadataHandler(cfg.MCP); metadata != nil {

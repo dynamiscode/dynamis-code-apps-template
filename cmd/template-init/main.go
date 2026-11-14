@@ -324,6 +324,8 @@ func clientsPath(relative string) bool {
 		relative == "internal/httpapi/client_field_delete_test.go" || relative == "internal/web/client_field_delete_test.go" ||
 		relative == "internal/httpapi/client_lifecycle.go" || relative == "internal/httpapi/client_lifecycle_test.go" ||
 		relative == "internal/web/client_lifecycle.go" || relative == "internal/web/client_lifecycle_test.go" ||
+		relative == "internal/mcpserver/clients.go" || relative == "internal/mcpserver/clients_test.go" ||
+		relative == "internal/mcpserver/testdata/clients-tools-v1.json" ||
 		relative == "internal/bootstrap/client_authorization_matrix_test.go"
 }
 
@@ -355,6 +357,13 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `"deleteClientField":`)
 		value = removeLinesContaining(value, `"archiveClient":`)
 		value = removeLinesContaining(value, `"deleteClient":`)
+	case "internal/bootstrap/agent.go":
+		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, "*clients.Service")
+		value = strings.ReplaceAll(value, ", mcpserver.WithClients(clientService)", "")
+	case "internal/mcpserver/server_test.go":
+		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, "WithClients(clients.NewService(")
 	case "internal/httpapi/handler_test.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = strings.Replace(value, "\n\t\tclients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace))", ")", 1)
@@ -373,6 +382,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/clients")
 	case "internal/web/templates/navigation.html":
 		value = strings.ReplaceAll(value, `{{if .ClientsEnabled}}<a{{if eq .NavPage "clients"}} class="active" aria-current="page"{{end}} href="/workspaces/{{.Workspace.ID}}/clients">{{.T "clients.title"}}</a>{{end}}`, "")
+	case "docs/mcp.md":
+		value = removeText(value, "\n## Clients tools (Clients profile)", "\n## Prompts\n")
 	case "docs/capabilities.md":
 		value = removeLineStarting(value, "| Clients |")
 	case "docs/api.md":

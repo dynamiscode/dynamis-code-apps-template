@@ -9,7 +9,7 @@ official Go SDK, the stateless MCP `2026-07-28` flow, and bounded legacy
 
 Use the same bearer API tokens as REST. Discovery and read tools require
 `resources:read`; mutation tools require `resources:write`. Every tool calls
-the workspace-scoped item application service. No tool accesses SQL, shell,
+a workspace-scoped application service. No tool accesses SQL, shell,
 filesystem, code execution, or external networks.
 
 ## Tools
@@ -27,6 +27,40 @@ side-effect change requires a new name such as `_v2`. Item outputs retain their
 record after account deletion and return `createdByUserId: null` when the
 creator no longer exists. `createdByUserId` is a user short ID, and the tool
 output schema declares the short-ID pattern.
+
+## Clients tools (Clients profile)
+
+These tools exist only when the Clients profile is composed. Bootstrap passes
+the Clients service to the MCP handler only then, so an application without
+the profile lists only the item tools. Each tool calls the shared Clients
+service, which decides authorization. A refused call returns the safe
+`access is denied` message, the same refusal REST answers with `403`.
+
+| Tools | Scope | Role, decided by the service |
+|---|---|---|
+| `clients_list_v1`, `clients_get_v1`, `clients_values_list_v1` | `resources:read` | any role |
+| `client_fields_list_v1`, `client_field_options_list_v1` | `resources:read` | any role |
+| `clients_create_v1`, `clients_update_v1`, `clients_archive_v1`, `clients_unarchive_v1`, `clients_value_set_v1`, `clients_value_clear_v1` | `resources:write` | members and above |
+| `client_fields_define_v1`, `client_fields_archive_v1`, `client_fields_restore_v1`, `client_field_options_add_v1` | `resources:write` and `workspace:update` | owners and admins |
+| `clients_delete_v1`, `client_fields_delete_v1`, `client_field_options_delete_v1` | `resources:write` and `workspace:update` | owners and admins; destructive, human approval required |
+
+The `workspace:update` scope is a token scope, not only a role. A member cannot
+hold it, so a member's token is refused for those rows. The permanent deletes
+in this section prompt for client-host approval through the same MRTR flow as
+item delete.
+
+- Client and field short IDs are the only identifiers in inputs and outputs.
+  Integer keys are refused by the schema. A malformed or other-type ID is not
+  found, as REST answers it.
+- `clients_list_v1` takes `archived` (`active`, `archived`, or `all`), one
+  `sort` (`field` or `-field`), up to 10 `filters` of `{field, op, value}`
+  (AND-combined), a limit of 1 to 100, and an opaque cursor. The cursor binds
+  the sort, filters, and archived selector.
+- `clients_update_v1` needs `version` and at least one of `displayName`,
+  `email`, `phone`, or `notes`. An empty `email`, `phone`, or `notes` clears
+  it. A stale version returns `client version is stale`.
+- Audit records use the client, field, or option target type with its integer
+  key. Client values are never written to audit metadata.
 
 ## Prompts
 

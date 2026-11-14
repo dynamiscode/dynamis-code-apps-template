@@ -5,14 +5,19 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"go/parser"
+	"go/token"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
 
+	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
@@ -259,6 +264,13 @@ func TestMCPHTTPBoundariesAndLegacyInitialize(t *testing.T) {
 
 func newTestState(t *testing.T, mcpConfig config.MCP) *testState {
 	t.Helper()
+	return newTestStateWith(t, mcpConfig, false)
+}
+
+// newTestStateWith builds the test workspace. withClients composes the Clients
+// service and registers its tools, as bootstrap does when Agent and Clients are composed.
+func newTestStateWith(t *testing.T, mcpConfig config.MCP, withClients bool) *testState {
+	t.Helper()
 	ctx := context.Background()
 	cfg, err := config.LoadFrom(func(string) (string, bool) { return "", false })
 	if err != nil {
@@ -288,15 +300,23 @@ func newTestState(t *testing.T, mcpConfig config.MCP) *testState {
 	if err != nil {
 		t.Fatal(err)
 	}
-	token, err := authService.CreateAPIToken(ctx, actor, "MCP test",
-		[]identity.Permission{identity.ResourcesRead, identity.ResourcesWrite}, nil, identity.AuditContext{})
+	scopes := []identity.Permission{identity.ResourcesRead, identity.ResourcesWrite}
+	if withClients {
+		// Field, option, and permanent client delete need workspace:update, as REST does.
+		scopes = append(scopes, identity.WorkspaceUpdate)
+	}
+	token, err := authService.CreateAPIToken(ctx, actor, "MCP test", scopes, nil, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	var options []Option
+	if withClients {
+		options = append(options, WithClients(clients.NewService(db, cfg.Database.Driver, authService, cfg.Data.ClientFieldsMaxPerWorkspace)))
+	}
 	return &testState{
 		db: db, auth: authService, actor: actor, workspaceID: owner.WorkspaceID.String(), workspaceKey: owner.WorkspaceID, token: token,
-		handler: NewHandler(authService, items.NewService(db, cfg.Database.Driver, authService, cfg.Data.ItemsMaxPerWorkspace), mcpConfig, logger),
+		handler: NewHandler(authService, items.NewService(db, cfg.Database.Driver, authService, cfg.Data.ItemsMaxPerWorkspace), mcpConfig, logger, options...),
 	}
 }
 
@@ -539,5 +559,35 @@ func TestMCPToolsListCacheHints(t *testing.T) {
 	ping := postMCP(state.handler, state.token.Secret, "", `{"jsonrpc":"2.0","id":2,"method":"ping"}`)
 	if strings.Contains(ping.Body.String(), "ttlMs") || strings.Contains(ping.Body.String(), "cacheScope") {
 		t.Fatalf("ping gained cache hints: %s", ping.Body.String())
+	}
+}
+
+// TestMCPPackageHasNoSQLOrShellImports pins the boundary that MCP tools reach
+// data only through application use cases. Non-test files may not import SQL,
+// the database layer, or process execution.
+func TestMCPPackageHasNoSQLOrShellImports(t *testing.T) {
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := token.NewFileSet()
+	for _, name := range files {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		file, err := parser.ParseFile(fset, name, nil, parser.ImportsOnly)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, spec := range file.Imports {
+			path, err := strconv.Unquote(spec.Path.Value)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if path == "database/sql" || strings.HasPrefix(path, "database/sql/") ||
+				path == "os/exec" || strings.HasSuffix(path, "/internal/platform/database") {
+				t.Fatalf("%s imports %s; MCP tools must call application use cases only", name, path)
+			}
+		}
 	}
 }
