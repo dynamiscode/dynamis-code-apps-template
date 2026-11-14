@@ -14,6 +14,7 @@ of what was verified on its date.
 | Identity | conforming | [Phase 02 evidence](#phase-02-evidence) |
 | Agent | conforming | [Phase 05 evidence](#phase-05-evidence) |
 | Files | conforming | [Files evidence](#files-evidence) |
+| Clients | composition only | Profile requirements and short-ID codes: [ADR 0013](decisions/0013-clients-profile.md), template-init tests (`cmd/template-init`), [short-ID registry test](../internal/platform/id/short_test.go); feature not implemented |
 | Production | not applicable | No deployment serves real users or durable data |
 
 `Production` becomes applicable only when a deployment serves real users or

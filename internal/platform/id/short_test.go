@@ -276,3 +276,25 @@ func TestRegistryNamesItemEvents(t *testing.T) {
 	}
 	t.Fatal("item_event is not in the registry")
 }
+
+func TestRegistryNamesClientTypeCodes(t *testing.T) {
+	t.Parallel()
+
+	want := map[TypeCode]string{
+		TypeClient:            "client",
+		TypeClientField:       "client_field",
+		TypeClientFieldOption: "client_field_option",
+	}
+	registered := make(map[TypeCode]bool)
+	for _, code := range TypeCodes() {
+		registered[code] = true
+	}
+	for constant, value := range want {
+		if string(constant) != value {
+			t.Fatalf("type code constant = %q, want %q", constant, value)
+		}
+		if !registered[constant] {
+			t.Fatalf("%q is not in the registry", value)
+		}
+	}
+}
