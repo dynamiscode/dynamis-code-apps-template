@@ -6,7 +6,7 @@ workspace with two files that compete for quota.
 Each action names the code it models:
   Reserve         reserve()                         (service.go ~344-380): quota check, then INSERT as pending
   PutObject       PutContent() store.Put            (service.go ~155-195): validated bytes stored under the reserved size
-  PutWrongSize    presigned PUT of different bytes  (Initiate path, client-controlled object): stored size differs
+  PutWrongSize    mismatched stored object size    (Complete rejects): differs from reservation
   CompleteAccepts Complete()/PutContent() + completeDB() accept path (service.go ~195-243, ~388-441)
   CompleteRejects Complete()/PutContent() markFailed paths (object size or content mismatch)
   Abort           PutContent() markFailed before the object is stored (content invalid)
@@ -16,7 +16,7 @@ Abstractions:
   - Only the sizes matter. Detected MIME, owners, and the signed URL are not modeled.
   - Each action is one serializable transaction (reserve, completeDB) or one check.
     Real code uses SERIALIZABLE transactions (service.go lines 344-441).
-  - A transient store error leaves the file pending. The model does not add it, because it only adds stuttering.
+  - Store errors are not modeled; TestStreamedWriteFailureReleasesPendingQuota separately verifies quota release on a failed PutContent write.
   - Cleanup is allowed at any time. The real rule is "updated before cutoff".
 *)
 EXTENDS Naturals

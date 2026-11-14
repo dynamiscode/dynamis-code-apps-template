@@ -78,8 +78,8 @@ func TestLocalFileLifecycleAndValidation(t *testing.T) {
 	if err := store.Put(context.Background(), service.storedObjectKey(pending), strings.NewReader("123456"), 6, "text/plain"); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := service.PresignedPut(context.Background(), actor, identity.WorkspaceID(999), pending.ID); err != identity.ErrForbidden {
-		t.Fatalf("cross-workspace presign error = %v, want forbidden", err)
+	if _, err := service.PutContent(context.Background(), actor, identity.WorkspaceID(999), pending.ID, strings.NewReader("123456"), identity.AuditContext{}); err != identity.ErrForbidden {
+		t.Fatalf("cross-workspace content write error = %v, want forbidden", err)
 	}
 	if _, err := service.Complete(context.Background(), actor, owner.WorkspaceID, pending.ID, identity.AuditContext{}); err != ErrInvalidInput {
 		t.Fatalf("mismatched external object error = %v, want ErrInvalidInput", err)
@@ -129,14 +129,14 @@ func TestWorkspaceQuotaAndIsolation(t *testing.T) {
 	}
 }
 
-func TestPresignFailureReleasesPendingQuota(t *testing.T) {
+func TestStreamedWriteFailureReleasesPendingQuota(t *testing.T) {
 	db := openTestDB(t)
 	auth, err := identity.NewService(db, config.SQLite)
 	if err != nil {
 		t.Fatal(err)
 	}
 	owner, err := auth.BootstrapFirstOwner(context.Background(), identity.BootstrapInput{
-		Email: "presign@example.com", Password: "long-enough-password", WorkspaceName: "Presign",
+		Email: "streamed-failure@example.com", Password: "long-enough-password", WorkspaceName: "StreamedFailure",
 	}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -145,7 +145,7 @@ func TestPresignFailureReleasesPendingQuota(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	service := NewService(db, config.SQLite, auth, &presignFailureStore{ObjectStore: store}, 5, 5, 0, "")
+	service := NewService(db, config.SQLite, auth, &putFailureStore{ObjectStore: store}, 5, 5, 0, "")
 	actor, err := auth.Authorize(context.Background(), owner.UserID, owner.WorkspaceID, identity.ResourcesWrite)
 	if err != nil {
 		t.Fatal(err)
@@ -156,13 +156,13 @@ func TestPresignFailureReleasesPendingQuota(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := service.PresignedPut(context.Background(), actor, owner.WorkspaceID, file.ID); err == nil {
-		t.Fatal("presign error = nil")
+	if _, err := service.PutContent(context.Background(), actor, owner.WorkspaceID, file.ID, strings.NewReader("hello"), identity.AuditContext{}); err == nil {
+		t.Fatal("content write error = nil")
 	}
 	if _, err := service.Initiate(context.Background(), actor, owner.WorkspaceID, InitiateInput{
 		OriginalName: "two.txt", Size: 5, ContentType: "text/plain",
 	}, identity.AuditContext{}); err != nil {
-		t.Fatalf("quota after presign failure = %v, want available", err)
+		t.Fatalf("quota after content write failure = %v, want available", err)
 	}
 	var count int
 	if err := db.QueryRow("SELECT COUNT(*) FROM files WHERE id = ?", file.ID).Scan(&count); err != nil {
@@ -173,14 +173,12 @@ func TestPresignFailureReleasesPendingQuota(t *testing.T) {
 	}
 }
 
-type presignFailureStore struct {
+type putFailureStore struct {
 	ObjectStore
 }
 
-func (*presignFailureStore) SupportsPresignedPut() bool { return true }
-
-func (*presignFailureStore) PresignPut(context.Context, string, int64, string, time.Duration) (PresignedUpload, error) {
-	return PresignedUpload{}, errors.New("presign failed")
+func (*putFailureStore) Put(context.Context, string, io.Reader, int64, string) error {
+	return errors.New("put failed")
 }
 
 func openTestDB(t *testing.T) *sql.DB {

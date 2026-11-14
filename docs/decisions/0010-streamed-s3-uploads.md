@@ -34,13 +34,11 @@ multipart form path already stream bytes through the application.
 - REST request and response shapes, the 16 MiB per-object and 1 GiB
   per-workspace defaults, the global body limit, and error responses are
   unchanged.
-- The browser uploader moves to the multipart route in a companion change
-  (#271). Until that change lands, the browser's initiate and complete path
-  still uses presigned PUT.
+- The browser uploader uses the multipart route in one request (#271).
 
 This amends the upload clause of ADR 0005, which said S3 flows use presigned
 PUT and GET URLs. The presigned GET clause and the rest of ADR 0005 stand.
-The presigned PUT code and its flag are removed in a follow-up change (#272).
+The presigned PUT code and its support flag were removed in #272; presigned GET remains.
 
 ## Consequences
 

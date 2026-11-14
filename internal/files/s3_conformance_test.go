@@ -61,18 +61,15 @@ func TestS3ConformanceConfiguredEndpoint(t *testing.T) {
 
 // runS3Conformance asserts the object behavior the file service relies on:
 // private objects, round trips, conditional create, not-found normalization,
-// presigned PUT and GET with the requested expiry, and expired URL refusal.
+// presigned GET with the requested expiry, and expired URL refusal.
 // Every object it creates lives under prefix and is deleted at cleanup.
 func runS3Conformance(t *testing.T, store *s3Store, prefix string) {
 	t.Helper()
 	ctx := context.Background()
 	objectKey := prefix + "/object.txt"
-	uploadKey := prefix + "/uploaded.txt"
-	for _, key := range []string{objectKey, uploadKey} {
-		t.Cleanup(func() {
-			_, _ = store.client.DeleteObject(context.Background(), &s3.DeleteObjectInput{Bucket: &store.bucket, Key: &key})
-		})
-	}
+	t.Cleanup(func() {
+		_, _ = store.client.DeleteObject(context.Background(), &s3.DeleteObjectInput{Bucket: &store.bucket, Key: &objectKey})
+	})
 
 	if err := store.Put(ctx, objectKey, strings.NewReader("hello"), 5, "text/plain"); err != nil {
 		t.Fatalf("put: %v", err)
@@ -131,22 +128,6 @@ func runS3Conformance(t *testing.T, store *s3Store, prefix string) {
 	time.Sleep(2100 * time.Millisecond)
 	if status, body := conformanceRequest(t, http.MethodGet, shortURL, nil, nil); status < 400 || body == "hello" {
 		t.Fatalf("expired presigned GET status = %d; expiry must be enforced", status)
-	}
-
-	upload, err := store.PresignPut(ctx, uploadKey, 4, "text/plain", 5*time.Minute)
-	if err != nil {
-		t.Fatalf("presign put: %v", err)
-	}
-	headers := make(http.Header, len(upload.Headers))
-	for name, value := range upload.Headers {
-		headers.Set(name, value)
-	}
-	if status, _ := conformanceRequest(t, http.MethodPut, upload.URL, headers, strings.NewReader("data")); status/100 != 2 {
-		t.Fatalf("presigned PUT status = %d, headers = %v", status, upload.Headers)
-	}
-	uploaded, err := store.Head(ctx, uploadKey)
-	if err != nil || uploaded.Size != 4 {
-		t.Fatalf("uploaded head = %+v, error = %v", uploaded, err)
 	}
 }
 

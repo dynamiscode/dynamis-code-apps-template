@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -92,29 +91,9 @@ func isS3NotFound(err error) bool {
 	return false
 }
 
-func (s *s3Store) PresignPut(ctx context.Context, key string, size int64, contentType string, ttl time.Duration) (PresignedUpload, error) {
-	result, err := s.presign.PresignPutObject(ctx, &s3.PutObjectInput{
-		Bucket: aws.String(s.bucket), Key: aws.String(key),
-		ContentLength: aws.Int64(size), ContentType: aws.String(contentType), IfNoneMatch: aws.String("*"),
-	}, s3.WithPresignExpires(ttl))
-	if err != nil {
-		return PresignedUpload{}, err
-	}
-	headers := make(map[string]string, len(result.SignedHeader))
-	for name, values := range result.SignedHeader {
-		if strings.EqualFold(name, "Host") || len(values) == 0 {
-			continue
-		}
-		headers[name] = values[0]
-	}
-	return PresignedUpload{URL: result.URL, Headers: headers}, nil
-}
-
 // RequiresCompletion is true because a streamed object written through the
 // application is verified by Complete before the file becomes ready.
 func (*s3Store) RequiresCompletion() bool { return true }
-
-func (*s3Store) SupportsPresignedPut() bool { return true }
 
 func (s *s3Store) PresignGet(ctx context.Context, key string, ttl time.Duration) (string, error) {
 	result, err := s.presign.PresignGetObject(ctx, &s3.GetObjectInput{
