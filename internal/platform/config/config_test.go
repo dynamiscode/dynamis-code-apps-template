@@ -308,6 +308,60 @@ func TestLoadFromValidatesBootstrapEnvironment(t *testing.T) {
 	}
 }
 
+func TestLoadFromSetupTokenLengthAndBlankValues(t *testing.T) {
+	tests := []struct {
+		name    string
+		values  map[string]string
+		secret  string
+		want    string
+		wantErr bool
+	}{
+		{name: "unset"},
+		{name: "empty", values: map[string]string{"BOOTSTRAP_SETUP_TOKEN": ""}},
+		{name: "whitespace-only", values: map[string]string{"BOOTSTRAP_SETUP_TOKEN": " \t "}},
+		{
+			name: "arbitrary exact token", values: map[string]string{"BOOTSTRAP_SETUP_TOKEN": "  setup / token!  "},
+			want: "  setup / token!  ",
+		},
+		{
+			name: "1024 code units", values: map[string]string{"BOOTSTRAP_SETUP_TOKEN": strings.Repeat("x", 1024)},
+			want: strings.Repeat("x", 1024),
+		},
+		{
+			name: "1024 UTF-16 code units", values: map[string]string{"BOOTSTRAP_SETUP_TOKEN": strings.Repeat("🔐", 512)},
+			want: strings.Repeat("🔐", 512),
+		},
+		{
+			name: "over 1024 code units", values: map[string]string{"BOOTSTRAP_SETUP_TOKEN": strings.Repeat("x", 1025)},
+			secret: strings.Repeat("x", 1025), wantErr: true,
+		},
+		{
+			name: "over 1024 UTF-16 code units", values: map[string]string{"BOOTSTRAP_SETUP_TOKEN": strings.Repeat("🔐", 513)},
+			secret: strings.Repeat("🔐", 513), wantErr: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cfg, err := LoadFrom(env(test.values))
+			if test.wantErr {
+				if err == nil {
+					t.Fatal("overlong setup token accepted")
+				}
+				if strings.Contains(err.Error(), test.secret) {
+					t.Fatal("setup token leaked in configuration error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("LoadFrom() error = %v", err)
+			}
+			if cfg.Bootstrap.SetupToken != test.want {
+				t.Fatalf("SetupToken = %q, want %q", cfg.Bootstrap.SetupToken, test.want)
+			}
+		})
+	}
+}
+
 func TestLoadFromRequiresPostgresURLWithoutLeakingValue(t *testing.T) {
 	t.Parallel()
 

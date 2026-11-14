@@ -25,11 +25,22 @@ unset BOOTSTRAP_ADMIN_PASSWORD
 
 ### Browser setup
 
-For a source run on the default loopback address, open `/setup` on an empty
-database; no token is required and the form hides the token field. Remote
-requests, including container deployments, require a deployment secret before
-opening `/setup`. The token is not stored in the database and is compared in
-constant time:
+For an uninitialized database, open `/setup` from a browser on any address. When
+`BOOTSTRAP_SETUP_TOKEN` is absent, empty, or whitespace-only, the form omits the
+token field and accepts a valid first-owner submission. Anyone who can reach a
+publicly exposed, uninitialized setup page can claim the first user, workspace
+owner membership, and instance administrator role. CSRF protection does not
+authenticate visitors.
+
+If a nonblank token is configured, use a high-entropy secret. The form requires
+its exact value. Any nonblank string up to 1,024 UTF-16 code units is accepted.
+Choose Plain text for ordinary tokens. For tokens containing line breaks or other
+bytes that cannot be entered exactly, select Base64 and enter the standard padded
+Base64 encoding of the exact token bytes, without line breaks. Generate it in a
+trusted environment without writing the secret to a file or shell history, for
+example `printf %s "$BOOTSTRAP_SETUP_TOKEN" | base64 | tr -d '\n'`.
+Base64 is a credential, not encryption; protect it like the token. The token is
+held as a hash for constant-time comparison and is not stored or logged:
 
 ```sh
 read -s BOOTSTRAP_SETUP_TOKEN
@@ -38,9 +49,9 @@ go run ./cmd/server
 unset BOOTSTRAP_SETUP_TOKEN
 ```
 
-An unconfigured remote request receives a setup-required error that names the
-configuration options without revealing a secret. The route disables itself
-after successful bootstrap.
+For a public deployment, use deployment-level access control (for example,
+temporary gateway authentication or an IP allowlist) until the first owner is
+created. The setup route disables itself after successful bootstrap.
 
 ### CLI fallback
 

@@ -12,10 +12,15 @@ a "Deploy on Railway" button for each.
   S3-compatible values with `STORAGE_DRIVER=s3`. Uploads stream through the
   application, so the bucket needs no CORS rule for uploads.
 
-Both templates generate `BOOTSTRAP_SETUP_TOKEN`. After the deploy finishes,
-open the generated public domain at `/setup`, paste the token from the app
-service's Variables tab, and create the first admin. Back up the PostgreSQL
-service and the bucket. The templates do not enforce backups.
+Both templates generate `BOOTSTRAP_SETUP_TOKEN`. After deploy, open the
+generated public domain at `/setup`, paste the token from the app service's
+Variables tab, and create the first admin. Keep the token configured until
+bootstrap completes. If the token is absent, empty, or whitespace-only, a
+visitor can claim the first administrator through the public setup page. Use
+deployment-level access control until bootstrap completes if you need to
+restrict access. The setup route closes after the first successful bootstrap.
+Back up the PostgreSQL service and the bucket. The templates do not enforce
+backups.
 
 ## SQLite: one instance
 
@@ -28,12 +33,15 @@ docker compose up --build -d
 unset BOOTSTRAP_ADMIN_PASSWORD
 ```
 
-The container listens on `0.0.0.0`, so browser setup for Docker, Coolify, and
-other remote deployments requires `BOOTSTRAP_SETUP_TOKEN`. Set it instead of
-the three admin variables, deploy, and open `/setup`. This is the recommended
-path for platforms that provide environment configuration but no shell access.
-Source runs using the default loopback address can open `/setup` without a
-token. The CLI fallback is:
+The container listens on `0.0.0.0`. A nonblank `BOOTSTRAP_SETUP_TOKEN` is
+required on the setup form; when it is missing, empty, or whitespace-only,
+tokenless remote setup remains available. A publicly reachable uninitialized
+`/setup` lets its first visitor claim the initial administrator. Keep a
+nonblank token configured or enable deployment-level access control, such as
+temporary gateway authentication or an IP allowlist, until bootstrap completes.
+This browser path is recommended for platforms that provide environment
+configuration but no shell access. Source runs using the default loopback
+address can also open `/setup` without a token. The CLI fallback is:
 
 ```sh
 read -s BOOTSTRAP_ADMIN_PASSWORD; export BOOTSTRAP_ADMIN_PASSWORD

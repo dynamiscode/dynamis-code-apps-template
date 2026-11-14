@@ -6,7 +6,8 @@
 <form action="/setup" method="post" data-wizard><input type="hidden" name="csrf" value="{{.CSRF}}">
 <fieldset data-step><legend>{{.T "setup.step_account"}}</legend>
 {{if .SetupTokenRequired}}
-<label for="setup-token">{{.T "setup.setup_token"}}</label><input id="setup-token" name="setup_token" type="password" autocomplete="off" required maxlength="1024">
+<label for="setup-token-format">{{.T "setup.token_format"}}</label><select id="setup-token-format" name="setup_token_format"><option value="plain">{{.T "setup.token_plain"}}</option><option value="base64">{{.T "setup.token_base64"}}</option></select>
+<label for="setup-token">{{.T "setup.setup_token"}}</label><input id="setup-token" name="setup_token" type="password" autocomplete="off" required maxlength="4096">
 {{end}}
 <label for="email">{{.T "common.email"}}</label><input id="email" name="email" type="email" autocomplete="username" required maxlength="320" value="{{.Email}}" data-trim>
 <label for="password">{{.T "common.password"}}</label><input id="password" name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="1024" data-strength>

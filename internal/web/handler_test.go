@@ -7,6 +7,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base32"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1424,28 +1425,37 @@ func multipartRequest(t *testing.T, handler http.Handler, target string, fields 
 }
 
 func TestWebSetupRequiresTokenAndBootstrapsFirstInstanceAdmin(t *testing.T) {
-	handler, auth := testUnbootstrappedWeb(t, "setup-token")
+	setupToken := " " + strings.Repeat("x", 1020) + " ! "
+	handler, auth := testUnbootstrappedWeb(t, setupToken)
 
 	login := request(handler, http.MethodGet, "/login", nil, nil, nil)
 	if login.Code != http.StatusSeeOther || login.Header().Get("Location") != "/setup" {
 		t.Fatalf("login redirect = %d, %q", login.Code, login.Header().Get("Location"))
 	}
 	page := request(handler, http.MethodGet, "/setup", nil, nil, nil)
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `label for="setup-token"`) {
+	if page.Code != http.StatusOK ||
+		!strings.Contains(page.Body.String(), `label for="setup-token"`) ||
+		!strings.Contains(page.Body.String(), `name="setup_token" type="password" autocomplete="off" required maxlength="4096"`) ||
+		!strings.Contains(page.Body.String(), `name="setup_token_format"`) {
 		t.Fatalf("setup page = %d, %s", page.Code, page.Body.String())
 	}
 	assertAccessiblePage(t, page.Body.String(), "Setup token")
 	csrf := responseCookie(page, "setup_csrf")
+
+	missing := request(handler, http.MethodPost, "/setup", url.Values{"csrf": {csrf.Value}}, []*http.Cookie{csrf}, nil)
+	if missing.Code != http.StatusForbidden {
+		t.Fatalf("missing setup token = %d", missing.Code)
+	}
 	wrong := request(handler, http.MethodPost, "/setup", url.Values{
-		"setup_token": {"wrong-token"}, "email": {"owner@example.com"},
+		"setup_token": {strings.TrimSpace(setupToken)}, "email": {"owner@example.com"},
 		"workspace": {"Example"}, "password": {"long-enough-password"},
 		"password_confirmation": {"long-enough-password"}, "csrf": {csrf.Value},
 	}, []*http.Cookie{csrf}, nil)
-	if wrong.Code != http.StatusForbidden || strings.Contains(wrong.Body.String(), "wrong-token") {
-		t.Fatalf("wrong setup token = %d, %s", wrong.Code, wrong.Body.String())
+	if wrong.Code != http.StatusForbidden || strings.Contains(wrong.Body.String(), setupToken) {
+		t.Fatalf("non-exact setup token = %d, response leaked token=%t", wrong.Code, strings.Contains(wrong.Body.String(), setupToken))
 	}
 	created := request(handler, http.MethodPost, "/setup", url.Values{
-		"setup_token": {"setup-token"}, "email": {"Owner@Example.com"},
+		"setup_token": {setupToken}, "email": {"Owner@Example.com"},
 		"workspace": {"Example"}, "password": {"long-enough-password"},
 		"password_confirmation": {"long-enough-password"}, "csrf": {csrf.Value},
 	}, []*http.Cookie{csrf}, nil)
@@ -1462,6 +1472,39 @@ func TestWebSetupRequiresTokenAndBootstrapsFirstInstanceAdmin(t *testing.T) {
 	}
 	if disabled := request(handler, http.MethodGet, "/setup", nil, nil, nil); disabled.Code != http.StatusNotFound {
 		t.Fatalf("disabled setup = %d", disabled.Code)
+	}
+}
+
+func TestWebSetupEncodedToken(t *testing.T) {
+	for _, token := range []string{"line\rbreak\nend\r\n!", strings.Repeat("界", 1024), "invalid-utf8-\xff"} {
+		t.Run(fmt.Sprintf("bytes-%d", len(token)), func(t *testing.T) {
+			handler, _ := testUnbootstrappedWeb(t, token)
+			page := request(handler, http.MethodGet, "/setup", nil, nil, nil)
+			csrf := responseCookie(page, "setup_csrf")
+			encoded := base64.StdEncoding.EncodeToString([]byte(token))
+			values := url.Values{"csrf": {csrf.Value}, "setup_token": {encoded}, "setup_token_format": {"base64"},
+				"email": {"owner@example.com"}, "workspace": {"Example"}, "password": {"long-enough-password"},
+				"password_confirmation": {"long-enough-password"}}
+			for _, invalid := range []struct{ format, value, csrf string }{
+				{"plain", encoded, csrf.Value}, {"base64", encoded + "!", csrf.Value},
+				{"base64", encoded + "\n", csrf.Value}, {"unknown", encoded, csrf.Value}, {"base64", encoded, "wrong"},
+			} {
+				values.Set("setup_token_format", invalid.format)
+				values.Set("setup_token", invalid.value)
+				values.Set("csrf", invalid.csrf)
+				response := request(handler, http.MethodPost, "/setup", values, []*http.Cookie{csrf}, nil)
+				if response.Code != http.StatusForbidden || strings.Contains(response.Body.String(), encoded) {
+					t.Fatalf("invalid encoded submission: status %d, leaked=%t", response.Code, strings.Contains(response.Body.String(), encoded))
+				}
+			}
+			values.Set("setup_token_format", "base64")
+			values.Set("setup_token", encoded)
+			values.Set("csrf", csrf.Value)
+			response := request(handler, http.MethodPost, "/setup", values, []*http.Cookie{csrf}, nil)
+			if response.Code != http.StatusSeeOther {
+				t.Fatalf("encoded submission: status %d", response.Code)
+			}
+		})
 	}
 }
 
@@ -1495,14 +1538,108 @@ func TestWebLocalSetupWorksWithoutToken(t *testing.T) {
 	}
 }
 
-func TestWebSetupRequiresConfigurationRemotely(t *testing.T) {
-	handler, _ := testUnbootstrappedWeb(t, "")
-	response := requestFrom(handler, http.MethodGet, "/setup", nil, nil, map[string]string{
-		"X-Forwarded-For": "127.0.0.1",
-	}, "localhost:8080", "192.0.2.1:1234")
-	if response.Code != http.StatusServiceUnavailable ||
-		!strings.Contains(response.Body.String(), "BOOTSTRAP_SETUP_TOKEN") {
-		t.Fatalf("remote setup = %d, %s", response.Code, response.Body.String())
+func TestWebRemoteSetupWorksWithoutToken(t *testing.T) {
+	handler, auth := testUnbootstrappedWeb(t, " \t ")
+	login := request(handler, http.MethodGet, "/login", nil, nil, nil)
+	if login.Code != http.StatusSeeOther || login.Header().Get("Location") != "/setup" {
+		t.Fatalf("remote login redirect = %d, %q", login.Code, login.Header().Get("Location"))
+	}
+	page := request(handler, http.MethodGet, "/setup", nil, nil, nil)
+	if page.Code != http.StatusOK || strings.Contains(page.Body.String(), `name="setup_token"`) {
+		t.Fatalf("remote tokenless setup page = %d, %s", page.Code, page.Body.String())
+	}
+	assertAccessiblePage(t, page.Body.String(), "Email")
+	csrf := responseCookie(page, "setup_csrf")
+	invalidCSRF := request(handler, http.MethodPost, "/setup", url.Values{
+		"email": {"owner@example.com"}, "workspace": {"Example"},
+		"password":              {"long-enough-password"},
+		"password_confirmation": {"long-enough-password"}, "csrf": {"wrong"},
+	}, []*http.Cookie{csrf}, nil)
+	if invalidCSRF.Code != http.StatusForbidden {
+		t.Fatalf("tokenless remote setup with invalid CSRF = %d", invalidCSRF.Code)
+	}
+	created := request(handler, http.MethodPost, "/setup", url.Values{
+		"email": {"Owner@Example.com"}, "workspace": {"Example"},
+		"password":              {"long-enough-password"},
+		"password_confirmation": {"long-enough-password"}, "csrf": {csrf.Value},
+	}, []*http.Cookie{csrf}, nil)
+	if created.Code != http.StatusSeeOther || created.Header().Get("Location") != "/login" {
+		t.Fatalf("tokenless remote setup = %d, %s", created.Code, created.Body.String())
+	}
+	userID, err := auth.AuthenticateLocal(context.Background(), "owner@example.com", "long-enough-password")
+	if err != nil || !auth.IsInstanceAdmin(context.Background(), userID) {
+		t.Fatalf("tokenless first instance admin = %q, %v", userID, err)
+	}
+	workspaces, err := auth.ListWorkspaces(context.Background(), userID)
+	if err != nil || len(workspaces) != 1 || workspaces[0].Name != "Example" || workspaces[0].Role != identity.Owner {
+		t.Fatalf("tokenless first owner's workspaces = %+v, %v", workspaces, err)
+	}
+	if disabled := request(handler, http.MethodGet, "/setup", nil, nil, nil); disabled.Code != http.StatusNotFound {
+		t.Fatalf("remote setup after bootstrap = %d", disabled.Code)
+	}
+}
+
+func TestWebRemoteSetupConcurrentSubmissionsCreateOneOwner(t *testing.T) {
+	handler, auth := testUnbootstrappedWeb(t, "")
+	page := request(handler, http.MethodGet, "/setup", nil, nil, nil)
+	if page.Code != http.StatusOK || strings.Contains(page.Body.String(), `name="setup_token"`) {
+		t.Fatalf("remote tokenless setup page = %d, %s", page.Code, page.Body.String())
+	}
+	csrf := responseCookie(page, "setup_csrf")
+	type ownerAttempt struct {
+		email     string
+		workspace string
+	}
+	attempts := []ownerAttempt{
+		{email: "first@example.com", workspace: "First"},
+		{email: "second@example.com", workspace: "Second"},
+	}
+	start := make(chan struct{})
+	results := make(chan struct {
+		attempt  ownerAttempt
+		response *httptest.ResponseRecorder
+	}, len(attempts))
+	for _, attempt := range attempts {
+		go func(attempt ownerAttempt) {
+			<-start
+			response := request(handler, http.MethodPost, "/setup", url.Values{
+				"email": {attempt.email}, "workspace": {attempt.workspace},
+				"password":              {"long-enough-password"},
+				"password_confirmation": {"long-enough-password"}, "csrf": {csrf.Value},
+			}, []*http.Cookie{csrf}, nil)
+			results <- struct {
+				attempt  ownerAttempt
+				response *httptest.ResponseRecorder
+			}{attempt: attempt, response: response}
+		}(attempt)
+	}
+	close(start)
+	for range attempts {
+		result := <-results
+		if result.response.Code != http.StatusSeeOther || result.response.Header().Get("Location") != "/login" {
+			t.Errorf("bootstrap request for %s = %d, %s", result.attempt.email, result.response.Code, result.response.Body.String())
+		}
+	}
+	owners := 0
+	for _, attempt := range attempts {
+		userID, err := auth.AuthenticateLocal(context.Background(), attempt.email, "long-enough-password")
+		if err != nil {
+			continue
+		}
+		owners++
+		if !auth.IsInstanceAdmin(context.Background(), userID) {
+			t.Errorf("user %s is not an instance administrator", attempt.email)
+		}
+		workspaces, err := auth.ListWorkspaces(context.Background(), userID)
+		if err != nil || len(workspaces) != 1 || workspaces[0].Name != attempt.workspace || workspaces[0].Role != identity.Owner {
+			t.Errorf("user %s workspaces = %+v, %v", attempt.email, workspaces, err)
+		}
+	}
+	if owners != 1 {
+		t.Fatalf("concurrent bootstrap created %d first owners, want 1", owners)
+	}
+	if disabled := request(handler, http.MethodGet, "/setup", nil, nil, nil); disabled.Code != http.StatusNotFound {
+		t.Fatalf("remote setup after concurrent bootstrap = %d", disabled.Code)
 	}
 }
 

@@ -16,10 +16,12 @@ unset BOOTSTRAP_ADMIN_PASSWORD
 ```
 
 Open <http://localhost:8080/login>. Data persists in the `app-data` volume.
-The container listens on `0.0.0.0`, so a no-shell or remote deployment must set
-`BOOTSTRAP_SETUP_TOKEN` in the platform environment before opening `/setup`, or
-set all three admin variables for unattended bootstrap. See
-[deployment](docs/deployment.md) for PostgreSQL, TLS, and production boundaries.
+The container listens on `0.0.0.0`. Remote first-run setup works without
+`BOOTSTRAP_SETUP_TOKEN`, but anyone who reaches public `/setup` can claim the
+first administrator. Keep the token configured or use deployment-level access
+control until setup is complete; unattended bootstrap instead needs all three
+admin variables. See [deployment](docs/deployment.md) for PostgreSQL, TLS, and
+production boundaries.
 
 ## Deploy on Railway
 
@@ -30,9 +32,9 @@ No inputs are required. Each button creates a project from a Railway template.
 - Full: the app, PostgreSQL, and a Railway bucket.
   [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/wEbfov)
 
-After the deploy, open the generated domain at `/setup` and paste
-`BOOTSTRAP_SETUP_TOKEN` from the app service's Variables tab. See
-[Railway one-click deploy](docs/deployment.md#railway-one-click-deploy).
+After deploy, open the generated domain at `/setup` and paste
+`BOOTSTRAP_SETUP_TOKEN` from the app service's Variables tab. Both templates
+generate this token. See [Railway one-click deploy](docs/deployment.md#railway-one-click-deploy).
 
 ## Run from source
 
