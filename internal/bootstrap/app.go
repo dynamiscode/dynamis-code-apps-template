@@ -188,7 +188,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	mux := http.NewServeMux()
 	mux.Handle("/api/", handler)
 	mux.Handle("/health/", handler)
-	registerAgent(mux, identityService, itemService, cfg)
+	registerAgent(mux, identityService, itemService, clientService, cfg)
 	if cfg.MCP.OAuthBuiltIn {
 		webHandler.EnableMCPOAuth(cfg.MCP.OAuthResourceURL)
 	}

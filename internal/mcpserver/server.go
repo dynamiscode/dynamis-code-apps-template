@@ -155,7 +155,11 @@ func (e *toolError) Error() string { return e.message }
 type toolRun struct {
 	workspaceID identity.WorkspaceID
 	targetID    string
-	err         error
+	// targetType and targetKey name the audited object for non-item tools. Items
+	// leave them empty and keep the item short-ID path.
+	targetType string
+	targetKey  int64
+	err        error
 	// pending is an input_required result; it is returned without auditing a call outcome.
 	pending *mcp.CallToolResult
 }
@@ -174,6 +178,8 @@ type callRecord struct {
 	toolName    string
 	workspaceID identity.WorkspaceID
 	targetID    string
+	targetType  string
+	targetKey   int64
 	annotations *mcp.ToolAnnotations
 	err         error
 }
@@ -187,11 +193,16 @@ func recordFor(ctx context.Context) *callRecord {
 	return &callRecord{}
 }
 
+// Option adds tools for a composed profile. Options run after the Items tools
+// are registered, so a profile that is not composed adds nothing.
+type Option func(h *handler, server *mcp.Server)
+
 func NewHandler(
 	identityService *identity.Service,
 	itemService *items.Service,
 	cfg config.MCP,
 	logger *slog.Logger,
+	options ...Option,
 ) http.Handler {
 	if logger == nil {
 		logger = slog.Default()
@@ -213,6 +224,9 @@ func NewHandler(
 		},
 	})
 	h.addTools(server)
+	for _, option := range options {
+		option(h, server)
+	}
 	server.AddReceivingMiddleware(h.observe)
 	h.addPrompts(server)
 	h.addItemListPrompts(server)
@@ -281,10 +295,26 @@ func scopeMiddleware(next http.Handler, challenge string) http.Handler {
 	})
 }
 
+// writeTools lists the mutation tools, which need resources:write. Client tools
+// are listed here by name only; they register from clients.go.
 var writeTools = map[string]bool{
 	"items_create_v1": true,
 	"items_update_v1": true,
 	"items_delete_v1": true,
+
+	"clients_create_v1":              true,
+	"clients_update_v1":              true,
+	"clients_archive_v1":             true,
+	"clients_unarchive_v1":           true,
+	"clients_delete_v1":              true,
+	"clients_value_set_v1":           true,
+	"clients_value_clear_v1":         true,
+	"client_fields_define_v1":        true,
+	"client_fields_archive_v1":       true,
+	"client_fields_restore_v1":       true,
+	"client_fields_delete_v1":        true,
+	"client_field_options_add_v1":    true,
+	"client_field_options_delete_v1": true,
 }
 
 func originMiddleware(next http.Handler, allowed []string) http.Handler {
@@ -433,8 +463,8 @@ func toPageOutput(page items.Page) pageOutput {
 
 // schemaFor derives a tool schema from a contract type. The SDK derives only
 // structure (types, required fields, additionalProperties) from Go types.
-func schemaFor[T any]() *jsonschema.Schema {
-	schema, err := jsonschema.For[T](&jsonschema.ForOptions{TypeSchemas: contractTypes})
+func schemaFor[T any](types map[reflect.Type]*jsonschema.Schema) *jsonschema.Schema {
+	schema, err := jsonschema.For[T](&jsonschema.ForOptions{TypeSchemas: types})
 	if err != nil {
 		panic(fmt.Errorf("derive schema for %v: %w", reflect.TypeFor[T](), err))
 	}
@@ -448,7 +478,18 @@ func addTool[In, Out any](
 	adjust func(input, output *jsonschema.Schema),
 	run func(context.Context, *mcp.CallToolRequest, In) (Out, toolRun),
 ) {
-	input, output := schemaFor[In](), schemaFor[Out]()
+	addToolWithTypes(server, h, tool, contractTypes, adjust, run)
+}
+
+// addToolWithTypes registers a typed tool whose contract constraints come from
+// types. A profile with its own short-ID types passes its merged map.
+func addToolWithTypes[In, Out any](
+	server *mcp.Server, h *handler, tool *mcp.Tool,
+	types map[reflect.Type]*jsonschema.Schema,
+	adjust func(input, output *jsonschema.Schema),
+	run func(context.Context, *mcp.CallToolRequest, In) (Out, toolRun),
+) {
+	input, output := schemaFor[In](types), schemaFor[Out](types)
 	if adjust != nil {
 		adjust(input, output)
 	}
@@ -460,6 +501,7 @@ func addTool[In, Out any](
 		out, result := run(ctx, request, in)
 		if result.pending != nil {
 			record.prompted, record.workspaceID, record.targetID = true, result.workspaceID, result.targetID
+			record.targetType, record.targetKey = result.targetType, result.targetKey
 			var none Out
 			return result.pending, none, nil
 		}
@@ -469,6 +511,7 @@ func addTool[In, Out any](
 			}
 		}
 		record.workspaceID, record.targetID, record.err = result.workspaceID, result.targetID, result.err
+		record.targetType, record.targetKey = result.targetType, result.targetKey
 		return nil, out, result.err
 	})
 }
@@ -574,9 +617,12 @@ func (h *handler) audit(
 		"client_version": clientVersion, "error_category": category,
 		"duration_ms": time.Since(started).Milliseconds(),
 	}
-	eventType, action, targetType := eventRequestCalled, method, ""
+	eventType, action, targetType, targetKey := eventRequestCalled, method, "", int64(0)
 	if method == methodToolsCall {
-		eventType, targetType = eventToolCalled, "item"
+		eventType, targetType, targetKey = eventToolCalled, "item", auditTargetKey("item", record.targetID)
+		if record.targetType != "" {
+			targetType, targetKey = record.targetType, record.targetKey
+		}
 		if record.toolName != "" {
 			action = record.toolName
 		} // unregistered names are client input and are never logged
@@ -588,7 +634,7 @@ func (h *handler) audit(
 	return h.identity.RecordAudit(ctx, identity.AuditEvent{
 		EventType: eventType, ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: record.workspaceID,
-		TargetType: targetType, TargetKey: auditTargetKey(targetType, record.targetID), Action: action,
+		TargetType: targetType, TargetKey: targetKey, Action: action,
 		Outcome: outcome, RequestID: requestID(req),
 		SourceAddress: sourceAddress(req), Metadata: string(metadata), CreatedAt: time.Now().UTC(),
 	})

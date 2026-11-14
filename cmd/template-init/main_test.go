@@ -278,9 +278,16 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		"internal/web/templates/clients.html", "internal/web/templates/client.html",
 		"internal/platform/database/migrations/000022_clients.sql",
 		"internal/web/clients_events.go",
+		"internal/mcpserver/clients.go", "internal/mcpserver/clients_test.go",
 	} {
 		if _, err := os.Stat(filepath.Join(output, path)); !os.IsNotExist(err) {
 			t.Errorf("generated application without Clients still has %s: %v", path, err)
+		}
+	}
+	for _, path := range []string{"internal/bootstrap/agent.go", "internal/mcpserver/server_test.go"} {
+		content, err := os.ReadFile(filepath.Join(output, path))
+		if err != nil || strings.Contains(string(content), "clients") {
+			t.Fatalf("generated %s retains Clients wiring: error = %v", path, err)
 		}
 	}
 	openAPI, err := os.ReadFile(filepath.Join(output, "api/openapi.json"))
@@ -289,6 +296,7 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 	}
 	for path, retained := range map[string]string{
 		"docs/api.md": "/clients", "docs/web.md": "/clients", "docs/capabilities.md": "| Clients |",
+		"docs/mcp.md":                            "clients_",
 		"internal/web/templates/navigation.html": "clients",
 	} {
 		content, err := os.ReadFile(filepath.Join(output, path))
@@ -298,6 +306,10 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 	}
 	if err := runCommand(output, "go", "build", "./..."); err != nil {
 		t.Fatalf("generated application without Clients does not build: %v", err)
+	}
+	// go build skips test files; vet compiles the MCP tests that the generation rewrote.
+	if err := runCommand(output, "go", "vet", "./internal/mcpserver/", "./internal/bootstrap/"); err != nil {
+		t.Fatalf("generated MCP tests without Clients do not compile: %v", err)
 	}
 	// The export ships in every app, so a Clients-off app must not query client tables
 	// or wire a client exporter.

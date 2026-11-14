@@ -20,9 +20,9 @@ import (
 
 // This file is the authorization and isolation matrix for Clients. Each row is
 // one action, and each row lists the roles that may perform it. Every row runs
-// on every surface the row defines (REST and web today). MCP and appctl rows
-// are added as further surface functions on clientAuthorizationRow, reusing the
-// same fixture and the same role table.
+// on every surface the row defines (REST, web, and MCP). appctl rows are added
+// the same way, as a further surface on clientAuthorizationRow, reusing the same
+// fixture and the same role table.
 
 const matrixPassword = "long-enough-password"
 
@@ -58,6 +58,8 @@ type matrixRequest struct {
 	body    string
 	form    url.Values
 	ifMatch string
+	// mcpName is the tool an MCP request calls, sent as the Mcp-Name header.
+	mcpName string
 }
 
 type clientAuthorizationRow struct {
@@ -69,6 +71,10 @@ type clientAuthorizationRow struct {
 	// web builds the browser form request; webOK is the status an allowed role gets.
 	web   func(ws matrixWorkspace) matrixRequest
 	webOK int
+	// mcp builds the tools/call request for the same action. Its success is
+	// reported as restOK, the REST status for the same action, and a refusal as
+	// the REST status for its safe message.
+	mcp func(ws matrixWorkspace) matrixRequest
 }
 
 func restBase(ws matrixWorkspace) string { return "/api/v1/workspaces/" + ws.id.String() }
@@ -76,9 +82,148 @@ func webBase(ws matrixWorkspace) string  { return "/workspaces/" + ws.id.String(
 
 func versionTag(version int64) string { return `"v` + strconv.FormatInt(version, 10) + `"` }
 
+// mcpCall is one tools/call request on the stateless MCP endpoint. Its arguments
+// name the same records the REST request addresses.
+func mcpCall(tool string, arguments map[string]any) matrixRequest {
+	body, err := json.Marshal(map[string]any{
+		"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+		"params": map[string]any{
+			"name": tool, "arguments": arguments,
+			// The stateless 2026 protocol carries its version and capabilities in _meta on every request.
+			"_meta": map[string]any{
+				"io.modelcontextprotocol/protocolVersion":    "2026-07-28",
+				"io.modelcontextprotocol/clientCapabilities": map[string]any{},
+			},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	return matrixRequest{method: http.MethodPost, path: "/mcp", body: string(body), mcpName: tool}
+}
+
+// mcpStatus is the REST status for each safe MCP refusal message. A message not
+// listed here is a failing cell, because it maps to 500.
+var mcpStatus = map[string]int{
+	"access is denied":        http.StatusForbidden,
+	"client not found":        http.StatusNotFound,
+	"custom field not found":  http.StatusNotFound,
+	"choice option not found": http.StatusNotFound,
+}
+
+// matrixApprovalID is the human-approval input that destructive MCP tools request.
+const matrixApprovalID = "human-approval"
+
+// serveMatrixMCP sends one tools/call and normalizes the outcome. A destructive
+// call first returns an MRTR input request. The cell accepts it, because the role
+// check runs after approval, so the recorded outcome is the authorization result.
+func serveMatrixMCP(handler http.Handler, actor matrixActor, req matrixRequest, successStatus int) *httptest.ResponseRecorder {
+	response := postMatrixMCP(handler, actor, req)
+	if response.Code != http.StatusOK {
+		return response
+	}
+	result, ok := decodeMatrixMCP(response)
+	if !ok {
+		return matrixStatusOnly(http.StatusInternalServerError, response.Body.String())
+	}
+	if len(result.InputRequests) > 0 {
+		confirmed, ok := matrixConfirm(req.body, result.RequestState)
+		if !ok {
+			return matrixStatusOnly(http.StatusInternalServerError, "approval body")
+		}
+		req.body = confirmed
+		response = postMatrixMCP(handler, actor, req)
+		if response.Code != http.StatusOK {
+			return response
+		}
+		if result, ok = decodeMatrixMCP(response); !ok {
+			return matrixStatusOnly(http.StatusInternalServerError, response.Body.String())
+		}
+	}
+	if !result.IsError {
+		success := httptest.NewRecorder()
+		success.Header().Set("Content-Type", "application/json")
+		success.WriteHeader(successStatus)
+		success.WriteString(response.Body.String())
+		return success
+	}
+	text := ""
+	if len(result.Content) > 0 {
+		text = result.Content[0].Text
+	}
+	code, known := mcpStatus[text]
+	if !known {
+		code = http.StatusInternalServerError
+	}
+	return matrixStatusOnly(code, text)
+}
+
+func postMatrixMCP(handler http.Handler, actor matrixActor, req matrixRequest) *httptest.ResponseRecorder {
+	request := httptest.NewRequest(http.MethodPost, req.path, strings.NewReader(req.body))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Accept", "application/json, text/event-stream")
+	request.Header.Set("Authorization", "Bearer "+actor.token)
+	request.Header.Set("MCP-Protocol-Version", "2026-07-28")
+	request.Header.Set("Mcp-Method", "tools/call")
+	request.Header.Set("Mcp-Name", req.mcpName)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	return response
+}
+
+// matrixMCPResult is the part of a tools/call result the matrix reads.
+type matrixMCPResult struct {
+	IsError bool `json:"isError"`
+	Content []struct {
+		Text string `json:"text"`
+	} `json:"content"`
+	InputRequests map[string]json.RawMessage `json:"inputRequests"`
+	RequestState  string                     `json:"requestState"`
+}
+
+func decodeMatrixMCP(response *httptest.ResponseRecorder) (matrixMCPResult, bool) {
+	var reply struct {
+		Result matrixMCPResult `json:"result"`
+	}
+	if json.Unmarshal(response.Body.Bytes(), &reply) != nil {
+		return matrixMCPResult{}, false
+	}
+	return reply.Result, true
+}
+
+// matrixConfirm echoes the server's request state and accepts the approval, the
+// second round trip the client host makes after its confirmation.
+func matrixConfirm(body, state string) (string, bool) {
+	var request map[string]any
+	if json.Unmarshal([]byte(body), &request) != nil {
+		return "", false
+	}
+	params, ok := request["params"].(map[string]any)
+	if !ok {
+		return "", false
+	}
+	params["inputResponses"] = map[string]any{
+		matrixApprovalID: map[string]any{"action": "accept", "content": map[string]any{"confirm": true}},
+	}
+	params["requestState"] = state
+	encoded, err := json.Marshal(request)
+	return string(encoded), err == nil
+}
+
+func matrixStatusOnly(code int, body string) *httptest.ResponseRecorder {
+	response := httptest.NewRecorder()
+	response.Header().Set("Content-Type", "text/plain")
+	response.WriteHeader(code)
+	response.WriteString(body)
+	return response
+}
+
 var clientAuthorizationMatrix = []clientAuthorizationRow{
 	{
 		action: "list clients", allow: allMatrixRoles,
+		mcp: func(ws matrixWorkspace) matrixRequest {
+			return mcpCall("clients_list_v1", map[string]any{"workspaceId": ws.id.String()})
+		},
 		rest: func(ws matrixWorkspace) matrixRequest {
 			return matrixRequest{method: http.MethodGet, path: restBase(ws) + "/clients"}
 		},
@@ -90,6 +235,9 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "get client", allow: allMatrixRoles,
+		mcp: func(ws matrixWorkspace) matrixRequest {
+			return mcpCall("clients_get_v1", map[string]any{"workspaceId": ws.id.String(), "clientId": ws.client.String()})
+		},
 		rest: func(ws matrixWorkspace) matrixRequest {
 			return matrixRequest{method: http.MethodGet, path: restBase(ws) + "/clients/" + ws.client.String()}
 		},
@@ -101,6 +249,9 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "create client", allow: writerRoles,
+		mcp: func(ws matrixWorkspace) matrixRequest {
+			return mcpCall("clients_create_v1", map[string]any{"workspaceId": ws.id.String(), "displayName": "Matrix"})
+		},
 		rest: func(ws matrixWorkspace) matrixRequest {
 			return matrixRequest{method: http.MethodPost, path: restBase(ws) + "/clients", body: `{"displayName":"Matrix"}`}
 		},
@@ -112,6 +263,11 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "edit client", allow: writerRoles,
+		mcp: func(ws matrixWorkspace) matrixRequest {
+			return mcpCall("clients_update_v1", map[string]any{
+				"workspaceId": ws.id.String(), "clientId": ws.client.String(), "version": ws.version, "displayName": "Edited",
+			})
+		},
 		rest: func(ws matrixWorkspace) matrixRequest {
 			return matrixRequest{method: http.MethodPatch, path: restBase(ws) + "/clients/" + ws.client.String(),
 				body: `{"displayName":"Edited"}`, ifMatch: versionTag(ws.version)}
@@ -125,6 +281,12 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "set value", allow: writerRoles,
+		mcp: func(ws matrixWorkspace) matrixRequest {
+			return mcpCall("clients_value_set_v1", map[string]any{
+				"workspaceId": ws.id.String(), "clientId": ws.client.String(), "version": ws.version,
+				"fieldId": ws.textField.String(), "value": "Matrix",
+			})
+		},
 		rest: func(ws matrixWorkspace) matrixRequest {
 			return matrixRequest{method: http.MethodPut, path: restBase(ws) + "/clients/" + ws.client.String() + "/values/" + ws.textField.String(),
 				body: `{"value":"Matrix"}`, ifMatch: versionTag(ws.version)}
@@ -138,6 +300,12 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "clear value", allow: writerRoles,
+		mcp: func(ws matrixWorkspace) matrixRequest {
+			return mcpCall("clients_value_clear_v1", map[string]any{
+				"workspaceId": ws.id.String(), "clientId": ws.client.String(), "version": ws.version,
+				"fieldId": ws.textField.String(),
+			})
+		},
 		rest: func(ws matrixWorkspace) matrixRequest {
 			return matrixRequest{method: http.MethodDelete, path: restBase(ws) + "/clients/" + ws.client.String() + "/values/" + ws.textField.String(),
 				ifMatch: versionTag(ws.version)}
@@ -151,6 +319,9 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "archive client", allow: writerRoles,
+		mcp: func(ws matrixWorkspace) matrixRequest {
+			return mcpCall("clients_archive_v1", map[string]any{"workspaceId": ws.id.String(), "clientId": ws.client.String()})
+		},
 		rest: func(ws matrixWorkspace) matrixRequest {
 			return matrixRequest{method: http.MethodPost, path: restBase(ws) + "/clients/" + ws.client.String() + "/archive"}
 		},
@@ -162,6 +333,9 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "unarchive client", allow: writerRoles,
+		mcp: func(ws matrixWorkspace) matrixRequest {
+			return mcpCall("clients_unarchive_v1", map[string]any{"workspaceId": ws.id.String(), "clientId": ws.archivedClient.String()})
+		},
 		rest: func(ws matrixWorkspace) matrixRequest {
 			return matrixRequest{method: http.MethodPost, path: restBase(ws) + "/clients/" + ws.archivedClient.String() + "/unarchive"}
 		},
@@ -173,6 +347,9 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "delete client", allow: managerRoles,
+		mcp: func(ws matrixWorkspace) matrixRequest {
+			return mcpCall("clients_delete_v1", map[string]any{"workspaceId": ws.id.String(), "clientId": ws.client.String()})
+		},
 		rest: func(ws matrixWorkspace) matrixRequest {
 			return matrixRequest{method: http.MethodDelete, path: restBase(ws) + "/clients/" + ws.client.String()}
 		},
@@ -184,6 +361,9 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "define field", allow: managerRoles,
+		mcp: func(ws matrixWorkspace) matrixRequest {
+			return mcpCall("client_fields_define_v1", map[string]any{"workspaceId": ws.id.String(), "label": "Tier", "type": "text"})
+		},
 		rest: func(ws matrixWorkspace) matrixRequest {
 			return matrixRequest{method: http.MethodPost, path: restBase(ws) + "/client-fields", body: `{"label":"Tier","type":"text"}`}
 		},
@@ -195,6 +375,9 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "archive field", allow: managerRoles,
+		mcp: func(ws matrixWorkspace) matrixRequest {
+			return mcpCall("client_fields_archive_v1", map[string]any{"workspaceId": ws.id.String(), "fieldId": ws.archiveField.String()})
+		},
 		rest: func(ws matrixWorkspace) matrixRequest {
 			return matrixRequest{method: http.MethodPost, path: restBase(ws) + "/client-fields/" + ws.archiveField.String() + "/archive"}
 		},
@@ -206,6 +389,9 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "restore field", allow: managerRoles,
+		mcp: func(ws matrixWorkspace) matrixRequest {
+			return mcpCall("client_fields_restore_v1", map[string]any{"workspaceId": ws.id.String(), "fieldId": ws.restoreField.String()})
+		},
 		rest: func(ws matrixWorkspace) matrixRequest {
 			return matrixRequest{method: http.MethodPost, path: restBase(ws) + "/client-fields/" + ws.restoreField.String() + "/restore"}
 		},
@@ -217,6 +403,9 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "delete field", allow: managerRoles,
+		mcp: func(ws matrixWorkspace) matrixRequest {
+			return mcpCall("client_fields_delete_v1", map[string]any{"workspaceId": ws.id.String(), "fieldId": ws.deleteField.String()})
+		},
 		rest: func(ws matrixWorkspace) matrixRequest {
 			return matrixRequest{method: http.MethodDelete, path: restBase(ws) + "/client-fields/" + ws.deleteField.String()}
 		},
@@ -228,6 +417,11 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "add option", allow: managerRoles,
+		mcp: func(ws matrixWorkspace) matrixRequest {
+			return mcpCall("client_field_options_add_v1", map[string]any{
+				"workspaceId": ws.id.String(), "fieldId": ws.choiceField.String(), "label": "Silver",
+			})
+		},
 		rest: func(ws matrixWorkspace) matrixRequest {
 			return matrixRequest{method: http.MethodPost, path: restBase(ws) + "/client-fields/" + ws.choiceField.String() + "/options", body: `{"label":"Silver"}`}
 		},
@@ -239,6 +433,11 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "delete option", allow: managerRoles,
+		mcp: func(ws matrixWorkspace) matrixRequest {
+			return mcpCall("client_field_options_delete_v1", map[string]any{
+				"workspaceId": ws.id.String(), "fieldId": ws.choiceField.String(), "optionId": ws.option.String(),
+			})
+		},
 		rest: func(ws matrixWorkspace) matrixRequest {
 			return matrixRequest{method: http.MethodDelete, path: restBase(ws) + "/client-fields/" + ws.choiceField.String() + "/options/" + ws.option.String()}
 		},
@@ -250,6 +449,9 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 	},
 	{
 		action: "list fields", allow: allMatrixRoles,
+		mcp: func(ws matrixWorkspace) matrixRequest {
+			return mcpCall("client_fields_list_v1", map[string]any{"workspaceId": ws.id.String()})
+		},
 		rest: func(ws matrixWorkspace) matrixRequest {
 			return matrixRequest{method: http.MethodGet, path: restBase(ws) + "/client-fields"}
 		},
@@ -508,6 +710,13 @@ func TestClientAuthorizationMatrix(t *testing.T) {
 				return serveMatrixWeb(f.app.Handler, actor, row.web(f.a))
 			},
 		},
+		{
+			name:    "mcp",
+			allowed: func(row clientAuthorizationRow) int { return row.restOK },
+			call: func(f matrixFixture, actor matrixActor, row clientAuthorizationRow) *httptest.ResponseRecorder {
+				return serveMatrixMCP(f.app.Handler, actor, row.mcp(f.a), row.restOK)
+			},
+		},
 	}
 	for _, surface := range surfaces {
 		for _, row := range clientAuthorizationMatrix {
@@ -537,14 +746,17 @@ func TestClientAuthorizationMatrix(t *testing.T) {
 // permission check in B, so the answer comes from the data layer.
 func TestClientAuthorizationIsolatesWorkspaces(t *testing.T) {
 	t.Parallel()
-	for _, surface := range []string{"rest", "web"} {
+	for _, surface := range []string{"rest", "web", "mcp"} {
 		for _, row := range clientAuthorizationMatrix {
 			t.Run(surface+"/"+row.action, func(t *testing.T) {
 				t.Parallel()
 				f := newClientAuthorizationFixture(t)
 				call := func(ws matrixWorkspace) *httptest.ResponseRecorder {
-					if surface == "rest" {
+					switch surface {
+					case "rest":
 						return serveMatrixREST(f.app.Handler, f.bAdmin, row.rest(ws))
+					case "mcp":
+						return serveMatrixMCP(f.app.Handler, f.bAdmin, row.mcp(ws), row.restOK)
 					}
 					return serveMatrixWeb(f.app.Handler, f.bAdmin, row.web(ws))
 				}
@@ -558,7 +770,8 @@ func TestClientAuthorizationIsolatesWorkspaces(t *testing.T) {
 				// Rows that name a record in the path compare the foreign key with a
 				// missing key. Rows that name none (list, create, define) have the
 				// same path for both, so they are checked on what they return.
-				if row.rest(foreign).path != row.rest(missing).path || row.web(foreign).path != row.web(missing).path {
+				if row.rest(foreign).path != row.rest(missing).path || row.web(foreign).path != row.web(missing).path ||
+					row.mcp(foreign).body != row.mcp(missing).body {
 					foreignResponse := call(foreign)
 					missingResponse := call(missing)
 					if foreignResponse.Code < 400 || missingResponse.Code < 400 {
@@ -568,7 +781,7 @@ func TestClientAuthorizationIsolatesWorkspaces(t *testing.T) {
 						t.Fatalf("foreign %s = %d %s, missing = %d %s; want identical",
 							row.action, foreignResponse.Code, foreignResponse.Body.String(), missingResponse.Code, missingResponse.Body.String())
 					}
-				} else if row.rest(foreign).method == http.MethodGet {
+				} else if strings.HasPrefix(row.action, "list ") {
 					listed := call(foreign)
 					for _, key := range []string{f.a.client.String(), f.a.archivedClient.String(), f.a.textField.String(), f.a.choiceField.String(), f.a.option.String()} {
 						if strings.Contains(listed.Body.String(), key) {
@@ -577,11 +790,18 @@ func TestClientAuthorizationIsolatesWorkspaces(t *testing.T) {
 					}
 				}
 
-				// A caller in B naming workspace A itself must see workspace-not-found.
+				// A caller in B naming workspace A itself is refused as not found on
+				// REST and web. MCP keeps its documented contract for a workspace the
+				// token cannot access, "access is denied" (docs/mcp.md), which the Items
+				// tools share. This is the one cell where MCP and REST differ.
+				wantOwn := http.StatusNotFound
+				if surface == "mcp" {
+					wantOwn = http.StatusForbidden
+				}
 				ownWorkspace := f.a
 				ownResponse := call(ownWorkspace)
-				if ownResponse.Code != http.StatusNotFound {
-					t.Fatalf("B admin on workspace A %s = %d, want 404: %s", row.action, ownResponse.Code, ownResponse.Body.String())
+				if ownResponse.Code != wantOwn || (surface == "mcp" && ownResponse.Body.String() != "access is denied") {
+					t.Fatalf("B admin on workspace A %s = %d, want %d: %s", row.action, ownResponse.Code, wantOwn, ownResponse.Body.String())
 				}
 			})
 		}

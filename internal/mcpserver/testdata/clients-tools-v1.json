@@ -1,0 +1,1546 @@
+[
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Add an option to a single-choice field. Owners and admins only.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "fieldId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "fieldId",
+        "label"
+      ],
+      "type": "object"
+    },
+    "name": "client_field_options_add_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "fieldId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "fieldId",
+        "label",
+        "createdAt"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Delete an option and clear it from every client after client-side human approval. Owners and admins only.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "fieldId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "optionId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "fieldId",
+        "optionId"
+      ],
+      "type": "object"
+    },
+    "name": "client_field_options_delete_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "deleted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "deleted"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "List a single-choice field's options.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "fieldId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "fieldId"
+      ],
+      "type": "object"
+    },
+    "name": "client_field_options_list_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "options": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "createdAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "fieldId": {
+                "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+                "type": "string"
+              },
+              "id": {
+                "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "fieldId",
+              "label",
+              "createdAt"
+            ],
+            "type": "object"
+          },
+          "maxItems": 100,
+          "type": "array"
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Archive a custom field, keeping its values. Owners and admins only.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "fieldId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "fieldId"
+      ],
+      "type": "object"
+    },
+    "name": "client_fields_archive_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "archivedAt": {
+          "format": "date-time",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "text",
+            "number",
+            "date",
+            "yes_no",
+            "single_choice"
+          ],
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "workspaceId",
+        "label",
+        "type",
+        "archivedAt",
+        "createdAt",
+        "updatedAt"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Define a text, number, date, yes/no, or single-choice custom field. Owners and admins only.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "text",
+            "number",
+            "date",
+            "yes_no",
+            "single_choice"
+          ],
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "label",
+        "type"
+      ],
+      "type": "object"
+    },
+    "name": "client_fields_define_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "archivedAt": {
+          "format": "date-time",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "text",
+            "number",
+            "date",
+            "yes_no",
+            "single_choice"
+          ],
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "workspaceId",
+        "label",
+        "type",
+        "archivedAt",
+        "createdAt",
+        "updatedAt"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Permanently delete an archived custom field and clear its values after client-side human approval. Owners and admins only.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "fieldId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "fieldId"
+      ],
+      "type": "object"
+    },
+    "name": "client_fields_delete_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "deleted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "deleted"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "List the workspace's custom field definitions. Archived fields are omitted unless requested.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "includeArchived": {
+          "type": "boolean"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId"
+      ],
+      "type": "object"
+    },
+    "name": "client_fields_list_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "archivedAt": {
+                "format": "date-time",
+                "type": [
+                  "null",
+                  "string"
+                ]
+              },
+              "createdAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "id": {
+                "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "text",
+                  "number",
+                  "date",
+                  "yes_no",
+                  "single_choice"
+                ],
+                "type": "string"
+              },
+              "updatedAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "workspaceId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "workspaceId",
+              "label",
+              "type",
+              "archivedAt",
+              "createdAt",
+              "updatedAt"
+            ],
+            "type": "object"
+          },
+          "maxItems": 50,
+          "type": "array"
+        }
+      },
+      "required": [
+        "fields"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Restore an archived custom field. Owners and admins only.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "fieldId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "fieldId"
+      ],
+      "type": "object"
+    },
+    "name": "client_fields_restore_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "archivedAt": {
+          "format": "date-time",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "text",
+            "number",
+            "date",
+            "yes_no",
+            "single_choice"
+          ],
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "workspaceId",
+        "label",
+        "type",
+        "archivedAt",
+        "createdAt",
+        "updatedAt"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Archive a client. Members and above may archive.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "clientId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "clientId"
+      ],
+      "type": "object"
+    },
+    "name": "clients_archive_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "archivedAt": {
+          "format": "date-time",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "createdByUserId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "workspaceId",
+        "createdByUserId",
+        "displayName",
+        "email",
+        "phone",
+        "notes",
+        "archivedAt",
+        "version",
+        "createdAt",
+        "updatedAt"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Create a client. Members and above may create clients.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "displayName": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "email": {
+          "maxLength": 254,
+          "type": "string"
+        },
+        "notes": {
+          "maxLength": 5000,
+          "type": "string"
+        },
+        "phone": {
+          "maxLength": 50,
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "displayName"
+      ],
+      "type": "object"
+    },
+    "name": "clients_create_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "archivedAt": {
+          "format": "date-time",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "createdByUserId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "workspaceId",
+        "createdByUserId",
+        "displayName",
+        "email",
+        "phone",
+        "notes",
+        "archivedAt",
+        "version",
+        "createdAt",
+        "updatedAt"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Permanently delete a client and its custom values after client-side human approval. Owners and admins only.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "clientId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "clientId"
+      ],
+      "type": "object"
+    },
+    "name": "clients_delete_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "deleted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "deleted"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Get one client in an authorized workspace.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "clientId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "clientId"
+      ],
+      "type": "object"
+    },
+    "name": "clients_get_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "archivedAt": {
+          "format": "date-time",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "createdByUserId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "workspaceId",
+        "createdByUserId",
+        "displayName",
+        "email",
+        "phone",
+        "notes",
+        "archivedAt",
+        "version",
+        "createdAt",
+        "updatedAt"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "List one workspace's clients with filter, sort, archived selector, and bounded cursor pagination.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "archived": {
+          "enum": [
+            "active",
+            "archived",
+            "all"
+          ],
+          "type": "string"
+        },
+        "cursor": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "filters": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "maxLength": 80,
+                "type": "string"
+              },
+              "op": {
+                "enum": [
+                  "equals",
+                  "contains",
+                  "before",
+                  "after",
+                  "between"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "required": [
+              "field",
+              "op",
+              "value"
+            ],
+            "type": "object"
+          },
+          "maxItems": 10,
+          "type": "array"
+        },
+        "limit": {
+          "default": 50,
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "sort": {
+          "maxLength": 80,
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId"
+      ],
+      "type": "object"
+    },
+    "name": "clients_list_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "clients": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "archivedAt": {
+                "format": "date-time",
+                "type": [
+                  "null",
+                  "string"
+                ]
+              },
+              "createdAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "createdByUserId": {
+                "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+                "type": [
+                  "null",
+                  "string"
+                ]
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "id": {
+                "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+                "type": "string"
+              },
+              "notes": {
+                "type": "string"
+              },
+              "phone": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "version": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "workspaceId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "workspaceId",
+              "createdByUserId",
+              "displayName",
+              "email",
+              "phone",
+              "notes",
+              "archivedAt",
+              "version",
+              "createdAt",
+              "updatedAt"
+            ],
+            "type": "object"
+          },
+          "maxItems": 100,
+          "type": "array"
+        },
+        "nextCursor": {
+          "maxLength": 700,
+          "type": "string"
+        }
+      },
+      "required": [
+        "clients"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Unarchive a client. Members and above may unarchive.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "clientId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "clientId"
+      ],
+      "type": "object"
+    },
+    "name": "clients_unarchive_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "archivedAt": {
+          "format": "date-time",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "createdByUserId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "workspaceId",
+        "createdByUserId",
+        "displayName",
+        "email",
+        "phone",
+        "notes",
+        "archivedAt",
+        "version",
+        "createdAt",
+        "updatedAt"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Update a client's common fields when its version matches.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "displayName"
+          ]
+        },
+        {
+          "required": [
+            "email"
+          ]
+        },
+        {
+          "required": [
+            "phone"
+          ]
+        },
+        {
+          "required": [
+            "notes"
+          ]
+        }
+      ],
+      "properties": {
+        "clientId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "displayName": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "email": {
+          "maxLength": 254,
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "notes": {
+          "maxLength": 5000,
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "phone": {
+          "maxLength": 50,
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "version": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "clientId",
+        "version"
+      ],
+      "type": "object"
+    },
+    "name": "clients_update_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "archivedAt": {
+          "format": "date-time",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "createdByUserId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "workspaceId",
+        "createdByUserId",
+        "displayName",
+        "email",
+        "phone",
+        "notes",
+        "archivedAt",
+        "version",
+        "createdAt",
+        "updatedAt"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Clear one custom field value on a client when the client's version matches.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "clientId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "fieldId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "clientId",
+        "version",
+        "fieldId"
+      ],
+      "type": "object"
+    },
+    "name": "clients_value_clear_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "archivedAt": {
+          "format": "date-time",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "createdByUserId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "workspaceId",
+        "createdByUserId",
+        "displayName",
+        "email",
+        "phone",
+        "notes",
+        "archivedAt",
+        "version",
+        "createdAt",
+        "updatedAt"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Set one custom field value on a client when the client's version matches.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "clientId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "fieldId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 500,
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "clientId",
+        "version",
+        "fieldId",
+        "value"
+      ],
+      "type": "object"
+    },
+    "name": "clients_value_set_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "archivedAt": {
+          "format": "date-time",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "createdAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "createdByUserId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "workspaceId",
+        "createdByUserId",
+        "displayName",
+        "email",
+        "phone",
+        "notes",
+        "archivedAt",
+        "version",
+        "createdAt",
+        "updatedAt"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "List a client's values for the workspace's active custom fields.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "clientId": {
+          "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspaceId",
+        "clientId"
+      ],
+      "type": "object"
+    },
+    "name": "clients_values_list_v1",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "values": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "fieldId": {
+                "pattern": "^[2-9a-hjkmnp-z]{4,}$",
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "text",
+                  "number",
+                  "date",
+                  "yes_no",
+                  "single_choice"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "type": [
+                  "null",
+                  "string"
+                ]
+              }
+            },
+            "required": [
+              "fieldId",
+              "label",
+              "type",
+              "value"
+            ],
+            "type": "object"
+          },
+          "maxItems": 50,
+          "type": "array"
+        }
+      },
+      "required": [
+        "values"
+      ],
+      "type": "object"
+    }
+  }
+]
