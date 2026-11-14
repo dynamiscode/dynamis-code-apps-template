@@ -2,7 +2,7 @@
 <html lang="{{.Locale}}" data-theme="{{.Theme}}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.T "clients.title"}} · Dynamis Code</title><link rel="stylesheet" href="/assets/app.css">{{template "ui-head" .}}</head>
 <body data-webmcp-page="clients">{{template "skip-link" .}}<header class="topbar"><a class="brand" href="/">Dynamis Code</a><div class="topbar-context">{{template "workspace-list-crumb" .}}{{template "workspace-context" .}}</div>{{template "account-menu" .}}</header>
 <div class="app-shell"><aside class="sidebar">{{if not .SingleWorkspace}}<a class="sidebar-back" href="/">← {{.T "workspace.back_to_workspaces"}}</a>{{end}}{{template "workspace-nav" .}}</aside><main id="main"><h1>{{.T "clients.title"}}</h1>{{template "client-list" .}}</main></div></body></html>{{end}}
-{{define "client-list"}}<section id="client-list" aria-labelledby="clients-heading"><h2 id="clients-heading" class="visually-hidden">{{.T "clients.title"}}</h2>
+{{define "client-list"}}<section id="client-list" data-events="{{.CurrentPath}}/events" data-live-connecting="{{.T "clients.live_connecting"}}" data-live-connected="{{.T "clients.live_connected"}}" data-live-unavailable="{{.T "clients.live_unavailable"}}" data-live-reconnecting="{{.T "clients.live_reconnecting"}}" data-live-waiting="{{.T "ui.updates_waiting"}}" aria-labelledby="clients-heading"><h2 id="clients-heading" class="visually-hidden">{{.T "clients.title"}}</h2>
 {{if .ErrorKey}}<p class="error" role="alert" tabindex="-1">{{.T .ErrorKey}}</p>{{end}}
 {{if .CanEditClients}}<form class="create" action="{{.CurrentPath}}" method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><h3>{{.T "clients.new_client"}}</h3>
 <label for="client-display-name">{{.T "clients.display_name"}}</label><input id="client-display-name" name="display_name" required maxlength="200" value="{{.ClientDraft.DisplayName}}">
@@ -13,4 +13,4 @@
 {{else}}<p class="status">{{.T "clients.read_only"}}</p>{{end}}
 {{if .CanManageFields}}<p><a href="{{.FieldsPath}}">{{.T "clients.fields_link"}}</a></p>{{end}}
 {{if .Clients}}<ul class="clients">{{range .Clients}}<li><a href="{{$.CurrentPath}}/{{.ID}}">{{.DisplayName}}</a>{{if .Email}} <span>{{.Email}}</span>{{end}}</li>{{end}}</ul>{{else}}<p>{{.T "clients.none"}}</p>{{end}}
-{{if .NextCursor}}<p><a href="{{.CurrentPath}}?cursor={{.NextCursor}}">{{.T "items.next_page"}}</a></p>{{end}}</section>{{end}}
+{{if .NextCursor}}<p><a href="{{.CurrentPath}}?cursor={{.NextCursor}}">{{.T "items.next_page"}}</a></p>{{end}}<p class="status" role="status" aria-live="polite" id="realtime-status">{{.T "clients.live_fallback"}}</p></section>{{end}}

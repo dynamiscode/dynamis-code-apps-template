@@ -116,6 +116,30 @@ func TestFileStreamingPathGetsRequestDeadline(t *testing.T) {
 	}
 }
 
+func TestClientEventsStreamBypassesRequestConcurrencyLimit(t *testing.T) {
+	served := false
+	next := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		served = true
+		writer.WriteHeader(http.StatusOK)
+	})
+	// A zero-slot limiter rejects every ordinary request, so only the stream can pass.
+	handler := concurrencyMiddleware(next, 0)
+	stream := httptest.NewRecorder()
+	handler.ServeHTTP(stream, httptest.NewRequest(http.MethodGet, "/workspaces/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/clients/events", nil))
+	if !served || stream.Code != http.StatusOK {
+		t.Fatalf("client events stream = %d served=%v, want it to bypass the limit", stream.Code, served)
+	}
+	served = false
+	ordinary := httptest.NewRecorder()
+	handler.ServeHTTP(ordinary, httptest.NewRequest(http.MethodGet, "/workspaces/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/clients", nil))
+	if served {
+		t.Fatal("ordinary client list request bypassed the concurrency limit")
+	}
+	if !isStreamingPath("/workspaces/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/clients/events") {
+		t.Fatal("client events path is not a streaming path")
+	}
+}
+
 func TestRequestIDTokenBounds(t *testing.T) {
 	handler := requestIDMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	hexID := "0123456789abcdef0123456789abcdef"

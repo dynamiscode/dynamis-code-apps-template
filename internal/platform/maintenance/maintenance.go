@@ -18,22 +18,23 @@ const (
 )
 
 type Result struct {
-	AuditEvents        int64 `json:"auditEvents"`
-	MFAChallenges      int64 `json:"mfaChallenges"`
-	Sessions           int64 `json:"sessions"`
-	Invitations        int64 `json:"invitations"`
-	APITokens          int64 `json:"apiTokens"`
-	SCIMTokens         int64 `json:"scimTokens"`
-	OIDCTransactions   int64 `json:"oidcTransactions"`
-	EmailVerifications int64 `json:"emailVerifications"`
-	PasswordResets     int64 `json:"passwordResets"`
-	Idempotency        int64 `json:"idempotencyRecords"`
-	RealtimeReplay     int64 `json:"realtimeReplay"`
-	Notifications      int64 `json:"notifications"`
-	WebhookDeliveries  int64 `json:"webhookDeliveries"`
-	WebhookEvents      int64 `json:"webhookEvents"`
-	BackgroundJobs     int64 `json:"backgroundJobs"`
-	PublicLinks        int64 `json:"publicLinks"`
+	AuditEvents          int64 `json:"auditEvents"`
+	MFAChallenges        int64 `json:"mfaChallenges"`
+	Sessions             int64 `json:"sessions"`
+	Invitations          int64 `json:"invitations"`
+	APITokens            int64 `json:"apiTokens"`
+	SCIMTokens           int64 `json:"scimTokens"`
+	OIDCTransactions     int64 `json:"oidcTransactions"`
+	EmailVerifications   int64 `json:"emailVerifications"`
+	PasswordResets       int64 `json:"passwordResets"`
+	Idempotency          int64 `json:"idempotencyRecords"`
+	RealtimeReplay       int64 `json:"realtimeReplay"`
+	ClientRealtimeReplay int64 `json:"clientRealtimeReplay"`
+	Notifications        int64 `json:"notifications"`
+	WebhookDeliveries    int64 `json:"webhookDeliveries"`
+	WebhookEvents        int64 `json:"webhookEvents"`
+	BackgroundJobs       int64 `json:"backgroundJobs"`
+	PublicLinks          int64 `json:"publicLinks"`
 }
 
 func Run(
@@ -72,6 +73,7 @@ func Run(
 			(revoked_at IS NOT NULL OR (expires_at IS NOT NULL AND expires_at <= ?))`, []any{stamp(now.Add(-historyRetention)), stamp(now)}, &result.APITokens},
 		{`DELETE FROM scim_tokens WHERE created_at <= ? AND revoked_at IS NOT NULL`, []any{stamp(now.Add(-historyRetention))}, &result.SCIMTokens},
 		{"DELETE FROM item_events WHERE occurred_at <= ?", []any{stamp(now.Add(-replayRetention))}, &result.RealtimeReplay},
+		{"DELETE FROM client_events WHERE occurred_at <= ?", []any{stamp(now.Add(-replayRetention))}, &result.ClientRealtimeReplay},
 		{"DELETE FROM notifications WHERE created_at <= ?", []any{stamp(now.Add(-historyRetention))}, &result.Notifications},
 		{"DELETE FROM webhook_deliveries WHERE status <> 'pending' AND created_at <= ?", []any{stamp(now.Add(-historyRetention))}, &result.WebhookDeliveries},
 		// Runs after the delivery prune, so events whose deliveries are gone are

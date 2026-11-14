@@ -103,6 +103,11 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		VALUES (?, ?, ?, ?, ?) RETURNING id`), workspaceID, itemOld, "deleted", 1, old).Scan(&eventOldID); err != nil {
 		t.Fatal(err)
 	}
+	var clientEventOldID int64
+	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO client_events (workspace_id, client_id, event_type, client_version, occurred_at)
+		VALUES (?, ?, ?, ?, ?) RETURNING id`), workspaceID, 1, "created", 1, old).Scan(&clientEventOldID); err != nil {
+		t.Fatal(err)
+	}
 	var notificationOldID int64
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO notifications (user_id, workspace_id, notification_type, title, body, created_at)
 		VALUES (?, ?, ?, ?, ?, ?) RETURNING id`), userKey, workspaceID, "system", "Old", "Old", old).Scan(&notificationOldID); err != nil {
@@ -139,14 +144,14 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if result.Sessions < 1 || result.Invitations < 1 || result.APITokens < 1 || result.SCIMTokens < 1 || result.EmailVerifications < 1 || result.PasswordResets < 1 || result.Notifications < 1 ||
 		result.MFAChallenges < 1 ||
 		result.OIDCTransactions < 1 || result.Idempotency < 1 ||
-		result.RealtimeReplay < 1 || result.WebhookDeliveries < 1 || result.BackgroundJobs < 1 || result.PublicLinks < 1 || result.AuditEvents < 1 {
+		result.RealtimeReplay < 1 || result.ClientRealtimeReplay < 1 || result.WebhookDeliveries < 1 || result.BackgroundJobs < 1 || result.PublicLinks < 1 || result.AuditEvents < 1 {
 		t.Fatalf("Run() result = %+v", result)
 	}
 	for table, key := range map[string]any{
 		"sessions": "session-old", "invitations": invitationID,
 		"api_tokens": tokenID, "scim_tokens": scimOldID, "oidc_transactions": "state-old",
 		"mfa_challenges":      "mfa-challenge-old",
-		"idempotency_records": "key-old", "item_events": eventOldID,
+		"idempotency_records": "key-old", "item_events": eventOldID, "client_events": clientEventOldID,
 		"notifications":       notificationOldID,
 		"email_verifications": "verification-old", "password_resets": "reset-old",
 		"public_links": publicLinkOldID,

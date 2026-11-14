@@ -372,6 +372,7 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/items/{itemId}/share", h.shareMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/items/events", h.itemEvents)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients", h.clientList)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/clients/events", h.clientEvents)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients", h.createClient)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients/{clientId}", h.clientDetail)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}", h.changeClient)
@@ -1145,7 +1146,21 @@ func (h *Handler) itemEvents(writer http.ResponseWriter, request *http.Request) 
 	if !ok {
 		return
 	}
-	if !h.streams.acquire(principal.UserID) {
+	h.serveChangeStream(writer, request, principal.UserID, func(cursor string) (string, bool) {
+		return h.sendChanges(writer, request, principal, workspaceID, cursor)
+	})
+}
+
+// serveChangeStream holds one workspace realtime connection: the per-user limit,
+// the SSE headers, the replay after Last-Event-ID, then polling with heartbeats
+// and a lifetime. send writes the changes after a cursor and returns the next one.
+func (h *Handler) serveChangeStream(
+	writer http.ResponseWriter,
+	request *http.Request,
+	userID identity.UserID,
+	send func(cursor string) (string, bool),
+) {
+	if !h.streams.acquire(userID) {
 		telemetry.RecordStream(request.Context(), 0, true)
 		writer.Header().Set("Content-Type", "application/problem+json")
 		writer.Header().Set("Retry-After", "30")
@@ -1159,7 +1174,7 @@ func (h *Handler) itemEvents(writer http.ResponseWriter, request *http.Request) 
 	}
 	telemetry.RecordStream(request.Context(), 1, false)
 	defer func() {
-		h.streams.release(principal.UserID)
+		h.streams.release(userID)
 		telemetry.RecordStream(request.Context(), -1, false)
 	}()
 	flusher, ok := writer.(http.Flusher)
@@ -1172,7 +1187,7 @@ func (h *Handler) itemEvents(writer http.ResponseWriter, request *http.Request) 
 	writer.Header().Set("X-Accel-Buffering", "no")
 	writer.WriteHeader(http.StatusOK)
 	cursor := request.Header.Get("Last-Event-ID")
-	if cursor, ok = h.sendChanges(writer, request, principal, workspaceID, cursor); !ok {
+	if cursor, ok = send(cursor); !ok {
 		return
 	}
 	flusher.Flush()
@@ -1194,7 +1209,7 @@ func (h *Handler) itemEvents(writer http.ResponseWriter, request *http.Request) 
 			_, _ = fmt.Fprint(writer, ": heartbeat\n\n")
 			flusher.Flush()
 		case <-poll.C:
-			if cursor, ok = h.sendChanges(writer, request, principal, workspaceID, cursor); !ok {
+			if cursor, ok = send(cursor); !ok {
 				return
 			}
 			flusher.Flush()

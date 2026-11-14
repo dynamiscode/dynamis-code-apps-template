@@ -284,6 +284,7 @@ func TestRegistryNamesClientTypeCodes(t *testing.T) {
 		TypeClient:            "client",
 		TypeClientField:       "client_field",
 		TypeClientFieldOption: "client_field_option",
+		TypeClientEvent:       "client_event",
 	}
 	registered := make(map[TypeCode]bool)
 	for _, code := range TypeCodes() {

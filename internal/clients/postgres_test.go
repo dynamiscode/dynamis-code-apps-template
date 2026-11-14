@@ -99,6 +99,13 @@ func TestPostgresClientLifecycle(t *testing.T) {
 	if err != nil || len(page.Clients) != 1 || page.Clients[0].ID != created.ID {
 		t.Fatalf("List() = %+v, %v", page, err)
 	}
+	changes, err := service.Changes(ctx, viewer, workspaceID, changeOrigin, 10)
+	if err != nil || len(changes.Changes) != 2 || changes.Changes[0].Action != "created" || changes.Changes[1].Action != "updated" || changes.Changes[1].ClientVersion != 2 {
+		t.Fatalf("Changes() = %+v, %v; want created then updated", changes, err)
+	}
+	if after, err := service.Changes(ctx, viewer, workspaceID, changes.Next, 10); err != nil || len(after.Changes) != 0 {
+		t.Fatalf("Changes() after the last cursor = %+v, %v; want none", after, err)
+	}
 	if _, err := service.Get(ctx, viewer, workspaceID, 0); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("zero key get error = %v, want ErrNotFound", err)
 	}
