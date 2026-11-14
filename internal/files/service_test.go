@@ -136,7 +136,7 @@ func TestStreamedWriteFailureReleasesPendingQuota(t *testing.T) {
 		t.Fatal(err)
 	}
 	owner, err := auth.BootstrapFirstOwner(context.Background(), identity.BootstrapInput{
-		Email: "presign@example.com", Password: "long-enough-password", WorkspaceName: "Presign",
+		Email: "streamed-failure@example.com", Password: "long-enough-password", WorkspaceName: "StreamedFailure",
 	}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)

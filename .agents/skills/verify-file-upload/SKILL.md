@@ -1,6 +1,6 @@
 ---
 name: verify-file-upload
-description: Check the private file lifecycle (pending, ready, failed), its quota reservation, and the rule that a ready file has its stored content. Use when a change touches internal/files/service.go (reserve, Initiate, Upload, PutContent, Complete, completeDB, transitionFile, markFailed, CleanupStaleFiles, validTransitions), the file HTTP routes in internal/httpapi/files.go, or the presigned upload path.
+description: Check the private file lifecycle (pending, ready, failed), its quota reservation, and the rule that a ready file has its stored content. Use when a change touches internal/files/service.go (reserve, Initiate, Upload, PutContent, Complete, completeDB, transitionFile, markFailed, CleanupStaleFiles, validTransitions), the file HTTP routes in internal/httpapi/files.go, or the streamed upload path.
 ---
 
 # Verify file upload
@@ -15,7 +15,7 @@ description: Check the private file lifecycle (pending, ready, failed), its quot
 
 - Model: `verification/files/FileUpload.tla`, config `verification/files/FileUpload.cfg`.
 - Bounds: two files, workspace limit 3 bytes, object limit 2 bytes. About 176 distinct states.
-- Actions map to code: `Reserve` is `reserve()` (quota check, then INSERT as pending), `PutObject` and `PutWrongSize` are the stored object (validated by `PutContent`, or a client-chosen size on the presigned path), `CompleteAccepts` and `CompleteRejects` are `Complete` and `completeDB`, `Abort` is `markFailed` during `PutContent`, and `Cleanup` is `CleanupStaleFiles`.
+- Actions map to code: `Reserve` is `reserve()` (quota check, then INSERT as pending), `PutObject` and `PutWrongSize` are the stored object (validated by `PutContent`, or a client-chosen size written through the content route), `CompleteAccepts` and `CompleteRejects` are `Complete` and `completeDB`, `Abort` is `markFailed` during `PutContent`, and `Cleanup` is `CleanupStaleFiles`.
 - Each action is treated as one serializable transaction, matching the `SERIALIZABLE` transactions in `service.go`.
 - Abstracted away: MIME types, owners, signed URLs, transient store errors (they leave a file pending, which the model already allows), and real timing for cleanup.
 
@@ -31,7 +31,7 @@ description: Check the private file lifecycle (pending, ready, failed), its quot
    `verification/tools/run-tlc.sh verification/files FileUpload`
    The pass line is `Model checking completed. No error has been found.`
 2. Run the Go checks against the real code:
-   `go test ./internal/files/ -run 'TestLocalFileLifecycleAndValidation|TestWorkspaceQuotaAndIsolation|TestPresignFailureReleasesPendingQuota|TestFileStateTransitions|TestQuotaCalculationCleanupStaleAndFailedFiles' -count=1`
+   `go test ./internal/files/ -run 'TestLocalFileLifecycleAndValidation|TestWorkspaceQuotaAndIsolation|TestStreamedWriteFailureReleasesPendingQuota|TestFileStateTransitions|TestQuotaCalculationCleanupStaleAndFailedFiles' -count=1`
 3. Both must pass. For the Postgres path, set `POSTGRES_TEST_URL` and run `TestPostgresFileStateTransitions` too.
 
 ## Read a failure
@@ -51,7 +51,7 @@ If the rules change on purpose (a new file state, a different quota rule, a new 
 
 Measured on this commit, in scratch copies:
 - **Reserve quota removed** (`service.go` reserve, `used > s.maxWorkspaceBytes-size`): the model fails `QuotaHolds` with a 2-step counterexample (two reservations of 2 bytes against a limit of 3). `TestLocalFileLifecycleAndValidation` and `TestQuotaCalculationCleanupStaleAndFailedFiles` both fail.
-- **Object size check removed** (`Complete`, `object.Size != file.Size`): the model fails `ReadyHasMatchingContent` (a presigned object of a different size is completed). `TestLocalFileLifecycleAndValidation` fails.
+- **Object size check removed** (`Complete`, `object.Size != file.Size`): the model fails `ReadyHasMatchingContent` (a stored object of a different size is completed). `TestLocalFileLifecycleAndValidation` fails.
 - **Completion quota check removed** (`completeDB`, the `used > …` check after the `id <> ?` sum): no test fails, and the model still passes `QuotaHolds` when that check is removed. This is expected: completion keeps the reserved size, and the size stays equal to the reservation, so the check cannot trigger. Treat it as redundant defense, not a gap. If a future change lets completion change the size, this check becomes the only quota guard, and this skill must be rerun.
 
 ## Not covered

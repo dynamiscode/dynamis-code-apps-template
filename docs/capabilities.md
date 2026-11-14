@@ -637,10 +637,10 @@ which is `accepted`.
 ## Files evidence
 
 Files metadata migration and workspace authorization, local filesystem uploads
-and streams, private S3-compatible presigned PUT/GET paths, configurable
-16 MiB object and 1 GiB workspace limits, safe filename and content allowlists,
-browser ordinary-form fallback, REST/OpenAPI behavior, and generated profile
-pruning are covered by focused SQLite tests and generated-app checks. Deletion,
+and streams, private S3-compatible presigned GET downloads and streamed S3 uploads,
+configurable 16 MiB object and 1 GiB workspace limits, safe filename and content
+allowlists, browser ordinary-form fallback, REST/OpenAPI behavior, and generated
+profile pruning are covered by focused SQLite tests and generated-app checks.
 reconciliation, scanning, background jobs, and PostgreSQL/Docker execution
 remain follow-up verification or deferred behavior for this slice.
 
@@ -838,10 +838,10 @@ Verified 2026-11-11 with Go 1.27.4 on the in-process conformance suite:
   the S3 object contract through the production `newS3Store` constructor against
   an in-process S3-compatible endpoint. It covers a put/head/get round trip with
   size and content type, conditional create rejecting overwrite, not-found
-  normalized to `ErrObjectNotFound` for head and get, a presigned PUT using the
-  returned headers, a presigned GET whose `X-Amz-Expires` equals the requested
-  TTL, unsigned requests refused so objects stay private, and a presigned GET
-  refused after expiry
+  normalized to `ErrObjectNotFound` for head and get, a presigned GET whose
+  `X-Amz-Expires` equals the requested TTL, unsigned requests refused so objects
+  stay private, and a presigned GET refused after expiry. The presigned PUT
+  assertions were removed in #272.
 - mutation checks: disabling the expiry check fails the suite at the expired-URL
   assertion; disabling `If-None-Match` fails at the overwrite assertion
 - the in-process endpoint does not verify SigV4 signatures. Signature validity
@@ -854,6 +854,9 @@ Verified 2026-11-11 with Go 1.27.4 on the in-process conformance suite:
   `make secret-check`, and `go test -race ./internal/files/...`
 - not run: `make race` for the whole tree, PostgreSQL (`POSTGRES_TEST_URL` unset;
   no data change), `make docker-smoke` (no runtime change), and `make verify`
+- Rechecked 2026-11-14 with Go 1.27.4 after #272: `make test`, `make lint`,
+  and `verification/tools/run-tlc.sh verification/files FileUpload` passed; the
+  in-process suite still checks presigned GET expiry.
 
 Manual R2 run: **not run**. It is gated on R2 credentials and a dedicated test
 bucket, neither of which was available to this run. Procedure:
@@ -862,11 +865,11 @@ new dated section here: date, endpoint kind (no account ID), Go version, and
 `go test` outcome.
 
 Not verified against R2 until that run passes: SigV4 signature validity for
-presigned URLs, the SDK's default request checksum behavior, conditional PUT
-with `If-None-Match`. Browser CORS preflight for presigned uploads is not
-applicable to REST uploads, which stream through the application
-([ADR 0010](decisions/0010-streamed-s3-uploads.md)); it cannot be verified
-against a real bucket for uploads and is recorded as not applicable.
+presigned GET URLs, the SDK's default request checksum behavior, and conditional
+PUT with `If-None-Match`. Browser CORS preflight: **not applicable**. Uploads stream
+through the application, so the browser sends no request to the bucket
+([ADR 0010](decisions/0010-streamed-s3-uploads.md)). The presigned PUT path that
+required bucket CORS was removed in #272.
 
 ## Streamed S3 upload evidence
 

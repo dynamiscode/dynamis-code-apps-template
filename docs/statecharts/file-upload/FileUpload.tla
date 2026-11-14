@@ -1,11 +1,11 @@
 ---- MODULE FileUpload ----
 (*
-A person uploads a private file with the browser uploader (internal/web/assets/app.js,
-PresignedUploader phases IDLE, INITIATING, UPLOADING, COMPLETING, SUCCESS, ERROR; server
-side in internal/files/service.go). A failed attempt can leave a pending server file that
-holds quota until cleanup.
+Historical model of the browser's pre-#271 presigned upload flow. The current
+browser uses FileUploader for one multipart POST (see docs/web.md); this model
+records the superseded initiate/PUT/complete phases.
 
-phase follows PresignedUploader. failedAt records which step failed last.
+phase follows the historical PresignedUploader; failedAt records which step
+failed last.
 held counts pending server files for this workspace. stored is TRUE once the bytes reached
 storage for the latest attempt. ready counts files the server has finished.
 *)
