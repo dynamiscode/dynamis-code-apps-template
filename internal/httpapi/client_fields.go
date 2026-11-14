@@ -123,3 +123,25 @@ func (h *handler) changeClientField(writer http.ResponseWriter, request *http.Re
 	}
 	writeJSON(writer, http.StatusOK, field)
 }
+
+func (h *handler) deleteClientField(writer http.ResponseWriter, request *http.Request) {
+	if h.clients == nil {
+		notFoundProblem(writer, request)
+		return
+	}
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	fieldID := clients.ParseFieldIDOrZero(request.PathValue("fieldId"))
+	if len(request.URL.Query()) != 0 {
+		h.invalidRequest(writer, request, "The request parameters are invalid.")
+		return
+	}
+	principal, ok := h.workspaceBearer(writer, request, workspaceID, identity.WorkspaceUpdate)
+	if !ok {
+		return
+	}
+	if err := h.clients.DeleteField(request.Context(), principal, workspaceID, fieldID, h.auditContext(request)); err != nil {
+		h.clientError(writer, request, err)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
+}

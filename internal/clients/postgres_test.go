@@ -233,4 +233,44 @@ func TestPostgresClientLifecycle(t *testing.T) {
 	if options, err := service.ListOptions(ctx, viewer, workspaceID, choice.ID); err != nil || len(options) != 0 {
 		t.Fatalf("ListOptions() after delete = %+v, %v; want none", options, err)
 	}
+	// Permanent field deletion on PostgreSQL: the value is cleared, the field
+	// row goes, and the freed slot is reused by the next field.
+	retired, err := service.DefineField(ctx, owner, workspaceID, FieldInput{Label: "Retired", Type: FieldTypeText}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var retiredSlot int
+	if err := db.QueryRowContext(ctx, `SELECT slot FROM client_fields WHERE id = $1`, int64(retired.ID)).Scan(&retiredSlot); err != nil {
+		t.Fatal(err)
+	}
+	latest, err := service.Get(ctx, owner, workspaceID, created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.SetValue(ctx, owner, workspaceID, created.ID, latest.Version, retired.ID, "Old", identity.AuditContext{}); err != nil {
+		t.Fatalf("SetValue(retired) error = %v", err)
+	}
+	if err := service.DeleteField(ctx, owner, workspaceID, retired.ID, identity.AuditContext{}); !errors.Is(err, ErrFieldNotArchived) {
+		t.Fatalf("DeleteField() on an active field error = %v, want ErrFieldNotArchived", err)
+	}
+	if _, err := service.ArchiveField(ctx, owner, workspaceID, retired.ID, identity.AuditContext{}); err != nil {
+		t.Fatalf("ArchiveField(retired) error = %v", err)
+	}
+	if err := service.DeleteField(ctx, viewer, workspaceID, retired.ID, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer DeleteField() error = %v, want ErrForbidden", err)
+	}
+	if err := service.DeleteField(ctx, owner, workspaceID, retired.ID, identity.AuditContext{}); err != nil {
+		t.Fatalf("DeleteField() error = %v", err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT custom_values FROM clients WHERE id = $1`, int64(created.ID)).Scan(&stored); err != nil || strings.Contains(stored, `"`+slotKey(retiredSlot)+`"`) {
+		t.Fatalf("custom_values after field delete = %q, %v; want the field key cleared", stored, err)
+	}
+	reused, err := service.DefineField(ctx, owner, workspaceID, FieldInput{Label: "Reused", Type: FieldTypeText}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var reusedSlot int
+	if err := db.QueryRowContext(ctx, `SELECT slot FROM client_fields WHERE id = $1`, int64(reused.ID)).Scan(&reusedSlot); err != nil || reusedSlot != retiredSlot {
+		t.Fatalf("slot of the field defined after delete = %d, %v; want the freed slot %d", reusedSlot, err, retiredSlot)
+	}
 }

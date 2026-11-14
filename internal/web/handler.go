@@ -389,6 +389,7 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/client-fields", h.createClientField)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/client-fields/{fieldId}/archive", h.archiveClientField)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/client-fields/{fieldId}/restore", h.restoreClientField)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/client-fields/{fieldId}/delete", h.deleteClientField)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/client-fields/{fieldId}/options", h.createClientFieldOption)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/client-fields/{fieldId}/options/{optionId}/delete", h.deleteClientFieldOption)
 	if h.files != nil {

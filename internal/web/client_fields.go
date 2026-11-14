@@ -121,3 +121,28 @@ func (h *Handler) changeClientField(writer http.ResponseWriter, request *http.Re
 	}
 	h.redirect(writer, request, h.clientFieldsPath(workspaceID))
 }
+
+// deleteClientField permanently deletes an archived field. An active field is
+// refused on the page, so the owner archives it first.
+func (h *Handler) deleteClientField(writer http.ResponseWriter, request *http.Request) {
+	if h.clients == nil {
+		h.renderError(writer, http.StatusNotFound)
+		return
+	}
+	principal, ok := h.mutationPrincipal(writer, request)
+	if !ok {
+		return
+	}
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	fieldID := clients.ParseFieldIDOrZero(request.PathValue("fieldId"))
+	err := h.clients.DeleteField(request.Context(), principal, workspaceID, fieldID, auditContext(request))
+	if errors.Is(err, clients.ErrFieldNotArchived) {
+		h.renderClientFieldList(writer, request, http.StatusConflict, "clients.error_field_not_archived", clients.FieldInput{})
+		return
+	}
+	if err != nil {
+		h.clientError(writer, request, err)
+		return
+	}
+	h.redirect(writer, request, h.clientFieldsPath(workspaceID))
+}

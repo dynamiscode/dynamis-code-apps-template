@@ -163,6 +163,7 @@ func newHandler(
 		"archiveClientField": h.archiveClientField, "restoreClientField": h.restoreClientField,
 		"listClientFieldOptions": h.listClientFieldOptions, "createClientFieldOption": h.createClientFieldOption,
 		"deleteClientFieldOption": h.deleteClientFieldOption,
+		"deleteClientField":       h.deleteClientField,
 		"createSCIMToken":         h.createSCIMToken, "revokeSCIMToken": h.revokeSCIMToken,
 		"listSCIMUsers": h.listSCIMUsers, "createSCIMUser": h.createSCIMUser,
 		"getSCIMUser": h.getSCIMUser, "patchSCIMUser": h.patchSCIMUser,
