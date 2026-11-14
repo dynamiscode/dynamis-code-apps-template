@@ -176,3 +176,29 @@ the decision recorded for spec [#294](https://github.com/dynamiscode/dynamis-cod
   /client-fields/{fieldId}/options/{optionId}`, plus the custom-fields page and
   the client value select. MCP and `appctl` option commands are not in this
   slice.
+
+## Addendum: permanent custom field delete (ticket #302, 2026-11-13)
+
+- **Surfaces:** REST `DELETE /api/v1/workspaces/{workspaceId}/client-fields/{fieldId}`
+  (operation `deleteClientField`, 204), and the custom-fields page with a
+  `POST .../client-fields/{fieldId}/delete` form. The page shows the control only
+  to owners and admins, only for an archived field, behind a confirmation
+  (`data-confirm`).
+- **Delete:** one serializable transaction. It authorizes `WorkspaceUpdate`, then
+  refuses an active field (`ErrFieldNotArchived`, REST 409 `field-not-archived`).
+  It clears the field's `fNN` key from every client that holds a value, bumping
+  each cleared client's version and recording one change-feed entry per client
+  (the same shape option delete uses). It deletes the field's choice options,
+  then the field row. The slot is freed only at commit, so a rolled-back delete
+  keeps the values, the options, and the slot.
+- **Clearing rule:** the cleared set is the clients whose value under the slot is
+  non-null. That is the predicate the type lock already uses, so clearing and the
+  lock agree. Option delete and field delete share the clearing helper.
+- **Audit:** `client_field.deleted`, target type `client_field`, target key the
+  field's integer key, metadata `{"clearedClients":N}`. No field values are stored
+  in the metadata.
+- **Webhooks and realtime:** no webhook event, because field-definition changes
+  emit none (see Audit, export, events). Cleared clients refresh through the change
+  feed, as option delete does.
+- **Omissions:** MCP and `appctl` field delete are not in this slice and arrive
+  with the agent-surface ticket.

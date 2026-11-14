@@ -595,6 +595,22 @@
           }
         }
       },
+      "/api/v1/workspaces/{workspaceId}/client-fields/{fieldId}": {
+        "delete": {
+          "operationId": "deleteClientField",
+          "description": "Permanently deletes an archived custom field. Its value is cleared from every client, its choice options are removed, and its slot is freed, all in one transaction. Active fields are refused with 409. Owners and admins only.",
+          "security": [{"bearerAuth": []}],
+          "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/FieldId"}],
+          "responses": {
+            "204": {"description": "Custom field deleted"},
+            "401": {"$ref": "#/components/responses/Problem"},
+            "403": {"$ref": "#/components/responses/Problem"},
+            "404": {"$ref": "#/components/responses/Problem"},
+            "409": {"$ref": "#/components/responses/Problem"},
+            "429": {"$ref": "#/components/responses/RateLimited"}
+          }
+        }
+      },
       "/api/v1/workspaces/{workspaceId}/client-fields/{fieldId}/options": {
         "get": {
           "operationId": "listClientFieldOptions",

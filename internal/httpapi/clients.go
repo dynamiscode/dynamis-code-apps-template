@@ -198,6 +198,11 @@ func (h *handler) clientError(writer http.ResponseWriter, request *http.Request,
 		h.invalidRequest(writer, request, "The value is required. Use DELETE to clear a value.")
 	case errors.Is(err, clients.ErrFieldArchived):
 		h.invalidRequest(writer, request, "The custom field is archived.")
+	case errors.Is(err, clients.ErrFieldNotArchived):
+		writeProblem(
+			writer, request, http.StatusConflict, "field-not-archived",
+			"Archive the custom field before deleting it.",
+		)
 	case errors.Is(err, clients.ErrOptionNotFound):
 		notFoundProblem(writer, request)
 	case errors.Is(err, clients.ErrOptionLimit):

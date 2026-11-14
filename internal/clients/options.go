@@ -136,7 +136,7 @@ func (s *Service) DeleteOption(
 		return err
 	}
 	now := s.now().UTC()
-	cleared, err := s.clearOptionValues(ctx, tx, workspaceID, ref.slot, optionID.String(), now)
+	cleared, err := s.clearSlotValues(ctx, tx, workspaceID, ref.slot, now, "= ?", optionID.String())
 	if err != nil {
 		return err
 	}
@@ -207,22 +207,24 @@ func (s *Service) ListOptions(
 	return options, nil
 }
 
-// clearOptionValues removes the option's value from every client that holds it
-// under the field's slot. Each cleared client's version bumps and its change is
-// recorded for the list feed. It returns how many clients were cleared. The
-// lookup repeats the slot expression, so it uses the slot index.
-func (s *Service) clearOptionValues(
+// clearSlotValues removes the field's value from every client whose value under
+// the slot matches condition (SQL after the slot expression, with args). Each
+// cleared client's version bumps and its change is recorded for the list feed.
+// It returns how many clients were cleared. The lookup repeats the slot
+// expression, so it uses the slot index.
+func (s *Service) clearSlotValues(
 	ctx context.Context,
 	tx *sql.Tx,
 	workspaceID identity.WorkspaceID,
 	slot int,
-	value string,
 	now time.Time,
+	condition string,
+	args ...any,
 ) (int, error) {
 	expr := database.JSONTextExpr(s.driver, "custom_values", slotKey(slot))
 	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, fmt.Sprintf(
-		"SELECT id, version, custom_values FROM clients WHERE workspace_id = ? AND %s = ?", expr,
-	)), workspaceID, value)
+		"SELECT id, version, custom_values FROM clients WHERE workspace_id = ? AND %s %s", expr, condition,
+	)), append([]any{workspaceID}, args...)...)
 	if err != nil {
 		return 0, err
 	}
