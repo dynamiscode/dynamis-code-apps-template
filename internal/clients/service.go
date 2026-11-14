@@ -5,11 +5,9 @@ package clients
 import (
 	"context"
 	"database/sql"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/mail"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -49,8 +47,10 @@ type Client struct {
 }
 
 type ListInput struct {
-	Limit  int
-	Cursor string
+	Limit   int
+	Cursor  string
+	Sort    SortInput
+	Filters []FilterInput
 }
 
 // Page is one keyset page of clients, newest first. The cursor is opaque.
@@ -281,7 +281,9 @@ func normalizeUpdate(input *UpdateInput) error {
 	return nil
 }
 
-// List returns clients newest first. Filtering and sorting are not part of v1.
+// List returns one page of clients. Archived clients are excluded. Without a
+// sort the page is newest first. A sort orders by one field with empty values
+// last, and a filter narrows the rows. The cursor binds the sort and filters.
 func (s *Service) List(
 	ctx context.Context,
 	actor identity.Principal,
@@ -291,7 +293,7 @@ func (s *Service) List(
 	if input.Limit < 1 {
 		return Page{}, ErrInvalidInput
 	}
-	before, err := decodeCursor(input.Cursor)
+	cursor, err := decodeListCursor(input.Cursor)
 	if err != nil {
 		return Page{}, err
 	}
@@ -305,30 +307,25 @@ func (s *Service) List(
 	); err != nil {
 		return Page{}, identity.ErrForbidden
 	}
-	query := `
-		SELECT id, workspace_id, created_by_user_id, display_name, email, phone, notes,
-			version, created_at, updated_at
-		FROM clients
-		WHERE workspace_id = ?`
-	args := []any{workspaceID}
-	if before != 0 {
-		query += " AND id < ?"
-		args = append(args, before)
+	query, err := s.buildListQuery(ctx, tx, workspaceID, input, cursor)
+	if err != nil {
+		return Page{}, err
 	}
-	query += " ORDER BY id DESC LIMIT ?"
-	args = append(args, input.Limit+1)
-	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, query), args...)
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, query.sql), append(query.args, input.Limit+1)...)
 	if err != nil {
 		return Page{}, err
 	}
 	defer rows.Close()
 	clients := make([]Client, 0, input.Limit+1)
+	sortValues := make([]sql.NullString, 0, input.Limit+1)
 	for rows.Next() {
-		client, err := scanClient(rows)
+		var sortValue sql.NullString
+		client, err := scanClient(listRow{rows: rows, sortValue: &sortValue})
 		if err != nil {
 			return Page{}, err
 		}
 		clients = append(clients, client)
+		sortValues = append(sortValues, sortValue)
 	}
 	if err := rows.Err(); err != nil {
 		return Page{}, err
@@ -339,34 +336,16 @@ func (s *Service) List(
 	page := Page{Clients: clients}
 	if len(clients) > input.Limit {
 		page.Clients = clients[:input.Limit]
-		page.NextCursor = encodeCursor(page.Clients[input.Limit-1].ID)
+		last := input.Limit - 1
+		page.NextCursor, err = encodeListCursor(query, input, sortValues[last], clients[last].ID)
+		if err != nil {
+			return Page{}, err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return Page{}, err
 	}
 	return page, nil
-}
-
-// encodeCursor names the last key on a page. Keys only grow, so id order
-// matches creation order and the next page starts strictly below it.
-func encodeCursor(id ClientID) string {
-	return base64.RawURLEncoding.EncodeToString([]byte(strconv.FormatInt(int64(id), 10)))
-}
-
-// decodeCursor returns 0 for an empty cursor, which means the first page.
-func decodeCursor(value string) (ClientID, error) {
-	if value == "" {
-		return 0, nil
-	}
-	raw, err := base64.RawURLEncoding.DecodeString(value)
-	if err != nil {
-		return 0, ErrInvalidCursor
-	}
-	key, err := strconv.ParseInt(string(raw), 10, 64)
-	if err != nil || key < 1 {
-		return 0, ErrInvalidCursor
-	}
-	return ClientID(key), nil
 }
 
 func (s *Service) get(

@@ -3,7 +3,10 @@ package httpapi
 import (
 	"errors"
 	"net/http"
+	"net/url"
+	"slices"
 	"strconv"
+	"strings"
 
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/identity"
@@ -26,17 +29,17 @@ func (h *handler) listClients(writer http.ResponseWriter, request *http.Request)
 		return
 	}
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	if !onlyQuery(request, "limit", "cursor") {
+	input, ok := clientListQuery(request.URL.Query())
+	if !ok {
 		h.invalidRequest(writer, request, "The collection parameters are invalid.")
 		return
 	}
-	query := request.URL.Query()
 	principal, ok := h.workspaceBearer(writer, request, workspaceID, identity.ResourcesRead)
 	if !ok {
 		return
 	}
 	limit := h.cfg.DefaultPageSize
-	if raw := query.Get("limit"); raw != "" {
+	if raw := request.URL.Query().Get("limit"); raw != "" {
 		value, err := strconv.Atoi(raw)
 		if err != nil || value < 1 || value > h.cfg.MaxPageSize {
 			h.invalidRequest(writer, request, "The page limit is invalid.")
@@ -44,14 +47,53 @@ func (h *handler) listClients(writer http.ResponseWriter, request *http.Request)
 		}
 		limit = value
 	}
-	page, err := h.clients.List(request.Context(), principal, workspaceID, clients.ListInput{
-		Limit: limit, Cursor: query.Get("cursor"),
-	})
+	input.Limit = limit
+	page, err := h.clients.List(request.Context(), principal, workspaceID, input)
 	if err != nil {
 		h.clientError(writer, request, err)
 		return
 	}
 	writeJSON(writer, http.StatusOK, page)
+}
+
+// clientListQuery reads the list parameters: limit, cursor, and sort appear
+// once, and filter may repeat. A sort takes a leading minus for descending.
+// Each filter is field:operator:value, and the value may contain colons.
+func clientListQuery(query url.Values) (clients.ListInput, bool) {
+	for key, values := range query {
+		switch key {
+		case "limit", "cursor", "sort":
+			if len(values) != 1 || values[0] == "" {
+				return clients.ListInput{}, false
+			}
+		case "filter":
+			if slices.Contains(values, "") {
+				return clients.ListInput{}, false
+			}
+		default:
+			return clients.ListInput{}, false
+		}
+	}
+	input := clients.ListInput{Cursor: query.Get("cursor")}
+	if raw := query.Get("sort"); raw != "" {
+		input.Sort = clients.SortInput{
+			Field:      strings.TrimPrefix(raw, "-"),
+			Descending: strings.HasPrefix(raw, "-"),
+		}
+		if input.Sort.Field == "" {
+			return clients.ListInput{}, false
+		}
+	}
+	for _, raw := range query["filter"] {
+		parts := strings.SplitN(raw, ":", 3)
+		if len(parts) != 3 || parts[0] == "" {
+			return clients.ListInput{}, false
+		}
+		input.Filters = append(input.Filters, clients.FilterInput{
+			Field: parts[0], Op: parts[1], Value: parts[2],
+		})
+	}
+	return input, true
 }
 
 func (h *handler) createClient(writer http.ResponseWriter, request *http.Request) {
@@ -216,6 +258,8 @@ func (h *handler) clientError(writer http.ResponseWriter, request *http.Request,
 		h.invalidRequest(writer, request, "The custom field is not a single-choice field.")
 	case errors.Is(err, clients.ErrInvalidOption):
 		h.invalidRequest(writer, request, "The value must be an option of this field.")
+	case errors.Is(err, clients.ErrInvalidQuery):
+		h.invalidRequest(writer, request, "The sort or filter is invalid.")
 	case errors.Is(err, clients.ErrInvalidInput):
 		h.invalidRequest(writer, request, "The client input is invalid.")
 	case errors.Is(err, clients.ErrPreconditionFailed):

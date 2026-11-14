@@ -94,6 +94,10 @@ type pageData struct {
 	Files                            []appfiles.File
 	FilesEnabled                     bool
 	NextCursor                       string
+	NextPath                         string
+	ClientQuery                      clientQueryForm
+	ClientQueryFields                []clients.Field
+	ClientFilterOptions              []clients.Option
 	CreateKey                        string
 	NewTitle                         string
 	ToastKey                         string

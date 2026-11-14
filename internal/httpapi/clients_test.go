@@ -135,3 +135,70 @@ func TestClientWritesNeedWriteScope(t *testing.T) {
 		`{"displayName":"Blocked"}`, readOnly.Secret, nil)
 	assertProblem(t, response, http.StatusForbidden, "insufficient-scope")
 }
+
+// Sort and filter are query parameters on the list. Descending sorts take a
+// leading minus, as items do. Repeated filters combine with AND.
+func TestClientListSortAndFilterParameters(t *testing.T) {
+	handler, _, workspaceID, token := testHandler(t)
+	base := "/api/v1/workspaces/" + workspaceID + "/clients"
+	for _, body := range []string{
+		`{"displayName":"Ada","email":"ada@example.com"}`,
+		`{"displayName":"Bea"}`,
+		`{"displayName":"Cy","email":"cy@example.com"}`,
+	} {
+		if response := serveAuthorized(handler, http.MethodPost, base, body, token, nil); response.Code != http.StatusCreated {
+			t.Fatalf("create %s = %d %s", body, response.Code, response.Body.String())
+		}
+	}
+	names := func(t *testing.T, query string) (string, []string) {
+		t.Helper()
+		response := serveAuthorized(handler, http.MethodGet, base+query, "", token, nil)
+		if response.Code != http.StatusOK {
+			return response.Body.String(), nil
+		}
+		var page struct {
+			Clients []struct {
+				DisplayName string `json:"displayName"`
+			} `json:"clients"`
+			NextCursor string `json:"nextCursor"`
+		}
+		if err := json.Unmarshal(response.Body.Bytes(), &page); err != nil {
+			t.Fatal(err)
+		}
+		got := []string{}
+		for _, client := range page.Clients {
+			got = append(got, client.DisplayName)
+		}
+		return page.NextCursor, got
+	}
+	for query, want := range map[string][]string{
+		"":             {"Cy", "Bea", "Ada"},
+		"?sort=email":  {"Ada", "Cy", "Bea"},
+		"?sort=-email": {"Cy", "Ada", "Bea"},
+		"?sort=displayName&filter=displayName:contains:A":              {"Ada", "Bea"},
+		"?filter=displayName:contains:a&filter=email:contains:example": {"Ada"},
+		"?filter=email:equals:CY@EXAMPLE.COM":                          {"Cy"},
+	} {
+		if _, got := names(t, query); !reflect.DeepEqual(got, want) {
+			t.Fatalf("list %q = %v, want %v", query, got, want)
+		}
+	}
+
+	next, first := names(t, "?limit=1&sort=email")
+	if next == "" || !reflect.DeepEqual(first, []string{"Ada"}) {
+		t.Fatalf("first sorted page = %v with cursor %q", first, next)
+	}
+	if _, second := names(t, "?limit=1&sort=email&cursor="+next); !reflect.DeepEqual(second, []string{"Cy"}) {
+		t.Fatalf("second sorted page = %v", second)
+	}
+	if response := serveAuthorized(handler, http.MethodGet, base+"?sort=displayName&cursor="+next, "", token, nil); response.Code != http.StatusBadRequest {
+		t.Fatalf("cursor from another sort = %d %s", response.Code, response.Body.String())
+	}
+
+	for _, query := range []string{
+		"?sort=nope", "?sort=-", "?sort=", "?filter=displayName", "?filter=displayName:before:x",
+		"?filter=displayName:contains:", "?q=ada", "?limit=1&limit=2",
+	} {
+		assertProblem(t, serveAuthorized(handler, http.MethodGet, base+query, "", token, nil), http.StatusBadRequest, "invalid-request")
+	}
+}

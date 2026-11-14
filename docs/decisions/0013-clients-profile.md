@@ -177,6 +177,40 @@ the decision recorded for spec [#294](https://github.com/dynamiscode/dynamis-cod
   the client value select. MCP and `appctl` option commands are not in this
   slice.
 
+## Addendum: list filter and sort (ticket #301, 2026-11-13)
+
+- **Search scope:** v1 has no free-text search on clients, across common or
+  custom fields. The list takes filter and sort only, as the spec decided. This
+  is recorded here and in the [API](../api.md) and `api/openapi.json`.
+- **Operators:** as listed under Querying above, with `before` and `after`
+  strict and `between` inclusive. Text matching folds ASCII letters only, in both
+  dialects. SQLite `lower()` is ASCII-only without ICU, and PostgreSQL uses
+  `translate()` to match, so non-ASCII text compares as typed on both.
+- **Text order:** PostgreSQL sorts text with the `"C"` collation, which is byte
+  order and matches SQLite. Its default locale collation would order differently.
+- **Sort and cursor:** a sort is one field, with empty values last and ties by
+  client ID in the sort direction. Every page cursor binds its sort, direction,
+  filters, last sort value, and last ID. A cursor from another query is refused.
+- **Surfaces:** REST takes `sort` and repeated `filter` parameters. The web list
+  has one sort and one filter in a GET form, and a next-page link keeps them.
+  MCP and `appctl` list filters are not in this slice, so they arrive with their
+  own tickets. WebMCP stays omitted, as recorded above.
+- **Number ordering (decision for the parent):** a number field orders and
+  ranges through `CAST` to REAL on SQLite and `::numeric` on PostgreSQL. No index
+  is added, so these queries scan the workspace. [ADR 0012](0012-client-custom-field-storage.md)
+  says number ordering "needs a typed numeric expression and its own index". This
+  slice does not add that index, and the two are in conflict. Either amend ADR
+  0012 to accept the cast, or add typed numeric indexes in a migration. Date and
+  yes/no ranges use the slot index as written, because fixed-width ISO dates
+  order the same under any collation.
+- **Index use (measured on SQLite):** date equality and date ranges use the slot
+  index. Sorts use the slot index only to read the workspace's rows, then sort
+  with a temporary B-tree, because nulls-last ordering cannot use the index.
+  Case-insensitive text matching and number ranges scan the workspace.
+- **Choice sort (known gap):** a single-choice sort orders by the option's
+  stored short ID, not its label. Ordering by label needs a stored sort key on
+  options, which a later ticket can add.
+
 ## Addendum: permanent custom field delete (ticket #302, 2026-11-13)
 
 - **Surfaces:** REST `DELETE /api/v1/workspaces/{workspaceId}/client-fields/{fieldId}`
