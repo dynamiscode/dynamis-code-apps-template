@@ -323,7 +323,8 @@ func clientsPath(relative string) bool {
 		relative == "internal/web/templates/client-fields.html" ||
 		relative == "internal/httpapi/client_field_delete_test.go" || relative == "internal/web/client_field_delete_test.go" ||
 		relative == "internal/httpapi/client_lifecycle.go" || relative == "internal/httpapi/client_lifecycle_test.go" ||
-		relative == "internal/web/client_lifecycle.go" || relative == "internal/web/client_lifecycle_test.go"
+		relative == "internal/web/client_lifecycle.go" || relative == "internal/web/client_lifecycle_test.go" ||
+		relative == "internal/bootstrap/client_authorization_matrix_test.go"
 }
 
 // disableClientsSource removes Clients wiring from shared files when the profile
