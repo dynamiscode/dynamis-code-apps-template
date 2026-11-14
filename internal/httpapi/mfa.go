@@ -210,12 +210,14 @@ func (h *handler) writeAuthenticatedSession(writer http.ResponseWriter, request 
 	writer.Header().Set("Cache-Control", "no-store")
 	policy := identity.BrowserCookiePolicy(h.cfg.Secure)
 	maxAge := int(session.ExpiresAt.Sub(time.Now()).Seconds())
-	for _, cookie := range []*http.Cookie{
-		{Name: "session", Value: session.Secret, Path: "/", Expires: session.ExpiresAt, MaxAge: maxAge, HttpOnly: policy.HTTPOnly, Secure: true, SameSite: policy.SameSite},
-		{Name: "csrf", Value: session.CSRFSecret, Path: "/", Expires: session.ExpiresAt, MaxAge: maxAge, HttpOnly: true, Secure: true, SameSite: policy.SameSite},
-	} {
-		http.SetCookie(writer, cookie)
-	}
+	http.SetCookie(writer, &http.Cookie{
+		Name: "session", Value: session.Secret, Path: "/", Expires: session.ExpiresAt, MaxAge: maxAge,
+		HttpOnly: policy.HTTPOnly, Secure: true, SameSite: policy.SameSite,
+	})
+	http.SetCookie(writer, &http.Cookie{
+		Name: "csrf", Value: session.CSRFSecret, Path: "/", Expires: session.ExpiresAt, MaxAge: maxAge,
+		HttpOnly: true, Secure: true, SameSite: policy.SameSite,
+	})
 	writeJSON(writer, http.StatusOK, map[string]any{"csrfToken": session.CSRFSecret, "expiresAt": session.ExpiresAt})
 }
 
