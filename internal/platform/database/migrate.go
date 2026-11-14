@@ -131,12 +131,18 @@ var jsonTextExprPattern = regexp.MustCompile(`\{\{json_text_expr:([a-z_]+):([a-z
 func renderJSONTextExpr(sql string, driver config.DatabaseDriver) string {
 	return jsonTextExprPattern.ReplaceAllStringFunc(sql, func(match string) string {
 		parts := jsonTextExprPattern.FindStringSubmatch(match)
-		column, key := parts[1], parts[2]
-		if driver == config.Postgres {
-			return fmt.Sprintf("%s::jsonb ->> '%s'", column, key)
-		}
-		return fmt.Sprintf("json_extract(%s, '$.%s')", column, key)
+		return JSONTextExpr(driver, parts[1], parts[2])
 	})
+}
+
+// JSONTextExpr returns the dialect expression for a top-level text key of a JSON
+// text column. Migrations index slots with it, and a query that must use those
+// indexes repeats it exactly. Callers pass constant column and key names.
+func JSONTextExpr(driver config.DatabaseDriver, column, key string) string {
+	if driver == config.Postgres {
+		return fmt.Sprintf("%s::jsonb ->> '%s'", column, key)
+	}
+	return fmt.Sprintf("json_extract(%s, '$.%s')", column, key)
 }
 
 func mfaMigrationAlreadyApplied(

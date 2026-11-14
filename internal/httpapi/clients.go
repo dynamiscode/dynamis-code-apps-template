@@ -194,6 +194,10 @@ func (h *handler) clientError(writer http.ResponseWriter, request *http.Request,
 		h.invalidRequest(writer, request, "The display name is required.")
 	case errors.Is(err, clients.ErrInvalidEmail):
 		h.invalidRequest(writer, request, "The email address is invalid.")
+	case errors.Is(err, clients.ErrValueRequired):
+		h.invalidRequest(writer, request, "The value is required. Use DELETE to clear a value.")
+	case errors.Is(err, clients.ErrFieldArchived):
+		h.invalidRequest(writer, request, "The custom field is archived.")
 	case errors.Is(err, clients.ErrInvalidInput):
 		h.invalidRequest(writer, request, "The client input is invalid.")
 	case errors.Is(err, clients.ErrPreconditionFailed):

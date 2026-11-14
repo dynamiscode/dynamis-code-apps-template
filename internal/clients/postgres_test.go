@@ -129,6 +129,35 @@ func TestPostgresClientLifecycle(t *testing.T) {
 	if forms, err := service.ListFields(ctx, viewer, workspaceID, ListFieldsInput{}); err != nil || len(forms) != 1 {
 		t.Fatalf("form fields after restore = %+v, %v; want one", forms, err)
 	}
+	tier, err := service.DefineField(ctx, owner, workspaceID, FieldInput{Label: "Tier", Type: FieldTypeText}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	set, err := service.SetValue(ctx, owner, workspaceID, created.ID, updated.Version, tier.ID, "Gold", identity.AuditContext{})
+	if err != nil || set.Version != updated.Version+1 {
+		t.Fatalf("SetValue() = %+v, %v", set, err)
+	}
+	if _, err := service.SetValue(ctx, viewer, workspaceID, created.ID, set.Version, tier.ID, "Blocked", identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer SetValue() error = %v, want ErrForbidden", err)
+	}
+	listed, err := service.ListValues(ctx, viewer, workspaceID, created.ID)
+	if err != nil || len(listed) != 2 || listed[0].Value == nil || *listed[0].Value != "Friend" || listed[1].Value == nil || *listed[1].Value != "Gold" {
+		t.Fatalf("ListValues() = %+v, %v; want Friend and Gold", listed, err)
+	}
+	if err := service.setFieldType(ctx, owner, workspaceID, tier.ID, "number", identity.AuditContext{}); !errors.Is(err, ErrFieldTypeLocked) {
+		t.Fatalf("setFieldType() with a stored value error = %v, want ErrFieldTypeLocked", err)
+	}
+	cleared, err := service.ClearValue(ctx, owner, workspaceID, created.ID, set.Version, tier.ID, identity.AuditContext{})
+	if err != nil || cleared.Version != set.Version+1 {
+		t.Fatalf("ClearValue() = %+v, %v", cleared, err)
+	}
+	if err := service.setFieldType(ctx, owner, workspaceID, tier.ID, "number", identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("setFieldType() after clearing error = %v, want ErrInvalidInput (lock lifted)", err)
+	}
+	listed, err = service.ListValues(ctx, viewer, workspaceID, created.ID)
+	if err != nil || len(listed) != 2 || listed[1].Value != nil {
+		t.Fatalf("ListValues() after clear = %+v, %v", listed, err)
+	}
 	limited := NewService(db, config.Postgres, auth, 1)
 	if _, err := limited.DefineField(ctx, owner, workspaceID, FieldInput{Label: "Over", Type: FieldTypeText}, identity.AuditContext{}); !errors.Is(err, ErrLimit) {
 		t.Fatalf("DefineField() over limit error = %v, want ErrLimit", err)

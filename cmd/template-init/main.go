@@ -314,6 +314,8 @@ func clientsPath(relative string) bool {
 		relative == "internal/platform/database/client_slot_indexes_postgres_test.go" ||
 		relative == "internal/httpapi/client_fields.go" || relative == "internal/httpapi/client_fields_test.go" ||
 		relative == "internal/web/client_fields.go" || relative == "internal/web/client_fields_test.go" ||
+		relative == "internal/httpapi/client_values.go" || relative == "internal/httpapi/client_values_test.go" ||
+		relative == "internal/web/client_values_test.go" ||
 		relative == "internal/web/templates/client-fields.html"
 }
 
@@ -337,6 +339,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `"getClient": h.getClient`)
 		value = removeLinesContaining(value, `"listClientFields": h.listClientFields`)
 		value = removeLinesContaining(value, `"archiveClientField": h.archiveClientField`)
+		value = removeLinesContaining(value, `"listClientValues": h.listClientValues`)
+		value = removeLinesContaining(value, `"clearClientValue": h.clearClientValue`)
 	case "internal/httpapi/handler_test.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = strings.Replace(value, "\n\t\tclients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace))", ")", 1)

@@ -157,6 +157,8 @@ func newHandler(
 		"completeFileUpload": h.completeFileUpload, "uploadFileContent": h.uploadFileContent,
 		"listClients": h.listClients, "createClient": h.createClient,
 		"getClient": h.getClient, "updateClient": h.updateClient,
+		"listClientValues": h.listClientValues, "setClientValue": h.setClientValue,
+		"clearClientValue": h.clearClientValue,
 		"listClientFields": h.listClientFields, "createClientField": h.createClientField,
 		"archiveClientField": h.archiveClientField, "restoreClientField": h.restoreClientField,
 		"createSCIMToken": h.createSCIMToken, "revokeSCIMToken": h.revokeSCIMToken,
