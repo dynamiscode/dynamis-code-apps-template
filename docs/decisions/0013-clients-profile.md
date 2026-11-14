@@ -266,3 +266,25 @@ the decision recorded for spec [#294](https://github.com/dynamiscode/dynamis-cod
 - **Omissions:** webhook events `client.archived` and `client.deleted` arrive in
   #307, and client export in #306. MCP and `appctl` archive and delete arrive
   with the agent-surface ticket (#309).
+
+## Addendum: client webhook events (ticket #307, 2026-11-13)
+
+- **Events:** `client.created` on create; `client.updated` on edit and on
+  unarchive; `client.archived` on archive; `client.deleted` on permanent delete.
+  Archive and unarchive of a client already in that state emit nothing. Each
+  event is one outbox write (`PublishInTx`) in the change's transaction, so a
+  failed write rolls the change back.
+- **Payload:** `id` (the client's short ID), `displayName`, `email`, `phone`,
+  `notes`, `archivedAt` (null when active), `version`, and `customValues`.
+  `customValues` maps field short IDs to stored text. An unset field has no key,
+  so absence means unset; the payload never carries `null` values. Values of
+  archived fields stay in the payload, because archive keeps values. Delete
+  sends the client's last state. `createdAt` and `updatedAt` are not in the
+  payload.
+- **Not emitted:** define, archive, restore, delete, and option changes on
+  fields, and the value clears that field delete performs. Setting or clearing a
+  client's custom value bumps the version and changes the payload, but this
+  slice emits no webhook event for it. Whether value writes should emit
+  `client.updated` is open.
+- **Contract:** `CreateWebhookRequest.events` accepts the four client events
+  (`api/openapi.json`, `maxItems` 7). The web form lists them.
