@@ -32,10 +32,15 @@ publicly exposed, uninitialized setup page can claim the first user, workspace
 owner membership, and instance administrator role. CSRF protection does not
 authenticate visitors.
 
-If a nonblank token is configured, the form requires its exact value. Any
-nonblank string up to 1,024 UTF-16 code units is accepted, matching the browser
-form limit. The token is held as a hash for constant-time comparison and is not
-stored or logged:
+If a nonblank token is configured, use a high-entropy secret. The form requires
+its exact value. Any nonblank string up to 1,024 UTF-16 code units is accepted.
+Choose Plain text for ordinary tokens. For tokens containing line breaks or other
+bytes that cannot be entered exactly, select Base64 and enter the standard padded
+Base64 encoding of the exact token bytes, without line breaks. Generate it in a
+trusted environment without writing the secret to a file or shell history, for
+example `printf %s "$BOOTSTRAP_SETUP_TOKEN" | base64 | tr -d '\n'`.
+Base64 is a credential, not encryption; protect it like the token. The token is
+held as a hash for constant-time comparison and is not stored or logged:
 
 ```sh
 read -s BOOTSTRAP_SETUP_TOKEN

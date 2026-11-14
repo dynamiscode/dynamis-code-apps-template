@@ -7,6 +7,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base32"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1434,7 +1435,8 @@ func TestWebSetupRequiresTokenAndBootstrapsFirstInstanceAdmin(t *testing.T) {
 	page := request(handler, http.MethodGet, "/setup", nil, nil, nil)
 	if page.Code != http.StatusOK ||
 		!strings.Contains(page.Body.String(), `label for="setup-token"`) ||
-		!strings.Contains(page.Body.String(), `name="setup_token" type="password" autocomplete="off" required maxlength="1024"`) {
+		!strings.Contains(page.Body.String(), `name="setup_token" type="password" autocomplete="off" required maxlength="4096"`) ||
+		!strings.Contains(page.Body.String(), `name="setup_token_format"`) {
 		t.Fatalf("setup page = %d, %s", page.Code, page.Body.String())
 	}
 	assertAccessiblePage(t, page.Body.String(), "Setup token")
@@ -1470,6 +1472,39 @@ func TestWebSetupRequiresTokenAndBootstrapsFirstInstanceAdmin(t *testing.T) {
 	}
 	if disabled := request(handler, http.MethodGet, "/setup", nil, nil, nil); disabled.Code != http.StatusNotFound {
 		t.Fatalf("disabled setup = %d", disabled.Code)
+	}
+}
+
+func TestWebSetupEncodedToken(t *testing.T) {
+	for _, token := range []string{"line\rbreak\nend\r\n!", strings.Repeat("界", 1024), "invalid-utf8-\xff"} {
+		t.Run(fmt.Sprintf("bytes-%d", len(token)), func(t *testing.T) {
+			handler, _ := testUnbootstrappedWeb(t, token)
+			page := request(handler, http.MethodGet, "/setup", nil, nil, nil)
+			csrf := responseCookie(page, "setup_csrf")
+			encoded := base64.StdEncoding.EncodeToString([]byte(token))
+			values := url.Values{"csrf": {csrf.Value}, "setup_token": {encoded}, "setup_token_format": {"base64"},
+				"email": {"owner@example.com"}, "workspace": {"Example"}, "password": {"long-enough-password"},
+				"password_confirmation": {"long-enough-password"}}
+			for _, invalid := range []struct{ format, value, csrf string }{
+				{"plain", encoded, csrf.Value}, {"base64", encoded + "!", csrf.Value},
+				{"base64", encoded + "\n", csrf.Value}, {"unknown", encoded, csrf.Value}, {"base64", encoded, "wrong"},
+			} {
+				values.Set("setup_token_format", invalid.format)
+				values.Set("setup_token", invalid.value)
+				values.Set("csrf", invalid.csrf)
+				response := request(handler, http.MethodPost, "/setup", values, []*http.Cookie{csrf}, nil)
+				if response.Code != http.StatusForbidden || strings.Contains(response.Body.String(), encoded) {
+					t.Fatalf("invalid encoded submission: status %d, leaked=%t", response.Code, strings.Contains(response.Body.String(), encoded))
+				}
+			}
+			values.Set("setup_token_format", "base64")
+			values.Set("setup_token", encoded)
+			values.Set("csrf", csrf.Value)
+			response := request(handler, http.MethodPost, "/setup", values, []*http.Cookie{csrf}, nil)
+			if response.Code != http.StatusSeeOther {
+				t.Fatalf("encoded submission: status %d", response.Code)
+			}
+		})
 	}
 }
 

@@ -101,14 +101,15 @@ deployments: those that create workspaces in the browser must set
 The three `BOOTSTRAP_ADMIN_*` variables enable unattended first-owner bootstrap
 only when all are non-empty. A partial set fails startup. `BOOTSTRAP_SETUP_TOKEN`
 is optional: missing, empty, or whitespace-only values leave browser setup
-available locally and remotely without a token. A nonblank value is matched
-exactly and may be any string up to 1,024 UTF-16 code units, matching the setup
-form's `maxlength`; it is not stored or logged. A publicly reachable tokenless
-setup page lets its first visitor claim the initial administrator, so use
-deployment-level access control until bootstrap completes when that risk is not
-acceptable. After bootstrap, the admin variables do not overwrite database
-records. The workspace locale controls invitation email language and browser
-fallback.
+available locally and remotely without a token. Use a high-entropy secret when
+configuring a token. A nonblank value is matched exactly and may be any string
+up to 1,024 UTF-16 code units; use the [Base64 setup form option](authentication.md#browser-setup)
+for exact bytes including line breaks. It is not stored or logged. A publicly
+reachable tokenless setup page lets its first visitor claim the initial
+administrator, so use deployment-level access control until bootstrap completes
+when that risk is not acceptable. After bootstrap, the admin variables do not
+overwrite database records. The workspace locale controls invitation email
+language and browser fallback.
 
 ## SQLite
 

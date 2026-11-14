@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -482,7 +483,20 @@ func (h *Handler) setup(writer http.ResponseWriter, request *http.Request) {
 		})
 		return
 	}
-	if h.setupTokenHash != "" && !identity.EqualSecretHash(request.FormValue("setup_token"), h.setupTokenHash) {
+	token := request.FormValue("setup_token")
+	switch request.FormValue("setup_token_format") {
+	case "", "plain":
+	case "base64":
+		decoded, err := base64.StdEncoding.Strict().DecodeString(token)
+		if err != nil || strings.ContainsAny(token, "\r\n") {
+			token = ""
+		} else {
+			token = string(decoded)
+		}
+	default:
+		token = ""
+	}
+	if h.setupTokenHash != "" && !identity.EqualSecretHash(token, h.setupTokenHash) {
 		h.renderSetup(writer, http.StatusForbidden, pageData{
 			Title: "Set up Dynamis Code", Error: "The setup token is invalid.",
 		})
