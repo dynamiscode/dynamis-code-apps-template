@@ -42,7 +42,10 @@ var (
 	ErrSecretKey    = errors.New("webhook secret encryption key is unavailable")
 )
 
-var SupportedEvents = []string{"item.created", "item.updated", "item.deleted"}
+var SupportedEvents = []string{
+	"item.created", "item.updated", "item.deleted",
+	"client.created", "client.updated", "client.archived", "client.deleted",
+}
 
 type CreateInput struct {
 	Name   string

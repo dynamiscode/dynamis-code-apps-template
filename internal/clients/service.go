@@ -78,16 +78,34 @@ type UpdateInput struct {
 	Notes       *string
 }
 
+// EventPublisher writes a webhook event inside the caller's transaction. The
+// webhooks service implements it.
+type EventPublisher interface {
+	PublishInTx(context.Context, *sql.Tx, identity.WorkspaceID, string, []byte, time.Time) error
+}
+
 type Service struct {
 	db        *sql.DB
 	driver    config.DatabaseDriver
 	auth      *identity.Service
 	now       func() time.Time
 	maxFields int
+	publisher EventPublisher
 }
 
-func NewService(db *sql.DB, driver config.DatabaseDriver, auth *identity.Service, maxFields int) *Service {
-	return &Service{db: db, driver: driver, auth: auth, now: time.Now, maxFields: maxFields}
+// NewService takes at most one publisher. Without one, client changes emit no webhook events.
+func NewService(
+	db *sql.DB,
+	driver config.DatabaseDriver,
+	auth *identity.Service,
+	maxFields int,
+	publishers ...EventPublisher,
+) *Service {
+	var publisher EventPublisher
+	if len(publishers) > 0 {
+		publisher = publishers[0]
+	}
+	return &Service{db: db, driver: driver, auth: auth, now: time.Now, maxFields: maxFields, publisher: publisher}
 }
 
 func (s *Service) Create(
@@ -129,6 +147,9 @@ func (s *Service) Create(
 		return Client{}, err
 	}
 	if err := s.recordChange(ctx, tx, workspaceID, client.ID, "created", client.Version, now); err != nil {
+		return Client{}, err
+	}
+	if err := s.publishEvent(ctx, tx, workspaceID, "client.created", client, now); err != nil {
 		return Client{}, err
 	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
@@ -232,6 +253,9 @@ func (s *Service) Update(
 		return Client{}, ErrPreconditionFailed
 	}
 	if err := s.recordChange(ctx, tx, workspaceID, client.ID, "updated", client.Version, client.UpdatedAt); err != nil {
+		return Client{}, err
+	}
+	if err := s.publishEvent(ctx, tx, workspaceID, "client.updated", client, client.UpdatedAt); err != nil {
 		return Client{}, err
 	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{

@@ -146,7 +146,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	itemService := items.NewService(
 		db, cfg.Database.Driver, identityService, cfg.Data.ItemsMaxPerWorkspace, webhookService,
 	)
-	clientService := clients.NewService(db, cfg.Database.Driver, identityService, cfg.Data.ClientFieldsMaxPerWorkspace)
+	clientService := clients.NewService(db, cfg.Database.Driver, identityService, cfg.Data.ClientFieldsMaxPerWorkspace, webhookService)
 	sharingService := sharing.NewService(db, cfg.Database.Driver, identityService)
 	portabilityService := portability.NewService(
 		db, cfg.Database.Driver, identityService,

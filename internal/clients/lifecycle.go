@@ -66,10 +66,13 @@ func (s *Service) setArchived(
 	now := s.now().UTC()
 	var archivedAt any
 	action, eventType, auditAction := "unarchived", "client.unarchived", "client.unarchive"
+	// Unarchive is an update to the client; archive is its own webhook event.
+	webhookType := "client.updated"
 	client.ArchivedAt = nil
 	if archive {
 		archivedAt = formatTime(now)
 		action, eventType, auditAction = "archived", "client.archived", "client.archive"
+		webhookType = "client.archived"
 		client.ArchivedAt = &now
 	}
 	client.Version++
@@ -81,6 +84,9 @@ func (s *Service) setArchived(
 		return Client{}, err
 	}
 	if err := s.recordChange(ctx, tx, workspaceID, client.ID, action, client.Version, now); err != nil {
+		return Client{}, err
+	}
+	if err := s.publishEvent(ctx, tx, workspaceID, webhookType, client, now); err != nil {
 		return Client{}, err
 	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
@@ -122,6 +128,10 @@ func (s *Service) Delete(
 		return err
 	}
 	now := s.now().UTC()
+	// The payload reads the client's values, so it is written before the row goes.
+	if err := s.publishEvent(ctx, tx, workspaceID, "client.deleted", client, now); err != nil {
+		return err
+	}
 	if _, err := s.exec(ctx, tx, `
 		DELETE FROM clients WHERE workspace_id = ? AND id = ?
 	`, workspaceID, clientID); err != nil {
