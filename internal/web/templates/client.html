@@ -5,7 +5,7 @@
 {{define "client-form"}}<section id="client-detail" aria-labelledby="client-heading"><h2 id="client-heading" class="visually-hidden">{{.T "clients.client"}}</h2>
 {{if .ErrorKey}}<p class="error" role="alert" tabindex="-1">{{.T .ErrorKey}}</p>{{end}}
 {{if .CanEditClients}}<form action="{{.CurrentPath}}/{{.Client.ID}}" method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="version" value="{{.Client.Version}}">
-<label for="client-display-name">{{.T "clients.display_name"}}</label><input id="client-display-name" name="display_name" required maxlength="200" value="{{.Client.DisplayName}}">
+<label for="client-display-name">{{.T "clients.display_name"}}</label><input id="client-display-name" name="display_name" required maxlength="200" value="{{.Client.DisplayName}}" data-trim>
 <label for="client-email">{{.T "common.email"}} {{.T "ui.optional"}}</label><input id="client-email" name="email" type="email" maxlength="254" value="{{.Client.Email}}">
 <label for="client-phone">{{.T "clients.phone"}} {{.T "ui.optional"}}</label><input id="client-phone" name="phone" maxlength="50" value="{{.Client.Phone}}">
 <label for="client-notes">{{.T "clients.notes"}} {{.T "ui.optional"}}</label><textarea id="client-notes" name="notes" maxlength="5000">{{.Client.Notes}}</textarea>

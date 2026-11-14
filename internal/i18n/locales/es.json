@@ -205,6 +205,7 @@
   "clients.option_label": "Nombre de la opción",
   "clients.option_add": "Añadir opción",
   "clients.option_delete": "Eliminar opción",
+  "clients.option_delete_confirm": "¿Eliminar esta opción? Los clientes que la eligieron perderán ese valor. No se puede deshacer.",
   "clients.error_option_limit": "Un campo de opción única admite como máximo 100 opciones. Elimine una para añadir otra.",
   "clients.error_option_label": "Escriba un nombre de opción de hasta 100 caracteres.",
   "clients.error_not_choice": "Las opciones solo se aplican a campos de opción única.",

@@ -120,14 +120,17 @@ func (h *Handler) createClient(writer http.ResponseWriter, request *http.Request
 }
 
 func (h *Handler) clientDetail(writer http.ResponseWriter, request *http.Request) {
-	h.renderClientDetail(writer, request, http.StatusOK, "")
+	h.renderClientDetail(writer, request, http.StatusOK, "", nil)
 }
 
+// renderClientDetail shows the stored client. A refused edit passes its draft,
+// so the form keeps what the user typed instead of the stored values.
 func (h *Handler) renderClientDetail(
 	writer http.ResponseWriter,
 	request *http.Request,
 	status int,
 	errorKey string,
+	draft *clients.Input,
 ) {
 	if h.clients == nil {
 		h.renderError(writer, http.StatusNotFound)
@@ -143,6 +146,9 @@ func (h *Handler) renderClientDetail(
 	if err != nil {
 		h.clientError(writer, request, err)
 		return
+	}
+	if draft != nil {
+		client.DisplayName, client.Email, client.Phone, client.Notes = draft.DisplayName, draft.Email, draft.Phone, draft.Notes
 	}
 	values, err := h.clients.ListValues(request.Context(), principal, workspaceID, clientID)
 	if err != nil {
@@ -218,15 +224,15 @@ func (h *Handler) clearClientValue(writer http.ResponseWriter, request *http.Req
 func (h *Handler) clientValueError(writer http.ResponseWriter, request *http.Request, err error) {
 	switch {
 	case errors.Is(err, clients.ErrPreconditionFailed):
-		h.renderClientDetail(writer, request, http.StatusPreconditionFailed, "clients.error_changed")
+		h.renderClientDetail(writer, request, http.StatusPreconditionFailed, "clients.error_changed", nil)
 	case errors.Is(err, clients.ErrFieldArchived):
-		h.renderClientDetail(writer, request, http.StatusConflict, "clients.error_field_archived")
+		h.renderClientDetail(writer, request, http.StatusConflict, "clients.error_field_archived", nil)
 	case errors.Is(err, clients.ErrInvalidOption):
-		h.renderClientDetail(writer, request, http.StatusUnprocessableEntity, "clients.error_value_option")
+		h.renderClientDetail(writer, request, http.StatusUnprocessableEntity, "clients.error_value_option", nil)
 	case errors.Is(err, clients.ErrValueRequired):
-		h.renderClientDetail(writer, request, http.StatusUnprocessableEntity, "clients.error_value_required")
+		h.renderClientDetail(writer, request, http.StatusUnprocessableEntity, "clients.error_value_required", nil)
 	case errors.Is(err, clients.ErrInvalidInput):
-		h.renderClientDetail(writer, request, http.StatusUnprocessableEntity, "clients.error_value_invalid")
+		h.renderClientDetail(writer, request, http.StatusUnprocessableEntity, "clients.error_value_invalid", nil)
 	default:
 		h.clientError(writer, request, err)
 	}
@@ -253,11 +259,12 @@ func (h *Handler) changeClient(writer http.ResponseWriter, request *http.Request
 		auditContext(request))
 	if err != nil {
 		if errors.Is(err, clients.ErrPreconditionFailed) {
-			h.renderClientDetail(writer, request, http.StatusPreconditionFailed, "clients.error_changed")
+			h.renderClientDetail(writer, request, http.StatusPreconditionFailed, "clients.error_changed", nil)
 			return
 		}
 		if errors.Is(err, clients.ErrInvalidInput) {
-			h.renderClientDetail(writer, request, http.StatusUnprocessableEntity, clientErrorKey(err))
+			draft := clients.Input{DisplayName: displayName, Email: email, Phone: phone, Notes: notes}
+			h.renderClientDetail(writer, request, http.StatusUnprocessableEntity, clientErrorKey(err), &draft)
 			return
 		}
 		h.clientError(writer, request, err)

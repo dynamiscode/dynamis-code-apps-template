@@ -96,8 +96,9 @@ try {
   check(await js(() => document.querySelector("#new-title").value === ""), "item-create-submission: the box is empty after a save");
 
   // form-field-input: a blank title is stopped in the browser with a summary.
+  // Enter, not a click: a click races the blur-time note that shifts the button.
   await typeInto("#new-title", "   ");
-  await find("form.create button[type=submit]").click();
+  await find("#new-title").sendKeys(Key.ENTER);
   check(await js(() => document.activeElement?.classList.contains("error-summary")), "form-field-input: the error summary takes focus");
   check(await js(() => document.querySelectorAll("#item-list li input[name=title]").length === 1), "form-field-input: an invalid add sends nothing");
 
@@ -173,6 +174,40 @@ try {
   await find(".account-menu summary").click();
   await driver.actions().sendKeys(Key.ESCAPE).perform();
   check(await js(() => !document.querySelector(".account-menu").open), "async-feedback: Escape closes the account menu");
+
+  // clients: a blank name is stopped with a summary; a client is created; a
+  // custom choice field gets an option; a value is entered and saved.
+  await driver.get(`${base}${workspace}/clients`);
+  // Enter, not a click: the blur-time note shifts the button under a pointer.
+  await typeInto("#client-display-name", "   ");
+  await find("#client-display-name").sendKeys(Key.ENTER);
+  check(await js(() => document.activeElement?.classList.contains("error-summary")), "clients: a blank name takes the error summary focus");
+  await typeInto("#client-display-name", "Ada Lovelace");
+  await typeInto("#client-email", "ada@example.com");
+  await find("form.create button[type=submit]").click();
+  await driver.wait(until.elementLocated(By.css("#client-detail")), 5000);
+  check(await js(() => document.querySelector("h1").textContent === "Ada Lovelace"), "clients: creating a client opens its detail page");
+  const clientPath = new URL(await driver.getCurrentUrl()).pathname;
+
+  await driver.get(`${base}${workspace}/client-fields`);
+  await typeInto("#client-field-label", "Tier");
+  await js(() => { document.querySelector("#client-field-type").value = "single_choice"; });
+  await find("form.create button[type=submit]").click();
+  await driver.wait(until.elementLocated(By.css(".client-fields")), 5000);
+  await typeInto('input[id^="option-label-"]', "Gold");
+  await find("form.option-create button[type=submit]").click();
+  await driver.wait(until.elementLocated(By.css(".client-field-option-list")), 5000);
+
+  await driver.get(`${base}${clientPath}`);
+  await driver.wait(until.elementLocated(By.css("#client-values")), 5000);
+  await js(() => { document.querySelector('select[id^="value-"]').value = [...document.querySelectorAll('select[id^="value-"] option')].find((o) => o.textContent === "Gold").value; });
+  await find("form.client-value button[type=submit]").click();
+  // Wait for the reloaded page: the clear button exists only once a value is stored.
+  await waitFor(() => document.querySelector("form.client-value-clear"), "saved value reloads the page");
+  check(await js(() => document.querySelector('select[id^="value-"]').selectedOptions[0].textContent === "Gold"), "clients: a choice value is entered and saved");
+  await find("form.client-value-clear button").click();
+  await waitFor(() => !document.querySelector("form.client-value-clear"), "cleared value reloads the page");
+  check(await js(() => document.querySelector('select[id^="value-"]').selectedOptions[0].disabled), "clients: Clear removes the saved value");
 
   for (const line of passed) console.log(`ok - ${line}`);
   console.log(`${passed.length} UX checks passed`);

@@ -5,7 +5,7 @@
 {{define "client-list"}}<section id="client-list" data-events="{{.CurrentPath}}/events" data-live-connecting="{{.T "clients.live_connecting"}}" data-live-connected="{{.T "clients.live_connected"}}" data-live-unavailable="{{.T "clients.live_unavailable"}}" data-live-reconnecting="{{.T "clients.live_reconnecting"}}" data-live-waiting="{{.T "ui.updates_waiting"}}" aria-labelledby="clients-heading"><h2 id="clients-heading" class="visually-hidden">{{.T "clients.title"}}</h2>
 {{if .ErrorKey}}<p class="error" role="alert" tabindex="-1">{{.T .ErrorKey}}</p>{{end}}
 {{if .CanEditClients}}<form class="create" action="{{.CurrentPath}}" method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><h3>{{.T "clients.new_client"}}</h3>
-<label for="client-display-name">{{.T "clients.display_name"}}</label><input id="client-display-name" name="display_name" required maxlength="200" value="{{.ClientDraft.DisplayName}}">
+<label for="client-display-name">{{.T "clients.display_name"}}</label><input id="client-display-name" name="display_name" required maxlength="200" value="{{.ClientDraft.DisplayName}}" data-trim>
 <label for="client-email">{{.T "common.email"}} {{.T "ui.optional"}}</label><input id="client-email" name="email" type="email" maxlength="254" value="{{.ClientDraft.Email}}">
 <label for="client-phone">{{.T "clients.phone"}} {{.T "ui.optional"}}</label><input id="client-phone" name="phone" maxlength="50" value="{{.ClientDraft.Phone}}">
 <label for="client-notes">{{.T "clients.notes"}} {{.T "ui.optional"}}</label><textarea id="client-notes" name="notes" maxlength="5000">{{.ClientDraft.Notes}}</textarea>

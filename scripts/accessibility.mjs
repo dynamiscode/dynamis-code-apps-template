@@ -55,6 +55,18 @@ try {
   await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/items`);
   await driver.wait(until.elementLocated(By.id("item-list")), 5000);
   await audit("items");
+	await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/clients`);
+	await driver.wait(until.elementLocated(By.id("client-list")), 5000);
+	await audit("clients");
+	await driver.findElement(By.id("client-display-name")).sendKeys(`Accessibility client ${locale}`);
+	await driver.findElement(By.css("form.create button[type=submit]")).click();
+	await driver.wait(until.elementLocated(By.id("client-detail")), 5000);
+	await audit("client");
+	await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/client-fields`);
+	await driver.wait(until.elementLocated(By.id("client-field-list")), 5000);
+	await audit("client fields");
+	await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/items`);
+	await driver.wait(until.elementLocated(By.id("item-list")), 5000);
 	await driver.executeScript(() => {
 		const input = document.querySelector("#new-title");
 		input.required = false;

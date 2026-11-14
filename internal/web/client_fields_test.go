@@ -109,3 +109,18 @@ func addWebMember(t *testing.T, env clientsTestEnv, email string) ([]*http.Cooki
 	}
 	return []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}, session.CSRFSecret
 }
+
+// TestClientFieldRefusalKeepsTheChosenType re-renders the define form with the
+// type the owner picked, so a refused save does not reset it to Text.
+func TestClientFieldRefusalKeepsTheChosenType(t *testing.T) {
+	env := newClientsTestEnv(t)
+	refused := request(env.routes, http.MethodPost, env.fieldsPath(), url.Values{
+		"csrf": {env.csrf}, "label": {""}, "type": {"number"},
+	}, env.cookies, nil)
+	if refused.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("blank label = %d: %s", refused.Code, refused.Body.String())
+	}
+	if !strings.Contains(refused.Body.String(), `<option value="number" selected>`) {
+		t.Fatalf("refused form lost the chosen type: %s", refused.Body.String())
+	}
+}
