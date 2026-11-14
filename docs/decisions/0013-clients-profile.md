@@ -128,6 +128,9 @@ the decision recorded for spec [#294](https://github.com/dynamiscode/dynamis-cod
   server-rendered forms. No WebMCP tool contract (non-secret schemas or control
   mapping) exists for Clients, so enabling it needs a reviewed contract first.
   Reason recorded per [development](../development.md#feature-completeness) omission rules.
+- **Realtime:** the client list refreshes over `GET /workspaces/{workspaceId}/clients/events`
+  for create and update, as Items do ([web realtime contract](../web.md#realtime-contract)).
+  Archive and delete add their events with their tickets.
 - **Not yet implemented:** archive and unarchive, custom fields, permanent
-  delete, export, webhook events, realtime, MCP tools, and `appctl` commands.
+  delete, export, webhook events, MCP tools, and `appctl` commands.
   Each lands in a later ticket and updates [capabilities](../capabilities.md).

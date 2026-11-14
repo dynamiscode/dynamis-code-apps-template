@@ -125,6 +125,9 @@ func (s *Service) Create(
 		client.Notes, client.Version, formatTime(now), formatTime(now)).Scan(&client.ID); err != nil {
 		return Client{}, err
 	}
+	if err := s.recordChange(ctx, tx, workspaceID, client.ID, "created", client.Version, now); err != nil {
+		return Client{}, err
+	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "client.created", ActorUserID: actor.UserID,
 		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
@@ -224,6 +227,9 @@ func (s *Service) Update(
 	}
 	if changed, _ := result.RowsAffected(); changed != 1 {
 		return Client{}, ErrPreconditionFailed
+	}
+	if err := s.recordChange(ctx, tx, workspaceID, client.ID, "updated", client.Version, client.UpdatedAt); err != nil {
+		return Client{}, err
 	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
 		EventType: "client.updated", ActorUserID: actor.UserID,

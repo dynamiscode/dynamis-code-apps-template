@@ -283,6 +283,17 @@ It sends redacted resource references, not item titles or credentials.
   Limit rejection returns `429` plus `Retry-After`; lifetime closure emits a
   `close` event and normal EventSource reconnection applies.
 
+`GET /workspaces/{workspaceId}/clients/events` is the client list's stream. It
+follows the same read permission, cursor, limit, heartbeat, and lifetime rules.
+It sends `client.changed` with the client's short ID, schema version `1`, UTC
+occurrence time, workspace ID, action (`created` or `updated`), and client
+version. It carries no client fields. A missing, malformed, unknown, or expired
+cursor receives `resync`. Viewers receive events, and a user outside the
+workspace gets not found. The list refreshes by fetching its section, and an
+open create form waits while a field has focus, as the Items list does. The
+latest 1,000 client events per workspace are retained, and older events fall
+under the same replay window as Items.
+
 `GET /notifications/events` uses the same stream limits, heartbeat, lifetime,
 and database polling. Events carry the notification ID, type, title, body, and
 UTC creation time only to the authenticated recipient. `Last-Event-ID` resumes

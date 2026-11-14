@@ -51,7 +51,12 @@ func (h *Handler) renderClientList(
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, status, "clients.html", pageData{
+	name := "clients.html"
+	if request.Header.Get("HX-Request") == "true" {
+		// A realtime refresh swaps only the list section, as the Items list does.
+		name = "client-list"
+	}
+	h.render(writer, status, name, pageData{
 		Title: "Clients", ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		NavPage: "clients", NavSection: "clients",

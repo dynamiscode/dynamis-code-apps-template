@@ -310,6 +310,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/web/templates/clients.html" || relative == "internal/web/templates/client.html" ||
 		relative == "internal/platform/database/migrations/000022_clients.sql" ||
 		relative == "internal/platform/database/migrations/000023_client_fields.sql" ||
+		relative == "internal/web/clients_events.go" || relative == "internal/web/clients_events_test.go" ||
 		relative == "internal/platform/database/client_slot_indexes_test.go" ||
 		relative == "internal/platform/database/client_slot_indexes_postgres_test.go" ||
 		relative == "internal/httpapi/client_fields.go" || relative == "internal/httpapi/client_fields_test.go" ||
@@ -361,6 +362,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeText(value, "\n- Clients (Clients profile):", "\n\n## Webhooks")
 	case "docs/web.md":
 		value = removeText(value, "\n\n`/workspaces/{workspaceId}/clients` lists", "\n\n## Realtime contract")
+		value = removeText(value, "\n\n`GET /workspaces/{workspaceId}/clients/events` is", "\n\n`GET /notifications/events`")
 	case "api/openapi.json":
 		value = stripClientsOpenAPI([]byte(value))
 	}

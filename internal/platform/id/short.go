@@ -39,6 +39,7 @@ const (
 	TypeClient            TypeCode = "client"
 	TypeClientField       TypeCode = "client_field"
 	TypeClientFieldOption TypeCode = "client_field_option"
+	TypeClientEvent       TypeCode = "client_event"
 )
 
 // TypeCodes returns every registered type code.
@@ -48,7 +49,7 @@ func TypeCodes() []TypeCode {
 		TypeWebhookEvent, TypeJob, TypeInvitation, TypeMember, TypeToken,
 		TypePublicLink, TypeSCIMToken, TypeOAuthClient, TypeOAuthGrant, TypeItemEvent,
 		TypeNotification, TypeMFAPasskey, TypeAuditEvent, TypeUser,
-		TypeClient, TypeClientField, TypeClientFieldOption,
+		TypeClient, TypeClientField, TypeClientFieldOption, TypeClientEvent,
 	}
 }
 

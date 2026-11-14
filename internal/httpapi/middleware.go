@@ -42,8 +42,7 @@ func middleware(
 func concurrencyMiddleware(next http.Handler, maximum int) http.Handler {
 	active := make(chan struct{}, maximum)
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if strings.HasPrefix(request.URL.Path, "/workspaces/") &&
-			strings.HasSuffix(request.URL.Path, "/items/events") {
+		if isChangeStreamPath(request.URL.Path) {
 			next.ServeHTTP(writer, request)
 			return
 		}
@@ -258,8 +257,14 @@ func timeoutMiddleware(
 }
 
 func isStreamingPath(path string) bool {
-	return (strings.HasPrefix(path, "/workspaces/") && strings.HasSuffix(path, "/items/events")) ||
-		isFileStreamingPath(path)
+	return isChangeStreamPath(path) || isFileStreamingPath(path)
+}
+
+// isChangeStreamPath reports a workspace realtime stream (Items or Clients). These
+// streams are exempt from the request concurrency limit and the request deadline.
+func isChangeStreamPath(path string) bool {
+	return strings.HasPrefix(path, "/workspaces/") &&
+		(strings.HasSuffix(path, "/items/events") || strings.HasSuffix(path, "/clients/events"))
 }
 
 func isFileStreamingPath(path string) bool {
