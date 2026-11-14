@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf16"
 )
 
 type DatabaseDriver string
@@ -61,6 +62,9 @@ type Bootstrap struct {
 	AdminWorkspaceLocale string
 	SetupToken           string
 }
+
+// Match HTML maxlength, which counts UTF-16 code units.
+const maxBootstrapSetupTokenLength = 1024
 
 type MCP struct {
 	AllowedOrigins []string
@@ -509,6 +513,8 @@ func loadBootstrap(lookup LookupEnv) (Bootstrap, error) {
 	}
 	if strings.TrimSpace(setupToken) == "" {
 		setupToken = ""
+	} else if len(utf16.Encode([]rune(setupToken))) > maxBootstrapSetupTokenLength {
+		return Bootstrap{}, fmt.Errorf("BOOTSTRAP_SETUP_TOKEN must be at most %d characters", maxBootstrapSetupTokenLength)
 	}
 	return Bootstrap{
 		AdminEmail: strings.TrimSpace(email), AdminPassword: password,

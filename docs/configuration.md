@@ -16,7 +16,7 @@ begins. Changes require restart.
 | `BOOTSTRAP_ADMIN_WORKSPACE` | workspace name, 1-120 characters | none | With other admin variables | No |
 | `BOOTSTRAP_ADMIN_PASSWORD` | password, 12-1024 characters | none | With other admin variables | Yes |
 | `BOOTSTRAP_ADMIN_WORKSPACE_LOCALE` | `en` or `es` | `en` | No | No |
-| `BOOTSTRAP_SETUP_TOKEN` | non-empty setup secret for remote browser setup | none | No | Yes |
+| `BOOTSTRAP_SETUP_TOKEN` | optional exact setup secret, max 1,024 UTF-16 code units | none | No | Yes |
 | `OIDC_ENABLED` | boolean | `false` | No | No |
 | `OIDC_PROVIDER_ID` | lowercase stable identifier | none | OIDC only | No |
 | `OIDC_PROVIDER_NAME` | display label, 1-80 characters | none | OIDC only | No |
@@ -98,11 +98,15 @@ memberships and creates workspaces. The default change applies to existing
 deployments: those that create workspaces in the browser must set
 `MULTI_WORKSPACE_ENABLED=true` before upgrading.
 
-The three `BOOTSTRAP_ADMIN_*` variables enable unattended first-owner
-bootstrap only when all are non-empty. A partial set fails startup; an empty
-set leaves loopback browser or CLI bootstrap available. `BOOTSTRAP_SETUP_TOKEN`
-enables the protected browser form for remote requests; local loopback browser
-setup does not need it. After bootstrap, these values do not overwrite database
+The three `BOOTSTRAP_ADMIN_*` variables enable unattended first-owner bootstrap
+only when all are non-empty. A partial set fails startup. `BOOTSTRAP_SETUP_TOKEN`
+is optional: missing, empty, or whitespace-only values leave browser setup
+available locally and remotely without a token. A nonblank value is matched
+exactly and may be any string up to 1,024 UTF-16 code units, matching the setup
+form's `maxlength`; it is not stored or logged. A publicly reachable tokenless
+setup page lets its first visitor claim the initial administrator, so use
+deployment-level access control until bootstrap completes when that risk is not
+acceptable. After bootstrap, the admin variables do not overwrite database
 records. The workspace locale controls invitation email language and browser
 fallback.
 

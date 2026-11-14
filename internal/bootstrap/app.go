@@ -103,9 +103,8 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		slog.Info("remote browser setup enabled", "path", "/setup")
 	default:
 		slog.Info(
-			"local browser setup enabled; remote setup requires configuration",
+			"browser setup enabled without a token; first visitor may claim initial administrator",
 			"path", "/setup",
-			"next", "set BOOTSTRAP_SETUP_TOKEN or all BOOTSTRAP_ADMIN_* variables for remote setup, or run bootstrap-admin",
 		)
 	}
 	oidcRegistry, err := identity.NewOIDCRegistry(ctx, cfg.OIDC)

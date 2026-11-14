@@ -316,7 +316,6 @@
   "errors.password_mismatch": "Las contraseñas no coinciden.",
   "errors.invalid_bootstrap": "Ingresa un correo, nombre de espacio de trabajo y contraseña válidos.",
   "errors.invalid_credentials": "El correo o la contraseña no son válidos.",
-  "errors.remote_setup": "La configuración remota del navegador está desactivada. Define BOOTSTRAP_SETUP_TOKEN o todas las variables BOOTSTRAP_ADMIN_*, y reinicia el servidor.",
   "errors.invalid_item_version": "La versión del elemento no es válida. Recarga e inténtalo de nuevo.",
   "errors.invalid_item_action": "La acción solicitada para el elemento no es válida.",
   "errors.item_changed": "Este elemento cambió. Revisa el valor actual e inténtalo de nuevo.",

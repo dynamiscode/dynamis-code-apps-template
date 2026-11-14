@@ -10,7 +10,6 @@ import (
 	"html/template"
 	"io/fs"
 	"log/slog"
-	"net"
 	"net/http"
 	"slices"
 	"strconv"
@@ -309,7 +308,7 @@ func newHandler(
 		return nil, err
 	}
 	setupTokenHash := ""
-	if setupToken != "" {
+	if strings.TrimSpace(setupToken) != "" {
 		setupTokenHash = identity.SecretHash(setupToken)
 	}
 	return &Handler{
@@ -524,7 +523,6 @@ type setupAvailability uint8
 const (
 	setupDisabled setupAvailability = iota
 	setupEnabled
-	setupRemoteConfigurationRequired
 )
 
 func (h *Handler) setupAvailability(request *http.Request) (setupAvailability, error) {
@@ -535,10 +533,7 @@ func (h *Handler) setupAvailability(request *http.Request) (setupAvailability, e
 	if bootstrapped {
 		return setupDisabled, nil
 	}
-	if h.setupTokenHash != "" || isLoopbackRequest(request) {
-		return setupEnabled, nil
-	}
-	return setupRemoteConfigurationRequired, nil
+	return setupEnabled, nil
 }
 
 func (h *Handler) setupAvailable(request *http.Request) (bool, error) {
@@ -550,10 +545,6 @@ func (h *Handler) requireSetup(writer http.ResponseWriter, request *http.Request
 	availability, err := h.setupAvailability(request)
 	if err != nil {
 		h.renderError(writer, http.StatusInternalServerError)
-		return false
-	}
-	if availability == setupRemoteConfigurationRequired {
-		h.renderSetupUnavailable(writer)
 		return false
 	}
 	if availability != setupEnabled {
@@ -573,34 +564,6 @@ func (h *Handler) renderSetup(writer http.ResponseWriter, status int, data pageD
 	data.CSRF = token
 	data.SetupTokenRequired = h.setupTokenHash != ""
 	h.render(writer, status, "setup.html", data)
-}
-
-func (h *Handler) renderSetupUnavailable(writer http.ResponseWriter) {
-	h.render(writer, http.StatusServiceUnavailable, "error.html", pageData{
-		Title: "Remote setup required",
-		Error: "Remote browser setup is disabled. Set BOOTSTRAP_SETUP_TOKEN or all BOOTSTRAP_ADMIN_* variables, then restart the server.",
-	})
-}
-
-func isLoopbackRequest(request *http.Request) bool {
-	return isLoopbackHost(requestHost(request.Host)) &&
-		isLoopbackHost(requestHost(request.RemoteAddr))
-}
-
-func requestHost(value string) string {
-	value = strings.TrimSpace(value)
-	if host, _, err := net.SplitHostPort(value); err == nil {
-		return host
-	}
-	return strings.Trim(value, "[]")
-}
-
-func isLoopbackHost(host string) bool {
-	if strings.EqualFold(host, "localhost") {
-		return true
-	}
-	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
 }
 
 func (h *Handler) login(writer http.ResponseWriter, request *http.Request) {
