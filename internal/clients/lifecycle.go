@@ -89,12 +89,9 @@ func (s *Service) setArchived(
 	if err := s.publishEvent(ctx, tx, workspaceID, webhookType, client, now); err != nil {
 		return Client{}, err
 	}
-	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
-		EventType: eventType, ActorUserID: actor.UserID,
-		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "client", TargetKey: int64(client.ID), Action: auditAction,
-		Outcome: "success", RequestID: audit.RequestID,
-		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
+	if err := s.recordAudit(ctx, tx, actor, workspaceID, audit, auditRecord{
+		eventType: eventType, action: auditAction, targetType: "client",
+		targetKey: int64(client.ID), metadata: "{}", at: now,
 	}); err != nil {
 		return Client{}, err
 	}
@@ -140,12 +137,9 @@ func (s *Service) Delete(
 	if err := s.recordChange(ctx, tx, workspaceID, client.ID, "deleted", client.Version, now); err != nil {
 		return err
 	}
-	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
-		EventType: "client.deleted", ActorUserID: actor.UserID,
-		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "client", TargetKey: int64(client.ID), Action: "client.delete",
-		Outcome: "success", RequestID: audit.RequestID,
-		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
+	if err := s.recordAudit(ctx, tx, actor, workspaceID, audit, auditRecord{
+		eventType: "client.deleted", action: "client.delete", targetType: "client",
+		targetKey: int64(client.ID), metadata: "{}", at: now,
 	}); err != nil {
 		return err
 	}

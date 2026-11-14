@@ -166,6 +166,7 @@
   "clients.created_at": "Created",
   "clients.updated_at": "Updated",
   "clients.query_invalid": "Choose a valid sort or filter.",
+  "clients.cursor_invalid": "The page link is no longer valid.",
   "clients.fields_intro": "Custom fields add your own information to every client. Archived fields leave forms and keep their values.",
   "clients.fields_none": "No custom fields yet.",
   "clients.fields_read_only": "You can view custom fields. Owners and admins can change them.",

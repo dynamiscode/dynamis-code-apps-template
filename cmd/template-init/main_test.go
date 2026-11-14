@@ -277,12 +277,27 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		"internal/clients", "internal/httpapi/clients.go", "internal/web/clients.go",
 		"internal/web/templates/clients.html", "internal/web/templates/client.html",
 		"internal/platform/database/migrations/000022_clients.sql",
+		"internal/platform/database/migrations/000024_client_events.sql",
 		"internal/web/clients_events.go",
 		"internal/mcpserver/clients.go", "internal/mcpserver/clients_test.go",
 		"internal/appctl/clients_test.go",
 	} {
 		if _, err := os.Stat(filepath.Join(output, path)); !os.IsNotExist(err) {
 			t.Errorf("generated application without Clients still has %s: %v", path, err)
+		}
+	}
+	// No migration left in the generated app creates the client event table.
+	migrations, err := filepath.Glob(filepath.Join(output, "internal/platform/database/migrations/*.sql"))
+	if err != nil || len(migrations) == 0 {
+		t.Fatalf("generated migrations = %v, error = %v", migrations, err)
+	}
+	for _, migration := range migrations {
+		content, err := os.ReadFile(migration)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(content), "client_events") {
+			t.Errorf("generated application without Clients keeps client_events in %s", filepath.Base(migration))
 		}
 	}
 	// The CLI's client and field commands are Clients wiring, so a Clients-off

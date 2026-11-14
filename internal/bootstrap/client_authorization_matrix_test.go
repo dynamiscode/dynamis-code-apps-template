@@ -111,6 +111,7 @@ func mcpCall(tool string, arguments map[string]any) matrixRequest {
 var mcpStatus = map[string]int{
 	"access is denied":        http.StatusForbidden,
 	"client not found":        http.StatusNotFound,
+	"workspace not found":     http.StatusNotFound,
 	"custom field not found":  http.StatusNotFound,
 	"choice option not found": http.StatusNotFound,
 }
@@ -865,8 +866,9 @@ func TestClientAuthorizationIsolatesWorkspaces(t *testing.T) {
 				// Rows that name a record in the path compare the foreign key with a
 				// missing key. Rows that name none (list, create, define) have the
 				// same path for both, so they are checked on what they return.
-				if row.rest(foreign).path != row.rest(missing).path || row.web(foreign).path != row.web(missing).path ||
-					row.mcp(foreign).body != row.mcp(missing).body {
+				namesRecord := row.rest(foreign).path != row.rest(missing).path || row.web(foreign).path != row.web(missing).path ||
+					row.mcp(foreign).body != row.mcp(missing).body
+				if namesRecord {
 					foreignResponse := call(foreign)
 					missingResponse := call(missing)
 					if !refusedCode(surface, foreignResponse.Code) || !refusedCode(surface, missingResponse.Code) {
@@ -886,20 +888,22 @@ func TestClientAuthorizationIsolatesWorkspaces(t *testing.T) {
 				}
 
 				// A caller in B naming workspace A itself is refused as not found on
-				// REST and web. MCP keeps its documented contract for a workspace the
-				// token cannot access, "access is denied" (docs/mcp.md), which the Items
-				// tools share. This is the one cell where MCP and REST differ.
+				// every surface. On MCP the clients tools answer the same not-found a
+				// missing record gets, not the Items "access is denied" (docs/mcp.md).
 				wantOwn := http.StatusNotFound
-				if surface == "mcp" {
-					wantOwn = http.StatusForbidden
-				}
 				if surface == "appctl" {
 					wantOwn = 4 // exit status for not found, per docs/cli.md
 				}
 				ownWorkspace := f.a
 				ownResponse := call(ownWorkspace)
-				if ownResponse.Code != wantOwn || (surface == "mcp" && ownResponse.Body.String() != "access is denied") {
+				if ownResponse.Code != wantOwn {
 					t.Fatalf("B admin on workspace A %s = %d, want %d: %s", row.action, ownResponse.Code, wantOwn, ownResponse.Body.String())
+				}
+				if surface == "mcp" && namesRecord {
+					missingResponse := call(missing)
+					if ownResponse.Body.String() != missingResponse.Body.String() {
+						t.Fatalf("B admin on workspace A %s = %q, missing = %q; want identical", row.action, ownResponse.Body.String(), missingResponse.Body.String())
+					}
 				}
 			})
 		}

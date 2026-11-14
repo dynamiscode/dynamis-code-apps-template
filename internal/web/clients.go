@@ -46,6 +46,8 @@ func (h *Handler) renderClientList(
 		form.listInput(h.cfg.DefaultPageSize, query.Get("cursor")))
 	if errors.Is(err, clients.ErrInvalidQuery) {
 		status, errorKey, page = http.StatusBadRequest, "clients.query_invalid", clients.Page{}
+	} else if errors.Is(err, clients.ErrInvalidCursor) {
+		status, errorKey, page = http.StatusBadRequest, "clients.cursor_invalid", clients.Page{}
 	} else if err != nil {
 		h.clientError(writer, request, err)
 		return
@@ -289,7 +291,7 @@ func (h *Handler) clientError(writer http.ResponseWriter, _ *http.Request, err e
 	switch {
 	case errors.Is(err, identity.ErrForbidden):
 		h.renderError(writer, http.StatusForbidden)
-	case errors.Is(err, clients.ErrNotFound), errors.Is(err, clients.ErrFieldNotFound), errors.Is(err, clients.ErrOptionNotFound), errors.Is(err, clients.ErrInvalidCursor):
+	case errors.Is(err, clients.ErrNotFound), errors.Is(err, clients.ErrFieldNotFound), errors.Is(err, clients.ErrOptionNotFound):
 		h.renderError(writer, http.StatusNotFound)
 	default:
 		h.renderError(writer, http.StatusInternalServerError)

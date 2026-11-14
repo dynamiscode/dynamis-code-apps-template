@@ -166,6 +166,7 @@
   "clients.created_at": "Creado",
   "clients.updated_at": "Actualizado",
   "clients.query_invalid": "Elige un orden o filtro válido.",
+  "clients.cursor_invalid": "El enlace de la página ya no es válido.",
   "clients.fields_intro": "Los campos personalizados agregan tu propia información a cada cliente. Los campos archivados salen de los formularios y conservan sus valores.",
   "clients.fields_none": "Aún no hay campos personalizados.",
   "clients.fields_read_only": "Puedes ver los campos personalizados. Los propietarios y administradores pueden cambiarlos.",

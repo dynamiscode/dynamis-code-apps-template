@@ -244,7 +244,10 @@ missing WebMCP support is a passing fallback result. Debug registration with
 the browser's `document.modelContext.getTools()` inspection without copying
 session values or hidden inputs into logs.
 
-`/workspaces/{workspaceId}/clients` lists clients newest first. Members,
+`/workspaces/{workspaceId}/clients` lists clients newest first by default. A GET
+form names one sort field and direction, one filter (field, operator, and value,
+with a second value for `between`), and the archived selector (`active` by
+default, `archived`, or `all`). A next-page link keeps them. Members,
 admins, and owners see the create form; viewers see the list read-only.
 `/workspaces/{workspaceId}/clients/{clientId}` shows one client. Writers get an
 edit form that carries the client's version; a stale version shows a retry

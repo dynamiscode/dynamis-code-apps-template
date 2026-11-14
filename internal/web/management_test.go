@@ -48,7 +48,7 @@ func testMultiInstanceWeb(t *testing.T) (http.Handler, http.Handler, *identity.S
 	}
 	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace)
 	sharingService := sharing.NewService(db, cfg.Database.Driver, auth)
-	portabilityService := portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes, cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService)
+	portabilityService := portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes, cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService, nil)
 
 	instance1, err := NewHandlerWithServices(auth, itemService, sharingService, portabilityService, nil, cfg.HTTP, "", "", nil)
 	if err != nil {

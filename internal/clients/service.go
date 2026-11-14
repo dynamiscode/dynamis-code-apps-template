@@ -108,6 +108,35 @@ func NewService(
 	return &Service{db: db, driver: driver, auth: auth, now: time.Now, maxFields: maxFields, publisher: publisher}
 }
 
+// auditRecord is one Clients audit event. Metadata is a JSON object, and it never
+// names a field value.
+type auditRecord struct {
+	eventType  string
+	action     string
+	targetType string
+	targetKey  int64
+	metadata   string
+	at         time.Time
+}
+
+// recordAudit writes one audit event in the change's transaction.
+func (s *Service) recordAudit(
+	ctx context.Context,
+	tx *sql.Tx,
+	actor identity.Principal,
+	workspaceID identity.WorkspaceID,
+	audit identity.AuditContext,
+	record auditRecord,
+) error {
+	return s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
+		EventType: record.eventType, ActorUserID: actor.UserID,
+		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
+		TargetType: record.targetType, TargetKey: record.targetKey, Action: record.action,
+		Outcome: "success", RequestID: audit.RequestID,
+		SourceAddress: audit.SourceAddress, Metadata: record.metadata, CreatedAt: record.at,
+	})
+}
+
 func (s *Service) Create(
 	ctx context.Context,
 	actor identity.Principal,
@@ -152,12 +181,9 @@ func (s *Service) Create(
 	if err := s.publishEvent(ctx, tx, workspaceID, "client.created", client, now); err != nil {
 		return Client{}, err
 	}
-	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
-		EventType: "client.created", ActorUserID: actor.UserID,
-		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "client", TargetKey: int64(client.ID), Action: "client.create",
-		Outcome: "success", RequestID: audit.RequestID,
-		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
+	if err := s.recordAudit(ctx, tx, actor, workspaceID, audit, auditRecord{
+		eventType: "client.created", action: "client.create", targetType: "client",
+		targetKey: int64(client.ID), metadata: "{}", at: now,
 	}); err != nil {
 		return Client{}, err
 	}
@@ -258,14 +284,9 @@ func (s *Service) Update(
 	if err := s.publishEvent(ctx, tx, workspaceID, "client.updated", client, client.UpdatedAt); err != nil {
 		return Client{}, err
 	}
-	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
-		EventType: "client.updated", ActorUserID: actor.UserID,
-		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "client", TargetKey: int64(client.ID), Action: "client.update",
-		Outcome: "success", RequestID: audit.RequestID,
-		SourceAddress: audit.SourceAddress,
-		Metadata:      fmt.Sprintf(`{"version":%d}`, client.Version),
-		CreatedAt:     client.UpdatedAt,
+	if err := s.recordAudit(ctx, tx, actor, workspaceID, audit, auditRecord{
+		eventType: "client.updated", action: "client.update", targetType: "client",
+		targetKey: int64(client.ID), metadata: fmt.Sprintf(`{"version":%d}`, client.Version), at: client.UpdatedAt,
 	}); err != nil {
 		return Client{}, err
 	}

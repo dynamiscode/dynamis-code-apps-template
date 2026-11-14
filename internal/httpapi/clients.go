@@ -110,7 +110,7 @@ func (h *handler) createClient(writer http.ResponseWriter, request *http.Request
 	if !ok {
 		return
 	}
-	var input clientFields
+	var input createClientBody
 	if err := decodeJSON(request, &input); err != nil {
 		h.badJSON(writer, request, err)
 		return
@@ -209,8 +209,8 @@ func (h *handler) updateClient(writer http.ResponseWriter, request *http.Request
 	writeJSON(writer, http.StatusOK, client)
 }
 
-// clientFields is the create body. Unknown members are rejected by decodeJSON.
-type clientFields struct {
+// createClientBody is the create body. Unknown members are rejected by decodeJSON.
+type createClientBody struct {
 	DisplayName string `json:"displayName"`
 	Email       string `json:"email"`
 	Phone       string `json:"phone"`

@@ -193,8 +193,8 @@ the decision recorded for spec [#294](https://github.com/dynamiscode/dynamis-cod
   filters, last sort value, and last ID. A cursor from another query is refused.
 - **Surfaces:** REST takes `sort` and repeated `filter` parameters. The web list
   has one sort and one filter in a GET form, and a next-page link keeps them.
-  MCP and `appctl` list filters are not in this slice, so they arrive with their
-  own tickets. WebMCP stays omitted, as recorded above.
+  MCP (`clients_list_v1`) and `appctl` (`clients list`) take the same sort,
+  filter, and archived selector as REST. WebMCP stays omitted, as recorded above.
 - **Number ordering (decision for the parent):** a number field orders and
   ranges through `CAST` to REAL on SQLite and `::numeric` on PostgreSQL. No index
   is added, so these queries scan the workspace. [ADR 0012](0012-client-custom-field-storage.md)
@@ -269,8 +269,9 @@ the decision recorded for spec [#294](https://github.com/dynamiscode/dynamis-cod
 
 ## Addendum: client webhook events (ticket #307, 2026-11-13)
 
-- **Events:** `client.created` on create; `client.updated` on edit and on
-  unarchive; `client.archived` on archive; `client.deleted` on permanent delete.
+- **Events:** `client.created` on create; `client.updated` on edit, on unarchive,
+  and on set or clear of a custom value; `client.archived` on archive;
+  `client.deleted` on permanent delete.
   Archive and unarchive of a client already in that state emit nothing. Each
   event is one outbox write (`PublishInTx`) in the change's transaction, so a
   failed write rolls the change back.
@@ -283,8 +284,38 @@ the decision recorded for spec [#294](https://github.com/dynamiscode/dynamis-cod
   payload.
 - **Not emitted:** define, archive, restore, delete, and option changes on
   fields, and the value clears that field delete performs. Setting or clearing a
-  client's custom value bumps the version and changes the payload, but this
-  slice emits no webhook event for it. Whether value writes should emit
-  `client.updated` is open.
+  client's custom value emits `client.updated` (see the review fixes addendum).
 - **Contract:** `CreateWebhookRequest.events` accepts the four client events
   (`api/openapi.json`, `maxItems` 7). The web form lists them.
+
+## Addendum: final review fixes (spec #294, 2026-11-14)
+
+- **MCP cross-workspace calls (#304):** a Clients MCP tool called with a
+  workspace the token is not bound to returns the not-found a missing record
+  gets (`client not found`, `custom field not found`, `choice option not found`,
+  or `workspace not found` for a collection call). REST answers the same case
+  with `404` before the service runs. A role refusal in the token's own
+  workspace stays `access is denied`. Items MCP tools keep `access is denied`.
+  The authorization matrix pins this per row ([docs/mcp.md](../mcp.md)).
+- **Choice sort by label (#301):** a single-choice sort orders by option label,
+  empty values last, the same on SQLite and PostgreSQL. A stored value is the
+  option's short ID, which SQL cannot decode to the option row, so the sort maps
+  the stored ID to its label's rank in a CASE over the field's options, not a
+  join. Options with the same label share a rank. The CASE lists at most 100
+  options, the slot limit. Number ordering and filtering are unchanged (see
+  ADR 0012).
+- **Value writes emit events (#307, #308):** setting or clearing a custom value
+  emits `client.updated` through the outbox and writes a change-feed row with
+  action `updated`, in the same transaction as the value write. A failed write
+  of either rolls the value write back. Field definition changes still emit
+  nothing.
+- **Field lifecycle status:** a field's status is `active`, `archived`, or
+  `deleted`. `Status()` takes no `now`, because fields have no time-based
+  states. `ValidateFieldTransition` allows archive, restore, and delete from
+  archived only. Deleting an active field still returns `ErrFieldNotArchived`.
+  Archive, restore, and delete route through it, with the same errors, audit,
+  and events. A deleted field has no row, so `deleted` is a transition target
+  and never a status that `Status()` returns.
+- **Judgement call:** client archive and unarchive keep their `archived_at`
+  nullability check. The client lifecycle has no transition validator yet, so
+  moving it onto the typed pattern is a separate change.

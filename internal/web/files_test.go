@@ -66,7 +66,7 @@ func newFilesTestEnv(t *testing.T, maxObjectBytes, maxWorkspaceBytes int64) file
 	fileService := appfiles.NewService(db, cfg.Database.Driver, auth, store,
 		maxObjectBytes, maxWorkspaceBytes, cfg.Storage.SignedURLTTL, cfg.Storage.S3Prefix)
 	handler, err := NewHandlerWithServicesAndFiles(auth, itemService,
-		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes, cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService),
+		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes, cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService, nil),
 		nil, cfg.HTTP, fileService, "", "", nil)
 	if err != nil {
 		t.Fatal(err)

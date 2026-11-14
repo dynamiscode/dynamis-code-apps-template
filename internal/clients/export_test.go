@@ -62,14 +62,12 @@ func TestSQLiteClientExportRecordLimitCountsClientRecords(t *testing.T) {
 
 	// Each export writes an audit row, so read the boundary from the tables right before each attempt.
 	count := exportRecordCount(t, db, workspaceID)
-	under := portability.NewService(db, config.SQLite, auth, count-1, 1<<20, 100, 1<<20, itemService).
-		WithClients(clientService)
+	under := portability.NewService(db, config.SQLite, auth, count-1, 1<<20, 100, 1<<20, itemService, clientService)
 	if _, err := under.Export(ctx, actor, workspaceID, audit); !errors.Is(err, portability.ErrLimit) {
 		t.Fatalf("export one record over limit = %v; want ErrLimit", err)
 	}
 	count = exportRecordCount(t, db, workspaceID)
-	exact := portability.NewService(db, config.SQLite, auth, count, 1<<20, 100, 1<<20, itemService).
-		WithClients(clientService)
+	exact := portability.NewService(db, config.SQLite, auth, count, 1<<20, 100, 1<<20, itemService, clientService)
 	if _, err := exact.Export(ctx, actor, workspaceID, audit); err != nil {
 		t.Fatalf("export at exact record limit = %v", err)
 	}
@@ -86,8 +84,7 @@ func runClientExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDri
 	itemService := items.NewService(db, driver, auth, 100)
 	_, err := itemService.Create(ctx, actor, workspaceID, "Export item", "export-item-key", audit)
 	exportCheck(t, err)
-	service := portability.NewService(db, driver, auth, 100, 1<<20, 100, 1<<20, itemService).
-		WithClients(NewService(db, driver, auth, 50))
+	service := portability.NewService(db, driver, auth, 100, 1<<20, 100, 1<<20, itemService, NewService(db, driver, auth, 50))
 
 	encoded, err := service.Export(ctx, actor, workspaceID, audit)
 	exportCheck(t, err)

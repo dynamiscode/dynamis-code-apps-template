@@ -37,8 +37,8 @@ func (s *Service) DeleteField(
 	if err != nil {
 		return err
 	}
-	if !ref.archived {
-		return ErrFieldNotArchived
+	if err := ValidateFieldTransition(ref.status(), FieldStatusDeleted); err != nil {
+		return err
 	}
 	now := s.now().UTC()
 	cleared, err := s.clearSlotValues(ctx, tx, workspaceID, ref.slot, now, "IS NOT NULL")
@@ -55,13 +55,9 @@ func (s *Service) DeleteField(
 	`, workspaceID, fieldID); err != nil {
 		return err
 	}
-	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
-		EventType: "client_field.deleted", ActorUserID: actor.UserID,
-		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "client_field", TargetKey: int64(fieldID), Action: "client_field.delete",
-		Outcome: "success", RequestID: audit.RequestID,
-		SourceAddress: audit.SourceAddress,
-		Metadata:      fmt.Sprintf(`{"clearedClients":%d}`, cleared), CreatedAt: now,
+	if err := s.recordAudit(ctx, tx, actor, workspaceID, audit, auditRecord{
+		eventType: "client_field.deleted", action: "client_field.delete", targetType: "client_field",
+		targetKey: int64(fieldID), metadata: fmt.Sprintf(`{"clearedClients":%d}`, cleared), at: now,
 	}); err != nil {
 		return err
 	}

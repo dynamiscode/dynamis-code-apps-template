@@ -41,8 +41,8 @@ type Export struct {
 }
 
 // ClientSource supplies the client section of an export. Only the Clients
-// profile implements it. Bootstrap passes it through WithClients, and generation
-// without that profile removes the call.
+// profile implements it. Bootstrap passes it to NewService, and generation
+// without that profile passes nil.
 type ClientSource interface {
 	ExportClients(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID, limit int) (ClientExport, error)
 }
@@ -138,6 +138,8 @@ type Service struct {
 	now              func() time.Time
 }
 
+// NewService takes clients as the client section source for exports. Apps
+// without the Clients profile pass nil, and exports then omit the section.
 func NewService(
 	db *sql.DB,
 	driver config.DatabaseDriver,
@@ -147,20 +149,14 @@ func NewService(
 	maxImportRecords int,
 	maxImportBytes int,
 	itemService *items.Service,
+	clients ClientSource,
 ) *Service {
 	return &Service{
 		db: db, driver: driver, identity: identityService, items: itemService,
 		maxRecords: maxRecords, maxBytes: maxBytes,
 		maxImportRecords: maxImportRecords, maxImportBytes: maxImportBytes,
-		now: time.Now,
+		clients: clients, now: time.Now,
 	}
-}
-
-// WithClients adds the client section to exports. Bootstrap calls it only in
-// apps composed with the Clients profile.
-func (s *Service) WithClients(source ClientSource) *Service {
-	s.clients = source
-	return s
 }
 
 type ImportInput struct {

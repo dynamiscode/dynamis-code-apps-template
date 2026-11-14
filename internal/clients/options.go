@@ -281,33 +281,16 @@ func (s *Service) lowestFreeOptionSlot(
 	workspaceID identity.WorkspaceID,
 	fieldID FieldID,
 ) (int, error) {
-	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver,
-		"SELECT slot FROM client_field_options WHERE workspace_id = ? AND field_id = ?"),
-		workspaceID, fieldID)
+	used, err := s.usedSlots(ctx, tx,
+		"SELECT slot FROM client_field_options WHERE workspace_id = ? AND field_id = ?", workspaceID, fieldID)
 	if err != nil {
 		return 0, err
 	}
-	defer rows.Close()
-	used := make(map[int]bool)
-	for rows.Next() {
-		var slot int
-		if err := rows.Scan(&slot); err != nil {
-			return 0, err
-		}
-		used[slot] = true
-	}
-	if err := rows.Err(); err != nil {
-		return 0, err
-	}
-	if len(used) >= maxFieldOptions {
+	slot, ok := firstFreeSlot(used, maxFieldOptions)
+	if !ok {
 		return 0, ErrOptionLimit
 	}
-	for slot := 1; slot <= maxFieldOptions; slot++ {
-		if !used[slot] {
-			return slot, nil
-		}
-	}
-	return 0, ErrOptionLimit
+	return slot, nil
 }
 
 func (s *Service) recordOptionAudit(
@@ -321,12 +304,9 @@ func (s *Service) recordOptionAudit(
 	now time.Time,
 	metadata string,
 ) error {
-	return s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
-		EventType: eventType, ActorUserID: actor.UserID,
-		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "client_field_option", TargetKey: int64(optionID), Action: action,
-		Outcome: "success", RequestID: audit.RequestID,
-		SourceAddress: audit.SourceAddress, Metadata: metadata, CreatedAt: now,
+	return s.recordAudit(ctx, tx, actor, workspaceID, audit, auditRecord{
+		eventType: eventType, action: action, targetType: "client_field_option",
+		targetKey: int64(optionID), metadata: metadata, at: now,
 	})
 }
 

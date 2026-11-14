@@ -240,15 +240,17 @@ func (s *Service) writeValue(
 	if changed, _ := result.RowsAffected(); changed != 1 {
 		return Client{}, ErrPreconditionFailed
 	}
+	if err := s.recordChange(ctx, tx, workspaceID, client.ID, "updated", client.Version, client.UpdatedAt); err != nil {
+		return Client{}, err
+	}
+	if err := s.publishEvent(ctx, tx, workspaceID, "client.updated", client, client.UpdatedAt); err != nil {
+		return Client{}, err
+	}
 	// The audit metadata names the field, never the value.
-	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
-		EventType: "client.updated", ActorUserID: actor.UserID,
-		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "client", TargetKey: int64(clientID), Action: action,
-		Outcome: "success", RequestID: audit.RequestID,
-		SourceAddress: audit.SourceAddress,
-		Metadata:      fmt.Sprintf(`{"field":%q,"version":%d}`, fieldID.String(), client.Version),
-		CreatedAt:     client.UpdatedAt,
+	if err := s.recordAudit(ctx, tx, actor, workspaceID, audit, auditRecord{
+		eventType: "client.updated", action: action, targetType: "client",
+		targetKey: int64(clientID), metadata: fmt.Sprintf(`{"field":%q,"version":%d}`, fieldID.String(), client.Version),
+		at: client.UpdatedAt,
 	}); err != nil {
 		return Client{}, err
 	}

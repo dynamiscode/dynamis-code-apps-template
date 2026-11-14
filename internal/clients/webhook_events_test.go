@@ -127,6 +127,9 @@ func runClientWebhookEvents(t *testing.T, newF func(*testing.T) fixture, driver 
 	t.Run("field definition changes emit nothing", func(t *testing.T) {
 		checkFieldDefinitionChangesEmitNothing(t, newF(t), driver)
 	})
+	t.Run("value writes emit client updated", func(t *testing.T) {
+		checkValueWritesEmitClientUpdated(t, newF(t), driver)
+	})
 }
 
 func checkClientEventSequence(t *testing.T, f fixture, driver config.DatabaseDriver) {
@@ -264,7 +267,7 @@ func checkEventPayload(t *testing.T, f fixture, driver config.DatabaseDriver) {
 	if _, err := svc.Archive(f.ctx, f.member, f.workspaceID, created.ID, audit); err != nil {
 		t.Fatal(err)
 	}
-	events := requireOutbox(t, f, driver, "client.created", "client.archived")
+	events := requireOutbox(t, f, driver, "client.created", "client.updated", "client.archived")
 
 	first := events[0].Data
 	if first.ID != created.ID.String() || first.DisplayName != "Ada" || first.Email != "ada@example.com" ||
@@ -272,7 +275,7 @@ func checkEventPayload(t *testing.T, f fixture, driver config.DatabaseDriver) {
 		first.Version != 1 || len(first.CustomValues) != 0 {
 		t.Fatalf("created payload = %+v", first)
 	}
-	archived := events[1].Data
+	archived := events[2].Data
 	if archived.ID != created.ID.String() || archived.DisplayName != "Ada" || archived.ArchivedAt == nil ||
 		archived.Version != 3 {
 		t.Fatalf("archived payload = %+v", archived)
@@ -322,6 +325,56 @@ func checkFieldDefinitionChangesEmitNothing(t *testing.T, f fixture, driver conf
 		t.Fatal(err)
 	}
 	requireOutbox(t, f, driver, "client.created")
+}
+
+// checkValueWritesEmitClientUpdated checks that setting and clearing a value
+// emits client.updated with the value in the payload, and that a value write
+// whose outbox row fails leaves the value unchanged.
+func checkValueWritesEmitClientUpdated(t *testing.T, f fixture, driver config.DatabaseDriver) {
+	t.Helper()
+	svc := newOutboxService(t, f, driver)
+	audit := identity.AuditContext{}
+	tier, err := svc.DefineField(f.ctx, f.owner, f.workspaceID, FieldInput{Label: "Tier", Type: FieldTypeText}, audit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, err := svc.Create(f.ctx, f.member, f.workspaceID, Input{DisplayName: "Ada"}, audit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	set, err := svc.SetValue(f.ctx, f.member, f.workspaceID, created.ID, created.Version, tier.ID, "gold", audit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	events := requireOutbox(t, f, driver, "client.created", "client.updated")
+	if got := events[1].Data; got.Version != set.Version || got.CustomValues[tier.ID.String()] != "gold" {
+		t.Fatalf("set value payload = %+v, want version %d with tier=gold", got, set.Version)
+	}
+
+	if _, err := svc.ClearValue(f.ctx, f.member, f.workspaceID, created.ID, set.Version, tier.ID, audit); err != nil {
+		t.Fatal(err)
+	}
+	events = requireOutbox(t, f, driver, "client.created", "client.updated", "client.updated")
+	if got := events[2].Data; len(got.CustomValues) != 0 {
+		t.Fatalf("clear value payload custom values = %v, want none (unset fields omitted)", got.CustomValues)
+	}
+
+	broken := NewService(f.db, driver, f.auth, 50, failingPublisher{})
+	cleared, err := svc.Get(f.ctx, f.member, f.workspaceID, created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := broken.SetValue(f.ctx, f.member, f.workspaceID, created.ID, cleared.Version, tier.ID, "silver", audit); err == nil {
+		t.Fatal("set value succeeded without its outbox row")
+	}
+	after, err := svc.Get(f.ctx, f.member, f.workspaceID, created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Version != cleared.Version {
+		t.Fatalf("version after failed value write = %d, want %d", after.Version, cleared.Version)
+	}
+	requireOutbox(t, f, driver, "client.created", "client.updated", "client.updated")
 }
 
 func mapKeys(values map[string]string) []string {

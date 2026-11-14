@@ -275,7 +275,7 @@ func (c clientTools) listClients(ctx context.Context, request *mcp.CallToolReque
 	page, err := c.service.List(ctx, principal(request), workspaceID, clients.ListInput{
 		Limit: int(input.Limit), Cursor: string(input.Cursor), Sort: sortOrder, Filters: filters, Archived: string(input.Archived),
 	})
-	run.err = publicClientError(err)
+	run.err = clientRefusal(request, workspaceID, err, errWorkspaceNotFound)
 	return toClientPageOutput(page), run
 }
 
@@ -295,7 +295,7 @@ func (c clientTools) getClient(ctx context.Context, request *mcp.CallToolRequest
 	workspaceID := c.workspace(input.WorkspaceID)
 	clientID := clients.ParseClientIDOrZero(string(input.ClientID))
 	client, err := c.service.Get(ctx, principal(request), workspaceID, clientID)
-	return toClientOutput(client), toolRun{workspaceID: workspaceID, err: publicClientError(err)}.onClient(clientID)
+	return toClientOutput(client), toolRun{workspaceID: workspaceID, err: clientRefusal(request, workspaceID, err, clients.ErrNotFound)}.onClient(clientID)
 }
 
 func (c clientTools) createClient(ctx context.Context, request *mcp.CallToolRequest, input clientCreateInput) (clientOutput, toolRun) {
@@ -303,7 +303,7 @@ func (c clientTools) createClient(ctx context.Context, request *mcp.CallToolRequ
 	client, err := c.service.Create(ctx, principal(request), workspaceID, clients.Input{
 		DisplayName: string(input.DisplayName), Email: string(input.Email), Phone: string(input.Phone), Notes: string(input.Notes),
 	}, auditContext(request))
-	run := toolRun{workspaceID: workspaceID, err: publicClientError(err)}
+	run := toolRun{workspaceID: workspaceID, err: clientRefusal(request, workspaceID, err, errWorkspaceNotFound)}
 	if err == nil {
 		run = run.onClient(client.ID)
 	}
@@ -317,7 +317,7 @@ func (c clientTools) updateClient(ctx context.Context, request *mcp.CallToolRequ
 		DisplayName: optionalText(input.DisplayName), Email: optionalText(input.Email),
 		Phone: optionalText(input.Phone), Notes: optionalText(input.Notes),
 	}, auditContext(request))
-	return toClientOutput(client), toolRun{workspaceID: workspaceID, err: publicClientError(err)}.onClient(clientID)
+	return toClientOutput(client), toolRun{workspaceID: workspaceID, err: clientRefusal(request, workspaceID, err, clients.ErrNotFound)}.onClient(clientID)
 }
 
 // optionalText turns an optional contract value into the service's pointer form.
@@ -333,14 +333,14 @@ func (c clientTools) archiveClient(ctx context.Context, request *mcp.CallToolReq
 	workspaceID := c.workspace(input.WorkspaceID)
 	clientID := clients.ParseClientIDOrZero(string(input.ClientID))
 	client, err := c.service.Archive(ctx, principal(request), workspaceID, clientID, auditContext(request))
-	return toClientOutput(client), toolRun{workspaceID: workspaceID, err: publicClientError(err)}.onClient(clientID)
+	return toClientOutput(client), toolRun{workspaceID: workspaceID, err: clientRefusal(request, workspaceID, err, clients.ErrNotFound)}.onClient(clientID)
 }
 
 func (c clientTools) unarchiveClient(ctx context.Context, request *mcp.CallToolRequest, input clientRefInput) (clientOutput, toolRun) {
 	workspaceID := c.workspace(input.WorkspaceID)
 	clientID := clients.ParseClientIDOrZero(string(input.ClientID))
 	client, err := c.service.Unarchive(ctx, principal(request), workspaceID, clientID, auditContext(request))
-	return toClientOutput(client), toolRun{workspaceID: workspaceID, err: publicClientError(err)}.onClient(clientID)
+	return toClientOutput(client), toolRun{workspaceID: workspaceID, err: clientRefusal(request, workspaceID, err, clients.ErrNotFound)}.onClient(clientID)
 }
 
 func (c clientTools) deleteClient(ctx context.Context, request *mcp.CallToolRequest, input clientRefInput) (deletedOutput, toolRun) {
@@ -353,7 +353,7 @@ func (c clientTools) deleteClient(ctx context.Context, request *mcp.CallToolRequ
 		return deletedOutput{}, run
 	}
 	err := c.service.Delete(ctx, principal(request), workspaceID, clientID, auditContext(request))
-	run.err = publicClientError(err)
+	run.err = clientRefusal(request, workspaceID, err, clients.ErrNotFound)
 	return deletedOutput{Deleted: err == nil}, run
 }
 
@@ -367,7 +367,7 @@ func (c clientTools) listValues(ctx context.Context, request *mcp.CallToolReques
 			FieldID: fieldShortID(value.FieldID.String()), Label: value.Label, Type: clientFieldType(value.Type), Value: value.Value,
 		})
 	}
-	return output, toolRun{workspaceID: workspaceID, err: publicClientError(err)}.onClient(clientID)
+	return output, toolRun{workspaceID: workspaceID, err: clientRefusal(request, workspaceID, err, clients.ErrNotFound)}.onClient(clientID)
 }
 
 func (c clientTools) setValue(ctx context.Context, request *mcp.CallToolRequest, input valueSetInput) (clientOutput, toolRun) {
@@ -375,7 +375,7 @@ func (c clientTools) setValue(ctx context.Context, request *mcp.CallToolRequest,
 	clientID := clients.ParseClientIDOrZero(string(input.ClientID))
 	client, err := c.service.SetValue(ctx, principal(request), workspaceID, clientID, int64(input.Version),
 		clients.ParseFieldIDOrZero(string(input.FieldID)), string(input.Value), auditContext(request))
-	return toClientOutput(client), toolRun{workspaceID: workspaceID, err: publicClientError(err)}.onClient(clientID)
+	return toClientOutput(client), toolRun{workspaceID: workspaceID, err: clientRefusal(request, workspaceID, err, clients.ErrFieldNotFound)}.onClient(clientID)
 }
 
 func (c clientTools) clearValue(ctx context.Context, request *mcp.CallToolRequest, input valueClearInput) (clientOutput, toolRun) {
@@ -383,7 +383,7 @@ func (c clientTools) clearValue(ctx context.Context, request *mcp.CallToolReques
 	clientID := clients.ParseClientIDOrZero(string(input.ClientID))
 	client, err := c.service.ClearValue(ctx, principal(request), workspaceID, clientID, int64(input.Version),
 		clients.ParseFieldIDOrZero(string(input.FieldID)), auditContext(request))
-	return toClientOutput(client), toolRun{workspaceID: workspaceID, err: publicClientError(err)}.onClient(clientID)
+	return toClientOutput(client), toolRun{workspaceID: workspaceID, err: clientRefusal(request, workspaceID, err, clients.ErrFieldNotFound)}.onClient(clientID)
 }
 
 func (c clientTools) listFields(ctx context.Context, request *mcp.CallToolRequest, input fieldsListInput) (fieldsOutput, toolRun) {
@@ -393,7 +393,7 @@ func (c clientTools) listFields(ctx context.Context, request *mcp.CallToolReques
 	for _, field := range fields {
 		output.Fields = append(output.Fields, toFieldOutput(field))
 	}
-	return output, toolRun{workspaceID: workspaceID, err: publicClientError(err)}
+	return output, toolRun{workspaceID: workspaceID, err: clientRefusal(request, workspaceID, err, errWorkspaceNotFound)}
 }
 
 func (c clientTools) defineField(ctx context.Context, request *mcp.CallToolRequest, input fieldDefineInput) (fieldOutput, toolRun) {
@@ -401,7 +401,7 @@ func (c clientTools) defineField(ctx context.Context, request *mcp.CallToolReque
 	field, err := c.service.DefineField(ctx, principal(request), workspaceID, clients.FieldInput{
 		Label: string(input.Label), Type: string(input.Type),
 	}, auditContext(request))
-	run := toolRun{workspaceID: workspaceID, err: publicClientError(err)}
+	run := toolRun{workspaceID: workspaceID, err: clientRefusal(request, workspaceID, err, errWorkspaceNotFound)}
 	if err == nil {
 		run = run.onField(field.ID)
 	}
@@ -428,7 +428,7 @@ func (c clientTools) setFieldArchived(ctx context.Context, request *mcp.CallTool
 	} else {
 		field, err = c.service.RestoreField(ctx, principal(request), workspaceID, fieldID, auditContext(request))
 	}
-	return toFieldOutput(field), toolRun{workspaceID: workspaceID, err: publicClientError(err)}.onField(fieldID)
+	return toFieldOutput(field), toolRun{workspaceID: workspaceID, err: clientRefusal(request, workspaceID, err, clients.ErrFieldNotFound)}.onField(fieldID)
 }
 
 func (c clientTools) deleteField(ctx context.Context, request *mcp.CallToolRequest, input fieldRefInput) (deletedOutput, toolRun) {
@@ -441,7 +441,7 @@ func (c clientTools) deleteField(ctx context.Context, request *mcp.CallToolReque
 		return deletedOutput{}, run
 	}
 	err := c.service.DeleteField(ctx, principal(request), workspaceID, fieldID, auditContext(request))
-	run.err = publicClientError(err)
+	run.err = clientRefusal(request, workspaceID, err, clients.ErrFieldNotFound)
 	return deletedOutput{Deleted: err == nil}, run
 }
 
@@ -453,14 +453,14 @@ func (c clientTools) listOptions(ctx context.Context, request *mcp.CallToolReque
 	for _, option := range options {
 		output.Options = append(output.Options, toOptionOutput(option))
 	}
-	return output, toolRun{workspaceID: workspaceID, err: publicClientError(err)}
+	return output, toolRun{workspaceID: workspaceID, err: clientRefusal(request, workspaceID, err, clients.ErrFieldNotFound)}
 }
 
 func (c clientTools) addOption(ctx context.Context, request *mcp.CallToolRequest, input optionAddInput) (optionOutput, toolRun) {
 	workspaceID := c.workspace(input.WorkspaceID)
 	fieldID := clients.ParseFieldIDOrZero(string(input.FieldID))
 	option, err := c.service.AddOption(ctx, principal(request), workspaceID, fieldID, string(input.Label), auditContext(request))
-	run := toolRun{workspaceID: workspaceID, err: publicClientError(err)}
+	run := toolRun{workspaceID: workspaceID, err: clientRefusal(request, workspaceID, err, clients.ErrFieldNotFound)}
 	if err == nil {
 		run = run.onOption(option.ID)
 	}
@@ -478,8 +478,25 @@ func (c clientTools) deleteOption(ctx context.Context, request *mcp.CallToolRequ
 		return deletedOutput{}, run
 	}
 	err := c.service.DeleteOption(ctx, principal(request), workspaceID, fieldID, optionID, auditContext(request))
-	run.err = publicClientError(err)
+	run.err = clientRefusal(request, workspaceID, err, clients.ErrFieldNotFound)
 	return deletedOutput{Deleted: err == nil}, run
+}
+
+// errWorkspaceNotFound stands for a collection call on a workspace the token is
+// not bound to, where no record exists to be missing.
+var errWorkspaceNotFound = errors.New("workspace not found")
+
+// clientRefusal answers a service error for a call on workspaceID. The service
+// refuses a workspace the token is not bound to with the same forbidden error as
+// a role refusal. REST answers that case as not found before the service runs
+// (workspaceBearer), so here it gets the not-found a missing record gets: missing
+// is the sentinel for the record kind. A role refusal in the token's own
+// workspace stays access is denied.
+func clientRefusal(request *mcp.CallToolRequest, workspaceID identity.WorkspaceID, err, missing error) error {
+	if errors.Is(err, identity.ErrForbidden) && principal(request).WorkspaceID != workspaceID {
+		return publicClientError(missing)
+	}
+	return publicClientError(err)
 }
 
 // publicClientError maps Clients errors to the safe tool messages. Authorization
@@ -489,6 +506,8 @@ func publicClientError(err error) error {
 	switch {
 	case err == nil:
 		return nil
+	case errors.Is(err, errWorkspaceNotFound):
+		return &toolError{category: "not_found", message: "workspace not found"}
 	case errors.Is(err, clients.ErrNotFound):
 		return &toolError{category: "not_found", message: "client not found"}
 	case errors.Is(err, clients.ErrFieldNotFound):
