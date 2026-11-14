@@ -270,3 +270,22 @@ func TestClientsListFilterAndSortFromTheForm(t *testing.T) {
 		t.Fatalf("choice form = %d: %s", code, body)
 	}
 }
+
+// TestClientEditRefusalKeepsTheTypedValues re-renders the edit form with what
+// the user typed, so a refused save does not discard it.
+func TestClientEditRefusalKeepsTheTypedValues(t *testing.T) {
+	env := newClientsTestEnv(t)
+	created := request(env.routes, http.MethodPost, env.listPath(), url.Values{
+		"csrf": {env.csrf}, "display_name": {"Before"},
+	}, env.cookies, nil)
+	detailPath := created.Header().Get("Location")
+	refused := request(env.routes, http.MethodPost, detailPath, url.Values{
+		"csrf": {env.csrf}, "version": {"1"}, "display_name": {"   "}, "phone": {"555-0100"},
+	}, env.cookies, nil)
+	if refused.Code != http.StatusUnprocessableEntity || !strings.Contains(refused.Body.String(), "The display name is required.") {
+		t.Fatalf("blank edit = %d: %s", refused.Code, refused.Body.String())
+	}
+	if !strings.Contains(refused.Body.String(), `value="555-0100"`) {
+		t.Fatalf("refused edit lost the typed phone: %s", refused.Body.String())
+	}
+}

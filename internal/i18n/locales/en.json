@@ -205,6 +205,7 @@
   "clients.option_label": "Option label",
   "clients.option_add": "Add option",
   "clients.option_delete": "Delete option",
+  "clients.option_delete_confirm": "Delete this option? Clients that chose it lose that value. This cannot be undone.",
   "clients.error_option_limit": "A single-choice field can have at most 100 options. Delete one to add another.",
   "clients.error_option_label": "Enter an option label of up to 100 characters.",
   "clients.error_not_choice": "Options apply only to single-choice fields.",

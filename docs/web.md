@@ -249,7 +249,10 @@ admins, and owners see the create form; viewers see the list read-only.
 `/workspaces/{workspaceId}/clients/{clientId}` shows one client. Writers get an
 edit form that carries the client's version; a stale version shows a retry
 message. Writes are ordinary CSRF-protected POST forms that redirect after
-success, with no HTMX or WebMCP enhancement. Labels come from the locale catalog
+success, with no HTMX or WebMCP enhancement. Every client and field form submits
+without JavaScript. With scripting, a whitespace-only required name is stopped in
+the browser with the error summary, and a choice option delete asks first. A
+refused client edit or field definition keeps what was typed. Labels come from the locale catalog
 and follow the workspace locale. The Clients navigation link appears only when
 the Clients profile is composed. WebMCP is omitted for Clients in v1 (see
 [ADR 0013](decisions/0013-clients-profile.md)).

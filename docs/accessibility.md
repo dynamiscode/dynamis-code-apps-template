@@ -17,6 +17,9 @@ bootstrapped server, then provide `A11Y_BASE_URL`, `A11Y_EMAIL`, and
 `A11Y_PASSWORD` to `npm run test:a11y`; set `A11Y_LOCALE=en` or `es`. The runner
 never prints the password.
 
+The axe pass also covers the client list, a client page, and the custom-fields
+page. `make ux-smoke` creates a client, defines a choice field, and enters a value.
+
 ## Manual checklist
 
 | Check | Result | Evidence |

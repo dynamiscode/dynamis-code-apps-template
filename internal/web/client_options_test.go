@@ -138,3 +138,32 @@ func TestClientChoiceValuesUseASelectAndViewersReadLabels(t *testing.T) {
 		t.Fatalf("viewer page exposes the choice controls or ID: %s", viewer)
 	}
 }
+
+// TestClientOptionDeleteAsksBeforeClearingValues covers the immediate option
+// delete, which clears the option from every client that chose it, so its
+// button asks first when scripting is available.
+func TestClientOptionDeleteAsksBeforeClearingValues(t *testing.T) {
+	env := newClientsTestEnv(t)
+	defined := request(env.routes, http.MethodPost, env.fieldsPath(), url.Values{
+		"csrf": {env.csrf}, "label": {"Tier"}, "type": {"single_choice"},
+	}, env.cookies, nil)
+	if defined.Code != http.StatusSeeOther {
+		t.Fatalf("define field = %d: %s", defined.Code, defined.Body.String())
+	}
+	var fieldKey int64
+	if err := env.db.QueryRow("SELECT id FROM client_fields WHERE field_type = 'single_choice'").Scan(&fieldKey); err != nil {
+		t.Fatal(err)
+	}
+	fieldShort := clients.FieldID(fieldKey).String()
+	added := request(env.routes, http.MethodPost, env.fieldsPath()+"/"+fieldShort+"/options", url.Values{
+		"csrf": {env.csrf}, "label": {"Gold"},
+	}, env.cookies, nil)
+	if added.Code != http.StatusSeeOther {
+		t.Fatalf("add option = %d: %s", added.Code, added.Body.String())
+	}
+	page := request(env.routes, http.MethodGet, env.fieldsPath(), nil, env.cookies, nil).Body.String()
+	want := `data-confirm="Delete this option? Clients that chose it lose that value. This cannot be undone."`
+	if !strings.Contains(page, want) {
+		t.Fatalf("option delete has no confirmation: %s", page)
+	}
+}
