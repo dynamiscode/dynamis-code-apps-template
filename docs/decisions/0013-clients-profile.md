@@ -195,14 +195,12 @@ the decision recorded for spec [#294](https://github.com/dynamiscode/dynamis-cod
   has one sort and one filter in a GET form, and a next-page link keeps them.
   MCP (`clients_list_v1`) and `appctl` (`clients list`) take the same sort,
   filter, and archived selector as REST. WebMCP stays omitted, as recorded above.
-- **Number ordering (decision for the parent):** a number field orders and
-  ranges through `CAST` to REAL on SQLite and `::numeric` on PostgreSQL. No index
-  is added, so these queries scan the workspace. [ADR 0012](0012-client-custom-field-storage.md)
-  says number ordering "needs a typed numeric expression and its own index". This
-  slice does not add that index, and the two are in conflict. Either amend ADR
-  0012 to accept the cast, or add typed numeric indexes in a migration. Date and
-  yes/no ranges use the slot index as written, because fixed-width ISO dates
-  order the same under any collation.
+- **Number ordering (decided):** a number field orders and ranges through `CAST`
+  to REAL on SQLite and `::numeric` on PostgreSQL, with no index. The product
+  owner chose to amend [ADR 0012](0012-client-custom-field-storage.md) to accept
+  this, with a scan ceiling and a revisit trigger, rather than add typed numeric
+  indexes. Date and yes/no ranges use the slot index as written, because
+  fixed-width ISO dates order the same under any collation.
 - **Index use (measured on SQLite):** date equality and date ranges use the slot
   index. Sorts use the slot index only to read the workspace's rows, then sort
   with a temporary B-tree, because nulls-last ordering cannot use the index.

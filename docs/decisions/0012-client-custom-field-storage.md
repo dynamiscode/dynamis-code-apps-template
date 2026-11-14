@@ -81,8 +81,11 @@ per slot covers every type. The stored form is the form the API returns
 
 A blank value is refused on every type, and clearing removes the key. Text
 order is correct for dates and yes/no. It is wrong for numbers: `"10"` sorts
-before `"9"`. Ordering filters and sort on number slots need a typed numeric
-expression and its own index, which the filter ticket (#301) adds. Equality on
+before `"9"`. Number ordering and number ranges cast the slot text in the query
+(`CAST` to REAL on SQLite, `::numeric` on PostgreSQL) and use no index. The
+query scans the workspace, and the sort uses a temporary B-tree. This is an
+accepted decision: a typed numeric index per slot would double the write cost
+of the 50 slot indexes for a sort most workspaces do not need. Equality on
 number slots works on canonical text when the filter value is canonicalized the
 same way.
 
@@ -90,6 +93,8 @@ same way.
 
 - Measured write or query cost on a large workspace makes the 50 indexes too
   expensive.
+- Number ordering or ranges are slow on a measured workspace. Add typed numeric
+  indexes then, in a forward-only migration.
 - Workspaces need more than 50 custom fields.
 - Synchronous clearing exceeds the request budget on a measured workspace. Move
   clearing to a background job ([ADR 0005](0005-background-jobs.md)).
