@@ -361,7 +361,7 @@ func testHandlerWithStorage(t *testing.T, storage func(*config.Storage)) (http.H
 		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,
 			cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService),
 		oidc, cfg.HTTP, slog.New(slog.NewTextHandler(io.Discard, nil)), webhookService, fileService, "", nil,
-		clients.NewService(db, cfg.Database.Driver, auth))
+		clients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace))
 	if err != nil {
 		t.Fatal(err)
 	}

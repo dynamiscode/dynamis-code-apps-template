@@ -50,7 +50,7 @@ func newFixture(t *testing.T) fixture {
 	member := addMember(t, ctx, db, auth, owner, ownerAuth.WorkspaceID, "member@example.com", identity.Member)
 	viewer := addMember(t, ctx, db, auth, owner, ownerAuth.WorkspaceID, "viewer@example.com", identity.Viewer)
 	return fixture{
-		ctx: ctx, db: db, auth: auth, service: NewService(db, config.SQLite, auth),
+		ctx: ctx, db: db, auth: auth, service: NewService(db, config.SQLite, auth, 50),
 		owner: owner, member: member, viewer: viewer, workspaceID: ownerAuth.WorkspaceID,
 	}
 }

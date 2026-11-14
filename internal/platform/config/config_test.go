@@ -554,3 +554,27 @@ func TestLoadFromRejectsInvalidWorkspaceMode(t *testing.T) {
 }
 
 func strPtr(value string) *string { return &value }
+
+func TestLoadFromBoundsClientFieldLimit(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := LoadFrom(env(map[string]string{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Data.ClientFieldsMaxPerWorkspace != 50 {
+		t.Fatalf("CLIENT_FIELDS_MAX_PER_WORKSPACE default = %d, want 50", cfg.Data.ClientFieldsMaxPerWorkspace)
+	}
+	cfg, err = LoadFrom(env(map[string]string{"CLIENT_FIELDS_MAX_PER_WORKSPACE": "12"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Data.ClientFieldsMaxPerWorkspace != 12 {
+		t.Fatalf("CLIENT_FIELDS_MAX_PER_WORKSPACE = %d, want 12", cfg.Data.ClientFieldsMaxPerWorkspace)
+	}
+	for _, value := range []string{"0", "51"} {
+		if _, err := LoadFrom(env(map[string]string{"CLIENT_FIELDS_MAX_PER_WORKSPACE": value})); err == nil {
+			t.Fatalf("CLIENT_FIELDS_MAX_PER_WORKSPACE=%q accepted", value)
+		}
+	}
+}

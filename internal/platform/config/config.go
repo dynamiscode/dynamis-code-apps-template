@@ -76,12 +76,13 @@ type MCP struct {
 }
 
 type Data struct {
-	ItemsMaxPerWorkspace int
-	ExportMaxRecords     int
-	ExportMaxBytes       int
-	ImportMaxRecords     int
-	ImportMaxBytes       int
-	AuditRetention       time.Duration
+	ItemsMaxPerWorkspace        int
+	ClientFieldsMaxPerWorkspace int
+	ExportMaxRecords            int
+	ExportMaxBytes              int
+	ImportMaxRecords            int
+	ImportMaxBytes              int
+	AuditRetention              time.Duration
 }
 
 type Telemetry struct {
@@ -641,6 +642,10 @@ func loadData(lookup LookupEnv) (Data, error) {
 	if err != nil {
 		return Data{}, err
 	}
+	clientFieldsLimit, err := rangedInt(lookup, "CLIENT_FIELDS_MAX_PER_WORKSPACE", 50, 1, 50)
+	if err != nil {
+		return Data{}, err
+	}
 	exportRecords, err := rangedInt(lookup, "EXPORT_MAX_RECORDS", 1000, 1, 10000)
 	if err != nil {
 		return Data{}, err
@@ -664,8 +669,9 @@ func loadData(lookup LookupEnv) (Data, error) {
 		return Data{}, err
 	}
 	return Data{
-		ItemsMaxPerWorkspace: itemsLimit, ExportMaxRecords: exportRecords,
-		ExportMaxBytes: exportBytes, ImportMaxRecords: importRecords,
+		ItemsMaxPerWorkspace: itemsLimit, ClientFieldsMaxPerWorkspace: clientFieldsLimit,
+		ExportMaxRecords: exportRecords,
+		ExportMaxBytes:   exportBytes, ImportMaxRecords: importRecords,
 		ImportMaxBytes: importBytes, AuditRetention: auditRetention,
 	}, nil
 }

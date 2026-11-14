@@ -83,6 +83,10 @@ type pageData struct {
 	Clients                          []clients.Client
 	Client                           clients.Client
 	ClientDraft                      clients.Input
+	ClientFields                     []clients.Field
+	FieldDraft                       clients.FieldInput
+	CanManageFields                  bool
+	FieldsPath                       string
 	CanEditClients                   bool
 	ClientsEnabled                   bool
 	ErrorKey                         string
@@ -370,6 +374,10 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients", h.createClient)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients/{clientId}", h.clientDetail)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}", h.changeClient)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/client-fields", h.clientFieldList)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/client-fields", h.createClientField)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/client-fields/{fieldId}/archive", h.archiveClientField)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/client-fields/{fieldId}/restore", h.restoreClientField)
 	if h.files != nil {
 		mux.HandleFunc("GET /workspaces/{workspaceId}/files", h.filesPage)
 		mux.HandleFunc("POST /workspaces/{workspaceId}/files", h.filesUpload)

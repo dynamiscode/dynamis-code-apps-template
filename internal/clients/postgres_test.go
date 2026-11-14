@@ -72,7 +72,7 @@ func TestPostgresClientLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	viewer.AuthMethod = "test"
-	service := NewService(db, config.Postgres, auth)
+	service := NewService(db, config.Postgres, auth, 50)
 
 	created, err := service.Create(ctx, owner, workspaceID, Input{DisplayName: "PostgreSQL", Email: "pg@example.com"}, identity.AuditContext{})
 	if err != nil {
@@ -101,5 +101,36 @@ func TestPostgresClientLifecycle(t *testing.T) {
 	}
 	if _, err := service.Get(ctx, viewer, workspaceID, 0); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("zero key get error = %v, want ErrNotFound", err)
+	}
+
+	field, err := service.DefineField(ctx, owner, workspaceID, FieldInput{Label: "Source", Type: FieldTypeText}, identity.AuditContext{})
+	if err != nil || field.ID == 0 {
+		t.Fatalf("DefineField() = %+v, %v", field, err)
+	}
+	if _, err := service.DefineField(ctx, viewer, workspaceID, FieldInput{Label: "Blocked", Type: FieldTypeText}, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer DefineField() error = %v, want ErrForbidden", err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE clients SET custom_values = $1 WHERE id = $2`, `{"f01":"Friend"}`, int64(created.ID)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.ArchiveField(ctx, owner, workspaceID, field.ID, identity.AuditContext{}); err != nil {
+		t.Fatalf("ArchiveField() error = %v", err)
+	}
+	if forms, err := service.ListFields(ctx, viewer, workspaceID, ListFieldsInput{}); err != nil || len(forms) != 0 {
+		t.Fatalf("form fields after archive = %+v, %v; want none", forms, err)
+	}
+	var values string
+	if err := db.QueryRowContext(ctx, `SELECT custom_values FROM clients WHERE id = $1`, int64(created.ID)).Scan(&values); err != nil || values != `{"f01":"Friend"}` {
+		t.Fatalf("custom_values after archive = %q, %v; want untouched", values, err)
+	}
+	if _, err := service.RestoreField(ctx, owner, workspaceID, field.ID, identity.AuditContext{}); err != nil {
+		t.Fatalf("RestoreField() error = %v", err)
+	}
+	if forms, err := service.ListFields(ctx, viewer, workspaceID, ListFieldsInput{}); err != nil || len(forms) != 1 {
+		t.Fatalf("form fields after restore = %+v, %v; want one", forms, err)
+	}
+	limited := NewService(db, config.Postgres, auth, 1)
+	if _, err := limited.DefineField(ctx, owner, workspaceID, FieldInput{Label: "Over", Type: FieldTypeText}, identity.AuditContext{}); !errors.Is(err, ErrLimit) {
+		t.Fatalf("DefineField() over limit error = %v, want ErrLimit", err)
 	}
 }

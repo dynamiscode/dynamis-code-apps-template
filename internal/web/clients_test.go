@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"net/url"
 	"strings"
@@ -17,6 +18,7 @@ import (
 )
 
 type clientsTestEnv struct {
+	db            *sql.DB
 	routes        http.Handler
 	auth          *identity.Service
 	workspaceID   identity.WorkspaceID
@@ -64,7 +66,7 @@ func newClientsTestEnv(t *testing.T) clientsTestEnv {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler.EnableClients(clients.NewService(db, cfg.Database.Driver, auth))
+	handler.EnableClients(clients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace))
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -86,7 +88,7 @@ func newClientsTestEnv(t *testing.T) clientsTestEnv {
 		t.Fatal(err)
 	}
 	return clientsTestEnv{
-		routes: handler.Routes(), auth: auth, workspaceID: owner.WorkspaceID, ownerID: owner.UserID,
+		db: db, routes: handler.Routes(), auth: auth, workspaceID: owner.WorkspaceID, ownerID: owner.UserID,
 		cookies:       []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}},
 		csrf:          session.CSRFSecret,
 		viewerCookies: []*http.Cookie{{Name: "session", Value: viewerSession.Secret}, {Name: "csrf", Value: viewerSession.CSRFSecret}},

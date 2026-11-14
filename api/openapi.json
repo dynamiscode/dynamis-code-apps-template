@@ -399,6 +399,202 @@
           }
         }
       },
+      "/api/v1/workspaces/{workspaceId}/client-fields": {
+        "get": {
+          "operationId": "listClientFields",
+          "description": "Lists the workspace's custom fields. Archived fields are omitted unless includeArchived is true.",
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "$ref": "#/components/parameters/WorkspaceId"
+            },
+            {
+              "name": "includeArchived",
+              "in": "query",
+              "required": false,
+              "description": "Include archived fields. Defaults to false.",
+              "schema": {
+                "type": "boolean"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Custom fields",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ClientFieldList"
+                  }
+                }
+              }
+            },
+            "400": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "401": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "403": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "429": {
+              "$ref": "#/components/responses/RateLimited"
+            }
+          }
+        },
+        "post": {
+          "operationId": "createClientField",
+          "description": "Defines a text custom field at the lowest free slot. Owners and admins only.",
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "$ref": "#/components/parameters/WorkspaceId"
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateClientFieldRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Custom field created",
+              "headers": {
+                "Location": {
+                  "schema": {
+                    "type": "string"
+                  }
+                }
+              },
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ClientField"
+                  }
+                }
+              }
+            },
+            "400": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "401": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "403": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "409": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "413": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "429": {
+              "$ref": "#/components/responses/RateLimited"
+            }
+          }
+        }
+      },
+      "/api/v1/workspaces/{workspaceId}/client-fields/{fieldId}/archive": {
+        "post": {
+          "operationId": "archiveClientField",
+          "description": "Hides a custom field from forms and keeps its values. Owners and admins only.",
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "$ref": "#/components/parameters/WorkspaceId"
+            },
+            {
+              "$ref": "#/components/parameters/FieldId"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Archived custom field",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ClientField"
+                  }
+                }
+              }
+            },
+            "401": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "403": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "404": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "429": {
+              "$ref": "#/components/responses/RateLimited"
+            }
+          }
+        }
+      },
+      "/api/v1/workspaces/{workspaceId}/client-fields/{fieldId}/restore": {
+        "post": {
+          "operationId": "restoreClientField",
+          "description": "Restores an archived custom field. Owners and admins only.",
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "$ref": "#/components/parameters/WorkspaceId"
+            },
+            {
+              "$ref": "#/components/parameters/FieldId"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Restored custom field",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ClientField"
+                  }
+                }
+              }
+            },
+            "401": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "403": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "404": {
+              "$ref": "#/components/responses/Problem"
+            },
+            "429": {
+              "$ref": "#/components/responses/RateLimited"
+            }
+          }
+        }
+      },
     "/api/v1/workspaces/{workspaceId}/clients/{clientId}": {
         "get": {
           "operationId": "getClient",
@@ -705,6 +901,7 @@
     "parameters": {
       "WorkspaceId": {"name": "workspaceId", "in": "path", "required": true, "description": "Workspace short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "ClientId": {"name": "clientId", "in": "path", "required": true, "description": "Client short ID. Malformed, unknown, foreign, and integer IDs return the same not-found problem.", "schema": {"type": "string"}},
+      "FieldId": {"name": "fieldId", "in": "path", "required": true, "description": "Client field short ID. Malformed, unknown, foreign, and integer IDs return the same not-found problem.", "schema": {"type": "string"}},
       "ItemId": {"name": "itemId", "in": "path", "required": true, "description": "Item short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "FileId": {"name": "fileId", "in": "path", "required": true, "description": "File short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "MemberId": {"name": "memberId", "in": "path", "required": true, "description": "Member short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
@@ -738,6 +935,9 @@
       "UpdateItemRequest": {"type": "object", "additionalProperties": false, "minProperties": 1, "properties": {"title": {"type": "string", "minLength": 1, "maxLength": 200}, "status": {"type": "string", "enum": ["active", "complete"]}}},
       "Item": {"type": "object", "required": ["id", "workspaceId", "createdByUserId", "title", "status", "version", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "createdByUserId": {"type": ["string", "null"]}, "title": {"type": "string"}, "status": {"type": "string", "enum": ["active", "complete"]}, "version": {"type": "integer", "minimum": 1}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}}},
       "Client": {"type": "object", "required": ["id", "workspaceId", "createdByUserId", "displayName", "email", "phone", "notes", "version", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "createdByUserId": {"type": ["string", "null"]}, "version": {"type": "integer", "minimum": 1}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}, "displayName": {"type": "string", "minLength": 1, "maxLength": 200}, "email": {"type": "string", "maxLength": 254, "description": "Optional. A bare email address when present."}, "phone": {"type": "string", "maxLength": 50}, "notes": {"type": "string", "maxLength": 5000}}},
+      "ClientField": {"type": "object", "required": ["id", "workspaceId", "label", "type", "archivedAt", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "label": {"type": "string", "minLength": 1, "maxLength": 100, "description": "Workspace-entered text, shown as typed."}, "type": {"type": "string", "enum": ["text"]}, "archivedAt": {"type": ["string", "null"], "format": "date-time"}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}}},
+      "ClientFieldList": {"type": "object", "required": ["fields"], "properties": {"fields": {"type": "array", "items": {"$ref": "#/components/schemas/ClientField"}}}},
+      "CreateClientFieldRequest": {"type": "object", "additionalProperties": false, "required": ["label", "type"], "properties": {"label": {"type": "string", "minLength": 1, "maxLength": 100}, "type": {"type": "string", "enum": ["text"]}}},
       "ClientPage": {"type": "object", "required": ["clients"], "properties": {"clients": {"type": "array", "items": {"$ref": "#/components/schemas/Client"}}, "nextCursor": {"type": "string"}}},
       "CreateClientRequest": {"type": "object", "additionalProperties": false, "required": ["displayName"], "properties": {"displayName": {"type": "string", "minLength": 1, "maxLength": 200}, "email": {"type": "string", "maxLength": 254, "description": "Optional. A bare email address when present."}, "phone": {"type": "string", "maxLength": 50}, "notes": {"type": "string", "maxLength": 5000}}},
       "UpdateClientRequest": {"type": "object", "additionalProperties": false, "minProperties": 1, "properties": {"displayName": {"type": "string", "minLength": 1, "maxLength": 200}, "email": {"type": "string", "maxLength": 254, "description": "Optional. A bare email address when present."}, "phone": {"type": "string", "maxLength": 50}, "notes": {"type": "string", "maxLength": 5000}}},

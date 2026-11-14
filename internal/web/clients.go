@@ -57,8 +57,10 @@ func (h *Handler) renderClientList(
 		NavPage: "clients", NavSection: "clients",
 		CurrentPath: h.clientsPath(workspaceID),
 		Clients:     page.Clients, NextCursor: page.NextCursor,
-		CanEditClients: principal.Permissions[identity.ResourcesWrite],
-		ClientDraft:    draft,
+		CanEditClients:  principal.Permissions[identity.ResourcesWrite],
+		ClientDraft:     draft,
+		FieldsPath:      h.clientFieldsPath(workspaceID),
+		CanManageFields: principal.Permissions[identity.WorkspaceUpdate],
 	})
 }
 
@@ -177,7 +179,7 @@ func (h *Handler) clientError(writer http.ResponseWriter, _ *http.Request, err e
 	switch {
 	case errors.Is(err, identity.ErrForbidden):
 		h.renderError(writer, http.StatusForbidden)
-	case errors.Is(err, clients.ErrNotFound), errors.Is(err, clients.ErrInvalidCursor):
+	case errors.Is(err, clients.ErrNotFound), errors.Is(err, clients.ErrFieldNotFound), errors.Is(err, clients.ErrInvalidCursor):
 		h.renderError(writer, http.StatusNotFound)
 	default:
 		h.renderError(writer, http.StatusInternalServerError)

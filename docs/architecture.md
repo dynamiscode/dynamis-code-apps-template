@@ -52,8 +52,11 @@ PostgreSQL migrations take a transaction-scoped advisory lock. PostgreSQL is
 required before multiple application instances.
 
 Migrations are forward-only and run in one transaction. Applied versions and
-UTC timestamps live in `schema_migrations`. Integer primary keys are the one
-dialect-specific fragment: the runner renders `{{integer_pk}}` per driver.
+UTC timestamps live in `schema_migrations`. Integer primary keys are the main
+dialect-specific fragment: the runner renders `{{integer_pk}}` per driver. The
+only other one is `{{json_text_expr:COLUMN:KEY}}`, which renders a top-level
+JSON text value as a `json_extract` (SQLite) or `::jsonb ->>` (PostgreSQL)
+expression. Client custom-field slot indexes use it (ADR 0012).
 Migrations 000002 through 000016 and 000018 were rewritten in place for workspace,
 member, invitation, API token, item, webhook, and job short IDs under recorded
 exceptions: [workspaces, members, invitations, API tokens, and items](decisions/exceptions/2026-11-11-workspace-short-id-migration-rewrite.md)
@@ -155,7 +158,8 @@ adds workspace-scoped private file metadata with explicit state transitions
 quota reservations across active and failed uploads, and browser/REST surfaces.
 Clients is optional and requires Identity and Agent; generation refuses it
 without both. It adds the `internal/clients` module (common client fields,
-validation, authorization, audit), REST and web create and edit, and migration
-000022. Clients does not depend on the sample Item. Omitting it removes its files
+validation, authorization, audit), REST and web create and edit, and migrations
+000022 (clients) and 000023 (custom field definitions and 50 slot indexes).
+Clients does not depend on the sample Item. Omitting it removes its files
 and wiring.
 CompanySite and Integrations remain unimplemented.

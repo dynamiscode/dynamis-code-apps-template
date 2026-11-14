@@ -76,14 +76,15 @@ type UpdateInput struct {
 }
 
 type Service struct {
-	db     *sql.DB
-	driver config.DatabaseDriver
-	auth   *identity.Service
-	now    func() time.Time
+	db        *sql.DB
+	driver    config.DatabaseDriver
+	auth      *identity.Service
+	now       func() time.Time
+	maxFields int
 }
 
-func NewService(db *sql.DB, driver config.DatabaseDriver, auth *identity.Service) *Service {
-	return &Service{db: db, driver: driver, auth: auth, now: time.Now}
+func NewService(db *sql.DB, driver config.DatabaseDriver, auth *identity.Service, maxFields int) *Service {
+	return &Service{db: db, driver: driver, auth: auth, now: time.Now, maxFields: maxFields}
 }
 
 func (s *Service) Create(

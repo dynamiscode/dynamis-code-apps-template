@@ -253,6 +253,12 @@ success, with no HTMX or WebMCP enhancement. Labels come from the locale catalog
 and follow the workspace locale. The Clients navigation link appears only when
 the Clients profile is composed. WebMCP is omitted for Clients in v1 (see
 [ADR 0013](decisions/0013-clients-profile.md)).
+`/workspaces/{workspaceId}/client-fields` lists custom fields, archived ones
+included. Owners and admins see the define form and the archive or restore
+buttons; other roles see the list read-only. Writes are CSRF-protected POST
+forms that redirect to the list. Labels are shown exactly as typed, escaped for
+HTML. A refused label returns 422 and a reached limit returns 409, both on the
+same page.
 
 ## Realtime contract
 

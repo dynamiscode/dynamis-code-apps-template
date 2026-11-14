@@ -181,6 +181,13 @@ func (h *handler) clientError(writer http.ResponseWriter, request *http.Request,
 		writeProblem(writer, request, http.StatusForbidden, "forbidden", "Access is denied.")
 	case errors.Is(err, clients.ErrNotFound):
 		notFoundProblem(writer, request)
+	case errors.Is(err, clients.ErrFieldNotFound):
+		notFoundProblem(writer, request)
+	case errors.Is(err, clients.ErrLimit):
+		writeProblem(
+			writer, request, http.StatusConflict, "resource-limit",
+			"The workspace custom field limit was reached. Archived fields count toward it.",
+		)
 	case errors.Is(err, clients.ErrInvalidCursor):
 		h.invalidRequest(writer, request, "The cursor is invalid.")
 	case errors.Is(err, clients.ErrDisplayNameRequired):
