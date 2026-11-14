@@ -310,6 +310,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/web/templates/clients.html" || relative == "internal/web/templates/client.html" ||
 		relative == "internal/platform/database/migrations/000022_clients.sql" ||
 		relative == "internal/platform/database/migrations/000023_client_fields.sql" ||
+		relative == "internal/platform/database/migrations/000024_client_events.sql" ||
 		relative == "internal/web/clients_events.go" || relative == "internal/web/clients_events_test.go" ||
 		relative == "internal/platform/database/client_slot_indexes_test.go" ||
 		relative == "internal/platform/database/client_slot_indexes_postgres_test.go" ||
@@ -339,8 +340,9 @@ func disableClientsSource(relative string, raw []byte) []byte {
 	case "internal/bootstrap/app.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLineStarting(value, "\tclientService := clients.NewService(")
+		// The portability export takes the client source as its last argument.
+		value = strings.ReplaceAll(value, "\t\tclientService,\n", "\t\tnil,\n")
 		value = strings.ReplaceAll(value, " clientService,", "")
-		value = strings.ReplaceAll(value, ").WithClients(clientService)", ")")
 		value = removeLineStarting(value, "\twebHandler.EnableClients(")
 	case "internal/appctl/run.go":
 		// The client and field commands call the Clients REST routes, which a
@@ -409,6 +411,14 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "clientValueRow")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/client-fields")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/clients")
+	case "internal/platform/maintenance/maintenance.go":
+		// Retention prunes client_events, which Clients-off apps do not have.
+		value = removeLinesContaining(value, "client_events")
+		value = removeLinesContaining(value, "ClientRealtimeReplay")
+	case "internal/platform/maintenance/maintenance_test.go":
+		value = removeText(value, "\tvar clientEventOldID int64\n", "\tvar notificationOldID int64\n")
+		value = strings.ReplaceAll(value, ` "client_events": clientEventOldID,`, "")
+		value = strings.ReplaceAll(value, "result.ClientRealtimeReplay < 1 || ", "")
 	case "internal/web/templates/navigation.html":
 		value = strings.ReplaceAll(value, `{{if .ClientsEnabled}}<a{{if eq .NavPage "clients"}} class="active" aria-current="page"{{end}} href="/workspaces/{{.Workspace.ID}}/clients">{{.T "clients.title"}}</a>{{end}}`, "")
 	case "docs/mcp.md":

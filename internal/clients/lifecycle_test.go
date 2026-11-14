@@ -185,7 +185,7 @@ func TestDeleteIsOwnerAndAdminOnlyAndRemovesTheClientAndValues(t *testing.T) {
 	).Scan(&metadata); err != nil || metadata != "{}" {
 		t.Fatalf("client.deleted metadata = %q, %v; want no values", metadata, err)
 	}
-	want := []string{"created", "deleted"}
+	want := []string{"created", "updated", "deleted"}
 	if got := clientActions(t, f, created.ID); !slices.Equal(got, want) {
 		t.Fatalf("change feed actions = %v, want %v", got, want)
 	}

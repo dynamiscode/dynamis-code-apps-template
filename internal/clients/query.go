@@ -73,6 +73,16 @@ type target struct {
 	kind       string
 	value      string
 	filterable bool
+	// choiceRanks orders a single-choice field by option label. Only choice
+	// targets set it.
+	choiceRanks []choiceRank
+}
+
+// choiceRank is one option's place among its field's labels. Options with the
+// same label share a rank.
+type choiceRank struct {
+	shortID string
+	rank    int
 }
 
 var commonFieldColumns = map[string]struct {
@@ -115,12 +125,80 @@ func (s *Service) resolveField(
 	if err != nil {
 		return target{}, err
 	}
-	return target{
+	t := target{
 		key:        fieldID.String(),
 		kind:       fieldKind(ref.fieldType),
 		value:      database.JSONTextExpr(s.driver, "custom_values", slotKey(ref.slot)),
 		filterable: true,
-	}, nil
+	}
+	if t.kind == kindChoice {
+		if t.choiceRanks, err = s.choiceRanks(ctx, tx, workspaceID, fieldID); err != nil {
+			return target{}, err
+		}
+	}
+	return t, nil
+}
+
+// choiceRanks ranks a field's options by label. A value stores the option's
+// short ID, which SQL cannot decode to the option row, so the sort maps the
+// stored ID to its label's rank. Labels compare as bytes, the order both
+// dialects use for text.
+// ponytail: the rank CASE lists every option, at most 100 per field (the slot
+// limit). Upgrade: store a sort key on the option row when the limit grows.
+func (s *Service) choiceRanks(
+	ctx context.Context,
+	tx *sql.Tx,
+	workspaceID identity.WorkspaceID,
+	fieldID FieldID,
+) ([]choiceRank, error) {
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `
+		SELECT id, label FROM client_field_options
+		WHERE workspace_id = ? AND field_id = ?
+	`), workspaceID, fieldID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	type option struct {
+		id    OptionID
+		label string
+	}
+	var options []option
+	for rows.Next() {
+		var o option
+		if err := rows.Scan(&o.id, &o.label); err != nil {
+			return nil, err
+		}
+		options = append(options, o)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	slices.SortFunc(options, func(a, b option) int { return strings.Compare(a.label, b.label) })
+	ranks := make([]choiceRank, 0, len(options))
+	rank := 0
+	for i, o := range options {
+		if i == 0 || o.label != options[i-1].label {
+			rank++
+		}
+		ranks = append(ranks, choiceRank{shortID: o.id.String(), rank: rank})
+	}
+	return ranks, nil
+}
+
+// choiceRankExpr maps a stored option short ID, in input, to its label rank.
+// Short IDs come from the option codec alphabet, so they need no quoting.
+func choiceRankExpr(input string, ranks []choiceRank) string {
+	if len(ranks) == 0 {
+		return "NULL"
+	}
+	var b strings.Builder
+	b.WriteString("CASE " + input)
+	for _, r := range ranks {
+		fmt.Fprintf(&b, " WHEN '%s' THEN %d", r.shortID, r.rank)
+	}
+	b.WriteString(" END")
+	return b.String()
 }
 
 func fieldKind(fieldType string) string {
@@ -142,16 +220,22 @@ func fieldKind(fieldType string) string {
 // ponytail: a choice sorts by its option's stored short ID, not its label.
 // Upgrade: a sort key on client_field_options, written with each option.
 func (s *Service) orderExpr(t target) string {
-	if t.kind == kindNumber {
+	switch t.kind {
+	case kindNumber:
 		return database.NumericExpr(s.driver, t.value)
+	case kindChoice:
+		return choiceRankExpr(t.value, t.choiceRanks)
 	}
 	return database.TextOrderExpr(s.driver, t.value)
 }
 
 // paramExpr is orderExpr for a bound parameter, used by the keyset predicate.
 func (s *Service) paramExpr(t target) string {
-	if t.kind == kindNumber {
+	switch t.kind {
+	case kindNumber:
 		return database.NumericExpr(s.driver, "?")
+	case kindChoice:
+		return choiceRankExpr("?", t.choiceRanks)
 	}
 	return database.TextOrderExpr(s.driver, "?")
 }

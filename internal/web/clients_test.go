@@ -61,7 +61,7 @@ func newClientsTestEnv(t *testing.T) clientsTestEnv {
 	}
 	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace)
 	handler, err := NewHandlerWithServices(auth, itemService,
-		nil, portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes, cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService),
+		nil, portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes, cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService, nil),
 		nil, cfg.HTTP, "", "", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -251,6 +251,11 @@ func TestClientsListFilterAndSortFromTheForm(t *testing.T) {
 	code, body = list(t, "?filter_field=displayName&filter_op=before&filter_value=x")
 	if code != http.StatusBadRequest || !strings.Contains(body, "Choose a valid sort or filter.") {
 		t.Fatalf("invalid filter = %d: %s", code, body)
+	}
+	// A malformed cursor is a bad request on the list, as REST answers it.
+	code, body = list(t, "?cursor=not-a-cursor")
+	if code != http.StatusBadRequest || !strings.Contains(body, "The page link is no longer valid.") {
+		t.Fatalf("invalid cursor = %d: %s", code, body)
 	}
 
 	// A choice field's form offers its options, and filtering by one works.

@@ -34,7 +34,12 @@ These tools exist only when the Clients profile is composed. Bootstrap passes
 the Clients service to the MCP handler only then, so an application without
 the profile lists only the item tools. Each tool calls the shared Clients
 service, which decides authorization. A refused call returns the safe
-`access is denied` message, the same refusal REST answers with `403`.
+`access is denied` message, the same refusal REST answers with `403`. The one
+exception is a workspace the token is not bound to: the Clients tools return the
+not-found answer a missing record gets (`client not found`,
+`custom field not found`, `choice option not found`, or `workspace not found` for
+a collection call), the same as REST's `404`. Items tools keep `access is denied`
+for that case.
 
 | Tools | Scope | Role, decided by the service |
 |---|---|---|

@@ -359,7 +359,7 @@ func testHandlerWithStorage(t *testing.T, storage func(*config.Storage)) (http.H
 		cfg.Storage.MaxObjectBytes, cfg.Storage.MaxWorkspaceBytes, cfg.Storage.SignedURLTTL, cfg.Storage.S3Prefix)
 	handler, err := NewHandlerWithWebhooksAndFiles(db, auth, itemService,
 		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,
-			cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService),
+			cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService, nil),
 		oidc, cfg.HTTP, slog.New(slog.NewTextHandler(io.Discard, nil)), webhookService, fileService, "", nil,
 		clients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace))
 	if err != nil {

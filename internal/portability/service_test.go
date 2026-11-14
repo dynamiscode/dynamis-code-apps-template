@@ -76,7 +76,7 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	service := NewService(db, driver, auth, 100, 1024*1024, 100, 1024*1024, itemService)
+	service := NewService(db, driver, auth, 100, 1024*1024, 100, 1024*1024, itemService, nil)
 	service.now = func() time.Time { return time.Date(2026, 8, 25, 20, 0, 0, 0, time.UTC) }
 	encoded, err := service.Export(ctx, actor, workspaceID,
 		identity.AuditContext{RequestID: "export-request", SourceAddress: "127.0.0.1"})
@@ -150,7 +150,7 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if _, err := service.Export(ctx, actor, wrongWorkspace, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("wrong-workspace export error = %v", err)
 	}
-	limited := NewService(db, driver, auth, 1, 1024*1024, 100, 1024*1024, itemService)
+	limited := NewService(db, driver, auth, 1, 1024*1024, 100, 1024*1024, itemService, nil)
 	if _, err := limited.Export(ctx, actor, workspaceID, identity.AuditContext{}); !errors.Is(err, ErrLimit) {
 		t.Fatalf("limited export error = %v", err)
 	}
@@ -173,7 +173,7 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if err != nil || imported.Imported != 1 {
 		t.Fatalf("JSON import = %+v, %v", imported, err)
 	}
-	limitedImport := NewService(db, driver, auth, 100, 1024*1024, 1, 1024*1024, itemService)
+	limitedImport := NewService(db, driver, auth, 100, 1024*1024, 1, 1024*1024, itemService, nil)
 	if _, err := limitedImport.Import(ctx, actor, workspaceID, ImportInput{
 		Format: "text/csv", Reader: strings.NewReader("title,status\nOne,active\nTwo,active\n"),
 	}, identity.AuditContext{RequestID: "import-limit"}); !errors.Is(err, ErrImportLimit) {

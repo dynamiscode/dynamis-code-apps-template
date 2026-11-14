@@ -82,12 +82,11 @@ func exerciseClientQueries(t *testing.T, f fixture) {
 		t.Fatalf("default order = %v, want %v", got, defaultOrder)
 	}
 
-	// Choice sort orders by the stored option short ID, not by label, so the
-	// expected order comes from sorting those IDs.
-	tierKeys := []string{gold.ID.String(), silver.ID.String(), bronze.ID.String()}
-	slices.Sort(tierKeys)
-	tierNames := map[string]string{gold.ID.String(): "Ada", silver.ID.String(): "Bea", bronze.ID.String(): "Dan"}
-	tierWant := []string{tierNames[tierKeys[0]], tierNames[tierKeys[1]], tierNames[tierKeys[2]], "Cy", "Eve", "Fay"}
+	// Choice sort orders by option label, not by creation or ID order. Labels
+	// are Bronze (Dan), Gold (Ada), Silver (Bea), while the options were created
+	// Gold, Silver, Bronze, so the two orders differ. Empty values sort last.
+	tierWant := []string{"Dan", "Ada", "Bea", "Cy", "Eve", "Fay"}
+	tierWantDesc := []string{"Bea", "Ada", "Dan", "Fay", "Eve", "Cy"}
 
 	cases := []queryCase{
 		// Text: contains and equals ignore ASCII case. Non-ASCII is compared exactly.
@@ -127,7 +126,8 @@ func exerciseClientQueries(t *testing.T, f fixture) {
 		{name: "sort date descending", sort: SortInput{Field: joined.ID.String(), Descending: true}, want: []string{"Bea", "Eve", "Ada", "Dan", "Fay", "Cy"}},
 		{name: "sort text is byte order", sort: SortInput{Field: company.ID.String()}, want: []string{"Dan", "Ada", "Fay", "Bea", "Eve", "Cy"}},
 		{name: "sort text descending", sort: SortInput{Field: company.ID.String(), Descending: true}, want: []string{"Eve", "Bea", "Fay", "Ada", "Dan", "Cy"}},
-		{name: "sort choice by option ID", sort: SortInput{Field: tier.ID.String()}, want: tierWant},
+		{name: "sort choice by option label", sort: SortInput{Field: tier.ID.String()}, want: tierWant},
+		{name: "sort choice by option label descending", sort: SortInput{Field: tier.ID.String(), Descending: true}, want: tierWantDesc},
 		// Filter and sort compose.
 		{name: "sort within a filter", sort: SortInput{Field: score.ID.String()}, filters: []FilterInput{flt(vip.ID.String(), OpEquals, "false")}, want: []string{"Bea", "Fay"}},
 	}

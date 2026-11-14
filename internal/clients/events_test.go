@@ -45,6 +45,26 @@ func TestChangesRecordCreateAndUpdateForViewers(t *testing.T) {
 	if len(page.Changes) != 1 || page.Changes[0].Action != "updated" || page.Changes[0].ClientVersion != 2 {
 		t.Fatalf("update changes = %+v", page.Changes)
 	}
+
+	tier, err := fx.service.DefineField(fx.ctx, fx.owner, fx.workspaceID, FieldInput{Label: "Tier", Type: FieldTypeText}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	set, err := fx.service.SetValue(fx.ctx, fx.member, fx.workspaceID, created.ID, 2, tier.ID, "gold", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fx.service.ClearValue(fx.ctx, fx.member, fx.workspaceID, created.ID, set.Version, tier.ID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	page, err = fx.service.Changes(fx.ctx, fx.viewer, fx.workspaceID, page.Next, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Changes) != 2 || page.Changes[0].Action != "updated" || page.Changes[0].ClientVersion != 3 ||
+		page.Changes[1].Action != "updated" || page.Changes[1].ClientVersion != 4 {
+		t.Fatalf("value write changes = %+v, want two updated changes at versions 3 and 4", page.Changes)
+	}
 }
 
 func TestChangesAreScopedToTheirWorkspace(t *testing.T) {

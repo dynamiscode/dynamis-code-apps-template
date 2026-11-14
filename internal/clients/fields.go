@@ -165,14 +165,21 @@ func (s *Service) setFieldArchived(
 	if err != nil {
 		return Field{}, err
 	}
-	if (field.ArchivedAt != nil) == archive {
+	target := FieldStatusActive
+	if archive {
+		target = FieldStatusArchived
+	}
+	if field.Status() == target {
 		return field, nil
+	}
+	if err := ValidateFieldTransition(field.Status(), target); err != nil {
+		return Field{}, err
 	}
 	now := s.now().UTC()
 	var archivedAt any
 	action, eventType := "client_field.restore", "client_field.restored"
 	field.ArchivedAt = nil
-	if archive {
+	if target == FieldStatusArchived {
 		archivedAt = formatTime(now)
 		action, eventType = "client_field.archive", "client_field.archived"
 		field.ArchivedAt = &now
@@ -268,29 +275,47 @@ func (s *Service) getField(
 // lowestFreeSlot returns the smallest slot in 1 to 50 that no field in the
 // workspace holds. Archived fields hold their slots, so they are skipped too.
 func (s *Service) lowestFreeSlot(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID) (int, error) {
-	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver,
-		"SELECT slot FROM client_fields WHERE workspace_id = ?"), workspaceID)
+	used, err := s.usedSlots(ctx, tx, "SELECT slot FROM client_fields WHERE workspace_id = ?", workspaceID)
 	if err != nil {
 		return 0, err
+	}
+	slot, ok := firstFreeSlot(used, maxFieldSlots)
+	if !ok {
+		return 0, ErrLimit
+	}
+	return slot, nil
+}
+
+// usedSlots returns the set of slots that query selects. The query must select
+// one slot column.
+func (s *Service) usedSlots(ctx context.Context, tx *sql.Tx, query string, args ...any) (map[int]bool, error) {
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, query), args...)
+	if err != nil {
+		return nil, err
 	}
 	defer rows.Close()
 	used := make(map[int]bool)
 	for rows.Next() {
 		var slot int
 		if err := rows.Scan(&slot); err != nil {
-			return 0, err
+			return nil, err
 		}
 		used[slot] = true
 	}
 	if err := rows.Err(); err != nil {
-		return 0, err
+		return nil, err
 	}
-	for slot := 1; slot <= maxFieldSlots; slot++ {
+	return used, nil
+}
+
+// firstFreeSlot returns the smallest slot in 1 to maximum that used does not hold.
+func firstFreeSlot(used map[int]bool, maximum int) (int, bool) {
+	for slot := 1; slot <= maximum; slot++ {
 		if !used[slot] {
-			return slot, nil
+			return slot, true
 		}
 	}
-	return 0, ErrLimit
+	return 0, false
 }
 
 func (s *Service) recordFieldAudit(
@@ -303,12 +328,9 @@ func (s *Service) recordFieldAudit(
 	audit identity.AuditContext,
 	now time.Time,
 ) error {
-	return s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{
-		EventType: eventType, ActorUserID: actor.UserID,
-		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "client_field", TargetKey: int64(fieldID), Action: action,
-		Outcome: "success", RequestID: audit.RequestID,
-		SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now,
+	return s.recordAudit(ctx, tx, actor, workspaceID, audit, auditRecord{
+		eventType: eventType, action: action, targetType: "client_field",
+		targetKey: int64(fieldID), metadata: "{}", at: now,
 	})
 }
 
