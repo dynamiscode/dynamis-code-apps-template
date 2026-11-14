@@ -236,6 +236,12 @@ session values, invitation values, connection strings, and signed URLs.
   The list pages newest first with a cursor and has no free-text search in v1.
   Client IDs are short IDs. Malformed, integer, unknown, and foreign IDs return
   the same `not-found` problem. Viewers read; members and above write.
+- Client custom values: `GET .../clients/{clientId}/values` lists the active
+  fields with each value (`null` when unset). `PUT .../clients/{clientId}/values/{fieldId}`
+  stores a text value (`{"value": "..."}`, 1 to 500 characters after trimming) and
+  `DELETE` on the same path clears it. Both need `If-Match` with the client ETag and
+  return the client with a new ETag. Archived fields refuse writes. A blank value
+  is refused; use `DELETE` to clear.
 - Client custom fields: `GET` and `POST /api/v1/workspaces/{workspaceId}/client-fields`
   list fields (archived ones only with `includeArchived=true`) and define a text
   field. `POST .../client-fields/{fieldId}/archive` and `.../restore` change a

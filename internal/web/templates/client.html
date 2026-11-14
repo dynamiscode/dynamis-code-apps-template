@@ -11,4 +11,13 @@
 <label for="client-notes">{{.T "clients.notes"}} {{.T "ui.optional"}}</label><textarea id="client-notes" name="notes" maxlength="5000">{{.Client.Notes}}</textarea>
 <div class="actions"><button type="submit">{{.T "clients.save"}}</button></div></form>
 {{else}}<p class="status">{{.T "clients.read_only"}}</p><dl><dt>{{.T "clients.display_name"}}</dt><dd>{{.Client.DisplayName}}</dd><dt>{{.T "common.email"}}</dt><dd>{{.Client.Email}}</dd><dt>{{.T "clients.phone"}}</dt><dd>{{.Client.Phone}}</dd><dt>{{.T "clients.notes"}}</dt><dd>{{.Client.Notes}}</dd></dl>{{end}}
+{{template "client-values" .}}</section>{{end}}
+{{define "client-values"}}<section id="client-values" aria-labelledby="client-values-heading"><h2 id="client-values-heading">{{.T "clients.values_heading"}}</h2>
+{{if .ClientValues}}{{range .ClientValues}}{{if $.CanEditClients}}<form class="client-value" action="{{$.CurrentPath}}/{{$.Client.ID}}/values/{{.FieldID}}" method="post"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="version" value="{{$.Client.Version}}">
+<label for="value-{{.FieldID}}">{{.Label}} {{$.T "ui.optional"}}</label><input id="value-{{.FieldID}}" name="value" maxlength="500" value="{{with .Value}}{{.}}{{end}}">
+<div class="actions"><button type="submit">{{$.T "clients.value_save"}}</button></div></form>
+{{if .Value}}<form class="client-value-clear" action="{{$.CurrentPath}}/{{$.Client.ID}}/values/{{.FieldID}}/clear" method="post"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="version" value="{{$.Client.Version}}"><button type="submit">{{$.T "clients.value_clear"}}</button></form>{{end}}
+{{else}}<dl><dt>{{.Label}}</dt><dd>{{with .Value}}{{.}}{{else}}{{$.T "clients.value_none"}}{{end}}</dd></dl>{{end}}{{end}}
+{{else}}<p class="status">{{.T "clients.values_none"}}</p>{{end}}
 </section>{{end}}
+
