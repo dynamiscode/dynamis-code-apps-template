@@ -13,4 +13,11 @@ if [ -n "$staged_files" ]; then
 	fi
 fi
 
+conflict_markers=$(git diff --cached -U0 | grep -E '^\+(<<<<<<< |>>>>>>> )' || true)
+if [ -n "$conflict_markers" ]; then
+	echo "Conflict markers are staged. Resolve them before committing:" >&2
+	echo "$conflict_markers" >&2
+	exit 1
+fi
+
 make vet generate-check js-check
