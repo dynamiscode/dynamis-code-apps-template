@@ -110,9 +110,13 @@ type pageData struct {
 	ClientListRows                   []clientListRow
 	IsItemList                       bool
 	IsMembersList                    bool
+	IsFilesList                      bool
 	MemberListQuery                  memberListQuery
 	MemberTotal                      int
 	ItemListQuery                    itemListQuery
+	FileListQuery                    fileListQuery
+	FileMinSize                      string
+	FileMaxSize                      string
 	ItemQuerySuffix                  string
 	ClientFilterChips                []clientFilterChip
 	HasVisibleClientColumns          bool
@@ -179,6 +183,14 @@ type pageData struct {
 	WebhookSecret                    string
 	WebhookSecretKeyConfigured       bool
 	WebhookReadbackFailed            bool
+}
+
+type fileListQuery struct {
+	Search, MIME, Sort     string
+	MinSize, MaxSize       int64
+	HasMinSize, HasMaxSize bool
+	Limit                  int
+	Cursor                 string
 }
 
 func (p pageData) T(key string, values ...any) string {
@@ -430,6 +442,8 @@ func (h *Handler) Routes() http.Handler {
 	if h.files != nil {
 		mux.HandleFunc("GET /workspaces/{workspaceId}/files", h.filesPage)
 		mux.HandleFunc("POST /workspaces/{workspaceId}/files", h.filesUpload)
+		mux.HandleFunc("POST /workspaces/{workspaceId}/files/preferences/columns/{column}", h.setFileColumn)
+		mux.HandleFunc("POST /workspaces/{workspaceId}/files/preferences/columns/reset", h.resetFileColumns)
 		mux.HandleFunc("GET /workspaces/{workspaceId}/files/{fileId}/content", h.fileDownload)
 	}
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings", h.settingsPage)

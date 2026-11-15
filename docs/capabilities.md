@@ -645,6 +645,10 @@ and streams, private S3-compatible presigned GET downloads and streamed S3 uploa
 configurable 16 MiB object and 1 GiB workspace limits, safe filename and content
 allowlists, browser ordinary-form fallback, REST/OpenAPI behavior, and generated
 profile pruning are covered by focused SQLite tests and generated-app checks.
+The browser list also uses saved per-member column visibility, typed filters,
+stable sorting, keyset pagination, and the shared responsive table/card view;
+`TestFilesListUsesSharedPresentationAndSavedColumns` covers the list state and
+cursor continuation in `internal/web/files_test.go`.
 reconciliation, scanning, background jobs, and PostgreSQL/Docker execution
 remain follow-up verification or deferred behavior for this slice.
 

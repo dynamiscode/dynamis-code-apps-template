@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,6 +13,7 @@ import (
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
+	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/portability"
@@ -71,6 +73,7 @@ func newFilesTestEnv(t *testing.T, maxObjectBytes, maxWorkspaceBytes int64) file
 	if err != nil {
 		t.Fatal(err)
 	}
+	handler.EnableFilesPreferences(listprefs.NewService(db, cfg.Database.Driver, auth))
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -131,6 +134,52 @@ func TestFilesPageRendersOrdinaryMultipartUploadForm(t *testing.T) {
 	}
 	if strings.Contains(body, "data-presigned") || strings.Contains(body, "data-initiate") {
 		t.Fatalf("files page still renders presigned upload attributes: %s", body)
+	}
+}
+
+func TestFilesListUsesSharedPresentationAndSavedColumns(t *testing.T) {
+	env := newFilesTestEnv(t, 16<<20, 1<<30)
+	path := env.filesPath()
+	for _, name := range []string{"alpha.txt", "bravo.txt"} {
+		if response := multipartRequest(t, env.routes, path, url.Values{"csrf": {env.csrf}}, name, "hello", env.cookies, nil); response.Code != http.StatusSeeOther {
+			t.Fatalf("upload %s = %d: %s", name, response.Code, response.Body.String())
+		}
+	}
+	body := request(env.routes, http.MethodGet, path+"?limit=1", nil, env.cookies, nil).Body.String()
+	for _, required := range []string{`class="list-view-table"`, `class="list-view-cards"`, `data-column="original_name"`, `preferences/columns/size`, `name="search"`, `name="min_size"`, `name="sort"`, `cursor=`, `/content`} {
+		if !strings.Contains(body, required) {
+			t.Errorf("Files list missing %q: %s", required, body)
+		}
+	}
+	cursorAt := strings.Index(body, "cursor=")
+	if cursorAt < 0 {
+		t.Fatalf("Files page has no next-page cursor: %s", body)
+	}
+	linkStart := strings.LastIndex(body[:cursorAt], `href="`)
+	linkEnd := strings.Index(body[cursorAt:], `"`)
+	if linkStart < 0 || linkEnd < 0 {
+		t.Fatalf("Files page has no usable next-page link: %s", body)
+	}
+	nextPage := request(env.routes, http.MethodGet, html.UnescapeString(body[linkStart+6:cursorAt+linkEnd]), nil, env.cookies, nil)
+	nextBody := nextPage.Body.String()
+	wantNext, wantFirst := "alpha.txt", "bravo.txt"
+	if strings.Contains(body, wantNext) {
+		wantNext, wantFirst = wantFirst, wantNext
+	}
+	if nextPage.Code != http.StatusOK || !strings.Contains(nextBody, `class="list-view-table"`) || !strings.Contains(body, wantFirst) || !strings.Contains(nextBody, wantNext) || strings.Contains(nextBody, wantFirst) {
+		t.Fatalf("next Files page = %d: %s", nextPage.Code, nextPage.Body.String())
+	}
+	preference := request(env.routes, http.MethodPost, path+"/preferences/columns/size?search=alpha&sort=size&limit=1", url.Values{"csrf": {env.csrf}, "visible": {"false"}}, env.cookies, nil)
+	if preference.Code != http.StatusSeeOther || !strings.Contains(preference.Header().Get("Location"), "search=alpha") || !strings.Contains(preference.Header().Get("Location"), "sort=size") {
+		t.Fatalf("hide file size = %d: %s", preference.Code, preference.Body.String())
+	}
+	hidden := request(env.routes, http.MethodGet, path+"?search=alpha&sort=size&limit=1", nil, env.cookies, nil)
+	if hidden.Code != http.StatusOK || strings.Contains(hidden.Body.String(), `data-column="size"`) || !strings.Contains(hidden.Body.String(), "alpha.txt") || strings.Contains(hidden.Body.String(), "bravo.txt") {
+		t.Fatalf("filtered Files list with saved column = %d: %s", hidden.Code, hidden.Body.String())
+	}
+	invalid := request(env.routes, http.MethodGet, path+"?min_size=large", nil, env.cookies, nil)
+	if invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid typed file filter = %d, want 400", invalid.Code)
 	}
 }
 

@@ -478,6 +478,7 @@ func disableFilesSource(relative string, raw []byte) []byte {
 	switch relative {
 	case "internal/bootstrap/app.go":
 		value = removeImport(value, "appfiles")
+		value = removeLineStarting(value, "\twebHandler.EnableFilesPreferences(")
 		value = strings.Replace(value, "\tFiles       *appfiles.Service\n", "", 1)
 		value = removeText(value, "\tstorageConfig := cfg.Storage", "\titemService := items.NewService(")
 		value = strings.ReplaceAll(value, "httpapi.NewHandlerWithWebhooksAndFiles", "httpapi.NewHandlerWithWebhooks")

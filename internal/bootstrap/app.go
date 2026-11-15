@@ -187,6 +187,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	listPreferences := listprefs.NewService(db, cfg.Database.Driver, identityService)
 	webHandler.EnableItemsPreferences(listPreferences)
 	webHandler.EnableClients(clientService, listPreferences)
+	webHandler.EnableFilesPreferences(listPreferences)
 	jobQueue.Start(ctx)
 	mux := http.NewServeMux()
 	mux.Handle("/api/", handler)

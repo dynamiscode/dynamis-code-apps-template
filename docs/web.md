@@ -85,8 +85,12 @@ Baseline browser surfaces:
   `/notifications/events` delivers recipient-scoped `notification.created` SSE
   events. Notification records are created only through the shared identity
   service, and user plus workspace preferences are checked before storage.
-- `/workspaces/{workspaceId}/files` lists ready private workspace files and
-  accepts an ordinary multipart upload form. File paths carry the file short
+- `/workspaces/{workspaceId}/files` lists ready private workspace files with
+  per-member column visibility, filename/MIME/size filters, stable sorting,
+  keyset cursor pagination, and responsive table/card views; filter and sort
+  controls use ordinary GET forms. The list and its download actions remain
+  workspace-authorized. It also accepts an ordinary multipart upload form.
+  File paths carry the file short
   ID; malformed, unknown, and integer-key IDs return not-found. Browsers with
   JavaScript send the same form in one request to that route through a client-side
   `FileUploader` state machine (IDLE, UPLOADING, SUCCESS, and ERROR phases). The
