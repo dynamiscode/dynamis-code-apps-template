@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Refined shared navigation, narrow-page panels, and item record grouping for
+  clearer task layout across desktop and narrow screens.
+
 - Added "Deploy on Railway" buttons to the README and a Railway one-click
   deploy section to `docs/deployment.md`, linking the minimal (SQLite, one
   volume) and full (PostgreSQL and bucket) Railway templates.

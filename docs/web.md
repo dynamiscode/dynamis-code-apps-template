@@ -130,7 +130,8 @@ invitations screen retain local tabs behind the combined entry. In multi mode th
 and omit the switcher list link and the top-bar `Workspaces` crumb; Items also omits `Back to Workspaces`. Tokens,
 Provisioning, and Import omit the switcher list link and the top-bar crumb. The Account, Audit history,
 and Export crumbs point to the default workspace home. On narrow screens the
-settings sidebar becomes a compact two-column navigation region. Provisioning is
+workspace and settings sidebars become compact two-column navigation regions.
+The workspace switcher panel stays within the viewport. Provisioning is
 shown only to owners and admins. Item deletion is
 explicitly permanent and asks for confirmation when the browser script is
 available; ordinary form submission remains available without it.

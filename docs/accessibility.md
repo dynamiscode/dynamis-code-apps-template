@@ -50,8 +50,8 @@ Settings cards. In multi mode the Items page provides `Back to Workspaces`, retu
 workspace selector; single mode omits it. Settings pages provide `Back to home`, returning to the
 current workspace home.
 The workspace switcher, account menu, and client controls use keyboard-accessible
-native disclosure controls; narrow settings navigation uses a two-column grid
-without horizontal overflow. The item page
+native disclosure controls; narrow workspace and settings navigation use two-column grids
+without horizontal overflow, and the workspace menu stays within the viewport. The item page
 reports connecting, connected, reconnecting, or unavailable realtime states;
 permanent deletion, member removal, ownership transfer, account deletion, and
 every revoke confirm before submission when scripting is available.
