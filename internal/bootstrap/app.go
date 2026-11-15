@@ -184,7 +184,9 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, fmt.Errorf("initialize web handler: %w", err)
 	}
 	webHandler.SetWorkspaceMode(cfg.WorkspaceMode)
-	webHandler.EnableClients(clientService, listprefs.NewService(db, cfg.Database.Driver, identityService))
+	listPreferences := listprefs.NewService(db, cfg.Database.Driver, identityService)
+	webHandler.EnableItemsPreferences(listPreferences)
+	webHandler.EnableClients(clientService, listPreferences)
 	jobQueue.Start(ctx)
 	mux := http.NewServeMux()
 	mux.Handle("/api/", handler)

@@ -108,6 +108,9 @@ type pageData struct {
 	ClientCanAddFilter               bool
 	ClientListColumns                []clientListColumn
 	ClientListRows                   []clientListRow
+	IsItemList                       bool
+	ItemListQuery                    itemListQuery
+	ItemQuerySuffix                  string
 	ClientFilterChips                []clientFilterChip
 	HasVisibleClientColumns          bool
 	HasClientFilters                 bool
@@ -154,6 +157,7 @@ type pageData struct {
 	CanCreateWorkspace               bool
 	CanTransfer                      bool
 	CanShare                         bool
+	CanEditItems                     bool
 	ShareLinks                       []sharing.Link
 	PublicShareURL                   string
 	PublicShareItemID                items.ItemID
@@ -396,6 +400,8 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /workspaces/{workspaceId}", h.workspaceHome)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/items", h.itemList)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/items", h.createItem)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/items/preferences/columns/{column}", h.setItemColumn)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/items/preferences/columns/reset", h.resetItemColumns)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/items/{itemId}", h.changeItem)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/items/{itemId}/share", h.shareMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/items/events", h.itemEvents)
@@ -778,7 +784,8 @@ func (h *Handler) afterMutation(writer http.ResponseWriter, request *http.Reques
 		h.renderItems(writer, request, http.StatusOK, "")
 		return
 	}
-	h.redirect(writer, request, "/workspaces/"+identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")).String()+"/items")
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	h.redirect(writer, request, h.itemsPath(workspaceID)+clientQuerySuffix(request.URL.Query()))
 }
 
 func (h *Handler) renderItems(
@@ -795,11 +802,19 @@ func (h *Handler) renderItems(
 	if !ok {
 		return
 	}
-	limit := h.cfg.DefaultPageSize
-	cursor := request.URL.Query().Get("cursor")
-	page, err := h.items.List(request.Context(), principal, workspaceID, items.ListInput{
-		Sort: "-created_at", Limit: limit, Cursor: cursor,
-	})
+	query := request.URL.Query()
+	form, valid := parseItemListQuery(query, h.cfg.DefaultPageSize)
+	if !valid {
+		status, message = http.StatusBadRequest, "The Items list query is invalid."
+	}
+	var page items.Page
+	var err error
+	if valid {
+		page, err = h.items.List(request.Context(), principal, workspaceID, items.ListInput{
+			Status: items.Status(form.Status), Search: form.Search, Sort: form.Sort,
+			Limit: form.Limit, Cursor: query.Get("cursor"),
+		})
+	}
 	if err != nil {
 		h.itemError(writer, request, err)
 		return
@@ -815,12 +830,51 @@ func (h *Handler) renderItems(
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
+	columns := itemListColumns()
+	defaults := make(map[string]bool, len(columns))
+	for _, column := range columns {
+		defaults[column.Key] = column.DefaultVisible
+	}
+	visible := defaults
+	if h.listPreferences != nil {
+		visible, err = h.listPreferences.Get(request.Context(), principal, workspaceID, listprefs.ListItems, defaults)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+	}
+	hiddenSort := ""
+	for i := range columns {
+		columns[i].Visible = visible[columns[i].Key]
+		if columns[i].Key == "created_at" {
+			columns[i].SortHref = itemSortHref(h.itemsPath(workspaceID), query, "created_at")
+			columns[i].SortDirection = itemSortDirection(form.Sort)
+			if !columns[i].Visible {
+				hiddenSort = columns[i].LabelKey
+			}
+		}
+	}
+	nextPath := ""
+	if page.NextCursor != "" {
+		next := cloneClientQuery(query)
+		next.Set("cursor", page.NextCursor)
+		nextPath = h.itemsPath(workspaceID) + "?" + next.Encode()
+	}
+	querySuffix := clientQuerySuffix(query)
 	data := pageData{
 		Title: workspace.Name + " items", Error: message, CSRF: csrf,
 		Workspace: workspace, Items: page.Items, NextCursor: page.NextCursor,
 		Workspaces: workspaces, NavPage: "items", NavSection: "items", CreateKey: createKey,
-		CurrentPath: "/workspaces/" + workspaceID.String() + "/items",
-		CanShare:    h.sharing != nil && principal.Permissions[identity.ResourcesWrite],
+		CurrentPath: h.itemsPath(workspaceID), CanShare: h.sharing != nil && principal.Permissions[identity.ResourcesWrite],
+		CanEditItems: principal.Permissions[identity.ResourcesWrite],
+		IsItemList:   true, ItemListQuery: form, ItemQuerySuffix: querySuffix,
+		ClientListColumns: columns, ClientListRows: itemListRows(page.Items),
+		HasVisibleClientColumns: true,
+		ClientFilterChips:       itemFilterChips(form, query, h.itemsPath(workspaceID)),
+		HasClientFilters:        form.Search != "" || form.Status != "",
+		ClearClientFiltersPath:  itemClearFiltersPath(h.itemsPath(workspaceID), query),
+		ClientQuerySuffix:       querySuffix, HiddenClientSortLabelKey: hiddenSort,
+		NextPath: nextPath,
 	}
 	if h.sharing != nil && data.CanShare {
 		data.ShareLinks, err = h.sharing.List(request.Context(), principal, workspaceID)

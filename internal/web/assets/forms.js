@@ -462,7 +462,7 @@
 			return;
 		}
 		if (button.dataset.optimistic === "remove" && button.form?.hasAttribute("hx-post")) {
-			const row = button.closest("li");
+			const row = button.closest("li, tr");
 			if (row) {
 				row.dataset.optimistic = optimisticOutcome("pending");
 				button.form._optimisticRow = row;

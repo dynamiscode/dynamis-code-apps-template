@@ -15,29 +15,6 @@ import (
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 )
 
-type clientListColumn struct {
-	Key, Label, LabelKey, SortHref string
-	ValueType                      string
-	Visible, DefaultVisible        bool
-	SortDirection                  string
-}
-
-type clientListRow struct {
-	ID             string
-	Values         map[string]string
-	ActionContext  string
-	ActionPosition int
-}
-
-type clientFilterChip struct {
-	FieldLabel       string
-	FieldLabelKey    string
-	OperatorLabelKey string
-	Value            string
-	RemoveHref       string
-	Hidden           bool
-}
-
 type clientFilterOperator struct {
 	Key      string
 	LabelKey string
@@ -109,23 +86,6 @@ func (h *Handler) resetClientColumns(writer http.ResponseWriter, request *http.R
 		return
 	}
 	h.redirect(writer, request, h.clientsPath(workspaceID)+clientQuerySuffix(request.URL.Query()))
-}
-
-func (h *Handler) clientPreferencePrincipal(writer http.ResponseWriter, request *http.Request) (identity.Principal, bool) {
-	if err := request.ParseForm(); err != nil {
-		h.renderError(writer, http.StatusBadRequest)
-		return identity.Principal{}, false
-	}
-	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	principal, session, _, ok := h.workspaceSession(writer, request, workspaceID, identity.ResourcesRead)
-	if !ok {
-		return identity.Principal{}, false
-	}
-	if !h.identity.VerifyCSRF(request.Context(), session.ID, request.FormValue("csrf")) {
-		h.renderError(writer, http.StatusForbidden)
-		return identity.Principal{}, false
-	}
-	return principal, true
 }
 
 func (h *Handler) renderClientList(
@@ -666,28 +626,6 @@ func blankDash(value string) string {
 	return value
 }
 
-func (p pageData) ClientListCellValue(column clientListColumn, row clientListRow) string {
-	value := row.Values[column.Key]
-	if column.ValueType == clients.FieldTypeYesNo {
-		if value == "true" {
-			return p.T("clients.yes")
-		}
-		if value == "false" {
-			return p.T("clients.no")
-		}
-	}
-	return value
-}
-
-func clientQuerySuffix(query url.Values) string {
-	copy := cloneClientQuery(query)
-	copy.Del("cursor")
-	if encoded := copy.Encode(); encoded != "" {
-		return "?" + encoded
-	}
-	return ""
-}
-
 func clientClearFiltersPath(path string, query url.Values) string {
 	copy := cloneClientQuery(query)
 	for _, key := range []string{"filter", "filter_field", "filter_op", "filter_value", "filter_value_to", "cursor"} {
@@ -716,14 +654,6 @@ func clientSortHref(path string, query url.Values, field string, form clientQuer
 		return path + "?" + encoded
 	}
 	return path
-}
-
-func cloneClientQuery(query url.Values) url.Values {
-	copy := make(url.Values, len(query))
-	for key, values := range query {
-		copy[key] = append([]string(nil), values...)
-	}
-	return copy
 }
 
 func clientFilterChips(filters []clients.FilterInput, fields []clients.Field, visible map[string]bool, query url.Values, path string) []clientFilterChip {

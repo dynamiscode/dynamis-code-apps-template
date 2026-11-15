@@ -170,6 +170,14 @@ code { overflow-wrap: anywhere; }
 @media (max-width: 38rem) {
   .list-view-table { display: none; }
   .list-view-cards { display: grid; }
+  .item-list-view { display: block; }
+  .item-list-view table, .item-list-view tbody { display: block; }
+  .item-list-view thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  .item-list-view tbody { display: grid; gap: 1rem; }
+  .item-list-view tr { display: grid; padding: .5rem; background: var(--surface); border: 1px solid var(--border); border-radius: .4rem; }
+  .item-list-view td { display: grid; grid-template-columns: minmax(7rem, auto) minmax(0, 1fr); gap: .35rem .75rem; border: 0; }
+  .item-list-view td[data-label]::before { content: attr(data-label); font-weight: 700; }
+  .item-list-view td:last-child { display: block; }
   .topbar { flex-wrap: wrap; }
   .topbar-context { order: 2; flex-basis: 100%; }
   .workspace-switcher summary { max-width: calc(100vw - 9rem); }
@@ -200,7 +208,7 @@ form[aria-busy="true"] button { cursor: progress; }
 .loading::before, form[aria-busy="true"] button:disabled::before { content: ""; display: inline-block; width: .8em; height: .8em; margin-right: .4em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; vertical-align: -.1em; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .loading::before, form[aria-busy="true"] button:disabled::before { animation: none; } }
-li[data-optimistic="hidden"] { display: none; }
+li[data-optimistic="hidden"], tr[data-optimistic="hidden"] { display: none; }
 .toasts { position: fixed; right: 1rem; bottom: 1rem; z-index: 20; display: grid; gap: .5rem; max-width: min(24rem, calc(100vw - 2rem)); }
 .toast { display: flex; gap: .75rem; align-items: center; justify-content: space-between; margin: 0; padding: .75rem 1rem; background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-left: .35rem solid var(--success); box-shadow: 0 .25rem 1rem var(--shadow); }
 .toast.error { border-left-color: var(--danger); }
