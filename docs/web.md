@@ -104,7 +104,12 @@ Baseline browser surfaces:
 - `/share/{token}` presents a read-only Item projection containing only title
   and status. The Items page lets principals with `resources:write` create
   seven- or 30-day links and revoke active links with CSRF-protected ordinary
-  forms.
+  forms. Its shared list view persists each member's title and status column
+  visibility per workspace, filters by title and status, sorts by creation
+  time, and carries query state through pagination and realtime refreshes. The
+  same rows adapt from a table to cards on narrow screens; inline title/status
+  editing and authorized row actions remain available when either data column
+  is hidden.
 
 Forms keep ordinary navigation as fallback. HTMX enhances item fragments only.
 Secret-bearing responses use `no-store`; list pages never render session,
