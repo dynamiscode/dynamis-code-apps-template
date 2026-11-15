@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/listprefs"
 )
 
 // ErrFieldNotArchived refuses permanent deletion of a field that is still active.
@@ -51,6 +52,12 @@ func (s *Service) DeleteField(
 		return err
 	}
 	if _, err := s.exec(ctx, tx, `
+		DELETE FROM list_column_preferences
+		WHERE workspace_id = ? AND list_key = ? AND column_key = ?
+	`, workspaceID, listprefs.ListClients, clientFieldColumnKey(fieldID)); err != nil {
+		return err
+	}
+	if _, err := s.exec(ctx, tx, `
 		DELETE FROM client_fields WHERE workspace_id = ? AND id = ?
 	`, workspaceID, fieldID); err != nil {
 		return err
@@ -62,4 +69,8 @@ func (s *Service) DeleteField(
 		return err
 	}
 	return tx.Commit()
+}
+
+func clientFieldColumnKey(fieldID FieldID) string {
+	return "client_field:" + fieldID.String()
 }
