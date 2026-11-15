@@ -94,118 +94,138 @@ components:
 
 **Creative North Star: "Clear workspace"**
 
-The implemented interface puts workspace tasks before visual decoration. Cool
-slate text and backgrounds frame a deep blue accent. Controls have explicit
-borders and visible states; content cards stay flat. The template provides a
-neutral starting point for generated applications, which own their branding.
+The system is calm and task-first: cool slate surfaces frame deep blue actions,
+while compact controls and clear selected states keep workspace work prominent.
+Borders carry structure; cards stay flat, with elevation shadows reserved for
+floating menus and toasts. The template stays visually neutral so generated
+applications can establish their own identity.
 
 **Key Characteristics:**
 
 - System fonts and a compact, readable text hierarchy.
 - Light and dark themes with semantic colors.
-- Bordered controls and cards, with shadows on floating menus and toasts.
+- Explicitly bordered controls and cards; elevation shadows on floaters, plus a separate keyboard-focus halo.
 - Responsive navigation, ordinary forms, and visible keyboard focus.
 
 `internal/web/assets/app.css` is the source of truth. This document records
-the current implementation, not a proposed redesign. The sidecar's tonal
-ramps are generated previews, not implemented color tokens.
+the current implementation, not a proposed redesign. Tonal ramps in the
+sidecar are generated previews, not implemented color tokens.
 
 ## Colors
 
 The light palette pairs deep blue actions with cool slate text and pale
-backgrounds. Dark mode replaces the same semantic roles rather than inverting
-the light palette.
+backgrounds; dark mode reassigns the same semantic roles with darker surfaces
+and lighter text and accents.
 
 ### Primary
 
 - **Deep blue:** `accent` colors links and primary controls; `accent-hover`
-  marks hover. `accent-surface` identifies selected navigation.
+  marks hover, while `accent-surface` identifies selected navigation.
 - **On accent:** `on-accent` supplies text for primary controls.
 
 ### Feedback
 
-Danger, warning, and success each have a foreground and a pale background.
-Warning also has a separate border color. These colors mark alerts and feedback,
-not interchangeable decorative accents.
+Danger, warning, and success each have a foreground and a pale background;
+warning also has a separate border color. These semantic colors identify
+feedback, not interchangeable decoration.
+
+**The Semantic-State Rule.** Pair state color with text or a distinct border;
+never use color alone to convey error, warning, success, or selection.
 
 ### Neutral
 
 `ink` and `muted` distinguish primary and supporting text. `canvas` surrounds
-the white `surface`; border tokens distinguish cards, form controls, and
-disabled controls. Each role has a corresponding `dark-` token in the
-frontmatter. The stylesheet also defines theme-specific shadow colors.
+the `surface`; border tokens distinguish cards, form controls, and disabled
+controls. The frontmatter records each role's light and dark values. Shadow
+color also changes with the theme.
 
 The account preference selects light, dark, or system appearance. System
 appearance follows `prefers-color-scheme`; see [Theme](docs/web.md#theme).
 
 ## Typography
 
-The base uses the system UI font stack at the browser's default size and a
-1.5 line height. Labels and controls use bold weight; navigation group labels
-use uppercase, wider letter spacing, and the `navigation-label` style.
-Headings retain browser defaults rather than a separately defined type scale.
+The base uses the system UI font stack at the browser's default size with a
+`1.5` line height. Labels and controls use bold weight. Navigation group labels
+use uppercase text, a `0.75rem` size, `800` weight, and `0.06em` letter
+spacing. Headings retain browser defaults rather than a separately defined
+type scale.
 
 ## Layout
 
-The authenticated workspace shell is centered and capped at `80rem`. Its
-desktop grid pairs a `15rem` sidebar with flexible content. Main content is
-capped at `64rem`; narrow pages such as sign-in use `32rem`. Main horizontal
+The top bar and authenticated workspace shell align to an `80rem` maximum.
+The desktop shell pairs a `15rem` sidebar with flexible content. Main content
+is capped at `64rem`; narrow pages such as sign-in use `32rem`. Main horizontal
 padding uses `clamp(1rem, 3vw, 2rem)`.
 
 At `38rem` and below, the top bar wraps, the sidebar moves above the content,
-and rows and actions stack. Tables use a horizontal scroll wrapper. The
-accessibility checks cover reflow at a 320 CSS-pixel viewport.
+and rows and actions stack. Tables scroll horizontally when needed. Preserve
+reflow at a `320px` CSS viewport.
 
 ## Elevation & Depth
 
-Cards and controls are flat, separated by borders and background color.
+Cards and controls stay flat, separated by borders and background color.
 Workspace and account menus use `0 .5rem 1.5rem var(--shadow)`; toasts use
-`0 .25rem 1rem var(--shadow)`. The shadow color changes with the theme.
+`0 .25rem 1rem var(--shadow)`. The keyboard-focus halo is a separate
+interaction indicator, not surface elevation.
+
+**The Float-Only Elevation Rule.** Reserve elevation shadows for floating menus
+and toasts; keep the focus halo for keyboard focus, not surface depth.
 
 ## Shapes
 
-Controls and navigation links use a `0.25rem` radius. Cards and floating menu
-panels use `0.4rem`. Controls have a `2px` border; cards use a `1px` border.
-Status messages use a prominent left border.
+Controls and navigation links use compact `0.25rem` corners. Cards and floating
+menu panels use `0.4rem` corners. Buttons and fields use `2px` borders; cards
+use `1px` borders. Status messages use a prominent `0.35rem` left border.
 
 ## Components
 
-### Buttons and fields
+### Buttons
 
-Buttons and inputs have a `2.75rem` minimum height and `.45rem .65rem`
-padding. Primary buttons use the accent; button-styled links use a darker hover
-state. Secondary buttons use the surface and accent. Disabled buttons use
-muted text, a muted border, and a disabled surface. Fields span their container
-and use the strong border; invalid fields switch to the danger border.
+Primary buttons use the accent; button-styled links darken on hover. Secondary
+buttons use the surface and accent. Destructive actions use the danger color.
+Buttons have a `2.75rem` minimum height and `.45rem .65rem` padding. Disabled
+buttons use muted text, a muted border, and a disabled surface.
 
-Keyboard focus uses a `.2rem` outline plus a `.4rem` outer halo. Preserve both
-layers on light and dark backgrounds. The stylesheet removes animation and
-transitions when reduced motion is requested.
+### Inputs / Fields
 
-### Cards and feedback
+Fields fill their container, use the surface background and strong border, and
+share the `2.75rem` minimum height and `.45rem .65rem` padding. Invalid fields
+switch to the danger border. Labels are bold and remain visible.
 
-Workspace links and item forms use bordered surface cards with `1rem` padding
-and `.5rem` internal gaps. Errors, warnings, and success messages pair color
-with text and a left border. Toasts use a floating bordered surface and shadow.
+### Cards / Containers
+
+Workspace links and item forms use a surface background, `1px` border, `0.4rem`
+radius, and `1rem` padding with `.5rem` internal gaps.
+
+### Feedback
+
+Errors, warnings, and success messages pair semantic color with text and a
+left border. Toasts use a floating bordered surface and shadow.
 
 ### Navigation
 
 The top bar contains brand, workspace context, and account controls. Workspace
-and account menus use native disclosure elements. The workspace sidebar marks
-the current link with bold text and the accent surface; navigation links retain
-a `2.75rem` minimum height. At the narrow breakpoint, the sidebar stacks above
-the content.
+and account menus use native disclosure elements. The sidebar marks the current
+link with bold text and the accent surface. Navigation links retain a `2.75rem`
+minimum height and stack above content at the narrow breakpoint.
+
+### Focus
+
+Keyboard focus uses a `.2rem` outline plus a `.4rem` outer halo. Preserve both
+layers in light and dark themes. The stylesheet removes animation and
+transitions when reduced motion is requested.
 
 ## Do's and Don'ts
 
 ### Do:
 
-- **Do** use the semantic theme tokens for both light and dark appearances.
-- **Do** retain visible keyboard focus, labeled controls, and ordinary form
-  fallback when adapting the template.
+- **Do** use semantic theme colors in both light and dark appearances.
+- **Do** preserve visible keyboard focus, persistent labels, and ordinary form
+  fallback.
 - **Do** check narrow-screen reflow and reduced-motion behavior.
 
 ### Don't:
 
 - **Don't** convey error, warning, success, or selection with color alone.
+- **Don't** add decorative elevation to static cards or controls.
 - **Don't** treat template branding as mandatory for generated applications.

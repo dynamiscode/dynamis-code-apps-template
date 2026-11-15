@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-14T23:50:21Z",
+  "generatedAt": "2026-11-15T01:59:25Z",
   "title": "Design System: Dynamis Code Apps Template",
   "extensions": {
     "colorMeta": {
@@ -639,21 +639,33 @@
   ],
   "narrative": {
     "northStar": "Clear workspace",
-    "overview": "The implemented interface puts workspace tasks before visual decoration. Cool slate text and backgrounds frame a deep blue accent. Controls have explicit borders and visible states; content cards stay flat. The template provides a neutral starting point for generated applications, which own their branding.",
+    "overview": "The system is calm and task-first: cool slate surfaces frame deep blue actions, while compact controls and clear selected states keep workspace work prominent. Borders carry structure; cards stay flat, with elevation shadows reserved for floating menus and toasts. The template stays visually neutral so generated applications can establish their own identity.",
     "keyCharacteristics": [
       "System fonts and a compact, readable text hierarchy.",
       "Light and dark themes with semantic colors.",
-      "Bordered controls and cards, with shadows on floating menus and toasts.",
+      "Explicitly bordered controls and cards; elevation shadows on floaters, plus a separate keyboard-focus halo.",
       "Responsive navigation, ordinary forms, and visible keyboard focus."
     ],
-    "rules": [],
+    "rules": [
+      {
+        "name": "The Semantic-State Rule",
+        "body": "Pair state color with text or a distinct border; never use color alone to convey error, warning, success, or selection.",
+        "section": "colors"
+      },
+      {
+        "name": "The Float-Only Elevation Rule",
+        "body": "Reserve elevation shadows for floating menus and toasts; keep the focus halo for keyboard focus, not surface depth.",
+        "section": "elevation"
+      }
+    ],
     "dos": [
-      "Do use the semantic theme tokens for both light and dark appearances.",
-      "Do retain visible keyboard focus, labeled controls, and ordinary form fallback when adapting the template.",
+      "Do use semantic theme colors in both light and dark appearances.",
+      "Do preserve visible keyboard focus, persistent labels, and ordinary form fallback.",
       "Do check narrow-screen reflow and reduced-motion behavior."
     ],
     "donts": [
       "Don't convey error, warning, success, or selection with color alone.",
+      "Don't add decorative elevation to static cards or controls.",
       "Don't treat template branding as mandatory for generated applications."
     ]
   }
