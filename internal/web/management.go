@@ -102,27 +102,7 @@ func (h *Handler) settingsPage(writer http.ResponseWriter, request *http.Request
 }
 
 func (h *Handler) membersPage(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.MembersRead)
-	if !ok {
-		return
-	}
-	members, err := h.identity.ListMembers(request.Context(), principal)
-	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
-	}
-	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
-	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
-	}
-	h.render(writer, http.StatusOK, "members.html", pageData{
-		Title: "Members", NavPage: "members", NavSection: "settings", CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID),
-		Workspaces: workspaces, Members: members,
-		CanManage:   principal.Permissions[identity.MembersManage],
-		CanTransfer: principal.Permissions[identity.OwnershipTransfer],
-	})
+	h.renderMembersList(writer, request)
 }
 
 func (h *Handler) memberMutation(writer http.ResponseWriter, request *http.Request) {

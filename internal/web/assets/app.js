@@ -198,7 +198,7 @@ if (fileUploadForm) {
 	const validShortId = (value) => typeof value === "string" && new RegExp(shortIdSchema.pattern).test(value);
 	const result = (tool, status) => ({tool, status});
 	const formFor = (action, id) => [...document.querySelectorAll("form[data-webmcp-actions]")]
-		.find((form) => form.dataset.webmcpActions.split(" ").includes(action) && (!id || form.dataset.webmcpId === id));
+		.find((form) => form.getClientRects().length > 0 && form.dataset.webmcpActions.split(" ").includes(action) && (!id || form.dataset.webmcpId === id));
 	const control = (form, name) => [...form.elements].find((element) => element.name === name && element.type !== "hidden" && !element.disabled);
 	const prepare = (tool, form, fields, button) => {
 		if (!form) return result(tool, "resource-not-found");

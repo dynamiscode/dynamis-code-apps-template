@@ -109,6 +109,9 @@ type pageData struct {
 	ClientListColumns                []clientListColumn
 	ClientListRows                   []clientListRow
 	IsItemList                       bool
+	IsMembersList                    bool
+	MemberListQuery                  memberListQuery
+	MemberTotal                      int
 	ItemListQuery                    itemListQuery
 	ItemQuerySuffix                  string
 	ClientFilterChips                []clientFilterChip
@@ -431,6 +434,8 @@ func (h *Handler) Routes() http.Handler {
 	}
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings", h.settingsPage)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/members", h.membersPage)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/members/preferences/columns/{column}", h.setMemberColumn)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/members/preferences/columns/reset", h.resetMemberColumns)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/members", h.memberMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/invitations", h.invitationsPage)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/invitations", h.invitationMutation)

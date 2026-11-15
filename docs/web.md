@@ -52,8 +52,11 @@ Baseline browser surfaces:
   home, which links to Items and Settings.
 - `/workspaces/{workspaceId}/settings/general` reads workspace settings and lets authorized owners/admins
   change the workspace language fallback with CSRF protection.
-- `/workspaces/{workspaceId}/settings/members` lists members; authorized owners/admins
-  change roles or remove members, and owners transfer ownership.
+- `/workspaces/{workspaceId}/settings/members` lists members in the shared
+  responsive table/card view with per-user columns, email/role filters, stable
+  sorting, query URLs, and optional cursor paging; the default view is complete.
+  Authorized owners/admins change roles or remove members, and owners transfer
+  ownership. The ordinary forms work without JavaScript.
 - `/workspaces/{workspaceId}/settings/invitations` creates, resends, revokes, and shows
   copyable links. `/invitations/{secret}` accepts or registers an invitee with
   safe invalid, expired, revoked, duplicate, and wrong-email failures.

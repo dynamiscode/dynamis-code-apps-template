@@ -20,6 +20,7 @@ type clientListRow struct {
 	ID             string
 	Values         map[string]string
 	Item           items.Item
+	Member         identity.MemberSummary
 	ActionContext  string
 	ActionPosition int
 }
@@ -31,6 +32,15 @@ type clientFilterChip struct {
 	Value            string
 	RemoveHref       string
 	Hidden           bool
+}
+
+func hasVisibleClientColumns(visible map[string]bool) bool {
+	for _, shown := range visible {
+		if shown {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *Handler) EnableItemsPreferences(preferences *listprefs.Service) {
@@ -88,6 +98,9 @@ func (p pageData) ClientListCellValue(column clientListColumn, row clientListRow
 		if value == "false" {
 			return p.T("clients.no")
 		}
+	}
+	if p.IsMembersList && column.Key == "role" {
+		return p.Role(identity.Role(value))
 	}
 	return value
 }

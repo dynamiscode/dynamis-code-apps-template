@@ -164,7 +164,9 @@ documented in [authentication](authentication.md).
   item records from that JSON export format or strict `title,status` CSV.
   It requires `workspace:update`; source IDs, timestamps, memberships, audit
   events, and credentials are ignored.
-- Members: `GET /members`, `PATCH /members/{memberId}`, `DELETE /members/{memberId}`,
+- Members: `GET /members` returns all members unless `limit` or `cursor` is
+  supplied; with either parameter it returns an optional `nextCursor` for the
+  next page. Also `PATCH /members/{memberId}`, `DELETE /members/{memberId}`,
   and `POST /ownership` with body `{"memberId": "<short ID>"}`.
 - Invitations: `GET/POST /invitations`, `POST /invitations/{invitationId}/resend`,
   and `DELETE /invitations/{invitationId}`.

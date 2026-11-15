@@ -610,15 +610,6 @@ func hasVisibleCustomColumn(fields []clients.Field, visible map[string]bool) boo
 	return false
 }
 
-func hasVisibleClientColumns(visible map[string]bool) bool {
-	for _, shown := range visible {
-		if shown {
-			return true
-		}
-	}
-	return false
-}
-
 func blankDash(value string) string {
 	if value == "" {
 		return "—"
