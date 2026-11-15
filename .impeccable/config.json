@@ -1,3 +1,38 @@
 {
-  "buildPath": "code"
+  "buildPath": "code",
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "internal/web/templates/account.html",
+          "internal/web/templates/client-fields.html",
+          "internal/web/templates/client.html",
+          "internal/web/templates/clients.html",
+          "internal/web/templates/files.html",
+          "internal/web/templates/general-settings.html",
+          "internal/web/templates/home.html",
+          "internal/web/templates/invitation.html",
+          "internal/web/templates/provisioning.html",
+          "internal/web/templates/security.html",
+          "internal/web/templates/webhooks.html"
+        ],
+        "createdAt": "2026-11-15T11:58:54.712Z",
+        "reason": "Agent: rendered pages retain browser UA heading hierarchy; standalone template scan omits UA stylesheet."
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgb(0, 0, 0)",
+        "files": [
+          "internal/web/templates/item-list.html",
+          "internal/web/templates/navigation.html"
+        ],
+        "createdAt": "2026-11-15T11:58:54.752Z",
+        "reason": "Agent: rendered pages use theme tokens; standalone template scan omits shared CSS."
+      }
+    ]
+  }
 }
