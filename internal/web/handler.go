@@ -24,6 +24,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
+	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
@@ -37,25 +38,26 @@ import (
 var files embed.FS
 
 type Handler struct {
-	logger         *slog.Logger
-	identity       *identity.Service
-	items          *items.Service
-	clients        *clients.Service
-	files          *appfiles.Service
-	sharing        *sharing.Service
-	webhooks       webhookManager
-	exporter       exporter
-	importer       importer
-	oidc           *identity.OIDCRegistry
-	publicURL      string
-	mailer         appmail.Sender
-	cfg            config.HTTP
-	setupTokenHash string
-	template       *template.Template
-	streams        *streamLimit
-	catalog        *i18n.Catalog
-	mcpResource    string
-	workspaceMode  config.WorkspaceMode
+	logger          *slog.Logger
+	identity        *identity.Service
+	items           *items.Service
+	clients         *clients.Service
+	listPreferences *listprefs.Service
+	files           *appfiles.Service
+	sharing         *sharing.Service
+	webhooks        webhookManager
+	exporter        exporter
+	importer        importer
+	oidc            *identity.OIDCRegistry
+	publicURL       string
+	mailer          appmail.Sender
+	cfg             config.HTTP
+	setupTokenHash  string
+	template        *template.Template
+	streams         *streamLimit
+	catalog         *i18n.Catalog
+	mcpResource     string
+	workspaceMode   config.WorkspaceMode
 }
 
 func (h *Handler) workspaceCreationEnabled() bool {
@@ -99,6 +101,20 @@ type pageData struct {
 	ClientQuery                      clientQueryForm
 	ClientQueryFields                []clients.Field
 	ClientFilterOptions              []clients.Option
+	ClientFilterFields               []clientFilterField
+	ClientFilterValueType            string
+	ClientFiltersToPreserve          []clients.FilterInput
+	ClientFilterOperators            []clientFilterOperator
+	ClientCanAddFilter               bool
+	ClientListColumns                []clientListColumn
+	ClientListRows                   []clientListRow
+	ClientFilterChips                []clientFilterChip
+	HasVisibleClientColumns          bool
+	HasClientFilters                 bool
+	ClearClientFiltersPath           string
+	ClientQuerySuffix                string
+	HiddenClientSort                 string
+	HiddenClientSortLabelKey         string
 	CreateKey                        string
 	NewTitle                         string
 	ToastKey                         string
@@ -384,6 +400,8 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/items/{itemId}/share", h.shareMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/items/events", h.itemEvents)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients", h.clientList)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/preferences/columns/{column}", h.setClientColumn)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/preferences/columns/reset", h.resetClientColumns)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients/events", h.clientEvents)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients", h.createClient)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients/{clientId}", h.clientDetail)

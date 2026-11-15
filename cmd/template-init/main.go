@@ -339,6 +339,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 	switch relative {
 	case "internal/bootstrap/app.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `/internal/listprefs"`)
 		value = removeLineStarting(value, "\tclientService := clients.NewService(")
 		// The portability export takes the client source as its last argument.
 		value = strings.ReplaceAll(value, "\t\tclientService,\n", "\t\tnil,\n")
@@ -400,7 +401,10 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.Replace(value, "\n\t\tclients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace))", ")", 1)
 	case "internal/web/handler.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `/internal/listprefs"`)
+		value = removeLinesContaining(value, "listprefs.Service")
 		value = removeLinesContaining(value, "*clients.Service")
+		value = removeLinesContaining(value, "clients.FilterInput")
 		value = removeLinesContaining(value, "clients.Client")
 		value = removeLinesContaining(value, "clients.Input")
 		value = removeLinesContaining(value, "h.clients != nil")
@@ -409,6 +413,11 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "clientQueryForm")
 		value = removeLinesContaining(value, "clientFieldRow")
 		value = removeLinesContaining(value, "clientValueRow")
+		value = removeLinesContaining(value, "clientListColumn")
+		value = removeLinesContaining(value, "clientListRow")
+		value = removeLinesContaining(value, "clientFilterChip")
+		value = removeLinesContaining(value, "clientFilterField")
+		value = removeLinesContaining(value, "clientFilterOperator")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/client-fields")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/clients")
 	case "internal/platform/maintenance/maintenance.go":
@@ -425,6 +434,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeText(value, "\n## Clients tools (Clients profile)", "\n## Prompts\n")
 	case "docs/capabilities.md":
 		value = removeLineStarting(value, "| Clients |")
+		value = removeLineStarting(value, "| Clients shared list view |")
 	case "docs/api.md":
 		value = removeText(value, "\n- Clients (Clients profile):", "\n\n## Webhooks")
 	case "docs/web.md":
@@ -503,8 +513,8 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = strings.ReplaceAll(value, "webhookService, fileService, \"\", nil", "webhookService, \"\", nil")
 	case "internal/web/handler.go":
 		value = removeImport(value, "appfiles")
-		value = strings.Replace(value, "\tfiles          *appfiles.Service\n", "", 1)
-		value = strings.Replace(value, "\tFiles                            []appfiles.File\n", "", 1)
+		value = removeLinesContaining(value, "*appfiles.Service")
+		value = removeLinesContaining(value, "appfiles.File")
 		value = strings.Replace(value, "\tdata.FilesEnabled = h.files != nil\n", "", 1)
 		value = removeText(value, "func NewHandlerWithServicesAndFiles(", "func NewHandlerWithServices(")
 		value = strings.ReplaceAll(value, "cfg, nil, setupToken, publicURL, mailer", "cfg, setupToken, publicURL, mailer")
