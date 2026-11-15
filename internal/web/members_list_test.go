@@ -1,0 +1,134 @@
+package web
+
+import (
+	"context"
+	"net/http"
+	"net/url"
+	"strings"
+	"testing"
+	"time"
+
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/items"
+	"example.com/dynamis-code/apps-template/internal/listprefs"
+	"example.com/dynamis-code/apps-template/internal/platform/config"
+	"example.com/dynamis-code/apps-template/internal/platform/database"
+)
+
+type membersListTestEnv struct {
+	routes      http.Handler
+	auth        *identity.Service
+	workspaceID identity.WorkspaceID
+	ownerID     identity.UserID
+	cookies     []*http.Cookie
+	csrf        string
+}
+
+func newMembersListTestEnv(t *testing.T) membersListTestEnv {
+	t.Helper()
+	ctx := context.Background()
+	cfg, err := config.LoadFrom(func(string) (string, bool) { return "", false })
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Database.SQLitePath = ":memory:"
+	cfg.Database.MaxOpenConns = 1
+	cfg.Database.MaxIdleConns = 1
+	db, err := database.Open(ctx, cfg.Database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	if err := database.Migrate(ctx, db, cfg.Database.Driver); err != nil {
+		t.Fatal(err)
+	}
+	auth, err := identity.NewService(db, cfg.Database.Driver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := auth.BootstrapFirstOwner(ctx, identity.BootstrapInput{
+		Email: "owner@example.com", Password: "long-enough-password", WorkspaceName: "Members",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace)
+	handler, err := NewHandlerWithServices(auth, itemService, nil, nil, nil, cfg.HTTP, "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler.EnableItemsPreferences(listprefs.NewService(db, cfg.Database.Driver, auth))
+	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	invitations, err := auth.Authorize(ctx, owner.UserID, owner.WorkspaceID, identity.InvitationsManage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	invitation, err := auth.CreateInvitation(ctx, invitations, "viewer@example.com", identity.Viewer, time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := auth.CreateInvitedLocalUser(ctx, invitation.Secret, "viewer-long-password", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	return membersListTestEnv{
+		routes: handler.Routes(), auth: auth, workspaceID: owner.WorkspaceID, ownerID: owner.UserID,
+		cookies: []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}, csrf: session.CSRFSecret,
+	}
+}
+
+func TestMembersListUsesSharedPresentationAndOptInPagination(t *testing.T) {
+	env := newMembersListTestEnv(t)
+	path := "/workspaces/" + env.workspaceID.String() + "/settings/members"
+	all := request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
+	if all.Code != http.StatusOK || !strings.Contains(all.Body.String(), `class="list-view-table"`) ||
+		!strings.Contains(all.Body.String(), `class="list-view-cards"`) ||
+		!strings.Contains(all.Body.String(), `data-column="id"`) ||
+		!strings.Contains(all.Body.String(), `name="limit"><option value="" selected>All members</option>`) {
+		t.Fatalf("default members list = %d, want shared unpaginated view: %s", all.Code, all.Body.String())
+	}
+	if !strings.Contains(all.Body.String(), `data-webmcp-actions="member-role-update member-remove ownership-transfer"`) {
+		t.Fatalf("member actions missing from shared view: %s", all.Body.String())
+	}
+	page := request(env.routes, http.MethodGet, path+"?limit=1&sort=email", nil, env.cookies, nil)
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `name="limit"`) ||
+		!strings.Contains(page.Body.String(), `limit=1`) || !strings.Contains(page.Body.String(), `cursor=`) {
+		t.Fatalf("opt-in member page = %d, want next cursor and query controls: %s", page.Code, page.Body.String())
+	}
+	principal, err := env.auth.Authorize(context.Background(), env.ownerID, env.workspaceID, identity.MembersRead)
+	if err != nil {
+		t.Fatal(err)
+	}
+	members, err := env.auth.ListMembers(context.Background(), principal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var firstMember identity.MemberSummary
+	for _, member := range members {
+		if member.Email == "owner@example.com" {
+			firstMember = member
+		}
+	}
+	secondPage := request(env.routes, http.MethodGet, path+"?limit=1&sort=email&cursor="+firstMember.ID.String(), nil, env.cookies, nil)
+	if secondPage.Code != http.StatusOK || !strings.Contains(secondPage.Body.String(), "viewer@example.com") ||
+		strings.Contains(secondPage.Body.String(), "owner@example.com") {
+		t.Fatalf("second members page = %d: %s", secondPage.Code, secondPage.Body.String())
+	}
+	filtered := request(env.routes, http.MethodGet, path+"?role=viewer", nil, env.cookies, nil)
+	if filtered.Code != http.StatusOK || !strings.Contains(filtered.Body.String(), "viewer@example.com") ||
+		strings.Contains(filtered.Body.String(), "owner@example.com") {
+		t.Fatalf("role-filtered members = %d: %s", filtered.Code, filtered.Body.String())
+	}
+	preference := request(env.routes, http.MethodPost, path+"/preferences/columns/email", url.Values{
+		"csrf": {env.csrf}, "visible": {"false"},
+	}, env.cookies, nil)
+	if preference.Code != http.StatusSeeOther || preference.Header().Get("Location") != path {
+		t.Fatalf("hide email preference = %d: %s", preference.Code, preference.Body.String())
+	}
+	hidden := request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
+	if hidden.Code != http.StatusOK || strings.Contains(hidden.Body.String(), `data-column="email"`) {
+		t.Fatalf("saved member column visibility = %d: %s", hidden.Code, hidden.Body.String())
+	}
+}

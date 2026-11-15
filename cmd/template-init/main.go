@@ -401,6 +401,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 	case "internal/web/handler.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, "*clients.Service")
+		value = removeLinesContaining(value, "clients.FilterInput")
 		value = removeLinesContaining(value, "clients.Client")
 		value = removeLinesContaining(value, "clients.Input")
 		value = removeLinesContaining(value, "h.clients != nil")
@@ -409,6 +410,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "clientQueryForm")
 		value = removeLinesContaining(value, "clientFieldRow")
 		value = removeLinesContaining(value, "clientValueRow")
+		value = removeLinesContaining(value, "clientFilterField")
+		value = removeLinesContaining(value, "clientFilterOperator")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/client-fields")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/clients")
 	case "internal/platform/maintenance/maintenance.go":
@@ -425,6 +428,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeText(value, "\n## Clients tools (Clients profile)", "\n## Prompts\n")
 	case "docs/capabilities.md":
 		value = removeLineStarting(value, "| Clients |")
+		value = removeLineStarting(value, "| Clients shared list view |")
 	case "docs/api.md":
 		value = removeText(value, "\n- Clients (Clients profile):", "\n\n## Webhooks")
 	case "docs/web.md":
@@ -474,6 +478,7 @@ func disableFilesSource(relative string, raw []byte) []byte {
 	switch relative {
 	case "internal/bootstrap/app.go":
 		value = removeImport(value, "appfiles")
+		value = removeLineStarting(value, "\twebHandler.EnableFilesPreferences(")
 		value = strings.Replace(value, "\tFiles       *appfiles.Service\n", "", 1)
 		value = removeText(value, "\tstorageConfig := cfg.Storage", "\titemService := items.NewService(")
 		value = strings.ReplaceAll(value, "httpapi.NewHandlerWithWebhooksAndFiles", "httpapi.NewHandlerWithWebhooks")
@@ -503,8 +508,8 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = strings.ReplaceAll(value, "webhookService, fileService, \"\", nil", "webhookService, \"\", nil")
 	case "internal/web/handler.go":
 		value = removeImport(value, "appfiles")
-		value = strings.Replace(value, "\tfiles          *appfiles.Service\n", "", 1)
-		value = strings.Replace(value, "\tFiles                            []appfiles.File\n", "", 1)
+		value = removeLinesContaining(value, "*appfiles.Service")
+		value = removeLinesContaining(value, "appfiles.File")
 		value = strings.Replace(value, "\tdata.FilesEnabled = h.files != nil\n", "", 1)
 		value = removeText(value, "func NewHandlerWithServicesAndFiles(", "func NewHandlerWithServices(")
 		value = strings.ReplaceAll(value, "cfg, nil, setupToken, publicURL, mailer", "cfg, setupToken, publicURL, mailer")
@@ -516,6 +521,7 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = strings.Replace(value, "\t\tFilesEnabled: h.files != nil,\n", "", 1)
 	case "docs/capabilities.md":
 		value = removeLineStarting(value, "| Files |")
+		value = removeLineStarting(value, "| Files shared list view |")
 		value = removeLineStarting(value, "| Object storage |")
 		if start := strings.Index(value, "\n## Files evidence\n"); start >= 0 {
 			value = value[:start] + "\n"

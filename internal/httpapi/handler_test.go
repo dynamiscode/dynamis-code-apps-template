@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync"
 	"testing"
@@ -207,6 +208,32 @@ func TestIdentityRESTContracts(t *testing.T) {
 	members := serveAuthorized(handler, http.MethodGet, base+"/members", "", token, nil)
 	if members.Code != http.StatusOK || !strings.Contains(members.Body.String(), "owner@example.com") {
 		t.Fatalf("members = %d, %s", members.Code, members.Body.String())
+	}
+	var userID int64
+	if err := db.QueryRow(`INSERT INTO users (email, password_hash, created_at) VALUES (?, NULL, ?) RETURNING id`, "zmember@example.com", time.Now().UTC().Format(time.RFC3339Nano)).Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, 'member', ?)`, identity.ParseWorkspaceIDOrZero(workspaceID), userID, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+		t.Fatal(err)
+	}
+	members = serveAuthorized(handler, http.MethodGet, base+"/members", "", token, nil)
+	if !strings.Contains(members.Body.String(), "zmember@example.com") || strings.Contains(members.Body.String(), "nextCursor") {
+		t.Fatalf("default members response omitted a workspace member: %s", members.Body.String())
+	}
+	var firstPage struct {
+		Members    []memberResponse `json:"members"`
+		NextCursor string           `json:"nextCursor"`
+	}
+	paged := serveAuthorized(handler, http.MethodGet, base+"/members?limit=1", "", token, nil)
+	if paged.Code != http.StatusOK || json.Unmarshal(paged.Body.Bytes(), &firstPage) != nil || len(firstPage.Members) != 1 || firstPage.NextCursor == "" {
+		t.Fatalf("first members page = %d, %+v: %s", paged.Code, firstPage, paged.Body.String())
+	}
+	secondPage := serveAuthorized(handler, http.MethodGet, base+"/members?cursor="+url.QueryEscape(firstPage.NextCursor), "", token, nil)
+	if secondPage.Code != http.StatusOK || !strings.Contains(secondPage.Body.String(), "zmember@example.com") {
+		t.Fatalf("second members page = %d: %s", secondPage.Code, secondPage.Body.String())
+	}
+	for _, query := range []string{"?cursor=bad", "?limit=0", "?limit=1&limit=2"} {
+		assertProblem(t, serveAuthorized(handler, http.MethodGet, base+"/members"+query, "", token, nil), http.StatusBadRequest, "invalid-request")
 	}
 	invitation := serveAuthorized(handler, http.MethodPost, base+"/invitations", `{"email":"invitee@example.com","role":"member","lifetimeSeconds":3600}`, token, nil)
 	if invitation.Code != http.StatusCreated || !strings.Contains(invitation.Body.String(), "invitationUrl") || strings.Contains(invitation.Body.String(), "secret") {

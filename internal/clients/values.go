@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
@@ -110,6 +111,99 @@ func (s *Service) ListValues(
 		values = append(values, value)
 	}
 	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return values, nil
+}
+
+// ListValuesForClients returns active custom values for one bounded list page.
+func (s *Service) ListValuesForClients(
+	ctx context.Context,
+	actor identity.Principal,
+	workspaceID identity.WorkspaceID,
+	clientIDs []ClientID,
+) (map[ClientID]map[string]string, error) {
+	if len(clientIDs) > 100 {
+		return nil, ErrInvalidInput
+	}
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: true})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesRead); err != nil {
+		return nil, identity.ErrForbidden
+	}
+	values := make(map[ClientID]map[string]string, len(clientIDs))
+	if len(clientIDs) == 0 {
+		return values, tx.Commit()
+	}
+	slots := make(map[string]string)
+	fields, err := tx.QueryContext(ctx, database.Rebind(s.driver, `
+		SELECT id, slot FROM client_fields WHERE workspace_id = ? AND archived_at IS NULL
+	`), workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	for fields.Next() {
+		var id FieldID
+		var slot int
+		if err := fields.Scan(&id, &slot); err != nil {
+			fields.Close()
+			return nil, err
+		}
+		slots[slotKey(slot)] = id.String()
+	}
+	if err := fields.Err(); err != nil {
+		fields.Close()
+		return nil, err
+	}
+	if err := fields.Close(); err != nil {
+		return nil, err
+	}
+	placeholders := make([]string, len(clientIDs))
+	args := make([]any, 0, len(clientIDs)+1)
+	args = append(args, workspaceID)
+	for i, id := range clientIDs {
+		if id == 0 {
+			return nil, ErrInvalidInput
+		}
+		placeholders[i] = "?"
+		args = append(args, id)
+	}
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver,
+		"SELECT id, custom_values FROM clients WHERE workspace_id = ? AND id IN ("+
+			strings.Join(placeholders, ",")+")"), args...)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var id ClientID
+		var raw string
+		if err := rows.Scan(&id, &raw); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		stored := map[string]string{}
+		if err := json.Unmarshal([]byte(raw), &stored); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		values[id] = make(map[string]string)
+		for slot, value := range stored {
+			if fieldID, active := slots[slot]; active {
+				values[id][fieldID] = value
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
 		return nil, err
 	}
 	if err := rows.Close(); err != nil {

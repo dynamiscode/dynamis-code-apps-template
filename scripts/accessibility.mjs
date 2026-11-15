@@ -103,7 +103,7 @@ try {
 	const spacingTitle = `Spacing check ${locale}`;
 	await driver.findElement(By.id("new-title")).sendKeys(spacingTitle);
 	await driver.findElement(By.css("form.create button[type=submit]")).click();
-	await driver.wait(until.elementLocated(By.css(`.items input[value="${spacingTitle}"]`)), 5000);
+	await driver.wait(until.elementLocated(By.css(`#item-list .item-list-view input[value="${spacingTitle}"]`)), 5000);
 	await expectNoExtraButtonMargin(".row button", "item row actions");
 	await expectNoExtraButtonMargin(".actions button", "item action group");
 	await expectNoExtraButtonMargin(".account-menu-panel button", "account menu");

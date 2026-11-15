@@ -52,8 +52,11 @@ Baseline browser surfaces:
   home, which links to Items and Settings.
 - `/workspaces/{workspaceId}/settings/general` reads workspace settings and lets authorized owners/admins
   change the workspace language fallback with CSRF protection.
-- `/workspaces/{workspaceId}/settings/members` lists members; authorized owners/admins
-  change roles or remove members, and owners transfer ownership.
+- `/workspaces/{workspaceId}/settings/members` lists members in the shared
+  responsive table/card view with per-user columns, email/role filters, stable
+  sorting, query URLs, and optional cursor paging; the default view is complete.
+  Authorized owners/admins change roles or remove members, and owners transfer
+  ownership. The ordinary forms work without JavaScript.
 - `/workspaces/{workspaceId}/settings/invitations` creates, resends, revokes, and shows
   copyable links. `/invitations/{secret}` accepts or registers an invitee with
   safe invalid, expired, revoked, duplicate, and wrong-email failures.
@@ -82,8 +85,12 @@ Baseline browser surfaces:
   `/notifications/events` delivers recipient-scoped `notification.created` SSE
   events. Notification records are created only through the shared identity
   service, and user plus workspace preferences are checked before storage.
-- `/workspaces/{workspaceId}/files` lists ready private workspace files and
-  accepts an ordinary multipart upload form. File paths carry the file short
+- `/workspaces/{workspaceId}/files` lists ready private workspace files with
+  per-member column visibility, filename/MIME/size filters, stable sorting,
+  keyset cursor pagination, and responsive table/card views; filter and sort
+  controls use ordinary GET forms. The list and its download actions remain
+  workspace-authorized. It also accepts an ordinary multipart upload form.
+  File paths carry the file short
   ID; malformed, unknown, and integer-key IDs return not-found. Browsers with
   JavaScript send the same form in one request to that route through a client-side
   `FileUploader` state machine (IDLE, UPLOADING, SUCCESS, and ERROR phases). The
@@ -104,7 +111,12 @@ Baseline browser surfaces:
 - `/share/{token}` presents a read-only Item projection containing only title
   and status. The Items page lets principals with `resources:write` create
   seven- or 30-day links and revoke active links with CSRF-protected ordinary
-  forms.
+  forms. Its shared list view persists each member's title and status column
+  visibility per workspace, filters by title and status, sorts by creation
+  time, and carries query state through pagination and realtime refreshes. The
+  same rows adapt from a table to cards on narrow screens; inline title/status
+  editing and authorized row actions remain available when either data column
+  is hidden.
 
 Forms keep ordinary navigation as fallback. HTMX enhances item fragments only.
 Secret-bearing responses use `no-store`; list pages never render session,
@@ -245,14 +257,20 @@ missing WebMCP support is a passing fallback result. Debug registration with
 the browser's `document.modelContext.getTools()` inspection without copying
 session values or hidden inputs into logs.
 
-`/workspaces/{workspaceId}/clients` lists clients newest first by default. A GET
-form names one sort field and direction, one filter (field, operator, and value,
-with a second value for `between`), and the archived selector (`active` by
-default, `archived`, or `all`). A next-page link keeps them. Members,
-admins, and owners see the create form; viewers see the list read-only.
-Results and paging precede native create and list-options disclosures. The
-create form stays open after validation errors; active query state opens its
-filters. Both forms remain ordinary POST/GET forms.
+`/workspaces/{workspaceId}/clients` lists authorized clients newest first by
+default. It renders a semantic table above 38rem and cards at or below 38rem.
+Display name and email are visible by default; common metadata and active custom
+fields are available as columns. Column choices save per user, workspace, and
+list; reset columns restores the defaults. Archived custom fields are hidden
+without losing their saved choice, so restoring one restores its prior visibility.
+The GET form accepts one sort and up to 20 distinct field filters, represented as
+repeated `filter=field:operator:value` parameters, plus page size and archived
+selector. Filters combine with AND, appear as removable chips, and remain visible
+when their column is hidden. Sorting, filters, page size, and cursor stay in the
+URL. Clear filters and reset columns are separate controls. Column and filter
+forms work without JavaScript. Members, admins, and owners see the create form;
+viewers see the list read-only. The create form stays open after validation
+errors; active query state opens list options.
 `/workspaces/{workspaceId}/clients/{clientId}` shows one client. Writers get an
 edit form that carries the client's version; a stale version shows a retry
 message. Writes are ordinary CSRF-protected POST forms that redirect after

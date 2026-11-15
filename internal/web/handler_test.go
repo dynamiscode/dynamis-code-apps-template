@@ -23,6 +23,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
+	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
@@ -1746,6 +1747,7 @@ func testWebWithMFARaw(t *testing.T, maximumStreams int, mfaEnabled bool, mailer
 	if err != nil {
 		t.Fatal(err)
 	}
+	webHandler.EnableItemsPreferences(listprefs.NewService(db, cfg.Database.Driver, auth))
 	return webHandler, auth, itemService, owner.WorkspaceID, owner
 }
 

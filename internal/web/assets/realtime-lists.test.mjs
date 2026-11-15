@@ -38,7 +38,7 @@ function loadRealtimeList(listID, events) {
     addEventListener: () => {}
   };
   const window = { EventSource: FakeEventSource, htmx };
-  const location = { pathname: events.replace(/\/events$/, "") };
+  const location = { pathname: events.replace(/\/events$/, ""), search: "?search=Alpha&status=active" };
   new Function("window", "document", "htmx", "EventSource", "location", appJsCode)(
     window, document, htmx, FakeEventSource, location
   );
@@ -49,17 +49,17 @@ function fire(source, name) {
   for (const listener of source.listeners[name] || []) listener({});
 }
 
-test("client list refreshes over SSE on client.changed and resync", () => {
+test("client list refreshes over SSE and preserves URL state", () => {
   const { sources, ajaxCalls, location } = loadRealtimeList("client-list", "/workspaces/w1/clients/events");
   assert.equal(sources.length, 1);
   assert.equal(sources[0].url, "/workspaces/w1/clients/events");
 
   fire(sources[0], "client.changed");
-  assert.deepEqual(ajaxCalls, [["GET", location.pathname, { target: "#client-list", swap: "outerHTML" }]]);
+  assert.deepEqual(ajaxCalls, [["GET", location.pathname + location.search, { target: "#client-list", swap: "outerHTML" }]]);
 
   fire(sources[0], "resync");
   assert.equal(ajaxCalls.length, 2);
-  assert.deepEqual(ajaxCalls[1], ["GET", location.pathname, { target: "#client-list", swap: "outerHTML" }]);
+  assert.deepEqual(ajaxCalls[1], ["GET", location.pathname + location.search, { target: "#client-list", swap: "outerHTML" }]);
 });
 
 test("item list still refreshes on item.changed and ignores client events", () => {

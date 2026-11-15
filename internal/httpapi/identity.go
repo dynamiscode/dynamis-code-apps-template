@@ -1,9 +1,11 @@
 package httpapi
 
 import (
+	"encoding/base64"
 	"errors"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -103,9 +105,22 @@ func (h *handler) workspaceBearer(
 
 func (h *handler) listMembers(writer http.ResponseWriter, request *http.Request) {
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	if len(request.URL.Query()) != 0 {
-		h.invalidRequest(writer, request, "The request parameters are invalid.")
+	if !onlyQuery(request, "limit", "cursor") {
+		h.invalidRequest(writer, request, "The collection parameters are invalid.")
 		return
+	}
+	query := request.URL.Query()
+	limit := 0
+	if raw := query.Get("limit"); raw != "" {
+		value, err := strconv.Atoi(raw)
+		if err != nil || value < 1 || value > h.cfg.MaxPageSize {
+			h.invalidRequest(writer, request, "The page limit is invalid.")
+			return
+		}
+		limit = value
+	}
+	if query.Get("cursor") != "" && limit == 0 {
+		limit = h.cfg.DefaultPageSize
 	}
 	principal, ok := h.workspaceBearer(writer, request, workspaceID, identity.MembersRead)
 	if !ok {
@@ -116,11 +131,44 @@ func (h *handler) listMembers(writer http.ResponseWriter, request *http.Request)
 		h.identityProblem(writer, request, err)
 		return
 	}
+	nextCursor := ""
+	if cursor := query.Get("cursor"); cursor != "" {
+		decoded, err := base64.RawURLEncoding.DecodeString(cursor)
+		if err != nil {
+			h.invalidRequest(writer, request, "The cursor is invalid.")
+			return
+		}
+		memberID, err := identity.ParseMemberID(string(decoded))
+		if err != nil {
+			h.invalidRequest(writer, request, "The cursor is invalid.")
+			return
+		}
+		index := -1
+		for i, member := range members {
+			if member.ID == memberID {
+				index = i
+				break
+			}
+		}
+		if index < 0 {
+			h.invalidRequest(writer, request, "The cursor is invalid.")
+			return
+		}
+		members = members[index+1:]
+	}
+	if limit > 0 && len(members) > limit {
+		members = members[:limit]
+		nextCursor = base64.RawURLEncoding.EncodeToString([]byte(members[len(members)-1].ID.String()))
+	}
 	result := make([]memberResponse, len(members))
 	for index, member := range members {
 		result[index] = memberResponse{ID: member.ID, Email: member.Email, Role: member.Role, CreatedAt: member.CreatedAt}
 	}
-	writeJSON(writer, http.StatusOK, map[string]any{"members": result})
+	response := map[string]any{"members": result}
+	if limit > 0 {
+		response["nextCursor"] = nextCursor
+	}
+	writeJSON(writer, http.StatusOK, response)
 }
 
 func (h *handler) changeMemberRole(writer http.ResponseWriter, request *http.Request) {

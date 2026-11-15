@@ -120,6 +120,44 @@ func TestPermanentDeleteClearsEveryTypeAndRemovesTheField(t *testing.T) {
 	}
 }
 
+func TestPermanentDeleteRemovesVisibilityOverridesForTheField(t *testing.T) {
+	f := newFixture(t)
+	field := defineTextField(t, f, "Source")
+	columnKey := clientFieldColumnKey(field.ID)
+	for _, userID := range []identity.UserID{f.owner.UserID, f.member.UserID} {
+		if _, err := f.db.ExecContext(f.ctx, `
+			INSERT INTO list_column_preferences (workspace_id, user_id, list_key, column_key, visible)
+			VALUES (?, ?, 'clients', ?, TRUE)
+		`, f.workspaceID, userID, columnKey); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := f.db.ExecContext(f.ctx, `
+		INSERT INTO list_column_preferences (workspace_id, user_id, list_key, column_key, visible)
+		VALUES (?, ?, 'items', ?, TRUE)
+	`, f.workspaceID, f.owner.UserID, columnKey); err != nil {
+		t.Fatal(err)
+	}
+	archiveOK(t, f, field.ID)
+	if err := f.service.DeleteField(f.ctx, f.owner, f.workspaceID, field.ID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	var clients, otherList int
+	if err := f.db.QueryRowContext(f.ctx, `
+		SELECT COUNT(*) FROM list_column_preferences WHERE workspace_id = ? AND list_key = 'clients' AND column_key = ?
+	`, f.workspaceID, columnKey).Scan(&clients); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.db.QueryRowContext(f.ctx, `
+		SELECT COUNT(*) FROM list_column_preferences WHERE workspace_id = ? AND list_key = 'items' AND column_key = ?
+	`, f.workspaceID, columnKey).Scan(&otherList); err != nil {
+		t.Fatal(err)
+	}
+	if clients != 0 || otherList != 1 {
+		t.Fatalf("remaining field overrides: clients=%d items=%d; want 0 and 1", clients, otherList)
+	}
+}
+
 func TestPermanentDeleteBumpsEachClearedClientAndRecordsOneAudit(t *testing.T) {
 	f := newFixture(t)
 	field := defineTextField(t, f, "Source")
@@ -187,6 +225,13 @@ func TestFailedPermanentDeleteKeepsValuesAndSlot(t *testing.T) {
 	f := newFixture(t)
 	field := defineTextField(t, f, "Source")
 	ada := setValueOK(t, f, createClientForValues(t, f, "Ada"), field.ID, "Friend")
+	columnKey := clientFieldColumnKey(field.ID)
+	if _, err := f.db.ExecContext(f.ctx, `
+		INSERT INTO list_column_preferences (workspace_id, user_id, list_key, column_key, visible)
+		VALUES (?, ?, 'clients', ?, TRUE)
+	`, f.workspaceID, f.member.UserID, columnKey); err != nil {
+		t.Fatal(err)
+	}
 	archiveOK(t, f, field.ID)
 	// The field row delete runs after the values are cleared, so this trigger
 	// makes the whole transaction fail after the clearing step.
@@ -201,6 +246,12 @@ func TestFailedPermanentDeleteKeepsValuesAndSlot(t *testing.T) {
 	}
 	if got := storedValues(t, f, ada.ID)[slotKey(fieldSlot(t, f, field.ID))]; got != "Friend" {
 		t.Fatalf("value after rolled-back delete = %q, want Friend", got)
+	}
+	var preferences int
+	if err := f.db.QueryRowContext(f.ctx, `
+		SELECT COUNT(*) FROM list_column_preferences WHERE workspace_id = ? AND user_id = ? AND list_key = 'clients' AND column_key = ?
+	`, f.workspaceID, f.member.UserID, columnKey).Scan(&preferences); err != nil || preferences != 1 {
+		t.Fatalf("preference rows after rolled-back delete = %d, %v; want 1", preferences, err)
 	}
 	if got, err := f.service.Get(f.ctx, f.viewer, f.workspaceID, ada.ID); err != nil || got.Version != ada.Version {
 		t.Fatalf("client version after rolled-back delete = %d, %v; want %d", got.Version, err, ada.Version)
