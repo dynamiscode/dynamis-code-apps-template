@@ -521,6 +521,7 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = strings.Replace(value, "\t\tFilesEnabled: h.files != nil,\n", "", 1)
 	case "docs/capabilities.md":
 		value = removeLineStarting(value, "| Files |")
+		value = removeLineStarting(value, "| Files shared list view |")
 		value = removeLineStarting(value, "| Object storage |")
 		if start := strings.Index(value, "\n## Files evidence\n"); start >= 0 {
 			value = value[:start] + "\n"

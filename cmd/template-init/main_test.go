@@ -183,7 +183,7 @@ func TestGenerateWithoutAgentPrunesAgentSurfaceAndBuilds(t *testing.T) {
 		t.Fatalf("generated README retains Agent interface: %q, error = %v", readme, err)
 	}
 	capabilities, err := os.ReadFile(filepath.Join(output, "docs/capabilities.md"))
-	if err != nil || strings.Contains(string(capabilities), "| Files |") || strings.Contains(string(capabilities), "Object storage") || strings.Contains(string(capabilities), "Files evidence") {
+	if err != nil || strings.Contains(string(capabilities), "| Files |") || strings.Contains(string(capabilities), "| Files shared list view |") || strings.Contains(string(capabilities), "Object storage") || strings.Contains(string(capabilities), "Files evidence") {
 		t.Fatalf("generated capabilities retains Files evidence: %q, error = %v", capabilities, err)
 	}
 	for _, path := range []string{"go.mod", "go.sum", "NOTICE"} {
