@@ -60,6 +60,16 @@ try {
   await driver.wait(until.elementLocated(By.id("workspace-locale")), 5000);
   await audit("general settings");
   await expectFormActionSpacing("#workspace-locale", 'form[action$="/settings/general"] button[type="submit"]', "general settings");
+  await driver.manage().window().setRect({ width: 320, height: 800 });
+  const settingsOverflow = await driver.executeScript(() => ({
+    document: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    navigation: Array.from(document.querySelectorAll(".workspace-settings-nav > *"))
+      .some((element) => element.scrollWidth > element.clientWidth + 1),
+  }));
+  if (settingsOverflow.document || settingsOverflow.navigation) {
+    throw new Error(`general settings has horizontal overflow at 320 CSS pixels: ${JSON.stringify(settingsOverflow)}`);
+  }
+  await driver.manage().window().setRect({ width: 1280, height: 900 });
   await driver.get(`${baseURL}/sessions`);
   await driver.wait(until.elementLocated(By.css(".inline button")), 5000);
   await expectNoExtraButtonMargin(".inline button", "inline actions");
