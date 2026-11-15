@@ -110,6 +110,10 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); }
 .sidebar-settings { display: flex; flex-direction: column; gap: .25rem; margin-top: auto; }
 .sidebar-settings .nav-label { margin-top: 1.5rem; }
 .sidebar-subitem { padding-left: 1.25rem !important; }
+.client-controls { margin: 1rem 0; }
+.client-controls summary { display: flex; align-items: center; min-height: 2.75rem; padding: .45rem .65rem; border: 1px solid var(--border); border-radius: .25rem; background: var(--surface); color: var(--ink); font-weight: 700; cursor: pointer; }
+.client-controls summary:hover { background: var(--canvas); }
+.client-controls[open] summary { margin-bottom: .75rem; }
 .nav-label { margin: .75rem .65rem .15rem; color: var(--muted); font-size: .75rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .sidebar-nav .nav-label:first-child { margin-top: 0; }
 main { width: min(64rem, 100%); margin: 0 auto; padding: 2rem clamp(1rem, 3vw, 2rem); }
@@ -121,7 +125,7 @@ main { width: min(64rem, 100%); margin: 0 auto; padding: 2rem clamp(1rem, 3vw, 2
 a { color: var(--accent); }
 label { display: block; font-weight: 700; margin-top: .75rem; }
 input, select, button { font: inherit; min-height: 2.75rem; border: 2px solid var(--border-strong); border-radius: .25rem; padding: .45rem .65rem; background: var(--surface); color: var(--ink); }
-input, select { width: 100%; }
+input, select, textarea { width: 100%; }
 input[type="checkbox"], input[type="radio"] { width: 1.25rem; height: 1.25rem; min-height: 1.25rem; padding: 0; flex: none; accent-color: var(--accent); }
 button { border-color: var(--accent); background: var(--accent); color: var(--on-accent); font-weight: 700; cursor: pointer; }
 button:disabled { border-color: var(--border-muted); background: var(--disabled-surface); color: var(--muted); cursor: not-allowed; }
@@ -159,6 +163,9 @@ code { overflow-wrap: anywhere; }
   .app-shell { display: block; min-height: 0; }
   .sidebar { border-right: 0; border-bottom: 1px solid var(--border); padding: .75rem 1rem; }
   .sidebar-nav { flex: none; margin-top: .75rem; }
+  .workspace-settings-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .25rem; }
+  .workspace-settings-nav .nav-label { grid-column: 1 / -1; }
+  .workspace-settings-nav .sidebar-subitem { padding-left: .65rem !important; }
   .sidebar-settings { margin-top: .75rem; }
   .sidebar-settings .nav-label { margin-top: .5rem; }
   main { padding-top: 1rem; }

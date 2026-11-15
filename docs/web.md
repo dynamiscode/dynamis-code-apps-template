@@ -130,7 +130,7 @@ invitations screen retain local tabs behind the combined entry. In multi mode th
 and omit the switcher list link and the top-bar `Workspaces` crumb; Items also omits `Back to Workspaces`. Tokens,
 Provisioning, and Import omit the switcher list link and the top-bar crumb. The Account, Audit history,
 and Export crumbs point to the default workspace home. On narrow screens the
-settings sidebar becomes a compact stacked navigation region. Provisioning is
+settings sidebar becomes a compact two-column navigation region. Provisioning is
 shown only to owners and admins. Item deletion is
 explicitly permanent and asks for confirmation when the browser script is
 available; ordinary form submission remains available without it.
@@ -249,6 +249,9 @@ form names one sort field and direction, one filter (field, operator, and value,
 with a second value for `between`), and the archived selector (`active` by
 default, `archived`, or `all`). A next-page link keeps them. Members,
 admins, and owners see the create form; viewers see the list read-only.
+Results and paging precede native create and list-options disclosures. The
+create form stays open after validation errors; active query state opens its
+filters. Both forms remain ordinary POST/GET forms.
 `/workspaces/{workspaceId}/clients/{clientId}` shows one client. Writers get an
 edit form that carries the client's version; a stale version shows a retry
 message. Writes are ordinary CSRF-protected POST forms that redirect after

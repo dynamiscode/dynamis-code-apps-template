@@ -54,6 +54,10 @@ typography:
     fontSize: "0.75rem"
     fontWeight: 800
     letterSpacing: "0.06em"
+  supporting-text:
+    fontFamily: "system-ui, sans-serif"
+    fontSize: "0.875rem"
+    color: "{colors.muted}"
 rounded:
   control: "0.25rem"
   card: "0.4rem"
@@ -147,8 +151,8 @@ appearance follows `prefers-color-scheme`; see [Theme](docs/web.md#theme).
 The base uses the system UI font stack at the browser's default size with a
 `1.5` line height. Labels and controls use bold weight. Navigation group labels
 use uppercase text, a `0.75rem` size, `800` weight, and `0.06em` letter
-spacing. Headings retain browser defaults rather than a separately defined
-type scale.
+spacing. Workspace switcher metadata uses muted supporting text at `0.875rem`.
+Headings retain browser defaults rather than a separately defined type scale.
 
 ## Layout
 
@@ -157,9 +161,9 @@ The desktop shell pairs a `15rem` sidebar with flexible content. Main content
 is capped at `64rem`; narrow pages such as sign-in use `32rem`. Main horizontal
 padding uses `clamp(1rem, 3vw, 2rem)`.
 
-At `38rem` and below, the top bar wraps, the sidebar moves above the content,
-and rows and actions stack. Tables scroll horizontally when needed. Preserve
-reflow at a `320px` CSS viewport.
+At `38rem` and below, the top bar wraps and the sidebar moves above the content.
+Settings navigation uses two columns; rows and actions stack. Tables scroll
+horizontally when needed. Preserve reflow at a `320px` CSS viewport.
 
 ## Elevation & Depth
 

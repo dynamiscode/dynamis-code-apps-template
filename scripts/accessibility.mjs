@@ -31,8 +31,19 @@ try {
 	await driver.actions().sendKeys(Key.TAB).perform();
 	await expectActive("password");
 	await driver.actions().sendKeys(Key.TAB).perform();
-	if ((await driver.switchTo().activeElement().getTagName()) !== "button") {
-		throw new Error("login keyboard order does not reach submit after password");
+	const reveal = driver.switchTo().activeElement();
+	if ((await reveal.getTagName()) !== "button" || (await reveal.getAttribute("type")) !== "button") {
+		throw new Error("login keyboard order does not reach the password reveal control");
+	}
+	await driver.actions().sendKeys(Key.TAB).perform();
+	const submit = driver.switchTo().activeElement();
+	if ((await submit.getTagName()) !== "button" || (await submit.getAttribute("type")) !== "submit") {
+		throw new Error("login keyboard order does not reach submit after password reveal");
+	}
+	await driver.actions().sendKeys(Key.TAB).perform();
+	const reset = driver.switchTo().activeElement();
+	if ((await reset.getTagName()) !== "a" || new URL(await reset.getAttribute("href")).pathname !== "/password-reset") {
+		throw new Error("login keyboard order does not reach the password reset link");
 	}
   await driver.findElement(By.id("email")).sendKeys(email);
   await driver.findElement(By.id("password")).sendKeys(password);
@@ -58,6 +69,7 @@ try {
 	await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/clients`);
 	await driver.wait(until.elementLocated(By.id("client-list")), 5000);
 	await audit("clients");
+	await driver.findElement(By.css(".client-create > summary")).click();
 	await driver.findElement(By.id("client-display-name")).sendKeys(`Accessibility client ${locale}`);
 	await driver.findElement(By.css("form.create button[type=submit]")).click();
 	await driver.wait(until.elementLocated(By.id("client-detail")), 5000);

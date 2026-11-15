@@ -130,6 +130,13 @@ func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
 	if loginPage.Code != http.StatusOK || !strings.Contains(loginPage.Body.String(), `<label for="email">`) {
 		t.Fatalf("login page = %d, %s", loginPage.Code, loginPage.Body.String())
 	}
+	if !strings.Contains(loginPage.Body.String(), `<a href="/password-reset">Forgot password?</a>`) {
+		t.Fatal("English login page lacks the password reset link")
+	}
+	spanishLogin := request(handler, http.MethodGet, "/login", nil, nil, map[string]string{"Accept-Language": "es"})
+	if spanishLogin.Code != http.StatusOK || !strings.Contains(spanishLogin.Body.String(), `<a href="/password-reset">¿Olvidaste tu contraseña?</a>`) {
+		t.Fatalf("Spanish login page lacks the translated password reset link: %d, %s", spanishLogin.Code, spanishLogin.Body.String())
+	}
 	loginCSRF := responseCookie(loginPage, "login_csrf")
 	invalidLogin := request(handler, http.MethodPost, "/login", url.Values{
 		"email": {"owner@example.com"}, "password": {"long-enough-password"}, "csrf": {"wrong"},
@@ -1178,7 +1185,11 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 		{workspaceRoot + "/settings/audit", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/audit" + `"`, "Workspace settings"},
 	} {
 		body := request(handler, http.MethodGet, page.path, nil, cookies, nil).Body.String()
-		if !strings.Contains(body, `<nav class="sidebar-nav" aria-label="`+page.sidebarName+`">`) ||
+		navClass := "sidebar-nav"
+		if page.sidebarName == "Workspace settings" {
+			navClass += " workspace-settings-nav"
+		}
+		if !strings.Contains(body, `<nav class="`+navClass+`" aria-label="`+page.sidebarName+`">`) ||
 			!strings.Contains(body, page.active) ||
 			!strings.Contains(body, `class="workspace-switcher"`) ||
 			!strings.Contains(body, `class="account-menu"`) {

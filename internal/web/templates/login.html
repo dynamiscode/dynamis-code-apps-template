@@ -5,4 +5,4 @@
 <form action="/login" method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="return_to" value="{{.ReturnTo}}">
 <label for="email">{{.T "common.email"}}</label><input id="email" name="email" type="email" autocomplete="username" required maxlength="320" value="{{.Email}}" data-trim>
 <label for="password">{{.T "common.password"}}</label><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024">
-<button type="submit">{{.T "account.sign_in"}}</button></form>{{range .OIDCProviders}}<p><a class="button" href="/auth/oidc/{{.ID}}">{{$.T "account.sign_in_with" (dict "provider" .Name)}}</a></p>{{end}}</main></body></html>{{end}}
+<button type="submit">{{.T "account.sign_in"}}</button></form><p><a href="/password-reset">{{.T "account.forgot_password"}}</a></p>{{range .OIDCProviders}}<p><a class="button" href="/auth/oidc/{{.ID}}">{{$.T "account.sign_in_with" (dict "provider" .Name)}}</a></p>{{end}}</main></body></html>{{end}}

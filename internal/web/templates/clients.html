@@ -4,17 +4,17 @@
 <div class="app-shell"><aside class="sidebar">{{if not .SingleWorkspace}}<a class="sidebar-back" href="/">← {{.T "workspace.back_to_workspaces"}}</a>{{end}}{{template "workspace-nav" .}}</aside><main id="main"><h1>{{.T "clients.title"}}</h1>{{template "client-list" .}}</main></div></body></html>{{end}}
 {{define "client-list"}}<section id="client-list" data-events="{{.CurrentPath}}/events" data-live-connecting="{{.T "clients.live_connecting"}}" data-live-connected="{{.T "clients.live_connected"}}" data-live-unavailable="{{.T "clients.live_unavailable"}}" data-live-reconnecting="{{.T "clients.live_reconnecting"}}" data-live-waiting="{{.T "ui.updates_waiting"}}" aria-labelledby="clients-heading"><h2 id="clients-heading" class="visually-hidden">{{.T "clients.title"}}</h2>
 {{if .ErrorKey}}<p class="error" role="alert" tabindex="-1">{{.T .ErrorKey}}</p>{{end}}
-{{if .CanEditClients}}<form class="create" action="{{.CurrentPath}}" method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><h3>{{.T "clients.new_client"}}</h3>
+{{if .Clients}}<ul id="client-results" class="clients">{{range .Clients}}<li><a href="{{$.CurrentPath}}/{{.ID}}">{{.DisplayName}}</a>{{if .Email}} <span>{{.Email}}</span>{{end}}</li>{{end}}</ul>{{else}}<p id="client-results">{{.T "clients.none"}}</p>{{end}}
+{{if .NextCursor}}<p><a href="{{.NextPath}}">{{.T "items.next_page"}}</a></p>{{end}}<p class="status" role="status" aria-live="polite" id="realtime-status">{{.T "clients.live_fallback"}}</p>
+{{if .CanEditClients}}<details class="client-controls client-create"{{if .ErrorKey}} open{{end}}><summary>{{.T "clients.new_client"}}</summary><form class="create" action="{{.CurrentPath}}" method="post"><input type="hidden" name="csrf" value="{{.CSRF}}">
 <label for="client-display-name">{{.T "clients.display_name"}}</label><input id="client-display-name" name="display_name" required maxlength="200" value="{{.ClientDraft.DisplayName}}" data-trim>
 <label for="client-email">{{.T "common.email"}} {{.T "ui.optional"}}</label><input id="client-email" name="email" type="email" maxlength="254" value="{{.ClientDraft.Email}}">
 <label for="client-phone">{{.T "clients.phone"}} {{.T "ui.optional"}}</label><input id="client-phone" name="phone" maxlength="50" value="{{.ClientDraft.Phone}}">
 <label for="client-notes">{{.T "clients.notes"}} {{.T "ui.optional"}}</label><textarea id="client-notes" name="notes" maxlength="5000">{{.ClientDraft.Notes}}</textarea>
-<div class="actions"><button type="submit">{{.T "clients.add"}}</button></div></form>
+<div class="actions"><button type="submit">{{.T "clients.add"}}</button></div></form></details>
 {{else}}<p class="status">{{.T "clients.read_only"}}</p>{{end}}
-{{if .CanManageFields}}<p><a href="{{.FieldsPath}}">{{.T "clients.fields_link"}}</a></p>{{end}}
-{{template "client-query" .}}
-{{if .Clients}}<ul class="clients">{{range .Clients}}<li><a href="{{$.CurrentPath}}/{{.ID}}">{{.DisplayName}}</a>{{if .Email}} <span>{{.Email}}</span>{{end}}</li>{{end}}</ul>{{else}}<p>{{.T "clients.none"}}</p>{{end}}
-{{if .NextCursor}}<p><a href="{{.NextPath}}">{{.T "items.next_page"}}</a></p>{{end}}<p class="status" role="status" aria-live="polite" id="realtime-status">{{.T "clients.live_fallback"}}</p></section>{{end}}
+<details class="client-controls client-filters"{{if or .ClientQuery.Sort (eq .ClientQuery.Order "desc") .ClientQuery.FilterField .ClientQuery.FilterOp .ClientQuery.FilterValue .ClientQuery.FilterValueTo (eq .ClientQuery.Archived "archived") (eq .ClientQuery.Archived "all")}} open{{end}}><summary>{{.T "clients.list_options"}}</summary>{{template "client-query" .}}</details>
+{{if .CanManageFields}}<p><a href="{{.FieldsPath}}">{{.T "clients.fields_link"}}</a></p>{{end}}</section>{{end}}
 {{define "client-query"}}<form class="client-query" method="get"><fieldset><legend>{{.T "clients.sort_legend"}}</legend>
 <label for="client-sort">{{.T "clients.sort_label"}}</label><select id="client-sort" name="sort"><option value="">{{.T "clients.sort_none"}}</option>
 <option value="displayName"{{if eq .ClientQuery.Sort "displayName"}} selected{{end}}>{{.T "clients.display_name"}}</option>
