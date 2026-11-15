@@ -122,6 +122,7 @@ a { color: var(--accent); }
 label { display: block; font-weight: 700; margin-top: .75rem; }
 input, select, button { font: inherit; min-height: 2.75rem; border: 2px solid var(--border-strong); border-radius: .25rem; padding: .45rem .65rem; background: var(--surface); color: var(--ink); }
 input, select { width: 100%; }
+input[type="checkbox"], input[type="radio"] { width: 1.25rem; height: 1.25rem; min-height: 1.25rem; padding: 0; flex: none; accent-color: var(--accent); }
 button { border-color: var(--accent); background: var(--accent); color: var(--on-accent); font-weight: 700; cursor: pointer; }
 button:disabled { border-color: var(--border-muted); background: var(--disabled-surface); color: var(--muted); cursor: not-allowed; }
 main form:not(.inline) > :is(input:not([type="hidden"]), select, textarea, .reveal, .strength, .wizard-nav) + button { margin-top: .75rem; }
@@ -142,8 +143,9 @@ main form:not(.inline) > button.reveal { display: block; margin-top: .35rem; min
 .webhook-endpoint, .webhook-secret { overflow-wrap: anywhere; }
 .table-scroll { overflow-x: auto; }
 .success { border-left: .35rem solid var(--success); background: var(--success-surface); padding: .75rem; font-weight: 700; }
-.confirmation { display: flex; gap: .5rem; align-items: flex-start; }
-.confirmation input { width: auto; flex: none; margin-top: .35rem; }
+.confirmation { display: flex; gap: .5rem; align-items: flex-start; min-height: 2.75rem; }
+.confirmation input { margin-top: .35rem; }
+fieldset label:has(> input[type="checkbox"]), fieldset label:has(> input[type="radio"]) { display: flex; align-items: center; gap: .5rem; min-height: 2.75rem; margin-top: 0; }
 .table-wrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; }
 th, td { padding: .65rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
