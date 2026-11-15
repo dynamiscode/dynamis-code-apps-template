@@ -6,6 +6,7 @@ colors:
   muted: "#536174"
   surface: "#fff"
   canvas: "#f3f6fa"
+  sidebar-surface: "#edf1f7"
   accent: "#154ea3"
   accent-hover: "#103d80"
   accent-surface: "#e8effa"
@@ -27,6 +28,7 @@ colors:
   dark-muted: "#a4afbf"
   dark-surface: "#1a2231"
   dark-canvas: "#111826"
+  dark-sidebar-surface: "#151d2a"
   dark-accent: "#8ab4f8"
   dark-accent-hover: "#aecbfa"
   dark-accent-surface: "#1f2d47"
@@ -49,6 +51,17 @@ typography:
     fontFamily: "system-ui, sans-serif"
     fontSize: "100%"
     lineHeight: 1.5
+  page-heading:
+    fontFamily: "system-ui, sans-serif"
+    fontSize: "2rem"
+    fontWeight: 700
+    lineHeight: 1.2
+    letterSpacing: "-0.02em"
+  section-heading:
+    fontFamily: "system-ui, sans-serif"
+    fontSize: "1.375rem"
+    fontWeight: 700
+    lineHeight: 1.3
   navigation-label:
     fontFamily: "system-ui, sans-serif"
     fontSize: "0.75rem"
@@ -139,9 +152,9 @@ never use color alone to convey error, warning, success, or selection.
 ### Neutral
 
 `ink` and `muted` distinguish primary and supporting text. `canvas` surrounds
-the `surface`; border tokens distinguish cards, form controls, and disabled
-controls. The frontmatter records each role's light and dark values. Shadow
-color also changes with the theme.
+the `surface`; `sidebar-surface` separates navigation from workspace content.
+Borders distinguish cards, form controls, and disabled controls. The frontmatter
+records each role's light and dark values. Shadow color also changes with the theme.
 
 The account preference selects light, dark, or system appearance. System
 appearance follows `prefers-color-scheme`; see [Theme](docs/web.md#theme).
@@ -152,7 +165,8 @@ The base uses the system UI font stack at the browser's default size with a
 `1.5` line height. Labels and controls use bold weight. Navigation group labels
 use uppercase text, a `0.75rem` size, `800` weight, and `0.06em` letter
 spacing. Workspace switcher metadata uses muted supporting text at `0.875rem`.
-Headings retain browser defaults rather than a separately defined type scale.
+Page headings use a fixed scale: `2rem` / `1.2` for `h1` and `1.375rem` / `1.3`
+for visible `h2` headings.
 
 ## Layout
 
@@ -162,8 +176,9 @@ is capped at `64rem`; narrow pages such as sign-in use `32rem`. Main horizontal
 padding uses `clamp(1rem, 3vw, 2rem)`.
 
 At `38rem` and below, the top bar wraps and the sidebar moves above the content.
-Settings navigation uses two columns; rows and actions stack. Tables scroll
-horizontally when needed. Preserve reflow at a `320px` CSS viewport.
+Workspace and settings navigation use two columns; rows and actions stack.
+Narrow pages use bordered surface panels. Tables scroll horizontally when
+needed. Preserve reflow at a `320px` CSS viewport.
 
 ## Elevation & Depth
 
@@ -179,7 +194,8 @@ and toasts; keep the focus halo for keyboard focus, not surface depth.
 
 Controls and navigation links use compact `0.25rem` corners. Cards and floating
 menu panels use `0.4rem` corners. Buttons and fields use `2px` borders; cards
-use `1px` borders. Status messages use a prominent `0.35rem` left border.
+use `1px` borders. Status messages use `1px` semantic borders and matching
+backgrounds.
 
 ## Components
 
@@ -198,26 +214,35 @@ switch to the danger border. Labels are bold and remain visible.
 
 ### Cards / Containers
 
-Workspace links and item forms use a surface background, `1px` border, `0.4rem`
-radius, and `1rem` padding with `.5rem` internal gaps.
+Workspace links use a surface background, `1px` border, `0.4rem` radius, and
+`1rem` padding. Item records group edit and share controls in one bordered
+surface. Narrow pages use a bordered surface panel.
 
 ### Feedback
 
 Errors, warnings, and success messages pair semantic color with text and a
-left border. Toasts use a floating bordered surface and shadow.
+`1px` border and matching background. Toasts use a floating bordered surface
+and shadow.
 
 ### Navigation
 
 The top bar contains brand, workspace context, and account controls. Workspace
 and account menus use native disclosure elements. The sidebar marks the current
 link with bold text and the accent surface. Navigation links retain a `2.75rem`
-minimum height and stack above content at the narrow breakpoint.
+minimum height. At the narrow breakpoint, workspace and settings navigation
+use two columns above the content. The workspace switcher panel stays within
+the viewport.
 
 ### Focus
 
 Keyboard focus uses a `.2rem` outline plus a `.4rem` outer halo. Preserve both
 layers in light and dark themes. The stylesheet removes animation and
 transitions when reduced motion is requested.
+
+### Browser surfaces
+
+Links use `.15em` underline offset and `.08em` thickness. Text selection,
+carets, and scrollbars use semantic theme colors; table numerals are tabular.
 
 ## Do's and Don'ts
 
