@@ -183,7 +183,7 @@ code { overflow-wrap: anywhere; }
   .sidebar-nav:not(.workspace-settings-nav) > .sidebar-settings { margin-top: .5rem; }
   .workspace-settings-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .25rem; }
   .workspace-settings-nav .nav-label { grid-column: 1 / -1; }
-  .workspace-settings-nav .sidebar-subitem { padding-left: .65rem !important; }
+  .workspace-settings-nav .sidebar-subitem { min-width: 0; padding-left: .65rem !important; overflow-wrap: anywhere; }
   .sidebar-settings { margin-top: .75rem; }
   .sidebar-settings .nav-label { margin-top: .5rem; }
   main { padding-top: 1rem; }
