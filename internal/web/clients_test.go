@@ -12,6 +12,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
+	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/portability"
@@ -66,7 +67,8 @@ func newClientsTestEnv(t *testing.T) clientsTestEnv {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler.EnableClients(clients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace))
+	handler.EnableClients(clients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace),
+		listprefs.NewService(db, cfg.Database.Driver, auth))
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -104,7 +106,7 @@ func TestClientsListShowsCreateFormOnlyToWriters(t *testing.T) {
 	env := newClientsTestEnv(t)
 	owner := request(env.routes, http.MethodGet, env.listPath(), nil, env.cookies, nil)
 	if owner.Code != http.StatusOK || !strings.Contains(owner.Body.String(), `name="display_name"`) ||
-		!strings.Contains(owner.Body.String(), `action="`+env.listPath()+`"`) {
+		!strings.Contains(owner.Body.String(), `class="create" action="`+env.listPath()+`"`) {
 		t.Fatalf("owner list = %d, want the create form: %s", owner.Code, owner.Body.String())
 	}
 	body := owner.Body.String()
@@ -117,7 +119,7 @@ func TestClientsListShowsCreateFormOnlyToWriters(t *testing.T) {
 	viewer := request(env.routes, http.MethodGet, env.listPath(), nil, env.viewerCookies, nil)
 	body = viewer.Body.String()
 	if viewer.Code != http.StatusOK || strings.Contains(body, `name="display_name"`) ||
-		strings.Contains(body, `action="`+env.listPath()+`"`) ||
+		strings.Contains(body, `class="create" action="`+env.listPath()+`"`) ||
 		!strings.Contains(body, `<details class="client-controls client-filters">`) {
 		t.Fatalf("viewer list = %d, want read-only without create controls: %s", viewer.Code, body)
 	}
@@ -287,6 +289,117 @@ func TestClientsListFilterAndSortFromTheForm(t *testing.T) {
 	if code != http.StatusOK || !strings.Contains(body, `value="`+gold.ID.String()+`"`) ||
 		!strings.Contains(body, "Gold") || !strings.Contains(body, `<details class="client-controls client-filters" open>`) {
 		t.Fatalf("choice form = %d: %s", code, body)
+	}
+}
+
+func TestClientsListUsesResponsiveTableAndSavedColumns(t *testing.T) {
+	env := newClientsTestEnv(t)
+	created := request(env.routes, http.MethodPost, env.listPath(), url.Values{
+		"csrf": {env.csrf}, "display_name": {"Ada Lovelace"}, "email": {"ada@example.com"},
+	}, env.cookies, nil)
+	if created.Code != http.StatusSeeOther {
+		t.Fatalf("create client = %d", created.Code)
+	}
+	response := request(env.routes, http.MethodGet, env.listPath(), nil, env.viewerCookies, nil)
+	body := response.Body.String()
+	if response.Code != http.StatusOK || !strings.Contains(body, `class="list-view-table"`) ||
+		!strings.Contains(body, `class="list-view-cards"`) ||
+		!strings.Contains(body, `aria-label="Columns"`) ||
+		!strings.Contains(body, `name="visible" value="false"`) {
+		t.Fatalf("Clients list should render the responsive table and default column controls: %d %s", response.Code, body)
+	}
+	service := clients.NewService(env.db, config.SQLite, env.auth, 50)
+	owner := mustOwnerPrincipal(t, env)
+	field, err := service.DefineField(context.Background(), owner, env.workspaceID,
+		clients.FieldInput{Label: "Account tier", Type: clients.FieldTypeText}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientID, err := clients.ParseClientID(strings.TrimPrefix(created.Header().Get("Location"), env.listPath()+"/"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := service.Get(context.Background(), owner, env.workspaceID, clientID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.SetValue(context.Background(), owner, env.workspaceID, clientID, client.Version, field.ID, "A-17", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	showCustom := request(env.routes, http.MethodPost, env.listPath()+"/preferences/columns/"+field.ID.String(), url.Values{
+		"csrf": {env.viewerCSRF}, "visible": {"true"},
+	}, env.viewerCookies, nil)
+	if showCustom.Code != http.StatusSeeOther {
+		t.Fatalf("show custom column = %d %s", showCustom.Code, showCustom.Body.String())
+	}
+	response = request(env.routes, http.MethodGet, env.listPath(), nil, env.viewerCookies, nil)
+	if !strings.Contains(response.Body.String(), `data-column="`+field.ID.String()+`">A-17`) {
+		t.Fatalf("visible custom field value missing from table: %s", response.Body.String())
+	}
+	hideName := request(env.routes, http.MethodPost, env.listPath()+"/preferences/columns/displayName", url.Values{
+		"csrf": {env.viewerCSRF}, "visible": {"false"},
+	}, env.viewerCookies, nil)
+	if hideName.Code != http.StatusSeeOther {
+		t.Fatalf("hide default column = %d %s", hideName.Code, hideName.Body.String())
+	}
+	response = request(env.routes, http.MethodGet, env.listPath(), nil, env.viewerCookies, nil)
+	if response.Code != http.StatusOK || strings.Contains(response.Body.String(), `data-column="displayName"`) ||
+		!strings.Contains(response.Body.String(), `aria-label="Open client row 1"`) ||
+		strings.Contains(response.Body.String(), `aria-label="Open client Ada Lovelace"`) {
+		t.Fatalf("hidden column remains visible: %d %s", response.Code, response.Body.String())
+	}
+	ownerList := request(env.routes, http.MethodGet, env.listPath(), nil, env.cookies, nil)
+	if !strings.Contains(ownerList.Body.String(), `data-column="displayName"`) {
+		t.Fatalf("viewer column choice leaked to workspace owner: %s", ownerList.Body.String())
+	}
+	reset := request(env.routes, http.MethodPost, env.listPath()+"/preferences/columns/reset", url.Values{
+		"csrf": {env.viewerCSRF},
+	}, env.viewerCookies, nil)
+	if reset.Code != http.StatusSeeOther {
+		t.Fatalf("reset columns = %d %s", reset.Code, reset.Body.String())
+	}
+	response = request(env.routes, http.MethodGet, env.listPath(), nil, env.viewerCookies, nil)
+	if !strings.Contains(response.Body.String(), `data-column="displayName"`) {
+		t.Fatalf("reset did not restore the default columns: %s", response.Body.String())
+	}
+}
+
+func TestClientsListCombinesFiltersAndPreservesPageQuery(t *testing.T) {
+	env := newClientsTestEnv(t)
+	for _, name := range []string{"Ada", "Bea", "Cara"} {
+		created := request(env.routes, http.MethodPost, env.listPath(), url.Values{
+			"csrf": {env.csrf}, "display_name": {name},
+		}, env.cookies, nil)
+		if created.Code != http.StatusSeeOther {
+			t.Fatalf("create %s = %d", name, created.Code)
+		}
+	}
+	response := request(env.routes, http.MethodGet,
+		env.listPath()+"?filter=phone:is_empty:&filter=displayName:contains:a&sort=displayName&order=asc&limit=1",
+		nil, env.viewerCookies, nil)
+	body := response.Body.String()
+	if response.Code != http.StatusOK || !strings.Contains(body, `>Ada<`) ||
+		!strings.Contains(body, "Hidden column") ||
+		!strings.Contains(body, `filter=phone%3Ais_empty%3A`) {
+		t.Fatalf("combined filtered page = %d: %s", response.Code, body)
+	}
+	cursorAt := strings.Index(body, "cursor=")
+	if cursorAt < 0 {
+		t.Fatalf("filtered page lacks a next-page link: %s", body)
+	}
+	hrefStart := strings.LastIndex(body[:cursorAt], `href="`)
+	hrefEnd := strings.Index(body[cursorAt:], `"`)
+	if hrefStart < 0 || hrefEnd < 0 {
+		t.Fatalf("filtered page lacks a next-page link: %s", body)
+	}
+	link := body[hrefStart+len(`href="`) : cursorAt+hrefEnd]
+	if !strings.Contains(link, "cursor=") || !strings.Contains(link, "filter=") ||
+		!strings.Contains(link, "sort=displayName") || !strings.Contains(link, "limit=1") {
+		t.Fatalf("next link lost query state: %s", link)
+	}
+	if response := request(env.routes, http.MethodGet,
+		env.listPath()+"?filter=displayName:contains:a&filter=displayName:contains:b", nil, env.viewerCookies, nil); response.Code != http.StatusBadRequest {
+		t.Fatalf("duplicate UI filter field = %d, want 400", response.Code)
 	}
 }
 

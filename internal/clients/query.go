@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
@@ -22,6 +23,7 @@ const (
 	OpBefore   = "before"
 	OpAfter    = "after"
 	OpBetween  = "between"
+	OpIsEmpty  = "is_empty"
 )
 
 // Common fields that lists can sort and filter on. Custom fields use their
@@ -94,8 +96,8 @@ var commonFieldColumns = map[string]struct {
 	FieldEmail:       {"email", kindText, true},
 	FieldPhone:       {"phone", kindText, true},
 	FieldNotes:       {"notes", kindText, true},
-	FieldCreatedAt:   {"created_at", kindTimestamp, false},
-	FieldUpdatedAt:   {"updated_at", kindTimestamp, false},
+	FieldCreatedAt:   {"created_at", kindTimestamp, true},
+	FieldUpdatedAt:   {"updated_at", kindTimestamp, true},
 }
 
 // resolveField maps a sort or filter key to its SQL. Common text fields treat
@@ -248,6 +250,12 @@ func (s *Service) filterPredicate(t target, f FilterInput) (string, []any, error
 		return "", nil, ErrInvalidQuery
 	}
 	v := t.value
+	if f.Op == OpIsEmpty {
+		if f.Value != "" {
+			return "", nil, ErrInvalidQuery
+		}
+		return "(" + v + " IS NULL OR " + v + " = '')", nil, nil
+	}
 	switch t.kind {
 	case kindText:
 		// ponytail: case folding and contains cannot use the slot index, so they
@@ -305,6 +313,32 @@ func (s *Service) filterPredicate(t target, f FilterInput) (string, []any, error
 		}
 		// Dates are fixed-width YYYY-MM-DD, so the column's own collation
 		// orders them the same as bytes and the slot index serves the range.
+		switch f.Op {
+		case OpEquals:
+			return v + " = ?", canonical, nil
+		case OpBefore:
+			return v + " < ?", canonical, nil
+		case OpAfter:
+			return v + " > ?", canonical, nil
+		case OpBetween:
+			return v + " >= ? AND " + v + " <= ?", canonical, nil
+		}
+	case kindTimestamp:
+		values, err := operands(f.Op, f.Value)
+		if err != nil {
+			return "", nil, err
+		}
+		canonical := make([]any, len(values))
+		for i, value := range values {
+			parsed, err := time.Parse(time.RFC3339, value)
+			if err != nil {
+				return "", nil, ErrInvalidQuery
+			}
+			canonical[i] = parsed.UTC().Format("2006-01-02T15:04:05.000000000Z")
+		}
+		if f.Op == OpBetween && canonical[0].(string) > canonical[1].(string) {
+			return "", nil, ErrInvalidQuery
+		}
 		switch f.Op {
 		case OpEquals:
 			return v + " = ?", canonical, nil

@@ -256,13 +256,15 @@ session values, invitation values, connection strings, and signed URLs.
   numerically, and other text sorts by bytes. Empty values sort last in both
   directions. Ties break by client ID in the same direction.
   `filter=<field>:<operator>:<value>` may repeat, and conditions combine with AND.
-  The value may contain colons. Operators by field kind:
+  The value may contain colons. `is_empty` takes an empty value (for example,
+  `filter=email:is_empty:`) and matches absent, null, or empty values. Operators by field kind:
   - Text (`displayName`, `email`, `phone`, `notes`, and custom text): `equals` or
     `contains`. Matching is case-insensitive for ASCII letters only, in both
     dialects. Non-ASCII letters match as typed.
-  - Number and date: `equals`, `before`, `after`, or `between`. `before` and
-    `after` are strict. `between` takes `from,to` and is inclusive. A number's
-    `equals` compares canonical decimal text, so `10.0` matches `10`.
+  - Number, date, and timestamps (`createdAt`, `updatedAt`): `equals`, `before`,
+    `after`, or `between`. Timestamps take RFC3339 values. `before` and `after`
+    are strict. `between` takes `from,to` and is inclusive. A number's `equals`
+    compares canonical decimal text, so `10.0` matches `10`.
   - Yes/no: `equals` with `true` or `false`.
   - Single choice: `equals` with one or more comma-separated option IDs. It
     matches any listed option.

@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
 )
@@ -110,6 +111,7 @@ func exerciseClientQueries(t *testing.T, f fixture) {
 		{name: "choice equals one option", filters: []FilterInput{flt(tier.ID.String(), OpEquals, gold.ID.String())}, want: []string{"Ada"}},
 		{name: "choice equals several options", filters: []FilterInput{flt(tier.ID.String(), OpEquals, gold.ID.String(), bronze.ID.String())}, want: []string{"Dan", "Ada"}},
 		// Filters combine with AND, and an empty value never matches.
+		{name: "empty values match only the explicit empty operator", filters: []FilterInput{flt(FieldEmail, OpIsEmpty)}, want: []string{"Fay", "Cy", "Bea"}},
 		{name: "filters combine", filters: []FilterInput{
 			flt(company.ID.String(), OpContains, "analytic"),
 			flt(vip.ID.String(), OpEquals, "true"),
@@ -167,19 +169,21 @@ func exerciseClientQueries(t *testing.T, f fixture) {
 
 	// Bad sort or filter input is ErrInvalidInput on every path.
 	invalid := map[string]ListInput{
-		"unknown sort field":        {Sort: SortInput{Field: "nope"}},
-		"unknown filter field":      {Filters: []FilterInput{flt("nope", OpEquals, "x")}},
-		"before on text":            {Filters: []FilterInput{flt(company.ID.String(), OpBefore, "x")}},
-		"contains on number":        {Filters: []FilterInput{flt(score.ID.String(), OpContains, "1")}},
-		"between on common text":    {Filters: []FilterInput{flt(FieldEmail, OpBetween, "a", "b")}},
-		"empty text value":          {Filters: []FilterInput{flt(company.ID.String(), OpContains, "")}},
-		"between with one value":    {Filters: []FilterInput{flt(score.ID.String(), OpBetween, "9")}},
-		"between from after to":     {Filters: []FilterInput{flt(score.ID.String(), OpBetween, "10", "9")}},
-		"number that is not finite": {Filters: []FilterInput{flt(score.ID.String(), OpEquals, "abc")}},
-		"date that is not real":     {Filters: []FilterInput{flt(joined.ID.String(), OpEquals, "2026-02-30")}},
-		"yes/no that is not a bool": {Filters: []FilterInput{flt(vip.ID.String(), OpEquals, "yes")}},
-		"choice given by label":     {Filters: []FilterInput{flt(tier.ID.String(), OpEquals, "Gold")}},
-		"choice with no options":    {Filters: []FilterInput{flt(tier.ID.String(), OpEquals)}},
+		"unknown sort field":          {Sort: SortInput{Field: "nope"}},
+		"unknown filter field":        {Filters: []FilterInput{flt("nope", OpEquals, "x")}},
+		"before on text":              {Filters: []FilterInput{flt(company.ID.String(), OpBefore, "x")}},
+		"contains on number":          {Filters: []FilterInput{flt(score.ID.String(), OpContains, "1")}},
+		"between on common text":      {Filters: []FilterInput{flt(FieldEmail, OpBetween, "a", "b")}},
+		"empty text value":            {Filters: []FilterInput{flt(company.ID.String(), OpContains, "")}},
+		"between with one value":      {Filters: []FilterInput{flt(score.ID.String(), OpBetween, "9")}},
+		"between from after to":       {Filters: []FilterInput{flt(score.ID.String(), OpBetween, "10", "9")}},
+		"number that is not finite":   {Filters: []FilterInput{flt(score.ID.String(), OpEquals, "abc")}},
+		"date that is not real":       {Filters: []FilterInput{flt(joined.ID.String(), OpEquals, "2026-02-30")}},
+		"yes/no that is not a bool":   {Filters: []FilterInput{flt(vip.ID.String(), OpEquals, "yes")}},
+		"choice given by label":       {Filters: []FilterInput{flt(tier.ID.String(), OpEquals, "Gold")}},
+		"choice with no options":      {Filters: []FilterInput{flt(tier.ID.String(), OpEquals)}},
+		"empty operator with a value": {Filters: []FilterInput{flt(FieldEmail, OpIsEmpty, "x")}},
+		"invalid timestamp":           {Filters: []FilterInput{flt(FieldCreatedAt, OpEquals, "yesterday")}},
 	}
 	for name, input := range invalid {
 		input.Limit = 50
@@ -238,6 +242,33 @@ func flt(field, op string, values ...string) FilterInput {
 // TestClientQueriesAcrossFieldTypes runs the query rules on SQLite.
 func TestClientQueriesAcrossFieldTypes(t *testing.T) {
 	exerciseClientQueries(t, newFixture(t))
+}
+
+func TestClientTimestampFiltersUseRFC3339AndStoredPrecision(t *testing.T) {
+	f := newFixture(t)
+	firstAt := time.Date(2026, 11, 15, 12, 0, 0, 0, time.UTC)
+	secondAt := firstAt.Add(time.Hour)
+	f.service.now = func() time.Time { return firstAt }
+	if _, err := f.service.Create(f.ctx, f.member, f.workspaceID, Input{DisplayName: "First"}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	f.service.now = func() time.Time { return secondAt }
+	if _, err := f.service.Create(f.ctx, f.member, f.workspaceID, Input{DisplayName: "Second"}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name   string
+		filter FilterInput
+		want   []string
+	}{
+		{name: "equals", filter: flt(FieldCreatedAt, OpEquals, firstAt.Format(time.RFC3339)), want: []string{"First"}},
+		{name: "strict before", filter: flt(FieldUpdatedAt, OpBefore, secondAt.Format(time.RFC3339)), want: []string{"First"}},
+		{name: "inclusive between", filter: flt(FieldCreatedAt, OpBetween, firstAt.Format(time.RFC3339), secondAt.Format(time.RFC3339)), want: []string{"Second", "First"}},
+	} {
+		if got := listNamesForQuery(t, f, SortInput{}, tc.filter); !slices.Equal(got, tc.want) {
+			t.Fatalf("%s timestamp filter = %v, want %v", tc.name, got, tc.want)
+		}
+	}
 }
 
 // TestListCursorBindsSortAndFilters refuses a cursor from another sort or filter

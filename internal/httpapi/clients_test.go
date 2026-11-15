@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 
 	"example.com/dynamis-code/apps-template/internal/clients"
@@ -178,10 +180,22 @@ func TestClientListSortAndFilterParameters(t *testing.T) {
 		"?sort=displayName&filter=displayName:contains:A":              {"Ada", "Bea"},
 		"?filter=displayName:contains:a&filter=email:contains:example": {"Ada"},
 		"?filter=email:equals:CY@EXAMPLE.COM":                          {"Cy"},
+		"?filter=email:is_empty:":                                      {"Bea"},
 	} {
 		if _, got := names(t, query); !reflect.DeepEqual(got, want) {
 			t.Fatalf("list %q = %v, want %v", query, got, want)
 		}
+	}
+	wideFilters := url.Values{}
+	for range 21 {
+		wideFilters.Add("filter", "displayName:contains:A")
+	}
+	if response := serveAuthorized(handler, http.MethodGet, base+"?"+wideFilters.Encode(), "", token, nil); response.Code != http.StatusOK {
+		t.Fatalf("REST v1 rejected more than 20 repeated filters: %d %s", response.Code, response.Body.String())
+	}
+	longFilter := "?filter=displayName:contains:" + strings.Repeat("x", 1025)
+	if response := serveAuthorized(handler, http.MethodGet, base+longFilter, "", token, nil); response.Code != http.StatusOK {
+		t.Fatalf("REST v1 rejected a filter longer than the browser limit: %d %s", response.Code, response.Body.String())
 	}
 
 	next, first := names(t, "?limit=1&sort=email")

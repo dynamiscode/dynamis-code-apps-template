@@ -244,14 +244,20 @@ missing WebMCP support is a passing fallback result. Debug registration with
 the browser's `document.modelContext.getTools()` inspection without copying
 session values or hidden inputs into logs.
 
-`/workspaces/{workspaceId}/clients` lists clients newest first by default. A GET
-form names one sort field and direction, one filter (field, operator, and value,
-with a second value for `between`), and the archived selector (`active` by
-default, `archived`, or `all`). A next-page link keeps them. Members,
-admins, and owners see the create form; viewers see the list read-only.
-Results and paging precede native create and list-options disclosures. The
-create form stays open after validation errors; active query state opens its
-filters. Both forms remain ordinary POST/GET forms.
+`/workspaces/{workspaceId}/clients` lists authorized clients newest first by
+default. It renders a semantic table above 38rem and cards at or below 38rem.
+Display name and email are visible by default; common metadata and active custom
+fields are available as columns. Column choices save per user, workspace, and
+list; reset columns restores the defaults. Archived custom fields are hidden
+without losing their saved choice, so restoring one restores its prior visibility.
+The GET form accepts one sort and up to 20 distinct field filters, represented as
+repeated `filter=field:operator:value` parameters, plus page size and archived
+selector. Filters combine with AND, appear as removable chips, and remain visible
+when their column is hidden. Sorting, filters, page size, and cursor stay in the
+URL. Clear filters and reset columns are separate controls. Column and filter
+forms work without JavaScript. Members, admins, and owners see the create form;
+viewers see the list read-only. The create form stays open after validation
+errors; active query state opens list options.
 `/workspaces/{workspaceId}/clients/{clientId}` shows one client. Writers get an
 edit form that carries the client's version; a stale version shows a retry
 message. Writes are ordinary CSRF-protected POST forms that redirect after
