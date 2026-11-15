@@ -1,0 +1,672 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-15T01:59:25Z",
+  "title": "Design System: Dynamis Code Apps Template",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "Deep blue",
+        "canonical": "#154ea3",
+        "tonalRamp": [
+          "oklch(15% 0.0560 259.1)",
+          "oklch(25% 0.0934 259.1)",
+          "oklch(35% 0.1307 259.1)",
+          "oklch(45% 0.1494 259.1)",
+          "oklch(55% 0.1494 259.1)",
+          "oklch(70% 0.1494 259.1)",
+          "oklch(85% 0.0747 259.1)",
+          "oklch(95% 0.0249 259.1)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Cool slate ink",
+        "canonical": "#172033",
+        "tonalRamp": [
+          "oklch(15% 0.0145 264.4)",
+          "oklch(25% 0.0242 264.4)",
+          "oklch(35% 0.0339 264.4)",
+          "oklch(45% 0.0388 264.4)",
+          "oklch(55% 0.0388 264.4)",
+          "oklch(70% 0.0388 264.4)",
+          "oklch(85% 0.0194 264.4)",
+          "oklch(95% 0.0065 264.4)"
+        ]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Cool slate canvas",
+        "canonical": "#f3f6fa",
+        "tonalRamp": [
+          "oklch(15% 0.0023 255.5)",
+          "oklch(25% 0.0039 255.5)",
+          "oklch(35% 0.0055 255.5)",
+          "oklch(45% 0.0062 255.5)",
+          "oklch(55% 0.0062 255.5)",
+          "oklch(70% 0.0062 255.5)",
+          "oklch(85% 0.0031 255.5)",
+          "oklch(95% 0.0010 255.5)"
+        ]
+      },
+      "muted": {
+        "canonical": "#536174",
+        "tonalRamp": [
+          "oklch(15% 0.0132 256.1)",
+          "oklch(25% 0.0220 256.1)",
+          "oklch(35% 0.0308 256.1)",
+          "oklch(45% 0.0352 256.1)",
+          "oklch(55% 0.0352 256.1)",
+          "oklch(70% 0.0352 256.1)",
+          "oklch(85% 0.0176 256.1)",
+          "oklch(95% 0.0059 256.1)"
+        ]
+      },
+      "surface": {
+        "canonical": "#fff",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.0)",
+          "oklch(25% 0.0000 0.0)",
+          "oklch(35% 0.0000 0.0)",
+          "oklch(45% 0.0000 0.0)",
+          "oklch(55% 0.0000 0.0)",
+          "oklch(70% 0.0000 0.0)",
+          "oklch(85% 0.0000 0.0)",
+          "oklch(95% 0.0000 0.0)"
+        ]
+      },
+      "accent-hover": {
+        "canonical": "#103d80",
+        "tonalRamp": [
+          "oklch(15% 0.0462 258.9)",
+          "oklch(25% 0.0771 258.9)",
+          "oklch(35% 0.1079 258.9)",
+          "oklch(45% 0.1233 258.9)",
+          "oklch(55% 0.1233 258.9)",
+          "oklch(70% 0.1233 258.9)",
+          "oklch(85% 0.0616 258.9)",
+          "oklch(95% 0.0205 258.9)"
+        ]
+      },
+      "accent-surface": {
+        "canonical": "#e8effa",
+        "tonalRamp": [
+          "oklch(15% 0.0062 259.4)",
+          "oklch(25% 0.0104 259.4)",
+          "oklch(35% 0.0145 259.4)",
+          "oklch(45% 0.0166 259.4)",
+          "oklch(55% 0.0166 259.4)",
+          "oklch(70% 0.0166 259.4)",
+          "oklch(85% 0.0083 259.4)",
+          "oklch(95% 0.0028 259.4)"
+        ]
+      },
+      "on-accent": {
+        "canonical": "#fff",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.0)",
+          "oklch(25% 0.0000 0.0)",
+          "oklch(35% 0.0000 0.0)",
+          "oklch(45% 0.0000 0.0)",
+          "oklch(55% 0.0000 0.0)",
+          "oklch(70% 0.0000 0.0)",
+          "oklch(85% 0.0000 0.0)",
+          "oklch(95% 0.0000 0.0)"
+        ]
+      },
+      "danger": {
+        "canonical": "#a51d2d",
+        "tonalRamp": [
+          "oklch(15% 0.0637 21.4)",
+          "oklch(25% 0.1061 21.4)",
+          "oklch(35% 0.1485 21.4)",
+          "oklch(45% 0.1698 21.4)",
+          "oklch(55% 0.1698 21.4)",
+          "oklch(70% 0.1698 21.4)",
+          "oklch(85% 0.0849 21.4)",
+          "oklch(95% 0.0283 21.4)"
+        ]
+      },
+      "danger-surface": {
+        "canonical": "#fff0f1",
+        "tonalRamp": [
+          "oklch(15% 0.0061 12.8)",
+          "oklch(25% 0.0102 12.8)",
+          "oklch(35% 0.0142 12.8)",
+          "oklch(45% 0.0163 12.8)",
+          "oklch(55% 0.0163 12.8)",
+          "oklch(70% 0.0163 12.8)",
+          "oklch(85% 0.0081 12.8)",
+          "oklch(95% 0.0027 12.8)"
+        ]
+      },
+      "warning": {
+        "canonical": "#8a5a00",
+        "tonalRamp": [
+          "oklch(15% 0.0405 73.3)",
+          "oklch(25% 0.0675 73.3)",
+          "oklch(35% 0.0945 73.3)",
+          "oklch(45% 0.1080 73.3)",
+          "oklch(55% 0.1080 73.3)",
+          "oklch(70% 0.1080 73.3)",
+          "oklch(85% 0.0540 73.3)",
+          "oklch(95% 0.0180 73.3)"
+        ]
+      },
+      "warning-surface": {
+        "canonical": "#fff8db",
+        "tonalRamp": [
+          "oklch(15% 0.0144 95.8)",
+          "oklch(25% 0.0241 95.8)",
+          "oklch(35% 0.0337 95.8)",
+          "oklch(45% 0.0385 95.8)",
+          "oklch(55% 0.0385 95.8)",
+          "oklch(70% 0.0385 95.8)",
+          "oklch(85% 0.0193 95.8)",
+          "oklch(95% 0.0064 95.8)"
+        ]
+      },
+      "warning-border": {
+        "canonical": "#d6b656",
+        "tonalRamp": [
+          "oklch(15% 0.0453 91.0)",
+          "oklch(25% 0.0755 91.0)",
+          "oklch(35% 0.1056 91.0)",
+          "oklch(45% 0.1207 91.0)",
+          "oklch(55% 0.1207 91.0)",
+          "oklch(70% 0.1207 91.0)",
+          "oklch(85% 0.0604 91.0)",
+          "oklch(95% 0.0201 91.0)"
+        ]
+      },
+      "success": {
+        "canonical": "#176b3a",
+        "tonalRamp": [
+          "oklch(15% 0.0414 152.6)",
+          "oklch(25% 0.0691 152.6)",
+          "oklch(35% 0.0967 152.6)",
+          "oklch(45% 0.1105 152.6)",
+          "oklch(55% 0.1105 152.6)",
+          "oklch(70% 0.1105 152.6)",
+          "oklch(85% 0.0553 152.6)",
+          "oklch(95% 0.0184 152.6)"
+        ]
+      },
+      "success-surface": {
+        "canonical": "#edf8f0",
+        "tonalRamp": [
+          "oklch(15% 0.0059 154.5)",
+          "oklch(25% 0.0098 154.5)",
+          "oklch(35% 0.0137 154.5)",
+          "oklch(45% 0.0157 154.5)",
+          "oklch(55% 0.0157 154.5)",
+          "oklch(70% 0.0157 154.5)",
+          "oklch(85% 0.0078 154.5)",
+          "oklch(95% 0.0026 154.5)"
+        ]
+      },
+      "border": {
+        "canonical": "#ccd3dd",
+        "tonalRamp": [
+          "oklch(15% 0.0059 257.2)",
+          "oklch(25% 0.0099 257.2)",
+          "oklch(35% 0.0138 257.2)",
+          "oklch(45% 0.0158 257.2)",
+          "oklch(55% 0.0158 257.2)",
+          "oklch(70% 0.0158 257.2)",
+          "oklch(85% 0.0079 257.2)",
+          "oklch(95% 0.0026 257.2)"
+        ]
+      },
+      "border-strong": {
+        "canonical": "#657287",
+        "tonalRamp": [
+          "oklch(15% 0.0136 260.0)",
+          "oklch(25% 0.0227 260.0)",
+          "oklch(35% 0.0318 260.0)",
+          "oklch(45% 0.0364 260.0)",
+          "oklch(55% 0.0364 260.0)",
+          "oklch(70% 0.0364 260.0)",
+          "oklch(85% 0.0182 260.0)",
+          "oklch(95% 0.0061 260.0)"
+        ]
+      },
+      "border-muted": {
+        "canonical": "#aeb7c5",
+        "tonalRamp": [
+          "oklch(15% 0.0084 259.2)",
+          "oklch(25% 0.0140 259.2)",
+          "oklch(35% 0.0195 259.2)",
+          "oklch(45% 0.0223 259.2)",
+          "oklch(55% 0.0223 259.2)",
+          "oklch(70% 0.0223 259.2)",
+          "oklch(85% 0.0112 259.2)",
+          "oklch(95% 0.0037 259.2)"
+        ]
+      },
+      "disabled-surface": {
+        "canonical": "#e2e6ec",
+        "tonalRamp": [
+          "oklch(15% 0.0035 258.3)",
+          "oklch(25% 0.0058 258.3)",
+          "oklch(35% 0.0081 258.3)",
+          "oklch(45% 0.0092 258.3)",
+          "oklch(55% 0.0092 258.3)",
+          "oklch(70% 0.0092 258.3)",
+          "oklch(85% 0.0046 258.3)",
+          "oklch(95% 0.0015 258.3)"
+        ]
+      },
+      "focus-outline": {
+        "canonical": "#fff",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.0)",
+          "oklch(25% 0.0000 0.0)",
+          "oklch(35% 0.0000 0.0)",
+          "oklch(45% 0.0000 0.0)",
+          "oklch(55% 0.0000 0.0)",
+          "oklch(70% 0.0000 0.0)",
+          "oklch(85% 0.0000 0.0)",
+          "oklch(95% 0.0000 0.0)"
+        ]
+      },
+      "focus-halo": {
+        "canonical": "#111827",
+        "tonalRamp": [
+          "oklch(15% 0.0119 264.7)",
+          "oklch(25% 0.0199 264.7)",
+          "oklch(35% 0.0278 264.7)",
+          "oklch(45% 0.0318 264.7)",
+          "oklch(55% 0.0318 264.7)",
+          "oklch(70% 0.0318 264.7)",
+          "oklch(85% 0.0159 264.7)",
+          "oklch(95% 0.0053 264.7)"
+        ]
+      },
+      "dark-ink": {
+        "canonical": "#e6ebf2",
+        "tonalRamp": [
+          "oklch(15% 0.0041 256.7)",
+          "oklch(25% 0.0068 256.7)",
+          "oklch(35% 0.0095 256.7)",
+          "oklch(45% 0.0109 256.7)",
+          "oklch(55% 0.0109 256.7)",
+          "oklch(70% 0.0109 256.7)",
+          "oklch(85% 0.0054 256.7)",
+          "oklch(95% 0.0018 256.7)"
+        ]
+      },
+      "dark-muted": {
+        "canonical": "#a4afbf",
+        "tonalRamp": [
+          "oklch(15% 0.0098 257.7)",
+          "oklch(25% 0.0163 257.7)",
+          "oklch(35% 0.0229 257.7)",
+          "oklch(45% 0.0261 257.7)",
+          "oklch(55% 0.0261 257.7)",
+          "oklch(70% 0.0261 257.7)",
+          "oklch(85% 0.0131 257.7)",
+          "oklch(95% 0.0044 257.7)"
+        ]
+      },
+      "dark-surface": {
+        "canonical": "#1a2231",
+        "tonalRamp": [
+          "oklch(15% 0.0116 262.6)",
+          "oklch(25% 0.0193 262.6)",
+          "oklch(35% 0.0270 262.6)",
+          "oklch(45% 0.0309 262.6)",
+          "oklch(55% 0.0309 262.6)",
+          "oklch(70% 0.0309 262.6)",
+          "oklch(85% 0.0154 262.6)",
+          "oklch(95% 0.0051 262.6)"
+        ]
+      },
+      "dark-canvas": {
+        "canonical": "#111826",
+        "tonalRamp": [
+          "oklch(15% 0.0112 263.6)",
+          "oklch(25% 0.0187 263.6)",
+          "oklch(35% 0.0262 263.6)",
+          "oklch(45% 0.0299 263.6)",
+          "oklch(55% 0.0299 263.6)",
+          "oklch(70% 0.0299 263.6)",
+          "oklch(85% 0.0150 263.6)",
+          "oklch(95% 0.0050 263.6)"
+        ]
+      },
+      "dark-accent": {
+        "canonical": "#8ab4f8",
+        "tonalRamp": [
+          "oklch(15% 0.0406 259.8)",
+          "oklch(25% 0.0677 259.8)",
+          "oklch(35% 0.0948 259.8)",
+          "oklch(45% 0.1083 259.8)",
+          "oklch(55% 0.1083 259.8)",
+          "oklch(70% 0.1083 259.8)",
+          "oklch(85% 0.0542 259.8)",
+          "oklch(95% 0.0181 259.8)"
+        ]
+      },
+      "dark-accent-hover": {
+        "canonical": "#aecbfa",
+        "tonalRamp": [
+          "oklch(15% 0.0275 260.0)",
+          "oklch(25% 0.0458 260.0)",
+          "oklch(35% 0.0642 260.0)",
+          "oklch(45% 0.0733 260.0)",
+          "oklch(55% 0.0733 260.0)",
+          "oklch(70% 0.0733 260.0)",
+          "oklch(85% 0.0367 260.0)",
+          "oklch(95% 0.0122 260.0)"
+        ]
+      },
+      "dark-accent-surface": {
+        "canonical": "#1f2d47",
+        "tonalRamp": [
+          "oklch(15% 0.0192 262.1)",
+          "oklch(25% 0.0320 262.1)",
+          "oklch(35% 0.0448 262.1)",
+          "oklch(45% 0.0513 262.1)",
+          "oklch(55% 0.0513 262.1)",
+          "oklch(70% 0.0513 262.1)",
+          "oklch(85% 0.0256 262.1)",
+          "oklch(95% 0.0085 262.1)"
+        ]
+      },
+      "dark-on-accent": {
+        "canonical": "#0b1220",
+        "tonalRamp": [
+          "oklch(15% 0.0116 263.4)",
+          "oklch(25% 0.0193 263.4)",
+          "oklch(35% 0.0270 263.4)",
+          "oklch(45% 0.0309 263.4)",
+          "oklch(55% 0.0309 263.4)",
+          "oklch(70% 0.0309 263.4)",
+          "oklch(85% 0.0154 263.4)",
+          "oklch(95% 0.0051 263.4)"
+        ]
+      },
+      "dark-danger": {
+        "canonical": "#ff8a8a",
+        "tonalRamp": [
+          "oklch(15% 0.0533 20.9)",
+          "oklch(25% 0.0888 20.9)",
+          "oklch(35% 0.1244 20.9)",
+          "oklch(45% 0.1421 20.9)",
+          "oklch(55% 0.1421 20.9)",
+          "oklch(70% 0.1421 20.9)",
+          "oklch(85% 0.0711 20.9)",
+          "oklch(95% 0.0237 20.9)"
+        ]
+      },
+      "dark-danger-surface": {
+        "canonical": "#3a1a1f",
+        "tonalRamp": [
+          "oklch(15% 0.0190 11.2)",
+          "oklch(25% 0.0317 11.2)",
+          "oklch(35% 0.0444 11.2)",
+          "oklch(45% 0.0507 11.2)",
+          "oklch(55% 0.0507 11.2)",
+          "oklch(70% 0.0507 11.2)",
+          "oklch(85% 0.0253 11.2)",
+          "oklch(95% 0.0084 11.2)"
+        ]
+      },
+      "dark-warning": {
+        "canonical": "#f0c36b",
+        "tonalRamp": [
+          "oklch(15% 0.0443 82.7)",
+          "oklch(25% 0.0739 82.7)",
+          "oklch(35% 0.1035 82.7)",
+          "oklch(45% 0.1182 82.7)",
+          "oklch(55% 0.1182 82.7)",
+          "oklch(70% 0.1182 82.7)",
+          "oklch(85% 0.0591 82.7)",
+          "oklch(95% 0.0197 82.7)"
+        ]
+      },
+      "dark-warning-surface": {
+        "canonical": "#3a2f10",
+        "tonalRamp": [
+          "oklch(15% 0.0184 89.7)",
+          "oklch(25% 0.0306 89.7)",
+          "oklch(35% 0.0428 89.7)",
+          "oklch(45% 0.0490 89.7)",
+          "oklch(55% 0.0490 89.7)",
+          "oklch(70% 0.0490 89.7)",
+          "oklch(85% 0.0245 89.7)",
+          "oklch(95% 0.0082 89.7)"
+        ]
+      },
+      "dark-warning-border": {
+        "canonical": "#7a6226",
+        "tonalRamp": [
+          "oklch(15% 0.0313 87.0)",
+          "oklch(25% 0.0522 87.0)",
+          "oklch(35% 0.0731 87.0)",
+          "oklch(45% 0.0835 87.0)",
+          "oklch(55% 0.0835 87.0)",
+          "oklch(70% 0.0835 87.0)",
+          "oklch(85% 0.0418 87.0)",
+          "oklch(95% 0.0139 87.0)"
+        ]
+      },
+      "dark-success": {
+        "canonical": "#7fd69a",
+        "tonalRamp": [
+          "oklch(15% 0.0451 152.9)",
+          "oklch(25% 0.0752 152.9)",
+          "oklch(35% 0.1053 152.9)",
+          "oklch(45% 0.1203 152.9)",
+          "oklch(55% 0.1203 152.9)",
+          "oklch(70% 0.1203 152.9)",
+          "oklch(85% 0.0602 152.9)",
+          "oklch(95% 0.0201 152.9)"
+        ]
+      },
+      "dark-success-surface": {
+        "canonical": "#15301f",
+        "tonalRamp": [
+          "oklch(15% 0.0172 154.5)",
+          "oklch(25% 0.0287 154.5)",
+          "oklch(35% 0.0402 154.5)",
+          "oklch(45% 0.0459 154.5)",
+          "oklch(55% 0.0459 154.5)",
+          "oklch(70% 0.0459 154.5)",
+          "oklch(85% 0.0230 154.5)",
+          "oklch(95% 0.0077 154.5)"
+        ]
+      },
+      "dark-border": {
+        "canonical": "#34405a",
+        "tonalRamp": [
+          "oklch(15% 0.0179 265.1)",
+          "oklch(25% 0.0298 265.1)",
+          "oklch(35% 0.0417 265.1)",
+          "oklch(45% 0.0477 265.1)",
+          "oklch(55% 0.0477 265.1)",
+          "oklch(70% 0.0477 265.1)",
+          "oklch(85% 0.0238 265.1)",
+          "oklch(95% 0.0079 265.1)"
+        ]
+      },
+      "dark-border-strong": {
+        "canonical": "#7d8aa0",
+        "tonalRamp": [
+          "oklch(15% 0.0137 261.0)",
+          "oklch(25% 0.0228 261.0)",
+          "oklch(35% 0.0319 261.0)",
+          "oklch(45% 0.0365 261.0)",
+          "oklch(55% 0.0365 261.0)",
+          "oklch(70% 0.0365 261.0)",
+          "oklch(85% 0.0182 261.0)",
+          "oklch(95% 0.0061 261.0)"
+        ]
+      },
+      "dark-border-muted": {
+        "canonical": "#4a5670",
+        "tonalRamp": [
+          "oklch(15% 0.0170 265.4)",
+          "oklch(25% 0.0284 265.4)",
+          "oklch(35% 0.0397 265.4)",
+          "oklch(45% 0.0454 265.4)",
+          "oklch(55% 0.0454 265.4)",
+          "oklch(70% 0.0454 265.4)",
+          "oklch(85% 0.0227 265.4)",
+          "oklch(95% 0.0076 265.4)"
+        ]
+      },
+      "dark-disabled-surface": {
+        "canonical": "#2a3344",
+        "tonalRamp": [
+          "oklch(15% 0.0123 262.9)",
+          "oklch(25% 0.0206 262.9)",
+          "oklch(35% 0.0288 262.9)",
+          "oklch(45% 0.0329 262.9)",
+          "oklch(55% 0.0329 262.9)",
+          "oklch(70% 0.0329 262.9)",
+          "oklch(85% 0.0165 262.9)",
+          "oklch(95% 0.0055 262.9)"
+        ]
+      },
+      "dark-focus-outline": {
+        "canonical": "#e6ebf2",
+        "tonalRamp": [
+          "oklch(15% 0.0041 256.7)",
+          "oklch(25% 0.0068 256.7)",
+          "oklch(35% 0.0095 256.7)",
+          "oklch(45% 0.0109 256.7)",
+          "oklch(55% 0.0109 256.7)",
+          "oklch(70% 0.0109 256.7)",
+          "oklch(85% 0.0054 256.7)",
+          "oklch(95% 0.0018 256.7)"
+        ]
+      },
+      "dark-focus-halo": {
+        "canonical": "#0b1220",
+        "tonalRamp": [
+          "oklch(15% 0.0116 263.4)",
+          "oklch(25% 0.0193 263.4)",
+          "oklch(35% 0.0270 263.4)",
+          "oklch(45% 0.0309 263.4)",
+          "oklch(55% 0.0309 263.4)",
+          "oklch(70% 0.0309 263.4)",
+          "oklch(85% 0.0154 263.4)",
+          "oklch(95% 0.0051 263.4)"
+        ]
+      }
+    },
+    "shadows": [
+      {
+        "name": "menu",
+        "value": "0 .5rem 1.5rem var(--shadow)",
+        "purpose": "Floating workspace and account menus."
+      },
+      {
+        "name": "toast",
+        "value": "0 .25rem 1rem var(--shadow)",
+        "purpose": "Floating feedback."
+      },
+      {
+        "name": "focus-halo",
+        "value": "0 0 0 .4rem var(--focus-halo)",
+        "purpose": "Outer layer of the visible keyboard focus indicator."
+      }
+    ],
+    "motion": [
+      {
+        "name": "loading-spin",
+        "value": "spin .8s linear infinite",
+        "purpose": "Loading and busy indicators; disabled for reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow",
+        "value": "38rem"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary form action with keyboard focus and disabled states.",
+      "html": "<button class=\"ds-submit\" type=\"button\">Save changes</button>",
+      "css": ".ds-submit { font: inherit; font-weight: 700; min-height: 2.75rem; padding: .45rem .65rem; border: 2px solid var(--accent, #154ea3); border-radius: .25rem; background: var(--accent, #154ea3); color: var(--on-accent, #fff); cursor: pointer; } .ds-submit:focus-visible { outline: .2rem solid var(--focus-outline, #fff); outline-offset: 0; box-shadow: 0 0 0 .4rem var(--focus-halo, #111827); } .ds-submit:disabled { border-color: var(--border-muted, #aeb7c5); background: var(--disabled-surface, #e2e6ec); color: var(--muted, #536174); cursor: not-allowed; }"
+    },
+    {
+      "name": "Primary button-styled link",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Button-styled link with hover and keyboard focus states.",
+      "html": "<a class=\"ds-primary\" href=\"#\">Continue</a>",
+      "css": ".ds-primary { display: inline-flex; align-items: center; font-weight: 700; min-height: 2.75rem; padding: .45rem .65rem; border-radius: .25rem; background: var(--accent, #154ea3); color: var(--on-accent, #fff); text-decoration: none; } .ds-primary:hover { background: var(--accent-hover, #103d80); color: var(--on-accent, #fff); } .ds-primary:focus-visible { outline: .2rem solid var(--focus-outline, #fff); outline-offset: 0; box-shadow: 0 0 0 .4rem var(--focus-halo, #111827); }"
+    },
+    {
+      "name": "Secondary button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Secondary action on the surface color.",
+      "html": "<button class=\"ds-secondary\" type=\"button\">Cancel</button>",
+      "css": ".ds-secondary { font: inherit; font-weight: 700; min-height: 2.75rem; padding: .45rem .65rem; border: 2px solid var(--accent, #154ea3); border-radius: .25rem; background: var(--surface, #fff); color: var(--accent, #154ea3); cursor: pointer; } .ds-secondary:focus-visible { outline: .2rem solid var(--focus-outline, #fff); outline-offset: 0; box-shadow: 0 0 0 .4rem var(--focus-halo, #111827); }"
+    },
+    {
+      "name": "Text field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Labeled input with a strong border and visible focus.",
+      "html": "<label class=\"ds-label\" for=\"ds-name\">Name</label><input class=\"ds-input\" id=\"ds-name\" type=\"text\">",
+      "css": ".ds-label { display: block; margin-top: .75rem; font-weight: 700; } .ds-input { box-sizing: border-box; width: 100%; font: inherit; min-height: 2.75rem; padding: .45rem .65rem; border: 2px solid var(--border-strong, #657287); border-radius: .25rem; background: var(--surface, #fff); color: var(--ink, #172033); } .ds-input:focus-visible { outline: .2rem solid var(--focus-outline, #fff); outline-offset: 0; box-shadow: 0 0 0 .4rem var(--focus-halo, #111827); } .ds-input[aria-invalid=\"true\"] { border-color: var(--danger, #a51d2d); }"
+    },
+    {
+      "name": "Workspace card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Bordered navigation card with supporting text.",
+      "html": "<a class=\"ds-card\" href=\"#\"><strong>Items</strong><span>View workspace items</span></a>",
+      "css": ".ds-card { display: grid; gap: .5rem; padding: 1rem; background: var(--surface, #fff); border: 1px solid var(--border, #ccd3dd); border-radius: .4rem; color: var(--accent, #154ea3); text-decoration: none; } .ds-card span { color: var(--muted, #536174); } .ds-card:focus-visible { outline: .2rem solid var(--focus-outline, #fff); outline-offset: 0; box-shadow: 0 0 0 .4rem var(--focus-halo, #111827); }"
+    },
+    {
+      "name": "Workspace navigation",
+      "kind": "nav",
+      "description": "Sidebar links with a selected state.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Workspace\"><a class=\"ds-nav-link\" href=\"#\" aria-current=\"page\">Home</a><a class=\"ds-nav-link\" href=\"#items\">Items</a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: .25rem; } .ds-nav-link { display: flex; align-items: center; min-height: 2.75rem; padding: .45rem .65rem; border-radius: .25rem; color: var(--accent, #154ea3); text-decoration: none; } .ds-nav-link:hover { background: var(--canvas, #f3f6fa); } .ds-nav-link[aria-current=\"page\"] { color: var(--ink, #172033); font-weight: 700; background: var(--accent-surface, #e8effa); } .ds-nav-link:focus-visible { outline: .2rem solid var(--focus-outline, #fff); outline-offset: 0; box-shadow: 0 0 0 .4rem var(--focus-halo, #111827); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Clear workspace",
+    "overview": "The system is calm and task-first: cool slate surfaces frame deep blue actions, while compact controls and clear selected states keep workspace work prominent. Borders carry structure; cards stay flat, with elevation shadows reserved for floating menus and toasts. The template stays visually neutral so generated applications can establish their own identity.",
+    "keyCharacteristics": [
+      "System fonts and a compact, readable text hierarchy.",
+      "Light and dark themes with semantic colors.",
+      "Explicitly bordered controls and cards; elevation shadows on floaters, plus a separate keyboard-focus halo.",
+      "Responsive navigation, ordinary forms, and visible keyboard focus."
+    ],
+    "rules": [
+      {
+        "name": "The Semantic-State Rule",
+        "body": "Pair state color with text or a distinct border; never use color alone to convey error, warning, success, or selection.",
+        "section": "colors"
+      },
+      {
+        "name": "The Float-Only Elevation Rule",
+        "body": "Reserve elevation shadows for floating menus and toasts; keep the focus halo for keyboard focus, not surface depth.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use semantic theme colors in both light and dark appearances.",
+      "Do preserve visible keyboard focus, persistent labels, and ordinary form fallback.",
+      "Do check narrow-screen reflow and reduced-motion behavior."
+    ],
+    "donts": [
+      "Don't convey error, warning, success, or selection with color alone.",
+      "Don't add decorative elevation to static cards or controls.",
+      "Don't treat template branding as mandatory for generated applications."
+    ]
+  }
+}

@@ -24,7 +24,7 @@ page. `make ux-smoke` creates a client, defines a choice field, and enters a val
 
 | Check | Result | Evidence |
 |---|---|---|
-| Keyboard-only order and actions | Pass | Sign-in order reached the skip link, email, password, the reveal toggle, then submit; native links, forms, selects, and buttons require no pointer |
+| Keyboard-only order and actions | Pass | Sign-in order reached the skip link, email, password, the reveal toggle, submit, then the password-reset link; native links, forms, selects, and buttons require no pointer |
 | Focus order and visibility | Pass | DOM order is visual order; the two-color focus ring remained visible on light and colored controls |
 | Forms and errors | Pass | Labels are programmatic; HTMX validation returns a `role=alert` target, focuses it after swap, and the import form supplies a required confirmation plus useful `role=status`/`role=alert` text |
 | 200% zoom and reflow | Pass | Equivalent 320 CSS-pixel viewport had no horizontal page overflow; controls stack at the narrow breakpoint |
@@ -49,8 +49,9 @@ bounded overflow wrapper for narrow screens. The workspace home exposes Items an
 Settings cards. In multi mode the Items page provides `Back to Workspaces`, returning to the
 workspace selector; single mode omits it. Settings pages provide `Back to home`, returning to the
 current workspace home.
-The workspace switcher and account menu use keyboard-accessible native disclosure controls;
-narrow screens stack the same links without horizontal overflow. The item page
+The workspace switcher, account menu, and client controls use keyboard-accessible
+native disclosure controls; narrow settings navigation uses a two-column grid
+without horizontal overflow. The item page
 reports connecting, connected, reconnecting, or unavailable realtime states;
 permanent deletion, member removal, ownership transfer, account deletion, and
 every revoke confirm before submission when scripting is available.

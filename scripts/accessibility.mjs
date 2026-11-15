@@ -31,8 +31,19 @@ try {
 	await driver.actions().sendKeys(Key.TAB).perform();
 	await expectActive("password");
 	await driver.actions().sendKeys(Key.TAB).perform();
-	if ((await driver.switchTo().activeElement().getTagName()) !== "button") {
-		throw new Error("login keyboard order does not reach submit after password");
+	const reveal = driver.switchTo().activeElement();
+	if ((await reveal.getTagName()) !== "button" || (await reveal.getAttribute("type")) !== "button") {
+		throw new Error("login keyboard order does not reach the password reveal control");
+	}
+	await driver.actions().sendKeys(Key.TAB).perform();
+	const submit = driver.switchTo().activeElement();
+	if ((await submit.getTagName()) !== "button" || (await submit.getAttribute("type")) !== "submit") {
+		throw new Error("login keyboard order does not reach submit after password reveal");
+	}
+	await driver.actions().sendKeys(Key.TAB).perform();
+	const reset = driver.switchTo().activeElement();
+	if ((await reset.getTagName()) !== "a" || new URL(await reset.getAttribute("href")).pathname !== "/password-reset") {
+		throw new Error("login keyboard order does not reach the password reset link");
 	}
   await driver.findElement(By.id("email")).sendKeys(email);
   await driver.findElement(By.id("password")).sendKeys(password);
@@ -58,6 +69,7 @@ try {
 	await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/clients`);
 	await driver.wait(until.elementLocated(By.id("client-list")), 5000);
 	await audit("clients");
+	await driver.findElement(By.css(".client-create > summary")).click();
 	await driver.findElement(By.id("client-display-name")).sendKeys(`Accessibility client ${locale}`);
 	await driver.findElement(By.css("form.create button[type=submit]")).click();
 	await driver.wait(until.elementLocated(By.id("client-detail")), 5000);
@@ -128,8 +140,44 @@ try {
 		}
 	}
 	await driver.manage().window().setRect({ width: 320, height: 800 });
-	if (await driver.executeScript(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)) {
-		throw new Error("import page has horizontal overflow at 320 CSS pixels");
+	const overflow = await driver.executeScript(() => {
+		const root = document.documentElement;
+		const viewport = root.clientWidth;
+		const round = (value) => Math.round(value * 10) / 10;
+		const offenders = Array.from(document.body.querySelectorAll("*"), (element) => {
+			const rect = element.getBoundingClientRect();
+			const style = getComputedStyle(element);
+			return {
+				tag: element.tagName.toLowerCase(),
+				id: element.id || undefined,
+				className: element.getAttribute("class") || undefined,
+				href: element instanceof HTMLAnchorElement && element.hasAttribute("href")
+					? new URL(element.href).pathname
+					: undefined,
+				left: round(rect.left),
+				right: round(rect.right),
+				width: round(rect.width),
+				clientWidth: element.clientWidth,
+				scrollWidth: element.scrollWidth,
+				minWidth: style.minWidth,
+				overflowX: style.overflowX,
+			};
+		}).filter((element) =>
+			element.width > 0 &&
+			(element.left < -1 || element.right > viewport + 1 || element.scrollWidth > element.clientWidth + 1)
+		).sort((left, right) => right.right - left.right).slice(0, 12);
+		return {
+			userAgent: navigator.userAgent,
+			innerWidth: window.innerWidth,
+			outerWidth: window.outerWidth,
+			clientWidth: root.clientWidth,
+			scrollWidth: root.scrollWidth,
+			bodyScrollWidth: document.body.scrollWidth,
+			offenders,
+		};
+	});
+	if (overflow.scrollWidth > overflow.clientWidth) {
+		throw new Error(`import page has horizontal overflow at 320 CSS pixels: ${JSON.stringify(overflow)}`);
 	}
 	console.log("manual-contract: keyboard, focus, 320px reflow, reduced motion, and accessibility tree passed");
 } finally {

@@ -178,6 +178,7 @@ try {
   // clients: a blank name is stopped with a summary; a client is created; a
   // custom choice field gets an option; a value is entered and saved.
   await driver.get(`${base}${workspace}/clients`);
+  await find(".client-create > summary").click();
   // Enter, not a click: the blur-time note shifts the button under a pointer.
   await typeInto("#client-display-name", "   ");
   await find("#client-display-name").sendKeys(Key.ENTER);
