@@ -8,6 +8,7 @@ top of application commit `d438f9d39a7063c0292ce4731c81977ca8af9a81`.
 PR #456 after these runs. Its scope and effect on these results are not yet
 verified. Treat all recorded measurements as provisional until the upstream
 fix is available and the affected scenarios are rerun with verified isolation.
+The isolated reruns below supersede the corresponding provisional observations.
 
 Run at 2026-11-16T16:09:46.085Z on Darwin 27.2.0 arm64, Chrome
 157.0.8103.78, Node 26.10.0 and Playwright 1.64.1. Command:
@@ -172,3 +173,84 @@ inherently unavailable. The existing download byte count is unavailable only
 from the current CDP completed-request observer because Chrome hands the
 response to its download manager. Stream bytes and redirect bytes likewise need
 different instrumentation; do not interpret the existing missing values as zero.
+
+## Isolated reruns after #456 fix
+
+On 2026-11-16 the user confirmed the #411 suite had stopped and provided an
+exclusive measurement window. Runs used application commit
+`88a8d9b42911299c1540759957fe1b4ffd488c31`, which includes upstream isolation
+commit `5042fe34fbeb3015b641015e2fc15782f911fd91`. Each command creates a new
+temporary SQLite database and local storage; bootstrap and server run with an
+empty inherited environment. Darwin 27.2.0 arm64, Chrome 157.0.8103.78,
+Node 26.10.0, Playwright 1.64.1, unthrottled loopback, reduced motion, blocked
+service workers and one run per scenario. The navigation and interaction
+conditions and measurement boundaries are as above. Commands, run sequentially:
+
+```sh
+UI_MEASURE=gaps PLAYWRIGHT_PORT=58147 ./scripts/playwright-smoke.sh
+UI_MEASURE=workspace PLAYWRIGHT_PORT=58147 ./scripts/playwright-smoke.sh
+UI_MEASURE=interactions PLAYWRIGHT_PORT=58147 ./scripts/playwright-smoke.sh
+```
+
+Navigation run ended 2026-11-16T17:04:51.113Z. Values are requests / completed
+encoded bytes / unfinished / DOMContentLoaded ms / load ms:
+
+| Route | Cold | Warm |
+|---|---|---|
+| Home | 5 / 74099 / 0 / 13.5 / 17.3 | 4 / 73587 / 0 / 15.2 / 16.7 |
+| Items | 8 / 114247 / 2 / 16.6 / 18.0 | 7 / 113735 / 2 / 17.7 / 19.0 |
+| Clients | 5 / 67195 / 0 / 18.3 / 25.3 | 4 / 66683 / 0 / 18.0 / 19.7 |
+| Files | 5 / 75915 / 1 / 17.5 / 18.5 | 4 / 75915 / 0 / 13.2 / 14.4 |
+| Members | 5 / 76607 / 1 / 13.7 / 14.8 | 4 / 76607 / 0 / 15.3 / 16.3 |
+| Invitations | 5 / 73229 / 1 / 14.8 / 15.2 | 4 / 73229 / 0 / 16.7 / 17.0 |
+
+Cold Home, Items and Clients each recorded a favicon 404. All document
+responses were 200, with no recorded redirects or transport failures.
+Unfinished requests have unavailable bytes and are not individually classified.
+
+Interaction run ended 2026-11-16T17:05:08.071Z. Values are requests / completed
+encoded bytes / elapsed ms, using the interaction boundaries above:
+
+| Interaction | Result |
+|---|---|
+| Peer Item SSE event and refresh | 1 / 6770 / 1383.5; one SSE event |
+| Item create / edit / delete | 1 / 8877 / 66.9; 1 / 8909 / 68.4; 1 / 6813 / 89.0 |
+| Client create / detail / edit / archive | 5 / 61903 / 97.3; 4 / 61903 / 80.0; 5 / 61927 / 83.0; 5 / 62027 / 67.6 |
+| File upload / download / injected 503 | 6 / 84772 / 139.3; 1 / unavailable / 381.1; 1 / 63 / 53.7 |
+| Invitation create / revoke | 4 / 73922 / 84.2; 5 / 73317 / 74.8 |
+
+All rows had zero unfinished requests. The download contents matched; CDP
+reported a loading failure on download handoff, so its encoded bytes remain
+unavailable by this observer. Upload failure was an injected 503; pending status
+was visible and retry became enabled. Other rows had no HTTP or transport
+errors. Client mutations, upload and invitation revoke each counted a redirect;
+redirect bytes may be incomplete. Client SSE remains disconnected as described
+above. The peer POST is excluded from the observed tab's request count.
+
+Gap run ended 2026-11-16T17:04:37.197Z. It uses a fresh fixture, warm cache
+for sequential desktop scenarios, and the separate no-JavaScript and mobile
+contexts in the script. Filters are direct GET navigations ending at `load`;
+all four showed empty results. Values are requests / completed encoded bytes /
+unfinished / elapsed ms:
+
+| Scenario | Result |
+|---|---|
+| Item filter | 7 / 119209 / 1 / 64.1 |
+| Client filter | 4 / 67342 / 0 / 56.3 |
+| File filter | 4 / 76091 / 0 / 106.5 |
+| Member filter | 4 / 76683 / 0 / 125.6 |
+| Client required validation | 0 / 0 / 0 / 76.4; browser reported invalid |
+| Client unarchive / delete | 5 / 61900 / 0 / 92.3; 5 / 66683 / 0 / 140.1 |
+| Invitation resend | 4 / 73922 / 0 / 85.9 |
+| Item create without JavaScript | 3 / 39754 / 0 / 84.4 |
+| Mobile Spanish dark Items navigation | 8 / 123737 / 1 / 60.4 |
+
+Mobile used 390×844, scale 1, Spanish locale cookie, dark system color scheme,
+and a cleared HTTP cache after locale setup. The observed HTML language was
+`es` and canvas color `#111826`; it recorded a favicon 404. Other gap rows
+recorded no HTTP or transport errors. Client unarchive/delete and no-JavaScript
+create each counted one redirect. Elapsed values include automation overhead;
+they are observations, not budgets. Member role/removal/transfer, pagination,
+Client fields, SSE reconnect, Item failure, upload progress and permission
+states remain unmeasured, as does per-request duplicate classification. #447
+remains partial.
