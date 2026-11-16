@@ -62,6 +62,24 @@ try {
     await page.locator("#client-list").waitFor();
   });
 
+  await page.goto(home + "/client-fields");
+  await page.locator(".client-create summary").click();
+  await page.locator("#client-field-label").fill("Fixture field");
+  await measure("client field create", async () => {
+    await page.locator(".client-create button[type=submit]").click();
+    await page.getByText("Fixture field", { exact: true }).first().waitFor();
+  });
+  await page.goto(home + "/clients");
+  await page.locator(".client-create summary").click();
+  await page.locator("#client-display-name").fill("Field fixture client");
+  await page.locator(".client-create button[type=submit]").click();
+  await page.locator("#client-detail").waitFor();
+  await page.locator(".client-value input[name=value]").fill("fixture value");
+  await measure("client field value set", async () => {
+    await page.locator(".client-value button[type=submit]").click();
+    await page.locator(".client-value-clear").waitFor();
+  });
+
   await page.goto(home + "/settings/invitations");
   await page.locator("#invite-email").fill("fixture@example.invalid");
   await page.locator('button[value="create"]').click();
@@ -69,6 +87,64 @@ try {
   await measure("invitation resend", async () => {
     await page.locator('button[value="resend"]').click();
     await page.locator('button[value="revoke"]').waitFor();
+  });
+
+  const invite = await page.locator('input[readonly]').inputValue();
+  const memberContext = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL,
+    viewport: { width: 1280, height: 900 }, locale: "en-US", serviceWorkers: "block" });
+  try {
+    const member = await memberContext.newPage();
+    try {
+      await member.goto(invite);
+      await member.locator("#invite-password").fill("synthetic-password-123");
+      await member.locator('button[value="register"]').click();
+      await member.locator("#item-list").waitFor();
+    } catch {
+      throw new Error("Synthetic member registration failed; invitation details withheld");
+    }
+  } finally { await memberContext.close(); }
+  await page.goto(home + "/settings/members");
+  const memberRow = page.locator(".list-view-table tbody tr").filter({ hasText: "fixture@example.invalid" });
+  await memberRow.locator("select[name=role]").selectOption("viewer");
+  await measure("member role change", async () => {
+    await memberRow.locator('button[value="role"]').click();
+    await memberRow.locator('select[name="role"]').waitFor();
+    assert.equal(await memberRow.locator('select[name="role"]').inputValue(), "viewer");
+  });
+  await measure("member removal", async () => {
+    await memberRow.locator('button[value="remove"]').click();
+    await memberRow.waitFor({ state: "detached" });
+  });
+
+  await page.goto(home + "/items?limit=25");
+  for (let index = 0; index < 26; index++) {
+    const title = `Pagination fixture ${index}`;
+    await page.getByLabel("New item title").fill(title);
+    await page.getByRole("button", { name: "Add item" }).click();
+    await page.locator(`.item-list-view input[value="${title}"]`).waitFor();
+  }
+  await measure("item next page", async () => {
+    await page.getByRole("link", { name: "Next page" }).click();
+    assert.equal(await page.locator(".item-list-view tbody tr").count() > 0, true);
+  });
+  await page.goto(home + "/items");
+  await page.getByLabel("New item title").fill("Failed item fixture");
+  await page.route("**/items", async (route) => {
+    if (route.request().method() === "POST") await route.fulfill({ status: 503, body: "unavailable" });
+    else await route.continue();
+  });
+  await measure("item injected failure", async () => {
+    await page.getByRole("button", { name: "Add item" }).click();
+    await page.getByText("Something went wrong. Try again.").first().waitFor();
+    return { inputPreserved: await page.getByLabel("New item title").inputValue() === "Failed item fixture" };
+  });
+  await page.unroute("**/items");
+  await page.route("**/items/events", (route) => route.abort());
+  await measure("item SSE reconnect", async () => {
+    await page.goto(home + "/items");
+    await page.getByText("Live updates reconnecting…").waitFor();
+    await page.unroute("**/items/events");
+    await page.getByText("Live updates connected.").waitFor({ timeout: 30000 });
   });
 
   const noJS = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL,

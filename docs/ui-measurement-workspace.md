@@ -254,3 +254,16 @@ they are observations, not budgets. Member role/removal/transfer, pagination,
 Client fields, SSE reconnect, Item failure, upload progress and permission
 states remain unmeasured, as does per-request duplicate classification. #447
 remains partial.
+
+## Additional instrumentation prepared
+
+The gap script now prepares a synthetic invited member, role change and
+removal; a Client field and value; 26 Items and a next-page navigation; an
+injected Item 503; and an interrupted Item event stream followed by reconnect.
+The invitation link and password are used only inside the isolated browser
+fixture and are not printed. Request attribution reports allowlisted asset
+names, resource types and repeated GET counts as described in the common method.
+These additions have not been run in a browser or measured. Their selectors,
+reconnect behavior and fixture setup must be validated in the next clean window.
+Ownership transfer, permission failures, upload progress and full byte accounting
+still need dedicated scenarios or instrumentation. #447 remains partial.

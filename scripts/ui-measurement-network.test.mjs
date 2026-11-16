@@ -27,3 +27,21 @@ test("distinguishes HTTP errors from transport failures", () => {
   assert.equal(result.unfinished, 0);
   assert.equal(cdp.listenerCount("Network.responseReceived"), 0);
 });
+
+test("attributes assets and repeated GETs without exposing URLs or request data", () => {
+  const cdp = new EventEmitter();
+  const stop = observeNetwork(cdp);
+  for (const [requestId, method, url, type] of [
+    ["a", "GET", "https://example.test/assets/app.js?secret=private", "Script"],
+    ["b", "GET", "https://example.test/assets/app.js?secret=private", "Script"],
+    ["c", "POST", "https://example.test/private/token", "Fetch"],
+    ["d", "POST", "https://example.test/private/token", "Fetch"],
+    ["e", "GET", "https://example.test/assets/secret.js", "Script"],
+    ["f", "GET", "https://example.test/events?token=secret", "EventSource"],
+  ]) cdp.emit("Network.requestWillBeSent", { requestId, type, request: { method, url } });
+  const result = stop();
+  assert.deepEqual(result.requestClasses, { "app.js": 2, Fetch: 2, Script: 1, EventSource: 1 });
+  assert.equal(result.repeatedGetRequests, 1);
+  assert.equal(result.unfinished, 6);
+  assert.doesNotMatch(JSON.stringify(result), /secret|private|example|token/);
+});
