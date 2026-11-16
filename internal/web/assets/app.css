@@ -1,11 +1,16 @@
 :root {
   color-scheme: light;
+  /* Customize generated app identity here; keep colors in light and dark token blocks. */
+  --brand-accent: #154ea3;
+  --brand-font-family: system-ui, sans-serif;
+  --brand-radius: .5rem;
+  --brand-space: 1rem;
   --ink: #172033;
   --muted: #536174;
   --surface: #fff;
   --canvas: #f3f6fa;
   --sidebar-surface: #edf1f7;
-  --accent: #154ea3;
+  --accent: var(--brand-accent);
   --accent-hover: #103d80;
   --accent-surface: #e8effa;
   --on-accent: #fff;
@@ -23,16 +28,17 @@
   --shadow: #17203326;
   --focus-outline: #fff;
   --focus-halo: #111827;
-  font: 100%/1.5 system-ui, sans-serif;
+  font: 100%/1.5 var(--brand-font-family);
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
+  --brand-accent: #8ab4f8;
   --ink: #e6ebf2;
   --muted: #a4afbf;
   --surface: #1a2231;
   --canvas: #111826;
   --sidebar-surface: #151d2a;
-  --accent: #8ab4f8;
+  --accent: var(--brand-accent);
   --accent-hover: #aecbfa;
   --accent-surface: #1f2d47;
   --on-accent: #0b1220;
@@ -54,12 +60,13 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
+    --brand-accent: #8ab4f8;
     --ink: #e6ebf2;
     --muted: #a4afbf;
     --surface: #1a2231;
     --canvas: #111826;
     --sidebar-surface: #151d2a;
-    --accent: #8ab4f8;
+    --accent: var(--brand-accent);
     --accent-hover: #aecbfa;
     --accent-surface: #1f2d47;
     --on-accent: #0b1220;
@@ -125,7 +132,9 @@ main > h1 { margin: 0 0 1.25rem; font-size: 2rem; line-height: 1.2; letter-spaci
 main h2:not(.visually-hidden) { margin: 1.5rem 0 .75rem; font-size: 1.375rem; line-height: 1.3; }
 .narrow { width: min(32rem, 100%); margin: 1.5rem auto; background: var(--surface); border: 1px solid var(--border); border-radius: .4rem; }
 .breakable { overflow-wrap: anywhere; }
-.brand { font-weight: 800; text-decoration: none; }
+.brand { display: inline-flex; align-items: center; gap: .55rem; font-weight: 800; text-decoration: none; }
+.brand-mark { position: relative; width: 1.5rem; height: 1.5rem; flex: none; border-radius: var(--brand-radius); background: linear-gradient(135deg, var(--accent), var(--accent-hover)); }
+.brand-mark::after { position: absolute; inset: .38rem; content: ""; border: 2px solid var(--on-accent); border-radius: 50%; }
 .button { display: inline-flex; align-items: center; min-height: 2.75rem; padding: .45rem .65rem; border-radius: .25rem; background: var(--accent); color: var(--on-accent); font-weight: 700; text-decoration: none; }
 .button:hover { background: var(--accent-hover); color: var(--on-accent); }
 a { color: var(--accent); text-underline-offset: .15em; text-decoration-thickness: .08em; }
@@ -151,6 +160,18 @@ main form:not(.inline) > button.reveal { display: block; margin-top: .35rem; min
 #item-list .items > li > .status, #item-list .items > li > .success { margin: 0; padding: .75rem 1.25rem; border-top: 1px solid var(--border); }
 #item-list .share .row button { white-space: nowrap; }
 .cards span, .status { color: var(--muted); }
+.workspace-main { background: var(--canvas); }
+.workspace-heading { display: flex; align-items: end; justify-content: space-between; margin-bottom: 2rem; }
+.workspace-heading h1 { margin: 0; }
+.eyebrow { margin: 0 0 .35rem; color: var(--muted); font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.first-task { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--brand-space) * 1.5); margin-bottom: 2.25rem; padding: clamp(1.25rem, 3vw, 2rem); border: 1px solid var(--border); border-left: .3rem solid var(--accent); border-radius: var(--brand-radius); background: var(--surface); box-shadow: 0 .5rem 1.5rem var(--shadow); }
+.first-task h2 { margin: 0 0 .4rem; }
+.first-task p:not(.eyebrow) { margin: 0; color: var(--muted); }
+.workspace-cards { grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
+.workspace-cards a { min-height: 8rem; padding: calc(var(--brand-space) * 1.25); border-radius: var(--brand-radius); }
+.workspace-cards strong { font-size: 1.05rem; }
+.workspace-main .btn { flex: none; min-height: 2.75rem; padding: .45rem .75rem; border: 1px solid var(--accent); border-radius: var(--brand-radius); background: var(--accent); color: var(--on-accent); font-weight: 700; text-decoration: none; }
+.workspace-main .btn:hover { border-color: var(--accent-hover); background: var(--accent-hover); color: var(--on-accent); }
 .row, .actions { display: flex; gap: .75rem; align-items: end; }
 .row input { flex: 1; }
 .error { border: 1px solid var(--danger); background: var(--danger-surface); color: var(--danger); padding: .75rem; font-weight: 700; }
@@ -205,6 +226,8 @@ code { overflow-wrap: anywhere; }
   .workspace-settings-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .25rem; }
   .workspace-settings-nav .nav-label { grid-column: 1 / -1; }
   .workspace-settings-nav .sidebar-subitem { min-width: 0; padding-left: .65rem !important; overflow-wrap: anywhere; }
+  .first-task { align-items: flex-start; flex-direction: column; }
+  .workspace-main { padding-bottom: 2rem; }
   .sidebar-settings { margin-top: .75rem; }
   .sidebar-settings .nav-label { margin-top: .5rem; }
   main { padding-top: 1rem; }

@@ -1,0 +1,106 @@
+package web
+
+templ workspaceHome(data pageData) {
+	<!doctype html>
+	<html lang={ data.Locale } data-theme={ data.Theme }>
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width,initial-scale=1"/>
+			<title>{ data.Title } · { data.T("common.product_name") }</title>
+			<link rel="stylesheet" href="/assets/components.css"/>
+			<link rel="stylesheet" href="/assets/app.css"/>
+			<script defer src="/assets/forms.js"></script>
+		</head>
+		<body data-workspace-home>
+			<a class="skip-link" href="#main">{ data.T("ui.skip_to_content") }</a>
+			<header class="topbar">
+				<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
+				<div class="topbar-context">
+					if !data.SingleWorkspace {
+						<a href="/">{ data.T("workspace.workspaces") }</a><span aria-hidden="true">/</span>
+					}
+					if data.SingleWorkspace {
+						<span class="workspace-name">{ data.Workspace.Name }</span>
+					} else {
+						<details class="workspace-switcher">
+							<summary>{ data.Workspace.Name }</summary>
+							<div class="workspace-switcher-panel">
+								<span class="nav-label">{ data.T("navigation.home") }</span>
+								for _, workspace := range data.Workspaces {
+									if workspace.ID == data.Workspace.ID {
+										<a href={ "/workspaces/" + workspace.ID.String() } aria-current="page">
+											<strong>{ workspace.Name }</strong><span>{ data.Role(workspace.Role) }</span>
+										</a>
+									} else {
+										<a href={ "/workspaces/" + workspace.ID.String() }>
+											<strong>{ workspace.Name }</strong><span>{ data.Role(workspace.Role) }</span>
+										</a>
+									}
+								}
+								<a href="/">{ data.T("workspace.workspaces") }</a>
+							</div>
+						</details>
+					}
+				</div>
+				<details class="account-menu">
+					<summary>{ data.T("common.account") }</summary>
+					<div class="account-menu-panel">
+						<a href="/account">{ data.T("account.account") }</a>
+						<a href="/notifications">{ data.T("notifications.notifications") }</a>
+						<a href="/settings/language">{ data.T("account.language_settings") }</a>
+						<a href="/security">{ data.T("navigation.security") }</a>
+						<a href="/sessions">{ data.T("navigation.sessions") }</a>
+						<form action="/logout" method="post">
+							<input type="hidden" name="csrf" value={ data.CSRF }/>
+							<button class="secondary" type="submit">{ data.T("navigation.sign_out") }</button>
+						</form>
+					</div>
+				</details>
+			</header>
+			<div class="app-shell">
+				<aside class="sidebar">
+					if !data.SingleWorkspace {
+						<a class="sidebar-back" href="/">← { data.T("workspace.back_to_workspaces") }</a>
+					}
+					<nav class="sidebar-nav" aria-label={ data.T("navigation.workspace_navigation") }>
+						<span class="nav-label">{ data.T("common.workspace") }</span>
+						<a class="active" aria-current="page" href={ "/workspaces/" + data.Workspace.ID.String() }>{ data.T("navigation.home") }</a>
+						<a href={ "/workspaces/" + data.Workspace.ID.String() + "/items" }>{ data.T("navigation.items") }</a>
+						if data.ClientsEnabled {
+							<a href={ "/workspaces/" + data.Workspace.ID.String() + "/clients" }>{ data.T("clients.title") }</a>
+						}
+						if data.FilesEnabled {
+							<a href={ "/workspaces/" + data.Workspace.ID.String() + "/files" }>{ data.T("files.files") }</a>
+						}
+						<div class="sidebar-settings">
+							<span class="nav-label">{ data.T("navigation.settings") }</span>
+							<a href={ "/workspaces/" + data.Workspace.ID.String() + "/settings" }>{ data.T("navigation.settings") }</a>
+						</div>
+					</nav>
+				</aside>
+				<main id="main" class="workspace-main">
+					<div class="workspace-heading">
+						<div><p class="eyebrow">{ data.T("workspace.home") }</p><h1>{ data.Workspace.Name }</h1></div>
+					</div>
+					<section class="first-task" aria-labelledby="first-task-title">
+						<div><p class="eyebrow">{ data.T("workspace.get_started") }</p><h2 id="first-task-title">{ data.T("workspace.first_task_title") }</h2><p>{ data.T("workspace.first_task_description") }</p></div>
+						<a class="btn btn-primary" href={ "/workspaces/" + data.Workspace.ID.String() + "/items" }>{ data.T("items.items") }</a>
+					</section>
+					<section aria-labelledby="workspace-tools-title">
+						<h2 id="workspace-tools-title">{ data.T("workspace.tools_title") }</h2>
+						<ul class="cards workspace-cards">
+							<li><a href={ "/workspaces/" + data.Workspace.ID.String() + "/items" }><strong>{ data.T("items.items") }</strong><span>{ data.T("workspace.items_description") }</span></a></li>
+							if data.ClientsEnabled {
+								<li><a href={ "/workspaces/" + data.Workspace.ID.String() + "/clients" }><strong>{ data.T("clients.title") }</strong><span>{ data.T("workspace.clients_description") }</span></a></li>
+							}
+							if data.FilesEnabled {
+								<li><a href={ "/workspaces/" + data.Workspace.ID.String() + "/files" }><strong>{ data.T("files.files") }</strong><span>{ data.T("files.description") }</span></a></li>
+							}
+							<li><a href={ "/workspaces/" + data.Workspace.ID.String() + "/settings" }><strong>{ data.T("navigation.settings") }</strong><span>{ data.T("workspace.settings_description") }</span></a></li>
+						</ul>
+					</section>
+				</main>
+			</div>
+		</body>
+	</html>
+}

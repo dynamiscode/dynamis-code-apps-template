@@ -83,6 +83,8 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 		"package.json":                       `"name": "my-app-checks"`,
 		"compose.yaml":                       "image: my-app:${VERSION:-dev}",
 		"docs/configuration.md":              "`my-app`",
+		"internal/i18n/locales/en.json":      `"common.product_name": "My Application"`,
+		"internal/web/assets/app.css":        "--brand-accent:",
 		"internal/mcpserver/server.go":       `Name: "my-app"`,
 		"internal/platform/config/config.go": `"OTEL_SERVICE_NAME", "my-app"`,
 		".github/workflows/ci.yml":           "image-ref: my-app:dev",

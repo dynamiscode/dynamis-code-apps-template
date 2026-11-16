@@ -35,6 +35,14 @@ func TestWebThemePreferenceAppliesToFirstPaint(t *testing.T) {
 	if !strings.Contains(account.Body.String(), `data-theme="dark"`) {
 		t.Fatalf("signed-in page missing data-theme dark: %s", account.Body.String())
 	}
+	workspaces, err := auth.ListWorkspaces(context.Background(), owner.UserID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	workspace := request(handler, http.MethodGet, "/workspaces/"+workspaces[0].ID.String(), nil, cookies, nil)
+	if !strings.Contains(workspace.Body.String(), `data-theme="dark"`) {
+		t.Fatalf("workspace home missing data-theme dark: %s", workspace.Body.String())
+	}
 
 	stale := append([]*http.Cookie{}, cookies...)
 	stale = append(stale, &http.Cookie{Name: themeCookie, Value: "light"})
