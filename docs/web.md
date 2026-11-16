@@ -283,7 +283,10 @@ when their column is hidden. Sorting, filters, page size, and cursor stay in the
 URL. Clear filters and reset columns are separate controls. Column and filter
 forms work without JavaScript. Members, admins, and owners see the create form;
 viewers see the list read-only. The create form stays open after validation
-errors; active query state opens list options.
+errors; active query state opens list options. The workspace shell uses the
+generated product name and brand tokens. Header actions link to client creation
+and custom-field management; results remain first, followed by create and list
+options.
 `/workspaces/{workspaceId}/clients/{clientId}` shows one client. Writers get an
 edit form that carries the client's version; a stale version shows a retry
 message. Writes are ordinary CSRF-protected POST forms that redirect after
@@ -300,14 +303,17 @@ read-only. Value writes are CSRF-protected POST forms that redirect to the clien
 page, and a stale or refused write re-renders it with a message.
 Members and above see archive and unarchive buttons on the client page. Owners
 and admins also see a confirmed permanent delete, which returns to the list. The
-list form has an archived selector (active, archived, or all), and the next-page
-link keeps it.
+detail page displays the permanent-delete effects beside the control, including
+when JavaScript is unavailable. The list form has an archived selector (active,
+archived, or all), and the next-page link keeps it.
 `/workspaces/{workspaceId}/client-fields` lists custom fields, archived ones
 included. Owners and admins see the define form and the archive or restore
 buttons; other roles see the list read-only. Writes are CSRF-protected POST
 forms that redirect to the list. Labels are shown exactly as typed, escaped for
-HTML. A refused label returns 422 and a reached limit returns 409, both on the
-same page.
+HTML. Permanent deletion is offered only for archived fields, with the effect on
+all client values and choice options shown beside the control, including without
+JavaScript. A refused label returns 422 and a reached limit returns 409, both on
+the same page.
 
 ## Realtime contract
 

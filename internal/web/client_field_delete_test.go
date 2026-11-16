@@ -48,6 +48,9 @@ func TestArchivedFieldIsPermanentlyDeletedThroughForms(t *testing.T) {
 	if !strings.Contains(page, `action="`+deletePath+`"`) || !strings.Contains(page, "data-confirm=") {
 		t.Fatalf("archived field lacks a confirmed delete control: %s", page)
 	}
+	if !strings.Contains(page, `<p class="warning">Permanently delete this field? Its value is removed from every client and its choices are deleted. This cannot be undone.</p>`) {
+		t.Fatalf("archived field does not explain the deletion effects without JavaScript: %s", page)
+	}
 
 	deleted := request(env.routes, http.MethodPost, deletePath, url.Values{"csrf": {env.csrf}}, env.cookies, nil)
 	if deleted.Code != http.StatusSeeOther || deleted.Header().Get("Location") != env.fieldsPath() {
