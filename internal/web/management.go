@@ -415,7 +415,7 @@ func (h *Handler) sessionsPage(writer http.ResponseWriter, request *http.Request
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, http.StatusOK, "sessions.html", pageData{Title: "Sessions", NavPage: "sessions", CSRF: csrf, Sessions: sessions})
+	h.render(writer, http.StatusOK, "sessions-page", pageData{Title: "Sessions", NavPage: "sessions", CSRF: csrf, Sessions: sessions, CurrentSessionID: session.ID, Saved: request.URL.Query().Get("revoked") == "1"})
 }
 
 func (h *Handler) sessionMutation(writer http.ResponseWriter, request *http.Request) {
@@ -427,7 +427,7 @@ func (h *Handler) sessionMutation(writer http.ResponseWriter, request *http.Requ
 		h.renderError(writer, http.StatusConflict)
 		return
 	}
-	h.redirect(writer, request, "/sessions")
+	h.redirect(writer, request, "/sessions?revoked=1")
 }
 
 func (h *Handler) exportPage(writer http.ResponseWriter, request *http.Request) {
