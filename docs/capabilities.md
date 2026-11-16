@@ -965,3 +965,19 @@ credentials and protocol state.
 - Owner approval: ADR 0011 and its two points, on 2026-11-13. The audit and idempotency
   exception was accepted by the owner and security owner on 2026-11-13 (PR #288); this
   change does not touch it.
+
+## Workspace home and styling foundation evidence (2026-11-15)
+
+Ticket #375 moves the workspace home to generated templ Go, adds a first-task
+link and responsive tool cards, and uses shared light/dark/system theme state.
+The app name is generated through `common.product_name`; brand color, font,
+radius, and spacing tokens live in `internal/web/assets/app.css`. Tailwind CSS
+4.3.5 and daisyUI 5.8.1 compile the embedded button stylesheet; templ 0.3.1020
+generates and commits Go output.
+
+- Passed: `make lint`, `make test-unit`, `go test ./internal/web ./internal/i18n -count=1`,
+  `make templ-check css-check`, `make accessibility-smoke` (English and Spanish;
+  0 axe violations; keyboard, focus, 320px reflow, reduced motion, and
+  accessibility tree checks passed), and `make template-smoke`.
+- Not run: full `make verify`; the ticket's focused, accessibility, and
+  generated-app checks passed.

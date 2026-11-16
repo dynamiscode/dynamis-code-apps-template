@@ -1,0 +1,6 @@
+@import "tailwindcss" source(none);
+@plugin "daisyui" {
+  themes: light --default, dark --prefersdark;
+  include: button;
+}
+@source "./workspace.templ";

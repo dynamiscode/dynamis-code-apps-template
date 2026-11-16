@@ -80,3 +80,24 @@ func TestMultiWorkspaceModeKeepsCreation(t *testing.T) {
 		t.Fatalf("multi mode workspaces = %d, want 2", len(workspaces))
 	}
 }
+
+func TestWorkspaceHomeGuidesUserToFirstTask(t *testing.T) {
+	handler, auth, _, _, owner := testWeb(t, 10, nil)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	workspaces, err := auth.ListWorkspaces(context.Background(), owner.UserID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	page := request(handler, http.MethodGet, "/workspaces/"+workspaces[0].ID.String(), nil, cookies, nil)
+
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Start with your first item") {
+		t.Fatalf("workspace home does not guide the first task: %d, %s", page.Code, page.Body.String())
+	}
+	if !strings.Contains(page.Body.String(), `href="/workspaces/`+workspaces[0].ID.String()+`/items"`) {
+		t.Fatalf("first-task link does not open workspace items: %s", page.Body.String())
+	}
+}

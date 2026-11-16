@@ -23,4 +23,13 @@ for template in internal/web/templates/*.html; do
 	fi
 done
 
+for template in internal/web/*.templ; do
+	missing="$(grep -n '<html' "$template" | grep -v 'data-theme={ data.Theme }' || true)"
+	if [ -n "$missing" ]; then
+		echo "<html> root without data-theme from page data in $template:" >&2
+		echo "$missing" >&2
+		status=1
+	fi
+done
+
 exit "$status"

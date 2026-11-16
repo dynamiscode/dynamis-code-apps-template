@@ -147,8 +147,8 @@ make docker-smoke
 ```
 
 `make verify` checks formatting, tests, vet, race behavior, module checks,
-workflow syntax and action pins, generated OpenAPI drift, command builds, and
-generation of a clean application. During active iteration, run package-focused
+workflow syntax and action pins, generated OpenAPI, templ, and CSS drift,
+command builds, and generation of a clean application. During active iteration, run package-focused
 tests (such as `go test ./internal/web/...`) to avoid the integration and
 template-smoke overhead; run full `go test ./...` and `make verify` once the change
 is bounded. Run `node --check internal/web/assets/*.js` when modifying browser

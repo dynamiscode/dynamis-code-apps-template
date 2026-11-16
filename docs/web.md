@@ -7,7 +7,7 @@ permission gets `403`.
 The browser interface is server-rendered and reaches the same application use
 cases as REST. Sign in at `/login`, create or choose a workspace, then use the
 workspace home and sidebar. `/workspaces/{workspaceId}` is the workspace home;
-Items is its resource surface and Settings is a nested route
+it highlights the first Item task and links to enabled workspace tools. Items is its resource surface and Settings is a nested route
 group for members, invitations, API tokens, webhooks, SCIM provisioning, export, import, and audit history.
 `/account`, `/notifications`, `/sessions`, and `/security` cover account and
 security settings. The authenticated shell uses
@@ -203,6 +203,16 @@ the next rendered page. The mirror holds no secret.
 Every page root carries `data-theme`. `app.css` defines tokens for `light` and
 `dark`; the `system` value applies the dark tokens only under
 `prefers-color-scheme: dark`.
+
+`common.product_name` supplies the browser brand name. Generated apps can
+customize `--brand-accent`, `--brand-font-family`, `--brand-radius`, and
+`--brand-space` in `internal/web/assets/app.css`; the existing user theme
+preference controls light, dark, or system appearance.
+
+The workspace home is the first page rendered with templ. `components.css` is
+compiled from pinned Tailwind CSS and daisyUI packages and served from the
+embedded asset tree. `make templ-check` and `make css-check` detect generated
+file drift.
 
 ## WebMCP progressive enhancement
 

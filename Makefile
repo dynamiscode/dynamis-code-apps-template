@@ -2,7 +2,7 @@ GOVULNCHECK_VERSION ?= v1.7.0
 ACTIONLINT_VERSION ?= v1.7.12
 GITLEAKS_VERSION ?= v8.30.1
 
-.PHONY: setup setup-hooks fmt-check lint test ci-local vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check build image docker-smoke accessibility-smoke webmcp-smoke ux-smoke template-smoke verify js-check test-unit test-postgres logger-injection commit-msg-hook
+.PHONY: setup setup-hooks fmt-check lint test ci-local vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check templ-generate templ-check css-build css-check build image docker-smoke accessibility-smoke webmcp-smoke ux-smoke template-smoke verify js-check test-unit test-postgres logger-injection commit-msg-hook
 
 setup: setup-hooks
 	test -f .env || cp .env.example .env
@@ -80,6 +80,25 @@ generate-check:
 	after="$$(git diff -- api/contract.gen.go)"; \
 	test "$$before" = "$$after"
 
+templ-generate:
+	go generate ./internal/web
+
+templ-check:
+	tmp="$$(mktemp)"; \
+	trap 'rm -f "$$tmp"' EXIT; \
+	cp internal/web/workspace_templ.go "$$tmp"; \
+	go generate ./internal/web; \
+	cmp "$$tmp" internal/web/workspace_templ.go
+
+css-build:
+	npm run build:css
+
+css-check:
+	tmp="$$(mktemp)"; \
+	trap 'rm -f "$$tmp"' EXIT; \
+	npm exec -- tailwindcss -i internal/web/tailwind.css -o "$$tmp" --minify; \
+	cmp "$$tmp" internal/web/assets/components.css
+
 build:
 	go build ./cmd/...
 
@@ -107,6 +126,6 @@ template-smoke:
 # race (go test -race ./...) replaces plain go test to avoid running the suite twice.
 # Excluded (CI-only): workflow-check, vuln-check, docker-smoke, accessibility-smoke,
 # webmcp-smoke, template-smoke, and the Postgres job. See docs/development.md.
-ci-local: lint test-unit race deps-check generate-check build secret-check
+ci-local: lint test-unit race deps-check generate-check templ-check css-check build secret-check
 
-verify: lint test race deps-check workflow-check generate-check build template-smoke
+verify: lint test race deps-check workflow-check generate-check templ-check css-check build template-smoke

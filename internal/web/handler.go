@@ -732,7 +732,7 @@ func (h *Handler) workspaceHome(writer http.ResponseWriter, request *http.Reques
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, http.StatusOK, "workspace.html", pageData{
+	h.render(writer, http.StatusOK, "workspace-home", pageData{
 		Title: "Workspace home", NavPage: "workspace", NavSection: "workspace",
 		CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 	})
@@ -1130,6 +1130,10 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)
+	if name == "workspace-home" {
+		_ = workspaceHome(data).Render(context.Background(), writer)
+		return
+	}
 	if err := h.template.ExecuteTemplate(writer, name, data); err != nil {
 		return
 	}
