@@ -32,6 +32,55 @@ try {
         ...stop(), attribution: stopAttribution(), ...(state || {}) });
     } finally { stop(); stopAttribution(); }
   }
+  let notifyBusy = () => {};
+  await page.exposeFunction("recordWorkspaceFixtureBusy", () => notifyBusy());
+  async function measureDocumentMutationFailure(name, suffix, formSelector, buttonSelector) {
+    let release;
+    let arrived;
+    const gate = new Promise((resolve) => { release = resolve; });
+    const intercepted = new Promise((resolve) => { arrived = resolve; });
+    const busy = new Promise((resolve) => { notifyBusy = resolve; });
+    const handler = async (route) => {
+      const request = route.request();
+      if (request.method() !== "POST" || new URL(request.url()).pathname !== home + suffix) {
+        await route.continue();
+        return;
+      }
+      arrived();
+      await gate;
+      await route.fulfill({ status: 503, contentType: "text/plain", body: "Synthetic unavailable" });
+    };
+    await page.evaluate((selector) => {
+      const form = document.querySelector(selector);
+      if (!form) throw new Error("Fixture form missing");
+      new MutationObserver(() => {
+        if (form.getAttribute("aria-busy") === "true") window.recordWorkspaceFixtureBusy();
+      }).observe(form, { attributes: true, attributeFilter: ["aria-busy"] });
+    }, formSelector);
+    await page.route("**/*", handler);
+    try {
+      await measure(name, async () => {
+        const response = page.waitForResponse((value) => value.request().method() === "POST" &&
+          new URL(value.url()).pathname === home + suffix);
+        const click = page.locator(buttonSelector).click();
+        await intercepted;
+        let timer;
+        const pendingBusyObserved = await Promise.race([busy.then(() => true), new Promise((resolve) => {
+          timer = setTimeout(() => resolve(false), 2000);
+        })]);
+        clearTimeout(timer);
+        release();
+        await click;
+        const status = (await response).status();
+        assert.equal(status, 503);
+        return { pendingBusyObserved, status, response: "synthetic plain-text 503" };
+      });
+    } finally {
+      release();
+      notifyBusy = () => {};
+      await page.unroute("**/*", handler);
+    }
+  }
 
   for (const [name, suffix] of [["item filter", "/items?search=missing"],
     ["client filter", "/clients?filter=displayName:contains:missing"],
@@ -49,6 +98,11 @@ try {
     await page.locator(".client-create button[type=submit]").click();
     return { invalid: await page.locator("#client-display-name").evaluate((input) => !input.validity.valid) };
   });
+  await page.locator("#client-display-name").fill("Lifecycle fixture");
+  await measureDocumentMutationFailure("client create injected failure", "/clients",
+    ".client-create form", ".client-create button[type=submit]");
+  await page.goto(home + "/clients");
+  await page.locator(".client-create summary").click();
   await page.locator("#client-display-name").fill("Lifecycle fixture");
   await page.locator(".client-create button[type=submit]").click();
   await page.locator("#client-detail").waitFor();
@@ -84,6 +138,10 @@ try {
 
   await page.goto(home + "/settings/invitations");
   await page.locator("#invite-email").fill("fixture@example.invalid");
+  await measureDocumentMutationFailure("invitation create injected failure", "/settings/invitations",
+    'form[data-persist="invitation-create"]', 'button[value="create"]');
+  await page.goto(home + "/settings/invitations");
+  await page.locator("#invite-email").fill("fixture@example.invalid");
   await page.locator('button[value="create"]').click();
   await page.locator('button[value="resend"]').waitFor();
   await measure("invitation resend", async () => {
@@ -110,6 +168,10 @@ try {
   }
   await page.goto(home + "/settings/members");
   const memberRow = page.locator(".list-view-table tbody tr").filter({ hasText: "fixture@example.invalid" });
+  await memberRow.locator("select[name=role]").selectOption("viewer");
+  await measureDocumentMutationFailure("member role injected failure", "/settings/members",
+    '.list-view-table form[data-webmcp-actions]', '.list-view-table button[value="role"]');
+  await page.goto(home + "/settings/members");
   await memberRow.locator("select[name=role]").selectOption("viewer");
   await measure("member role change", async () => {
     await memberRow.locator('button[value="role"]').click();
@@ -155,14 +217,22 @@ try {
   });
   await page.goto(home + "/items");
   await page.getByLabel("New item title").fill("Failed item fixture");
+  let releaseItemFailure;
+  const itemFailureGate = new Promise((resolve) => { releaseItemFailure = resolve; });
   await page.route("**/items", async (route) => {
-    if (route.request().method() === "POST") await route.fulfill({ status: 503, body: "unavailable" });
+    if (route.request().method() === "POST") {
+      await itemFailureGate;
+      await route.fulfill({ status: 503, body: "unavailable" });
+    }
     else await route.continue();
   });
   await measure("item injected failure", async () => {
     await page.getByRole("button", { name: "Add item" }).click();
+    await page.locator('form.create[aria-busy="true"] button:disabled').waitFor();
+    releaseItemFailure();
     await page.getByText("Something went wrong. Try again.").first().waitFor();
-    return { inputPreserved: await page.getByLabel("New item title").inputValue() === "Failed item fixture" };
+    return { pendingBusyObserved: true,
+      inputPreserved: await page.getByLabel("New item title").inputValue() === "Failed item fixture" };
   });
   await page.unroute("**/items");
   await page.route("**/items/events", (route) => route.abort());

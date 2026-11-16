@@ -450,3 +450,41 @@ then CDP. The completed probe therefore reports pending UI as unavailable with
 this method. Its injected response does not establish the application's actual
 error page or browser chrome feedback. Application-level failure and loading
 states remain unverified for these navigations; #447 remains partial.
+
+### Mutation-state observations
+
+The gap script now holds the Item create request until its enhanced form is
+observed busy, then injects a 503. It also prepares held Client create, Member
+role and Invitation create POSTs, observing each form's `aria-busy` transition
+through a preinstalled observer before releasing an injected plain-text 503.
+The existing interaction script already holds the File upload and observes its
+status and disabled control before injecting a failure. The held-response duration includes the
+probe's wait and is not ordinary server latency. A synthetic document 503 does
+not verify an application-rendered error page. Workspace Home has no equivalent
+workspace mutation in this fixture; browser chrome loading and document pending
+feedback remain unobserved by these page-level probes.
+
+On 2026-11-16 at 19:43:38.919Z, commit `b00e59d` with the pending gap-script
+change ran in a user-provided isolated window with the same desktop environment
+and fixture conditions above. Command:
+
+```sh
+UI_MEASURE=gaps PLAYWRIGHT_PORT=58147 ./scripts/playwright-smoke.sh
+```
+
+Each case observed its form busy while the POST was held, then received the
+injected 503. Counts end after the response is observed, not necessarily after
+the document finishes. Elapsed time includes automation and the held interval:
+
+| Mutation | Requests | Completed encoded bytes | Unfinished | Elapsed ms |
+|---|---:|---:|---:|---:|
+| Client create | 1 | unavailable | 1 | 48.6 |
+| Member role | 1 | unavailable | 1 | 50.7 |
+| Invitation create | 1 | unavailable | 1 | 46.2 |
+| Item create | 1 | 63 | 0 | 100.1 |
+
+The Item showed its failure notice and retained input. The other three were
+ordinary form navigations to synthetic plain-text responses; their application
+error page and final transfer size were not observed. The File upload failure
+and pending state were observed separately in the extended isolated run above.
+Home's document loading and application-level failure remain unverified.
