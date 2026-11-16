@@ -89,8 +89,23 @@ func TestMembersListUsesSharedPresentationAndOptInPagination(t *testing.T) {
 		!strings.Contains(all.Body.String(), `name="limit"><option value="" selected>All members</option>`) {
 		t.Fatalf("default members list = %d, want shared unpaginated view: %s", all.Code, all.Body.String())
 	}
-	if !strings.Contains(all.Body.String(), `data-webmcp-actions="member-role-update member-remove ownership-transfer"`) {
-		t.Fatalf("member actions missing from shared view: %s", all.Body.String())
+	if !strings.Contains(all.Body.String(), `name="action" value="remove"`) ||
+		!strings.Contains(all.Body.String(), `name="action" value="transfer"`) ||
+		!strings.Contains(all.Body.String(), `type="checkbox" value="yes" required`) ||
+		!strings.Contains(all.Body.String(), `data-webmcp-page="members"`) ||
+		!strings.Contains(all.Body.String(), `data-webmcp-actions="member-role-update"`) ||
+		!strings.Contains(all.Body.String(), `data-webmcp-actions="member-remove"`) ||
+		!strings.Contains(all.Body.String(), `data-webmcp-actions="ownership-transfer"`) ||
+		!strings.Contains(all.Body.String(), `aria-describedby="remove-consequence-`) ||
+		!strings.Contains(all.Body.String(), `data-column="role"><a`) ||
+		strings.Contains(all.Body.String(), `data-column="role" aria-sort=""`) ||
+		!strings.Contains(all.Body.String(), `This removes their workspace access and stops sharing workspace resources with them.`) {
+		t.Fatalf("member actions or no-JavaScript confirmation missing: %s", all.Body.String())
+	}
+	roleSorted := request(env.routes, http.MethodGet, path+"?sort=role", nil, env.cookies, nil)
+	if !strings.Contains(roleSorted.Body.String(), `data-column="role" aria-sort="ascending"`) ||
+		strings.Contains(roleSorted.Body.String(), `data-column="email" aria-sort="`) {
+		t.Fatalf("member sort state = %d, want aria-sort only on active column: %s", roleSorted.Code, roleSorted.Body.String())
 	}
 	page := request(env.routes, http.MethodGet, path+"?limit=1&sort=email", nil, env.cookies, nil)
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `name="limit"`) ||

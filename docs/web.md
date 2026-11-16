@@ -83,8 +83,12 @@ Baseline browser surfaces:
 - `/workspaces/{workspaceId}/settings/members` lists members in the shared
   responsive table/card view with per-user columns, email/role filters, stable
   sorting, query URLs, and optional cursor paging; the default view is complete.
-  Authorized owners/admins change roles or remove members, and owners transfer
-  ownership. The ordinary forms work without JavaScript.
+  The route template keeps role, removal, and ownership transfer in separate
+  forms. Removal and transfer require separate explicit confirmations, including
+  when JavaScript is disabled; removal explains that workspace access and shared
+  resources stop. Shared identity policy authorizes role changes and removals
+  for owners/admins, and ownership transfer for owners only. The page exposes
+  non-secret WebMCP form markers while leaving submission to the user.
 - `/workspaces/{workspaceId}/settings/invitations` creates, resends, revokes, and shows
   copyable links. `/invitations/{secret}` accepts or registers an invitee with
   safe invalid, expired, revoked, duplicate, and wrong-email failures.
@@ -309,7 +313,7 @@ accessibility results and remaining limits are recorded in
 | `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
 | `/setup`, `/login`, `/mfa`, `/account/verify-email/{secret}`, `/password-reset/{secret}`, `/oauth/authorize` | `setup.html`, `login.html`, `mfa.html`, `verification.html`, `password-reset.html`, `mcp-consent.html`, `auth.html` | Initial setup, form errors, sign-in and MFA challenge, verification success/unavailable, reset request/completion, OAuth approval/denial |
 | Workspace items, clients, and custom fields | `items.html`, `item-list.html`, `list-view.html`, `clients.html`, `client.html`, `client-fields.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field lifecycle, realtime refresh |
-| Workspace members and invitations | `members.html`, `invitations.html`, `invitation.html` | Role changes, removal and ownership transfer, invitation create/resend/revoke, accepted and unavailable invitation |
+| Workspace members and invitations | `members.templ`, `invitations.html`, `invitation.html` | Role changes, removal and ownership transfer, invitation create/resend/revoke, accepted and unavailable invitation |
 | Workspace files | `files.html` | Empty/list states, filters and paging, upload progress/success/error, download authorization |
 | `/sessions` | `sessions.templ`, `sessions_templ.go` | Current, active, expired and revoked status; revoke current or other active sessions; feedback and empty state |
 | Account and workspace settings | `account.html`, `audit-history.html`, `email-settings.html`, `export.html`, `general-settings.html`, `import.html`, `language.html`, `notifications.html`, `provisioning.html`, `security.html`, `tokens.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, redacted history, notification read/unread, export/import entry, integration setup and failure, responsive navigation |
