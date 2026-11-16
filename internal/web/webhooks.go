@@ -74,10 +74,15 @@ func (h *Handler) renderWebhooksPageForPrincipalWithStatus(
 	csrf, selectedID, secret, message string,
 	status int,
 ) {
+	deleteConfirmationRequired := message == "webhooks.delete_confirmation_required"
 	data := pageData{
-		Title: "Webhooks", NavPage: "webhooks", NavSection: "settings", Error: message, CSRF: csrf,
+		Title: "Webhooks", NavPage: "webhooks", NavSection: "settings", Error: message, ErrorKey: "", CSRF: csrf,
 		Workspace: workspaceByID(nil, workspaceID), WebhookSecret: secret,
 		CanManage: principal.Permissions[identity.WebhooksManage], WebhookSecretKeyConfigured: h.webhooks.SecretKeyConfigured(),
+	}
+	if deleteConfirmationRequired {
+		data.Error = ""
+		data.ErrorKey = message
 	}
 	registered, err := h.webhooks.List(request.Context(), principal, workspaceID)
 	if err != nil {
@@ -183,6 +188,10 @@ func (h *Handler) webhookMutation(writer http.ResponseWriter, request *http.Requ
 	case "delete":
 		if webhookPath == "" {
 			h.renderWebhookMutationError(writer, request, workspaceID, principal, session, csrf, "The requested webhook action is invalid.")
+			return
+		}
+		if request.FormValue("confirm_delete") != "yes" {
+			h.renderWebhookMutationError(writer, request, workspaceID, principal, session, csrf, "webhooks.delete_confirmation_required")
 			return
 		}
 		if err := h.webhooks.Delete(request.Context(), principal, workspaceID, webhookID, auditContext(request)); err != nil {

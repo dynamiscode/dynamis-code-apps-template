@@ -96,7 +96,8 @@ Baseline browser surfaces:
   history. Creation and rotation display the webhook secret once. When
   neither `ENCRYPTION_KEY` nor `WEBHOOK_ENCRYPTION_KEY` is set, managers see an actionable warning and
   create/rotate controls are disabled. Stale form submissions keep the user on
-  this page with an inline error. Webhook IDs in paths and forms are short IDs;
+  this page with an inline error. Delete requires a localized confirmation
+  checkbox; the handler rejects unconfirmed submissions. Webhook IDs in paths and forms are short IDs;
   a malformed, integer, or unknown ID shows the not-found page for the history
   view and a "could not be found" message for rotate and delete.
 - `/workspaces/{workspaceId}/settings/provisioning` is restricted to workspace
@@ -325,16 +326,17 @@ accessibility results and remaining limits are recorded in
 | `/workspaces/{workspaceId}/settings/general` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Workspace locale and notification preferences, empty and saved states, invalid input and permission handling |
 | `/workspaces/{workspaceId}/settings/email` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Unconfigured/configured provider, saved state, validation, provider verification failure, redacted credentials and permission handling |
 | `/notifications`, `/notifications/events` | `notifications.templ`, `notifications_templ.go` | Recipient-scoped list and unread count, empty state, CSRF-protected mark-read, initial cursor and SSE replay after reconnect |
-| Account and workspace settings | `account.html`, `export.html`, `import.html`, `language.html`, `provisioning.html`, `security.html`, `tokens.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, export/import entry, integration setup and failure, responsive navigation |
+| `/workspaces/{workspaceId}/settings/webhooks` and `/workspaces/{workspaceId}/settings/webhooks/{webhookId}/deliveries` | `webhooks.templ`, `webhooks_templ.go`, `components.templ`, `navigation.templ` | Permission-denied and unavailable states, one-time secret creation/rotation, required localized delete confirmation, no-store redacted delivery history, keyboard/accessibility, mobile light/dark themes, no-JS confirmation and ordinary form fallback |
+| Account and workspace settings | `account.html`, `export.html`, `import.html`, `language.html`, `provisioning.html`, `security.html`, `tokens.html`, `navigation.html` | Settings validation, secret one-time display, redacted history, export/import entry, integration setup and failure, responsive navigation |
 | Public and unavailable pages | `public-share.html`, `error.html` | Share projection and invalid/expired/revoked links, not-found and request errors |
 
 Corresponding route and handler tests cover server-rendered behavior.
 `make ux-smoke` and `make accessibility-smoke` cover the browser paths they
 enumerate; [the accessibility evidence](accessibility.md) records that
-automated coverage. Workspace selection and workspace home use templ; the
-listed legacy views are an intentional exception to the migration target, not
-an exception to escaping, authorization, accessibility, localization, or
-ordinary-form requirements.
+automated coverage. Workspace selection, workspace home, audit history, webhook
+registry, and delivery history use templ; the remaining listed legacy views are an
+intentional exception to the migration target, not an exception to escaping,
+authorization, accessibility, localization, or ordinary-form requirements.
 
 ## WebMCP progressive enhancement
 
