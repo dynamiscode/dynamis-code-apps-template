@@ -1,1 +1,67 @@
-{{define "notifications.html"}}<!doctype html><html lang="{{.Locale}}" data-theme="{{.Theme}}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · Dynamis Code</title><link rel="stylesheet" href="/assets/app.css"><script>const stream=new EventSource('/notifications/events');stream.addEventListener('notification.created',()=>location.reload());stream.addEventListener('close',()=>stream.close());</script>{{template "ui-head" .}}</head><body>{{template "skip-link" .}}<header class="topbar"><a class="brand" href="/">Dynamis Code</a><div class="topbar-context">{{template "workspace-list-crumb" .}}<span>{{.T "common.account"}}</span></div>{{template "account-menu" .}}</header><main class="narrow" id="main"><h1>{{.T "notifications.notifications"}}</h1><p>{{.T "notifications.unread"}}: {{.UnreadNotifications}}</p>{{if .Notifications}}<ul>{{range .Notifications}}<li><strong>{{.Title}}</strong><p>{{.Body}}</p><small>{{$.DateTime .CreatedAt}}</small>{{if .ReadAt}}<span> — {{$.T "notifications.read"}}</span>{{else}}<form class="inline" action="/notifications/{{.ID}}" method="post"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit">{{$.T "notifications.mark_read"}}</button></form>{{end}}</li>{{end}}</ul>{{else}}<p>{{.T "notifications.none"}}</p>{{end}}</main></body></html>{{end}}
+{{define "notifications.html"}}
+<!doctype html>
+<html lang="{{.Locale}}" data-theme="{{.Theme}}">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>{{.T "notifications.notifications"}} · {{.T "common.product_name"}}</title>
+	<link rel="stylesheet" href="/assets/app.css">
+	<script defer src="/assets/notifications.js"></script>
+	{{template "ui-head" .}}
+</head>
+<body>
+	{{template "skip-link" .}}
+	<header class="topbar">
+		<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{{.T "common.product_name"}}</a>
+		<div class="topbar-context"><a href="/account">{{.T "common.account"}}</a></div>
+		{{template "account-menu" .}}
+	</header>
+	<main id="main" class="notification-center">
+		<div class="workspace-heading">
+			<div>
+				<p class="eyebrow">{{.T "common.account"}}</p>
+				<h1>{{.T "notifications.notifications"}}</h1>
+				<p class="notification-description">{{.T "notifications.description"}}</p>
+			</div>
+		</div>
+		<p class="notification-summary" role="status" aria-live="polite">
+			<span>{{.T "notifications.unread"}}</span>
+			<strong data-unread-count>{{.UnreadNotifications}}</strong>
+		</p>
+		<p class="notification-live" role="status" aria-live="polite"
+			data-notification-live
+			data-updated="{{.T "notifications.live_updated"}}"
+			data-disconnected="{{.T "notifications.live_disconnected"}}"></p>
+		<p><a href="/notifications">{{.T "notifications.refresh"}}</a> · <a href="/account">{{.T "notifications.manage_preferences"}}</a></p>
+		{{if .Notifications}}
+			<ul class="notification-list">
+				{{range .Notifications}}
+					<li class="notification-card">
+						<div>
+							<div class="notification-card-heading">
+								<h2>{{.Title}}</h2>
+								{{if .ReadAt}}<span class="notification-read">{{$.T "notifications.read"}}</span>{{else}}<span class="notification-unread">{{$.T "notifications.unread_status"}}</span>{{end}}
+							</div>
+							<p>{{.Body}}</p>
+							<time datetime="{{.CreatedAt.Format "2006-01-02T15:04:05Z07:00"}}">{{$.DateTime .CreatedAt}}</time>
+						</div>
+						{{if not .ReadAt}}
+							<form class="inline" action="/notifications/{{.ID}}" method="post">
+								<input type="hidden" name="csrf" value="{{$.CSRF}}">
+								<button class="secondary" type="submit">{{$.T "notifications.mark_read"}}</button>
+							</form>
+						{{end}}
+					</li>
+				{{end}}
+			</ul>
+		{{else}}
+			<section class="notification-empty" aria-labelledby="notification-empty-title">
+				<h2 id="notification-empty-title">{{.T "notifications.none"}}</h2>
+				<p>{{.T "notifications.empty_description"}}</p>
+				<a href="/account">{{.T "notifications.manage_preferences"}}</a>
+			</section>
+		{{end}}
+	</main>
+</body>
+</html>
+{{end}}

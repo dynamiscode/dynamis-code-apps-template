@@ -18,9 +18,10 @@ bootstrapped server, then provide `A11Y_BASE_URL`, `A11Y_EMAIL`, and
 never prints the password.
 
 The axe pass also covers the client list, a client page, the custom-fields page,
-and the files page. The files check audits both locales, verifies the named
-upload progress control, and checks 320 CSS-pixel reflow. `make ux-smoke` creates
-a client, defines a choice field, and enters a value.
+the files page, and the recipient notification center. The files check audits
+both locales, verifies the named upload progress control, and checks 320
+CSS-pixel reflow. `make ux-smoke` creates a client, defines a choice field, and
+enters a value.
 
 ## Manual checklist
 

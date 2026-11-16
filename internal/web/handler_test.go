@@ -329,14 +329,25 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 		t.Fatalf("notification = %+v, %v", notification, err)
 	}
 	notifications := request(handler, http.MethodGet, "/notifications", nil, cookies, nil)
-	if notifications.Code != http.StatusOK || !strings.Contains(notifications.Body.String(), "A workspace update") {
+	notificationsBody := notifications.Body.String()
+	if notifications.Code != http.StatusOK || !strings.Contains(notificationsBody, "A workspace update") {
 		t.Fatalf("notifications page = %d, %s", notifications.Code, notifications.Body.String())
+	}
+	for _, marker := range []string{`class="notification-center"`, `aria-live="polite"`, `<strong data-unread-count>1</strong>`, "No leídas", "Dynamis Code"} {
+		if !strings.Contains(notificationsBody, marker) {
+			t.Errorf("notifications page missing %q: %s", marker, notificationsBody)
+		}
 	}
 	marked := request(handler, http.MethodPost, "/notifications/"+notification.ID.String(), url.Values{
 		"csrf": {session.CSRFSecret},
 	}, cookies, nil)
 	if marked.Code != http.StatusSeeOther {
 		t.Fatalf("notification mark read = %d", marked.Code)
+	}
+	readPage := request(handler, http.MethodGet, "/notifications", nil, cookies, nil)
+	if readPage.Code != http.StatusOK || !strings.Contains(readPage.Body.String(), `<strong data-unread-count>0</strong>`) ||
+		!strings.Contains(readPage.Body.String(), "leída") {
+		t.Fatalf("read notification page = %d, %s", readPage.Code, readPage.Body.String())
 	}
 
 	resetPage := request(handler, http.MethodGet, "/password-reset", nil, nil, nil)
