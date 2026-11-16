@@ -129,26 +129,57 @@ try {
   await driver.wait(until.elementLocated(By.css(".settings-panel")), 5000);
   await audit("security");
   await expectMobileNoOverflow("security");
-  await driver.get(`${baseURL}/password-reset`);
-  try {
-    await driver.wait(until.elementLocated(By.css('form[action="/password-reset"]')), 5000);
-  } catch (error) {
-    console.error(`password reset route ${await driver.getCurrentUrl()} title ${await driver.getTitle()}`);
-    throw error;
+  await driver.manage().deleteCookie("session");
+  await driver.manage().deleteCookie("csrf");
+  for (const resetLocale of ["en", "es"]) {
+    for (const theme of ["light", "dark"]) {
+      for (const [width, height, viewport] of [[1280, 900, "desktop"], [390, 844, "mobile"]]) {
+        const matrix = `${resetLocale}-${theme}-${viewport}`;
+        await driver.manage().window().setRect({ width, height });
+        await driver.get(`${baseURL}/language?locale=${resetLocale}&return_to=%2Fpassword-reset`);
+        await driver.manage().deleteCookie("theme");
+        await driver.manage().addCookie({ name: "theme", value: theme, path: "/" });
+        await driver.get(`${baseURL}/password-reset`);
+        await driver.wait(until.elementLocated(By.css('form[action="/password-reset"]')), 5000);
+        const html = driver.findElement(By.css("html"));
+        const actualTheme = await html.getAttribute("data-theme");
+        const actualLocale = await html.getAttribute("lang");
+        if (actualTheme !== theme || actualLocale !== resetLocale) {
+          throw new Error(`password reset locale/theme mismatch: ${matrix}; got ${actualLocale}/${actualTheme}`);
+        }
+        await audit(`password reset ${matrix}`);
+        if (width < 608) await expectMobileNoOverflow(`password reset ${matrix}`);
+
+        await driver.get(`${baseURL}/password-reset/unavailable`);
+        await driver.wait(until.elementLocated(By.id("reset-password")), 5000);
+        await driver.findElement(By.id("reset-password")).sendKeys("first-valid-password-123");
+        await driver.findElement(By.id("reset-password-confirmation")).sendKeys("first-valid-password-123");
+        await driver.findElement(By.css('form[action="/password-reset/unavailable"] button[type="submit"]')).click();
+        await driver.wait(until.elementLocated(By.css('.error[role="alert"]')), 5000);
+        if ((await driver.switchTo().activeElement().getAttribute("role")) !== "alert") {
+          throw new Error(`password reset unavailable error did not receive focus: ${matrix}`);
+        }
+        await audit(`password reset unavailable ${matrix}`);
+        if (width < 608) await expectMobileNoOverflow(`password reset unavailable ${matrix}`);
+      }
+    }
   }
-  await audit("password reset");
-  await expectMobileNoOverflow("password reset");
-  await driver.get(`${baseURL}/password-reset/unavailable`);
-  await driver.wait(until.elementLocated(By.id("reset-password")), 5000);
-  await driver.findElement(By.id("reset-password")).sendKeys("first-valid-password-123");
-  await driver.findElement(By.id("reset-password-confirmation")).sendKeys("first-valid-password-123");
-  await driver.findElement(By.css('form[action="/password-reset/unavailable"] button[type="submit"]')).click();
-  await driver.wait(until.elementLocated(By.css('.error[role="alert"]')), 5000);
+  await driver.get(`${baseURL}/language?locale=${locale}&return_to=%2Flogin`);
+  await driver.get(`${baseURL}/auth/oidc/company/callback?error=access_denied`);
+  await driver.wait(until.elementLocated(By.css('[role="alert"]')), 5000);
+  await audit("OIDC callback failure");
   if ((await driver.switchTo().activeElement().getAttribute("role")) !== "alert") {
-    throw new Error("password reset unavailable error did not receive focus");
+    throw new Error("OIDC callback failure did not focus its error alert");
   }
-  await audit("password reset unavailable");
-  await expectMobileNoOverflow("password reset unavailable");
+  await driver.get(`${baseURL}/login`);
+  await driver.findElement(By.id("email")).sendKeys(email);
+  await driver.findElement(By.id("password")).sendKeys(password);
+  await driver.findElement(By.css('form[action="/login"] button[type="submit"]')).click();
+  try {
+    await driver.wait(until.urlIs(`${baseURL}/`), 5000);
+  } catch (error) {
+    throw new Error(`re-login after auth accessibility checks failed at ${await driver.getCurrentUrl()}: ${await driver.findElement(By.css("body")).getText()}`, { cause: error });
+  }
   await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/items`);
   await driver.wait(until.elementLocated(By.id("item-list")), 5000);
   await audit("items");
