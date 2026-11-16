@@ -1,0 +1,84 @@
+package web
+
+// pageHeading matches the workspace and resource page heading pattern.
+templ pageHeading(title, eyebrow string) {
+	<div class="workspace-heading"><div>
+		if eyebrow != "" {
+			<p class="eyebrow">{ eyebrow }</p>
+		}
+		<h1>{ title }</h1>
+	</div>{ children... }</div>
+}
+
+templ textField(id, label string, attrs templ.Attributes) {
+	<label for={ id }>{ label }</label>
+	<input class="input" id={ id } { attrs... }/>
+}
+
+templ selectField(id, label string, attrs templ.Attributes) {
+	<label for={ id }>{ label }</label>
+	<select class="select" id={ id } { attrs... }>{ children... }</select>
+}
+
+templ textareaField(id, label, value string, attrs templ.Attributes) {
+	<label for={ id }>{ label }</label>
+	<textarea class="textarea" id={ id } { attrs... }>{ value }</textarea>
+}
+
+templ fieldError(id, message string) {
+	<p id={ id } class="error">{ message }</p>
+}
+
+templ submitButton(label string, attrs templ.Attributes) {
+	<button class="btn btn-primary" type="submit" { attrs... }>{ label }</button>
+}
+
+templ linkButton(href, label string) {
+	<a class="btn btn-primary" href={ href }>{ label }</a>
+}
+
+// confirmButton preserves the existing progressive enhancement for destructive actions.
+templ confirmButton(label, prompt string, attrs templ.Attributes) {
+	<button class="btn btn-error danger" type="submit" data-confirm={ prompt } { attrs... }>{ label }</button>
+}
+
+templ confirmationField(id, name, label string) {
+	<label class="confirmation" for={ id }><input id={ id } name={ name } type="checkbox" value="yes" required/> <span>{ label }</span></label>
+}
+
+templ errorAlert(message string) {
+	<p class="alert alert-error error" role="alert" tabindex="-1">{ message }</p>
+}
+
+templ successAlert(message string) {
+	<p class="alert alert-success success" role="status">{ message }{ " " }{ children... }</p>
+}
+
+templ dataTable(caption string, hiddenCaption bool) {
+	<div class="table-scroll"><table class="table">
+		<caption class={ templ.KV("visually-hidden", hiddenCaption) }>{ caption }</caption>
+		{ children... }
+	</table></div>
+}
+
+templ linkedCard(href, title, description string) {
+	<li class="card"><a href={ href }><strong>{ title }</strong><span>{ description }</span></a></li>
+}
+
+templ listCards() {
+	<ul class="list-view-cards">{ children... }</ul>
+}
+
+templ listCard() {
+	<li>{ children... }</li>
+}
+
+templ emptyState(message string) {
+	<p>{ message }{ " " }{ children... }</p>
+}
+
+templ nextPage(href, label string) {
+	if href != "" {
+		<p><a href={ href }>{ label }</a></p>
+	}
+}

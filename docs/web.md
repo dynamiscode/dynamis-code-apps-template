@@ -31,6 +31,17 @@ legacy templates remain for other routes. On desktop the workspace sidebar
 spans the viewport height. On mobile its links remain visible and usable without
 JavaScript.
 
+Shared templ components cover page headings, labelled inputs and selects,
+field errors, submit and link buttons, feedback, confirmations, captioned
+tables, linked and responsive list cards, empty states, and next-page links. Workspace selection
+and home use these components; other routes retain their existing templates
+until their migrations. Callers supply translated text, field attributes,
+table rows, equivalent mobile card contents, authorization, and CSRF-protected forms. A field error must be
+associated with its input through `aria-describedby`. Destructive buttons use
+the existing `data-confirm` enhancement; with JavaScript disabled the ordinary
+form still submits, so workflows requiring explicit consent must validate a
+required confirmation server-side. DaisyUI colors use the existing brand tokens.
+
 ## Localization
 
 Browser catalogs are embedded, Git-reviewed JSON under `internal/i18n/locales`
@@ -272,7 +283,7 @@ intact until each family can move with behavior parity.
 
 | Route family | Views and shared templates | Major states covered |
 |---|---|---|
-| `/`, `/workspaces/{workspaceId}` | `workspace.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
+| `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
 | `/setup`, `/login`, `/mfa`, `/account/verify-email/{secret}`, `/password-reset/{secret}`, `/oauth/authorize` | `setup.html`, `login.html`, `mfa.html`, `verification.html`, `password-reset.html`, `mcp-consent.html`, `auth.html` | Initial setup, form errors, sign-in and MFA challenge, verification success/unavailable, reset request/completion, OAuth approval/denial |
 | Workspace items, clients, and custom fields | `items.html`, `item-list.html`, `list-view.html`, `clients.html`, `client.html`, `client-fields.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field lifecycle, realtime refresh |
 | Workspace members and invitations | `members.html`, `invitations.html`, `invitation.html` | Role changes, removal and ownership transfer, invitation create/resend/revoke, accepted and unavailable invitation |

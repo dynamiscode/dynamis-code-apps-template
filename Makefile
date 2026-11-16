@@ -84,11 +84,11 @@ templ-generate:
 	go generate ./internal/web
 
 templ-check:
-	tmp="$$(mktemp)"; \
-	trap 'rm -f "$$tmp"' EXIT; \
-	cp internal/web/workspace_templ.go "$$tmp"; \
+	tmp="$$(mktemp -d)"; \
+	trap 'rm -rf "$$tmp"' EXIT; \
+	cp internal/web/*_templ.go "$$tmp"/; \
 	go generate ./internal/web; \
-	cmp "$$tmp" internal/web/workspace_templ.go
+	for generated in internal/web/*_templ.go; do cmp "$$tmp/$${generated##*/}" "$$generated" || exit 1; done
 
 css-build:
 	npm run build:css

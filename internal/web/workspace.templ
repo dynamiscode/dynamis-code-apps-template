@@ -127,15 +127,11 @@ templ dashboardHomeNavigation(data pageData) {
 				</aside>
 }
 
-templ linkedCard(href, title, description string) {
-	<li><a href={ href }><strong>{ title }</strong><span>{ description }</span></a></li>
-}
-
 templ workspaceSelection(data pageData) {
 	@dashboardShell(data, dashboardHeader(data), nil) {
-		<h1>{ data.T("workspace.workspaces") }</h1>
+		@pageHeading(data.T("workspace.workspaces"), "")
 		if data.Error != "" {
-			<p class="error" role="alert">{ data.Error }</p>
+			@errorAlert(data.Error)
 		}
 		if len(data.Workspaces) > 0 {
 			<ul class="cards">
@@ -144,21 +140,19 @@ templ workspaceSelection(data pageData) {
 				}
 			</ul>
 		} else {
-			<p>{ data.T("workspace.no_memberships") }</p>
+			@emptyState(data.T("workspace.no_memberships"))
 		}
 		if data.CanCreateWorkspace {
 			<section>
 				<h2>{ data.T("workspace.create") }</h2>
 				<form data-webmcp-actions="workspace-create" action="/workspaces" method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					<label for="workspace-name">{ data.T("workspace.name") }</label>
-					<input id="workspace-name" name="name" required maxlength="120"/>
-					<label for="workspace-locale">{ data.T("workspace.language_fallback") }</label>
-					<select id="workspace-locale" name="locale">
+					@textField("workspace-name", data.T("workspace.name"), templ.Attributes{"name": "name", "required": true, "maxlength": "120"})
+					@selectField("workspace-locale", data.T("workspace.language_fallback"), templ.Attributes{"name": "locale"}) {
 						<option value="en" selected?={ data.Locale == "en" }>{ data.T("common.english") }</option>
 						<option value="es" selected?={ data.Locale == "es" }>{ data.T("common.spanish") }</option>
-					</select>
-					<button class="btn btn-primary" type="submit">{ data.T("workspace.create") }</button>
+					}
+					@submitButton(data.T("workspace.create"), nil)
 				</form>
 			</section>
 		}
@@ -167,12 +161,10 @@ templ workspaceSelection(data pageData) {
 
 templ workspaceHome(data pageData) {
 	@dashboardShell(data, dashboardHeader(data), dashboardHomeNavigation(data)) {
-					<div class="workspace-heading">
-						<div><p class="eyebrow">{ data.T("workspace.home") }</p><h1>{ data.Workspace.Name }</h1></div>
-					</div>
+					@pageHeading(data.Workspace.Name, data.T("workspace.home"))
 					<section class="first-task" aria-labelledby="first-task-title">
 						<div><p class="eyebrow">{ data.T("workspace.get_started") }</p><h2 id="first-task-title">{ data.T("workspace.first_task_title") }</h2><p>{ data.T("workspace.first_task_description") }</p></div>
-						<a class="btn btn-primary" href={ "/workspaces/" + data.Workspace.ID.String() + "/items" }>{ data.T("items.items") }</a>
+						@linkButton("/workspaces/" + data.Workspace.ID.String() + "/items", data.T("items.items"))
 					</section>
 					<section aria-labelledby="workspace-tools-title">
 						<h2 id="workspace-tools-title">{ data.T("workspace.tools_title") }</h2>

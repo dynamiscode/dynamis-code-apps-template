@@ -1161,3 +1161,18 @@ accessibility requirements.
 - The first `make verify` attempt stopped at `css-check` because this fresh
   worktree had no installed npm packages. After `npm ci`, the complete rerun
   passed.
+
+## Shared templ components (#411, 2026-11-16)
+
+Workspace selection and home use shared headings, fields, feedback, buttons,
+and cards. [Component rendering tests](../internal/web/components_test.go)
+also cover the table, confirmation, validation, empty-state, and pagination
+interfaces for the existing route patterns. Those route migrations remain
+separate; the tests do not establish browser accessibility for components
+that are not yet used by a migrated route.
+
+- Passed: focused component and workspace tests; templ and CSS drift checks;
+  lint; Chrome workspace screenshots and journeys; English and Spanish
+  accessibility smoke; generated-app template smoke.
+- Deferred: full `make test` and release verification. No data, API, CLI,
+  MCP, realtime, or operational behavior changed.
