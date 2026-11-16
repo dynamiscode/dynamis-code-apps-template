@@ -20,6 +20,7 @@ Run from the repository root with Go, Node, npm dependencies and Chrome installe
 ```sh
 npm ci
 make browser-smoke
+UI_MEASURE=1 ./scripts/playwright-smoke.sh
 ```
 
 The harness uses `127.0.0.1:58095` by default; set `PLAYWRIGHT_PORT` if occupied.
@@ -40,9 +41,19 @@ navigation, HTMX fragments, SSE connections/events and uploads/downloads;
 long-lived SSE must not be treated as a completed page load. Record definitions,
 start and end markers, errors, redirects, cache hits, loading feedback and
 unavailable metrics. Do not infer transfer bytes from asset gzip sizes below.
-The existing smoke command verifies the fixture and journeys; it does not collect
-these performance metrics. Screen-specific instrumentation and results remain
-work for #439.
+The measurement command signs in, clears Chrome's HTTP cache with CDP, then
+measures workspace-home navigation in a new context and repeats it warm. It
+prints JSON without paths, headers or response bodies. Each result counts CDP
+request starts from navigation until the home marker is visible and timing is
+read after the load event, including redirects; completed encoded
+bytes sum `Network.loadingFinished.encodedDataLength` in that interval.
+Unfinished requests, including long-lived streams, are counted separately and
+their bytes are unavailable. Redirect bytes may be incomplete; failures and
+redirects are reported, as are CDP cache-served events. Timings are Navigation Timing milliseconds from
+navigation start to DOMContentLoaded and load. This is one unthrottled run,
+not an aggregate or a complete per-screen baseline. Adapt the script for each
+interaction and report its exact command and boundaries; HTMX, SSE, uploads,
+downloads and loading feedback remain unmeasured by this navigation procedure.
 
 Use this result format for each run or aggregate:
 

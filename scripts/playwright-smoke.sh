@@ -33,6 +33,10 @@ if ! curl --fail --silent --retry 30 --retry-delay 1 --retry-connrefused \
   exit 1
 fi
 
-PLAYWRIGHT_BASE_URL="http://127.0.0.1:$port" \
-  PLAYWRIGHT_EMAIL=playwright@example.com PLAYWRIGHT_PASSWORD=playwright-password-123 \
+export PLAYWRIGHT_BASE_URL="http://127.0.0.1:$port"
+export PLAYWRIGHT_EMAIL=playwright@example.com PLAYWRIGHT_PASSWORD=playwright-password-123
+if [ "${UI_MEASURE:-0}" = 1 ]; then
+  node scripts/ui-measurement.mjs
+else
   npm run test:journeys -- "$@"
+fi
