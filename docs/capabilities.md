@@ -175,9 +175,6 @@ axe-core 4.10.2, Chrome, and VoiceOver:
   workspace home; current-page state and
   responsive keyboard/touch targets remain covered; destructive item actions have
   explicit confirmation and realtime status feedback
-- shared navigation renders through templ, with an escaped bridge for remaining
-  `html/template` pages; focused bridge and route checks cover active state,
-  role visibility, translated script messages, and logout CSRF escaping
 - optional WebMCP page markers, explicit tool schemas, secret/hidden-field
   exclusion, safe preparation, focus, and non-submission checks are covered by
   the browser contract test and conditional Selenium smoke
@@ -1164,3 +1161,19 @@ accessibility requirements.
 - The first `make verify` attempt stopped at `css-check` because this fresh
   worktree had no installed npm packages. After `npm ci`, the complete rerun
   passed.
+
+## Shared navigation migration evidence (#434, 2026-11-16)
+
+Shared navigation renders through templ, with an escaped bridge for remaining
+`html/template` pages. Focused bridge and route tests cover active state, role
+visibility, translated script messages, and logout CSRF escaping.
+
+- Passed: 15 focused web tests, `go vet ./internal/web`, `make templ-check`,
+  and `git diff --check`.
+- Passed: `./scripts/playwright-smoke.sh ui.spec.mjs` (10 checks), including
+  workspace selection and home snapshots on desktop and mobile in light and
+  dark themes, the Items journey, and Spanish workspace creation without JavaScript.
+- Passed: `npm run test:a11y` against an isolated server in English and Spanish;
+  zero axe violations on covered routes, with keyboard, focus, 320px reflow,
+  reduced-motion, and accessibility-tree checks.
+- Not run: full test and verification suites, deferred while PR checks run.

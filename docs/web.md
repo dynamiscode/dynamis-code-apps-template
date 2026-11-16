@@ -284,9 +284,9 @@ shell composes those components directly.
 | Account menu | Native disclosure and CSRF-protected logout remain; `TestLegacyNavigationBridge` checks escaping | #434; account pages remain separate |
 
 Empty, validation, pending and error states belong to the page routes above;
-navigation remains present when those pages render it. Browser screenshots,
-keyboard, no-JavaScript, mobile, theme and locale combinations require the
-existing browser suites; they were not rerun for this migration.
+navigation remains present when those pages render it. Focused browser and
+accessibility results and remaining limits are recorded in
+[shared navigation migration evidence](capabilities.md#shared-navigation-migration-evidence-434-2026-11-16).
 
 | Route family | Views and shared templates | Major states covered |
 |---|---|---|
