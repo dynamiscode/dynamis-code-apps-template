@@ -16,8 +16,8 @@ browser pages and determine invitation email language.
 Keep Git-reviewed JSON catalogs embedded in `internal/i18n`, with a small
 application-owned translator using `golang.org/x/text/language` for supported
 locale validation and `Accept-Language` matching. Catalogs use namespaced keys,
-English fallback, named interpolation, and plain strings rendered through the
-existing `html/template` escaping path. Dates are formatted from stored UTC
+English fallback, named interpolation, and plain strings escaped by templ or
+`html/template` according to the rendering path. Dates are formatted from stored UTC
 values according to the resolved locale. No plural engine is added until a
 count-dependent product message exists.
 

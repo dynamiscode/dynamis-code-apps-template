@@ -324,6 +324,7 @@ func newHandler(
 		return nil, err
 	}
 	templates, err := template.New("root").Funcs(template.FuncMap{
+		"navigation": renderNavigation,
 		// deref reads an optional string, such as a client value, as text.
 		"deref": func(value *string) string {
 			if value == nil {

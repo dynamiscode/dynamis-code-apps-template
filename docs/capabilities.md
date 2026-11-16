@@ -175,6 +175,9 @@ axe-core 4.10.2, Chrome, and VoiceOver:
   workspace home; current-page state and
   responsive keyboard/touch targets remain covered; destructive item actions have
   explicit confirmation and realtime status feedback
+- shared navigation renders through templ, with an escaped bridge for remaining
+  `html/template` pages; focused bridge and route checks cover active state,
+  role visibility, translated script messages, and logout CSRF escaping
 - optional WebMCP page markers, explicit tool schemas, secret/hidden-field
   exclusion, safe preparation, focus, and non-submission checks are covered by
   the browser contract test and conditional Selenium smoke
