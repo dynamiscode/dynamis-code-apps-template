@@ -261,6 +261,7 @@ main form:not(.inline) > button.reveal { display: block; margin-top: .35rem; min
 fieldset label:has(> input[type="checkbox"]), fieldset label:has(> input[type="radio"]) { display: flex; align-items: center; gap: .5rem; min-height: 2.75rem; margin-top: 0; }
 .table-wrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+.table :where(thead, tfoot) { color: var(--ink); }
 th, td { padding: .65rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
 th { background: var(--surface); }
 .list-view-table { overflow-x: auto; }

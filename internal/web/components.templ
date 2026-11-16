@@ -61,6 +61,12 @@ templ dataTable(caption string, hiddenCaption bool) {
 	</table></div>
 }
 
+templ listTable(caption string, hiddenCaption bool) {
+	<div class="list-view-table">
+		@dataTable(caption, hiddenCaption) { { children... } }
+	</div>
+}
+
 templ linkedCard(href, title, description string) {
 	<li class="card"><a href={ href }><strong>{ title }</strong><span>{ description }</span></a></li>
 }

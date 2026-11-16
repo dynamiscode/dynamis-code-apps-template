@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"os"
 	"strings"
 	"testing"
 
@@ -67,5 +68,42 @@ func TestSharedComponentsRenderAccessibleNativeControls(t *testing.T) {
 	var out bytes.Buffer
 	if err := nextPage("", "Next").Render(context.Background(), &out); err != nil || out.Len() != 0 {
 		t.Fatalf("empty next page = %q, %v", out.String(), err)
+	}
+}
+
+func TestResponsiveListBrowserFixture(t *testing.T) {
+	path := os.Getenv("COMPONENT_FIXTURE")
+	if path == "" {
+		t.Skip("browser fixture not requested")
+	}
+	tableRows := templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
+		_, err := io.WriteString(w, `<thead><tr><th scope="col">Item</th></tr></thead><tbody><tr><td><button id="table-action">Open item</button></td></tr></tbody>`)
+		return err
+	})
+	cardRows := templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
+		_, err := io.WriteString(w, `<li><button id="card-action">Open item</button></li>`)
+		return err
+	})
+	standaloneRows := templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
+		_, err := io.WriteString(w, `<thead><tr><th scope="col">History</th></tr></thead><tbody><tr><td><button id="standalone-action">Open history</button></td></tr></tbody>`)
+		return err
+	})
+	var out bytes.Buffer
+	out.WriteString(`<!doctype html><html lang="en"><head><title>List fixture</title></head><body><main><h1>Items</h1><button id="before">Before</button>`)
+	for _, fixture := range []struct {
+		component templ.Component
+		children  templ.Component
+	}{
+		{listTable("Items", true), tableRows},
+		{listCards(), cardRows},
+		{dataTable("History", false), standaloneRows},
+	} {
+		if err := fixture.component.Render(templ.WithChildren(context.Background(), fixture.children), &out); err != nil {
+			t.Fatal(err)
+		}
+	}
+	out.WriteString(`</main></body></html>`)
+	if err := os.WriteFile(path, out.Bytes(), 0600); err != nil {
+		t.Fatal(err)
 	}
 }

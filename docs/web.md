@@ -36,7 +36,9 @@ field errors, submit and link buttons, feedback, confirmations, captioned
 tables, linked and responsive list cards, empty states, and next-page links. Workspace selection
 and home use these components; other routes retain their existing templates
 until their migrations. Callers supply translated text, field attributes,
-table rows, equivalent mobile card contents, authorization, and CSRF-protected forms. A field error must be
+table rows, equivalent mobile card contents, authorization, and CSRF-protected forms.
+Use `listTable` with `listCards` for paired responsive lists; use `dataTable`
+for standalone scrollable tables. A field error must be
 associated with its input through `aria-describedby`. Destructive buttons use
 the existing `data-confirm` enhancement; with JavaScript disabled the ordinary
 form still submits, so workflows requiring explicit consent must validate a

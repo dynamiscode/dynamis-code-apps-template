@@ -1167,12 +1167,17 @@ accessibility requirements.
 Workspace selection and home use shared headings, fields, feedback, buttons,
 and cards. [Component rendering tests](../internal/web/components_test.go)
 also cover the table, confirmation, validation, empty-state, and pagination
-interfaces for the existing route patterns. Those route migrations remain
-separate; the tests do not establish browser accessibility for components
-that are not yet used by a migrated route.
+interfaces for the existing route patterns. A Chrome component fixture checks
+the paired table and cards at mobile and desktop widths in both themes,
+including keyboard focus, standalone table visibility, and axe. Those route
+migrations remain separate; other unused components still require browser
+validation as they are adopted.
 
 - Passed: focused component and workspace tests; templ and CSS drift checks;
   lint; Chrome workspace screenshots and journeys; English and Spanish
   accessibility smoke; generated-app template smoke.
+- Passed: [templ drift fixtures](../scripts/test-templ-check.sh), including
+  generator failure and added, removed, or changed outputs; the
+  [responsive list fixture](../scripts/playwright/components.spec.mjs).
 - Deferred: full `make test` and release verification. No data, API, CLI,
   MCP, realtime, or operational behavior changed.
