@@ -166,6 +166,7 @@ func TestFilesPageRendersTemplShellAndAccessibleEmptyState(t *testing.T) {
 		`class="list-view-cards"`,
 		`class="file-empty-state card" role="status"`,
 		`No files yet.`,
+		`Sort and filter files`,
 		`src="/assets/app.js"`,
 	} {
 		if !strings.Contains(body, want) {
@@ -189,7 +190,7 @@ func TestFilesUploadFeedbackUsesSelectedLocale(t *testing.T) {
 	env := newFilesTestEnv(t, 16<<20, 1<<30)
 	cookies := append(append([]*http.Cookie(nil), env.cookies...), &http.Cookie{Name: "locale", Value: "es"})
 	page := request(env.routes, http.MethodGet, env.filesPath(), nil, cookies, nil)
-	for _, want := range []string{`data-status-uploading="Subiendo archivo…"`, `data-status-success="Carga completada."`, `data-status-choose-file="Elige un archivo para cargar."`, `data-upload-progress`, `aria-label="Progreso de carga"`} {
+	for _, want := range []string{`data-status-uploading="Subiendo archivo…"`, `data-status-success="Carga completada."`, `data-status-choose-file="Elige un archivo para cargar."`, `data-upload-progress`, `aria-label="Progreso de carga"`, `Ordenar y filtrar archivos`} {
 		if !strings.Contains(page.Body.String(), want) {
 			t.Errorf("Spanish files page missing %q: %s", want, page.Body.String())
 		}

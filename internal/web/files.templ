@@ -76,10 +76,10 @@ templ fileColumnControls(data pageData) {
 
 templ fileFilters(data pageData) {
 	<details class="client-controls client-filters" open?={ data.HasClientFilters }>
-		<summary>{ data.T("clients.list_options") }</summary>
+		<summary>{ data.T("files.list_options") }</summary>
 		<form class="client-query" method="get" action={ data.CurrentPath }>
 			<fieldset>
-				<legend>{ data.T("clients.filter_legend") }</legend>
+				<legend>{ data.T("files.filter_legend") }</legend>
 				@textField("files-search", data.T("files.search") + " " + data.T("ui.optional"), templ.Attributes{"type": "search", "name": "search", "value": data.FileListQuery.Search})
 				@textField("files-mime", data.T("files.type") + " " + data.T("ui.optional"), templ.Attributes{"name": "mime", "value": data.FileListQuery.MIME})
 				@textField("files-min-size", data.T("files.min_size") + " " + data.T("ui.optional"), templ.Attributes{"type": "number", "min": "0", "name": "min_size", "value": data.FileMinSize})

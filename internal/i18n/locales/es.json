@@ -540,6 +540,8 @@
   "files.choose": "Archivo",
   "files.upload": "Cargar archivo",
   "files.recent": "Archivos del espacio de trabajo",
+  "files.list_options": "Opciones de la lista de archivos",
+  "files.filter_legend": "Ordenar y filtrar archivos",
   "files.none": "Aún no hay archivos.",
   "files.name": "Nombre del archivo",
   "files.type": "Tipo de archivo",

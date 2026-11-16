@@ -20,11 +20,8 @@ async function openFiles(page) {
   return workspacePath;
 }
 
-async function visibleDownload(page, name) {
-  const visibleList = await page.locator(".list-view-table").evaluate((element) =>
-    getComputedStyle(element).display === "none" ? ".list-view-cards" : ".list-view-table",
-  );
-  return page.locator(`${visibleList} a[aria-label$="${name}"]`).first();
+function visibleDownload(page, name) {
+  return page.getByRole("link", { name: new RegExp(`${name}$`) }).first();
 }
 
 const filesScreenshots = [
@@ -46,6 +43,7 @@ for (const screenshot of filesScreenshots) {
     expect(listDisplay).toBe(screenshot.width < 608 ? "none" : "block");
     expect(cardsDisplay).toBe(screenshot.width < 608 ? "grid" : "none");
     await expect(page).toHaveScreenshot(`files-${screenshot.name}.png`, { animations: "disabled", fullPage: true });
+    await expect(page.locator("details.client-filters summary")).toHaveText("File list options");
   });
 }
 
@@ -61,12 +59,17 @@ test("Files keyboard and Spanish labels stay usable", async ({ page }) => {
   await page.goto(`/language?locale=es&return_to=${encodeURIComponent(filesPath)}`);
   await expect(page.locator("html")).toHaveAttribute("lang", "es");
   await expect(page.getByRole("heading", { name: "Archivos", exact: true })).toBeVisible();
-  await expect(page.getByLabel("Archivo")).toBeVisible();
+  await expect(page.getByLabel("Archivo", { exact: true })).toBeVisible();
+  await expect(page.locator("details.client-filters summary")).toHaveText("Opciones de la lista de archivos");
 });
 
 test("Files page passes automated axe checks", async ({ page }) => {
   await openFiles(page);
-  await page.addScriptTag({ content: axe.source });
+  await page.route("**/axe-core.js", (route) => route.fulfill({
+    contentType: "application/javascript",
+    body: axe.source,
+  }));
+  await page.addScriptTag({ url: new URL("/axe-core.js", page.url()).href });
   const results = await page.evaluate(async () => axe.run(document));
   expect(results.violations).toEqual([]);
 });
@@ -138,7 +141,7 @@ test("upload reports byte progress, recovers from failure, and retries", async (
   await page.locator('.file-upload-form button[type="submit"]').click();
   await retryRequest;
   await retryResponse;
-  await expect(await visibleDownload(page, "retry-upload.txt")).toBeVisible();
+  await expect(visibleDownload(page, "retry-upload.txt")).toBeVisible();
 });
 
 test.describe("Files without JavaScript", () => {
@@ -155,7 +158,7 @@ test.describe("Files without JavaScript", () => {
       buffer: Buffer.from("native upload"),
     });
     await page.locator('.file-upload-form button[type="submit"]').click();
-    await expect(await visibleDownload(page, "native-upload.txt")).toBeVisible();
+    await expect(visibleDownload(page, "native-upload.txt")).toBeVisible();
 
     const optionsAfterUpload = page.locator("details.client-filters");
     if (!(await optionsAfterUpload.locator("form").isVisible())) await optionsAfterUpload.locator("summary").click();
@@ -183,7 +186,7 @@ test("read-only viewer lists and downloads files without upload controls", async
     buffer: Buffer.from("private file"),
   });
   await page.locator('.file-upload-form button[type="submit"]').click();
-  await expect(await visibleDownload(page, "viewer-readable.txt")).toBeVisible();
+  await expect(visibleDownload(page, "viewer-readable.txt")).toBeVisible();
 
   await page.goto(`${workspacePath}/settings/invitations`);
   await page.locator("#invite-email").fill("viewer-417@example.com");
@@ -199,7 +202,7 @@ test("read-only viewer lists and downloads files without upload controls", async
     await viewerPage.waitForURL(new RegExp(`${workspacePath}/items$`));
     await viewerPage.goto(`${workspacePath}/files`);
     await expect(viewerPage.getByRole("heading", { name: "Files", exact: true })).toBeVisible();
-    const downloadLink = await visibleDownload(viewerPage, "viewer-readable.txt");
+    const downloadLink = visibleDownload(viewerPage, "viewer-readable.txt");
     await expect(downloadLink).toBeVisible();
     await expect(viewerPage.locator("form[data-file-upload]")).toHaveCount(0);
     await expect(viewerPage.locator('input[type="file"]')).toHaveCount(0);

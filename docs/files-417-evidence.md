@@ -43,6 +43,24 @@ Issue: [#417](https://github.com/dynamiscode/dynamis-code-apps-template/issues/4
 
 ## Verification
 
-Pending final branch verification. Browser journeys, screenshot comparison,
-keyboard paths, and the full locale/theme/state matrix still need the serialized
-browser-test window.
+Passed:
+
+- `PLAYWRIGHT_PORT=58117 make browser-smoke`: 23 Playwright journeys passed,
+  including Files screenshots, keyboard/Spanish labels, axe checks, upload
+  failure and retry, no-JavaScript fallback, and viewer download.
+- `A11Y_PORT=58118 make accessibility-smoke`: English and Spanish runs reported
+  zero axe violations on Files and all audited routes. Keyboard/focus, 320px
+  reflow, reduced motion, and progress accessibility-tree checks passed.
+- Four desktop/mobile light/dark Files screenshots were generated and visually
+  reviewed at `scripts/playwright/files.spec.mjs-snapshots/`.
+- `go test ./cmd/template-init -run
+  '^TestGenerateWithoutFilesPrunesFilesTemplAndBuilds$' -count=1` passed.
+  The regression checks that Files routes, evidence, browser spec, and
+  screenshot baselines are pruned. Generated no-Files application build passed.
+- Focused Files route, upload-state, templ drift, Playwright syntax, and diff
+  checks passed.
+
+Pending: full `make test`, race suite, `make verify`, and combined Files plus
+Clients generated-profile tests after #415/#422 integration. Synthetic browser
+progress validates uploader UI transitions; it does not measure native network
+byte reporting.
