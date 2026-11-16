@@ -86,6 +86,16 @@
     --focus-halo: #0b1220;
   }
 }
+:root, :root[data-theme] {
+  --color-primary: var(--accent);
+  --color-primary-content: var(--on-accent);
+  --color-base-100: var(--surface);
+  --color-base-content: var(--ink);
+  --color-error: var(--danger);
+  --color-error-content: var(--danger-surface);
+  --color-success: var(--success);
+  --color-success-content: var(--success-surface);
+}
 * { box-sizing: border-box; scrollbar-color: var(--border-strong) var(--canvas); }
 ::selection { background: var(--accent-surface); color: var(--ink); }
 body { margin: 0; background: var(--canvas); color: var(--ink); }
@@ -251,6 +261,7 @@ main form:not(.inline) > button.reveal { display: block; margin-top: .35rem; min
 fieldset label:has(> input[type="checkbox"]), fieldset label:has(> input[type="radio"]) { display: flex; align-items: center; gap: .5rem; min-height: 2.75rem; margin-top: 0; }
 .table-wrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+.table :where(thead, tfoot) { color: var(--ink); }
 th, td { padding: .65rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
 th { background: var(--surface); }
 .list-view-table { overflow-x: auto; }

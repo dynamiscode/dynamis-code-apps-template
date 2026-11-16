@@ -2,7 +2,7 @@ GOVULNCHECK_VERSION ?= v1.7.0
 ACTIONLINT_VERSION ?= v1.7.12
 GITLEAKS_VERSION ?= v8.30.1
 
-.PHONY: setup setup-hooks fmt-check lint test ci-local vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check templ-generate templ-check css-build css-check build image docker-smoke accessibility-smoke browser-smoke webmcp-smoke ux-smoke template-smoke verify js-check test-unit test-postgres logger-injection commit-msg-hook
+.PHONY: setup setup-hooks fmt-check lint test ci-local vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check templ-generate templ-check test-templ-check css-build css-check build image docker-smoke accessibility-smoke browser-smoke webmcp-smoke ux-smoke template-smoke verify js-check test-unit test-postgres logger-injection commit-msg-hook
 
 setup: setup-hooks
 	test -f .env || cp .env.example .env
@@ -37,7 +37,7 @@ test-postgres:
 	docker exec "$$name" pg_isready -h 127.0.0.1 -U postgres -d dynamis_code_test >/dev/null; \
 	POSTGRES_TEST_URL="postgres://postgres@127.0.0.1:$$port/dynamis_code_test?sslmode=disable" go test -p 1 ./internal/identity/... ./internal/files/... -count=1
 
-lint: fmt-check vet js-check doc-links web-conformance logger-injection commit-msg-hook
+lint: fmt-check vet js-check doc-links web-conformance logger-injection commit-msg-hook test-templ-check
 
 logger-injection:
 	./scripts/check-logger-injection.sh
@@ -84,11 +84,16 @@ templ-generate:
 	go generate ./internal/web
 
 templ-check:
-	tmp="$$(mktemp)"; \
-	trap 'rm -f "$$tmp"' EXIT; \
-	cp internal/web/workspace_templ.go "$$tmp"; \
+	set -eu; tmp="$$(mktemp -d)"; \
+	trap 'rm -rf "$$tmp"' EXIT; \
+	mkdir "$$tmp/before" "$$tmp/after"; \
+	cp internal/web/*_templ.go "$$tmp/before/"; \
 	go generate ./internal/web; \
-	cmp "$$tmp" internal/web/workspace_templ.go
+	cp internal/web/*_templ.go "$$tmp/after/"; \
+	diff -r "$$tmp/before" "$$tmp/after"
+
+test-templ-check:
+	sh scripts/test-templ-check.sh
 
 css-build:
 	npm run build:css
