@@ -85,6 +85,9 @@ func TestAuthenticationPagesUseBrandAndOrdinaryFormPaths(t *testing.T) {
 						t.Fatalf("login missing marker %q", marker)
 					}
 				}
+				if !strings.Contains(body, `class="auth-recovery-link" href="/password-reset"`) {
+					t.Fatal("login missing accessible password recovery target")
+				}
 			}
 		})
 	}

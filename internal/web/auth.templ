@@ -37,7 +37,7 @@ templ authLogin(data pageData) {
 			<input class="input" id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024"/>
 			@submitButton(data.T("account.sign_in"), nil)
 		</form>
-		<p><a href="/password-reset">{ data.T("account.forgot_password") }</a></p>
+		<p><a class="auth-recovery-link" href="/password-reset">{ data.T("account.forgot_password") }</a></p>
 		if len(data.OIDCProviders) > 0 {
 			<section class="auth-method" aria-labelledby="auth-provider-heading">
 				<h2 id="auth-provider-heading">{ data.T("account.other_sign_in_methods") }</h2>

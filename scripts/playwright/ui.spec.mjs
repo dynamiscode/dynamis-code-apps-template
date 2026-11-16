@@ -41,6 +41,10 @@ for (const viewport of ["desktop", "mobile"]) {
         await page.goto(`${oidcBaseURL}/login`);
         await expect(page.locator("html")).toHaveAttribute("lang", locale);
         await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+        const recoveryLink = page.locator('a[href$="password-reset"]');
+        const loginTarget = await recoveryLink.boundingBox();
+        expect(loginTarget.width).toBeGreaterThanOrEqual(24);
+        expect(loginTarget.height).toBeGreaterThanOrEqual(24);
         const provider = page.getByRole("link", {
           name: locale === "es" ? "Iniciar sesión con Company SSO" : "Sign in with Company SSO",
         });
@@ -62,6 +66,9 @@ for (const viewport of ["desktop", "mobile"]) {
         await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
         await expect(page.getByRole("alert")).toContainText(locale === "es" ? /no se pudo completar/i : /could not be completed/i);
         await expect(page.getByRole("alert")).toBeFocused();
+        const callbackTarget = await page.locator('a[href$="password-reset"]').boundingBox();
+        expect(callbackTarget.width).toBeGreaterThanOrEqual(24);
+        expect(callbackTarget.height).toBeGreaterThanOrEqual(24);
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
       });
     }

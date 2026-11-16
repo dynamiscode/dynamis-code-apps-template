@@ -133,11 +133,11 @@ func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
 	if loginPage.Code != http.StatusOK || !strings.Contains(loginPage.Body.String(), `<label for="email">`) {
 		t.Fatalf("login page status = %d; missing email label", loginPage.Code)
 	}
-	if !strings.Contains(loginPage.Body.String(), `<a href="/password-reset">Forgot password?</a>`) {
+	if !strings.Contains(loginPage.Body.String(), `class="auth-recovery-link" href="/password-reset">Forgot password?</a>`) {
 		t.Fatal("English login page lacks the password reset link")
 	}
 	spanishLogin := request(handler, http.MethodGet, "/login", nil, nil, map[string]string{"Accept-Language": "es"})
-	if spanishLogin.Code != http.StatusOK || !strings.Contains(spanishLogin.Body.String(), `<a href="/password-reset">¿Olvidaste tu contraseña?</a>`) {
+	if spanishLogin.Code != http.StatusOK || !strings.Contains(spanishLogin.Body.String(), `class="auth-recovery-link" href="/password-reset">¿Olvidaste tu contraseña?</a>`) {
 		t.Fatalf("Spanish login page status = %d; missing translated password reset link", spanishLogin.Code)
 	}
 	loginCSRF := responseCookie(loginPage, "login_csrf")
