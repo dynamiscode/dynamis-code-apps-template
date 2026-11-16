@@ -1,0 +1,72 @@
+package web
+
+templ notificationsPage(data pageData) {
+	<!doctype html>
+	<html lang={ data.Locale } data-theme={ data.Theme }>
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width,initial-scale=1"/>
+			<title>{ data.T("notifications.notifications") } · { data.T("common.product_name") }</title>
+			<link rel="stylesheet" href="/assets/components.css"/>
+			<link rel="stylesheet" href="/assets/app.css"/>
+			@uiHead(data)
+			<script defer src="/assets/notifications.js"></script>
+		</head>
+		<body>
+			@skipLink(data)
+			<header class="topbar">
+				<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
+				<div class="topbar-context"><a href="/account">{ data.T("common.account") }</a></div>
+				@accountMenu(data)
+			</header>
+			<main id="main" class="notification-center" data-notification-cursor={ data.NotificationCursor }>
+				<div class="workspace-heading"><div>
+					<p class="eyebrow">{ data.T("common.account") }</p>
+					<h1>{ data.T("notifications.notifications") }</h1>
+					<p class="notification-description">{ data.T("notifications.description") }</p>
+				</div></div>
+				<p class="notification-summary" role="status" aria-live="polite">
+					<span>{ data.T("notifications.unread") }</span>
+					<span class="badge badge-primary"><strong data-unread-count>{ data.UnreadNotifications }</strong></span>
+				</p>
+				<p class="notification-live" role="status" aria-live="polite"
+					data-notification-live
+					data-updated={ data.T("notifications.live_updated") }
+					data-disconnected={ data.T("notifications.live_disconnected") }></p>
+				<p><a href="/notifications">{ data.T("notifications.refresh") }</a> · <a href="/account">{ data.T("notifications.manage_preferences") }</a></p>
+				if len(data.Notifications) > 0 {
+					<ul class="list notification-list">
+						for _, notification := range data.Notifications {
+							<li class="list-row notification-card">
+								<div>
+									<div class="notification-card-heading">
+										<h2>{ notification.Title }</h2>
+										if notification.ReadAt != nil {
+											<span class="badge notification-read">{ data.T("notifications.read") }</span>
+										} else {
+											<span class="badge badge-primary notification-unread">{ data.T("notifications.unread_status") }</span>
+										}
+									</div>
+									<p>{ notification.Body }</p>
+									<time datetime={ notification.CreatedAt.Format("2006-01-02T15:04:05Z07:00") }>{ data.DateTime(notification.CreatedAt) }</time>
+								</div>
+								if notification.ReadAt == nil {
+									<form class="inline" action={ "/notifications/" + notification.ID.String() } method="post">
+										<input type="hidden" name="csrf" value={ data.CSRF }/>
+										<button class="btn btn-secondary" type="submit">{ data.T("notifications.mark_read") }</button>
+									</form>
+								}
+							</li>
+						}
+					</ul>
+				} else {
+					<section class="notification-empty" aria-labelledby="notification-empty-title">
+						<h2 id="notification-empty-title">{ data.T("notifications.none") }</h2>
+						<p>{ data.T("notifications.empty_description") }</p>
+						<a href="/account">{ data.T("notifications.manage_preferences") }</a>
+					</section>
+				}
+			</main>
+		</body>
+	</html>
+}
