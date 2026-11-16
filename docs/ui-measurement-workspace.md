@@ -339,3 +339,87 @@ the redirect makes these starts expected candidates, not proven duplicates.
 Full screen-by-screen script necessity, permission mutations, failure variants,
 and complete encoded stream/download accounting remain unverified. #447 is
 not complete.
+
+## Diagnostics prepared after integration
+
+The workspace-only attribution observer now groups repeated identical GETs by
+first and later CDP resource types and numeric response statuses, and counts
+XHR methods. URLs are compared in memory and are not printed. It does not
+inspect headers or bodies, so matching URLs alone cannot establish that two
+responses are interchangeable. The gap script also prepares a separate
+offline/online recovery observation after the synthetic request-abort case;
+it records whether the stream initially connected and whether it recovered
+within 30 seconds. These diagnostics have not yet run against the integrated
+branch. A privacy-focused Node test passed; browser behavior and any resulting
+timings remain unverified until a scheduled isolated window.
+
+## Integrated-branch diagnostic runs
+
+On 2026-11-16 the user confirmed an exclusive browser window. These runs used
+commit `503f49259f38aea639277b9b4537c771ea93dc70` with the uncommitted workspace
+attribution and bounded offline-recovery changes. Each command created a fresh
+isolated SQLite fixture and local storage. Chrome 157.0.8103.78, Darwin 27.2.0
+arm64, Playwright 1.64.1, Node 26.10.0; desktop 1280×900, scale 1, English,
+light theme, reduced motion, blocked service workers and unthrottled loopback.
+Actions within each run share fixture and cache. Commands:
+
+```sh
+UI_MEASURE=gaps PLAYWRIGHT_PORT=58147 ./scripts/playwright-smoke.sh
+UI_MEASURE=interactions PLAYWRIGHT_PORT=58147 ./scripts/playwright-smoke.sh
+```
+
+The first gap attempt reached the offline case but timed out after 10 seconds
+waiting for reconnecting feedback and produced no complete result. The script
+was changed to record that bounded observation. The first interaction attempt
+timed out after 30 seconds waiting for the initial SSE connected status; the
+fresh-fixture retry completed. Gap output time: 19:20:48.521Z; interaction
+output time: 19:21:43.332Z. Values below are requests / completed CDP encoded
+bytes / unfinished requests / elapsed milliseconds. Timings include automation
+overhead; redirect, unfinished stream and download transfer bytes can be missing.
+
+| Gap scenario | Result |
+|---|---|
+| Item / Client / File / Member filter | 7 / 115501 / 2 / 61.5; 4 / 68733 / 0 / 45.7; 4 / 77482 / 0 / 33.7; 4 / 78183 / 0 / 31.1 |
+| Client required validation | 0 / 0 / 0 / 47.7; invalid as expected |
+| Client unarchive / delete | 5 / 63291 / 0 / 67.2; 5 / 68074 / 0 / 89.6 |
+| Client field create / value set | 5 / 63169 / 0 / 68.5; 5 / 63962 / 0 / 76.5 |
+| Invitation resend | 4 / 75422 / 0 / 66.8 |
+| Member role / transfer / removal | 5 / 80178 / 0 / 67.2; 5 / 79722 / 0 / 60.8; 5 / 78107 / 0 / 84.3 |
+| Viewer invitation denial | 3 / 56194 / 0 / 18.0; HTTP 403 |
+| Item next page | 7 / 117281 / 2 / 98.5 |
+| Injected Item 503 | 1 / 63 / 0 / 72.3; input retained |
+| Forced SSE abort | 8 / 228162 / 1 / 10054.6; one transport failure |
+| Offline / online SSE | 7 / 228162 / 1 / 10061.6 |
+| Item create without JavaScript | 3 / 95341 / 0 / 96.1 |
+| Mobile Spanish dark Items | 8 / 237057 / 1 / 58.9; favicon 404 |
+
+The offline case initially connected. After setting the browser context offline,
+reconnecting feedback did not appear within 10 seconds. The script returned
+online and reported recovery as unverified, rather than interpreting the
+existing connected text as recovery. The forced-abort case observed reconnecting
+but did not observe connected feedback within 10 seconds. These outcomes do not
+establish the cause or prove behavior for all disconnect types.
+
+| Interaction scenario | Result |
+|---|---|
+| Peer Item SSE event and refresh | 1 / 6770 / 0 / 1339.0; one event |
+| Item create / edit / delete | 1 / 8877 / 0 / 64.7; 1 / 8909 / 0 / 57.1; 1 / 6813 / 0 / 53.2 |
+| Client create / detail / edit / archive | 5 / 63294 / 0 / 72.1; 4 / 63294 / 0 / 72.0; 5 / 63318 / 0 / 71.0; 5 / 63418 / 0 / 64.5 |
+| File upload / download / injected 503 | 6 / 86405 / 0 / 132.4; 1 / unavailable / 0 / 63.6; 1 / 63 / 0 / 69.2 |
+| Invitation create / revoke | 4 / 75422 / 0 / 73.9; 5 / 74817 / 0 / 66.6 |
+
+Download contents matched the 1048576-byte synthetic payload. Chrome's download
+handoff produced a CDP loading failure, so encoded transfer size remains
+unavailable. Upload showed one 100% progress observation. Viewer 403 and both
+injected 503s are intentional. Other recorded HTTP errors were limited to the
+mobile favicon. The peer-tab Item POST is excluded from the observed-tab count.
+
+For Item filter and next page, attribution observed an initial Document 200 and
+a repeated Fetch to the same URL; its response had not arrived at the boundary.
+During the forced-abort and offline cases, both Document and repeated Fetch
+reported 200. For upload, the two XHR starts were one POST and one GET; the GET
+was followed by a Document GET to the same URL. The XHR GET response status was
+not observed, and the Document returned 200. These are request candidates, not
+proof of redundant content: request headers and response bodies were not captured.
+Investigate under #413/#435 and #417. Client live updates remain mapped to
+#415/#308; favicon 404 remains mapped to #410. No fixes or budgets are claimed.

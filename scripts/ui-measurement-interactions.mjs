@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import { chromium } from "playwright";
 import { observeNetwork } from "./ui-measurement-network.mjs";
+import { observeWorkspaceAttribution } from "./ui-measurement-workspace-attribution.mjs";
 
 const browser = await chromium.launch({ channel: "chrome" });
 try {
@@ -25,13 +26,14 @@ try {
   async function measure(name, action) {
     console.error(`Measuring ${name}`);
     const stop = observeNetwork(cdp);
+    const stopAttribution = observeWorkspaceAttribution(cdp);
     const start = performance.now();
     const initialMessages = sseMessages;
     try {
       await action();
       results.push({ name, elapsedMs: Math.round((performance.now() - start) * 10) / 10,
-        sseMessages: sseMessages - initialMessages, ...stop() });
-    } finally { stop(); }
+        sseMessages: sseMessages - initialMessages, ...stop(), attribution: stopAttribution() });
+    } finally { stop(); stopAttribution(); }
   }
   await page.goto(home + "/items");
   await page.waitForFunction(() => document.querySelector("#realtime-status")?.textContent === document.querySelector("#item-list")?.dataset.liveConnected, null, { timeout: 30000 });

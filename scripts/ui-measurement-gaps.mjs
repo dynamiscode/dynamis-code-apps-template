@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import { chromium } from "playwright";
 import { observeNetwork } from "./ui-measurement-network.mjs";
+import { observeWorkspaceAttribution } from "./ui-measurement-workspace-attribution.mjs";
 
 const browser = await chromium.launch({ channel: "chrome" });
 try {
@@ -23,12 +24,13 @@ try {
   async function measure(name, action) {
     console.error(`Measuring ${name}`);
     const stop = observeNetwork(cdp);
+    const stopAttribution = observeWorkspaceAttribution(cdp);
     const start = performance.now();
     try {
       const state = await action();
       results.push({ name, elapsedMs: Math.round((performance.now() - start) * 10) / 10,
-        ...stop(), ...(state || {}) });
-    } finally { stop(); }
+        ...stop(), attribution: stopAttribution(), ...(state || {}) });
+    } finally { stop(); stopAttribution(); }
   }
 
   for (const [name, suffix] of [["item filter", "/items?search=missing"],
@@ -170,6 +172,19 @@ try {
     await page.unroute("**/items/events");
     const connected = await page.getByText("Live updates connected.").waitFor({ timeout: 10000 }).then(() => true, () => false);
     return { connectedWithin10Seconds: connected };
+  });
+  await measure("item SSE offline recovery", async () => {
+    await page.goto(home + "/items");
+    const initiallyConnected = await page.getByText("Live updates connected.").waitFor({ timeout: 30000 }).then(() => true, () => false);
+    if (!initiallyConnected) return { initiallyConnected, recovered: null };
+    await context.setOffline(true);
+    let reconnecting;
+    try {
+      reconnecting = await page.getByText("Live updates reconnecting…").waitFor({ timeout: 10000 }).then(() => true, () => false);
+    } finally { await context.setOffline(false); }
+    if (!reconnecting) return { initiallyConnected, reconnecting, recovered: null };
+    const recovered = await page.getByText("Live updates connected.").waitFor({ timeout: 30000 }).then(() => true, () => false);
+    return { initiallyConnected, reconnecting, recovered };
   });
 
   const noJS = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL,
