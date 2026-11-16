@@ -4,6 +4,11 @@ Partial evidence for #447, using the [common method](ui-measurement.md). This
 does not complete #447 or set a budget. The measurement script was added on
 top of application commit `d438f9d39a7063c0292ce4731c81977ca8af9a81`.
 
+**Isolation caveat:** A fixture isolation defect was found in upstream draft
+PR #456 after these runs. Its scope and effect on these results are not yet
+verified. Treat all recorded measurements as provisional until the upstream
+fix is available and the affected scenarios are rerun with verified isolation.
+
 Run at 2026-11-16T16:09:46.085Z on Darwin 27.2.0 arm64, Chrome
 157.0.8103.78, Node 26.10.0 and Playwright 1.64.1. Command:
 
