@@ -1104,6 +1104,7 @@ recipient-scoped SSE. The refresh link and server-rendered page work without
 JavaScript; the notification accessibility runner checks the empty state.
 
 - Passed: focused notification handler and JavaScript tests, `make test-unit`,
-  `make lint`, and `make accessibility-smoke` in English and Spanish (zero axe
-  violations on the notification page).
+  `make lint`, `make ux-smoke` (42 checks), and full `make accessibility-smoke`
+  in English and Spanish across all covered browser journeys (zero axe
+  violations; notifications passed both locales).
 - Not run: full `make verify`.
