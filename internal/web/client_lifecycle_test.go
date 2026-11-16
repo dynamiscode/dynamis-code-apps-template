@@ -63,6 +63,9 @@ func TestClientArchiveUnarchiveAndDeleteThroughForms(t *testing.T) {
 	if !strings.Contains(ownerDetail, `action="`+archivePath+`"`) || !strings.Contains(ownerDetail, `action="`+deletePath+`"`) || !strings.Contains(ownerDetail, "data-confirm=") {
 		t.Fatalf("owner detail lacks archive or confirmed delete: %s", ownerDetail)
 	}
+	if !strings.Contains(ownerDetail, `<p class="warning">Permanently delete this client and its values? This cannot be undone.</p>`) {
+		t.Fatalf("owner detail does not explain permanent deletion without JavaScript: %s", ownerDetail)
+	}
 	viewerDetail := request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil).Body.String()
 	if strings.Contains(viewerDetail, archivePath) || strings.Contains(viewerDetail, deletePath) {
 		t.Fatalf("viewer detail offers archive or delete: %s", viewerDetail)

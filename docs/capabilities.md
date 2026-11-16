@@ -996,3 +996,16 @@ server-rendered path.
   tree checks passed).
 - Not run: full `make test` and `make verify`; no domain or persistence behavior
   changed.
+
+## Client interface evidence (2026-11-15)
+
+Ticket #377 applies the shared branded workspace shell to client lists, details,
+and custom-field management. Client lists keep shareable query state and
+responsive table/card rendering. Permanent client and field deletion effects
+are visible next to their controls, including without JavaScript.
+
+- Passed: `go test ./internal/web -count=1`, `make lint`, and
+  `make accessibility-smoke` in English and Spanish (zero axe violations;
+  keyboard, focus, 320px reflow, reduced-motion, and accessibility-tree checks).
+- Not run: full `make verify`; this ticket's web, lint, and accessibility checks
+  passed.

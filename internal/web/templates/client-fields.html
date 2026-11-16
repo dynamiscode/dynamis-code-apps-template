@@ -1,14 +1,95 @@
-{{define "client-fields.html"}}<!doctype html>
-<html lang="{{.Locale}}" data-theme="{{.Theme}}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.T "clients.fields_title"}} · Dynamis Code</title><link rel="stylesheet" href="/assets/app.css">{{template "ui-head" .}}</head>
-<body data-webmcp-page="client-fields">{{template "skip-link" .}}<header class="topbar"><a class="brand" href="/">Dynamis Code</a><div class="topbar-context">{{template "workspace-list-crumb" .}}{{template "workspace-context" .}}</div>{{template "account-menu" .}}</header>
-<div class="app-shell"><aside class="sidebar">{{if not .SingleWorkspace}}<a class="sidebar-back" href="/">← {{.T "workspace.back_to_workspaces"}}</a>{{end}}{{template "workspace-nav" .}}</aside><main id="main"><p><a href="/workspaces/{{.Workspace.ID}}/clients">{{.T "clients.back"}}</a></p><h1>{{.T "clients.fields_title"}}</h1>{{template "client-field-list" .}}</main></div></body></html>{{end}}
-{{define "client-field-list"}}<section id="client-field-list" aria-labelledby="client-fields-heading"><h2 id="client-fields-heading" class="visually-hidden">{{.T "clients.fields_title"}}</h2>
-<p>{{.T "clients.fields_intro"}}</p>
-{{if .ErrorKey}}<p class="error" role="alert" tabindex="-1">{{.T .ErrorKey}}</p>{{end}}
-{{if .CanManageFields}}<form class="create" action="{{.FieldsPath}}" method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><h3>{{.T "clients.new_field"}}</h3>
-<label for="client-field-label">{{.T "clients.field_label"}}</label><input id="client-field-label" name="label" required maxlength="100" value="{{.FieldDraft.Label}}" data-trim>
-<label for="client-field-type">{{.T "clients.field_type"}}</label><select id="client-field-type" name="type"><option value="text"{{if or (eq .FieldDraft.Type "") (eq .FieldDraft.Type "text")}} selected{{end}}>{{.T "clients.field_type_text"}}</option><option value="number"{{if eq .FieldDraft.Type "number"}} selected{{end}}>{{.T "clients.field_type_number"}}</option><option value="date"{{if eq .FieldDraft.Type "date"}} selected{{end}}>{{.T "clients.field_type_date"}}</option><option value="yes_no"{{if eq .FieldDraft.Type "yes_no"}} selected{{end}}>{{.T "clients.field_type_yes_no"}}</option><option value="single_choice"{{if eq .FieldDraft.Type "single_choice"}} selected{{end}}>{{.T "clients.field_type_single_choice"}}</option></select>
-<div class="actions"><button type="submit">{{.T "clients.add_field"}}</button></div></form>
-{{else}}<p class="status">{{.T "clients.fields_read_only"}}</p>{{end}}
-{{if .ClientFields}}<ul class="client-fields">{{range $field := .ClientFields}}<li><span>{{$field.Label}}</span> <span>{{if eq .Type "text"}}{{$.T "clients.field_type_text"}}{{else if eq .Type "number"}}{{$.T "clients.field_type_number"}}{{else if eq .Type "date"}}{{$.T "clients.field_type_date"}}{{else if eq .Type "single_choice"}}{{$.T "clients.field_type_single_choice"}}{{else}}{{$.T "clients.field_type_yes_no"}}{{end}}</span> {{if .ArchivedAt}}<span>{{$.T "clients.field_archived"}}</span>{{if $.CanManageFields}}<form method="post" action="{{$.FieldsPath}}/{{.ID}}/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit">{{$.T "clients.restore_field"}}</button></form><form method="post" action="{{$.FieldsPath}}/{{.ID}}/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="danger" type="submit" data-confirm="{{$.T "clients.delete_field_confirm"}}">{{$.T "clients.delete_field"}}</button></form>{{end}}{{else}}<span>{{$.T "clients.field_active"}}</span>{{if $.CanManageFields}}<form method="post" action="{{$.FieldsPath}}/{{.ID}}/archive"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit">{{$.T "clients.archive_field"}}</button></form>{{end}}{{end}}{{if eq $field.Type "single_choice"}}<div class="client-field-options"><h4>{{$.T "clients.options_heading"}}</h4>{{if $field.Options}}<ul class="client-field-option-list">{{range $field.Options}}<li><span>{{.Label}}</span>{{if $.CanManageFields}} <form method="post" action="{{$.FieldsPath}}/{{$field.ID}}/options/{{.ID}}/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit" data-confirm="{{$.T "clients.option_delete_confirm"}}">{{$.T "clients.option_delete"}}</button></form>{{end}}</li>{{end}}</ul>{{else}}<p>{{$.T "clients.option_none"}}</p>{{end}}{{if and $.CanManageFields (not $field.ArchivedAt)}}<form class="option-create" action="{{$.FieldsPath}}/{{$field.ID}}/options" method="post"><input type="hidden" name="csrf" value="{{$.CSRF}}"><label for="option-label-{{$field.ID}}">{{$.T "clients.option_label"}}</label><input id="option-label-{{$field.ID}}" name="label" required maxlength="100" data-trim><button type="submit">{{$.T "clients.option_add"}}</button></form>{{end}}</div>{{end}}</li>{{end}}</ul>{{else}}<p>{{.T "clients.fields_none"}}</p>{{end}}
-</section>{{end}}
+{{define "client-fields.html"}}
+<!doctype html>
+<html lang="{{.Locale}}" data-theme="{{.Theme}}">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>{{.T "clients.fields_title"}} · {{.T "common.product_name"}}</title>
+	<link rel="stylesheet" href="/assets/app.css">
+	<link rel="stylesheet" href="/assets/clients.css">
+	{{template "ui-head" .}}
+</head>
+<body data-webmcp-page="client-fields">
+	{{template "skip-link" .}}
+	<header class="topbar">
+		<a class="brand" href="/">{{.T "common.product_name"}}</a>
+		<div class="topbar-context">{{template "workspace-list-crumb" .}}{{template "workspace-context" .}}</div>
+		{{template "account-menu" .}}
+	</header>
+	<div class="app-shell">
+		<aside class="sidebar">
+			{{if not .SingleWorkspace}}<a class="sidebar-back" href="/">← {{.T "workspace.back_to_workspaces"}}</a>{{end}}
+			{{template "workspace-nav" .}}
+		</aside>
+		<main id="main" class="workspace-main">
+			<div class="workspace-heading">
+				<div><p class="eyebrow">{{.T "clients.title"}}</p><h1>{{.T "clients.fields_title"}}</h1></div>
+				<a class="button secondary" href="/workspaces/{{.Workspace.ID}}/clients">{{.T "clients.back"}}</a>
+			</div>
+			{{template "client-field-list" .}}
+		</main>
+	</div>
+</body>
+</html>
+{{end}}
+
+{{define "client-field-list"}}
+<section id="client-field-list" class="client-panel" aria-labelledby="client-fields-heading">
+	<h2 id="client-fields-heading" class="visually-hidden">{{.T "clients.fields_title"}}</h2>
+	<p class="client-intro">{{.T "clients.fields_intro"}}</p>
+	{{if .ErrorKey}}<p class="error" role="alert" tabindex="-1">{{.T .ErrorKey}}</p>{{end}}
+	{{if .CanManageFields}}
+	<details class="client-controls client-create"{{if .ErrorKey}} open{{end}}>
+		<summary>{{.T "clients.new_field"}}</summary>
+		<form action="{{.FieldsPath}}" method="post">
+			<input type="hidden" name="csrf" value="{{.CSRF}}">
+			<label for="client-field-label">{{.T "clients.field_label"}}</label>
+			<input id="client-field-label" name="label" required maxlength="100" value="{{.FieldDraft.Label}}" data-trim>
+			<label for="client-field-type">{{.T "clients.field_type"}}</label>
+			<select id="client-field-type" name="type">
+				<option value="text"{{if or (eq .FieldDraft.Type "") (eq .FieldDraft.Type "text")}} selected{{end}}>{{.T "clients.field_type_text"}}</option>
+				<option value="number"{{if eq .FieldDraft.Type "number"}} selected{{end}}>{{.T "clients.field_type_number"}}</option>
+				<option value="date"{{if eq .FieldDraft.Type "date"}} selected{{end}}>{{.T "clients.field_type_date"}}</option>
+				<option value="yes_no"{{if eq .FieldDraft.Type "yes_no"}} selected{{end}}>{{.T "clients.field_type_yes_no"}}</option>
+				<option value="single_choice"{{if eq .FieldDraft.Type "single_choice"}} selected{{end}}>{{.T "clients.field_type_single_choice"}}</option>
+			</select>
+			<div class="actions"><button type="submit">{{.T "clients.add_field"}}</button></div>
+		</form>
+	</details>
+	{{else}}<p class="status">{{.T "clients.fields_read_only"}}</p>{{end}}
+	{{if .ClientFields}}
+	<ul class="client-fields">
+		{{range $field := .ClientFields}}
+		<li class="client-field-card">
+			<div class="client-field-heading">
+				<strong>{{$field.Label}}</strong>
+				<span>{{if eq .Type "text"}}{{$.T "clients.field_type_text"}}{{else if eq .Type "number"}}{{$.T "clients.field_type_number"}}{{else if eq .Type "date"}}{{$.T "clients.field_type_date"}}{{else if eq .Type "single_choice"}}{{$.T "clients.field_type_single_choice"}}{{else}}{{$.T "clients.field_type_yes_no"}}{{end}}</span>
+				{{if .ArchivedAt}}<span class="status">{{$.T "clients.field_archived"}}</span>{{else}}<span class="status">{{$.T "clients.field_active"}}</span>{{end}}
+			</div>
+			{{if $.CanManageFields}}
+			<div class="client-field-actions">
+				{{if .ArchivedAt}}
+				<form method="post" action="{{$.FieldsPath}}/{{.ID}}/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit">{{$.T "clients.restore_field"}}</button></form>
+				<div class="client-delete"><p class="warning">{{$.T "clients.delete_field_confirm"}}</p><form method="post" action="{{$.FieldsPath}}/{{.ID}}/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="danger" type="submit" data-confirm="{{$.T "clients.delete_field_confirm"}}">{{$.T "clients.delete_field"}}</button></form></div>
+				{{else}}
+				<form method="post" action="{{$.FieldsPath}}/{{.ID}}/archive"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit">{{$.T "clients.archive_field"}}</button></form>
+				{{end}}
+			</div>
+			{{end}}
+			{{if eq $field.Type "single_choice"}}
+			<div class="client-field-options">
+				<h3>{{$.T "clients.options_heading"}}</h3>
+				{{if $field.Options}}
+				<ul class="client-field-option-list">{{range $field.Options}}<li><span>{{.Label}}</span>{{if $.CanManageFields}}<form method="post" action="{{$.FieldsPath}}/{{$field.ID}}/options/{{.ID}}/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit" data-confirm="{{$.T "clients.option_delete_confirm"}}">{{$.T "clients.option_delete"}}</button></form>{{end}}</li>{{end}}</ul>
+				{{else}}<p>{{$.T "clients.option_none"}}</p>{{end}}
+				{{if and $.CanManageFields (not $field.ArchivedAt)}}
+				<form class="option-create" action="{{$.FieldsPath}}/{{$field.ID}}/options" method="post"><input type="hidden" name="csrf" value="{{$.CSRF}}"><label for="option-label-{{$field.ID}}">{{$.T "clients.option_label"}}</label><input id="option-label-{{$field.ID}}" name="label" required maxlength="100" data-trim><button type="submit">{{$.T "clients.option_add"}}</button></form>
+				{{end}}
+			</div>
+			{{end}}
+		</li>
+		{{end}}
+	</ul>
+	{{else}}<p class="status">{{.T "clients.fields_none"}}</p>{{end}}
+</section>
+{{end}}
