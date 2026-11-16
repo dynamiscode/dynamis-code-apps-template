@@ -16,6 +16,3 @@ catalogs and ordinary forms.
 - Blocked: `make accessibility-smoke`; `axe-core` is absent from `node_modules`.
 - Not run: full `make verify` and browser responsive/accessibility smoke.
 - No identity policy, schema, API, or changelog changes.
-
-Reconcile this evidence into `docs/web.md` and `docs/capabilities.md` after
-related UI issues merge.
