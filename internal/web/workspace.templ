@@ -9,6 +9,9 @@ templ dashboardShell(data pageData, header, navigation templ.Component) {
 			<title>{ data.Title } · { data.T("common.product_name") }</title>
 			<link rel="stylesheet" href="/assets/components.css"/>
 			<link rel="stylesheet" href="/assets/app.css"/>
+			if data.NavPage == "clients" {
+				<link rel="stylesheet" href="/assets/clients.css"/>
+			}
 			@uiHead(data)
 		</head>
 		<body class={ templ.KV("dashboard-workspace", navigation != nil) } data-workspace-home?={ data.NavPage == "workspace" } data-webmcp-page={ data.NavPage }>
@@ -23,6 +26,10 @@ templ dashboardShell(data pageData, header, navigation templ.Component) {
 				</main>
 			</div>
 			if data.NavPage == "home" {
+				<script defer src="/assets/app.js"></script>
+			}
+			if data.NavPage == "clients" {
+				<script defer src="/assets/htmx.min.js"></script>
 				<script defer src="/assets/app.js"></script>
 			}
 		</body>
