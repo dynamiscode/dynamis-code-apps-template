@@ -58,11 +58,15 @@ func TestMultiWorkspaceModeKeepsCreation(t *testing.T) {
 	if home.Code != http.StatusOK || !strings.Contains(home.Body.String(), `action="/workspaces"`) {
 		t.Fatalf("multi mode home = %d, create form missing", home.Code)
 	}
+	if !strings.Contains(home.Body.String(), `name="csrf" value="`+session.CSRFSecret+`"`) ||
+		!strings.Contains(home.Body.String(), `data-webmcp-page="home"`) {
+		t.Fatal("workspace selection lacks its CSRF field or WebMCP marker")
+	}
 
 	invalid := request(handler, http.MethodPost, "/workspaces", url.Values{
 		"name": {""}, "csrf": {session.CSRFSecret},
 	}, cookies, nil)
-	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), `action="/workspaces"`) {
+	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), `action="/workspaces"`) || !strings.Contains(invalid.Body.String(), `role="alert"`) {
 		t.Fatalf("multi mode invalid create = %d, form not re-rendered", invalid.Code)
 	}
 
