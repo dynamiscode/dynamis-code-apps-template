@@ -186,11 +186,13 @@ form submissions; the page does not load WebMCP or submit automatically.
 
 The workspace sidebar exposes `Home` above `Items` in the workspace context.
 Home is active at `/workspaces/{workspaceId}`. Settings uses the nested
-`/workspaces/{workspaceId}/settings` route and shows only its `Members & invitations`,
-`API tokens`, `Webhooks`, `Export`, and `Import` sub-items. Owners and admins also see
-`Provisioning (SCIM)` and `Audit history`. The Settings group is separated by
-flexible space and anchored at the bottom in the workspace context. The members screen and
-invitations screen retain local tabs behind the combined entry. In multi mode the Items page offers
+`/workspaces/{workspaceId}/settings` route and groups `General` under Setup,
+`Members & invitations`, `API tokens`, and `Webhooks` under Access, and `Export`
+under Activity. Owners and admins also see `Email` under Setup, `Provisioning
+(SCIM)` under Access, and `Import` and `Audit history` under Activity. The
+Settings group is separated by flexible space and anchored at the bottom in
+the workspace context. The members screen and invitations screen retain local
+tabs behind the combined entry. In multi mode the Items page offers
 `Back to Workspaces`, returning to the workspace selector; each Settings page offers
 `Back to home`, returning to the current workspace home. The native workspace switcher and account menu use ordinary
 `details` controls, so they work without JavaScript. In single mode the Items and Members screens show the workspace name as plain text
