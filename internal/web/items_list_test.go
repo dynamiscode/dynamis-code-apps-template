@@ -64,9 +64,12 @@ func TestItemsListPresentationAndPreferences(t *testing.T) {
 	if response.Code != http.StatusSeeOther {
 		t.Fatalf("hide final visible column = %d: %s", response.Code, response.Body.String())
 	}
-	noColumns := request(handler, http.MethodGet, path, nil, cookies, nil)
-	if noColumns.Code != http.StatusOK || !strings.Contains(noColumns.Body.String(), "Choose a column to show this list.") {
-		t.Fatalf("no-visible-column state = %d: %s", noColumns.Code, noColumns.Body.String())
+	noDataColumns := request(handler, http.MethodGet, path, nil, cookies, nil)
+	noDataColumnBody := noDataColumns.Body.String()
+	if noDataColumns.Code != http.StatusOK || strings.Contains(noDataColumnBody, `data-column="title"`) ||
+		strings.Contains(noDataColumnBody, `data-column="status"`) || !strings.Contains(noDataColumnBody, `scope="col">Actions</th>`) ||
+		!strings.Contains(noDataColumnBody, `data-item-edit`) {
+		t.Fatalf("no-visible-data-columns state = %d: %s", noDataColumns.Code, noDataColumnBody)
 	}
 	noMatches := request(handler, http.MethodGet, path+"?search=Missing", nil, cookies, nil)
 	if noMatches.Code != http.StatusOK || !strings.Contains(noMatches.Body.String(), "No items yet.") ||
@@ -97,7 +100,7 @@ func TestItemsListPresentationAndPreferences(t *testing.T) {
 func TestItemsPageUsesProfileLocaleAndTheme(t *testing.T) {
 	handler, auth, _, workspaceID, owner := testWeb(t, 10)
 	if err := auth.UpdateUserProfile(context.Background(), owner.UserID, identity.ProfileUpdateInput{
-		Locale: "es", Theme: "dark",
+		Locale: "es", Timezone: "America/Bogota", Theme: "dark",
 	}, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
