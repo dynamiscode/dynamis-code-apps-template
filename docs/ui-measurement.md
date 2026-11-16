@@ -49,12 +49,19 @@ read after the load event, including redirects; completed encoded
 bytes sum `Network.loadingFinished.encodedDataLength` in that interval.
 Unfinished requests, including long-lived streams, are counted separately and
 their bytes are unavailable. Redirect bytes may be incomplete; HTTP responses
-with status 400 or higher and transport failures are counted separately.
+with status 400 or higher and transport failures are counted separately. HTTP
+error details contain only the status, an allowlisted resource type and a
+`favicon` or `other` classification; URLs and query strings are never emitted.
 Redirects and CDP cache-served events are also reported. Timings are Navigation Timing milliseconds from
 navigation start to DOMContentLoaded and load. This is one unthrottled run,
 not an aggregate or a complete per-screen baseline. Adapt the script for each
 interaction and report its exact command and boundaries; HTMX, SSE, uploads,
 downloads and loading feedback remain unmeasured by this navigation procedure.
+
+On 2026-11-16, a validation run against base commit `830c8f2096ec08e6fd7aa65656b96c3380bd6683`
+with the diagnostic change applied reported one cold HTTP 404 for the favicon
+(CDP type `Other`), and no warm HTTP errors or transport failures. This is one
+observation, not a screen baseline or a performance budget.
 
 Use this result format for each run or aggregate:
 
