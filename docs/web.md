@@ -414,7 +414,9 @@ under the same replay window as Items.
 and database polling. Events carry the notification ID, type, title, body, and
 UTC creation time only to the authenticated recipient. `Last-Event-ID` resumes
 after the recipient's stored notification; no notification secret or other
-user's record is exposed.
+user's record is exposed. The notification client explicitly closes its
+EventSource on the server's lifetime `close` event and does not reopen it;
+live updates stop until the page reloads. The refresh link remains available.
 
 Permanent delete removes the live item and writes a redacted audit/change
 event. Existing backups may retain deleted content until the expiry defined in
