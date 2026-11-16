@@ -1091,7 +1091,7 @@ strings cover the changed screens.
 - Passed: `make accessibility-smoke` audited `/account`, `/settings/language`,
   `/sessions`, `/security`, and `/password-reset` in English and Spanish with
   zero axe violations and no 320px overflow.
-- Incomplete: the full accessibility smoke later failed on the inherited
-  `/imports` page at 320px because its skip link, brand, workspace switcher,
-  account menu, and sidebar back control fail target-size checks.
+- After stacking #376–#381, `make ux-smoke` passed all 42 checks and full
+  `make accessibility-smoke` passed in English and Spanish across all covered
+  journeys, including account and security; zero axe violations.
 - Not run: full `make verify`; no authentication policy, schema, or API changes.
