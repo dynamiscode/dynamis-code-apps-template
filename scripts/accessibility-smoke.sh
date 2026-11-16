@@ -18,7 +18,8 @@ BOOTSTRAP_ADMIN_PASSWORD=a11y-password-123 DATABASE_DRIVER=sqlite SQLITE_PATH="$
   go run ./cmd/bootstrap-admin -email a11y@example.com -workspace Accessibility >/dev/null
 # Build first so $pid is the server itself; killing `go run` leaves its child running.
 go build -o "$work/server" ./cmd/server
-MULTI_WORKSPACE_ENABLED=true DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" HTTP_ADDRESS="127.0.0.1:$port" \
+MULTI_WORKSPACE_ENABLED=true HTTP_REQUESTS_PER_MINUTE=10000 HTTP_AUTH_REQUESTS_PER_MINUTE=1000 \
+  DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" HTTP_ADDRESS="127.0.0.1:$port" \
   "$work/server" >"$work/server.log" 2>&1 &
 pid=$!
 
