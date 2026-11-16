@@ -37,6 +37,8 @@ export PLAYWRIGHT_BASE_URL="http://127.0.0.1:$port"
 export PLAYWRIGHT_EMAIL=playwright@example.com PLAYWRIGHT_PASSWORD=playwright-password-123
 if [ "${UI_MEASURE:-0}" = 1 ]; then
   node scripts/ui-measurement.mjs
+elif [ "${UI_MEASURE:-0}" = workspace ]; then
+  node scripts/ui-measurement-workspace.mjs
 else
   npm run test:journeys -- "$@"
 fi

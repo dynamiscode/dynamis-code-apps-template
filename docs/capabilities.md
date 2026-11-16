@@ -9,6 +9,8 @@ of what was verified on its date.
 The [UI measurement method and asset inventory](ui-measurement.md) records the
 baseline environment and remaining screen measurements for issue #439. It does
 not establish performance budgets or claim screen measurements are complete.
+Partial [workspace navigation evidence](ui-measurement-workspace.md) records
+the measured routes and unverified interactions for issue #447.
 
 ## Profile status
 
