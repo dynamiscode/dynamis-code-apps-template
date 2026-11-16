@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import http from "node:http";
+import { createRequire } from "node:module";
+import { expect } from "@playwright/test";
 import { chromium } from "playwright";
 import { recordRequest } from "./ui-measurement-admin-attribution.mjs";
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL;
+const axePath = createRequire(import.meta.url).resolve("axe-core/axe.min.js");
 const browser = await chromium.launch({ channel: "chrome" });
 const receiver = http.createServer((request, response) => {
   request.resume();
-  response.writeHead(503).end();
+  response.writeHead(request.url === "/ok" ? 204 : 503).end();
 });
 try {
   await new Promise((resolve) => receiver.listen(0, "127.0.0.1", resolve));
@@ -58,6 +61,15 @@ try {
   assert.equal(await page.locator(".webhook-secret").count(), 1);
   const deliveryPath = await page.locator('.webhook-card a[href$="/deliveries"]').getAttribute("href");
   assert.ok(deliveryPath);
+  await page.goto(`${workspace}/settings/webhooks`, { waitUntil: "load" });
+  await page.locator("#webhook-name").fill("Successful state fixture");
+  await page.locator("#webhook-url").fill(`http://127.0.0.1:${receiver.address().port}/ok`);
+  await page.locator('input[name="events"][value="item.created"]').check();
+  await Promise.all([page.waitForNavigation({ waitUntil: "load" }),
+    page.locator('button[name="action"][value="create"]').click()]);
+  const successPath = await page.locator('.webhook-card').filter({ hasText: "Successful state fixture" })
+    .locator('a[href$="/deliveries"]').getAttribute("href");
+  assert.ok(successPath);
   await page.goto(`${workspace}/items`, { waitUntil: "load" });
   await page.getByLabel("New item title").fill("State fixture item");
   await page.getByRole("button", { name: "Add item" }).click();
@@ -68,6 +80,20 @@ try {
   const pending = await page.getByText("Pending", { exact: true }).count();
   results.push({ state: "synthetic delivery with loopback HTTP 503 receiver", rows, pending,
     pendingObserved: pending > 0 });
+  for (const [name, path, label] of [["delivered", successPath, "Delivered"], ["exhausted", deliveryPath, "Failed"]]) {
+    let observed = false;
+    try {
+      await expect.poll(async () => {
+        const viewed = await page.goto(path, { waitUntil: "load" });
+        assert.equal(viewed.status(), 200);
+        return page.getByText(label, { exact: true }).count();
+      }, { timeout: 55_000, intervals: [1000, 2000, 4000] }).toBeGreaterThan(0);
+      observed = true;
+    } catch {
+      // The worker may not reach the requested state within the bounded observation window.
+    }
+    results.push({ state: `synthetic delivery ${name}`, observed });
+  }
 
   const noJS = await browser.newContext({ baseURL, locale: "en-US", javaScriptEnabled: false,
     serviceWorkers: "block", storageState: await context.storageState() });
@@ -78,6 +104,13 @@ try {
   await Promise.all([fallback.waitForNavigation({ waitUntil: "load" }), link.click()]);
   await fallback.locator("#audit-table:not([data-lazy-src])").waitFor();
   results.push({ state: "audit no-JavaScript fallback", tableRendered: true });
+  await fallback.goto(`${workspace}/settings/import`, { waitUntil: "load" });
+  await fallback.locator("#import-file").setInputFiles({ name: "invalid.csv", mimeType: "text/csv",
+    buffer: Buffer.from("title,status\n,not-a-status\n") });
+  await Promise.all([fallback.waitForNavigation({ waitUntil: "load" }),
+    fallback.locator('.import-preview-form button[type="submit"]').click()]);
+  await fallback.locator('.import-preview [role="alert"]').waitFor();
+  results.push({ state: "invalid CSV no-JavaScript fallback", validationFeedbackVisible: true });
   await noJS.close();
 
   const anonymous = await browser.newContext({ baseURL, javaScriptEnabled: false });
@@ -107,7 +140,38 @@ try {
     const viewed = await viewer.goto(`${workspace}/settings/${screen}`, { waitUntil: "load" });
     results.push({ state: "viewer settings navigation", screen, status: viewed.status() });
   }
+  await viewer.goto(`${workspace}/settings/general`, { waitUntil: "load" });
+  const csrf = await viewer.locator('form[action$="/settings/general"] input[name="csrf"]').inputValue();
+  for (const screen of ["general", "email", "provisioning", "webhooks"]) {
+    const status = await viewer.evaluate(async ({ path, csrf }) => {
+      const body = new URLSearchParams({ csrf, locale: "es", action: "create" });
+      const response = await fetch(path, { method: "POST", body, redirect: "manual" });
+      return response.status;
+    }, { path: `${workspace}/settings/${screen}`, csrf });
+    results.push({ state: "viewer mutation", screen, status });
+  }
   await viewerContext.close();
+
+  const mobile = await browser.newContext({ baseURL, locale: "es-ES", colorScheme: "dark",
+    viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, serviceWorkers: "block",
+    storageState: await context.storageState() });
+  const mobilePage = await mobile.newPage();
+  await mobilePage.goto("/language?locale=es&return_to=%2F", { waitUntil: "load" });
+  for (const screen of ["general", "email", "tokens", "provisioning", "webhooks", "audit", "import", "export"]) {
+    const viewed = await mobilePage.goto(`${workspace}/settings/${screen}`, { waitUntil: "load" });
+    assert.equal(viewed.status(), 200);
+    await mobilePage.locator("main h1").waitFor();
+    if (screen === "audit") await mobilePage.locator("#audit-table:not([data-lazy-src])").waitFor();
+    await mobilePage.addScriptTag({ path: axePath });
+    const state = await mobilePage.evaluate(async () => {
+      const scan = await window.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } });
+      return { lang: document.documentElement.lang, theme: document.documentElement.dataset.theme,
+        horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        violations: scan.violations.map((rule) => ({ id: rule.id, impact: rule.impact, count: rule.nodes.length })) };
+    });
+    results.push({ state: "Spanish mobile dark-system axe scan", screen, ...state });
+  }
+  await mobile.close();
   console.log(JSON.stringify({ scenario: "isolated owner and viewer fixture; no timing metrics", results }, null, 2));
 } catch {
   console.error("Administration state checks failed; inspect the isolated fixture locally without sharing logs.");
