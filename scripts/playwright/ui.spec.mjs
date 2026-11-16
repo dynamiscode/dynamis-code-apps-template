@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import axe from "axe-core";
 
 const email = process.env.PLAYWRIGHT_EMAIL;
 const password = process.env.PLAYWRIGHT_PASSWORD;
@@ -18,6 +19,12 @@ async function openWorkspaceHome(page) {
   await openWorkspaceSelection(page);
   await page.locator(".cards a").first().click();
   await expect(page.locator("[data-workspace-home]")).toBeVisible();
+}
+
+async function openItems(page) {
+  await openWorkspaceHome(page);
+  await page.locator(".workspace-cards a[href$='/items']").first().click();
+  await expect(page.locator("#item-list")).toBeVisible();
 }
 
 const screenshots = [
@@ -57,14 +64,76 @@ for (const screenshot of screenshots) {
   });
 }
 
+for (const screenshot of screenshots) {
+  test(`Items screenshot: ${screenshot.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: screenshot.width, height: screenshot.height });
+    await page.emulateMedia({ colorScheme: screenshot.colorScheme, reducedMotion: "reduce" });
+    await openItems(page);
+    await expect(page.getByRole("heading", { name: "Items" })).toBeVisible();
+    await expect(page).toHaveScreenshot(`items-${screenshot.name}.png`, {
+      animations: "disabled",
+      fullPage: true,
+    });
+  });
+}
+
 test("workspace home opens Items and creates the first task", async ({ page }) => {
-  await openWorkspaceHome(page);
-  await page.locator(".workspace-cards a[href$='/items']").first().click();
-  await expect(page.locator("#item-list")).toBeVisible();
-  const title = "Playwright journey item";
-  await page.getByLabel("New item title").fill(title);
-  await page.getByRole("button", { name: "Add item" }).click();
-  await expect(page.locator(`#item-list .item-list-view input[value="${title}"]`)).toBeVisible();
+  await openItems(page);
+  const create = async (title) => {
+    await page.getByLabel("New item title").fill(title);
+    await page.getByRole("button", { name: "Add item" }).click();
+    await expect(page.locator(`#item-list .item-list-view input[value="${title}"]`)).toBeVisible();
+  };
+  await create("Playwright first item");
+  await create("Playwright second item");
+
+  const source = page.locator('#item-list tr[data-item-row]:has(input[name="title"][value="Playwright second item"])');
+  const preserved = page.locator('#item-list tr[data-item-row]:has(input[name="title"][value="Playwright first item"])');
+  const sourceTitle = await source.locator('input[name="title"]').inputValue();
+  const preservedID = await preserved.getAttribute("data-item-row");
+  await source.locator('input[name="title"]').fill("Playwright updated item");
+  await preserved.locator('input[name="title"]').fill("Unsaved Playwright item");
+  await source.getByRole("button", { name: `Save ${sourceTitle}` }).click();
+
+  const updated = page.locator('#item-list tr[data-item-row]:has(input[name="title"][value="Playwright updated item"])');
+  const stillDirty = page.locator('#item-list tr[data-item-row]:has(input[name="title"][value="Playwright first item"])');
+  await expect(updated.locator('input[name="title"]')).toHaveValue("Playwright updated item");
+  await expect(stillDirty).toHaveAttribute("data-item-row", preservedID);
+  await expect(stillDirty.locator('input[name="title"]')).toHaveValue("Unsaved Playwright item");
+  await expect(stillDirty.locator("form[data-item-edit]")).toHaveAttribute("data-dirty", "true");
+
+  const invalidTitle = "x".repeat(201);
+  const updatedTitle = updated.locator('input[name="title"]');
+  await updatedTitle.evaluate((input) => input.removeAttribute("maxlength"));
+  await updatedTitle.fill(invalidTitle);
+  await updated.getByRole("button", { name: "Save Playwright updated item" }).click();
+  await expect(page.getByRole("alert")).toContainText("item values are invalid");
+  await expect(updatedTitle).toHaveValue(invalidTitle);
+
+  await updated.locator('input[name="version"]').evaluate((input) => { input.value = "0"; });
+  page.once("dialog", (dialog) => dialog.accept());
+  await updated.getByRole("button", { name: "Delete permanently Playwright updated item" }).click();
+  await expect(page.getByRole("alert")).toContainText("item version is invalid");
+  await expect(updated).toBeVisible();
+
+  await page.addScriptTag({ content: axe.source });
+  const results = await page.evaluate(async () => axe.run(document.querySelector("#item-list")));
+  expect(results.violations).toEqual([]);
+});
+
+test.describe("Items without JavaScript", () => {
+  test.use({ javaScriptEnabled: false });
+
+  test("creates and edits with ordinary forms", async ({ page }) => {
+    await openItems(page);
+    await page.getByLabel("New item title").fill("No JavaScript item");
+    await page.getByRole("button", { name: "Add item" }).click();
+    const item = page.locator('#item-list tr[data-item-row]:has(input[name="title"][value="No JavaScript item"])');
+    await expect(item).toBeVisible();
+    await item.locator('input[name="title"]').fill("No JavaScript edit");
+    await item.getByRole("button", { name: "Save No JavaScript item" }).click();
+    await expect(page.locator('#item-list input[name="title"][value="No JavaScript edit"]')).toBeVisible();
+  });
 });
 
 test.describe("workspace selection without JavaScript", () => {
