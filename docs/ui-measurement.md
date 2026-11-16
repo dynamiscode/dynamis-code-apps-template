@@ -8,7 +8,10 @@ report changes to the environment or fixture with the results.
 
 The existing `scripts/playwright-smoke.sh` creates a fresh temporary SQLite
 database, bootstraps one synthetic owner and one workspace, builds the server,
-binds it to loopback, and removes the database and server on exit. Initially it
+binds it to loopback, and removes the database, local file storage and server on
+exit. Bootstrap and server run with empty inherited environments and explicit
+fixture configuration; external telemetry, S3, OIDC and email remain disabled.
+The Go build and browser tools retain the caller's environment. Initially it
 contains zero Items, Clients, Files, invitations, and notifications. The smoke
 journey creates one Item; rerun the script for a fresh fixture. It does not seed
 the populated, permission, upload, sharing, MFA, or failure states needed by
@@ -21,6 +24,7 @@ Run from the repository root with Go, Node, npm dependencies and Chrome installe
 npm ci
 make browser-smoke
 UI_MEASURE=1 ./scripts/playwright-smoke.sh
+node --test scripts/playwright-isolation.test.mjs
 ```
 
 The harness uses `127.0.0.1:58095` by default; set `PLAYWRIGHT_PORT` if occupied.
