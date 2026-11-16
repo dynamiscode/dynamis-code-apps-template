@@ -6,7 +6,7 @@
     "test:a11y": "node scripts/accessibility.mjs",
     "test:journeys": "playwright test",
     "test:webmcp": "node scripts/webmcp.mjs",
-    "test:unit": "node --test internal/web/assets/*.test.mjs",
+    "test:unit": "node --test internal/web/assets/*.test.mjs scripts/ui-measurement-network.test.mjs",
     "check:js": "for f in internal/web/assets/*.js; do node --check \"$f\"; done",
     "build:css": "tailwindcss -i internal/web/tailwind.css -o internal/web/assets/components.css --minify",
     "test:ux": "node scripts/ux-patterns.mjs"
