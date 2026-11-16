@@ -135,9 +135,12 @@ Baseline browser surfaces:
 - `/workspaces/{workspaceId}/settings/audit` presents the authorized,
   read-only latest-100 audit history with redacted fields.
 - `/share/{token}` presents a read-only Item projection containing only title
-  and status. The Items page lets principals with `resources:write` create
+  and localized status. Invalid, expired, and revoked links share the same
+  unavailable page. The Items page lets principals with `resources:write` create
   seven- or 30-day links and revoke active links with CSRF-protected ordinary
-  forms. Its shared list view persists each member's title and status column
+  forms. The controls state what link holders can see and explain revocation
+  consequences without JavaScript. Its shared list view persists each member's
+  title and status column
   visibility per workspace, filters by title and status, sorts by creation
   time, and carries query state through pagination and realtime refreshes. The
   same rows adapt from a table to cards on narrow screens; inline title/status
@@ -154,6 +157,10 @@ Public sharing uses `private, no-store`, `no-referrer`, and
 `X-Robots-Tag: noindex, nofollow, noarchive`. The existing per-source HTTP
 rate limit applies to public access. There is no public write, search, listing,
 REST, CLI, MCP, or WebMCP sharing surface.
+
+The MCP consent page shows the client name, requested item permissions, and
+eligible workspace choices. Approve and deny remain ordinary CSRF-protected
+form submissions; the page does not load WebMCP or submit automatically.
 
 The workspace sidebar exposes `Home` above `Items` in the workspace context.
 Home is active at `/workspaces/{workspaceId}`. Settings uses the nested

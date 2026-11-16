@@ -1117,3 +1117,22 @@ JavaScript; the notification accessibility runner checks the empty state.
   in English and Spanish across all covered browser journeys (zero axe
   violations; notifications passed both locales).
 - Not run: full `make verify`.
+
+## Public sharing and MCP consent evidence (#385)
+
+Public share pages identify the product, show only the shared item title and
+status, and explain the link's scope. Invalid, expired, and revoked links use
+the same localized unavailable response. Share creation and revocation show
+their consequences in the ordinary workspace form. MCP consent identifies the
+client, requested scopes, and selected workspace, and keeps approval as an
+ordinary CSRF-protected form submission. Existing no-store, no-referrer,
+noindex, session, workspace, scope, and redirect validation remain in force;
+these pages do not enable WebMCP.
+
+- Passed: focused public sharing, MCP consent, and WebMCP surface tests;
+  `git diff --check`.
+- Passed: focused public sharing, MCP consent, and WebMCP surface tests,
+  `go test ./internal/web -count=1` (158 tests), `make lint`, and
+  `git diff --check`.
+- Not run: full `make test` and `make verify`; no data, API, or runtime contract
+  changed.
