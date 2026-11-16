@@ -442,10 +442,12 @@ It sends `client.changed` with the client's short ID, schema version `1`, UTC
 occurrence time, workspace ID, action (`created` or `updated`), and client
 version. It carries no client fields. A missing, malformed, unknown, or expired
 cursor receives `resync`. Viewers receive events, and a user outside the
-workspace gets not found. The list refreshes by fetching its section, and an
-open create form waits while a field has focus, as the Items list does. The
-latest 1,000 client events per workspace are retained, and older events fall
-under the same replay window as Items.
+workspace gets not found. The latest 1,000 client events per workspace are
+retained, and older events fall under the same replay window as Items.
+The list fragment and listener exist, but the client page does not load the
+scripts needed to start its browser refresh. [#415](https://github.com/dynamiscode/dynamis-code-apps-template/issues/415)
+tracks wiring it and protecting unsaved input; both stream and fragment must
+continue to require `identity.ResourcesRead`.
 
 `GET /notifications/events` uses the same stream limits, heartbeat, lifetime,
 and database polling. Events carry the notification ID, type, title, body, and
