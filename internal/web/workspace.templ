@@ -36,7 +36,11 @@ templ dashboardHeader(data pageData) {
 			if data.NavPage == "home" {
 				<span>{ data.T("workspace.workspaces") }</span>
 			} else {
-				@workspaceListCrumb(data)
+				if data.NavPage == "audit" {
+					@defaultHomeCrumb(data)
+				} else {
+					@workspaceListCrumb(data)
+				}
 				@workspaceContext(data)
 			}
 		</div>
@@ -49,6 +53,13 @@ templ dashboardHomeNavigation(data pageData) {
 		if !data.SingleWorkspace {
 			<a class="sidebar-back" href="/">← { data.T("workspace.back_to_workspaces") }</a>
 		}
+		@workspaceNav(data)
+	</aside>
+}
+
+templ dashboardSettingsNavigation(data pageData) {
+	<aside class="sidebar">
+		<a class="sidebar-back" href={ "/workspaces/" + data.Workspace.ID.String() }>← { data.T("workspace.back_to_home") }</a>
 		@workspaceNav(data)
 	</aside>
 }

@@ -108,3 +108,13 @@ test("optimistic removal: the row comes back on every failure", () => {
   }
   for (const missing of [undefined, null, 0, "timeout"]) assert.equal(forms.optimisticOutcome(missing), "restored");
 });
+
+test("lazy audit response must stay on the audit route", () => {
+	const base = "https://example.test/workspaces/abc/settings/audit";
+	assert.equal(forms.isAuditFragment({ ok: true, redirected: true, url: "https://example.test/login" }, base, ""), false);
+	assert.equal(forms.isAuditFragment({ ok: false, redirected: false, url: `${base}?part=table` }, base, "audit-table"), false);
+	assert.equal(forms.isAuditFragment({ ok: true, redirected: false, url: "https://example.test/workspaces/abc/settings/general?part=table" }, base, "audit-table"), false);
+	assert.equal(forms.isAuditFragment({ ok: true, redirected: false, url: "https://example.test/other/workspaces/abc/settings/audit?part=table" }, base, "audit-table"), false);
+	assert.equal(forms.isAuditFragment({ ok: true, redirected: false, url: `${base}?part=table` }, base, "HTML"), false);
+	assert.equal(forms.isAuditFragment({ ok: true, redirected: false, url: `${base}?part=table` }, base, "audit-table"), true);
+});

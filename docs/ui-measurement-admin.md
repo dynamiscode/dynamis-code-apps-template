@@ -143,8 +143,9 @@ reported `lang=es`, `data-theme=system`, and no document-level horizontal
 overflow. Axe-core 4.14.0 scanned WCAG 2 A/AA and 2.1 AA tags. Seven pages
 reported no violations. **repo — action: [#425](https://github.com/dynamiscode/dynamis-code-apps-template/issues/425):**
 the audit page reported one serious `scrollable-region-focusable` violation;
-the affected element matched `#audit-table .table-wrap`. This is an automated
-finding, not proof of complete accessibility or WCAG conformance. The scan does
+the affected element matched `#audit-table .table-wrap`. The implementation
+now gives that region keyboard focus and an accessible name. This automated
+finding is not proof of complete accessibility or WCAG conformance. The scan does
 not cover delivery history, error states, keyboard operation, screen readers,
 other widths, explicit light/dark account preferences, zoom or all locales.
 

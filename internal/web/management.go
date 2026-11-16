@@ -473,7 +473,8 @@ func (h *Handler) auditHistoryPage(writer http.ResponseWriter, request *http.Req
 		}
 	}
 	if fragment {
-		h.render(writer, http.StatusOK, "audit-table", pageData{AuditHistory: history})
+		data := pageData{AuditHistory: history}
+		h.render(writer, http.StatusOK, "audit-table", data)
 		return
 	}
 	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
@@ -481,12 +482,13 @@ func (h *Handler) auditHistoryPage(writer http.ResponseWriter, request *http.Req
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, http.StatusOK, "audit-history.html", pageData{
+	data := pageData{
 		Title: "Audit history", NavPage: "audit", NavSection: "settings", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		AuditHistory: history, AuditLazy: lazy, CurrentPath: request.URL.Path,
 		DefaultWorkspaceHref: h.defaultHomeHref(request.Context(), session.UserID),
-	})
+	}
+	h.render(writer, http.StatusOK, "audit-history", data)
 }
 
 func (h *Handler) exportWorkspace(writer http.ResponseWriter, request *http.Request) {

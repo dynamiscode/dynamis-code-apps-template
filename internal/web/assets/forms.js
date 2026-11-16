@@ -70,9 +70,13 @@
 		return typeof status === "number" && status >= 200 && status < 400 ? "removed" : "restored";
 	}
 
+	function isAuditFragment(response, baseURL, firstElementID) {
+		return response.ok && !response.redirected && new URL(response.url, baseURL).pathname === new URL(baseURL).pathname && firstElementID === "audit-table";
+	}
+
 	const core = {
 		MIN_PASSWORD, passwordStrength, maskDigits, maskUpper, draftAction, isDirty, wizardMove,
-		refreshDecision, optimisticOutcome,
+		refreshDecision, optimisticOutcome, isAuditFragment,
 	};
 	if (typeof module !== "undefined" && module.exports) module.exports = core;
 	if (typeof document === "undefined" || typeof window === "undefined") return;
@@ -388,10 +392,14 @@
 		box.dataset.loading = "true";
 		try {
 			const response = await fetch(box.dataset.lazySrc, { headers: { "HX-Request": "true" }, credentials: "same-origin" });
-			if (!response.ok) throw new Error(String(response.status));
+			const responseURL = new URL(response.url, location.href);
+			if (!response.ok || response.redirected) {
+				if (response.redirected && responseURL.pathname === "/login") box.querySelector("a")?.setAttribute("href", response.url);
+				throw new Error(String(response.status));
+			}
 			const doc = new DOMParser().parseFromString(await response.text(), "text/html");
 			const fresh = doc.body.firstElementChild;
-			if (!fresh) throw new Error("empty");
+			if (!isAuditFragment(response, location.href, fresh?.id)) throw new Error("invalid fragment");
 			box.replaceWith(document.importNode(fresh, true));
 		} catch (_) {
 			box.removeAttribute("aria-busy");
