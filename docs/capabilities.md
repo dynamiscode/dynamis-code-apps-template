@@ -6,6 +6,10 @@ Dated evidence sections are append-only. New verification is recorded as a new
 dated section; past dated sections are never rewritten, because each is a record
 of what was verified on its date.
 
+The [UI measurement method and asset inventory](ui-measurement.md) records the
+baseline environment and remaining screen measurements for issue #439. It does
+not establish performance budgets or claim screen measurements are complete.
+
 ## Profile status
 
 | Profile | Status | Evidence |
