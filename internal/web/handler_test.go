@@ -478,7 +478,7 @@ func TestSessionsListAndRevocation(t *testing.T) {
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "This session") || !strings.Contains(page.Body.String(), `data-theme="system"`) || !strings.Contains(page.Body.String(), "/assets/components.css") {
 		t.Fatalf("session list = %d, %s", page.Code, page.Body.String())
 	}
-	if strings.Count(page.Body.String(), `action="/sessions/`) != 1 || strings.Contains(page.Body.String(), current.Secret) {
+	if strings.Count(page.Body.String(), `action="/sessions/`) != 2 || !strings.Contains(page.Body.String(), `action="/sessions/`+current.ID+`"`) || strings.Contains(page.Body.String(), current.Secret) {
 		t.Fatalf("session list action count or session secret exposure is wrong: %s", page.Body.String())
 	}
 	csrfFailure := request(handler, http.MethodPost, "/sessions/"+other.ID, url.Values{"csrf": {"invalid"}}, cookies, nil)
@@ -516,13 +516,51 @@ func TestSessionsListAndRevocation(t *testing.T) {
 	if _, err := auth.AuthenticateSession(context.Background(), foreign.Secret); err != nil {
 		t.Fatalf("cross-user session was revoked: %v", err)
 	}
-	if _, err := auth.RevokeSession(context.Background(), owner.UserID, current.ID, identity.AuditContext{}); err != nil {
+	currentRevoke := request(handler, http.MethodPost, "/sessions/"+current.ID, url.Values{"csrf": {current.CSRFSecret}}, cookies, nil)
+	if currentRevoke.Code != http.StatusSeeOther || currentRevoke.Header().Get("Location") != "/sessions?revoked=1" {
+		t.Fatalf("current session revoke response = %d, %q", currentRevoke.Code, currentRevoke.Header().Get("Location"))
+	}
+	if _, err := auth.AuthenticateSession(context.Background(), current.Secret); !errors.Is(err, identity.ErrInvalidSession) {
+		t.Fatalf("current session remains valid after revocation: %v", err)
+	}
+	redirected := request(handler, http.MethodGet, currentRevoke.Header().Get("Location"), nil, cookies, nil)
+	if redirected.Code != http.StatusSeeOther || redirected.Header().Get("Location") != "/login" {
+		t.Fatalf("revoked session follow-up = %d, %q", redirected.Code, redirected.Header().Get("Location"))
+	}
+}
+
+func TestSessionsPageExpiredAndSpanishEmptyStates(t *testing.T) {
+	catalog, err := i18n.New()
+	if err != nil {
 		t.Fatal(err)
 	}
-	emptyCookies := []*http.Cookie{{Name: "session", Value: current.Secret}, {Name: "csrf", Value: current.CSRFSecret}}
-	empty := request(handler, http.MethodGet, "/sessions", nil, emptyCookies, nil)
-	if empty.Code != http.StatusSeeOther || empty.Header().Get("Location") != "/login" {
-		t.Fatalf("revoked current session request = %d, %q", empty.Code, empty.Header().Get("Location"))
+	data := pageData{Locale: "es", Theme: "dark", Catalog: catalog, Title: "Sessions"}
+	data.Sessions = []identity.Session{{
+		ID: "expired-session", AuthMethod: "local",
+		CreatedAt: time.Now().Add(-2 * time.Hour), ExpiresAt: time.Now().Add(-time.Hour),
+	}}
+	var expired bytes.Buffer
+	if err := sessionsPage(data, "", time.Now()).Render(context.Background(), &expired); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(expired.String(), "Vencida") || strings.Contains(expired.String(), `action="/sessions/expired-session"`) {
+		t.Fatalf("expired session status or action is wrong: %s", expired.String())
+	}
+	data.Sessions[0].ExpiresAt = time.Now().Add(time.Hour)
+	var active bytes.Buffer
+	if err := sessionsPage(data, data.Sessions[0].ID, time.Now()).Render(context.Background(), &active); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(active.String(), "Activa") || !strings.Contains(active.String(), `action="/sessions/expired-session"`) {
+		t.Fatalf("current active session lacks its revocation form: %s", active.String())
+	}
+	data.Sessions = nil
+	var empty bytes.Buffer
+	if err := sessionsPage(data, "", time.Now()).Render(context.Background(), &empty); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(empty.String(), "No hay sesiones de navegador disponibles.") || !strings.Contains(empty.String(), `data-theme="dark"`) {
+		t.Fatalf("Spanish empty session state = %s", empty.String())
 	}
 }
 

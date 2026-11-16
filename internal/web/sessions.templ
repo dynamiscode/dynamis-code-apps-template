@@ -2,7 +2,7 @@ package web
 
 import "time"
 
-templ sessionsPage(data pageData, currentSessionID string) {
+templ sessionsPage(data pageData, currentSessionID string, now time.Time) {
 	@dashboardShell(data, dashboardHeader(data), nil) {
 		<section class="account-page" aria-labelledby="sessions-heading">
 			<header class="account-heading">
@@ -29,6 +29,8 @@ templ sessionsPage(data pageData, currentSessionID string) {
 								}
 								if session.RevokedAt != nil {
 									<span class="session-status session-status-revoked">{ data.T("sessions.revoked") }</span>
+								} else if !now.Before(session.ExpiresAt) {
+									<span class="session-status session-status-revoked">{ data.T("sessions.expired") }</span>
 								} else {
 									<span class="session-status session-status-active">{ data.T("sessions.active") }</span>
 								}
@@ -37,7 +39,7 @@ templ sessionsPage(data pageData, currentSessionID string) {
 								<div><dt>{ data.T("sessions.created") }</dt><dd><time datetime={ session.CreatedAt.Format(time.RFC3339) }>{ data.DateTime(session.CreatedAt) }</time></dd></div>
 								<div><dt>{ data.T("sessions.expires") }</dt><dd><time datetime={ session.ExpiresAt.Format(time.RFC3339) }>{ data.DateTime(session.ExpiresAt) }</time></dd></div>
 							</dl>
-							if session.RevokedAt == nil && session.ID != currentSessionID {
+							if session.RevokedAt == nil && now.Before(session.ExpiresAt) {
 								<form class="inline" data-webmcp-actions="session-revoke" data-webmcp-id={ session.ID } action={ "/sessions/" + session.ID } method="post">
 									<input type="hidden" name="csrf" value={ data.CSRF }/>
 									<button class="btn btn-secondary secondary" type="submit">{ data.T("sessions.revoke") }</button>

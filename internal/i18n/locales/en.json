@@ -317,6 +317,7 @@
   "sessions.sessions": "Sessions",
   "sessions.description": "Review your browser sessions. Revoke any session you do not recognize.",
   "sessions.active": "Active",
+  "sessions.expired": "Expired",
   "sessions.revoked": "Revoked",
   "sessions.empty": "No browser sessions are available.",
   "sessions.created": "Created",

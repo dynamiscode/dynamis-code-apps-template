@@ -1142,7 +1142,7 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		return
 	}
 	if name == "sessions-page" {
-		_ = sessionsPage(data, data.CurrentSessionID).Render(context.Background(), writer)
+		_ = sessionsPage(data, data.CurrentSessionID, time.Now()).Render(context.Background(), writer)
 		return
 	}
 	if err := h.template.ExecuteTemplate(writer, name, data); err != nil {
