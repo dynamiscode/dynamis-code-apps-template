@@ -94,10 +94,13 @@ Baseline browser surfaces:
   confirmation and retains the owner-transfer restriction. `/settings/language`
   persists the account language. `/password-reset` provides localized generic
   request and single-use completion pages.
-- `/notifications` lists recipient-scoped in-app records and marks them read;
-  `/notifications/events` delivers recipient-scoped `notification.created` SSE
-  events. Notification records are created only through the shared identity
-  service, and user plus workspace preferences are checked before storage.
+- `/notifications` lists recipient-scoped in-app records, shows unread state,
+  marks them read, and updates the unread count through recipient-scoped SSE.
+  It keeps a refresh link for ordinary navigation. Notification records are
+  created through the shared identity service, and user plus workspace
+  preferences are checked before storage.
+- `/notifications/events` delivers recipient-scoped `notification.created` SSE
+  events; an expired cursor triggers a page refresh to restore current records.
 - `/workspaces/{workspaceId}/files` lists ready private workspace files with
   per-member column visibility, filename/MIME/size filters, stable sorting,
   keyset cursor pagination, and responsive table/card views; filter and sort

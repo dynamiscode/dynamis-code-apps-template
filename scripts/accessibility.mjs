@@ -68,6 +68,9 @@ try {
   await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/settings/invitations`);
   await driver.wait(until.elementLocated(By.id("invite-email")), 5000);
   await audit("invitations");
+  await driver.get(`${baseURL}/notifications`);
+  await driver.wait(until.elementLocated(By.css("main h1")), 5000);
+  await audit("notifications");
   await driver.get(`${baseURL}${workspacePath}/settings/general`);
   await driver.wait(until.elementLocated(By.id("workspace-locale")), 5000);
   await audit("general settings");

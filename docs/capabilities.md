@@ -1095,3 +1095,15 @@ strings cover the changed screens.
   `make accessibility-smoke` passed in English and Spanish across all covered
   journeys, including account and security; zero axe violations.
 - Not run: full `make verify`; no authentication policy, schema, or API changes.
+
+## Notification center UX evidence (2026-11-15)
+
+Ticket #383 restyles the recipient-scoped notification list, makes unread
+counts and read state visible, and updates the count plus a polite status from
+recipient-scoped SSE. The refresh link and server-rendered page work without
+JavaScript; the notification accessibility runner checks the empty state.
+
+- Passed: focused notification handler and JavaScript tests, `make test-unit`,
+  `make lint`, and `make accessibility-smoke` in English and Spanish (zero axe
+  violations on the notification page).
+- Not run: full `make verify`.
