@@ -321,6 +321,10 @@ func TestGenerateWithClientsProfileRecordsLockAndBuilds(t *testing.T) {
 	if err != nil || json.Unmarshal(raw, &lock) != nil || strings.Join(lock.Profiles, ",") != "Core,Identity,Agent,Clients" {
 		t.Fatalf("template.lock = %q, error = %v", raw, err)
 	}
+	clientsRenderer, err := os.ReadFile(filepath.Join(output, "internal/web/clients.go"))
+	if err != nil || !strings.Contains(string(clientsRenderer), `h.template.Lookup("files.html") != nil`) || strings.Contains(string(clientsRenderer), "h.files") {
+		t.Fatalf("generated Clients renderer must detect the optional Files template without Files handler wiring: error = %v", err)
+	}
 	if err := runCommand(output, "go", "test", "./..."); err != nil {
 		t.Fatalf("generated Clients application tests: %v", err)
 	}

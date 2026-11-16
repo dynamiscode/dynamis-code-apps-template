@@ -223,7 +223,7 @@ func (h *Handler) renderClientList(
 }
 
 func (h *Handler) renderClientTemplate(writer http.ResponseWriter, request *http.Request, status int, name string, data pageData) {
-	data.FilesEnabled = h.files != nil
+	data.FilesEnabled = h.template.Lookup("files.html") != nil
 	data.ClientsEnabled = true
 	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
 	h.localizePage(writer, &data)
