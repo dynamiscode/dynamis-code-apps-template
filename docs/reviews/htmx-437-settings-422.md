@@ -37,7 +37,10 @@ fallback.
   `internal/web/navigation.templ`.
 - Regression coverage: `internal/web/email_settings_test.go`,
   `internal/web/email_settings_resend_test.go`, and
-  `internal/web/email_settings_postmark_test.go`.
+  `internal/web/email_settings_postmark_test.go`. Generated profiles without
+  optional Files or Clients modules are covered by
+  `TestGenerateWithoutAgentPrunesAgentSurfaceAndBuilds` in
+  `cmd/template-init/main_test.go`.
 - English and Spanish empty-state copy: `internal/i18n/locales/en.json` and
   `internal/i18n/locales/es.json`.
 - Canonical route/template inventory: `docs/web.md`.
@@ -45,15 +48,16 @@ fallback.
   `scripts/playwright/settings.spec.mjs`.
 - Browser cases cover explicit saved light/dark preferences, general settings
   no-JavaScript success, email validation, and member read/permission states
-  when member fixture credentials are configured. Provider verification failure
-  is covered by `TestWorkspaceEmailSettingsAreAdminOnlyAndLoginTested`, not a
-  browser submission. The browser suite does not exercise a configured provider
-  or induce a server failure.
+  when member fixture credentials are configured. SMTP, Resend, and Postmark
+  verification failures are covered by the focused Go handler/service tests,
+  not browser submissions. The browser suite does not exercise a configured
+  provider or induce a server failure.
 
 ## Checks
 
 Passed: `make templ-check`; focused web route/provider/form-markup tests (5
-tests); `go test ./internal/i18n -count=1` (4 tests); `node --check
+tests); `go test ./cmd/template-init -run '^TestGenerateWithoutAgentPrunesAgentSurfaceAndBuilds$' -count=1`;
+`go test ./internal/i18n -count=1` (4 tests); `node --check
 scripts/playwright/settings.spec.mjs`; and `make doc-links`.
 
 `make css-check` is blocked: `npm exec -- tailwindcss` could not resolve an
@@ -64,8 +68,8 @@ coverage as executed yet.
 Browser coverage for responsive layouts, keyboard navigation, reduced motion,
 explicit light/dark preferences, Spanish, and no-JavaScript success/validation
 remains subject to the browser checks reported with this change. This is not a
-full state matrix: provider verification failure is covered by
-`TestWorkspaceEmailSettingsAreAdminOnlyAndLoginTested`; the browser suite does
-not exercise a provider timeout or server failure. Member browser permission
-coverage skips without fixture credentials. Page-render failures remain
-unverified by a named email settings test.
+full state matrix: provider verification failure is covered by the focused Go
+handler/service tests; the browser suite does not exercise a provider timeout
+or server failure. Member browser permission coverage skips without fixture
+credentials. Page-render failures remain unverified by a named email settings
+test.
