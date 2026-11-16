@@ -55,14 +55,26 @@ func TestMCPConsentRequiresSessionAndApprovesOnce(t *testing.T) {
 	cookies := []*http.Cookie{responseCookie(loggedIn, "session"), responseCookie(loggedIn, "csrf")}
 	csrf := cookies[1].Value
 
-	page := request(handler, http.MethodGet, "/oauth/authorize?"+query, nil, cookies, nil)
+	localizedCookies := append(cookies, &http.Cookie{Name: "locale", Value: "es"})
+	page := request(handler, http.MethodGet, "/oauth/authorize?"+query, nil, localizedCookies, nil)
 	body := page.Body.String()
-	if page.Code != http.StatusOK || !strings.Contains(body, `name="workspace_id" value="`+workspaceID.String()+`"`) ||
+	if page.Code != http.StatusOK || page.Header().Get("Content-Language") != "es" ||
+		page.Header().Get("Cache-Control") != "no-store" ||
+		!strings.Contains(body, `<title>Autorizar cliente MCP · Dynamis Code</title>`) ||
+		!strings.Contains(body, `name="workspace_id" value="`+workspaceID.String()+`"`) ||
+		strings.Contains(body, "data-webmcp-page") || strings.Contains(body, "/assets/app.js") ||
 		strings.Contains(body, "<script>alert(1)") || !strings.Contains(body, "&lt;script&gt;") {
 		t.Fatalf("consent page = %d %s", page.Code, body)
 	}
 
-	assertAccessiblePage(t, body, "Authorize MCP client")
+	for _, required := range []string{`<!doctype html>`, `<meta name="viewport"`, `<main`, `<h1`} {
+		if !strings.Contains(body, required) {
+			t.Errorf("consent page lacks %s", required)
+		}
+	}
+	if !hasHTMLRootLang(body, "es") || !strings.Contains(body, "Autorizar cliente MCP") {
+		t.Errorf("consent page lacks Spanish language or heading: %s", body)
+	}
 	badRedirect := consentQuery(client.ClientID)
 	badRedirect.Set("redirect_uri", "https://evil.example/callback")
 	if rejected := request(handler, http.MethodGet, "/oauth/authorize?"+badRedirect.Encode(), nil, cookies, nil); rejected.Code != http.StatusBadRequest {

@@ -270,7 +270,9 @@ Set `MCP_OAUTH_ENABLED=true` to make this application the authorization server
   endpoints, `S256` PKCE, and `none` client authentication.
 - `GET /oauth/authorize` is the browser consent page. It requires a browser
   session, redirects to sign-in when none exists, and asks the user to choose one
-  workspace where they hold the requested scopes. `POST /oauth/authorize` checks
+  workspace where they hold the requested scopes. The localized page shows the
+  client name and requested item permissions; approve and deny use ordinary
+  CSRF-protected forms without automatic submission. `POST /oauth/authorize` checks
   the CSRF token, then approves or denies. Approval redirects to the client with a
   single-use code. Invalid client, redirect URI, or resource shows an error page
   rather than redirecting, because the target is untrusted until matched. The

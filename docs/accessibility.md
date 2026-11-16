@@ -1,7 +1,7 @@
 # Accessibility Evidence
 
 Standard: WCAG 2.2 Level AA  
-Review date: 2026-08-31
+Review date: 2026-11-16
 Owner: template maintainer
 
 ## Result
@@ -18,7 +18,9 @@ bootstrapped server, then provide `A11Y_BASE_URL`, `A11Y_EMAIL`, and
 never prints the password.
 
 The axe pass also covers the client list, a client page, the custom-fields page,
-the files page, and the recipient notification center. The files check audits
+the files page, recipient notification center, public share, and MCP OAuth
+consent. The public share and consent routes run with the multi-workspace and
+OAuth settings enabled on the disposable smoke server. The files check audits
 both locales, verifies the named upload progress control, and checks 320
 CSS-pixel reflow. `make ux-smoke` creates a client, defines a choice field, and
 enters a value.

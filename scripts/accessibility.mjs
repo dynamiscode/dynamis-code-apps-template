@@ -1,4 +1,5 @@
 import axe from "axe-core";
+import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -191,6 +192,36 @@ try {
 		}
 	}
 	await driver.manage().window().setRect({ width: 1280, height: 900 });
+	const itemRow = driver.findElement(By.xpath(`//input[@value="${spacingTitle}"]/ancestor::tr`));
+	const createShare = itemRow.findElement(By.css('form.share button[value="create"]'));
+	await driver.executeScript("arguments[0].focus()", createShare);
+	await createShare.sendKeys(Key.ENTER);
+	const shareLink = await driver.wait(until.elementLocated(By.css('#item-list .success a[href*="/share/"]')), 5000);
+	await driver.get(new URL(await shareLink.getAttribute("href"), baseURL).href);
+	await driver.wait(until.elementLocated(By.css("main.public-share-card")), 5000);
+	await audit("public share");
+	const registration = await driver.executeAsyncScript((done) => {
+		fetch("/oauth/register", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ client_name: "Accessibility smoke", redirect_uris: ["https://client.example/callback"] }),
+		}).then(async (response) => done({ status: response.status, body: await response.json() }))
+			.catch((error) => done({ error: error.message }));
+	});
+	if (registration.status !== 201 || !registration.body.client_id) {
+		throw new Error(`OAuth smoke client registration failed: ${JSON.stringify(registration)}`);
+	}
+	const verifier = "accessibility-smoke-verifier-with-enough-entropy";
+	const challenge = createHash("sha256").update(verifier).digest("base64url");
+	const consent = new URLSearchParams({
+		response_type: "code", client_id: registration.body.client_id,
+		redirect_uri: "https://client.example/callback", code_challenge: challenge,
+		code_challenge_method: "S256", resource: `${baseURL}/mcp`, scope: "resources:read",
+		state: "accessibility-smoke-state",
+	});
+	await driver.get(`${baseURL}/oauth/authorize?${consent}`);
+	await driver.wait(until.elementLocated(By.css("main.consent-card")), 5000);
+	await audit("MCP consent");
 	await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/settings/import`);
 	await driver.wait(until.elementLocated(By.id("import-file")), 5000);
 	await audit("import");

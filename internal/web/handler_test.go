@@ -225,8 +225,14 @@ func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}, {Name: "locale", Value: "es"}}
 	path := "/workspaces/" + workspaceID.String() + "/items/" + created.Item.ID.String() + "/share"
+	invalidLifetime := request(handler, http.MethodPost, path, url.Values{
+		"action": {"create"}, "lifetime": {"90"}, "csrf": {session.CSRFSecret},
+	}, cookies, nil)
+	if invalidLifetime.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidLifetime.Body.String(), "El vencimiento del enlace público no es válido.") {
+		t.Fatalf("invalid public link lifetime = %d, %s", invalidLifetime.Code, invalidLifetime.Body.String())
+	}
 	response := request(handler, http.MethodPost, path, url.Values{
 		"action": {"create"}, "lifetime": {"7"}, "csrf": {session.CSRFSecret},
 	}, cookies, nil)
@@ -235,7 +241,8 @@ func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
 	}
 	body := response.Body.String()
 	start := strings.Index(body, "/share/")
-	if start < 0 {
+	if start < 0 || !strings.Contains(body, "Cualquiera con este enlace") ||
+		!strings.Contains(body, "Al revocar este enlace") {
 		t.Fatalf("public link missing: %s", body)
 	}
 	remainder := body[start:]
@@ -244,9 +251,11 @@ func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
 		t.Fatalf("public link not quoted: %s", body)
 	}
 	publicPath := remainder[:end]
-	public := request(handler, http.MethodGet, publicPath, nil, nil, nil)
+	public := request(handler, http.MethodGet, publicPath, nil, []*http.Cookie{{Name: "locale", Value: "es"}}, nil)
 	publicBody := public.Body.String()
-	if public.Code != http.StatusOK || !strings.Contains(publicBody, "Public title") || !strings.Contains(publicBody, "active") {
+	if public.Code != http.StatusOK || public.Header().Get("Content-Language") != "es" ||
+		!strings.Contains(publicBody, "Public title") || !strings.Contains(publicBody, "Activo") ||
+		!strings.Contains(publicBody, "Dynamis Code") || !strings.Contains(publicBody, "Cualquiera con este enlace") {
 		t.Fatalf("public page = %d, %s", public.Code, publicBody)
 	}
 	for _, forbidden := range []string{"Example", "owner@example.com", created.Item.ID.String(), workspaceID.String()} {
@@ -271,8 +280,16 @@ func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
 	if revoked.Code != http.StatusSeeOther {
 		t.Fatalf("revoke public link = %d, %s", revoked.Code, revoked.Body.String())
 	}
-	if unavailable := request(handler, http.MethodGet, publicPath, nil, nil, nil); unavailable.Code != http.StatusNotFound {
-		t.Fatalf("revoked public page = %d, %s", unavailable.Code, unavailable.Body.String())
+	for _, unavailablePath := range []string{publicPath, "/share/invalid-token"} {
+		unavailable := request(handler, http.MethodGet, unavailablePath, nil, []*http.Cookie{{Name: "locale", Value: "es"}}, nil)
+		body := unavailable.Body.String()
+		if unavailable.Code != http.StatusNotFound || !strings.Contains(body, "no está disponible") ||
+			strings.Contains(body, "Public title") || strings.Contains(body, unavailablePath) ||
+			unavailable.Header().Get("Cache-Control") != "private, no-store" ||
+			unavailable.Header().Get("Referrer-Policy") != "no-referrer" ||
+			unavailable.Header().Get("X-Robots-Tag") != "noindex, nofollow, noarchive" {
+			t.Fatalf("unavailable public page %q = %d %s headers=%+v", unavailablePath, unavailable.Code, body, unavailable.Header())
+		}
 	}
 }
 
