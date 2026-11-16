@@ -188,15 +188,16 @@ try {
   check(await js(() => document.activeElement?.classList.contains("error-summary")), "clients: a blank name takes the error summary focus");
   await typeInto("#client-display-name", "Ada Lovelace");
   await typeInto("#client-email", "ada@example.com");
-  await find("form.create button[type=submit]").click();
+  await find(".client-create form button[type=submit]").click();
   await driver.wait(until.elementLocated(By.css("#client-detail")), 5000);
   check(await js(() => document.querySelector("h1").textContent === "Ada Lovelace"), "clients: creating a client opens its detail page");
   const clientPath = new URL(await driver.getCurrentUrl()).pathname;
 
   await driver.get(`${base}${workspace}/client-fields`);
+  await find(".client-create > summary").click();
   await typeInto("#client-field-label", "Tier");
   await js(() => { document.querySelector("#client-field-type").value = "single_choice"; });
-  await find("form.create button[type=submit]").click();
+  await find(".client-create form button[type=submit]").click();
   await driver.wait(until.elementLocated(By.css(".client-fields")), 5000);
   await typeInto('input[id^="option-label-"]', "Gold");
   await find("form.option-create button[type=submit]").click();

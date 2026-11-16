@@ -933,7 +933,7 @@ func TestTokensPageLabelsWorkspaceUpdateScope(t *testing.T) {
 	response := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/tokens", nil, []*http.Cookie{
 		{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret},
 	}, nil)
-	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Workspace update") {
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Workspace update") || !strings.Contains(response.Body.String(), "Create limited credentials for integrations") {
 		t.Fatalf("workspace:update token label = %d, %s", response.Code, response.Body.String())
 	}
 }
@@ -963,7 +963,7 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 	}, cookies, nil)
 	secret := extractSCIMSecret(t, created.Body.String())
 	if created.Code != http.StatusOK || created.Header().Get("Cache-Control") != "no-store" ||
-		strings.Count(created.Body.String(), secret) != 1 || !strings.Contains(created.Body.String(), "Copy this credential now") {
+		strings.Count(created.Body.String(), secret) != 1 || !strings.Contains(created.Body.String(), "Copy this credential now") || !strings.Contains(created.Body.String(), "Create a replacement to rotate") {
 		t.Fatalf("SCIM create = %d, headers=%v, body=%s", created.Code, created.Header(), created.Body.String())
 	}
 	if _, err := auth.AuthenticateSCIMToken(context.Background(), secret, workspaceID); err != nil {
@@ -1209,6 +1209,12 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 		body := request(handler, http.MethodGet, page, nil, cookies, nil).Body.String()
 		if strings.Contains(body, `>Items<`) || strings.Contains(body, `href="`+workspaceRoot+`/settings">Settings`) || strings.Contains(body, `<nav class="sidebar-nav" aria-label="Workspace navigation">`) || !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `API tokens`) || !strings.Contains(body, `>Export<`) || !strings.Contains(body, `href="`+workspaceRoot+`">← Back to home`) {
 			t.Errorf("%s lacks expanded settings navigation", page)
+		}
+	}
+	settingsBody := request(handler, http.MethodGet, workspaceRoot+"/settings/members", nil, cookies, nil).Body.String()
+	for _, group := range []string{`Workspace setup`, `Access &amp; integrations`, `Data &amp; activity`} {
+		if !strings.Contains(settingsBody, `class="nav-label">`+group+`</span>`) {
+			t.Errorf("settings navigation lacks the %q group", group)
 		}
 	}
 	if body := request(handler, http.MethodGet, workspaceRoot+"/settings/members", nil, cookies, nil).Body.String(); !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `<nav class="subnav" aria-label="Members and invitations">`) {

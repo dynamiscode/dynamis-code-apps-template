@@ -1041,3 +1041,16 @@ acceptance keeps one generic message; shared identity policy remains unchanged.
   accessibility tree checks passed).
 - Not run: full `make verify`; no authentication policy, schema, or migration
   changed. `CHANGELOG.md` is aggregated at PR merge time.
+
+## Workspace settings and integrations evidence (2026-11-15)
+
+Ticket #380 groups general and email setup, access and integrations, and data
+and activity in the workspace settings navigation. Settings pages use the
+generated product name and shared responsive panels. API token, webhook, and
+SCIM credential notices explain one-time display and replacement or rotation.
+Authorization checks, secret storage/display behavior, no-store responses, and
+WebMCP exclusions remain in the existing handlers.
+
+- Passed: focused settings and secret-lifecycle tests, `go test ./internal/web ./internal/i18n -count=1` (162 tests), `make lint`, `make ux-smoke` (42 checks), and `make accessibility-smoke` in English and Spanish (zero axe violations; all covered settings and browser journeys passed).
+- The isolated accessibility smoke server uses higher request limits so its complete route audit does not hit production defaults.
+- Not run: full `make test` and `make verify`.
