@@ -217,6 +217,14 @@ A rejected item create keeps the typed title, and a reused create form answers
 `409` with a message instead of `500`. The realtime item list waits while a row
 is being edited and refreshes when focus leaves it.
 
+## Browser journey and screenshot baselines
+
+`make browser-smoke` starts a disposable Go server and uses pinned Playwright
+with Chrome. It signs in, opens the workspace home, and creates the first Item.
+The committed workspace-home screenshots cover desktop (1280×900) and mobile
+(390×844) in light and dark system themes. CI installs Chrome and runs the same
+journey and screenshot assertions.
+
 The rules behind these behaviors, and how to check them, are in the
 `item-create-submission`, `form-drafts`, `form-field-input`, `form-wizard`,
 `async-feedback`, `form-markup`, and `file-upload-form` skills under `.agents/skills/`. `make ux-smoke`

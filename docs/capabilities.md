@@ -1151,6 +1151,8 @@ accessibility requirements.
   checks, generated API and templ/CSS drift checks, build, and generated-app
   template smoke).
 - `passed`: `make ux-smoke` (42 checks).
+- `passed`: `make browser-smoke` (five Playwright/Chrome journeys, including
+  desktop and mobile screenshots for light and dark themes).
 - `passed`: `make accessibility-smoke` in English and Spanish; zero axe
   violations on covered routes, including public share and MCP consent, plus
   keyboard, focus, 320px reflow, reduced-motion, and accessibility-tree checks.

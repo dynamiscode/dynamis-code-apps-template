@@ -2,7 +2,7 @@ GOVULNCHECK_VERSION ?= v1.7.0
 ACTIONLINT_VERSION ?= v1.7.12
 GITLEAKS_VERSION ?= v8.30.1
 
-.PHONY: setup setup-hooks fmt-check lint test ci-local vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check templ-generate templ-check css-build css-check build image docker-smoke accessibility-smoke webmcp-smoke ux-smoke template-smoke verify js-check test-unit test-postgres logger-injection commit-msg-hook
+.PHONY: setup setup-hooks fmt-check lint test ci-local vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check templ-generate templ-check css-build css-check build image docker-smoke accessibility-smoke browser-smoke webmcp-smoke ux-smoke template-smoke verify js-check test-unit test-postgres logger-injection commit-msg-hook
 
 setup: setup-hooks
 	test -f .env || cp .env.example .env
@@ -113,6 +113,9 @@ webmcp-smoke:
 
 accessibility-smoke:
 	./scripts/accessibility-smoke.sh
+
+browser-smoke:
+	./scripts/playwright-smoke.sh
 
 ux-smoke:
 	./scripts/ux-smoke.sh

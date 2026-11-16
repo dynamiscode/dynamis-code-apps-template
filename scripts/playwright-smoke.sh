@@ -1,0 +1,42 @@
+#!/bin/sh
+set -eu
+
+work="$(mktemp -d /tmp/dynamis-code-playwright.XXXXXX)"
+port="${PLAYWRIGHT_PORT:-58095}"
+pid=""
+
+cleanup() {
+  if [ -n "$pid" ]; then
+    kill "$pid" >/dev/null 2>&1 || true
+    wait "$pid" >/dev/null 2>&1 || true
+  fi
+  rm -rf "$work"
+}
+trap cleanup EXIT INT TERM
+
+if curl --silent "http://127.0.0.1:$port/health/ready" >/dev/null 2>&1; then
+  echo "port $port is already in use; set PLAYWRIGHT_PORT" >&2
+  exit 1
+fi
+
+BOOTSTRAP_ADMIN_PASSWORD=playwright-password-123 DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" \
+  go run ./cmd/bootstrap-admin -email playwright@example.com -workspace "UI Baselines" >/dev/null
+go build -o "$work/server" ./cmd/server
+MULTI_WORKSPACE_ENABLED=true HTTP_REQUESTS_PER_MINUTE=10000 HTTP_AUTH_REQUESTS_PER_MINUTE=1000 \
+  DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" HTTP_ADDRESS="127.0.0.1:$port" \
+  "$work/server" >"$work/server.log" 2>&1 &
+pid=$!
+
+attempt=0
+until curl --fail --silent "http://127.0.0.1:$port/health/ready" >/dev/null; do
+  attempt=$((attempt + 1))
+  if [ "$attempt" -ge 30 ]; then
+    cat "$work/server.log"
+    exit 1
+  fi
+  sleep 1
+done
+
+PLAYWRIGHT_BASE_URL="http://127.0.0.1:$port" \
+  PLAYWRIGHT_EMAIL=playwright@example.com PLAYWRIGHT_PASSWORD=playwright-password-123 \
+  npm run test:journeys -- "$@"

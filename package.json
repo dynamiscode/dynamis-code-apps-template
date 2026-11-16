@@ -4,6 +4,7 @@
   "license": "MIT",
   "scripts": {
     "test:a11y": "node scripts/accessibility.mjs",
+    "test:journeys": "playwright test",
     "test:webmcp": "node scripts/webmcp.mjs",
     "test:unit": "node --test internal/web/assets/*.test.mjs",
     "check:js": "for f in internal/web/assets/*.js; do node --check \"$f\"; done",
@@ -11,6 +12,7 @@
     "test:ux": "node scripts/ux-patterns.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@tailwindcss/cli": "4.3.5",
     "axe-core": "4.14.0",
     "daisyui": "5.8.1",
