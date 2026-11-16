@@ -41,6 +41,7 @@ for (const viewport of ["desktop", "mobile"]) {
         await page.goto(`${oidcBaseURL}/login`);
         await expect(page.locator("html")).toHaveAttribute("lang", locale);
         await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+        await page.addStyleTag({ content: "html { font-size: 12px; }" });
         const recoveryLink = page.locator('a[href$="password-reset"]');
         const loginTarget = await recoveryLink.boundingBox();
         expect(loginTarget.width).toBeGreaterThanOrEqual(24);

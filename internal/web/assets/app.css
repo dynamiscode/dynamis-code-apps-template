@@ -152,7 +152,7 @@ main h2:not(.visually-hidden) { margin: 1.5rem 0 .75rem; font-size: 1.375rem; li
 .auth-brand { margin-bottom: 1.5rem; }
 .auth-card h1 { margin: 0 0 .75rem; }
 .auth-intro { color: var(--muted); line-height: 1.5; }
-.auth-recovery-link { display: inline-flex; align-items: center; min-height: 1.5rem; }
+.auth-recovery-link { display: inline-flex; align-items: center; min-height: max(24px, 1.5rem); }
 .auth-note { padding: .75rem 1rem; border-inline-start: .2rem solid var(--accent); background: var(--canvas); }
 .auth-method { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 .auth-method h2 { font-size: 1.1rem; }
