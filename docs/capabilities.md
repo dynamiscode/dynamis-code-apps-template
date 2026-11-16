@@ -10,6 +10,9 @@ The [UI measurement method and asset inventory](ui-measurement.md) records the
 baseline environment and remaining screen measurements for issue #439. It does
 not establish performance budgets or claim screen measurements are complete.
 
+The [administration measurement evidence](ui-measurement-admin.md) is partial
+for issue #448; its isolated run may have experienced concurrent check load.
+
 ## Profile status
 
 | Profile | Status | Evidence |
