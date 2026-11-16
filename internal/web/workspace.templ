@@ -1,6 +1,6 @@
 package web
 
-templ dashboardShell(data pageData) {
+templ dashboardShell(data pageData, header, navigation templ.Component) {
 	<!doctype html>
 	<html lang={ data.Locale } data-theme={ data.Theme }>
 		<head>
@@ -33,8 +33,26 @@ templ dashboardShell(data pageData) {
 				data-msg-request-failed={ data.T("ui.request_failed") }
 				data-msg-step-of={ data.T("ui.step_of", map[string]any{"step": "{step}", "total": "{total}"}) }></script>
 		</head>
-		<body data-workspace-home?={ data.NavPage == "workspace" } data-webmcp-page={ data.NavPage }>
+		<body class={ templ.KV("dashboard-workspace", navigation != nil) } data-workspace-home?={ data.NavPage == "workspace" } data-webmcp-page={ data.NavPage }>
 			<a class="skip-link" href="#main">{ data.T("ui.skip_to_content") }</a>
+			@header
+			<div class={ templ.KV("app-shell", navigation != nil) }>
+				if navigation != nil {
+					@navigation
+				}
+				<main id="main" class="workspace-main">
+					{ children... }
+				</main>
+			</div>
+			if data.NavPage == "home" {
+				<script defer src="/assets/app.js"></script>
+			}
+		</body>
+	</html>
+}
+
+// dashboardHeader is a temporary adapter until shared navigation is available.
+templ dashboardHeader(data pageData) {
 			<header class="topbar">
 				<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
 				<div class="topbar-context">
@@ -83,8 +101,10 @@ templ dashboardShell(data pageData) {
 					</div>
 				</details>
 			</header>
-			<div class={ templ.KV("app-shell", data.NavPage != "home") }>
-				if data.NavPage != "home" {
+}
+
+// dashboardHomeNavigation is the temporary adapter until shared navigation is available.
+templ dashboardHomeNavigation(data pageData) {
 				<aside class="sidebar">
 					if !data.SingleWorkspace {
 						<a class="sidebar-back" href="/">← { data.T("workspace.back_to_workspaces") }</a>
@@ -105,20 +125,10 @@ templ dashboardShell(data pageData) {
 						</div>
 					</nav>
 				</aside>
-				}
-				<main id="main" class="workspace-main">
-					{ children... }
-				</main>
-			</div>
-			if data.NavPage == "home" {
-				<script defer src="/assets/app.js"></script>
-			}
-		</body>
-	</html>
 }
 
 templ workspaceSelection(data pageData) {
-	@dashboardShell(data) {
+	@dashboardShell(data, dashboardHeader(data), nil) {
 		<h1>{ data.T("workspace.workspaces") }</h1>
 		if data.Error != "" {
 			<p class="error" role="alert">{ data.Error }</p>
@@ -152,7 +162,7 @@ templ workspaceSelection(data pageData) {
 }
 
 templ workspaceHome(data pageData) {
-	@dashboardShell(data) {
+	@dashboardShell(data, dashboardHeader(data), dashboardHomeNavigation(data)) {
 					<div class="workspace-heading">
 						<div><p class="eyebrow">{ data.T("workspace.home") }</p><h1>{ data.Workspace.Name }</h1></div>
 					</div>

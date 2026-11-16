@@ -25,6 +25,12 @@ sidebar whose contents follow the current workspace context. Every mutation vali
 the session-bound CSRF token
 and rechecks current workspace permission.
 
+The templ dashboard shell accepts header and sidebar components. Its current
+adapters preserve workspace home navigation until shared navigation migrates;
+legacy templates remain for other routes. On desktop the workspace sidebar
+spans the viewport height. On mobile its links remain visible and usable without
+JavaScript.
+
 ## Localization
 
 Browser catalogs are embedded, Git-reviewed JSON under `internal/i18n/locales`
