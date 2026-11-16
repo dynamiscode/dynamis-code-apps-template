@@ -54,13 +54,14 @@ output and fixture conditions when results are collected.
 |---|---|---|
 | General and email settings | Cold/warm navigation | Save, validation, failure and provider states |
 | Tokens and SCIM | Cold/warm navigation | Creation, revocation and one-time secret states |
-| Webhooks | Cold/warm navigation; empty and one pending delivery | Delivered and exhausted states |
+| Webhooks | Cold/warm navigation; empty, pending, delivered and failed delivery displays | Other delivery failures and retry timing |
 | Audit | Cold/warm navigation; automatic fetch and DOM swap; synthetic warm fetch; injected failure and no-JavaScript fallback | Loading duration and other failures |
 | Import | Cold/warm navigation; valid and invalid one-row CSV preview | Other validation and failure states; confirmation |
 | Export | Cold/warm navigation; download and local decoded file size | Download transfer bytes and failure |
 
-Viewer GET responses are recorded below. Mobile, Spanish, dark theme, keyboard,
-and no-JavaScript behavior outside the audit fallback remain unverified.
+Viewer GET and selected POST responses are recorded below. A Spanish mobile
+automated scan is recorded below; keyboard behavior and no-JavaScript flows
+outside the two observed cases remain unverified.
 Do not capture one-time token or webhook secrets, SMTP credentials, CSRF fields,
 export bodies, endpoint URLs, traces or screenshots. Measurements and additional
 state coverage are still needed before identifying duplicate requests, proposing
@@ -93,10 +94,11 @@ They create one synthetic webhook and item; a temporary loopback-only receiver r
 for webhook delivery. The output reports delivery row and pending counts once;
 the worker can change status asynchronously, so a missing pending observation
 is not proof that pending never occurred. The receiver does not record payloads
-or headers. A separate context accepts a synthetic viewer invitation and records
-GET status for eight settings pages. The invitation link and credentials are not
-reported. Delivered and exhausted states, viewer mutations, full no-JavaScript
-journeys, other errors, languages, mobile and accessibility remain unverified.
+or headers. A second loopback endpoint returns HTTP 204. A separate context
+accepts a synthetic viewer invitation and records GET status for eight settings
+pages and POST status for four. The invitation link and credentials are not
+reported. The worker is polled for a bounded period; a missing outcome is
+reported as unobserved, not as zero. Further state coverage remains below.
 
 On 2026-11-16 before 17:55:04 UTC, commit
 `a646ef788a6c18b9601b61d85e3bbc877ce0407f` ran the command above successfully.
@@ -122,6 +124,37 @@ asset appeared once per screen. The earlier run at
 same five state outcomes. No conclusion about requests outside
 the observation interval or whether any script is unnecessary follows from these
 counts. Both runs completed and their temporary servers and receivers stopped.
+
+On 2026-11-16 before 18:06:00 UTC, commit
+`1df4a254238fe89c89564b9903d54a0ca6b45617` ran
+`UI_ADMIN_STATES=1 sh scripts/ui-measurement-admin.sh > /tmp/ui-448-final-states.json`
+with Go test and race processes active concurrently. The isolated receiver returned
+503 for one webhook and 204 for the other. The deliveries page showed pending,
+then failed for the former and delivered for the latter. The 503 result follows
+the retry exhaustion path in `evaluateDeliveryOutcome`; this observation did
+not independently record attempt counts or retry intervals. Viewer POSTs with a
+valid session CSRF value to general, email, provisioning and webhooks returned
+403. Invalid CSV feedback also appeared with JavaScript disabled. The server,
+browser and loopback receiver stopped after the run. No timings were recorded.
+
+At 390×844, device scale 1, Chrome 157.0.8103.78, browser locale `es-ES`,
+Spanish language cookie and dark OS color preference, all eight settings pages
+reported `lang=es`, `data-theme=system`, and no document-level horizontal
+overflow. Axe-core 4.14.0 scanned WCAG 2 A/AA and 2.1 AA tags. Seven pages
+reported no violations. **repo — action: [#425](https://github.com/dynamiscode/dynamis-code-apps-template/issues/425):**
+the audit page reported one serious `scrollable-region-focusable` violation;
+the affected element matched `#audit-table .table-wrap`. This is an automated
+finding, not proof of complete accessibility or WCAG conformance. The scan does
+not cover delivery history, error states, keyboard operation, screen readers,
+other widths, explicit light/dark account preferences, zoom or all locales.
+
+The first two expanded attempts did not yield results because inline axe
+injection failed under the page's script policy. The successful run used
+Playwright's initialization script; no product policy was changed. Remaining
+work includes viewer mutations beyond the four endpoints, non-JavaScript flows
+beyond audit and invalid import, additional error and provider states, request
+initiators and attribution outside the observed interval, export wire bytes,
+other screen/locale/theme combinations and the #425 audit finding.
 
 ## Single isolated run
 
