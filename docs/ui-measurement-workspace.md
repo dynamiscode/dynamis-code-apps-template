@@ -276,3 +276,66 @@ reports available CDP stream-chunk and redirect encoded-byte fields separately;
 `null` means no usable field was observed, and these values must not be added
 to completed bytes as a total without checking for overlap or missing data.
 Browser execution, byte completeness and progress events remain unverified.
+
+## Extended isolated run
+
+On 2026-11-16, after the user provided an exclusive window, the following ran
+sequentially against commit `008de93` with the pending reconnect observation
+change in `scripts/ui-measurement-gaps.mjs`:
+
+```sh
+UI_MEASURE=gaps PLAYWRIGHT_PORT=58147 ./scripts/playwright-smoke.sh
+UI_MEASURE=interactions PLAYWRIGHT_PORT=58147 ./scripts/playwright-smoke.sh
+node --test scripts/playwright-isolation.test.mjs
+```
+
+The first gap run timed out waiting 30 seconds for SSE reconnection and produced
+no complete JSON. The script was changed to report whether reconnection occurs
+within 10 seconds. The first interaction run also timed out waiting 30 seconds
+for the initial SSE connected status; a fresh-fixture retry completed. The
+isolation regression passed. Each run used the isolated fixture and environment
+above, Chrome 157.0.8103.78, one run, unthrottled loopback; sequential actions
+share cache and fixture. Gap output was recorded at 19:00:36.304Z and interaction
+output at 19:01:42.364Z. Values below are requests / completed encoded bytes /
+elapsed milliseconds. Timings include automation overhead, not a budget.
+
+| Scenario | Result |
+|---|---|
+| Client field create / value set | 5 / 61778 / 67.6; 5 / 62571 / 76.3 |
+| Member role / ownership transfer / removal | 5 / 78678 / 75.8; 5 / 78222 / 66.3; 5 / 76607 / 82.1 |
+| Viewer invitations denial | 3 / 55045 / 14.2; HTTP 403 |
+| Item next page | 7 / 115890 / 79.4; two unfinished |
+| Item injected failure | 1 / 63 / 81.7; HTTP 503, input retained |
+| Item forced SSE interruption | 8 / 226771 / 10061.3; one unfinished, one transport failure |
+| File upload, 1 MiB fixture | 6 / 84772 / 73.3; one observed progress update, 100% |
+| File download | 1 / unavailable / 99.8; 1048576 payload bytes verified |
+
+The synthetic owner transferred ownership to the invited member, then the
+member transferred it back before removal. The transfer-back setup was not
+timed. All rows except next-page and SSE interruption had zero unfinished
+requests. The 403 and injected 503 are intentional. Chrome handed the download
+to its download manager; CDP recorded one loading failure and did not report
+its encoded transfer bytes. One 100% upload update does not establish intermediate
+progress behavior. Redirect byte fields were reported separately; they are not
+combined with completed bytes because overlap has not been established.
+
+The SSE interruption used Playwright request abort, then removed the route
+intercept. Reconnecting feedback appeared, but connected feedback did not return
+within 10 seconds. CDP reported two EventSource starts and zero encoded stream
+bytes; zero reported bytes does not prove zero wire bytes. The cause is not
+established, and the synthetic abort is not proof of ordinary network recovery.
+Investigate under Items #413 and HTMX review #435. The intermittent initial
+connection timeout also remains unexplained.
+
+Request attribution reported one repeated identical GET during Item filter,
+next page and mobile navigation, each with one Document and one Fetch start;
+the query and headers are intentionally withheld. Their necessity and response
+differences remain unverified. The upload interval reported two XHR starts and
+one repeated GET, but did not capture enough classification to attribute them.
+Map Item request investigation to #413 and Files to #417; no fix is claimed.
+Client field and member mutation intervals each had two Document starts and
+one each of the page's three scripts/stylesheets as recorded by the observer;
+the redirect makes these starts expected candidates, not proven duplicates.
+Full screen-by-screen script necessity, permission mutations, failure variants,
+and complete encoded stream/download accounting remain unverified. #447 is
+not complete.

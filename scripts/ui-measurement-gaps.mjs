@@ -168,7 +168,8 @@ try {
     await page.goto(home + "/items");
     await page.getByText("Live updates reconnecting…").waitFor();
     await page.unroute("**/items/events");
-    await page.getByText("Live updates connected.").waitFor({ timeout: 30000 });
+    const connected = await page.getByText("Live updates connected.").waitFor({ timeout: 10000 }).then(() => true, () => false);
+    return { connectedWithin10Seconds: connected };
   });
 
   const noJS = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL,
