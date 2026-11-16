@@ -1135,6 +1135,10 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = workspaceHome(data).Render(context.Background(), writer)
 		return
 	}
+	if name == "home.html" {
+		_ = workspaceSelection(data).Render(context.Background(), writer)
+		return
+	}
 	if err := h.template.ExecuteTemplate(writer, name, data); err != nil {
 		return
 	}

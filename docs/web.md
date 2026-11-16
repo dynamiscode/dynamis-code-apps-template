@@ -25,6 +25,12 @@ sidebar whose contents follow the current workspace context. Every mutation vali
 the session-bound CSRF token
 and rechecks current workspace permission.
 
+The templ dashboard shell accepts header and sidebar components. Its current
+adapters preserve workspace home navigation until shared navigation migrates;
+legacy templates remain for other routes. On desktop the workspace sidebar
+spans the viewport height. On mobile its links remain visible and usable without
+JavaScript.
+
 ## Localization
 
 Browser catalogs are embedded, Git-reviewed JSON under `internal/i18n/locales`
@@ -257,8 +263,8 @@ file drift.
 
 ## Rendering migration inventory
 
-Ticket #386 reconciles the route and template surface. `/workspaces/{workspaceId}`
-renders through `workspace.templ` and generated `workspace_templ.go`. The
+Ticket #386 reconciles the route and template surface. `/` and `/workspaces/{workspaceId}`
+render through `workspace.templ` and generated `workspace_templ.go`. The
 remaining named `html/template` views are an explicit migration deferral; their
 route families and major states are listed below. This keeps the existing
 escaping, HTMX fragment boundaries, ordinary-form fallbacks, and route tests
@@ -266,7 +272,7 @@ intact until each family can move with behavior parity.
 
 | Route family | Views and shared templates | Major states covered |
 |---|---|---|
-| `/`, `/workspaces/{workspaceId}` | `home.html`; `workspace.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
+| `/`, `/workspaces/{workspaceId}` | `workspace.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
 | `/setup`, `/login`, `/mfa`, `/account/verify-email/{secret}`, `/password-reset/{secret}`, `/oauth/authorize` | `setup.html`, `login.html`, `mfa.html`, `verification.html`, `password-reset.html`, `mcp-consent.html`, `auth.html` | Initial setup, form errors, sign-in and MFA challenge, verification success/unavailable, reset request/completion, OAuth approval/denial |
 | Workspace items, clients, and custom fields | `items.html`, `item-list.html`, `list-view.html`, `clients.html`, `client.html`, `client-fields.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field lifecycle, realtime refresh |
 | Workspace members and invitations | `members.html`, `invitations.html`, `invitation.html` | Role changes, removal and ownership transfer, invitation create/resend/revoke, accepted and unavailable invitation |
@@ -277,7 +283,7 @@ intact until each family can move with behavior parity.
 Corresponding route and handler tests cover server-rendered behavior.
 `make ux-smoke` and `make accessibility-smoke` cover the browser paths they
 enumerate; [the accessibility evidence](accessibility.md) records that
-automated coverage. Only the workspace home has moved to templ so far; the
+automated coverage. Workspace selection and workspace home use templ; the
 listed legacy views are an intentional exception to the migration target, not
 an exception to escaping, authorization, accessibility, localization, or
 ordinary-form requirements.

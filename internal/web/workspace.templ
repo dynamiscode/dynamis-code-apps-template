@@ -1,6 +1,6 @@
 package web
 
-templ workspaceHome(data pageData) {
+templ dashboardShell(data pageData, header, navigation templ.Component) {
 	<!doctype html>
 	<html lang={ data.Locale } data-theme={ data.Theme }>
 		<head>
@@ -9,13 +9,56 @@ templ workspaceHome(data pageData) {
 			<title>{ data.Title } · { data.T("common.product_name") }</title>
 			<link rel="stylesheet" href="/assets/components.css"/>
 			<link rel="stylesheet" href="/assets/app.css"/>
-			<script defer src="/assets/forms.js"></script>
+			<script defer src="/assets/forms.js"
+				data-msg-saving={ data.T("ui.saving") }
+				data-msg-loading={ data.T("ui.loading") }
+				data-msg-load-failed={ data.T("ui.load_failed") }
+				data-msg-error-summary={ data.T("ui.error_summary") }
+				data-msg-unsaved={ data.T("ui.unsaved") }
+				data-msg-updates-waiting={ data.T("ui.updates_waiting") }
+				data-msg-show-password={ data.T("ui.show_password") }
+				data-msg-hide-password={ data.T("ui.hide_password") }
+				data-msg-strength={ data.T("ui.strength") }
+				data-msg-strength-0={ data.T("ui.strength_0") }
+				data-msg-strength-1={ data.T("ui.strength_1") }
+				data-msg-strength-2={ data.T("ui.strength_2") }
+				data-msg-strength-3={ data.T("ui.strength_3") }
+				data-msg-strength-4={ data.T("ui.strength_4") }
+				data-msg-mismatch={ data.T("ui.mismatch") }
+				data-msg-next={ data.T("ui.next") }
+				data-msg-back={ data.T("ui.back") }
+				data-msg-draft-restored={ data.T("ui.draft_restored") }
+				data-msg-discard-draft={ data.T("ui.discard_draft") }
+				data-msg-dismiss={ data.T("ui.dismiss") }
+				data-msg-request-failed={ data.T("ui.request_failed") }
+				data-msg-step-of={ data.T("ui.step_of", map[string]any{"step": "{step}", "total": "{total}"}) }></script>
 		</head>
-		<body data-workspace-home>
+		<body class={ templ.KV("dashboard-workspace", navigation != nil) } data-workspace-home?={ data.NavPage == "workspace" } data-webmcp-page={ data.NavPage }>
 			<a class="skip-link" href="#main">{ data.T("ui.skip_to_content") }</a>
+			@header
+			<div class={ templ.KV("app-shell", navigation != nil) }>
+				if navigation != nil {
+					@navigation
+				}
+				<main id="main" class="workspace-main">
+					{ children... }
+				</main>
+			</div>
+			if data.NavPage == "home" {
+				<script defer src="/assets/app.js"></script>
+			}
+		</body>
+	</html>
+}
+
+// dashboardHeader is a temporary adapter until shared navigation is available.
+templ dashboardHeader(data pageData) {
 			<header class="topbar">
 				<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
 				<div class="topbar-context">
+					if data.NavPage == "home" {
+						<span>{ data.T("workspace.workspaces") }</span>
+					} else {
 					if !data.SingleWorkspace {
 						<a href="/">{ data.T("workspace.workspaces") }</a><span aria-hidden="true">/</span>
 					}
@@ -41,6 +84,7 @@ templ workspaceHome(data pageData) {
 							</div>
 						</details>
 					}
+					}
 				</div>
 				<details class="account-menu">
 					<summary>{ data.T("common.account") }</summary>
@@ -57,7 +101,10 @@ templ workspaceHome(data pageData) {
 					</div>
 				</details>
 			</header>
-			<div class="app-shell">
+}
+
+// dashboardHomeNavigation is the temporary adapter until shared navigation is available.
+templ dashboardHomeNavigation(data pageData) {
 				<aside class="sidebar">
 					if !data.SingleWorkspace {
 						<a class="sidebar-back" href="/">← { data.T("workspace.back_to_workspaces") }</a>
@@ -78,7 +125,44 @@ templ workspaceHome(data pageData) {
 						</div>
 					</nav>
 				</aside>
-				<main id="main" class="workspace-main">
+}
+
+templ workspaceSelection(data pageData) {
+	@dashboardShell(data, dashboardHeader(data), nil) {
+		<h1>{ data.T("workspace.workspaces") }</h1>
+		if data.Error != "" {
+			<p class="error" role="alert">{ data.Error }</p>
+		}
+		if len(data.Workspaces) > 0 {
+			<ul class="cards">
+				for _, workspace := range data.Workspaces {
+					<li><a href={ "/workspaces/" + workspace.ID.String() }><strong>{ workspace.Name }</strong><span>{ data.Role(workspace.Role) }</span></a></li>
+				}
+			</ul>
+		} else {
+			<p>{ data.T("workspace.no_memberships") }</p>
+		}
+		if data.CanCreateWorkspace {
+			<section>
+				<h2>{ data.T("workspace.create") }</h2>
+				<form data-webmcp-actions="workspace-create" action="/workspaces" method="post">
+					<input type="hidden" name="csrf" value={ data.CSRF }/>
+					<label for="workspace-name">{ data.T("workspace.name") }</label>
+					<input id="workspace-name" name="name" required maxlength="120"/>
+					<label for="workspace-locale">{ data.T("workspace.language_fallback") }</label>
+					<select id="workspace-locale" name="locale">
+						<option value="en" selected?={ data.Locale == "en" }>{ data.T("common.english") }</option>
+						<option value="es" selected?={ data.Locale == "es" }>{ data.T("common.spanish") }</option>
+					</select>
+					<button class="btn btn-primary" type="submit">{ data.T("workspace.create") }</button>
+				</form>
+			</section>
+		}
+	}
+}
+
+templ workspaceHome(data pageData) {
+	@dashboardShell(data, dashboardHeader(data), dashboardHomeNavigation(data)) {
 					<div class="workspace-heading">
 						<div><p class="eyebrow">{ data.T("workspace.home") }</p><h1>{ data.Workspace.Name }</h1></div>
 					</div>
@@ -99,8 +183,5 @@ templ workspaceHome(data pageData) {
 							<li><a href={ "/workspaces/" + data.Workspace.ID.String() + "/settings" }><strong>{ data.T("navigation.settings") }</strong><span>{ data.T("workspace.settings_description") }</span></a></li>
 						</ul>
 					</section>
-				</main>
-			</div>
-		</body>
-	</html>
+	}
 }
