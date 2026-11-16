@@ -104,10 +104,12 @@ Baseline browser surfaces:
   creates or rotates the dedicated SCIM credential with its secret shown once,
   and revokes it through ordinary CSRF-protected forms. The page is no-store and
   has no WebMCP enhancement; SCIM Users and Groups remain REST/IdP-only.
-- `/login`, `/setup`, `/mfa`, and email verification share the generated app
+- `/login`, `/setup`, password recovery, `/mfa`, and email verification share the generated app
   brand and compact responsive auth layout. Setup keeps required fields first
   and marks workspace language as deferrable. Sign-in, MFA, and setup remain
-  ordinary CSRF-protected forms without JavaScript.
+  ordinary CSRF-protected forms without JavaScript. Password-reset request,
+  completion, unavailable, and validation states use the same templ layout and
+  ordinary forms.
 - `/sessions` shows each browser session's status and metadata and revokes active
   sessions; `/security` manages MFA factors and starts reauthenticated OIDC
   linking.
@@ -304,7 +306,7 @@ accessibility results and remaining limits are recorded in
 | Route family | Views and shared templates | Major states covered |
 |---|---|---|
 | `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
-| `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/mfa`, `/account/verify-email/{secret}`, `/password-reset/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.html`, `verification.html`, `password-reset.html`, `mcp-consent.html`, `auth.html` (bridge for remaining legacy auth views) | Initial setup, form errors, sign-in and provider choice, OIDC callback failure, MFA challenge, verification success/unavailable, reset request/completion, OAuth approval/denial |
+| `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.html`, `verification.html`, `mcp-consent.html`, `auth.html` (bridge for remaining legacy auth views) | Initial setup, form errors, sign-in and provider choice, OIDC callback failure, reset request/completion/unavailable/validation, MFA challenge, verification success/unavailable, OAuth approval/denial |
 | Workspace items, clients, and custom fields | `items.html`, `item-list.html`, `list-view.html`, `clients.html`, `client.html`, `client-fields.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field lifecycle, realtime refresh |
 | Workspace members and invitations | `members.html`, `invitations.html`, `invitation.html` | Role changes, removal and ownership transfer, invitation create/resend/revoke, accepted and unavailable invitation |
 | Workspace files | `files.html` | Empty/list states, filters and paging, upload progress/success/error, download authorization |

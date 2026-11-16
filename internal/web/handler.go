@@ -1148,6 +1148,10 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = authSetup(data).Render(context.Background(), writer)
 		return
 	}
+	if name == "password-reset.html" {
+		_ = authPasswordReset(data).Render(context.Background(), writer)
+		return
+	}
 	if err := h.template.ExecuteTemplate(writer, name, data); err != nil {
 		return
 	}

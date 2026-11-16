@@ -138,6 +138,17 @@ try {
   }
   await audit("password reset");
   await expectMobileNoOverflow("password reset");
+  await driver.get(`${baseURL}/password-reset/unavailable`);
+  await driver.wait(until.elementLocated(By.id("reset-password")), 5000);
+  await driver.findElement(By.id("reset-password")).sendKeys("first-valid-password-123");
+  await driver.findElement(By.id("reset-password-confirmation")).sendKeys("first-valid-password-123");
+  await driver.findElement(By.css('form[action="/password-reset/unavailable"] button[type="submit"]')).click();
+  await driver.wait(until.elementLocated(By.css('.error[role="alert"]')), 5000);
+  if ((await driver.switchTo().activeElement().getAttribute("role")) !== "alert") {
+    throw new Error("password reset unavailable error did not receive focus");
+  }
+  await audit("password reset unavailable");
+  await expectMobileNoOverflow("password reset unavailable");
   await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/items`);
   await driver.wait(until.elementLocated(By.id("item-list")), 5000);
   await audit("items");

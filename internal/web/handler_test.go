@@ -368,8 +368,14 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	}
 
 	resetPage := request(handler, http.MethodGet, "/password-reset", nil, nil, nil)
-	if resetPage.Code != http.StatusOK || !strings.Contains(resetPage.Body.String(), `form action="/password-reset"`) {
+	if resetPage.Code != http.StatusOK || !strings.Contains(resetPage.Body.String(), `form action="/password-reset"`) ||
+		!strings.Contains(resetPage.Body.String(), `class="brand auth-brand"`) || !strings.Contains(resetPage.Body.String(), `class="input"`) {
 		t.Fatalf("password reset page = %d, %s", resetPage.Code, resetPage.Body.String())
+	}
+	expiredReset := request(handler, http.MethodPost, "/password-reset", url.Values{"email": {"owner@example.com"}}, nil, nil)
+	if expiredReset.Code != http.StatusForbidden || !strings.Contains(expiredReset.Body.String(), `role="alert" tabindex="-1"`) ||
+		!strings.Contains(expiredReset.Body.String(), `form action="/password-reset"`) {
+		t.Fatalf("expired reset request form = %d, %s", expiredReset.Code, expiredReset.Body.String())
 	}
 	resetCSRF := responseCookie(resetPage, "reset_csrf")
 	resetRequested := request(handler, http.MethodPost, "/password-reset", url.Values{
@@ -394,6 +400,11 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	if resetMismatch.Code != http.StatusUnprocessableEntity || !strings.Contains(resetMismatch.Body.String(), "Las contraseñas no coinciden.") {
 		t.Fatalf("reset mismatch = %d, %s", resetMismatch.Code, resetMismatch.Body.String())
 	}
+	for _, marker := range []string{`class="alert alert-error error"`, `role="alert" tabindex="-1"`, `class="input"`, `data-theme="system"`} {
+		if !strings.Contains(resetMismatch.Body.String(), marker) {
+			t.Fatalf("reset mismatch view lacks %q: %s", marker, resetMismatch.Body.String())
+		}
+	}
 	if !strings.Contains(resetMismatch.Body.String(), `name="csrf" value="`+resetTokenCSRF.Value+`"`) {
 		t.Fatalf("reset mismatch lost its CSRF token: %s", resetMismatch.Body.String())
 	}
@@ -402,7 +413,8 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	invalidReset := request(handler, http.MethodPost, "/password-reset/invalid-secret", url.Values{
 		"csrf": {invalidResetCSRF.Value}, "password": {"reset-owner-password"}, "password_confirmation": {"reset-owner-password"},
 	}, []*http.Cookie{invalidResetCSRF, {Name: "locale", Value: "es"}}, nil)
-	if invalidReset.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidReset.Body.String(), "El enlace de restablecimiento no es válido o venció.") || !strings.Contains(invalidReset.Body.String(), `form action="/password-reset"`) || responseCookie(invalidReset, "reset_csrf").Value == "" {
+	if invalidReset.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidReset.Body.String(), "El enlace de restablecimiento no es válido o venció.") || !strings.Contains(invalidReset.Body.String(), `form action="/password-reset"`) ||
+		!strings.Contains(invalidReset.Body.String(), `role="alert" tabindex="-1"`) || responseCookie(invalidReset, "reset_csrf").Value == "" {
 		t.Fatalf("invalid reset link recovery = %d, %s", invalidReset.Code, invalidReset.Body.String())
 	}
 	resetComplete := request(handler, http.MethodPost, parsed.Path, url.Values{

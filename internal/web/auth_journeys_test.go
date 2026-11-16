@@ -1,7 +1,10 @@
 package web
 
 import (
+	"bytes"
+	"context"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -28,9 +31,23 @@ func TestSetupPresentsRequiredDetailsBeforeDeferrableTasks(t *testing.T) {
 			if !strings.Contains(body, `data-setup-optional`) {
 				t.Fatal("setup page does not explain that optional tasks can wait")
 			}
-			for _, marker := range []string{`class="input"`, `class="btn btn-primary"`, `class="alert alert-error error"`} {
-				if strings.Contains(body, `The setup form expired`) && !strings.Contains(body, marker) {
-					t.Fatalf("setup validation view lacks DaisyUI marker %q: %s", marker, body)
+			for _, marker := range []string{`class="input"`, `class="btn btn-primary"`, `action="/setup" method="post"`} {
+				if !strings.Contains(body, marker) {
+					t.Fatalf("setup view lacks DaisyUI marker %q: %s", marker, body)
+				}
+			}
+			csrf := responseCookie(response, "setup_csrf")
+			expired := request(handler, http.MethodPost, "/setup", mapValues("email", "owner@example.com", "workspace", "Retained workspace"), nil, nil)
+			if expired.Code != http.StatusForbidden || !strings.Contains(expired.Body.String(), `role="alert" tabindex="-1"`) {
+				t.Fatalf("expired setup form = %d, %s", expired.Code, expired.Body.String())
+			}
+			invalid := request(handler, http.MethodPost, "/setup", mapValues("email", "owner@example.com", "workspace", "Retained workspace", "csrf", csrf.Value), []*http.Cookie{csrf}, nil)
+			if invalid.Code != http.StatusUnprocessableEntity {
+				t.Fatalf("setup validation = %d, %s", invalid.Code, invalid.Body.String())
+			}
+			for _, marker := range []string{`role="alert" tabindex="-1"`, `class="alert alert-error error"`, `value="owner@example.com"`, `value="Retained workspace"`} {
+				if !strings.Contains(invalid.Body.String(), marker) {
+					t.Fatalf("setup validation view lacks %q: %s", marker, invalid.Body.String())
 				}
 			}
 		})
@@ -55,6 +72,13 @@ func TestAuthenticationPagesUseBrandAndOrdinaryFormPaths(t *testing.T) {
 			if strings.Contains(path, "password-reset") && !strings.Contains(body, `method="post"`) {
 				t.Fatalf("%s lacks the ordinary form path: %s", path, body)
 			}
+			if strings.Contains(path, "password-reset") {
+				for _, marker := range []string{`class="brand auth-brand"`, `class="input"`, `class="btn btn-primary"`, `id="main"`, `data-theme="system"`} {
+					if !strings.Contains(body, marker) {
+						t.Fatalf("%s lacks auth layout marker %q: %s", path, marker, body)
+					}
+				}
+			}
 			if path == "/login" {
 				for _, marker := range []string{`class="input"`, `class="btn btn-primary"`, `action="/login" method="post"`, `name="csrf"`} {
 					if !strings.Contains(body, marker) {
@@ -64,6 +88,34 @@ func TestAuthenticationPagesUseBrandAndOrdinaryFormPaths(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestConfiguredOIDCProviderChoiceIsOrdinaryLink(t *testing.T) {
+	catalog, err := i18n.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body bytes.Buffer
+	data := pageData{Locale: "en", Theme: "light", Catalog: catalog, OIDCProviders: []identity.OIDCProviderInfo{{ID: "company", Name: "Company SSO"}}}
+	if err := authLogin(data).Render(context.Background(), &body); err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{`href="/auth/oidc/company"`, `Company SSO`, `class="btn"`, `aria-labelledby="auth-provider-heading"`} {
+		if !strings.Contains(body.String(), marker) {
+			t.Fatalf("provider choice lacks %q: %s", marker, body.String())
+		}
+	}
+	if strings.Contains(body.String(), "javascript:") {
+		t.Fatal("provider choice must remain an ordinary link")
+	}
+}
+
+func mapValues(values ...string) url.Values {
+	form := url.Values{}
+	for i := 0; i+1 < len(values); i += 2 {
+		form.Set(values[i], values[i+1])
+	}
+	return form
 }
 
 func TestMFAPageKeepsFormFallbacksAvailable(t *testing.T) {

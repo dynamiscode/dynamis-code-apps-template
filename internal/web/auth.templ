@@ -93,3 +93,53 @@ templ authSetup(data pageData) {
 		</form>
 	}
 }
+
+templ authPasswordReset(data pageData) {
+	@authLayout(data, data.T(authPasswordResetTitle(data))) {
+		<h1>{ data.T(authPasswordResetTitle(data)) }</h1>
+		if data.Saved {
+			@successAlert(data.T(authPasswordResetSuccess(data)))
+			<p>@linkButton("/login", data.T("account.sign_in"))</p>
+		} else {
+			if data.ErrorKey != "" {
+				@errorAlert(data.T(data.ErrorKey))
+			}
+			if data.PasswordResetSecret != "" {
+				<p class="auth-intro">{ data.T("account.choose_password_description") }</p>
+				<form action={ "/password-reset/" + data.PasswordResetSecret } method="post">
+					<input type="hidden" name="csrf" value={ data.CSRF }/>
+					<label for="reset-password">{ data.T("account.new_password") }</label>
+					<input class="input" id="reset-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required data-strength/>
+					<label for="reset-password-confirmation">{ data.T("account.confirm_password") }</label>
+					<input class="input" id="reset-password-confirmation" name="password_confirmation" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required data-match="reset-password"/>
+					@submitButton(data.T("account.reset_password"), nil)
+				</form>
+			} else {
+				<p class="auth-intro">{ data.T("account.password_reset_description") }</p>
+				<form action="/password-reset" method="post">
+					<input type="hidden" name="csrf" value={ data.CSRF }/>
+					<label for="reset-email">{ data.T("common.email") }</label>
+					<input class="input" id="reset-email" name="email" type="email" autocomplete="username" maxlength="320" required/>
+					@submitButton(data.T("account.send_reset"), nil)
+				</form>
+			}
+		}
+	}
+}
+
+func authPasswordResetTitle(data pageData) string {
+	if data.PasswordResetCompleted {
+		return "account.password_reset_completed_title"
+	}
+	if data.PasswordResetSecret != "" {
+		return "account.choose_password_title"
+	}
+	return "account.reset_password"
+}
+
+func authPasswordResetSuccess(data pageData) string {
+	if data.PasswordResetCompleted {
+		return "account.password_reset_done"
+	}
+	return "account.password_reset_requested"
+}
