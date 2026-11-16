@@ -189,6 +189,30 @@ try {
 	if (overflow.scrollWidth > overflow.clientWidth) {
 		throw new Error(`import page has horizontal overflow at 320 CSS pixels: ${JSON.stringify(overflow)}`);
 	}
+	await driver.manage().window().setRect({ width: 1280, height: 900 });
+	await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/files`);
+	await driver.wait(until.elementLocated(By.id("file-upload")), 5000);
+	await audit("files");
+	const fileUploadContract = await driver.executeScript(() => {
+		const form = document.querySelector('form[data-file-upload][method="post"][enctype="multipart/form-data"]');
+		const progress = form?.querySelector("progress[data-upload-progress]");
+		return Boolean(form && progress && progress.max === 100 && progress.getAttribute("aria-label"));
+	});
+	if (!fileUploadContract) throw new Error("files page ordinary upload and named progress contract failed");
+	await driver.executeScript(() => {
+		const progress = document.querySelector("progress[data-upload-progress]");
+		progress.value = 1;
+		progress.removeAttribute("hidden");
+	});
+	const fileTree = await driver.sendAndGetDevToolsCommand("Accessibility.getFullAXTree");
+	const progressName = locale === "es" ? "Progreso de carga" : "Upload progress";
+	if (!fileTree.nodes.some((node) => node.role?.value === "progressbar" && node.name?.value === progressName)) {
+		throw new Error(`files accessibility tree lacks progressbar named ${progressName}`);
+	}
+	await driver.manage().window().setRect({ width: 320, height: 800 });
+	if (await driver.executeScript(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)) {
+		throw new Error("files page has horizontal overflow at 320 CSS pixels");
+	}
 	console.log("manual-contract: keyboard, focus, 320px reflow, reduced motion, and accessibility tree passed");
 } finally {
   await driver.quit();

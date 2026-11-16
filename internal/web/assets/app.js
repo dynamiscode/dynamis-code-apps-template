@@ -24,7 +24,9 @@ class FileUploader {
 		this.statusElement = form?.querySelector("[data-upload-status]")
 			|| form?.querySelector('[role="status"]')
 			|| form?.querySelector('[aria-live="polite"]');
+		this.progressElement = form?.querySelector("[data-upload-progress]");
 		this.phase = FileUploader.PHASES.IDLE;
+		this.lastProgressAnnouncement = 0;
 	}
 
 	ensureStatusElement() {
@@ -54,9 +56,19 @@ class FileUploader {
 	}
 
 	transition(phase, message) {
+		const previousPhase = this.phase;
 		this.phase = phase;
 		const isError = phase === FileUploader.PHASES.ERROR;
 		const inFlight = this.isInFlight();
+		if (this.progressElement) {
+			if (phase === FileUploader.PHASES.UPLOADING && previousPhase !== phase) {
+				this.progressElement.value = 0;
+				this.progressElement.setAttribute("hidden", "");
+				this.lastProgressAnnouncement = 0;
+			} else if (phase !== FileUploader.PHASES.UPLOADING) {
+				this.progressElement.setAttribute("hidden", "");
+			}
+		}
 
 		if (this.submitButton) {
 			this.submitButton.disabled = inFlight;
@@ -84,13 +96,25 @@ class FileUploader {
 		}
 	}
 
+	reportProgress(event) {
+		if (!this.progressElement || !event.lengthComputable || event.total <= 0) return;
+		const percent = Math.min(100, Math.max(0, Math.round((event.loaded / event.total) * 100)));
+		this.progressElement.value = percent;
+		this.progressElement.removeAttribute("hidden");
+		const announcedPercent = Math.floor(percent / 25) * 25;
+		if (announcedPercent > this.lastProgressAnnouncement) {
+			this.lastProgressAnnouncement = announcedPercent;
+			this.transition(FileUploader.PHASES.UPLOADING, `${this.getPhaseMessage(FileUploader.PHASES.UPLOADING)} ${announcedPercent}%`);
+		}
+	}
+
 	async handleSubmit(event) {
 		if (event) event.preventDefault();
 		if (this.isInFlight()) return;
 
 		const file = this.fileInput?.files?.[0];
 		if (!file) {
-			this.transition(FileUploader.PHASES.ERROR, "Choose a file to upload.");
+			this.transition(FileUploader.PHASES.ERROR, this.form?.dataset?.statusChooseFile || this.getPhaseMessage(FileUploader.PHASES.ERROR));
 			return;
 		}
 
@@ -101,30 +125,34 @@ class FileUploader {
 
 		try {
 			this.transition(FileUploader.PHASES.UPLOADING);
-			let response;
-			try {
-				response = await fetch(this.form.action, { method: "POST", body, credentials: "same-origin" });
-			} catch (_) {
-				throw new Error("Upload failed. Please try again.");
-			}
-			if (!response.ok) {
-				const errMsg = await FileUploader.extractErrorMessage(response, "Upload failed. Please try again.");
-				throw new Error(errMsg);
-			}
+			await new Promise((resolve, reject) => {
+				const request = new XMLHttpRequest();
+				request.open("POST", this.form.action);
+				request.upload.addEventListener("progress", (progressEvent) => this.reportProgress(progressEvent));
+				request.addEventListener("load", async () => {
+					if (request.status >= 200 && request.status < 300) {
+						resolve();
+						return;
+					}
+					const message = await FileUploader.extractErrorMessage(request.responseText, this.getPhaseMessage(FileUploader.PHASES.ERROR));
+					reject(message);
+				});
+				request.addEventListener("error", () => reject(this.getPhaseMessage(FileUploader.PHASES.ERROR)));
+				request.addEventListener("abort", () => reject(this.getPhaseMessage(FileUploader.PHASES.ERROR)));
+				request.send(body);
+			});
 
 			this.transition(FileUploader.PHASES.SUCCESS);
 			if (this.form?.action && typeof window !== "undefined" && window.location) {
 				window.location.assign(this.form.action);
 			}
-		} catch (err) {
-			const message = err?.message || "Upload failed. Please try again.";
-			this.transition(FileUploader.PHASES.ERROR, message);
+		} catch (message) {
+			this.transition(FileUploader.PHASES.ERROR, typeof message === "string" ? message : this.getPhaseMessage(FileUploader.PHASES.ERROR));
 		}
 	}
 
-	static async extractErrorMessage(response, defaultMsg) {
+	static async extractErrorMessage(text, defaultMsg) {
 		try {
-			const text = await response.text();
 			if (text) {
 				if (typeof DOMParser !== "undefined") {
 					const doc = new DOMParser().parseFromString(text, "text/html");

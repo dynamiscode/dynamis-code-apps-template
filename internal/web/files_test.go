@@ -137,6 +137,22 @@ func TestFilesPageRendersOrdinaryMultipartUploadForm(t *testing.T) {
 	}
 }
 
+func TestFilesUploadFeedbackUsesSelectedLocale(t *testing.T) {
+	env := newFilesTestEnv(t, 16<<20, 1<<30)
+	cookies := append(append([]*http.Cookie(nil), env.cookies...), &http.Cookie{Name: "locale", Value: "es"})
+	page := request(env.routes, http.MethodGet, env.filesPath(), nil, cookies, nil)
+	for _, want := range []string{`data-status-uploading="Subiendo archivo…"`, `data-status-success="Carga completada."`, `data-status-choose-file="Elige un archivo para cargar."`, `data-upload-progress`, `aria-label="Progreso de carga"`} {
+		if !strings.Contains(page.Body.String(), want) {
+			t.Errorf("Spanish files page missing %q: %s", want, page.Body.String())
+		}
+	}
+
+	upload := multipartRequest(t, env.routes, env.filesPath(), url.Values{"csrf": {env.csrf}}, "notes.exe", "hello", cookies, nil)
+	if upload.Code != http.StatusUnprocessableEntity || !strings.Contains(upload.Body.String(), "El archivo seleccionado no es válido.") {
+		t.Fatalf("Spanish invalid-file error = %d: %s", upload.Code, upload.Body.String())
+	}
+}
+
 func TestFilesListUsesSharedPresentationAndSavedColumns(t *testing.T) {
 	env := newFilesTestEnv(t, 16<<20, 1<<30)
 	path := env.filesPath()
@@ -192,6 +208,32 @@ func TestFilesMultipartUploadStoresFileAndRedirects(t *testing.T) {
 	page := request(env.routes, http.MethodGet, env.filesPath(), nil, env.cookies, nil)
 	if !strings.Contains(page.Body.String(), "notes.txt") {
 		t.Fatalf("uploaded file missing from list: %s", page.Body.String())
+	}
+}
+
+func TestFilesDownloadRequiresWorkspaceSessionAndServesMemberFile(t *testing.T) {
+	env := newFilesTestEnv(t, 16<<20, 1<<30)
+	if response := multipartRequest(t, env.routes, env.filesPath(), url.Values{"csrf": {env.csrf}}, "notes.txt", "private contents", env.cookies, nil); response.Code != http.StatusSeeOther {
+		t.Fatalf("upload = %d: %s", response.Code, response.Body.String())
+	}
+	page := request(env.routes, http.MethodGet, env.filesPath(), nil, env.cookies, nil)
+	body := page.Body.String()
+	contentAt := strings.Index(body, "/content")
+	if page.Code != http.StatusOK || contentAt < 0 {
+		t.Fatalf("files page has no download link: %d, %s", page.Code, body)
+	}
+	linkStart := strings.LastIndex(body[:contentAt], `href="`)
+	if linkStart < 0 {
+		t.Fatalf("files page has no download link: %d, %s", page.Code, body)
+	}
+	downloadPath := html.UnescapeString(body[linkStart+6 : contentAt+len("/content")])
+	unauthenticated := request(env.routes, http.MethodGet, downloadPath, nil, nil, nil)
+	if unauthenticated.Code != http.StatusSeeOther {
+		t.Fatalf("unauthenticated download = %d, want sign-in redirect", unauthenticated.Code)
+	}
+	downloaded := request(env.routes, http.MethodGet, downloadPath, nil, env.viewerCookies, nil)
+	if downloaded.Code != http.StatusOK || downloaded.Body.String() != "private contents" || !strings.Contains(downloaded.Header().Get("Content-Disposition"), "notes.txt") {
+		t.Fatalf("workspace member download = %d, disposition %q: %s", downloaded.Code, downloaded.Header().Get("Content-Disposition"), downloaded.Body.String())
 	}
 }
 
