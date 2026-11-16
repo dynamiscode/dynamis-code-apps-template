@@ -108,7 +108,7 @@ try {
     results.push({ state: "viewer settings navigation", screen, status: viewed.status() });
   }
   await viewerContext.close();
-  console.log(JSON.stringify({ scenario: "isolated owner fixture; no timing metrics", results }, null, 2));
+  console.log(JSON.stringify({ scenario: "isolated owner and viewer fixture; no timing metrics", results }, null, 2));
 } catch {
   console.error("Administration state checks failed; inspect the isolated fixture locally without sharing logs.");
   process.exitCode = 1;

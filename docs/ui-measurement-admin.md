@@ -54,32 +54,29 @@ output and fixture conditions when results are collected.
 |---|---|---|
 | General and email settings | Cold/warm navigation | Save, validation, failure and provider states |
 | Tokens and SCIM | Cold/warm navigation | Creation, revocation and one-time secret states |
-| Webhooks | Cold/warm navigation; empty deliveries navigation after synthetic creation | Populated, error and pending delivery states |
-| Audit | Cold/warm navigation; automatic fetch and DOM swap; separate synthetic warm fragment fetch | Loading duration, failure and no-JavaScript fallback |
-| Import | Cold/warm navigation; one-row CSV preview | Validation, failure and confirmation |
+| Webhooks | Cold/warm navigation; empty and one pending delivery | Delivered and exhausted states |
+| Audit | Cold/warm navigation; automatic fetch and DOM swap; synthetic warm fetch; injected failure and no-JavaScript fallback | Loading duration and other failures |
+| Import | Cold/warm navigation; valid and invalid one-row CSV preview | Other validation and failure states; confirmation |
 | Export | Cold/warm navigation; download and local decoded file size | Download transfer bytes and failure |
 
-Every row also lacks permission, mobile, Spanish, dark theme, keyboard and
-no-JavaScript verification. The fixture has no deliveries; populated and pending
-delivery fixtures remain necessary.
+Viewer GET responses are recorded below. Mobile, Spanish, dark theme, keyboard,
+and no-JavaScript behavior outside the audit fallback remain unverified.
 Do not capture one-time token or webhook secrets, SMTP credentials, CSRF fields,
 export bodies, endpoint URLs, traces or screenshots. Measurements and additional
 state coverage are still needed before identifying duplicate requests, proposing
 measured fixes, or completing #448.
 
-## Prepared state and attribution checks
+## State and attribution checks
 
 The separate command below creates a fresh fixture and produces state and
-request-class counts without timing metrics. It has not been run; its browser
-behavior and fixture assumptions are unverified. Do not treat prepared checks
-as evidence of observed application behavior.
+request-class counts without timing metrics.
 
 ```sh
-UI_ADMIN_STATES=1 sh scripts/ui-measurement-admin.sh
+UI_ADMIN_STATES=1 sh scripts/ui-measurement-admin.sh > /tmp/ui-448-viewer-states.json
 node --test scripts/ui-measurement-admin-attribution.test.mjs scripts/ui-measurement-admin-env.test.mjs
 ```
 
-The prepared browser run signs in as the synthetic owner and counts allowlisted
+The browser run signs in as the synthetic owner and counts allowlisted
 asset names per settings navigation until load and a visible heading. Other
 same-origin requests are grouped by resource type; external requests are
 counted without their URLs. Repeated counts identify only repeated allowlisted
@@ -89,16 +86,42 @@ not attributed. Query strings, headers, bodies, IDs and secret values are never
 reported. The attribution unit test checks that private paths and query values
 do not reach output.
 
-The prepared state checks inject an HTTP 503 for the audit fragment, submit an
+The state checks inject an HTTP 503 for the audit fragment, submit an
 invalid synthetic CSV preview, follow the audit fallback with JavaScript off,
 and inspect the final status and login redirect for an anonymous audit request.
-They do not verify an authenticated viewer's permissions. They create one
-synthetic webhook and item; a temporary loopback-only receiver returns HTTP 503
+They create one synthetic webhook and item; a temporary loopback-only receiver returns HTTP 503
 for webhook delivery. The output reports delivery row and pending counts once;
 the worker can change status asynchronously, so a missing pending observation
 is not proof that pending never occurred. The receiver does not record payloads
-or headers. Delivered, exhausted, permission-denied, full no-JavaScript
+or headers. A separate context accepts a synthetic viewer invitation and records
+GET status for eight settings pages. The invitation link and credentials are not
+reported. Delivered and exhausted states, viewer mutations, full no-JavaScript
 journeys, other errors, languages, mobile and accessibility remain unverified.
+
+On 2026-11-16 before 17:55:04 UTC, commit
+`a646ef788a6c18b9601b61d85e3bbc877ce0407f` ran the command above successfully.
+Go test and race processes were
+active concurrently; no timing metrics were collected. The owner fixture used
+one workspace, a fresh SQLite database and a loopback-only webhook receiver.
+The audit fragment's injected HTTP 503 produced visible failure feedback; an
+invalid CSV produced visible validation feedback. The deliveries page showed
+one row and one pending status. The no-JavaScript audit fallback rendered its
+table. An anonymous audit request reached login with final HTTP 200; that final
+status is the login page response, not the initial redirect status.
+
+| Viewer GET | Final HTTP status |
+|---|---:|
+| General, tokens | 200 |
+| Email, SCIM provisioning, webhooks, audit, import, export | 403 |
+
+For the owner navigation interval, all eight screens requested one document,
+`app.css` and `forms.js` each. Email, tokens, webhooks and export also requested
+`app.js`; import requested `import.css`; audit recorded one fetch. Each listed
+asset appeared once per screen. The earlier run at
+`45e805a5b0c531a85bd448ba14fad5241ee17415` reported the same counts and the
+same five state outcomes. No conclusion about requests outside
+the observation interval or whether any script is unnecessary follows from these
+counts. Both runs completed and their temporary servers and receivers stopped.
 
 ## Single isolated run
 
