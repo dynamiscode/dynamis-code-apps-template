@@ -317,3 +317,13 @@ the decision recorded for spec [#294](https://github.com/dynamiscode/dynamis-cod
 - **Judgement call:** client archive and unarchive keep their `archived_at`
   nullability check. The client lifecycle has no transition validator yet, so
   moving it onto the typed pattern is a separate change.
+
+## Addendum: client list realtime clarification (2026-11-16)
+
+The realtime statements above describe the intended client-list behavior. The
+workspace SSE stream and list fragment exist, but the client page does not load
+the browser listener or HTMX, so open client lists do not currently refresh from
+those events. [#415](https://github.com/dynamiscode/dynamis-code-apps-template/issues/415)
+tracks wiring the refresh and protecting unsaved input. Both the stream and
+fragment must continue to require `ResourcesRead`; see the
+[web realtime contract](../web.md#realtime-contract).
