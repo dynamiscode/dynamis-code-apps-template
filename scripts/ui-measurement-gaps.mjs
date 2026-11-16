@@ -92,8 +92,8 @@ try {
   const invite = await page.locator('input[readonly]').inputValue();
   const memberContext = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL,
     viewport: { width: 1280, height: 900 }, locale: "en-US", serviceWorkers: "block" });
+  const member = await memberContext.newPage();
   try {
-    const member = await memberContext.newPage();
     try {
       await member.goto(invite);
       await member.locator("#invite-password").fill("synthetic-password-123");
@@ -102,7 +102,10 @@ try {
     } catch {
       throw new Error("Synthetic member registration failed; invitation details withheld");
     }
-  } finally { await memberContext.close(); }
+  } catch (error) {
+    await memberContext.close();
+    throw error;
+  }
   await page.goto(home + "/settings/members");
   const memberRow = page.locator(".list-view-table tbody tr").filter({ hasText: "fixture@example.invalid" });
   await memberRow.locator("select[name=role]").selectOption("viewer");
@@ -111,6 +114,27 @@ try {
     await memberRow.locator('select[name="role"]').waitFor();
     assert.equal(await memberRow.locator('select[name="role"]').inputValue(), "viewer");
   });
+  const memberCDP = await memberContext.newCDPSession(member);
+  await memberCDP.send("Network.enable");
+  const stopPermission = observeNetwork(memberCDP);
+  const permissionStart = performance.now();
+  try {
+    const response = await member.goto(home + "/settings/invitations", { waitUntil: "load" });
+    assert.equal(response.status(), 403);
+    results.push({ name: "viewer invitations forbidden", elapsedMs: Math.round((performance.now() - permissionStart) * 10) / 10,
+      status: response.status(), ...stopPermission() });
+  } finally { stopPermission(); }
+  await measure("ownership transfer", async () => {
+    await memberRow.locator('button[value="transfer"]').click();
+    await memberRow.locator('button[value="transfer"]').waitFor({ state: "detached" });
+  });
+  member.on("dialog", (dialog) => dialog.accept());
+  await member.goto(home + "/settings/members");
+  const formerOwner = member.locator(".list-view-table tbody tr").filter({ hasText: process.env.PLAYWRIGHT_EMAIL });
+  await formerOwner.locator('button[value="transfer"]').click();
+  await formerOwner.locator('button[value="transfer"]').waitFor({ state: "detached" });
+  await memberContext.close();
+  await page.goto(home + "/settings/members");
   await measure("member removal", async () => {
     await memberRow.locator('button[value="remove"]').click();
     await memberRow.waitFor({ state: "detached" });

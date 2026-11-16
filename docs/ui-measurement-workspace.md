@@ -267,3 +267,12 @@ These additions have not been run in a browser or measured. Their selectors,
 reconnect behavior and fixture setup must be validated in the next clean window.
 Ownership transfer, permission failures, upload progress and full byte accounting
 still need dedicated scenarios or instrumentation. #447 remains partial.
+
+Further prepared instrumentation transfers ownership to the synthetic member
+and back, checks a viewer's invitation-page denial, and observes upload progress
+for a 1 MiB synthetic file. The downloaded file is verified and its payload
+length recorded; payload bytes are not HTTP transfer bytes. The observer also
+reports available CDP stream-chunk and redirect encoded-byte fields separately;
+`null` means no usable field was observed, and these values must not be added
+to completed bytes as a total without checking for overlap or missing data.
+Browser execution, byte completeness and progress events remain unverified.

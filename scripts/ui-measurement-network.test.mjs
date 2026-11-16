@@ -45,3 +45,18 @@ test("attributes assets and repeated GETs without exposing URLs or request data"
   assert.equal(result.unfinished, 6);
   assert.doesNotMatch(JSON.stringify(result), /secret|private|example|token/);
 });
+
+test("records reported stream and redirect bytes separately", () => {
+  const cdp = new EventEmitter();
+  const stop = observeNetwork(cdp);
+  cdp.emit("Network.requestWillBeSent", { requestId: "stream", type: "EventSource" });
+  cdp.emit("Network.dataReceived", { requestId: "stream", encodedDataLength: 12 });
+  cdp.emit("Network.dataReceived", { requestId: "stream", encodedDataLength: -1 });
+  cdp.emit("Network.requestWillBeSent", { requestId: "redirect", redirectResponse: { encodedDataLength: 34 } });
+  cdp.emit("Network.loadingFinished", { requestId: "redirect", encodedDataLength: 56 });
+  const result = stop();
+  assert.equal(result.eventSourceReportedEncodedBytes, 12);
+  assert.equal(result.redirectReportedEncodedBytes, 34);
+  assert.equal(result.completedEncodedBytes, 56);
+  assert.equal(result.unfinished, 1);
+});

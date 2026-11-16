@@ -83,11 +83,21 @@ try {
     await page.locator('.client-lifecycle form[action$="/unarchive"]').waitFor();
   });
   await page.goto(home + "/files");
-  await page.locator("#file-upload").setInputFiles({ name: "measurement.txt", mimeType: "text/plain", buffer: Buffer.from("synthetic measurement fixture\n") });
+  const fileBytes = Buffer.alloc(1024 * 1024, 65);
+  const progress = [];
+  await page.exposeFunction("recordFixtureUploadProgress", (value) => { progress.push(value); });
+  await page.evaluate(() => {
+    const element = document.querySelector("[data-upload-progress]");
+    new MutationObserver(() => {
+      if (!element.hidden) window.recordFixtureUploadProgress(element.value);
+    }).observe(element, { attributes: true, attributeFilter: ["value", "hidden"] });
+  });
+  await page.locator("#file-upload").setInputFiles({ name: "measurement.txt", mimeType: "text/plain", buffer: fileBytes });
   await measure("file upload and reload", async () => {
     await page.locator(".file-upload-form button").click();
     await page.getByText("measurement.txt", { exact: true }).first().waitFor();
   });
+  results.at(-1).uploadProgress = { observedEvents: progress.length, maximumPercent: progress.length ? Math.max(...progress) : null };
   await measure("file download", async () => {
     const downloadPromise = page.waitForEvent("download");
     await page.locator('.list-view-table a[href$="/content"]').first().click();
@@ -95,7 +105,9 @@ try {
     assert.equal(await download.failure(), null);
     const chunks = [];
     for await (const chunk of await download.createReadStream()) chunks.push(chunk);
-    assert.equal(Buffer.concat(chunks).toString(), "synthetic measurement fixture\n");
+    const contents = Buffer.concat(chunks);
+    assert.deepEqual(contents, fileBytes);
+    results.push({ name: "download payload size", payloadBytes: contents.length });
   });
   await page.locator("#file-upload").setInputFiles({ name: "failure.txt", mimeType: "text/plain", buffer: Buffer.from("synthetic failure") });
   let releaseFailure;
