@@ -176,7 +176,12 @@ try {
       const scan = await window.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } });
       return { lang: document.documentElement.lang, theme: document.documentElement.dataset.theme,
         horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-        violations: scan.violations.map((rule) => ({ id: rule.id, impact: rule.impact, count: rule.nodes.length })) };
+        violations: scan.violations.map((rule) => ({ id: rule.id, impact: rule.impact, count: rule.nodes.length,
+          auditTableWrap: rule.nodes.some((node) => node.target.some((target) => {
+            if (typeof target !== "string") return false;
+            try { return Boolean(document.querySelector(target)?.matches("#audit-table .table-wrap")); }
+            catch { return false; }
+          })) })) };
     });
     results.push({ state: "Spanish mobile dark-system axe scan", screen, ...state });
   }
