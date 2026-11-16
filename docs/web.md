@@ -108,9 +108,12 @@ Baseline browser surfaces:
   brand and compact responsive auth layout. Setup keeps required fields first
   and marks workspace language as deferrable. Sign-in, MFA, and setup remain
   ordinary CSRF-protected forms without JavaScript.
-- `/sessions` shows each browser session's status and metadata and revokes active
-  sessions; `/security` manages MFA factors and starts reauthenticated OIDC
-  linking.
+- `/sessions` shows current, active, expired, and revoked browser sessions with
+  localized status and revocation feedback. CSRF-protected forms revoke any
+  active session, including the current one; revoking the current session sends
+  the browser to sign-in on its next request. The page shows a localized empty
+  state and retains the ordinary form fallback. `/security` manages MFA factors
+  and starts reauthenticated OIDC linking.
 - `/account` edits profile preferences, changes a local password, requests email
   verification, and deletes the account after current-password reauthentication
   and an explicit confirmation checkbox. The server rejects deletion without
@@ -278,10 +281,10 @@ file drift.
 
 Ticket #386 reconciles the route and template surface. `/` and `/workspaces/{workspaceId}`
 render through `workspace.templ` and generated `workspace_templ.go`. The
-remaining named `html/template` views are an explicit migration deferral; their
-route families and major states are listed below. This keeps the existing
-escaping, HTMX fragment boundaries, ordinary-form fallbacks, and route tests
-intact until each family can move with behavior parity.
+inventory below names each route family's current renderer: `.templ` entries
+are migrated, and named `html/template` views remain deferred. It records major
+states while preserving escaping, HTMX fragment boundaries, ordinary-form
+fallbacks, and route behavior during the incremental migration.
 
 Shared navigation uses `navigation.templ`. The named definitions in
 `navigation.html` bridge remaining `html/template` callers to the same escaped
@@ -308,7 +311,8 @@ accessibility results and remaining limits are recorded in
 | Workspace items, clients, and custom fields | `items.html`, `item-list.html`, `list-view.html`, `clients.html`, `client.html`, `client-fields.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field lifecycle, realtime refresh |
 | Workspace members and invitations | `members.html`, `invitations.html`, `invitation.html` | Role changes, removal and ownership transfer, invitation create/resend/revoke, accepted and unavailable invitation |
 | Workspace files | `files.html` | Empty/list states, filters and paging, upload progress/success/error, download authorization |
-| Account and workspace settings | `account.html`, `audit-history.html`, `email-settings.html`, `export.html`, `general-settings.html`, `import.html`, `language.html`, `notifications.html`, `provisioning.html`, `security.html`, `sessions.html`, `tokens.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, redacted history, notification read/unread, export/import entry, integration setup and failure, responsive navigation |
+| `/sessions` | `sessions.templ`, `sessions_templ.go` | Current, active, expired and revoked status; revoke current or other active sessions; feedback and empty state |
+| Account and workspace settings | `account.html`, `audit-history.html`, `email-settings.html`, `export.html`, `general-settings.html`, `import.html`, `language.html`, `notifications.html`, `provisioning.html`, `security.html`, `tokens.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, redacted history, notification read/unread, export/import entry, integration setup and failure, responsive navigation |
 | Public and unavailable pages | `public-share.html`, `error.html` | Share projection and invalid/expired/revoked links, not-found and request errors |
 
 Corresponding route and handler tests cover server-rendered behavior.
