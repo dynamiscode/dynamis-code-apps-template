@@ -5,10 +5,7 @@ on:
     tags: ["v*.*.*"]
 
 permissions:
-  contents: write
-  packages: write
-  id-token: write
-  attestations: write
+  contents: read
 
 jobs:
   release:
@@ -17,83 +14,26 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
       - run: make secret-check
+      - run: npm ci
       - run: make vuln-check
       - run: make verify
       - name: Validate release version
         run: test "v$(cat VERSION)" = "$GITHUB_REF_NAME"
-      - name: Build release binaries
+      - name: Cross-compile release binaries without publishing
         run: |
-          mkdir dist
+          set -eu
           for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
             os=${target%/*}
             arch=${target#*/}
-            GOOS="$os" GOARCH="$arch" CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags='-s -w' -o "dist/server_${os}_${arch}" ./cmd/server
-            GOOS="$os" GOARCH="$arch" CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags='-s -w' -o "dist/appctl_${os}_${arch}" ./cmd/appctl
+            GOOS="$os" GOARCH="$arch" CGO_ENABLED=0 go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/server_${os}_${arch}" ./cmd/server
+            GOOS="$os" GOARCH="$arch" CGO_ENABLED=0 go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/appctl_${os}_${arch}" ./cmd/appctl
           done
-      - uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
-        with:
-          path: dist
-          format: spdx-json
-          output-file: dist/release.spdx.json
-          upload-artifact: false
-      - name: Create checksums
-        working-directory: dist
-        run: sha256sum appctl_* server_* release.spdx.json > SHA256SUMS
-      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
-      - name: Sign release files keylessly
-        run: |
-          for file in dist/appctl_* dist/server_* dist/release.spdx.json dist/SHA256SUMS; do
-            cosign sign-blob --yes --bundle "${file}.sigstore.json" "$file"
-          done
-      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
-        with:
-          subject-path: |
-            dist/appctl_*
-            dist/server_*
-            dist/release.spdx.json
-            dist/SHA256SUMS
-      - name: Set image name
-        id: image
-        run: |
-          echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
-          echo "created=$(git show -s --format=%cI "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
-      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        id: image-build
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.image.outputs.name }}:${{ github.ref_name }}
-          build-args: |
-            VERSION=${{ github.ref_name }}
-            VCS_REF=${{ github.sha }}
-            CREATED=${{ steps.image.outputs.created }}
-            SOURCE=${{ github.server_url }}/${{ github.repository }}
-          provenance: mode=max
-          sbom: true
-      - name: Sign image keylessly
-        run: cosign sign --yes "${{ steps.image.outputs.name }}@${{ steps.image-build.outputs.digest }}"
-      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
-        with:
-          subject-name: ${{ steps.image.outputs.name }}
-          subject-digest: ${{ steps.image-build.outputs.digest }}
-          push-to-registry: true
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: release-${{ github.ref_name }}
-          path: dist
-          if-no-files-found: error
-      - name: Publish immutable release assets
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes
