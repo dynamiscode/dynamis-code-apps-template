@@ -309,6 +309,12 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	if profile, err := auth.GetUserProfile(context.Background(), owner.UserID); err != nil || profile.DisplayName != "Owner" || profile.Timezone != "America/Bogota" || profile.Theme != "dark" {
 		t.Fatalf("profile = %+v, %v", profile, err)
 	}
+	passwordMismatch := request(handler, http.MethodPost, "/account/password", url.Values{
+		"csrf": {session.CSRFSecret}, "new_password": {"a-new-password-1234"}, "password_confirmation": {"different-password-1234"},
+	}, cookies, nil)
+	if passwordMismatch.Code != http.StatusUnprocessableEntity || !strings.Contains(passwordMismatch.Body.String(), "Las nuevas contraseñas no coinciden.") || !strings.Contains(passwordMismatch.Body.String(), `form action="/account/password"`) {
+		t.Fatalf("account password mismatch = %d, %s", passwordMismatch.Code, passwordMismatch.Body.String())
+	}
 	preference := request(handler, http.MethodPost, "/account/notifications", url.Values{
 		"csrf": {session.CSRFSecret}, "notification_type": {"system"}, "enabled": {"false"},
 	}, cookies, nil)
@@ -334,6 +340,9 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	}
 
 	resetPage := request(handler, http.MethodGet, "/password-reset", nil, nil, nil)
+	if resetPage.Code != http.StatusOK || !strings.Contains(resetPage.Body.String(), `form action="/password-reset"`) {
+		t.Fatalf("password reset page = %d, %s", resetPage.Code, resetPage.Body.String())
+	}
 	resetCSRF := responseCookie(resetPage, "reset_csrf")
 	resetRequested := request(handler, http.MethodPost, "/password-reset", url.Values{
 		"csrf": {resetCSRF.Value}, "email": {"owner@example.com"},
@@ -351,6 +360,23 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	}
 	resetTokenPage := request(handler, http.MethodGet, parsed.Path, nil, nil, nil)
 	resetTokenCSRF := responseCookie(resetTokenPage, "reset_csrf")
+	resetMismatch := request(handler, http.MethodPost, parsed.Path, url.Values{
+		"csrf": {resetTokenCSRF.Value}, "password": {"reset-owner-password"}, "password_confirmation": {"different-password"},
+	}, []*http.Cookie{resetTokenCSRF, {Name: "locale", Value: "es"}}, nil)
+	if resetMismatch.Code != http.StatusUnprocessableEntity || !strings.Contains(resetMismatch.Body.String(), "Las contraseñas no coinciden.") {
+		t.Fatalf("reset mismatch = %d, %s", resetMismatch.Code, resetMismatch.Body.String())
+	}
+	if !strings.Contains(resetMismatch.Body.String(), `name="csrf" value="`+resetTokenCSRF.Value+`"`) {
+		t.Fatalf("reset mismatch lost its CSRF token: %s", resetMismatch.Body.String())
+	}
+	invalidResetPage := request(handler, http.MethodGet, "/password-reset/invalid-secret", nil, nil, nil)
+	invalidResetCSRF := responseCookie(invalidResetPage, "reset_csrf")
+	invalidReset := request(handler, http.MethodPost, "/password-reset/invalid-secret", url.Values{
+		"csrf": {invalidResetCSRF.Value}, "password": {"reset-owner-password"}, "password_confirmation": {"reset-owner-password"},
+	}, []*http.Cookie{invalidResetCSRF, {Name: "locale", Value: "es"}}, nil)
+	if invalidReset.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidReset.Body.String(), "El enlace de restablecimiento no es válido o venció.") || !strings.Contains(invalidReset.Body.String(), `form action="/password-reset"`) || responseCookie(invalidReset, "reset_csrf").Value == "" {
+		t.Fatalf("invalid reset link recovery = %d, %s", invalidReset.Code, invalidReset.Body.String())
+	}
 	resetComplete := request(handler, http.MethodPost, parsed.Path, url.Values{
 		"csrf": {resetTokenCSRF.Value}, "password": {"reset-owner-password"}, "password_confirmation": {"reset-owner-password"},
 	}, []*http.Cookie{resetTokenCSRF}, nil)
@@ -359,6 +385,53 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	}
 	if _, err := auth.AuthenticateLocal(context.Background(), "owner@example.com", "reset-owner-password"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestAccountSecurityPagesUseSharedBrandAndRequireDeletionConfirmation(t *testing.T) {
+	handler, auth, _, _, owner := testWeb(t, 10)
+	if err := auth.UpdateUserProfile(context.Background(), owner.UserID, identity.ProfileUpdateInput{
+		Locale: "es", Timezone: "America/Bogota", Theme: "dark",
+	}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+
+	for _, path := range []string{"/account", "/settings/language", "/sessions", "/security"} {
+		response := request(handler, http.MethodGet, path, nil, cookies, nil)
+		body := response.Body.String()
+		if response.Code != http.StatusOK || !hasHTMLRootLang(body, "es") || !strings.Contains(body, `data-theme="dark"`) {
+			t.Errorf("%s = %d with Spanish/dark preferences: %s", path, response.Code, body)
+		}
+		if !strings.Contains(body, "Dynamis Code") || !strings.Contains(body, `class="account-page`) {
+			t.Errorf("%s does not use the branded account layout: %s", path, body)
+		}
+		if path == "/account" && (!strings.Contains(body, `name="confirm_delete" type="checkbox" value="yes" required`) || !strings.Contains(body, "Entiendo que eliminar la cuenta es permanente")) {
+			t.Errorf("account page lacks the Spanish no-JavaScript deletion confirmation: %s", body)
+		}
+	}
+
+	account := request(handler, http.MethodPost, "/account/delete", url.Values{
+		"csrf": {session.CSRFSecret}, "password": {"long-enough-password"},
+	}, cookies, nil)
+	if account.Code != http.StatusUnprocessableEntity || !strings.Contains(account.Body.String(), "Confirma la eliminación permanente de la cuenta para continuar.") {
+		t.Fatalf("account deletion without confirmation = %d, %s", account.Code, account.Body.String())
+	}
+	if !strings.Contains(account.Body.String(), `form action="/account/password"`) {
+		t.Fatalf("account error page lost its password settings form: %s", account.Body.String())
+	}
+	confirmed := request(handler, http.MethodPost, "/account/delete", url.Values{
+		"csrf": {session.CSRFSecret}, "password": {"long-enough-password"}, "confirm_delete": {"yes"},
+	}, cookies, nil)
+	if confirmed.Code != http.StatusUnprocessableEntity || !strings.Contains(confirmed.Body.String(), "Transfiere la propiedad de los espacios de trabajo antes de eliminar esta cuenta.") {
+		t.Fatalf("confirmed owner deletion = %d, %s", confirmed.Code, confirmed.Body.String())
+	}
+	if _, err := auth.AuthenticateLocal(context.Background(), "owner@example.com", "long-enough-password"); err != nil {
+		t.Fatalf("account was removed without explicit confirmation: %v", err)
 	}
 }
 

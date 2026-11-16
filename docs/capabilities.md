@@ -1076,3 +1076,22 @@ ordinary forms and need no JavaScript.
   `make accessibility-smoke` passed in English and Spanish across all covered
   journeys, including import preview; zero axe violations.
 - Not run: full `make verify`.
+
+## Account and security UI evidence (#382)
+
+Ticket #382 refreshes the account, language, sessions, security, and password
+recovery pages on the shared responsive shell. Account deletion now requires
+both the existing password and an explicit confirmation field; the handler
+enforces the confirmation and retains the existing owner-transfer restriction.
+Password reset errors retain the recovery form and valid CSRF state. EN/ES
+strings cover the changed screens.
+
+- Passed: `go test ./internal/web ./internal/i18n -count=1`,
+  `make lint`, `git diff --check`, and `node --check scripts/accessibility.mjs`.
+- Passed: `make accessibility-smoke` audited `/account`, `/settings/language`,
+  `/sessions`, `/security`, and `/password-reset` in English and Spanish with
+  zero axe violations and no 320px overflow.
+- Incomplete: the full accessibility smoke later failed on the inherited
+  `/imports` page at 320px because its skip link, brand, workspace switcher,
+  account menu, and sidebar back control fail target-size checks.
+- Not run: full `make verify`; no authentication policy, schema, or API changes.

@@ -114,7 +114,8 @@ func (h *Handler) accountPasswordMutation(writer http.ResponseWriter, request *h
 			h.renderError(writer, http.StatusInternalServerError)
 			return
 		}
-		data.Error = "The passwords do not match."
+		data.CurrentAuthMethod = session.AuthMethod
+		data.ErrorKey = "account.password_mismatch"
 		h.render(writer, http.StatusUnprocessableEntity, "account.html", data)
 		return
 	}
@@ -125,7 +126,8 @@ func (h *Handler) accountPasswordMutation(writer http.ResponseWriter, request *h
 			h.renderError(writer, http.StatusInternalServerError)
 			return
 		}
-		data.Error = "The current password or new password is invalid."
+		data.CurrentAuthMethod = session.AuthMethod
+		data.ErrorKey = "account.password_invalid"
 		h.render(writer, http.StatusUnprocessableEntity, "account.html", data)
 		return
 	}
@@ -161,6 +163,17 @@ func (h *Handler) accountDeleteMutation(writer http.ResponseWriter, request *htt
 	if !ok {
 		return
 	}
+	if request.FormValue("confirm_delete") != "yes" {
+		data, loaded := h.accountData(request, session.UserID, cookieValue(request, "csrf"))
+		if !loaded {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+		data.CurrentAuthMethod = session.AuthMethod
+		data.ErrorKey = "account.delete_confirmation_required"
+		h.render(writer, http.StatusUnprocessableEntity, "account.html", data)
+		return
+	}
 	err := h.identity.DeleteAccount(request.Context(), session.UserID, request.FormValue("password"), auditContext(request))
 	if err != nil {
 		data, loaded := h.accountData(request, session.UserID, cookieValue(request, "csrf"))
@@ -168,10 +181,11 @@ func (h *Handler) accountDeleteMutation(writer http.ResponseWriter, request *htt
 			h.renderError(writer, http.StatusInternalServerError)
 			return
 		}
+		data.CurrentAuthMethod = session.AuthMethod
 		if errors.Is(err, identity.ErrOwnedWorkspace) {
-			data.Error = "Transfer workspace ownership before deleting this account."
+			data.ErrorKey = "account.transfer_ownership_required"
 		} else {
-			data.Error = "Account deletion requires the current password."
+			data.ErrorKey = "account.delete_password_required"
 		}
 		h.render(writer, http.StatusUnprocessableEntity, "account.html", data)
 		return
@@ -246,7 +260,7 @@ func (h *Handler) passwordResetPage(writer http.ResponseWriter, request *http.Re
 
 func (h *Handler) passwordResetRequest(writer http.ResponseWriter, request *http.Request) {
 	if err := request.ParseForm(); err != nil || !validResetCSRF(request) {
-		h.render(writer, http.StatusForbidden, "password-reset.html", pageData{Title: "Reset password", Error: "The password reset form expired. Reload and try again."})
+		h.render(writer, http.StatusForbidden, "password-reset.html", pageData{Title: "Reset password", ErrorKey: "account.password_reset_form_expired"})
 		return
 	}
 	reset, err := h.identity.BeginPasswordReset(request.Context(), request.FormValue("email"), auditContext(request))
@@ -279,17 +293,26 @@ func (h *Handler) passwordResetTokenPage(writer http.ResponseWriter, request *ht
 
 func (h *Handler) passwordResetComplete(writer http.ResponseWriter, request *http.Request) {
 	if err := request.ParseForm(); err != nil || !validResetCSRF(request) {
-		h.render(writer, http.StatusForbidden, "password-reset.html", pageData{Title: "Choose a new password", Error: "The password reset form expired. Reload and try again."})
+		h.render(writer, http.StatusForbidden, "password-reset.html", pageData{Title: "Choose a new password", ErrorKey: "account.password_reset_form_expired"})
 		return
 	}
 	if request.FormValue("password") != request.FormValue("password_confirmation") {
 		h.render(writer, http.StatusUnprocessableEntity, "password-reset.html", pageData{
-			Title: "Choose a new password", Error: "The passwords do not match.", PasswordResetSecret: request.PathValue("secret"),
+			Title: "Choose a new password", ErrorKey: "account.password_reset_mismatch",
+			CSRF: request.FormValue("csrf"), PasswordResetSecret: request.PathValue("secret"),
 		})
 		return
 	}
 	if err := h.identity.CompletePasswordReset(request.Context(), request.PathValue("secret"), request.FormValue("password"), auditContext(request)); err != nil {
-		h.render(writer, http.StatusUnprocessableEntity, "password-reset.html", pageData{Title: "Choose a new password", Error: "The password reset link is invalid or expired."})
+		csrf, tokenErr := id.New()
+		if tokenErr != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+		h.setCookie(writer, "reset_csrf", csrf, time.Now().Add(10*time.Minute), true)
+		h.render(writer, http.StatusUnprocessableEntity, "password-reset.html", pageData{
+			Title: "Reset password", ErrorKey: "account.password_reset_invalid", CSRF: csrf,
+		})
 		return
 	}
 	h.clearCookie(writer, "reset_csrf")

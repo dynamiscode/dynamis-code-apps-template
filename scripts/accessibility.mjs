@@ -101,9 +101,39 @@ try {
     throw new Error(`general settings has horizontal overflow at 320 CSS pixels: ${JSON.stringify(settingsOverflow)}`);
   }
   await driver.manage().window().setRect({ width: 1280, height: 900 });
+  await driver.get(`${baseURL}/account`);
+  await driver.wait(until.elementLocated(By.id("delete-confirm")), 5000);
+  await audit("account");
+  const deletionForm = await driver.executeScript(() => ({
+    confirmationRequired: document.querySelector('#delete-confirm[required]') !== null,
+    passwordRequired: document.querySelector('#delete-password[required]') !== null,
+  }));
+  if (!deletionForm.confirmationRequired || !deletionForm.passwordRequired) {
+    throw new Error("account deletion confirmation and password are required");
+  }
+  await expectMobileNoOverflow("account");
+  await driver.get(`${baseURL}/settings/language`);
+  await driver.wait(until.elementLocated(By.id("language")), 5000);
+  await audit("language settings");
+  await expectMobileNoOverflow("language settings");
   await driver.get(`${baseURL}/sessions`);
-  await driver.wait(until.elementLocated(By.css(".inline button")), 5000);
+  await driver.wait(until.elementLocated(By.css(".session-card")), 5000);
+  await audit("sessions");
   await expectNoExtraButtonMargin(".inline button", "inline actions");
+  await expectMobileNoOverflow("sessions");
+  await driver.get(`${baseURL}/security`);
+  await driver.wait(until.elementLocated(By.css(".settings-panel")), 5000);
+  await audit("security");
+  await expectMobileNoOverflow("security");
+  await driver.get(`${baseURL}/password-reset`);
+  try {
+    await driver.wait(until.elementLocated(By.css('form[action="/password-reset"]')), 5000);
+  } catch (error) {
+    console.error(`password reset route ${await driver.getCurrentUrl()} title ${await driver.getTitle()}`);
+    throw error;
+  }
+  await audit("password reset");
+  await expectMobileNoOverflow("password reset");
   await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/items`);
   await driver.wait(until.elementLocated(By.id("item-list")), 5000);
   await audit("items");
@@ -280,6 +310,7 @@ async function audit(name) {
   console.log(`${name}: ${results.violations.length} violations, ${blocking.length} critical/serious`);
   for (const violation of blocking) {
     console.error(`${name}: ${violation.impact} ${violation.id}: ${violation.help}`);
+    console.error(`${name}: targets ${JSON.stringify(violation.nodes.map((node) => node.target))}`);
     console.error(violation.nodes.map((node) => `${node.target.join(" ")}: ${node.failureSummary}`).join("\n"));
   }
   failed ||= blocking.length > 0;
@@ -319,4 +350,12 @@ async function expectNoExtraButtonMargin(selector, name) {
 		return button ? getComputedStyle(button).marginTop : null;
 	}, selector);
 	if (marginTop !== "0px") throw new Error(`${name} button has unexpected top margin: ${marginTop}`);
+}
+
+async function expectMobileNoOverflow(name) {
+	await driver.manage().window().setRect({ width: 320, height: 800 });
+	if (await driver.executeScript(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)) {
+		throw new Error(`${name} page has horizontal overflow at 320 CSS pixels`);
+	}
+	await driver.manage().window().setRect({ width: 1280, height: 900 });
 }

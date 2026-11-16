@@ -85,7 +85,8 @@ the export screen's `Download JSON` action uses
 `/workspaces/{workspaceId}/settings/export/download`. `/sessions` manages the
 current user's browser sessions. `/account` manages the profile, locale,
 timezone, theme, notification preferences, email verification, password change,
-and account deletion flow. `/notifications` lists in-app notifications and
+and account deletion flow. Deletion requires current-password reauthentication
+and an explicit confirmation. `/notifications` lists in-app notifications and
 marks them read. `/password-reset` starts a generic password reset request.
 Workspace deletion, suspension, and archival are not exposed until their data
 lifecycle is implemented.
@@ -149,8 +150,10 @@ Bootstrap, invitation possession, and OIDC verified-email claims mark an email
 verified. Other accounts can request a single-use, 24-hour verification link.
 Password reset requests return the same browser response for known and unknown
 emails; a single-use, 24-hour token sets a new local password and revokes all
-sessions. Password changes require the current local password, set a new
-Argon2id hash, and revoke all sessions before issuing a fresh browser session.
+sessions. A password mismatch keeps the reset form usable; an invalid or expired
+link returns a generic error with a fresh request form. Password changes require
+the current local password, set a new Argon2id hash, and revoke all sessions
+before issuing a fresh browser session.
 Account deletion requires local-password reauthentication and is refused while
 the user owns any workspace; after ownership transfer it removes the account's
 memberships, credentials, external identities, invitations created by the
