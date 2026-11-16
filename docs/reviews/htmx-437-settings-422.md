@@ -27,7 +27,9 @@ Postmark tokens are not placed in page data or rendered back into form values;
 the account token is represented only by its configured status. Settings
 responses remain `no-store`. Templ output keeps translated document language,
 theme, persistent field labels, error focus targets, and the ordinary form
-fallback.
+fallback. Optional navigation uses always-present `Handler` flags, populated
+at Files and Clients registration, so profile-pruned builds do not depend on
+legacy templates or optional service fields.
 
 ## Evidence
 
@@ -37,9 +39,10 @@ fallback.
   `internal/web/navigation.templ`.
 - Regression coverage: `internal/web/email_settings_test.go`,
   `internal/web/email_settings_resend_test.go`, and
-  `internal/web/email_settings_postmark_test.go`. Generated profiles without
-  optional Files or Clients modules are covered by
-  `TestGenerateWithoutAgentPrunesAgentSurfaceAndBuilds` in
+  `internal/web/email_settings_postmark_test.go`. Generated Core+Identity
+  profiles without Files or Clients are covered by
+  `TestGenerateWithoutAgentPrunesAgentSurfaceAndBuilds`; Clients without Files
+  by `TestGenerateWithClientsProfileRecordsLockAndBuilds`, both in
   `cmd/template-init/main_test.go`.
 - English and Spanish empty-state copy: `internal/i18n/locales/en.json` and
   `internal/i18n/locales/es.json`.
@@ -55,8 +58,8 @@ fallback.
 
 ## Checks
 
-Passed: `make templ-check`; focused web route/provider/form-markup tests (5
-tests); `go test ./cmd/template-init -run '^TestGenerateWithoutAgentPrunesAgentSurfaceAndBuilds$' -count=1`;
+Passed: `make templ-check`; four focused web route/provider/form-markup tests;
+`go test ./cmd/template-init -run '^(TestGenerateWithoutAgentPrunesAgentSurfaceAndBuilds|TestGenerateWithClientsProfileRecordsLockAndBuilds)$' -count=1`;
 `go test ./internal/i18n -count=1` (4 tests); `node --check
 scripts/playwright/settings.spec.mjs`; and `make doc-links`.
 

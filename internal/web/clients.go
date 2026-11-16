@@ -28,6 +28,7 @@ type clientFilterField struct {
 // Clients routes, so the navigation link and the routes stay absent together.
 func (h *Handler) EnableClients(service *clients.Service, preferences *listprefs.Service) {
 	h.clients = service
+	h.clientsEnabled = service != nil
 	h.listPreferences = preferences
 }
 
