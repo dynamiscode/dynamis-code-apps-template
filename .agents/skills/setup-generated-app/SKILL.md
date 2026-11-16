@@ -74,8 +74,9 @@ applicable`, the same statuses that
    4. `docs/capabilities.md`: keep evidence that still holds and remove rows for
       features you removed.
 8. **Check the release workflow (verify).** `.github/workflows/release.yml`
-   publishes on `v*.*.*` tags and runs `make secret-check` and `make vuln-check`.
-   Confirm it matches your release process.
+   currently runs validation only on `v*.*.*` tags; it does not publish
+   binaries, images, artifacts, or GitHub releases. Review `docs/release.md`
+   before defining a release process for the generated app.
 9. **Verify (must).** Run these in order and report each result:
    1. `make verify`, after step 4.
    2. `npm ci && make accessibility-smoke`. It opens the items page, so it fails
