@@ -1,0 +1,163 @@
+package web
+
+templ filesPage(data pageData, canUpload bool) {
+	@dashboardShell(data, dashboardHeader(data), dashboardHomeNavigation(data)) {
+		<div class="files-page">
+			@pageHeading(data.T("files.files"), data.T("files.recent"))
+			<p class="files-description">{ data.T("files.description") }</p>
+			if data.ErrorKey != "" {
+				@errorAlert(data.T(data.ErrorKey))
+			}
+			if canUpload {
+				<section class="file-upload-panel card" aria-labelledby="file-upload-heading">
+					<h2 id="file-upload-heading">{ data.T("files.upload") }</h2>
+					<form class="file-upload-form" data-file-upload
+						data-status-uploading={ data.T("files.status_uploading") }
+						data-status-success={ data.T("files.status_success") }
+						data-status-error={ data.T("files.status_error") }
+						data-status-choose-file={ data.T("files.status_choose_file") }
+						action={ data.CurrentPath } method="post" enctype="multipart/form-data">
+						<input type="hidden" name="csrf" value={ data.CSRF }/>
+						<label for="file-upload">{ data.T("files.choose") }</label>
+						<div class="file-upload-controls">
+							<input class="input" id="file-upload" type="file" name="file" required/>
+							@submitButton(data.T("files.upload"), nil)
+						</div>
+						<progress class="upload-progress" max="100" value="0" data-upload-progress aria-label={ data.T("files.progress") } hidden></progress>
+						<p class="status" role="status" aria-live="polite" data-upload-status hidden></p>
+					</form>
+				</section>
+			}
+			<section aria-labelledby="files-list-heading">
+				<div class="files-list-heading">
+					<h2 id="files-list-heading">{ data.T("files.recent") }</h2>
+					@fileColumnControls(data)
+				</div>
+				@fileFilters(data)
+				@fileList(data)
+				@nextPage(data.NextPath, data.T("items.next_page"))
+			</section>
+		</div>
+		if canUpload {
+			<script defer src="/assets/app.js"></script>
+		}
+	}
+}
+
+templ fileColumnControls(data pageData) {
+	<details class="client-controls list-view-columns">
+		<summary>{ data.T("clients.columns") }</summary>
+		<div aria-label={ data.T("clients.columns") }>
+			for _, column := range data.ClientListColumns {
+				<form class="list-view-column" method="post" action={ data.CurrentPath + "/preferences/columns/" + column.Key + data.ClientQuerySuffix }>
+					<input type="hidden" name="csrf" value={ data.CSRF }/>
+					if column.Visible {
+						<input type="hidden" name="visible" value="false"/>
+					} else {
+						<input type="hidden" name="visible" value="true"/>
+					}
+					<button class="btn secondary" type="submit">
+						if column.Visible {
+							{ data.T("clients.column_hide") }
+						} else {
+							{ data.T("clients.column_show") }
+						}
+						{ " " }{ data.T(column.LabelKey) }
+					</button>
+				</form>
+			}
+			<form method="post" action={ data.CurrentPath + "/preferences/columns/reset" + data.ClientQuerySuffix }>
+				<input type="hidden" name="csrf" value={ data.CSRF }/>
+				<button class="btn secondary" type="submit">{ data.T("clients.columns_reset") }</button>
+			</form>
+		</div>
+	</details>
+}
+
+templ fileFilters(data pageData) {
+	<details class="client-controls client-filters" open?={ data.HasClientFilters }>
+		<summary>{ data.T("clients.list_options") }</summary>
+		<form class="client-query" method="get" action={ data.CurrentPath }>
+			<fieldset>
+				<legend>{ data.T("clients.filter_legend") }</legend>
+				@textField("files-search", data.T("files.search") + " " + data.T("ui.optional"), templ.Attributes{"type": "search", "name": "search", "value": data.FileListQuery.Search})
+				@textField("files-mime", data.T("files.type") + " " + data.T("ui.optional"), templ.Attributes{"name": "mime", "value": data.FileListQuery.MIME})
+				@textField("files-min-size", data.T("files.min_size") + " " + data.T("ui.optional"), templ.Attributes{"type": "number", "min": "0", "name": "min_size", "value": data.FileMinSize})
+				@textField("files-max-size", data.T("files.max_size") + " " + data.T("ui.optional"), templ.Attributes{"type": "number", "min": "0", "name": "max_size", "value": data.FileMaxSize})
+				@selectField("files-sort", data.T("clients.sort_label"), templ.Attributes{"name": "sort"}) {
+					<option value="-created_at" selected?={ data.FileListQuery.Sort == "-created_at" }>{ data.T("clients.created_at") } ↓</option>
+					<option value="created_at" selected?={ data.FileListQuery.Sort == "created_at" }>{ data.T("clients.created_at") } ↑</option>
+					<option value="original_name" selected?={ data.FileListQuery.Sort == "original_name" }>{ data.T("files.name") } ↑</option>
+					<option value="-original_name" selected?={ data.FileListQuery.Sort == "-original_name" }>{ data.T("files.name") } ↓</option>
+					<option value="size" selected?={ data.FileListQuery.Sort == "size" }>{ data.T("files.size") } ↑</option>
+					<option value="-size" selected?={ data.FileListQuery.Sort == "-size" }>{ data.T("files.size") } ↓</option>
+				}
+				@selectField("files-limit", data.T("clients.page_size"), templ.Attributes{"name": "limit"}) {
+					<option value="25" selected?={ data.FileListQuery.Limit == 25 }>25</option>
+					<option value="50" selected?={ data.FileListQuery.Limit == 50 }>50</option>
+					<option value="100" selected?={ data.FileListQuery.Limit == 100 }>100</option>
+				}
+			</fieldset>
+			<div class="actions">
+				@submitButton(data.T("clients.apply"), nil)
+				<a class="btn secondary" href={ data.ClearClientFiltersPath }>{ data.T("clients.clear_filters") }</a>
+			</div>
+		</form>
+	</details>
+}
+
+templ fileList(data pageData) {
+	if data.HasVisibleClientColumns {
+		@listTable(data.T("files.files"), true) {
+			<thead><tr>
+				for _, column := range data.ClientListColumns {
+					if column.Visible {
+						if column.SortDirection != "" {
+							<th scope="col" data-column={ column.Key } aria-sort={ column.SortDirection }><a href={ column.SortHref }>{ data.T(column.LabelKey) }</a></th>
+						} else {
+							<th scope="col" data-column={ column.Key }><a href={ column.SortHref }>{ data.T(column.LabelKey) }</a></th>
+						}
+					}
+				}
+				<th scope="col">{ data.T("clients.actions") }</th>
+			</tr></thead>
+			<tbody>
+				for _, row := range data.ClientListRows {
+					<tr>
+						for _, column := range data.ClientListColumns {
+							if column.Visible {
+								<td data-column={ column.Key } data-label={ data.T(column.LabelKey) }>{ data.ClientListCellValue(column, row) }</td>
+							}
+						}
+						<td><a href={ data.CurrentPath + "/" + row.ID + "/content" } aria-label={ data.T("files.download") + " " + row.ActionContext }>{ data.T("files.download") }</a></td>
+					</tr>
+				}
+			</tbody>
+		}
+		@listCards() {
+			for _, row := range data.ClientListRows {
+				@listCard() {
+					<dl>
+						for _, column := range data.ClientListColumns {
+							if column.Visible {
+								<dt>{ data.T(column.LabelKey) }</dt>
+								<dd data-column={ column.Key }>{ data.ClientListCellValue(column, row) }</dd>
+							}
+						}
+					</dl>
+					<a class="btn btn-primary" href={ data.CurrentPath + "/" + row.ID + "/content" } aria-label={ data.T("files.download") + " " + row.ActionContext }>{ data.T("files.download") }</a>
+				}
+			}
+		}
+	} else {
+		<p class="status" role="status">{ data.T("clients.columns_choose") }</p>
+	}
+	if len(data.Files) == 0 {
+		<div class="file-empty-state card" role="status">
+			@emptyState(data.T("files.none"))
+			if data.HasClientFilters {
+				<a href={ data.ClearClientFiltersPath }>{ data.T("clients.clear_filters") }</a>
+			}
+		</div>
+	}
+}
