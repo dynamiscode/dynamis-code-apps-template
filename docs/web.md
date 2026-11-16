@@ -18,7 +18,8 @@ invited-email matching, and safe recovery for unavailable links.
 Settings groups general and email setup, member access, API tokens, webhooks,
 SCIM, exports, imports, and audit history into role-aware sidebar sections.
 `/account`, `/notifications`, `/sessions`, and `/security` cover account and
-security settings. The authenticated shell uses
+security settings. Account pages share responsive panels, generated branding,
+and the user's light, dark, or system theme. The authenticated shell uses
 a top bar for brand, workspace switching, and account actions, plus a context-aware
 sidebar whose contents follow the current workspace context. Every mutation validates
 the session-bound CSRF token
@@ -84,11 +85,15 @@ Baseline browser surfaces:
   creates or rotates the dedicated SCIM credential with its secret shown once,
   and revokes it through ordinary CSRF-protected forms. The page is no-store and
   has no WebMCP enhancement; SCIM Users and Groups remain REST/IdP-only.
-- `/sessions` lists metadata and revokes sessions; `/security` starts
-  reauthenticated OIDC linking.
+- `/sessions` shows each browser session's status and metadata and revokes active
+  sessions; `/security` manages MFA factors and starts reauthenticated OIDC
+  linking.
 - `/account` edits profile preferences, changes a local password, requests email
-  verification, and deletes the account after reauthentication. `/password-reset`
-  provides generic request and single-use completion pages.
+  verification, and deletes the account after current-password reauthentication
+  and an explicit confirmation checkbox. The server rejects deletion without
+  confirmation and retains the owner-transfer restriction. `/settings/language`
+  persists the account language. `/password-reset` provides localized generic
+  request and single-use completion pages.
 - `/notifications` lists recipient-scoped in-app records and marks them read;
   `/notifications/events` delivers recipient-scoped `notification.created` SSE
   events. Notification records are created only through the shared identity

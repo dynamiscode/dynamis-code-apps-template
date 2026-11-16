@@ -301,7 +301,38 @@ li[data-optimistic="hidden"], tr[data-optimistic="hidden"] { display: none; }
 .settings-record { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 1rem; border: 1px solid var(--border); border-radius: var(--brand-radius); background: var(--canvas); }
 .settings-record p { margin: .25rem 0; color: var(--muted); }
 .settings-record form { margin: 0; }
+.account-page { width: min(72rem, 100%); margin: 0 auto; padding: 2rem clamp(1rem, 3vw, 2rem); }
+.account-heading { margin-bottom: 1.5rem; }
+.account-heading h1 { margin: 0; font-size: 2rem; line-height: 1.2; letter-spacing: -.02em; }
+.account-intro { max-width: 54rem; margin: .5rem 0 0; color: var(--muted); }
+.account-shortcuts { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+.account-shortcut { display: inline-flex; align-items: center; min-height: 2.75rem; padding: .4rem .7rem; border: 1px solid var(--border); border-radius: var(--brand-radius); background: var(--surface); text-decoration: none; }
+.account-shortcut:hover { background: var(--accent-surface); }
+.account-section-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.settings-panel { min-width: 0; padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--brand-radius); background: var(--surface); }
+.settings-panel > h2:first-child { margin: 0 0 .5rem; }
+.settings-panel > p { color: var(--muted); }
+.account-page > .settings-panel + .settings-panel { margin-top: 1rem; }
+.settings-panel-wide { grid-column: 1 / -1; }
+.danger-panel { border-color: var(--danger); }
+.session-list { display: grid; gap: 1rem; padding: 0; list-style: none; }
+.session-card { min-width: 0; padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--brand-radius); background: var(--surface); }
+.session-card-heading { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.session-provider { color: var(--muted); overflow-wrap: anywhere; }
+.session-status { display: inline-flex; align-items: center; min-height: 1.75rem; padding: .1rem .5rem; border-radius: 1rem; font-size: .875rem; font-weight: 700; }
+.session-status-active { background: var(--success-surface); color: var(--success); }
+.session-status-revoked { background: var(--warning-surface); color: var(--warning); }
+.session-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .75rem; margin: 1rem 0; }
+.session-details dt { color: var(--muted); font-size: .875rem; }
+.session-details dd { margin: .15rem 0 0; overflow-wrap: anywhere; }
+.empty-state { padding: 1.25rem; border: 1px dashed var(--border-strong); border-radius: var(--brand-radius); color: var(--muted); }
+.narrow.account-page { width: min(40rem, calc(100% - 2rem)); margin: 1.5rem auto; padding: clamp(1.25rem, 3vw, 2rem); border: 1px solid var(--border); border-radius: var(--brand-radius); background: var(--surface); }
+.reset-topbar { justify-content: center; }
 @media (max-width: 38rem) {
   .settings-record { align-items: stretch; flex-direction: column; }
   .settings-record form button { width: 100%; }
+  .account-page { padding: 1.25rem 1rem; }
+  .account-section-grid { grid-template-columns: minmax(0, 1fr); }
+  .settings-panel-wide { grid-column: auto; }
+  .narrow.account-page { width: min(40rem, calc(100% - 1rem)); margin: .5rem auto; }
 }
