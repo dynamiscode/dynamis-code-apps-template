@@ -1,6 +1,7 @@
 /.env
 /data/
 /node_modules/
+/test-results/
 
 # Generated statechart output (regenerate with the statechart script)
 docs/statecharts/*/chart/tlc.out

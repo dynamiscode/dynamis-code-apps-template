@@ -217,6 +217,14 @@ A rejected item create keeps the typed title, and a reused create form answers
 `409` with a message instead of `500`. The realtime item list waits while a row
 is being edited and refreshes when focus leaves it.
 
+## Browser journey and screenshot baselines
+
+`make browser-smoke` starts a disposable Go server and uses pinned Playwright
+with Chrome. It signs in, opens the workspace home, and creates the first Item.
+The committed workspace-home screenshots cover desktop (1280×900) and mobile
+(390×844) in light and dark system themes. CI installs Chrome and runs the same
+journey and screenshot assertions.
+
 The rules behind these behaviors, and how to check them, are in the
 `item-create-submission`, `form-drafts`, `form-field-input`, `form-wizard`,
 `async-feedback`, `form-markup`, and `file-upload-form` skills under `.agents/skills/`. `make ux-smoke`
@@ -246,6 +254,33 @@ The workspace home is the first page rendered with templ. `components.css` is
 compiled from pinned Tailwind CSS and daisyUI packages and served from the
 embedded asset tree. `make templ-check` and `make css-check` detect generated
 file drift.
+
+## Rendering migration inventory
+
+Ticket #386 reconciles the route and template surface. `/workspaces/{workspaceId}`
+renders through `workspace.templ` and generated `workspace_templ.go`. The
+remaining named `html/template` views are an explicit migration deferral; their
+route families and major states are listed below. This keeps the existing
+escaping, HTMX fragment boundaries, ordinary-form fallbacks, and route tests
+intact until each family can move with behavior parity.
+
+| Route family | Views and shared templates | Major states covered |
+|---|---|---|
+| `/`, `/workspaces/{workspaceId}` | `home.html`; `workspace.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
+| `/setup`, `/login`, `/mfa`, `/account/verify-email/{secret}`, `/password-reset/{secret}`, `/oauth/authorize` | `setup.html`, `login.html`, `mfa.html`, `verification.html`, `password-reset.html`, `mcp-consent.html`, `auth.html` | Initial setup, form errors, sign-in and MFA challenge, verification success/unavailable, reset request/completion, OAuth approval/denial |
+| Workspace items, clients, and custom fields | `items.html`, `item-list.html`, `list-view.html`, `clients.html`, `client.html`, `client-fields.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field lifecycle, realtime refresh |
+| Workspace members and invitations | `members.html`, `invitations.html`, `invitation.html` | Role changes, removal and ownership transfer, invitation create/resend/revoke, accepted and unavailable invitation |
+| Workspace files | `files.html` | Empty/list states, filters and paging, upload progress/success/error, download authorization |
+| Account and workspace settings | `account.html`, `audit-history.html`, `email-settings.html`, `export.html`, `general-settings.html`, `import.html`, `language.html`, `notifications.html`, `provisioning.html`, `security.html`, `sessions.html`, `tokens.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, redacted history, notification read/unread, export/import entry, integration setup and failure, responsive navigation |
+| Public and unavailable pages | `public-share.html`, `error.html` | Share projection and invalid/expired/revoked links, not-found and request errors |
+
+Corresponding route and handler tests cover server-rendered behavior.
+`make ux-smoke` and `make accessibility-smoke` cover the browser paths they
+enumerate; [the accessibility evidence](accessibility.md) records that
+automated coverage. Only the workspace home has moved to templ so far; the
+listed legacy views are an intentional exception to the migration target, not
+an exception to escaping, authorization, accessibility, localization, or
+ordinary-form requirements.
 
 ## WebMCP progressive enhancement
 

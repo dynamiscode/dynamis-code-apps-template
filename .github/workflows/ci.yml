@@ -64,8 +64,10 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npx playwright install --with-deps chrome
       - run: make js-check
       - run: make test-unit
+      - run: make browser-smoke
       - run: make accessibility-smoke
       - run: make webmcp-smoke
 
