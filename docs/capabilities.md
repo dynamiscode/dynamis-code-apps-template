@@ -1130,6 +1130,24 @@ strings cover the changed screens.
   journeys, including account and security; zero axe violations.
 - Not run: full `make verify`; no authentication policy, schema, or API changes.
 
+## Session list and revocation UI evidence (#445, 2026-11-16)
+
+Ticket #445 migrates `/sessions` to the generated templ account layout. The
+page labels the current session and shows active, expired, and revoked status.
+CSRF-protected ordinary forms revoke any active session, including the current
+session; the latter redirects to sign-in on the next request. EN/ES cover the
+status, feedback, and empty states. The page remains no-store and keeps its
+WebMCP page marker and script.
+
+- Passed: session rendering and lifecycle tests, including current-session
+  revoke, cross-user denial, CSRF rejection, expired state, Spanish empty state,
+  and ordinary form behavior; `make test`, `make lint`, `make templ-check`, and
+  `make css-check`. English and Spanish `make accessibility-smoke` reported
+  zero axe violations, including sessions, keyboard/focus, and 320px reflow.
+  `make ux-smoke` passed 42 checks; `make browser-smoke` passed 14 Playwright
+  tests. See [session evidence](reviews/sessions-445-evidence.md).
+- Not run: full `make verify`, race suite, security gates, and PostgreSQL tests.
+
 ## Notification center UX evidence (2026-11-15)
 
 Ticket #383 restyles the recipient-scoped notification list, makes unread

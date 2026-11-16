@@ -129,6 +129,7 @@ type pageData struct {
 	NewTitle                         string
 	ToastKey                         string
 	CurrentPath                      string
+	CurrentSessionID                 string
 	Email                            string
 	UserLocale                       string
 	Saved                            bool
@@ -1150,6 +1151,10 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 	}
 	if name == "password-reset.html" {
 		_ = authPasswordReset(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "sessions-page" {
+		_ = sessionsPage(data, data.CurrentSessionID, time.Now()).Render(context.Background(), writer)
 		return
 	}
 	if err := h.template.ExecuteTemplate(writer, name, data); err != nil {
