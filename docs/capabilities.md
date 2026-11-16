@@ -1148,6 +1148,24 @@ WebMCP page marker and script.
   tests. See [session evidence](reviews/sessions-445-evidence.md).
 - Not run: full `make verify`, race suite, security gates, and PostgreSQL tests.
 
+## Items list and editing UI evidence (#413, 2026-11-16)
+
+Ticket #413 migrates the workspace Items page and list fragment to generated
+templ views. The route keeps existing workspace authorization, CSRF checks,
+localized profile theme, ordinary form submissions, list preferences, sharing,
+and responsive table treatment. Route-only JavaScript preserves dirty item
+rows across list swaps and retains submitted values on edit validation errors.
+
+- Passed: focused Items list/preferences and locale/theme Go tests; 6 Items
+  JavaScript regression tests; `make vet generate-check js-check`; and the
+  static, generated-template, and 33 Node-test steps in `make ci-local`.
+- Passed: bounded spec and standards reviews found no code defects; the
+  standards review's documentation finding is resolved in the route inventory
+  above and this evidence record.
+- Pending: full `go test -race ./...` and `make ci-local` completion, full
+  template/CSS checks, Playwright journeys and screenshot baselines, and final
+  validation after upstream reconciliation.
+
 ## Notification center UX evidence (2026-11-15)
 
 Ticket #383 restyles the recipient-scoped notification list, makes unread
