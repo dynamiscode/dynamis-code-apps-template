@@ -12,6 +12,9 @@ group for members, invitations, API tokens, webhooks, SCIM provisioning, export,
 The Items page states its purpose, labels list controls as “Find and sort”, and
 shows readable status labels in compact editor rows. Filters, sorting, pagination,
 and ordinary form submissions remain shareable and usable without JavaScript.
+
+Member and invitation pages explain role permissions, ownership transfer,
+invited-email matching, and safe recovery for unavailable links.
 `/account`, `/notifications`, `/sessions`, and `/security` cover account and
 security settings. The authenticated shell uses
 a top bar for brand, workspace switching, and account actions, plus a context-aware

@@ -198,7 +198,11 @@ Invitations belong to one workspace, normalized email, and non-owner role.
 They expire, are single use, prevent duplicates, support revocation, and rotate
 their 256-bit secret on resend. A signed-in user may accept an invitation only
 when its email matches. A new local account may be created from a valid invite;
-an existing account must sign in instead. Failures use one safe error.
+an existing account must sign in instead. Member and invitation pages explain
+role permissions, ownership transfer consequences, and the invited-email
+requirement. Acceptance failures keep one safe message and advise checking the
+signed-in email or asking the inviter for a new link. Invalid, expired, revoked,
+and already-used links show the same recovery guidance.
 
 API tokens belong to one user and workspace. Their named scopes cannot exceed
 the creator's current permissions. Secrets are shown only by the creation
