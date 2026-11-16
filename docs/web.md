@@ -85,6 +85,10 @@ Baseline browser surfaces:
   creates or rotates the dedicated SCIM credential with its secret shown once,
   and revokes it through ordinary CSRF-protected forms. The page is no-store and
   has no WebMCP enhancement; SCIM Users and Groups remain REST/IdP-only.
+- `/login`, `/setup`, `/mfa`, and email verification share the generated app
+  brand and compact responsive auth layout. Setup keeps required fields first
+  and marks workspace language as deferrable. Sign-in, MFA, and setup remain
+  ordinary CSRF-protected forms without JavaScript.
 - `/sessions` shows each browser session's status and metadata and revokes active
   sessions; `/security` manages MFA factors and starts reauthenticated OIDC
   linking.

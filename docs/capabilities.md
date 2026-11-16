@@ -442,6 +442,15 @@ cursor and mark-read rejection pass on SQLite and PostgreSQL 14.24; `make test` 
 pass on SQLite; `go test -p 1 -count=1 ./internal/identity/... ./internal/files/...` passes on a
 fresh PostgreSQL 14.24 container; `go generate ./api` shows no drift.
 
+## Authentication journey evidence
+
+Issue #384 gives setup, sign-in, MFA, email verification, and password reset a
+shared generated-app brand and responsive auth layout. Required account and
+workspace details remain first; the workspace language preference is optional.
+Authentication mutations retain ordinary CSRF-protected forms and reset
+requests retain generic responses. `internal/web/auth_journeys_test.go` checks
+English and Spanish setup plus auth-page form fallbacks.
+
 ## Item short ID evidence
 
 Verified 2026-11-11 with Go 1.27.4. Issue #190 moves item keys to integers
