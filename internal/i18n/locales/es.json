@@ -322,6 +322,8 @@
   "sessions.created": "Creada",
   "sessions.expires": "Vence",
   "sessions.revoke": "Revocar",
+  "sessions.current": "Esta sesión",
+  "sessions.revoked_feedback": "Sesión revocada.",
   "notifications.notifications": "Notificaciones",
   "notifications.unread": "No leídas",
   "notifications.unread_status": "No leída",

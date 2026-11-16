@@ -463,6 +463,69 @@ func TestAccountSecurityPagesUseSharedBrandAndRequireDeletionConfirmation(t *tes
 	}
 }
 
+func TestSessionsListAndRevocation(t *testing.T) {
+	handler, auth, _, _, owner := testWeb(t, 10)
+	current, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: current.Secret}, {Name: "csrf", Value: current.CSRFSecret}}
+	page := request(handler, http.MethodGet, "/sessions", nil, cookies, nil)
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "This session") || !strings.Contains(page.Body.String(), `data-theme="system"`) || !strings.Contains(page.Body.String(), "/assets/components.css") {
+		t.Fatalf("session list = %d, %s", page.Code, page.Body.String())
+	}
+	if strings.Count(page.Body.String(), `action="/sessions/`) != 1 || strings.Contains(page.Body.String(), current.Secret) {
+		t.Fatalf("session list action count or session secret exposure is wrong: %s", page.Body.String())
+	}
+	csrfFailure := request(handler, http.MethodPost, "/sessions/"+other.ID, url.Values{"csrf": {"invalid"}}, cookies, nil)
+	if csrfFailure.Code != http.StatusForbidden {
+		t.Fatalf("invalid revoke CSRF = %d", csrfFailure.Code)
+	}
+	revoked := request(handler, http.MethodPost, "/sessions/"+other.ID, url.Values{"csrf": {current.CSRFSecret}}, cookies, nil)
+	if revoked.Code != http.StatusSeeOther || revoked.Header().Get("Location") != "/sessions?revoked=1" {
+		t.Fatalf("revoke response = %d, %q", revoked.Code, revoked.Header().Get("Location"))
+	}
+	feedback := request(handler, http.MethodGet, revoked.Header().Get("Location"), nil, cookies, nil)
+	if feedback.Code != http.StatusOK || !strings.Contains(feedback.Body.String(), "Session revoked.") || !strings.Contains(feedback.Body.String(), "Revoked") {
+		t.Fatalf("revoke feedback = %d, %s", feedback.Code, feedback.Body.String())
+	}
+	ownerPrincipal, err := auth.Authorize(context.Background(), owner.UserID, owner.WorkspaceID, identity.InvitationsManage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	invitation, err := auth.CreateInvitation(context.Background(), ownerPrincipal, "other@example.com", identity.Member, time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreignUserID, _, err := auth.CreateInvitedLocalUser(context.Background(), invitation.Secret, "other-owner-password", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign, err := auth.CreateSession(context.Background(), foreignUserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	unauthorized := request(handler, http.MethodPost, "/sessions/"+foreign.ID, url.Values{"csrf": {current.CSRFSecret}}, cookies, nil)
+	if unauthorized.Code != http.StatusConflict {
+		t.Fatalf("cross-user revoke = %d, %s", unauthorized.Code, unauthorized.Body.String())
+	}
+	if _, err := auth.AuthenticateSession(context.Background(), foreign.Secret); err != nil {
+		t.Fatalf("cross-user session was revoked: %v", err)
+	}
+	if _, err := auth.RevokeSession(context.Background(), owner.UserID, current.ID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	emptyCookies := []*http.Cookie{{Name: "session", Value: current.Secret}, {Name: "csrf", Value: current.CSRFSecret}}
+	empty := request(handler, http.MethodGet, "/sessions", nil, emptyCookies, nil)
+	if empty.Code != http.StatusSeeOther || empty.Header().Get("Location") != "/login" {
+		t.Fatalf("revoked current session request = %d, %q", empty.Code, empty.Header().Get("Location"))
+	}
+}
+
 func PrincipalSystem() identity.Principal {
 	return identity.Principal{AuthMethod: "system"}
 }

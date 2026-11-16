@@ -1,0 +1,53 @@
+package web
+
+import "time"
+
+templ sessionsPage(data pageData, currentSessionID string) {
+	@dashboardShell(data, dashboardHeader(data), nil) {
+		<section class="account-page" aria-labelledby="sessions-heading">
+			<header class="account-heading">
+				<p class="eyebrow">{ data.T("navigation.security") }</p>
+				<h1 id="sessions-heading">{ data.T("sessions.sessions") }</h1>
+				<p class="account-intro">{ data.T("sessions.description") }</p>
+			</header>
+			if data.Saved {
+				@successAlert(data.T("sessions.revoked_feedback"))
+			}
+			if len(data.Sessions) == 0 {
+				@emptyState(data.T("sessions.empty"))
+			} else {
+				<ul class="session-list">
+					for _, session := range data.Sessions {
+						<li class="session-card">
+							<div class="session-card-heading">
+								<strong>{ data.AuthMethod(session.AuthMethod) }</strong>
+								if session.OIDCProviderID != "" {
+									<span class="session-provider">{ session.OIDCProviderID }</span>
+								}
+								if session.ID == currentSessionID {
+									<span class="session-status">{ data.T("sessions.current") }</span>
+								}
+								if session.RevokedAt != nil {
+									<span class="session-status session-status-revoked">{ data.T("sessions.revoked") }</span>
+								} else {
+									<span class="session-status session-status-active">{ data.T("sessions.active") }</span>
+								}
+							</div>
+							<dl class="session-details">
+								<div><dt>{ data.T("sessions.created") }</dt><dd><time datetime={ session.CreatedAt.Format(time.RFC3339) }>{ data.DateTime(session.CreatedAt) }</time></dd></div>
+								<div><dt>{ data.T("sessions.expires") }</dt><dd><time datetime={ session.ExpiresAt.Format(time.RFC3339) }>{ data.DateTime(session.ExpiresAt) }</time></dd></div>
+							</dl>
+							if session.RevokedAt == nil && session.ID != currentSessionID {
+								<form class="inline" data-webmcp-actions="session-revoke" data-webmcp-id={ session.ID } action={ "/sessions/" + session.ID } method="post">
+									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<button class="btn btn-secondary secondary" type="submit">{ data.T("sessions.revoke") }</button>
+								</form>
+							}
+						</li>
+					}
+				</ul>
+			}
+		</section>
+		<script defer src="/assets/app.js"></script>
+	}
+}
