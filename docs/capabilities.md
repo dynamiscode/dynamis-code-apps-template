@@ -1072,7 +1072,7 @@ ordinary forms and need no JavaScript.
   reflow, reduced motion, and accessibility-tree checks). Focused tests cover
   no-write preview, row-error bounds, duplicate titles, changed-file rejection,
   and stateless preview/confirmation across two handler instances.
-- `make ux-smoke` hit an existing stale item-row selector on the #375 base; the
-  selector fix is in the preceding #376 stack layer and will be rechecked after
-  rebasing.
+- After stacking #376–#380, `make ux-smoke` passed all 42 checks and
+  `make accessibility-smoke` passed in English and Spanish across all covered
+  journeys, including import preview; zero axe violations.
 - Not run: full `make verify`.
