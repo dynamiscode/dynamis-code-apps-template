@@ -31,4 +31,8 @@ if ! curl --noproxy '*' --fail --silent --retry 30 --retry-delay 1 --retry-connr
 fi
 export PLAYWRIGHT_BASE_URL="http://127.0.0.1:$port"
 export PLAYWRIGHT_EMAIL=playwright@example.com PLAYWRIGHT_PASSWORD=playwright-password-123
-node scripts/ui-measurement-admin.mjs
+if [ "${UI_ADMIN_STATES:-0}" = 1 ]; then
+  node scripts/ui-measurement-admin-states.mjs
+else
+  node scripts/ui-measurement-admin.mjs
+fi

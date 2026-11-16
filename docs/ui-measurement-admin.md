@@ -67,6 +67,39 @@ export bodies, endpoint URLs, traces or screenshots. Measurements and additional
 state coverage are still needed before identifying duplicate requests, proposing
 measured fixes, or completing #448.
 
+## Prepared state and attribution checks
+
+The separate command below creates a fresh fixture and produces state and
+request-class counts without timing metrics. It has not been run; its browser
+behavior and fixture assumptions are unverified. Do not treat prepared checks
+as evidence of observed application behavior.
+
+```sh
+UI_ADMIN_STATES=1 sh scripts/ui-measurement-admin.sh
+node --test scripts/ui-measurement-admin-attribution.test.mjs scripts/ui-measurement-admin-env.test.mjs
+```
+
+The prepared browser run signs in as the synthetic owner and counts allowlisted
+asset names per settings navigation until load and a visible heading. Other
+same-origin requests are grouped by resource type; external requests are
+counted without their URLs. Repeated counts identify only repeated allowlisted
+assets in that interval, not whether they are unnecessary. Requests after the
+interval, unlisted assets, individual paths, bytes and script initiators are
+not attributed. Query strings, headers, bodies, IDs and secret values are never
+reported. The attribution unit test checks that private paths and query values
+do not reach output.
+
+The prepared state checks inject an HTTP 503 for the audit fragment, submit an
+invalid synthetic CSV preview, follow the audit fallback with JavaScript off,
+and inspect the final status and login redirect for an anonymous audit request.
+They do not verify an authenticated viewer's permissions. They create one
+synthetic webhook and item; a temporary loopback-only receiver returns HTTP 503
+for webhook delivery. The output reports delivery row and pending counts once;
+the worker can change status asynchronously, so a missing pending observation
+is not proof that pending never occurred. The receiver does not record payloads
+or headers. Delivered, exhausted, permission-denied, full no-JavaScript
+journeys, other errors, languages, mobile and accessibility remain unverified.
+
 ## Single isolated run
 
 On 2026-11-16T17:06:04.017Z, commit
