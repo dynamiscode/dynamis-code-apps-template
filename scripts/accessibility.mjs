@@ -56,6 +56,12 @@ try {
   await driver.wait(until.elementLocated(By.css("[data-workspace-home]")), 5000);
   await audit("workspace");
   const workspaceURL = new URL(await driver.getCurrentUrl());
+  await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/settings/members`);
+  await driver.wait(until.elementLocated(By.id("member-list")), 5000);
+  await audit("members");
+  await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/settings/invitations`);
+  await driver.wait(until.elementLocated(By.id("invite-email")), 5000);
+  await audit("invitations");
   await driver.get(`${baseURL}${workspacePath}/settings/general`);
   await driver.wait(until.elementLocated(By.id("workspace-locale")), 5000);
   await audit("general settings");

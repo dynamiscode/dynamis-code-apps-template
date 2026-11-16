@@ -1026,3 +1026,18 @@ and card views, and workspace-authorized download routes remain in use.
   violations; files page, named progress control, keyboard/focus, and 320px
   reflow checks passed).
 - Not run: full `make test` and `make verify`.
+
+## Member and invitation UX evidence (2026-11-15)
+
+Ticket #379 adds role permission guidance and visible ownership-transfer
+consequences to member administration. Invitation pages explain that acceptance
+requires the invited email, give sign-in and sign-out paths for existing or
+wrong accounts, and tell users how to recover from unavailable links. Failed
+acceptance keeps one generic message; shared identity policy remains unchanged.
+
+- Passed: `go test ./internal/web -count=1` (161 tests), `make lint`, and
+  `make accessibility-smoke` in English and Spanish (members and invitations:
+  zero axe violations; keyboard, focus, 320px reflow, reduced motion, and
+  accessibility tree checks passed).
+- Not run: full `make verify`; no authentication policy, schema, or migration
+  changed. `CHANGELOG.md` is aggregated at PR merge time.

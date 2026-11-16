@@ -695,10 +695,24 @@ func (h *Handler) securityMutation(writer http.ResponseWriter, request *http.Req
 }
 
 func (h *Handler) invitationPage(writer http.ResponseWriter, request *http.Request) {
+	h.renderInvitationPage(writer, request, http.StatusOK, "")
+}
+
+func (h *Handler) renderInvitationPage(writer http.ResponseWriter, request *http.Request, status int, errorKey string) {
 	secret := request.PathValue("secret")
 	invitation, err := h.identity.InvitationForSecret(request.Context(), secret)
 	if err != nil {
-		h.render(writer, http.StatusNotFound, "error.html", pageData{Title: "Invitation unavailable", Error: "This invitation is invalid, expired, revoked, or already used."})
+		if status == http.StatusOK {
+			status = http.StatusNotFound
+			errorKey = "invitations.unavailable"
+		}
+		if errorKey == "" {
+			errorKey = "invitations.unavailable"
+		}
+		h.render(writer, status, "invitation.html", pageData{
+			Title: "Workspace invitation", InvitationSecret: secret,
+			ReturnTo: "/invitations/" + url.PathEscape(secret), ErrorKey: errorKey,
+		})
 		return
 	}
 	csrf := ""
@@ -708,17 +722,20 @@ func (h *Handler) invitationPage(writer http.ResponseWriter, request *http.Reque
 		_ = session
 		authenticated = csrf != ""
 	} else {
-		csrf, err = id.New()
-		if err != nil {
-			h.renderError(writer, http.StatusInternalServerError)
-			return
+		csrf = cookieValue(request, "invitation_csrf")
+		if csrf == "" {
+			csrf, err = id.New()
+			if err != nil {
+				h.renderError(writer, http.StatusInternalServerError)
+				return
+			}
+			h.setCookie(writer, "invitation_csrf", csrf, time.Now().Add(10*time.Minute), true)
 		}
-		h.setCookie(writer, "invitation_csrf", csrf, time.Now().Add(10*time.Minute), true)
 	}
-	h.render(writer, http.StatusOK, "invitation.html", pageData{
+	h.render(writer, status, "invitation.html", pageData{
 		Title: "Workspace invitation", CSRF: csrf, Invitation: invitation,
 		InvitationSecret: secret, InvitationAuthenticated: authenticated,
-		ReturnTo: "/invitations/" + url.PathEscape(secret),
+		ReturnTo: "/invitations/" + url.PathEscape(secret), ErrorKey: errorKey,
 	})
 }
 
@@ -735,7 +752,7 @@ func (h *Handler) invitationPost(writer http.ResponseWriter, request *http.Reque
 		}
 		userID, workspaceID, err := h.identity.CreateInvitedLocalUser(request.Context(), secret, request.FormValue("password"), auditContext(request))
 		if err != nil {
-			h.render(writer, http.StatusUnprocessableEntity, "invitation.html", pageData{Title: "Workspace invitation", Error: "The invitation is invalid or the password could not be accepted."})
+			h.renderInvitationPage(writer, request, http.StatusUnprocessableEntity, "invitations.registration_failed")
 			return
 		}
 		session, err := h.identity.CreateSession(request.Context(), userID, "local", "", 0, auditContext(request))
@@ -755,7 +772,7 @@ func (h *Handler) invitationPost(writer http.ResponseWriter, request *http.Reque
 	}
 	workspaceID, err := h.identity.AcceptInvitation(request.Context(), secret, session.UserID, auditContext(request))
 	if err != nil {
-		h.render(writer, http.StatusUnprocessableEntity, "error.html", pageData{Title: "Invitation unavailable", Error: "This invitation is invalid, expired, revoked, already used, or belongs to another email."})
+		h.renderInvitationPage(writer, request, http.StatusUnprocessableEntity, "invitations.accept_failed")
 		return
 	}
 	h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/items")
