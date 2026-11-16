@@ -12,6 +12,7 @@ const receiver = http.createServer((request, response) => {
   request.resume();
   response.writeHead(request.url === "/ok" ? 204 : 503).end();
 });
+let phase = "startup";
 try {
   await new Promise((resolve) => receiver.listen(0, "127.0.0.1", resolve));
   const context = await browser.newContext({ baseURL, locale: "en-US", serviceWorkers: "block" });
@@ -38,12 +39,14 @@ try {
     }
   }
 
+  phase = "audit failure";
   await page.route("**/settings/audit?part=table", (route) => route.fulfill({ status: 503, body: "unavailable" }));
   await page.goto(`${workspace}/settings/audit`, { waitUntil: "load" });
   await page.locator('#audit-table:not([aria-busy]) [role="status"]').waitFor();
   results.push({ state: "audit fragment injected HTTP 503", failureFeedbackVisible: true });
   await page.unrouteAll();
 
+  phase = "invalid import";
   await page.goto(`${workspace}/settings/import`, { waitUntil: "load" });
   await page.locator("#import-file").setInputFiles({ name: "invalid.csv", mimeType: "text/csv",
     buffer: Buffer.from("title,status\n,not-a-status\n") });
@@ -52,6 +55,7 @@ try {
   await page.locator('.import-preview [role="alert"]').waitFor();
   results.push({ state: "invalid CSV preview", validationFeedbackVisible: true });
 
+  phase = "delivery fixture";
   await page.goto(`${workspace}/settings/webhooks`, { waitUntil: "load" });
   await page.locator("#webhook-name").fill("State fixture");
   await page.locator("#webhook-url").fill(`http://127.0.0.1:${receiver.address().port}/hook`);
@@ -95,6 +99,7 @@ try {
     results.push({ state: `synthetic delivery ${name}`, observed });
   }
 
+  phase = "no-JavaScript fallback";
   const noJS = await browser.newContext({ baseURL, locale: "en-US", javaScriptEnabled: false,
     serviceWorkers: "block", storageState: await context.storageState() });
   const fallback = await noJS.newPage();
@@ -120,6 +125,7 @@ try {
     reachedLogin: new URL(denied.url()).pathname === "/login" });
   await anonymous.close();
 
+  phase = "viewer permissions";
   await page.goto(`${workspace}/settings/invitations`, { waitUntil: "load" });
   await page.locator("#invite-email").fill("viewer@example.com");
   await page.locator("#invite-role").selectOption("viewer");
@@ -152,17 +158,20 @@ try {
   }
   await viewerContext.close();
 
+  phase = "Spanish mobile accessibility";
   const mobile = await browser.newContext({ baseURL, locale: "es-ES", colorScheme: "dark",
     viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, serviceWorkers: "block",
     storageState: await context.storageState() });
+  await mobile.addInitScript({ path: axePath });
   const mobilePage = await mobile.newPage();
   await mobilePage.goto("/language?locale=es&return_to=%2F", { waitUntil: "load" });
   for (const screen of ["general", "email", "tokens", "provisioning", "webhooks", "audit", "import", "export"]) {
+    phase = `Spanish mobile ${screen} navigation`;
     const viewed = await mobilePage.goto(`${workspace}/settings/${screen}`, { waitUntil: "load" });
     assert.equal(viewed.status(), 200);
     await mobilePage.locator("main h1").waitFor();
     if (screen === "audit") await mobilePage.locator("#audit-table:not([data-lazy-src])").waitFor();
-    await mobilePage.addScriptTag({ path: axePath });
+    phase = `Spanish mobile ${screen} axe scan`;
     const state = await mobilePage.evaluate(async () => {
       const scan = await window.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } });
       return { lang: document.documentElement.lang, theme: document.documentElement.dataset.theme,
@@ -174,7 +183,7 @@ try {
   await mobile.close();
   console.log(JSON.stringify({ scenario: "isolated owner and viewer fixture; no timing metrics", results }, null, 2));
 } catch {
-  console.error("Administration state checks failed; inspect the isolated fixture locally without sharing logs.");
+  console.error(`Administration state checks failed during ${phase}; inspect locally without sharing logs.`);
   process.exitCode = 1;
 } finally {
   await browser.close();
