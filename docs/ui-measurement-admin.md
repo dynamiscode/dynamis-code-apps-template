@@ -8,6 +8,12 @@ partial baseline; no budgets or performance fixes are established.
 The separate `sh scripts/ui-measurement-admin.sh` command creates a temporary
 SQLite fixture and runs `scripts/ui-measurement-admin.mjs`. Install dependencies
 with `npm ci` and use the Chrome prerequisites in the common method first.
+The current harness builds the binaries, then starts bootstrap and server with
+an allowlisted environment through `scripts/ui-measurement-admin-env.sh`: a
+temporary SQLite database and local file store, a test-only webhook key,
+loopback HTTP, and `OTEL_SDK_DISABLED=true`. Caller storage, telemetry and mail
+provider settings are excluded. `node --test scripts/ui-measurement-admin-env.test.mjs`
+checks this boundary without starting the server or collecting measurements.
 It records cold and warm navigation to eight settings pages, with the same CDP
 network definitions as #446. Each cold navigation clears the HTTP cache after
 sign-in; warm repeats the same page. A single context is reused. Each interval
@@ -19,7 +25,10 @@ appears once in the browser but is never recorded. Deliveries navigation is
 measured cold and warm with an empty delivery list. The audit fragment is a
 separate warm `fetch` with the same header as `forms.js`, from an audit page
 loaded with `?all=1`; it is not a measurement of the automatic fetch or DOM
-swap. The import preview submits one synthetic CSV row without confirming it.
+swap. The harness also prepares an observation of the actual automatic audit
+request and DOM replacement, with a best-effort loading-indicator observation;
+that added instrumentation has not been executed. The import preview submits
+one synthetic CSV row without confirming it.
 The export download is saved only in Playwright's temporary browser directory.
 
 The fragment interval runs from immediately before `fetch` until its response
@@ -47,7 +56,7 @@ output and fixture conditions when results are collected.
 | General and email settings | Cold/warm navigation | Save, validation, failure and provider states |
 | Tokens and SCIM | Cold/warm navigation | Creation, revocation and one-time secret states |
 | Webhooks | Cold/warm navigation; empty deliveries navigation after synthetic creation | Populated, error and pending delivery states |
-| Audit | Cold/warm navigation; separate equivalent fragment fetch | Actual automatic fetch and DOM swap, loading/failure and no-JavaScript fallback |
+| Audit | Cold/warm navigation; separate equivalent synthetic warm fragment fetch | Newly prepared automatic fetch and DOM swap instrumentation, loading/failure and no-JavaScript fallback |
 | Import | Cold/warm navigation; one-row CSV preview | Validation, failure and confirmation |
 | Export | Cold/warm navigation; download and local decoded file size | Download transfer bytes and failure |
 
@@ -69,6 +78,15 @@ Go 1.27.4, Node 26.10.0, Chrome 157.0.8103.78 and Playwright 1.64.1:
 npm ci
 sh scripts/ui-measurement-admin.sh > /tmp/ui-448-measurement.json
 ```
+
+**Isolation caveat:** This run used the earlier harness, which inherited caller
+application configuration and did not set a temporary local file store. The
+session had `OTEL_EXPORTER_OTLP_ENDPOINT`, `STORAGE_DRIVER`, `STORAGE_LOCAL_PATH`,
+`SMTP_HOST` and `CLOUDFLARE_EMAIL_ACCOUNT_ID` unset, but other inherited settings
+were not fully inventoried. The default local store was not isolated. External
+export or provider inactivity is not verified; do not treat this run as a fully
+isolated baseline. The revised environment boundary has not been exercised by a
+measurement run.
 
 One unthrottled loopback run used a fresh temporary SQLite database: one owner,
 one workspace, no items and initially no webhooks. It added one synthetic

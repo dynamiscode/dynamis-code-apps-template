@@ -11,6 +11,15 @@ try {
   const context = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL,
     viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1, locale: "en-US",
     colorScheme: "light", reducedMotion: "reduce", serviceWorkers: "block" });
+  await context.addInitScript(() => {
+    window.auditLoadingObserved = false;
+    const observer = new MutationObserver(() => {
+      if (document.querySelector('#audit-table[aria-busy="true"] [role="status"]')) {
+        window.auditLoadingObserved = true;
+      }
+    });
+    observer.observe(document, { childList: true, subtree: true });
+  });
   const page = await context.newPage();
   await page.goto("/login");
   await page.getByLabel("Email").fill(process.env.PLAYWRIGHT_EMAIL);
@@ -70,6 +79,23 @@ try {
       stop();
     }
   }
+
+  // Observe the automatic request and replacement separately from the synthetic fetch below.
+  const [auditResponse] = await Promise.all([
+    page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname === `${workspace}/settings/audit` && url.searchParams.get("part") === "table";
+    }),
+    page.goto(`${workspace}/settings/audit`, { waitUntil: "load" }),
+  ]);
+  assert.equal(auditResponse.status(), 200, "automatic audit fragment failed");
+  await page.locator("#audit-table:not([data-lazy-src])").waitFor();
+  const auditSwap = await page.evaluate(() => ({ elapsedMs: performance.now(),
+    loadingObserved: window.auditLoadingObserved }));
+  const auditSizes = await auditResponse.request().sizes();
+  results.push({ interaction: "automatic audit fragment and DOM swap", cache: "warm",
+    ...auditSwap, responseHeaderBytes: auditSizes.responseHeadersSize,
+    responseBodyBytes: auditSizes.responseBodySize });
 
   // Request the same fragment as forms.js, separately from the navigation interval.
   await page.goto(`${workspace}/settings/audit?all=1`, { waitUntil: "load" });
