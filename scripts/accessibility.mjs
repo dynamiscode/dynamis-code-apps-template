@@ -119,8 +119,8 @@ try {
 	}
   const tree = await driver.sendAndGetDevToolsCommand("Accessibility.getFullAXTree");
   const names = locale === "es"
-    ? [["heading", "Elementos de Accessibility"], ["textbox", "Título del nuevo elemento"], ["button", "Añadir elemento"]]
-    : [["heading", "Accessibility items"], ["textbox", "New item title"], ["button", "Add item"]];
+    ? [["heading", "Elementos"], ["textbox", "Título del nuevo elemento"], ["button", "Añadir elemento"]]
+    : [["heading", "Items"], ["textbox", "New item title"], ["button", "Add item"]];
 	for (const [role, name] of names) {
 		if (!tree.nodes.some((node) => node.role?.value === role && node.name?.value === name)) {
 			throw new Error(`accessibility tree lacks ${role} named ${name}`);

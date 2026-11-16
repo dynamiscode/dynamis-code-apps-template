@@ -981,3 +981,18 @@ generates and commits Go output.
   accessibility tree checks passed), and `make template-smoke`.
 - Not run: full `make verify`; the ticket's focused, accessibility, and
   generated-app checks passed.
+
+## Items journey presentation evidence (2026-11-15)
+
+Ticket #376 aligns the Items page with the shared brand, adds a clear purpose
+heading and find/sort label, and improves responsive create and edit layouts.
+Active and complete states remain readable as text labels; query, form, edit,
+autosave, conflict, and destructive-action behavior stays on the existing
+server-rendered path.
+
+- Passed: focused Items, form-markup, and create-model tests; `make ux-smoke`
+  (42 checks); and `make accessibility-smoke` in English and Spanish (0 axe
+  violations; keyboard, focus, 320px reflow, reduced motion, and accessibility
+  tree checks passed).
+- Not run: full `make test` and `make verify`; no domain or persistence behavior
+  changed.

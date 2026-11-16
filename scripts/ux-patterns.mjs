@@ -75,6 +75,9 @@ try {
 
   // async-feedback: the Add button is busy while sending, a double press makes one item, a toast confirms.
   await driver.get(`${base}${workspace}/items`);
+  check(await js(() => document.querySelector("#main h1")?.textContent.trim() === "Items"), "items-journey: the page has a task-focused title");
+  check(await js(() => document.querySelector("#main")?.textContent.includes("View and manage workspace items.")), "items-journey: the page explains its purpose");
+  check(await js(() => document.querySelector(".client-filters summary")?.textContent.trim() === "Find and sort"), "items-journey: filter and sort controls are discoverable");
   await js(() => {
     window.__busy = false;
     new MutationObserver(() => {
@@ -87,10 +90,10 @@ try {
     button.click();
     button.click();
   });
-  await waitFor(() => document.querySelector(".toasts .toast") && document.querySelector("#item-list li"), "add toast and new row");
+  await waitFor(() => document.querySelector(".toasts .toast") && document.querySelector("#item-list .item-list-view tbody tr"), "add toast and new row");
   await driver.sleep(300); // let a duplicate request, if any, land before counting
   check(await js(() => window.__busy), "async-feedback: the Add button is disabled while sending");
-  const firstCount = await js(() => [...document.querySelectorAll("#item-list li input[name=title]")].filter((el) => el.value === "First item").length);
+  const firstCount = await js(() => [...document.querySelectorAll("#item-list .item-list-view tbody tr input[name=title]")].filter((el) => el.value === "First item").length);
   check(firstCount === 1, `item-create-submission: a double press makes one item (found ${firstCount})`);
   check(await js(() => document.querySelector(".toasts .toast").textContent.includes("Item added.")), "async-feedback: a toast confirms the add");
   check(await js(() => document.querySelector("#new-title").value === ""), "item-create-submission: the box is empty after a save");
@@ -100,10 +103,10 @@ try {
   await typeInto("#new-title", "   ");
   await find("#new-title").sendKeys(Key.ENTER);
   check(await js(() => document.activeElement?.classList.contains("error-summary")), "form-field-input: the error summary takes focus");
-  check(await js(() => document.querySelectorAll("#item-list li input[name=title]").length === 1), "form-field-input: an invalid add sends nothing");
+  check(await js(() => document.querySelectorAll("#item-list .item-list-view tbody tr input[name=title]").length === 1), "form-field-input: an invalid add sends nothing");
 
   // form-drafts: Save is enabled only after a change.
-  const row = "#item-list li form[data-dirty-track]";
+  const row = "#item-list .item-list-view tbody tr form[data-dirty-track]";
   check(await js((sel) => document.querySelector(`${sel} button[value=update]`).disabled, row), "form-drafts: Save starts disabled");
   await find(`${row} input[name=title]`).sendKeys(" edited");
   check(await js((sel) => !document.querySelector(`${sel} button[value=update]`).disabled, row), "form-drafts: Save enables after a change");
@@ -116,18 +119,18 @@ try {
     select.dispatchEvent(new Event("change", { bubbles: true }));
   }, row);
   await waitFor(() => document.querySelector(".toasts .toast"), "autosave toast");
-  check(await js(() => document.querySelector("#item-list select[name=status]").value === "complete"), "async-feedback: autosave keeps the new status");
+  check(await js((sel) => document.querySelector(`${sel} select[name=status]`).value === "complete", row), "async-feedback: autosave keeps the new status");
 
   // async-feedback: optimistic delete hides the row at once.
   await js(() => { window.confirm = () => true; });
   const hiddenAtOnce = await js(() => {
     const button = document.querySelector("#item-list button[value=delete]");
-    const li = button.closest("li");
+    const row = button.closest("tr");
     button.click();
-    return li.dataset.optimistic === "hidden";
+    return row.dataset.optimistic === "hidden";
   });
   check(hiddenAtOnce, "async-feedback: delete hides the row before the answer");
-  await waitFor(() => document.querySelectorAll("#item-list li input[name=title]").length === 0, "row removed");
+  await waitFor(() => document.querySelectorAll("#item-list .item-list-view tbody tr input[name=title]").length === 0, "row removed");
   check(true, "async-feedback: the row is gone after the answer");
 
   // form-drafts: an unsent invitation survives leaving the page.

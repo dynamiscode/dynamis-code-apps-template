@@ -103,6 +103,7 @@
   "items.title": "Título",
   "items.new_title": "Título del nuevo elemento",
   "items.add": "Añadir elemento",
+  "items.list_controls": "Buscar y ordenar",
   "items.status": "Estado",
   "items.search": "Buscar títulos",
   "items.sort": "Orden",
