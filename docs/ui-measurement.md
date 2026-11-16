@@ -48,8 +48,9 @@ request starts from navigation until the home marker is visible and timing is
 read after the load event, including redirects; completed encoded
 bytes sum `Network.loadingFinished.encodedDataLength` in that interval.
 Unfinished requests, including long-lived streams, are counted separately and
-their bytes are unavailable. Redirect bytes may be incomplete; failures and
-redirects are reported, as are CDP cache-served events. Timings are Navigation Timing milliseconds from
+their bytes are unavailable. Redirect bytes may be incomplete; HTTP responses
+with status 400 or higher and transport failures are counted separately.
+Redirects and CDP cache-served events are also reported. Timings are Navigation Timing milliseconds from
 navigation start to DOMContentLoaded and load. This is one unthrottled run,
 not an aggregate or a complete per-screen baseline. Adapt the script for each
 interaction and report its exact command and boundaries; HTMX, SSE, uploads,

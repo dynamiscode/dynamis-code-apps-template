@@ -25,7 +25,7 @@ web-conformance:
 	./scripts/check-web-conformance.sh
 
 test-unit:
-	node --test internal/web/assets/*.test.mjs
+	node --test internal/web/assets/*.test.mjs scripts/ui-measurement-network.test.mjs
 
 test-postgres:
 	set -e; \

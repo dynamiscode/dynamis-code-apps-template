@@ -3,6 +3,7 @@ import os from "node:os";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { chromium } from "playwright";
+import { observeNetwork } from "./ui-measurement-network.mjs";
 
 const browser = await chromium.launch({ channel: "chrome" });
 try {
@@ -29,32 +30,7 @@ try {
   await cdp.send("Network.clearBrowserCache");
 
   async function measure(cache) {
-    const pending = new Map();
-    let requests = 0;
-    let redirects = 0;
-    let failed = 0;
-    let cacheHits = 0;
-    let encodedBytes = 0;
-    const started = (event) => {
-      requests++;
-      if (event.redirectResponse) redirects++;
-      pending.set(event.requestId, event.type);
-    };
-    const finished = (event) => {
-      if (!pending.has(event.requestId)) return;
-      encodedBytes += event.encodedDataLength;
-      pending.delete(event.requestId);
-    };
-    const failure = (event) => {
-      if (!pending.has(event.requestId)) return;
-      failed++;
-      pending.delete(event.requestId);
-    };
-    const cached = () => { cacheHits++; };
-    cdp.on("Network.requestWillBeSent", started);
-    cdp.on("Network.loadingFinished", finished);
-    cdp.on("Network.loadingFailed", failure);
-    cdp.on("Network.requestServedFromCache", cached);
+    const stop = observeNetwork(cdp);
     try {
       const response = await page.goto(path, { waitUntil: "load" });
       assert.equal(response.status(), 200);
@@ -63,14 +39,11 @@ try {
         const entry = performance.getEntriesByType("navigation")[0];
         return { domContentLoadedMs: entry.domContentLoadedEventEnd, loadMs: entry.loadEventEnd };
       });
-      assert.ok(requests > 0 && timing.loadMs > 0, "navigation metrics missing");
-      return { cache, requests, redirects, failed, cacheHits, completedEncodedBytes: encodedBytes,
-        unfinished: pending.size, timing };
+      const network = stop();
+      assert.ok(network.requests > 0 && timing.loadMs > 0, "navigation metrics missing");
+      return { cache, ...network, timing };
     } finally {
-      cdp.off("Network.requestWillBeSent", started);
-      cdp.off("Network.loadingFinished", finished);
-      cdp.off("Network.loadingFailed", failure);
-      cdp.off("Network.requestServedFromCache", cached);
+      stop();
     }
   }
 
