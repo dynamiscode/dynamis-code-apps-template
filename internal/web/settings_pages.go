@@ -16,8 +16,8 @@ func (h *Handler) renderSettingsPage(
 	data pageData,
 	component func(pageData) templ.Component,
 ) {
-	data.FilesEnabled = h.files != nil
-	data.ClientsEnabled = h.clients != nil
+	data.FilesEnabled = h.template.Lookup("files.html") != nil
+	data.ClientsEnabled = h.template.Lookup("clients.html") != nil
 	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
 	h.localizePage(writer, &data)
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
