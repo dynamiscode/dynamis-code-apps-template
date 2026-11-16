@@ -42,6 +42,14 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 	if err != nil || !strings.Contains(string(readme), "# My Application") {
 		t.Fatalf("generated README = %q, error = %v", readme, err)
 	}
+	web, err := os.ReadFile(filepath.Join(output, "docs/web.md"))
+	if err != nil || !strings.Contains(string(web), "capabilities.md#shared-navigation-migration-evidence-434-2026-11-16") {
+		t.Fatalf("generated web contract lacks navigation evidence link: %v", err)
+	}
+	capabilities, err := os.ReadFile(filepath.Join(output, "docs/capabilities.md"))
+	if err != nil || !strings.Contains(string(capabilities), "## Shared navigation migration evidence (#434, 2026-11-16)") {
+		t.Fatalf("generated no-Files capabilities lacks navigation evidence: %v", err)
+	}
 	for _, path := range []string{"cmd/appctl", "internal/appctl", "internal/mcpserver"} {
 		if _, err := os.Stat(filepath.Join(output, path)); err != nil {
 			t.Fatalf("generated Agent path %s missing: %v", path, err)
@@ -154,6 +162,28 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 	}
 	if _, err := parseProfiles("Identity"); err == nil {
 		t.Fatal("profile selection accepted Identity without Core")
+	}
+}
+
+func TestNavigationEvidenceLinkWithoutFiles(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	web, err := os.ReadFile(filepath.Join(root, "docs/web.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	capabilities, err := os.ReadFile(filepath.Join(root, "docs/capabilities.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	generatedWeb := string(disableFilesSource("docs/web.md", web))
+	generatedCapabilities := string(disableFilesSource("docs/capabilities.md", capabilities))
+	if !strings.Contains(generatedWeb, "capabilities.md#shared-navigation-migration-evidence-434-2026-11-16") ||
+		!strings.Contains(generatedCapabilities, "## Shared navigation migration evidence (#434, 2026-11-16)") {
+		t.Fatal("generated no-Files profile has a broken navigation evidence link")
+	}
+	if strings.Contains(generatedCapabilities, "## Files evidence") {
+		t.Fatal("generated no-Files profile retains Files evidence")
 	}
 }
 

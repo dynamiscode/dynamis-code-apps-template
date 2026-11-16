@@ -655,6 +655,22 @@ which is `accepted`.
   `go generate ./api` produced no drift on two runs; `go test -p 1 -count=1 ./...` with
   `POSTGRES_TEST_URL` passed against a fresh `postgres:14.24-alpine3.24` container.
 
+## Shared navigation migration evidence (#434, 2026-11-16)
+
+Shared navigation renders through templ, with an escaped bridge for remaining
+`html/template` pages. Focused bridge and route tests cover active state, role
+visibility, translated script messages, and logout CSRF escaping.
+
+- Passed: 15 focused web tests, `go vet ./internal/web`, `make templ-check`,
+  and `git diff --check`.
+- Passed: `./scripts/playwright-smoke.sh ui.spec.mjs` (10 checks), including
+  workspace selection and home snapshots on desktop and mobile in light and
+  dark themes, the Items journey, and Spanish workspace creation without JavaScript.
+- Passed: `npm run test:a11y` against an isolated server in English and Spanish;
+  zero axe violations on covered routes, with keyboard, focus, 320px reflow,
+  reduced-motion, and accessibility-tree checks.
+- Not run: full test and verification suites, deferred while PR checks run.
+
 ## Files evidence
 
 Files metadata migration and workspace authorization, local filesystem uploads

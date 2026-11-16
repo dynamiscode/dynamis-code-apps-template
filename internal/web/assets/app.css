@@ -159,6 +159,7 @@ main h2:not(.visually-hidden) { margin: 1.5rem 0 .75rem; font-size: 1.375rem; li
 .auth-provider-list .button { text-align: center; }
 .breakable { overflow-wrap: anywhere; }
 .brand { display: inline-flex; align-items: center; gap: .55rem; font-weight: 800; text-decoration: none; }
+.brand:not(:has(.brand-mark))::before { width: 1.5rem; height: 1.5rem; flex: none; border-radius: var(--brand-radius); content: ""; background: radial-gradient(circle, transparent 26%, var(--on-accent) 28% 36%, transparent 38%), linear-gradient(135deg, var(--accent), var(--accent-hover)); }
 .brand-mark { position: relative; width: 1.5rem; height: 1.5rem; flex: none; border-radius: var(--brand-radius); background: linear-gradient(135deg, var(--accent), var(--accent-hover)); }
 .brand-mark::after { position: absolute; inset: .38rem; content: ""; border: 2px solid var(--on-accent); border-radius: 50%; }
 .button { display: inline-flex; align-items: center; min-height: 2.75rem; padding: .45rem .65rem; border-radius: .25rem; background: var(--accent); color: var(--on-accent); font-weight: 700; text-decoration: none; }

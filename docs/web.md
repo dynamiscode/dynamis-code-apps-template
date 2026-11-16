@@ -283,6 +283,24 @@ route families and major states are listed below. This keeps the existing
 escaping, HTMX fragment boundaries, ordinary-form fallbacks, and route tests
 intact until each family can move with behavior parity.
 
+Shared navigation uses `navigation.templ`. The named definitions in
+`navigation.html` bridge remaining `html/template` callers to the same escaped
+components; remove each bridge when its final caller migrates. The workspace
+shell composes those components directly.
+
+| Navigation surface | Decision and evidence | Route owner |
+|---|---|---|
+| Script messages and skip link | Shared on authenticated, auth, public, and error pages; `TestLegacyNavigationBridge` checks escaping and message placeholders | #434; page migrations remain separate |
+| Workspace context and breadcrumbs | Single mode omits workspace selection; multi mode retains the native switcher and ordinary links; `TestSingleModeHidesWorkspaceListNavigation` and `TestMultiModeKeepsWorkspaceListNavigation` | #410 and #434 |
+| Workspace and settings navigation | Home, Items, Clients, Files and settings retain feature and role gates; `TestWebNavigationAndActionFeedback` checks current pages and settings | #434; resource routes remain separate |
+| Member and invitation tabs | Both retain ordinary links and current-page state; `TestWebNavigationAndActionFeedback` | #434; member and invitation pages remain separate |
+| Account menu | Native disclosure and CSRF-protected logout remain; `TestLegacyNavigationBridge` checks escaping | #434; account pages remain separate |
+
+Empty, validation, pending and error states belong to the page routes above;
+navigation remains present when those pages render it. Focused browser and
+accessibility results and remaining limits are recorded in
+[shared navigation migration evidence](capabilities.md#shared-navigation-migration-evidence-434-2026-11-16).
+
 | Route family | Views and shared templates | Major states covered |
 |---|---|---|
 | `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |

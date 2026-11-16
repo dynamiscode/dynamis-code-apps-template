@@ -9,32 +9,10 @@ templ dashboardShell(data pageData, header, navigation templ.Component) {
 			<title>{ data.Title } · { data.T("common.product_name") }</title>
 			<link rel="stylesheet" href="/assets/components.css"/>
 			<link rel="stylesheet" href="/assets/app.css"/>
-			<script defer src="/assets/forms.js"
-				data-msg-saving={ data.T("ui.saving") }
-				data-msg-loading={ data.T("ui.loading") }
-				data-msg-load-failed={ data.T("ui.load_failed") }
-				data-msg-error-summary={ data.T("ui.error_summary") }
-				data-msg-unsaved={ data.T("ui.unsaved") }
-				data-msg-updates-waiting={ data.T("ui.updates_waiting") }
-				data-msg-show-password={ data.T("ui.show_password") }
-				data-msg-hide-password={ data.T("ui.hide_password") }
-				data-msg-strength={ data.T("ui.strength") }
-				data-msg-strength-0={ data.T("ui.strength_0") }
-				data-msg-strength-1={ data.T("ui.strength_1") }
-				data-msg-strength-2={ data.T("ui.strength_2") }
-				data-msg-strength-3={ data.T("ui.strength_3") }
-				data-msg-strength-4={ data.T("ui.strength_4") }
-				data-msg-mismatch={ data.T("ui.mismatch") }
-				data-msg-next={ data.T("ui.next") }
-				data-msg-back={ data.T("ui.back") }
-				data-msg-draft-restored={ data.T("ui.draft_restored") }
-				data-msg-discard-draft={ data.T("ui.discard_draft") }
-				data-msg-dismiss={ data.T("ui.dismiss") }
-				data-msg-request-failed={ data.T("ui.request_failed") }
-				data-msg-step-of={ data.T("ui.step_of", map[string]any{"step": "{step}", "total": "{total}"}) }></script>
+			@uiHead(data)
 		</head>
 		<body class={ templ.KV("dashboard-workspace", navigation != nil) } data-workspace-home?={ data.NavPage == "workspace" } data-webmcp-page={ data.NavPage }>
-			<a class="skip-link" href="#main">{ data.T("ui.skip_to_content") }</a>
+			@skipLink(data)
 			@header
 			<div class={ templ.KV("app-shell", navigation != nil) }>
 				if navigation != nil {
@@ -51,80 +29,28 @@ templ dashboardShell(data pageData, header, navigation templ.Component) {
 	</html>
 }
 
-// dashboardHeader is a temporary adapter until shared navigation is available.
 templ dashboardHeader(data pageData) {
-			<header class="topbar">
-				<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
-				<div class="topbar-context">
-					if data.NavPage == "home" {
-						<span>{ data.T("workspace.workspaces") }</span>
-					} else {
-					if !data.SingleWorkspace {
-						<a href="/">{ data.T("workspace.workspaces") }</a><span aria-hidden="true">/</span>
-					}
-					if data.SingleWorkspace {
-						<span class="workspace-name">{ data.Workspace.Name }</span>
-					} else {
-						<details class="workspace-switcher">
-							<summary>{ data.Workspace.Name }</summary>
-							<div class="workspace-switcher-panel">
-								<span class="nav-label">{ data.T("navigation.home") }</span>
-								for _, workspace := range data.Workspaces {
-									if workspace.ID == data.Workspace.ID {
-										<a href={ "/workspaces/" + workspace.ID.String() } aria-current="page">
-											<strong>{ workspace.Name }</strong><span>{ data.Role(workspace.Role) }</span>
-										</a>
-									} else {
-										<a href={ "/workspaces/" + workspace.ID.String() }>
-											<strong>{ workspace.Name }</strong><span>{ data.Role(workspace.Role) }</span>
-										</a>
-									}
-								}
-								<a href="/">{ data.T("workspace.workspaces") }</a>
-							</div>
-						</details>
-					}
-					}
-				</div>
-				<details class="account-menu">
-					<summary>{ data.T("common.account") }</summary>
-					<div class="account-menu-panel">
-						<a href="/account">{ data.T("account.account") }</a>
-						<a href="/notifications">{ data.T("notifications.notifications") }</a>
-						<a href="/settings/language">{ data.T("account.language_settings") }</a>
-						<a href="/security">{ data.T("navigation.security") }</a>
-						<a href="/sessions">{ data.T("navigation.sessions") }</a>
-						<form action="/logout" method="post">
-							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							<button class="secondary" type="submit">{ data.T("navigation.sign_out") }</button>
-						</form>
-					</div>
-				</details>
-			</header>
+	<header class="topbar">
+		<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
+		<div class="topbar-context">
+			if data.NavPage == "home" {
+				<span>{ data.T("workspace.workspaces") }</span>
+			} else {
+				@workspaceListCrumb(data)
+				@workspaceContext(data)
+			}
+		</div>
+		@accountMenu(data)
+	</header>
 }
 
-// dashboardHomeNavigation is the temporary adapter until shared navigation is available.
 templ dashboardHomeNavigation(data pageData) {
-				<aside class="sidebar">
-					if !data.SingleWorkspace {
-						<a class="sidebar-back" href="/">← { data.T("workspace.back_to_workspaces") }</a>
-					}
-					<nav class="sidebar-nav" aria-label={ data.T("navigation.workspace_navigation") }>
-						<span class="nav-label">{ data.T("common.workspace") }</span>
-						<a class="active" aria-current="page" href={ "/workspaces/" + data.Workspace.ID.String() }>{ data.T("navigation.home") }</a>
-						<a href={ "/workspaces/" + data.Workspace.ID.String() + "/items" }>{ data.T("navigation.items") }</a>
-						if data.ClientsEnabled {
-							<a href={ "/workspaces/" + data.Workspace.ID.String() + "/clients" }>{ data.T("clients.title") }</a>
-						}
-						if data.FilesEnabled {
-							<a href={ "/workspaces/" + data.Workspace.ID.String() + "/files" }>{ data.T("files.files") }</a>
-						}
-						<div class="sidebar-settings">
-							<span class="nav-label">{ data.T("navigation.settings") }</span>
-							<a href={ "/workspaces/" + data.Workspace.ID.String() + "/settings" }>{ data.T("navigation.settings") }</a>
-						</div>
-					</nav>
-				</aside>
+	<aside class="sidebar">
+		if !data.SingleWorkspace {
+			<a class="sidebar-back" href="/">← { data.T("workspace.back_to_workspaces") }</a>
+		}
+		@workspaceNav(data)
+	</aside>
 }
 
 templ workspaceSelection(data pageData) {
@@ -158,7 +84,6 @@ templ workspaceSelection(data pageData) {
 		}
 	}
 }
-
 templ workspaceHome(data pageData) {
 	@dashboardShell(data, dashboardHeader(data), dashboardHomeNavigation(data)) {
 					@pageHeading(data.Workspace.Name, data.T("workspace.home"))
