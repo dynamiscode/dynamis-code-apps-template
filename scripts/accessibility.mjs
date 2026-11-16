@@ -72,8 +72,14 @@ try {
     ["provisioning", "SCIM provisioning"],
     ["audit", "audit history"],
   ]) {
+    console.log(`checking ${settingsName} (${locale})`);
     await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/settings/${settingsPath}`);
-    await driver.wait(until.elementLocated(By.css("main h1")), 5000);
+    try {
+      await driver.wait(until.elementLocated(By.css("main h1")), 5000);
+    } catch (error) {
+      console.error(`failed URL: ${await driver.getCurrentUrl()}\n${await driver.findElement(By.css("body")).getText()}`);
+      throw error;
+    }
     await audit(settingsName);
   }
   await driver.get(`${baseURL}${workspacePath}/settings/general`);
@@ -253,6 +259,7 @@ async function audit(name) {
   console.log(`${name}: ${results.violations.length} violations, ${blocking.length} critical/serious`);
   for (const violation of blocking) {
     console.error(`${name}: ${violation.impact} ${violation.id}: ${violation.help}`);
+    console.error(violation.nodes.map((node) => `${node.target.join(" ")}: ${node.failureSummary}`).join("\n"));
   }
   failed ||= blocking.length > 0;
 }

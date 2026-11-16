@@ -1051,7 +1051,6 @@ SCIM credential notices explain one-time display and replacement or rotation.
 Authorization checks, secret storage/display behavior, no-store responses, and
 WebMCP exclusions remain in the existing handlers.
 
-- Passed: focused settings and secret-lifecycle tests, `go test ./internal/web ./internal/i18n -count=1` (162 tests), and `make lint`. The new settings-page audits reported zero violations in English and Spanish.
-- Full `make accessibility-smoke` reached existing client-flow checks but failed on the Spanish client page's target size and client creation wait; #377 is changing that page. Re-run after stacking on #377.
-- `make ux-smoke` failed in the existing Items flow because its stale `#item-list li` selector does not match the current table rows; #376 updates those assertions. Re-run after stacking on #376.
+- Passed: focused settings and secret-lifecycle tests, `go test ./internal/web ./internal/i18n -count=1` (162 tests), `make lint`, `make ux-smoke` (42 checks), and `make accessibility-smoke` in English and Spanish (zero axe violations; all covered settings and browser journeys passed).
+- The isolated accessibility smoke server uses higher request limits so its complete route audit does not hit production defaults.
 - Not run: full `make test` and `make verify`.
