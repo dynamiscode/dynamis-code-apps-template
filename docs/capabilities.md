@@ -1157,14 +1157,16 @@ and responsive table treatment. Route-only JavaScript preserves dirty item
 rows across list swaps and retains submitted values on edit validation errors.
 
 - Passed: focused Items list/preferences and locale/theme Go tests; 6 Items
-  JavaScript regression tests; `make vet generate-check js-check`; and the
-  static, generated-template, and 33 Node-test steps in `make ci-local`.
+  JavaScript regression tests; `make vet generate-check js-check`; all packages
+  in `go test -race ./...`; `go mod verify`; API/template generation checks;
+  and `make css-check`. Static checks and all 33 Node tests in `make ci-local`
+  also passed.
 - Passed: bounded spec and standards reviews found no code defects; the
   standards review's documentation finding is resolved in the route inventory
   above and this evidence record.
-- Pending: full `go test -race ./...` and `make ci-local` completion, full
-  template/CSS checks, Playwright journeys and screenshot baselines, and final
-  validation after upstream reconciliation.
+- Pending: successful normal-hook dry-run after pinned npm dependencies were
+  installed; Playwright journeys and screenshot baselines; and final validation
+  after upstream reconciliation.
 
 ## Notification center UX evidence (2026-11-15)
 
