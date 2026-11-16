@@ -95,9 +95,13 @@ test("general and email settings are keyboard reachable and pass axe", async ({ 
   await page.keyboard.press("Tab");
   await expect(page.locator("#email-sender-name")).toBeFocused();
 
+  await page.route("**/__test/axe.js", (route) => route.fulfill({
+    contentType: "application/javascript",
+    body: axe.source,
+  }));
   for (const section of ["general", "email"]) {
     await page.goto(`${workspacePath}/settings/${section}`);
-    await page.addScriptTag({ content: axe.source });
+    await page.addScriptTag({ url: new URL("/__test/axe.js", process.env.PLAYWRIGHT_BASE_URL).href });
     const violations = await page.evaluate(async () => {
       const results = await window.axe.run(document, {
         runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
