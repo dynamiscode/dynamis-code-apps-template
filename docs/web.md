@@ -97,11 +97,12 @@ Baseline browser surfaces:
   ID; malformed, unknown, and integer-key IDs return not-found. Browsers with
   JavaScript send the same form in one request to that route through a client-side
   `FileUploader` state machine (IDLE, UPLOADING, SUCCESS, and ERROR phases). The
-  button and file input stay locked while the request is in flight, and a polite
-  live region reports success or the server's safe message for an oversize file,
-  a full workspace, or an invalid file. The form works without JavaScript. Uploads
-  stream through the app for local and S3 storage; S3 downloads redirect to a
-  short-lived private URL, and local downloads stream through the app.
+  button and file input stay locked while the request is in flight. A native
+  progress control reports computable byte progress; a polite live region
+  announces quarter milestones, success, and localized safe errors for an
+  oversize file, a full workspace, or an invalid file. The form works without
+  JavaScript. Uploads stream through the app for local and S3 storage; S3 downloads
+  redirect to a short-lived private URL, and local downloads stream through the app.
 - `/workspaces/{workspaceId}/settings/export` presents the authorized export screen;
   its `Download JSON` link downloads the export from
   `/workspaces/{workspaceId}/settings/export/download`.

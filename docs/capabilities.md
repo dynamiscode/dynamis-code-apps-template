@@ -1009,3 +1009,20 @@ are visible next to their controls, including without JavaScript.
   keyboard, focus, 320px reflow, reduced-motion, and accessibility-tree checks).
 - Not run: full `make verify`; this ticket's web, lint, and accessibility checks
   passed.
+
+## File management progress and localization evidence (2026-11-15)
+
+Ticket #378 adds determinate byte progress to the existing single-request
+multipart upload, while retaining the ordinary form fallback. The native
+progress element tracks computable upload events; the polite status announces
+quarter milestones. Phase messages and safe server errors follow the selected
+English or Spanish locale. File filters, sorting, pagination, responsive table
+and card views, and workspace-authorized download routes remain in use.
+
+- Passed: `go test ./internal/web -count=1` (160 tests), `make test-unit` (25
+  tests), `make lint`, `node --check internal/web/assets/app.js`, and
+  `node --check scripts/accessibility.mjs`.
+- Passed: `make accessibility-smoke` in English and Spanish (zero axe
+  violations; files page, named progress control, keyboard/focus, and 320px
+  reflow checks passed).
+- Not run: full `make test` and `make verify`.

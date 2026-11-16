@@ -158,7 +158,7 @@ func (h *Handler) filesPage(writer http.ResponseWriter, request *http.Request) {
 	h.renderFilesPage(writer, request, http.StatusOK, "")
 }
 
-func (h *Handler) renderFilesPage(writer http.ResponseWriter, request *http.Request, status int, message string) {
+func (h *Handler) renderFilesPage(writer http.ResponseWriter, request *http.Request, status int, errorKey string) {
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.ResourcesRead)
 	if !ok {
@@ -207,7 +207,7 @@ func (h *Handler) renderFilesPage(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 	h.render(writer, status, "files.html", pageData{
-		Title: "Files", NavPage: "files", NavSection: "workspace", CSRF: csrf, Error: message,
+		Title: "Files", NavPage: "files", NavSection: "workspace", CSRF: csrf, ErrorKey: errorKey,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		Files: page.Files, CurrentPath: h.filesPath(workspaceID), NextCursor: page.NextCursor,
 		NextPath:          fileNextPath(request.URL.Path, request.URL.Query(), page.NextCursor),
@@ -265,10 +265,10 @@ func (h *Handler) filesUpload(writer http.ResponseWriter, request *http.Request)
 	if err := request.ParseMultipartForm(uploadMultipartMemory); err != nil {
 		var maxBytesErr *http.MaxBytesError
 		if errors.As(err, &maxBytesErr) {
-			h.renderFilesError(writer, request, "The file exceeds the per-file size limit.")
+			h.renderFilesError(writer, request, "files.error_oversize")
 			return
 		}
-		h.renderFilesError(writer, request, "Choose a supported file to upload.")
+		h.renderFilesError(writer, request, "files.error_choose")
 		return
 	}
 	// ParseMultipartForm fills the form values; ParseForm would not read the CSRF field here.
@@ -278,28 +278,28 @@ func (h *Handler) filesUpload(writer http.ResponseWriter, request *http.Request)
 	}
 	upload, header, err := request.FormFile("file")
 	if err != nil {
-		h.renderFilesError(writer, request, "Choose a supported file to upload.")
+		h.renderFilesError(writer, request, "files.error_choose")
 		return
 	}
 	defer upload.Close()
 	if _, err := h.files.Upload(request.Context(), principal, workspaceID, header.Filename, upload, auditContext(request)); err != nil {
-		message := "The file could not be uploaded."
+		errorKey := "files.error_upload"
 		switch {
 		case errors.Is(err, appfiles.ErrObjectLimit):
-			message = "The file exceeds the per-file size limit."
+			errorKey = "files.error_oversize"
 		case errors.Is(err, appfiles.ErrLimit):
-			message = "The workspace file storage limit was reached."
+			errorKey = "files.error_workspace_limit"
 		case errors.Is(err, appfiles.ErrInvalidInput):
-			message = "The selected file is invalid."
+			errorKey = "files.error_invalid"
 		}
-		h.renderFilesError(writer, request, message)
+		h.renderFilesError(writer, request, errorKey)
 		return
 	}
 	h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/files")
 }
 
-func (h *Handler) renderFilesError(writer http.ResponseWriter, request *http.Request, message string) {
-	h.renderFilesPage(writer, request, http.StatusUnprocessableEntity, message)
+func (h *Handler) renderFilesError(writer http.ResponseWriter, request *http.Request, errorKey string) {
+	h.renderFilesPage(writer, request, http.StatusUnprocessableEntity, errorKey)
 }
 
 func (h *Handler) fileDownload(writer http.ResponseWriter, request *http.Request) {
