@@ -27,10 +27,11 @@ system preference. The scoped run and reproduction command are recorded in
 [administration measurement evidence](ui-measurement-admin.md#state-and-attribution-checks).
 [Issue #425](https://github.com/dynamiscode/dynamis-code-apps-template/issues/425)
 owns the follow-up. The overflow region now has a keyboard tab stop and an
-accessible name. The regression is covered by the audit route test; the
-automated browser scan has not been rerun. The earlier results below remain
-historical observations and do not establish current accessibility
-conformance. Automated scanning is not a full accessibility audit.
+accessible name. The regression is covered by the audit route test. The audit
+page axe smoke now passes in English and Spanish with zero violations. The
+earlier results below remain historical observations and do not establish
+current accessibility conformance. Automated scanning is not a full
+accessibility audit.
 
 The axe pass also covers the client list, a client page, the custom-fields page,
 the files page, recipient notification center, public share, and MCP OAuth
