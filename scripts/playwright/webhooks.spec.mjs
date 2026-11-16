@@ -12,7 +12,7 @@ async function openWorkspace(page) {
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL(new URL("/", process.env.PLAYWRIGHT_BASE_URL).href);
-  await page.locator(".cards a").first().click();
+  await page.getByRole("link", { name: /^UI Baselines/ }).click();
   await expect(page.locator("[data-workspace-home]")).toBeVisible();
   return new URL(page.url()).pathname;
 }
