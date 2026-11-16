@@ -145,3 +145,25 @@ dark theme, item request failure, SSE disconnect/reconnect and upload progress
 need dedicated scenarios. These are not zero measurements. #447 remains
 partial until those scenarios and per-screen script/duplicate classification
 are assessed. No performance budget is established.
+
+## Prepared follow-up scenarios
+
+`UI_MEASURE=gaps PLAYWRIGHT_PORT=58147 ./scripts/playwright-smoke.sh` prepares
+an isolated run for Item, Client, File and Member filtering, required-field
+validation, Client unarchive/delete, invitation resend, Item creation without
+JavaScript, and a mobile Spanish dark-theme Item navigation. It uses the same
+temporary database, local storage and disabled email delivery as the interaction
+run. The mobile case sets the Spanish locale cookie before clearing the HTTP
+cache. The script prints only aggregate network metrics, locale, theme canvas,
+and boolean state checks; it does not print response bodies or invitation links.
+It has been syntax-checked but has not yet run: selectors, state assertions,
+conditions and results must be verified in a clean measurement window.
+
+Member role, removal and transfer measurements are feasible after adding a
+second synthetic user and membership. SSE reconnection, Item failure, upload
+progress, Client field changes, pagination, permission failures and remaining
+locale and viewport combinations also need runnable scenarios; they are not
+inherently unavailable. The existing download byte count is unavailable only
+from the current CDP completed-request observer because Chrome hands the
+response to its download manager. Stream bytes and redirect bytes likewise need
+different instrumentation; do not interpret the existing missing values as zero.

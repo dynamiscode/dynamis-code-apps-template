@@ -43,6 +43,8 @@ elif [ "${UI_MEASURE:-0}" = workspace ]; then
   node scripts/ui-measurement-workspace.mjs
 elif [ "${UI_MEASURE:-0}" = interactions ]; then
   node scripts/ui-measurement-interactions.mjs
+elif [ "${UI_MEASURE:-0}" = gaps ]; then
+  node scripts/ui-measurement-gaps.mjs
 else
   npm run test:journeys -- "$@"
 fi
