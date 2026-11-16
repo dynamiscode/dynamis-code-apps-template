@@ -27,6 +27,11 @@ var (
 
 const FormatVersion = "dynamis-code.workspace/v1"
 
+const (
+	importPreviewSampleLimit = 5
+	importPreviewIssueLimit  = 10
+)
+
 type Export struct {
 	FormatVersion string       `json:"formatVersion"`
 	ExportedAt    time.Time    `json:"exportedAt"`
@@ -168,6 +173,37 @@ type ImportResult struct {
 	Imported int `json:"imported"`
 }
 
+type ImportIssue struct {
+	Record int
+	Field  string
+}
+
+type ImportPreview struct {
+	RecordCount int
+	Sample      []items.ImportItem
+	Issues      []ImportIssue
+	IssueCount  int
+}
+
+func (s *Service) Preview(
+	ctx context.Context,
+	actor identity.Principal,
+	workspaceID identity.WorkspaceID,
+	input ImportInput,
+) (ImportPreview, error) {
+	if _, err := s.identity.AuthorizePrincipal(ctx, actor, workspaceID, identity.WorkspaceUpdate); err != nil {
+		return ImportPreview{}, identity.ErrForbidden
+	}
+	records, issues, err := s.parseImportPreview(input)
+	if err != nil {
+		return ImportPreview{}, err
+	}
+	preview := ImportPreview{RecordCount: len(records), IssueCount: len(issues)}
+	preview.Sample = records[:min(len(records), importPreviewSampleLimit)]
+	preview.Issues = issues[:min(len(issues), importPreviewIssueLimit)]
+	return preview, nil
+}
+
 func (s *Service) Import(
 	ctx context.Context,
 	actor identity.Principal,
@@ -211,15 +247,26 @@ func (s *Service) Import(
 }
 
 func (s *Service) parseImport(input ImportInput) ([]items.ImportItem, error) {
-	if input.Reader == nil || (input.Format != "application/json" && input.Format != "text/csv") {
+	records, issues, err := s.parseImportPreview(input)
+	if err != nil {
+		return nil, err
+	}
+	if len(issues) > 0 {
 		return nil, ErrInvalidImport
+	}
+	return records, nil
+}
+
+func (s *Service) parseImportPreview(input ImportInput) ([]items.ImportItem, []ImportIssue, error) {
+	if input.Reader == nil || (input.Format != "application/json" && input.Format != "text/csv") {
+		return nil, nil, ErrInvalidImport
 	}
 	encoded, err := io.ReadAll(io.LimitReader(input.Reader, int64(s.maxImportBytes)+1))
 	if err != nil {
-		return nil, ErrInvalidImport
+		return nil, nil, ErrInvalidImport
 	}
 	if len(encoded) > s.maxImportBytes {
-		return nil, ErrImportLimit
+		return nil, nil, ErrImportLimit
 	}
 	var records []items.ImportItem
 	switch input.Format {
@@ -228,53 +275,82 @@ func (s *Service) parseImport(input ImportInput) ([]items.ImportItem, error) {
 		decoder := json.NewDecoder(bytes.NewReader(encoded))
 		decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&document); err != nil || document.FormatVersion != FormatVersion {
-			return nil, ErrInvalidImport
+			return nil, nil, ErrInvalidImport
 		}
 		if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-			return nil, ErrInvalidImport
+			return nil, nil, ErrInvalidImport
 		}
 		records = make([]items.ImportItem, 0, len(document.Items))
 		for _, item := range document.Items {
 			records = append(records, items.ImportItem{Title: item.Title, Status: item.Status})
 		}
 	case "text/csv":
-		records, err = parseCSV(encoded)
+		var issues []ImportIssue
+		records, issues, err = parseCSVPreview(encoded)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
+		return s.normalizeImportPreview(records, issues)
 	}
 	if len(records) == 0 || len(records) > s.maxImportRecords {
-		return nil, ErrImportLimit
+		return nil, nil, ErrImportLimit
 	}
-	for _, record := range records {
-		if _, err := items.NormalizeImportItem(record); err != nil {
-			return nil, ErrInvalidImport
-		}
-	}
-	return records, nil
+	return s.normalizeImportPreview(records, nil)
 }
 
-func parseCSV(encoded []byte) ([]items.ImportItem, error) {
+func (s *Service) normalizeImportPreview(records []items.ImportItem, issues []ImportIssue) ([]items.ImportItem, []ImportIssue, error) {
+	if len(records) == 0 || len(records) > s.maxImportRecords {
+		return nil, nil, ErrImportLimit
+	}
+	invalidRows := make(map[int]struct{}, len(issues))
+	for _, issue := range issues {
+		invalidRows[issue.Record] = struct{}{}
+	}
+	for i, record := range records {
+		if _, invalid := invalidRows[i+1]; invalid {
+			continue
+		}
+		normalized, err := items.NormalizeImportItem(record)
+		if err == nil {
+			records[i] = normalized
+			continue
+		}
+		field := "status"
+		if _, titleErr := items.NormalizeImportItem(items.ImportItem{Title: record.Title, Status: items.Active}); titleErr != nil {
+			field = "title"
+		}
+		issues = append(issues, ImportIssue{Record: i + 1, Field: field})
+	}
+	return records, issues, nil
+}
+
+func parseCSVPreview(encoded []byte) ([]items.ImportItem, []ImportIssue, error) {
 	reader := csv.NewReader(bytes.NewReader(encoded))
 	reader.FieldsPerRecord = -1
 	header, err := reader.Read()
 	if err != nil || len(header) != 2 || header[0] != "title" || header[1] != "status" {
-		return nil, ErrInvalidImport
+		return nil, nil, ErrInvalidImport
 	}
 	result := make([]items.ImportItem, 0)
+	issues := make([]ImportIssue, 0)
 	for {
 		row, err := reader.Read()
 		if errors.Is(err, io.EOF) {
 			break
 		}
-		if err != nil || len(row) != 2 {
-			return nil, ErrInvalidImport
+		if err != nil {
+			return nil, nil, ErrInvalidImport
+		}
+		if len(row) != 2 {
+			result = append(result, items.ImportItem{})
+			issues = append(issues, ImportIssue{Record: len(result), Field: "row"})
+			continue
 		}
 		result = append(result, items.ImportItem{
 			Title: row[0], Status: items.Status(strings.TrimSpace(row[1])),
 		})
 	}
-	return result, nil
+	return result, issues, nil
 }
 
 func (s *Service) recordImportFailure(

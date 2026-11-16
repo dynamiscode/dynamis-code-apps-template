@@ -6,8 +6,10 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/base32"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1296,43 +1298,53 @@ func TestWebImportIsAuthorizedExplicitAndAtomic(t *testing.T) {
 
 	page := request(handler, http.MethodGet, root, nil, cookies, nil)
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `enctype="multipart/form-data"`) ||
-		!strings.Contains(page.Body.String(), `name="file"`) || !strings.Contains(page.Body.String(), `name="confirm"`) ||
+		!strings.Contains(page.Body.String(), `name="file"`) || !strings.Contains(page.Body.String(), `name="action" value="preview"`) ||
 		!strings.Contains(page.Body.String(), `class="sidebar-subitem active" aria-current="page" href="`+root+`"`) ||
 		strings.Contains(page.Body.String(), "/assets/app.js") || strings.Contains(page.Body.String(), "data-webmcp-page") {
 		t.Fatalf("import page = %d, %s", page.Code, page.Body.String())
 	}
 	assertAccessiblePage(t, page.Body.String(), "Import file")
 
-	withoutCSRF := multipartRequest(t, handler, root, url.Values{"confirm": {"yes"}}, "items.csv", "title,status\nBlocked,active\n", cookies, nil)
+	withoutCSRF := multipartRequest(t, handler, root, url.Values{"action": {"preview"}}, "items.csv", "title,status\nBlocked,active\n", cookies, nil)
 	if withoutCSRF.Code != http.StatusForbidden {
 		t.Fatalf("import without CSRF = %d, %s", withoutCSRF.Code, withoutCSRF.Body.String())
 	}
-	withoutConfirmation := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}}, "items.csv", "title,status\nBlocked,active\n", cookies, nil)
+	withoutConfirmation := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "action": {"confirm"}}, "items.csv", "title,status\nBlocked,active\n", cookies, nil)
 	if withoutConfirmation.Code != http.StatusUnprocessableEntity || !strings.Contains(withoutConfirmation.Body.String(), "Confirm") {
 		t.Fatalf("import without confirmation = %d, %s", withoutConfirmation.Code, withoutConfirmation.Body.String())
 	}
-	queryConfirmation := multipartRequest(t, handler, root+"?confirm=yes", url.Values{"csrf": {session.CSRFSecret}}, "items.csv", "title,status\nBlocked,active\n", cookies, nil)
+	queryConfirmation := multipartRequest(t, handler, root+"?confirm=yes", url.Values{"csrf": {session.CSRFSecret}, "action": {"confirm"}}, "items.csv", "title,status\nBlocked,active\n", cookies, nil)
 	if queryConfirmation.Code != http.StatusUnprocessableEntity || !strings.Contains(queryConfirmation.Body.String(), "Confirm") {
 		t.Fatalf("query confirmation bypass = %d, %s", queryConfirmation.Code, queryConfirmation.Body.String())
 	}
-	nonMultipart := request(handler, http.MethodPost, root, url.Values{"csrf": {session.CSRFSecret}, "confirm": {"yes"}}, cookies, nil)
+	nonMultipart := request(handler, http.MethodPost, root, url.Values{"csrf": {session.CSRFSecret}, "action": {"preview"}}, cookies, nil)
 	if nonMultipart.Code != http.StatusUnprocessableEntity || !strings.Contains(nonMultipart.Body.String(), "Choose") {
 		t.Fatalf("non-multipart import = %d, %s", nonMultipart.Code, nonMultipart.Body.String())
 	}
-	invalid := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "confirm": {"yes"}}, "items.csv", "title,status\nValid,active\n,active\n", cookies, nil)
-	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "invalid") || strings.Contains(invalid.Body.String(), "Valid") {
+	invalid := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "action": {"preview"}}, "items.csv", "title,status\nValid,active\n,active\nThird,unknown\n", cookies, nil)
+	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "Record 2") ||
+		!strings.Contains(invalid.Body.String(), "Record 3") || !strings.Contains(invalid.Body.String(), "Valid") ||
+		strings.Contains(invalid.Body.String(), `name="preview_digest"`) {
 		t.Fatalf("invalid import = %d, %s", invalid.Code, invalid.Body.String())
 	}
-	unsupported := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "confirm": {"yes"}}, "items.txt", "title,status\nUnsupported,active\n", cookies, nil)
+	unsupported := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "action": {"preview"}}, "items.txt", "title,status\nUnsupported,active\n", cookies, nil)
 	if unsupported.Code != http.StatusUnprocessableEntity || !strings.Contains(unsupported.Body.String(), "Choose") {
 		t.Fatalf("unsupported import format = %d, %s", unsupported.Code, unsupported.Body.String())
 	}
-	oversized := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "confirm": {"yes"}}, "items.csv", strings.Repeat("x", 2*1024*1024), cookies, nil)
+	oversized := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "action": {"preview"}}, "items.csv", strings.Repeat("x", 2*1024*1024), cookies, nil)
 	if oversized.Code != http.StatusUnprocessableEntity || !strings.Contains(oversized.Body.String(), "exceeds") {
 		t.Fatalf("oversized import = %d, %s", oversized.Code, oversized.Body.String())
 	}
 
-	valid := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "confirm": {"yes"}}, "items.csv", "title,status\nImported one,active\nImported two,complete\n", cookies, nil)
+	content := "title,status\nImported one,active\nImported two,complete\n"
+	preview := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "action": {"preview"}}, "items.csv", content, cookies, nil)
+	if preview.Code != http.StatusOK || !strings.Contains(preview.Body.String(), "Records found") {
+		t.Fatalf("valid import preview = %d, %s", preview.Code, preview.Body.String())
+	}
+	valid := multipartRequest(t, handler, root, url.Values{
+		"csrf": {session.CSRFSecret}, "action": {"confirm"}, "confirm": {"yes"},
+		"preview_digest": {importDigest(content)}, "preview_format": {"text/csv"},
+	}, "items.csv", content, cookies, nil)
 	expectedRedirect := root + "?imported=" + url.QueryEscape(fmt.Sprintf("%d", 2))
 	if valid.Code != http.StatusSeeOther || valid.Header().Get("Location") != expectedRedirect {
 		t.Fatalf("valid import = %d, location %q, %s", valid.Code, valid.Header().Get("Location"), valid.Body.String())
@@ -1369,7 +1381,15 @@ func TestWebImportIsAuthorizedExplicitAndAtomic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	validJSON := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "confirm": {"yes"}}, "items.json", string(jsonImport), cookies, nil)
+	jsonContent := string(jsonImport)
+	jsonPreview := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "action": {"preview"}}, "items.json", jsonContent, cookies, nil)
+	if jsonPreview.Code != http.StatusOK || !strings.Contains(jsonPreview.Body.String(), "Imported JSON") {
+		t.Fatalf("valid JSON preview = %d, %s", jsonPreview.Code, jsonPreview.Body.String())
+	}
+	validJSON := multipartRequest(t, handler, root, url.Values{
+		"csrf": {session.CSRFSecret}, "action": {"confirm"}, "confirm": {"yes"},
+		"preview_digest": {importDigest(jsonContent)}, "preview_format": {"application/json"},
+	}, "items.json", jsonContent, cookies, nil)
 	expectedJSONRedirect := root + "?imported=" + url.QueryEscape(fmt.Sprintf("%d", 1))
 	if validJSON.Code != http.StatusSeeOther || validJSON.Header().Get("Location") != expectedJSONRedirect {
 		t.Fatalf("valid JSON import = %d, location %q, %s", validJSON.Code, validJSON.Header().Get("Location"), validJSON.Body.String())
@@ -1381,8 +1401,8 @@ func TestWebImportIsAuthorizedExplicitAndAtomic(t *testing.T) {
 	if err := auth.UpdateWorkspaceLocale(context.Background(), ownerUpdate, "es", identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
-	spanishInvalid := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "confirm": {"yes"}}, "items.csv", "title,status\n,active\n", cookies, nil)
-	if spanishInvalid.Code != http.StatusUnprocessableEntity || spanishInvalid.Header().Get("Content-Language") != "es" || !strings.Contains(spanishInvalid.Body.String(), "El archivo de importación no es válido.") {
+	spanishInvalid := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "action": {"preview"}}, "items.csv", "title,status\n,active\n", cookies, nil)
+	if spanishInvalid.Code != http.StatusUnprocessableEntity || spanishInvalid.Header().Get("Content-Language") != "es" || !strings.Contains(spanishInvalid.Body.String(), "Corrige estos registros") {
 		t.Fatalf("Spanish invalid import = %d, language %q, %s", spanishInvalid.Code, spanishInvalid.Header().Get("Content-Language"), spanishInvalid.Body.String())
 	}
 
@@ -1405,6 +1425,55 @@ func TestWebImportIsAuthorizedExplicitAndAtomic(t *testing.T) {
 	viewerPage := request(handler, http.MethodGet, root, nil, []*http.Cookie{{Name: "session", Value: viewerSession.Secret}, {Name: "csrf", Value: viewerSession.CSRFSecret}}, nil)
 	if viewerPage.Code != http.StatusForbidden {
 		t.Fatalf("viewer import page = %d, %s", viewerPage.Code, viewerPage.Body.String())
+	}
+}
+
+func TestImportPreviewIsReadOnlyAndConfirmationMatchesPreview(t *testing.T) {
+	handler, auth, itemService, workspaceID, owner := testWeb(t, 10)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	root := "/workspaces/" + workspaceID.String() + "/settings/import"
+	content := "title,status\nDuplicate,active\nDuplicate,complete\n"
+	digest := sha256.Sum256([]byte(content))
+	digestValue := hex.EncodeToString(digest[:])
+
+	preview := multipartRequest(t, handler, root, url.Values{
+		"csrf": {session.CSRFSecret}, "action": {"preview"},
+	}, "items.csv", content, cookies, nil)
+	if preview.Code != http.StatusOK || !strings.Contains(preview.Body.String(), "Preview") ||
+		!strings.Contains(preview.Body.String(), "Duplicate") || !strings.Contains(preview.Body.String(), `name="preview_digest" value="`+digestValue+`"`) ||
+		!strings.Contains(preview.Body.String(), `name="action" value="confirm"`) {
+		t.Fatalf("valid preview = %d, %s", preview.Code, preview.Body.String())
+	}
+	assertAccessiblePage(t, preview.Body.String(), "Preview")
+	principal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.ResourcesRead)
+	if err != nil {
+		t.Fatal(err)
+	}
+	itemsPage, err := itemService.List(context.Background(), principal, workspaceID, items.ListInput{Sort: "created_at", Limit: 10})
+	if err != nil || len(itemsPage.Items) != 0 {
+		t.Fatalf("preview created items: %+v, %v", itemsPage, err)
+	}
+	changed := multipartRequest(t, handler, root, url.Values{
+		"csrf": {session.CSRFSecret}, "action": {"confirm"}, "preview_digest": {"wrong"},
+		"preview_format": {"text/csv"}, "confirm": {"yes"},
+	}, "items.csv", content, cookies, nil)
+	if changed.Code != http.StatusUnprocessableEntity || !strings.Contains(changed.Body.String(), "differs from the preview") {
+		t.Fatalf("confirmation without matching preview = %d, %s", changed.Code, changed.Body.String())
+	}
+	valid := multipartRequest(t, handler, root, url.Values{
+		"csrf": {session.CSRFSecret}, "action": {"confirm"}, "preview_digest": {digestValue},
+		"preview_format": {"text/csv"}, "confirm": {"yes"},
+	}, "items.csv", content, cookies, nil)
+	if valid.Code != http.StatusSeeOther || !strings.Contains(valid.Header().Get("Location"), "imported=2") {
+		t.Fatalf("confirmed import = %d, %q, %s", valid.Code, valid.Header().Get("Location"), valid.Body.String())
+	}
+	itemsPage, err = itemService.List(context.Background(), principal, workspaceID, items.ListInput{Sort: "created_at", Limit: 10})
+	if err != nil || len(itemsPage.Items) != 2 || itemsPage.Items[0].Title != "Duplicate" || itemsPage.Items[1].Title != "Duplicate" {
+		t.Fatalf("duplicate-title items = %+v, %v", itemsPage, err)
 	}
 }
 
@@ -1440,6 +1509,11 @@ func multipartRequest(t *testing.T, handler http.Handler, target string, fields 
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	return response
+}
+
+func importDigest(content string) string {
+	digest := sha256.Sum256([]byte(content))
+	return hex.EncodeToString(digest[:])
 }
 
 func TestWebSetupRequiresTokenAndBootstrapsFirstInstanceAdmin(t *testing.T) {

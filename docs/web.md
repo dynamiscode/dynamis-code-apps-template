@@ -111,10 +111,15 @@ Baseline browser surfaces:
 - `/workspaces/{workspaceId}/settings/export` presents the authorized export screen;
   its `Download JSON` link downloads the export from
   `/workspaces/{workspaceId}/settings/export/download`.
-- `/workspaces/{workspaceId}/settings/import` presents an authorized ordinary
-  multipart form for one bounded JSON export or strict UTF-8 `title,status` CSV;
-  it requires session CSRF, an explicit bulk-import confirmation, and returns
-  localized full-page success or safe validation/limit feedback.
+- `/workspaces/{workspaceId}/settings/import` previews one bounded JSON export
+  or strict UTF-8 `title,status` CSV before import. Preview validates every
+  record, shows the count, up to five sample records, and up to ten actionable
+  row errors without writing items. A valid preview offers an ordinary
+  confirmation form; users select the same file again, and the server checks
+  its digest before importing. Confirmation rechecks session CSRF, workspace
+  permission, file limits, and item quota, then creates all rows atomically.
+  Duplicate titles remain separate new items. Both steps work without
+  JavaScript.
 - `/workspaces/{workspaceId}/settings/audit` presents the authorized,
   read-only latest-100 audit history with redacted fields.
 - `/share/{token}` presents a read-only Item projection containing only title

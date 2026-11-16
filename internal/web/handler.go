@@ -157,6 +157,7 @@ type pageData struct {
 	TokenSecret                      string
 	ImportCompleted                  bool
 	Imported                         int
+	ImportPreview                    *importPreviewView
 	SCIMEndpoint                     string
 	SCIMTokenSecret                  string
 	DeliveryWarning                  string

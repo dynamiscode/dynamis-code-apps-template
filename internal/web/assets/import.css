@@ -1,0 +1,5 @@
+.import-preview { margin-top: 1.5rem; padding: 1rem; border: 1px solid var(--border); border-radius: var(--brand-radius); background: var(--surface); }
+.import-preview-sample { display: grid; gap: .5rem; padding: 0; list-style: none; }
+.import-preview-sample li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem 1rem; padding: .65rem; border: 1px solid var(--border); border-radius: .25rem; }
+.import-preview-errors { padding-inline-start: 1.25rem; }
+.import-confirm-form { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }

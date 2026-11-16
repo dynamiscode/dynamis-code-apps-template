@@ -70,8 +70,16 @@ func TestMultiInstanceImportFlashStateless(t *testing.T) {
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	root := "/workspaces/" + workspaceID.String() + "/settings/import"
 
-	// 1. Post import to instance 1
-	postResp := multipartRequest(t, instance1, root, url.Values{"csrf": {session.CSRFSecret}, "confirm": {"yes"}}, "items.csv", "title,status\nItem One,active\nItem Two,complete\n", cookies, nil)
+	// 1. Preview on instance 1, then confirm on instance 2.
+	csvContent := "title,status\nItem One,active\nItem Two,complete\n"
+	previewResp := multipartRequest(t, instance1, root, url.Values{"csrf": {session.CSRFSecret}, "action": {"preview"}}, "items.csv", csvContent, cookies, nil)
+	if previewResp.Code != http.StatusOK || !strings.Contains(previewResp.Body.String(), "Records found") {
+		t.Fatalf("expected 200 preview from instance1, got %d: %s", previewResp.Code, previewResp.Body.String())
+	}
+	postResp := multipartRequest(t, instance2, root, url.Values{
+		"csrf": {session.CSRFSecret}, "action": {"confirm"}, "confirm": {"yes"},
+		"preview_digest": {importDigest(csvContent)}, "preview_format": {"text/csv"},
+	}, "items.csv", csvContent, cookies, nil)
 	expectedRedirect := root + "?imported=" + url.QueryEscape(fmt.Sprintf("%d", 2))
 	if postResp.Code != http.StatusSeeOther || postResp.Header().Get("Location") != expectedRedirect {
 		t.Fatalf("expected 303 redirect to %q, got code %d, location %q", expectedRedirect, postResp.Code, postResp.Header().Get("Location"))
@@ -99,7 +107,7 @@ func TestMultiInstanceImportFlashStateless(t *testing.T) {
 		t.Fatalf("expected instance2 clean page not to show import confirmation, got:\n%s", cleanResp.Body.String())
 	}
 
-	// 4. Test JSON import on instance 2, follow redirect on instance 1
+	// 4. Preview JSON on instance 2, confirm on instance 1, then follow redirect.
 	jsonExport, err := json.Marshal(portability.Export{
 		FormatVersion: portability.FormatVersion,
 		Items:         []items.Item{{ID: 1, Title: "Imported JSON", Status: items.Active}},
@@ -107,7 +115,15 @@ func TestMultiInstanceImportFlashStateless(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	jsonPostResp := multipartRequest(t, instance2, root, url.Values{"csrf": {session.CSRFSecret}, "confirm": {"yes"}}, "items.json", string(jsonExport), cookies, nil)
+	jsonContent := string(jsonExport)
+	jsonPreview := multipartRequest(t, instance2, root, url.Values{"csrf": {session.CSRFSecret}, "action": {"preview"}}, "items.json", jsonContent, cookies, nil)
+	if jsonPreview.Code != http.StatusOK || !strings.Contains(jsonPreview.Body.String(), "Imported JSON") {
+		t.Fatalf("expected JSON preview from instance2, got %d: %s", jsonPreview.Code, jsonPreview.Body.String())
+	}
+	jsonPostResp := multipartRequest(t, instance1, root, url.Values{
+		"csrf": {session.CSRFSecret}, "action": {"confirm"}, "confirm": {"yes"},
+		"preview_digest": {importDigest(jsonContent)}, "preview_format": {"application/json"},
+	}, "items.json", jsonContent, cookies, nil)
 	expectedJSONRedirect := root + "?imported=" + url.QueryEscape(fmt.Sprintf("%d", 1))
 	if jsonPostResp.Code != http.StatusSeeOther || jsonPostResp.Header().Get("Location") != expectedJSONRedirect {
 		t.Fatalf("expected 303 redirect to %q, got code %d, location %q", expectedJSONRedirect, jsonPostResp.Code, jsonPostResp.Header().Get("Location"))
