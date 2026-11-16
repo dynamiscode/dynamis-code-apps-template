@@ -27,15 +27,11 @@ MULTI_WORKSPACE_ENABLED=true HTTP_REQUESTS_PER_MINUTE=10000 HTTP_AUTH_REQUESTS_P
   "$work/server" >"$work/server.log" 2>&1 &
 pid=$!
 
-attempt=0
-until curl --fail --silent "http://127.0.0.1:$port/health/ready" >/dev/null; do
-  attempt=$((attempt + 1))
-  if [ "$attempt" -ge 30 ]; then
-    cat "$work/server.log"
-    exit 1
-  fi
-  sleep 1
-done
+if ! curl --fail --silent --retry 30 --retry-delay 1 --retry-connrefused \
+  --max-time 2 "http://127.0.0.1:$port/health/ready" >/dev/null; then
+  cat "$work/server.log"
+  exit 1
+fi
 
 PLAYWRIGHT_BASE_URL="http://127.0.0.1:$port" \
   PLAYWRIGHT_EMAIL=playwright@example.com PLAYWRIGHT_PASSWORD=playwright-password-123 \
