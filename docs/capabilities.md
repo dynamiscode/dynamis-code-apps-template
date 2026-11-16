@@ -1139,10 +1139,14 @@ session; the latter redirects to sign-in on the next request. EN/ES cover the
 status, feedback, and empty states. The page remains no-store and keeps its
 WebMCP page marker and script.
 
-- Passed: session lifecycle and rendering tests, including current-session
-  revoke, cross-user denial, CSRF rejection, expired state, and Spanish empty
-  state. See [session evidence](reviews/sessions-445-evidence.md).
-- Not run: full `make verify` and browser responsive/accessibility smoke.
+- Passed: session rendering and lifecycle tests, including current-session
+  revoke, cross-user denial, CSRF rejection, expired state, Spanish empty state,
+  and ordinary form behavior; `make test`, `make lint`, `make templ-check`, and
+  `make css-check`. English and Spanish `make accessibility-smoke` reported
+  zero axe violations, including sessions, keyboard/focus, and 320px reflow.
+  `make ux-smoke` passed 42 checks; `make browser-smoke` passed 14 Playwright
+  tests. See [session evidence](reviews/sessions-445-evidence.md).
+- Not run: full `make verify`, race suite, security gates, and PostgreSQL tests.
 
 ## Notification center UX evidence (2026-11-15)
 

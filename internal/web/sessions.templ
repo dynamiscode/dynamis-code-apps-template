@@ -2,8 +2,19 @@ package web
 
 import "time"
 
+templ sessionsHeader(data pageData) {
+	<header class="topbar">
+		<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
+		<div class="topbar-context">
+			@workspaceListCrumb(data)
+			<span>{ data.T("common.account") }</span>
+		</div>
+		@accountMenu(data)
+	</header>
+}
+
 templ sessionsPage(data pageData, currentSessionID string, now time.Time) {
-	@dashboardShell(data, dashboardHeader(data), nil) {
+	@dashboardShell(data, sessionsHeader(data), nil) {
 		<section class="account-page" aria-labelledby="sessions-heading">
 			<header class="account-heading">
 				<p class="eyebrow">{ data.T("navigation.security") }</p>
