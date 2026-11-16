@@ -28,41 +28,45 @@ const screenshots = [
   { name: "mobile-dark", width: 390, height: 844, colorScheme: "dark" },
 ];
 
-test("configured OIDC choice and callback failure stay local and accessible", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
-  await page.context().addCookies([{ name: "theme", value: "dark", url: process.env.PLAYWRIGHT_BASE_URL }]);
-  await page.goto("/language?locale=es&return_to=%2Flogin");
-  await page.route("**/login", (route) => route.fulfill({
-    status: 200,
-    contentType: "text/html; charset=utf-8",
-    body: `<!doctype html><html lang="es" data-theme="dark"><head><title>Iniciar sesión</title></head><body><a class="skip-link" href="#main">Saltar al contenido</a><main id="main"><h1>Iniciar sesión</h1><section aria-labelledby="auth-provider-heading"><h2 id="auth-provider-heading">Otros métodos de inicio de sesión</h2><a class="btn" href="/auth/oidc/company">Iniciar sesión con Company SSO</a></section></main></body></html>`,
-  }));
-  await page.goto("/login");
-  await expect(page.locator("html")).toHaveAttribute("lang", "es");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  const provider = page.getByRole("link", { name: "Iniciar sesión con Company SSO" });
-  await expect(provider).toHaveAttribute("href", "/auth/oidc/company");
-  expect(new URL(await provider.getAttribute("href"), process.env.PLAYWRIGHT_BASE_URL).origin)
-    .toBe(new URL(process.env.PLAYWRIGHT_BASE_URL).origin);
-  await page.keyboard.press("Tab");
-  await expect(page.locator(".skip-link")).toBeFocused();
-  await page.keyboard.press("Tab");
-  await expect(provider).toBeFocused();
-  const results = await page.evaluate(async (source) => {
-    eval(source);
-    return axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } });
-  }, axe.source);
-  expect(results.violations.filter((violation) => ["critical", "serious"].includes(violation.impact))).toEqual([]);
+for (const viewport of ["desktop", "mobile"]) {
+  for (const theme of ["light", "dark"]) {
+    for (const locale of ["en", "es"]) {
+      test(`configured OIDC login and callback failure: ${viewport}-${theme}-${locale}`, async ({ page }) => {
+        const width = viewport === "desktop" ? 1280 : 390;
+        const oidcBaseURL = process.env.PLAYWRIGHT_OIDC_BASE_URL;
+        await page.setViewportSize({ width, height: viewport === "desktop" ? 900 : 844 });
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+        await page.context().addCookies([{ name: "theme", value: theme, url: oidcBaseURL }]);
+        await page.goto(`${oidcBaseURL}/language?locale=${locale}&return_to=%2Flogin`);
+        await page.goto(`${oidcBaseURL}/login`);
+        await expect(page.locator("html")).toHaveAttribute("lang", locale);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+        const provider = page.getByRole("link", {
+          name: locale === "es" ? "Iniciar sesión con Company SSO" : "Sign in with Company SSO",
+        });
+        await expect(provider).toHaveAttribute("href", "/auth/oidc/company");
+        expect(new URL(await provider.getAttribute("href"), oidcBaseURL).origin).toBe(new URL(oidcBaseURL).origin);
+        await page.keyboard.press("Tab");
+        await expect(page.locator(".skip-link")).toBeFocused();
+        for (let tab = 0; tab < 6; tab += 1) await page.keyboard.press("Tab");
+        await expect(provider).toBeFocused();
+        const results = await page.evaluate(async (source) => {
+          eval(source);
+          return axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } });
+        }, axe.source);
+        expect(results.violations.filter((violation) => ["critical", "serious"].includes(violation.impact)).map((item) => item.id)).toEqual([]);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 
-  await page.unrouteAll();
-  await page.goto("/auth/oidc/company/callback?error=access_denied");
-  await expect(page.locator("html")).toHaveAttribute("lang", "es");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await expect(page.getByRole("alert")).toContainText(/no se pudo completar/i);
-  await expect(page.getByRole("alert")).toBeFocused();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-});
+        await page.goto(`${oidcBaseURL}/auth/oidc/company/callback?error=access_denied`);
+        await expect(page.locator("html")).toHaveAttribute("lang", locale);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+        await expect(page.getByRole("alert")).toContainText(locale === "es" ? /no se pudo completar/i : /could not be completed/i);
+        await expect(page.getByRole("alert")).toBeFocused();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      });
+    }
+  }
+}
 
 for (const viewport of ["desktop", "mobile"]) {
   for (const theme of ["light", "dark"]) {

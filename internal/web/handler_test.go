@@ -131,14 +131,14 @@ func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
 
 	loginPage := request(handler, http.MethodGet, "/login", nil, nil, nil)
 	if loginPage.Code != http.StatusOK || !strings.Contains(loginPage.Body.String(), `<label for="email">`) {
-		t.Fatalf("login page = %d, %s", loginPage.Code, loginPage.Body.String())
+		t.Fatalf("login page status = %d; missing email label", loginPage.Code)
 	}
 	if !strings.Contains(loginPage.Body.String(), `<a href="/password-reset">Forgot password?</a>`) {
 		t.Fatal("English login page lacks the password reset link")
 	}
 	spanishLogin := request(handler, http.MethodGet, "/login", nil, nil, map[string]string{"Accept-Language": "es"})
 	if spanishLogin.Code != http.StatusOK || !strings.Contains(spanishLogin.Body.String(), `<a href="/password-reset">¿Olvidaste tu contraseña?</a>`) {
-		t.Fatalf("Spanish login page lacks the translated password reset link: %d, %s", spanishLogin.Code, spanishLogin.Body.String())
+		t.Fatalf("Spanish login page status = %d; missing translated password reset link", spanishLogin.Code)
 	}
 	loginCSRF := responseCookie(loginPage, "login_csrf")
 	invalidLogin := request(handler, http.MethodPost, "/login", url.Values{
@@ -151,12 +151,12 @@ func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
 		"email": {"owner@example.com"}, "password": {"long-enough-password"}, "csrf": {loginCSRF.Value},
 	}, []*http.Cookie{loginCSRF}, nil)
 	if loggedIn.Code != http.StatusSeeOther || loggedIn.Header().Get("Location") != "/" {
-		t.Fatalf("login = %d, %s", loggedIn.Code, loggedIn.Body.String())
+		t.Fatalf("login status = %d; unexpected redirect", loggedIn.Code)
 	}
 	cookies := []*http.Cookie{responseCookie(loggedIn, "session"), responseCookie(loggedIn, "csrf")}
 	home := request(handler, http.MethodGet, "/", nil, cookies, nil)
 	if home.Code != http.StatusOK || !strings.Contains(home.Body.String(), workspaceID.String()) {
-		t.Fatalf("home = %d, %s", home.Code, home.Body.String())
+		t.Fatalf("home status = %d; workspace missing", home.Code)
 	}
 	path := "/workspaces/" + workspaceID.String() + "/items"
 	page := request(handler, http.MethodGet, path, nil, cookies, nil)
@@ -181,13 +181,13 @@ func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
 		"title": {""}, "idempotency_key": {"invalid-key"}, "csrf": {csrf},
 	}, cookies, map[string]string{"HX-Request": "true"})
 	if invalid.Code != http.StatusOK || invalid.Header().Get("HX-Trigger") != "form-error" || !strings.Contains(invalid.Body.String(), `role="alert"`) {
-		t.Fatalf("validation response = %d, %s", invalid.Code, invalid.Body.String())
+		t.Fatalf("validation response status = %d; missing form-error header or alert", invalid.Code)
 	}
 	created := request(handler, http.MethodPost, path, url.Values{
 		"title": {"<script>alert(1)</script>"}, "idempotency_key": {"create-key"}, "csrf": {csrf},
 	}, cookies, map[string]string{"HX-Request": "true"})
 	if created.Code != http.StatusOK || strings.Contains(created.Body.String(), "<script>alert") || strings.Contains(created.Body.String(), "<!doctype") {
-		t.Fatalf("HTMX create = %d, %s", created.Code, created.Body.String())
+		t.Fatalf("HTMX create status = %d; response escaped or page-fragment contract failed", created.Code)
 	}
 	session, err := auth.AuthenticateSession(context.Background(), cookies[0].Value)
 	if err != nil {
@@ -314,7 +314,7 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 
 	account := request(handler, http.MethodGet, "/account", nil, cookies, nil)
 	if account.Code != http.StatusOK || !strings.Contains(account.Body.String(), "Profile and preferences") {
-		t.Fatalf("account page = %d, %s", account.Code, account.Body.String())
+		t.Fatalf("account page status = %d; missing profile heading", account.Code)
 	}
 	updated := request(handler, http.MethodPost, "/account/profile", url.Values{
 		"csrf": {session.CSRFSecret}, "display_name": {"Owner"}, "locale": {"es"},
@@ -330,29 +330,29 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 		"csrf": {session.CSRFSecret}, "new_password": {"a-new-password-1234"}, "password_confirmation": {"different-password-1234"},
 	}, cookies, nil)
 	if passwordMismatch.Code != http.StatusUnprocessableEntity || !strings.Contains(passwordMismatch.Body.String(), "Las nuevas contraseñas no coinciden.") || !strings.Contains(passwordMismatch.Body.String(), `form action="/account/password"`) {
-		t.Fatalf("account password mismatch = %d, %s", passwordMismatch.Code, passwordMismatch.Body.String())
+		t.Fatalf("account password mismatch status = %d; missing translated error or form", passwordMismatch.Code)
 	}
 	preference := request(handler, http.MethodPost, "/account/notifications", url.Values{
 		"csrf": {session.CSRFSecret}, "notification_type": {"system"}, "enabled": {"false"},
 	}, cookies, nil)
 	if preference.Code != http.StatusSeeOther {
-		t.Fatalf("notification preference = %d, %s", preference.Code, preference.Body.String())
+		t.Fatalf("notification preference status = %d", preference.Code)
 	}
 
 	notification, err := auth.CreateNotification(context.Background(), PrincipalSystem(), identity.NotificationInput{
 		RecipientUserID: owner.UserID, WorkspaceID: workspaceID, NotificationType: "workspace", Title: "Update", Body: "A workspace update",
 	}, identity.AuditContext{})
 	if err != nil || notification.ID == 0 {
-		t.Fatalf("notification = %+v, %v", notification, err)
+		t.Fatalf("notification creation failed; id present = %t", notification.ID != 0)
 	}
 	notifications := request(handler, http.MethodGet, "/notifications", nil, cookies, nil)
 	notificationsBody := notifications.Body.String()
 	if notifications.Code != http.StatusOK || !strings.Contains(notificationsBody, "A workspace update") {
-		t.Fatalf("notifications page = %d, %s", notifications.Code, notifications.Body.String())
+		t.Fatalf("notifications page status = %d; missing notification", notifications.Code)
 	}
 	for _, marker := range []string{`class="notification-center"`, `aria-live="polite"`, `<strong data-unread-count>1</strong>`, "No leídas", "Dynamis Code"} {
 		if !strings.Contains(notificationsBody, marker) {
-			t.Errorf("notifications page missing %q: %s", marker, notificationsBody)
+			t.Errorf("notifications page missing marker %q", marker)
 		}
 	}
 	marked := request(handler, http.MethodPost, "/notifications/"+notification.ID.String(), url.Values{
@@ -364,25 +364,25 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	readPage := request(handler, http.MethodGet, "/notifications", nil, cookies, nil)
 	if readPage.Code != http.StatusOK || !strings.Contains(readPage.Body.String(), `<strong data-unread-count>0</strong>`) ||
 		!strings.Contains(readPage.Body.String(), "leída") {
-		t.Fatalf("read notification page = %d, %s", readPage.Code, readPage.Body.String())
+		t.Fatalf("read notification page status = %d; missing read state", readPage.Code)
 	}
 
 	resetPage := request(handler, http.MethodGet, "/password-reset", nil, nil, nil)
 	if resetPage.Code != http.StatusOK || !strings.Contains(resetPage.Body.String(), `form action="/password-reset"`) ||
 		!strings.Contains(resetPage.Body.String(), `class="brand auth-brand"`) || !strings.Contains(resetPage.Body.String(), `class="input"`) {
-		t.Fatalf("password reset page = %d, %s", resetPage.Code, resetPage.Body.String())
+		t.Fatalf("password reset page status = %d; missing form or auth layout marker", resetPage.Code)
 	}
 	expiredReset := request(handler, http.MethodPost, "/password-reset", url.Values{"email": {"owner@example.com"}}, nil, nil)
 	if expiredReset.Code != http.StatusForbidden || !strings.Contains(expiredReset.Body.String(), `role="alert" tabindex="-1"`) ||
 		!strings.Contains(expiredReset.Body.String(), `form action="/password-reset"`) {
-		t.Fatalf("expired reset request form = %d, %s", expiredReset.Code, expiredReset.Body.String())
+		t.Fatalf("expired reset request status = %d; missing focused alert or recovery form", expiredReset.Code)
 	}
 	resetCSRF := responseCookie(resetPage, "reset_csrf")
 	resetRequested := request(handler, http.MethodPost, "/password-reset", url.Values{
 		"csrf": {resetCSRF.Value}, "email": {"owner@example.com"},
 	}, []*http.Cookie{resetCSRF, {Name: "locale", Value: "es"}}, nil)
 	if resetRequested.Code != http.StatusOK || !strings.Contains(resetRequested.Body.String(), "Si existe una cuenta") {
-		t.Fatalf("reset request = %d, %s", resetRequested.Code, resetRequested.Body.String())
+		t.Fatalf("reset request status = %d; missing generic response", resetRequested.Code)
 	}
 	if mailer.subject != "Restablece tu contraseña de Dynamis Code" {
 		t.Fatalf("reset subject = %q", mailer.subject)
@@ -390,7 +390,7 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	resetLink := strings.TrimSpace(strings.TrimPrefix(mailer.body, "Restablece tu contraseña con este enlace: "))
 	parsed, err := url.Parse(resetLink)
 	if err != nil || parsed.Path == "" {
-		t.Fatalf("reset link = %q, %v", resetLink, err)
+		t.Fatal("reset link invalid")
 	}
 	resetTokenPage := request(handler, http.MethodGet, parsed.Path, nil, nil, nil)
 	resetTokenCSRF := responseCookie(resetTokenPage, "reset_csrf")
@@ -398,15 +398,15 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 		"csrf": {resetTokenCSRF.Value}, "password": {"reset-owner-password"}, "password_confirmation": {"different-password"},
 	}, []*http.Cookie{resetTokenCSRF, {Name: "locale", Value: "es"}}, nil)
 	if resetMismatch.Code != http.StatusUnprocessableEntity || !strings.Contains(resetMismatch.Body.String(), "Las contraseñas no coinciden.") {
-		t.Fatalf("reset mismatch = %d, %s", resetMismatch.Code, resetMismatch.Body.String())
+		t.Fatalf("reset mismatch status = %d; missing translated error", resetMismatch.Code)
 	}
 	for _, marker := range []string{`class="alert alert-error error"`, `role="alert" tabindex="-1"`, `class="input"`, `data-theme="system"`} {
 		if !strings.Contains(resetMismatch.Body.String(), marker) {
-			t.Fatalf("reset mismatch view lacks %q: %s", marker, resetMismatch.Body.String())
+			t.Fatalf("reset mismatch view missing marker %q", marker)
 		}
 	}
 	if !strings.Contains(resetMismatch.Body.String(), `name="csrf" value="`+resetTokenCSRF.Value+`"`) {
-		t.Fatalf("reset mismatch lost its CSRF token: %s", resetMismatch.Body.String())
+		t.Fatal("reset mismatch response omitted retained CSRF field")
 	}
 	invalidResetPage := request(handler, http.MethodGet, "/password-reset/invalid-secret", nil, nil, nil)
 	invalidResetCSRF := responseCookie(invalidResetPage, "reset_csrf")
@@ -415,13 +415,13 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	}, []*http.Cookie{invalidResetCSRF, {Name: "locale", Value: "es"}}, nil)
 	if invalidReset.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidReset.Body.String(), "El enlace de restablecimiento no es válido o venció.") || !strings.Contains(invalidReset.Body.String(), `form action="/password-reset"`) ||
 		!strings.Contains(invalidReset.Body.String(), `role="alert" tabindex="-1"`) || responseCookie(invalidReset, "reset_csrf").Value == "" {
-		t.Fatalf("invalid reset link recovery = %d, %s", invalidReset.Code, invalidReset.Body.String())
+		t.Fatalf("invalid reset link status = %d; missing recovery form, focused alert, or fresh CSRF cookie", invalidReset.Code)
 	}
 	resetComplete := request(handler, http.MethodPost, parsed.Path, url.Values{
 		"csrf": {resetTokenCSRF.Value}, "password": {"reset-owner-password"}, "password_confirmation": {"reset-owner-password"},
 	}, []*http.Cookie{resetTokenCSRF}, nil)
 	if resetComplete.Code != http.StatusOK || !strings.Contains(resetComplete.Body.String(), "Password reset") {
-		t.Fatalf("reset complete = %d, %s", resetComplete.Code, resetComplete.Body.String())
+		t.Fatalf("reset completion status = %d; missing completion message", resetComplete.Code)
 	}
 	if _, err := auth.AuthenticateLocal(context.Background(), "owner@example.com", "reset-owner-password"); err != nil {
 		t.Fatal(err)
