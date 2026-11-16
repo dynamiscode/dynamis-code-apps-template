@@ -101,6 +101,8 @@ func localizedLegacy(catalog *i18n.Catalog, locale i18n.Locale, value string) st
 		"The import file exceeds the configured limit.":                         "errors.import_size",
 		"Confirm that you understand this bulk import.":                         "errors.import_confirmation",
 		"Choose a .json or .csv import file.":                                   "errors.import_format",
+		"The import action is invalid.":                                         "errors.invalid_import_action",
+		"The selected file differs from the preview. Preview it again.":         "errors.import_preview_mismatch",
 		"The sign-in form expired. Reload and try again.":                       "errors.signin_expired",
 		"The setup form expired. Reload and try again.":                         "errors.setup_expired",
 		"The setup token is invalid.":                                           "errors.setup_token", "The passwords do not match.": "errors.password_mismatch",

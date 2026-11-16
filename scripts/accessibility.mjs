@@ -1,4 +1,7 @@
 import axe from "axe-core";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Builder, By, Key, until } from "selenium-webdriver";
 import chrome from "selenium-webdriver/chrome.js";
 
@@ -18,6 +21,9 @@ const driver = await new Builder()
   .build();
 
 let failed = false;
+const importFixtureDir = mkdtempSync(join(tmpdir(), "dynamis-import-preview-"));
+const importFixturePath = join(importFixtureDir, "items.csv");
+writeFileSync(importFixturePath, "title,status\nAccessibility preview,active\n");
 try {
   await driver.get(`${baseURL}/language?locale=${locale}&return_to=/login`);
   await audit("login");
@@ -158,7 +164,8 @@ try {
 	const importContract = await driver.executeScript(() => ({
 		form: document.querySelector('form[enctype="multipart/form-data"]') !== null,
 		fileRequired: document.querySelector("#import-file[required]") !== null,
-		confirmationRequired: document.querySelector("#import-confirm[required]") !== null,
+		previewAction: document.querySelector('input[name="action"][value="preview"]') !== null,
+		confirmationAbsent: document.querySelector("#import-confirm") === null,
 		noScript: document.querySelector('script[src="/assets/app.js"]') === null,
 		noWebMCP: document.querySelector("[data-webmcp-page]") === null,
 	}));
@@ -167,11 +174,24 @@ try {
 	}
 	const importTree = await driver.sendAndGetDevToolsCommand("Accessibility.getFullAXTree");
 	const importNames = locale === "es"
-		? [["heading", "Accessibility Importar"], ["checkbox", "Entiendo que todo el archivo se importará como elementos nuevos en este espacio de trabajo."], ["button", "Importar elementos"]]
-		: [["heading", "Accessibility Import"], ["checkbox", "I understand this imports the whole file as new items in this workspace."], ["button", "Import items"]];
+		? [["heading", "Accessibility Importar"], ["button", "Previsualizar archivo"]]
+		: [["heading", "Accessibility Import"], ["button", "Preview file"]];
 	for (const [role, name] of importNames) {
 		if (!importTree.nodes.some((node) => node.role?.value === role && node.name?.value === name)) {
 			throw new Error(`import accessibility tree lacks ${role} named ${name}`);
+		}
+	}
+	await driver.findElement(By.id("import-file")).sendKeys(importFixturePath);
+	await driver.findElement(By.css('form.import-preview-form button[type="submit"]')).click();
+	await driver.wait(until.elementLocated(By.id("import-preview-heading")), 5000);
+	await audit("import preview");
+	const previewTree = await driver.sendAndGetDevToolsCommand("Accessibility.getFullAXTree");
+	const previewNames = locale === "es"
+		? [["heading", "Vista previa de importación"], ["checkbox", "Revisé la vista previa y entiendo que todo el archivo se importará como elementos nuevos en este espacio de trabajo."], ["button", "Importar elementos previsualizados"]]
+		: [["heading", "Import preview"], ["checkbox", "I reviewed the preview and understand this imports the whole file as new items in this workspace."], ["button", "Import previewed items"]];
+	for (const [role, name] of previewNames) {
+		if (!previewTree.nodes.some((node) => node.role?.value === role && node.name?.value === name)) {
+			throw new Error(`import preview accessibility tree lacks ${role} named ${name}`);
 		}
 	}
 	await driver.manage().window().setRect({ width: 320, height: 800 });
@@ -241,6 +261,7 @@ try {
 	console.log("manual-contract: keyboard, focus, 320px reflow, reduced motion, and accessibility tree passed");
 } finally {
   await driver.quit();
+	rmSync(importFixtureDir, { recursive: true, force: true });
 }
 
 process.exit(failed ? 1 : 0);

@@ -1,9 +1,14 @@
 package web
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -26,7 +31,29 @@ type exporter interface {
 }
 
 type importer interface {
+	Preview(context.Context, identity.Principal, identity.WorkspaceID, portability.ImportInput) (portability.ImportPreview, error)
 	Import(context.Context, identity.Principal, identity.WorkspaceID, portability.ImportInput, identity.AuditContext) (portability.ImportResult, error)
+}
+
+type importPreviewView struct {
+	RecordCount int
+	Sample      []importSampleView
+	Issues      []importIssueView
+	IssueCount  int
+	MoreIssues  int
+	Digest      string
+	Format      string
+}
+
+type importSampleView struct {
+	Title     string
+	StatusKey string
+	Status    string
+}
+
+type importIssueView struct {
+	Record     int
+	MessageKey string
 }
 
 func importerFor(service exporter) importer {
@@ -484,7 +511,10 @@ func (h *Handler) exportWorkspace(writer http.ResponseWriter, request *http.Requ
 	_, _ = writer.Write(encoded)
 }
 
-const importMultipartMemory = 32 * 1024
+const (
+	importMultipartMemory = 32 * 1024
+	maxImportFileBytes    = 4 * 1024 * 1024
+)
 
 func (h *Handler) importPage(writer http.ResponseWriter, request *http.Request) {
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
@@ -504,7 +534,7 @@ func (h *Handler) importPage(writer http.ResponseWriter, request *http.Request) 
 			imported = count
 		}
 	}
-	h.renderImportPage(writer, request, http.StatusOK, session, csrf, "", completed, imported)
+	h.renderImportPage(writer, request, http.StatusOK, session, csrf, "", completed, imported, nil)
 }
 
 func (h *Handler) importMutation(writer http.ResponseWriter, request *http.Request) {
@@ -517,13 +547,15 @@ func (h *Handler) importMutation(writer http.ResponseWriter, request *http.Reque
 		h.renderError(writer, http.StatusNotFound)
 		return
 	}
-	if h.cfg.MaxBodyBytes > 0 && request.ContentLength > h.cfg.MaxBodyBytes {
-		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file exceeds the configured limit.", false, 0)
+	maxRequestBytes := int64(maxImportFileBytes + 64*1024)
+	if h.cfg.MaxBodyBytes > 0 && h.cfg.MaxBodyBytes < maxRequestBytes {
+		maxRequestBytes = h.cfg.MaxBodyBytes
+	}
+	if request.ContentLength > maxRequestBytes {
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file exceeds the configured limit.", false, 0, nil)
 		return
 	}
-	if h.cfg.MaxBodyBytes > 0 {
-		request.Body = http.MaxBytesReader(writer, request.Body, h.cfg.MaxBodyBytes)
-	}
+	request.Body = http.MaxBytesReader(writer, request.Body, maxRequestBytes)
 	parseErr := request.ParseMultipartForm(importMultipartMemory)
 	if request.MultipartForm != nil {
 		defer request.MultipartForm.RemoveAll()
@@ -531,7 +563,7 @@ func (h *Handler) importMutation(writer http.ResponseWriter, request *http.Reque
 	if parseErr != nil {
 		var maxBytesErr *http.MaxBytesError
 		if errors.As(parseErr, &maxBytesErr) {
-			h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file exceeds the configured limit.", false, 0)
+			h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file exceeds the configured limit.", false, 0, nil)
 			return
 		}
 		if errors.Is(parseErr, http.ErrNotMultipart) {
@@ -539,18 +571,18 @@ func (h *Handler) importMutation(writer http.ResponseWriter, request *http.Reque
 				h.renderError(writer, http.StatusForbidden)
 				return
 			}
-			h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "Choose a .json or .csv import file.", false, 0)
+			h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "Choose a .json or .csv import file.", false, 0, nil)
 			return
 		}
 		if !h.identity.VerifyCSRF(request.Context(), session.ID, request.PostFormValue("csrf")) {
 			h.renderError(writer, http.StatusForbidden)
 			return
 		}
-		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file is invalid.", false, 0)
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file is invalid.", false, 0, nil)
 		return
 	}
 	if request.MultipartForm == nil {
-		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "Choose a .json or .csv import file.", false, 0)
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "Choose a .json or .csv import file.", false, 0, nil)
 		return
 	}
 	csrfValues := request.MultipartForm.Value["csrf"]
@@ -558,37 +590,105 @@ func (h *Handler) importMutation(writer http.ResponseWriter, request *http.Reque
 		h.renderError(writer, http.StatusForbidden)
 		return
 	}
-	if values := request.MultipartForm.Value["confirm"]; len(values) != 1 || values[0] != "yes" {
-		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "Confirm that you understand this bulk import.", false, 0)
+	actions := request.MultipartForm.Value["action"]
+	if len(actions) != 1 || (actions[0] != "preview" && actions[0] != "confirm") {
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import action is invalid.", false, 0, nil)
 		return
 	}
 	files := request.MultipartForm.File["file"]
 	if len(files) != 1 {
-		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "Choose a .json or .csv import file.", false, 0)
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "Choose a .json or .csv import file.", false, 0, nil)
 		return
 	}
 	format, ok := importFormat(files[0])
 	if !ok {
-		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "Choose a .json or .csv import file.", false, 0)
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "Choose a .json or .csv import file.", false, 0, nil)
 		return
 	}
-	upload, _, err := request.FormFile("file")
+	upload, err := files[0].Open()
 	if err != nil {
-		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "Choose a .json or .csv import file.", false, 0)
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "Choose a .json or .csv import file.", false, 0, nil)
 		return
 	}
 	defer upload.Close()
+	encoded, err := io.ReadAll(io.LimitReader(upload, maxImportFileBytes+1))
+	if err != nil {
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file is invalid.", false, 0, nil)
+		return
+	}
+	if len(encoded) > maxImportFileBytes {
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file exceeds the configured limit.", false, 0, nil)
+		return
+	}
+	input := portability.ImportInput{Format: format, Reader: bytes.NewReader(encoded)}
+	if actions[0] == "preview" {
+		preview, err := h.importer.Preview(request.Context(), principal, workspaceID, input)
+		if errors.Is(err, identity.ErrForbidden) {
+			h.renderError(writer, http.StatusForbidden)
+			return
+		}
+		if errors.Is(err, portability.ErrImportLimit) {
+			h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file exceeds the configured limit.", false, 0, nil)
+			return
+		}
+		if errors.Is(err, portability.ErrInvalidImport) {
+			h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file is invalid.", false, 0, nil)
+			return
+		}
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+		digest := sha256.Sum256(encoded)
+		view := importPreviewView{
+			RecordCount: preview.RecordCount, IssueCount: preview.IssueCount,
+			MoreIssues: preview.IssueCount - len(preview.Issues),
+			Digest:     hex.EncodeToString(digest[:]), Format: format,
+			Sample: make([]importSampleView, 0, len(preview.Sample)),
+			Issues: make([]importIssueView, 0, len(preview.Issues)),
+		}
+		for _, item := range preview.Sample {
+			sample := importSampleView{Title: item.Title, Status: string(item.Status)}
+			if item.Status == items.Active || item.Status == items.Complete {
+				sample.StatusKey = "items." + string(item.Status)
+				sample.Status = ""
+			}
+			view.Sample = append(view.Sample, sample)
+		}
+		for _, issue := range preview.Issues {
+			view.Issues = append(view.Issues, importIssueView{Record: issue.Record, MessageKey: "import.invalid_" + issue.Field})
+		}
+		status := http.StatusOK
+		if preview.IssueCount > 0 {
+			status = http.StatusUnprocessableEntity
+		}
+		h.renderImportPage(writer, request, status, session, csrf, "", false, 0, &view)
+		return
+	}
+	confirmations := request.MultipartForm.Value["confirm"]
+	if len(confirmations) != 1 || confirmations[0] != "yes" {
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "Confirm that you understand this bulk import.", false, 0, nil)
+		return
+	}
+	digests := request.MultipartForm.Value["preview_digest"]
+	formats := request.MultipartForm.Value["preview_format"]
+	actualDigest := sha256.Sum256(encoded)
+	if len(digests) != 1 || len(formats) != 1 || formats[0] != format ||
+		subtle.ConstantTimeCompare([]byte(digests[0]), []byte(hex.EncodeToString(actualDigest[:]))) != 1 {
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The selected file differs from the preview. Preview it again.", false, 0, nil)
+		return
+	}
 	result, err := h.importer.Import(
 		request.Context(), principal, workspaceID,
-		portability.ImportInput{Format: format, Reader: upload}, auditContext(request),
+		input, auditContext(request),
 	)
 	switch {
 	case errors.Is(err, identity.ErrForbidden):
 		h.renderError(writer, http.StatusForbidden)
 	case errors.Is(err, portability.ErrImportLimit), errors.Is(err, items.ErrLimit):
-		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file exceeds the configured limit or workspace item quota.", false, 0)
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file exceeds the configured limit or workspace item quota.", false, 0, nil)
 	case errors.Is(err, portability.ErrInvalidImport), errors.Is(err, items.ErrInvalidInput):
-		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file is invalid.", false, 0)
+		h.renderImportPage(writer, request, http.StatusUnprocessableEntity, session, csrf, "The import file is invalid.", false, 0, nil)
 	case err != nil:
 		h.renderError(writer, http.StatusInternalServerError)
 	default:
@@ -605,6 +705,7 @@ func (h *Handler) renderImportPage(
 	csrf, message string,
 	completed bool,
 	imported int,
+	preview *importPreviewView,
 ) {
 	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
 	if err != nil {
@@ -617,6 +718,7 @@ func (h *Handler) renderImportPage(
 		CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		CurrentPath:     "/workspaces/" + workspaceID.String() + "/settings/import",
 		ImportCompleted: completed, Imported: imported,
+		ImportPreview: preview,
 	})
 }
 

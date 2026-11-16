@@ -1054,3 +1054,25 @@ WebMCP exclusions remain in the existing handlers.
 - Passed: focused settings and secret-lifecycle tests, `go test ./internal/web ./internal/i18n -count=1` (162 tests), `make lint`, `make ux-smoke` (42 checks), and `make accessibility-smoke` in English and Spanish (zero axe violations; all covered settings and browser journeys passed).
 - The isolated accessibility smoke server uses higher request limits so its complete route audit does not hit production defaults.
 - Not run: full `make test` and `make verify`.
+
+## Import preview evidence (2026-11-15)
+
+Ticket #381 adds a read-only preview for bounded JSON and strict CSV item
+imports. The preview validates every record, reports the record count, samples
+at most five records, and returns at most ten actionable row errors. It writes
+no items. Confirmation requires the same file digest, then the existing
+portability transaction rechecks workspace permission and item quota before
+creating every row atomically; duplicate titles stay distinct. Both steps use
+ordinary forms and need no JavaScript.
+
+- Passed: `go test ./internal/portability ./internal/web ./internal/i18n -count=1`
+  (169 tests), `make test` (33 browser unit tests and all Go packages),
+  `make lint`, and English/Spanish
+  `make accessibility-smoke` (zero axe violations; keyboard, focus, 320px
+  reflow, reduced motion, and accessibility-tree checks). Focused tests cover
+  no-write preview, row-error bounds, duplicate titles, changed-file rejection,
+  and stateless preview/confirmation across two handler instances.
+- `make ux-smoke` hit an existing stale item-row selector on the #375 base; the
+  selector fix is in the preceding #376 stack layer and will be rechecked after
+  rebasing.
+- Not run: full `make verify`.

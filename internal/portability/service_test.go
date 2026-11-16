@@ -132,6 +132,40 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("viewer import error = %v", err)
 	}
+	if _, err := service.Preview(ctx, viewer, workspaceID, ImportInput{
+		Format: "text/csv", Reader: strings.NewReader("title,status\nBlocked,active\n"),
+	}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer import preview error = %v", err)
+	}
+	preview, err := service.Preview(ctx, actor, workspaceID, ImportInput{
+		Format: "text/csv", Reader: strings.NewReader("title,status\nFirst,active\n,active\nThird,unknown\n"),
+	})
+	if err != nil || preview.RecordCount != 3 || preview.IssueCount != 2 || len(preview.Issues) != 2 ||
+		preview.Issues[0] != (ImportIssue{Record: 2, Field: "title"}) ||
+		preview.Issues[1] != (ImportIssue{Record: 3, Field: "status"}) || len(preview.Sample) != 3 {
+		t.Fatalf("invalid import preview = %+v, %v", preview, err)
+	}
+	var previewItemCount int
+	if err := db.QueryRowContext(ctx, database.Rebind(driver,
+		"SELECT COUNT(*) FROM items WHERE workspace_id = ?"), workspaceID).Scan(&previewItemCount); err != nil {
+		t.Fatal(err)
+	}
+	if previewItemCount != 1 {
+		t.Fatalf("preview created items: count = %d", previewItemCount)
+	}
+	validPreview, err := service.Preview(ctx, actor, workspaceID, ImportInput{
+		Format: "text/csv", Reader: strings.NewReader("title,status\nDuplicate,active\nDuplicate,complete\n"),
+	})
+	if err != nil || validPreview.RecordCount != 2 || validPreview.IssueCount != 0 || len(validPreview.Sample) != 2 {
+		t.Fatalf("valid duplicate-title preview = %+v, %v", validPreview, err)
+	}
+	boundedPreview, err := service.Preview(ctx, actor, workspaceID, ImportInput{
+		Format: "text/csv", Reader: strings.NewReader("title,status\n" + strings.Repeat(",invalid\n", 12)),
+	})
+	if err != nil || boundedPreview.RecordCount != 12 || boundedPreview.IssueCount != 12 ||
+		len(boundedPreview.Sample) != importPreviewSampleLimit || len(boundedPreview.Issues) != importPreviewIssueLimit {
+		t.Fatalf("bounded import preview = %+v, %v", boundedPreview, err)
+	}
 	importToken, err := auth.CreateAPIToken(ctx, actor, "workspace update import",
 		[]identity.Permission{identity.WorkspaceUpdate}, nil, identity.AuditContext{})
 	if err != nil {
@@ -174,6 +208,11 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		t.Fatalf("JSON import = %+v, %v", imported, err)
 	}
 	limitedImport := NewService(db, driver, auth, 100, 1024*1024, 1, 1024*1024, itemService, nil)
+	if _, err := limitedImport.Preview(ctx, actor, workspaceID, ImportInput{
+		Format: "text/csv", Reader: strings.NewReader("title,status\nOne,active\nTwo,active\n"),
+	}); !errors.Is(err, ErrImportLimit) {
+		t.Fatalf("limited preview error = %v", err)
+	}
 	if _, err := limitedImport.Import(ctx, actor, workspaceID, ImportInput{
 		Format: "text/csv", Reader: strings.NewReader("title,status\nOne,active\nTwo,active\n"),
 	}, identity.AuditContext{RequestID: "import-limit"}); !errors.Is(err, ErrImportLimit) {
@@ -216,5 +255,57 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}
 	if success != 1 || failure != 1 {
 		t.Fatalf("export audits = success:%d failure:%d", success, failure)
+	}
+}
+
+func TestImportPreviewRechecksWorkspaceQuotaOnConfirmation(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, config.Database{
+		Driver: config.SQLite, SQLitePath: ":memory:", MaxOpenConns: 1, MaxIdleConns: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	if err := database.Migrate(ctx, db, config.SQLite); err != nil {
+		t.Fatal(err)
+	}
+	auth, err := identity.NewService(db, config.SQLite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := auth.BootstrapFirstOwner(ctx, identity.BootstrapInput{
+		Email: "preview-quota@example.com", Password: "long-enough-password", WorkspaceName: "Preview quota",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	actor, err := auth.Authorize(ctx, owner.UserID, owner.WorkspaceID, identity.WorkspaceUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	quotaItems := items.NewService(db, config.SQLite, auth, 1)
+	service := NewService(db, config.SQLite, auth, 100, 1024*1024, 100, 1024*1024, quotaItems, nil)
+	input := ImportInput{Format: "text/csv", Reader: strings.NewReader("title,status\nPreviewed,active\n")}
+	preview, err := service.Preview(ctx, actor, owner.WorkspaceID, input)
+	if err != nil || preview.RecordCount != 1 || preview.IssueCount != 0 {
+		t.Fatalf("initial quota preview = %+v, %v", preview, err)
+	}
+	writer := items.NewService(db, config.SQLite, auth, 2)
+	if _, err := writer.Create(ctx, actor, owner.WorkspaceID, "Created after preview", "after-preview", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Import(ctx, actor, owner.WorkspaceID, ImportInput{
+		Format: "text/csv", Reader: strings.NewReader("title,status\nPreviewed,active\n"),
+	}, identity.AuditContext{}); !errors.Is(err, items.ErrLimit) {
+		t.Fatalf("confirmation quota error = %v", err)
+	}
+	principal, err := auth.Authorize(ctx, owner.UserID, owner.WorkspaceID, identity.ResourcesRead)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := writer.List(ctx, principal, owner.WorkspaceID, items.ListInput{Sort: "created_at", Limit: 10})
+	if err != nil || len(page.Items) != 1 || page.Items[0].Title != "Created after preview" {
+		t.Fatalf("quota-rejected import left partial items: %+v, %v", page, err)
 	}
 }
