@@ -3,7 +3,7 @@
 Review baseline: `81c496187ec060f359a38e844859c23c5e265931`, 2026-11-16.
 This is a decision inventory, not an implementation or evidence that the
 proposed behavior has shipped. Route migrations own the follow-up. The existing
-general HTMX upgrade evidence is in [capabilities](capabilities.md#htmx-4-upgrade-evidence).
+general HTMX upgrade evidence is in the template's capability ledger.
 
 ## Shared rules for the implementation tickets
 
@@ -35,7 +35,7 @@ remain full-page errors; do not treat an error response as a success.
 | Item share revoke | **Defer** targeted revoke: ordinary POST with confirmation and 303 back to list; conflict 409, invalid action 400. | No swap or `hx-sync`; busy handling is script enhancement, ordinary form remains. Keep explicit consequence and permission gating. No secret needs re-display. | #414 |
 | Public share | **Defer** HTMX: ordinary read-only GET; valid projection contains only title/status, unavailable response covers invalid, expired and revoked links. | No mutation, sync, history snapshot or preload. Preserve response privacy headers and rate limit. | #414 |
 | Clients list/query/columns | **Defer** HTMX navigation. Ordinary GET filters/sort/page and preference POST retain URLs; list can return `client-list` for `HX-Request`. | GET 200, invalid query/cursor 400; preferences redirect on success. Empty, permissions and failures stay visible. No HTMX sync for ordinary forms. | #415 |
-| Clients live refresh | **Adopt the intended existing fragment refresh**, subject to fixing the missing script wiring in #415. The template has `#client-list[data-events]` and server returns `client-list`, but `clients.html` loads neither `htmx.min.js` nor `app.js`; the EventSource refresh therefore does not run on this baseline. | On `client.changed` or `resync`, GET current path and query, replace `#client-list` outerHTML with 200 fragment, no history push. Defer while focused, dirty or submitting; show waiting/reconnect state. Handle failed fetch without discarding input. Without JS, reload/navigation remains available. Stream requires workspace read permission. | #415 |
+| Clients live refresh | **Adopt the intended existing fragment refresh**, subject to fixing the missing script wiring in #415. The template has `#client-list[data-events]` and server returns `client-list`, but `clients.html` loads neither `htmx.min.js` nor `app.js`; the EventSource refresh therefore does not run on this baseline. | On `client.changed` or `resync`, GET current path and query, replace `#client-list` outerHTML with 200 fragment, no history push. Defer while focused, dirty or submitting; show waiting/reconnect state. Handle failed fetch without discarding input. Without JS, reload/navigation remains available. Both stream and fragment require `identity.ResourcesRead`; #415 must preserve it. | #415 |
 | Client create | **Defer** HTMX. POST collection redirects to detail; validation renders list and draft. | Success 303; invalid 422, permission/error via shared handler. Busy indicator with JS; native POST without it. Protect unsent create/filter inputs from live refresh before enabling it. | #415 |
 | Client detail edit and values set/clear | **Defer** HTMX. POST to detail or `/values/{fieldId}` and `/clear`; redirect to detail. | 303 success, 412 stale version, 409 archived field, 422 invalid input/option, permission and server errors via shared handler. Preserve drafts where available; value conflict currently renders stored values, so verify recovery and prevent silent loss in #416. No automatic retries. | #416 |
 | Client archive/restore/delete | **Defer** HTMX. POST `/archive`, `/unarchive`, `/delete`; delete redirects to list, others to detail. | 303 success; shared permission/error handling. Delete is permanent and gated to owner/admin; retain consequences and ordinary submission without JS. No swap or sync. | #416 |
@@ -78,19 +78,20 @@ remain full-page errors; do not treat an error response as a success.
 
 Source: [item template](../internal/web/templates/item-list.html),
 [item handler](../internal/web/handler.go), [sharing handler](../internal/web/sharing.go),
-[client list template](../internal/web/templates/clients.html),
-[client handler](../internal/web/clients.go), [client lifecycle](../internal/web/client_lifecycle.go),
-[field lifecycle](../internal/web/client_fields.go), [field options](../internal/web/client_options.go),
+[client list template](https://github.com/dynamiscode/dynamis-code-apps-template/blob/81c496187ec060f359a38e844859c23c5e265931/internal/web/templates/clients.html),
+[client handler](https://github.com/dynamiscode/dynamis-code-apps-template/blob/81c496187ec060f359a38e844859c23c5e265931/internal/web/clients.go), [client lifecycle](https://github.com/dynamiscode/dynamis-code-apps-template/blob/81c496187ec060f359a38e844859c23c5e265931/internal/web/client_lifecycle.go),
+[field lifecycle](https://github.com/dynamiscode/dynamis-code-apps-template/blob/81c496187ec060f359a38e844859c23c5e265931/internal/web/client_fields.go), [field options](https://github.com/dynamiscode/dynamis-code-apps-template/blob/81c496187ec060f359a38e844859c23c5e265931/internal/web/client_options.go),
 [realtime client](../internal/web/assets/app.js), [form handling](../internal/web/assets/forms.js),
-and [client stream](../internal/web/clients_events.go). Existing handler and
+and [client stream](https://github.com/dynamiscode/dynamis-code-apps-template/blob/81c496187ec060f359a38e844859c23c5e265931/internal/web/clients_events.go). Existing handler and
 browser tests are evidence of their assertions, not proof of every matrix cell.
 
 Upstream: [HTMX 4.0.1 release](https://github.com/bigskysoftware/htmx/releases/tag/v4.0.1)
 (2026-11-01), [4.0.1 migration guidance](https://github.com/bigskysoftware/htmx/blob/v4.0.1/www/src/content/docs.md),
 [4.0.1 extensions](https://github.com/bigskysoftware/htmx/tree/v4.0.1/www/src/content/extensions)
 and [4.0.1 documentation](https://github.com/bigskysoftware/htmx/blob/v4.0.1/www/src/content/docs.md).
-Context7 indexed 4.0.0 rather than 4.0.1; verify exact extension compatibility
-against the pinned 4.0.1 distribution before adopting anything.
+Context7 indexed 4.0.0 rather than 4.0.1. The upstream directory returned HTTP
+200 to curl, but the review browser could not fetch its contents. Exact 4.0.1
+extension compatibility remains unverified; check it before adopting anything.
 
 Unverified in this review: each failure and permission state in both locales,
 themes and viewport sizes; no-JavaScript journeys; keyboard/focus and screen
