@@ -15,6 +15,8 @@ and ordinary form submissions remain shareable and usable without JavaScript.
 
 Member and invitation pages explain role permissions, ownership transfer,
 invited-email matching, and safe recovery for unavailable links.
+Settings groups general and email setup, member access, API tokens, webhooks,
+SCIM, exports, imports, and audit history into role-aware sidebar sections.
 `/account`, `/notifications`, `/sessions`, and `/security` cover account and
 security settings. The authenticated shell uses
 a top bar for brand, workspace switching, and account actions, plus a context-aware

@@ -59,7 +59,7 @@ func TestWebhooksBrowserLifecycleAndRedaction(t *testing.T) {
 		t.Fatalf("create webhook = %d, headers=%v, body=%s", created.Code, created.Header(), created.Body.String())
 	}
 	secret := webhookSecret(t, created.Body.String())
-	if !strings.Contains(created.Body.String(), "Copy this webhook secret now") {
+	if !strings.Contains(created.Body.String(), "Copy this webhook secret now") || !strings.Contains(created.Body.String(), "rotate the secret") {
 		t.Fatalf("create response lacks one-time secret warning: %s", created.Body.String())
 	}
 	listed := request(handler, http.MethodGet, base, nil, cookies, nil)
@@ -197,7 +197,7 @@ func TestWebhookSecretKeyErrorIsActionable(t *testing.T) {
 	if response.Code != http.StatusUnprocessableEntity || !strings.Contains(response.Body.String(), "ENCRYPTION_KEY") {
 		t.Fatalf("webhook secret key error = %d, %s", response.Code, response.Body.String())
 	}
-	if strings.Contains(response.Body.String(), "<h1>Request failed</h1>") || !strings.Contains(response.Body.String(), "<h1>Example Webhooks</h1>") {
+	if strings.Contains(response.Body.String(), "<h1>Request failed</h1>") || !strings.Contains(response.Body.String(), "<h1>Webhooks</h1>") {
 		t.Fatalf("webhook secret key error left the settings page: %s", response.Body.String())
 	}
 }

@@ -293,3 +293,15 @@ li[data-optimistic="hidden"], tr[data-optimistic="hidden"] { display: none; }
 .wizard-status { color: var(--muted); font-weight: 700; }
 .wizard-nav { display: flex; gap: .5rem; margin-top: 1rem; }
 .draft-notice { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; padding: .5rem .75rem; background: var(--accent-surface); }
+.settings-page > h1 { margin-bottom: .5rem; }
+.settings-page > .settings-intro { max-width: 60ch; color: var(--muted); }
+.settings-page > section, .settings-page > form { margin: 1.25rem 0; padding: clamp(1rem, 2vw, 1.5rem); border: 1px solid var(--border); border-radius: var(--brand-radius); background: var(--surface); }
+.settings-page > section > h2:first-child { margin-top: 0; }
+.settings-records { display: grid; gap: .75rem; padding: 0; list-style: none; }
+.settings-record { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 1rem; border: 1px solid var(--border); border-radius: var(--brand-radius); background: var(--canvas); }
+.settings-record p { margin: .25rem 0; color: var(--muted); }
+.settings-record form { margin: 0; }
+@media (max-width: 38rem) {
+  .settings-record { align-items: stretch; flex-direction: column; }
+  .settings-record form button { width: 100%; }
+}
