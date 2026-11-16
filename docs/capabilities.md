@@ -12,6 +12,9 @@ not establish performance budgets or claim screen measurements are complete.
 Partial [workspace navigation evidence](ui-measurement-workspace.md) records
 the measured routes and unverified interactions for issue #447.
 
+The [administration measurement evidence](ui-measurement-admin.md) is partial
+for issue #448; its isolated run may have experienced concurrent check load.
+
 ## Profile status
 
 | Profile | Status | Evidence |

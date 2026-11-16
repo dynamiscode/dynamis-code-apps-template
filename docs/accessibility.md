@@ -17,6 +17,19 @@ bootstrapped server, then provide `A11Y_BASE_URL`, `A11Y_EMAIL`, and
 `A11Y_PASSWORD` to `npm run test:a11y`; set `A11Y_LOCALE=en` or `es`. The runner
 never prints the password.
 
+### Audit history finding — 2026-11-16
+
+An additional automated scan found one serious
+`scrollable-region-focusable` violation on the audit history page, at
+`#audit-table .table-wrap`. It used axe-core 4.14.0 with WCAG 2 A/AA and 2.1 AA
+tags, Chrome 157.0.8103.78, a 390×844 viewport, Spanish locale and a dark
+system preference. The scoped run and reproduction command are recorded in
+[administration measurement evidence](ui-measurement-admin.md#state-and-attribution-checks).
+[Issue #425](https://github.com/dynamiscode/dynamis-code-apps-template/issues/425)
+owns the follow-up. This finding remains unresolved; the earlier results below
+are historical observations and do not establish current accessibility
+conformance. Automated scanning is not a full accessibility audit.
+
 The axe pass also covers the client list, a client page, the custom-fields page,
 the files page, recipient notification center, public share, and MCP OAuth
 consent. The public share and consent routes run with the multi-workspace and
