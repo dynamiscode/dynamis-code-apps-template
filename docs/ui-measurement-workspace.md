@@ -423,3 +423,30 @@ not observed, and the Document returned 200. These are request candidates, not
 proof of redundant content: request headers and response bodies were not captured.
 Investigate under #413/#435 and #417. Client live updates remain mapped to
 #415/#308; favicon 404 remains mapped to #410. No fixes or budgets are claimed.
+
+## Navigation failure probe
+
+On 2026-11-16 at 19:35:31.763Z, commit `f6459c2` with the uncommitted probe
+change ran in the user-provided isolated window using Chrome 157.0.8103.78,
+Darwin 27.2.0 arm64, Node 26.10.0, Playwright 1.64.1, 1280×900 at scale 1,
+English, light theme, reduced motion, blocked service workers and unthrottled
+loopback. Each navigation starts from Home; one run per named surface:
+
+```sh
+UI_MEASURE=states PLAYWRIGHT_PORT=58147 ./scripts/playwright-smoke.sh
+```
+
+Playwright intercepts each document GET and fulfills a synthetic plain-text 503.
+All six recorded one Document request, HTTP 503, 97 completed encoded bytes,
+zero redirects, transport failures or unfinished requests. Elapsed milliseconds
+from navigation start to load and timing read were Home 22.8, Items 12.0,
+Clients 10.9, Files 15.0, Members 20.9 and Invitations 10.7. These numbers
+include automation and interception overhead; they are not application failure
+latency or budgets.
+
+Two earlier attempts each timed out after 10 seconds while trying to inspect
+the previous document during the held navigation, first through Playwright and
+then CDP. The completed probe therefore reports pending UI as unavailable with
+this method. Its injected response does not establish the application's actual
+error page or browser chrome feedback. Application-level failure and loading
+states remain unverified for these navigations; #447 remains partial.
