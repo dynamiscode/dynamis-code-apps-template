@@ -1140,6 +1140,14 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = workspaceSelection(data).Render(context.Background(), writer)
 		return
 	}
+	if name == "login.html" {
+		_ = authLogin(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "setup.html" {
+		_ = authSetup(data).Render(context.Background(), writer)
+		return
+	}
 	if err := h.template.ExecuteTemplate(writer, name, data); err != nil {
 		return
 	}

@@ -28,6 +28,11 @@ func TestSetupPresentsRequiredDetailsBeforeDeferrableTasks(t *testing.T) {
 			if !strings.Contains(body, `data-setup-optional`) {
 				t.Fatal("setup page does not explain that optional tasks can wait")
 			}
+			for _, marker := range []string{`class="input"`, `class="btn btn-primary"`, `class="alert alert-error error"`} {
+				if strings.Contains(body, `The setup form expired`) && !strings.Contains(body, marker) {
+					t.Fatalf("setup validation view lacks DaisyUI marker %q: %s", marker, body)
+				}
+			}
 		})
 	}
 }
@@ -49,6 +54,13 @@ func TestAuthenticationPagesUseBrandAndOrdinaryFormPaths(t *testing.T) {
 			}
 			if strings.Contains(path, "password-reset") && !strings.Contains(body, `method="post"`) {
 				t.Fatalf("%s lacks the ordinary form path: %s", path, body)
+			}
+			if path == "/login" {
+				for _, marker := range []string{`class="input"`, `class="btn btn-primary"`, `action="/login" method="post"`, `name="csrf"`} {
+					if !strings.Contains(body, marker) {
+						t.Fatalf("login lacks %q: %s", marker, body)
+					}
+				}
 			}
 		})
 	}

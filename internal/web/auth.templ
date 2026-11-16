@@ -1,0 +1,95 @@
+package web
+
+templ authLayout(data pageData, heading string) {
+	<!doctype html>
+	<html lang={ data.Locale } data-theme={ data.Theme }>
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width,initial-scale=1"/>
+			<title>{ heading } · { data.T("common.product_name") }</title>
+			<link rel="stylesheet" href="/assets/components.css"/>
+			<link rel="stylesheet" href="/assets/app.css"/>
+			@uiHead(data)
+		</head>
+		<body>
+			@skipLink(data)
+			<main class="narrow auth-card" id="main">
+				<div class="brand auth-brand"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</div>
+				{ children... }
+			</main>
+		</body>
+	</html>
+}
+
+templ authLogin(data pageData) {
+	@authLayout(data, data.T("account.sign_in")) {
+		<h1>{ data.T("account.sign_in") }</h1>
+		<p class="auth-intro">{ data.T("account.sign_in_description") }</p>
+		if data.Error != "" {
+			@errorAlert(data.Error)
+		}
+		<form action="/login" method="post">
+			<input type="hidden" name="csrf" value={ data.CSRF }/>
+			<input type="hidden" name="return_to" value={ data.ReturnTo }/>
+			<label for="email">{ data.T("common.email") }</label>
+			<input class="input" id="email" name="email" type="email" autocomplete="username" required maxlength="320" value={ data.Email } data-trim/>
+			<label for="password">{ data.T("common.password") }</label>
+			<input class="input" id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024"/>
+			@submitButton(data.T("account.sign_in"), nil)
+		</form>
+		<p><a href="/password-reset">{ data.T("account.forgot_password") }</a></p>
+		if len(data.OIDCProviders) > 0 {
+			<section class="auth-method" aria-labelledby="auth-provider-heading">
+				<h2 id="auth-provider-heading">{ data.T("account.other_sign_in_methods") }</h2>
+				<div class="auth-provider-list">
+					for _, provider := range data.OIDCProviders {
+						<a class="btn" href={ "/auth/oidc/" + provider.ID }>{ data.T("account.sign_in_with", map[string]any{"provider": provider.Name}) }</a>
+					}
+				</div>
+			</section>
+		}
+	}
+}
+
+templ authSetup(data pageData) {
+	@authLayout(data, data.T("setup.title")) {
+		<h1>{ data.T("setup.title") }</h1>
+		<p class="auth-intro">{ data.T("setup.description") }</p>
+		<p class="auth-note" data-setup-optional>{ data.T("setup.optional_later") }</p>
+		if data.Error != "" {
+			@errorAlert(data.Error)
+		}
+		<form action="/setup" method="post" data-wizard>
+			<input type="hidden" name="csrf" value={ data.CSRF }/>
+			<fieldset data-step>
+				<legend>{ data.T("setup.step_account") }</legend>
+				if data.SetupTokenRequired {
+					<label for="setup-token-format">{ data.T("setup.token_format") }</label>
+					<select class="select" id="setup-token-format" name="setup_token_format">
+						<option value="plain">{ data.T("setup.token_plain") }</option>
+						<option value="base64">{ data.T("setup.token_base64") }</option>
+					</select>
+					<label for="setup-token">{ data.T("setup.setup_token") }</label>
+					<input class="input" id="setup-token" name="setup_token" type="password" autocomplete="off" required maxlength="4096"/>
+				}
+				<label for="email">{ data.T("common.email") }</label>
+				<input class="input" id="email" name="email" type="email" autocomplete="username" required maxlength="320" value={ data.Email } data-trim/>
+				<label for="password">{ data.T("common.password") }</label>
+				<input class="input" id="password" name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="1024" data-strength/>
+				<label for="password-confirmation">{ data.T("setup.confirm_password") }</label>
+				<input class="input" id="password-confirmation" name="password_confirmation" type="password" autocomplete="new-password" required minlength="12" maxlength="1024" data-match="password"/>
+			</fieldset>
+			<fieldset data-step>
+				<legend>{ data.T("setup.step_workspace") }</legend>
+				<label for="workspace">{ data.T("workspace.name") }</label>
+				<input class="input" id="workspace" name="workspace" type="text" autocomplete="organization" required maxlength="120" value={ data.WorkspaceName } data-trim/>
+				<label for="workspace-locale">{ data.T("workspace.language_fallback") }</label>
+				<select class="select" id="workspace-locale" name="workspace_locale">
+					<option value="en" selected?={ data.WorkspaceLocale == "en" || data.WorkspaceLocale == "" && data.Locale == "en" }>{ data.T("common.english") }</option>
+					<option value="es" selected?={ data.WorkspaceLocale == "es" || data.WorkspaceLocale == "" && data.Locale == "es" }>{ data.T("common.spanish") }</option>
+				</select>
+			</fieldset>
+			@submitButton(data.T("setup.create_owner"), nil)
+		</form>
+	}
+}
