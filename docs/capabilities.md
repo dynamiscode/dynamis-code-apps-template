@@ -845,7 +845,8 @@ Verified 2026-11-10 with Go 1.27.3 on macOS (SQLite only):
   (`internal/web/mcp_consent_test.go`: sign-in redirect, escaped client name,
   invalid redirect and resource rejection, CSRF, approve and deny, code exchange)
 - `internal/identity/mcp_oauth_postgres_test.go` on PostgreSQL 16
-- not yet run: `make accessibility-smoke` for the consent page
+- `make accessibility-smoke` audited the public share and consent pages in
+  English and Spanish with zero axe violations (2026-11-16)
 - not yet implemented: expired-record pruning
 
 ## Object storage S3 conformance evidence
