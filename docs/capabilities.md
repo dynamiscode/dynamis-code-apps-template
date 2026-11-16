@@ -23,7 +23,7 @@ for issue #448; its isolated run may have experienced concurrent check load.
 | Identity | conforming | [Phase 02 evidence](#phase-02-evidence) |
 | Agent | conforming | [Phase 05 evidence](#phase-05-evidence) |
 | Files | conforming | [Files evidence](#files-evidence) |
-| Clients | partial | Create and edit clients over REST and web: [service tests](../internal/clients/service_test.go), [PostgreSQL lifecycle](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/clients_test.go), [web tests](../internal/web/clients_test.go), template-init generation tests (`cmd/template-init`). Define, archive, and restore text, number, date, and yes/no custom fields over REST and web: [field service tests](../internal/clients/fields_test.go), [REST tests](../internal/httpapi/client_fields_test.go), [web tests](../internal/web/client_fields_test.go), [slot-index tests](../internal/platform/database/client_slot_indexes_test.go). Set and clear text, number, date, and yes/no values with the field type lock: [value service tests](../internal/clients/values_test.go), [typed value tests](../internal/clients/typed_values_test.go), [PostgreSQL values](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/client_values_test.go), [web tests](../internal/web/client_values_test.go). Client list refreshes over workspace SSE for create, update, and custom value set or clear: [change feed tests](../internal/clients/events_test.go), [PostgreSQL feed check](../internal/clients/postgres_test.go), [stream tests](../internal/web/clients_events_test.go), [browser listener tests](../internal/web/assets/realtime-lists.test.mjs). Single-choice fields with up to 100 options per field over REST and web, with option deletion clearing values: [option service tests](../internal/clients/options_test.go), [option ID tests](../internal/clients/option_id_test.go), [PostgreSQL options](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/client_options_test.go), [web tests](../internal/web/client_options_test.go). Permanent deletion of an archived custom field over REST and web, clearing its values and choice options in one transaction: [field delete service tests](../internal/clients/field_delete_test.go), [REST tests](../internal/httpapi/client_field_delete_test.go), [web tests](../internal/web/client_field_delete_test.go), [PostgreSQL lifecycle](../internal/clients/postgres_test.go). Client archive, unarchive, and permanent client delete over REST and web, with the archived list selector: [lifecycle service tests](../internal/clients/lifecycle_test.go), [PostgreSQL archive and delete](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/client_lifecycle_test.go), [web tests](../internal/web/client_lifecycle_test.go). Client webhook events `client.created`, `client.updated`, `client.archived`, and `client.deleted` through the existing outbox, written in the change's transaction, with custom value set and clear emitting `client.updated`: [SQLite and PostgreSQL outbox tests](../internal/clients/webhook_events_test.go), [subscription test](../internal/webhooks/client_events_test.go). Client export, MCP, and `appctl` for archive and delete not implemented |
+| Clients | partial | Create and edit clients over REST and web: [service tests](../internal/clients/service_test.go), [PostgreSQL lifecycle](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/clients_test.go), [web tests](../internal/web/clients_test.go), template-init generation tests (`cmd/template-init`). Define, archive, and restore text, number, date, and yes/no custom fields over REST and web: [field service tests](../internal/clients/fields_test.go), [REST tests](../internal/httpapi/client_fields_test.go), [web tests](../internal/web/client_fields_test.go), [slot-index tests](../internal/platform/database/client_slot_indexes_test.go). Set and clear text, number, date, and yes/no values with the field type lock: [value service tests](../internal/clients/values_test.go), [typed value tests](../internal/clients/typed_values_test.go), [PostgreSQL values](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/client_values_test.go), [web tests](../internal/web/client_values_test.go). Client changes have a workspace SSE feed and list fragment: [change feed tests](../internal/clients/events_test.go), [PostgreSQL feed check](../internal/clients/postgres_test.go), [stream and fragment tests](../internal/web/clients_events_test.go), [listener unit tests](../internal/web/assets/realtime-lists.test.mjs). The client page does not load the listener or HTMX, so browser refresh is not wired; [#415](https://github.com/dynamiscode/dynamis-code-apps-template/issues/415) tracks the follow-up. Single-choice fields with up to 100 options per field over REST and web, with option deletion clearing values: [option service tests](../internal/clients/options_test.go), [option ID tests](../internal/clients/option_id_test.go), [PostgreSQL options](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/client_options_test.go), [web tests](../internal/web/client_options_test.go). Permanent deletion of an archived custom field over REST and web, clearing its values and choice options in one transaction: [field delete service tests](../internal/clients/field_delete_test.go), [REST tests](../internal/httpapi/client_field_delete_test.go), [web tests](../internal/web/client_field_delete_test.go), [PostgreSQL lifecycle](../internal/clients/postgres_test.go). Client archive, unarchive, and permanent client delete over REST and web, with the archived list selector: [lifecycle service tests](../internal/clients/lifecycle_test.go), [PostgreSQL archive and delete](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/client_lifecycle_test.go), [web tests](../internal/web/client_lifecycle_test.go). Client webhook events `client.created`, `client.updated`, `client.archived`, and `client.deleted` through the existing outbox, written in the change's transaction, with custom value set and clear emitting `client.updated`: [SQLite and PostgreSQL outbox tests](../internal/clients/webhook_events_test.go), [subscription test](../internal/webhooks/client_events_test.go). Client export, MCP, and `appctl` for archive and delete not implemented |
 | Clients shared list view | partial | Per-user columns and custom Client values, responsive table/card markup, sort/filter/pagination URL state, explicit-empty and typed timestamp filters, filter chips, reset actions, and viewer isolation: [web behavior tests](../internal/web/clients_test.go), [typed query tests](../internal/clients/query_test.go), [REST compatibility tests](../internal/httpapi/clients_test.go), [preference service tests](../internal/listprefs/service_test.go), and generated-profile checks (`cmd/template-init`). Required 1,000/10,000-row latency benchmarks and VoiceOver walkthrough remain pending. |
 | Items shared list view | partial | Per-user title/status visibility, responsive shared table/card layout, title search and status filters, stable creation-time ordering, cursor pagination URL state, query-preserving realtime refresh, and inline editing with hidden columns: [web behavior test](../internal/web/items_list_test.go), [Items service tests](../internal/items/service_test.go), [realtime browser test](../internal/web/assets/realtime-lists.test.mjs), [preference service tests](../internal/listprefs/service_test.go), and generated-profile checks (`cmd/template-init`). Required 1,000/10,000-row latency benchmarks and VoiceOver walkthrough remain pending. |
 | Members shared list view | partial | Per-user email/role/created visibility, responsive shared table/card layout, email and role filters, stable sorting, full results by default, opt-in cursor paging in web and REST, and retained role/removal/ownership actions: [web behavior tests](../internal/web/members_list_test.go), [REST behavior tests](../internal/httpapi/handler_test.go), and [preference service tests](../internal/listprefs/service_test.go). Required 1,000/10,000-row latency benchmarks and VoiceOver walkthrough remain pending. |
@@ -657,6 +657,22 @@ which is `accepted`.
   `go generate ./api` produced no drift on two runs; `go test -p 1 -count=1 ./...` with
   `POSTGRES_TEST_URL` passed against a fresh `postgres:14.24-alpine3.24` container.
 
+## Shared navigation migration evidence (#434, 2026-11-16)
+
+Shared navigation renders through templ, with an escaped bridge for remaining
+`html/template` pages. Focused bridge and route tests cover active state, role
+visibility, translated script messages, and logout CSRF escaping.
+
+- Passed: 15 focused web tests, `go vet ./internal/web`, `make templ-check`,
+  and `git diff --check`.
+- Passed: `./scripts/playwright-smoke.sh ui.spec.mjs` (10 checks), including
+  workspace selection and home snapshots on desktop and mobile in light and
+  dark themes, the Items journey, and Spanish workspace creation without JavaScript.
+- Passed: `npm run test:a11y` against an isolated server in English and Spanish;
+  zero axe violations on covered routes, with keyboard, focus, 320px reflow,
+  reduced-motion, and accessibility-tree checks.
+- Not run: full test and verification suites, deferred while PR checks run.
+
 ## Files evidence
 
 Files metadata migration and workspace authorization, local filesystem uploads
@@ -1170,3 +1186,23 @@ accessibility requirements.
 - The first `make verify` attempt stopped at `css-check` because this fresh
   worktree had no installed npm packages. After `npm ci`, the complete rerun
   passed.
+
+## Shared templ components (#411, 2026-11-16)
+
+Workspace selection and home use shared headings, fields, feedback, buttons,
+and cards. [Component rendering tests](../internal/web/components_test.go)
+also cover the table, confirmation, validation, empty-state, and pagination
+interfaces for the existing route patterns. A Chrome component fixture checks
+the paired table and cards at mobile and desktop widths in both themes,
+including keyboard focus, standalone table visibility, and axe. Those route
+migrations remain separate; other unused components still require browser
+validation as they are adopted.
+
+- Passed: focused component and workspace tests; templ and CSS drift checks;
+  lint; Chrome workspace screenshots and journeys; English and Spanish
+  accessibility smoke; generated-app template smoke.
+- Passed: [templ drift fixtures](../scripts/test-templ-check.sh), including
+  generator failure and added, removed, or changed outputs; the
+  [responsive list fixture](../scripts/playwright/components.spec.mjs).
+- Deferred: full `make test` and release verification. No data, API, CLI,
+  MCP, realtime, or operational behavior changed.

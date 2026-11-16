@@ -25,6 +25,25 @@ sidebar whose contents follow the current workspace context. Every mutation vali
 the session-bound CSRF token
 and rechecks current workspace permission.
 
+The templ dashboard shell accepts header and sidebar components. Its current
+adapters preserve workspace home navigation until shared navigation migrates;
+legacy templates remain for other routes. On desktop the workspace sidebar
+spans the viewport height. On mobile its links remain visible and usable without
+JavaScript.
+
+Shared templ components cover page headings, labelled inputs and selects,
+field errors, submit and link buttons, feedback, confirmations, captioned
+tables, linked and responsive list cards, empty states, and next-page links. Workspace selection
+and home use these components; other routes retain their existing templates
+until their migrations. Callers supply translated text, field attributes,
+table rows, equivalent mobile card contents, authorization, and CSRF-protected forms.
+Use `listTable` with `listCards` for paired responsive lists; use `dataTable`
+for standalone scrollable tables. A field error must be
+associated with its input through `aria-describedby`. Destructive buttons use
+the existing `data-confirm` enhancement; with JavaScript disabled the ordinary
+form still submits, so workflows requiring explicit consent must validate a
+required confirmation server-side. DaisyUI colors use the existing brand tokens.
+
 ## Localization
 
 Browser catalogs are embedded, Git-reviewed JSON under `internal/i18n/locales`
@@ -257,16 +276,34 @@ file drift.
 
 ## Rendering migration inventory
 
-Ticket #386 reconciles the route and template surface. `/workspaces/{workspaceId}`
-renders through `workspace.templ` and generated `workspace_templ.go`. The
+Ticket #386 reconciles the route and template surface. `/` and `/workspaces/{workspaceId}`
+render through `workspace.templ` and generated `workspace_templ.go`. The
 remaining named `html/template` views are an explicit migration deferral; their
 route families and major states are listed below. This keeps the existing
 escaping, HTMX fragment boundaries, ordinary-form fallbacks, and route tests
 intact until each family can move with behavior parity.
 
+Shared navigation uses `navigation.templ`. The named definitions in
+`navigation.html` bridge remaining `html/template` callers to the same escaped
+components; remove each bridge when its final caller migrates. The workspace
+shell composes those components directly.
+
+| Navigation surface | Decision and evidence | Route owner |
+|---|---|---|
+| Script messages and skip link | Shared on authenticated, auth, public, and error pages; `TestLegacyNavigationBridge` checks escaping and message placeholders | #434; page migrations remain separate |
+| Workspace context and breadcrumbs | Single mode omits workspace selection; multi mode retains the native switcher and ordinary links; `TestSingleModeHidesWorkspaceListNavigation` and `TestMultiModeKeepsWorkspaceListNavigation` | #410 and #434 |
+| Workspace and settings navigation | Home, Items, Clients, Files and settings retain feature and role gates; `TestWebNavigationAndActionFeedback` checks current pages and settings | #434; resource routes remain separate |
+| Member and invitation tabs | Both retain ordinary links and current-page state; `TestWebNavigationAndActionFeedback` | #434; member and invitation pages remain separate |
+| Account menu | Native disclosure and CSRF-protected logout remain; `TestLegacyNavigationBridge` checks escaping | #434; account pages remain separate |
+
+Empty, validation, pending and error states belong to the page routes above;
+navigation remains present when those pages render it. Focused browser and
+accessibility results and remaining limits are recorded in
+[shared navigation migration evidence](capabilities.md#shared-navigation-migration-evidence-434-2026-11-16).
+
 | Route family | Views and shared templates | Major states covered |
 |---|---|---|
-| `/`, `/workspaces/{workspaceId}` | `home.html`; `workspace.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
+| `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
 | `/setup`, `/login`, `/mfa`, `/account/verify-email/{secret}`, `/password-reset/{secret}`, `/oauth/authorize` | `setup.html`, `login.html`, `mfa.html`, `verification.html`, `password-reset.html`, `mcp-consent.html`, `auth.html` | Initial setup, form errors, sign-in and MFA challenge, verification success/unavailable, reset request/completion, OAuth approval/denial |
 | Workspace items, clients, and custom fields | `items.html`, `item-list.html`, `list-view.html`, `clients.html`, `client.html`, `client-fields.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field lifecycle, realtime refresh |
 | Workspace members and invitations | `members.html`, `invitations.html`, `invitation.html` | Role changes, removal and ownership transfer, invitation create/resend/revoke, accepted and unavailable invitation |
@@ -277,7 +314,7 @@ intact until each family can move with behavior parity.
 Corresponding route and handler tests cover server-rendered behavior.
 `make ux-smoke` and `make accessibility-smoke` cover the browser paths they
 enumerate; [the accessibility evidence](accessibility.md) records that
-automated coverage. Only the workspace home has moved to templ so far; the
+automated coverage. Workspace selection and workspace home use templ; the
 listed legacy views are an intentional exception to the migration target, not
 an exception to escaping, authorization, accessibility, localization, or
 ordinary-form requirements.
@@ -405,10 +442,12 @@ It sends `client.changed` with the client's short ID, schema version `1`, UTC
 occurrence time, workspace ID, action (`created` or `updated`), and client
 version. It carries no client fields. A missing, malformed, unknown, or expired
 cursor receives `resync`. Viewers receive events, and a user outside the
-workspace gets not found. The list refreshes by fetching its section, and an
-open create form waits while a field has focus, as the Items list does. The
-latest 1,000 client events per workspace are retained, and older events fall
-under the same replay window as Items.
+workspace gets not found. The latest 1,000 client events per workspace are
+retained, and older events fall under the same replay window as Items.
+The list fragment and listener exist, but the client page does not load the
+scripts needed to start its browser refresh. [#415](https://github.com/dynamiscode/dynamis-code-apps-template/issues/415)
+tracks wiring it and protecting unsaved input; both stream and fragment must
+continue to require `identity.ResourcesRead`.
 
 `GET /notifications/events` uses the same stream limits, heartbeat, lifetime,
 and database polling. Events carry the notification ID, type, title, body, and

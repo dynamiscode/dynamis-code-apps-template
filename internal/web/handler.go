@@ -324,6 +324,7 @@ func newHandler(
 		return nil, err
 	}
 	templates, err := template.New("root").Funcs(template.FuncMap{
+		"navigation": renderNavigation,
 		// deref reads an optional string, such as a client value, as text.
 		"deref": func(value *string) string {
 			if value == nil {
@@ -1133,6 +1134,10 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 	writer.WriteHeader(status)
 	if name == "workspace-home" {
 		_ = workspaceHome(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "home.html" {
+		_ = workspaceSelection(data).Render(context.Background(), writer)
 		return
 	}
 	if err := h.template.ExecuteTemplate(writer, name, data); err != nil {
