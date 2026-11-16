@@ -18,6 +18,9 @@ Members contains the owner. One unthrottled run used 1280×900, device scale 1,
 English browser and default account locale, light theme, reduced motion and
 blocked service workers. After sign-in, Chrome's HTTP cache was cleared before
 each cold navigation; the following navigation to the same route is warm.
+Concurrent workload was not recorded. A race suite was reported running during
+follow-up work, so contention cannot be ruled out for this snapshot. Treat its
+timings as provisional, not representative; rerun after the suite finishes.
 Counts begin before navigation and end after the load event and timing read.
 Completed bytes are CDP encoded transfer bytes, not asset gzip sizes. Unfinished
 requests have unavailable bytes. Timings are navigation-start to
@@ -52,4 +55,93 @@ client detail, list mutations, HTMX fragments, SSE connections and events,
 uploads, downloads, pending, validation, failure, permission, no-JavaScript,
 mobile, Spanish and dark-theme states remain unverified. Duplicate requests
 other than the repeated missing favicon and per-screen script necessity remain
-unverified. These are prerequisites for completing #447, not zero values.
+unverified in this snapshot. Later observations follow.
+
+## Follow-up measurement window
+
+The user reported the race suite and submission hooks finished before these
+runs. No other workload was measured or controlled. The navigation rerun at
+2026-11-16T16:30:15.640Z used the command and environment above, application
+commit `12b62ccfa69a7177d3a07c965ad4cfcbc9ae4855`, and the pending harness
+change that isolates local file storage. One run per cache condition:
+
+| Route | Cache | Requests | Completed bytes | Unfinished | DOMContentLoaded ms | Load ms |
+|---|---|---:|---:|---:|---:|---:|
+| Home | cold | 5 | 73587 | 1 | 12.0 | 15.8 |
+| Home | warm | 4 | 73587 | 0 | 18.0 | 18.1 |
+| Items | cold | 7 | 113735 | 2 | 17.2 | 23.3 |
+| Items | warm | 8 | 123183 | 1 | 32.9 | 34.2 |
+| Clients | cold | 5 | 67195 | 0 | 24.4 | 33.4 |
+| Clients | warm | 4 | 66683 | 0 | 18.6 | 21.5 |
+| Files | cold | 5 | 76427 | 0 | 18.3 | 20.1 |
+| Files | warm | 4 | 75915 | 0 | 13.1 | 14.5 |
+| Members | cold | 5 | 77119 | 0 | 16.8 | 17.8 |
+| Members | warm | 4 | 76607 | 0 | 19.9 | 21.0 |
+| Invitations | cold | 5 | 73229 | 1 | 17.0 | 17.4 |
+| Invitations | warm | 4 | 73229 | 0 | 19.4 | 19.6 |
+
+All document responses were 200. Cold Clients, Files and Members each recorded
+a favicon 404; unfinished requests cannot be classified from these totals.
+No redirects, cache-served events or transport failures were counted. Request
+counts are interval-dependent; the additional warm Items requests need
+classification before being called duplicates.
+
+The interaction run ended at 2026-11-16T16:31:52.122Z. Same application,
+browser, viewport, locale, theme, network and fresh SQLite setup; sequential
+actions share that fixture and browser cache. Local file storage is temporary;
+SMTP and Cloudflare email environment variables are unset for the server. The
+fixture contains two synthetic Items, one Client, a 30-byte text file and one
+synthetic invitation at their respective steps. The peer Item is created in a
+second tab. Invitation data and the one-time link are never printed. Command:
+
+```sh
+UI_MEASURE=interactions PLAYWRIGHT_PORT=58147 ./scripts/playwright-smoke.sh
+```
+
+Each row counts requests on the observed tab from immediately before the action
+until the specified DOM state or download completion. Elapsed time includes
+Playwright action and assertion overhead. Bytes are completed CDP encoded
+bytes, excluding the long-lived stream and any unfinished response; redirect
+bytes can be incomplete. SSE peer-tab POST is outside the observed tab counts.
+One run, no aggregation:
+
+| Interaction and end state | Requests | Completed bytes | Elapsed ms | SSE messages |
+|---|---:|---:|---:|---:|
+| Peer Item create → visible SSE refresh | 1 | 6770 | 1350.7 | 1 |
+| Item create → fragment visible | 1 | 8877 | 68.2 | 0 |
+| Item edit → fragment visible | 1 | 8909 | 55.0 | 0 |
+| Item delete → row absent | 1 | 6813 | 109.2 | 0 |
+| Client create → detail | 5 | 61903 | 95.0 | 0 |
+| Client list → detail | 4 | 61903 | 96.9 | 0 |
+| Client edit → heading updated | 5 | 61927 | 81.1 | 0 |
+| Client archive → unarchive form | 5 | 62027 | 74.1 | 0 |
+| Upload → file listed after reload | 6 | 84772 | 85.9 | 0 |
+| Download → contents verified | 1 | unavailable | 105.3 | 0 |
+| Injected upload 503 → retry enabled | 1 | 63 | 78.3 | 0 |
+| Invitation create → revoke available | 4 | 73922 | 83.0 | 0 |
+| Invitation revoke → revoke absent | 5 | 73317 | 130.5 | 0 |
+
+Each row had zero unfinished requests. Client create/edit/archive, upload and
+invitation revoke each included one redirect; redirect byte accounting may be
+incomplete. Download succeeded and its contents matched, although CDP reported
+one loading failure when Chrome handed the navigation to its download manager;
+encoded transfer bytes are unavailable. The injected 503 is intentional; all
+other rows had zero recorded HTTP errors and transport failures.
+
+Items reached the connected SSE status and a peer mutation produced one event
+and one observed refresh request. Stream connection bytes and duration are not
+available from completed-request accounting. On Clients, the list exposes an
+SSE endpoint but its page loads neither `app.js` nor HTMX; waiting for connected
+status timed out. The missing live refresh is actionable under Client list #415
+and realtime #308. Repeated favicon 404s map to shell #410. Neither fix is
+claimed. The upload's held request showed a visible status and disabled button;
+after injected 503 it showed an error and enabled retry. Success reloaded the
+list. No claim is made about progress milestones from this small file.
+
+Still unverified: member role/removal/ownership mutations need another member;
+Client unarchive/delete and field changes, invitation resend, filter and page
+mutations, validation, authorization failures, no-JavaScript, mobile, Spanish,
+dark theme, item request failure, SSE disconnect/reconnect and upload progress
+need dedicated scenarios. These are not zero measurements. #447 remains
+partial until those scenarios and per-screen script/duplicate classification
+are assessed. No performance budget is established.

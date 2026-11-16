@@ -23,8 +23,10 @@ BOOTSTRAP_ADMIN_PASSWORD=playwright-password-123 DATABASE_DRIVER=sqlite SQLITE_P
   go run ./cmd/bootstrap-admin -email playwright@example.com -workspace "UI Baselines" >/dev/null
 go build -o "$work/server" ./cmd/server
 MULTI_WORKSPACE_ENABLED=true HTTP_REQUESTS_PER_MINUTE=10000 HTTP_AUTH_REQUESTS_PER_MINUTE=1000 \
-  DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" HTTP_ADDRESS="127.0.0.1:$port" \
-  "$work/server" >"$work/server.log" 2>&1 &
+  DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" STORAGE_LOCAL_PATH="$work/files" HTTP_ADDRESS="127.0.0.1:$port" \
+  env -u SMTP_HOST -u SMTP_PORT -u SMTP_USERNAME -u SMTP_PASSWORD -u SMTP_FROM \
+    -u CLOUDFLARE_EMAIL_ACCOUNT_ID -u CLOUDFLARE_EMAIL_API_TOKEN -u CLOUDFLARE_EMAIL_FROM \
+    "$work/server" >"$work/server.log" 2>&1 &
 pid=$!
 
 if ! curl --fail --silent --retry 30 --retry-delay 1 --retry-connrefused \
@@ -39,6 +41,8 @@ if [ "${UI_MEASURE:-0}" = 1 ]; then
   node scripts/ui-measurement.mjs
 elif [ "${UI_MEASURE:-0}" = workspace ]; then
   node scripts/ui-measurement-workspace.mjs
+elif [ "${UI_MEASURE:-0}" = interactions ]; then
+  node scripts/ui-measurement-interactions.mjs
 else
   npm run test:journeys -- "$@"
 fi
