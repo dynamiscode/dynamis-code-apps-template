@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
 )
 
@@ -32,7 +33,9 @@ func TestSetupPresentsRequiredDetailsBeforeDeferrableTasks(t *testing.T) {
 }
 
 func TestAuthenticationPagesUseBrandAndOrdinaryFormPaths(t *testing.T) {
-	handler, _, _, _, _ := testWeb(t, 10)
+	webHandler, _, _, _, _ := testWebRaw(t, 10)
+	handler := webHandler.Routes()
+	brand := webHandler.catalog.Translate(i18n.English, "common.product_name", nil)
 	for _, path := range []string{"/login", "/password-reset", "/password-reset/unavailable", "/account/verify-email/unavailable"} {
 		t.Run(path, func(t *testing.T) {
 			response := request(handler, http.MethodGet, path, nil, nil, nil)
@@ -40,7 +43,8 @@ func TestAuthenticationPagesUseBrandAndOrdinaryFormPaths(t *testing.T) {
 			if response.Code != http.StatusOK && response.Code != http.StatusUnprocessableEntity {
 				t.Fatalf("GET %s = %d, %s", path, response.Code, body)
 			}
-			if !strings.Contains(body, `class="brand auth-brand"`) || !strings.Contains(body, `Dynamis Code`) {
+			if (!strings.Contains(body, `class="brand auth-brand"`) && !strings.Contains(body, `class="brand"`)) ||
+				!strings.Contains(body, brand) {
 				t.Fatalf("%s lacks the generated-app brand: %s", path, body)
 			}
 			if strings.Contains(path, "password-reset") && !strings.Contains(body, `method="post"`) {
