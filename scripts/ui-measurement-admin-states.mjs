@@ -86,6 +86,28 @@ try {
   results.push({ state: "anonymous audit request", finalStatus: response.status(),
     reachedLogin: new URL(denied.url()).pathname === "/login" });
   await anonymous.close();
+
+  await page.goto(`${workspace}/settings/invitations`, { waitUntil: "load" });
+  await page.locator("#invite-email").fill("viewer@example.com");
+  await page.locator("#invite-role").selectOption("viewer");
+  await Promise.all([page.waitForNavigation({ waitUntil: "load" }),
+    page.locator('button[name="action"][value="create"]').click()]);
+  const invite = await page.locator('input[aria-label="Copy this invitation link"]').inputValue();
+  const inviteURL = new URL(invite, baseURL);
+  assert.equal(inviteURL.origin, new URL(baseURL).origin);
+  assert.ok(inviteURL.pathname.startsWith("/invitations/"));
+  const viewerContext = await browser.newContext({ baseURL, locale: "en-US", serviceWorkers: "block" });
+  const viewer = await viewerContext.newPage();
+  await viewer.goto(inviteURL.href, { waitUntil: "load" });
+  await viewer.locator("#invite-password").fill("viewer-fixture-password-123");
+  await Promise.all([viewer.waitForNavigation({ waitUntil: "load" }),
+    viewer.locator('button[name="action"][value="register"]').click()]);
+  assert.ok(new URL(viewer.url()).pathname.endsWith("/items"));
+  for (const screen of ["general", "email", "tokens", "provisioning", "webhooks", "audit", "import", "export"]) {
+    const viewed = await viewer.goto(`${workspace}/settings/${screen}`, { waitUntil: "load" });
+    results.push({ state: "viewer settings navigation", screen, status: viewed.status() });
+  }
+  await viewerContext.close();
   console.log(JSON.stringify({ scenario: "isolated owner fixture; no timing metrics", results }, null, 2));
 } catch {
   console.error("Administration state checks failed; inspect the isolated fixture locally without sharing logs.");
