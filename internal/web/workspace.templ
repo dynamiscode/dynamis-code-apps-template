@@ -127,6 +127,10 @@ templ dashboardHomeNavigation(data pageData) {
 				</aside>
 }
 
+templ linkedCard(href, title, description string) {
+	<li><a href={ href }><strong>{ title }</strong><span>{ description }</span></a></li>
+}
+
 templ workspaceSelection(data pageData) {
 	@dashboardShell(data, dashboardHeader(data), nil) {
 		<h1>{ data.T("workspace.workspaces") }</h1>
@@ -136,7 +140,7 @@ templ workspaceSelection(data pageData) {
 		if len(data.Workspaces) > 0 {
 			<ul class="cards">
 				for _, workspace := range data.Workspaces {
-					<li><a href={ "/workspaces/" + workspace.ID.String() }><strong>{ workspace.Name }</strong><span>{ data.Role(workspace.Role) }</span></a></li>
+					@linkedCard("/workspaces/" + workspace.ID.String(), workspace.Name, data.Role(workspace.Role))
 				}
 			</ul>
 		} else {
@@ -173,14 +177,14 @@ templ workspaceHome(data pageData) {
 					<section aria-labelledby="workspace-tools-title">
 						<h2 id="workspace-tools-title">{ data.T("workspace.tools_title") }</h2>
 						<ul class="cards workspace-cards">
-							<li><a href={ "/workspaces/" + data.Workspace.ID.String() + "/items" }><strong>{ data.T("items.items") }</strong><span>{ data.T("workspace.items_description") }</span></a></li>
+							@linkedCard("/workspaces/" + data.Workspace.ID.String() + "/items", data.T("items.items"), data.T("workspace.items_description"))
 							if data.ClientsEnabled {
-								<li><a href={ "/workspaces/" + data.Workspace.ID.String() + "/clients" }><strong>{ data.T("clients.title") }</strong><span>{ data.T("workspace.clients_description") }</span></a></li>
+								@linkedCard("/workspaces/" + data.Workspace.ID.String() + "/clients", data.T("clients.title"), data.T("workspace.clients_description"))
 							}
 							if data.FilesEnabled {
-								<li><a href={ "/workspaces/" + data.Workspace.ID.String() + "/files" }><strong>{ data.T("files.files") }</strong><span>{ data.T("files.description") }</span></a></li>
+								@linkedCard("/workspaces/" + data.Workspace.ID.String() + "/files", data.T("files.files"), data.T("files.description"))
 							}
-							<li><a href={ "/workspaces/" + data.Workspace.ID.String() + "/settings" }><strong>{ data.T("navigation.settings") }</strong><span>{ data.T("workspace.settings_description") }</span></a></li>
+							@linkedCard("/workspaces/" + data.Workspace.ID.String() + "/settings", data.T("navigation.settings"), data.T("workspace.settings_description"))
 						</ul>
 					</section>
 	}
