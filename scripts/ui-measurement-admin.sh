@@ -22,6 +22,7 @@ BOOTSTRAP_ADMIN_PASSWORD=playwright-password-123 DATABASE_DRIVER=sqlite SQLITE_P
   go run ./cmd/bootstrap-admin -email playwright@example.com -workspace "UI Baselines" >/dev/null
 go build -o "$work/server" ./cmd/server
 MULTI_WORKSPACE_ENABLED=true HTTP_REQUESTS_PER_MINUTE=10000 HTTP_AUTH_REQUESTS_PER_MINUTE=1000 \
+  ENCRYPTION_KEY= WEBHOOK_ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
   DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" HTTP_ADDRESS="127.0.0.1:$port" \
   "$work/server" >"$work/server.log" 2>&1 &
 pid=$!
