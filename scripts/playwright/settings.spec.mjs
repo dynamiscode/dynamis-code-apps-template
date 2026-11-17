@@ -133,22 +133,28 @@ test("settings pages render in Spanish", async ({ page }) => {
 test("member settings permissions keep email hidden and general read-only", async ({ browser }) => {
   const memberEmail = process.env.PLAYWRIGHT_MEMBER_EMAIL;
   const memberPassword = process.env.PLAYWRIGHT_MEMBER_PASSWORD;
-  test.skip(!memberEmail || !memberPassword, "member fixture credentials are not configured");
+  if (!memberEmail || !memberPassword) {
+    throw new Error("PLAYWRIGHT_MEMBER_EMAIL and PLAYWRIGHT_MEMBER_PASSWORD are required");
+  }
   const page = await browser.newPage({ baseURL: process.env.PLAYWRIGHT_BASE_URL });
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(memberEmail);
-  await page.getByLabel("Password").fill(memberPassword);
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL(new URL("/", process.env.PLAYWRIGHT_BASE_URL).href);
-  await page.locator(".cards a").first().click();
-  const workspacePath = new URL(page.url()).pathname;
+  try {
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(memberEmail);
+    await page.getByLabel("Password").fill(memberPassword);
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.waitForURL(new URL("/", process.env.PLAYWRIGHT_BASE_URL).href);
+    await page.locator(".cards a").first().click();
+    const workspacePath = new URL(page.url()).pathname;
 
-  await page.goto(`${workspacePath}/settings/general`);
-  await expect(page.locator("#workspace-locale")).toBeDisabled();
-  await expect(page.locator('form[action$="/settings/general"] button[type="submit"]')).toHaveCount(0);
-  const emailResponse = await page.goto(`${workspacePath}/settings/email`);
-  expect(emailResponse?.status()).toBe(403);
-  await page.close();
+    await page.goto(`${workspacePath}/settings/general`);
+    await expect(page.locator('a[href$="/settings/email"]')).toHaveCount(0);
+    await expect(page.locator("#workspace-locale")).toBeDisabled();
+    await expect(page.locator('form[action$="/settings/general"] button[type="submit"]')).toHaveCount(0);
+    const emailResponse = await page.goto(`${workspacePath}/settings/email`);
+    expect(emailResponse?.status()).toBe(403);
+  } finally {
+    await page.close();
+  }
 });
 
 test.describe("settings forms without JavaScript", () => {

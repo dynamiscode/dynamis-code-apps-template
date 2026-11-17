@@ -70,8 +70,8 @@ vulnerability, and workflow/security jobs. The accessibility job failed in
 light/dark screenshot assertions failed. Both expected 390x1736 and received
 390x1808; light differed by 62,726 pixels (9%), dark by 91,007 pixels (13%).
 Other settings screenshots, keyboard/axe, Spanish, and no-JavaScript settings
-checks passed. The member permission case skipped without fixture credentials;
-native member permission coverage remains unverified.
+checks passed. The member permission case skipped without fixture credentials
+on that head.
 
 The reviewed actuals show the same page content and controls, with one extra
 wrapped line in each of three email paragraphs, adding 72px total. The exact
@@ -79,11 +79,19 @@ resolved CI font was not recorded. The failure artifact contained only four
 email mobile actual/diff PNGs; actuals show synthetic `UI Baselines` and blank
 provider fields. The new Linux-only email mobile baselines are byte-identical
 copies of those reviewed actuals; all other snapshot names remain unchanged.
-The baseline adjustment has not yet run in CI.
+CI run `43994762188` on `dc5160b` passed all jobs, including accessibility.
+Its browser smoke had 31 passed and 3 skipped; Linux email screenshots passed,
+but the member permission case still skipped on that head.
+
+A local browser smoke after adding a disposable SQLite member fixture passed
+32 tests with 2 unrelated notification skips. The member signed in, saw no
+email settings link, could not submit general settings, and received HTTP 403
+for the email settings route. The fixture uses the identity invitation flow;
+its database is temporary and removed by the smoke script.
 
 A prior Linux MCR run on `ee96147` passed 25 tests with one skip but did not
-reproduce this GitHub mismatch. A local `make accessibility-smoke` passed in
-English and Spanish on that earlier head. The mismatch remains unresolved
-until the updated head passes browser CI. Provider verification failures have
-focused Go coverage; the browser suite does not submit to a configured provider
-or induce a server failure.
+reproduce the GitHub screenshot mismatch. A local `make accessibility-smoke`
+passed in English and Spanish on that earlier head. Provider verification
+failures have focused Go coverage; the browser suite does not submit to a
+configured provider or induce a server failure. Updated-head CI remains pending
+for the member fixture and latest-main reconciliation.
