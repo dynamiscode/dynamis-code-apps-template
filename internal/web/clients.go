@@ -14,6 +14,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
+	"github.com/a-h/templ"
 )
 
 type clientFilterOperator struct {
@@ -195,12 +196,12 @@ func (h *Handler) renderClientList(
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	name := "clients-page"
+	component := clientsPage
 	if request.Header.Get("HX-Request") == "true" {
 		// A realtime refresh swaps only the list section, as the Items list does.
-		name = "client-list"
+		component = clientList
 	}
-	h.renderClientTemplate(writer, request, status, name, pageData{
+	h.renderClientPage(writer, request, status, component, pageData{
 		Title: "Clients", ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		NavPage: "clients", NavSection: "clients",
@@ -222,7 +223,7 @@ func (h *Handler) renderClientList(
 	})
 }
 
-func (h *Handler) renderClientTemplate(writer http.ResponseWriter, request *http.Request, status int, name string, data pageData) {
+func (h *Handler) renderClientPage(writer http.ResponseWriter, request *http.Request, status int, component func(pageData) templ.Component, data pageData) {
 	data.FilesEnabled = h.filesEnabled
 	data.ClientsEnabled = h.clientsEnabled
 	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
@@ -231,15 +232,7 @@ func (h *Handler) renderClientTemplate(writer http.ResponseWriter, request *http
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)
-	if name == "client-list" {
-		_ = clientList(data).Render(request.Context(), writer)
-		return
-	}
-	if name == "client-detail" {
-		_ = clientDetailPage(data).Render(request.Context(), writer)
-		return
-	}
-	_ = clientsPage(data).Render(request.Context(), writer)
+	_ = component(data).Render(request.Context(), writer)
 }
 
 func clientDraftHasInput(draft clients.Input) bool {
@@ -342,7 +335,7 @@ func (h *Handler) renderClientDetail(
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.renderClientTemplate(writer, request, status, "client-detail", pageData{
+	h.renderClientPage(writer, request, status, clientDetailPage, pageData{
 		Title: client.DisplayName, ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		NavPage: "clients", NavSection: "clients",
