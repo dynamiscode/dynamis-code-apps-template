@@ -31,6 +31,7 @@ test("existing account signs in and accepts invitation without JavaScript", asyn
     await createForm.locator('[name="role"]').selectOption("member");
     await createForm.locator('button[name="action"][value="create"]').click();
     const invitationURL = await page.getByLabel("Copy this invitation link").inputValue();
+    await page.goto("/login");
     const inviteURL = new URL(invitationURL, process.env.PLAYWRIGHT_BASE_URL);
     if (!inviteURL.pathname.startsWith("/invitations/")) {
       throw new Error("Invitation link path missing");
