@@ -47,28 +47,38 @@ Issue: [#417](https://github.com/dynamiscode/dynamis-code-apps-template/issues/4
 
 ## Verification
 
-Passed:
+Validation on tree `e16c943acd1e13869946c48f04b34bd98284dafd`, based on
+`main` at `66d4fba8cffca88cce718445b5e3b7e9a949a3e3`:
 
-- `PLAYWRIGHT_PORT=58417 ./scripts/playwright-smoke.sh --grep Files`: all 10
+- `PLAYWRIGHT_PORT=58419 ./scripts/playwright-smoke.sh --grep Files`: all 10
   Files journeys passed, including four screenshot comparisons, system-theme
   response to light/dark OS preference, keyboard/Spanish labels, axe, upload
   failure/retry, no-JavaScript fallback, and viewer download.
-- `A11Y_PORT=58418 ./scripts/accessibility-smoke.sh`: English and Spanish runs reported
-  zero axe violations on Files and all audited routes. Keyboard/focus, 320px
-  reflow, reduced motion, and progress accessibility-tree checks passed.
-- Four desktop/mobile light/dark Files screenshots were generated and visually
-  reviewed at `scripts/playwright/files.spec.mjs-snapshots/`.
-- Generated-profile regressions passed for Files pruning and Clients enabled
-  and omitted profiles; the Files test confirms its route, evidence, browser
-  spec, and screenshot baselines are pruned.
-- `go test ./internal/web -run '^(TestFile|TestFiles)' -count=1`: 14 passed.
-  `npm run test:unit`: 33 passed; JavaScript and Playwright syntax checks passed.
-- `make templ-check` and `make css-check` passed with no generated drift.
-- `make verify` passed: Go tests, race tests, lint, dependency/workflow checks,
-  API generation, templ/CSS drift, builds, and generated-app template smoke.
-  This run preceded local integration of refreshed #422 head `7c87ad9`.
+- `A11Y_PORT=58418 ./scripts/accessibility-smoke.sh` passed earlier in English
+  and Spanish, with zero axe violations on Files and all audited routes. Its
+  keyboard/focus, 320px reflow, reduced motion, and progress accessibility-tree
+  checks passed. It was not rerun after #477, which only changed Items test
+  diagnostics; Files axe and keyboard journeys passed on the current tree.
+- Four desktop/mobile light/dark Files screenshots were generated, compared,
+  and visually reviewed at `scripts/playwright/files.spec.mjs-snapshots/`.
+- Focused Items and Files handler tests passed: 16 tests. Files pruning and
+  Clients enabled/omitted generated-profile regressions passed: 3 tests.
+- The combined `Core,Identity,Agent,Files,Clients` profile was generated on
+  this tree. Its lock, Files and Clients surfaces, and both capability flags
+  were verified; generated `go test ./...` passed 1,048 tests across 36 packages.
+  This was an isolated generated-app check, not a persisted combined-profile test.
+- `npm run test:unit`: 33 passed. `npm run check:js`, `make templ-check`, and
+  `make css-check` passed with no generated drift.
+- The normal pre-push hook passed `make ci-local`: lint, browser unit tests,
+  Go race tests, dependency verification, generation checks, templ/CSS checks,
+  build, and secret scan.
+- Current-head GitHub CI had 9 of 10 checks passed and `go` in progress when
+  this evidence was updated.
 
-Pending: refreshed #422 CI, combined Files plus Clients generated-profile
-coverage from #415, and final validation after dependency ancestry integration.
+The current tree passed the full local pre-push checks. A previous `make verify`
+also passed on the earlier base; it was not rerun after the #477 Items test
+diagnostic-only change. A persistent combined Files plus Clients profile test
+is not yet part of the repository.
+
 Synthetic browser progress validates uploader UI transitions; it does not
 measure native network-byte reporting.
