@@ -58,21 +58,32 @@ legacy templates or optional service fields.
 
 ## Checks
 
-Passed: `make templ-check`; four focused web route/provider/form-markup tests;
-`go test ./cmd/template-init -run '^(TestGenerateWithoutAgentPrunesAgentSurfaceAndBuilds|TestGenerateWithClientsProfileRecordsLockAndBuilds)$' -count=1`;
-`go test ./internal/i18n -count=1` (4 tests); `node --check
-scripts/playwright/settings.spec.mjs`; and `make doc-links`.
+On reconciled head `dc5f7fb`, before the Linux baseline adjustment, these passed:
+`make workflow-check`, `make templ-check`, `make css-check`, `make doc-links`,
+`go test ./internal/web/...` (197 tests), `node --check
+scripts/playwright/settings.spec.mjs`, and `git diff --check`. Normal pre-push
+`make ci-local` also passed on that head.
 
-`make css-check` is blocked: `npm exec -- tailwindcss` could not resolve an
-executable in this worktree. The Playwright checks and remaining verification
-ladder are pending the serialized test window; do not treat the new browser
-coverage as executed yet.
+CI run `43991899922` on `dc5f7fb` passed Go, PostgreSQL, container,
+vulnerability, and workflow/security jobs. The accessibility job failed in
+`make browser-smoke`: 29 passed, 3 skipped, and 2 failed. Only the email mobile
+light/dark screenshot assertions failed. Both expected 390x1736 and received
+390x1808; light differed by 62,726 pixels (9%), dark by 91,007 pixels (13%).
+Other settings screenshots, keyboard/axe, Spanish, and no-JavaScript settings
+checks passed. The member permission case skipped without fixture credentials;
+native member permission coverage remains unverified.
 
-Browser coverage for responsive layouts, keyboard navigation, reduced motion,
-explicit light/dark preferences, Spanish, and no-JavaScript success/validation
-remains subject to the browser checks reported with this change. This is not a
-full state matrix: provider verification failure is covered by the focused Go
-handler/service tests; the browser suite does not exercise a provider timeout
-or server failure. Member browser permission coverage skips without fixture
-credentials. Page-render failures remain unverified by a named email settings
-test.
+The reviewed actuals show the same page content and controls, with one extra
+wrapped line in each of three email paragraphs, adding 72px total. The exact
+resolved CI font was not recorded. The failure artifact contained only four
+email mobile actual/diff PNGs; actuals show synthetic `UI Baselines` and blank
+provider fields. The new Linux-only email mobile baselines are byte-identical
+copies of those reviewed actuals; all other snapshot names remain unchanged.
+The baseline adjustment has not yet run in CI.
+
+A prior Linux MCR run on `ee96147` passed 25 tests with one skip but did not
+reproduce this GitHub mismatch. A local `make accessibility-smoke` passed in
+English and Spanish on that earlier head. The mismatch remains unresolved
+until the updated head passes browser CI. Provider verification failures have
+focused Go coverage; the browser suite does not submit to a configured provider
+or induce a server failure.

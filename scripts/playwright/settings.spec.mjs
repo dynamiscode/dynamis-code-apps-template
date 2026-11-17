@@ -69,7 +69,8 @@ for (const screenshot of screenshots) {
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
         const canvas = await page.locator("html").evaluate((element) => getComputedStyle(element).getPropertyValue("--canvas").trim());
         expect(canvas).toBe(screenshot.colorScheme === "dark" ? "#111826" : "#f3f6fa");
-        await expect(page).toHaveScreenshot(`${section}-settings-${screenshot.name}.png`, {
+        const platformSuffix = section === "email" && screenshot.width < 608 && process.platform === "linux" ? "-linux" : "";
+        await expect(page).toHaveScreenshot(`${section}-settings-${screenshot.name}${platformSuffix}.png`, {
           animations: "disabled",
           fullPage: true,
         });
