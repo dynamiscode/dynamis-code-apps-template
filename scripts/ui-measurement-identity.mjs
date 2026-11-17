@@ -29,7 +29,7 @@ try {
   const page = await context.newPage();
   const results = [];
 
-  async function measure(target, screen, path, cache) {
+  async function measure(target, screen, path, expectedStatus, cache) {
     const cdp = await target.context().newCDPSession(target);
     await cdp.send("Network.enable");
     if (cache === "cold") await cdp.send("Network.clearBrowserCache");
@@ -37,8 +37,7 @@ try {
     try {
       const response = await target.goto(path, { waitUntil: "load" });
       assert.ok(response, `${screen} navigation returned no response`);
-      assert.equal(response.status(), screen === "public share unavailable" ? 404 : 200,
-        `${screen} navigation failed`);
+      assert.equal(response.status(), expectedStatus, `${screen} navigation failed`);
       await target.locator("main h1").waitFor();
       const timing = await target.evaluate(() => {
         const entry = performance.getEntriesByType("navigation")[0];
@@ -55,9 +54,12 @@ try {
 
   const anonymous = await browser.newContext(contextOptions);
   const publicPage = await anonymous.newPage();
-  for (const [screen, path] of [["login", "/login"], ["password recovery", "/password-reset"],
-    ["public share unavailable", "/share/invalid-measurement-token"]]) {
-    for (const cache of ["cold", "warm"]) await measure(publicPage, screen, path, cache);
+  for (const [screen, path, expectedStatus] of [["login", "/login", 200],
+    ["password recovery", "/password-reset", 200],
+    ["public share unavailable", "/share/invalid-measurement-token", 404]]) {
+    for (const cache of ["cold", "warm"]) {
+      await measure(publicPage, screen, path, expectedStatus, cache);
+    }
   }
   const invalidLoginPage = await anonymous.newPage();
   await invalidLoginPage.goto("/login");
@@ -100,7 +102,7 @@ try {
   await recoveryPage.close();
   const setupPage = await anonymous.newPage();
   for (const cache of ["cold", "warm"]) {
-    await measure(setupPage, "setup", `${process.env.PLAYWRIGHT_SETUP_BASE_URL}/setup`, cache);
+    await measure(setupPage, "setup", `${process.env.PLAYWRIGHT_SETUP_BASE_URL}/setup`, 200, cache);
   }
   await anonymous.close();
 
@@ -111,7 +113,7 @@ try {
   await page.waitForURL(new URL("/", process.env.PLAYWRIGHT_BASE_URL).href);
   for (const [screen, path] of [["account", "/account"], ["security", "/security"],
     ["sessions", "/sessions"], ["notifications", "/notifications"]]) {
-    for (const cache of ["cold", "warm"]) await measure(page, screen, path, cache);
+    for (const cache of ["cold", "warm"]) await measure(page, screen, path, 200, cache);
   }
   await page.goto("/notifications", { waitUntil: "load" });
   const streamStart = performance.now();
