@@ -336,7 +336,7 @@ accessibility results and remaining limits are recorded in
 | Route family | Views and shared templates | Major states covered |
 |---|---|---|
 | `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
-| `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.html`, `verification.html`, `mcp-consent.html`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge, verification success/unavailable, OAuth approval/denial |
+| `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}` | `auth.templ`, `auth_templ.go`, `mfa.html`, `verification.html`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge, verification success/unavailable |
 | `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | Empty/results states, filters, sorting and paging, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
 | Workspace clients and custom fields | `clients.templ`, `components.templ`, `workspace.templ`, `client.html`, `client-fields.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field lifecycle, realtime refresh |
 | Workspace members | `members.templ`, `members_templ.go` | Role changes, removal and ownership transfer |
@@ -349,9 +349,12 @@ accessibility results and remaining limits are recorded in
 | `/notifications`, `/notifications/events` | `notifications.templ`, `notifications_templ.go` | Recipient-scoped list and unread count, empty state, CSRF-protected mark-read, initial cursor and SSE replay after reconnect |
 | Account and workspace settings | `account.html`, `credential_settings.templ`, `credential_settings_templ.go`, `language.html`, `security.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |
 | `/workspaces/{workspaceId}/settings/export`, `/workspaces/{workspaceId}/settings/export/download`, `/workspaces/{workspaceId}/settings/import` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Authorized no-store export page and JSON download; import file selection, bounded preview, safe validation feedback, explicit multipart confirmation, and atomic result; ordinary form fallback |
-| Public and unavailable pages | `public-share.html`, `error.html` | Share projection and invalid/expired/revoked links, not-found and request errors |
+| `/share/{token}` | `public_pages.templ`, `public_pages_templ.go`, `components.templ` | Localized title/status-only share projection, invalid/expired/revoked unavailable state, no-store and referrer/robots headers |
+| `/oauth/authorize` and generic errors | `public_pages.templ`, `public_pages_templ.go`, `auth.templ`, `components.templ` | Localized OAuth consent and generic errors; ordinary CSRF-protected approve/deny forms; invalid request and unavailable permission errors; no-store and preload/history-cache exclusion |
 
-Corresponding route and handler tests cover server-rendered behavior.
+Corresponding route and handler tests cover server-rendered behavior, including
+public-share projection and unavailable states, consent approval and denial,
+and generic OAuth errors.
 `make ux-smoke` and `make accessibility-smoke` cover the browser paths they
 enumerate; [the accessibility evidence](accessibility.md) records that
 automated coverage. Workspace selection and workspace home use templ; the
