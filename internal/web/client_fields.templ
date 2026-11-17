@@ -1,0 +1,93 @@
+package web
+
+import "example.com/dynamis-code/apps-template/internal/clients"
+import "strings"
+
+templ clientFieldsPage(data pageData) {
+	@dashboardShell(data, dashboardHeader(data), dashboardHomeNavigation(data)) {
+		@pageHeading(data.T("clients.fields_title"), data.T("clients.title")) {
+			<a class="btn btn-ghost" href={ strings.TrimSuffix(data.FieldsPath, "/client-fields") + "/clients" }>{ data.T("clients.back") }</a>
+		}
+		@clientFieldList(data)
+	}
+}
+
+templ clientFieldList(data pageData) {
+	<section id="client-field-list" class="client-panel" aria-labelledby="client-fields-heading">
+		<h2 id="client-fields-heading" class="visually-hidden">{ data.T("clients.fields_title") }</h2>
+		<p class="client-intro">{ data.T("clients.fields_intro") }</p>
+		if data.ErrorKey != "" {
+			@errorAlert(data.T(data.ErrorKey))
+		}
+		if data.CanManageFields {
+			<details class="client-controls client-create" open?={ data.ErrorKey != "" }>
+				<summary>{ data.T("clients.new_field") }</summary>
+				<form action={ data.FieldsPath } method="post">
+					<input type="hidden" name="csrf" value={ data.CSRF }/>
+					@textField("client-field-label", data.T("clients.field_label"), templ.Attributes{"name": "label", "required": true, "maxlength": "100", "value": data.FieldDraft.Label, "data-trim": ""})
+					@selectField("client-field-type", data.T("clients.field_type"), templ.Attributes{"name": "type"}) {
+						<option value="text" selected?={ data.FieldDraft.Type == "" || data.FieldDraft.Type == "text" }>{ data.T("clients.field_type_text") }</option>
+						<option value="number" selected?={ data.FieldDraft.Type == "number" }>{ data.T("clients.field_type_number") }</option>
+						<option value="date" selected?={ data.FieldDraft.Type == "date" }>{ data.T("clients.field_type_date") }</option>
+						<option value="yes_no" selected?={ data.FieldDraft.Type == "yes_no" }>{ data.T("clients.field_type_yes_no") }</option>
+						<option value="single_choice" selected?={ data.FieldDraft.Type == "single_choice" }>{ data.T("clients.field_type_single_choice") }</option>
+					}
+					<div class="actions">@submitButton(data.T("clients.add_field"), nil)</div>
+				</form>
+			</details>
+		} else {
+			<p class="status">{ data.T("clients.fields_read_only") }</p>
+		}
+		if len(data.ClientFields) > 0 {
+			<ul class="client-fields">
+				for _, field := range data.ClientFields {
+					<li class="client-field-card">
+						<div class="client-field-heading">
+							<strong>{ field.Label }</strong>
+							<span>{ data.T("clients.field_type_" + field.Type) }</span>
+							<span class="status">{ data.T(clientFieldStatusKey(field.ArchivedAt != nil)) }</span>
+						</div>
+						if data.CanManageFields {
+							<div class="client-field-actions">
+								if field.ArchivedAt != nil {
+									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/restore" }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-secondary" type="submit">{ data.T("clients.restore_field") }</button></form>
+									<div class="client-delete"><p class="warning">{ data.T("clients.delete_field_confirm") }</p><form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/delete" }><input type="hidden" name="csrf" value={ data.CSRF }/>@confirmButton(data.T("clients.delete_field"), data.T("clients.delete_field_confirm"), nil)</form></div>
+								} else {
+									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/archive" }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-secondary" type="submit">{ data.T("clients.archive_field") }</button></form>
+								}
+							</div>
+						}
+						if field.Type == clients.FieldTypeSingleChoice {
+							<div class="client-field-options">
+								<h3>{ data.T("clients.options_heading") }</h3>
+								if len(field.Options) > 0 {
+									<ul class="client-field-option-list">
+										for _, option := range field.Options {
+							<li><span>{ option.Label }</span>
+								if data.CanManageFields {
+									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/options/" + option.ID.String() + "/delete" }><input type="hidden" name="csrf" value={ data.CSRF }/>@confirmButton(data.T("clients.option_delete"), data.T("clients.option_delete_confirm"), nil)</form>
+								}
+							</li>
+										}
+									</ul>
+								} else {
+									<p>{ data.T("clients.option_none") }</p>
+								}
+								if data.CanManageFields && field.ArchivedAt == nil {
+									<form class="option-create" action={ data.FieldsPath + "/" + field.ID.String() + "/options" } method="post"><input type="hidden" name="csrf" value={ data.CSRF }/>@textField("option-label-"+field.ID.String(), data.T("clients.option_label"), templ.Attributes{"name": "label", "required": true, "maxlength": "100", "data-trim": ""})@submitButton(data.T("clients.option_add"), nil)</form>
+								}
+							</div>
+						}
+					</li>
+				}
+			</ul>
+		} else {
+			<p class="status">{ data.T("clients.fields_none") }</p>
+		}
+	</section>
+}
+
+func clientFieldStatusKey(archived bool) string {
+	if archived { return "clients.field_archived" }
+	return "clients.field_active"
+}
