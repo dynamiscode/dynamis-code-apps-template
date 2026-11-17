@@ -14,9 +14,9 @@ The [administration measurement evidence](ui-measurement-admin.md) is partial
 for issue #448; its isolated run may have experienced concurrent check load.
 
 The [account, authentication, and public measurement evidence](ui-measurement-identity.md)
-is partial for issue #449; invalid-login feedback and notification SSE connection
-are measured. MFA, MCP consent, valid public shares, and remaining interaction
-states remain unmeasured.
+is partial for issue #449; invalid-login and password-recovery feedback and
+notification SSE connection are measured. MFA, MCP consent, valid public
+shares, and remaining interaction states remain unmeasured.
 
 ## Profile status
 

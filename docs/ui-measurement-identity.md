@@ -15,36 +15,45 @@ and unthrottled local requests. It reports one cold and one warm navigation for
 setup, login, password recovery, account, security, sessions, notifications,
 and the unavailable public-share page. It also measures one invalid login
 submission, including HTTP status, safe network aggregates, and time until the
-accessible error appears. It reports request counts, redirects,
-completed encoded bytes, unfinished requests, HTTP errors by safe class,
-transport failures, cache events, DOMContentLoaded and load timings. These are
-single observations; automation overhead and host load are not controlled.
-The output excludes URLs, headers, bodies, cookies, credentials and tokens.
+accessible error appears. It submits a reset request for the synthetic owner
+with mail delivery disabled and times the generic accessible success feedback.
+It reports request counts, redirects, completed encoded bytes, unfinished
+requests, HTTP errors by safe class, transport failures, cache events,
+DOMContentLoaded and load timings. These are single observations; automation
+overhead and host load are not controlled. The output excludes URLs, headers,
+bodies, cookies, credentials and tokens.
 
-## Single isolated run
+## Latest isolated run
 
-On 2026-11-17T18:56:59.035Z, commit `837c3dfa8784b716b3499de0301eee626d8ecf15`,
+On 2026-11-17T20:43:26.714Z, commit `f2abeb30ffa537b9fa0255e04239499801c090e0`,
 Darwin 27.2.0 arm64, Node 26.10.0, Chrome 157.0.8103.79, and Playwright 1.64.1,
-the command completed using the fixture and browser conditions above. This
-supersedes the earlier navigation-only observation below. Counts and timings
-remain single unthrottled observations; timing values are milliseconds.
+the command completed using the fixture and browser conditions above. Counts
+and timings remain single unthrottled observations; timing values are
+milliseconds. This run supersedes the navigation-only values below for screens
+it covers. It captured login feedback at 177.6 ms and password recovery success
+feedback at 189.2 ms.
 
 | Interaction | Status | Requests | Encoded bytes | Feedback ms | HTTP errors |
 |---|---:|---:|---:|---:|---|
-| Invalid login | 401 | 4 | 95744 | 292.1 | One expected invalid-login response |
+| Invalid login | 401 | 4 | 95744 | 177.6 | One expected invalid-login response |
+| Password recovery request | 200 | 4 | 95187 | 189.2 | None |
 
-The invalid login retained the form and displayed its accessible error alert.
-The runner prints no submitted values. The cold favicon returned 404 in the
-same isolated run; the invalid-login submission itself returned 401 as expected.
+Invalid login retained the form and displayed its accessible error alert. The
+recovery request displayed the generic success status; email delivery was
+disabled. The runner prints no submitted values. The cold favicon returned 404
+in the same isolated run; the invalid-login submission itself returned 401 as
+expected.
 
-On 2026-11-17T18:47:49.456Z, base commit
+## Earlier navigation sample
+
+The navigation sample from 2026-11-17T18:47:49.456Z used base commit
 `1c2ff7f59d106988976daf1370e52463f60d0896`, Darwin 27.2.0 arm64, Node
-26.10.0, Chrome 157.0.8103.79, and Playwright 1.64.1, the command above
-completed. The fixture used one synthetic owner and workspace. Counts are one
-unthrottled observation; timings are Navigation Timing milliseconds. The share
-route intentionally returned 404 for its invalid token. Cold means the HTTP
-cache was cleared before navigation; warm means immediate repeat in the same
-context. Setup uses its own isolated server and database.
+26.10.0, Chrome 157.0.8103.79, and Playwright 1.64.1. The fixture used one
+synthetic owner and workspace. Counts are one unthrottled observation; timings
+are Navigation Timing milliseconds. The share route intentionally returned
+404 for its invalid token. Cold means the HTTP cache was cleared before
+navigation; warm means immediate repeat in the same context. Setup uses its own
+isolated server and database.
 
 | Screen | Requests cold/warm | Encoded bytes cold/warm | Load ms cold/warm |
 |---|---:|---:|---:|
@@ -74,7 +83,7 @@ The browser's loading and failure feedback is not timed by this harness.
 |---|---|---|
 | Setup | Cold/warm page navigation | Submission, validation, unavailable setup, and completion |
 | Login | Cold/warm navigation; invalid submission status, request metrics, and accessible error feedback time | Valid submission, MFA challenge, OIDC, and other auth failures |
-| Password recovery | Cold/warm request page navigation | Submit, delivery, reset completion, invalid/expired token, and failures |
+| Password recovery | Cold/warm navigation; synthetic owner request status, request metrics, and generic success feedback time with delivery disabled | Delivery, reset completion, invalid/expired token, and failures |
 | Account | Cold/warm authenticated navigation | Profile/password/email changes, validation, and deletion confirmation |
 | Security | Cold/warm authenticated navigation | MFA enrollment/removal, OIDC link, reauthentication, and errors |
 | Sessions | Cold/warm authenticated navigation | Revocation interaction, expired/revoked rows, and errors |

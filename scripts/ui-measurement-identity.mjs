@@ -79,6 +79,25 @@ try {
     feedbackMs: performance.now() - invalidLoginStart });
   await invalidLoginCDP.detach();
   await invalidLoginPage.close();
+  const recoveryPage = await anonymous.newPage();
+  await recoveryPage.goto("/password-reset");
+  await recoveryPage.getByLabel("Email").fill(process.env.PLAYWRIGHT_EMAIL);
+  const recoveryCDP = await recoveryPage.context().newCDPSession(recoveryPage);
+  await recoveryCDP.send("Network.enable");
+  const stopRecoveryNetwork = observeNetwork(recoveryCDP);
+  const recoveryStart = performance.now();
+  const recoveryResponse = recoveryPage.waitForResponse((response) =>
+    response.url().endsWith("/password-reset") && response.request().method() === "POST");
+  await recoveryPage.getByRole("button", { name: "Send reset link" }).click();
+  const recoveryStatus = (await recoveryResponse).status();
+  await recoveryPage.getByRole("status").waitFor();
+  const recovery = stopRecoveryNetwork();
+  assert.equal(recoveryStatus, 200, "password recovery request status changed");
+  assert.ok(recovery.requests > 0, "password recovery request metrics missing");
+  results.push({ interaction: "password recovery request", status: recoveryStatus, ...recovery,
+    feedbackMs: performance.now() - recoveryStart });
+  await recoveryCDP.detach();
+  await recoveryPage.close();
   const setupPage = await anonymous.newPage();
   for (const cache of ["cold", "warm"]) {
     await measure(setupPage, "setup", `${process.env.PLAYWRIGHT_SETUP_BASE_URL}/setup`, cache);
@@ -105,7 +124,7 @@ try {
     browser: `Chrome ${browser.version()}`, node: process.version,
     playwright: JSON.parse(readFileSync("node_modules/@playwright/test/package.json", "utf8")).version,
     fixture: "fresh isolated SQLite: one owner and workspace; zero notifications; no MFA, consent client, or valid public share token",
-    scenario: "anonymous and authenticated identity navigation, invalid login, and notification SSE connection",
+    scenario: "anonymous and authenticated identity navigation, invalid login, password recovery request, and notification SSE connection",
     viewport: "1280x900, device scale 1", locale: "en-US", theme: "light",
     reducedMotion: "reduce", network: "unthrottled loopback", results }, null, 2));
   await context.close();
