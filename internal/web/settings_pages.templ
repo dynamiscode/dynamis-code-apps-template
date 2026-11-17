@@ -144,3 +144,100 @@ templ emailSettingsView(data pageData) {
 		</div>
 	}
 }
+
+templ exportSettingsHeader(data pageData) {
+	<header class="topbar">
+		<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
+		<div class="topbar-context">
+			@defaultHomeCrumb(data)
+			@workspaceContext(data)
+		</div>
+		@accountMenu(data)
+	</header>
+}
+
+templ exportSettingsView(data pageData) {
+	@dashboardShell(data, exportSettingsHeader(data), settingsSidebar(data)) {
+		<div class="settings-page">
+			@pageHeading(data.Workspace.Name+" "+data.T("navigation.export"), data.T("navigation.settings_activity"))
+			<p class="settings-intro">{ data.T("export.description") }</p>
+			<section class="settings-panel" aria-label={ data.T("navigation.export") }>
+				<a class="btn btn-primary" data-webmcp-export href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/export/download" }>{ data.T("export.download") }</a>
+			</section>
+		</div>
+	}
+}
+
+templ importSettingsView(data pageData) {
+	@dashboardShell(data, dashboardHeader(data), settingsSidebar(data)) {
+		<div class="settings-page">
+			@pageHeading(data.Workspace.Name+" "+data.T("navigation.import"), data.T("navigation.settings_activity"))
+			<p class="settings-intro">{ data.T("import.description") }</p>
+			if data.ImportCompleted {
+				@successAlert(data.T("import.success")) {
+					{ data.T("import.items_imported") }{ " " }<strong>{ data.Imported }</strong>
+				}
+			}
+			if data.Error != "" {
+				@errorAlert(data.Error)
+			}
+			<form class="settings-panel import-preview-form" action={ data.CurrentPath } method="post" enctype="multipart/form-data">
+				<input type="hidden" name="csrf" value={ data.CSRF }/>
+				<input type="hidden" name="action" value="preview"/>
+				<label for="import-file">{ data.T("import.file") }</label>
+				<input class="file-input" id="import-file" name="file" type="file" accept=".json,.csv,application/json,text/csv" required aria-describedby="import-file-help"/>
+				<p id="import-file-help">{ data.T("import.file_help") }</p>
+				@submitButton(data.T("import.preview_button"), nil)
+			</form>
+			if data.ImportPreview != nil {
+				<section class="settings-panel import-preview" aria-labelledby="import-preview-heading">
+					<h2 id="import-preview-heading">{ data.T("import.preview_heading") }</h2>
+					<p>{ data.T("import.preview_records") }: <strong>{ data.ImportPreview.RecordCount }</strong></p>
+					<p>{ data.T("import.no_writes_yet") }</p>
+					if len(data.ImportPreview.Sample) > 0 {
+						<h3>{ data.T("import.preview_sample") }</h3>
+						@dataTable(data.T("import.preview_sample"), true) {
+							<thead><tr><th scope="col">{ data.T("items.title") }</th><th scope="col">{ data.T("items.status") }</th></tr></thead>
+							<tbody>
+								for _, sample := range data.ImportPreview.Sample {
+									<tr><td>{ sample.Title }</td><td>
+										if sample.StatusKey != "" {
+											{ data.T(sample.StatusKey) }
+										} else {
+											{ sample.Status }
+										}
+									</td></tr>
+								}
+							</tbody>
+						}
+					}
+					if data.ImportPreview.IssueCount > 0 {
+						<p class="alert alert-error error" role="alert">{ data.T("import.invalid_rows") }{ " " }{ data.ImportPreview.IssueCount }</p>
+						<ul class="import-preview-errors">
+							for _, issue := range data.ImportPreview.Issues {
+								<li>{ data.T("import.record") }{ " " }{ issue.Record }: { data.T(issue.MessageKey) }</li>
+							}
+							if data.ImportPreview.MoreIssues > 0 {
+								<li>{ data.T("import.more_invalid_rows") }{ " " }{ data.ImportPreview.MoreIssues }</li>
+							}
+						</ul>
+					} else {
+						<h3>{ data.T("import.confirm_heading") }</h3>
+						<p>{ data.T("import.confirm_reselect") }</p>
+						<form class="import-confirm-form" action={ data.CurrentPath } method="post" enctype="multipart/form-data">
+							<input type="hidden" name="csrf" value={ data.CSRF }/>
+							<input type="hidden" name="action" value="confirm"/>
+							<input type="hidden" name="preview_digest" value={ data.ImportPreview.Digest }/>
+							<input type="hidden" name="preview_format" value={ data.ImportPreview.Format }/>
+							<label for="import-confirm-file">{ data.T("import.file") }</label>
+							<input class="file-input" id="import-confirm-file" name="file" type="file" accept=".json,.csv,application/json,text/csv" required aria-describedby="import-confirm-file-help"/>
+							<p id="import-confirm-file-help">{ data.T("import.confirm_file_help") }</p>
+							@confirmationField("import-confirm", "confirm", data.T("import.confirm"))
+							@submitButton(data.T("import.confirm_button"), nil)
+						</form>
+					}
+				</section>
+			}
+		</div>
+	}
+}

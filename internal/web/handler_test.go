@@ -1575,11 +1575,18 @@ func TestWebBaselineManagementRoutes(t *testing.T) {
 		}
 	}
 	exportPage := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/export", nil, cookies, nil)
-	if !strings.Contains(exportPage.Body.String(), "Download JSON") || !strings.Contains(exportPage.Body.String(), "/settings/export/download") {
+	if exportPage.Header().Get("Cache-Control") != "no-store" ||
+		!strings.Contains(exportPage.Body.String(), "Download JSON") || !strings.Contains(exportPage.Body.String(), "/settings/export/download") ||
+		!strings.Contains(exportPage.Body.String(), `data-webmcp-page="export"`) || !strings.Contains(exportPage.Body.String(), `/assets/app.js`) {
 		t.Fatal("browser export screen lacks download action")
 	}
+	importPage := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/import", nil, cookies, nil)
+	if strings.Contains(importPage.Body.String(), "data-webmcp-page") || strings.Contains(importPage.Body.String(), `/assets/app.js`) {
+		t.Fatal("browser import screen exposes WebMCP")
+	}
 	exportDownload := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/export/download", nil, cookies, nil)
-	if exportDownload.Code != http.StatusOK || exportDownload.Header().Get("Content-Disposition") == "" || exportDownload.Header().Get("Content-Type") != "application/json" {
+	if exportDownload.Code != http.StatusOK || exportDownload.Header().Get("Cache-Control") != "no-store" ||
+		exportDownload.Header().Get("Content-Disposition") == "" || exportDownload.Header().Get("Content-Type") != "application/json" {
 		t.Fatalf("browser export download = %d, %s", exportDownload.Code, exportDownload.Header().Get("Content-Type"))
 	}
 	created := request(handler, http.MethodPost, "/workspaces", url.Values{
@@ -1600,10 +1607,11 @@ func TestWebImportIsAuthorizedExplicitAndAtomic(t *testing.T) {
 	root := "/workspaces/" + workspaceID.String() + "/settings/import"
 
 	page := request(handler, http.MethodGet, root, nil, cookies, nil)
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `enctype="multipart/form-data"`) ||
+	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" ||
+		!strings.Contains(page.Body.String(), `enctype="multipart/form-data"`) ||
 		!strings.Contains(page.Body.String(), `name="file"`) || !strings.Contains(page.Body.String(), `name="action" value="preview"`) ||
 		!strings.Contains(page.Body.String(), `class="sidebar-subitem active" aria-current="page" href="`+root+`"`) ||
-		strings.Contains(page.Body.String(), "/assets/app.js") || strings.Contains(page.Body.String(), "data-webmcp-page") {
+		strings.Contains(page.Body.String(), "/assets/app.js") {
 		t.Fatalf("import page = %d, %s", page.Code, page.Body.String())
 	}
 	assertAccessiblePage(t, page.Body.String(), "Import file")
