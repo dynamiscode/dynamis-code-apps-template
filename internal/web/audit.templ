@@ -1,0 +1,58 @@
+package web
+
+import "strconv"
+
+templ auditHistory(data pageData) {
+	@dashboardShell(data, dashboardHeader(data), dashboardSettingsNavigation(data)) {
+		<p class="eyebrow">{ data.T("navigation.settings_activity") }</p>
+		@pageHeading(data.T("audit.history"), "")
+		<p class="settings-intro">{ data.T("audit.description") }</p>
+		if data.AuditLazy {
+			<div id="audit-table" data-lazy-src={ data.CurrentPath + "?part=table" } aria-busy="true">
+				<p class="loading" role="status">{ data.T("ui.loading") }</p>
+				<p><a href={ data.CurrentPath + "?all=1" }>{ data.T("audit.show") }</a></p>
+			</div>
+		} else {
+			@auditTable(data)
+		}
+	}
+}
+
+templ auditTable(data pageData) {
+	<div id="audit-table">
+		if len(data.AuditHistory) > 0 {
+			@auditDataTable(data.T("audit.history"), data.T("audit.history")) {
+				<thead><tr>
+					<th scope="col">{ data.T("audit.time") }</th>
+					<th scope="col">{ data.T("audit.event") }</th>
+					<th scope="col">{ data.T("audit.actor") }</th>
+					<th scope="col">{ data.T("audit.auth_method") }</th>
+					<th scope="col">{ data.T("audit.action") }</th>
+					<th scope="col">{ data.T("audit.outcome") }</th>
+					<th scope="col">{ data.T("audit.target") }</th>
+				</tr></thead>
+				<tbody>
+					for _, event := range data.AuditHistory {
+						<tr>
+							<td>{ data.DateTime(event.CreatedAt) }</td>
+							<td><code>{ event.EventType }</code></td>
+							<td>
+								if event.ActorUserID > 0 {
+									<code>{ strconv.FormatInt(int64(event.ActorUserID), 10) }</code>
+								} else {
+									{ data.T("audit.system") }
+								}
+							</td>
+							<td><code>{ event.AuthMethod }</code></td>
+							<td><code>{ event.Action }</code></td>
+							<td>{ event.Outcome }</td>
+							<td><code>{ event.TargetType }</code></td>
+						</tr>
+					}
+				</tbody>
+			}
+		} else {
+			<p>{ data.T("audit.none") }</p>
+		}
+	</div>
+}
