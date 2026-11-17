@@ -137,11 +137,60 @@ func TestFilesPageRendersOrdinaryMultipartUploadForm(t *testing.T) {
 	}
 }
 
+func TestFilesPageHidesUploadForReadOnlyViewer(t *testing.T) {
+	env := newFilesTestEnv(t, 16<<20, 1<<30)
+	upload := multipartRequest(t, env.routes, env.filesPath(), url.Values{"csrf": {env.csrf}}, "read-only.txt", "hello", env.cookies, nil)
+	if upload.Code != http.StatusSeeOther {
+		t.Fatalf("owner upload = %d: %s", upload.Code, upload.Body.String())
+	}
+	page := request(env.routes, http.MethodGet, env.filesPath(), nil, env.viewerCookies, nil)
+	body := page.Body.String()
+	if page.Code != http.StatusOK || !strings.Contains(body, "read-only.txt") || !strings.Contains(body, "/content") {
+		t.Fatalf("viewer Files list = %d: %s", page.Code, body)
+	}
+	if strings.Contains(body, "data-file-upload") || strings.Contains(body, `type="file"`) || strings.Contains(body, "/assets/app.js") {
+		t.Fatalf("read-only viewer sees file upload controls: %s", body)
+	}
+}
+
+func TestFilesPageRendersTemplShellAndAccessibleEmptyState(t *testing.T) {
+	env := newFilesTestEnv(t, 16<<20, 1<<30)
+	page := request(env.routes, http.MethodGet, env.filesPath(), nil, env.cookies, nil)
+	body := page.Body.String()
+	for _, want := range []string{
+		`<html lang="en" data-theme=`,
+		`href="/assets/components.css"`,
+		`href="/workspaces/` + env.workspaceID.String() + `">Home</a>`,
+		`aria-current="page" href="` + env.filesPath() + `">Files</a>`,
+		`class="list-view-table"`,
+		`class="list-view-cards"`,
+		`class="file-empty-state card" role="status"`,
+		`No files yet.`,
+		`Sort and filter files`,
+		`src="/assets/app.js"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("Files page missing %q: %s", want, body)
+		}
+	}
+	if page.Header().Get("Cache-Control") != "no-store" || page.Header().Get("Content-Language") != "en" {
+		t.Errorf("Files response headers = cache %q, language %q", page.Header().Get("Cache-Control"), page.Header().Get("Content-Language"))
+	}
+	if strings.Contains(body, "Back to home") || strings.Contains(body, "hx-") {
+		t.Errorf("Files page has obsolete back-home navigation or an unapproved HTMX enhancement: %s", body)
+	}
+	for _, secretMarker := range []string{"X-Amz-Signature", "X-Amz-Credential", "Signature="} {
+		if strings.Contains(body, secretMarker) {
+			t.Errorf("Files page leaked signed URL marker %q", secretMarker)
+		}
+	}
+}
+
 func TestFilesUploadFeedbackUsesSelectedLocale(t *testing.T) {
 	env := newFilesTestEnv(t, 16<<20, 1<<30)
 	cookies := append(append([]*http.Cookie(nil), env.cookies...), &http.Cookie{Name: "locale", Value: "es"})
 	page := request(env.routes, http.MethodGet, env.filesPath(), nil, cookies, nil)
-	for _, want := range []string{`data-status-uploading="Subiendo archivo…"`, `data-status-success="Carga completada."`, `data-status-choose-file="Elige un archivo para cargar."`, `data-upload-progress`, `aria-label="Progreso de carga"`} {
+	for _, want := range []string{`data-status-uploading="Subiendo archivo…"`, `data-status-success="Carga completada."`, `data-status-choose-file="Elige un archivo para cargar."`, `data-upload-progress`, `aria-label="Progreso de carga"`, `Ordenar y filtrar archivos`} {
 		if !strings.Contains(page.Body.String(), want) {
 			t.Errorf("Spanish files page missing %q: %s", want, page.Body.String())
 		}
