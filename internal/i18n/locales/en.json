@@ -548,6 +548,8 @@
   "files.choose": "File",
   "files.upload": "Upload file",
   "files.recent": "Workspace files",
+  "files.list_options": "File list options",
+  "files.filter_legend": "Sort and filter files",
   "files.none": "No files yet.",
   "files.name": "File name",
   "files.type": "File type",
