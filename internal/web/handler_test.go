@@ -236,14 +236,25 @@ func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
 	response := request(handler, http.MethodPost, path, url.Values{
 		"action": {"create"}, "lifetime": {"7"}, "csrf": {session.CSRFSecret},
 	}, cookies, nil)
-	if response.Code != http.StatusOK {
+	if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" {
 		t.Fatalf("create public link = %d, %s", response.Code, response.Body.String())
 	}
 	body := response.Body.String()
-	start := strings.Index(body, "/share/")
-	if start < 0 || !strings.Contains(body, "Cualquiera con este enlace") ||
-		!strings.Contains(body, "Al revocar este enlace") {
+	if !strings.Contains(body, "<section id=\"item-list\"") || !strings.Contains(body, "Cualquiera con este enlace") ||
+		!strings.Contains(body, "Al revocar este enlace") || !strings.Contains(body, "7 días") || !strings.Contains(body, "30 días") {
 		t.Fatalf("public link missing: %s", body)
+	}
+	fragment := request(handler, http.MethodPost, path, url.Values{
+		"action": {"create"}, "lifetime": {"30"}, "csrf": {session.CSRFSecret},
+	}, cookies, map[string]string{"HX-Request": "true"})
+	if fragment.Code != http.StatusOK || fragment.Header().Get("Cache-Control") != "no-store" ||
+		!strings.HasPrefix(strings.TrimSpace(fragment.Body.String()), "<section id=\"item-list\"") ||
+		strings.Contains(fragment.Body.String(), "<html") {
+		t.Fatalf("HTMX share create = %d, headers=%+v body=%s", fragment.Code, fragment.Header(), fragment.Body.String())
+	}
+	start := strings.Index(body, "/share/")
+	if start < 0 {
+		t.Fatalf("public URL missing: %s", body)
 	}
 	remainder := body[start:]
 	end := strings.Index(remainder, "\"")
@@ -276,9 +287,9 @@ func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
 	linkID := body[linkStart : linkStart+linkEnd]
 	revoked := request(handler, http.MethodPost, path, url.Values{
 		"action": {"revoke"}, "link_id": {linkID}, "csrf": {session.CSRFSecret},
-	}, cookies, nil)
+	}, cookies, map[string]string{"HX-Request": "true"})
 	if revoked.Code != http.StatusSeeOther {
-		t.Fatalf("revoke public link = %d, %s", revoked.Code, revoked.Body.String())
+		t.Fatalf("HTMX revoke should retain ordinary redirect fallback = %d, %s", revoked.Code, revoked.Body.String())
 	}
 	for _, unavailablePath := range []string{publicPath, "/share/invalid-token"} {
 		unavailable := request(handler, http.MethodGet, unavailablePath, nil, []*http.Cookie{{Name: "locale", Value: "es"}}, nil)

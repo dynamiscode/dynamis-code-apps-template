@@ -179,10 +179,12 @@ Baseline browser surfaces:
   read-only latest-100 audit history with redacted fields.
 - `/share/{token}` presents a read-only Item projection containing only title
   and localized status. Invalid, expired, and revoked links share the same
-  unavailable page. The Items page lets principals with `resources:write` create
-  seven- or 30-day links and revoke active links with CSRF-protected ordinary
-  forms. The controls state what link holders can see and explain revocation
-  consequences without JavaScript. Its shared list view persists each member's
+  unavailable page. The templ Items page lets principals with `resources:write`
+  create seven- or 30-day links and revoke active links with CSRF-protected
+  forms. Create returns the targeted list fragment; revoke uses ordinary
+  redirect navigation. Share forms opt out of HTMX history snapshots so a
+  one-time URL is not cached. The controls state what link holders can see and
+  explain revocation consequences without JavaScript. Its shared list view persists each member's
   title and status column
   visibility per workspace, filters by title and status, sorts by creation
   time, and carries query state through pagination and realtime refreshes. The
