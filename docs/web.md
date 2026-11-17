@@ -134,10 +134,13 @@ Baseline browser surfaces:
   the browser to sign-in on its next request. The page shows a localized empty
   state and retains the ordinary form fallback. `/security` manages MFA factors
   and starts reauthenticated OIDC linking.
-- `/account` edits profile preferences, changes a local password, requests email
+- `/account` renders through `account.templ` and generated `account_templ.go`.
+  It edits profile preferences, changes a local password, requests email
   verification, and deletes the account after current-password reauthentication
-  and an explicit confirmation checkbox. The server rejects deletion without
-  confirmation and retains the owner-transfer restriction. `/settings/language`
+  and an explicit confirmation checkbox. Password fields never enter draft
+  storage. Password changes revoke existing sessions before issuing a fresh one;
+  deletion rejects missing confirmation and retains the owner-transfer
+  restriction. `/settings/language`
   persists the account language. `/password-reset` provides localized generic
   request and single-use completion pages.
 - `/notifications` lists recipient-scoped in-app records, shows unread state,
@@ -349,7 +352,8 @@ accessibility results and remaining limits are recorded in
 | `/workspaces/{workspaceId}/settings/email` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Unconfigured/configured provider, saved state, validation, provider verification failure, redacted credentials and permission handling |
 | `/notifications`, `/notifications/events` | `notifications.templ`, `notifications_templ.go` | Recipient-scoped list and unread count, empty state, CSRF-protected mark-read, initial cursor and SSE replay after reconnect |
 | `/workspaces/{workspaceId}/settings/webhooks` and `/workspaces/{workspaceId}/settings/webhooks/{webhookId}/deliveries` | `webhooks.templ`, `webhooks_templ.go`, `components.templ`, `navigation.templ` | Permission-denied and unavailable states, one-time secret creation/rotation, required localized delete confirmation, no-store redacted delivery history, keyboard/accessibility, mobile light/dark themes, no-JS confirmation and ordinary form fallback |
-| Account and workspace settings | `account.html`, `credential_settings.templ`, `credential_settings_templ.go`, `language.html`, `security.html`, `navigation.html` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |
+| `/account` | `account.templ`, `account_templ.go`, `navigation.templ`, `components.templ` | Profile and preference validation; password mismatch, reauthentication and session renewal; verification delivery success/failure; deletion confirmation, reauthentication, owner-transfer restriction and success; ordinary forms |
+| Account and workspace settings | `credential_settings.templ`, `credential_settings_templ.go`, `language.html`, `security.html`, `navigation.html` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |
 | `/workspaces/{workspaceId}/settings/export`, `/workspaces/{workspaceId}/settings/export/download`, `/workspaces/{workspaceId}/settings/import` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Authorized no-store export page and JSON download; import file selection, bounded preview, safe validation feedback, explicit multipart confirmation, and atomic result; ordinary form fallback |
 | Public and unavailable pages | `public-share.html`, `error.html` | Share projection and invalid/expired/revoked links, not-found and request errors |
 

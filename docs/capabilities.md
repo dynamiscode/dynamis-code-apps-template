@@ -467,6 +467,16 @@ JSON and verification success without token reflection or caching. Verified
 the isolated Playwright run passed all 12 email verification and 8 password
 reset cases.
 
+## Account security form evidence
+
+Issue #443 moves `/account` to `account.templ` and generated `account_templ.go`.
+Browser route tests cover password mismatch, invalid current password, successful
+password change with session revocation, required deletion confirmation,
+owner-transfer refusal, and successful deletion. Password fields remain outside
+draft persistence. Email verification request and delivery outcomes retain
+ordinary CSRF-protected forms. Verified 2026-11-17 with `make test`,
+`make templ-check`, and `make fmt-check`.
+
 ## Item short ID evidence
 
 Verified 2026-11-11 with Go 1.27.4. Issue #190 moves item keys to integers
