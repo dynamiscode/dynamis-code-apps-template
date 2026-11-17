@@ -42,7 +42,8 @@ test.describe("members route", () => {
 			const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
 			expect(overflow).toBe(false);
 			const maskColor = await page.locator("body").evaluate((body) => getComputedStyle(body).backgroundColor);
-			await expect(page).toHaveScreenshot(`members-${name.replaceAll(" ", "-")}.png`, {
+			const platformSuffix = width < 608 && process.platform === "linux" ? "-linux" : "";
+			await expect(page).toHaveScreenshot(`members-${name.replaceAll(" ", "-")}${platformSuffix}.png`, {
 				fullPage: true,
 				mask: [page.locator('[data-column="id"]')],
 				maskColor,
