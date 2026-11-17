@@ -12,27 +12,28 @@ test("item list swap preserves a different dirty row", () => {
 	const source = form(row());
 	const dirtyRow = row();
 	const dirty = form(dirtyRow, true);
-	assert.deepEqual(items.itemSwapPlan([source, dirty], source, false, null), { defer: false, rows: [dirtyRow] });
+	assert.deepEqual(items.itemSwapPlan([source, dirty], source, false, null), { defer: false, rows: [dirtyRow], forms: [] });
 });
 
-test("item list swap preserves a focused row and defers focused controls outside rows", () => {
+test("item list swap preserves focused rows and standalone forms", () => {
 	const source = form(row());
 	const focusedRow = row();
 	const focused = form(focusedRow);
-	assert.deepEqual(items.itemSwapPlan([source, focused], source, false, focused), { defer: false, rows: [focusedRow] });
-	assert.deepEqual(items.itemSwapPlan([source, form(null)], source, false, form(null)), { defer: true, rows: [] });
+	assert.deepEqual(items.itemSwapPlan([source, focused], source, false, focused), { defer: false, rows: [focusedRow], forms: [] });
+	const dirtyCreate = form(null, true);
+	assert.deepEqual(items.itemSwapPlan([source, dirtyCreate], source, false, null), { defer: false, rows: [], forms: [dirtyCreate] });
 });
 
 test("item edit validation keeps submitted values in the current form", () => {
 	const source = form(row(), true, true);
-	assert.deepEqual(items.itemSwapPlan([source], source, true, null), { defer: true, rows: [] });
-	assert.deepEqual(items.itemSwapPlan([source], source, false, null), { defer: false, rows: [] });
+	assert.deepEqual(items.itemSwapPlan([source], source, true, null), { defer: true, rows: [], forms: [] });
+	assert.deepEqual(items.itemSwapPlan([source], source, false, null), { defer: false, rows: [], forms: [] });
 });
 
 test("successful create swap does not preserve submitted create form", () => {
 	const create = form(null, false, true);
-	assert.deepEqual(items.itemSwapPlan([create], create, false, create), { defer: false, rows: [] });
-	assert.deepEqual(items.itemSwapPlan([create], create, false, null), { defer: false, rows: [] });
+	assert.deepEqual(items.itemSwapPlan([create], create, false, create), { defer: false, rows: [], forms: [] });
+	assert.deepEqual(items.itemSwapPlan([create], create, false, null), { defer: false, rows: [], forms: [] });
 });
 
 test("a rendered item error restores an optimistically hidden delete row", () => {
@@ -44,8 +45,8 @@ test("a rendered item error restores an optimistically hidden delete row", () =>
 	assert.equal(items.restoreFailedOptimisticRow(source), false);
 });
 
-test("unsaved filter values defer a whole-list swap", () => {
+test("unsaved filter values survive a whole-list swap", () => {
 	const source = form(row());
 	const filter = form(null, true);
-	assert.deepEqual(items.itemSwapPlan([source, filter], source, false, null), { defer: true, rows: [] });
+	assert.deepEqual(items.itemSwapPlan([source, filter], source, false, null), { defer: false, rows: [], forms: [filter] });
 });

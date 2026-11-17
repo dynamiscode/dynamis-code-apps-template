@@ -2,19 +2,24 @@
 	"use strict";
 
 	function itemSwapPlan(forms, sourceForm, editValidationError, focusedForm) {
-		if (editValidationError) return { defer: true, rows: [] };
+		if (editValidationError) return { defer: true, rows: [], forms: [] };
 		const protectedForms = forms.filter((form) => form !== sourceForm && (
 			form === focusedForm || form.dataset.dirty === "true" || form.dataset.submitting === "true"
 		));
 		if (focusedForm && focusedForm !== sourceForm && !protectedForms.includes(focusedForm)) {
 			protectedForms.push(focusedForm);
 		}
-		if (protectedForms.some((form) => !form.closest("[data-item-row]"))) {
-			return { defer: true, rows: [] };
+		const rows = [];
+		const standaloneForms = [];
+		for (const form of protectedForms) {
+			const row = form.closest("[data-item-row]");
+			if (row) rows.push(row);
+			else standaloneForms.push(form);
 		}
 		return {
 			defer: false,
-			rows: [...new Set(protectedForms.map((form) => form.closest("[data-item-row]")))],
+			rows: [...new Set(rows)],
+			forms: [...new Set(standaloneForms)],
 		};
 	}
 
@@ -32,6 +37,7 @@
 
 	let refreshPending = false;
 	let rowsToRestore = [];
+	let formsToRestore = [];
 	let focusAfterSwap = null;
 	const list = () => document.querySelector("#item-list");
 	const forms = (root) => [...root.querySelectorAll("form[data-dirty-track]")];
@@ -73,14 +79,22 @@
 
 	function restoreDirtyRows(root) {
 		const body = root.querySelector("tbody");
-		if (!body) return;
-		for (const row of rowsToRestore) {
-			const incoming = [...body.querySelectorAll("[data-item-row]")]
-				.find((candidate) => candidate.dataset.itemRow === row.dataset.itemRow);
-			if (incoming) incoming.replaceWith(row);
-			else body.append(row);
+		if (body) {
+			for (const row of rowsToRestore) {
+				const incoming = [...body.querySelectorAll("[data-item-row]")]
+					.find((candidate) => candidate.dataset.itemRow === row.dataset.itemRow);
+				if (incoming) incoming.replaceWith(row);
+				else body.append(row);
+			}
 		}
 		rowsToRestore = [];
+		for (const form of formsToRestore) {
+			const incoming = form.dataset.persist
+				? [...root.querySelectorAll("form[data-persist]")].find((candidate) => candidate.dataset.persist === form.dataset.persist)
+				: root.querySelector("form.client-query");
+			incoming?.replaceWith(form);
+		}
+		formsToRestore = [];
 		focusAfterSwap?.focus();
 		focusAfterSwap = null;
 	}
@@ -98,7 +112,9 @@
 		const plan = itemSwapPlan(forms(root), sourceForm, isEditError, focusedFormInList);
 		if (!plan.defer) {
 			rowsToRestore = plan.rows;
-			focusAfterSwap = plan.rows.some((row) => row.contains(active)) ? active : null;
+			formsToRestore = plan.forms;
+			focusAfterSwap = plan.rows.some((row) => row.contains(active))
+				|| plan.forms.some((form) => form.contains(active)) ? active : null;
 			refreshPending ||= plan.rows.length > 0
 				|| plan.rows.some((row) => row === sourceForm?.closest?.("[data-item-row]"));
 			return;

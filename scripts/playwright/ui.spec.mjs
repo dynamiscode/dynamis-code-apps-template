@@ -130,6 +130,116 @@ test("workspace home opens Items and creates the first task", async ({ page }) =
   expect(results.violations).toEqual([]);
 });
 
+test("Items query navigation keeps native browser history", async ({ page }) => {
+  await openItems(page);
+  const basePath = new URL(page.url()).pathname;
+  await page.locator("details.client-filters summary").click();
+  await page.locator('input[name="search"]').fill("history marker");
+  await page.locator("form.client-query button[type=submit]").click();
+  await expect(page).toHaveURL(/search=history\+marker/);
+  await expect(page.locator('input[name="search"]')).toHaveValue("history marker");
+
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`${basePath}$`));
+  await expect(page.locator('input[name="search"]')).toHaveValue("");
+  await page.goForward();
+  await expect(page).toHaveURL(/search=history\+marker/);
+  await expect(page.locator('input[name="search"]')).toHaveValue("history marker");
+});
+
+test("Items create form drops overlapping HTMX submissions", async ({ page }) => {
+  await openItems(page);
+  let posts = 0;
+  let releaseRequest;
+  const requestGate = new Promise((resolve) => { releaseRequest = resolve; });
+  await page.route("**/workspaces/*/items", async (route) => {
+    if (route.request().method() === "POST") {
+      posts++;
+      await requestGate;
+    }
+    await route.continue();
+  });
+
+  await page.evaluate(() => {
+    const form = document.querySelector("form.create");
+    const values = Object.fromEntries(new FormData(form));
+    values.title = "One accepted submit";
+    htmx.ajax("POST", form.action, { source: form, target: "#item-list", swap: "outerHTML", values });
+    htmx.ajax("POST", form.action, { source: form, target: "#item-list", swap: "outerHTML", values });
+  });
+  await expect.poll(() => posts).toBe(1);
+  releaseRequest();
+  await expect(page.locator('#item-list input[name="title"][value="One accepted submit"]')).toBeVisible();
+  expect(posts).toBe(1);
+});
+
+test("Items autosave updates version before a later delete", async ({ page }) => {
+  await openItems(page);
+  await page.getByLabel("New item title").fill("Autosave seed");
+  await page.getByRole("button", { name: "Add item" }).click();
+  const row = page.locator('#item-list tr[data-item-row]:has(input[name="title"][value="Autosave seed"])');
+  await expect(row).toBeVisible();
+  const createTitle = page.getByLabel("New item title");
+  await createTitle.fill("   ");
+  await createTitle.press("Enter");
+  await expect(page.locator(".error-summary")).toBeFocused();
+  await createTitle.fill("Unsaved create draft");
+  const rowID = await row.getAttribute("data-item-row");
+  const currentRow = page.locator(`#item-list tr[data-item-row="${rowID}"]`);
+  await currentRow.locator('input[name="title"]').fill("Autosave updated");
+  await currentRow.locator('select[name="status"]').evaluate((select) => {
+    select.value = "complete";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await expect(currentRow.locator('input[name="version"]')).toHaveValue("2");
+  await expect(currentRow.locator('input[name="title"]')).toHaveValue("Autosave updated");
+  await expect(createTitle).toHaveValue("Unsaved create draft");
+  await expect(page.locator(".error-summary")).toBeVisible();
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await currentRow.getByRole("button", { name: "Delete permanently Autosave updated" }).click();
+  await expect(currentRow).toHaveCount(0);
+});
+
+test("Spanish Items list passes axe", async ({ page }) => {
+  await openItems(page);
+  const path = new URL(page.url()).pathname;
+  await page.goto(`/language?locale=es&return_to=${encodeURIComponent(path)}`);
+  await expect(page.locator("html")).toHaveAttribute("lang", "es");
+  await expect(page.getByRole("heading", { name: "Elementos", level: 1 })).toBeVisible();
+  await expect(page.getByLabel("Título del nuevo elemento")).toBeVisible();
+
+  await injectAxe(page);
+  const results = await page.evaluate(async () => axe.run(document.querySelector("#item-list")));
+  expect(results.violations).toEqual([]);
+});
+
+test("Items honors explicit and system theme preferences", async ({ page }) => {
+  await openItems(page);
+  const path = new URL(page.url()).pathname;
+  const cases = [
+    { theme: "light", colorScheme: "dark", canvas: "#f3f6fa" },
+    { theme: "dark", colorScheme: "light", canvas: "#111826" },
+    { theme: "system", colorScheme: "light", canvas: "#f3f6fa" },
+    { theme: "system", colorScheme: "dark", canvas: "#111826" },
+  ];
+
+  for (const item of cases) {
+    await page.goto("/account");
+    const theme = page.locator("#account-theme");
+    if (await theme.inputValue() !== item.theme) {
+      await theme.selectOption(item.theme);
+      await page.locator('form[action="/account/profile"] button[type=submit]').click();
+      await expect(page).toHaveURL(/saved=1/);
+    }
+    await page.emulateMedia({ colorScheme: item.colorScheme });
+    await page.goto(path);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", item.theme);
+    const canvas = await page.locator("html").evaluate((element) => getComputedStyle(element).getPropertyValue("--canvas").trim());
+    expect(canvas).toBe(item.canvas);
+  }
+});
+
 test.describe("Items without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
 

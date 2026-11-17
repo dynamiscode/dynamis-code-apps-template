@@ -22,18 +22,20 @@ templ itemsList(data pageData) {
 		if data.Error != "" {
 			@errorAlert(data.Error)
 		}
-		<form class="create" data-webmcp-actions="item-create" data-persist="item-create" data-dirty-track
-			action={ data.CurrentPath + data.ItemQuerySuffix } method="post"
-			hx-post={ data.CurrentPath + data.ItemQuerySuffix } hx-target="#item-list"
-			hx-swap="outerHTML" hx-sync="this:drop">
-			<input type="hidden" name="csrf" value={ data.CSRF }/>
-			<input type="hidden" name="idempotency_key" value={ data.CreateKey }/>
-			<label for="new-title">{ data.T("items.new_title") }</label>
-			<div class="row">
-				<input id="new-title" class="input" name="title" required maxlength="200" data-trim value={ data.NewTitle }/>
-				@submitButton(data.T("items.add"), nil)
-			</div>
-		</form>
+		if data.CanEditItems {
+			<form class="create" data-webmcp-actions="item-create" data-persist="item-create" data-dirty-track
+				action={ data.CurrentPath + data.ItemQuerySuffix } method="post"
+				hx-post={ data.CurrentPath + data.ItemQuerySuffix } hx-target="#item-list"
+				hx-swap="outerHTML" hx-sync="this:drop">
+				<input type="hidden" name="csrf" value={ data.CSRF }/>
+				<input type="hidden" name="idempotency_key" value={ data.CreateKey }/>
+				<label for="new-title">{ data.T("items.new_title") }</label>
+				<div class="row">
+					<input id="new-title" class="input" name="title" required maxlength="200" data-trim value={ data.NewTitle }/>
+					@submitButton(data.T("items.add"), nil)
+				</div>
+			</form>
+		}
 		<details class="client-controls client-filters" open?={ data.ItemListQuery.Search != "" || data.ItemListQuery.Status != "" || data.ItemListQuery.Sort != "-created_at" || data.ItemListQuery.Limit != 50 }>
 			<summary>{ data.T("items.list_controls") }</summary>
 			<form class="client-query" data-dirty-track method="get" action={ data.CurrentPath }>

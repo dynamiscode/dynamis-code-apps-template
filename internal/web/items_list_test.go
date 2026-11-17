@@ -6,8 +6,10 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/items"
 )
 
 func TestItemsListPresentationAndPreferences(t *testing.T) {
@@ -114,6 +116,64 @@ func TestItemsPageUsesProfileLocaleAndTheme(t *testing.T) {
 	for _, copy := range []string{"Título del nuevo elemento", "Aún no hay elementos."} {
 		if !strings.Contains(body, copy) {
 			t.Errorf("Items page lacks Spanish copy %q: %s", copy, body)
+		}
+	}
+}
+
+func TestItemsViewerCannotCreateEditOrDelete(t *testing.T) {
+	handler, auth, itemService, workspaceID, owner := testWeb(t, 10)
+	ownerCookies, ownerCSRF := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
+	path := "/workspaces/" + workspaceID.String() + "/items"
+	created := request(handler, http.MethodPost, path, url.Values{
+		"csrf": {ownerCSRF}, "idempotency_key": {"items-viewer-permission"}, "title": {"Protected item"},
+	}, ownerCookies, nil)
+	if created.Code != http.StatusSeeOther {
+		t.Fatalf("owner create = %d: %s", created.Code, created.Body.String())
+	}
+	ctx := context.Background()
+	invitations, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.InvitationsManage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	invitation, err := auth.CreateInvitation(ctx, invitations, "items-viewer@example.com", identity.Viewer, time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	viewerID, _, err := auth.CreateInvitedLocalUser(ctx, invitation.Secret, "viewer-long-password", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	viewerSession, err := auth.CreateSession(ctx, viewerID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	viewerCookies := []*http.Cookie{{Name: "session", Value: viewerSession.Secret}, {Name: "csrf", Value: viewerSession.CSRFSecret}}
+	viewer := request(handler, http.MethodGet, path, nil, viewerCookies, nil)
+	if viewer.Code != http.StatusOK || strings.Contains(viewer.Body.String(), `data-item-edit`) ||
+		strings.Contains(viewer.Body.String(), `name="idempotency_key"`) {
+		t.Fatalf("viewer Items page = %d, edit=%t create=%t", viewer.Code,
+			strings.Contains(viewer.Body.String(), `data-item-edit`), strings.Contains(viewer.Body.String(), `name="idempotency_key"`))
+	}
+	if refused := request(handler, http.MethodPost, path, url.Values{
+		"csrf": {viewerSession.CSRFSecret}, "idempotency_key": {"items-viewer-create"}, "title": {"Blocked"},
+	}, viewerCookies, nil); refused.Code != http.StatusForbidden {
+		t.Fatalf("viewer create = %d, want 403: %s", refused.Code, refused.Body.String())
+	}
+	ownerPrincipal, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := itemService.List(ctx, ownerPrincipal, workspaceID, items.ListInput{Sort: "-created_at", Limit: 10})
+	if err != nil || len(page.Items) != 1 {
+		t.Fatalf("owner item list = %+v, %v", page, err)
+	}
+	itemPath := path + "/" + page.Items[0].ID.String()
+	for _, action := range []string{"update", "delete"} {
+		refused := request(handler, http.MethodPost, itemPath, url.Values{
+			"csrf": {viewerSession.CSRFSecret}, "action": {action}, "version": {"1"}, "title": {"Blocked"},
+		}, viewerCookies, nil)
+		if refused.Code != http.StatusForbidden {
+			t.Errorf("viewer %s = %d, want 403: %s", action, refused.Code, refused.Body.String())
 		}
 	}
 }
