@@ -94,7 +94,7 @@ func TestMultiInstanceImportFlashStateless(t *testing.T) {
 	if !strings.Contains(body, "Items imported:") || !strings.Contains(body, "2") {
 		t.Fatalf("expected instance2 to render import confirmation with 2 items, got:\n%s", body)
 	}
-	if !strings.Contains(body, `class="success" role="status"`) {
+	if !strings.Contains(body, `role="status"`) || !strings.Contains(body, `class="alert alert-success success"`) {
 		t.Fatalf("expected instance2 to render success role=status element, got:\n%s", body)
 	}
 
