@@ -68,6 +68,7 @@ templ clientFieldList(data pageData) {
 										if data.CanManageFields {
 											<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/options/" + option.ID.String() + "/delete" }>
 												<input type="hidden" name="csrf" value={ data.CSRF }/>
+												<p class="warning">{ data.T("clients.option_delete_confirm") }</p>
 												@confirmButton(data.T("clients.option_delete"), data.T("clients.option_delete_confirm"), nil)
 											</form>
 										}
