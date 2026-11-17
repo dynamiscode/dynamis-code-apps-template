@@ -490,6 +490,9 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/notifications", h.workspaceNotificationSettings)
 	mux.HandleFunc("GET /invitations/{secret}", h.invitationPage)
 	mux.HandleFunc("POST /invitations/{secret}", h.invitationPost)
+	mux.HandleFunc("POST /invitations/{secret}/sign-in", h.invitationSignIn)
+	mux.HandleFunc("GET /invitations/continue", h.invitationContinuePage)
+	mux.HandleFunc("POST /invitations/continue", h.invitationContinuePost)
 	return h.localeMiddleware(mux)
 }
 
@@ -511,7 +514,7 @@ func (h *Handler) loginPage(writer http.ResponseWriter, request *http.Request) {
 	h.setCookie(writer, "login_csrf", token, time.Now().Add(10*time.Minute), true)
 	h.render(writer, http.StatusOK, "login.html", pageData{
 		Title: "Sign in", CSRF: token, OIDCProviders: h.providers(),
-		ReturnTo: safeReturnTo(request.URL.Query().Get("return_to")),
+		ReturnTo: h.invitationLoginReturnTo(request, request.URL.Query().Get("return_to")),
 	})
 }
 
@@ -643,7 +646,7 @@ func (h *Handler) login(writer http.ResponseWriter, request *http.Request) {
 		h.render(writer, http.StatusUnauthorized, "login.html", pageData{
 			Title: "Sign in", CSRF: request.FormValue("csrf"), Email: strings.TrimSpace(request.FormValue("email")),
 			Error:         "The email or password is invalid.",
-			OIDCProviders: h.providers(), ReturnTo: safeReturnTo(request.FormValue("return_to")),
+			OIDCProviders: h.providers(), ReturnTo: h.invitationLoginReturnTo(request, request.FormValue("return_to")),
 		})
 		return
 	}
@@ -658,7 +661,7 @@ func (h *Handler) login(writer http.ResponseWriter, request *http.Request) {
 			h.renderError(writer, http.StatusInternalServerError)
 			return
 		}
-		h.setMFAChallengeCookies(writer, challenge, request.FormValue("return_to"))
+		h.setMFAChallengeCookies(writer, challenge, h.invitationLoginReturnTo(request, request.FormValue("return_to")))
 		h.redirect(writer, request, "/mfa")
 		return
 	}
@@ -672,10 +675,11 @@ func (h *Handler) login(writer http.ResponseWriter, request *http.Request) {
 	h.setCookie(writer, "session", session.Secret, session.ExpiresAt, true)
 	h.setCookie(writer, "csrf", session.CSRFSecret, session.ExpiresAt, true)
 	h.clearCookie(writer, "login_csrf")
-	h.redirect(writer, request, safeReturnTo(request.FormValue("return_to")))
+	h.redirect(writer, request, h.invitationLoginReturnTo(request, request.FormValue("return_to")))
 }
 
 func (h *Handler) logout(writer http.ResponseWriter, request *http.Request) {
+	continueInvitation := h.invitationReturnActive(request)
 	session, ok := h.validCSRFSession(writer, request)
 	if !ok {
 		return
@@ -689,6 +693,11 @@ func (h *Handler) logout(writer http.ResponseWriter, request *http.Request) {
 	}
 	h.clearCookie(writer, "session")
 	h.clearCookie(writer, "csrf")
+	if continueInvitation {
+		setInvitationSecurityHeaders(writer)
+		http.Redirect(writer, request, invitationLoginLocation, http.StatusSeeOther)
+		return
+	}
 	if h.oidc != nil {
 		if logoutURL, ok := h.oidc.LogoutURL(providerID); ok {
 			h.redirectURL(writer, request, logoutURL)

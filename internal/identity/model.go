@@ -253,6 +253,12 @@ type NewInvitation struct {
 	Secret string
 }
 
+type InvitationReturnHandoff struct {
+	Token     string
+	Binding   string
+	ExpiresAt time.Time
+}
+
 type APIToken struct {
 	ID          APITokenID
 	UserID      UserID

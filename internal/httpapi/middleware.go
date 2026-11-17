@@ -340,6 +340,17 @@ func logPath(path string) string {
 	if strings.HasPrefix(path, "/share/") {
 		return "/share/[redacted]"
 	}
+	if strings.HasPrefix(path, "/invitations/") {
+		tail := strings.TrimPrefix(path, "/invitations/")
+		if tail == "continue" {
+			return path
+		}
+		_, suffix, hasSuffix := strings.Cut(tail, "/")
+		if hasSuffix && (suffix == "sign-in" || suffix == "register") {
+			return "/invitations/[redacted]/" + suffix
+		}
+		return "/invitations/[redacted]"
+	}
 	return path
 }
 
