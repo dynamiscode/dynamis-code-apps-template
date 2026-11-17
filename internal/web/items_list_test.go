@@ -1,13 +1,18 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
+
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/items"
 )
 
-func TestItemsListUsesSavedSharedListPresentation(t *testing.T) {
+func TestItemsListPresentationAndPreferences(t *testing.T) {
 	handler, _, _, workspaceID, _ := testWeb(t, 10)
 	cookies, csrf := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
 	path := "/workspaces/" + workspaceID.String() + "/items"
@@ -34,7 +39,7 @@ func TestItemsListUsesSavedSharedListPresentation(t *testing.T) {
 		}
 	}
 
-	for _, column := range []string{"title", "status"} {
+	for _, column := range []string{"title"} {
 		response := request(handler, http.MethodPost, path+"/preferences/columns/"+column, url.Values{
 			"csrf": {csrf}, "visible": {"false"},
 		}, cookies, nil)
@@ -46,14 +51,27 @@ func TestItemsListUsesSavedSharedListPresentation(t *testing.T) {
 	if !strings.Contains(body, `name="title"`) || !strings.Contains(body, `name="status"`) {
 		t.Fatalf("editing controls disappeared with their columns hidden: %s", body)
 	}
-	if strings.Contains(body, `data-column="title"`) || strings.Contains(body, `data-column="status"`) {
-		t.Fatalf("hidden columns remained in the visible list: %s", body)
+	if strings.Contains(body, `data-column="title"`) || !strings.Contains(body, `data-column="status"`) {
+		t.Fatalf("column preference did not hide only the selected column: %s", body)
 	}
 	if !strings.Contains(body, `action="`+path+`/preferences/columns/title?`) ||
 		!strings.Contains(body, "status=active") || !strings.Contains(body, "search=Inline") ||
 		!strings.Contains(body, "sort=created_at") || !strings.Contains(body, "limit=1") ||
 		!strings.Contains(body, "cursor=") {
 		t.Fatalf("list preferences did not preserve URL state: %s", body)
+	}
+	response := request(handler, http.MethodPost, path+"/preferences/columns/status", url.Values{
+		"csrf": {csrf}, "visible": {"false"},
+	}, cookies, nil)
+	if response.Code != http.StatusSeeOther {
+		t.Fatalf("hide final visible column = %d: %s", response.Code, response.Body.String())
+	}
+	noDataColumns := request(handler, http.MethodGet, path, nil, cookies, nil)
+	noDataColumnBody := noDataColumns.Body.String()
+	if noDataColumns.Code != http.StatusOK || strings.Contains(noDataColumnBody, `data-column="title"`) ||
+		strings.Contains(noDataColumnBody, `data-column="status"`) || !strings.Contains(noDataColumnBody, `scope="col">Actions</th>`) ||
+		!strings.Contains(noDataColumnBody, `data-item-edit`) {
+		t.Fatalf("no-visible-data-columns state = %d: %s", noDataColumns.Code, noDataColumnBody)
 	}
 	noMatches := request(handler, http.MethodGet, path+"?search=Missing", nil, cookies, nil)
 	if noMatches.Code != http.StatusOK || !strings.Contains(noMatches.Body.String(), "No items yet.") ||
@@ -78,5 +96,84 @@ func TestItemsListUsesSavedSharedListPresentation(t *testing.T) {
 	body = request(handler, http.MethodGet, path, nil, cookies, nil).Body.String()
 	if !strings.Contains(body, `data-column="title"`) || !strings.Contains(body, `data-column="status"`) {
 		t.Fatalf("reset did not restore default columns: %s", body)
+	}
+}
+
+func TestItemsPageUsesProfileLocaleAndTheme(t *testing.T) {
+	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	if err := auth.UpdateUserProfile(context.Background(), owner.UserID, identity.ProfileUpdateInput{
+		Locale: "es", Timezone: "America/Bogota", Theme: "dark",
+	}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
+	path := "/workspaces/" + workspaceID.String() + "/items"
+	response := request(handler, http.MethodGet, path, nil, cookies, nil)
+	body := response.Body.String()
+	if response.Code != http.StatusOK || !hasHTMLRootLang(body, "es") || !strings.Contains(body, `data-theme="dark"`) {
+		t.Fatalf("Items locale/theme = %d: %s", response.Code, body)
+	}
+	for _, copy := range []string{"Título del nuevo elemento", "Aún no hay elementos."} {
+		if !strings.Contains(body, copy) {
+			t.Errorf("Items page lacks Spanish copy %q: %s", copy, body)
+		}
+	}
+}
+
+func TestItemsViewerCannotCreateEditOrDelete(t *testing.T) {
+	handler, auth, itemService, workspaceID, owner := testWeb(t, 10)
+	ownerCookies, ownerCSRF := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
+	path := "/workspaces/" + workspaceID.String() + "/items"
+	created := request(handler, http.MethodPost, path, url.Values{
+		"csrf": {ownerCSRF}, "idempotency_key": {"items-viewer-permission"}, "title": {"Protected item"},
+	}, ownerCookies, nil)
+	if created.Code != http.StatusSeeOther {
+		t.Fatalf("owner create = %d: %s", created.Code, created.Body.String())
+	}
+	ctx := context.Background()
+	invitations, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.InvitationsManage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	invitation, err := auth.CreateInvitation(ctx, invitations, "items-viewer@example.com", identity.Viewer, time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	viewerID, _, err := auth.CreateInvitedLocalUser(ctx, invitation.Secret, "viewer-long-password", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	viewerSession, err := auth.CreateSession(ctx, viewerID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	viewerCookies := []*http.Cookie{{Name: "session", Value: viewerSession.Secret}, {Name: "csrf", Value: viewerSession.CSRFSecret}}
+	viewer := request(handler, http.MethodGet, path, nil, viewerCookies, nil)
+	if viewer.Code != http.StatusOK || strings.Contains(viewer.Body.String(), `data-item-edit`) ||
+		strings.Contains(viewer.Body.String(), `name="idempotency_key"`) {
+		t.Fatalf("viewer Items page = %d, edit=%t create=%t", viewer.Code,
+			strings.Contains(viewer.Body.String(), `data-item-edit`), strings.Contains(viewer.Body.String(), `name="idempotency_key"`))
+	}
+	if refused := request(handler, http.MethodPost, path, url.Values{
+		"csrf": {viewerSession.CSRFSecret}, "idempotency_key": {"items-viewer-create"}, "title": {"Blocked"},
+	}, viewerCookies, nil); refused.Code != http.StatusForbidden {
+		t.Fatalf("viewer create = %d, want 403: %s", refused.Code, refused.Body.String())
+	}
+	ownerPrincipal, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := itemService.List(ctx, ownerPrincipal, workspaceID, items.ListInput{Sort: "-created_at", Limit: 10})
+	if err != nil || len(page.Items) != 1 {
+		t.Fatalf("owner item list = %+v, %v", page, err)
+	}
+	itemPath := path + "/" + page.Items[0].ID.String()
+	for _, action := range []string{"update", "delete"} {
+		refused := request(handler, http.MethodPost, itemPath, url.Values{
+			"csrf": {viewerSession.CSRFSecret}, "action": {action}, "version": {"1"}, "title": {"Blocked"},
+		}, viewerCookies, nil)
+		if refused.Code != http.StatusForbidden {
+			t.Errorf("viewer %s = %d, want 403: %s", action, refused.Code, refused.Body.String())
+		}
 	}
 }
