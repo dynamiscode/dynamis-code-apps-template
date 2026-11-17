@@ -1,15 +1,17 @@
 package web
 
 import "example.com/dynamis-code/apps-template/internal/clients"
-import "strings"
-
 templ clientFieldsPage(data pageData) {
 	@dashboardShell(data, dashboardHeader(data), dashboardHomeNavigation(data)) {
 		@pageHeading(data.T("clients.fields_title"), data.T("clients.title")) {
-			<a class="btn btn-ghost" href={ strings.TrimSuffix(data.FieldsPath, "/client-fields") + "/clients" }>{ data.T("clients.back") }</a>
+			<a class="btn btn-ghost" href={ clientFieldsBackPath(data.FieldsPath) }>{ data.T("clients.back") }</a>
 		}
 		@clientFieldList(data)
 	}
+}
+
+func clientFieldsBackPath(fieldsPath string) string {
+	return fieldsPath[:len(fieldsPath)-len("/client-fields")] + "/clients"
 }
 
 templ clientFieldList(data pageData) {
@@ -62,17 +64,17 @@ templ clientFieldList(data pageData) {
 								<h3>{ data.T("clients.options_heading") }</h3>
 								if len(field.Options) > 0 {
 									<ul class="client-field-option-list">
-									for _, option := range field.Options {
-										<li>
-										<span>{ option.Label }</span>
-										if data.CanManageFields {
-											<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/options/" + option.ID.String() + "/delete" }>
-												<input type="hidden" name="csrf" value={ data.CSRF }/>
-												<p class="warning">{ data.T("clients.option_delete_confirm") }</p>
-												@confirmButton(data.T("clients.option_delete"), data.T("clients.option_delete_confirm"), nil)
-											</form>
-										}
-										</li>
+						for _, option := range field.Options {
+							<li>
+								<span>{ option.Label }</span>
+								if data.CanManageFields {
+									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/options/" + option.ID.String() + "/delete" }>
+										<input type="hidden" name="csrf" value={ data.CSRF }/>
+										<p class="warning">{ data.T("clients.option_delete_confirm") }</p>
+										@confirmButton(data.T("clients.option_delete"), data.T("clients.option_delete_confirm"), nil)
+									</form>
+								}
+							</li>
 										}
 									</ul>
 								} else {
