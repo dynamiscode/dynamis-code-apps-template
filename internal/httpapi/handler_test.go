@@ -440,6 +440,17 @@ func TestPublicSharePathIsRedactedFromLogs(t *testing.T) {
 	if got := logPath("/workspaces/example/items"); got != "/workspaces/example/items" {
 		t.Fatalf("ordinary logPath() = %q", got)
 	}
+	for path, want := range map[string]string{
+		"/invitations/invite-secret":           "/invitations/[redacted]",
+		"/invitations/invite-secret/sign-in":   "/invitations/[redacted]/sign-in",
+		"/invitations/continue":                "/invitations/continue",
+		"/invitations/continue/unexpected":     "/invitations/[redacted]",
+		"/invitations/another-secret/register": "/invitations/[redacted]/register",
+	} {
+		if got := logPath(path); got != want {
+			t.Errorf("logPath(%q) = %q, want %q", path, got, want)
+		}
+	}
 }
 
 func TestTimeoutMiddlewareContextDoneRace(t *testing.T) {

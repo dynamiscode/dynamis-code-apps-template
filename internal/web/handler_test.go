@@ -751,7 +751,7 @@ func TestBrowserPagesRenderSpanishDocuments(t *testing.T) {
 	}
 	invitationResponse := requestFrom(handler, http.MethodGet, "/invitations/"+invitation.Secret, nil, nil, map[string]string{"Accept-Language": "en"}, "example.com", "192.0.2.1:1234")
 	if invitationResponse.Header().Get("Content-Language") != "es" || !hasHTMLRootLang(invitationResponse.Body.String(), "es") {
-		t.Fatalf("invitation locale = %q, %s", invitationResponse.Header().Get("Content-Language"), invitationResponse.Body.String())
+		t.Fatalf("invitation locale = %q; Spanish root lang present=%v", invitationResponse.Header().Get("Content-Language"), hasHTMLRootLang(invitationResponse.Body.String(), "es"))
 	}
 }
 

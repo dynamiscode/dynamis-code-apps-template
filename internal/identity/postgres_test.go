@@ -117,6 +117,20 @@ func TestPostgresIdentityLifecycle(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
+	handoffInvitation, err := service.CreateInvitation(
+		ctx, owner, "handoff@example.com", Member, time.Hour, AuditContext{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handoff, err := service.BeginInvitationReturn(ctx, handoffInvitation.Secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handoffUser := postgresInsertUser(t, service, "handoff@example.com")
+	if _, err := service.AcceptInvitationReturn(ctx, handoff.Token, handoff.Binding, handoffUser, AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
 	member := mustAuthorize(t, service, memberID, bootstrap.WorkspaceID, ResourcesWrite)
 	token, err := service.CreateAPIToken(
 		ctx, member, "postgres", []Permission{ResourcesRead, ResourcesWrite},
@@ -155,7 +169,7 @@ func TestPostgresIdentityLifecycle(t *testing.T) {
 
 	for _, secret := range []string{
 		"postgres-owner-password", session.Secret, session.CSRFSecret,
-		invitation.Secret, token.Secret, transaction.State,
+		invitation.Secret, handoffInvitation.Secret, handoff.Token, handoff.Binding, token.Secret, transaction.State,
 		transaction.PKCEVerifier, transaction.Nonce, transaction.BrowserSession,
 	} {
 		var count int
@@ -164,6 +178,7 @@ func TestPostgresIdentityLifecycle(t *testing.T) {
 				SELECT COALESCE(password_hash, '') AS value FROM users
 				UNION ALL SELECT secret_hash || csrf_hash FROM sessions
 				UNION ALL SELECT secret_hash FROM invitations
+				UNION ALL SELECT token_hash || binding_hash FROM invitation_return_handoffs
 				UNION ALL SELECT secret_hash FROM api_tokens
 				UNION ALL SELECT secret_hash FROM scim_tokens
 				UNION ALL SELECT state_hash || browser_session_hash || pkce_verifier_hash || nonce_hash FROM oidc_transactions

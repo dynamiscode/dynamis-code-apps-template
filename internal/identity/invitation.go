@@ -10,6 +10,8 @@ import (
 
 var errInvitationExpired = errors.New("invitation expired")
 
+const invitationReturnLifetime = 10 * time.Minute
+
 // InvitationStatus represents the lifecycle state of a workspace invitation.
 type InvitationStatus string
 
@@ -67,6 +69,169 @@ func (s *Service) InvitationForSecret(
 	}
 	if err := tx.Commit(); err != nil {
 		return Invitation{}, err
+	}
+	return invitation, nil
+}
+
+func (s *Service) BeginInvitationReturn(
+	ctx context.Context,
+	secret string,
+) (InvitationReturnHandoff, error) {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return InvitationReturnHandoff{}, err
+	}
+	defer tx.Rollback()
+	invitation, err := s.findInvitation(ctx, tx, secret)
+	if err != nil {
+		if errors.Is(err, errInvitationExpired) {
+			if commitErr := tx.Commit(); commitErr != nil {
+				return InvitationReturnHandoff{}, commitErr
+			}
+		}
+		return InvitationReturnHandoff{}, ErrInvalidInvitation
+	}
+	token, err := newSecret()
+	if err != nil {
+		return InvitationReturnHandoff{}, err
+	}
+	binding, err := newSecret()
+	if err != nil {
+		return InvitationReturnHandoff{}, err
+	}
+	now := s.now().UTC()
+	expires := now.Add(invitationReturnLifetime)
+	if invitation.ExpiresAt.Before(expires) {
+		expires = invitation.ExpiresAt
+	}
+	if _, err := s.exec(ctx, tx, `
+		INSERT INTO invitation_return_handoffs (
+			token_hash, binding_hash, invitation_id, created_at, expires_at
+		) VALUES (?, ?, ?, ?, ?)
+	`, hashSecret(token), hashSecret(binding), invitation.ID, timestamp(now), timestamp(expires)); err != nil {
+		return InvitationReturnHandoff{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return InvitationReturnHandoff{}, err
+	}
+	return InvitationReturnHandoff{Token: token, Binding: binding, ExpiresAt: expires}, nil
+}
+
+func (s *Service) InvitationForReturn(
+	ctx context.Context,
+	token, binding string,
+) (Invitation, error) {
+	if token == "" || binding == "" {
+		return Invitation{}, ErrInvalidInvitation
+	}
+	var invitationID InvitationID
+	var bindingHash, expiresAt string
+	var consumedAt sql.NullString
+	err := s.queryRow(ctx, s.db, `
+		SELECT invitation_id, binding_hash, expires_at, consumed_at
+		FROM invitation_return_handoffs WHERE token_hash = ?
+	`, hashSecret(token)).Scan(&invitationID, &bindingHash, &expiresAt, &consumedAt)
+	if err != nil || !equalSecretHash(binding, bindingHash) || consumedAt.Valid {
+		return Invitation{}, ErrInvalidInvitation
+	}
+	expires, err := parseTimestamp(expiresAt)
+	if err != nil || !s.now().UTC().Before(expires) {
+		return Invitation{}, ErrInvalidInvitation
+	}
+	return s.invitationByID(ctx, s.db, invitationID)
+}
+
+func (s *Service) AcceptInvitationReturn(
+	ctx context.Context,
+	token, binding string,
+	userID UserID,
+	audit AuditContext,
+) (WorkspaceID, error) {
+	if token == "" || binding == "" {
+		return 0, ErrInvalidInvitation
+	}
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	var userEmail string
+	if err := s.queryRow(ctx, tx, "SELECT email FROM users WHERE id = ?", userID).Scan(&userEmail); err != nil {
+		return 0, ErrInvalidInvitation
+	}
+	var invitationID InvitationID
+	var bindingHash, expiresAt string
+	var consumedAt sql.NullString
+	tokenHash := hashSecret(token)
+	if err := s.queryRow(ctx, tx, `
+		SELECT invitation_id, binding_hash, expires_at, consumed_at
+		FROM invitation_return_handoffs WHERE token_hash = ?
+	`, tokenHash).Scan(&invitationID, &bindingHash, &expiresAt, &consumedAt); err != nil {
+		return 0, ErrInvalidInvitation
+	}
+	now := s.now().UTC()
+	expires, err := parseTimestamp(expiresAt)
+	if err != nil || consumedAt.Valid || !now.Before(expires) || !equalSecretHash(binding, bindingHash) {
+		return 0, ErrInvalidInvitation
+	}
+	invitation, err := s.invitationByID(ctx, tx, invitationID)
+	if err != nil || invitation.Email != userEmail || invitation.Status(now) != InvitationPending {
+		return 0, ErrInvalidInvitation
+	}
+	result, err := s.exec(ctx, tx, `
+		UPDATE invitation_return_handoffs SET consumed_at = ?
+		WHERE token_hash = ? AND binding_hash = ? AND consumed_at IS NULL AND expires_at > ?
+	`, timestamp(now), tokenHash, hashSecret(binding), timestamp(now))
+	if err != nil {
+		return 0, ErrInvalidInvitation
+	}
+	if changed, err := result.RowsAffected(); err != nil || changed != 1 {
+		return 0, ErrInvalidInvitation
+	}
+	invitation, err = s.acceptLoadedInvitation(ctx, tx, invitation, userID, audit, now)
+	if err != nil {
+		return 0, ErrInvalidInvitation
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return invitation.WorkspaceID, nil
+}
+
+func (s *Service) invitationByID(ctx context.Context, queryer rowQueryer, invitationID InvitationID) (Invitation, error) {
+	var invitation Invitation
+	var createdAt, expiresAt string
+	var acceptedAt, expiredAt, revokedAt sql.NullString
+	err := s.queryRow(ctx, queryer, `
+		SELECT i.id, i.workspace_id, w.locale, i.email, i.role, i.created_at,
+			i.expires_at, i.accepted_at, i.expired_at, i.revoked_at
+		FROM invitations i JOIN workspaces w ON w.id = i.workspace_id
+		WHERE i.id = ?
+	`, invitationID).Scan(
+		&invitation.ID, &invitation.WorkspaceID, &invitation.WorkspaceLocale,
+		&invitation.Email, &invitation.Role, &createdAt, &expiresAt,
+		&acceptedAt, &expiredAt, &revokedAt,
+	)
+	if err != nil {
+		return Invitation{}, ErrInvalidInvitation
+	}
+	if invitation.CreatedAt, err = parseTimestamp(createdAt); err != nil {
+		return Invitation{}, ErrInvalidInvitation
+	}
+	if invitation.ExpiresAt, err = parseTimestamp(expiresAt); err != nil {
+		return Invitation{}, ErrInvalidInvitation
+	}
+	if invitation.AcceptedAt, err = optionalTimestamp(acceptedAt); err != nil {
+		return Invitation{}, ErrInvalidInvitation
+	}
+	if invitation.ExpiredAt, err = optionalTimestamp(expiredAt); err != nil {
+		return Invitation{}, ErrInvalidInvitation
+	}
+	if invitation.RevokedAt, err = optionalTimestamp(revokedAt); err != nil {
+		return Invitation{}, ErrInvalidInvitation
+	}
+	if invitation.Status(s.now().UTC()) != InvitationPending {
+		return Invitation{}, ErrInvalidInvitation
 	}
 	return invitation, nil
 }
@@ -251,6 +416,11 @@ func (s *Service) ResendInvitation(
 	if changed, _ := result.RowsAffected(); changed != 1 {
 		return "", ErrInvalidInvitation
 	}
+	if _, err := s.exec(ctx, tx, `
+		DELETE FROM invitation_return_handoffs WHERE invitation_id = ?
+	`, invitationID); err != nil {
+		return "", err
+	}
 	if err := s.auditInvitation(
 		ctx, tx, actor, invitationID, "resent", role, audit, now,
 	); err != nil {
@@ -338,6 +508,11 @@ func (s *Service) RevokeInvitation(
 	}
 	if changed, _ := result.RowsAffected(); changed != 1 {
 		return ErrInvalidInvitation
+	}
+	if _, err := s.exec(ctx, tx, `
+		DELETE FROM invitation_return_handoffs WHERE invitation_id = ?
+	`, invitationID); err != nil {
+		return err
 	}
 	if err := s.auditInvitation(
 		ctx, tx, actor, invitationID, "revoked", role, audit, now,
