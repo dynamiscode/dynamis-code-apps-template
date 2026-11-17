@@ -36,15 +36,35 @@ type, title, body and UTC creation time only. The response remains no-store.
 - Focused Go notification tests: pass, 3 tests. They cover rendered cursor,
   badge markup, CSRF rejection, recipient-scoped events, lifetime close, replay
   from `Last-Event-ID`, and an empty-inbox gap before any event ID exists.
-- `npm run test:unit`: pass, 27 tests. `make templ-check`, `make css-check`,
-  `make lint`, and `git diff --check`: pass.
+- Focused HTTP middleware tests: pass, 3 tests; notification SSE bypasses the
+  generic request deadline and concurrency limit.
+- `make test`, `make lint`, `make templ-check`, `make css-check`, and
+  `git diff --check`: pass. `make ci-local` also passes on the middleware fix,
+  including `go test -race ./...`, dependency/generation checks, build, and
+  secret scan.
+- `make accessibility-smoke`: pass in English and Spanish; notifications has
+  zero axe violations in both locales.
+- Standard notification Playwright suite: 6 passed, 2 opt-in tests skipped;
+  covers four desktop/mobile light/dark screenshots, keyboard navigation,
+  Spanish, and no-JavaScript empty state.
 - Opt-in no-JavaScript mark-read browser test: pass. It uses
   `PLAYWRIGHT_SEED_NOTIFICATION=1` with the smoke script's disposable,
   environment-cleared SQLite database.
-- Full Go tests, accessibility smoke, standard notification screenshots, and
-  real-browser lifetime reconnect remain pending in the serialized validation
-  window. The reconnect test inserts a row after the browser receives lifetime
-  `close`, then checks native replay.
+- Real-browser lifetime reconnect: pass on port 58129 with a one-minute stream.
+  The test inserts a row after the browser receives lifetime `close`, then
+  checks native replay.
+- CI on the updated PR head and integration validation if #424 reaches main
+  first remain pending.
+
+## Measured 504
+
+The first real-lifetime browser run returned HTTP 504 after 30.029 seconds on
+`GET /notifications/events?after=`, matching the default
+`HTTP_REQUEST_TIMEOUT`. The shared middleware exempted workspace item/client
+streams but not this route. `/notifications/events` now uses the existing
+streaming path exemptions for request deadline and concurrency only. Request
+rate limits and the notification handler's per-user stream caps remain active.
+The middleware regression and one-minute browser replay pass with this fix.
 
 `docs/web.md` now records the narrow route inventory and realtime cursor
 contract. Shared docs still need reconciliation at integration.
@@ -60,7 +80,6 @@ updated main. On the requested base, the generated CSS grows by 2,235 bytes in
 one minified-line replacement, adding `.list`, `.list-row`, `.badge` and
 `.badge-primary` rules.
 
-The only measured 504 found during investigation is unrelated: `docs/capabilities.md`
-records `TestAgentSurfacesLiveSmoke` returning 504 after 35 seconds under full
-race-suite load on 2026-11-10; that test passed alone with race. No measured
-notification SSE 504 was found.
+`docs/capabilities.md` separately records `TestAgentSurfacesLiveSmoke` returning
+504 after 35 seconds under full race-suite load on 2026-11-10; that test passed
+alone with race.
