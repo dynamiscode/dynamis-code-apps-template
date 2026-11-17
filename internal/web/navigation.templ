@@ -81,7 +81,7 @@ templ workspaceNav(data pageData) {
 			@navLink(data, "/workspaces/" + data.Workspace.ID.String(), "navigation.home", data.NavPage == "workspace", false)
 			@navLink(data, "/workspaces/" + data.Workspace.ID.String() + "/items", "navigation.items", data.NavPage == "items", false)
 			if data.ClientsEnabled {
-				@navLink(data, "/workspaces/" + data.Workspace.ID.String() + "/clients", "clients.title", data.NavPage == "clients", false)
+				@navLink(data, "/workspaces/" + data.Workspace.ID.String() + "/clients", "clients.title", data.NavPage == "clients" || data.NavPage == "client-detail" || data.NavPage == "client-fields", false)
 			}
 			if data.FilesEnabled {
 				@navLink(data, "/workspaces/" + data.Workspace.ID.String() + "/files", "files.files", data.NavPage == "files", false)

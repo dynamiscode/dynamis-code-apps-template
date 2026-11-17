@@ -12,6 +12,21 @@ func (h *Handler) clientFieldsPath(workspaceID identity.WorkspaceID) string {
 	return "/workspaces/" + workspaceID.String() + "/client-fields"
 }
 
+func clientFieldTypeLabel(data pageData, fieldType string) string {
+	switch fieldType {
+	case "text":
+		return data.T("clients.field_type_text")
+	case "number":
+		return data.T("clients.field_type_number")
+	case "date":
+		return data.T("clients.field_type_date")
+	case "single_choice":
+		return data.T("clients.field_type_single_choice")
+	default:
+		return data.T("clients.field_type_yes_no")
+	}
+}
+
 func (h *Handler) clientFieldList(writer http.ResponseWriter, request *http.Request) {
 	h.renderClientFieldList(writer, request, http.StatusOK, "", clients.FieldInput{})
 }
@@ -51,10 +66,10 @@ func (h *Handler) renderClientFieldList(
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, status, "client-fields.html", pageData{
+	h.render(writer, status, "client-fields-page", pageData{
 		Title: "Custom fields", ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		NavPage: "clients", NavSection: "clients",
+		NavPage: "client-fields", NavSection: "clients",
 		CurrentPath:     h.clientFieldsPath(workspaceID),
 		ClientFields:    rows,
 		CanManageFields: principal.Permissions[identity.WorkspaceUpdate],

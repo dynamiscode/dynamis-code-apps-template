@@ -911,7 +911,7 @@ func workspaceNav(data pageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.ClientsEnabled {
-				templ_7745c5c3_Err = navLink(data, "/workspaces/"+data.Workspace.ID.String()+"/clients", "clients.title", data.NavPage == "clients", false).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = navLink(data, "/workspaces/"+data.Workspace.ID.String()+"/clients", "clients.title", data.NavPage == "clients" || data.NavPage == "client-detail" || data.NavPage == "client-fields", false).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

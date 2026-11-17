@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Migrated client details and custom-field management to templ with shared
+  forms, alerts, confirmations, and workspace navigation.
+
 - Refined shared navigation, narrow-page panels, and item record grouping for
   clearer task layout across desktop and narrow screens.
 

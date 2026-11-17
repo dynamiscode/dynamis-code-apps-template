@@ -314,10 +314,10 @@ func (h *Handler) renderClientDetail(
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, status, "client.html", pageData{
+	h.render(writer, status, "client-detail-page", pageData{
 		Title: client.DisplayName, ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		NavPage: "clients", NavSection: "clients",
+		NavPage: "client-detail", NavSection: "clients",
 		CurrentPath: h.clientsPath(workspaceID),
 		Client:      client, ClientValues: rows, CanEditClients: principal.Permissions[identity.ResourcesWrite],
 		CanDeleteClients: principal.Permissions[identity.WorkspaceUpdate],

@@ -171,6 +171,20 @@ func TestClientCreateRedirectsToShortIDDetailAndShowsValues(t *testing.T) {
 	}
 }
 
+func TestClientDetailUsesSharedTemplComponents(t *testing.T) {
+	env := newClientsTestEnv(t)
+	created := request(env.routes, http.MethodPost, env.listPath(), url.Values{
+		"csrf": {env.csrf}, "display_name": {"Ada Lovelace"},
+	}, env.cookies, nil)
+	detail := request(env.routes, http.MethodGet, created.Header().Get("Location"), nil, env.cookies, nil)
+	body := detail.Body.String()
+	if detail.Code != http.StatusOK || !strings.Contains(body, `class="input" id="client-display-name"`) ||
+		!strings.Contains(body, `class="btn btn-primary" type="submit"`) || strings.Contains(body, `data-webmcp-page=`) ||
+		strings.Contains(body, `/assets/htmx.min.js`) || strings.Contains(body, `/assets/app.js`) {
+		t.Fatalf("client detail rendering or script boundary is incorrect: %s", body)
+	}
+}
+
 func TestClientCreateRefusesBlankNameWithMessageAndRefusesViewer(t *testing.T) {
 	env := newClientsTestEnv(t)
 	blank := request(env.routes, http.MethodPost, env.listPath(), url.Values{
