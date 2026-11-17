@@ -1189,16 +1189,15 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = membersPage(data).Render(context.Background(), writer)
 		return
 	}
-	if name == "mcp-consent.html" {
+	switch name {
+	case "mcp-consent.html":
 		_ = mcpConsentPage(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "error.html" {
+	case "error.html":
 		_ = errorPage(data).Render(context.Background(), writer)
-		return
-	}
-	if err := h.template.ExecuteTemplate(writer, name, data); err != nil {
-		return
+	default:
+		if err := h.template.ExecuteTemplate(writer, name, data); err != nil {
+			return
+		}
 	}
 }
 
