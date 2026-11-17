@@ -62,12 +62,16 @@ templ clientFieldList(data pageData) {
 								<h3>{ data.T("clients.options_heading") }</h3>
 								if len(field.Options) > 0 {
 									<ul class="client-field-option-list">
-										for _, option := range field.Options {
-							<li><span>{ option.Label }</span>
-								if data.CanManageFields {
-									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/options/" + option.ID.String() + "/delete" }><input type="hidden" name="csrf" value={ data.CSRF }/>@confirmButton(data.T("clients.option_delete"), data.T("clients.option_delete_confirm"), nil)</form>
-								}
-							</li>
+									for _, option := range field.Options {
+										<li>
+										<span>{ option.Label }</span>
+										if data.CanManageFields {
+											<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/options/" + option.ID.String() + "/delete" }>
+												<input type="hidden" name="csrf" value={ data.CSRF }/>
+												@confirmButton(data.T("clients.option_delete"), data.T("clients.option_delete_confirm"), nil)
+											</form>
+										}
+										</li>
 										}
 									</ul>
 								} else {
@@ -88,6 +92,8 @@ templ clientFieldList(data pageData) {
 }
 
 func clientFieldStatusKey(archived bool) string {
-	if archived { return "clients.field_archived" }
+	if archived {
+		return "clients.field_archived"
+	}
 	return "clients.field_active"
 }

@@ -619,7 +619,7 @@ func clientFieldList(data pageData) templ.Component {
 							var templ_7745c5c3_Var32 string
 							templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(option.Label)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 66, Col: 31}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 67, Col: 30}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 							if templ_7745c5c3_Err != nil {
@@ -637,7 +637,7 @@ func clientFieldList(data pageData) templ.Component {
 								var templ_7745c5c3_Var33 templ.SafeURL
 								templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinURLErrs(data.FieldsPath + "/" + field.ID.String() + "/options/" + option.ID.String() + "/delete")
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 68, Col: 126}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 69, Col: 128}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 								if templ_7745c5c3_Err != nil {
@@ -650,7 +650,7 @@ func clientFieldList(data pageData) templ.Component {
 								var templ_7745c5c3_Var34 string
 								templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.CSRF)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 68, Col: 179}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 70, Col: 62}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 								if templ_7745c5c3_Err != nil {
@@ -686,7 +686,7 @@ func clientFieldList(data pageData) templ.Component {
 						var templ_7745c5c3_Var35 string
 						templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.option_none"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 74, Col: 43}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 78, Col: 43}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 						if templ_7745c5c3_Err != nil {
@@ -705,7 +705,7 @@ func clientFieldList(data pageData) templ.Component {
 						var templ_7745c5c3_Var36 templ.SafeURL
 						templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinURLErrs(data.FieldsPath + "/" + field.ID.String() + "/options")
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 77, Col: 100}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 81, Col: 100}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 						if templ_7745c5c3_Err != nil {
@@ -718,7 +718,7 @@ func clientFieldList(data pageData) templ.Component {
 						var templ_7745c5c3_Var37 string
 						templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.CSRF)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 77, Col: 167}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 81, Col: 167}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 						if templ_7745c5c3_Err != nil {
@@ -763,7 +763,7 @@ func clientFieldList(data pageData) templ.Component {
 			var templ_7745c5c3_Var38 string
 			templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.fields_none"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 85, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 89, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 			if templ_7745c5c3_Err != nil {
