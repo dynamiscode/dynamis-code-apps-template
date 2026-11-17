@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 const email = process.env.PLAYWRIGHT_EMAIL;
 const password = process.env.PLAYWRIGHT_PASSWORD;
 
-async function openWorkspace(page) {
+async function openAdminWorkspace(page) {
   if (!email || !password) {
     throw new Error("PLAYWRIGHT_EMAIL and PLAYWRIGHT_PASSWORD are required");
   }
@@ -12,12 +12,16 @@ async function openWorkspace(page) {
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL(new URL("/", process.env.PLAYWRIGHT_BASE_URL).href);
-  await page.locator('.cards a[href^="/workspaces/"]').filter({ hasText: "UI Baselines" }).first().click();
+  const workspaceLink = page
+    .locator('.cards a[href^="/workspaces/"]')
+    .filter({ hasText: "UI Baselines" })
+    .first();
+  await workspaceLink.click();
   await expect(page.locator("[data-workspace-home]")).toBeVisible();
   return new URL(page.url()).pathname;
 }
 
-async function downloadExport(page, workspacePath) {
+async function downloadWorkspaceExport(page, workspacePath) {
   const response = await page.request.get(`${workspacePath}/settings/export/download`);
   expect(response.status()).toBe(200);
   expect(response.headers()["cache-control"]).toContain("no-store");
@@ -29,8 +33,8 @@ test.describe("workspace administration and data", () => {
   test.use({ javaScriptEnabled: false });
 
   test("export, preview, reject invalid input, and confirm import with ordinary forms", async ({ page }) => {
-    const workspacePath = await openWorkspace(page);
-    const before = await downloadExport(page, workspacePath);
+    const workspacePath = await openAdminWorkspace(page);
+    const before = await downloadWorkspaceExport(page, workspacePath);
     expect(before.formatVersion).toBe("dynamis-code.workspace/v1");
 
     await page.goto(`${workspacePath}/settings/import`);
@@ -55,7 +59,8 @@ test.describe("workspace administration and data", () => {
     await expect(page.locator("#import-preview-heading")).toBeVisible();
     await expect(page.locator(".import-preview")).toContainText(title);
     await expect(page.locator(".import-confirm-form")).toBeVisible();
-    expect((await downloadExport(page, workspacePath)).items.some((item) => item.title === title)).toBe(false);
+    const previewExport = await downloadWorkspaceExport(page, workspacePath);
+    expect(previewExport.items.some((item) => item.title === title)).toBe(false);
 
     await page.locator("#import-confirm-file").setInputFiles({
       name: "items.csv",
@@ -66,16 +71,20 @@ test.describe("workspace administration and data", () => {
     await page.locator('.import-confirm-form button[type="submit"]').click();
     await expect(page).toHaveURL(/\/settings\/import\?imported=1$/);
     await expect(page.getByRole("status")).toContainText("1");
-    expect((await downloadExport(page, workspacePath)).items.some((item) => item.title === title)).toBe(true);
+    const importedExport = await downloadWorkspaceExport(page, workspacePath);
+    expect(importedExport.items.some((item) => item.title === title)).toBe(true);
   });
 });
 
 test("token secret appears once and webhook controls explain missing encryption setup", async ({ page }) => {
-  const workspacePath = await openWorkspace(page);
+  const workspacePath = await openAdminWorkspace(page);
   await page.goto(`${workspacePath}/settings/tokens`);
   const tokenName = `browser token ${Date.now()}`;
   await page.locator("#token-name").fill(tokenName);
-  await page.locator('form[action$="/settings/tokens"] button[name="action"][value="create"]').click();
+  const createTokenButton = page.locator(
+    'form[action$="/settings/tokens"] button[name="action"][value="create"]',
+  );
+  await createTokenButton.click();
   const secret = await page.locator(".success code").textContent();
   expect(secret).toBeTruthy();
   await page.goto(`${workspacePath}/settings/tokens`);
@@ -85,11 +94,14 @@ test("token secret appears once and webhook controls explain missing encryption 
 
   await page.goto(`${workspacePath}/settings/webhooks`);
   await expect(page.locator("#webhook-secret-key-warning")).toContainText("ENCRYPTION_KEY");
-  await expect(page.locator('form[data-persist="webhook-create"] button[value="create"]')).toBeDisabled();
+  const createWebhookButton = page.locator(
+    'form[data-persist="webhook-create"] button[value="create"]',
+  );
+  await expect(createWebhookButton).toBeDisabled();
 });
 
 test("audit history renders its read-only route", async ({ page }) => {
-  const workspacePath = await openWorkspace(page);
+  const workspacePath = await openAdminWorkspace(page);
   await page.goto(`${workspacePath}/settings/audit?all=1`);
   await expect(page.getByRole("heading", { level: 1, name: /Audit history|Historial de auditoría/i })).toBeVisible();
   await expect(page.locator("#audit-table")).toBeVisible();
