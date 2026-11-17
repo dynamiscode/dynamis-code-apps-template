@@ -47,6 +47,35 @@ for (const screenshot of filesScreenshots) {
   });
 }
 
+test("Files system theme follows the OS color preference", async ({ page }) => {
+  const workspacePath = await openFiles(page);
+  await page.goto("/account");
+  const profile = page.locator('form[action="/account/profile"]');
+  const theme = profile.locator('[name="theme"]');
+  const previousTheme = await theme.inputValue();
+  try {
+    if (previousTheme !== "system") {
+      await theme.selectOption("system");
+      await profile.locator('button[type="submit"]').click();
+    }
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "system");
+    await page.emulateMedia({ colorScheme: "light" });
+    await page.goto(`${workspacePath}/files`);
+    const canvas = () => page.locator("html").evaluate((element) => getComputedStyle(element).getPropertyValue("--canvas").trim());
+    await expect.poll(canvas).toBe("#f3f6fa");
+    await page.emulateMedia({ colorScheme: "dark" });
+    await expect.poll(canvas).toBe("#111826");
+  } finally {
+    if (previousTheme !== "system") {
+      await page.goto("/account");
+      const restoreProfile = page.locator('form[action="/account/profile"]');
+      await restoreProfile.locator('[name="theme"]').selectOption(previousTheme);
+      await restoreProfile.locator('button[type="submit"]').click();
+      await expect(page.locator("html")).toHaveAttribute("data-theme", previousTheme);
+    }
+  }
+});
+
 test("Files keyboard and Spanish labels stay usable", async ({ page }) => {
   await openFiles(page);
   await page.keyboard.press("Tab");

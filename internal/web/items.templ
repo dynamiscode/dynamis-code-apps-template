@@ -1,0 +1,218 @@
+package web
+
+templ itemsPage(data pageData) {
+	@dashboardShell(itemPageData(data), dashboardHeader(data), dashboardHomeNavigation(data)) {
+		@pageHeading(data.T("items.items"), data.T("workspace.items_description"))
+		@itemsList(data)
+		<script defer src="/assets/htmx.min.js"></script>
+		<script defer src="/assets/app.js"></script>
+		<script defer src="/assets/items.js"></script>
+	}
+}
+
+templ itemsList(data pageData) {
+	<section id="item-list" data-events={ data.CurrentPath + "/events" }
+		data-live-connecting={ data.T("items.live_connecting") }
+		data-live-connected={ data.T("items.live_connected") }
+		data-live-unavailable={ data.T("items.live_unavailable") }
+		data-live-reconnecting={ data.T("items.live_reconnecting") }
+		data-live-waiting={ data.T("ui.updates_waiting") }
+		aria-labelledby="items-heading">
+		<h2 id="items-heading" class="visually-hidden">{ data.T("items.items") }</h2>
+		if data.Error != "" {
+			@errorAlert(data.Error)
+		}
+		if data.CanEditItems {
+			<form class="create" data-webmcp-actions="item-create" data-persist="item-create" data-dirty-track
+				action={ data.CurrentPath + data.ItemQuerySuffix } method="post"
+				hx-post={ data.CurrentPath + data.ItemQuerySuffix } hx-target="#item-list"
+				hx-swap="outerHTML" hx-sync="this:drop">
+				<input type="hidden" name="csrf" value={ data.CSRF }/>
+				<input type="hidden" name="idempotency_key" value={ data.CreateKey }/>
+				<label for="new-title">{ data.T("items.new_title") }</label>
+				<div class="row">
+					<input id="new-title" class="input" name="title" required maxlength="200" data-trim value={ data.NewTitle }/>
+					@submitButton(data.T("items.add"), nil)
+				</div>
+			</form>
+		}
+		<details class="client-controls client-filters" open?={ data.ItemListQuery.Search != "" || data.ItemListQuery.Status != "" || data.ItemListQuery.Sort != "-created_at" || data.ItemListQuery.Limit != 50 }>
+			<summary>{ data.T("items.list_controls") }</summary>
+			<form class="client-query" data-dirty-track method="get" action={ data.CurrentPath }>
+				<fieldset>
+					<legend>{ data.T("clients.sort_legend") }</legend>
+					@selectField("item-sort", data.T("items.sort"), templ.Attributes{"name": "sort"}) {
+						<option value="-created_at" selected?={ data.ItemListQuery.Sort == "-created_at" }>{ data.T("items.newest_first") }</option>
+						<option value="created_at" selected?={ data.ItemListQuery.Sort == "created_at" }>{ data.T("items.oldest_first") }</option>
+					}
+					@selectField("item-limit", data.T("clients.page_size"), templ.Attributes{"name": "limit"}) {
+						<option value="25" selected?={ data.ItemListQuery.Limit == 25 }>25</option>
+						<option value="50" selected?={ data.ItemListQuery.Limit == 50 }>50</option>
+						<option value="100" selected?={ data.ItemListQuery.Limit == 100 }>100</option>
+					}
+				</fieldset>
+				<fieldset>
+					<legend>{ data.T("clients.filter_legend") }</legend>
+					@textField("item-search", data.T("items.search")+" "+data.T("ui.optional"), templ.Attributes{"name": "search", "type": "search", "value": data.ItemListQuery.Search})
+					@selectField("item-status", data.T("items.status"), templ.Attributes{"name": "status"}) {
+						<option value="" selected?={ data.ItemListQuery.Status == "" }>{ data.T("clients.filter_none") }</option>
+						<option value="active" selected?={ data.ItemListQuery.Status == "active" }>{ data.T("items.active") }</option>
+						<option value="complete" selected?={ data.ItemListQuery.Status == "complete" }>{ data.T("items.complete") }</option>
+					}
+				</fieldset>
+				<div class="actions">
+					@submitButton(data.T("clients.apply"), nil)
+					<a class="btn btn-ghost" href={ data.ClearClientFiltersPath }>{ data.T("clients.clear_filters") }</a>
+				</div>
+			</form>
+		</details>
+		@itemColumnControls(data)
+		if data.ClientFilterChips != nil {
+			<ul class="list-filter-chips" aria-label={ data.T("clients.active_filters") }>
+				for _, chip := range data.ClientFilterChips {
+					<li>
+						<span>{ data.T(chip.FieldLabelKey) }{ " " }{ data.T(chip.OperatorLabelKey) }{ " " }{ chip.Value }</span>
+						<a href={ chip.RemoveHref } aria-label={ data.T("clients.filter_remove") + ": " + data.T(chip.FieldLabelKey) }>{ data.T("clients.filter_remove") }</a>
+					</li>
+				}
+			</ul>
+		}
+		if data.HasVisibleClientColumns {
+			<div class="list-view-table item-list-view">
+				@dataTable(data.T("items.items"), true) {
+					<thead><tr>
+						for _, column := range data.ClientListColumns {
+							if column.Visible {
+								@itemColumnHeader(data, column)
+							}
+						}
+						<th scope="col">{ data.T("clients.actions") }</th>
+					</tr></thead>
+					<tbody>
+						for _, row := range data.ClientListRows {
+							<tr data-item-row={ row.ID }>
+								for _, column := range data.ClientListColumns {
+									if column.Visible {
+										<td data-column={ column.Key } data-label={ data.T(column.LabelKey) }>
+											if column.Key == "status" {
+											<span class={ "item-status item-status-" + string(row.Item.Status) }>{ data.ClientListCellValue(column, row) }</span>
+											} else {
+											{ data.ClientListCellValue(column, row) }
+											}
+										</td>
+									}
+								}
+								<td>@itemRowActions(data, row)</td>
+							</tr>
+						}
+					</tbody>
+				}
+			</div>
+		} else {
+			<p class="status" role="status">{ data.T("clients.columns_choose") }</p>
+		}
+		if len(data.Items) == 0 {
+			<p id="item-results" role="status">
+				if data.HasClientFilters {
+					{ data.T("items.none") }{ " " }<a href={ data.ClearClientFiltersPath }>{ data.T("clients.clear_filters") }</a>
+				} else {
+					{ data.T("items.none") }
+				}
+			</p>
+		}
+		@nextPage(data.NextPath, data.T("items.next_page"))
+		<p class="status" role="status" aria-live="polite" id="realtime-status">{ data.T("items.live_fallback") }</p>
+	</section>
+}
+
+templ itemColumnHeader(data pageData, column clientListColumn) {
+	if column.SortDirection != "" {
+		<th scope="col" data-column={ column.Key } aria-sort={ column.SortDirection }>
+			@itemColumnLabel(data, column)
+		</th>
+	} else {
+		<th scope="col" data-column={ column.Key }>
+			@itemColumnLabel(data, column)
+		</th>
+	}
+
+}
+
+templ itemColumnLabel(data pageData, column clientListColumn) {
+		if column.SortHref != "" {
+			<a href={ column.SortHref }>{ data.T(column.LabelKey) }</a>
+		} else {
+			{ data.T(column.LabelKey) }
+		}
+}
+
+templ itemColumnControls(data pageData) {
+	<details class="client-controls list-view-columns">
+		<summary>{ data.T("clients.columns") }</summary>
+		<div role="group" aria-label={ data.T("clients.columns") }>
+			for _, column := range data.ClientListColumns {
+				<form class="list-view-column" method="post" action={ data.CurrentPath + "/preferences/columns/" + column.Key + data.ItemQuerySuffix }>
+					<input type="hidden" name="csrf" value={ data.CSRF }/>
+					if column.Visible {
+						<input type="hidden" name="visible" value="false"/>
+						<button class="btn btn-secondary" type="submit">{ data.T("clients.column_hide") }{ " " }{ data.T(column.LabelKey) }</button>
+					} else {
+						<input type="hidden" name="visible" value="true"/>
+						<button class="btn btn-secondary" type="submit">{ data.T("clients.column_show") }{ " " }{ data.T(column.LabelKey) }</button>
+					}
+				</form>
+			}
+			<form method="post" action={ data.CurrentPath + "/preferences/columns/reset" + data.ItemQuerySuffix }>
+				<input type="hidden" name="csrf" value={ data.CSRF }/>
+				<button class="btn btn-secondary" type="submit">{ data.T("clients.columns_reset") }</button>
+			</form>
+		</div>
+	</details>
+	if data.HiddenClientSortLabelKey != "" {
+		<p class="status">{ data.T("clients.hidden_sort") }{ " " }{ data.T(data.HiddenClientSortLabelKey) }</p>
+	}
+}
+
+templ itemRowActions(data pageData, row clientListRow) {
+	if data.CanEditItems {
+		<form id={ "item-edit-" + row.ID } class="item-edit-form" data-item-edit data-webmcp-actions="item-update item-delete" data-webmcp-id={ row.ID } data-dirty-track action={ data.CurrentPath + "/" + row.ID + data.ItemQuerySuffix } method="post" hx-post={ data.CurrentPath + "/" + row.ID + data.ItemQuerySuffix } hx-target="#item-list" hx-swap="outerHTML" hx-sync="this:drop">
+			<input type="hidden" name="csrf" value={ data.CSRF }/>
+						<input type="hidden" name="version" value={ row.Item.Version }/>
+			@textField("item-title-"+row.ID, data.T("items.title"), templ.Attributes{"name": "title", "value": row.Item.Title, "required": true, "maxlength": "200", "data-trim": true})
+						@selectField("item-status-"+row.ID, data.T("items.status"), templ.Attributes{"name": "status", "data-autosave": "update"}) {
+							<option value="active" selected?={ string(row.Item.Status) == "active" }>{ data.T("items.active") }</option>
+							<option value="complete" selected?={ string(row.Item.Status) == "complete" }>{ data.T("items.complete") }</option>
+			}
+			<div class="actions">
+				<button class="btn btn-primary" type="submit" name="action" value="update" data-requires-change aria-label={ data.T("items.save") + " " + row.Item.Title }>{ data.T("items.save") }</button>
+							@confirmButton(data.T("items.delete_permanently"), data.T("items.delete_confirm_full"), templ.Attributes{"name": "action", "value": "delete", "aria-label": data.T("items.delete_permanently") + " " + row.Item.Title, "data-optimistic": "remove"})
+			</div>
+		</form>
+	}
+	if data.CanShare {
+		<form class="share" data-dirty-track action={ data.CurrentPath + "/" + row.ID + "/share" + data.ItemQuerySuffix } method="post" hx-post={ data.CurrentPath + "/" + row.ID + "/share" + data.ItemQuerySuffix } hx-target="#item-list" hx-swap="outerHTML">
+			<input type="hidden" name="csrf" value={ data.CSRF }/>
+			@selectField("share-lifetime-"+row.ID, data.T("sharing.expiration"), templ.Attributes{"name": "lifetime"}) {
+				<option value="7">{ data.T("sharing.seven_days") }</option>
+				<option value="30">{ data.T("sharing.thirty_days") }</option>
+			}
+			<p class="status share-scope">{ data.T("sharing.scope_public") }</p>
+			<div class="row">@submitButton(data.T("sharing.create"), templ.Attributes{"name": "action", "value": "create"})</div>
+		</form>
+		for _, link := range data.ShareLinks {
+			if link.ItemID == row.Item.ID {
+				<div class="status share-active">{ data.T("sharing.active_until") }{ " " }{ data.DateTime(link.ExpiresAt) }
+					<p class="share-revoke-consequence">{ data.T("sharing.revoke_consequence") }</p>
+					<form class="inline" data-dirty-track action={ data.CurrentPath + "/" + row.ID + "/share" + data.ItemQuerySuffix } method="post">
+						<input type="hidden" name="csrf" value={ data.CSRF }/>
+						<input type="hidden" name="link_id" value={ link.ID }/>
+						@confirmButton(data.T("sharing.revoke"), data.T("sharing.revoke_confirm"), templ.Attributes{"name": "action", "value": "revoke"})
+					</form>
+				</div>
+			}
+		}
+		if data.PublicShareItemID == row.Item.ID {
+			<p class="success" role="status">{ data.T("sharing.created") }{ " " }<a href={ data.PublicShareURL }>{ data.PublicShareURL }</a></p>
+		}
+	}
+}

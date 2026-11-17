@@ -38,7 +38,8 @@ Issue: [#417](https://github.com/dynamiscode/dynamis-code-apps-template/issues/4
   duplicate-submit prevention, success, failures, and retry.
 - `scripts/playwright/files.spec.mjs` checks Files with axe, keyboard and
   Spanish labels, no-JavaScript upload/filter/error handling, viewer downloads,
-  and desktop/mobile light/dark screenshots. Its upload progress journey emits
+  desktop/mobile light/dark screenshots, and system-theme response to OS
+  preference changes. Its upload progress journey emits
   a synthetic 50% `ProgressEvent` from a wrapped XHR and captures the uploader's
   progress listener instead of registering it for native events. It verifies UI
   progress, pending locks, failure recovery, and server retry deterministically;
@@ -48,24 +49,26 @@ Issue: [#417](https://github.com/dynamiscode/dynamis-code-apps-template/issues/4
 
 Passed:
 
-- `PLAYWRIGHT_PORT=58117 make browser-smoke`: 23 Playwright journeys passed,
-  including Files screenshots, keyboard/Spanish labels, axe checks, upload
-  failure and retry, no-JavaScript fallback, and viewer download.
-- `A11Y_PORT=58118 make accessibility-smoke`: English and Spanish runs reported
+- `PLAYWRIGHT_PORT=58417 ./scripts/playwright-smoke.sh --grep Files`: all 10
+  Files journeys passed, including four screenshot comparisons, system-theme
+  response to light/dark OS preference, keyboard/Spanish labels, axe, upload
+  failure/retry, no-JavaScript fallback, and viewer download.
+- `A11Y_PORT=58418 ./scripts/accessibility-smoke.sh`: English and Spanish runs reported
   zero axe violations on Files and all audited routes. Keyboard/focus, 320px
   reflow, reduced motion, and progress accessibility-tree checks passed.
 - Four desktop/mobile light/dark Files screenshots were generated and visually
   reviewed at `scripts/playwright/files.spec.mjs-snapshots/`.
-- `go test ./cmd/template-init -run
-  '^TestGenerateWithoutFilesPrunesFilesTemplAndBuilds$' -count=1` passed.
-  The regression checks that Files routes, evidence, browser spec, and
-  screenshot baselines are pruned. Generated no-Files application build passed.
-- Files omitted, Core+Identity omitted, Clients enabled, and Clients omitted
-  generated-profile tests passed after integrating the stable feature flags.
-- Focused Files route, upload-state, templ drift, Playwright syntax, and diff
-  checks passed.
+- Generated-profile regressions passed for Files pruning and Clients enabled
+  and omitted profiles; the Files test confirms its route, evidence, browser
+  spec, and screenshot baselines are pruned.
+- `go test ./internal/web -run '^(TestFile|TestFiles)' -count=1`: 14 passed.
+  `npm run test:unit`: 33 passed; JavaScript and Playwright syntax checks passed.
+- `make templ-check` and `make css-check` passed with no generated drift.
+- `make verify` passed: Go tests, race tests, lint, dependency/workflow checks,
+  API generation, templ/CSS drift, builds, and generated-app template smoke.
+  This run preceded local integration of refreshed #422 head `7c87ad9`.
 
-Pending: combined Files plus Clients generated-profile coverage from #415, then
-full `make test`, race suite, and `make verify` after final base integration.
+Pending: refreshed #422 CI, combined Files plus Clients generated-profile
+coverage from #415, and final validation after dependency ancestry integration.
 Synthetic browser progress validates uploader UI transitions; it does not
 measure native network-byte reporting.

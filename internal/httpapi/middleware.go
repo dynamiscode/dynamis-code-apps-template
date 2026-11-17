@@ -42,7 +42,7 @@ func middleware(
 func concurrencyMiddleware(next http.Handler, maximum int) http.Handler {
 	active := make(chan struct{}, maximum)
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if isChangeStreamPath(request.URL.Path) {
+		if isChangeStreamPath(request.URL.Path) || isNotificationEventsPath(request.URL.Path) {
 			next.ServeHTTP(writer, request)
 			return
 		}
@@ -257,7 +257,11 @@ func timeoutMiddleware(
 }
 
 func isStreamingPath(path string) bool {
-	return isChangeStreamPath(path) || isFileStreamingPath(path)
+	return isChangeStreamPath(path) || isNotificationEventsPath(path) || isFileStreamingPath(path)
+}
+
+func isNotificationEventsPath(path string) bool {
+	return path == "/notifications/events"
 }
 
 // isChangeStreamPath reports a workspace realtime stream (Items or Clients). These
