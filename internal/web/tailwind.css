@@ -6,3 +6,4 @@
 @source "./workspace.templ";
 @source "./components.templ";
 @source "./notifications.templ";
+@source "./webhooks.templ";
