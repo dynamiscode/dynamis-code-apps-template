@@ -144,6 +144,14 @@ export PLAYWRIGHT_OIDC_BASE_URL="http://127.0.0.1:$oidc_port"
 export PLAYWRIGHT_SETUP_BASE_URL="http://127.0.0.1:$setup_port"
 if [ "${UI_MEASURE:-0}" = 1 ]; then
   node scripts/ui-measurement.mjs
+elif [ "${UI_MEASURE:-0}" = workspace ]; then
+  node scripts/ui-measurement-workspace.mjs
+elif [ "${UI_MEASURE:-0}" = interactions ]; then
+  node scripts/ui-measurement-interactions.mjs
+elif [ "${UI_MEASURE:-0}" = gaps ]; then
+  node scripts/ui-measurement-gaps.mjs
+elif [ "${UI_MEASURE:-0}" = states ]; then
+  node scripts/ui-measurement-workspace-states.mjs
 else
   export PLAYWRIGHT_MEMBERS_BASE_URL="http://127.0.0.1:$members_port"
   npm run test:journeys -- "$@"
