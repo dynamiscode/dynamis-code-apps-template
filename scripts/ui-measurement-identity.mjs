@@ -8,9 +8,10 @@ import { observeNetwork } from "./ui-measurement-network.mjs";
 
 const browser = await chromium.launch({ channel: "chrome" });
 try {
-  const context = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL,
+  const contextOptions = { baseURL: process.env.PLAYWRIGHT_BASE_URL,
     viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1, locale: "en-US",
-    colorScheme: "light", reducedMotion: "reduce", serviceWorkers: "block" });
+    colorScheme: "light", reducedMotion: "reduce", serviceWorkers: "block" };
+  const context = await browser.newContext(contextOptions);
   await context.addInitScript(() => {
     window.notificationStream = { state: "pending", events: 0 };
     const NativeEventSource = window.EventSource;
@@ -35,6 +36,7 @@ try {
     const stop = observeNetwork(cdp);
     try {
       const response = await target.goto(path, { waitUntil: "load" });
+      assert.ok(response, `${screen} navigation returned no response`);
       assert.equal(response.status(), screen === "public share unavailable" ? 404 : 200,
         `${screen} navigation failed`);
       await target.locator("main h1").waitFor();
@@ -51,9 +53,7 @@ try {
     }
   }
 
-  const anonymous = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL,
-    viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1, locale: "en-US",
-    colorScheme: "light", reducedMotion: "reduce", serviceWorkers: "block" });
+  const anonymous = await browser.newContext(contextOptions);
   const publicPage = await anonymous.newPage();
   for (const [screen, path] of [["login", "/login"], ["password recovery", "/password-reset"],
     ["public share unavailable", "/share/invalid-measurement-token"]]) {
@@ -112,7 +112,6 @@ try {
 } catch (error) {
   console.error("Identity measurement failed; inspect the isolated fixture locally without sharing logs.");
   console.error(error instanceof Error ? error.name : "UnknownError");
-  if (error instanceof Error) console.error(error.stack?.split("\n").slice(-4).join("\n"));
   process.exitCode = 1;
 } finally {
   await browser.close();
