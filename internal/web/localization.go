@@ -207,7 +207,11 @@ func (h *Handler) languageSettings(writer http.ResponseWriter, request *http.Req
 	locale := strings.TrimSpace(request.FormValue("locale"))
 	if locale != "" {
 		if _, ok := i18n.ParseLocale(locale); !ok {
-			currentLocale, _ := h.identity.GetUserLocale(request.Context(), session.UserID)
+			currentLocale, err := h.identity.GetUserLocale(request.Context(), session.UserID)
+			if err != nil {
+				h.renderError(writer, http.StatusInternalServerError)
+				return
+			}
 			h.render(writer, http.StatusUnprocessableEntity, "language-page", pageData{Title: "Language settings", NavPage: "language", CSRF: csrf, UserLocale: currentLocale, Error: "The selected language is invalid."})
 			return
 		}
