@@ -87,7 +87,7 @@ templ securityPage(data pageData) {
 						if len(data.MFARecoveryCodes) > 0 {
 							<h3>{ data.T("security.mfa_recovery_codes") }</h3>
 							<p>{ data.T("security.mfa_store_recovery") } { data.T("security.mfa_each_recovery_once") }</p>
-							<pre>{ strings.Join(data.MFARecoveryCodes, "\n") }</pre>
+							<pre>{ strings.Join(data.MFARecoveryCodes, "\n") + "\n" }</pre>
 						}
 						<div id="mfa-recovery-output" hidden>
 							<h3>{ data.T("security.mfa_recovery_codes") }</h3>

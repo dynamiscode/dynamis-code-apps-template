@@ -197,6 +197,7 @@ func TestSecurityPageRendersReauthenticatedOIDCLinkForm(t *testing.T) {
 	var body bytes.Buffer
 	data := pageData{
 		Locale: "en", Theme: "dark", Catalog: catalog, CSRF: "csrf-value",
+		MFAStatus: identity.MFAStatus{Enabled: true}, MFARecoveryCodes: []string{"recovery-one", "recovery-two"},
 		OIDCProviders: []identity.OIDCProviderInfo{{ID: "company", Name: "Company SSO"}},
 	}
 	if err := securityPage(data).Render(t.Context(), &body); err != nil {
@@ -210,5 +211,8 @@ func TestSecurityPageRendersReauthenticatedOIDCLinkForm(t *testing.T) {
 		if !strings.Contains(body.String(), marker) {
 			t.Errorf("OIDC linking form missing %q", marker)
 		}
+	}
+	if !strings.Contains(body.String(), "<pre>recovery-one\nrecovery-two\n</pre>") {
+		t.Fatal("recovery codes lost their per-code line breaks")
 	}
 }
