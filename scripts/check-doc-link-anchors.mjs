@@ -115,8 +115,47 @@ function headingSlug(value) {
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/`([^`]*)`/g, "$1")
-    .replace(/<[^>]*>/g, "")
     .replace(/&(?:amp|quot|apos|lt|gt);/gi, " ")
     .replace(/[\*_~]/g, "");
+  return stripCompleteHTMLTags(text);
+}
+
+function stripCompleteHTMLTags(value) {
+  let text = "";
+  for (let index = 0; index < value.length;) {
+    const end = value[index] === "<" ? completeHTMLTagEnd(value, index) : -1;
+    if (end >= 0) {
+      index = end + 1;
+      continue;
+    }
+    text += value[index];
+    index++;
+  }
   return text.toLowerCase().replace(/[^\p{L}\p{N}_\-\s]/gu, "").trim().replace(/[\s-]+/g, "-");
+}
+
+function completeHTMLTagEnd(value, start) {
+  if (value.startsWith("<!--", start)) {
+    const end = value.indexOf("-->", start + 4);
+    return end < 0 ? -1 : end + 2;
+  }
+
+  const name = value.slice(start + 1).match(/^\/?[A-Za-z][A-Za-z0-9:-]*/);
+  if (!name) return -1;
+
+  const boundary = value[start + 1 + name[0].length];
+  if (boundary !== ">" && boundary !== "/" && !/\s/.test(boundary ?? "")) return -1;
+
+  let quote = "";
+  for (let index = start + name[0].length + 1; index < value.length; index++) {
+    const character = value[index];
+    if (quote) {
+      if (character === quote) quote = "";
+    } else if (character === "\"" || character === "'") {
+      quote = character;
+    } else if (character === ">") {
+      return index;
+    }
+  }
+  return -1;
 }

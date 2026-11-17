@@ -15,6 +15,8 @@ test("accepts heading, duplicate, and HTML anchors", () => {
       "# Home",
       "[heading](page.md#hello-world)",
       "[duplicate](page.md#repeat-1)",
+      "[inline HTML](page.md#visible-title)",
+      "[malformed opener](page.md#script)",
       "[HTML id](page.md#explicit-anchor)",
       "[same page](#home)",
       "[external](https://example.com/page#external)",
@@ -24,6 +26,8 @@ test("accepts heading, duplicate, and HTML anchors", () => {
       "## Hello, world!",
       "## Repeat",
       "## Repeat",
+      '## <span title="> ignored">Visible title</span>',
+      "## [<script](1)",
       '<span id="explicit-anchor"></span>',
     ].join("\n"));
 
