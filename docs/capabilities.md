@@ -1164,9 +1164,15 @@ rows across list swaps and retains submitted values on edit validation errors.
 - Passed: bounded spec and standards reviews found no code defects; the
   standards review's documentation finding is resolved in the route inventory
   above and this evidence record.
-- Pending: successful normal-hook dry-run after pinned npm dependencies were
-  installed; Playwright journeys and screenshot baselines; and final validation
-  after upstream reconciliation.
+- Passed: full ordered Playwright suite twice (19 tests), including Items CRUD,
+  dirty-row preservation, ordinary forms, and axe with zero Items violations.
+  Added and visually reviewed desktop/mobile light/dark Items screenshot
+  baselines.
+- CI follow-up: initial PR run failed the accessibility job on an ambiguous
+  Items heading locator and CSP-blocked inline axe. Both test causes are fixed
+  locally; the PR needs another push before CI can verify the fixes.
+- Pending: normal-hook push of the browser fix, CI rerun, and final upstream
+  reconciliation before merge. Local `make accessibility-smoke` was not run.
 
 ## Notification center UX evidence (2026-11-15)
 

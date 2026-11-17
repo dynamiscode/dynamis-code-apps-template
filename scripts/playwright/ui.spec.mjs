@@ -27,6 +27,15 @@ async function openItems(page) {
   await expect(page.locator("#item-list")).toBeVisible();
 }
 
+async function injectAxe(page) {
+  const url = new URL("/__test/axe.js", process.env.PLAYWRIGHT_BASE_URL).href;
+  await page.route(url, (route) => route.fulfill({
+    contentType: "application/javascript",
+    body: axe.source,
+  }));
+  await page.addScriptTag({ url });
+}
+
 const screenshots = [
   { name: "desktop-light", width: 1280, height: 900, colorScheme: "light" },
   { name: "desktop-dark", width: 1280, height: 900, colorScheme: "dark" },
@@ -69,7 +78,7 @@ for (const screenshot of screenshots) {
     await page.setViewportSize({ width: screenshot.width, height: screenshot.height });
     await page.emulateMedia({ colorScheme: screenshot.colorScheme, reducedMotion: "reduce" });
     await openItems(page);
-    await expect(page.getByRole("heading", { name: "Items" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Items", level: 1 })).toBeVisible();
     await expect(page).toHaveScreenshot(`items-${screenshot.name}.png`, {
       animations: "disabled",
       fullPage: true,
@@ -116,7 +125,7 @@ test("workspace home opens Items and creates the first task", async ({ page }) =
   await expect(page.getByRole("alert")).toContainText("item version is invalid");
   await expect(updated).toBeVisible();
 
-  await page.addScriptTag({ content: axe.source });
+  await injectAxe(page);
   const results = await page.evaluate(async () => axe.run(document.querySelector("#item-list")));
   expect(results.violations).toEqual([]);
 });
