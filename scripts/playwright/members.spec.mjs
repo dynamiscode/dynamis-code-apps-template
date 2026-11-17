@@ -3,9 +3,9 @@ import axe from "axe-core";
 
 const email = process.env.PLAYWRIGHT_EMAIL;
 const password = process.env.PLAYWRIGHT_PASSWORD;
+const baseURL = process.env.PLAYWRIGHT_MEMBERS_BASE_URL || process.env.PLAYWRIGHT_BASE_URL;
 
 async function openWorkspaceMembers(page) {
-	const baseURL = process.env.PLAYWRIGHT_BASE_URL;
 	await page.goto(new URL("/login", baseURL).href);
 	await page.getByLabel("Email").fill(email);
 	await page.getByLabel("Password").fill(password);
@@ -69,6 +69,7 @@ test.describe("members route", () => {
 	});
 
 	test("supports separate member actions, confirmations, permissions, and Spanish", async ({ page, browser }) => {
+		const workspacePath = await openWorkspaceMembers(page);
 		await page.addInitScript(() => {
 			if (document.modelContext) return;
 			Object.defineProperty(document, "__membersWebMCPTestShim", { value: true });
@@ -79,22 +80,27 @@ test.describe("members route", () => {
 				executeTool(tool, input) { return Promise.resolve(tool.execute(JSON.parse(input))); },
 			} });
 		});
-		const workspacePath = await openWorkspaceMembers(page);
+		await page.reload();
 		const membersPath = `${workspacePath}/settings/members`;
 
 		async function inviteMember(memberEmail, role) {
-			await page.goto(new URL(`${workspacePath}/settings/invitations`, process.env.PLAYWRIGHT_BASE_URL).href);
+			await page.goto(new URL(`${workspacePath}/settings/invitations`, baseURL).href);
 			await page.getByLabel("Email").fill(memberEmail);
 			await page.getByLabel("Role").selectOption(role);
 			await page.locator('button[name="action"][value="create"]').click();
-			const inviteLink = await page.locator('input[aria-label="Copy this invitation link"]').inputValue();
-			const memberContext = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL });
+			const inviteLink = await page.locator('input[aria-label="Copy this invitation link"]').evaluate((input) => {
+				const value = input.value;
+				input.value = "";
+				return value;
+			});
+			await page.goto(new URL(membersPath, baseURL).href);
+			const memberContext = await browser.newContext({ baseURL });
 			const memberPage = await memberContext.newPage();
 			let step = "open invitation";
 			let status = 0;
 			let passwordCount = 0;
 			try {
-				const response = await memberPage.goto(new URL(inviteLink, process.env.PLAYWRIGHT_BASE_URL).href);
+				const response = await memberPage.goto(new URL(inviteLink, baseURL).href);
 				status = response?.status() ?? 0;
 				step = "enter password";
 				passwordCount = await memberPage.locator("#invite-password").count();
@@ -110,7 +116,7 @@ test.describe("members route", () => {
 
 		const removed = await inviteMember("removed@example.com", "member");
 		const transferred = await inviteMember("transferred@example.com", "member");
-		await page.goto(new URL(membersPath, process.env.PLAYWRIGHT_BASE_URL).href);
+		await page.goto(new URL(membersPath, baseURL).href);
 		const targetRow = (memberEmail) => page.locator(".list-view-table tbody tr").filter({ hasText: memberEmail });
 		await expect(targetRow("removed@example.com")).toBeVisible();
 		await expect(targetRow("transferred@example.com")).toBeVisible();
@@ -127,7 +133,7 @@ test.describe("members route", () => {
 			contentType: "application/javascript",
 			body: axe.source,
 		}));
-		await page.addScriptTag({ url: new URL("/members-test/axe.min.js", process.env.PLAYWRIGHT_BASE_URL).href });
+		await page.addScriptTag({ url: new URL("/members-test/axe.min.js", baseURL).href });
 		const axeResult = await page.evaluate(() => window.axe.run(document, {
 			runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] },
 		}));
@@ -171,7 +177,7 @@ test.describe("members route", () => {
 		await roleSelect.selectOption("viewer");
 		await roleForm.getByRole("button", { name: "Change role" }).click();
 		await expect(targetRow("removed@example.com")).toContainText("Viewer");
-		const viewerPage = await removed.page.goto(new URL(membersPath, process.env.PLAYWRIGHT_BASE_URL).href);
+		const viewerPage = await removed.page.goto(new URL(membersPath, baseURL).href);
 		expect(viewerPage.status()).toBe(200);
 		await expect(removed.page.locator('form[data-webmcp-actions="member-role-update"]')).toHaveCount(0);
 		await expect(removed.page.locator('form[data-webmcp-actions="member-remove"]')).toHaveCount(0);
@@ -195,11 +201,11 @@ test.describe("members route", () => {
 		}, { path: membersPath, memberId: await targetRow("removed@example.com").locator('form[data-webmcp-actions="member-remove"] input[name="member_id"]').inputValue() });
 		expect(csrfFailure).toBe(403);
 
-		await page.context().addCookies([{ name: "locale", value: "es", url: process.env.PLAYWRIGHT_BASE_URL }]);
+		await page.context().addCookies([{ name: "locale", value: "es", url: baseURL }]);
 		await page.reload();
 		await expect(page.getByText("Esto quita su acceso al espacio de trabajo y deja de compartir sus recursos con esta persona.", { exact: true }).first()).toBeVisible();
 
-		const noJS = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL, javaScriptEnabled: false });
+		const noJS = await browser.newContext({ baseURL, javaScriptEnabled: false });
 		const noJSPage = await noJS.newPage();
 		const noJSWorkspace = await openWorkspaceMembers(noJSPage);
 		const noJSMembers = `${noJSWorkspace}/settings/members`;
@@ -221,7 +227,7 @@ test.describe("members route", () => {
 		await transferForm.getByRole("button", { name: "Transfer ownership" }).click();
 		await expect(noJSPage).toHaveURL(/settings\/members/);
 
-		const denied = await removed.page.goto(new URL(membersPath, process.env.PLAYWRIGHT_BASE_URL).href);
+		const denied = await removed.page.goto(new URL(membersPath, baseURL).href);
 		expect(denied.status()).toBe(404);
 		await removed.context.close();
 		await transferred.context.close();
