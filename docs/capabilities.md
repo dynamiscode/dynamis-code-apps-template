@@ -459,6 +459,11 @@ Authentication mutations retain ordinary CSRF-protected forms and reset
 requests retain generic responses. `internal/web/auth_journeys_test.go` checks
 English and Spanish setup plus auth-page form fallbacks.
 
+Issue #444 migrates `/security` factor and linked-identity rendering to
+`security.templ` and the shared DaisyUI/account components. Route tests cover
+CSRF-protected factor forms, inaccessible enrollment secrets on the idle page,
+focused reauthentication failure feedback, and the ordinary provider-link form.
+
 ## Item short ID evidence
 
 Verified 2026-11-11 with Go 1.27.4. Issue #190 moves item keys to integers

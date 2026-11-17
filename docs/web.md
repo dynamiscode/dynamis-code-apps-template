@@ -126,8 +126,11 @@ Baseline browser surfaces:
   localized status and revocation feedback. CSRF-protected forms revoke any
   active session, including the current one; revoking the current session sends
   the browser to sign-in on its next request. The page shows a localized empty
-  state and retains the ordinary form fallback. `/security` manages MFA factors
-  and starts reauthenticated OIDC linking.
+  state and retains the ordinary form fallback. `/security` renders with
+  `security.templ`, shared DaisyUI fields and alerts, and the account layout.
+  It retains ordinary passkey, TOTP, recovery, and reauthenticated OIDC-link
+  forms; removal uses progressive confirmation. Factor failures render focused
+  alerts, and one-time enrollment secrets appear only in their active states.
 - `/account` edits profile preferences, changes a local password, requests email
   verification, and deletes the account after current-password reauthentication
   and an explicit confirmation checkbox. The server rejects deletion without
@@ -342,7 +345,8 @@ accessibility results and remaining limits are recorded in
 | `/workspaces/{workspaceId}/settings/general` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Workspace locale and notification preferences, empty and saved states, invalid input and permission handling |
 | `/workspaces/{workspaceId}/settings/email` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Unconfigured/configured provider, saved state, validation, provider verification failure, redacted credentials and permission handling |
 | `/notifications`, `/notifications/events` | `notifications.templ`, `notifications_templ.go` | Recipient-scoped list and unread count, empty state, CSRF-protected mark-read, initial cursor and SSE replay after reconnect |
-| Account and workspace settings | `account.html`, `credential_settings.templ`, `credential_settings_templ.go`, `language.html`, `security.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |
+| `/security` | `security.templ`, `security_templ.go`, `components.templ`, `navigation.templ` | Factor enrollment, removal and recovery, provider linking, no-provider state, validation/failure alerts, one-time secret display; ordinary form fallback |
+| Account and workspace settings | `account.html`, `credential_settings.templ`, `credential_settings_templ.go`, `language.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |
 | `/workspaces/{workspaceId}/settings/export`, `/workspaces/{workspaceId}/settings/export/download`, `/workspaces/{workspaceId}/settings/import` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Authorized no-store export page and JSON download; import file selection, bounded preview, safe validation feedback, explicit multipart confirmation, and atomic result; ordinary form fallback |
 | Public and unavailable pages | `public-share.html`, `error.html` | Share projection and invalid/expired/revoked links, not-found and request errors |
 
