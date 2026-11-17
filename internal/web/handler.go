@@ -42,8 +42,10 @@ type Handler struct {
 	identity        *identity.Service
 	items           *items.Service
 	clients         *clients.Service
+	clientsEnabled  bool
 	listPreferences *listprefs.Service
 	files           *appfiles.Service
+	filesEnabled    bool
 	sharing         *sharing.Service
 	webhooks        webhookManager
 	exporter        exporter
@@ -917,9 +919,9 @@ func (h *Handler) renderItems(
 		data.PublicShareURL = shareURL[0]
 		data.PublicShareItemID = items.ParseItemIDOrZero(request.PathValue("itemId"))
 	}
-	name := "items.html"
+	name := "items-page"
 	if request.Header.Get("HX-Request") == "true" {
-		name = "item-list.html"
+		name = "items-fragment"
 		if status >= http.StatusBadRequest {
 			writer.Header().Set("HX-Trigger", "form-error")
 			status = http.StatusOK
@@ -1136,6 +1138,14 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 	writer.WriteHeader(status)
 	if name == "workspace-home" {
 		_ = workspaceHome(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "items-page" {
+		_ = itemsPage(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "items-fragment" {
+		_ = itemsList(data).Render(context.Background(), writer)
 		return
 	}
 	if name == "home.html" {

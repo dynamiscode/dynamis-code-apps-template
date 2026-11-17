@@ -1148,6 +1148,36 @@ WebMCP page marker and script.
   tests. See [session evidence](reviews/sessions-445-evidence.md).
 - Not run: full `make verify`, race suite, security gates, and PostgreSQL tests.
 
+## Items list and editing UI evidence (#413, 2026-11-16)
+
+Ticket #413 migrates the workspace Items page and list fragment to generated
+templ views. The route keeps existing workspace authorization, CSRF checks,
+localized profile theme, ordinary form submissions, list preferences, sharing,
+and responsive table treatment. Route-only JavaScript preserves dirty item
+rows and standalone drafts across list swaps, applies successful row versions,
+and retains submitted values on edit validation errors. Viewers see a read-only
+list; create, edit, and delete writes remain forbidden.
+
+- Passed: focused Items permission, list/preferences, and locale/theme Go tests;
+  Items JavaScript regressions; `make verify` on `a605f7c`; and the normal
+  generated-template, CSS, race, build, and repository checks.
+- Passed: final ordered Playwright suite (30 passed, 2 notification tests
+  skipped). It covers dirty row and draft preservation, successful autosave
+  version updates before delete, hx-sync overlap, native query history, Spanish
+  axe, ordinary no-JavaScript forms, and explicit light/dark/system themes.
+  Desktop/mobile light/dark screenshot baselines were visually reviewed.
+- Passed: `make accessibility-smoke` in English and Spanish with zero Items
+  violations and keyboard/focus/reflow checks; `make ux-smoke` (42 checks);
+  `make webmcp-smoke` fallback; and `make docker-smoke`.
+- Passed: final spec and standards reviews found no actionable defects. The
+  browser regression reproduces and guards the stale-version case where a dirty
+  create draft used to cancel an unrelated successful item row swap.
+- CI history: an earlier PR head failed accessibility on an ambiguous Items
+  heading locator and CSP-blocked inline axe. Both test causes were fixed and
+  the previous pushed head passed all 10 CI checks. The updated head still needs
+  its CI run.
+- Pending: normal-hook commit/push, updated-head CI, and merge verification.
+
 ## Notification center UX evidence (2026-11-15)
 
 Ticket #383 restyles the recipient-scoped notification list, makes unread
