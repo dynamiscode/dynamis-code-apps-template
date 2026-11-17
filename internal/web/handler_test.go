@@ -316,6 +316,15 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	if account.Code != http.StatusOK || !strings.Contains(account.Body.String(), "Profile and preferences") {
 		t.Fatalf("account page status = %d; missing profile heading", account.Code)
 	}
+	for _, marker := range []string{`<main id="main" class="account-page"`, `data-dirty-track data-unsaved-warning`, `data-strength`, `name="confirm_delete"`, `data-account-page`} {
+		if !strings.Contains(account.Body.String(), marker) {
+			t.Errorf("account templ page missing %q", marker)
+		}
+	}
+	if strings.Contains(account.Body.String(), `<form action="/account/password" method="post" data-dirty-track`) ||
+		strings.Contains(account.Body.String(), `<form action="/account/delete" method="post" data-dirty-track`) {
+		t.Fatal("account password forms must not be draft-tracked")
+	}
 	updated := request(handler, http.MethodPost, "/account/profile", url.Values{
 		"csrf": {session.CSRFSecret}, "display_name": {"Owner"}, "locale": {"es"},
 		"timezone": {"America/Bogota"}, "theme": {"dark"},
@@ -452,6 +461,9 @@ func TestAccountSecurityPagesUseSharedBrandAndRequireDeletionConfirmation(t *tes
 		}
 		if path == "/account" && (!strings.Contains(body, `name="confirm_delete" type="checkbox" value="yes" required`) || !strings.Contains(body, "Entiendo que eliminar la cuenta es permanente")) {
 			t.Errorf("account page lacks the Spanish no-JavaScript deletion confirmation: %s", body)
+		}
+		if path == "/settings/language" && (!strings.Contains(body, `<main id="main" class="account-page narrow"`) || !strings.Contains(body, `aria-label="Idioma"`)) {
+			t.Errorf("language page lacks templ account layout or labelled language form: %s", body)
 		}
 	}
 
