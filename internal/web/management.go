@@ -149,8 +149,16 @@ func (h *Handler) memberMutation(writer http.ResponseWriter, request *http.Reque
 		}
 		err = h.identity.ChangeMemberRole(request.Context(), principal, memberID, role, auditContext(request))
 	case "remove":
+		if request.FormValue("confirm_remove") != "yes" {
+			h.managementError(writer, request, workspaceID, "Confirm member removal to continue.")
+			return
+		}
 		err = h.identity.RemoveMember(request.Context(), principal, memberID, auditContext(request))
 	case "transfer":
+		if request.FormValue("confirm_transfer") != "yes" {
+			h.managementError(writer, request, workspaceID, "Confirm ownership transfer to continue.")
+			return
+		}
 		err = h.identity.TransferOwnership(request.Context(), principal, memberID, auditContext(request))
 	default:
 		h.managementError(writer, request, workspaceID, "The requested member action is invalid.")
