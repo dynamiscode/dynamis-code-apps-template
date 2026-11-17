@@ -68,27 +68,6 @@ test("webhook registry and delivery history cover responsive, themed, keyboard a
     expect(firstSecret).toMatch(/^whsec_/);
     await expectAccessible(page, "webhook secret state");
 
-    for (const view of [
-      { name: "desktop-light", width: 1280, height: 900, colorScheme: "light" },
-      { name: "desktop-dark", width: 1280, height: 900, colorScheme: "dark" },
-      { name: "mobile-light", width: 390, height: 844, colorScheme: "light" },
-      { name: "mobile-dark", width: 390, height: 844, colorScheme: "dark" },
-    ]) {
-      await page.setViewportSize({ width: view.width, height: view.height });
-      await page.emulateMedia({ colorScheme: view.colorScheme, reducedMotion: "reduce" });
-      await page.goto(`${workspacePath}/settings/webhooks`);
-      await expect(page.locator(".webhook-card")).toContainText("Browser fixture");
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-      const snapshot = process.platform === "linux" && view.name.startsWith("desktop-")
-        ? `webhooks-${view.name}-linux.png`
-        : `webhooks-${view.name}.png`;
-      await expect(page).toHaveScreenshot(snapshot, {
-        animations: "disabled",
-        fullPage: true,
-        mask: [page.locator(".webhook-endpoint")],
-      });
-    }
-
     await page.goto(`${workspacePath}/settings/webhooks`);
     await page.keyboard.press("Tab");
     await expect(page.locator(".skip-link")).toBeFocused();
@@ -140,6 +119,48 @@ test("webhook registry and delivery history cover responsive, themed, keyboard a
     await expect(deliveryFixture).toHaveCount(0);
   } finally {
     await new Promise((resolve) => receiver.close(resolve));
+  }
+});
+
+test.describe("webhook registry viewport screenshots", () => {
+  for (const view of [
+    { name: "desktop-light", width: 1280, height: 900, colorScheme: "light" },
+    { name: "desktop-dark", width: 1280, height: 900, colorScheme: "dark" },
+    { name: "mobile-light", width: 390, height: 844, colorScheme: "light" },
+    { name: "mobile-dark", width: 390, height: 844, colorScheme: "dark" },
+  ]) {
+    test(`registry screenshot: ${view.name}`, async ({ page }) => {
+      test.setTimeout(30_000);
+      const workspacePath = await openWorkspace(page);
+      const fixtureName = `Browser fixture ${view.name}`;
+      try {
+        await createWebhook(page, workspacePath, fixtureName, "http://localhost:58123/hook");
+        await page.setViewportSize({ width: view.width, height: view.height });
+        await page.emulateMedia({ colorScheme: view.colorScheme, reducedMotion: "reduce" });
+        await page.goto(`${workspacePath}/settings/webhooks`);
+        const card = page.locator(".webhook-card").filter({ hasText: fixtureName });
+        await expect(card).toBeVisible();
+        expect(await card.locator(".webhook-secret").count()).toBe(0);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+        const snapshot = process.platform === "linux" &&
+          (view.name.startsWith("desktop-") || view.name === "mobile-light")
+          ? `webhooks-${view.name}-linux.png`
+          : `webhooks-${view.name}.png`;
+        await expect(page).toHaveScreenshot(snapshot, {
+          animations: "disabled",
+          fullPage: true,
+          mask: [page.locator(".webhook-endpoint")],
+        });
+      } finally {
+        await page.goto(`${workspacePath}/settings/webhooks`);
+        const card = page.locator(".webhook-card").filter({ hasText: fixtureName });
+        if (await card.count() > 0) {
+          await card.getByLabel(/Delete this webhook/).check();
+          await card.getByRole("button", { name: "Delete webhook" }).click();
+          await expect(card).toHaveCount(0);
+        }
+      }
+    });
   }
 });
 

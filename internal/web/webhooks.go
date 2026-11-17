@@ -51,7 +51,7 @@ func (h *Handler) renderWebhooksPageForPrincipal(
 	session identity.Session,
 	csrf, selectedID, secret string,
 ) {
-	h.renderWebhooksPageForPrincipalWithStatus(writer, request, workspaceID, principal, session, csrf, selectedID, secret, "", http.StatusOK)
+	h.renderWebhooksPageForPrincipalWithStatus(writer, request, workspaceID, principal, session, csrf, selectedID, secret, "", "", http.StatusOK)
 }
 
 func (h *Handler) renderWebhookMutationError(
@@ -62,7 +62,7 @@ func (h *Handler) renderWebhookMutationError(
 	session identity.Session,
 	csrf, message string,
 ) {
-	h.renderWebhooksPageForPrincipalWithStatus(writer, request, workspaceID, principal, session, csrf, "", "", message, http.StatusUnprocessableEntity)
+	h.renderWebhooksPageForPrincipalWithStatus(writer, request, workspaceID, principal, session, csrf, "", "", message, "", http.StatusUnprocessableEntity)
 }
 
 func (h *Handler) renderWebhooksPageForPrincipalWithStatus(
@@ -71,18 +71,13 @@ func (h *Handler) renderWebhooksPageForPrincipalWithStatus(
 	workspaceID identity.WorkspaceID,
 	principal identity.Principal,
 	session identity.Session,
-	csrf, selectedID, secret, message string,
+	csrf, selectedID, secret, message, errorKey string,
 	status int,
 ) {
-	deleteConfirmationRequired := message == "webhooks.delete_confirmation_required"
 	data := pageData{
-		Title: "Webhooks", NavPage: "webhooks", NavSection: "settings", Error: message, ErrorKey: "", CSRF: csrf,
+		Title: "Webhooks", NavPage: "webhooks", NavSection: "settings", Error: message, ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(nil, workspaceID), WebhookSecret: secret,
 		CanManage: principal.Permissions[identity.WebhooksManage], WebhookSecretKeyConfigured: h.webhooks.SecretKeyConfigured(),
-	}
-	if deleteConfirmationRequired {
-		data.Error = ""
-		data.ErrorKey = message
 	}
 	registered, err := h.webhooks.List(request.Context(), principal, workspaceID)
 	if err != nil {
@@ -191,7 +186,10 @@ func (h *Handler) webhookMutation(writer http.ResponseWriter, request *http.Requ
 			return
 		}
 		if request.FormValue("confirm_delete") != "yes" {
-			h.renderWebhookMutationError(writer, request, workspaceID, principal, session, csrf, "webhooks.delete_confirmation_required")
+			h.renderWebhooksPageForPrincipalWithStatus(
+				writer, request, workspaceID, principal, session, csrf,
+				"", "", "", "webhooks.delete_confirmation_required", http.StatusUnprocessableEntity,
+			)
 			return
 		}
 		if err := h.webhooks.Delete(request.Context(), principal, workspaceID, webhookID, auditContext(request)); err != nil {
