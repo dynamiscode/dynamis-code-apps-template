@@ -235,11 +235,39 @@ func (h *Handler) renderClientTemplate(writer http.ResponseWriter, request *http
 		_ = clientList(data).Render(request.Context(), writer)
 		return
 	}
+	if name == "client-detail" {
+		_ = clientDetailPage(data).Render(request.Context(), writer)
+		return
+	}
 	_ = clientsPage(data).Render(request.Context(), writer)
 }
 
 func clientDraftHasInput(draft clients.Input) bool {
 	return draft.DisplayName != "" || draft.Email != "" || draft.Phone != "" || draft.Notes != ""
+}
+
+func clientValueDisplay(data pageData, value clientValueRow) string {
+	if value.Value == nil {
+		return data.T("clients.value_none")
+	}
+	switch value.Type {
+	case "yes_no":
+		if *value.Value == "true" {
+			return data.T("clients.yes")
+		}
+		return data.T("clients.no")
+	case "single_choice":
+		return value.ValueLabel
+	default:
+		return *value.Value
+	}
+}
+
+func clientValueDisplayValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func (h *Handler) createClient(writer http.ResponseWriter, request *http.Request) {
@@ -314,7 +342,7 @@ func (h *Handler) renderClientDetail(
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, status, "client.html", pageData{
+	h.renderClientTemplate(writer, request, status, "client-detail", pageData{
 		Title: client.DisplayName, ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		NavPage: "clients", NavSection: "clients",

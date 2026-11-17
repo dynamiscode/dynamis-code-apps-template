@@ -1,5 +1,7 @@
 package web
 
+import "strconv"
+
 templ clientsPage(data pageData) {
 	@dashboardShell(data, dashboardHeader(data), dashboardHomeNavigation(data)) {
 		@pageHeading(data.T("clients.title"), data.T("common.workspace")) {
@@ -14,6 +16,96 @@ templ clientsPage(data pageData) {
 		}
 		@clientList(data)
 	}
+}
+
+templ clientDetailPage(data pageData) {
+	@dashboardShell(data, dashboardHeader(data), dashboardHomeNavigation(data)) {
+		@pageHeading(data.Client.DisplayName, data.T("clients.title")) {
+			<div class="actions client-page-actions">
+				<a class="btn btn-ghost" href={ data.CurrentPath }>{ data.T("clients.back") }</a>
+			</div>
+		}
+		@clientDetail(data)
+	}
+}
+
+templ clientDetail(data pageData) {
+	<section id="client-detail" class="client-panel" aria-labelledby="client-heading">
+		<h2 id="client-heading" class="visually-hidden">{ data.T("clients.client") }</h2>
+		if data.ErrorKey != "" {
+			@errorAlert(data.T(data.ErrorKey))
+		}
+		if data.CanEditClients {
+			<form action={ data.CurrentPath + "/" + data.Client.ID.String() } method="post">
+				<input type="hidden" name="csrf" value={ data.CSRF }/>
+				<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
+				@textField("client-display-name", data.T("clients.display_name"), templ.Attributes{"name": "display_name", "required": true, "maxlength": "200", "value": data.Client.DisplayName, "data-trim": ""})
+				@textField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{"name": "email", "type": "email", "maxlength": "254", "value": data.Client.Email})
+				@textField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{"name": "phone", "maxlength": "50", "value": data.Client.Phone})
+				@textareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.Client.Notes, templ.Attributes{"name": "notes", "maxlength": "5000"})
+				<div class="actions"><button class="btn btn-primary" type="submit">{ data.T("clients.save") }</button></div>
+			</form>
+		} else {
+			<p class="status">{ data.T("clients.read_only") }</p>
+			<dl><dt>{ data.T("clients.display_name") }</dt><dd>{ data.Client.DisplayName }</dd><dt>{ data.T("common.email") }</dt><dd>{ data.Client.Email }</dd><dt>{ data.T("clients.phone") }</dt><dd>{ data.Client.Phone }</dd><dt>{ data.T("clients.notes") }</dt><dd>{ data.Client.Notes }</dd></dl>
+		}
+		if data.Client.ArchivedAt != nil {
+			<p class="status" role="status">{ data.T("clients.archived_status") }</p>
+		}
+		if data.CanEditClients {
+			<div class="client-lifecycle">
+				if data.Client.ArchivedAt != nil {
+					<form method="post" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/unarchive" }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-secondary" type="submit">{ data.T("clients.unarchive") }</button></form>
+				} else {
+					<form method="post" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/archive" }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-secondary" type="submit">{ data.T("clients.archive") }</button></form>
+				}
+				if data.CanDeleteClients {
+					<div class="client-delete"><p class="warning">{ data.T("clients.delete_client_confirm") }</p><form method="post" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/delete" }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-error" type="submit" data-confirm={ data.T("clients.delete_client_confirm") }>{ data.T("clients.delete_client") }</button></form></div>
+				}
+			</div>
+		}
+		@clientValues(data)
+	</section>
+}
+
+templ clientValues(data pageData) {
+	<section id="client-values" class="client-panel client-values" aria-labelledby="client-values-heading">
+		<h2 id="client-values-heading">{ data.T("clients.values_heading") }</h2>
+		if len(data.ClientValues) > 0 {
+			for _, value := range data.ClientValues {
+				if data.CanEditClients {
+					<form class="client-value" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() } method="post">
+						<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
+						<label for={ "value-" + value.FieldID.String() }>{ value.Label } { data.T("ui.optional") }</label>
+						if value.Type == "number" {
+							<input id={ "value-" + value.FieldID.String() } name="value" type="number" step="any" value={ clientValueDisplayValue(value.Value) }/>
+						} else if value.Type == "date" {
+							<input id={ "value-" + value.FieldID.String() } name="value" type="date" value={ clientValueDisplayValue(value.Value) }/>
+						} else if value.Type == "yes_no" {
+							<select id={ "value-" + value.FieldID.String() } name="value"><option value="" disabled selected?={ value.Value == nil }>{ data.T("clients.value_choose") }</option><option value="true" selected?={ clientValueDisplayValue(value.Value) == "true" }>{ data.T("clients.yes") }</option><option value="false" selected?={ clientValueDisplayValue(value.Value) == "false" }>{ data.T("clients.no") }</option></select>
+						} else if value.Type == "single_choice" {
+							<select id={ "value-" + value.FieldID.String() } name="value">
+							<option value="" disabled selected?={ value.Value == nil }>{ data.T("clients.value_choose") }</option>
+							for _, choice := range value.Choices {
+								<option value={ choice.ID } selected?={ choice.Selected }>{ choice.Label }</option>
+							}
+						</select>
+						} else {
+							<input id={ "value-" + value.FieldID.String() } name="value" maxlength="500" value={ clientValueDisplayValue(value.Value) }/>
+						}
+						<div class="actions"><button class="btn btn-primary" type="submit">{ data.T("clients.value_save") }</button></div>
+					</form>
+					if value.Value != nil {
+						<form class="client-value-clear" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() + "/clear" } method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/><button class="btn btn-ghost" type="submit">{ data.T("clients.value_clear") }</button></form>
+					}
+				} else {
+					<dl><dt>{ value.Label }</dt><dd>{ clientValueDisplay(data, value) }</dd></dl>
+				}
+			}
+		} else {
+			<p class="status">{ data.T("clients.values_none") }</p>
+		}
+	</section>
 }
 
 templ clientList(data pageData) {
