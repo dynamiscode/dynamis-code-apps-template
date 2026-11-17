@@ -140,6 +140,26 @@ func TestClientEventsStreamBypassesRequestConcurrencyLimit(t *testing.T) {
 	}
 }
 
+func TestNotificationEventsStreamBypassesRequestDeadlineAndConcurrencyLimit(t *testing.T) {
+	served := false
+	next := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		served = true
+		if _, ok := request.Context().Deadline(); ok {
+			t.Error("notification stream has request deadline")
+		}
+		writer.WriteHeader(http.StatusOK)
+	})
+	handler := timeoutMiddleware(concurrencyMiddleware(next, 0), time.Nanosecond, slog.Default())
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/notifications/events", nil))
+	if !served || response.Code != http.StatusOK {
+		t.Fatalf("notification stream = %d served=%v, want it to bypass deadline and concurrency limit", response.Code, served)
+	}
+	if !isStreamingPath("/notifications/events") {
+		t.Fatal("notification events path is not a streaming path")
+	}
+}
+
 func TestRequestIDTokenBounds(t *testing.T) {
 	handler := requestIDMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	hexID := "0123456789abcdef0123456789abcdef"

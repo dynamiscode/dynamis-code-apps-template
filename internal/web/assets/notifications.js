@@ -2,7 +2,8 @@ const unreadCount = document.querySelector("[data-unread-count]");
 const liveStatus = document.querySelector("[data-notification-live]");
 
 if (unreadCount && window.EventSource) {
-	const stream = new EventSource("/notifications/events");
+	const cursor = document.querySelector("[data-notification-cursor]")?.dataset.notificationCursor ?? "";
+	const stream = new EventSource(`/notifications/events?after=${encodeURIComponent(cursor)}`);
 	stream.addEventListener("open", () => {
 		if (liveStatus) liveStatus.textContent = "";
 	});
@@ -15,5 +16,4 @@ if (unreadCount && window.EventSource) {
 		if (liveStatus) liveStatus.textContent = liveStatus.dataset.disconnected;
 	});
 	stream.addEventListener("resync", () => location.reload());
-	stream.addEventListener("close", () => stream.close());
 }
