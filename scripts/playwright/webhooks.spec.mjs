@@ -79,7 +79,10 @@ test("webhook registry and delivery history cover responsive, themed, keyboard a
       await page.goto(`${workspacePath}/settings/webhooks`);
       await expect(page.locator(".webhook-card")).toContainText("Browser fixture");
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-      await expect(page).toHaveScreenshot(`webhooks-${view.name}.png`, {
+      const snapshot = process.platform === "linux" && view.name === "desktop-light"
+        ? `webhooks-${view.name}-linux.png`
+        : `webhooks-${view.name}.png`;
+      await expect(page).toHaveScreenshot(snapshot, {
         animations: "disabled",
         fullPage: true,
         mask: [page.locator(".webhook-endpoint")],
