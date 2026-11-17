@@ -22,7 +22,7 @@ templ dashboardShell(data pageData, header, navigation templ.Component) {
 					{ children... }
 				</main>
 			</div>
-			if data.NavPage == "home" {
+			if data.NavPage == "home" || data.NavPage == "export" {
 				<script defer src="/assets/app.js"></script>
 			}
 		</body>

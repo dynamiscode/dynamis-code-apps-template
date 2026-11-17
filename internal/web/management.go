@@ -445,11 +445,11 @@ func (h *Handler) exportPage(writer http.ResponseWriter, request *http.Request) 
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, http.StatusOK, "export.html", pageData{
+	h.renderSettingsPage(writer, request, http.StatusOK, pageData{
 		Title: "Export", NavPage: "export", NavSection: "settings", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		DefaultWorkspaceHref: h.defaultHomeHref(request.Context(), session.UserID),
-	})
+	}, exportSettingsView)
 }
 
 func (h *Handler) auditHistoryPage(writer http.ResponseWriter, request *http.Request) {
@@ -713,13 +713,14 @@ func (h *Handler) renderImportPage(
 		return
 	}
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	h.render(writer, status, "import.html", pageData{
+	h.renderSettingsPage(writer, request, status, pageData{
 		Title: "Import", NavPage: "import", NavSection: "settings", Error: message,
 		CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		CurrentPath:     "/workspaces/" + workspaceID.String() + "/settings/import",
-		ImportCompleted: completed, Imported: imported,
+		DefaultWorkspaceHref: h.defaultHomeHref(request.Context(), session.UserID),
+		CurrentPath:          "/workspaces/" + workspaceID.String() + "/settings/import",
+		ImportCompleted:      completed, Imported: imported,
 		ImportPreview: preview,
-	})
+	}, importSettingsView)
 }
 
 func importFormat(header *multipart.FileHeader) (string, bool) {

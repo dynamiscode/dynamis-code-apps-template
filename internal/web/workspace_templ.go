@@ -186,7 +186,7 @@ func dashboardShell(data pageData, header, navigation templ.Component) templ.Com
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if data.NavPage == "home" {
+		if data.NavPage == "home" || data.NavPage == "export" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<script defer src=\"/assets/app.js\"></script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
