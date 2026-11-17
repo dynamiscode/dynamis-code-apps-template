@@ -10,6 +10,13 @@ permissions:
 
 jobs:
   go:
+    if: always()
+    needs: [go-verify, go-race]
+    runs-on: ubuntu-24.04
+    steps:
+      - run: test '${{ needs.go-verify.result }}' = success && test '${{ needs.go-race.result }}' = success
+
+  go-verify:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -22,7 +29,25 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: make verify
+      - name: Check verification coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(make -n race)" = 'go test -race ./...'
+          verify=$(make -n verify)
+          remaining=$(make -n lint test deps-check workflow-check generate-check templ-check css-check build template-smoke)
+          diff -u <(printf '%s\n' "$verify" | sed '/^go test -race \.\/\.\.\.$/d') <(printf '%s\n' "$remaining")
+      - run: make lint test deps-check workflow-check generate-check templ-check css-check build template-smoke
+
+  go-race:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: make race
 
   postgres:
     runs-on: ubuntu-24.04
