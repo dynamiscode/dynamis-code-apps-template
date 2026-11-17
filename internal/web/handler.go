@@ -1172,6 +1172,14 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = authPasswordReset(data).Render(context.Background(), writer)
 		return
 	}
+	if name == "mfa.html" {
+		_ = authMFA(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "verification.html" {
+		_ = authEmailVerification(data).Render(context.Background(), writer)
+		return
+	}
 	if name == "sessions-page" {
 		_ = sessionsPage(data, data.CurrentSessionID, time.Now()).Render(context.Background(), writer)
 		return
