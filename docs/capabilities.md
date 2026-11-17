@@ -7,8 +7,10 @@ dated section; past dated sections are never rewritten, because each is a record
 of what was verified on its date.
 
 The [UI measurement method and asset inventory](ui-measurement.md) records the
-baseline environment and remaining screen measurements for issue #439. It does
-not establish performance budgets or claim screen measurements are complete.
+baseline environment, screen inventory, home observation and remaining screen
+measurements for issue #439. The [administration evidence](ui-measurement-admin.md)
+records settings and data-management observations. Neither establishes
+performance budgets or claims screen measurements are complete.
 
 The [administration measurement evidence](ui-measurement-admin.md) is partial
 for issue #448; its isolated run may have experienced concurrent check load.
@@ -1309,3 +1311,25 @@ continues to enforce owner/admin management and owner-only transfer.
   test shim. It verified the tool prepares and focuses the existing form and
   does not submit it; native-browser WebMCP integration remains unverified.
 - Passed: `go generate ./internal/web` with zero generated drift.
+
+## UI performance baseline evidence (#439, 2026-11-17)
+
+- Measured one cold and warm workspace-home navigation and cold/warm settings,
+  provisioning, webhooks, audit, import, export and delivery navigation on
+  commit `1c2ff7f59d106988976daf1370e52463f60d0896` using isolated synthetic
+  SQLite fixtures, Chrome 157.0.8103.79, Playwright 1.64.1 and an unthrottled
+  loopback server. Full values and boundaries are in
+  [UI measurement](ui-measurement.md) and
+  [administration measurement](ui-measurement-admin.md).
+- Measured selected warm audit-fragment, import-preview and export interactions.
+  Export wire bytes are unavailable; CDP reported a transport failure although
+  Playwright completed a local download. One cold favicon 404 appeared on each
+  measured navigation; no fix is claimed.
+- Partial: Items, Clients, Files, members/invitations, account/security,
+  sessions/notifications, setup/login/MFA/recovery and public share have
+  behavior tests but no performance measurements. State coverage remains
+  incomplete for measured routes too. Both docs list unverified states and
+  current route-ticket owners.
+- No performance budget or optimization was proposed from one observation per
+  cache condition. Per-resource attribution, HTTP compression, upload wire
+  bytes, SSE, loading durations, and repeated-run variance remain unmeasured.

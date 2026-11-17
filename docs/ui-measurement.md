@@ -1,7 +1,10 @@
 # UI measurement method and asset inventory
 
-Issue #446 establishes the method for the screen baseline in #439. It does not
-measure screens or set budgets. Repeat measurements on the same commit and
+Issue #446 established the method for the screen baseline in #439. This page
+records the shared fixture and asset inventory; the [administration evidence](ui-measurement-admin.md)
+contains measured settings and data-management screens. The inventory below
+maps all requested screens and interactions, with unmeasured coverage marked.
+No performance budgets are set. Repeat measurements on the same commit and
 report changes to the environment or fixture with the results.
 
 ## Isolated fixture and browser conditions
@@ -129,3 +132,62 @@ done
 Use the local Chrome executable on other platforms. Brotli sizes, actual HTTP
 compression, per-screen requests and timing, additional fixture states, and
 budgets are not measured here.
+
+## Screen and interaction inventory (#439)
+
+The route grouping below follows [web rendering migration inventory](web.md#rendering-migration-inventory)
+and current route tickets. “Measured” links to recorded evidence. Existing
+behavior or accessibility tests are not performance measurements. State names
+describe applicable UI states; unmeasured means no timing, request or transfer
+capture exists. Do not infer zero cost or absence from those cells.
+
+| Screen or interaction | Existing behavior evidence / owner | Performance and state coverage |
+|---|---|---|
+| Workspace home | `scripts/playwright/ui.spec.mjs`; #439 | Cold/warm navigation measured below; empty fixture only. Populated, pending, error, permission and no-JS states unmeasured. |
+| Items list, create, edit | `scripts/playwright/ui.spec.mjs`; #413–#416 | Navigation and create/edit interaction timing, fragment/SSE request counts and bytes unmeasured. Empty, populated, validation, error, permission and no-JS performance states unmeasured. |
+| Clients list and detail | `scripts/playwright/clients-list.spec.mjs`; #415 | SSE refresh and validation behavior tested; performance unmeasured. Empty, populated, pending, failure, permission, detail, and no-JS measures absent. |
+| Files list and upload | `scripts/playwright/files.spec.mjs`; #417 | Behavior tested; navigation, upload/download transfer and feedback timing unmeasured. Empty, pending, validation, failure, permission and no-JS measures absent. |
+| Members and invitations | `scripts/playwright/members.spec.mjs`, `invitations.spec.mjs`; #419, #420 | Behavior tested; list/creation/acceptance navigation and mutation timings unmeasured. Empty, pending, validation, failure, permission and no-JS measures absent. |
+| General/email settings, tokens/SCIM, webhooks/deliveries, audit, import/export | [Administration evidence](ui-measurement-admin.md); #422, #423, #424, #425, #426 | Cold/warm navigation and selected audit, import-preview and export interactions measured. Detailed states and limits are in linked evidence. |
+| Account, security, sessions, notifications | `scripts/playwright/settings.spec.mjs`, `notifications.spec.mjs`; #427, #429 | Behavior tests exist; navigation and interactions unmeasured. Empty, pending, validation, error, permission and no-JS measures absent. |
+| Setup, login, MFA, recovery | `scripts/playwright/ui.spec.mjs`, `password-reset.spec.mjs`; #430 | Behavior tests exist; cold/warm timing and request counts unmeasured. Invalid credentials, MFA, validation, errors, pending and no-JS measures absent. |
+| Public share and consent | `scripts/playwright/ui.spec.mjs`; #431 | Behavior tests exist; navigation and consent interaction unmeasured. Empty, pending, failure, permission and no-JS measures absent. |
+| Loading, empty, pending, validation, error, permission, no-JS across routes | Route-specific tests above | Selected admin state observations exist; other states and cross-screen loading feedback durations are unmeasured. |
+
+No per-screen performance budgets or fixes are proposed. Asset raw/gzip sizes
+are a shared inventory, not attribution to each screen. Current navigation
+measurement counts all requests in the interval; it does not identify initiator,
+script ownership, or whether repeat requests are unnecessary. HTMX, SSE,
+upload/download wire bytes and loading feedback require separately bounded
+interaction measurements. See route owners above for follow-up; no behavior
+change is claimed.
+
+### Workspace home navigation observation
+
+On 2026-11-17T23:27:16.556Z, commit
+`1c2ff7f59d106988976daf1370e52463f60d0896`, Darwin 27.2.0 arm64,
+Go 1.27.4, Node 26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1:
+
+```sh
+PLAYWRIGHT_PORT=58951 UI_MEASURE=1 ./scripts/playwright-smoke.sh
+```
+
+One unthrottled loopback run used a fresh SQLite fixture with one synthetic
+owner, one workspace and zero Items. Browser conditions were 1280×900, device
+scale 1, `en-US`, light theme, reduced motion, service workers blocked. Cold
+cleared the HTTP cache after sign-in; warm immediately repeated the route.
+Counts cover request starts and completed encoded bytes until load and the home
+marker. Navigation Timing supplies DOMContentLoaded and load. One cold favicon
+404 occurred; warm had no HTTP errors. No redirects, transport failures,
+cache-served events or unfinished requests occurred. Results are one sample,
+not a distribution.
+
+| Cache | Requests | Completed encoded bytes | DOMContentLoaded ms | Load ms |
+|---|---:|---:|---:|---:|
+| Cold | 5 | 98293 | 13.4 | 15.4 |
+| Warm | 4 | 97781 | 13.5 | 13.6 |
+
+This run measures workspace-home navigation only. It does not measure other
+routes, screen interactions, populated states, loading duration, compression
+over HTTP or per-resource attribution. The cold favicon 404 is observed and
+not fixed here; route ownership needs triage before assigning a specific ticket.

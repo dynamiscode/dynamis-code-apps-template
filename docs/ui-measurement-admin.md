@@ -1,8 +1,8 @@
-# Administration and data measurement preparation
+# Administration and data measurement evidence
 
 Issue #448 covers general and email settings, API tokens, SCIM provisioning,
 webhooks and deliveries, audit history, import preview, and export. The common
-[measurement method](ui-measurement.md) applies. The single run below is a
+[measurement method](ui-measurement.md) applies. The observations below are a
 partial baseline; no budgets or performance fixes are established.
 
 The separate `sh scripts/ui-measurement-admin.sh` command creates a temporary
@@ -52,12 +52,12 @@ output and fixture conditions when results are collected.
 
 | Screen or interaction | Prepared coverage | Unverified |
 |---|---|---|
-| General and email settings | Cold/warm navigation | Save, validation, failure and provider states |
-| Tokens and SCIM | Cold/warm navigation | Creation, revocation and one-time secret states |
-| Webhooks | Cold/warm navigation; empty, pending, delivered and failed delivery displays | Other delivery failures and retry timing |
-| Audit | Cold/warm navigation; automatic fetch and DOM swap; synthetic warm fetch; injected failure and no-JavaScript fallback | Loading duration and other failures |
-| Import | Cold/warm navigation; valid and invalid one-row CSV preview | Other validation and failure states; confirmation |
-| Export | Cold/warm navigation; download and local decoded file size | Download transfer bytes and failure |
+| General and email settings | Cold/warm navigation; #422 | Save, validation, failure and provider states |
+| Tokens and SCIM | Cold/warm navigation; #423 | Creation, revocation and one-time secret states |
+| Webhooks | Cold/warm navigation; empty, pending, delivered and failed delivery displays; #424 | Other delivery failures and retry timing |
+| Audit | Cold/warm navigation; automatic fetch and DOM swap; synthetic warm fetch; injected failure and no-JavaScript fallback; #425 | Loading duration and other failures |
+| Import | Cold/warm navigation; valid and invalid one-row CSV preview; #426 | Other validation and failure states; confirmation |
+| Export | Cold/warm navigation; download and local decoded file size; #426 | Download transfer bytes and failure |
 
 Viewer GET and selected POST responses are recorded below. A Spanish mobile
 automated scan is recorded below; keyboard behavior and no-JavaScript flows
@@ -159,7 +159,7 @@ and other screen/locale/theme combinations. The #425 focusability finding is
 addressed; current English and Spanish axe results are in
 [accessibility evidence](accessibility.md).
 
-## Single isolated run
+## Earlier isolated run
 
 On 2026-11-16T17:06:04.017Z, commit
 `763a333db4afb6c1f6dda84acfb33e42d2a6854e`, Darwin 27.2.0 arm64,
@@ -245,3 +245,65 @@ zero completed encoded bytes; that is not a measurement of its wire size.
 `npm ci` warned that the installed Node version is below selenium-webdriver's
 declared minimum; this harness uses Playwright, and the run completed. No
 browser performance measurement was repeated to estimate variability.
+
+## Current isolated navigation and interaction observation
+
+On 2026-11-17T23:26:52.500Z, commit
+`1c2ff7f59d106988976daf1370e52463f60d0896`, Darwin 27.2.0 arm64,
+Go 1.27.4, Node 26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1:
+
+```sh
+PLAYWRIGHT_PORT=58961 sh scripts/ui-measurement-admin.sh
+```
+
+One unthrottled loopback run used a fresh SQLite fixture with one owner, one
+workspace, zero Items, then one synthetic webhook with zero deliveries. Browser
+conditions were 1280×900, device scale 1, `en-US`, light theme, reduced motion,
+service workers blocked. Cold navigations cleared the HTTP cache after sign-in;
+warm immediately repeated each route. Results are one sample. Counts and timing
+boundaries match the [earlier run](#earlier-isolated-run). `DOMContentLoaded`
+and `load` values are milliseconds from navigation start, rounded to one decimal.
+
+| Screen | Cache | Requests | Completed encoded bytes | DOMContentLoaded ms | Load ms |
+|---|---|---:|---:|---:|---:|
+| General | cold | 5 | 99752 | 21.7 | 25.7 |
+| General | warm | 4 | 99240 | 15.7 | 18.3 |
+| Email | cold | 5 | 102276 | 12.7 | 19.9 |
+| Email | warm | 4 | 101764 | 23.9 | 27.0 |
+| Tokens | cold | 7 | 116325 | 29.1 | 29.3 |
+| Tokens | warm | 6 | 115813 | 14.1 | 16.6 |
+| SCIM provisioning | cold | 5 | 99554 | 14.7 | 16.2 |
+| SCIM provisioning | warm | 4 | 99042 | 12.2 | 13.7 |
+| Webhooks | cold | 5 | 79134 | 34.7 | 34.9 |
+| Webhooks | warm | 4 | 78622 | 19.2 | 19.8 |
+| Audit | cold | 6 | 100148 | 19.6 | 19.7 |
+| Audit | warm | 5 | 99636 | 12.0 | 13.4 |
+| Import | cold | 5 | 98811 | 22.1 | 24.0 |
+| Import | warm | 4 | 98299 | 19.2 | 20.7 |
+| Export | cold | 6 | 115212 | 21.2 | 22.5 |
+| Export | warm | 5 | 114700 | 24.1 | 25.6 |
+| Webhook deliveries | cold | 5 | 77523 | 15.5 | 15.6 |
+| Webhook deliveries | warm | 4 | 77011 | 13.3 | 13.4 |
+
+All cold navigations recorded one favicon HTTP 404; warm runs recorded no HTTP
+errors. All navigations had zero redirects, transport failures and unfinished
+requests. Tokens recorded one cache-served event in both cold and warm runs;
+other navigations recorded none. The cache-clearing procedure therefore does
+not prove every cold resource reached the network. Request counts include the
+favicon. No per-resource initiator attribution was collected.
+
+| Interaction | Requests | Completed encoded bytes | Elapsed ms | Observation |
+|---|---:|---:|---:|---|
+| Automatic audit fragment and DOM swap | unavailable | unavailable | 498.2 from navigation start | Includes navigation; loading observed; Playwright response sizes: 534 header bytes, 1505 body bytes |
+| Separate warm audit fragment fetch | 1 | 2039 | 5.4 | Response body consumed |
+| Warm CSV import preview | 4 | 100043 | 124.7 | One synthetic row; preview visible |
+| Warm export download | 1 | unavailable | 313.9 | Completed local file: 2057 decoded bytes; wire bytes unavailable |
+
+The automatic audit duration starts at navigation start, so it includes page
+navigation and is not isolated fragment latency. CDP reported one transport
+failure and zero completed encoded bytes for export even though Playwright
+returned a completed file; interpret those CDP fields as unavailable for this
+download. The three interaction cases had no HTTP errors, redirects or cache
+events. Download failure classification and transfer bytes remain unverified.
+The run observed a cold favicon 404 but did not assign a fix ticket. It proposes
+no budget or implementation change.
