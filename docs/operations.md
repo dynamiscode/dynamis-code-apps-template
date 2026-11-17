@@ -54,9 +54,11 @@ Run retention at least daily:
 go run ./cmd/maintain
 ```
 
-It removes expired transient records, old inactive credentials including SCIM
-credentials, expired public links, expired audit history, and stale realtime
-replay in one transaction, then appends a safe summary audit event.
+It removes expired transient records, including invitation return handoffs, old
+inactive credentials including SCIM credentials, expired public links, expired
+audit history, and stale realtime replay in one transaction, then appends a safe
+summary audit event. Invitation paths are redacted in request logs; query values,
+bodies, and cookies are not logged.
 `AUDIT_RETENTION` defaults to 365 days.
 
 ## Webhook delivery
@@ -140,6 +142,10 @@ Migration 000020 rebuilds the `files` table to integer keys. It is forward-only
 and copies existing rows with their object keys, so it is safe to apply to a
 database that already has 000016, but it takes a table rebuild, so run it inside
 the stop-the-world window below.
+
+Migration 000027 adds only the transient invitation return table and indexes.
+Older binaries ignore the additive schema; rolling back interrupts active
+handoffs, which expire within ten minutes. Invitation rows remain unchanged.
 
 Upgrades are stop-the-world: create and verify a backup, stop the one SQLite
 instance or all PostgreSQL application instances, start one new version to run

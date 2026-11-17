@@ -78,6 +78,8 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`), workspaceID, userKey, "old.com", "viewer", "invite-secret", old, old, old).Scan(&invitationID); err != nil {
 		t.Fatal(err)
 	}
+	exec(`INSERT INTO invitation_return_handoffs (token_hash, binding_hash, invitation_id, created_at, expires_at)
+		VALUES (?, ?, ?, ?, ?)`, "handoff-token-hash", "handoff-binding-hash", invitationID, old, old)
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO api_tokens (user_id, workspace_id, name, secret_hash, scopes, created_at, revoked_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`), userKey, workspaceID, "old", "token-secret", "items:read", old, old).Scan(&tokenID); err != nil {
 		t.Fatal(err)
@@ -141,7 +143,7 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
-	if result.Sessions < 1 || result.Invitations < 1 || result.APITokens < 1 || result.SCIMTokens < 1 || result.EmailVerifications < 1 || result.PasswordResets < 1 || result.Notifications < 1 ||
+	if result.Sessions < 1 || result.Invitations < 1 || result.APITokens < 1 || result.SCIMTokens < 1 || result.EmailVerifications < 1 || result.PasswordResets < 1 || result.InvitationHandoffs < 1 || result.Notifications < 1 ||
 		result.MFAChallenges < 1 ||
 		result.OIDCTransactions < 1 || result.Idempotency < 1 ||
 		result.RealtimeReplay < 1 || result.ClientRealtimeReplay < 1 || result.WebhookDeliveries < 1 || result.BackgroundJobs < 1 || result.PublicLinks < 1 || result.AuditEvents < 1 {
@@ -149,7 +151,8 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}
 	for table, key := range map[string]any{
 		"sessions": "session-old", "invitations": invitationID,
-		"api_tokens": tokenID, "scim_tokens": scimOldID, "oidc_transactions": "state-old",
+		"invitation_return_handoffs": "handoff-token-hash",
+		"api_tokens":                 tokenID, "scim_tokens": scimOldID, "oidc_transactions": "state-old",
 		"mfa_challenges":      "mfa-challenge-old",
 		"idempotency_records": "key-old", "item_events": eventOldID, "client_events": clientEventOldID,
 		"notifications":       notificationOldID,
@@ -160,6 +163,8 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		column := "id"
 		if table == "oidc_transactions" {
 			column = "state_hash"
+		} else if table == "invitation_return_handoffs" {
+			column = "token_hash"
 		} else if table == "idempotency_records" {
 			column = "key_hash"
 		}
