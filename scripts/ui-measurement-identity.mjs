@@ -59,6 +59,26 @@ try {
     ["public share unavailable", "/share/invalid-measurement-token"]]) {
     for (const cache of ["cold", "warm"]) await measure(publicPage, screen, path, cache);
   }
+  const invalidLoginPage = await anonymous.newPage();
+  await invalidLoginPage.goto("/login");
+  await invalidLoginPage.getByLabel("Email").fill("missing-user@example.com");
+  await invalidLoginPage.getByLabel("Password").fill("invalid-login-password-123");
+  const invalidLoginCDP = await invalidLoginPage.context().newCDPSession(invalidLoginPage);
+  await invalidLoginCDP.send("Network.enable");
+  const stopInvalidLoginNetwork = observeNetwork(invalidLoginCDP);
+  const invalidLoginStart = performance.now();
+  const invalidLoginResponse = invalidLoginPage.waitForResponse((response) =>
+    response.url().endsWith("/login") && response.request().method() === "POST");
+  await invalidLoginPage.getByRole("button", { name: "Sign in" }).click();
+  const invalidLoginStatus = (await invalidLoginResponse).status();
+  await invalidLoginPage.getByRole("alert").waitFor();
+  const invalidLogin = stopInvalidLoginNetwork();
+  assert.equal(invalidLoginStatus, 401, "invalid login status changed");
+  assert.ok(invalidLogin.requests > 0, "invalid login request metrics missing");
+  results.push({ interaction: "invalid login", status: invalidLoginStatus, ...invalidLogin,
+    feedbackMs: performance.now() - invalidLoginStart });
+  await invalidLoginCDP.detach();
+  await invalidLoginPage.close();
   const setupPage = await anonymous.newPage();
   for (const cache of ["cold", "warm"]) {
     await measure(setupPage, "setup", `${process.env.PLAYWRIGHT_SETUP_BASE_URL}/setup`, cache);
@@ -85,7 +105,7 @@ try {
     browser: `Chrome ${browser.version()}`, node: process.version,
     playwright: JSON.parse(readFileSync("node_modules/@playwright/test/package.json", "utf8")).version,
     fixture: "fresh isolated SQLite: one owner and workspace; zero notifications; no MFA, consent client, or valid public share token",
-    scenario: "anonymous and authenticated identity navigation plus notification SSE connection",
+    scenario: "anonymous and authenticated identity navigation, invalid login, and notification SSE connection",
     viewport: "1280x900, device scale 1", locale: "en-US", theme: "light",
     reducedMotion: "reduce", network: "unthrottled loopback", results }, null, 2));
   await context.close();

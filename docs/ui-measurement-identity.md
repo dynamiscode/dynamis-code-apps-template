@@ -13,13 +13,29 @@ The command uses fresh SQLite databases, synthetic owner credentials, loopback
 servers, Chrome 1280×900 at device scale 1, `en-US`, light theme, reduced motion,
 and unthrottled local requests. It reports one cold and one warm navigation for
 setup, login, password recovery, account, security, sessions, notifications,
-and the unavailable public-share page. It reports request counts, redirects,
+and the unavailable public-share page. It also measures one invalid login
+submission, including HTTP status, safe network aggregates, and time until the
+accessible error appears. It reports request counts, redirects,
 completed encoded bytes, unfinished requests, HTTP errors by safe class,
 transport failures, cache events, DOMContentLoaded and load timings. These are
 single observations; automation overhead and host load are not controlled.
 The output excludes URLs, headers, bodies, cookies, credentials and tokens.
 
 ## Single isolated run
+
+On 2026-11-17T18:56:59.035Z, commit `837c3dfa8784b716b3499de0301eee626d8ecf15`,
+Darwin 27.2.0 arm64, Node 26.10.0, Chrome 157.0.8103.79, and Playwright 1.64.1,
+the command completed using the fixture and browser conditions above. This
+supersedes the earlier navigation-only observation below. Counts and timings
+remain single unthrottled observations; timing values are milliseconds.
+
+| Interaction | Status | Requests | Encoded bytes | Feedback ms | HTTP errors |
+|---|---:|---:|---:|---:|---|
+| Invalid login | 401 | 4 | 95744 | 292.1 | One expected invalid-login response |
+
+The invalid login retained the form and displayed its accessible error alert.
+The runner prints no submitted values. The cold favicon returned 404 in the
+same isolated run; the invalid-login submission itself returned 401 as expected.
 
 On 2026-11-17T18:47:49.456Z, base commit
 `1c2ff7f59d106988976daf1370e52463f60d0896`, Darwin 27.2.0 arm64, Node
@@ -57,7 +73,7 @@ The browser's loading and failure feedback is not timed by this harness.
 | Screen or state | Evidence | Unmeasured |
 |---|---|---|
 | Setup | Cold/warm page navigation | Submission, validation, unavailable setup, and completion |
-| Login | Cold/warm page navigation | Valid/invalid submission, MFA challenge, OIDC, and auth failures |
+| Login | Cold/warm navigation; invalid submission status, request metrics, and accessible error feedback time | Valid submission, MFA challenge, OIDC, and other auth failures |
 | Password recovery | Cold/warm request page navigation | Submit, delivery, reset completion, invalid/expired token, and failures |
 | Account | Cold/warm authenticated navigation | Profile/password/email changes, validation, and deletion confirmation |
 | Security | Cold/warm authenticated navigation | MFA enrollment/removal, OIDC link, reauthentication, and errors |

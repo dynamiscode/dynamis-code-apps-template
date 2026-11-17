@@ -27,3 +27,19 @@ test("distinguishes HTTP errors from transport failures", () => {
   assert.equal(result.unfinished, 0);
   assert.equal(cdp.listenerCount("Network.responseReceived"), 0);
 });
+
+test("network metrics exclude request IDs, URLs, headers, and response content", () => {
+  const cdp = new EventEmitter();
+  const stop = observeNetwork(cdp);
+  cdp.emit("Network.requestWillBeSent", { requestId: "private-request-id", request: {
+    url: "http://localhost/login?private=secret", headers: { authorization: "secret" },
+  } });
+  cdp.emit("Network.responseReceived", { requestId: "private-request-id", type: "Document",
+    response: { status: 401, url: "http://localhost/login?private=secret", headers: { "set-cookie": "secret" } } });
+  cdp.emit("Network.loadingFinished", { requestId: "private-request-id", encodedDataLength: 42 });
+  const result = stop();
+  assert.equal(result.requests, 1);
+  assert.equal(result.httpErrors, 1);
+  assert.equal(result.completedEncodedBytes, 42);
+  assert.doesNotMatch(JSON.stringify(result), /private-request-id|secret|localhost|authorization|set-cookie/);
+});
