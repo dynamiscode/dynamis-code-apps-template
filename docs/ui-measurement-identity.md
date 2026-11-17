@@ -66,9 +66,21 @@ The browser's loading and failure feedback is not timed by this harness.
 | Public share | Cold/warm unavailable-token navigation | Valid, expired, revoked, rate-limited, and failure states |
 | MCP consent | None | Authenticated consent page, approve/deny, and failures |
 
-Issue #449 remains partial. The harness does not create MFA factors, a registered
-MCP client, or a valid public share token. Browser tests cover many states and
-security rules, but are not performance measurements. Add isolated synthetic
-state setup before measuring those interactions; map any product defects to
-their owning route issue. Do not infer budgets or claim full #439 coverage from
-this slice.
+Issue #449 remains partial. The harness does not create MFA factors, a
+registered MCP client, or a valid public share token. Browser tests cover many
+states and security rules, but are not performance measurements. The remaining
+measurement work maps to these route issues:
+
+| Gap | Owning route issue |
+|---|---|
+| Login MFA challenge and auth failures | [#420](https://github.com/dynamiscode/dynamis-code-apps-template/issues/420) |
+| MFA enrollment, removal, reauthentication, and linked identity | [#444](https://github.com/dynamiscode/dynamis-code-apps-template/issues/444) |
+| Account changes, validation, and deletion | [#443](https://github.com/dynamiscode/dynamis-code-apps-template/issues/443) |
+| Session revocation and expired/revoked states | [#445](https://github.com/dynamiscode/dynamis-code-apps-template/issues/445) |
+| Notification delivery, replay, reconnect, and failure feedback | [#429](https://github.com/dynamiscode/dynamis-code-apps-template/issues/429) |
+| Valid, expired, and revoked public share states | [#430](https://github.com/dynamiscode/dynamis-code-apps-template/issues/430) |
+| MCP consent approve/deny and failures | [#430](https://github.com/dynamiscode/dynamis-code-apps-template/issues/430) |
+
+Add isolated synthetic state setup before measuring these interactions. Map
+any product defects to their owning route issue. Do not infer budgets or claim
+full #439 coverage from this slice.
