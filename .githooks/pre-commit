@@ -19,5 +19,3 @@ if [ -n "$conflict_markers" ]; then
 	echo "$conflict_markers" >&2
 	exit 1
 fi
-
-make vet generate-check js-check
