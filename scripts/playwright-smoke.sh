@@ -126,6 +126,7 @@ fi
 
 if [ "${UI_MEASURE:-0}" != 1 ]; then
   env -i HOME="$work" TMPDIR="$work" MULTI_WORKSPACE_ENABLED=true \
+    HTTP_REQUESTS_PER_MINUTE=10000 HTTP_AUTH_REQUESTS_PER_MINUTE=1000 \
     DATABASE_DRIVER=sqlite SQLITE_PATH="$work/members.db" STORAGE_DRIVER=local STORAGE_LOCAL_PATH="$work/members-files" \
     HTTP_ADDRESS="127.0.0.1:$members_port" \
     "$work/server" >"$work/members-server.log" 2>&1 &

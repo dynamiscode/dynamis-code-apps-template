@@ -6,8 +6,23 @@ const password = process.env.PLAYWRIGHT_PASSWORD;
 const baseURL = process.env.PLAYWRIGHT_MEMBERS_BASE_URL || process.env.PLAYWRIGHT_BASE_URL;
 
 async function openWorkspaceMembers(page) {
-	await page.goto(new URL("/login", baseURL).href);
-	await page.getByLabel("Email").fill(email);
+	let loginResponse;
+	let loginNavigationFailed = false;
+	try {
+		loginResponse = await page.goto(new URL("/login", baseURL).href);
+	} catch {
+		loginNavigationFailed = true;
+	}
+	const emailField = page.getByLabel("Email");
+	const loginFormCount = await page.locator('form[action="/login"]').count();
+	const emailFieldCount = await emailField.count();
+	const passwordFieldCount = await page.getByLabel("Password").count();
+	const title = await page.title().catch(() => "");
+	const emailFieldVisible = emailFieldCount === 1 && await emailField.isVisible();
+	if (loginNavigationFailed || loginFormCount !== 1 || emailFieldCount !== 1 || passwordFieldCount !== 1 || !emailFieldVisible) {
+		throw new Error(`Members login page unexpected (HTTP ${loginResponse?.status() ?? 0}; title ${JSON.stringify(title)}; forms ${loginFormCount}; email fields ${emailFieldCount}; password fields ${passwordFieldCount}; email visible ${emailFieldVisible})`);
+	}
+	await emailField.fill(email);
 	await page.getByLabel("Password").fill(password);
 	await page.getByRole("button", { name: "Sign in" }).click();
 	await page.waitForURL(new URL("/", baseURL).href);
