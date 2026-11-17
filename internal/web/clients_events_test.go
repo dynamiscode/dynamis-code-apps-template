@@ -70,6 +70,11 @@ func TestClientEventsStreamRefusesOtherWorkspaces(t *testing.T) {
 	if refused.Code != http.StatusNotFound {
 		t.Fatalf("viewer stream for another workspace = %d, want 404", refused.Code)
 	}
+	refusedFragment := request(env.routes, http.MethodGet, "/workspaces/"+otherWorkspace.String()+"/clients", nil,
+		env.viewerCookies, map[string]string{"HX-Request": "true"})
+	if refusedFragment.Code != http.StatusNotFound {
+		t.Fatalf("viewer fragment for another workspace = %d, want 404", refusedFragment.Code)
+	}
 	missing := request(env.routes, http.MethodGet, "/workspaces/00000000000000000000000000000000/clients/events", nil, env.cookies, nil)
 	if missing.Code != http.StatusNotFound {
 		t.Fatalf("missing workspace stream = %d, want 404", missing.Code)

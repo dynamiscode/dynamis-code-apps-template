@@ -125,6 +125,26 @@ func TestClientsListShowsCreateFormOnlyToWriters(t *testing.T) {
 	}
 }
 
+func TestClientsListTemplShellLoadsRealtimeAssetsAndKeepsNativeForms(t *testing.T) {
+	env := newClientsTestEnv(t)
+	if err := env.auth.UpdateWorkspaceLocale(context.Background(), mustOwnerPrincipal(t, env), "es", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	page := request(env.routes, http.MethodGet, env.listPath(), nil, env.cookies, nil)
+	body := page.Body.String()
+	htmx := strings.Index(body, `<script defer src="/assets/htmx.min.js">`)
+	app := strings.Index(body, `<script defer src="/assets/app.js">`)
+	if page.Code != http.StatusOK || page.Header().Get("Content-Language") != "es" ||
+		!strings.Contains(body, `href="/assets/clients.css"`) || htmx < 0 || app <= htmx ||
+		!strings.Contains(body, `data-dirty-track`) || !strings.Contains(body, `method="get"`) ||
+		!strings.Contains(body, `method="post"`) || strings.Contains(body, `hx-get=`) || strings.Contains(body, `hx-post=`) {
+		t.Fatalf("Clients page contract: status=%d locale=%q css=%t htmx=%d app=%d dirty=%t get=%t post=%t hxGet=%t hxPost=%t",
+			page.Code, page.Header().Get("Content-Language"), strings.Contains(body, `href="/assets/clients.css"`), htmx, app,
+			strings.Contains(body, `data-dirty-track`), strings.Contains(body, `method="get"`), strings.Contains(body, `method="post"`),
+			strings.Contains(body, `hx-get=`), strings.Contains(body, `hx-post=`))
+	}
+}
+
 func TestClientCreateRedirectsToShortIDDetailAndShowsValues(t *testing.T) {
 	env := newClientsTestEnv(t)
 	created := request(env.routes, http.MethodPost, env.listPath(), url.Values{
@@ -167,6 +187,9 @@ func TestClientCreateRefusesBlankNameWithMessageAndRefusesViewer(t *testing.T) {
 	}, env.cookies, nil)
 	if badEmail.Code != http.StatusUnprocessableEntity || !strings.Contains(badEmail.Body.String(), "The email address is invalid.") {
 		t.Fatalf("bad email create = %d: %s", badEmail.Code, badEmail.Body.String())
+	}
+	if !strings.Contains(badEmail.Body.String(), `data-dirty-on-load`) || !strings.Contains(badEmail.Body.String(), `value="Ada &lt;ada@example.com&gt;"`) {
+		t.Fatalf("invalid draft was not returned as dirty: %s", badEmail.Body.String())
 	}
 	viewerWrite := request(env.routes, http.MethodPost, env.listPath(), url.Values{
 		"csrf": {env.viewerCSRF}, "display_name": {"Blocked"},
@@ -218,7 +241,8 @@ func TestClientLabelsFollowWorkspaceLocale(t *testing.T) {
 		t.Fatal(err)
 	}
 	response := request(env.routes, http.MethodGet, env.listPath(), nil, env.cookies, nil)
-	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Nombre para mostrar") {
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "<title>Clientes ·") ||
+		!strings.Contains(response.Body.String(), "Nombre para mostrar") {
 		t.Fatalf("Spanish list = %d, want Spanish labels: %s", response.Code, response.Body.String())
 	}
 }
