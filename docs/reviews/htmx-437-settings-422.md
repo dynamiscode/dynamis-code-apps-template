@@ -51,10 +51,10 @@ legacy templates or optional service fields.
   `scripts/playwright/settings.spec.mjs`.
 - Browser cases cover explicit saved light/dark preferences, general settings
   no-JavaScript success, email validation, and member read/permission states
-  when member fixture credentials are configured. SMTP, Resend, and Postmark
-  verification failures are covered by the focused Go handler/service tests,
-  not browser submissions. The browser suite does not exercise a configured
-  provider or induce a server failure.
+  with the disposable member fixture from `scripts/playwright-smoke.sh`. SMTP,
+  Resend, and Postmark verification failures are covered by focused Go
+  handler/service tests, not browser submissions. The browser suite does not
+  exercise a configured provider or induce a server failure.
 
 ## Checks
 
@@ -70,8 +70,8 @@ vulnerability, and workflow/security jobs. The accessibility job failed in
 light/dark screenshot assertions failed. Both expected 390x1736 and received
 390x1808; light differed by 62,726 pixels (9%), dark by 91,007 pixels (13%).
 Other settings screenshots, keyboard/axe, Spanish, and no-JavaScript settings
-checks passed. The member permission case skipped without fixture credentials;
-native member permission coverage remains unverified.
+checks passed. The member permission case skipped without fixture credentials
+on that head.
 
 The reviewed actuals show the same page content and controls, with one extra
 wrapped line in each of three email paragraphs, adding 72px total. The exact
@@ -79,11 +79,25 @@ resolved CI font was not recorded. The failure artifact contained only four
 email mobile actual/diff PNGs; actuals show synthetic `UI Baselines` and blank
 provider fields. The new Linux-only email mobile baselines are byte-identical
 copies of those reviewed actuals; all other snapshot names remain unchanged.
-The baseline adjustment has not yet run in CI.
+CI run `43994762188` on `dc5160b` passed all jobs, including accessibility.
+Its browser smoke had 31 passed and 3 skipped; Linux email screenshots passed,
+but the member permission case still skipped on that head.
+
+A browser smoke after rebasing onto `5aad441` passed 42 tests with 2
+notification skips. The member signed in, saw no email settings link, could not
+submit general settings, and received HTTP 403 for the email settings route.
+Items desktop/mobile screenshots, query navigation, dirty-form interactions,
+and no-JavaScript flows also passed. The disposable SQLite fixture uses the
+identity invitation flow; its database is removed by the smoke script.
 
 A prior Linux MCR run on `ee96147` passed 25 tests with one skip but did not
-reproduce this GitHub mismatch. A local `make accessibility-smoke` passed in
-English and Spanish on that earlier head. The mismatch remains unresolved
-until the updated head passes browser CI. Provider verification failures have
-focused Go coverage; the browser suite does not submit to a configured provider
-or induce a server failure.
+reproduce the GitHub screenshot mismatch. A local `make accessibility-smoke`
+passed in English and Spanish on that earlier head. Provider verification
+failures have focused Go coverage; the browser suite does not submit to a
+configured provider or induce a server failure. Updated-head CI remains pending
+for the member fixture. The branch was then rebased cleanly onto
+`5aad441cd9c6496d54638219c64932d0e6aa55bf`; `docs/web.md` retains the Items and
+notification sections, and `internal/web/handler.go` retains notification
+routes and the optional Clients/Files profile flags. The Items dirty-form swap
+and viewer write-denial coverage remain in the reconciled main files. CI for
+this reconciled head remains pending.
