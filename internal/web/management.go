@@ -191,10 +191,10 @@ func (h *Handler) invitationsPage(writer http.ResponseWriter, request *http.Requ
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, http.StatusOK, "invitations.html", pageData{
+	h.renderInvitationComponent(writer, request, http.StatusOK, pageData{
 		Title: "Invitations", NavPage: "invitations", NavSection: "settings", CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID),
 		Workspaces: workspaces, Invitations: invitations,
-	})
+	}, invitationManagementView)
 }
 
 func (h *Handler) invitationMutation(writer http.ResponseWriter, request *http.Request) {
@@ -244,6 +244,10 @@ func (h *Handler) invitationMutation(writer http.ResponseWriter, request *http.R
 		}
 		h.managementError(writer, request, workspaceID, "The invitation could not be found.")
 	case "revoke":
+		if request.FormValue("confirm_revoke") != "yes" {
+			h.managementError(writer, request, workspaceID, "Confirm invitation revocation to continue.")
+			return
+		}
 		if err := h.identity.RevokeInvitation(request.Context(), principal, invitationID, auditContext(request)); err != nil {
 			h.managementError(writer, request, workspaceID, "The invitation could not be revoked.")
 			return
@@ -269,11 +273,11 @@ func (h *Handler) renderInvitationResult(writer http.ResponseWriter, request *ht
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, http.StatusOK, "invitations.html", pageData{
+	h.renderInvitationComponent(writer, request, http.StatusOK, pageData{
 		Title: "Invitations", NavPage: "invitations", NavSection: "settings", CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID),
 		Workspaces: workspaces, Invitations: invitations, InvitationURL: link,
 		DeliveryWarning: warning,
-	})
+	}, invitationManagementView)
 }
 
 func (h *Handler) tokensPage(writer http.ResponseWriter, request *http.Request) {
@@ -807,6 +811,7 @@ func (h *Handler) securityMutation(writer http.ResponseWriter, request *http.Req
 }
 
 func (h *Handler) invitationPage(writer http.ResponseWriter, request *http.Request) {
+	setInvitationSecurityHeaders(writer)
 	h.renderInvitationPage(writer, request, http.StatusOK, "")
 }
 
@@ -821,10 +826,10 @@ func (h *Handler) renderInvitationPage(writer http.ResponseWriter, request *http
 		if errorKey == "" {
 			errorKey = "invitations.unavailable"
 		}
-		h.render(writer, status, "invitation.html", pageData{
+		h.renderInvitationComponent(writer, request, status, pageData{
 			Title: "Workspace invitation", InvitationSecret: secret,
-			ReturnTo: "/invitations/" + url.PathEscape(secret), ErrorKey: errorKey,
-		})
+			ErrorKey: errorKey,
+		}, invitationView)
 		return
 	}
 	csrf := ""
@@ -844,14 +849,15 @@ func (h *Handler) renderInvitationPage(writer http.ResponseWriter, request *http
 			h.setCookie(writer, "invitation_csrf", csrf, time.Now().Add(10*time.Minute), true)
 		}
 	}
-	h.render(writer, status, "invitation.html", pageData{
+	h.renderInvitationComponent(writer, request, status, pageData{
 		Title: "Workspace invitation", CSRF: csrf, Invitation: invitation,
 		InvitationSecret: secret, InvitationAuthenticated: authenticated,
-		ReturnTo: "/invitations/" + url.PathEscape(secret), ErrorKey: errorKey,
-	})
+		ErrorKey: errorKey,
+	}, invitationView)
 }
 
 func (h *Handler) invitationPost(writer http.ResponseWriter, request *http.Request) {
+	setInvitationSecurityHeaders(writer)
 	if err := request.ParseForm(); err != nil {
 		h.renderError(writer, http.StatusBadRequest)
 		return

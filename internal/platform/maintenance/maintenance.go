@@ -25,6 +25,7 @@ type Result struct {
 	APITokens            int64 `json:"apiTokens"`
 	SCIMTokens           int64 `json:"scimTokens"`
 	OIDCTransactions     int64 `json:"oidcTransactions"`
+	InvitationHandoffs   int64 `json:"invitationHandoffs"`
 	EmailVerifications   int64 `json:"emailVerifications"`
 	PasswordResets       int64 `json:"passwordResets"`
 	Idempotency          int64 `json:"idempotencyRecords"`
@@ -59,6 +60,7 @@ func Run(
 	}{
 		{"DELETE FROM idempotency_records WHERE expires_at <= ?", []any{stamp(now)}, &result.Idempotency},
 		{"DELETE FROM oidc_transactions WHERE expires_at <= ?", []any{stamp(now)}, &result.OIDCTransactions},
+		{"DELETE FROM invitation_return_handoffs WHERE expires_at <= ?", []any{stamp(now)}, &result.InvitationHandoffs},
 		{`DELETE FROM mfa_challenges WHERE expires_at <= ? OR
 			(consumed_at IS NOT NULL AND consumed_at <= ?)`, []any{stamp(now), stamp(now.Add(-transientRetention))}, &result.MFAChallenges},
 		{`DELETE FROM email_verifications WHERE expires_at <= ? OR
