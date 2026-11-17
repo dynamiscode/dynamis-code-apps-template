@@ -190,11 +190,13 @@ form submissions; the page does not load WebMCP or submit automatically.
 
 The workspace sidebar exposes `Home` above `Items` in the workspace context.
 Home is active at `/workspaces/{workspaceId}`. Settings uses the nested
-`/workspaces/{workspaceId}/settings` route and shows only its `Members & invitations`,
-`API tokens`, `Webhooks`, `Export`, and `Import` sub-items. Owners and admins also see
-`Provisioning (SCIM)` and `Audit history`. The Settings group is separated by
-flexible space and anchored at the bottom in the workspace context. The members screen and
-invitations screen retain local tabs behind the combined entry. In multi mode the Items page offers
+`/workspaces/{workspaceId}/settings` route and groups `General` under Setup,
+`Members & invitations`, `API tokens`, and `Webhooks` under Access, and `Export`
+under Activity. Owners and admins also see `Email` under Setup, `Provisioning
+(SCIM)` under Access, and `Import` and `Audit history` under Activity. The
+Settings group is separated by flexible space and anchored at the bottom in
+the workspace context. The members screen and invitations screen retain local
+tabs behind the combined entry. In multi mode the Items page offers
 `Back to Workspaces`, returning to the workspace selector; each Settings page offers
 `Back to home`, returning to the current workspace home. The native workspace switcher and account menu use ordinary
 `details` controls, so they work without JavaScript. In single mode the Items and Members screens show the workspace name as plain text
@@ -318,7 +320,9 @@ accessibility results and remaining limits are recorded in
 | Workspace files | `files.html` | Empty/list states, filters and paging, upload progress/success/error, download authorization |
 | `/sessions` | `sessions.templ`, `sessions_templ.go` | Current, active, expired and revoked status; revoke current or other active sessions; feedback and empty state |
 | `/notifications`, `/notifications/events` | `notifications.templ`, `notifications_templ.go` | Recipient-scoped list and unread count, empty state, CSRF-protected mark-read, initial cursor and SSE replay after reconnect |
-| Account and workspace settings | `account.html`, `audit-history.html`, `email-settings.html`, `export.html`, `general-settings.html`, `import.html`, `language.html`, `provisioning.html`, `security.html`, `tokens.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, redacted history, export/import entry, integration setup and failure, responsive navigation |
+| `/workspaces/{workspaceId}/settings/general` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Workspace locale and notification preferences, empty and saved states, invalid input and permission handling |
+| `/workspaces/{workspaceId}/settings/email` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Unconfigured/configured provider, saved state, validation, provider verification failure, redacted credentials and permission handling |
+| Account and workspace settings | `account.html`, `audit-history.html`, `export.html`, `import.html`, `language.html`, `provisioning.html`, `security.html`, `tokens.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, redacted history, export/import entry, integration setup and failure, responsive navigation |
 | Public and unavailable pages | `public-share.html`, `error.html` | Share projection and invalid/expired/revoked links, not-found and request errors |
 
 Corresponding route and handler tests cover server-rendered behavior.

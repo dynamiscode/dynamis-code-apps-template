@@ -42,8 +42,10 @@ type Handler struct {
 	identity        *identity.Service
 	items           *items.Service
 	clients         *clients.Service
+	clientsEnabled  bool
 	listPreferences *listprefs.Service
 	files           *appfiles.Service
+	filesEnabled    bool
 	sharing         *sharing.Service
 	webhooks        webhookManager
 	exporter        exporter

@@ -108,6 +108,7 @@ func fileQuerySuffix(values url.Values) string { return clientQuerySuffix(values
 
 func (h *Handler) EnableFilesPreferences(preferences *listprefs.Service) {
 	h.listPreferences = preferences
+	h.filesEnabled = h.files != nil
 }
 
 func (h *Handler) setFileColumn(writer http.ResponseWriter, request *http.Request) {
