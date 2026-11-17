@@ -207,6 +207,17 @@ requirement. Acceptance failures keep one safe message and advise checking the
 signed-in email or asking the inviter for a new link. Invalid, expired, revoked,
 and already-used links show the same recovery guidance.
 
+Existing-account sign-in starts with a CSRF-protected form on the invitation
+page. The server stores only the invitation ID and hashes of random handoff and
+browser-binding values for at most ten minutes, capped by invitation expiry.
+HttpOnly, SameSite=Lax cookies, Secure under HTTPS, bind that state to the
+browser. Local login, MFA, and OIDC return to the fixed
+`/invitations/continue` path; neither redirect nor handoff storage contains the
+raw invitation secret. Acceptance checks the
+signed-in account email and consumes the handoff in the same transaction as
+membership creation. Resend removes active handoffs; acceptance also rechecks
+current invitation status. Expired handoffs are pruned by maintenance.
+
 API tokens belong to one user and workspace. Their named scopes cannot exceed
 the creator's current permissions. Secrets are shown only by the creation
 result and stored as SHA-256 hashes. Expiration, scope changes, last use, role

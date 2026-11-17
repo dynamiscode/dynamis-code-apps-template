@@ -1091,6 +1091,24 @@ WebMCP exclusions remain in the existing handlers.
 - The isolated accessibility smoke server uses higher request limits so its complete route audit does not hit production defaults.
 - Not run: full `make test` and `make verify`.
 
+## Invitation return and acceptance evidence (2026-11-17)
+
+Ticket #421 stores invitation return state in the database as opaque,
+browser-bound hashes. The short-lived handoff stores the invitation ID, not its
+raw secret. Return targets use one fixed route; acceptance checks the invited
+account and consumes the handoff atomically with membership creation. Expiry,
+revocation, resend, replay, pruning, request-log redaction, CSRF, no-store, and
+no-JavaScript form behavior have regression coverage.
+
+- Passed: `make test` (34 browser unit tests and all Go packages), `make lint`,
+  `make test-postgres` (identity and file packages),
+  `go test -race ./internal/identity ./internal/web -count=1` (337 tests),
+  `make templ-check`, `make css-check`, and the isolated invitation Playwright
+  journey (no JavaScript).
+- Passed: invitation lifecycle model check (61 distinct states, no invariant
+  errors).
+- Not run: full `make verify`; `CHANGELOG.md` is aggregated at PR merge time.
+
 ## Import preview evidence (2026-11-15)
 
 Ticket #381 adds a read-only preview for bounded JSON and strict CSV item

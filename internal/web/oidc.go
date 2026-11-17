@@ -165,7 +165,11 @@ func (h *Handler) oidcCallback(writer http.ResponseWriter, request *http.Request
 			h.renderError(writer, http.StatusInternalServerError)
 			return
 		}
-		h.setMFAChallengeCookies(writer, challenge, "/")
+		returnTo := "/"
+		if h.invitationReturnActive(request) {
+			returnTo = invitationContinuePath
+		}
+		h.setMFAChallengeCookies(writer, challenge, returnTo)
 		h.clearCookie(writer, "oidc_browser")
 		h.redirect(writer, request, "/mfa")
 		return
@@ -178,6 +182,10 @@ func (h *Handler) oidcCallback(writer http.ResponseWriter, request *http.Request
 	h.setCookie(writer, "session", session.Secret, session.ExpiresAt, true)
 	h.setCookie(writer, "csrf", session.CSRFSecret, session.ExpiresAt, true)
 	h.clearCookie(writer, "oidc_browser")
+	if h.invitationReturnActive(request) {
+		h.redirect(writer, request, invitationContinuePath)
+		return
+	}
 	h.redirect(writer, request, "/")
 }
 

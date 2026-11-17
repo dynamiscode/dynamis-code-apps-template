@@ -381,6 +381,80 @@ func TestInvitationLifecycle(t *testing.T) {
 	}
 }
 
+func TestInvitationReturnHandoffIsBoundOneUseAndSecretFree(t *testing.T) {
+	service, db := newTestService(t)
+	ctx := context.Background()
+	bootstrap := bootstrapOwner(t, service)
+	owner := mustAuthorize(t, service, bootstrap.UserID, bootstrap.WorkspaceID, InvitationsManage)
+	invitation, err := service.CreateInvitation(ctx, owner, "handoff@example.com", Member, time.Hour, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handoff, err := service.BeginInvitationReturn(ctx, invitation.Secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if handoff.Token == "" || handoff.Binding == "" || !handoff.ExpiresAt.Before(invitation.ExpiresAt) ||
+		handoff.ExpiresAt.After(service.now().UTC().Add(invitationReturnLifetime)) {
+		t.Fatalf("handoff missing opaque values or expiry cap: token=%t binding=%t expiry_capped=%t", handoff.Token != "", handoff.Binding != "", handoff.ExpiresAt.Before(invitation.ExpiresAt))
+	}
+	assertDatabaseDoesNotContain(t, db, handoff.Token)
+	assertDatabaseDoesNotContain(t, db, handoff.Binding)
+	if _, err := service.InvitationForReturn(ctx, handoff.Token, "wrong-binding"); !errors.Is(err, ErrInvalidInvitation) {
+		t.Fatalf("wrong binding error = %v", err)
+	}
+	if _, err := service.InvitationForReturn(ctx, handoff.Token, handoff.Binding); err != nil {
+		t.Fatalf("InvitationForReturn() error = %v", err)
+	}
+	wrongUser := insertUser(t, service, db, "other@example.com")
+	if _, err := service.AcceptInvitationReturn(ctx, handoff.Token, handoff.Binding, wrongUser, AuditContext{}); !errors.Is(err, ErrInvalidInvitation) {
+		t.Fatalf("wrong account error = %v", err)
+	}
+	invitee := insertUser(t, service, db, "handoff@example.com")
+	if _, err := service.AcceptInvitationReturn(ctx, handoff.Token, handoff.Binding, invitee, AuditContext{}); err != nil {
+		t.Fatalf("AcceptInvitationReturn() error = %v", err)
+	}
+	if _, err := service.AcceptInvitationReturn(ctx, handoff.Token, handoff.Binding, invitee, AuditContext{}); !errors.Is(err, ErrInvalidInvitation) {
+		t.Fatalf("replay error = %v", err)
+	}
+}
+
+func TestInvitationReturnHandoffExpiresAndResendInvalidates(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := context.Background()
+	bootstrap := bootstrapOwner(t, service)
+	owner := mustAuthorize(t, service, bootstrap.UserID, bootstrap.WorkspaceID, InvitationsManage)
+	invitation, err := service.CreateInvitation(ctx, owner, "rotate@example.com", Member, time.Hour, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handoff, err := service.BeginInvitationReturn(ctx, invitation.Secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.ResendInvitation(ctx, owner, invitation.ID, time.Hour, AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.InvitationForReturn(ctx, handoff.Token, handoff.Binding); !errors.Is(err, ErrInvalidInvitation) {
+		t.Fatalf("resent handoff error = %v", err)
+	}
+	current, err := service.CreateInvitation(ctx, owner, "expiry@example.com", Member, time.Minute, AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	short, err := service.BeginInvitationReturn(ctx, current.Secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !short.ExpiresAt.Equal(current.ExpiresAt) {
+		t.Fatal("handoff outlives invitation")
+	}
+	service.now = func() time.Time { return short.ExpiresAt }
+	if _, err := service.InvitationForReturn(ctx, short.Token, short.Binding); !errors.Is(err, ErrInvalidInvitation) {
+		t.Fatalf("expired handoff error = %v", err)
+	}
+}
+
 func TestInvitationStatus(t *testing.T) {
 	t.Parallel()
 
@@ -1132,6 +1206,7 @@ func assertDatabaseDoesNotContain(t *testing.T, db *sql.DB, secret string) {
 		"SELECT secret_hash FROM invitations",
 		"SELECT secret_hash FROM api_tokens",
 		"SELECT secret_hash FROM scim_tokens",
+		"SELECT token_hash || binding_hash FROM invitation_return_handoffs",
 		"SELECT token_hash FROM email_verifications",
 		"SELECT token_hash FROM password_resets",
 		"SELECT state_hash || browser_session_hash || pkce_verifier_hash || nonce_hash FROM oidc_transactions",
@@ -1152,7 +1227,7 @@ func assertDatabaseDoesNotContain(t *testing.T, db *sql.DB, secret string) {
 			}
 			if strings.Contains(value, secret) {
 				rows.Close()
-				t.Fatalf("database contains secret %q", secret)
+				t.Fatal("database contains supplied secret")
 			}
 		}
 		if err := rows.Close(); err != nil {

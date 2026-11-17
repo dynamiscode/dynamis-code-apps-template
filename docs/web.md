@@ -90,8 +90,13 @@ Baseline browser surfaces:
   for owners/admins, and ownership transfer for owners only. The page exposes
   non-secret WebMCP form markers while leaving submission to the user.
 - `/workspaces/{workspaceId}/settings/invitations` creates, resends, revokes, and shows
-  copyable links. `/invitations/{secret}` accepts or registers an invitee with
-  safe invalid, expired, revoked, duplicate, and wrong-email failures.
+  copyable links. `/invitations/{secret}` registers an invitee or starts existing-account
+  sign-in through a CSRF-protected form. The server keeps only hashed, browser-bound
+  handoff state for up to ten minutes, then returns local, MFA, and OIDC sign-in to
+  `/invitations/continue`; the raw invitation secret stays out of redirects and logs.
+  Acceptance rechecks invitation status, matches the signed-in email, and consumes the
+  handoff atomically with membership creation. Invitation pages use `private, no-store`,
+  `no-referrer`, and `noindex` headers; forms work without JavaScript.
 - `/workspaces/{workspaceId}/settings/email` lets owners/admins save the workspace invitation sender, either SMTP, Resend, or Postmark. Saving runs a provider check first (an SMTP login test, a read-only Resend domain check, or a read-only Postmark server and domain check) and stores nothing on failure. The Resend and Postmark pages show setup steps and the sender domain status from the last save. The password or API key is never shown again, and a blank value keeps the stored one for the same provider. Members cannot view or change it.
 - `/workspaces/{workspaceId}/settings/tokens` manages current-user scoped tokens with
   CSRF-protected create and revoke forms. Creation shows its secret once; the
@@ -326,7 +331,8 @@ accessibility results and remaining limits are recorded in
 | `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.html`, `verification.html`, `mcp-consent.html`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge, verification success/unavailable, OAuth approval/denial |
 | `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | Empty/results states, filters, sorting and paging, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
 | Workspace clients and custom fields | `clients.templ`, `components.templ`, `workspace.templ`, `client.html`, `client-fields.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field lifecycle, realtime refresh |
-| Workspace members and invitations | `members.templ`, `members_templ.go`, `invitations.html`, `invitation.html` | Role changes, removal and ownership transfer, invitation create/resend/revoke, accepted and unavailable invitation |
+| Workspace members | `members.templ`, `members_templ.go` | Role changes, removal and ownership transfer |
+| `/workspaces/{workspaceId}/settings/invitations`, `/invitations/{secret}`, `/invitations/{secret}/sign-in`, `/invitations/continue` | `invitations.templ`, `invitations_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Create/resend/revoke with explicit revoke confirmation; registration, account-matched acceptance, sign-in return through MFA/OIDC, invalid/expired/unavailable states; ordinary form fallback |
 | `/workspaces/{workspaceId}/settings/audit` | `audit.templ`, `audit_templ.go`, `components.templ`, `components_templ.go` | Scoped redacted history, lazy table fragment, empty state, ordinary `?all=1` fallback, permission denial and expired-session redirect |
 | `/sessions` | `sessions.templ`, `sessions_templ.go` | Current, active, expired and revoked status; revoke current or other active sessions; feedback and empty state |
 | Workspace files | `files.templ`, `workspace.templ`, `navigation.templ`, `components.templ` | Empty/results, filters, sort, saved columns and paging; read-only viewer list/download; write-authorized multipart upload progress/success/validation/failure with no-JavaScript fallback; authorized downloads |
