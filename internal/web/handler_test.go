@@ -1255,13 +1255,20 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 	if withoutCSRF.Code != http.StatusForbidden {
 		t.Fatalf("SCIM missing CSRF = %d", withoutCSRF.Code)
 	}
+	invalidAction := request(handler, http.MethodPost, path, url.Values{
+		"action": {"invalid"}, "csrf": {session.CSRFSecret},
+	}, cookies, nil)
+	if invalidAction.Code != http.StatusUnprocessableEntity || invalidAction.Header().Get("Cache-Control") != "no-store" ||
+		!strings.Contains(invalidAction.Body.String(), "The requested SCIM action is invalid.") {
+		t.Fatalf("SCIM invalid-action state = %d, cache-control=%q, alert present=%v", invalidAction.Code, invalidAction.Header().Get("Cache-Control"), strings.Contains(invalidAction.Body.String(), `role="alert"`))
+	}
 	created := request(handler, http.MethodPost, path, url.Values{
 		"action": {"create"}, "csrf": {session.CSRFSecret},
 	}, cookies, nil)
 	secret := extractSCIMSecret(t, created.Body.String())
 	if created.Code != http.StatusOK || created.Header().Get("Cache-Control") != "no-store" ||
 		strings.Count(created.Body.String(), secret) != 1 || !strings.Contains(created.Body.String(), "Copy this credential now") || !strings.Contains(created.Body.String(), "Create a replacement to rotate") {
-		t.Fatalf("SCIM create = %d, headers=%v, body=%s", created.Code, created.Header(), created.Body.String())
+		t.Fatalf("SCIM create = %d, cache-control=%q, one-time secret markup valid=%v", created.Code, created.Header().Get("Cache-Control"), strings.Contains(created.Body.String(), "Copy this credential now"))
 	}
 	if _, err := auth.AuthenticateSCIMToken(context.Background(), secret, workspaceID); err != nil {
 		t.Fatalf("created SCIM credential = %v", err)
@@ -1282,7 +1289,7 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 	}
 	adminCookies := []*http.Cookie{{Name: "session", Value: adminSession.Secret}, {Name: "csrf", Value: adminSession.CSRFSecret}}
 	if adminPage := request(handler, http.MethodGet, path, nil, adminCookies, nil); adminPage.Code != http.StatusForbidden {
-		t.Fatalf("SCIM member page = %d, %s", adminPage.Code, adminPage.Body.String())
+		t.Fatalf("SCIM member page = %d", adminPage.Code)
 	}
 	ownerPrincipal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.MembersManage)
 	if err != nil {
@@ -1305,14 +1312,14 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	if adminPage := request(handler, http.MethodGet, path, nil, adminCookies, nil); adminPage.Code != http.StatusOK {
-		t.Fatalf("SCIM admin page = %d, %s", adminPage.Code, adminPage.Body.String())
+		t.Fatalf("SCIM admin page = %d", adminPage.Code)
 	}
 	adminCreated := request(handler, http.MethodPost, path, url.Values{
 		"action": {"create"}, "csrf": {adminSession.CSRFSecret},
 	}, adminCookies, nil)
 	adminSecret := extractSCIMSecret(t, adminCreated.Body.String())
 	if adminCreated.Code != http.StatusOK || strings.Count(adminCreated.Body.String(), adminSecret) != 1 {
-		t.Fatalf("SCIM admin create = %d, body=%s", adminCreated.Code, adminCreated.Body.String())
+		t.Fatalf("SCIM admin create = %d, one-time secret rendered once=%v", adminCreated.Code, strings.Count(adminCreated.Body.String(), adminSecret) == 1)
 	}
 	if _, err := auth.AuthenticateSCIMToken(context.Background(), secret, workspaceID); !errors.Is(err, identity.ErrInvalidToken) {
 		t.Fatalf("owner SCIM credential after admin rotation = %v", err)
@@ -1332,14 +1339,14 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 
 	page = request(handler, http.MethodGet, path, nil, cookies, nil)
 	if strings.Contains(page.Body.String(), secret) || strings.Contains(page.Body.String(), adminSecret) || strings.Contains(page.Body.String(), "SCIMTokenSecret") {
-		t.Fatalf("SCIM GET leaked secret: %s", page.Body.String())
+		t.Fatal("SCIM GET exposed a one-time secret")
 	}
 	rotated := request(handler, http.MethodPost, path, url.Values{
 		"action": {"create"}, "csrf": {session.CSRFSecret},
 	}, cookies, nil)
 	rotatedSecret := extractSCIMSecret(t, rotated.Body.String())
 	if rotated.Code != http.StatusOK || rotatedSecret == secret || strings.Count(rotated.Body.String(), rotatedSecret) != 1 || strings.Contains(rotated.Body.String(), secret) {
-		t.Fatalf("SCIM rotation = %d, body=%s", rotated.Code, rotated.Body.String())
+		t.Fatalf("SCIM rotation = %d, one-time secret rendered once=%v, old secret absent=%v", rotated.Code, strings.Count(rotated.Body.String(), rotatedSecret) == 1, !strings.Contains(rotated.Body.String(), secret))
 	}
 	if _, err := auth.AuthenticateSCIMToken(context.Background(), secret, workspaceID); !errors.Is(err, identity.ErrInvalidToken) {
 		t.Fatalf("old SCIM credential after rotation = %v", err)
@@ -1364,7 +1371,7 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 
 	wrongWorkspace := request(handler, http.MethodGet, "/workspaces/00000000000000000000000000000000/settings/provisioning", nil, cookies, nil)
 	if wrongWorkspace.Code != http.StatusNotFound || strings.Contains(wrongWorkspace.Body.String(), secret) || strings.Contains(wrongWorkspace.Body.String(), rotatedSecret) {
-		t.Fatalf("cross-workspace SCIM page = %d, %s", wrongWorkspace.Code, wrongWorkspace.Body.String())
+		t.Fatalf("cross-workspace SCIM page = %d, one-time secret absent=%v", wrongWorkspace.Code, !strings.Contains(wrongWorkspace.Body.String(), secret) && !strings.Contains(wrongWorkspace.Body.String(), rotatedSecret))
 	}
 }
 
@@ -1380,25 +1387,25 @@ func extractSCIMSecret(t *testing.T, body string) string {
 	warning := "Copy this credential now. It will not be shown again."
 	warningStart := strings.Index(body, warning)
 	if warningStart < 0 {
-		t.Fatalf("SCIM secret missing: %s", body)
+		t.Fatal("SCIM secret warning missing")
 	}
 	start := strings.Index(body[warningStart:], "<code")
 	if start < 0 {
-		t.Fatalf("SCIM secret missing: %s", body)
+		t.Fatal("SCIM secret code element missing")
 	}
 	start += warningStart
 	contentStart := strings.Index(body[start:], ">")
 	if contentStart < 0 {
-		t.Fatalf("SCIM secret element is malformed: %s", body)
+		t.Fatal("SCIM secret element is malformed")
 	}
 	start += contentStart + 1
 	end := strings.Index(body[start:], "</code>")
 	if end < 0 {
-		t.Fatalf("SCIM secret end missing: %s", body)
+		t.Fatal("SCIM secret element is not closed")
 	}
 	secret := body[start : start+end]
 	if secret == "" {
-		t.Fatalf("SCIM secret empty: %s", body)
+		t.Fatal("SCIM secret is empty")
 	}
 	return secret
 }
@@ -1504,7 +1511,8 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 	}
 	for _, page := range []string{workspaceRoot + "/settings/members", workspaceRoot + "/settings/invitations", workspaceRoot + "/settings/tokens", workspaceRoot + "/settings/provisioning", workspaceRoot + "/settings/export", workspaceRoot + "/settings/import", workspaceRoot + "/settings/audit"} {
 		body := request(handler, http.MethodGet, page, nil, cookies, nil).Body.String()
-		if strings.Contains(body, `>Items<`) || strings.Contains(body, `href="`+workspaceRoot+`/settings">Settings`) || strings.Contains(body, `<nav class="sidebar-nav" aria-label="Workspace navigation">`) || !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `API tokens`) || !strings.Contains(body, `>Export<`) || !strings.Contains(body, `href="`+workspaceRoot+`">← Back to home`) {
+		backLink := `<a class="sidebar-back" href="` + workspaceRoot + `">`
+		if strings.Contains(body, `>Items<`) || strings.Contains(body, `href="`+workspaceRoot+`/settings">Settings`) || strings.Contains(body, `<nav class="sidebar-nav" aria-label="Workspace navigation">`) || !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `API tokens`) || !strings.Contains(body, `>Export<`) || !strings.Contains(body, backLink) || !strings.Contains(body, "Back to home") {
 			t.Errorf("%s lacks expanded settings navigation", page)
 		}
 	}
