@@ -93,8 +93,10 @@ Baseline browser surfaces:
   copyable links. `/invitations/{secret}` accepts or registers an invitee with
   safe invalid, expired, revoked, duplicate, and wrong-email failures.
 - `/workspaces/{workspaceId}/settings/email` lets owners/admins save the workspace invitation sender, either SMTP, Resend, or Postmark. Saving runs a provider check first (an SMTP login test, a read-only Resend domain check, or a read-only Postmark server and domain check) and stores nothing on failure. The Resend and Postmark pages show setup steps and the sender domain status from the last save. The password or API key is never shown again, and a blank value keeps the stored one for the same provider. Members cannot view or change it.
-- `/workspaces/{workspaceId}/settings/tokens` manages current-user scoped tokens and
-  shows a new secret once.
+- `/workspaces/{workspaceId}/settings/tokens` manages current-user scoped tokens with
+  CSRF-protected create and revoke forms. Creation shows its secret once; the
+  no-store response gives replacement guidance. The page supports empty and
+  revoked-token states and the visible token-revoke WebMCP action.
 - `/workspaces/{workspaceId}/settings/webhooks` lists workspace webhook registrations,
   lets owners/admins create, rotate, and delete them, and shows redacted delivery
   history. Creation and rotation display the webhook secret once. When
@@ -106,8 +108,9 @@ Baseline browser surfaces:
 - `/workspaces/{workspaceId}/settings/provisioning` is restricted to workspace
   owners and admins. It shows the workspace SCIM endpoint and setup instructions,
   creates or rotates the dedicated SCIM credential with its secret shown once,
-  and revokes it through ordinary CSRF-protected forms. The page is no-store and
-  has no WebMCP enhancement; SCIM Users and Groups remain REST/IdP-only.
+  and revokes it through ordinary CSRF-protected forms with confirmation. The
+  page is no-store and has no WebMCP enhancement; SCIM Users and Groups remain
+  REST/IdP-only.
 - `/login`, `/setup`, password recovery, `/mfa`, and email verification share the generated app
   brand and compact responsive auth layout. Setup keeps required fields first
   and marks workspace language as deferrable. Sign-in, MFA, and setup remain
@@ -329,7 +332,7 @@ accessibility results and remaining limits are recorded in
 | `/workspaces/{workspaceId}/settings/general` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Workspace locale and notification preferences, empty and saved states, invalid input and permission handling |
 | `/workspaces/{workspaceId}/settings/email` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Unconfigured/configured provider, saved state, validation, provider verification failure, redacted credentials and permission handling |
 | `/notifications`, `/notifications/events` | `notifications.templ`, `notifications_templ.go` | Recipient-scoped list and unread count, empty state, CSRF-protected mark-read, initial cursor and SSE replay after reconnect |
-| Account and workspace settings | `account.html`, `export.html`, `import.html`, `language.html`, `provisioning.html`, `security.html`, `tokens.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, export/import entry, integration setup and failure, responsive navigation |
+| Account and workspace settings | `account.html`, `export.html`, `import.html`, `credential_settings.templ`, `credential_settings_templ.go`, `language.html`, `security.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, export/import entry, integration setup and failure, responsive navigation |
 | Public and unavailable pages | `public-share.html`, `error.html` | Share projection and invalid/expired/revoked links, not-found and request errors |
 
 Corresponding route and handler tests cover server-rendered behavior.
