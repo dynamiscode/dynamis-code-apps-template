@@ -107,7 +107,8 @@ Baseline browser surfaces:
   history. Creation and rotation display the webhook secret once. When
   neither `ENCRYPTION_KEY` nor `WEBHOOK_ENCRYPTION_KEY` is set, managers see an actionable warning and
   create/rotate controls are disabled. Stale form submissions keep the user on
-  this page with an inline error. Webhook IDs in paths and forms are short IDs;
+  this page with an inline error. Delete requires a localized confirmation
+  checkbox; the handler rejects unconfirmed submissions. Webhook IDs in paths and forms are short IDs;
   a malformed, integer, or unknown ID shows the not-found page for the history
   view and a "could not be found" message for rotate and delete.
 - `/workspaces/{workspaceId}/settings/provisioning` is restricted to workspace
@@ -160,9 +161,10 @@ Baseline browser surfaces:
   IDs return not-found. Uploads stream through the app for local and S3 storage;
   S3 downloads redirect to a short-lived private URL with no-store headers, and
   local downloads stream through the app. No HTMX fragment is used on Files.
-- `/workspaces/{workspaceId}/settings/export` presents the authorized export screen;
-  its `Download JSON` link downloads the export from
-  `/workspaces/{workspaceId}/settings/export/download`.
+- `/workspaces/{workspaceId}/settings/export` renders the authorized export
+  screen with templ; its ordinary `Download JSON` link downloads the export
+  from `/workspaces/{workspaceId}/settings/export/download`. The download is
+  synchronous, bounded, workspace-authorized, and sent with `no-store`.
 - `/workspaces/{workspaceId}/settings/import` previews one bounded JSON export
   or strict UTF-8 `title,status` CSV before import. Preview validates every
   record, shows the count, up to five sample records, and up to ten actionable
@@ -171,7 +173,9 @@ Baseline browser surfaces:
   its digest before importing. Confirmation rechecks session CSRF, workspace
   permission, file limits, and item quota, then creates all rows atomically.
   Duplicate titles remain separate new items. Both steps work without
-  JavaScript.
+  JavaScript and render through templ with shared form, table, and alert
+  components. Errors report safe categories and bounded row diagnostics without
+  echoing file contents.
 - `/workspaces/{workspaceId}/settings/audit` presents the authorized,
   read-only latest-100 audit history with redacted fields.
 - `/share/{token}` presents a read-only Item projection containing only title
@@ -339,15 +343,18 @@ accessibility results and remaining limits are recorded in
 | `/workspaces/{workspaceId}/settings/general` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Workspace locale and notification preferences, empty and saved states, invalid input and permission handling |
 | `/workspaces/{workspaceId}/settings/email` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Unconfigured/configured provider, saved state, validation, provider verification failure, redacted credentials and permission handling |
 | `/notifications`, `/notifications/events` | `notifications.templ`, `notifications_templ.go` | Recipient-scoped list and unread count, empty state, CSRF-protected mark-read, initial cursor and SSE replay after reconnect |
-| Account and workspace settings | `account.html`, `export.html`, `import.html`, `credential_settings.templ`, `credential_settings_templ.go`, `language.html`, `security.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, export/import entry, integration setup and failure, responsive navigation |
+| `/workspaces/{workspaceId}/settings/webhooks` and `/workspaces/{workspaceId}/settings/webhooks/{webhookId}/deliveries` | `webhooks.templ`, `webhooks_templ.go`, `components.templ`, `navigation.templ` | Permission-denied and unavailable states, one-time secret creation/rotation, required localized delete confirmation, no-store redacted delivery history, keyboard/accessibility, mobile light/dark themes, no-JS confirmation and ordinary form fallback |
+| Account and workspace settings | `account.html`, `credential_settings.templ`, `credential_settings_templ.go`, `language.html`, `security.html`, `navigation.html` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |
+| `/workspaces/{workspaceId}/settings/export`, `/workspaces/{workspaceId}/settings/export/download`, `/workspaces/{workspaceId}/settings/import` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Authorized no-store export page and JSON download; import file selection, bounded preview, safe validation feedback, explicit multipart confirmation, and atomic result; ordinary form fallback |
 | Public and unavailable pages | `public-share.html`, `error.html` | Share projection and invalid/expired/revoked links, not-found and request errors |
 
 Corresponding route and handler tests cover server-rendered behavior.
 `make ux-smoke` and `make accessibility-smoke` cover the browser paths they
 enumerate; [the accessibility evidence](accessibility.md) records that
-automated coverage. Workspace selection and workspace home use templ; the
-listed legacy views are an intentional exception to the migration target, not
-an exception to escaping, authorization, accessibility, localization, or
+automated coverage. Workspace selection, workspace home, audit history, API token
+and SCIM settings, webhook registry, and delivery history use templ; the remaining
+listed legacy views are an intentional exception to the migration target, not an
+exception to escaping, authorization, accessibility, localization, or
 ordinary-form requirements.
 
 ## WebMCP progressive enhancement
