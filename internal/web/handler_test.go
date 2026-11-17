@@ -348,6 +348,10 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	if preference.Code != http.StatusSeeOther {
 		t.Fatalf("notification preference status = %d", preference.Code)
 	}
+	preferences, err := auth.GetNotificationPreferences(context.Background(), owner.UserID, 0)
+	if err != nil || len(preferences) != 1 || preferences[0].NotificationType != "system" || preferences[0].Enabled {
+		t.Fatalf("saved notification preferences = %+v, %v", preferences, err)
+	}
 
 	notification, err := auth.CreateNotification(context.Background(), PrincipalSystem(), identity.NotificationInput{
 		RecipientUserID: owner.UserID, WorkspaceID: workspaceID, NotificationType: "workspace", Title: "Update", Body: "A workspace update",
