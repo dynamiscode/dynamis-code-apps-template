@@ -586,7 +586,7 @@ func TestSessionsPageExpiredAndSpanishEmptyStates(t *testing.T) {
 }
 
 func TestSecurityPageUsesTemplAndRetainsCredentialBoundaries(t *testing.T) {
-	handler, auth, _, _, owner := testWeb(t, 10)
+	handler, auth, _, _, owner := testWebWithMFA(t, 10, true)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -612,8 +612,8 @@ func TestSecurityPageUsesTemplAndRetainsCredentialBoundaries(t *testing.T) {
 	enrollment := request(handler, http.MethodPost, "/security/totp/start", url.Values{
 		"csrf": {session.CSRFSecret}, "password": {"long-enough-password"},
 	}, cookies, nil)
-	if enrollment.Code != http.StatusUnauthorized || !strings.Contains(enrollment.Body.String(), "Fresh authentication failed.") || strings.Contains(enrollment.Body.String(), session.Secret) {
-		t.Fatalf("disabled MFA enrollment response = %d, %s", enrollment.Code, enrollment.Body.String())
+	if enrollment.Code != http.StatusOK || !strings.Contains(enrollment.Body.String(), `id="security-heading"`) || !strings.Contains(enrollment.Body.String(), "Scan or enter this one-time authenticator setup value") || strings.Contains(enrollment.Body.String(), session.Secret) {
+		t.Fatalf("TOTP enrollment response = %d, %s", enrollment.Code, enrollment.Body.String())
 	}
 }
 
