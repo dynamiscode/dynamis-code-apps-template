@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import axe from "axe-core";
 
 const email = process.env.PLAYWRIGHT_EMAIL;
 const password = process.env.PLAYWRIGHT_PASSWORD;
@@ -18,6 +19,21 @@ async function openWorkspaceHome(page) {
   await openWorkspaceSelection(page);
   await page.locator(".cards a").first().click();
   await expect(page.locator("[data-workspace-home]")).toBeVisible();
+}
+
+async function openItems(page) {
+  await openWorkspaceHome(page);
+  await page.locator(".workspace-cards a[href$='/items']").first().click();
+  await expect(page.locator("#item-list")).toBeVisible();
+}
+
+async function injectAxe(page) {
+  const url = new URL("/__test/axe.js", process.env.PLAYWRIGHT_BASE_URL).href;
+  await page.route(url, (route) => route.fulfill({
+    contentType: "application/javascript",
+    body: axe.source,
+  }));
+  await page.addScriptTag({ url });
 }
 
 const screenshots = [
@@ -57,14 +73,186 @@ for (const screenshot of screenshots) {
   });
 }
 
+for (const screenshot of screenshots) {
+  test(`Items screenshot: ${screenshot.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: screenshot.width, height: screenshot.height });
+    await page.emulateMedia({ colorScheme: screenshot.colorScheme, reducedMotion: "reduce" });
+    await openItems(page);
+    await expect(page.getByRole("heading", { name: "Items", level: 1 })).toBeVisible();
+    await expect(page).toHaveScreenshot(`items-${screenshot.name}.png`, {
+      animations: "disabled",
+      fullPage: true,
+    });
+  });
+}
+
 test("workspace home opens Items and creates the first task", async ({ page }) => {
-  await openWorkspaceHome(page);
-  await page.locator(".workspace-cards a[href$='/items']").first().click();
-  await expect(page.locator("#item-list")).toBeVisible();
-  const title = "Playwright journey item";
-  await page.getByLabel("New item title").fill(title);
+  await openItems(page);
+  const create = async (title) => {
+    await page.getByLabel("New item title").fill(title);
+    await page.getByRole("button", { name: "Add item" }).click();
+    await expect(page.locator(`#item-list .item-list-view input[value="${title}"]`)).toBeVisible();
+  };
+  await create("Playwright first item");
+  await create("Playwright second item");
+
+  const source = page.locator('#item-list tr[data-item-row]:has(input[name="title"][value="Playwright second item"])');
+  const preserved = page.locator('#item-list tr[data-item-row]:has(input[name="title"][value="Playwright first item"])');
+  const sourceTitle = await source.locator('input[name="title"]').inputValue();
+  const preservedID = await preserved.getAttribute("data-item-row");
+  await source.locator('input[name="title"]').fill("Playwright updated item");
+  await preserved.locator('input[name="title"]').fill("Unsaved Playwright item");
+  await source.getByRole("button", { name: `Save ${sourceTitle}` }).click();
+
+  const updated = page.locator('#item-list tr[data-item-row]:has(input[name="title"][value="Playwright updated item"])');
+  const stillDirty = page.locator('#item-list tr[data-item-row]:has(input[name="title"][value="Playwright first item"])');
+  await expect(updated.locator('input[name="title"]')).toHaveValue("Playwright updated item");
+  await expect(stillDirty).toHaveAttribute("data-item-row", preservedID);
+  await expect(stillDirty.locator('input[name="title"]')).toHaveValue("Unsaved Playwright item");
+  await expect(stillDirty.locator("form[data-item-edit]")).toHaveAttribute("data-dirty", "true");
+
+  const invalidTitle = "x".repeat(201);
+  const updatedTitle = updated.locator('input[name="title"]');
+  await updatedTitle.evaluate((input) => input.removeAttribute("maxlength"));
+  await updatedTitle.fill(invalidTitle);
+  await updated.getByRole("button", { name: "Save Playwright updated item" }).click();
+  await expect(page.getByRole("alert")).toContainText("item values are invalid");
+  await expect(updatedTitle).toHaveValue(invalidTitle);
+
+  await updated.locator('input[name="version"]').evaluate((input) => { input.value = "0"; });
+  page.once("dialog", (dialog) => dialog.accept());
+  await updated.getByRole("button", { name: "Delete permanently Playwright updated item" }).click();
+  await expect(page.getByRole("alert")).toContainText("item version is invalid");
+  await expect(updated).toBeVisible();
+
+  await injectAxe(page);
+  const results = await page.evaluate(async () => axe.run(document.querySelector("#item-list")));
+  expect(results.violations).toEqual([]);
+});
+
+test("Items query navigation keeps native browser history", async ({ page }) => {
+  await openItems(page);
+  const basePath = new URL(page.url()).pathname;
+  await page.locator("details.client-filters summary").click();
+  await page.locator('input[name="search"]').fill("history marker");
+  await page.locator("form.client-query button[type=submit]").click();
+  await expect(page).toHaveURL(/search=history\+marker/);
+  await expect(page.locator('input[name="search"]')).toHaveValue("history marker");
+
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`${basePath}$`));
+  await expect(page.locator('input[name="search"]')).toHaveValue("");
+  await page.goForward();
+  await expect(page).toHaveURL(/search=history\+marker/);
+  await expect(page.locator('input[name="search"]')).toHaveValue("history marker");
+});
+
+test("Items create form drops overlapping HTMX submissions", async ({ page }) => {
+  await openItems(page);
+  let posts = 0;
+  let releaseRequest;
+  const requestGate = new Promise((resolve) => { releaseRequest = resolve; });
+  await page.route("**/workspaces/*/items", async (route) => {
+    if (route.request().method() === "POST") {
+      posts++;
+      await requestGate;
+    }
+    await route.continue();
+  });
+
+  await page.evaluate(() => {
+    const form = document.querySelector("form.create");
+    const values = Object.fromEntries(new FormData(form));
+    values.title = "One accepted submit";
+    htmx.ajax("POST", form.action, { source: form, target: "#item-list", swap: "outerHTML", values });
+    htmx.ajax("POST", form.action, { source: form, target: "#item-list", swap: "outerHTML", values });
+  });
+  await expect.poll(() => posts).toBe(1);
+  releaseRequest();
+  await expect(page.locator('#item-list input[name="title"][value="One accepted submit"]')).toBeVisible();
+  expect(posts).toBe(1);
+});
+
+test("Items autosave updates version before a later delete", async ({ page }) => {
+  await openItems(page);
+  await page.getByLabel("New item title").fill("Autosave seed");
   await page.getByRole("button", { name: "Add item" }).click();
-  await expect(page.locator(`#item-list .item-list-view input[value="${title}"]`)).toBeVisible();
+  const row = page.locator('#item-list tr[data-item-row]:has(input[name="title"][value="Autosave seed"])');
+  await expect(row).toBeVisible();
+  const createTitle = page.getByLabel("New item title");
+  await createTitle.fill("   ");
+  await createTitle.press("Enter");
+  await expect(page.locator(".error-summary")).toBeFocused();
+  await createTitle.fill("Unsaved create draft");
+  const rowID = await row.getAttribute("data-item-row");
+  const currentRow = page.locator(`#item-list tr[data-item-row="${rowID}"]`);
+  await currentRow.locator('input[name="title"]').fill("Autosave updated");
+  await currentRow.locator('select[name="status"]').evaluate((select) => {
+    select.value = "complete";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await expect(currentRow.locator('input[name="version"]')).toHaveValue("2");
+  await expect(currentRow.locator('input[name="title"]')).toHaveValue("Autosave updated");
+  await expect(createTitle).toHaveValue("Unsaved create draft");
+  await expect(page.locator(".error-summary")).toBeVisible();
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await currentRow.getByRole("button", { name: "Delete permanently Autosave updated" }).click();
+  await expect(currentRow).toHaveCount(0);
+});
+
+test("Spanish Items list passes axe", async ({ page }) => {
+  await openItems(page);
+  const path = new URL(page.url()).pathname;
+  await page.goto(`/language?locale=es&return_to=${encodeURIComponent(path)}`);
+  await expect(page.locator("html")).toHaveAttribute("lang", "es");
+  await expect(page.getByRole("heading", { name: "Elementos", level: 1 })).toBeVisible();
+  await expect(page.getByLabel("Título del nuevo elemento")).toBeVisible();
+
+  await injectAxe(page);
+  const results = await page.evaluate(async () => axe.run(document.querySelector("#item-list")));
+  expect(results.violations).toEqual([]);
+});
+
+test("Items honors explicit and system theme preferences", async ({ page }) => {
+  await openItems(page);
+  const path = new URL(page.url()).pathname;
+  const cases = [
+    { theme: "light", colorScheme: "dark", canvas: "#f3f6fa" },
+    { theme: "dark", colorScheme: "light", canvas: "#111826" },
+    { theme: "system", colorScheme: "light", canvas: "#f3f6fa" },
+    { theme: "system", colorScheme: "dark", canvas: "#111826" },
+  ];
+
+  for (const item of cases) {
+    await page.goto("/account");
+    const theme = page.locator("#account-theme");
+    if (await theme.inputValue() !== item.theme) {
+      await theme.selectOption(item.theme);
+      await page.locator('form[action="/account/profile"] button[type=submit]').click();
+      await expect(page).toHaveURL(/saved=1/);
+    }
+    await page.emulateMedia({ colorScheme: item.colorScheme });
+    await page.goto(path);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", item.theme);
+    const canvas = await page.locator("html").evaluate((element) => getComputedStyle(element).getPropertyValue("--canvas").trim());
+    expect(canvas).toBe(item.canvas);
+  }
+});
+
+test.describe("Items without JavaScript", () => {
+  test.use({ javaScriptEnabled: false });
+
+  test("creates and edits with ordinary forms", async ({ page }) => {
+    await openItems(page);
+    await page.getByLabel("New item title").fill("No JavaScript item");
+    await page.getByRole("button", { name: "Add item" }).click();
+    const item = page.locator('#item-list tr[data-item-row]:has(input[name="title"][value="No JavaScript item"])');
+    await expect(item).toBeVisible();
+    await item.locator('input[name="title"]').fill("No JavaScript edit");
+    await item.getByRole("button", { name: "Save No JavaScript item" }).click();
+    await expect(page.locator('#item-list input[name="title"][value="No JavaScript edit"]')).toBeVisible();
+  });
 });
 
 test.describe("workspace selection without JavaScript", () => {
