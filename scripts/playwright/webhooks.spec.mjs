@@ -143,7 +143,7 @@ test.describe("webhook registry viewport screenshots", () => {
         expect(await card.locator(".webhook-secret").count()).toBe(0);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
         const snapshot = process.platform === "linux" &&
-          (view.name.startsWith("desktop-") || view.name === "mobile-light")
+          (view.name.startsWith("desktop-") || view.name === "mobile-light" || view.name === "mobile-dark")
           ? `webhooks-${view.name}-linux.png`
           : `webhooks-${view.name}.png`;
         await expect(page).toHaveScreenshot(snapshot, {
