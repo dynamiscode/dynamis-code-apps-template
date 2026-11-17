@@ -3,7 +3,7 @@ package web
 import "strings"
 
 templ securityPage(data pageData) {
-	@dashboardShell(data, sessionsHeader(data), nil) {
+	@dashboardShell(data, accountHeader(data), nil) {
 		<div class="account-page" data-account-page aria-labelledby="security-heading">
 			<header class="account-heading">
 				<p class="eyebrow">{ data.T("common.account") }</p>
