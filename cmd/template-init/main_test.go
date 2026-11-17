@@ -238,6 +238,14 @@ func TestGenerateWithoutAgentPrunesAgentSurfaceAndBuilds(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(output, "internal/identity")); err != nil {
 		t.Fatalf("generated Identity package missing: %v", err)
 	}
+	settingsPages, err := os.ReadFile(filepath.Join(output, "internal/web/settings_pages.go"))
+	if err != nil || !strings.Contains(string(settingsPages), "h.filesEnabled") ||
+		!strings.Contains(string(settingsPages), "h.clientsEnabled") ||
+		strings.Contains(string(settingsPages), "h.template.Lookup") ||
+		strings.Contains(string(settingsPages), "h.files ") || strings.Contains(string(settingsPages), "h.files.") ||
+		strings.Contains(string(settingsPages), "h.clients ") || strings.Contains(string(settingsPages), "h.clients.") {
+		t.Fatalf("generated settings renderer must use stable optional-feature flags without optional handler fields: error = %v", err)
+	}
 	readme, err := os.ReadFile(filepath.Join(output, "README.md"))
 	if err != nil || strings.Contains(string(readme), "MCP:") || strings.Contains(string(readme), "cmd/appctl") {
 		t.Fatalf("generated README retains Agent interface: %q, error = %v", readme, err)

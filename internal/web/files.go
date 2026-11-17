@@ -109,6 +109,7 @@ func fileQuerySuffix(values url.Values) string { return clientQuerySuffix(values
 
 func (h *Handler) EnableFilesPreferences(preferences *listprefs.Service) {
 	h.listPreferences = preferences
+	h.filesEnabled = h.files != nil
 }
 
 func (h *Handler) setFileColumn(writer http.ResponseWriter, request *http.Request) {
@@ -222,7 +223,7 @@ func (h *Handler) renderFilesPage(writer http.ResponseWriter, request *http.Requ
 }
 
 func (h *Handler) renderFilesTempl(writer http.ResponseWriter, request *http.Request, status int, data pageData, canUpload bool) {
-	data.FilesEnabled = h.files != nil
+	data.FilesEnabled = h.filesEnabled
 	data.ClientsEnabled = h.clients != nil
 	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
 	h.localizePage(writer, &data)

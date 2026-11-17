@@ -120,9 +120,9 @@ func (h *Handler) renderEmailSettings(
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, status, "email-settings.html", pageData{
+	h.renderSettingsPage(writer, request, status, pageData{
 		Title: "Email", NavPage: "email", NavSection: "settings", Error: message, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		EmailSettings: settings, EmailSaved: saved, EmailLoginReason: loginReason,
-	})
+	}, emailSettingsView)
 }

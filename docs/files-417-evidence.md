@@ -6,6 +6,9 @@ Issue: [#417](https://github.com/dynamiscode/dynamis-code-apps-template/issues/4
 
 - `GET /workspaces/{workspaceId}/files` renders the Files page with the shared
   templ dashboard shell, DaisyUI form controls, and responsive table/card list.
+- The Files route copies `Handler.filesEnabled` into the shared navigation
+  data. Optional feature navigation uses this always-present capability flag,
+  so generated profiles do not inspect pruned handler fields or templates.
 - Query filters, sort links, saved columns, and cursor pagination remain ordinary
   GET links and CSRF-protected POST forms.
 - `POST /workspaces/{workspaceId}/files` keeps one CSRF-protected multipart
@@ -57,10 +60,12 @@ Passed:
   '^TestGenerateWithoutFilesPrunesFilesTemplAndBuilds$' -count=1` passed.
   The regression checks that Files routes, evidence, browser spec, and
   screenshot baselines are pruned. Generated no-Files application build passed.
+- Files omitted, Core+Identity omitted, Clients enabled, and Clients omitted
+  generated-profile tests passed after integrating the stable feature flags.
 - Focused Files route, upload-state, templ drift, Playwright syntax, and diff
   checks passed.
 
-Pending: full `make test`, race suite, `make verify`, and combined Files plus
-Clients generated-profile tests after #415/#422 integration. Synthetic browser
-progress validates uploader UI transitions; it does not measure native network
-byte reporting.
+Pending: combined Files plus Clients generated-profile coverage from #415, then
+full `make test`, race suite, and `make verify` after final base integration.
+Synthetic browser progress validates uploader UI transitions; it does not
+measure native network-byte reporting.
