@@ -1157,6 +1157,10 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = itemsList(data).Render(context.Background(), writer)
 		return
 	}
+	if name == "webhooks.html" {
+		_ = webhooksPage(data).Render(context.Background(), writer)
+		return
+	}
 	if name == "home.html" {
 		_ = workspaceSelection(data).Render(context.Background(), writer)
 		return
