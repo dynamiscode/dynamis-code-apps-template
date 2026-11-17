@@ -1070,25 +1070,59 @@ func TestWebAuditHistoryIsScopedRedactedAndNotWebMCP(t *testing.T) {
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	auditPath := "/workspaces/" + workspaceID.String() + "/settings/audit"
 	shell := request(handler, http.MethodGet, auditPath, nil, cookies, nil)
-	if shell.Code != http.StatusOK || !strings.Contains(shell.Body.String(), `data-lazy-src="`+auditPath+`?part=table"`) ||
-		!strings.Contains(shell.Body.String(), `href="`+auditPath+`?all=1"`) || strings.Contains(shell.Body.String(), "test.audit.visible") {
-		t.Fatalf("lazy audit shell = %d, %s", shell.Code, shell.Body.String())
+	if shell.Code != http.StatusOK {
+		t.Fatalf("lazy audit shell status = %d", shell.Code)
+	}
+	for _, marker := range []string{`data-lazy-src="` + auditPath + `?part=table"`, `href="` + auditPath + `?all=1"`} {
+		if !strings.Contains(shell.Body.String(), marker) {
+			t.Errorf("lazy audit shell missing marker %q", marker)
+		}
+	}
+	if strings.Contains(shell.Body.String(), "test.audit.visible") {
+		t.Error("lazy audit shell rendered history before fragment request")
 	}
 	fragment := request(handler, http.MethodGet, auditPath+"?part=table", nil, cookies, map[string]string{"HX-Request": "true"})
-	if fragment.Code != http.StatusOK || !strings.HasPrefix(fragment.Body.String(), `<div id="audit-table">`) ||
-		!strings.Contains(fragment.Body.String(), "test.audit.visible") || strings.Contains(fragment.Body.String(), "198.51.100.9") {
-		t.Fatalf("audit fragment = %d, %s", fragment.Code, fragment.Body.String())
+	if fragment.Code != http.StatusOK {
+		t.Fatalf("audit fragment status = %d", fragment.Code)
+	}
+	for _, marker := range []string{
+		`<div id="audit-table">`, "test.audit.visible", `tabindex="0"`, `role="region"`, `aria-label="Audit history"`,
+	} {
+		if !strings.Contains(fragment.Body.String(), marker) {
+			t.Errorf("audit fragment missing marker %q", marker)
+		}
+	}
+	if strings.Contains(fragment.Body.String(), "198.51.100.9") {
+		t.Error("audit fragment exposed source address")
 	}
 	page := request(handler, http.MethodGet, auditPath+"?all=1", nil, cookies, nil)
 	body := page.Body.String()
-	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" ||
-		!strings.Contains(body, "Audit history") || !strings.Contains(body, "test.audit.visible") ||
-		!strings.Contains(body, "audit.visible") || strings.Contains(body, "request-secret") || strings.Contains(body, "198.51.100.9") ||
-		strings.Contains(body, "invite-secret") || strings.Contains(body, "example.test") || strings.Contains(body, "signed-secret") ||
-		strings.Contains(body, "/assets/app.js") || strings.Contains(body, "data-webmcp-page") {
-		t.Fatalf("audit page = %d, headers=%v, body=%s", page.Code, page.Header(), body)
+	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("audit page status/cache = %d, %q", page.Code, page.Header().Get("Cache-Control"))
+	}
+	for _, visible := range []string{"Audit history", "test.audit.visible", "audit.visible"} {
+		if !strings.Contains(body, visible) {
+			t.Errorf("audit page missing marker %q", visible)
+		}
+	}
+	for _, secret := range []string{"request-secret", "invite-secret", "example.test", "signed-secret", "198.51.100.9"} {
+		if strings.Contains(body, secret) {
+			t.Errorf("audit page exposed forbidden marker %q", secret)
+		}
+	}
+	if strings.Contains(body, "/assets/app.js") {
+		t.Error("audit page exposes WebMCP actions")
 	}
 	assertAccessiblePage(t, body, "Audit history")
+	for _, marker := range []string{`tabindex="0"`, `role="region"`, `aria-label="Audit history"`} {
+		if !strings.Contains(body, marker) {
+			t.Errorf("audit table missing accessibility marker %q", marker)
+		}
+	}
+	expired := request(handler, http.MethodGet, auditPath+"?part=table", nil, []*http.Cookie{{Name: "session", Value: "expired"}}, map[string]string{"HX-Request": "true"})
+	if expired.Code != http.StatusSeeOther || expired.Header().Get("Location") != "/login" {
+		t.Fatalf("expired audit fragment = %d, location=%q", expired.Code, expired.Header().Get("Location"))
+	}
 
 	invitations, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.InvitationsManage)
 	if err != nil {
@@ -1110,13 +1144,14 @@ func TestWebAuditHistoryIsScopedRedactedAndNotWebMCP(t *testing.T) {
 		{Name: "session", Value: viewerSession.Secret}, {Name: "csrf", Value: viewerSession.CSRFSecret},
 	}, nil)
 	if viewerResponse.Code != http.StatusForbidden {
-		t.Fatalf("viewer audit page = %d, %s", viewerResponse.Code, viewerResponse.Body.String())
+		t.Fatalf("viewer audit page = %d, want %d", viewerResponse.Code, http.StatusForbidden)
 	}
 	viewerSettings := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/members", nil, []*http.Cookie{
 		{Name: "session", Value: viewerSession.Secret}, {Name: "csrf", Value: viewerSession.CSRFSecret},
 	}, nil)
-	if viewerSettings.Code != http.StatusOK || strings.Contains(viewerSettings.Body.String(), "/settings/audit") {
-		t.Fatalf("viewer settings navigation = %d, %s", viewerSettings.Code, viewerSettings.Body.String())
+	viewerAuditLink := strings.Contains(viewerSettings.Body.String(), "/settings/audit")
+	if viewerSettings.Code != http.StatusOK || viewerAuditLink {
+		t.Fatalf("viewer settings navigation: status=%d audit_link=%t", viewerSettings.Code, viewerAuditLink)
 	}
 
 	otherWorkspace, err := auth.CreateWorkspace(ctx, identity.Principal{
@@ -1127,7 +1162,53 @@ func TestWebAuditHistoryIsScopedRedactedAndNotWebMCP(t *testing.T) {
 	}
 	crossWorkspace := request(handler, http.MethodGet, "/workspaces/"+otherWorkspace.String()+"/settings/audit", nil, cookies, nil)
 	if crossWorkspace.Code != http.StatusNotFound {
-		t.Fatalf("cross-workspace audit page = %d, %s", crossWorkspace.Code, crossWorkspace.Body.String())
+		t.Fatalf("cross-workspace audit page = %d, want %d", crossWorkspace.Code, http.StatusNotFound)
+	}
+}
+
+func TestAuditHistoryUsesProfileLocaleAndThemes(t *testing.T) {
+	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	path := "/workspaces/" + workspaceID.String() + "/settings/audit?all=1"
+	for _, theme := range []string{"light", "dark", "system"} {
+		if err := auth.UpdateUserProfile(context.Background(), owner.UserID, identity.ProfileUpdateInput{
+			Locale: "es", Timezone: "America/Bogota", Theme: theme,
+		}, identity.AuditContext{}); err != nil {
+			t.Fatal(err)
+		}
+		response := request(handler, http.MethodGet, path, nil, cookies, nil)
+		body := response.Body.String()
+		spanish := hasHTMLRootLang(body, "es")
+		localized := response.Header().Get("Content-Language") == "es"
+		themed := strings.Contains(body, `data-theme="`+theme+`"`)
+		if response.Code != http.StatusOK || !spanish || !localized || !themed {
+			t.Errorf("audit document theme=%q: status=%d spanish=%t localized=%t themed=%t",
+				theme, response.Code, spanish, localized, themed)
+		}
+	}
+}
+
+func TestAuditTableRendersEmptyStateInBothLocales(t *testing.T) {
+	catalog, err := i18n.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, locale := range []string{"en", "es"} {
+		data := pageData{Locale: locale, Catalog: catalog}
+		var output strings.Builder
+		if err := auditTable(data).Render(context.Background(), &output); err != nil {
+			t.Fatalf("render empty audit table for locale %q: %v", locale, err)
+		}
+		html := output.String()
+		container := strings.Contains(html, `<div id="audit-table">`)
+		emptyState := strings.Contains(html, data.T("audit.none"))
+		if !container || !emptyState {
+			t.Errorf("empty audit table locale=%q: container=%t empty_state=%t", locale, container, emptyState)
+		}
 	}
 }
 
