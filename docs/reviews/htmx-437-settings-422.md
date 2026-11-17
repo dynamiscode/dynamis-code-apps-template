@@ -83,11 +83,12 @@ CI run `43994762188` on `dc5160b` passed all jobs, including accessibility.
 Its browser smoke had 31 passed and 3 skipped; Linux email screenshots passed,
 but the member permission case still skipped on that head.
 
-A local browser smoke after adding a disposable SQLite member fixture passed
-32 tests with 2 unrelated notification skips. The member signed in, saw no
-email settings link, could not submit general settings, and received HTTP 403
-for the email settings route. The fixture uses the identity invitation flow;
-its database is temporary and removed by the smoke script.
+A browser smoke after rebasing onto `5aad441` passed 42 tests with 2
+notification skips. The member signed in, saw no email settings link, could not
+submit general settings, and received HTTP 403 for the email settings route.
+Items desktop/mobile screenshots, query navigation, dirty-form interactions,
+and no-JavaScript flows also passed. The disposable SQLite fixture uses the
+identity invitation flow; its database is removed by the smoke script.
 
 A prior Linux MCR run on `ee96147` passed 25 tests with one skip but did not
 reproduce the GitHub screenshot mismatch. A local `make accessibility-smoke`
