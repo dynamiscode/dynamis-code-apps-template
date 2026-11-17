@@ -51,10 +51,10 @@ legacy templates or optional service fields.
   `scripts/playwright/settings.spec.mjs`.
 - Browser cases cover explicit saved light/dark preferences, general settings
   no-JavaScript success, email validation, and member read/permission states
-  when member fixture credentials are configured. SMTP, Resend, and Postmark
-  verification failures are covered by the focused Go handler/service tests,
-  not browser submissions. The browser suite does not exercise a configured
-  provider or induce a server failure.
+  with the disposable member fixture from `scripts/playwright-smoke.sh`. SMTP,
+  Resend, and Postmark verification failures are covered by focused Go
+  handler/service tests, not browser submissions. The browser suite does not
+  exercise a configured provider or induce a server failure.
 
 ## Checks
 
@@ -94,4 +94,9 @@ reproduce the GitHub screenshot mismatch. A local `make accessibility-smoke`
 passed in English and Spanish on that earlier head. Provider verification
 failures have focused Go coverage; the browser suite does not submit to a
 configured provider or induce a server failure. Updated-head CI remains pending
-for the member fixture and latest-main reconciliation.
+for the member fixture. The branch was then rebased cleanly onto
+`5aad441cd9c6496d54638219c64932d0e6aa55bf`; `docs/web.md` retains the Items and
+notification sections, and `internal/web/handler.go` retains notification
+routes and the optional Clients/Files profile flags. The Items dirty-form swap
+and viewer write-denial coverage remain in the reconciled main files. CI for
+this reconciled head remains pending.
