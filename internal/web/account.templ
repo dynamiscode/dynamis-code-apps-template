@@ -101,7 +101,7 @@ templ accountPage(data pageData) {
 						<h2>{ data.T("account.notifications") }</h2>
 						<p><a href="/notifications">{ data.T("account.view_notifications") }</a></p>
 						for _, preference := range data.NotificationPreferences {
-							<p>{ preference.NotificationType }: { data.T(accountNotificationState(preference.Enabled)) }</p>
+							<p>{ workspaceNotificationLabel(data, preference.NotificationType) }: { accountNotificationState(data, preference.Enabled) }</p>
 						}
 						<form action="/account/notifications" method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
@@ -132,9 +132,9 @@ templ accountPage(data pageData) {
 	</html>
 }
 
-func accountNotificationState(enabled bool) string {
+func accountNotificationState(data pageData, enabled bool) string {
 	if enabled {
-		return "account.enabled"
+		return data.T("account.enabled")
 	}
-	return "account.disabled"
+	return data.T("account.disabled")
 }
