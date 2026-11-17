@@ -185,7 +185,7 @@ func (h *Handler) languageSettingsPage(writer http.ResponseWriter, request *http
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, http.StatusOK, "language.html", pageData{
+	h.render(writer, http.StatusOK, "language-page", pageData{
 		Title: "Language settings", NavPage: "language", CSRF: csrf, UserLocale: locale,
 		Saved: request.URL.Query().Get("saved") == "1",
 	})
@@ -207,7 +207,8 @@ func (h *Handler) languageSettings(writer http.ResponseWriter, request *http.Req
 	locale := strings.TrimSpace(request.FormValue("locale"))
 	if locale != "" {
 		if _, ok := i18n.ParseLocale(locale); !ok {
-			h.render(writer, http.StatusUnprocessableEntity, "language.html", pageData{Title: "Language settings", CSRF: csrf, Error: "The selected language is invalid."})
+			currentLocale, _ := h.identity.GetUserLocale(request.Context(), session.UserID)
+			h.render(writer, http.StatusUnprocessableEntity, "language-page", pageData{Title: "Language settings", NavPage: "language", CSRF: csrf, UserLocale: currentLocale, Error: "The selected language is invalid."})
 			return
 		}
 	}

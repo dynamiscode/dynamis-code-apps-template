@@ -326,6 +326,16 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	if profile, err := auth.GetUserProfile(context.Background(), owner.UserID); err != nil || profile.DisplayName != "Owner" || profile.Timezone != "America/Bogota" || profile.Theme != "dark" {
 		t.Fatalf("profile = %+v, %v", profile, err)
 	}
+	invalidProfile := request(handler, http.MethodPost, "/account/profile", url.Values{
+		"csrf": {session.CSRFSecret}, "display_name": {"Owner"}, "locale": {"es"},
+		"timezone": {"Not/A_Timezone"}, "theme": {"dark"},
+	}, cookies, nil)
+	if invalidProfile.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidProfile.Body.String(), "La configuración de cuenta no es válida.") {
+		t.Fatalf("invalid profile = %d, %s", invalidProfile.Code, invalidProfile.Body.String())
+	}
+	if profile, err := auth.GetUserProfile(context.Background(), owner.UserID); err != nil || profile.Timezone != "America/Bogota" {
+		t.Fatalf("invalid profile changed saved timezone = %+v, %v", profile, err)
+	}
 	passwordMismatch := request(handler, http.MethodPost, "/account/password", url.Values{
 		"csrf": {session.CSRFSecret}, "new_password": {"a-new-password-1234"}, "password_confirmation": {"different-password-1234"},
 	}, cookies, nil)
@@ -681,6 +691,15 @@ func TestWebLanguageSettingsRoutes(t *testing.T) {
 	}
 	if locale, err := auth.GetUserLocale(context.Background(), owner.UserID); err != nil || locale != "es" {
 		t.Fatalf("saved user locale = %q, %v", locale, err)
+	}
+	invalid := request(handler, http.MethodPost, "/settings/language", url.Values{
+		"csrf": {session.CSRFSecret}, "locale": {"fr"},
+	}, cookies, nil)
+	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "El idioma seleccionado no es válido.") || !strings.Contains(invalid.Body.String(), `value="es" selected`) {
+		t.Fatalf("invalid language = %d, %s", invalid.Code, invalid.Body.String())
+	}
+	if locale, err := auth.GetUserLocale(context.Background(), owner.UserID); err != nil || locale != "es" {
+		t.Fatalf("invalid language changed saved locale = %q, %v", locale, err)
 	}
 	reset := request(handler, http.MethodPost, "/settings/language", url.Values{
 		"csrf": {session.CSRFSecret}, "locale": {""},
