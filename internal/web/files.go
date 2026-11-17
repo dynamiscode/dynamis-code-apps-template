@@ -13,6 +13,7 @@ import (
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
+	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
 
 const (
@@ -108,6 +109,7 @@ func fileQuerySuffix(values url.Values) string { return clientQuerySuffix(values
 
 func (h *Handler) EnableFilesPreferences(preferences *listprefs.Service) {
 	h.listPreferences = preferences
+	h.filesEnabled = h.files != nil
 }
 
 func (h *Handler) setFileColumn(writer http.ResponseWriter, request *http.Request) {
@@ -206,7 +208,7 @@ func (h *Handler) renderFilesPage(writer http.ResponseWriter, request *http.Requ
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, status, "files.html", pageData{
+	data := pageData{
 		Title: "Files", NavPage: "files", NavSection: "workspace", CSRF: csrf, ErrorKey: errorKey,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		Files: page.Files, CurrentPath: h.filesPath(workspaceID), NextCursor: page.NextCursor,
@@ -216,7 +218,20 @@ func (h *Handler) renderFilesPage(writer http.ResponseWriter, request *http.Requ
 		FileMinSize: request.URL.Query().Get("min_size"), FileMaxSize: request.URL.Query().Get("max_size"),
 		HasVisibleClientColumns: hasVisibleClientColumns(visible), HasClientFilters: query.Search != "" || query.MIME != "" || query.HasMinSize || query.HasMaxSize,
 		ClearClientFiltersPath: fileClearFiltersPath(request.URL.Path, request.URL.Query()),
-	})
+	}
+	h.renderFilesTempl(writer, request, status, data, principal.Permissions[identity.ResourcesWrite])
+}
+
+func (h *Handler) renderFilesTempl(writer http.ResponseWriter, request *http.Request, status int, data pageData, canUpload bool) {
+	data.FilesEnabled = h.filesEnabled
+	data.ClientsEnabled = h.clients != nil
+	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
+	h.localizePage(writer, &data)
+	data.Title = data.T("files.files")
+	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+	writer.Header().Set("Cache-Control", "no-store")
+	writer.WriteHeader(status)
+	_ = filesPage(data, canUpload).Render(request.Context(), writer)
 }
 
 func fileNextPath(path string, query url.Values, cursor string) string {

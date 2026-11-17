@@ -26,10 +26,16 @@ func (h *Handler) notificationsPage(writer http.ResponseWriter, request *http.Re
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, http.StatusOK, "notifications.html", pageData{
+	data := pageData{
 		Title: "Notifications", NavPage: "notifications", CSRF: csrf,
 		Notifications: notifications, UnreadNotifications: unread,
-	})
+		NotificationCursor: notificationCursor(notifications),
+	}
+	h.localizePage(writer, &data)
+	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+	writer.Header().Set("Cache-Control", "no-store")
+	writer.WriteHeader(http.StatusOK)
+	_ = notificationsPage(data).Render(request.Context(), writer)
 }
 
 func (h *Handler) notificationMutation(writer http.ResponseWriter, request *http.Request) {
@@ -73,13 +79,21 @@ func (h *Handler) notificationEvents(writer http.ResponseWriter, request *http.R
 	writer.Header().Set("X-Accel-Buffering", "no")
 	after := request.Header.Get("Last-Event-ID")
 	if after == "" {
-		existing, err := h.identity.ListNotifications(request.Context(), session.UserID, 0, true, 1)
-		if err != nil {
-			h.renderError(writer, http.StatusInternalServerError)
-			return
-		}
-		if len(existing) == 1 {
-			after = existing[0].ID.String()
+		if values, ok := request.URL.Query()["after"]; ok {
+			if len(values) == 1 {
+				after = values[0]
+			} else {
+				after = "invalid"
+			}
+		} else {
+			existing, err := h.identity.ListNotifications(request.Context(), session.UserID, 0, true, 1)
+			if err != nil {
+				h.renderError(writer, http.StatusInternalServerError)
+				return
+			}
+			if len(existing) == 1 {
+				after = existing[0].ID.String()
+			}
 		}
 	}
 	writer.WriteHeader(http.StatusOK)
@@ -111,6 +125,13 @@ func (h *Handler) notificationEvents(writer http.ResponseWriter, request *http.R
 			flusher.Flush()
 		}
 	}
+}
+
+func notificationCursor(notifications []identity.Notification) string {
+	if len(notifications) == 0 {
+		return ""
+	}
+	return notifications[0].ID.String()
 }
 
 func (h *Handler) notificationSession(

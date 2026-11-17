@@ -67,6 +67,7 @@ vuln-check:
 workflow-check:
 	go run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
 	./scripts/test-check-action-pins.sh
+	./scripts/test-release-workflow-nonpublishing.sh
 	./scripts/check-action-pins.sh
 
 fuzz-smoke:

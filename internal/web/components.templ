@@ -61,6 +61,13 @@ templ dataTable(caption string, hiddenCaption bool) {
 	</table></div>
 }
 
+templ auditDataTable(caption, label string) {
+	<div class="table-wrap" tabindex="0" role="region" aria-label={ label }><table>
+		<caption class="visually-hidden">{ caption }</caption>
+		{ children... }
+	</table></div>
+}
+
 templ listTable(caption string, hiddenCaption bool) {
 	<div class="list-view-table">
 		@dataTable(caption, hiddenCaption) { { children... } }

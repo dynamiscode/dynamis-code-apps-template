@@ -149,8 +149,16 @@ func (h *Handler) memberMutation(writer http.ResponseWriter, request *http.Reque
 		}
 		err = h.identity.ChangeMemberRole(request.Context(), principal, memberID, role, auditContext(request))
 	case "remove":
+		if request.FormValue("confirm_remove") != "yes" {
+			h.managementError(writer, request, workspaceID, "Confirm member removal to continue.")
+			return
+		}
 		err = h.identity.RemoveMember(request.Context(), principal, memberID, auditContext(request))
 	case "transfer":
+		if request.FormValue("confirm_transfer") != "yes" {
+			h.managementError(writer, request, workspaceID, "Confirm ownership transfer to continue.")
+			return
+		}
 		err = h.identity.TransferOwnership(request.Context(), principal, memberID, auditContext(request))
 	default:
 		h.managementError(writer, request, workspaceID, "The requested member action is invalid.")
@@ -270,29 +278,16 @@ func (h *Handler) renderInvitationResult(writer http.ResponseWriter, request *ht
 
 func (h *Handler) tokensPage(writer http.ResponseWriter, request *http.Request) {
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceRead)
+	principal, _, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceRead)
 	if !ok {
 		return
 	}
-	tokens, err := h.identity.ListAPITokens(request.Context(), principal)
-	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
-	}
-	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
-	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
-	}
-	h.render(writer, http.StatusOK, "tokens.html", pageData{
-		Title: "API tokens", NavPage: "tokens", NavSection: "settings", CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID),
-		Workspaces: workspaces, Tokens: tokens,
-	})
+	h.renderTokenSettingsPage(writer, request, principal, csrf, http.StatusOK, "", "")
 }
 
 func (h *Handler) tokenMutation(writer http.ResponseWriter, request *http.Request) {
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	principal, _, _, ok := h.managementPrincipal(writer, request, workspaceID, identity.WorkspaceRead)
+	principal, _, csrf, ok := h.managementPrincipal(writer, request, workspaceID, identity.WorkspaceRead)
 	if !ok {
 		return
 	}
@@ -301,7 +296,7 @@ func (h *Handler) tokenMutation(writer http.ResponseWriter, request *http.Reques
 		if raw := strings.TrimSpace(request.FormValue("expires_at")); raw != "" {
 			value, err := time.Parse("2006-01-02", raw)
 			if err != nil {
-				h.managementError(writer, request, workspaceID, "The token expiration is invalid.")
+				h.renderTokenSettingsPage(writer, request, principal, csrf, http.StatusUnprocessableEntity, "", "The token expiration is invalid.")
 				return
 			}
 			expiresAt = &value
@@ -312,27 +307,48 @@ func (h *Handler) tokenMutation(writer http.ResponseWriter, request *http.Reques
 		}
 		token, err := h.identity.CreateAPIToken(request.Context(), principal, request.FormValue("name"), scopes, expiresAt, auditContext(request))
 		if err != nil {
-			h.managementError(writer, request, workspaceID, "The token could not be created.")
+			h.renderTokenSettingsPage(writer, request, principal, csrf, http.StatusUnprocessableEntity, "", "The token could not be created.")
 			return
 		}
-		workspaces, _ := h.identity.ListWorkspaces(request.Context(), principal.UserID)
-		tokens, _ := h.identity.ListAPITokens(request.Context(), principal)
-		h.render(writer, http.StatusOK, "tokens.html", pageData{
-			Title: "API tokens", NavPage: "tokens", NavSection: "settings", CSRF: request.FormValue("csrf"), Workspace: workspaceByID(workspaces, workspaceID),
-			Workspaces: workspaces, Tokens: tokens, TokenSecret: token.Secret,
-		})
+		h.renderTokenSettingsPage(writer, request, principal, csrf, http.StatusOK, token.Secret, "")
 		return
 	}
 	tokenID, _ := identity.ParseAPITokenID(request.PathValue("tokenId")) // malformed IDs match no token
 	if request.FormValue("action") == "revoke" {
 		if err := h.identity.RevokeAPIToken(request.Context(), principal, tokenID, auditContext(request)); err != nil {
-			h.managementError(writer, request, workspaceID, "The token could not be revoked.")
+			h.renderTokenSettingsPage(writer, request, principal, csrf, http.StatusUnprocessableEntity, "", "The token could not be revoked.")
 			return
 		}
 		h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/settings/tokens")
 		return
 	}
-	h.managementError(writer, request, workspaceID, "The requested token action is invalid.")
+	h.renderTokenSettingsPage(writer, request, principal, csrf, http.StatusUnprocessableEntity, "", "The requested token action is invalid.")
+}
+
+func (h *Handler) renderTokenSettingsPage(
+	writer http.ResponseWriter,
+	request *http.Request,
+	principal identity.Principal,
+	csrf string,
+	status int,
+	secret string,
+	errorMessage string,
+) {
+	workspaces, err := h.identity.ListWorkspaces(request.Context(), principal.UserID)
+	if err != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	}
+	tokens, err := h.identity.ListAPITokens(request.Context(), principal)
+	if err != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	}
+	h.renderSettingsPage(writer, request, status, pageData{
+		Title: "API tokens", NavPage: "tokens", NavSection: "settings", CSRF: csrf,
+		Workspace: workspaceByID(workspaces, principal.WorkspaceID), Workspaces: workspaces,
+		Tokens: tokens, TokenSecret: secret, Error: errorMessage,
+	}, apiTokenSettingsPage)
 }
 
 func (h *Handler) provisioningPage(writer http.ResponseWriter, request *http.Request) {
@@ -341,7 +357,7 @@ func (h *Handler) provisioningPage(writer http.ResponseWriter, request *http.Req
 	if !ok {
 		return
 	}
-	h.renderProvisioningPage(writer, request, principal, session, csrf, "")
+	h.renderProvisioningPage(writer, request, principal, session, csrf, http.StatusOK, "", "")
 }
 
 func (h *Handler) provisioningMutation(writer http.ResponseWriter, request *http.Request) {
@@ -354,18 +370,18 @@ func (h *Handler) provisioningMutation(writer http.ResponseWriter, request *http
 	case "create":
 		token, err := h.identity.CreateSCIMToken(request.Context(), principal, auditContext(request))
 		if err != nil {
-			h.managementError(writer, request, workspaceID, "The SCIM credential could not be created.")
+			h.renderProvisioningPage(writer, request, principal, session, csrf, http.StatusUnprocessableEntity, "", "The SCIM credential could not be created.")
 			return
 		}
-		h.renderProvisioningPage(writer, request, principal, session, csrf, token.Secret)
+		h.renderProvisioningPage(writer, request, principal, session, csrf, http.StatusOK, token.Secret, "")
 	case "revoke":
 		if err := h.identity.RevokeSCIMToken(request.Context(), principal, auditContext(request)); err != nil {
-			h.managementError(writer, request, workspaceID, "The SCIM credential could not be revoked.")
+			h.renderProvisioningPage(writer, request, principal, session, csrf, http.StatusUnprocessableEntity, "", "The SCIM credential could not be revoked.")
 			return
 		}
 		h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/settings/provisioning")
 	default:
-		h.managementError(writer, request, workspaceID, "The requested SCIM action is invalid.")
+		h.renderProvisioningPage(writer, request, principal, session, csrf, http.StatusUnprocessableEntity, "", "The requested SCIM action is invalid.")
 	}
 }
 
@@ -375,7 +391,9 @@ func (h *Handler) renderProvisioningPage(
 	principal identity.Principal,
 	session identity.Session,
 	csrf string,
+	status int,
 	secret string,
+	errorMessage string,
 ) {
 	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
 	if err != nil {
@@ -383,11 +401,11 @@ func (h *Handler) renderProvisioningPage(
 		return
 	}
 	workspaceID := principal.WorkspaceID
-	h.render(writer, http.StatusOK, "provisioning.html", pageData{
+	h.renderSettingsPage(writer, request, status, pageData{
 		Title: "SCIM provisioning", NavPage: "provisioning", NavSection: "settings", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		SCIMEndpoint: scimEndpoint(h.publicURL, h.cfg.Secure, request, workspaceID), SCIMTokenSecret: secret,
-	})
+		SCIMEndpoint: scimEndpoint(h.publicURL, h.cfg.Secure, request, workspaceID), SCIMTokenSecret: secret, Error: errorMessage,
+	}, scimProvisioningSettingsPage)
 }
 
 func scimEndpoint(publicURL string, secure bool, request *http.Request, workspaceID identity.WorkspaceID) string {
@@ -415,7 +433,7 @@ func (h *Handler) sessionsPage(writer http.ResponseWriter, request *http.Request
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, http.StatusOK, "sessions.html", pageData{Title: "Sessions", NavPage: "sessions", CSRF: csrf, Sessions: sessions})
+	h.render(writer, http.StatusOK, "sessions-page", pageData{Title: "Sessions", NavPage: "sessions", CSRF: csrf, Sessions: sessions, CurrentSessionID: session.ID, Saved: request.URL.Query().Get("revoked") == "1"})
 }
 
 func (h *Handler) sessionMutation(writer http.ResponseWriter, request *http.Request) {
@@ -427,7 +445,7 @@ func (h *Handler) sessionMutation(writer http.ResponseWriter, request *http.Requ
 		h.renderError(writer, http.StatusConflict)
 		return
 	}
-	h.redirect(writer, request, "/sessions")
+	h.redirect(writer, request, "/sessions?revoked=1")
 }
 
 func (h *Handler) exportPage(writer http.ResponseWriter, request *http.Request) {
@@ -473,7 +491,8 @@ func (h *Handler) auditHistoryPage(writer http.ResponseWriter, request *http.Req
 		}
 	}
 	if fragment {
-		h.render(writer, http.StatusOK, "audit-table", pageData{AuditHistory: history})
+		data := pageData{AuditHistory: history}
+		h.render(writer, http.StatusOK, "audit-table", data)
 		return
 	}
 	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
@@ -481,12 +500,13 @@ func (h *Handler) auditHistoryPage(writer http.ResponseWriter, request *http.Req
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, http.StatusOK, "audit-history.html", pageData{
+	data := pageData{
 		Title: "Audit history", NavPage: "audit", NavSection: "settings", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		AuditHistory: history, AuditLazy: lazy, CurrentPath: request.URL.Path,
 		DefaultWorkspaceHref: h.defaultHomeHref(request.Context(), session.UserID),
-	})
+	}
+	h.render(writer, http.StatusOK, "audit-history", data)
 }
 
 func (h *Handler) exportWorkspace(writer http.ResponseWriter, request *http.Request) {

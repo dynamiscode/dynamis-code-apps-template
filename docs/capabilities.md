@@ -26,7 +26,7 @@ for issue #448; its isolated run may have experienced concurrent check load.
 | Clients | partial | Create and edit clients over REST and web: [service tests](../internal/clients/service_test.go), [PostgreSQL lifecycle](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/clients_test.go), [web tests](../internal/web/clients_test.go), template-init generation tests (`cmd/template-init`). Define, archive, and restore text, number, date, and yes/no custom fields over REST and web: [field service tests](../internal/clients/fields_test.go), [REST tests](../internal/httpapi/client_fields_test.go), [web tests](../internal/web/client_fields_test.go), [slot-index tests](../internal/platform/database/client_slot_indexes_test.go). Set and clear text, number, date, and yes/no values with the field type lock: [value service tests](../internal/clients/values_test.go), [typed value tests](../internal/clients/typed_values_test.go), [PostgreSQL values](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/client_values_test.go), [web tests](../internal/web/client_values_test.go). Client changes have a workspace SSE feed and list fragment: [change feed tests](../internal/clients/events_test.go), [PostgreSQL feed check](../internal/clients/postgres_test.go), [stream and fragment tests](../internal/web/clients_events_test.go), [listener unit tests](../internal/web/assets/realtime-lists.test.mjs). The client page does not load the listener or HTMX, so browser refresh is not wired; [#415](https://github.com/dynamiscode/dynamis-code-apps-template/issues/415) tracks the follow-up. Single-choice fields with up to 100 options per field over REST and web, with option deletion clearing values: [option service tests](../internal/clients/options_test.go), [option ID tests](../internal/clients/option_id_test.go), [PostgreSQL options](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/client_options_test.go), [web tests](../internal/web/client_options_test.go). Permanent deletion of an archived custom field over REST and web, clearing its values and choice options in one transaction: [field delete service tests](../internal/clients/field_delete_test.go), [REST tests](../internal/httpapi/client_field_delete_test.go), [web tests](../internal/web/client_field_delete_test.go), [PostgreSQL lifecycle](../internal/clients/postgres_test.go). Client archive, unarchive, and permanent client delete over REST and web, with the archived list selector: [lifecycle service tests](../internal/clients/lifecycle_test.go), [PostgreSQL archive and delete](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/client_lifecycle_test.go), [web tests](../internal/web/client_lifecycle_test.go). Client webhook events `client.created`, `client.updated`, `client.archived`, and `client.deleted` through the existing outbox, written in the change's transaction, with custom value set and clear emitting `client.updated`: [SQLite and PostgreSQL outbox tests](../internal/clients/webhook_events_test.go), [subscription test](../internal/webhooks/client_events_test.go). Client export, MCP, and `appctl` for archive and delete not implemented |
 | Clients shared list view | partial | Per-user columns and custom Client values, responsive table/card markup, sort/filter/pagination URL state, explicit-empty and typed timestamp filters, filter chips, reset actions, and viewer isolation: [web behavior tests](../internal/web/clients_test.go), [typed query tests](../internal/clients/query_test.go), [REST compatibility tests](../internal/httpapi/clients_test.go), [preference service tests](../internal/listprefs/service_test.go), and generated-profile checks (`cmd/template-init`). Required 1,000/10,000-row latency benchmarks and VoiceOver walkthrough remain pending. |
 | Items shared list view | partial | Per-user title/status visibility, responsive shared table/card layout, title search and status filters, stable creation-time ordering, cursor pagination URL state, query-preserving realtime refresh, and inline editing with hidden columns: [web behavior test](../internal/web/items_list_test.go), [Items service tests](../internal/items/service_test.go), [realtime browser test](../internal/web/assets/realtime-lists.test.mjs), [preference service tests](../internal/listprefs/service_test.go), and generated-profile checks (`cmd/template-init`). Required 1,000/10,000-row latency benchmarks and VoiceOver walkthrough remain pending. |
-| Members shared list view | partial | Per-user email/role/created visibility, responsive shared table/card layout, email and role filters, stable sorting, full results by default, opt-in cursor paging in web and REST, and retained role/removal/ownership actions: [web behavior tests](../internal/web/members_list_test.go), [REST behavior tests](../internal/httpapi/handler_test.go), and [preference service tests](../internal/listprefs/service_test.go). Required 1,000/10,000-row latency benchmarks and VoiceOver walkthrough remain pending. |
+| Members shared list view | partial | Per-user email/role/created visibility, responsive shared table/card layout, email and role filters, stable sorting, full results by default, opt-in cursor paging in web and REST, separate CSRF-protected role/removal/ownership forms, explicit no-JavaScript confirmations, and user-controlled WebMCP actions: [web behavior tests](../internal/web/members_list_test.go), [mutation tests](../internal/web/members_role_test.go), [member browser coverage](../scripts/playwright/members.spec.mjs), [REST behavior tests](../internal/httpapi/handler_test.go), and [preference service tests](../internal/listprefs/service_test.go). Full suite and browser/accessibility checks passed; required 1,000/10,000-row latency benchmarks and VoiceOver walkthrough remain pending. |
 | Files shared list view | partial | Saved columns, typed filters, stable sorting, keyset pagination, and shared responsive table/card rendering: [Files web tests](../internal/web/files_test.go), service tests and generated-profile checks. Required 1,000/10,000-row latency benchmarks and VoiceOver walkthrough remain pending. |
 | Production | not applicable | No deployment serves real users or durable data |
 
@@ -65,7 +65,7 @@ durable production data and records its deployment-specific evidence.
 | Backup, restore, upgrades, RPO, and RTO | operational | 06 | conforming | [SQLite/PostgreSQL restore tests](../internal/platform/backup/backup_test.go), [operator procedures](operations.md#backup-and-restore) |
 | WCAG 2.2 AA accessibility | bootstrap, recurring | 04, 07 | conforming | [Automated runner](../scripts/accessibility.mjs), [dated automated and manual evidence](accessibility.md) |
 | Containers and deployment | bootstrap, operational | 07 | conforming | Pinned [image](../Dockerfile), [SQLite Compose](../compose.yaml), [PostgreSQL overlay](../compose.postgres.yaml), [smoke](../scripts/docker-smoke.sh), and [deployment contract](deployment.md) |
-| CI, release security, SBOM, provenance, signatures, checksums | operational | 07 | conforming | [CI](../.github/workflows/ci.yml), [source security workflow](../.github/workflows/source-security.yml), [release workflow](../.github/workflows/release.yml), [dependency monitoring](../.github/dependabot.yml), [Scorecard](../.github/workflows/scorecard.yml), and [artifact verification](release.md) |
+| CI, source security, container SBOM | operational | 07 | conforming | [CI](../.github/workflows/ci.yml), [source security workflow](../.github/workflows/source-security.yml), [dependency monitoring](../.github/dependabot.yml), [Scorecard](../.github/workflows/scorecard.yml) |
 | MIT licensing, SPDX metadata, dependency attribution, and generated-repository governance | bootstrap, recurring | 07 | conforming | [Governance](governance.md), [SUPPORT](../SUPPORT.md), [LICENSE](../LICENSE), and [handoff test](../internal/conformance/handoff_test.go) |
 | Documentation, context handoff, and sources of truth | bootstrap, recurring | 07 | conforming | [Router](README.md), [agent contract](../AGENTS.md), [handoff test](../internal/conformance/handoff_test.go), and permanent [skills](../.agents/skills/) |
 | Testing strategy and complete template acceptance | recurring, operational | 01-09 | conforming | [Verification targets](../Makefile), [live surface smoke](../internal/bootstrap/agent_smoke_test.go), [queue tests](../internal/jobs/queue_test.go), [accessibility smoke](../scripts/accessibility-smoke.sh), and [container smoke](../scripts/docker-smoke.sh) |
@@ -80,6 +80,7 @@ These remain out of the build plan until their trigger is demonstrated.
 
 | Capability | State | Trigger |
 |---|---|---|
+| Versioned release publication | deferred | Re-enable only after #355 controls and #357 merge-authorized publication evidence are complete and reviewed |
 | Webhooks | conforming | External consumers required delivery; accepted in [decision 0004](decisions/0004-webhooks.md) |
 | Background jobs | conforming | Bounded webhook delivery requires durable retry and lease ownership; see [phase 09 evidence](#phase-09-evidence) |
 | Shared event broker | deferred | Cross-replica delivery cannot use the database safely |
@@ -1131,6 +1132,54 @@ strings cover the changed screens.
   journeys, including account and security; zero axe violations.
 - Not run: full `make verify`; no authentication policy, schema, or API changes.
 
+## Session list and revocation UI evidence (#445, 2026-11-16)
+
+Ticket #445 migrates `/sessions` to the generated templ account layout. The
+page labels the current session and shows active, expired, and revoked status.
+CSRF-protected ordinary forms revoke any active session, including the current
+session; the latter redirects to sign-in on the next request. EN/ES cover the
+status, feedback, and empty states. The page remains no-store and keeps its
+WebMCP page marker and script.
+
+- Passed: session rendering and lifecycle tests, including current-session
+  revoke, cross-user denial, CSRF rejection, expired state, Spanish empty state,
+  and ordinary form behavior; `make test`, `make lint`, `make templ-check`, and
+  `make css-check`. English and Spanish `make accessibility-smoke` reported
+  zero axe violations, including sessions, keyboard/focus, and 320px reflow.
+  `make ux-smoke` passed 42 checks; `make browser-smoke` passed 14 Playwright
+  tests. See [session evidence](reviews/sessions-445-evidence.md).
+- Not run: full `make verify`, race suite, security gates, and PostgreSQL tests.
+
+## Items list and editing UI evidence (#413, 2026-11-16)
+
+Ticket #413 migrates the workspace Items page and list fragment to generated
+templ views. The route keeps existing workspace authorization, CSRF checks,
+localized profile theme, ordinary form submissions, list preferences, sharing,
+and responsive table treatment. Route-only JavaScript preserves dirty item
+rows and standalone drafts across list swaps, applies successful row versions,
+and retains submitted values on edit validation errors. Viewers see a read-only
+list; create, edit, and delete writes remain forbidden.
+
+- Passed: focused Items permission, list/preferences, and locale/theme Go tests;
+  Items JavaScript regressions; `make verify` on `a605f7c`; and the normal
+  generated-template, CSS, race, build, and repository checks.
+- Passed: final ordered Playwright suite (30 passed, 2 notification tests
+  skipped). It covers dirty row and draft preservation, successful autosave
+  version updates before delete, hx-sync overlap, native query history, Spanish
+  axe, ordinary no-JavaScript forms, and explicit light/dark/system themes.
+  Desktop/mobile light/dark screenshot baselines were visually reviewed.
+- Passed: `make accessibility-smoke` in English and Spanish with zero Items
+  violations and keyboard/focus/reflow checks; `make ux-smoke` (42 checks);
+  `make webmcp-smoke` fallback; and `make docker-smoke`.
+- Passed: final spec and standards reviews found no actionable defects. The
+  browser regression reproduces and guards the stale-version case where a dirty
+  create draft used to cancel an unrelated successful item row swap.
+- CI history: an earlier PR head failed accessibility on an ambiguous Items
+  heading locator and CSP-blocked inline axe. Both test causes were fixed and
+  the previous pushed head passed all 10 CI checks. The updated head still needs
+  its CI run.
+- Pending: normal-hook commit/push, updated-head CI, and merge verification.
+
 ## Notification center UX evidence (2026-11-15)
 
 Ticket #383 restyles the recipient-scoped notification list, makes unread
@@ -1206,3 +1255,41 @@ validation as they are adopted.
   [responsive list fixture](../scripts/playwright/components.spec.mjs).
 - Deferred: full `make test` and release verification. No data, API, CLI,
   MCP, realtime, or operational behavior changed.
+
+## Member management validation evidence (#418, 2026-11-17)
+
+The Members route uses a responsive shared list with per-user columns, search,
+role filters, sorting, and opt-in paging. Separate ordinary CSRF-protected
+forms change roles, remove members, and transfer ownership. The server requires
+explicit removal and transfer confirmation; shared identity authorization
+continues to enforce owner/admin management and owner-only transfer.
+
+- Passed: `make test`, `make lint`, `go test ./internal/web/...` (198 tests),
+  and `go test -race ./...` (1,050 tests across 36 packages) during initial
+  #418 validation. The race run overlapped another worktree's race run; no
+  process was interrupted, and this run exited successfully.
+- Passed: latest normal pre-push `make ci-local` on `35d759e`; hosted CI
+  [43997171044](https://github.com/dynamiscode/dynamis-code-apps-template/actions/runs/43997171044)
+  passed `make verify`, PostgreSQL `go test -race ./...`, browser and
+  accessibility smoke, WebMCP fallback, container, security, and fuzz checks.
+  Source security run
+  [43997171088](https://github.com/dynamiscode/dynamis-code-apps-template/actions/runs/43997171088)
+  passed.
+- Passed: full `PLAYWRIGHT_PORT=58125 ./scripts/playwright-smoke.sh` (20/20),
+  including role, removal, transfer, permission denial, CSRF, validation,
+  keyboard, Spanish, no-JavaScript forms, mobile axe, and screenshot comparisons
+  against desktop/mobile light/dark baselines during initial #418 validation.
+- Passed: hosted browser smoke compared desktop snapshots and separate Linux
+  mobile light/dark snapshots. The Linux baselines match reviewed hosted CI
+  actuals; Darwin and desktop snapshot names and the 5% threshold are unchanged.
+- Partial: pinned Linux MCR Chrome 157.0.8103.78 member run passed 4/6 tests.
+  Desktop and non-screenshot member tests passed; mobile comparisons expected
+  390×1268 and received 390×1244. Hosted CI passes those same mobile checks.
+- Passed: `A11Y_PORT=58126 make accessibility-smoke` in English and Spanish;
+  Members had zero axe violations in both locales.
+- Passed: `WEBMCP_PORT=58127 make webmcp-smoke` fallback and member browser
+  action coverage. Native WebMCP was unavailable in the installed Chrome, so
+  the member browser test invoked the production registered tool through its
+  test shim. It verified the tool prepares and focuses the existing form and
+  does not submit it; native-browser WebMCP integration remains unverified.
+- Passed: `go generate ./internal/web` with zero generated drift.

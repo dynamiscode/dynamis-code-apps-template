@@ -25,16 +25,16 @@ sidebar whose contents follow the current workspace context. Every mutation vali
 the session-bound CSRF token
 and rechecks current workspace permission.
 
-The templ dashboard shell accepts header and sidebar components. Its current
-adapters preserve workspace home navigation until shared navigation migrates;
-legacy templates remain for other routes. On desktop the workspace sidebar
-spans the viewport height. On mobile its links remain visible and usable without
-JavaScript.
+The templ dashboard shell accepts header and sidebar components. Workspace home
+and Files compose the shared shell and navigation directly; adapters preserve
+the same shell for legacy route templates during migration. On desktop the
+workspace sidebar spans the viewport height. On mobile its links remain visible
+and usable without JavaScript.
 
 Shared templ components cover page headings, labelled inputs and selects,
 field errors, submit and link buttons, feedback, confirmations, captioned
-tables, linked and responsive list cards, empty states, and next-page links. Workspace selection
-and home use these components; other routes retain their existing templates
+tables, linked and responsive list cards, empty states, and next-page links. Workspace selection,
+home, and Files use these components; other routes retain their existing templates
 until their migrations. Callers supply translated text, field attributes,
 table rows, equivalent mobile card contents, authorization, and CSRF-protected forms.
 Use `listTable` with `listCards` for paired responsive lists; use `dataTable`
@@ -83,14 +83,20 @@ Baseline browser surfaces:
 - `/workspaces/{workspaceId}/settings/members` lists members in the shared
   responsive table/card view with per-user columns, email/role filters, stable
   sorting, query URLs, and optional cursor paging; the default view is complete.
-  Authorized owners/admins change roles or remove members, and owners transfer
-  ownership. The ordinary forms work without JavaScript.
+  The route template keeps role, removal, and ownership transfer in separate
+  forms. Removal and transfer require separate explicit confirmations, including
+  when JavaScript is disabled; removal explains that workspace access and shared
+  resources stop. Shared identity policy authorizes role changes and removals
+  for owners/admins, and ownership transfer for owners only. The page exposes
+  non-secret WebMCP form markers while leaving submission to the user.
 - `/workspaces/{workspaceId}/settings/invitations` creates, resends, revokes, and shows
   copyable links. `/invitations/{secret}` accepts or registers an invitee with
   safe invalid, expired, revoked, duplicate, and wrong-email failures.
 - `/workspaces/{workspaceId}/settings/email` lets owners/admins save the workspace invitation sender, either SMTP, Resend, or Postmark. Saving runs a provider check first (an SMTP login test, a read-only Resend domain check, or a read-only Postmark server and domain check) and stores nothing on failure. The Resend and Postmark pages show setup steps and the sender domain status from the last save. The password or API key is never shown again, and a blank value keeps the stored one for the same provider. Members cannot view or change it.
-- `/workspaces/{workspaceId}/settings/tokens` manages current-user scoped tokens and
-  shows a new secret once.
+- `/workspaces/{workspaceId}/settings/tokens` manages current-user scoped tokens with
+  CSRF-protected create and revoke forms. Creation shows its secret once; the
+  no-store response gives replacement guidance. The page supports empty and
+  revoked-token states and the visible token-revoke WebMCP action.
 - `/workspaces/{workspaceId}/settings/webhooks` lists workspace webhook registrations,
   lets owners/admins create, rotate, and delete them, and shows redacted delivery
   history. Creation and rotation display the webhook secret once. When
@@ -102,15 +108,21 @@ Baseline browser surfaces:
 - `/workspaces/{workspaceId}/settings/provisioning` is restricted to workspace
   owners and admins. It shows the workspace SCIM endpoint and setup instructions,
   creates or rotates the dedicated SCIM credential with its secret shown once,
-  and revokes it through ordinary CSRF-protected forms. The page is no-store and
-  has no WebMCP enhancement; SCIM Users and Groups remain REST/IdP-only.
-- `/login`, `/setup`, `/mfa`, and email verification share the generated app
+  and revokes it through ordinary CSRF-protected forms with confirmation. The
+  page is no-store and has no WebMCP enhancement; SCIM Users and Groups remain
+  REST/IdP-only.
+- `/login`, `/setup`, password recovery, `/mfa`, and email verification share the generated app
   brand and compact responsive auth layout. Setup keeps required fields first
   and marks workspace language as deferrable. Sign-in, MFA, and setup remain
-  ordinary CSRF-protected forms without JavaScript.
-- `/sessions` shows each browser session's status and metadata and revokes active
-  sessions; `/security` manages MFA factors and starts reauthenticated OIDC
-  linking.
+  ordinary CSRF-protected forms without JavaScript. Password-reset request,
+  completion, unavailable, and validation states use the same templ layout and
+  ordinary forms.
+- `/sessions` shows current, active, expired, and revoked browser sessions with
+  localized status and revocation feedback. CSRF-protected forms revoke any
+  active session, including the current one; revoking the current session sends
+  the browser to sign-in on its next request. The page shows a localized empty
+  state and retains the ordinary form fallback. `/security` manages MFA factors
+  and starts reauthenticated OIDC linking.
 - `/account` edits profile preferences, changes a local password, requests email
   verification, and deletes the account after current-password reauthentication
   and an explicit confirmation checkbox. The server rejects deletion without
@@ -119,26 +131,30 @@ Baseline browser surfaces:
   request and single-use completion pages.
 - `/notifications` lists recipient-scoped in-app records, shows unread state,
   marks them read, and updates the unread count through recipient-scoped SSE.
-  It keeps a refresh link for ordinary navigation. Notification records are
-  created through the shared identity service, and user plus workspace
+  Its initial SSE cursor is the newest row rendered, or empty when the inbox is
+  empty. It keeps a refresh link for ordinary navigation. Notification records
+  are created through the shared identity service, and user plus workspace
   preferences are checked before storage.
 - `/notifications/events` delivers recipient-scoped `notification.created` SSE
-  events; an expired cursor triggers a page refresh to restore current records.
+  events, replaying after the page cursor or the browser's last delivered event;
+  an expired cursor triggers a page refresh to restore current records.
 - `/workspaces/{workspaceId}/files` lists ready private workspace files with
   per-member column visibility, filename/MIME/size filters, stable sorting,
   keyset cursor pagination, and responsive table/card views; filter and sort
-  controls use ordinary GET forms. The list and its download actions remain
-  workspace-authorized. It also accepts an ordinary multipart upload form.
-  File paths carry the file short
-  ID; malformed, unknown, and integer-key IDs return not-found. Browsers with
-  JavaScript send the same form in one request to that route through a client-side
-  `FileUploader` state machine (IDLE, UPLOADING, SUCCESS, and ERROR phases). The
-  button and file input stay locked while the request is in flight. A native
-  progress control reports computable byte progress; a polite live region
-  announces quarter milestones, success, and localized safe errors for an
-  oversize file, a full workspace, or an invalid file. The form works without
-  JavaScript. Uploads stream through the app for local and S3 storage; S3 downloads
-  redirect to a short-lived private URL, and local downloads stream through the app.
+  controls use ordinary GET forms. `files.templ` composes the shared workspace
+  shell, navigation, and DaisyUI list/form components. The list and download
+  actions require workspace read permission. Only principals with
+  `resources:write` see the CSRF-protected multipart upload form; read-only
+  viewers can list and download files without upload controls. JavaScript sends
+  the same form in one request through `FileUploader` (IDLE, UPLOADING, SUCCESS,
+  and ERROR phases). The button and file input stay locked during upload. A
+  native progress control reports computable byte progress; a polite live region
+  announces quarter milestones, success, and localized safe errors for oversize,
+  workspace-limit, or invalid-file failures. The ordinary form works without
+  JavaScript. File paths carry short IDs; malformed, unknown, and integer-key
+  IDs return not-found. Uploads stream through the app for local and S3 storage;
+  S3 downloads redirect to a short-lived private URL with no-store headers, and
+  local downloads stream through the app. No HTMX fragment is used on Files.
 - `/workspaces/{workspaceId}/settings/export` presents the authorized export screen;
   its `Download JSON` link downloads the export from
   `/workspaces/{workspaceId}/settings/export/download`.
@@ -183,11 +199,13 @@ form submissions; the page does not load WebMCP or submit automatically.
 
 The workspace sidebar exposes `Home` above `Items` in the workspace context.
 Home is active at `/workspaces/{workspaceId}`. Settings uses the nested
-`/workspaces/{workspaceId}/settings` route and shows only its `Members & invitations`,
-`API tokens`, `Webhooks`, `Export`, and `Import` sub-items. Owners and admins also see
-`Provisioning (SCIM)` and `Audit history`. The Settings group is separated by
-flexible space and anchored at the bottom in the workspace context. The members screen and
-invitations screen retain local tabs behind the combined entry. In multi mode the Items page offers
+`/workspaces/{workspaceId}/settings` route and groups `General` under Setup,
+`Members & invitations`, `API tokens`, and `Webhooks` under Access, and `Export`
+under Activity. Owners and admins also see `Email` under Setup, `Provisioning
+(SCIM)` under Access, and `Import` and `Audit history` under Activity. The
+Settings group is separated by flexible space and anchored at the bottom in
+the workspace context. The members screen and invitations screen retain local
+tabs behind the combined entry. In multi mode the Items page offers
 `Back to Workspaces`, returning to the workspace selector; each Settings page offers
 `Back to home`, returning to the current workspace home. The native workspace switcher and account menu use ordinary
 `details` controls, so they work without JavaScript. In single mode the Items and Members screens show the workspace name as plain text
@@ -278,10 +296,10 @@ file drift.
 
 Ticket #386 reconciles the route and template surface. `/` and `/workspaces/{workspaceId}`
 render through `workspace.templ` and generated `workspace_templ.go`. The
-remaining named `html/template` views are an explicit migration deferral; their
-route families and major states are listed below. This keeps the existing
-escaping, HTMX fragment boundaries, ordinary-form fallbacks, and route tests
-intact until each family can move with behavior parity.
+inventory below names each route family's current renderer: `.templ` entries
+are migrated, and named `html/template` views remain deferred. It records major
+states while preserving escaping, HTMX fragment boundaries, ordinary-form
+fallbacks, and route behavior during the incremental migration.
 
 Shared navigation uses `navigation.templ`. The named definitions in
 `navigation.html` bridge remaining `html/template` callers to the same escaped
@@ -304,11 +322,17 @@ accessibility results and remaining limits are recorded in
 | Route family | Views and shared templates | Major states covered |
 |---|---|---|
 | `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
-| `/setup`, `/login`, `/mfa`, `/account/verify-email/{secret}`, `/password-reset/{secret}`, `/oauth/authorize` | `setup.html`, `login.html`, `mfa.html`, `verification.html`, `password-reset.html`, `mcp-consent.html`, `auth.html` | Initial setup, form errors, sign-in and MFA challenge, verification success/unavailable, reset request/completion, OAuth approval/denial |
-| Workspace items, clients, and custom fields | `items.html`, `item-list.html`, `list-view.html`, `clients.html`, `client.html`, `client-fields.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field lifecycle, realtime refresh |
-| Workspace members and invitations | `members.html`, `invitations.html`, `invitation.html` | Role changes, removal and ownership transfer, invitation create/resend/revoke, accepted and unavailable invitation |
-| Workspace files | `files.html` | Empty/list states, filters and paging, upload progress/success/error, download authorization |
-| Account and workspace settings | `account.html`, `audit-history.html`, `email-settings.html`, `export.html`, `general-settings.html`, `import.html`, `language.html`, `notifications.html`, `provisioning.html`, `security.html`, `sessions.html`, `tokens.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, redacted history, notification read/unread, export/import entry, integration setup and failure, responsive navigation |
+| `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.html`, `verification.html`, `mcp-consent.html`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge, verification success/unavailable, OAuth approval/denial |
+| `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | Empty/results states, filters, sorting and paging, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
+| Workspace clients and custom fields | `clients.html`, `client.html`, `client-fields.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field lifecycle, realtime refresh |
+| Workspace members and invitations | `members.templ`, `members_templ.go`, `invitations.html`, `invitation.html` | Role changes, removal and ownership transfer, invitation create/resend/revoke, accepted and unavailable invitation |
+| `/workspaces/{workspaceId}/settings/audit` | `audit.templ`, `audit_templ.go`, `components.templ`, `components_templ.go` | Scoped redacted history, lazy table fragment, empty state, ordinary `?all=1` fallback, permission denial and expired-session redirect |
+| `/sessions` | `sessions.templ`, `sessions_templ.go` | Current, active, expired and revoked status; revoke current or other active sessions; feedback and empty state |
+| Workspace files | `files.templ`, `workspace.templ`, `navigation.templ`, `components.templ` | Empty/results, filters, sort, saved columns and paging; read-only viewer list/download; write-authorized multipart upload progress/success/validation/failure with no-JavaScript fallback; authorized downloads |
+| `/workspaces/{workspaceId}/settings/general` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Workspace locale and notification preferences, empty and saved states, invalid input and permission handling |
+| `/workspaces/{workspaceId}/settings/email` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Unconfigured/configured provider, saved state, validation, provider verification failure, redacted credentials and permission handling |
+| `/notifications`, `/notifications/events` | `notifications.templ`, `notifications_templ.go` | Recipient-scoped list and unread count, empty state, CSRF-protected mark-read, initial cursor and SSE replay after reconnect |
+| Account and workspace settings | `account.html`, `export.html`, `import.html`, `credential_settings.templ`, `credential_settings_templ.go`, `language.html`, `security.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, export/import entry, integration setup and failure, responsive navigation |
 | Public and unavailable pages | `public-share.html`, `error.html` | Share projection and invalid/expired/revoked links, not-found and request errors |
 
 Corresponding route and handler tests cover server-rendered behavior.
@@ -451,9 +475,14 @@ continue to require `identity.ResourcesRead`.
 
 `GET /notifications/events` uses the same stream limits, heartbeat, lifetime,
 and database polling. Events carry the notification ID, type, title, body, and
-UTC creation time only to the authenticated recipient. `Last-Event-ID` resumes
-after the recipient's stored notification; no notification secret or other
-user's record is exposed.
+UTC creation time only to the authenticated recipient. The page gives
+`EventSource` an `after` query cursor matching its newest rendered row; an empty
+value replays rows created after an empty page. `Last-Event-ID` takes precedence
+and resumes after the recipient's last delivered notification. The lifetime
+`close` event ends the response; native `EventSource` reconnects with its last
+event ID, or the original page cursor if no event arrived. An invalid cursor
+triggers `resync`. No notification secret or other user's record is exposed.
+The refresh link remains available.
 
 Permanent delete removes the live item and writes a redacted audit/change
 event. Existing backups may retain deleted content until the expiry defined in

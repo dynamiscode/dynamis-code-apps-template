@@ -187,6 +187,34 @@ func TestNavigationEvidenceLinkWithoutFiles(t *testing.T) {
 	}
 }
 
+func TestGenerateWithoutFilesPrunesFilesTemplAndBuilds(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	output := filepath.Join(t.TempDir(), "without-files-app")
+	err := run([]string{
+		"-template-dir", root, "-output", output, "-name", "Without Files Application",
+		"-module", "example.com/acme/without-files-app",
+		"-repository", "https://github.com/acme/without-files-app",
+		"-security-url", "https://github.com/acme/without-files-app/security/advisories/new",
+		"-maintainer", "@acme/platform", "-profiles", "Core,Identity,Agent",
+		"-source", "https://example.com/acme/template", "-commit", strings.Repeat("a", 40),
+	}, time.Now)
+	if err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+	for _, path := range []string{
+		"internal/web/files.templ", "internal/web/files_templ.go", "internal/web/templates/files.html", "docs/files-417-evidence.md", "scripts/playwright/files.spec.mjs",
+		"scripts/playwright/files.spec.mjs-snapshots/files-desktop-light.png",
+	} {
+		if _, err := os.Stat(filepath.Join(output, path)); !os.IsNotExist(err) {
+			t.Errorf("generated application without Files still has %s: %v", path, err)
+		}
+	}
+	if err := runCommand(output, "go", "build", "./..."); err != nil {
+		t.Fatalf("generated application without Files does not build: %v", err)
+	}
+}
+
 func TestGenerateWithoutAgentPrunesAgentSurfaceAndBuilds(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
 	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
@@ -209,6 +237,14 @@ func TestGenerateWithoutAgentPrunesAgentSurfaceAndBuilds(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(output, "internal/identity")); err != nil {
 		t.Fatalf("generated Identity package missing: %v", err)
+	}
+	settingsPages, err := os.ReadFile(filepath.Join(output, "internal/web/settings_pages.go"))
+	if err != nil || !strings.Contains(string(settingsPages), "h.filesEnabled") ||
+		!strings.Contains(string(settingsPages), "h.clientsEnabled") ||
+		strings.Contains(string(settingsPages), "h.template.Lookup") ||
+		strings.Contains(string(settingsPages), "h.files ") || strings.Contains(string(settingsPages), "h.files.") ||
+		strings.Contains(string(settingsPages), "h.clients ") || strings.Contains(string(settingsPages), "h.clients.") {
+		t.Fatalf("generated settings renderer must use stable optional-feature flags without optional handler fields: error = %v", err)
 	}
 	readme, err := os.ReadFile(filepath.Join(output, "README.md"))
 	if err != nil || strings.Contains(string(readme), "MCP:") || strings.Contains(string(readme), "cmd/appctl") {

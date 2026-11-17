@@ -20,6 +20,11 @@ type itemListQuery struct {
 	Limit  int
 }
 
+func itemPageData(data pageData) pageData {
+	data.Title = data.T("workspace.items_title", map[string]any{"name": data.Workspace.Name})
+	return data
+}
+
 func itemListColumns() []clientListColumn {
 	return []clientListColumn{
 		{Key: "title", LabelKey: "items.title", ValueType: "text", DefaultVisible: true},

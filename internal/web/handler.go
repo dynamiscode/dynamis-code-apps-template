@@ -42,8 +42,10 @@ type Handler struct {
 	identity        *identity.Service
 	items           *items.Service
 	clients         *clients.Service
+	clientsEnabled  bool
 	listPreferences *listprefs.Service
 	files           *appfiles.Service
+	filesEnabled    bool
 	sharing         *sharing.Service
 	webhooks        webhookManager
 	exporter        exporter
@@ -129,6 +131,7 @@ type pageData struct {
 	NewTitle                         string
 	ToastKey                         string
 	CurrentPath                      string
+	CurrentSessionID                 string
 	Email                            string
 	UserLocale                       string
 	Saved                            bool
@@ -145,6 +148,7 @@ type pageData struct {
 	NotificationPreferences          []identity.NotificationPreference
 	WorkspaceNotificationPreferences []identity.NotificationPreference
 	Notifications                    []identity.Notification
+	NotificationCursor               string
 	UnreadNotifications              int
 	PasswordResetSecret              string
 	PasswordResetCompleted           bool
@@ -915,9 +919,9 @@ func (h *Handler) renderItems(
 		data.PublicShareURL = shareURL[0]
 		data.PublicShareItemID = items.ParseItemIDOrZero(request.PathValue("itemId"))
 	}
-	name := "items.html"
+	name := "items-page"
 	if request.Header.Get("HX-Request") == "true" {
-		name = "item-list.html"
+		name = "items-fragment"
 		if status >= http.StatusBadRequest {
 			writer.Header().Set("HX-Trigger", "form-error")
 			status = http.StatusOK
@@ -1136,8 +1140,44 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = workspaceHome(data).Render(context.Background(), writer)
 		return
 	}
+	if name == "items-page" {
+		_ = itemsPage(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "items-fragment" {
+		_ = itemsList(data).Render(context.Background(), writer)
+		return
+	}
 	if name == "home.html" {
 		_ = workspaceSelection(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "audit-history" {
+		_ = auditHistory(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "audit-table" {
+		_ = auditTable(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "login.html" {
+		_ = authLogin(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "setup.html" {
+		_ = authSetup(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "password-reset.html" {
+		_ = authPasswordReset(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "sessions-page" {
+		_ = sessionsPage(data, data.CurrentSessionID, time.Now()).Render(context.Background(), writer)
+		return
+	}
+	if name == "members.html" {
+		_ = membersPage(data).Render(context.Background(), writer)
 		return
 	}
 	if err := h.template.ExecuteTemplate(writer, name, data); err != nil {

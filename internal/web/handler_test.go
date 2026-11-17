@@ -131,14 +131,14 @@ func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
 
 	loginPage := request(handler, http.MethodGet, "/login", nil, nil, nil)
 	if loginPage.Code != http.StatusOK || !strings.Contains(loginPage.Body.String(), `<label for="email">`) {
-		t.Fatalf("login page = %d, %s", loginPage.Code, loginPage.Body.String())
+		t.Fatalf("login page status = %d; missing email label", loginPage.Code)
 	}
-	if !strings.Contains(loginPage.Body.String(), `<a href="/password-reset">Forgot password?</a>`) {
+	if !strings.Contains(loginPage.Body.String(), `class="auth-recovery-link" href="/password-reset">Forgot password?</a>`) {
 		t.Fatal("English login page lacks the password reset link")
 	}
 	spanishLogin := request(handler, http.MethodGet, "/login", nil, nil, map[string]string{"Accept-Language": "es"})
-	if spanishLogin.Code != http.StatusOK || !strings.Contains(spanishLogin.Body.String(), `<a href="/password-reset">¿Olvidaste tu contraseña?</a>`) {
-		t.Fatalf("Spanish login page lacks the translated password reset link: %d, %s", spanishLogin.Code, spanishLogin.Body.String())
+	if spanishLogin.Code != http.StatusOK || !strings.Contains(spanishLogin.Body.String(), `class="auth-recovery-link" href="/password-reset">¿Olvidaste tu contraseña?</a>`) {
+		t.Fatalf("Spanish login page status = %d; missing translated password reset link", spanishLogin.Code)
 	}
 	loginCSRF := responseCookie(loginPage, "login_csrf")
 	invalidLogin := request(handler, http.MethodPost, "/login", url.Values{
@@ -151,12 +151,12 @@ func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
 		"email": {"owner@example.com"}, "password": {"long-enough-password"}, "csrf": {loginCSRF.Value},
 	}, []*http.Cookie{loginCSRF}, nil)
 	if loggedIn.Code != http.StatusSeeOther || loggedIn.Header().Get("Location") != "/" {
-		t.Fatalf("login = %d, %s", loggedIn.Code, loggedIn.Body.String())
+		t.Fatalf("login status = %d; unexpected redirect", loggedIn.Code)
 	}
 	cookies := []*http.Cookie{responseCookie(loggedIn, "session"), responseCookie(loggedIn, "csrf")}
 	home := request(handler, http.MethodGet, "/", nil, cookies, nil)
 	if home.Code != http.StatusOK || !strings.Contains(home.Body.String(), workspaceID.String()) {
-		t.Fatalf("home = %d, %s", home.Code, home.Body.String())
+		t.Fatalf("home status = %d; workspace missing", home.Code)
 	}
 	path := "/workspaces/" + workspaceID.String() + "/items"
 	page := request(handler, http.MethodGet, path, nil, cookies, nil)
@@ -181,13 +181,13 @@ func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
 		"title": {""}, "idempotency_key": {"invalid-key"}, "csrf": {csrf},
 	}, cookies, map[string]string{"HX-Request": "true"})
 	if invalid.Code != http.StatusOK || invalid.Header().Get("HX-Trigger") != "form-error" || !strings.Contains(invalid.Body.String(), `role="alert"`) {
-		t.Fatalf("validation response = %d, %s", invalid.Code, invalid.Body.String())
+		t.Fatalf("validation response status = %d; missing form-error header or alert", invalid.Code)
 	}
 	created := request(handler, http.MethodPost, path, url.Values{
 		"title": {"<script>alert(1)</script>"}, "idempotency_key": {"create-key"}, "csrf": {csrf},
 	}, cookies, map[string]string{"HX-Request": "true"})
 	if created.Code != http.StatusOK || strings.Contains(created.Body.String(), "<script>alert") || strings.Contains(created.Body.String(), "<!doctype") {
-		t.Fatalf("HTMX create = %d, %s", created.Code, created.Body.String())
+		t.Fatalf("HTMX create status = %d; response escaped or page-fragment contract failed", created.Code)
 	}
 	session, err := auth.AuthenticateSession(context.Background(), cookies[0].Value)
 	if err != nil {
@@ -314,7 +314,7 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 
 	account := request(handler, http.MethodGet, "/account", nil, cookies, nil)
 	if account.Code != http.StatusOK || !strings.Contains(account.Body.String(), "Profile and preferences") {
-		t.Fatalf("account page = %d, %s", account.Code, account.Body.String())
+		t.Fatalf("account page status = %d; missing profile heading", account.Code)
 	}
 	updated := request(handler, http.MethodPost, "/account/profile", url.Values{
 		"csrf": {session.CSRFSecret}, "display_name": {"Owner"}, "locale": {"es"},
@@ -330,29 +330,29 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 		"csrf": {session.CSRFSecret}, "new_password": {"a-new-password-1234"}, "password_confirmation": {"different-password-1234"},
 	}, cookies, nil)
 	if passwordMismatch.Code != http.StatusUnprocessableEntity || !strings.Contains(passwordMismatch.Body.String(), "Las nuevas contraseñas no coinciden.") || !strings.Contains(passwordMismatch.Body.String(), `form action="/account/password"`) {
-		t.Fatalf("account password mismatch = %d, %s", passwordMismatch.Code, passwordMismatch.Body.String())
+		t.Fatalf("account password mismatch status = %d; missing translated error or form", passwordMismatch.Code)
 	}
 	preference := request(handler, http.MethodPost, "/account/notifications", url.Values{
 		"csrf": {session.CSRFSecret}, "notification_type": {"system"}, "enabled": {"false"},
 	}, cookies, nil)
 	if preference.Code != http.StatusSeeOther {
-		t.Fatalf("notification preference = %d, %s", preference.Code, preference.Body.String())
+		t.Fatalf("notification preference status = %d", preference.Code)
 	}
 
 	notification, err := auth.CreateNotification(context.Background(), PrincipalSystem(), identity.NotificationInput{
 		RecipientUserID: owner.UserID, WorkspaceID: workspaceID, NotificationType: "workspace", Title: "Update", Body: "A workspace update",
 	}, identity.AuditContext{})
 	if err != nil || notification.ID == 0 {
-		t.Fatalf("notification = %+v, %v", notification, err)
+		t.Fatalf("notification creation failed; id present = %t", notification.ID != 0)
 	}
 	notifications := request(handler, http.MethodGet, "/notifications", nil, cookies, nil)
 	notificationsBody := notifications.Body.String()
 	if notifications.Code != http.StatusOK || !strings.Contains(notificationsBody, "A workspace update") {
-		t.Fatalf("notifications page = %d, %s", notifications.Code, notifications.Body.String())
+		t.Fatalf("notifications page status = %d; missing notification", notifications.Code)
 	}
 	for _, marker := range []string{`class="notification-center"`, `aria-live="polite"`, `<strong data-unread-count>1</strong>`, "No leídas", "Dynamis Code"} {
 		if !strings.Contains(notificationsBody, marker) {
-			t.Errorf("notifications page missing %q: %s", marker, notificationsBody)
+			t.Errorf("notifications page missing marker %q", marker)
 		}
 	}
 	marked := request(handler, http.MethodPost, "/notifications/"+notification.ID.String(), url.Values{
@@ -364,19 +364,25 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	readPage := request(handler, http.MethodGet, "/notifications", nil, cookies, nil)
 	if readPage.Code != http.StatusOK || !strings.Contains(readPage.Body.String(), `<strong data-unread-count>0</strong>`) ||
 		!strings.Contains(readPage.Body.String(), "leída") {
-		t.Fatalf("read notification page = %d, %s", readPage.Code, readPage.Body.String())
+		t.Fatalf("read notification page status = %d; missing read state", readPage.Code)
 	}
 
 	resetPage := request(handler, http.MethodGet, "/password-reset", nil, nil, nil)
-	if resetPage.Code != http.StatusOK || !strings.Contains(resetPage.Body.String(), `form action="/password-reset"`) {
-		t.Fatalf("password reset page = %d, %s", resetPage.Code, resetPage.Body.String())
+	if resetPage.Code != http.StatusOK || !strings.Contains(resetPage.Body.String(), `form action="/password-reset"`) ||
+		!strings.Contains(resetPage.Body.String(), `class="brand auth-brand"`) || !strings.Contains(resetPage.Body.String(), `class="input"`) {
+		t.Fatalf("password reset page status = %d; missing form or auth layout marker", resetPage.Code)
+	}
+	expiredReset := request(handler, http.MethodPost, "/password-reset", url.Values{"email": {"owner@example.com"}}, nil, nil)
+	if expiredReset.Code != http.StatusForbidden || !strings.Contains(expiredReset.Body.String(), `role="alert" tabindex="-1"`) ||
+		!strings.Contains(expiredReset.Body.String(), `form action="/password-reset"`) {
+		t.Fatalf("expired reset request status = %d; missing focused alert or recovery form", expiredReset.Code)
 	}
 	resetCSRF := responseCookie(resetPage, "reset_csrf")
 	resetRequested := request(handler, http.MethodPost, "/password-reset", url.Values{
 		"csrf": {resetCSRF.Value}, "email": {"owner@example.com"},
 	}, []*http.Cookie{resetCSRF, {Name: "locale", Value: "es"}}, nil)
 	if resetRequested.Code != http.StatusOK || !strings.Contains(resetRequested.Body.String(), "Si existe una cuenta") {
-		t.Fatalf("reset request = %d, %s", resetRequested.Code, resetRequested.Body.String())
+		t.Fatalf("reset request status = %d; missing generic response", resetRequested.Code)
 	}
 	if mailer.subject != "Restablece tu contraseña de Dynamis Code" {
 		t.Fatalf("reset subject = %q", mailer.subject)
@@ -384,7 +390,7 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	resetLink := strings.TrimSpace(strings.TrimPrefix(mailer.body, "Restablece tu contraseña con este enlace: "))
 	parsed, err := url.Parse(resetLink)
 	if err != nil || parsed.Path == "" {
-		t.Fatalf("reset link = %q, %v", resetLink, err)
+		t.Fatal("reset link invalid")
 	}
 	resetTokenPage := request(handler, http.MethodGet, parsed.Path, nil, nil, nil)
 	resetTokenCSRF := responseCookie(resetTokenPage, "reset_csrf")
@@ -392,24 +398,30 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 		"csrf": {resetTokenCSRF.Value}, "password": {"reset-owner-password"}, "password_confirmation": {"different-password"},
 	}, []*http.Cookie{resetTokenCSRF, {Name: "locale", Value: "es"}}, nil)
 	if resetMismatch.Code != http.StatusUnprocessableEntity || !strings.Contains(resetMismatch.Body.String(), "Las contraseñas no coinciden.") {
-		t.Fatalf("reset mismatch = %d, %s", resetMismatch.Code, resetMismatch.Body.String())
+		t.Fatalf("reset mismatch status = %d; missing translated error", resetMismatch.Code)
+	}
+	for _, marker := range []string{`class="alert alert-error error"`, `role="alert" tabindex="-1"`, `class="input"`, `data-theme="system"`} {
+		if !strings.Contains(resetMismatch.Body.String(), marker) {
+			t.Fatalf("reset mismatch view missing marker %q", marker)
+		}
 	}
 	if !strings.Contains(resetMismatch.Body.String(), `name="csrf" value="`+resetTokenCSRF.Value+`"`) {
-		t.Fatalf("reset mismatch lost its CSRF token: %s", resetMismatch.Body.String())
+		t.Fatal("reset mismatch response omitted retained CSRF field")
 	}
 	invalidResetPage := request(handler, http.MethodGet, "/password-reset/invalid-secret", nil, nil, nil)
 	invalidResetCSRF := responseCookie(invalidResetPage, "reset_csrf")
 	invalidReset := request(handler, http.MethodPost, "/password-reset/invalid-secret", url.Values{
 		"csrf": {invalidResetCSRF.Value}, "password": {"reset-owner-password"}, "password_confirmation": {"reset-owner-password"},
 	}, []*http.Cookie{invalidResetCSRF, {Name: "locale", Value: "es"}}, nil)
-	if invalidReset.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidReset.Body.String(), "El enlace de restablecimiento no es válido o venció.") || !strings.Contains(invalidReset.Body.String(), `form action="/password-reset"`) || responseCookie(invalidReset, "reset_csrf").Value == "" {
-		t.Fatalf("invalid reset link recovery = %d, %s", invalidReset.Code, invalidReset.Body.String())
+	if invalidReset.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidReset.Body.String(), "El enlace de restablecimiento no es válido o venció.") || !strings.Contains(invalidReset.Body.String(), `form action="/password-reset"`) ||
+		!strings.Contains(invalidReset.Body.String(), `role="alert" tabindex="-1"`) || responseCookie(invalidReset, "reset_csrf").Value == "" {
+		t.Fatalf("invalid reset link status = %d; missing recovery form, focused alert, or fresh CSRF cookie", invalidReset.Code)
 	}
 	resetComplete := request(handler, http.MethodPost, parsed.Path, url.Values{
 		"csrf": {resetTokenCSRF.Value}, "password": {"reset-owner-password"}, "password_confirmation": {"reset-owner-password"},
 	}, []*http.Cookie{resetTokenCSRF}, nil)
 	if resetComplete.Code != http.StatusOK || !strings.Contains(resetComplete.Body.String(), "Password reset") {
-		t.Fatalf("reset complete = %d, %s", resetComplete.Code, resetComplete.Body.String())
+		t.Fatalf("reset completion status = %d; missing completion message", resetComplete.Code)
 	}
 	if _, err := auth.AuthenticateLocal(context.Background(), "owner@example.com", "reset-owner-password"); err != nil {
 		t.Fatal(err)
@@ -460,6 +472,107 @@ func TestAccountSecurityPagesUseSharedBrandAndRequireDeletionConfirmation(t *tes
 	}
 	if _, err := auth.AuthenticateLocal(context.Background(), "owner@example.com", "long-enough-password"); err != nil {
 		t.Fatalf("account was removed without explicit confirmation: %v", err)
+	}
+}
+
+func TestSessionsListAndRevocation(t *testing.T) {
+	handler, auth, _, _, owner := testWeb(t, 10)
+	current, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: current.Secret}, {Name: "csrf", Value: current.CSRFSecret}}
+	page := request(handler, http.MethodGet, "/sessions", nil, cookies, nil)
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "This session") || !strings.Contains(page.Body.String(), `data-theme="system"`) || !strings.Contains(page.Body.String(), "/assets/components.css") {
+		t.Fatalf("session list = %d, %s", page.Code, page.Body.String())
+	}
+	if strings.Count(page.Body.String(), `action="/sessions/`) != 2 || !strings.Contains(page.Body.String(), `action="/sessions/`+current.ID+`"`) || strings.Contains(page.Body.String(), current.Secret) {
+		t.Fatalf("session list action count or session secret exposure is wrong: %s", page.Body.String())
+	}
+	csrfFailure := request(handler, http.MethodPost, "/sessions/"+other.ID, url.Values{"csrf": {"invalid"}}, cookies, nil)
+	if csrfFailure.Code != http.StatusForbidden {
+		t.Fatalf("invalid revoke CSRF = %d", csrfFailure.Code)
+	}
+	revoked := request(handler, http.MethodPost, "/sessions/"+other.ID, url.Values{"csrf": {current.CSRFSecret}}, cookies, nil)
+	if revoked.Code != http.StatusSeeOther || revoked.Header().Get("Location") != "/sessions?revoked=1" {
+		t.Fatalf("revoke response = %d, %q", revoked.Code, revoked.Header().Get("Location"))
+	}
+	feedback := request(handler, http.MethodGet, revoked.Header().Get("Location"), nil, cookies, nil)
+	if feedback.Code != http.StatusOK || !strings.Contains(feedback.Body.String(), "Session revoked.") || !strings.Contains(feedback.Body.String(), "Revoked") {
+		t.Fatalf("revoke feedback = %d, %s", feedback.Code, feedback.Body.String())
+	}
+	ownerPrincipal, err := auth.Authorize(context.Background(), owner.UserID, owner.WorkspaceID, identity.InvitationsManage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	invitation, err := auth.CreateInvitation(context.Background(), ownerPrincipal, "other@example.com", identity.Member, time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreignUserID, _, err := auth.CreateInvitedLocalUser(context.Background(), invitation.Secret, "other-owner-password", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign, err := auth.CreateSession(context.Background(), foreignUserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	unauthorized := request(handler, http.MethodPost, "/sessions/"+foreign.ID, url.Values{"csrf": {current.CSRFSecret}}, cookies, nil)
+	if unauthorized.Code != http.StatusConflict {
+		t.Fatalf("cross-user revoke = %d, %s", unauthorized.Code, unauthorized.Body.String())
+	}
+	if _, err := auth.AuthenticateSession(context.Background(), foreign.Secret); err != nil {
+		t.Fatalf("cross-user session was revoked: %v", err)
+	}
+	currentRevoke := request(handler, http.MethodPost, "/sessions/"+current.ID, url.Values{"csrf": {current.CSRFSecret}}, cookies, nil)
+	if currentRevoke.Code != http.StatusSeeOther || currentRevoke.Header().Get("Location") != "/sessions?revoked=1" {
+		t.Fatalf("current session revoke response = %d, %q", currentRevoke.Code, currentRevoke.Header().Get("Location"))
+	}
+	if _, err := auth.AuthenticateSession(context.Background(), current.Secret); !errors.Is(err, identity.ErrInvalidSession) {
+		t.Fatalf("current session remains valid after revocation: %v", err)
+	}
+	redirected := request(handler, http.MethodGet, currentRevoke.Header().Get("Location"), nil, cookies, nil)
+	if redirected.Code != http.StatusSeeOther || redirected.Header().Get("Location") != "/login" {
+		t.Fatalf("revoked session follow-up = %d, %q", redirected.Code, redirected.Header().Get("Location"))
+	}
+}
+
+func TestSessionsPageExpiredAndSpanishEmptyStates(t *testing.T) {
+	catalog, err := i18n.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := pageData{Locale: "es", Theme: "dark", Catalog: catalog, Title: "Sessions"}
+	data.Sessions = []identity.Session{{
+		ID: "expired-session", AuthMethod: "local",
+		CreatedAt: time.Now().Add(-2 * time.Hour), ExpiresAt: time.Now().Add(-time.Hour),
+	}}
+	var expired bytes.Buffer
+	if err := sessionsPage(data, "", time.Now()).Render(context.Background(), &expired); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(expired.String(), "Vencida") || strings.Contains(expired.String(), `action="/sessions/expired-session"`) {
+		t.Fatalf("expired session status or action is wrong: %s", expired.String())
+	}
+	data.Sessions[0].ExpiresAt = time.Now().Add(time.Hour)
+	var active bytes.Buffer
+	if err := sessionsPage(data, data.Sessions[0].ID, time.Now()).Render(context.Background(), &active); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(active.String(), "Activa") || !strings.Contains(active.String(), `action="/sessions/expired-session"`) {
+		t.Fatalf("current active session lacks its revocation form: %s", active.String())
+	}
+	data.Sessions = nil
+	var empty bytes.Buffer
+	if err := sessionsPage(data, "", time.Now()).Render(context.Background(), &empty); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(empty.String(), "No hay sesiones de navegador disponibles.") || !strings.Contains(empty.String(), `data-theme="dark"`) {
+		t.Fatalf("Spanish empty session state = %s", empty.String())
 	}
 }
 
@@ -957,25 +1070,59 @@ func TestWebAuditHistoryIsScopedRedactedAndNotWebMCP(t *testing.T) {
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	auditPath := "/workspaces/" + workspaceID.String() + "/settings/audit"
 	shell := request(handler, http.MethodGet, auditPath, nil, cookies, nil)
-	if shell.Code != http.StatusOK || !strings.Contains(shell.Body.String(), `data-lazy-src="`+auditPath+`?part=table"`) ||
-		!strings.Contains(shell.Body.String(), `href="`+auditPath+`?all=1"`) || strings.Contains(shell.Body.String(), "test.audit.visible") {
-		t.Fatalf("lazy audit shell = %d, %s", shell.Code, shell.Body.String())
+	if shell.Code != http.StatusOK {
+		t.Fatalf("lazy audit shell status = %d", shell.Code)
+	}
+	for _, marker := range []string{`data-lazy-src="` + auditPath + `?part=table"`, `href="` + auditPath + `?all=1"`} {
+		if !strings.Contains(shell.Body.String(), marker) {
+			t.Errorf("lazy audit shell missing marker %q", marker)
+		}
+	}
+	if strings.Contains(shell.Body.String(), "test.audit.visible") {
+		t.Error("lazy audit shell rendered history before fragment request")
 	}
 	fragment := request(handler, http.MethodGet, auditPath+"?part=table", nil, cookies, map[string]string{"HX-Request": "true"})
-	if fragment.Code != http.StatusOK || !strings.HasPrefix(fragment.Body.String(), `<div id="audit-table">`) ||
-		!strings.Contains(fragment.Body.String(), "test.audit.visible") || strings.Contains(fragment.Body.String(), "198.51.100.9") {
-		t.Fatalf("audit fragment = %d, %s", fragment.Code, fragment.Body.String())
+	if fragment.Code != http.StatusOK {
+		t.Fatalf("audit fragment status = %d", fragment.Code)
+	}
+	for _, marker := range []string{
+		`<div id="audit-table">`, "test.audit.visible", `tabindex="0"`, `role="region"`, `aria-label="Audit history"`,
+	} {
+		if !strings.Contains(fragment.Body.String(), marker) {
+			t.Errorf("audit fragment missing marker %q", marker)
+		}
+	}
+	if strings.Contains(fragment.Body.String(), "198.51.100.9") {
+		t.Error("audit fragment exposed source address")
 	}
 	page := request(handler, http.MethodGet, auditPath+"?all=1", nil, cookies, nil)
 	body := page.Body.String()
-	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" ||
-		!strings.Contains(body, "Audit history") || !strings.Contains(body, "test.audit.visible") ||
-		!strings.Contains(body, "audit.visible") || strings.Contains(body, "request-secret") || strings.Contains(body, "198.51.100.9") ||
-		strings.Contains(body, "invite-secret") || strings.Contains(body, "example.test") || strings.Contains(body, "signed-secret") ||
-		strings.Contains(body, "/assets/app.js") || strings.Contains(body, "data-webmcp-page") {
-		t.Fatalf("audit page = %d, headers=%v, body=%s", page.Code, page.Header(), body)
+	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("audit page status/cache = %d, %q", page.Code, page.Header().Get("Cache-Control"))
+	}
+	for _, visible := range []string{"Audit history", "test.audit.visible", "audit.visible"} {
+		if !strings.Contains(body, visible) {
+			t.Errorf("audit page missing marker %q", visible)
+		}
+	}
+	for _, secret := range []string{"request-secret", "invite-secret", "example.test", "signed-secret", "198.51.100.9"} {
+		if strings.Contains(body, secret) {
+			t.Errorf("audit page exposed forbidden marker %q", secret)
+		}
+	}
+	if strings.Contains(body, "/assets/app.js") {
+		t.Error("audit page exposes WebMCP actions")
 	}
 	assertAccessiblePage(t, body, "Audit history")
+	for _, marker := range []string{`tabindex="0"`, `role="region"`, `aria-label="Audit history"`} {
+		if !strings.Contains(body, marker) {
+			t.Errorf("audit table missing accessibility marker %q", marker)
+		}
+	}
+	expired := request(handler, http.MethodGet, auditPath+"?part=table", nil, []*http.Cookie{{Name: "session", Value: "expired"}}, map[string]string{"HX-Request": "true"})
+	if expired.Code != http.StatusSeeOther || expired.Header().Get("Location") != "/login" {
+		t.Fatalf("expired audit fragment = %d, location=%q", expired.Code, expired.Header().Get("Location"))
+	}
 
 	invitations, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.InvitationsManage)
 	if err != nil {
@@ -997,13 +1144,14 @@ func TestWebAuditHistoryIsScopedRedactedAndNotWebMCP(t *testing.T) {
 		{Name: "session", Value: viewerSession.Secret}, {Name: "csrf", Value: viewerSession.CSRFSecret},
 	}, nil)
 	if viewerResponse.Code != http.StatusForbidden {
-		t.Fatalf("viewer audit page = %d, %s", viewerResponse.Code, viewerResponse.Body.String())
+		t.Fatalf("viewer audit page = %d, want %d", viewerResponse.Code, http.StatusForbidden)
 	}
 	viewerSettings := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/members", nil, []*http.Cookie{
 		{Name: "session", Value: viewerSession.Secret}, {Name: "csrf", Value: viewerSession.CSRFSecret},
 	}, nil)
-	if viewerSettings.Code != http.StatusOK || strings.Contains(viewerSettings.Body.String(), "/settings/audit") {
-		t.Fatalf("viewer settings navigation = %d, %s", viewerSettings.Code, viewerSettings.Body.String())
+	viewerAuditLink := strings.Contains(viewerSettings.Body.String(), "/settings/audit")
+	if viewerSettings.Code != http.StatusOK || viewerAuditLink {
+		t.Fatalf("viewer settings navigation: status=%d audit_link=%t", viewerSettings.Code, viewerAuditLink)
 	}
 
 	otherWorkspace, err := auth.CreateWorkspace(ctx, identity.Principal{
@@ -1014,7 +1162,53 @@ func TestWebAuditHistoryIsScopedRedactedAndNotWebMCP(t *testing.T) {
 	}
 	crossWorkspace := request(handler, http.MethodGet, "/workspaces/"+otherWorkspace.String()+"/settings/audit", nil, cookies, nil)
 	if crossWorkspace.Code != http.StatusNotFound {
-		t.Fatalf("cross-workspace audit page = %d, %s", crossWorkspace.Code, crossWorkspace.Body.String())
+		t.Fatalf("cross-workspace audit page = %d, want %d", crossWorkspace.Code, http.StatusNotFound)
+	}
+}
+
+func TestAuditHistoryUsesProfileLocaleAndThemes(t *testing.T) {
+	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	path := "/workspaces/" + workspaceID.String() + "/settings/audit?all=1"
+	for _, theme := range []string{"light", "dark", "system"} {
+		if err := auth.UpdateUserProfile(context.Background(), owner.UserID, identity.ProfileUpdateInput{
+			Locale: "es", Timezone: "America/Bogota", Theme: theme,
+		}, identity.AuditContext{}); err != nil {
+			t.Fatal(err)
+		}
+		response := request(handler, http.MethodGet, path, nil, cookies, nil)
+		body := response.Body.String()
+		spanish := hasHTMLRootLang(body, "es")
+		localized := response.Header().Get("Content-Language") == "es"
+		themed := strings.Contains(body, `data-theme="`+theme+`"`)
+		if response.Code != http.StatusOK || !spanish || !localized || !themed {
+			t.Errorf("audit document theme=%q: status=%d spanish=%t localized=%t themed=%t",
+				theme, response.Code, spanish, localized, themed)
+		}
+	}
+}
+
+func TestAuditTableRendersEmptyStateInBothLocales(t *testing.T) {
+	catalog, err := i18n.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, locale := range []string{"en", "es"} {
+		data := pageData{Locale: locale, Catalog: catalog}
+		var output strings.Builder
+		if err := auditTable(data).Render(context.Background(), &output); err != nil {
+			t.Fatalf("render empty audit table for locale %q: %v", locale, err)
+		}
+		html := output.String()
+		container := strings.Contains(html, `<div id="audit-table">`)
+		emptyState := strings.Contains(html, data.T("audit.none"))
+		if !container || !emptyState {
+			t.Errorf("empty audit table locale=%q: container=%t empty_state=%t", locale, container, emptyState)
+		}
 	}
 }
 
@@ -1061,13 +1255,20 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 	if withoutCSRF.Code != http.StatusForbidden {
 		t.Fatalf("SCIM missing CSRF = %d", withoutCSRF.Code)
 	}
+	invalidAction := request(handler, http.MethodPost, path, url.Values{
+		"action": {"invalid"}, "csrf": {session.CSRFSecret},
+	}, cookies, nil)
+	if invalidAction.Code != http.StatusUnprocessableEntity || invalidAction.Header().Get("Cache-Control") != "no-store" ||
+		!strings.Contains(invalidAction.Body.String(), "The requested SCIM action is invalid.") {
+		t.Fatalf("SCIM invalid-action state = %d, cache-control=%q, alert present=%v", invalidAction.Code, invalidAction.Header().Get("Cache-Control"), strings.Contains(invalidAction.Body.String(), `role="alert"`))
+	}
 	created := request(handler, http.MethodPost, path, url.Values{
 		"action": {"create"}, "csrf": {session.CSRFSecret},
 	}, cookies, nil)
 	secret := extractSCIMSecret(t, created.Body.String())
 	if created.Code != http.StatusOK || created.Header().Get("Cache-Control") != "no-store" ||
 		strings.Count(created.Body.String(), secret) != 1 || !strings.Contains(created.Body.String(), "Copy this credential now") || !strings.Contains(created.Body.String(), "Create a replacement to rotate") {
-		t.Fatalf("SCIM create = %d, headers=%v, body=%s", created.Code, created.Header(), created.Body.String())
+		t.Fatalf("SCIM create = %d, cache-control=%q, one-time secret markup valid=%v", created.Code, created.Header().Get("Cache-Control"), strings.Contains(created.Body.String(), "Copy this credential now"))
 	}
 	if _, err := auth.AuthenticateSCIMToken(context.Background(), secret, workspaceID); err != nil {
 		t.Fatalf("created SCIM credential = %v", err)
@@ -1088,7 +1289,7 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 	}
 	adminCookies := []*http.Cookie{{Name: "session", Value: adminSession.Secret}, {Name: "csrf", Value: adminSession.CSRFSecret}}
 	if adminPage := request(handler, http.MethodGet, path, nil, adminCookies, nil); adminPage.Code != http.StatusForbidden {
-		t.Fatalf("SCIM member page = %d, %s", adminPage.Code, adminPage.Body.String())
+		t.Fatalf("SCIM member page = %d", adminPage.Code)
 	}
 	ownerPrincipal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.MembersManage)
 	if err != nil {
@@ -1111,14 +1312,14 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	if adminPage := request(handler, http.MethodGet, path, nil, adminCookies, nil); adminPage.Code != http.StatusOK {
-		t.Fatalf("SCIM admin page = %d, %s", adminPage.Code, adminPage.Body.String())
+		t.Fatalf("SCIM admin page = %d", adminPage.Code)
 	}
 	adminCreated := request(handler, http.MethodPost, path, url.Values{
 		"action": {"create"}, "csrf": {adminSession.CSRFSecret},
 	}, adminCookies, nil)
 	adminSecret := extractSCIMSecret(t, adminCreated.Body.String())
 	if adminCreated.Code != http.StatusOK || strings.Count(adminCreated.Body.String(), adminSecret) != 1 {
-		t.Fatalf("SCIM admin create = %d, body=%s", adminCreated.Code, adminCreated.Body.String())
+		t.Fatalf("SCIM admin create = %d, one-time secret rendered once=%v", adminCreated.Code, strings.Count(adminCreated.Body.String(), adminSecret) == 1)
 	}
 	if _, err := auth.AuthenticateSCIMToken(context.Background(), secret, workspaceID); !errors.Is(err, identity.ErrInvalidToken) {
 		t.Fatalf("owner SCIM credential after admin rotation = %v", err)
@@ -1138,14 +1339,14 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 
 	page = request(handler, http.MethodGet, path, nil, cookies, nil)
 	if strings.Contains(page.Body.String(), secret) || strings.Contains(page.Body.String(), adminSecret) || strings.Contains(page.Body.String(), "SCIMTokenSecret") {
-		t.Fatalf("SCIM GET leaked secret: %s", page.Body.String())
+		t.Fatal("SCIM GET exposed a one-time secret")
 	}
 	rotated := request(handler, http.MethodPost, path, url.Values{
 		"action": {"create"}, "csrf": {session.CSRFSecret},
 	}, cookies, nil)
 	rotatedSecret := extractSCIMSecret(t, rotated.Body.String())
 	if rotated.Code != http.StatusOK || rotatedSecret == secret || strings.Count(rotated.Body.String(), rotatedSecret) != 1 || strings.Contains(rotated.Body.String(), secret) {
-		t.Fatalf("SCIM rotation = %d, body=%s", rotated.Code, rotated.Body.String())
+		t.Fatalf("SCIM rotation = %d, one-time secret rendered once=%v, old secret absent=%v", rotated.Code, strings.Count(rotated.Body.String(), rotatedSecret) == 1, !strings.Contains(rotated.Body.String(), secret))
 	}
 	if _, err := auth.AuthenticateSCIMToken(context.Background(), secret, workspaceID); !errors.Is(err, identity.ErrInvalidToken) {
 		t.Fatalf("old SCIM credential after rotation = %v", err)
@@ -1170,7 +1371,7 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 
 	wrongWorkspace := request(handler, http.MethodGet, "/workspaces/00000000000000000000000000000000/settings/provisioning", nil, cookies, nil)
 	if wrongWorkspace.Code != http.StatusNotFound || strings.Contains(wrongWorkspace.Body.String(), secret) || strings.Contains(wrongWorkspace.Body.String(), rotatedSecret) {
-		t.Fatalf("cross-workspace SCIM page = %d, %s", wrongWorkspace.Code, wrongWorkspace.Body.String())
+		t.Fatalf("cross-workspace SCIM page = %d, one-time secret absent=%v", wrongWorkspace.Code, !strings.Contains(wrongWorkspace.Body.String(), secret) && !strings.Contains(wrongWorkspace.Body.String(), rotatedSecret))
 	}
 }
 
@@ -1186,25 +1387,25 @@ func extractSCIMSecret(t *testing.T, body string) string {
 	warning := "Copy this credential now. It will not be shown again."
 	warningStart := strings.Index(body, warning)
 	if warningStart < 0 {
-		t.Fatalf("SCIM secret missing: %s", body)
+		t.Fatal("SCIM secret warning missing")
 	}
 	start := strings.Index(body[warningStart:], "<code")
 	if start < 0 {
-		t.Fatalf("SCIM secret missing: %s", body)
+		t.Fatal("SCIM secret code element missing")
 	}
 	start += warningStart
 	contentStart := strings.Index(body[start:], ">")
 	if contentStart < 0 {
-		t.Fatalf("SCIM secret element is malformed: %s", body)
+		t.Fatal("SCIM secret element is malformed")
 	}
 	start += contentStart + 1
 	end := strings.Index(body[start:], "</code>")
 	if end < 0 {
-		t.Fatalf("SCIM secret end missing: %s", body)
+		t.Fatal("SCIM secret element is not closed")
 	}
 	secret := body[start : start+end]
 	if secret == "" {
-		t.Fatalf("SCIM secret empty: %s", body)
+		t.Fatal("SCIM secret is empty")
 	}
 	return secret
 }
@@ -1310,7 +1511,8 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 	}
 	for _, page := range []string{workspaceRoot + "/settings/members", workspaceRoot + "/settings/invitations", workspaceRoot + "/settings/tokens", workspaceRoot + "/settings/provisioning", workspaceRoot + "/settings/export", workspaceRoot + "/settings/import", workspaceRoot + "/settings/audit"} {
 		body := request(handler, http.MethodGet, page, nil, cookies, nil).Body.String()
-		if strings.Contains(body, `>Items<`) || strings.Contains(body, `href="`+workspaceRoot+`/settings">Settings`) || strings.Contains(body, `<nav class="sidebar-nav" aria-label="Workspace navigation">`) || !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `API tokens`) || !strings.Contains(body, `>Export<`) || !strings.Contains(body, `href="`+workspaceRoot+`">← Back to home`) {
+		backLink := `<a class="sidebar-back" href="` + workspaceRoot + `">`
+		if strings.Contains(body, `>Items<`) || strings.Contains(body, `href="`+workspaceRoot+`/settings">Settings`) || strings.Contains(body, `<nav class="sidebar-nav" aria-label="Workspace navigation">`) || !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `API tokens`) || !strings.Contains(body, `>Export<`) || !strings.Contains(body, backLink) || !strings.Contains(body, "Back to home") {
 			t.Errorf("%s lacks expanded settings navigation", page)
 		}
 	}
