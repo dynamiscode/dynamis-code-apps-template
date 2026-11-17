@@ -107,7 +107,8 @@ Baseline browser surfaces:
   history. Creation and rotation display the webhook secret once. When
   neither `ENCRYPTION_KEY` nor `WEBHOOK_ENCRYPTION_KEY` is set, managers see an actionable warning and
   create/rotate controls are disabled. Stale form submissions keep the user on
-  this page with an inline error. Webhook IDs in paths and forms are short IDs;
+  this page with an inline error. Delete requires a localized confirmation
+  checkbox; the handler rejects unconfirmed submissions. Webhook IDs in paths and forms are short IDs;
   a malformed, integer, or unknown ID shows the not-found page for the history
   view and a "could not be found" message for rotate and delete.
 - `/workspaces/{workspaceId}/settings/provisioning` is restricted to workspace
@@ -118,10 +119,15 @@ Baseline browser surfaces:
   REST/IdP-only.
 - `/login`, `/setup`, password recovery, `/mfa`, and email verification share the generated app
   brand and compact responsive auth layout. Setup keeps required fields first
-  and marks workspace language as deferrable. Sign-in, MFA, and setup remain
-  ordinary CSRF-protected forms without JavaScript. Password-reset request,
+  and marks workspace language as deferrable. Sign-in, setup, TOTP, and
+  recovery-code flows retain ordinary CSRF-protected forms without JavaScript;
+  passkey authentication stays an optional enhancement. Password-reset request,
   completion, unavailable, and validation states use the same templ layout and
-  ordinary forms.
+  ordinary forms. MFA keeps passkey enhancement plus TOTP and one-use recovery
+  code form fallbacks. Invalid MFA attempts show localized retry feedback;
+  missing or expired challenges return to sign-in. Email verification shows
+  localized success and invalid-or-expired states with ordinary account and
+  sign-in links. These pages use `auth.templ` and generated `auth_templ.go`.
 - `/sessions` shows current, active, expired, and revoked browser sessions with
   localized status and revocation feedback. CSRF-protected forms revoke any
   active session, including the current one; revoking the current session sends
@@ -336,7 +342,7 @@ accessibility results and remaining limits are recorded in
 | Route family | Views and shared templates | Major states covered |
 |---|---|---|
 | `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
-| `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}` | `auth.templ`, `auth_templ.go`, `mfa.html`, `verification.html`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge, verification success/unavailable |
+| `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.js`, `public_pages.templ`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge/retry/expired redirect, verification success/invalid-or-expired, OAuth approval/denial |
 | `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | Empty/results states, filters, sorting and paging, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
 | Workspace clients and custom fields | `clients.templ`, `components.templ`, `workspace.templ`, `client.html`, `client-fields.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field lifecycle, realtime refresh |
 | Workspace members | `members.templ`, `members_templ.go` | Role changes, removal and ownership transfer |
@@ -347,7 +353,8 @@ accessibility results and remaining limits are recorded in
 | `/workspaces/{workspaceId}/settings/general` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Workspace locale and notification preferences, empty and saved states, invalid input and permission handling |
 | `/workspaces/{workspaceId}/settings/email` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Unconfigured/configured provider, saved state, validation, provider verification failure, redacted credentials and permission handling |
 | `/notifications`, `/notifications/events` | `notifications.templ`, `notifications_templ.go` | Recipient-scoped list and unread count, empty state, CSRF-protected mark-read, initial cursor and SSE replay after reconnect |
-| Account and workspace settings | `account.html`, `credential_settings.templ`, `credential_settings_templ.go`, `language.html`, `security.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |
+| `/workspaces/{workspaceId}/settings/webhooks` and `/workspaces/{workspaceId}/settings/webhooks/{webhookId}/deliveries` | `webhooks.templ`, `webhooks_templ.go`, `components.templ`, `navigation.templ` | Permission-denied and unavailable states, one-time secret creation/rotation, required localized delete confirmation, no-store redacted delivery history, keyboard/accessibility, mobile light/dark themes, no-JS confirmation and ordinary form fallback |
+| Account and workspace settings | `account.html`, `credential_settings.templ`, `credential_settings_templ.go`, `language.html`, `security.html`, `navigation.html` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |
 | `/workspaces/{workspaceId}/settings/export`, `/workspaces/{workspaceId}/settings/export/download`, `/workspaces/{workspaceId}/settings/import` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Authorized no-store export page and JSON download; import file selection, bounded preview, safe validation feedback, explicit multipart confirmation, and atomic result; ordinary form fallback |
 | `/share/{token}` | `public_pages.templ`, `public_pages_templ.go`, `components.templ` | Localized title/status-only share projection, invalid/expired/revoked unavailable state, no-store and referrer/robots headers |
 | `/oauth/authorize` and generic errors | `public_pages.templ`, `public_pages_templ.go`, `auth.templ`, `components.templ` | Localized OAuth consent and generic errors; ordinary CSRF-protected approve/deny forms; invalid request and unavailable permission errors; no-store and preload/history-cache exclusion |
@@ -357,9 +364,10 @@ public-share projection and unavailable states, consent approval and denial,
 and generic OAuth errors.
 `make ux-smoke` and `make accessibility-smoke` cover the browser paths they
 enumerate; [the accessibility evidence](accessibility.md) records that
-automated coverage. Workspace selection and workspace home use templ; the
-listed legacy views are an intentional exception to the migration target, not
-an exception to escaping, authorization, accessibility, localization, or
+automated coverage. Workspace selection, workspace home, audit history, API token
+and SCIM settings, webhook registry, and delivery history use templ; the remaining
+listed legacy views are an intentional exception to the migration target, not an
+exception to escaping, authorization, accessibility, localization, or
 ordinary-form requirements.
 
 ## WebMCP progressive enhancement

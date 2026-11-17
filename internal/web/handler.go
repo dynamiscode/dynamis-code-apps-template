@@ -1152,6 +1152,8 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = itemsPage(data).Render(context.Background(), writer)
 	case "items-fragment":
 		_ = itemsList(data).Render(context.Background(), writer)
+	case "webhooks.html":
+		_ = webhooksPage(data).Render(context.Background(), writer)
 	case "home.html":
 		_ = workspaceSelection(data).Render(context.Background(), writer)
 	case "audit-history":
@@ -1164,6 +1166,10 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = authSetup(data).Render(context.Background(), writer)
 	case "password-reset.html":
 		_ = authPasswordReset(data).Render(context.Background(), writer)
+	case "mfa.html":
+		_ = authMFA(data).Render(context.Background(), writer)
+	case "verification.html":
+		_ = authEmailVerification(data).Render(context.Background(), writer)
 	case "sessions-page":
 		_ = sessionsPage(data, data.CurrentSessionID, time.Now()).Render(context.Background(), writer)
 	case "members.html":
