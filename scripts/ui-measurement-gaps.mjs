@@ -71,7 +71,9 @@ try {
         clearTimeout(timer);
         release();
         await click;
-        const status = (await response).status();
+        const failedResponse = await response;
+        assert.equal(await failedResponse.finished(), null);
+        const status = failedResponse.status();
         assert.equal(status, 503);
         return { pendingBusyObserved, status, response: "synthetic plain-text 503" };
       });
@@ -82,13 +84,16 @@ try {
     }
   }
 
-  for (const [name, suffix] of [["item filter", "/items?search=missing"],
-    ["client filter", "/clients?filter=displayName:contains:missing"],
-    ["file filter", "/files?search=missing"], ["member filter", "/settings/members?email=missing"]]) {
+  for (const [name, suffix, emptySelector] of [["item filter", "/items?search=missing", "#item-results"],
+    ["client filter", "/clients?filter=displayName:contains:missing", "#client-empty-state"],
+    ["file filter", "/files?search=missing", ".file-empty-state"],
+    ["member filter", "/settings/members?email=missing", "#member-results"]]) {
     await measure(name, async () => {
       const response = await page.goto(home + suffix, { waitUntil: "load" });
       assert.equal(response.status(), 200);
-      return { emptyVisible: await page.locator("#client-results").isVisible().catch(() => false) };
+      const emptyVisible = await page.locator(emptySelector).isVisible();
+      assert.equal(emptyVisible, true, `${name} empty state`);
+      return { emptyVisible };
     });
   }
 
@@ -168,9 +173,12 @@ try {
   }
   await page.goto(home + "/settings/members");
   const memberRow = page.locator(".list-view-table tbody tr").filter({ hasText: "fixture@example.invalid" });
+  const memberID = await memberRow.locator('input[name="member_id"]').first().getAttribute("value");
+  assert.ok(memberID);
+  const memberRoleForm = `.list-view-table tbody tr:has(input[name="member_id"][value="${memberID}"]) form[data-webmcp-actions="member-role-update"]`;
   await memberRow.locator("select[name=role]").selectOption("viewer");
   await measureDocumentMutationFailure("member role injected failure", "/settings/members",
-    '.list-view-table form[data-webmcp-actions]', '.list-view-table button[value="role"]');
+    memberRoleForm, `${memberRoleForm} button[value="role"]`);
   await page.goto(home + "/settings/members");
   await memberRow.locator("select[name=role]").selectOption("viewer");
   await measure("member role change", async () => {
@@ -189,17 +197,20 @@ try {
       status: response.status(), ...stopPermission() });
   } finally { stopPermission(); }
   await measure("ownership transfer", async () => {
+    await memberRow.locator('input[name="confirm_transfer"]').check();
     await memberRow.locator('button[value="transfer"]').click();
     await memberRow.locator('button[value="transfer"]').waitFor({ state: "detached" });
   });
   member.on("dialog", (dialog) => dialog.accept());
   await member.goto(home + "/settings/members");
   const formerOwner = member.locator(".list-view-table tbody tr").filter({ hasText: process.env.PLAYWRIGHT_EMAIL });
+  await formerOwner.locator('input[name="confirm_transfer"]').check();
   await formerOwner.locator('button[value="transfer"]').click();
   await formerOwner.locator('button[value="transfer"]').waitFor({ state: "detached" });
   await memberContext.close();
   await page.goto(home + "/settings/members");
   await measure("member removal", async () => {
+    await memberRow.locator('input[name="confirm_remove"]').check();
     await memberRow.locator('button[value="remove"]').click();
     await memberRow.waitFor({ state: "detached" });
   });
@@ -242,6 +253,16 @@ try {
     await page.unroute("**/items/events");
     const connected = await page.getByText("Live updates connected.").waitFor({ timeout: 10000 }).then(() => true, () => false);
     return { connectedWithin10Seconds: connected };
+  });
+  await page.route("**/clients/events", (route) => route.abort());
+  await measure("client SSE reconnect", async () => {
+    try {
+      await page.goto(home + "/clients");
+      await page.getByText("Live updates reconnecting…").waitFor();
+      await page.unroute("**/clients/events");
+      const connected = await page.getByText("Live updates connected.").waitFor({ timeout: 10000 }).then(() => true, () => false);
+      return { connectedWithin10Seconds: connected };
+    } finally { await page.unroute("**/clients/events"); }
   });
   await measure("item SSE offline recovery", async () => {
     await page.goto(home + "/items");

@@ -30,9 +30,9 @@ try {
     const start = performance.now();
     const initialMessages = sseMessages;
     try {
-      await action();
+      const state = await action();
       results.push({ name, elapsedMs: Math.round((performance.now() - start) * 10) / 10,
-        sseMessages: sseMessages - initialMessages, ...stop(), attribution: stopAttribution() });
+        sseMessages: sseMessages - initialMessages, ...stop(), attribution: stopAttribution(), ...(state || {}) });
     } finally { stop(); stopAttribution(); }
   }
   await page.goto(home + "/items");
@@ -63,9 +63,37 @@ try {
     await page.locator('.item-list-view input[value="Updated measurement item"]').waitFor({ state: "detached" });
   });
   await page.goto(home + "/clients");
-  assert.equal(await page.locator('script[src="/assets/app.js"]').count(), 0);
+  assert.equal(await page.locator('script[src="/assets/app.js"]').count(), 1);
+  await page.waitForFunction(() => document.querySelector("#realtime-status")?.textContent ===
+    document.querySelector("#client-list")?.dataset.liveConnected, null, { timeout: 30000 });
+  const clientPeer = await context.newPage();
+  await clientPeer.goto(home + "/clients");
+  await clientPeer.locator(".client-create summary").click();
+  await clientPeer.locator("#client-display-name").fill("Peer measurement client");
+  await measure("client SSE event and refresh", async () => {
+    await clientPeer.locator(".client-create button[type=submit]").click();
+    await page.locator("#client-list .list-view-table tbody tr").filter({ hasText: "Peer measurement client" }).waitFor();
+  });
+  await clientPeer.close();
   await page.locator(".client-create summary").click();
+  await page.getByLabel("Display name").fill("Server validation fixture");
+  await page.getByLabel("Email").fill("Ada <ada@example.com>");
+  await measure("client server validation failure", async () => {
+    const responsePromise = page.waitForResponse((response) => response.request().method() === "POST" &&
+      new URL(response.url()).pathname === home + "/clients");
+    await page.locator(".client-create form").evaluate((form) => HTMLFormElement.prototype.submit.call(form));
+    const response = await responsePromise;
+    assert.equal(response.status(), 422);
+    assert.equal(await response.finished(), null);
+    await page.locator(".client-create[open]").waitFor();
+    const failureVisible = await page.getByRole("alert").count() > 0;
+    const inputPreserved = await page.getByLabel("Display name").inputValue() === "Server validation fixture";
+    assert.equal(failureVisible, true);
+    assert.equal(inputPreserved, true);
+    return { status: response.status(), failureVisible, inputPreserved };
+  });
   await page.locator("#client-display-name").fill("Measurement client");
+  await page.locator("#client-email").fill("measurement@example.test");
   await measure("client create", async () => {
     await page.locator(".client-create button[type=submit]").click();
     await page.locator("#client-detail").waitFor();
@@ -87,19 +115,29 @@ try {
   await page.goto(home + "/files");
   const fileBytes = Buffer.alloc(1024 * 1024, 65);
   const progress = [];
-  await page.exposeFunction("recordFixtureUploadProgress", (value) => { progress.push(value); });
+  await page.exposeFunction("recordFixtureUploadProgress", (loaded, total) => { progress.push([loaded, total]); });
   await page.evaluate(() => {
-    const element = document.querySelector("[data-upload-progress]");
-    new MutationObserver(() => {
-      if (!element.hidden) window.recordFixtureUploadProgress(element.value);
-    }).observe(element, { attributes: true, attributeFilter: ["value", "hidden"] });
+    const send = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.send = function (...args) {
+      this.upload.addEventListener("progress", (event) => {
+        if (event.lengthComputable && event.total > 0) {
+          window.recordFixtureUploadProgress(event.loaded, event.total);
+        }
+      });
+      return send.apply(this, args);
+    };
   });
   await page.locator("#file-upload").setInputFiles({ name: "measurement.txt", mimeType: "text/plain", buffer: fileBytes });
+  progress.length = 0;
   await measure("file upload and reload", async () => {
     await page.locator(".file-upload-form button").click();
     await page.getByText("measurement.txt", { exact: true }).first().waitFor();
   });
-  results.at(-1).uploadProgress = { observedEvents: progress.length, maximumPercent: progress.length ? Math.max(...progress) : null };
+  const finalUploadProgress = progress.at(-1);
+  results.at(-1).uploadProgress = { observedEvents: progress.length,
+    uploadedBodyBytes: finalUploadProgress?.[0] ?? null,
+    reportedBodyBytes: finalUploadProgress?.[1] ?? null,
+    maximumPercent: progress.length ? Math.max(...progress.map(([loaded, total]) => Math.round(loaded * 100 / total))) : null };
   await measure("file download", async () => {
     const downloadPromise = page.waitForEvent("download");
     await page.locator('.list-view-table a[href$="/content"]').first().click();
@@ -127,7 +165,9 @@ try {
     assert.equal(await page.locator(".file-upload-form button").isDisabled(), true);
     releaseFailure();
     await page.locator("[data-upload-status].error").waitFor();
-    assert.equal(await page.locator(".file-upload-form button").isEnabled(), true);
+    const retryEnabled = await page.locator(".file-upload-form button").isEnabled();
+    assert.equal(retryEnabled, true);
+    return { errorVisible: true, retryEnabled };
   });
   await page.goto(home + "/settings/invitations");
   await page.locator("#invite-email").fill("fixture@example.invalid");
@@ -136,6 +176,7 @@ try {
     await page.locator('button[value="revoke"]').waitFor();
   });
   await measure("invitation revoke", async () => {
+    await page.locator('input[name="confirm_revoke"]').check();
     await page.locator('button[value="revoke"]').click();
     await page.locator('button[value="revoke"]').waitFor({ state: "detached" });
   });

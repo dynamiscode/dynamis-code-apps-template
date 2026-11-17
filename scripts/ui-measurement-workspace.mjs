@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { chromium } from "playwright";
 import { observeNetwork } from "./ui-measurement-network.mjs";
+import { observeWorkspaceAttribution } from "./ui-measurement-workspace-attribution.mjs";
 
 const browser = await chromium.launch({ channel: "chrome" });
 try {
@@ -28,6 +29,7 @@ try {
     await cdp.send("Network.clearBrowserCache");
     for (const cache of ["cold", "warm"]) {
       const stop = observeNetwork(cdp);
+      const stopAttribution = observeWorkspaceAttribution(cdp);
       try {
         const response = await page.goto(home + suffix, { waitUntil: "load" });
         assert.equal(response.status(), 200, `${name} navigation`);
@@ -35,9 +37,10 @@ try {
           const entry = performance.getEntriesByType("navigation")[0];
           return { domContentLoadedMs: entry.domContentLoadedEventEnd, loadMs: entry.loadEventEnd };
         });
-        results.push({ name, cache, ...stop(), timing });
+        results.push({ name, cache, ...stop(), attribution: stopAttribution(), timing });
       } finally {
         stop();
+        stopAttribution();
       }
     }
   }

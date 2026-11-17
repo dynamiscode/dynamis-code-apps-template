@@ -1,8 +1,10 @@
-# Workspace navigation measurements
+# Workspace journey measurements
 
-Partial evidence for #447, using the [common method](ui-measurement.md). This
-does not complete #447 or set a budget. The measurement script was added on
-top of application commit `d438f9d39a7063c0292ce4731c81977ca8af9a81`.
+Evidence for #447, using the [common method](ui-measurement.md). These results
+set no performance budget. Earlier snapshots below retain their own caveats;
+the integrated clean-window section records current acceptance evidence. The
+measurement script began on application commit
+`d438f9d39a7063c0292ce4731c81977ca8af9a81`.
 
 **Isolation caveat:** A fixture isolation defect was found in upstream draft
 PR #456 after these runs. Its scope and effect on these results are not yet
@@ -488,3 +490,227 @@ ordinary form navigations to synthetic plain-text responses; their application
 error page and final transfer size were not observed. The File upload failure
 and pending state were observed separately in the extended isolated run above.
 Home's document loading and application-level failure remain unverified.
+
+## Historical coverage before the integrated clean window
+
+This matrix records the earlier evidence state. The integrated measurements
+below supersede its pending and unverified labels where new observations exist.
+
+| Surface | Success request/size/timing evidence | Loading and failure evidence | Remaining scoped gap |
+|---|---|---|---|
+| Home | Cold and warm document navigation; synthetic 503 response count, bytes and elapsed time | Synthetic response only; no application mutation | Browser chrome loading is outside page DOM; synthetic 503 bypasses the app handler, so neither state was measured |
+| Items | Create/edit/delete fragments, filter, pagination, peer SSE refresh, reconnect and no-JavaScript create | Busy state and visible error/input retention for injected create 503; forced SSE abort and offline recovery observations | Initial SSE connection intermittently times out; real network/server failure behavior and stream wire bytes remain unverified |
+| Clients | List/detail, create/edit/archive/unarchive/delete, fields, filtering and validation; peer SSE refresh and server validation 422 probes prepared for #478 behavior | Create busy state under held POST; synthetic 503 response observed | Post-#478 SSE and 422 outcomes remain unverified; earlier disconnection results are pre-#478. Ordinary-form failure-page and final response-byte measurements remain unverified; the probe now waits for response completion |
+| Files | Filter, 1 MiB upload and verified download payload | Upload pending, one 100% progress update, injected 503 error and retry control | Intermediate upload progress and download wire bytes remain unavailable from current CDP completion accounting |
+| Members | Filter, role change, ownership transfer and removal; viewer invitation-page 403 | Role form busy state under held POST; synthetic 503 response observed | Application-rendered failure and final ordinary-form response bytes remain unverified; the probe now waits for response completion |
+| Invitations | Create/resend/revoke; viewer invitation-page 403 | Create form busy state under held POST; synthetic 503 response observed | Application-rendered failure and final ordinary-form response bytes remain unverified; the probe now waits for response completion |
+
+Keep these dated snapshots as historical evidence.
+
+## Integrated clean-window measurements
+
+Run on 2026-11-17 against application commit `c13618ddd0cd85000e0012d80fc0998f78d8b8bf`,
+which includes upstream fixture-isolation fix `5042fe34fbeb3015b641015e2fc15782f911fd91`.
+The measurement scripts had the issue-specific working-tree changes later
+recorded in this branch; the application code was clean at that commit. OS was
+Darwin 27.2.0 arm64, Chrome 157.0.8103.79, Node v26.13.0 and Playwright 1.64.1.
+Desktop runs used 1280×900, scale 1, English, light theme, reduced motion,
+blocked service workers and unthrottled loopback. Each command started a new
+temporary SQLite database and local file store, with one synthetic owner and
+workspace. Navigation and state fixtures began with zero Items, Clients, Files
+and invitations. The interactions and gap commands added only synthetic data.
+Each condition was observed once; no budgets or aggregate claims follow.
+
+Exact commands:
+
+```sh
+UI_MEASURE=workspace PLAYWRIGHT_PORT=58147 ./scripts/playwright-smoke.sh
+UI_MEASURE=interactions PLAYWRIGHT_PORT=58147 ./scripts/playwright-smoke.sh
+UI_MEASURE=gaps PLAYWRIGHT_PORT=58147 ./scripts/playwright-smoke.sh
+UI_MEASURE=states PLAYWRIGHT_PORT=58147 ./scripts/playwright-smoke.sh
+```
+
+Capture timestamps UTC: workspace `2026-11-17T16:53:11.811Z`, states
+`2026-11-17T17:01:35.131Z`, gaps `2026-11-17T17:10:09.551Z`, and final
+interactions `2026-11-17T17:13:32.863Z`.
+
+Navigation starts before `page.goto` and ends after the load event and timing
+read. Request counts include starts in that interval. Completed bytes are CDP
+encoded response bytes; unfinished requests have unavailable bytes. Timings are
+navigation-start to DOMContentLoaded/load. Interaction intervals start before
+the action and end at the asserted DOM state; elapsed values include Playwright
+overhead. Their bytes are completed response bytes on the measured tab, not
+request-body bytes. The observer reports `Network.dataReceived` SSE bytes
+separately; this is not a complete transfer size while a stream remains open.
+All numbers are single observations.
+
+| Surface | Cache | Requests | Completed bytes | Unfinished | DOMContentLoaded ms | Load ms | HTTP errors |
+|---|---|---:|---:|---:|---:|---:|---|
+| Home | cold | 5 | 98147 | 1 | 12.2 | 13.7 | 0 |
+| Home | warm | 4 | 98147 | 0 | 14.5 | 16.0 | 0 |
+| Items | cold | 10 | 163029 | 2 | 15.9 | 17.4 | favicon 404 |
+| Items | warm | 9 | 162517 | 2 | 15.6 | 17.1 | 0 |
+| Clients | cold | 10 | 162540 | 3 | 16.0 | 18.3 | 0 |
+| Clients | warm | 8 | 162540 | 1 | 15.4 | 17.4 | 0 |
+| Files | cold | 7 | 126911 | 0 | 14.3 | 15.7 | favicon 404 |
+| Files | warm | 5 | 118915 | 0 | 13.6 | 15.1 | 0 |
+| Members | cold | 6 | 124175 | 1 | 16.6 | 17.8 | 0 |
+| Members | warm | 5 | 124175 | 0 | 16.1 | 17.1 | 0 |
+| Invitations | cold | 6 | 117264 | 0 | 28.8 | 29.0 | favicon 404 |
+| Invitations | warm | 5 | 116752 | 0 | 13.7 | 14.0 | 0 |
+
+Cold Items, Files and Invitations each requested a missing favicon once. This
+is an actionable shared-shell issue for #374. A same-URL GET candidate appeared
+on cold and warm Items and cold Clients: the first request was Document 200;
+the repeated request was Fetch with status unavailable at the observation
+boundary. The observer compared URLs only in memory and emitted no URL, query,
+headers or body. These three candidates may be list refreshes; available safe
+attribution does not prove they are unnecessary. Map follow-up to #374 realtime
+list refresh and retain as unverified until the owning UI flow classifies them.
+No request was removed and no performance budget was set.
+
+CDP reported 0 `Network.dataReceived` encoded bytes for the Items cold/warm and
+Clients cold SSE streams. It reported no SSE byte field for other navigation
+observations. Zero means no encoded data chunks were reported during that
+interval; it does not mean an open stream transferred zero wire bytes.
+
+### Mutations, fragments, transfers and loading
+
+| Journey | Requests | Completed bytes | Unfinished | Elapsed ms | Observed result |
+|---|---:|---:|---:|---:|---|
+| Item peer SSE event and list refresh | 1 | 7212 | 0 | 1360.2 | 1 SSE message; peer create visible |
+| Item create fragment | 1 | 9421 | 0 | 59.5 | Created row visible |
+| Item edit fragment | 1 | 9453 | 0 | 57.0 | Updated row visible |
+| Item delete fragment | 1 | 7255 | 0 | 60.3 | Deleted row absent |
+| Client peer SSE event and list refresh | 1 | 7942 | 0 | 864.1 | 1 SSE message; peer create visible |
+| Client server validation failure | 8 | 163187 | 1 | 39.1 | HTTP 422; alert visible; draft retained |
+| Client create and detail | 5 | 64954 | 0 | 72.5 | Detail visible |
+| Client detail navigation | 6 | 73422 | 1 | 85.6 | Detail visible |
+| Client edit | 5 | 64978 | 0 | 69.1 | Updated heading visible |
+| Client archive | 5 | 65078 | 0 | 63.0 | Unarchive action visible |
+| Client unarchive | 5 | 64927 | 0 | 63.7 | Archive action visible |
+| Client delete | 10 | 170024 | 1 | 96.9 | Client list visible |
+| Client field create | 5 | 64805 | 0 | 65.7 | Field visible |
+| Client field value set | 5 | 65598 | 0 | 71.0 | Saved value visible |
+| File upload and reload | 7 | 128640 | 0 | 120.4 | 1 progress event at 100%; body 1048899 bytes |
+| File download | 1 | 0 | 0 | 78.6 | Local 1048576-byte payload verified; Chrome download handoff |
+| Item filter to empty state | 9 | 168343 | 1 | 52.0 | Empty state visible |
+| Client filter to empty state | 9 | 171340 | 1 | 39.9 | Empty state visible |
+| File filter to empty state | 5 | 119090 | 0 | 35.7 | Empty state visible |
+| Member filter to empty state | 5 | 119478 | 0 | 31.1 | Empty state visible |
+| Item next page | 9 | 164762 | 2 | 85.6 | Next page rows visible |
+| Member role change | 6 | 128938 | 0 | 106.4 | Viewer role visible |
+| Ownership transfer to invitee | 6 | 125870 | 0 | 106.4 | Transfer succeeded; restoration ran outside timed interval |
+| Member removal | 6 | 124175 | 0 | 124.2 | Member row absent |
+| Invitation create | 5 | 117903 | 0 | 70.4 | Revoke action visible |
+| Invitation resend | 5 | 117903 | 0 | 65.2 | Revoke action visible |
+| Invitation revoke | 6 | 116874 | 0 | 97.8 | Revoke action absent |
+| Item create with JavaScript disabled | 4 | 136294 | 0 | 177.4 | Ordinary form created row |
+| Mobile Spanish dark Items navigation | 10 | 290292 | 1 | 60.4 | 390×844, `es`, dark theme |
+
+The Client 422 used a synthetic invalid email. Native required-field validation
+also stopped an empty Client submit locally: 0 requests, 0 completed bytes,
+47.7 ms, invalid input observed. The viewer permission probe returned HTTP 403
+for Invitations: 3 requests, 57830 completed bytes, no unfinished request,
+21.6 ms.
+
+### Failure and recovery states
+
+For each route, a separate navigation probe intercepted the document GET and
+returned 97 bytes of synthetic plain text with HTTP 503. Each recorded one
+request, zero unfinished requests, and no redirects or transport failures.
+Elapsed navigation-to-load values were Home 33.0 ms, Items 13.9 ms, Clients
+14.1 ms, Files 25.5 ms, Members 20.3 ms and Invitations 17.2 ms. The pending
+indicator was unavailable during every held document navigation. These figures
+measure Playwright interception, not application-server latency. Because the
+synthetic response bypassed the app handler, its error page is not evidence of
+the application's real document-failure view. Browser chrome loading is outside
+the measured page DOM.
+
+| Failure probe | Requests | Completed bytes | Unfinished | Elapsed ms | Observed state |
+|---|---:|---:|---:|---:|---|
+| Item create, held POST then synthetic 503 | 1 | 63 | 0 | 94.5 | Busy control, visible error, title retained |
+| Client create, held POST then synthetic 503 | 1 | unavailable | 1 | 73.1 | Busy observed; intercepted document response unfinished |
+| Invitation create, held POST then synthetic 503 | 1 | unavailable | 1 | 49.7 | Busy observed; intercepted document response unfinished |
+| Member role change, held POST then synthetic 503 | 1 | 180 | 0 | 61.9 | Busy observed |
+| File upload then synthetic 503 | 1 | 63 | 0 | 67.8 | Error visible; retry enabled |
+| Client invalid email | 8 | 163187 | 1 | 39.1 | Real app HTTP 422; alert visible; draft retained |
+| Viewer opens Invitations | 3 | 57830 | 0 | 21.6 | Real app HTTP 403 |
+
+All five mutation 503s were Playwright route fulfillments, not application
+server errors. A missing response byte count is unavailable, not zero. The
+Client 422 and viewer 403 came from the isolated application fixture.
+
+Forced EventSource abort confirmed reconnect status and return to connected
+state for both lists. Item reconnect: 10 requests, 281185 completed bytes, 1
+unfinished SSE stream, 1 transport failure, 3408.7 ms. Client reconnect: 10
+requests, 171724 completed bytes, 1 unfinished SSE stream, 1 transport failure,
+3371.8 ms. Both reconnected within 10 seconds. CDP reported 0
+`Network.dataReceived` encoded bytes during both reconnect windows; each stream
+remained unfinished, so complete SSE transfer bytes are unavailable. The peer
+event probes each observed 1 SSE message. Their action observer started after
+the EventSource connection opened, so completed bytes cover the list-refresh
+response, not the SSE stream. Item offline recovery began connected, but
+`BrowserContext.setOffline(true)` did not produce the app's reconnecting status
+within 10 seconds (`reconnecting: false`); the test restored connectivity and
+recorded no recovery result. Offline-recovery UI remains unverified with this
+fixture method.
+
+The upload used a 1048576-byte synthetic file. One XHR progress event reported
+1048899 request-body bytes at 100%; this includes multipart framing and excludes
+HTTP headers. CDP measured 7 requests, 128640 completed response bytes and
+120.4 ms for upload plus reload. Download verification read a 1048576-byte local
+payload; its CDP interval reported 1 request, 0 completed encoded bytes, 1
+transport failure and 76.8 ms. Chrome handles downloads outside ordinary page
+completion, so this counter does not mean the download failed. Wire bytes remain
+unavailable. Response-byte totals do not include the XHR request body.
+
+### Measurement corrections and failures
+
+One pre-window capture attempt stopped before browser launch:
+
+```sh
+UI_MEASURE=interactions PLAYWRIGHT_PORT=58147 ./scripts/playwright-smoke.sh > /tmp/ui447-interactions-0b32bc4-rerun.json
+```
+
+The shell returned `zsh:1: no space left on device` while creating the output
+file with 110 MiB free. No measurement process started and no result was
+recorded. The clean-window runs began after disk recovery.
+
+During probe correction, an interaction run stopped because the 422 form kept
+its invalid email; Playwright returned `Timeout 10000ms exceeded` waiting for
+`#client-detail`. The fixture now fills a valid synthetic address. The next
+interaction run returned `Timeout 10000ms exceeded` waiting for
+`button[value="revoke"]` to detach; the probe now checks the required revoke
+confirmation. The first gap run failed with `strict mode violation` because
+`button[value="role"]` matched two members; the probe now scopes to the seeded
+member ID. Later gap runs timed out waiting for transfer and removal controls
+to disappear because their required checkboxes were unchecked. The probe now
+checks `confirm_transfer` and `confirm_remove`. Review also found its filter
+probe had checked a generic Clients wrapper; the final run asserts each route's
+empty-state element. Interaction output now retains and asserts the Client 422
+alert/draft and File upload error/retry states. Final commands above passed
+after these corrections.
+
+Secret safety: fixtures were synthetic. Scripts emitted no request URLs,
+query strings, credentials, cookies, headers, request/response bodies, file
+contents, invitation links or secret values. Upload progress captured numeric
+`loaded`/`total` only. Download payload was compared locally and not printed.
+
+## Current acceptance status
+
+Measured: six cold/warm navigations; Items and Clients fragments, mutations,
+SSE events and forced reconnect; filters and pagination; Client fields and
+lifecycle; member role, ownership transfer and removal; invitation create,
+resend and revoke; file upload progress and payload-verified download; empty,
+validation, synthetic failure, permission and JavaScript-disabled states.
+Navigation and interaction results identify three same-URL GET candidates and
+three cold favicon 404s, with no unsupported claim that a candidate is
+redundant.
+
+Unverified: app-rendered document loading/failure states during a held initial
+navigation; intermediate upload progress beyond its single 100% event; download
+wire bytes; complete SSE transfer bytes while streams remain open; Item
+offline-recovery status after Playwright's offline toggle; and exact identity
+of the repeated GET candidates because URLs remain intentionally redacted.
+These limits delimit evidence only. Budgets are not set.
