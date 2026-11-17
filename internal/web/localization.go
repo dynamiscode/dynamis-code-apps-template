@@ -237,12 +237,12 @@ func (h *Handler) generalSettingsPage(writer http.ResponseWriter, request *http.
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, http.StatusOK, "general-settings.html", pageData{
+	h.renderSettingsPage(writer, request, http.StatusOK, pageData{
 		Title: "General workspace settings", NavPage: "general", NavSection: "settings", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		WorkspaceNotificationPreferences: preferences,
 		CanManage:                        principal.Permissions[identity.WorkspaceUpdate], Saved: request.URL.Query().Get("saved") == "1",
-	})
+	}, generalSettingsView)
 }
 
 func (h *Handler) generalSettings(writer http.ResponseWriter, request *http.Request) {
