@@ -1291,4 +1291,3 @@ continues to enforce owner/admin management and owner-only transfer.
   test shim. It verified the tool prepares and focuses the existing form and
   does not submit it; native-browser WebMCP integration remains unverified.
 - Passed: `go generate ./internal/web` with zero generated drift.
-- Pending: VoiceOver walkthrough and 1,000/10,000-row latency benchmarks.
