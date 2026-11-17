@@ -34,10 +34,6 @@ import (
 )
 
 func TestMFAOptionsRenderAsJSON(t *testing.T) {
-	handler, err := NewHandlerWithServices(nil, nil, nil, nil, nil, config.HTTP{}, "", "", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
 	catalog, err := i18n.New()
 	if err != nil {
 		t.Fatal(err)
@@ -45,9 +41,9 @@ func TestMFAOptionsRenderAsJSON(t *testing.T) {
 	var body bytes.Buffer
 	data := pageData{
 		Locale: "en", Catalog: catalog,
-		MFAOptions: json.RawMessage(`{"publicKey":{"challenge":"abc"}}`),
+		MFAOptions: json.RawMessage(`{"publicKey":{"challenge":"abc"},"label":"</script><script>alert(1)</script>"}`),
 	}
-	if err := handler.template.ExecuteTemplate(&body, "mfa.html", data); err != nil {
+	if err := authMFA(data).Render(context.Background(), &body); err != nil {
 		t.Fatal(err)
 	}
 	start := strings.Index(body.String(), `<script id="mfa-options" type="application/json">`) + len(`<script id="mfa-options" type="application/json">`)
@@ -59,12 +55,65 @@ func TestMFAOptionsRenderAsJSON(t *testing.T) {
 		PublicKey struct {
 			Challenge string `json:"challenge"`
 		} `json:"publicKey"`
+		Label string `json:"label"`
 	}
 	if err := json.Unmarshal([]byte(body.String()[start:start+end]), &options); err != nil {
 		t.Fatalf("MFA options are not a JSON object: %v; body=%s", err, body.String())
 	}
 	if options.PublicKey.Challenge != "abc" {
 		t.Fatalf("challenge = %q", options.PublicKey.Challenge)
+	}
+	if options.Label != `</script><script>alert(1)</script>` || strings.Contains(body.String(), `</script><script>alert(1)</script>`) {
+		t.Fatal("MFA options did not remain safely encoded JSON")
+	}
+}
+
+func TestEmailVerificationRouteSuccessUsesAuthLayout(t *testing.T) {
+	ctx := context.Background()
+	cfg, err := config.LoadFrom(func(string) (string, bool) { return "", false })
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Database.SQLitePath = ":memory:"
+	cfg.Database.MaxOpenConns = 1
+	cfg.Database.MaxIdleConns = 1
+	db, err := database.Open(ctx, cfg.Database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := database.Migrate(ctx, db, cfg.Database.Driver); err != nil {
+		t.Fatal(err)
+	}
+	auth, err := identity.NewService(db, cfg.Database.Driver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := auth.BootstrapFirstOwner(ctx, identity.BootstrapInput{
+		Email: "owner@example.com", Password: "long-enough-password", WorkspaceName: "Example",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, "UPDATE users SET email_verified_at = NULL WHERE id = ?", owner.UserID); err != nil {
+		t.Fatal(err)
+	}
+	verification, err := auth.BeginEmailVerification(ctx, owner.UserID, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler, err := NewHandlerWithServices(auth, nil, nil, nil, nil, cfg.HTTP, "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := request(handler.Routes(), http.MethodGet, "/account/verify-email/"+url.PathEscape(verification.Secret), nil, nil, map[string]string{"Accept-Language": "es"})
+	body := response.Body.String()
+	if response.Code != http.StatusOK || !strings.Contains(body, "Correo verificado.") ||
+		!strings.Contains(body, `class="btn btn-primary" href="/account"`) {
+		t.Fatalf("verification success route status = %d; localized success or account link missing", response.Code)
+	}
+	if strings.Contains(body, verification.Secret) || response.Header().Get("Cache-Control") != "no-store" {
+		t.Fatal("verification success page exposed its token or was cacheable")
 	}
 }
 

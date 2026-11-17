@@ -9,6 +9,9 @@ of what was verified on its date.
 The [UI measurement method and asset inventory](ui-measurement.md) records the
 baseline environment and remaining screen measurements for issue #439. It does
 not establish performance budgets or claim screen measurements are complete.
+The [workspace journey evidence](ui-measurement-workspace.md) records request,
+transfer, timing, mutation, loading and failure observations for issue #447,
+with unavailable metrics and states marked explicitly.
 
 The [administration measurement evidence](ui-measurement-admin.md) records the
 bounded screen and state measurements for issue #448. Metrics the harness cannot
@@ -453,12 +456,17 @@ fresh PostgreSQL 14.24 container; `go generate ./api` shows no drift.
 
 ## Authentication journey evidence
 
-Issue #384 gives setup, sign-in, MFA, email verification, and password reset a
-shared generated-app brand and responsive auth layout. Required account and
+Issues #419 and #420 use the shared generated-app auth layout for setup,
+sign-in, password reset, MFA, and email verification. Required account and
 workspace details remain first; the workspace language preference is optional.
 Authentication mutations retain ordinary CSRF-protected forms and reset
-requests retain generic responses. `internal/web/auth_journeys_test.go` checks
-English and Spanish setup plus auth-page form fallbacks.
+requests retain generic responses. MFA keeps passkey enhancement plus TOTP and
+single-use recovery form fallbacks. `auth_journeys_test.go` checks setup,
+localized MFA retry and fallback states; `handler_test.go` checks safe passkey
+JSON and verification success without token reflection or caching. Verified
+2026-11-17: the focused web tests passed 8 tests, `make templ-check` passed, and
+the isolated Playwright run passed all 12 email verification and 8 password
+reset cases.
 
 ## Item short ID evidence
 

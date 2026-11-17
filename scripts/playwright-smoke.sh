@@ -89,6 +89,7 @@ SQL
 fi
 env -i HOME="$work" TMPDIR="$work" MULTI_WORKSPACE_ENABLED=true \
   HTTP_REQUESTS_PER_MINUTE=10000 HTTP_AUTH_REQUESTS_PER_MINUTE=1000 \
+  WEBHOOK_ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
   DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" STORAGE_DRIVER=local STORAGE_LOCAL_PATH="$work/files" \
   HTTP_SSE_POLL_INTERVAL="${PLAYWRIGHT_SSE_POLL_INTERVAL:-1s}" \
   HTTP_SSE_MAX_LIFETIME="${PLAYWRIGHT_SSE_MAX_LIFETIME:-5m}" \
@@ -143,6 +144,14 @@ export PLAYWRIGHT_OIDC_BASE_URL="http://127.0.0.1:$oidc_port"
 export PLAYWRIGHT_SETUP_BASE_URL="http://127.0.0.1:$setup_port"
 if [ "${UI_MEASURE:-0}" = 1 ]; then
   node scripts/ui-measurement.mjs
+elif [ "${UI_MEASURE:-0}" = workspace ]; then
+  node scripts/ui-measurement-workspace.mjs
+elif [ "${UI_MEASURE:-0}" = interactions ]; then
+  node scripts/ui-measurement-interactions.mjs
+elif [ "${UI_MEASURE:-0}" = gaps ]; then
+  node scripts/ui-measurement-gaps.mjs
+elif [ "${UI_MEASURE:-0}" = states ]; then
+  node scripts/ui-measurement-workspace-states.mjs
 else
   export PLAYWRIGHT_MEMBERS_BASE_URL="http://127.0.0.1:$members_port"
   npm run test:journeys -- "$@"
