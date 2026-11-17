@@ -13,6 +13,10 @@ not establish performance budgets or claim screen measurements are complete.
 The [administration measurement evidence](ui-measurement-admin.md) is partial
 for issue #448; its isolated run may have experienced concurrent check load.
 
+The [account, authentication, and public measurement evidence](ui-measurement-identity.md)
+is partial for issue #449; MFA, MCP consent, valid public shares, and interaction
+states remain unmeasured.
+
 ## Profile status
 
 | Profile | Status | Evidence |
