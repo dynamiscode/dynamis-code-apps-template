@@ -107,7 +107,7 @@ templ accountPage(data pageData) {
 						} else {
 							<ul class="settings-records">
 								for _, preference := range data.NotificationPreferences {
-									<li class="settings-record"><span>{ accountNotificationLabel(data, preference.NotificationType) }</span><span>
+									<li class="settings-record"><span>{ workspaceNotificationLabel(data, preference.NotificationType) }</span><span>
 										if preference.Enabled {
 											{ data.T("account.enabled") }
 										} else {
@@ -189,8 +189,4 @@ templ languageSettingsPage(data pageData) {
 			</main>
 		</body>
 	</html>
-}
-
-func accountNotificationLabel(data pageData, notificationType string) string {
-	return workspaceNotificationLabel(data, notificationType)
 }

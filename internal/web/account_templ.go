@@ -806,9 +806,9 @@ func accountPage(data pageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var44 string
-				templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(accountNotificationLabel(data, preference.NotificationType))
+				templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(workspaceNotificationLabel(data, preference.NotificationType))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 110, Col: 104}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 110, Col: 106}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 				if templ_7745c5c3_Err != nil {
@@ -1364,10 +1364,6 @@ func languageSettingsPage(data pageData) templ.Component {
 		}
 		return nil
 	})
-}
-
-func accountNotificationLabel(data pageData, notificationType string) string {
-	return workspaceNotificationLabel(data, notificationType)
 }
 
 var _ = templruntime.GeneratedTemplate
