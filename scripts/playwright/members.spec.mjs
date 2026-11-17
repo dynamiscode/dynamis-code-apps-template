@@ -56,8 +56,9 @@ test.describe("members route", () => {
 
 		test("keeps empty and filter states usable without JavaScript", async ({ page }) => {
 			const workspacePath = await openWorkspaceMembers(page);
-			await expect(page.locator(".list-view-table tbody tr")).toHaveCount(1);
-			await expect(page.locator(".list-view-table tbody tr button[value=remove]")).toHaveCount(0);
+			await expect(page.locator(".list-view-table tbody tr")).toHaveCount(2);
+			const seededMemberRow = page.locator(".list-view-table tbody tr").filter({ hasText: "playwright-member@example.com" });
+			await expect(seededMemberRow.locator("button[value=remove]")).toHaveCount(1);
 			await page.locator(".client-filters summary").click();
 			await expect(page.getByLabel("Filter by email")).toBeVisible();
 			await page.getByLabel("Filter by email").fill("nobody@example.com");
@@ -113,9 +114,9 @@ test.describe("members route", () => {
 		const targetRow = (memberEmail) => page.locator(".list-view-table tbody tr").filter({ hasText: memberEmail });
 		await expect(targetRow("removed@example.com")).toBeVisible();
 		await expect(targetRow("transferred@example.com")).toBeVisible();
-		await expect(page.locator('form[data-webmcp-actions="member-role-update"][data-webmcp-id]')).toHaveCount(4);
-		await expect(page.locator('form[data-webmcp-actions="member-remove"][data-webmcp-id]')).toHaveCount(4);
-		await expect(page.locator('form[data-webmcp-actions="ownership-transfer"][data-webmcp-id]')).toHaveCount(4);
+		await expect(page.locator('form[data-webmcp-actions="member-role-update"][data-webmcp-id]')).toHaveCount(6);
+		await expect(page.locator('form[data-webmcp-actions="member-remove"][data-webmcp-id]')).toHaveCount(6);
+		await expect(page.locator('form[data-webmcp-actions="ownership-transfer"][data-webmcp-id]')).toHaveCount(6);
 		await page.setViewportSize({ width: 390, height: 844 });
 		await expect(page.locator(".list-view-cards")).toBeVisible();
 		await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
