@@ -1254,7 +1254,7 @@ validation as they are adopted.
 - Deferred: full `make test` and release verification. No data, API, CLI,
   MCP, realtime, or operational behavior changed.
 
-## Member management validation evidence (#418, 2026-11-16)
+## Member management validation evidence (#418, 2026-11-17)
 
 The Members route uses a responsive shared list with per-user columns, search,
 role filters, sorting, and opt-in paging. Separate ordinary CSRF-protected
@@ -1263,13 +1263,26 @@ explicit removal and transfer confirmation; shared identity authorization
 continues to enforce owner/admin management and owner-only transfer.
 
 - Passed: `make test`, `make lint`, `go test ./internal/web/...` (198 tests),
-  and `go test -race ./...` (1,050 tests across 36 packages). The race run
-  overlapped another worktree's race run; no process was interrupted, and this
-  run exited successfully.
+  and `go test -race ./...` (1,050 tests across 36 packages) during initial
+  #418 validation. The race run overlapped another worktree's race run; no
+  process was interrupted, and this run exited successfully.
+- Passed: latest normal pre-push `make ci-local` on `35d759e`; hosted CI
+  [43997171044](https://github.com/dynamiscode/dynamis-code-apps-template/actions/runs/43997171044)
+  passed `make verify`, PostgreSQL `go test -race ./...`, browser and
+  accessibility smoke, WebMCP fallback, container, security, and fuzz checks.
+  Source security run
+  [43997171088](https://github.com/dynamiscode/dynamis-code-apps-template/actions/runs/43997171088)
+  passed.
 - Passed: full `PLAYWRIGHT_PORT=58125 ./scripts/playwright-smoke.sh` (20/20),
   including role, removal, transfer, permission denial, CSRF, validation,
   keyboard, Spanish, no-JavaScript forms, mobile axe, and screenshot comparisons
-  against desktop/mobile light/dark baselines. The four baselines were reviewed.
+  against desktop/mobile light/dark baselines during initial #418 validation.
+- Passed: hosted browser smoke compared desktop snapshots and separate Linux
+  mobile light/dark snapshots. The Linux baselines match reviewed hosted CI
+  actuals; Darwin and desktop snapshot names and the 5% threshold are unchanged.
+- Partial: pinned Linux MCR Chrome 157.0.8103.78 member run passed 4/6 tests.
+  Desktop and non-screenshot member tests passed; mobile comparisons expected
+  390×1268 and received 390×1244. Hosted CI passes those same mobile checks.
 - Passed: `A11Y_PORT=58126 make accessibility-smoke` in English and Spanish;
   Members had zero axe violations in both locales.
 - Passed: `WEBMCP_PORT=58127 make webmcp-smoke` fallback and member browser
@@ -1278,4 +1291,4 @@ continues to enforce owner/admin management and owner-only transfer.
   test shim. It verified the tool prepares and focuses the existing form and
   does not submit it; native-browser WebMCP integration remains unverified.
 - Passed: `go generate ./internal/web` with zero generated drift.
-- Pending: CI, VoiceOver walkthrough, and 1,000/10,000-row latency benchmarks.
+- Pending: VoiceOver walkthrough and 1,000/10,000-row latency benchmarks.
