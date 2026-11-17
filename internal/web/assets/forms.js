@@ -102,7 +102,7 @@
 	// Fields a draft may store: never secrets, hidden values, or files.
 	const fieldsOf = (form, withSecrets) => controls(form).filter((el) => el.name && !["hidden", "file"].includes(el.type) && (withSecrets || !el.matches('input[type="password"], input[data-enhanced]')));
 	const entryKey = (el) => (checkable(el) ? `${el.name}=${el.value}` : el.name);
-	const entriesOf = (form, withSecrets) => fieldsOf(form, withSecrets).map((el) => [entryKey(el), checkable(el) ? el.checked : el.value]);
+	const entriesOf = (form, withSecrets) => fieldsOf(form, withSecrets).map((el) => [entryKey(el), el instanceof HTMLSelectElement && el.multiple ? [...el.selectedOptions].map((option) => option.value) : checkable(el) ? el.checked : el.value]);
 	const visible = (el) => !el.closest("[hidden]");
 	const pageHasError = () => !!document.querySelector('.error[role="alert"], .error-summary');
 
@@ -228,10 +228,11 @@
 
 	// Dirty tracking, enable-by-change, and the unsaved-changes warning.
 	const initial = new WeakMap();
+	const dirtyOnLoad = new WeakSet();
 	function updateDirty(form) {
 		if (!initial.has(form)) return;
 		const dirty = isDirty(initial.get(form), entriesOf(form, true));
-		form.dataset.dirty = dirty ? "true" : "";
+		if (dirty || !dirtyOnLoad.has(form)) form.dataset.dirty = dirty ? "true" : "";
 		if (form.dataset.submitting === "true") return;
 		for (const button of form.querySelectorAll("[data-requires-change]")) button.disabled = !dirty;
 	}
@@ -250,7 +251,7 @@
 		// so the answer decides between discard (saved) and restore (rejected).
 		if (!storage || (!submitted && form.dataset.submitting === "true")) return;
 		const entries = entriesOf(form);
-		const empty = entries.every(([, v]) => v === "" || v === false);
+		const empty = entries.every(([, v]) => v === "" || v === false || (Array.isArray(v) && v.length === 0));
 		try {
 			if (empty && !submitted) storage.removeItem(draftKey(form));
 			else storage.setItem(draftKey(form), JSON.stringify({ entries, submitted }));
@@ -265,7 +266,10 @@
 		for (const el of fieldsOf(form)) {
 			if (!saved.has(entryKey(el))) continue;
 			if (checkable(el)) el.checked = saved.get(entryKey(el));
-			else el.value = saved.get(entryKey(el));
+			else if (el instanceof HTMLSelectElement && el.multiple) {
+				const selected = new Set(saved.get(entryKey(el)));
+				for (const option of el.options) option.selected = selected.has(option.value);
+			} else el.value = saved.get(entryKey(el));
 		}
 		writeDraft(form, false);
 		if (!announce) return;
@@ -280,7 +284,12 @@
 		discard.addEventListener("click", () => {
 			storage?.removeItem(draftKey(form));
 			form.reset();
-			for (const el of fieldsOf(form)) if (!checkable(el)) el.value = el.defaultValue;
+			for (const el of fieldsOf(form)) {
+				if (checkable(el)) continue;
+				if (el instanceof HTMLSelectElement && el.multiple) {
+					for (const option of el.options) option.selected = option.defaultSelected;
+				} else el.value = el.defaultValue;
+			}
 			note.remove();
 			updateDirty(form);
 		});
@@ -416,7 +425,11 @@
 			form.noValidate = true;
 			if (form.matches("[data-dirty-track], [data-unsaved-warning]")) {
 				initial.set(form, entriesOf(form, true));
-				updateDirty(form);
+				if (form.hasAttribute("data-dirty-on-load")) {
+					dirtyOnLoad.add(form);
+					form.dataset.dirty = "true";
+				}
+				else updateDirty(form);
 			}
 			if (form.dataset.persist) applyDraft(form, announce);
 			if (form.matches("[data-wizard]")) enhanceWizard(form);
@@ -575,12 +588,13 @@
 	});
 	document.addEventListener("app:toast", (event) => toast(event.detail?.value));
 
-	// The realtime item list asks before replacing rows the user is editing.
+	// Realtime list refreshes ask before replacing controls the user is editing.
 	window.dynamisForms = Object.assign({}, core, {
 		isEditing(root) {
 			const active = document.activeElement;
-			const typing = active && root.contains(active) && ["INPUT", "SELECT", "TEXTAREA"].includes(active.tagName);
-			return typing || [...root.querySelectorAll("form")].some((form) => form.dataset.dirty === "true" || form.dataset.submitting === "true");
+			if (active && root.contains(active)) return true;
+			if ([...root.querySelectorAll("details")].some((details) => details.open && details.dataset.userToggled === "true")) return true;
+			return [...root.querySelectorAll("form")].some((form) => form.dataset.dirty === "true" || form.dataset.submitting === "true");
 		},
 		toast,
 	});

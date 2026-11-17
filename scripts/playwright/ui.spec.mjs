@@ -251,6 +251,8 @@ for (const screenshot of screenshots) {
     await page.emulateMedia({ colorScheme: screenshot.colorScheme, reducedMotion: "reduce" });
     await openItems(page);
     await expect(page.getByRole("heading", { name: "Items", level: 1 })).toBeVisible();
+    const connected = await page.locator("#item-list").getAttribute("data-live-connected");
+    await expect(page.locator("#realtime-status")).toHaveText(connected);
     await expect(page).toHaveScreenshot(`items-${screenshot.name}.png`, {
       animations: "disabled",
       fullPage: true,
@@ -380,6 +382,9 @@ test("Spanish Items list passes axe", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("lang", "es");
   await expect(page.getByRole("heading", { name: "Elementos", level: 1 })).toBeVisible();
   await expect(page.getByLabel("Título del nuevo elemento")).toBeVisible();
+  const connected = (await page.locator("#item-list").getAttribute("data-live-connected")) ?? "";
+  expect(connected).not.toBe("");
+  await expect(page.locator("#realtime-status")).toHaveText(connected);
 
   await injectAxe(page);
   const results = await page.evaluate(async () => axe.run(document.querySelector("#item-list")));
