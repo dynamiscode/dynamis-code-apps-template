@@ -667,6 +667,11 @@ func TestInvitationEmailUsesWorkspaceLocale(t *testing.T) {
 
 func TestWebLanguageSettingsRoutes(t *testing.T) {
 	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	if err := auth.UpdateUserProfile(context.Background(), owner.UserID, identity.ProfileUpdateInput{
+		Locale: "es", Timezone: "America/Bogota", Theme: "dark",
+	}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -682,7 +687,7 @@ func TestWebLanguageSettingsRoutes(t *testing.T) {
 	}
 
 	settings := request(handler, http.MethodGet, "/settings/language", nil, cookies, nil)
-	if settings.Code != http.StatusOK || !strings.Contains(settings.Body.String(), "Automatic") {
+	if settings.Code != http.StatusOK || !strings.Contains(settings.Body.String(), "Automático") {
 		t.Fatalf("language settings = %d, %s", settings.Code, settings.Body.String())
 	}
 	saved := request(handler, http.MethodPost, "/settings/language", url.Values{
@@ -693,6 +698,14 @@ func TestWebLanguageSettingsRoutes(t *testing.T) {
 	}
 	if locale, err := auth.GetUserLocale(context.Background(), owner.UserID); err != nil || locale != "es" {
 		t.Fatalf("saved user locale = %q, %v", locale, err)
+	}
+	invalidLocale := request(handler, http.MethodPost, "/settings/language", url.Values{
+		"csrf": {session.CSRFSecret}, "locale": {"fr"},
+	}, cookies, nil)
+	if invalidLocale.Code != http.StatusUnprocessableEntity || !hasHTMLRootLang(invalidLocale.Body.String(), "es") ||
+		!strings.Contains(invalidLocale.Body.String(), `data-theme="dark"`) ||
+		!strings.Contains(invalidLocale.Body.String(), "El idioma seleccionado no es válido.") {
+		t.Fatalf("invalid language form lost localized account context = %d, %s", invalidLocale.Code, invalidLocale.Body.String())
 	}
 	reset := request(handler, http.MethodPost, "/settings/language", url.Values{
 		"csrf": {session.CSRFSecret}, "locale": {""},
