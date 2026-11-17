@@ -24,6 +24,11 @@ go build -o "$work/server" ./cmd/server
 env -i HOME="$work" TMPDIR="$work" BOOTSTRAP_ADMIN_PASSWORD=playwright-password-123 \
   DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" STORAGE_DRIVER=local STORAGE_LOCAL_PATH="$work/files" \
   "$work/bootstrap-admin" -email playwright@example.com -workspace "UI Baselines" >/dev/null
+export PLAYWRIGHT_SQLITE_PATH="$work/app.db"
+export PLAYWRIGHT_EMAIL=playwright@example.com PLAYWRIGHT_PASSWORD=playwright-password-123
+export PLAYWRIGHT_MEMBER_EMAIL=playwright-member@example.com
+export PLAYWRIGHT_MEMBER_PASSWORD=playwright-member-password-123
+go run ./scripts/playwright/seed-member
 if [ "${PLAYWRIGHT_SEED_NOTIFICATION:-0}" = 1 ]; then
   env -i PATH="$PATH" HOME="$work" TMPDIR="$work" SQLITE_PATH="$work/app.db" \
     sqlite3 -batch -bail "$work/app.db" <<'SQL'
@@ -51,8 +56,6 @@ if ! curl --noproxy '*' --fail --silent --retry 30 --retry-delay 1 --retry-connr
 fi
 
 export PLAYWRIGHT_BASE_URL="http://127.0.0.1:$port"
-export PLAYWRIGHT_SQLITE_PATH="$work/app.db"
-export PLAYWRIGHT_EMAIL=playwright@example.com PLAYWRIGHT_PASSWORD=playwright-password-123
 if [ "${UI_MEASURE:-0}" = 1 ]; then
   node scripts/ui-measurement.mjs
 else

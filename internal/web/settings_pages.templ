@@ -1,0 +1,146 @@
+package web
+
+templ settingsSidebar(data pageData) {
+	<aside class="sidebar">
+		<a class="sidebar-back" href={ "/workspaces/" + data.Workspace.ID.String() }><span aria-hidden="true">←</span> { data.T("workspace.back_to_home") }</a>
+		@workspaceNav(data)
+	</aside>
+}
+
+templ generalSettingsView(data pageData) {
+	@dashboardShell(data, dashboardHeader(data), settingsSidebar(data)) {
+		<div class="settings-page">
+			@pageHeading(data.T("workspace.general_settings"), data.T("navigation.settings_setup"))
+			if data.Saved {
+				@successAlert(data.T("workspace.settings_saved"))
+			}
+			if data.Error != "" {
+				@errorAlert(data.Error)
+			}
+			<section class="settings-panel" aria-labelledby="workspace-locale-title">
+				<h2 id="workspace-locale-title">{ data.T("workspace.language_fallback") }</h2>
+				<p class="settings-intro" id="workspace-locale-help">{ data.T("workspace.language_fallback_description") }</p>
+				<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/general" } method="post" data-dirty-track data-unsaved-warning>
+					<input type="hidden" name="csrf" value={ data.CSRF }/>
+					@selectField("workspace-locale", data.T("common.language"), templ.Attributes{"name": "locale", "aria-describedby": "workspace-locale-help", "disabled": !data.CanManage}) {
+						<option value="en" selected?={ data.Workspace.Locale == "en" }>{ data.T("common.english") }</option>
+						<option value="es" selected?={ data.Workspace.Locale == "es" }>{ data.T("common.spanish") }</option>
+					}
+					if data.CanManage {
+						@submitButton(data.T("common.save"), templ.Attributes{"data-requires-change": true})
+					}
+				</form>
+			</section>
+			<section class="settings-panel" aria-labelledby="workspace-notifications-title">
+				<h2 id="workspace-notifications-title">{ data.T("account.notifications") }</h2>
+				if len(data.WorkspaceNotificationPreferences) > 0 {
+					<ul class="settings-records">
+						for _, preference := range data.WorkspaceNotificationPreferences {
+							<li class="settings-record"><span>{ workspaceNotificationLabel(data, preference.NotificationType) }</span><span>
+								if preference.Enabled {
+									{ data.T("account.enabled") }
+								} else {
+									{ data.T("account.disabled") }
+								}
+							</span></li>
+						}
+					</ul>
+				} else {
+					@emptyState(data.T("workspace.notifications_empty"))
+				}
+				<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/notifications" } method="post">
+					<input type="hidden" name="csrf" value={ data.CSRF }/>
+					@selectField("workspace-notification-type", data.T("account.notification_type"), templ.Attributes{"name": "notification_type"}) {
+						<option value="security">{ data.T("workspace.notification_security") }</option>
+						<option value="workspace">{ data.T("workspace.notification_workspace") }</option>
+						<option value="system">{ data.T("workspace.notification_system") }</option>
+					}
+					@selectField("workspace-notification-enabled", data.T("account.notification_delivery"), templ.Attributes{"name": "enabled"}) {
+						<option value="true">{ data.T("account.enabled") }</option>
+						<option value="false">{ data.T("account.disabled") }</option>
+					}
+					@submitButton(data.T("common.save"), nil)
+				</form>
+			</section>
+		</div>
+	}
+}
+
+templ emailSettingsView(data pageData) {
+	@dashboardShell(data, dashboardHeader(data), settingsSidebar(data)) {
+		<div class="settings-page">
+			@pageHeading(data.T("email.title"), data.T("navigation.settings_setup"))
+			<p class="settings-intro">{ data.T("email.intro") }</p>
+			if data.Error != "" {
+				@errorAlert(data.Error)
+			}
+			if data.EmailLoginReason != "" {
+				<p><code>{ data.EmailLoginReason }</code></p>
+			}
+			if data.EmailSaved {
+				@successAlert(data.T("email.saved"))
+			}
+			if data.EmailSettings.Configured {
+				<p>{ data.T("email.configured") }</p>
+			} else {
+				<p>{ data.T("email.not_configured") }</p>
+			}
+			if data.EmailSettings.Provider == "resend" || data.EmailSettings.Provider == "postmark" {
+				<p>{ data.T("email.domain_status") }: <code>
+					if data.EmailSettings.DomainStatus != "" {
+						{ data.EmailSettings.DomainStatus }
+					} else {
+						{ data.T("email.domain_status_none") }
+					}
+				</code></p>
+			}
+			<section class="settings-panel" aria-label={ data.T("email.title") }>
+				<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/email" } method="post" data-dirty-track data-unsaved-warning>
+					<input type="hidden" name="csrf" value={ data.CSRF }/>
+					@selectField("email-provider", data.T("email.provider"), templ.Attributes{"name": "provider"}) {
+						<option value="smtp" selected?={ data.EmailSettings.UsesSMTP() }>{ data.T("email.provider_smtp") }</option>
+						<option value="resend" selected?={ data.EmailSettings.Provider == "resend" }>{ data.T("email.provider_resend") }</option>
+						<option value="postmark" selected?={ data.EmailSettings.Provider == "postmark" }>{ data.T("email.provider_postmark") }</option>
+					}
+					@textField("email-sender-name", data.T("email.sender_name")+" "+data.T("ui.optional"), templ.Attributes{"name": "sender_name", "maxlength": "100", "value": data.EmailSettings.SenderName})
+					@textField("email-sender-address", data.T("email.sender_address"), templ.Attributes{"name": "sender_address", "type": "email", "required": true, "maxlength": "254", "value": data.EmailSettings.SenderAddress})
+					<fieldset data-show-when="email-provider=smtp">
+						<legend>{ data.T("email.smtp_section") }</legend>
+						<p id="email-smtp-required">{ data.T("email.required_for_smtp") }</p>
+						@textField("email-host", data.T("email.host"), templ.Attributes{"name": "host", "maxlength": "253", "aria-describedby": "email-smtp-required", "data-trim": true, "value": emailSMTPValue(data.EmailSettings, data.EmailSettings.Host)})
+						@textField("email-port", data.T("email.port"), templ.Attributes{"name": "port", "type": "number", "min": "1", "max": "65535", "value": emailPortValue(data.EmailSettings)})
+						@textField("email-username", data.T("email.username")+" "+data.T("ui.optional"), templ.Attributes{"name": "username", "maxlength": "254", "autocomplete": "off", "value": emailSMTPValue(data.EmailSettings, data.EmailSettings.Username)})
+						<label for="email-password">{ data.T("email.password") }</label>
+						<p id="email-password-help">{ data.T("email.password_help") }</p>
+						<input class="input" id="email-password" name="password" type="password" autocomplete="new-password" maxlength="1024" aria-describedby="email-password-help"/>
+					</fieldset>
+					<fieldset data-show-when="email-provider=resend">
+						<legend>{ data.T("email.resend_section") }</legend>
+						<ol>
+							<li>{ data.T("email.resend_step_1") }</li><li>{ data.T("email.resend_step_2") }</li><li>{ data.T("email.resend_step_3") }</li><li>{ data.T("email.resend_step_4") }</li>
+						</ol>
+						<label for="email-api-key">{ data.T("email.api_key") }</label>
+						<p id="email-api-key-help">{ data.T("email.api_key_help") }</p>
+						<input class="input" id="email-api-key" name="api_key" type="password" autocomplete="new-password" maxlength="1024" aria-describedby="email-api-key-help"/>
+					</fieldset>
+					<fieldset data-show-when="email-provider=postmark">
+						<legend>{ data.T("email.postmark_section") }</legend>
+						<ol>
+							<li>{ data.T("email.postmark_step_1") }</li><li>{ data.T("email.postmark_step_2") }</li><li>{ data.T("email.postmark_step_3") }</li><li>{ data.T("email.postmark_step_4") }</li>
+						</ol>
+						<label for="email-server-token">{ data.T("email.server_token") }</label>
+						<p id="email-server-token-help">{ data.T("email.server_token_help") }</p>
+						<input class="input" id="email-server-token" name="server_token" type="password" autocomplete="new-password" maxlength="1024" aria-describedby="email-server-token-help"/>
+						<label for="email-account-token">{ data.T("email.account_token") }</label>
+						<p id="email-account-token-help">{ data.T("email.account_token_help") }</p>
+						if data.EmailSettings.AccountTokenSet {
+							<p>{ data.T("email.account_token_set") }</p>
+						}
+						<input class="input" id="email-account-token" name="account_token" type="password" autocomplete="new-password" maxlength="1024" aria-describedby="email-account-token-help"/>
+					</fieldset>
+					@submitButton(data.T("email.save"), nil)
+				</form>
+			</section>
+		</div>
+	}
+}
