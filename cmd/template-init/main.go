@@ -309,6 +309,7 @@ func clientsPath(relative string) bool {
 	return relative == "internal/clients" || strings.HasPrefix(relative, "internal/clients/") ||
 		relative == "internal/httpapi/clients.go" || relative == "internal/httpapi/clients_test.go" ||
 		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" ||
+		relative == "internal/web/clients.templ" || relative == "internal/web/clients_templ.go" ||
 		relative == "internal/web/templates/clients.html" || relative == "internal/web/templates/client.html" ||
 		relative == "internal/platform/database/migrations/000022_clients.sql" ||
 		relative == "internal/platform/database/migrations/000023_client_fields.sql" ||

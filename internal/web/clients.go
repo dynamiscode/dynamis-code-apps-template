@@ -13,6 +13,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
+	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
 
 type clientFilterOperator struct {
@@ -194,12 +195,12 @@ func (h *Handler) renderClientList(
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	name := "clients.html"
+	name := "clients-page"
 	if request.Header.Get("HX-Request") == "true" {
 		// A realtime refresh swaps only the list section, as the Items list does.
 		name = "client-list"
 	}
-	h.render(writer, status, name, pageData{
+	h.renderClientTemplate(writer, request, status, name, pageData{
 		Title: "Clients", ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		NavPage: "clients", NavSection: "clients",
@@ -219,6 +220,26 @@ func (h *Handler) renderClientList(
 		FieldsPath:      h.clientFieldsPath(workspaceID),
 		CanManageFields: principal.Permissions[identity.WorkspaceUpdate],
 	})
+}
+
+func (h *Handler) renderClientTemplate(writer http.ResponseWriter, request *http.Request, status int, name string, data pageData) {
+	data.FilesEnabled = h.filesEnabled
+	data.ClientsEnabled = h.clientsEnabled
+	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
+	h.localizePage(writer, &data)
+	data.Title = data.T("clients.title")
+	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+	writer.Header().Set("Cache-Control", "no-store")
+	writer.WriteHeader(status)
+	if name == "client-list" {
+		_ = clientList(data).Render(request.Context(), writer)
+		return
+	}
+	_ = clientsPage(data).Render(request.Context(), writer)
+}
+
+func clientDraftHasInput(draft clients.Input) bool {
+	return draft.DisplayName != "" || draft.Email != "" || draft.Phone != "" || draft.Notes != ""
 }
 
 func (h *Handler) createClient(writer http.ResponseWriter, request *http.Request) {
@@ -689,6 +710,32 @@ func clientFilterChips(filters []clients.FilterInput, fields []clients.Field, vi
 			RemoveHref: href, Hidden: !visible[filter.Field]})
 	}
 	return chips
+}
+
+func clientColumnVisibilityValue(visible bool) string {
+	return strconv.FormatBool(!visible)
+}
+
+func clientColumnLabelText(data pageData, column clientListColumn) string {
+	if column.LabelKey != "" {
+		return data.T(column.LabelKey)
+	}
+	return column.Label
+}
+
+func clientFilterFieldLabelText(data pageData, label, key string) string {
+	if key != "" {
+		return data.T(key)
+	}
+	return label
+}
+
+func clientListOpenLabel(data pageData, row clientListRow) string {
+	label := data.T("clients.open")
+	if row.ActionContext != "" {
+		return label + " " + row.ActionContext
+	}
+	return label + " " + data.T("clients.row_number") + " " + strconv.Itoa(row.ActionPosition)
 }
 
 func clientOperatorLabelKey(operator string) string {

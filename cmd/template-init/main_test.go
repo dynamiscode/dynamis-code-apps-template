@@ -321,6 +321,15 @@ func TestGenerateWithClientsProfileRecordsLockAndBuilds(t *testing.T) {
 	if err != nil || json.Unmarshal(raw, &lock) != nil || strings.Join(lock.Profiles, ",") != "Core,Identity,Agent,Clients" {
 		t.Fatalf("template.lock = %q, error = %v", raw, err)
 	}
+	for _, path := range []string{
+		"internal/files", "internal/web/files.go", "internal/web/files.templ", "internal/web/files_templ.go",
+		"internal/web/templates/files.html", "internal/platform/database/migrations/000014_files.sql",
+	} {
+		if _, err := os.Stat(filepath.Join(output, path)); !os.IsNotExist(err) {
+			t.Errorf("generated Clients-only application still has Files path %s: %v", path, err)
+		}
+	}
+	assertClientProfileFeatures(t, output, false)
 	if err := runCommand(output, "go", "test", "./..."); err != nil {
 		t.Fatalf("generated Clients application tests: %v", err)
 	}
@@ -343,6 +352,7 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 	}
 	for _, path := range []string{
 		"internal/clients", "internal/httpapi/clients.go", "internal/web/clients.go",
+		"internal/web/clients.templ", "internal/web/clients_templ.go",
 		"internal/web/templates/clients.html", "internal/web/templates/client.html",
 		"internal/platform/database/migrations/000022_clients.sql",
 		"internal/platform/database/migrations/000024_client_events.sql",
