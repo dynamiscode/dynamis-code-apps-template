@@ -120,11 +120,11 @@ templ clientValues(data pageData) {
 							</select>
 						} else if value.Type == "single_choice" {
 							<select id={ "value-" + value.FieldID.String() } name="value">
-							<option value="" disabled selected?={ value.Value == nil }>{ data.T("clients.value_choose") }</option>
-							for _, choice := range value.Choices {
-								<option value={ choice.ID } selected?={ choice.Selected }>{ choice.Label }</option>
-							}
-						</select>
+								<option value="" disabled selected?={ value.Value == nil }>{ data.T("clients.value_choose") }</option>
+								for _, choice := range value.Choices {
+									<option value={ choice.ID } selected?={ choice.Selected }>{ choice.Label }</option>
+								}
+							</select>
 						} else {
 							<input id={ "value-" + value.FieldID.String() } name="value" maxlength="500" value={ clientValueDisplayValue(value.Value) }/>
 						}
