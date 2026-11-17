@@ -108,10 +108,12 @@ Baseline browser surfaces:
   creates or rotates the dedicated SCIM credential with its secret shown once,
   and revokes it through ordinary CSRF-protected forms. The page is no-store and
   has no WebMCP enhancement; SCIM Users and Groups remain REST/IdP-only.
-- `/login`, `/setup`, `/mfa`, and email verification share the generated app
+- `/login`, `/setup`, password recovery, `/mfa`, and email verification share the generated app
   brand and compact responsive auth layout. Setup keeps required fields first
   and marks workspace language as deferrable. Sign-in, MFA, and setup remain
-  ordinary CSRF-protected forms without JavaScript.
+  ordinary CSRF-protected forms without JavaScript. Password-reset request,
+  completion, unavailable, and validation states use the same templ layout and
+  ordinary forms.
 - `/sessions` shows current, active, expired, and revoked browser sessions with
   localized status and revocation feedback. CSRF-protected forms revoke any
   active session, including the current one; revoking the current session sends
@@ -317,7 +319,7 @@ accessibility results and remaining limits are recorded in
 | Route family | Views and shared templates | Major states covered |
 |---|---|---|
 | `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
-| `/setup`, `/login`, `/mfa`, `/account/verify-email/{secret}`, `/password-reset/{secret}`, `/oauth/authorize` | `setup.html`, `login.html`, `mfa.html`, `verification.html`, `password-reset.html`, `mcp-consent.html`, `auth.html` | Initial setup, form errors, sign-in and MFA challenge, verification success/unavailable, reset request/completion, OAuth approval/denial |
+| `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.html`, `verification.html`, `mcp-consent.html`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge, verification success/unavailable, OAuth approval/denial |
 | `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | Empty/results states, filters, sorting and paging, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
 | Workspace clients and custom fields | `clients.html`, `client.html`, `client-fields.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field lifecycle, realtime refresh |
 | Workspace members and invitations | `members.templ`, `invitations.html`, `invitation.html` | Role changes, removal and ownership transfer, invitation create/resend/revoke, accepted and unavailable invitation |
