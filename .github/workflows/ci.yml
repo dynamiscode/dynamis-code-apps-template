@@ -68,6 +68,18 @@ jobs:
       - run: make js-check
       - run: make test-unit
       - run: make browser-smoke
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: browser-smoke-screenshot-diffs
+          path: |
+            test-results/**/*members-mobile-*-actual.png
+            test-results/**/*members-mobile-*-diff.png
+            test-results/**/*email-settings-mobile-*-actual.png
+            test-results/**/*email-settings-mobile-*-diff.png
+            test-results/**/*webhooks-*-actual.png
+            test-results/**/*webhooks-*-diff.png
+          if-no-files-found: ignore
       - run: make accessibility-smoke
       - run: make webmcp-smoke
 
