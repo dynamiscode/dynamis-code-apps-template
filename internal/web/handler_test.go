@@ -566,6 +566,15 @@ func TestSessionsPageExpiredAndSpanishEmptyStates(t *testing.T) {
 	if !strings.Contains(active.String(), "Activa") || !strings.Contains(active.String(), `action="/sessions/expired-session"`) {
 		t.Fatalf("current active session lacks its revocation form: %s", active.String())
 	}
+	revokedAt := time.Now()
+	data.Sessions[0].RevokedAt = &revokedAt
+	var revoked bytes.Buffer
+	if err := sessionsPage(data, "", time.Now()).Render(context.Background(), &revoked); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(revoked.String(), "Revocada") || strings.Contains(revoked.String(), `action="/sessions/expired-session"`) {
+		t.Fatalf("revoked session status or action is wrong: %s", revoked.String())
+	}
 	data.Sessions = nil
 	var empty bytes.Buffer
 	if err := sessionsPage(data, "", time.Now()).Render(context.Background(), &empty); err != nil {
@@ -573,6 +582,38 @@ func TestSessionsPageExpiredAndSpanishEmptyStates(t *testing.T) {
 	}
 	if !strings.Contains(empty.String(), "No hay sesiones de navegador disponibles.") || !strings.Contains(empty.String(), `data-theme="dark"`) {
 		t.Fatalf("Spanish empty session state = %s", empty.String())
+	}
+}
+
+func TestSecurityPageUsesTemplAndRetainsCredentialBoundaries(t *testing.T) {
+	handler, auth, _, _, owner := testWeb(t, 10)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+
+	page := request(handler, http.MethodGet, "/security", nil, cookies, nil)
+	body := page.Body.String()
+	if page.Code != http.StatusOK || !strings.Contains(body, `id="security-heading"`) || !strings.Contains(body, `href="/assets/components.css"`) || !strings.Contains(body, `action="/security/totp/start"`) {
+		t.Fatalf("security page = %d, %s", page.Code, body)
+	}
+	if strings.Contains(body, session.Secret) {
+		t.Fatalf("security page exposed template source or session secret: %s", body)
+	}
+
+	badPassword := request(handler, http.MethodPost, "/security/totp/start", url.Values{
+		"csrf": {session.CSRFSecret}, "password": {"wrong-password"},
+	}, cookies, nil)
+	if badPassword.Code != http.StatusUnauthorized || !strings.Contains(badPassword.Body.String(), "Fresh authentication failed.") || !strings.Contains(badPassword.Body.String(), `id="security-heading"`) {
+		t.Fatalf("reauthentication failure = %d, %s", badPassword.Code, badPassword.Body.String())
+	}
+
+	enrollment := request(handler, http.MethodPost, "/security/totp/start", url.Values{
+		"csrf": {session.CSRFSecret}, "password": {"long-enough-password"},
+	}, cookies, nil)
+	if enrollment.Code != http.StatusUnauthorized || !strings.Contains(enrollment.Body.String(), "Fresh authentication failed.") || strings.Contains(enrollment.Body.String(), session.Secret) {
+		t.Fatalf("disabled MFA enrollment response = %d, %s", enrollment.Code, enrollment.Body.String())
 	}
 }
 

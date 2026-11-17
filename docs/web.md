@@ -126,8 +126,9 @@ Baseline browser surfaces:
   localized status and revocation feedback. CSRF-protected forms revoke any
   active session, including the current one; revoking the current session sends
   the browser to sign-in on its next request. The page shows a localized empty
-  state and retains the ordinary form fallback. `/security` manages MFA factors
-  and starts reauthenticated OIDC linking.
+  state and retains the ordinary form fallback. `/security` uses `security.templ`
+  and `security_templ.go` to manage MFA factors, recovery codes, passkey removal,
+  and reauthenticated OIDC linking with ordinary credential-sensitive forms.
 - `/account` edits profile preferences, changes a local password, requests email
   verification, and deletes the account after current-password reauthentication
   and an explicit confirmation checkbox. The server rejects deletion without
@@ -338,11 +339,12 @@ accessibility results and remaining limits are recorded in
 | `/workspaces/{workspaceId}/settings/invitations`, `/invitations/{secret}`, `/invitations/{secret}/sign-in`, `/invitations/continue` | `invitations.templ`, `invitations_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Create/resend/revoke with explicit revoke confirmation; registration, account-matched acceptance, sign-in return through MFA/OIDC, invalid/expired/unavailable states; ordinary form fallback |
 | `/workspaces/{workspaceId}/settings/audit` | `audit.templ`, `audit_templ.go`, `components.templ`, `components_templ.go` | Scoped redacted history, lazy table fragment, empty state, ordinary `?all=1` fallback, permission denial and expired-session redirect |
 | `/sessions` | `sessions.templ`, `sessions_templ.go` | Current, active, expired and revoked status; revoke current or other active sessions; feedback and empty state |
+| `/security` | `security.templ`, `security_templ.go`, shared account shell and form components | MFA enrollment/removal, recovery codes, passkey removal, linked identity with reauthentication, validation and failure feedback |
 | Workspace files | `files.templ`, `workspace.templ`, `navigation.templ`, `components.templ` | Empty/results, filters, sort, saved columns and paging; read-only viewer list/download; write-authorized multipart upload progress/success/validation/failure with no-JavaScript fallback; authorized downloads |
 | `/workspaces/{workspaceId}/settings/general` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Workspace locale and notification preferences, empty and saved states, invalid input and permission handling |
 | `/workspaces/{workspaceId}/settings/email` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Unconfigured/configured provider, saved state, validation, provider verification failure, redacted credentials and permission handling |
 | `/notifications`, `/notifications/events` | `notifications.templ`, `notifications_templ.go` | Recipient-scoped list and unread count, empty state, CSRF-protected mark-read, initial cursor and SSE replay after reconnect |
-| Account and workspace settings | `account.html`, `credential_settings.templ`, `credential_settings_templ.go`, `language.html`, `security.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |
+| Account and workspace settings | `account.html`, `credential_settings.templ`, `credential_settings_templ.go`, `language.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |
 | `/workspaces/{workspaceId}/settings/export`, `/workspaces/{workspaceId}/settings/export/download`, `/workspaces/{workspaceId}/settings/import` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Authorized no-store export page and JSON download; import file selection, bounded preview, safe validation feedback, explicit multipart confirmation, and atomic result; ordinary form fallback |
 | Public and unavailable pages | `public-share.html`, `error.html` | Share projection and invalid/expired/revoked links, not-found and request errors |
 
