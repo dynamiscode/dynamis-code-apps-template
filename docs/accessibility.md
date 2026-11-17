@@ -41,6 +41,19 @@ both locales, verifies the named upload progress control, and checks 320
 CSS-pixel reflow. `make ux-smoke` creates a client, defines a choice field, and
 enters a value.
 
+### Account and public journeys — 2026-11-17
+
+`scripts/playwright/account.spec.mjs` checks account, language, security, and
+session pages in English and Spanish, desktop and mobile, and light and dark
+themes with reduced motion. It verifies mobile reflow, profile preference
+persistence, session revocation feedback, and account deletion's required
+confirmation with JavaScript disabled. Password recovery and invitation
+acceptance have separate Playwright suites. The repeatable `test:a11y` runner
+covers setup, sign-in, MFA, verification, recovery, account, language, security,
+sessions, public share, and MCP consent. These automated checks do not replace
+manual assistive-technology review; account screenshot baselines and expired
+session browser fixtures remain uncovered.
+
 ## Manual checklist
 
 | Check | Result | Evidence |

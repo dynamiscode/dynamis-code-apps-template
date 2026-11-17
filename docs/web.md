@@ -133,7 +133,10 @@ Baseline browser surfaces:
   and an explicit confirmation checkbox. The server rejects deletion without
   confirmation and retains the owner-transfer restriction. `/settings/language`
   persists the account language. `/password-reset` provides localized generic
-  request and single-use completion pages.
+  request and single-use completion pages. `scripts/playwright/account.spec.mjs`
+  covers account, language, security, and sessions across locales, themes, and
+  viewport sizes, plus profile save, session revoke, and no-JavaScript deletion
+  confirmation.
 - `/notifications` lists recipient-scoped in-app records, shows unread state,
   marks them read, and updates the unread count through recipient-scoped SSE.
   Its initial SSE cursor is the newest row rendered, or empty when the inbox is
