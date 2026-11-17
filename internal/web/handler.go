@@ -1145,59 +1145,35 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)
-	if name == "workspace-home" {
-		_ = workspaceHome(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "items-page" {
-		_ = itemsPage(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "items-fragment" {
-		_ = itemsList(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "home.html" {
-		_ = workspaceSelection(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "audit-history" {
-		_ = auditHistory(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "audit-table" {
-		_ = auditTable(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "login.html" {
-		_ = authLogin(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "setup.html" {
-		_ = authSetup(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "password-reset.html" {
-		_ = authPasswordReset(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "sessions-page" {
-		_ = sessionsPage(data, data.CurrentSessionID, time.Now()).Render(context.Background(), writer)
-		return
-	}
-	if name == "members.html" {
-		_ = membersPage(data).Render(context.Background(), writer)
-		return
-	}
 	switch name {
+	case "workspace-home":
+		_ = workspaceHome(data).Render(context.Background(), writer)
+	case "items-page":
+		_ = itemsPage(data).Render(context.Background(), writer)
+	case "items-fragment":
+		_ = itemsList(data).Render(context.Background(), writer)
+	case "home.html":
+		_ = workspaceSelection(data).Render(context.Background(), writer)
+	case "audit-history":
+		_ = auditHistory(data).Render(context.Background(), writer)
+	case "audit-table":
+		_ = auditTable(data).Render(context.Background(), writer)
+	case "login.html":
+		_ = authLogin(data).Render(context.Background(), writer)
+	case "setup.html":
+		_ = authSetup(data).Render(context.Background(), writer)
+	case "password-reset.html":
+		_ = authPasswordReset(data).Render(context.Background(), writer)
+	case "sessions-page":
+		_ = sessionsPage(data, data.CurrentSessionID, time.Now()).Render(context.Background(), writer)
+	case "members.html":
+		_ = membersPage(data).Render(context.Background(), writer)
 	case "mcp-consent.html":
 		_ = mcpConsentPage(data).Render(context.Background(), writer)
 	case "error.html":
 		_ = errorPage(data).Render(context.Background(), writer)
 	default:
-		if err := h.template.ExecuteTemplate(writer, name, data); err != nil {
-			return
-		}
+		_ = h.template.ExecuteTemplate(writer, name, data)
 	}
 }
 
