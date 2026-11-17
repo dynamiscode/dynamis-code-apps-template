@@ -23,39 +23,6 @@ async function openClients(page) {
   await page.locator(".workspace-cards a[href$='/clients']").first().click();
 }
 
-test("Clients list renders, audits, and preserves a server 422 draft during SSE refresh", async ({ page }) => {
-  await openClients(page);
-  await expect(page.locator("#client-list")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Clients" })).toBeVisible();
-  await page.addScriptTag({ content: axeSource });
-  const accessibility = await page.evaluate(async () => window.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] } }));
-  expect(accessibility.violations.map(({ id, impact }) => `${id}:${impact}`)).toEqual([]);
-  await page.locator("#client-create summary").click();
-  await expect(page.locator("#realtime-status")).toContainText(/connected|connecting/);
-  await page.getByLabel("Display name").fill("Server draft survives refresh");
-  await page.getByLabel("Email").fill("Ada <ada@example.com>");
-  const invalidPost = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname.endsWith("/clients"));
-  await page.locator("#client-create form").evaluate((form) => HTMLFormElement.prototype.submit.call(form));
-  expect((await invalidPost).status()).toBe(422);
-  await expect(page.getByRole("alert")).toBeVisible();
-  await expect(page.getByLabel("Email")).toHaveValue("Ada <ada@example.com>");
-  await expect(page.locator("#client-create form")).toHaveAttribute("data-dirty", "true");
-  await expect(page.getByLabel("Display name")).toHaveValue("Server draft survives refresh");
-
-  const peer = await page.context().newPage();
-  try {
-    await peer.goto(page.url());
-    await peer.locator("#client-create summary").click();
-    await peer.getByLabel("Display name").fill("SSE refresh trigger");
-    await peer.getByRole("button", { name: "Add client" }).click();
-    await expect(peer).toHaveURL(/\/clients\/[^/?]+$/);
-    await expect(page.locator("#realtime-status")).toContainText("New changes are waiting");
-    await expect(page.getByLabel("Display name")).toHaveValue("Server draft survives refresh");
-  } finally {
-    await peer.close();
-  }
-});
-
 test("Clients list adapts across desktop/mobile and light/dark themes", async ({ page }) => {
   await openClients(page);
   for (const colorScheme of ["light", "dark"]) {
@@ -89,40 +56,90 @@ test("Clients list adapts across desktop/mobile and light/dark themes", async ({
   }
 });
 
+test("Clients list renders, audits, and preserves a server 422 draft during SSE refresh", async ({ page }) => {
+  await openClients(page);
+  await expect(page.locator("#client-list")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Clients", level: 1 })).toBeVisible();
+  const axeURL = new URL("/__test/axe.js", process.env.PLAYWRIGHT_BASE_URL).href;
+  await page.route(axeURL, (route) => route.fulfill({ contentType: "application/javascript", body: axeSource }));
+  await page.addScriptTag({ url: axeURL });
+  const accessibility = await page.evaluate(async () => window.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] } }));
+  expect(accessibility.violations.map(({ id, impact }) => `${id}:${impact}`)).toEqual([]);
+  await page.locator("#client-create > details.client-create > summary").click();
+  await expect(page.locator("#realtime-status")).toContainText(/connected|connecting/);
+  await page.getByLabel("Display name").fill("Server draft survives refresh");
+  await page.getByLabel("Email").fill("Ada <ada@example.com>");
+  const invalidPost = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname.endsWith("/clients"));
+  await page.locator("#client-create > details.client-create > form").evaluate((form) => HTMLFormElement.prototype.submit.call(form));
+  expect((await invalidPost).status()).toBe(422);
+  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.getByLabel("Email")).toHaveValue("Ada <ada@example.com>");
+  await expect(page.locator("#client-create > details.client-create > form")).toHaveAttribute("data-dirty", "true");
+  await expect(page.getByLabel("Display name")).toHaveValue("Server draft survives refresh");
+
+  const peer = await page.context().newPage();
+  try {
+    await peer.goto(page.url());
+    await peer.locator("#client-create > details.client-create > summary").click();
+    await peer.getByLabel("Display name").fill("SSE refresh trigger");
+    await peer.getByRole("button", { name: "Add client" }).click();
+    await expect(peer).toHaveURL(/\/clients\/[^/?]+$/);
+    await expect(page.locator("#realtime-status")).toContainText("New changes are waiting");
+    await expect(page.getByLabel("Display name")).toHaveValue("Server draft survives refresh");
+  } finally {
+    await peer.close();
+  }
+});
+
 test("Clients list follows Spanish workspace locale", async ({ page }) => {
   await openClients(page);
   const clientsURL = new URL(page.url());
   await page.goto(`/language?locale=es&return_to=${encodeURIComponent(clientsURL.pathname + clientsURL.search)}`);
   await expect(page.locator("html")).toHaveAttribute("lang", "es");
-  await expect(page.getByRole("heading", { name: "Clientes" })).toBeVisible();
-  await page.locator("#client-create summary").click();
+  await expect(page.getByRole("heading", { name: "Clientes", level: 1 })).toBeVisible();
+  const connected = (await page.locator("#client-list").getAttribute("data-live-connected")) ?? "";
+  expect(connected).not.toBe("");
+  await expect(page.locator("#realtime-status")).toHaveText(connected);
+  await page.locator("#client-create > details.client-create > summary").click();
   await expect(page.getByLabel("Nombre para mostrar")).toBeVisible();
 });
 
 test("multi-select draft survives blur and a list fragment replacement", async ({ page }) => {
   await openClients(page);
-  const restored = await page.evaluate(() => {
-    const mount = () => {
-      const form = document.createElement("form");
-      form.dataset.dirtyTrack = "";
-      form.dataset.persist = "415-multi-select";
-      form.innerHTML = '<label for="client-multi-test">Options</label><select id="client-multi-test" name="filter_value" multiple><option value="one">One</option><option value="two">Two</option><option value="three">Three</option></select><button type="button">Blur</button>';
-      document.querySelector("#client-list").append(form);
-      document.dispatchEvent(new CustomEvent("htmx:after:swap"));
-      return form;
-    };
-    const first = mount();
-    const select = first.querySelector("select");
-    select.options[0].selected = true;
-    select.options[2].selected = true;
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-    select.focus();
-    select.blur();
-    first.remove();
-    const refreshed = mount();
-    return [...refreshed.querySelector("select").selectedOptions].map((option) => option.value);
-  });
-  expect(restored).toEqual(["one", "three"]);
+  await page.getByRole("link", { name: "Manage custom fields" }).click();
+  await page.locator(".client-create > summary").click();
+  await page.getByLabel("Field label").fill("Browser multi-select");
+  await page.locator("#client-field-type").selectOption("single_choice");
+  await page.getByRole("button", { name: "Add field" }).click();
+  for (const label of ["First", "Second", "Third"]) {
+    const optionForm = page.locator(".client-field-card").filter({ hasText: "Browser multi-select" }).locator(".option-create");
+    await optionForm.locator('input[name="label"]').fill(label);
+    await optionForm.getByRole("button", { name: "Add option" }).click();
+  }
+  await page.getByRole("link", { name: "Back to clients" }).click();
+  await page.locator(".client-filters > summary").click();
+  await page.locator("#client-filter-field").selectOption({ label: "Browser multi-select" });
+  await page.locator(".client-query button[type=submit]").click();
+  const options = page.locator("#client-filter-option");
+  await expect(options).toBeVisible();
+  await options.selectOption([{ label: "First" }, { label: "Third" }]);
+  await page.locator("#client-sort").focus();
+  const queryForm = page.locator(".client-query");
+  await expect(queryForm).toHaveAttribute("data-dirty", "true");
+
+  const peer = await page.context().newPage();
+  try {
+    await peer.goto(page.url());
+    await peer.locator("#client-create > details.client-create > summary").click();
+    await peer.getByLabel("Display name").fill("Multi-select refresh trigger");
+    await peer.getByRole("button", { name: "Add client" }).click();
+    await expect(peer).toHaveURL(/\/clients\/[^/?]+$/);
+    await expect(page.locator("#realtime-status")).toContainText("New changes are waiting");
+    await expect(options.locator("option:checked")).toHaveText(["First", "Third"]);
+    await expect(queryForm).toHaveAttribute("data-dirty", "true");
+  } finally {
+    await peer.close();
+  }
 });
 
 test("query-open filter details do not block realtime refresh", async ({ page }) => {
@@ -136,11 +153,14 @@ test("query-open filter details do not block realtime refresh", async ({ page })
   const peer = await page.context().newPage();
   try {
     await peer.goto(clientsURL.href);
-    await peer.locator("#client-create summary").click();
+    await peer.locator("#client-create > details.client-create > summary").click();
     await peer.getByLabel("Display name").fill("Query disclosure refresh trigger");
     await peer.getByRole("button", { name: "Add client" }).click();
     await expect(peer).toHaveURL(/\/clients\/[^/?]+$/);
     await expect(page.locator("#client-list tbody")).toContainText("Query disclosure refresh trigger");
+    const connected = (await page.locator("#client-list").getAttribute("data-live-connected")) ?? "";
+    expect(connected).not.toBe("");
+    await expect(page.locator("#realtime-status")).toHaveText(connected);
   } finally {
     await peer.close();
   }
@@ -152,7 +172,7 @@ test.describe("Clients list without JavaScript", () => {
   test("renders native controls and validation fallback", async ({ page }) => {
     await openClients(page);
     await expect(page.locator("#client-list")).toBeVisible();
-    await page.locator("#client-create summary").click();
+    await page.locator("#client-create > details.client-create > summary").click();
     await page.getByLabel("Display name").fill("   ");
     await page.getByRole("button", { name: "Add client" }).click();
     await expect(page.getByRole("alert")).toBeVisible();

@@ -251,6 +251,8 @@ for (const screenshot of screenshots) {
     await page.emulateMedia({ colorScheme: screenshot.colorScheme, reducedMotion: "reduce" });
     await openItems(page);
     await expect(page.getByRole("heading", { name: "Items", level: 1 })).toBeVisible();
+    const connected = await page.locator("#item-list").getAttribute("data-live-connected");
+    await expect(page.locator("#realtime-status")).toHaveText(connected);
     await expect(page).toHaveScreenshot(`items-${screenshot.name}.png`, {
       animations: "disabled",
       fullPage: true,
