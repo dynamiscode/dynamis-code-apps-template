@@ -1,0 +1,105 @@
+package web
+
+templ publicSharePage(data pageData) {
+	<!doctype html>
+	<html lang={ data.Locale } data-theme={ data.Theme }>
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width,initial-scale=1"/>
+			<title>{ data.T(publicShareTitleKey(data)) } · { data.T("common.product_name") }</title>
+			<link rel="stylesheet" href="/assets/components.css"/>
+			<link rel="stylesheet" href="/assets/app.css"/>
+			@uiHead(data)
+		</head>
+		<body>
+			@skipLink(data)
+			<main class="narrow public-share-card card bg-base-100 shadow" id="main">
+				<p class="eyebrow">{ data.T("common.product_name") }</p>
+				<h1>{ data.T(publicShareTitleKey(data)) }</h1>
+				if data.Error != "" {
+					@errorAlert(data.T("sharing.unavailable_detail"))
+				} else {
+					<p class="status">{ data.T("sharing.scope_public") }</p>
+					<dl class="public-share-details">
+						<div><dt>{ data.T("sharing.title") }</dt><dd>{ data.PublicItem.Title }</dd></div>
+						<div>
+							<dt>{ data.T("sharing.status") }</dt>
+							<dd>{ data.T(publicShareStatusKey(data.PublicItem.Status)) }</dd>
+						</div>
+					</dl>
+				}
+			</main>
+		</body>
+	</html>
+}
+
+templ mcpConsentPage(data pageData) {
+	@authLayout(data, data.T("oauth.consent_title")) {
+		<h1>{ data.T("oauth.consent_title") }</h1>
+		if consent := data.MCPConsent; consent != nil {
+			<p>{ data.T("oauth.consent_intro") }</p>
+			<dl class="consent-details">
+				<div><dt>{ data.T("oauth.client_label") }</dt><dd>{ consent.ClientName }</dd></div>
+				<div>
+					<dt>{ data.T("oauth.scopes_label") }</dt>
+					<dd><ul>
+						for _, scope := range consent.Scopes {
+							<li>{ data.T(mcpScopeKey(scope)) }</li>
+						}
+					</ul></dd>
+				</div>
+			</dl>
+			<form action="/oauth/authorize" method="post">
+				<input type="hidden" name="csrf" value={ data.CSRF }/>
+				<input type="hidden" name="response_type" value="code"/>
+				<input type="hidden" name="client_id" value={ consent.Params.ClientID }/>
+				<input type="hidden" name="redirect_uri" value={ consent.Params.RedirectURI }/>
+				<input type="hidden" name="code_challenge" value={ consent.Params.CodeChallenge }/>
+				<input type="hidden" name="code_challenge_method" value="S256"/>
+				<input type="hidden" name="resource" value={ consent.Params.Resource }/>
+				<input type="hidden" name="scope" value={ consent.Params.Scope }/>
+				<input type="hidden" name="state" value={ consent.Params.State }/>
+				<fieldset class="consent-workspaces">
+					<legend>{ data.T("common.workspace") }</legend>
+					for index, workspace := range consent.Workspaces {
+						<label><input type="radio" name="workspace_id" value={ workspace.ID } checked?={ index == 0 } required/> { workspace.Name }</label>
+					}
+				</fieldset>
+				<p class="status">{ data.T("oauth.consent_help") } { data.T("oauth.consent_scope_note") }</p>
+				<div class="consent-actions">
+					<button class="btn btn-primary" type="submit" name="decision" value="approve">{ data.T("oauth.approve") }</button>
+					<button class="btn" type="submit" name="decision" value="deny">{ data.T("oauth.deny") }</button>
+				</div>
+			</form>
+		}
+	}
+}
+
+templ errorPage(data pageData) {
+	@authLayout(data, data.Title) {
+		<h1>{ data.Title }</h1>
+		@errorAlert(data.Error)
+		<p><a href="/">{ data.T("navigation.home") }</a></p>
+	}
+}
+
+func publicShareTitleKey(data pageData) string {
+	if data.Error != "" {
+		return "sharing.unavailable"
+	}
+	return "sharing.shared_item"
+}
+
+func publicShareStatusKey(status string) string {
+	if status == "complete" {
+		return "items.complete"
+	}
+	return "items.active"
+}
+
+func mcpScopeKey(scope string) string {
+	if scope == "resources:write" {
+		return "oauth.scope_write"
+	}
+	return "oauth.scope_read"
+}

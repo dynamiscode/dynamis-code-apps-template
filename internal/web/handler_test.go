@@ -285,6 +285,7 @@ func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
 		body := unavailable.Body.String()
 		if unavailable.Code != http.StatusNotFound || !strings.Contains(body, "no está disponible") ||
 			strings.Contains(body, "Public title") || strings.Contains(body, unavailablePath) ||
+			!strings.Contains(body, `role="alert"`) ||
 			unavailable.Header().Get("Cache-Control") != "private, no-store" ||
 			unavailable.Header().Get("Referrer-Policy") != "no-referrer" ||
 			unavailable.Header().Get("X-Robots-Tag") != "noindex, nofollow, noarchive" {

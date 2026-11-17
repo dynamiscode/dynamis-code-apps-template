@@ -1189,6 +1189,14 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = membersPage(data).Render(context.Background(), writer)
 		return
 	}
+	if name == "mcp-consent.html" {
+		_ = mcpConsentPage(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "error.html" {
+		_ = errorPage(data).Render(context.Background(), writer)
+		return
+	}
 	if err := h.template.ExecuteTemplate(writer, name, data); err != nil {
 		return
 	}
@@ -1214,7 +1222,7 @@ func (h *Handler) renderPublic(writer http.ResponseWriter, status int, data page
 	writer.Header().Set("Referrer-Policy", "no-referrer")
 	writer.Header().Set("X-Robots-Tag", "noindex, nofollow, noarchive")
 	writer.WriteHeader(status)
-	_ = h.template.ExecuteTemplate(writer, "public-share.html", data)
+	_ = publicSharePage(data).Render(context.Background(), writer)
 }
 
 func (h *Handler) renderPublicError(writer http.ResponseWriter) {

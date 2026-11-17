@@ -79,11 +79,16 @@ func TestMCPConsentRequiresSessionAndApprovesOnce(t *testing.T) {
 	badRedirect.Set("redirect_uri", "https://evil.example/callback")
 	if rejected := request(handler, http.MethodGet, "/oauth/authorize?"+badRedirect.Encode(), nil, cookies, nil); rejected.Code != http.StatusBadRequest {
 		t.Fatalf("unregistered redirect consent = %d", rejected.Code)
+	} else if !strings.Contains(rejected.Body.String(), `role="alert"`) || !strings.Contains(rejected.Body.String(), `href="/"`) || rejected.Header().Get("Cache-Control") != "no-store" {
+		t.Errorf("invalid consent error page = %d %s headers=%+v", rejected.Code, rejected.Body.String(), rejected.Header())
 	}
 	wrongResource := consentQuery(client.ClientID)
 	wrongResource.Set("resource", "https://other.example/mcp")
 	if rejected := request(handler, http.MethodGet, "/oauth/authorize?"+wrongResource.Encode(), nil, cookies, nil); rejected.Code != http.StatusBadRequest {
 		t.Fatalf("wrong resource consent = %d", rejected.Code)
+	}
+	if rejected := request(handler, http.MethodGet, "/oauth/authorize?"+wrongResource.Encode(), nil, cookies, nil); rejected.Header().Get("Cache-Control") != "no-store" {
+		t.Errorf("invalid consent cache policy = %q", rejected.Header().Get("Cache-Control"))
 	}
 
 	form := url.Values{

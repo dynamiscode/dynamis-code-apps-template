@@ -177,7 +177,8 @@ Baseline browser surfaces:
   echoing file contents.
 - `/workspaces/{workspaceId}/settings/audit` presents the authorized,
   read-only latest-100 audit history with redacted fields.
-- `/share/{token}` presents a read-only Item projection containing only title
+- `/share/{token}` renders through `public_pages.templ` as a localized public
+  card with shared alert components. It presents a read-only Item projection containing only title
   and localized status. Invalid, expired, and revoked links share the same
   unavailable page. The Items page lets principals with `resources:write` create
   seven- or 30-day links and revoke active links with CSRF-protected ordinary
@@ -202,9 +203,13 @@ Public sharing uses `private, no-store`, `no-referrer`, and
 rate limit applies to public access. There is no public write, search, listing,
 REST, CLI, MCP, or WebMCP sharing surface.
 
-The MCP consent page shows the client name, requested item permissions, and
-eligible workspace choices. Approve and deny remain ordinary CSRF-protected
-form submissions; the page does not load WebMCP or submit automatically.
+`/oauth/authorize` renders consent and generic errors through `public_pages.templ`.
+The consent page shows the client name, requested item permissions, and eligible
+workspace choices in the shared card layout. Approve and deny remain ordinary
+CSRF-protected form submissions; the page does not load WebMCP or submit
+automatically. Invalid requests and unavailable workspace permissions use the
+localized error page. These pages use `no-store` and are excluded from preload
+and history caching.
 
 The workspace sidebar exposes `Home` above `Items` in the workspace context.
 Home is active at `/workspaces/{workspaceId}`. Settings uses the nested
