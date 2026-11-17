@@ -25,16 +25,16 @@ sidebar whose contents follow the current workspace context. Every mutation vali
 the session-bound CSRF token
 and rechecks current workspace permission.
 
-The templ dashboard shell accepts header and sidebar components. Its current
-adapters preserve workspace home navigation until shared navigation migrates;
-legacy templates remain for other routes. On desktop the workspace sidebar
-spans the viewport height. On mobile its links remain visible and usable without
-JavaScript.
+The templ dashboard shell accepts header and sidebar components. Workspace home
+and Files compose the shared shell and navigation directly; adapters preserve
+the same shell for legacy route templates during migration. On desktop the
+workspace sidebar spans the viewport height. On mobile its links remain visible
+and usable without JavaScript.
 
 Shared templ components cover page headings, labelled inputs and selects,
 field errors, submit and link buttons, feedback, confirmations, captioned
-tables, linked and responsive list cards, empty states, and next-page links. Workspace selection
-and home use these components; other routes retain their existing templates
+tables, linked and responsive list cards, empty states, and next-page links. Workspace selection,
+home, and Files use these components; other routes retain their existing templates
 until their migrations. Callers supply translated text, field attributes,
 table rows, equivalent mobile card contents, authorization, and CSRF-protected forms.
 Use `listTable` with `listCards` for paired responsive lists; use `dataTable`
@@ -104,10 +104,12 @@ Baseline browser surfaces:
   creates or rotates the dedicated SCIM credential with its secret shown once,
   and revokes it through ordinary CSRF-protected forms. The page is no-store and
   has no WebMCP enhancement; SCIM Users and Groups remain REST/IdP-only.
-- `/login`, `/setup`, `/mfa`, and email verification share the generated app
+- `/login`, `/setup`, password recovery, `/mfa`, and email verification share the generated app
   brand and compact responsive auth layout. Setup keeps required fields first
   and marks workspace language as deferrable. Sign-in, MFA, and setup remain
-  ordinary CSRF-protected forms without JavaScript.
+  ordinary CSRF-protected forms without JavaScript. Password-reset request,
+  completion, unavailable, and validation states use the same templ layout and
+  ordinary forms.
 - `/sessions` shows current, active, expired, and revoked browser sessions with
   localized status and revocation feedback. CSRF-protected forms revoke any
   active session, including the current one; revoking the current session sends
@@ -132,18 +134,20 @@ Baseline browser surfaces:
 - `/workspaces/{workspaceId}/files` lists ready private workspace files with
   per-member column visibility, filename/MIME/size filters, stable sorting,
   keyset cursor pagination, and responsive table/card views; filter and sort
-  controls use ordinary GET forms. The list and its download actions remain
-  workspace-authorized. It also accepts an ordinary multipart upload form.
-  File paths carry the file short
-  ID; malformed, unknown, and integer-key IDs return not-found. Browsers with
-  JavaScript send the same form in one request to that route through a client-side
-  `FileUploader` state machine (IDLE, UPLOADING, SUCCESS, and ERROR phases). The
-  button and file input stay locked while the request is in flight. A native
-  progress control reports computable byte progress; a polite live region
-  announces quarter milestones, success, and localized safe errors for an
-  oversize file, a full workspace, or an invalid file. The form works without
-  JavaScript. Uploads stream through the app for local and S3 storage; S3 downloads
-  redirect to a short-lived private URL, and local downloads stream through the app.
+  controls use ordinary GET forms. `files.templ` composes the shared workspace
+  shell, navigation, and DaisyUI list/form components. The list and download
+  actions require workspace read permission. Only principals with
+  `resources:write` see the CSRF-protected multipart upload form; read-only
+  viewers can list and download files without upload controls. JavaScript sends
+  the same form in one request through `FileUploader` (IDLE, UPLOADING, SUCCESS,
+  and ERROR phases). The button and file input stay locked during upload. A
+  native progress control reports computable byte progress; a polite live region
+  announces quarter milestones, success, and localized safe errors for oversize,
+  workspace-limit, or invalid-file failures. The ordinary form works without
+  JavaScript. File paths carry short IDs; malformed, unknown, and integer-key
+  IDs return not-found. Uploads stream through the app for local and S3 storage;
+  S3 downloads redirect to a short-lived private URL with no-store headers, and
+  local downloads stream through the app. No HTMX fragment is used on Files.
 - `/workspaces/{workspaceId}/settings/export` presents the authorized export screen;
   its `Download JSON` link downloads the export from
   `/workspaces/{workspaceId}/settings/export/download`.
@@ -311,16 +315,16 @@ accessibility results and remaining limits are recorded in
 | Route family | Views and shared templates | Major states covered |
 |---|---|---|
 | `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
-| `/setup`, `/login`, `/mfa`, `/account/verify-email/{secret}`, `/password-reset/{secret}`, `/oauth/authorize` | `setup.html`, `login.html`, `mfa.html`, `verification.html`, `password-reset.html`, `mcp-consent.html`, `auth.html` | Initial setup, form errors, sign-in and MFA challenge, verification success/unavailable, reset request/completion, OAuth approval/denial |
+| `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.html`, `verification.html`, `mcp-consent.html`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge, verification success/unavailable, OAuth approval/denial |
 | `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | Empty/results states, filters, sorting and paging, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
 | Workspace clients and custom fields | `clients.html`, `client.html`, `client-fields.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field lifecycle, realtime refresh |
 | Workspace members and invitations | `members.html`, `invitations.html`, `invitation.html` | Role changes, removal and ownership transfer, invitation create/resend/revoke, accepted and unavailable invitation |
-| Workspace files | `files.html` | Empty/list states, filters and paging, upload progress/success/error, download authorization |
 | `/workspaces/{workspaceId}/settings/audit` | `audit.templ`, `audit_templ.go`, `components.templ`, `components_templ.go` | Scoped redacted history, lazy table fragment, empty state, ordinary `?all=1` fallback, permission denial and expired-session redirect |
 | `/sessions` | `sessions.templ`, `sessions_templ.go` | Current, active, expired and revoked status; revoke current or other active sessions; feedback and empty state |
-| `/notifications`, `/notifications/events` | `notifications.templ`, `notifications_templ.go` | Recipient-scoped list and unread count, empty state, CSRF-protected mark-read, initial cursor and SSE replay after reconnect |
+| Workspace files | `files.templ`, `workspace.templ`, `navigation.templ`, `components.templ` | Empty/results, filters, sort, saved columns and paging; read-only viewer list/download; write-authorized multipart upload progress/success/validation/failure with no-JavaScript fallback; authorized downloads |
 | `/workspaces/{workspaceId}/settings/general` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Workspace locale and notification preferences, empty and saved states, invalid input and permission handling |
 | `/workspaces/{workspaceId}/settings/email` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Unconfigured/configured provider, saved state, validation, provider verification failure, redacted credentials and permission handling |
+| `/notifications`, `/notifications/events` | `notifications.templ`, `notifications_templ.go` | Recipient-scoped list and unread count, empty state, CSRF-protected mark-read, initial cursor and SSE replay after reconnect |
 | Account and workspace settings | `account.html`, `export.html`, `import.html`, `language.html`, `provisioning.html`, `security.html`, `tokens.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, export/import entry, integration setup and failure, responsive navigation |
 | Public and unavailable pages | `public-share.html`, `error.html` | Share projection and invalid/expired/revoked links, not-found and request errors |
 

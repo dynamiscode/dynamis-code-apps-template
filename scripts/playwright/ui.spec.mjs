@@ -36,12 +36,184 @@ async function injectAxe(page) {
   await page.addScriptTag({ url });
 }
 
+async function expectNoCriticalOrSeriousAxeViolations(page) {
+  const results = await page.evaluate(async (source) => {
+    eval(source);
+    return axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"] } });
+  }, axe.source);
+  expect(results.violations.filter((violation) => ["critical", "serious"].includes(violation.impact)).map((item) => item.id)).toEqual([]);
+}
+
 const screenshots = [
   { name: "desktop-light", width: 1280, height: 900, colorScheme: "light" },
   { name: "desktop-dark", width: 1280, height: 900, colorScheme: "dark" },
   { name: "mobile-light", width: 390, height: 844, colorScheme: "light" },
   { name: "mobile-dark", width: 390, height: 844, colorScheme: "dark" },
 ];
+
+test.describe("configured OIDC fixture", () => {
+  test.use({ ignoreHTTPSErrors: true });
+
+  for (const viewport of ["desktop", "mobile"]) {
+    for (const theme of ["light", "dark"]) {
+      for (const locale of ["en", "es"]) {
+        test(`configured OIDC login and callback failure: ${viewport}-${theme}-${locale}`, async ({ page }) => {
+          const width = viewport === "desktop" ? 1280 : 390;
+          const oidcBaseURL = process.env.PLAYWRIGHT_OIDC_BASE_URL;
+          await page.setViewportSize({ width, height: viewport === "desktop" ? 900 : 844 });
+          await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+          await page.context().addCookies([{ name: "theme", value: theme, url: oidcBaseURL }]);
+          await page.goto(`${oidcBaseURL}/language?locale=${locale}&return_to=%2Flogin`);
+          await page.goto(`${oidcBaseURL}/login`);
+          await expect(page.locator("html")).toHaveAttribute("lang", locale);
+          await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+          await page.addStyleTag({ content: "html { font-size: 12px; }" });
+          const recoveryLink = page.locator('a[href$="password-reset"]');
+          const loginTarget = await recoveryLink.boundingBox();
+          expect(loginTarget.width).toBeGreaterThanOrEqual(24);
+          expect(loginTarget.height).toBeGreaterThanOrEqual(24);
+          const provider = page.getByRole("link", {
+            name: locale === "es" ? "Iniciar sesión con Company SSO" : "Sign in with Company SSO",
+          });
+          await expect(provider).toHaveAttribute("href", "/auth/oidc/company");
+          expect(new URL(await provider.getAttribute("href"), oidcBaseURL).origin).toBe(new URL(oidcBaseURL).origin);
+          await page.keyboard.press("Tab");
+          await expect(page.locator(".skip-link")).toBeFocused();
+          for (let tab = 0; tab < 6; tab += 1) await page.keyboard.press("Tab");
+          await expect(provider).toBeFocused();
+          await expectNoCriticalOrSeriousAxeViolations(page);
+          expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+
+          await page.goto(`${oidcBaseURL}/auth/oidc/company/callback?error=access_denied`);
+          await expect(page.locator("html")).toHaveAttribute("lang", locale);
+          await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+          await expect(page.getByRole("alert")).toContainText(locale === "es" ? /no se pudo completar/i : /could not be completed/i);
+          await expect(page.getByRole("alert")).toBeFocused();
+          const callbackTarget = await page.locator('a[href$="password-reset"]').boundingBox();
+          expect(callbackTarget.width).toBeGreaterThanOrEqual(24);
+          expect(callbackTarget.height).toBeGreaterThanOrEqual(24);
+          await expectNoCriticalOrSeriousAxeViolations(page);
+          expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        });
+      }
+    }
+  }
+
+  test("configured OIDC completes a verified callback, creates a session, and denies unrelated workspace access", async ({ page }) => {
+    const oidcBaseURL = process.env.PLAYWRIGHT_OIDC_BASE_URL;
+    await page.goto(`${oidcBaseURL}/login`);
+    await page.getByLabel("Email").fill("oidc-fixture@example.com");
+    await page.getByLabel("Password").fill("oidc-fixture-password-123");
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.waitForURL(new URL("/", oidcBaseURL).href);
+    const workspacePath = await page.locator(".cards a").first().getAttribute("href");
+    expect(workspacePath).toMatch(/^\/workspaces\//);
+    await page.context().clearCookies();
+    await page.goto(`${oidcBaseURL}/login`);
+    await page.getByRole("link", { name: "Sign in with Company SSO" }).click();
+    await page.waitForURL(new URL("/", oidcBaseURL).href);
+    expect((await page.context().cookies(oidcBaseURL)).some((cookie) => cookie.name === "session")).toBe(true);
+    await expect(page.locator("#main")).toBeVisible();
+    await expect(page.getByRole("heading").first()).toBeVisible();
+    await expectNoCriticalOrSeriousAxeViolations(page);
+    const denied = await page.goto(new URL(workspacePath, oidcBaseURL).href);
+    expect(denied.status()).toBe(404);
+  });
+
+  test("unconfigured OIDC provider is unavailable", async ({ page }) => {
+    const response = await page.goto(`${process.env.PLAYWRIGHT_OIDC_BASE_URL}/auth/oidc/missing`);
+    expect(response.status()).toBe(404);
+  });
+});
+
+test.describe("setup browser", () => {
+  for (const viewport of ["desktop", "mobile"]) {
+    for (const theme of ["light", "dark"]) {
+      for (const locale of ["en", "es"]) {
+        test(`initial setup is accessible: ${viewport}-${theme}-${locale}`, async ({ page }) => {
+          const setupBaseURL = process.env.PLAYWRIGHT_SETUP_BASE_URL;
+          const width = viewport === "desktop" ? 1280 : 390;
+          await page.setViewportSize({ width, height: viewport === "desktop" ? 900 : 844 });
+          await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+          await page.context().addCookies([{ name: "theme", value: theme, url: setupBaseURL }]);
+          await page.goto(`${setupBaseURL}/language?locale=${locale}&return_to=%2Fsetup`);
+          await page.goto(`${setupBaseURL}/setup`);
+          await expect(page.locator("html")).toHaveAttribute("lang", locale);
+          await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+          await expect(page.locator('form[action="/setup"]')).toBeVisible();
+          await expectNoCriticalOrSeriousAxeViolations(page);
+          expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        });
+      }
+    }
+  }
+
+  test("setup validates required fields, creates the first owner, then disables setup", async ({ page }) => {
+    const setupBaseURL = process.env.PLAYWRIGHT_SETUP_BASE_URL;
+    await page.goto(`${setupBaseURL}/setup`);
+    await page.getByRole("button", { name: "Next" }).click();
+    await expect(page.locator("#email")).toBeFocused();
+    await page.getByLabel("Email").fill("setup-owner@example.com");
+    await page.getByLabel("Password", { exact: true }).fill("setup-owner-password-123");
+    await page.getByLabel("Confirm password").fill("setup-owner-password-123");
+    await page.getByRole("button", { name: "Next" }).click();
+    await expect(page.locator("#workspace")).toBeVisible();
+    await page.locator("#workspace").fill("Setup smoke workspace");
+    await page.locator('form[action="/setup"] button[type="submit"]').click();
+    await page.waitForURL(`${setupBaseURL}/login`);
+    await expect(page.locator('form[action="/login"]')).toBeVisible();
+    const unavailable = await page.goto(`${setupBaseURL}/setup`);
+    expect(unavailable.status()).toBe(404);
+  });
+});
+
+for (const colorScheme of ["light", "dark"]) {
+  test(`login system theme follows ${colorScheme} preference`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme });
+    await page.goto("/login");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "system");
+    const canvas = await page.locator("html").evaluate((element) => getComputedStyle(element).getPropertyValue("--canvas").trim());
+    expect(canvas).toBe(colorScheme === "dark" ? "#111826" : "#f3f6fa");
+    await expectNoCriticalOrSeriousAxeViolations(page);
+  });
+}
+
+test("invalid login preserves the form and exposes an accessible error", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByLabel("Email").fill("missing-user@example.com");
+  await page.getByLabel("Password").fill("invalid-login-password-123");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("alert")).toContainText("The email or password is invalid.");
+  await expect(page.locator('form[action="/login"]')).toBeVisible();
+  await expect(page.locator('input[name="csrf"]')).not.toHaveValue("");
+  await expectNoCriticalOrSeriousAxeViolations(page);
+});
+
+for (const viewport of ["desktop", "mobile"]) {
+  for (const theme of ["light", "dark"]) {
+    for (const locale of ["en", "es"]) {
+      test(`login page accessibility: ${viewport}-${theme}-${locale}`, async ({ page }) => {
+        const width = viewport === "desktop" ? 1280 : 390;
+        await page.setViewportSize({ width, height: viewport === "desktop" ? 900 : 844 });
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+        await page.context().addCookies([{ name: "theme", value: theme, url: process.env.PLAYWRIGHT_BASE_URL }]);
+        await page.goto(`/language?locale=${locale}&return_to=%2Flogin`);
+        await page.goto("/login");
+        await expect(page.locator("html")).toHaveAttribute("lang", locale);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+        await expect(page.locator('form[action="/login"]')).toBeVisible();
+        await page.keyboard.press("Tab");
+        await expect(page.locator(".skip-link")).toBeFocused();
+        const results = await page.evaluate(async (source) => {
+          eval(source);
+          return axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } });
+        }, axe.source);
+        expect(results.violations.filter((violation) => ["critical", "serious"].includes(violation.impact)).map((item) => item.id)).toEqual([]);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      });
+    }
+  }
+}
 
 for (const screenshot of screenshots) {
   test(`workspace selection screenshot: ${screenshot.name}`, async ({ page }) => {

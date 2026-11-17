@@ -490,6 +490,11 @@ func TestOIDCCallbackHandler_ValidationFailures(t *testing.T) {
 			if !strings.Contains(resp.Body.String(), "The identity provider sign-in could not be completed.") {
 				t.Fatalf("expected flash error message in response body, got: %s", resp.Body.String())
 			}
+			for _, marker := range []string{`class="brand auth-brand"`, `class="alert alert-error error"`, `role="alert" tabindex="-1"`, `href="/password-reset"`} {
+				if !strings.Contains(resp.Body.String(), marker) {
+					t.Fatalf("OIDC callback failure view lacks %q: %s", marker, resp.Body.String())
+				}
+			}
 			if !capture.hasError(tc.expectedError) {
 				t.Fatalf("expected slog to capture error %v, records were: %+v", tc.expectedError, capture.records)
 			}

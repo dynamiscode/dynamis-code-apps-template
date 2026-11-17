@@ -155,7 +155,9 @@ Playwright's initialization script; no product policy was changed. Remaining
 work includes viewer mutations beyond the four endpoints, non-JavaScript flows
 beyond audit and invalid import, additional error and provider states, request
 initiators and attribution outside the observed interval, export wire bytes,
-other screen/locale/theme combinations and the #425 audit finding.
+and other screen/locale/theme combinations. The #425 focusability finding is
+addressed; current English and Spanish axe results are in
+[accessibility evidence](accessibility.md).
 
 ## Single isolated run
 

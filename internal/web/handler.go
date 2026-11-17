@@ -1160,6 +1160,18 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = auditTable(data).Render(context.Background(), writer)
 		return
 	}
+	if name == "login.html" {
+		_ = authLogin(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "setup.html" {
+		_ = authSetup(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "password-reset.html" {
+		_ = authPasswordReset(data).Render(context.Background(), writer)
+		return
+	}
 	if name == "sessions-page" {
 		_ = sessionsPage(data, data.CurrentSessionID, time.Now()).Render(context.Background(), writer)
 		return
