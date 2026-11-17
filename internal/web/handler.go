@@ -1152,6 +1152,14 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = workspaceSelection(data).Render(context.Background(), writer)
 		return
 	}
+	if name == "audit-history" {
+		_ = auditHistory(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "audit-table" {
+		_ = auditTable(data).Render(context.Background(), writer)
+		return
+	}
 	if name == "login.html" {
 		_ = authLogin(data).Render(context.Background(), writer)
 		return
@@ -1166,6 +1174,10 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 	}
 	if name == "sessions-page" {
 		_ = sessionsPage(data, data.CurrentSessionID, time.Now()).Render(context.Background(), writer)
+		return
+	}
+	if name == "members.html" {
+		_ = membersPage(data).Render(context.Background(), writer)
 		return
 	}
 	if err := h.template.ExecuteTemplate(writer, name, data); err != nil {

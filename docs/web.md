@@ -83,14 +83,20 @@ Baseline browser surfaces:
 - `/workspaces/{workspaceId}/settings/members` lists members in the shared
   responsive table/card view with per-user columns, email/role filters, stable
   sorting, query URLs, and optional cursor paging; the default view is complete.
-  Authorized owners/admins change roles or remove members, and owners transfer
-  ownership. The ordinary forms work without JavaScript.
+  The route template keeps role, removal, and ownership transfer in separate
+  forms. Removal and transfer require separate explicit confirmations, including
+  when JavaScript is disabled; removal explains that workspace access and shared
+  resources stop. Shared identity policy authorizes role changes and removals
+  for owners/admins, and ownership transfer for owners only. The page exposes
+  non-secret WebMCP form markers while leaving submission to the user.
 - `/workspaces/{workspaceId}/settings/invitations` creates, resends, revokes, and shows
   copyable links. `/invitations/{secret}` accepts or registers an invitee with
   safe invalid, expired, revoked, duplicate, and wrong-email failures.
 - `/workspaces/{workspaceId}/settings/email` lets owners/admins save the workspace invitation sender, either SMTP, Resend, or Postmark. Saving runs a provider check first (an SMTP login test, a read-only Resend domain check, or a read-only Postmark server and domain check) and stores nothing on failure. The Resend and Postmark pages show setup steps and the sender domain status from the last save. The password or API key is never shown again, and a blank value keeps the stored one for the same provider. Members cannot view or change it.
-- `/workspaces/{workspaceId}/settings/tokens` manages current-user scoped tokens and
-  shows a new secret once.
+- `/workspaces/{workspaceId}/settings/tokens` manages current-user scoped tokens with
+  CSRF-protected create and revoke forms. Creation shows its secret once; the
+  no-store response gives replacement guidance. The page supports empty and
+  revoked-token states and the visible token-revoke WebMCP action.
 - `/workspaces/{workspaceId}/settings/webhooks` lists workspace webhook registrations,
   lets owners/admins create, rotate, and delete them, and shows redacted delivery
   history. Creation and rotation display the webhook secret once. When
@@ -102,8 +108,9 @@ Baseline browser surfaces:
 - `/workspaces/{workspaceId}/settings/provisioning` is restricted to workspace
   owners and admins. It shows the workspace SCIM endpoint and setup instructions,
   creates or rotates the dedicated SCIM credential with its secret shown once,
-  and revokes it through ordinary CSRF-protected forms. The page is no-store and
-  has no WebMCP enhancement; SCIM Users and Groups remain REST/IdP-only.
+  and revokes it through ordinary CSRF-protected forms with confirmation. The
+  page is no-store and has no WebMCP enhancement; SCIM Users and Groups remain
+  REST/IdP-only.
 - `/login`, `/setup`, password recovery, `/mfa`, and email verification share the generated app
   brand and compact responsive auth layout. Setup keeps required fields first
   and marks workspace language as deferrable. Sign-in, MFA, and setup remain
@@ -178,7 +185,8 @@ Baseline browser surfaces:
   editing and authorized row actions remain available when either data column
   is hidden.
 
-Forms keep ordinary navigation as fallback. HTMX enhances item fragments only.
+Forms keep ordinary navigation as fallback. HTMX enhances Items item fragments
+and the Clients realtime list fragment.
 Secret-bearing responses use `no-store`; list pages never render session,
 CSRF, invitation, API-token, SCIM credential, or webhook secrets. Webhook delivery history excludes
 delivery payloads and shows only bounded status, attempt, HTTP status, timestamps,
@@ -214,8 +222,8 @@ shown only to owners and admins. Item deletion is
 explicitly permanent and asks for confirmation when the browser script is
 available; ordinary form submission remains available without it.
 
-Forms work with ordinary navigation. Vendored HTMX 4.0.1 enhances item forms
-only by replacing `#item-list`; it contains no business rules. `app.js` keeps
+Forms work with ordinary navigation. Vendored HTMX 4.0.1 enhances Items item
+forms and the Clients realtime list refresh; it contains no business rules. `app.js` keeps
 HTMX 2.x non-swap behavior for `204`, `304`, `4xx`, and `5xx` responses so
 error pages never replace the list. The exact upstream license is served from
 `internal/web/assets/HTMX-LICENSE`.
@@ -320,14 +328,15 @@ accessibility results and remaining limits are recorded in
 | `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
 | `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.html`, `verification.html`, `mcp-consent.html`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge, verification success/unavailable, OAuth approval/denial |
 | `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | Empty/results states, filters, sorting and paging, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
-| Workspace clients and custom fields | `clients.html`, `client.html`, `client-fields.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field lifecycle, realtime refresh |
-| Workspace members and invitations | `members.html`, `invitations.html`, `invitation.html` | Role changes, removal and ownership transfer, invitation create/resend/revoke, accepted and unavailable invitation |
+| Workspace clients and custom fields | `clients.templ`, `components.templ`, `workspace.templ`, `client.html`, `client-fields.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field lifecycle, realtime refresh |
+| Workspace members and invitations | `members.templ`, `members_templ.go`, `invitations.html`, `invitation.html` | Role changes, removal and ownership transfer, invitation create/resend/revoke, accepted and unavailable invitation |
+| `/workspaces/{workspaceId}/settings/audit` | `audit.templ`, `audit_templ.go`, `components.templ`, `components_templ.go` | Scoped redacted history, lazy table fragment, empty state, ordinary `?all=1` fallback, permission denial and expired-session redirect |
 | `/sessions` | `sessions.templ`, `sessions_templ.go` | Current, active, expired and revoked status; revoke current or other active sessions; feedback and empty state |
 | Workspace files | `files.templ`, `workspace.templ`, `navigation.templ`, `components.templ` | Empty/results, filters, sort, saved columns and paging; read-only viewer list/download; write-authorized multipart upload progress/success/validation/failure with no-JavaScript fallback; authorized downloads |
 | `/workspaces/{workspaceId}/settings/general` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Workspace locale and notification preferences, empty and saved states, invalid input and permission handling |
 | `/workspaces/{workspaceId}/settings/email` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Unconfigured/configured provider, saved state, validation, provider verification failure, redacted credentials and permission handling |
 | `/notifications`, `/notifications/events` | `notifications.templ`, `notifications_templ.go` | Recipient-scoped list and unread count, empty state, CSRF-protected mark-read, initial cursor and SSE replay after reconnect |
-| Account and workspace settings | `account.html`, `audit-history.html`, `language.html`, `provisioning.html`, `security.html`, `tokens.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, redacted history, integration setup and failure, responsive navigation |
+| Account and workspace settings | `account.html`, `credential_settings.templ`, `credential_settings_templ.go`, `language.html`, `security.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |
 | `/workspaces/{workspaceId}/settings/export`, `/workspaces/{workspaceId}/settings/export/download`, `/workspaces/{workspaceId}/settings/import` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Authorized no-store export page and JSON download; import file selection, bounded preview, safe validation feedback, explicit multipart confirmation, and atomic result; ordinary form fallback |
 | Public and unavailable pages | `public-share.html`, `error.html` | Share projection and invalid/expired/revoked links, not-found and request errors |
 
@@ -409,6 +418,12 @@ errors; active query state opens list options. The workspace shell uses the
 generated product name and brand tokens. Header actions link to client creation
 and custom-field management; results remain first, followed by create and list
 options.
+
+The Clients list page loads local HTMX and `app.js`. Its `client.changed` and
+`resync` stream events refresh the list fragment while preserving current URL
+state. Refresh waits while a list form is dirty, submitting, or focused. The
+stream and list require `ResourcesRead`; without JavaScript, links and ordinary
+forms continue to work.
 `/workspaces/{workspaceId}/clients/{clientId}` shows one client. Writers get an
 edit form that carries the client's version; a stale version shows a retry
 message. Writes are ordinary CSRF-protected POST forms that redirect after

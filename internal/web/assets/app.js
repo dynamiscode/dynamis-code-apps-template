@@ -1,7 +1,65 @@
 if(window.htmx)htmx.config.noSwap=[204,304,"4xx","5xx"];
 const list=document.querySelector("#item-list[data-events],#client-list[data-events]");
-const realtimeStatus=document.querySelector("#realtime-status");
-if(list&&window.EventSource){const messages={connecting:list.dataset.liveConnecting,connected:list.dataset.liveConnected,unavailable:list.dataset.liveUnavailable,reconnecting:list.dataset.liveReconnecting};if(realtimeStatus)realtimeStatus.textContent=messages.connecting;const events=new EventSource(list.dataset.events);events.addEventListener("open",()=>{if(realtimeStatus)realtimeStatus.textContent=messages.connected});events.addEventListener("error",()=>{if(realtimeStatus)realtimeStatus.textContent=events.readyState===EventSource.CLOSED?messages.unavailable:messages.reconnecting});let waiting=false;const refresh=()=>{const current=document.querySelector("#"+list.id);if(current&&window.dynamisForms?.refreshDecision(window.dynamisForms.isEditing(current))==="defer"){waiting=true;if(realtimeStatus)realtimeStatus.textContent=list.dataset.liveWaiting||messages.connected;return}waiting=false;if(realtimeStatus)realtimeStatus.textContent=messages.connected;window.htmx?.ajax("GET",location.pathname+location.search,{target:"#"+list.id,swap:"outerHTML"})};for(const name of[list.id==="client-list"?"client.changed":"item.changed","resync"]){events.addEventListener(name,refresh)}document.addEventListener("focusout",()=>setTimeout(()=>{if(waiting)refresh()},0));document.addEventListener("htmx:finally:request",()=>setTimeout(()=>{if(waiting)refresh()},0));events.addEventListener("close",()=>events.close())}
+if(list&&window.EventSource){
+	const listID=list.id;
+	const messages={connecting:list.dataset.liveConnecting,connected:list.dataset.liveConnected,unavailable:list.dataset.liveUnavailable,reconnecting:list.dataset.liveReconnecting};
+	let connection=messages.connecting,waiting=false,refreshing=false,pending=false,activeContext=null,cancelledContext=null;
+	const current=()=>document.querySelector("#"+listID);
+	const status=()=>document.querySelector("#realtime-status");
+	const showStatus=()=>{const node=status();if(node)node.textContent=waiting?(current()?.dataset.liveWaiting||connection):connection};
+	const events=new EventSource(list.dataset.events);
+	events.addEventListener("open",()=>{connection=messages.connected;showStatus()});
+	events.addEventListener("error",()=>{connection=events.readyState===EventSource.CLOSED?messages.unavailable:messages.reconnecting;showStatus()});
+	const refresh=()=>{
+		const node=current();
+		if(!node)return;
+		if(window.dynamisForms?.refreshDecision(window.dynamisForms.isEditing(node))==="defer"){waiting=true;showStatus();return}
+		waiting=false;showStatus();
+		if(refreshing){pending=true;return}
+		refreshing=true;
+		window.htmx?.ajax("GET",location.pathname+location.search,{target:"#"+listID,swap:"outerHTML"});
+	};
+	const retryWaiting=()=>setTimeout(()=>{if(waiting)refresh()},0);
+	const finish=(ctx)=>{
+		if(ctx!==activeContext)return;
+		activeContext=null;cancelledContext=null;refreshing=false;
+		if(pending){pending=false;refresh()}
+	};
+	document.addEventListener("htmx:before:request",event=>{
+		const ctx=event.detail?.ctx;
+		if(ctx?.target?.id===listID&&ctx.request?.method?.toLowerCase()==="get"){activeContext=ctx;refreshing=true}
+	});
+	document.addEventListener("htmx:before:swap",event=>{
+		const ctx=event.detail?.ctx;
+		if(ctx?.target?.id!==listID||ctx.request?.method?.toLowerCase()!=="get")return;
+		const node=current();
+		if(node&&window.dynamisForms?.refreshDecision(window.dynamisForms.isEditing(node))==="defer"){event.preventDefault();waiting=true;cancelledContext=ctx;showStatus()}
+	});
+	document.addEventListener("htmx:after:swap",event=>{
+		const ctx=event.detail?.ctx;
+		if(ctx?.target?.id===listID){showStatus();finish(ctx)}
+	});
+	document.addEventListener("htmx:after:request",event=>{
+		const ctx=event.detail?.ctx;
+		const status=ctx?.response?.status;
+		if(ctx===cancelledContext||event.detail?.failed||status>=400||status===204||status===304)finish(ctx);
+	});
+	for(const name of["htmx:sendError","htmx:timeout"]){document.addEventListener(name,event=>finish(event.detail?.ctx))}
+	document.addEventListener("htmx:finally:request",event=>{
+		const ctx=event.detail?.ctx;
+		if(ctx===cancelledContext||String(ctx?.status||"").startsWith("error:"))finish(ctx);
+	});
+	document.addEventListener("click",event=>{
+		const summary=event.target instanceof Element?event.target.closest("summary"):null;
+		if(summary?.parentElement?.matches("details"))summary.parentElement.dataset.userToggled="true";
+	});
+	document.addEventListener("toggle",event=>{
+		if(event.target instanceof HTMLDetailsElement&&event.target.dataset.userToggled)retryWaiting();
+	},true);
+	for(const name of[listID==="client-list"?"client.changed":"item.changed","resync"]){events.addEventListener(name,refresh)}
+	for(const name of["focusout","input","change","htmx:finally:request"]){document.addEventListener(name,retryWaiting)}
+	events.addEventListener("close",()=>events.close());
+}
 class FileUploader {
 	static PHASES = Object.freeze({
 		IDLE: "IDLE",

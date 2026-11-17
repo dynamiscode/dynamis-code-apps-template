@@ -75,8 +75,12 @@ jobs:
           path: |
             test-results/**/*members-mobile-*-actual.png
             test-results/**/*members-mobile-*-diff.png
+            test-results/**/*members-desktop-*-actual.png
+            test-results/**/*members-desktop-*-diff.png
             test-results/**/*email-settings-mobile-*-actual.png
             test-results/**/*email-settings-mobile-*-diff.png
+            test-results/**/*provisioning-settings-mobile-*-actual.png
+            test-results/**/*provisioning-settings-mobile-*-diff.png
             test-results/**/*webhooks-*-actual.png
             test-results/**/*webhooks-*-diff.png
           if-no-files-found: ignore
