@@ -122,11 +122,13 @@ Baseline browser surfaces:
   request and single-use completion pages.
 - `/notifications` lists recipient-scoped in-app records, shows unread state,
   marks them read, and updates the unread count through recipient-scoped SSE.
-  It keeps a refresh link for ordinary navigation. Notification records are
-  created through the shared identity service, and user plus workspace
+  Its initial SSE cursor is the newest row rendered, or empty when the inbox is
+  empty. It keeps a refresh link for ordinary navigation. Notification records
+  are created through the shared identity service, and user plus workspace
   preferences are checked before storage.
 - `/notifications/events` delivers recipient-scoped `notification.created` SSE
-  events; an expired cursor triggers a page refresh to restore current records.
+  events, replaying after the page cursor or the browser's last delivered event;
+  an expired cursor triggers a page refresh to restore current records.
 - `/workspaces/{workspaceId}/files` lists ready private workspace files with
   per-member column visibility, filename/MIME/size filters, stable sorting,
   keyset cursor pagination, and responsive table/card views; filter and sort
@@ -313,7 +315,8 @@ accessibility results and remaining limits are recorded in
 | Workspace files | `files.html` | Empty/list states, filters and paging, upload progress/success/error, download authorization |
 | `/workspaces/{workspaceId}/settings/audit` | `audit.templ`, `audit_templ.go`, `components.templ`, `components_templ.go` | Scoped redacted history, lazy table fragment, empty state, ordinary `?all=1` fallback, permission denial and expired-session redirect |
 | `/sessions` | `sessions.templ`, `sessions_templ.go` | Current, active, expired and revoked status; revoke current or other active sessions; feedback and empty state |
-| Account and workspace settings | `account.html`, `email-settings.html`, `export.html`, `general-settings.html`, `import.html`, `language.html`, `notifications.html`, `provisioning.html`, `security.html`, `tokens.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, notification read/unread, export/import entry, integration setup and failure, responsive navigation |
+| `/notifications`, `/notifications/events` | `notifications.templ`, `notifications_templ.go` | Recipient-scoped list and unread count, empty state, CSRF-protected mark-read, initial cursor and SSE replay after reconnect |
+| Account and workspace settings | `account.html`, `email-settings.html`, `export.html`, `general-settings.html`, `import.html`, `language.html`, `provisioning.html`, `security.html`, `tokens.html`, `webhooks.html`, `navigation.html` | Settings validation, secret one-time display, redacted history, notification read/unread, export/import entry, integration setup and failure, responsive navigation |
 | Public and unavailable pages | `public-share.html`, `error.html` | Share projection and invalid/expired/revoked links, not-found and request errors |
 
 Corresponding route and handler tests cover server-rendered behavior.
@@ -456,11 +459,14 @@ continue to require `identity.ResourcesRead`.
 
 `GET /notifications/events` uses the same stream limits, heartbeat, lifetime,
 and database polling. Events carry the notification ID, type, title, body, and
-UTC creation time only to the authenticated recipient. `Last-Event-ID` resumes
-after the recipient's stored notification; no notification secret or other
-user's record is exposed. The notification client explicitly closes its
-EventSource on the server's lifetime `close` event and does not reopen it;
-live updates stop until the page reloads. The refresh link remains available.
+UTC creation time only to the authenticated recipient. The page gives
+`EventSource` an `after` query cursor matching its newest rendered row; an empty
+value replays rows created after an empty page. `Last-Event-ID` takes precedence
+and resumes after the recipient's last delivered notification. The lifetime
+`close` event ends the response; native `EventSource` reconnects with its last
+event ID, or the original page cursor if no event arrived. An invalid cursor
+triggers `resync`. No notification secret or other user's record is exposed.
+The refresh link remains available.
 
 Permanent delete removes the live item and writes a redacted audit/change
 event. Existing backups may retain deleted content until the expiry defined in

@@ -146,6 +146,7 @@ type pageData struct {
 	NotificationPreferences          []identity.NotificationPreference
 	WorkspaceNotificationPreferences []identity.NotificationPreference
 	Notifications                    []identity.Notification
+	NotificationCursor               string
 	UnreadNotifications              int
 	PasswordResetSecret              string
 	PasswordResetCompleted           bool
