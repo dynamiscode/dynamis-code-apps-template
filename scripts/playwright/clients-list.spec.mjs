@@ -253,7 +253,7 @@ test.describe("Clients list without JavaScript", () => {
     await page.getByRole("button", { name: "Add client" }).click();
     await expect(page).toHaveURL(/\/clients\/[^/?]+$/);
     await page.locator("#client-display-name").fill("Native client updated");
-    await page.locator("#client-detail").getByRole("button", { name: "Save" }).click();
+    await page.locator("#client-detail").getByRole("button", { name: "Save client" }).click();
     await expect(page.locator("#client-display-name")).toHaveValue("Native client updated");
     await page.locator("#client-detail").getByRole("button", { name: "Archive" }).click();
     await expect(page.locator("#client-detail").getByRole("button", { name: "Unarchive" })).toBeVisible();
