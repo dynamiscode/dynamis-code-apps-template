@@ -34,10 +34,6 @@ import (
 )
 
 func TestMFAOptionsRenderAsJSON(t *testing.T) {
-	handler, err := NewHandlerWithServices(nil, nil, nil, nil, nil, config.HTTP{}, "", "", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
 	catalog, err := i18n.New()
 	if err != nil {
 		t.Fatal(err)
@@ -45,9 +41,9 @@ func TestMFAOptionsRenderAsJSON(t *testing.T) {
 	var body bytes.Buffer
 	data := pageData{
 		Locale: "en", Catalog: catalog,
-		MFAOptions: json.RawMessage(`{"publicKey":{"challenge":"abc"}}`),
+		MFAOptions: json.RawMessage(`{"publicKey":{"challenge":"abc"},"label":"</script><script>alert(1)</script>"}`),
 	}
-	if err := handler.template.ExecuteTemplate(&body, "mfa.html", data); err != nil {
+	if err := authMFA(data).Render(context.Background(), &body); err != nil {
 		t.Fatal(err)
 	}
 	start := strings.Index(body.String(), `<script id="mfa-options" type="application/json">`) + len(`<script id="mfa-options" type="application/json">`)
@@ -59,12 +55,65 @@ func TestMFAOptionsRenderAsJSON(t *testing.T) {
 		PublicKey struct {
 			Challenge string `json:"challenge"`
 		} `json:"publicKey"`
+		Label string `json:"label"`
 	}
 	if err := json.Unmarshal([]byte(body.String()[start:start+end]), &options); err != nil {
 		t.Fatalf("MFA options are not a JSON object: %v; body=%s", err, body.String())
 	}
 	if options.PublicKey.Challenge != "abc" {
 		t.Fatalf("challenge = %q", options.PublicKey.Challenge)
+	}
+	if options.Label != `</script><script>alert(1)</script>` || strings.Contains(body.String(), `</script><script>alert(1)</script>`) {
+		t.Fatal("MFA options did not remain safely encoded JSON")
+	}
+}
+
+func TestEmailVerificationRouteSuccessUsesAuthLayout(t *testing.T) {
+	ctx := context.Background()
+	cfg, err := config.LoadFrom(func(string) (string, bool) { return "", false })
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Database.SQLitePath = ":memory:"
+	cfg.Database.MaxOpenConns = 1
+	cfg.Database.MaxIdleConns = 1
+	db, err := database.Open(ctx, cfg.Database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := database.Migrate(ctx, db, cfg.Database.Driver); err != nil {
+		t.Fatal(err)
+	}
+	auth, err := identity.NewService(db, cfg.Database.Driver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := auth.BootstrapFirstOwner(ctx, identity.BootstrapInput{
+		Email: "owner@example.com", Password: "long-enough-password", WorkspaceName: "Example",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, "UPDATE users SET email_verified_at = NULL WHERE id = ?", owner.UserID); err != nil {
+		t.Fatal(err)
+	}
+	verification, err := auth.BeginEmailVerification(ctx, owner.UserID, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler, err := NewHandlerWithServices(auth, nil, nil, nil, nil, cfg.HTTP, "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := request(handler.Routes(), http.MethodGet, "/account/verify-email/"+url.PathEscape(verification.Secret), nil, nil, map[string]string{"Accept-Language": "es"})
+	body := response.Body.String()
+	if response.Code != http.StatusOK || !strings.Contains(body, "Correo verificado.") ||
+		!strings.Contains(body, `class="btn btn-primary" href="/account"`) {
+		t.Fatalf("verification success route status = %d; localized success or account link missing", response.Code)
+	}
+	if strings.Contains(body, verification.Secret) || response.Header().Get("Cache-Control") != "no-store" {
+		t.Fatal("verification success page exposed its token or was cacheable")
 	}
 }
 
@@ -316,6 +365,15 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	if account.Code != http.StatusOK || !strings.Contains(account.Body.String(), "Profile and preferences") {
 		t.Fatalf("account page status = %d; missing profile heading", account.Code)
 	}
+	for _, marker := range []string{`<main id="main" class="account-page"`, `data-dirty-track data-unsaved-warning`, `data-strength`, `name="confirm_delete"`, `data-account-page`} {
+		if !strings.Contains(account.Body.String(), marker) {
+			t.Errorf("account templ page missing %q", marker)
+		}
+	}
+	if strings.Contains(account.Body.String(), `<form action="/account/password" method="post" data-dirty-track`) ||
+		strings.Contains(account.Body.String(), `<form action="/account/delete" method="post" data-dirty-track`) {
+		t.Fatal("account password forms must not be draft-tracked")
+	}
 	updated := request(handler, http.MethodPost, "/account/profile", url.Values{
 		"csrf": {session.CSRFSecret}, "display_name": {"Owner"}, "locale": {"es"},
 		"timezone": {"America/Bogota"}, "theme": {"dark"},
@@ -466,6 +524,9 @@ func TestAccountSecurityPagesUseSharedBrandAndRequireDeletionConfirmation(t *tes
 		}
 		if path == "/account" && (!strings.Contains(body, `name="confirm_delete" type="checkbox" value="yes" required`) || !strings.Contains(body, "Entiendo que eliminar la cuenta es permanente")) {
 			t.Errorf("account page lacks the Spanish no-JavaScript deletion confirmation: %s", body)
+		}
+		if path == "/settings/language" && (!strings.Contains(body, `<main id="main" class="account-page narrow"`) || !strings.Contains(body, `aria-label="Idioma"`)) {
+			t.Errorf("language page lacks templ account layout or labelled language form: %s", body)
 		}
 	}
 
@@ -669,6 +730,11 @@ func TestInvitationEmailUsesWorkspaceLocale(t *testing.T) {
 
 func TestWebLanguageSettingsRoutes(t *testing.T) {
 	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	if err := auth.UpdateUserProfile(context.Background(), owner.UserID, identity.ProfileUpdateInput{
+		Locale: "es", Timezone: "America/Bogota", Theme: "dark",
+	}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -684,7 +750,7 @@ func TestWebLanguageSettingsRoutes(t *testing.T) {
 	}
 
 	settings := request(handler, http.MethodGet, "/settings/language", nil, cookies, nil)
-	if settings.Code != http.StatusOK || !strings.Contains(settings.Body.String(), "Automatic") {
+	if settings.Code != http.StatusOK || !strings.Contains(settings.Body.String(), "Automático") {
 		t.Fatalf("language settings = %d, %s", settings.Code, settings.Body.String())
 	}
 	saved := request(handler, http.MethodPost, "/settings/language", url.Values{
@@ -696,11 +762,14 @@ func TestWebLanguageSettingsRoutes(t *testing.T) {
 	if locale, err := auth.GetUserLocale(context.Background(), owner.UserID); err != nil || locale != "es" {
 		t.Fatalf("saved user locale = %q, %v", locale, err)
 	}
-	invalid := request(handler, http.MethodPost, "/settings/language", url.Values{
+	invalidLocale := request(handler, http.MethodPost, "/settings/language", url.Values{
 		"csrf": {session.CSRFSecret}, "locale": {"fr"},
 	}, cookies, nil)
-	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "El idioma seleccionado no es válido.") || !strings.Contains(invalid.Body.String(), `value="es" selected`) {
-		t.Fatalf("invalid language = %d, %s", invalid.Code, invalid.Body.String())
+	if invalidLocale.Code != http.StatusUnprocessableEntity || !hasHTMLRootLang(invalidLocale.Body.String(), "es") ||
+		!strings.Contains(invalidLocale.Body.String(), `data-theme="dark"`) ||
+		!strings.Contains(invalidLocale.Body.String(), "El idioma seleccionado no es válido.") ||
+		!strings.Contains(invalidLocale.Body.String(), `value="es" selected`) {
+		t.Fatalf("invalid language form lost localized account context = %d, %s", invalidLocale.Code, invalidLocale.Body.String())
 	}
 	if locale, err := auth.GetUserLocale(context.Background(), owner.UserID); err != nil || locale != "es" {
 		t.Fatalf("invalid language changed saved locale = %q, %v", locale, err)

@@ -139,7 +139,7 @@ func accountPageView(data pageData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</header><main class=\"account-page\" id=\"main\"><header class=\"account-heading\"><p class=\"eyebrow\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</header><main id=\"main\" class=\"account-page\"><header class=\"account-heading\"><p class=\"eyebrow\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1020,7 +1020,7 @@ func languageSettingsView(data pageData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "</header><main class=\"account-page narrow\" id=\"main\"><p class=\"eyebrow\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "</header><main id=\"main\" class=\"account-page narrow\"><p class=\"eyebrow\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1121,7 +1121,7 @@ func languageSettingsView(data pageData) templ.Component {
 			var templ_7745c5c3_Var60 string
 			templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("common.automatic"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account_pages.templ`, Line: 82, Col: 308}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account_pages.templ`, Line: 82, Col: 348}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 			if templ_7745c5c3_Err != nil {
@@ -1144,7 +1144,7 @@ func languageSettingsView(data pageData) templ.Component {
 			var templ_7745c5c3_Var61 string
 			templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("common.english"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account_pages.templ`, Line: 82, Col: 402}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account_pages.templ`, Line: 82, Col: 442}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var61))
 			if templ_7745c5c3_Err != nil {
@@ -1167,7 +1167,7 @@ func languageSettingsView(data pageData) templ.Component {
 			var templ_7745c5c3_Var62 string
 			templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("common.spanish"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account_pages.templ`, Line: 82, Col: 496}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account_pages.templ`, Line: 82, Col: 536}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 			if templ_7745c5c3_Err != nil {
@@ -1179,7 +1179,7 @@ func languageSettingsView(data pageData) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = selectField("language", data.T("common.language"), templ.Attributes{"name": "locale"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var59), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = selectField("language", data.T("common.language"), templ.Attributes{"name": "locale", "aria-label": data.T("common.language")}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var59), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

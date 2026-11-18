@@ -33,6 +33,17 @@ earlier results below remain historical observations and do not establish
 current accessibility conformance. Automated scanning is not a full
 accessibility audit.
 
+### Authentication route browser evidence — 2026-11-17
+
+`scripts/playwright-smoke.sh scripts/playwright/email-verification.spec.mjs
+scripts/playwright/password-reset.spec.mjs` passed 20/20 checks in Chrome. The
+email verification failure route passed axe, focused-alert, and keyboard checks
+across English and Spanish, desktop and mobile, and light, dark, and system
+themes. No horizontal overflow appeared at the tested viewport widths. The
+existing password reset regression passed its 8 locale, viewport, and theme
+combinations. This automated route coverage does not establish full WCAG
+conformance.
+
 The axe pass also covers the client list, a client page, the custom-fields page,
 the files page, recipient notification center, public share, and MCP OAuth
 consent. The public share and consent routes run with the multi-workspace and

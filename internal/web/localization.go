@@ -139,11 +139,12 @@ func localizedLegacy(catalog *i18n.Catalog, locale i18n.Locale, value string) st
 		"Enter a workspace name between 1 and 120 characters.":        "errors.workspace_name",
 		"The selected language is invalid.":                           "errors.invalid_locale",
 		"The account settings are invalid.":                           "errors.account_settings",
+		"Confirm permanent account deletion to continue.":             "account.delete_confirmation_required",
+		"Transfer workspace ownership before deleting this account.":  "account.transfer_ownership_required",
+		"Account deletion requires the current password.":             "account.delete_password_required",
 		"The email verification link is invalid or expired.":          "errors.email_verification",
 		"The password reset link is invalid or expired.":              "errors.password_reset",
 		"The current password or new password is invalid.":            "errors.password_change",
-		"Transfer workspace ownership before deleting this account.":  "errors.owned_workspace",
-		"Account deletion requires the current password.":             "errors.delete_account",
 		"Email delivery is not configured.":                           "errors.email_delivery",
 		"Verification email could not be delivered. Try again later.": "errors.verification_delivery",
 		"The notification preference is invalid.":                     "errors.notification_preference",
@@ -213,12 +214,13 @@ func (h *Handler) languageSettings(writer http.ResponseWriter, request *http.Req
 	locale := strings.TrimSpace(request.FormValue("locale"))
 	if locale != "" {
 		if _, ok := i18n.ParseLocale(locale); !ok {
-			currentLocale, err := h.identity.GetUserLocale(request.Context(), session.UserID)
+			profile, err := h.identity.GetUserProfile(request.Context(), session.UserID)
 			if err != nil {
 				h.renderError(writer, http.StatusInternalServerError)
 				return
 			}
-			data := h.languageSettingsData(request, session.UserID, csrf, currentLocale)
+			data := h.languageSettingsData(request, session.UserID, csrf, profile.Locale)
+			data.Theme = profile.Theme
 			data.Error = "The selected language is invalid."
 			h.render(writer, http.StatusUnprocessableEntity, "language-page", data)
 			return
