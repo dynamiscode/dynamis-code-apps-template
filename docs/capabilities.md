@@ -1349,3 +1349,14 @@ continues to enforce owner/admin management and owner-only transfer.
   No performance budgets or fixes are proposed from single samples.
 - `go test ./...` passed (1070 tests in 37 packages). `npm run typecheck` and
   `npm run test` are unavailable because neither script is defined.
+
+## UI baseline verification follow-up (#439, 2026-11-18)
+
+- On `20aa17caf09d99acb0bc8b3cd69b9e7fb322fb63`, `npm run test:unit` passed
+  (39 tests). The requested `npm run typecheck` and `npm run test` scripts are
+  still undefined.
+- The full Go suite was not rerun: `SANDCASTLE_VERIFY` is unset in this
+  worktree, so the required verification wrapper is unavailable. The previous
+  recorded `go test ./...` result remains the latest Go evidence.
+- Issue #439 remains partial. The route and state gaps, unavailable wire-byte
+  metrics, and no-budget decision remain as recorded above.
