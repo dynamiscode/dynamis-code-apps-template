@@ -2,8 +2,9 @@
 
 Issue #448 covers general and email settings, API tokens, SCIM provisioning,
 webhooks and deliveries, audit history, import preview, and export. The common
-[measurement method](ui-measurement.md) applies. The observations below are a
-partial baseline; no budgets or performance fixes are established.
+[measurement method](ui-measurement.md) applies. The runs below complete the
+bounded screen and state measurements for this issue. They do not establish
+budgets or claim performance fixes.
 
 The separate `sh scripts/ui-measurement-admin.sh` command creates a temporary
 SQLite fixture and runs `scripts/ui-measurement-admin.mjs`. Install dependencies
@@ -53,20 +54,98 @@ output and fixture conditions when results are collected.
 
 | Screen or interaction | Prepared coverage | Unverified |
 |---|---|---|
-| General and email settings | Cold/warm navigation; #422 | Save, validation, failure and provider states |
-| Tokens and SCIM | Cold/warm navigation; #423 | Creation, revocation and one-time secret states |
-| Webhooks | Cold/warm navigation; empty, pending, delivered and failed delivery displays; #424 | Other delivery failures and retry timing |
-| Audit | Cold/warm navigation; automatic fetch and DOM swap; synthetic warm fetch; injected failure and no-JavaScript fallback; #425 | Loading duration and other failures |
-| Import | Cold/warm navigation; valid and invalid one-row CSV preview; #426 | Other validation and failure states; confirmation |
-| Export | Cold/warm navigation; download and local decoded file size; #426 | Download transfer bytes and failure |
+| General and email settings | Cold/warm navigation; viewer GET/POST denial; Spanish mobile scan | Save, validation, failure, configured provider states |
+| Tokens and SCIM | Cold/warm navigation; viewer GET/POST denial; Spanish mobile scan | Create, revoke and one-time secret states |
+| Webhooks and deliveries | Cold/warm navigation; empty, pending, delivered, failed; viewer denial; Spanish mobile scan | Other delivery failures and retry timing |
+| Audit | Cold/warm navigation; automatic fetch and DOM swap; synthetic warm fetch; injected failure; no-JavaScript fallback; anonymous redirect; viewer denial; Spanish mobile scan | Isolated automatic-fragment duration and other failures |
+| Import | Cold/warm navigation; valid and invalid one-row preview with and without JavaScript; viewer denial; Spanish mobile scan | Other validation and failure states; successful confirmation |
+| Export | Cold/warm navigation; download and local decoded file size; viewer denial; Spanish mobile scan | Download wire bytes and failure |
 
 Viewer GET and selected POST responses are recorded below. A Spanish mobile
 automated scan is recorded below; keyboard behavior and no-JavaScript flows
 outside the two observed cases remain unverified.
 Do not capture one-time token or webhook secrets, SMTP credentials, CSRF fields,
-export bodies, endpoint URLs, traces or screenshots. Measurements and additional
-state coverage are still needed before identifying duplicate requests, proposing
-measured fixes, or completing #448.
+export bodies, endpoint URLs, traces or screenshots. The harness cannot attribute
+per-request script initiators, measure download wire bytes, or isolate overlapping
+audit navigation requests. Those metrics remain unavailable; no fixes or budgets
+are proposed from these measurements.
+
+## Isolated timing run
+
+On 2026-11-17T18:46:01.823Z, commit
+`1c2ff7f59d106988976daf1370e52463f60d0896`, Darwin 27.2.0 arm64, Go 1.27.4,
+Node 26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1:
+
+```sh
+sh scripts/ui-measurement-admin.sh > /tmp/ui-448-current-measurement.json
+```
+
+One unthrottled loopback run used a fresh SQLite fixture with one owner and one
+workspace. It began with zero items and added one webhook with zero deliveries.
+Viewport was 1280×900 at device scale 1, locale `en-US`, light theme, and reduced
+motion. Cold navigation cleared the HTTP cache after sign-in; warm navigation
+repeated the same page in one browser context. Each interval ended after load and
+a visible heading. Values below are one observation, not a distribution.
+
+| Page | Cache | Requests | Completed encoded bytes | DOMContentLoaded ms | Load ms | HTTP errors |
+|---|---|---:|---:|---:|---:|---|
+| General | cold | 5 | 99752 | 12.8 | 16.3 | one favicon 404 |
+| General | warm | 4 | 99240 | 13.2 | 15.5 | none |
+| Email | cold | 5 | 102276 | 10.6 | 13.6 | one favicon 404 |
+| Email | warm | 4 | 101764 | 10.0 | 13.3 | none |
+| Tokens | cold | 7 | 116325 | 19.7 | 19.9 | one favicon 404 |
+| Tokens | warm | 6 | 115813 | 14.3 | 14.5 | none |
+| SCIM provisioning | cold | 5 | 99554 | 9.6 | 11.2 | one favicon 404 |
+| SCIM provisioning | warm | 4 | 99042 | 9.4 | 11.0 | none |
+| Webhooks | cold | 5 | 79134 | 17.2 | 17.4 | one favicon 404 |
+| Webhooks | warm | 4 | 78622 | 11.6 | 11.9 | none |
+| Audit | cold | 6 | 100144 | 10.6 | 11.8 | one favicon 404 |
+| Audit | warm | 5 | 99632 | 9.6 | 10.7 | none |
+| Import | cold | 5 | 98811 | 65.4 | 66.8 | one favicon 404 |
+| Import | warm | 4 | 98299 | 9.6 | 11.1 | none |
+| Export | cold | 6 | 115212 | 13.5 | 13.6 | one favicon 404 |
+| Export | warm | 5 | 114700 | 11.3 | 11.3 | none |
+| Webhook deliveries | cold | 5 | 77523 | 12.7 | 12.8 | one favicon 404 |
+| Webhook deliveries | warm | 4 | 77011 | 9.9 | 10.8 | none |
+
+Every navigation had zero redirects, transport failures, and unfinished
+requests. Each cold navigation recorded one favicon 404; warm navigations had no
+HTTP errors. The token screen reported one cache-served event in both runs, so
+its cold label does not prove every resource came from the network. No duplicate
+allowlisted assets appeared in the observed intervals; this does not establish
+that any asset is necessary or unnecessary.
+
+| Interaction | Requests | Completed encoded bytes | Elapsed ms | Other |
+|---|---:|---:|---:|---|
+| Automatic audit fragment and DOM swap | unavailable | unavailable | 29.9 from navigation start | loading indicator observed; header 534 bytes, body 1500 bytes |
+| Synthetic audit fragment fetch | 1 | 2034 | 5.8 | warm; response body consumed |
+| CSV import preview | 4 | 100043 | 81.1 | warm; one valid synthetic row; not confirmed |
+| Export download | 1 | unavailable | 140.7 | local decoded file 2057 bytes; wire bytes unavailable |
+
+Interaction durations use Node's monotonic clock and include automation overhead.
+The automatic audit measurement is from navigation start, and its request
+overlaps navigation; it is not an isolated fragment duration. The export
+completed despite Chrome reporting one transport failure; its transfer bytes
+remain unavailable. No duplicate or unnecessary request conclusion follows from
+these counts.
+
+On the same commit, the isolated state command completed successfully:
+
+```sh
+UI_ADMIN_STATES=1 sh scripts/ui-measurement-admin.sh > /tmp/ui-448-current-states.json
+node --test scripts/ui-measurement-admin-attribution.test.mjs scripts/ui-measurement-admin-env.test.mjs
+```
+
+The owner observed one pending delivery row, then one delivered and one failed
+delivery from loopback 204 and 503 receivers. Audit fragment HTTP 503 displayed
+failure feedback; the no-JavaScript audit fallback rendered its table. Invalid
+CSV showed validation feedback with and without JavaScript. An anonymous audit
+request reached login. A viewer received 200 for general and tokens, and 403 for
+email, SCIM, webhooks, audit, import and export. Viewer POSTs to general, email,
+SCIM and webhooks returned 403. Eight Spanish mobile system-dark screens had no
+axe violations and no horizontal overflow. These are observations from one
+synthetic fixture; token/SCIM create, revoke, one-time display, configured email
+providers, successful import confirmation, and export failure remain unverified.
 
 ## State and attribution checks
 

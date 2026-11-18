@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import axe from "axe-core";
+import { setAccountTheme } from "./theme.mjs";
 
 const email = process.env.PLAYWRIGHT_EMAIL;
 const password = process.env.PLAYWRIGHT_PASSWORD;
@@ -220,28 +221,40 @@ for (const screenshot of screenshots) {
     await page.setViewportSize({ width: screenshot.width, height: screenshot.height });
     await page.emulateMedia({ colorScheme: screenshot.colorScheme, reducedMotion: "reduce" });
     await openWorkspaceSelection(page);
-    await expect(page.getByRole("heading", { name: "Workspaces" })).toBeVisible();
-    await expect(page).toHaveScreenshot(`workspace-selection-${screenshot.name}.png`, {
-      animations: "disabled",
-      fullPage: true,
-    });
+    const restoreTheme = await setAccountTheme(page, screenshot.colorScheme);
+    try {
+      await expect(page.locator("html")).toHaveAttribute("data-theme", screenshot.colorScheme);
+      await expect(page.getByRole("heading", { name: "Workspaces" })).toBeVisible();
+      await expect(page).toHaveScreenshot(`workspace-selection-${screenshot.name}.png`, {
+        animations: "disabled",
+        fullPage: true,
+      });
+    } finally {
+      await restoreTheme();
+    }
   });
 
   test(`workspace home screenshot: ${screenshot.name}`, async ({ page }) => {
     await page.setViewportSize({ width: screenshot.width, height: screenshot.height });
     await page.emulateMedia({ colorScheme: screenshot.colorScheme, reducedMotion: "reduce" });
     await openWorkspaceHome(page);
-    if (screenshot.width > 608) {
-      const sidebar = await page.locator(".sidebar").boundingBox();
-      expect(sidebar.y).toBe(0);
-      expect(sidebar.height).toBeGreaterThanOrEqual(screenshot.height);
+    const restoreTheme = await setAccountTheme(page, screenshot.colorScheme);
+    try {
+      await expect(page.locator("html")).toHaveAttribute("data-theme", screenshot.colorScheme);
+      if (screenshot.width > 608) {
+        const sidebar = await page.locator(".sidebar").boundingBox();
+        expect(sidebar.y).toBe(0);
+        expect(sidebar.height).toBeGreaterThanOrEqual(screenshot.height);
+      }
+      const canvas = await page.locator("html").evaluate((element) => getComputedStyle(element).getPropertyValue("--canvas").trim());
+      expect(canvas).toBe(screenshot.colorScheme === "dark" ? "#111826" : "#f3f6fa");
+      await expect(page).toHaveScreenshot(`workspace-home-${screenshot.name}.png`, {
+        animations: "disabled",
+        fullPage: true,
+      });
+    } finally {
+      await restoreTheme();
     }
-    const canvas = await page.locator("html").evaluate((element) => getComputedStyle(element).getPropertyValue("--canvas").trim());
-    expect(canvas).toBe(screenshot.colorScheme === "dark" ? "#111826" : "#f3f6fa");
-    await expect(page).toHaveScreenshot(`workspace-home-${screenshot.name}.png`, {
-      animations: "disabled",
-      fullPage: true,
-    });
   });
 }
 
@@ -250,13 +263,19 @@ for (const screenshot of screenshots) {
     await page.setViewportSize({ width: screenshot.width, height: screenshot.height });
     await page.emulateMedia({ colorScheme: screenshot.colorScheme, reducedMotion: "reduce" });
     await openItems(page);
-    await expect(page.getByRole("heading", { name: "Items", level: 1 })).toBeVisible();
-    const connected = await page.locator("#item-list").getAttribute("data-live-connected");
-    await expect(page.locator("#realtime-status")).toHaveText(connected);
-    await expect(page).toHaveScreenshot(`items-${screenshot.name}.png`, {
-      animations: "disabled",
-      fullPage: true,
-    });
+    const restoreTheme = await setAccountTheme(page, screenshot.colorScheme);
+    try {
+      await expect(page.locator("html")).toHaveAttribute("data-theme", screenshot.colorScheme);
+      await expect(page.getByRole("heading", { name: "Items", level: 1 })).toBeVisible();
+      const connected = await page.locator("#item-list").getAttribute("data-live-connected");
+      await expect(page.locator("#realtime-status")).toHaveText(connected);
+      await expect(page).toHaveScreenshot(`items-${screenshot.name}.png`, {
+        animations: "disabled",
+        fullPage: true,
+      });
+    } finally {
+      await restoreTheme();
+    }
   });
 }
 
@@ -302,6 +321,39 @@ test("workspace home opens Items and creates the first task", async ({ page }) =
   await injectAxe(page);
   const results = await page.evaluate(async () => axe.run(document.querySelector("#item-list")));
   expect(results.violations).toEqual([]);
+});
+
+test("workspace home passes automated axe checks", async ({ page }) => {
+  await openWorkspaceHome(page);
+  await injectAxe(page);
+  const results = await page.evaluate(async () => axe.run(document));
+  expect(results.violations).toEqual([]);
+});
+
+test("Items sharing creates a read-only public link and revokes it", async ({ page }) => {
+  await openItems(page);
+  const itemsURL = page.url();
+  const title = "Playwright shared item";
+  await page.getByLabel("New item title").fill(title);
+  await page.getByRole("button", { name: "Add item" }).click();
+  const row = page.locator(`#item-list tr[data-item-row]:has(input[name="title"][value="${title}"])`);
+  await expect(row).toBeVisible();
+  await row.locator("form.share button[value=create]").click();
+  const link = page.locator("#item-list .success a[href*='/share/']");
+  await expect(link).toBeVisible();
+  const shareURL = await link.getAttribute("href");
+  await page.goto(shareURL);
+  await expect(page.getByRole("heading", { name: "Shared item" })).toBeVisible();
+  await expect(page.locator("main.public-share-card")).toBeVisible();
+  await expect(page.locator("main.public-share-card")).toContainText(title);
+  await expect(page.locator("main.public-share-card")).not.toContainText("UI Baselines");
+
+  await page.goto(itemsURL);
+  const activeRow = page.locator(`#item-list tr[data-item-row]:has(input[name="title"][value="${title}"])`);
+  page.once("dialog", (dialog) => dialog.accept());
+  await activeRow.locator('form button[value="revoke"]').click();
+  await page.goto(shareURL);
+  await expect(page.getByRole("heading", { name: /unavailable|no disponible/i })).toBeVisible();
 });
 
 test("Items query navigation keeps native browser history", async ({ page }) => {

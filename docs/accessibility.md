@@ -33,6 +33,17 @@ earlier results below remain historical observations and do not establish
 current accessibility conformance. Automated scanning is not a full
 accessibility audit.
 
+### Authentication route browser evidence — 2026-11-17
+
+`scripts/playwright-smoke.sh scripts/playwright/email-verification.spec.mjs
+scripts/playwright/password-reset.spec.mjs` passed 20/20 checks in Chrome. The
+email verification failure route passed axe, focused-alert, and keyboard checks
+across English and Spanish, desktop and mobile, and light, dark, and system
+themes. No horizontal overflow appeared at the tested viewport widths. The
+existing password reset regression passed its 8 locale, viewport, and theme
+combinations. This automated route coverage does not establish full WCAG
+conformance.
+
 The axe pass also covers the client list, a client page, the custom-fields page,
 the files page, recipient notification center, public share, and MCP OAuth
 consent. The public share and consent routes run with the multi-workspace and
@@ -40,6 +51,23 @@ OAuth settings enabled on the disposable smoke server. The files check audits
 both locales, verifies the named upload progress control, and checks 320
 CSS-pixel reflow. `make ux-smoke` creates a client, defines a choice field, and
 enters a value.
+
+### Workspace journeys — issue #451
+
+The Playwright suite covers workspace home and Items screenshots at desktop and
+mobile widths in light and dark themes with reduced motion. Workspace home has
+an axe scan. Items covers creation, edit validation, deletion conflict,
+sharing creation and revocation, Spanish labels, theme preference, browser
+history, and ordinary form submission without JavaScript. Files has separate
+screenshots, axe and keyboard checks, upload failure and retry, read-only
+permissions, and ordinary upload and filter forms. Existing Clients tests
+cover custom fields and client validation. Run `make browser-smoke` against its
+disposable server to execute journey checks.
+
+These are automated browser checks, not manual verification of every state
+across every locale, viewport, theme, and permission. The complete matrix and
+screen-reader behavior remain gaps; axe does not replace manual assistive
+technology review.
 
 ## Manual checklist
 

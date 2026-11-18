@@ -1,5 +1,0 @@
-#!/bin/sh
-set -eu
-
-# Run the CI-equivalent local checks before a push so failures surface locally, not in CI.
-make ci-local

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Migrated account profile, preferences, and language settings to generated templ
+  views while preserving CSRF, reauthentication, owner-transfer, and ordinary-form safeguards.
 - Refined shared navigation, narrow-page panels, and item record grouping for
   clearer task layout across desktop and narrow screens.
 

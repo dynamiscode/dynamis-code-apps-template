@@ -45,3 +45,52 @@ test("counts known request body lengths without retaining request data", () => {
   assert.equal(result.requestsWithUnknownBodyBytes, 1);
   assert.doesNotMatch(JSON.stringify(result), /synthetic payload|secret|Authorization|chunked/);
 });
+
+test("network metrics exclude request IDs, URLs, headers, and response content", () => {
+  const cdp = new EventEmitter();
+  const stop = observeNetwork(cdp);
+  cdp.emit("Network.requestWillBeSent", { requestId: "private-request-id", request: {
+    url: "http://localhost/login?private=secret", headers: { authorization: "secret" },
+  } });
+  cdp.emit("Network.responseReceived", { requestId: "private-request-id", type: "Document",
+    response: { status: 401, url: "http://localhost/login?private=secret", headers: { "set-cookie": "secret" } } });
+  cdp.emit("Network.loadingFinished", { requestId: "private-request-id", encodedDataLength: 42 });
+  const result = stop();
+  assert.equal(result.requests, 1);
+  assert.equal(result.httpErrors, 1);
+  assert.equal(result.completedEncodedBytes, 42);
+  assert.doesNotMatch(JSON.stringify(result), /private-request-id|secret|localhost|authorization|set-cookie/);
+});
+
+test("attributes assets and repeated GETs without exposing URLs or request data", () => {
+  const cdp = new EventEmitter();
+  const stop = observeNetwork(cdp);
+  for (const [requestId, method, url, type] of [
+    ["a", "GET", "https://example.test/assets/app.js?secret=private", "Script"],
+    ["b", "GET", "https://example.test/assets/app.js?secret=private", "Script"],
+    ["c", "POST", "https://example.test/private/token", "Fetch"],
+    ["d", "POST", "https://example.test/private/token", "Fetch"],
+    ["e", "GET", "https://example.test/assets/secret.js", "Script"],
+    ["f", "GET", "https://example.test/events?token=secret", "EventSource"],
+  ]) cdp.emit("Network.requestWillBeSent", { requestId, type, request: { method, url } });
+  const result = stop();
+  assert.deepEqual(result.requestClasses, { "app.js": 2, Fetch: 2, Script: 1, EventSource: 1 });
+  assert.equal(result.repeatedGetRequests, 1);
+  assert.equal(result.unfinished, 6);
+  assert.doesNotMatch(JSON.stringify(result), /secret|private|example|token/);
+});
+
+test("records reported stream and redirect bytes separately", () => {
+  const cdp = new EventEmitter();
+  const stop = observeNetwork(cdp);
+  cdp.emit("Network.requestWillBeSent", { requestId: "stream", type: "EventSource" });
+  cdp.emit("Network.dataReceived", { requestId: "stream", encodedDataLength: 12 });
+  cdp.emit("Network.dataReceived", { requestId: "stream", encodedDataLength: -1 });
+  cdp.emit("Network.requestWillBeSent", { requestId: "redirect", redirectResponse: { encodedDataLength: 34 } });
+  cdp.emit("Network.loadingFinished", { requestId: "redirect", encodedDataLength: 56 });
+  const result = stop();
+  assert.equal(result.eventSourceReportedEncodedBytes, 12);
+  assert.equal(result.redirectReportedEncodedBytes, 34);
+  assert.equal(result.completedEncodedBytes, 56);
+  assert.equal(result.unfinished, 1);
+});

@@ -84,7 +84,13 @@ Redirects and CDP cache-served events are also reported. For interactions,
 `completedEncodedBytes` counts completed response bytes; it does not include
 request bodies. `requestBodyBytes` reports known request body lengths
 separately. Timings are Navigation Timing milliseconds from navigation start
-to DOMContentLoaded and load. This is one unthrottled run,
+to DOMContentLoaded and load. Request starts also report counts by allowlisted
+embedded asset name or CDP
+resource type, plus repeated identical GET URLs within the observation interval.
+URLs are compared only in memory and never emitted. A repeat is a candidate,
+not proof of an unnecessary request; redirects, polling and reconnects need
+separate interpretation. Unknown asset names are reported only by type. This is
+one unthrottled run,
 not an aggregate or a complete per-screen baseline. Adapt the script for each
 interaction and report its exact command and boundaries; HTMX, SSE, uploads,
 downloads and loading feedback remain unmeasured by this navigation procedure.

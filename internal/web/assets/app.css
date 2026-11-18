@@ -255,6 +255,8 @@ main form:not(.inline) > button.reveal { display: block; margin-top: .35rem; min
 .warning { border: 1px solid var(--warning-border); background: var(--warning-surface); color: var(--warning); padding: .75rem 1rem; font-weight: 700; }
 .warning p { margin: .25rem 0 0; font-weight: 400; }
 .webhook-card { padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: .4rem; }
+.webhook-list { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 1rem; }
+.webhook-history-link { display: inline-block; min-height: 2.75rem; align-content: center; }
 .webhook-endpoint, .webhook-secret { overflow-wrap: anywhere; }
 .table-scroll { overflow-x: auto; }
 .success { border: 1px solid var(--success); background: var(--success-surface); color: var(--success); padding: .75rem; font-weight: 700; }
