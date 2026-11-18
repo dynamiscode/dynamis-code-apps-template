@@ -1201,6 +1201,14 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = securityPage(data).Render(context.Background(), writer)
 		return
 	}
+	if name == "account-page" {
+		_ = accountPage(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "language-settings-page" {
+		_ = languageSettingsPage(data).Render(context.Background(), writer)
+		return
+	}
 	if name == "members.html" {
 		_ = membersPage(data).Render(context.Background(), writer)
 		return

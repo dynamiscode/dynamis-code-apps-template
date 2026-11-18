@@ -19,6 +19,7 @@ js-check:
 	for f in internal/web/assets/*.js; do node --check "$$f"; done
 
 doc-links:
+	node --test scripts/check-doc-link-anchors.test.mjs
 	./scripts/check-doc-links.sh
 
 web-conformance:
@@ -127,9 +128,11 @@ ux-smoke:
 	./scripts/ux-smoke.sh
 
 template-smoke:
-	work="$$(mktemp -d /tmp/dynamis-code-template-smoke.XXXXXX)"; \
+	set -eu; work="$$(mktemp -d /tmp/dynamis-code-template-smoke.XXXXXX)"; \
 	go run ./cmd/template-init -output "$$work/app" -name "Smoke App" -module example.com/smoke/app -repository https://github.com/smoke/app -security-url https://github.com/smoke/app/security/advisories/new -maintainer @smoke/maintainers -profiles Core,Identity,Agent -source https://example.com/dynamis-code/template -commit 0000000000000000000000000000000000000000; \
-	cd "$$work/app" && go test ./...
+	(cd "$$work/app" && ./scripts/check-doc-links.sh && go test ./...); \
+	go run ./cmd/template-init -output "$$work/core-app" -name "Smoke Core App" -module example.com/smoke/core-app -repository https://github.com/smoke/core-app -security-url https://github.com/smoke/core-app/security/advisories/new -maintainer @smoke/maintainers -profiles Core,Identity -source https://example.com/dynamis-code/template -commit 0000000000000000000000000000000000000000; \
+	(cd "$$work/core-app" && ./scripts/check-doc-links.sh)
 
 # ci-local mirrors the CI jobs that run without Docker, Postgres, or browser smoke.
 # race (go test -race ./...) replaces plain go test to avoid running the suite twice.

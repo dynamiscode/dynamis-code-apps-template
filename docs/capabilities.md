@@ -13,8 +13,9 @@ The [workspace journey evidence](ui-measurement-workspace.md) records request,
 transfer, timing, mutation, loading and failure observations for issue #447,
 with unavailable metrics and states marked explicitly.
 
-The [administration measurement evidence](ui-measurement-admin.md) is partial
-for issue #448; its isolated run may have experienced concurrent check load.
+The [administration measurement evidence](ui-measurement-admin.md) records the
+bounded screen and state measurements for issue #448. Metrics the harness cannot
+isolate remain explicitly unavailable; no budgets or performance fixes are claimed.
 
 ## Profile status
 
