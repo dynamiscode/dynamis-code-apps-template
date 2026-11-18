@@ -28,6 +28,24 @@ test("distinguishes HTTP errors from transport failures", () => {
   assert.equal(cdp.listenerCount("Network.responseReceived"), 0);
 });
 
+test("counts known request body lengths without retaining request data", () => {
+  const cdp = new EventEmitter();
+  const stop = observeNetwork(cdp);
+  cdp.emit("Network.requestWillBeSent", { requestId: "synthetic", request: {
+    hasPostData: true, postData: "synthetic payload",
+  } });
+  cdp.emit("Network.requestWillBeSent", { requestId: "upload", request: {
+    hasPostData: true, headers: { "Content-Length": "262322", Authorization: "secret" },
+  } });
+  cdp.emit("Network.requestWillBeSent", { requestId: "unknown", request: {
+    hasPostData: true, headers: { "Transfer-Encoding": "chunked" },
+  } });
+  const result = stop();
+  assert.equal(result.requestBodyBytes, Buffer.byteLength("synthetic payload") + 262322);
+  assert.equal(result.requestsWithUnknownBodyBytes, 1);
+  assert.doesNotMatch(JSON.stringify(result), /synthetic payload|secret|Authorization|chunked/);
+});
+
 test("network metrics exclude request IDs, URLs, headers, and response content", () => {
   const cdp = new EventEmitter();
   const stop = observeNetwork(cdp);

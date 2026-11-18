@@ -2,28 +2,68 @@
 
 Issue #449 covers account, authentication, public share and consent screens.
 This slice uses the [common measurement method](ui-measurement.md); it sets no
-performance budget. Run the isolated synthetic fixture from the repository root:
+performance budget. The identity runner uses the shared isolated SQLite fixture
+and Playwright Chrome setup:
 
 ```sh
 npm ci
-UI_MEASURE_IDENTITY=1 ./scripts/playwright-smoke.sh
+UI_MEASURE=identity ./scripts/playwright-smoke.sh
 ```
 
-The command uses fresh SQLite databases, synthetic owner credentials, loopback
-servers, Chrome 1280×900 at device scale 1, `en-US`, light theme, reduced motion,
-and unthrottled local requests. It reports one cold and one warm navigation for
-setup, login, password recovery, account, security, sessions, notifications,
-and the unavailable public-share page. It also measures one invalid login
-submission, including HTTP status, safe network aggregates, and time until the
-accessible error appears. It submits a reset request for the synthetic owner
-with mail delivery disabled and times the generic accessible success feedback.
-It reports request counts, redirects, completed encoded bytes, unfinished
-requests, HTTP errors by safe class, transport failures, cache events,
-DOMContentLoaded and load timings. These are single observations; automation
-overhead and host load are not controlled. The output excludes URLs, headers,
-bodies, cookies, credentials and tokens.
+`UI_MEASURE=1` still measures workspace-home navigation. The identity command
+measures cold and warm setup, login, recovery, account, security, sessions,
+notifications and unavailable-share navigation. It also measures invalid-login
+and recovery feedback plus notification SSE connection state. Output contains
+aggregate counters and environment metadata, not URLs, bodies, credentials or
+headers. The regular Playwright journey suite checks observable behavior, not
+performance.
 
-## Latest isolated run
+## Reproducible isolated run
+
+`UI_MEASURE=identity ./scripts/playwright-smoke.sh` completed on
+2026-11-18T02:00:32.471Z. The runner uses the existing fresh SQLite fixture
+and reports the checked-out commit, environment, cold/warm navigation counters,
+interaction counters and timing values. This run used commit
+`b85c9dcc834c23012bf41bd8737e768ebd35284a` as reported by the runner, Darwin
+27.2.0 arm64, Node 26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1.
+Viewport was 1280×900, locale `en-US`, light theme, reduced motion and
+unthrottled loopback. Values are single observations; no budgets follow.
+
+| Interaction | Status/state | Requests | Encoded bytes | Feedback/connect ms |
+|---|---:|---:|---:|---:|
+| Invalid login | 401 | 4 | 95744 | 140.6 |
+| Password recovery request | 200 | 4 | 95187 | 255.4 |
+| Notification SSE connection | open, 0 events | unavailable | unavailable | 27.1 |
+
+The runner measured cold and warm navigation for setup, login, password
+recovery, account, security, sessions, notifications and unavailable public
+share. Each captured the Navigation Timing DOMContentLoaded and load values,
+request count and completed encoded bytes. Notifications had one unfinished
+request, its SSE connection. Cold pages reported the favicon 404; the public
+share route also returned the expected document 404. Invalid login retained
+the form and showed its accessible alert. Recovery showed its generic status;
+email delivery was disabled. The runner emits no submitted values.
+
+## Current rerun on issue branch
+
+On 2026-11-18T02:35:41Z, commit
+`132086464fa822f5b2510de4eb061ec3317d5fc5`, Darwin 27.2.0 arm64,
+Node 26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1, the harness
+completed:
+
+```sh
+PLAYWRIGHT_PORT=59121 UI_MEASURE=identity ./scripts/playwright-smoke.sh
+```
+
+The existing cold/warm navigation screens and interaction observations repeated
+on the isolated fixture. Invalid login returned 401 with 95744 encoded bytes
+and 131.7 ms feedback; password recovery returned 200 with 95187 encoded bytes
+and 136.0 ms feedback. Notification SSE opened in 16.9 ms with zero events.
+Cold navigations again reported the favicon 404. The unavailable share route
+returned the expected 404. Values are single unthrottled observations and set
+no budget. MFA, consent, valid share, and other state gaps remain.
+
+## Earlier isolated run
 
 On 2026-11-17T20:43:26.714Z, commit `f2abeb30ffa537b9fa0255e04239499801c090e0`,
 Darwin 27.2.0 arm64, Node 26.10.0, Chrome 157.0.8103.79, and Playwright 1.64.1,
