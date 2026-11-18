@@ -1157,6 +1157,10 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = itemsList(data).Render(context.Background(), writer)
 		return
 	}
+	if name == "webhooks.html" {
+		_ = webhooksPage(data).Render(context.Background(), writer)
+		return
+	}
 	if name == "home.html" {
 		_ = workspaceSelection(data).Render(context.Background(), writer)
 		return
@@ -1181,8 +1185,28 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = authPasswordReset(data).Render(context.Background(), writer)
 		return
 	}
+	if name == "mfa.html" {
+		_ = authMFA(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "verification.html" {
+		_ = authEmailVerification(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "account.html" {
+		_ = accountPage(data).Render(context.Background(), writer)
+		return
+	}
 	if name == "sessions-page" {
 		_ = sessionsPage(data, data.CurrentSessionID, time.Now()).Render(context.Background(), writer)
+		return
+	}
+	if name == "account-page" {
+		_ = accountPage(data).Render(context.Background(), writer)
+		return
+	}
+	if name == "language-settings-page" {
+		_ = languageSettingsPage(data).Render(context.Background(), writer)
 		return
 	}
 	if name == "members.html" {

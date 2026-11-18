@@ -34,10 +34,6 @@ import (
 )
 
 func TestMFAOptionsRenderAsJSON(t *testing.T) {
-	handler, err := NewHandlerWithServices(nil, nil, nil, nil, nil, config.HTTP{}, "", "", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
 	catalog, err := i18n.New()
 	if err != nil {
 		t.Fatal(err)
@@ -45,9 +41,9 @@ func TestMFAOptionsRenderAsJSON(t *testing.T) {
 	var body bytes.Buffer
 	data := pageData{
 		Locale: "en", Catalog: catalog,
-		MFAOptions: json.RawMessage(`{"publicKey":{"challenge":"abc"}}`),
+		MFAOptions: json.RawMessage(`{"publicKey":{"challenge":"abc"},"label":"</script><script>alert(1)</script>"}`),
 	}
-	if err := handler.template.ExecuteTemplate(&body, "mfa.html", data); err != nil {
+	if err := authMFA(data).Render(context.Background(), &body); err != nil {
 		t.Fatal(err)
 	}
 	start := strings.Index(body.String(), `<script id="mfa-options" type="application/json">`) + len(`<script id="mfa-options" type="application/json">`)
@@ -59,6 +55,7 @@ func TestMFAOptionsRenderAsJSON(t *testing.T) {
 		PublicKey struct {
 			Challenge string `json:"challenge"`
 		} `json:"publicKey"`
+		Label string `json:"label"`
 	}
 	if err := json.Unmarshal([]byte(body.String()[start:start+end]), &options); err != nil {
 		t.Fatalf("MFA options are not a JSON object: %v; body=%s", err, body.String())
@@ -66,6 +63,91 @@ func TestMFAOptionsRenderAsJSON(t *testing.T) {
 	if options.PublicKey.Challenge != "abc" {
 		t.Fatalf("challenge = %q", options.PublicKey.Challenge)
 	}
+	if options.Label != `</script><script>alert(1)</script>` || strings.Contains(body.String(), `</script><script>alert(1)</script>`) {
+		t.Fatal("MFA options did not remain safely encoded JSON")
+	}
+}
+
+func TestEmailVerificationRouteSuccessUsesAuthLayout(t *testing.T) {
+	ctx := context.Background()
+	cfg, err := config.LoadFrom(func(string) (string, bool) { return "", false })
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Database.SQLitePath = ":memory:"
+	cfg.Database.MaxOpenConns = 1
+	cfg.Database.MaxIdleConns = 1
+	db, err := database.Open(ctx, cfg.Database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := database.Migrate(ctx, db, cfg.Database.Driver); err != nil {
+		t.Fatal(err)
+	}
+	auth, err := identity.NewService(db, cfg.Database.Driver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := auth.BootstrapFirstOwner(ctx, identity.BootstrapInput{
+		Email: "owner@example.com", Password: "long-enough-password", WorkspaceName: "Example",
+	}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, "UPDATE users SET email_verified_at = NULL WHERE id = ?", owner.UserID); err != nil {
+		t.Fatal(err)
+	}
+	handler, err := NewHandlerWithServices(auth, nil, nil, nil, nil, cfg.HTTP, "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	unconfigured := request(handler.Routes(), http.MethodPost, "/account/verify-email", url.Values{"csrf": {session.CSRFSecret}}, cookies, nil)
+	if unconfigured.Code != http.StatusServiceUnavailable || !strings.Contains(unconfigured.Body.String(), "Email delivery is not configured.") || strings.Contains(unconfigured.Body.String(), "verify-email/") {
+		t.Fatalf("unconfigured verification delivery = %d, %s", unconfigured.Code, unconfigured.Body.String())
+	}
+	failedMailerHandler, err := NewHandlerWithServices(auth, nil, nil, nil, nil, cfg.HTTP, "", "", failingMailer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	failedDelivery := request(failedMailerHandler.Routes(), http.MethodPost, "/account/verify-email", url.Values{"csrf": {session.CSRFSecret}}, cookies, nil)
+	if failedDelivery.Code != http.StatusServiceUnavailable || !strings.Contains(failedDelivery.Body.String(), "Verification email could not be delivered.") || strings.Contains(failedDelivery.Body.String(), "verify-email/") {
+		t.Fatalf("failed verification delivery = %d, %s", failedDelivery.Code, failedDelivery.Body.String())
+	}
+	mailer := &recordingMailer{}
+	mailHandler, err := NewHandlerWithServices(auth, nil, nil, nil, nil, cfg.HTTP, "", "", mailer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	requested := request(mailHandler.Routes(), http.MethodPost, "/account/verify-email", url.Values{"csrf": {session.CSRFSecret}}, cookies, nil)
+	if requested.Code != http.StatusSeeOther || requested.Header().Get("Location") != "/account?saved=1" {
+		t.Fatalf("verification email request = %d, %q", requested.Code, requested.Header().Get("Location"))
+	}
+	link := strings.TrimPrefix(mailer.body, "Verify your email with this link: ")
+	parsedLink, err := url.Parse(link)
+	if err != nil || parsedLink.Path == "" {
+		t.Fatalf("verification email link invalid: %q", link)
+	}
+	response := request(mailHandler.Routes(), http.MethodGet, parsedLink.Path, nil, nil, map[string]string{"Accept-Language": "es"})
+	body := response.Body.String()
+	if response.Code != http.StatusOK || !strings.Contains(body, "Correo verificado.") ||
+		!strings.Contains(body, `class="btn btn-primary" href="/account"`) {
+		t.Fatalf("verification success route status = %d; localized success or account link missing", response.Code)
+	}
+	if strings.Contains(body, parsedLink.Path[strings.LastIndex(parsedLink.Path, "/")+1:]) || response.Header().Get("Cache-Control") != "no-store" {
+		t.Fatal("verification success page exposed its token or was cacheable")
+	}
+}
+
+type failingMailer struct{}
+
+func (failingMailer) Send(context.Context, string, string, string) error {
+	return errors.New("mail delivery failed")
 }
 
 func TestCompleteMFASessionPreservesReturnTo(t *testing.T) {
@@ -236,14 +318,25 @@ func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
 	response := request(handler, http.MethodPost, path, url.Values{
 		"action": {"create"}, "lifetime": {"7"}, "csrf": {session.CSRFSecret},
 	}, cookies, nil)
-	if response.Code != http.StatusOK {
-		t.Fatalf("create public link = %d, %s", response.Code, response.Body.String())
+	if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("create public link = %d, headers=%+v body=%s", response.Code, response.Header(), response.Body.String())
 	}
 	body := response.Body.String()
-	start := strings.Index(body, "/share/")
-	if start < 0 || !strings.Contains(body, "Cualquiera con este enlace") ||
-		!strings.Contains(body, "Al revocar este enlace") {
+	if !strings.Contains(body, "<section id=\"item-list\"") || !strings.Contains(body, "Cualquiera con este enlace") ||
+		!strings.Contains(body, "Al revocar este enlace") || !strings.Contains(body, "7 días") || !strings.Contains(body, "30 días") {
 		t.Fatalf("public link missing: %s", body)
+	}
+	fragment := request(handler, http.MethodPost, path, url.Values{
+		"action": {"create"}, "lifetime": {"30"}, "csrf": {session.CSRFSecret},
+	}, cookies, map[string]string{"HX-Request": "true"})
+	if fragment.Code != http.StatusOK || fragment.Header().Get("Cache-Control") != "no-store" ||
+		!strings.HasPrefix(strings.TrimSpace(fragment.Body.String()), "<section id=\"item-list\"") ||
+		strings.Contains(fragment.Body.String(), "<html") {
+		t.Fatalf("HTMX share create = %d, headers=%+v body=%s", fragment.Code, fragment.Header(), fragment.Body.String())
+	}
+	start := strings.Index(body, "/share/")
+	if start < 0 {
+		t.Fatalf("public URL missing: %s", body)
 	}
 	remainder := body[start:]
 	end := strings.Index(remainder, "\"")
@@ -276,9 +369,9 @@ func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
 	linkID := body[linkStart : linkStart+linkEnd]
 	revoked := request(handler, http.MethodPost, path, url.Values{
 		"action": {"revoke"}, "link_id": {linkID}, "csrf": {session.CSRFSecret},
-	}, cookies, nil)
+	}, cookies, map[string]string{"HX-Request": "true"})
 	if revoked.Code != http.StatusSeeOther {
-		t.Fatalf("revoke public link = %d, %s", revoked.Code, revoked.Body.String())
+		t.Fatalf("HTMX revoke should retain ordinary redirect fallback = %d, %s", revoked.Code, revoked.Body.String())
 	}
 	for _, unavailablePath := range []string{publicPath, "/share/invalid-token"} {
 		unavailable := request(handler, http.MethodGet, unavailablePath, nil, []*http.Cookie{{Name: "locale", Value: "es"}}, nil)
@@ -453,6 +546,12 @@ func TestAccountSecurityPagesUseSharedBrandAndRequireDeletionConfirmation(t *tes
 		if path == "/account" && (!strings.Contains(body, `name="confirm_delete" type="checkbox" value="yes" required`) || !strings.Contains(body, "Entiendo que eliminar la cuenta es permanente")) {
 			t.Errorf("account page lacks the Spanish no-JavaScript deletion confirmation: %s", body)
 		}
+		if path == "/account" && (!strings.Contains(body, `action="/account/password"`) || strings.Contains(body, `name="new_password" data-persist`)) {
+			t.Errorf("account page lacks password form or persists password fields: %s", body)
+		}
+		if path == "/settings/language" && (!strings.Contains(body, `<main id="main" class="account-page narrow"`) || !strings.Contains(body, `aria-label="Idioma"`)) {
+			t.Errorf("language page lacks templ account layout or labelled language form: %s", body)
+		}
 	}
 
 	account := request(handler, http.MethodPost, "/account/delete", url.Values{
@@ -472,6 +571,53 @@ func TestAccountSecurityPagesUseSharedBrandAndRequireDeletionConfirmation(t *tes
 	}
 	if _, err := auth.AuthenticateLocal(context.Background(), "owner@example.com", "long-enough-password"); err != nil {
 		t.Fatalf("account was removed without explicit confirmation: %v", err)
+	}
+
+	wrongPassword := request(handler, http.MethodPost, "/account/password", url.Values{
+		"csrf": {session.CSRFSecret}, "current_password": {"wrong-password"},
+		"new_password": {"changed-owner-password"}, "password_confirmation": {"changed-owner-password"},
+	}, cookies, nil)
+	if wrongPassword.Code != http.StatusUnprocessableEntity || !strings.Contains(wrongPassword.Body.String(), "Revisa tu contraseña actual") {
+		t.Fatalf("password change with wrong current password = %d, %s", wrongPassword.Code, wrongPassword.Body.String())
+	}
+	changed := request(handler, http.MethodPost, "/account/password", url.Values{
+		"csrf": {session.CSRFSecret}, "current_password": {"long-enough-password"},
+		"new_password": {"changed-owner-password"}, "password_confirmation": {"changed-owner-password"},
+	}, cookies, nil)
+	if changed.Code != http.StatusSeeOther || changed.Header().Get("Location") != "/account?saved=1" {
+		t.Fatalf("password change = %d, %q", changed.Code, changed.Header().Get("Location"))
+	}
+	if _, err := auth.AuthenticateLocal(context.Background(), "owner@example.com", "changed-owner-password"); err != nil {
+		t.Fatalf("new password rejected: %v", err)
+	}
+	if _, err := auth.AuthenticateSession(context.Background(), session.Secret); !errors.Is(err, identity.ErrInvalidSession) {
+		t.Fatalf("password change did not revoke the old session: %v", err)
+	}
+
+	principal, err := auth.Authorize(context.Background(), owner.UserID, owner.WorkspaceID, identity.InvitationsManage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	invitation, err := auth.CreateInvitation(context.Background(), principal, "member@example.com", identity.Member, time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	memberID, _, err := auth.CreateInvitedLocalUser(context.Background(), invitation.Secret, "member-long-password", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	memberSession, err := auth.CreateSession(context.Background(), memberID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	deleted := request(handler, http.MethodPost, "/account/delete", url.Values{
+		"csrf": {memberSession.CSRFSecret}, "password": {"member-long-password"}, "confirm_delete": {"yes"},
+	}, []*http.Cookie{{Name: "session", Value: memberSession.Secret}, {Name: "csrf", Value: memberSession.CSRFSecret}}, nil)
+	if deleted.Code != http.StatusSeeOther || deleted.Header().Get("Location") != "/login" {
+		t.Fatalf("confirmed member deletion = %d, %q", deleted.Code, deleted.Header().Get("Location"))
+	}
+	if _, err := auth.AuthenticateLocal(context.Background(), "member@example.com", "member-long-password"); !errors.Is(err, identity.ErrInvalidCredentials) {
+		t.Fatalf("deleted account still authenticates: %v", err)
 	}
 }
 

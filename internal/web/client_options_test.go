@@ -166,4 +166,7 @@ func TestClientOptionDeleteAsksBeforeClearingValues(t *testing.T) {
 	if !strings.Contains(page, want) {
 		t.Fatalf("option delete has no confirmation: %s", page)
 	}
+	if !strings.Contains(page, `<p class="warning">Delete this option? Clients that chose it lose that value. This cannot be undone.</p>`) {
+		t.Fatalf("option delete does not explain the effect without JavaScript: %s", page)
+	}
 }

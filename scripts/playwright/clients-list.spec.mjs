@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { setAccountTheme } from "./theme.mjs";
 
 const require = createRequire(import.meta.url);
 const axeSource = readFileSync(require.resolve("axe-core"), "utf8");
@@ -62,31 +63,37 @@ test("Clients list adapts across desktop/mobile and light/dark themes", async ({
   await openClients(page);
   for (const colorScheme of ["light", "dark"]) {
     await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
-    const transitionDuration = await page.evaluate(() => {
-      const wrapper = document.createElement("div");
-      wrapper.className = "cards";
-      const link = document.createElement("a");
-      wrapper.append(link);
-      document.body.append(wrapper);
-      const duration = getComputedStyle(link).transitionDuration;
-      wrapper.remove();
-      return duration;
-    });
-    expect(transitionDuration.split(",").every((duration) => duration.trim() === "0s")).toBe(true);
-    for (const width of [1280, 390]) {
-      await page.setViewportSize({ width, height: 900 });
-      const layout = await page.evaluate(() => ({
-        table: getComputedStyle(document.querySelector(".list-view-table")).display,
-        cards: getComputedStyle(document.querySelector(".list-view-cards")).display,
-        canvas: getComputedStyle(document.documentElement).getPropertyValue("--canvas").trim(),
-        overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-      }));
-      expect(layout.table).toBe(width <= 608 ? "none" : "block");
-      expect(layout.cards).toBe(width <= 608 ? "grid" : "none");
-      expect(layout.canvas).toBe(colorScheme === "dark" ? "#111826" : "#f3f6fa");
-      expect(layout.overflow).toBe(false);
-      await expect(page.locator("#realtime-status")).toContainText("Live updates connected");
-      await expect(page).toHaveScreenshot(`clients-${colorScheme}-${width <= 608 ? "mobile" : "desktop"}.png`, { animations: "disabled", fullPage: true });
+    const restoreTheme = await setAccountTheme(page, colorScheme);
+    try {
+      await expect(page.locator("html")).toHaveAttribute("data-theme", colorScheme);
+      const transitionDuration = await page.evaluate(() => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "cards";
+        const link = document.createElement("a");
+        wrapper.append(link);
+        document.body.append(wrapper);
+        const duration = getComputedStyle(link).transitionDuration;
+        wrapper.remove();
+        return duration;
+      });
+      expect(transitionDuration.split(",").every((duration) => duration.trim() === "0s")).toBe(true);
+      for (const width of [1280, 390]) {
+        await page.setViewportSize({ width, height: 900 });
+        const layout = await page.evaluate(() => ({
+          table: getComputedStyle(document.querySelector(".list-view-table")).display,
+          cards: getComputedStyle(document.querySelector(".list-view-cards")).display,
+          canvas: getComputedStyle(document.documentElement).getPropertyValue("--canvas").trim(),
+          overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        }));
+        expect(layout.table).toBe(width <= 608 ? "none" : "block");
+        expect(layout.cards).toBe(width <= 608 ? "grid" : "none");
+        expect(layout.canvas).toBe(colorScheme === "dark" ? "#111826" : "#f3f6fa");
+        expect(layout.overflow).toBe(false);
+        await expect(page.locator("#realtime-status")).toContainText("Live updates connected");
+        await expect(page).toHaveScreenshot(`clients-${colorScheme}-${width <= 608 ? "mobile" : "desktop"}.png`, { animations: "disabled", fullPage: true });
+      }
+    } finally {
+      await restoreTheme();
     }
   }
 });
@@ -139,7 +146,7 @@ test("Clients list follows Spanish workspace locale", async ({ page }) => {
   await expect(page.getByLabel("Nombre para mostrar")).toBeVisible();
 });
 
-test("multi-select draft survives blur and a list fragment replacement", async ({ page }) => {
+test("custom field lifecycle and multi-select draft survive list refresh", async ({ page }) => {
   await openClients(page);
   await page.getByRole("link", { name: "Manage custom fields" }).click();
   await page.locator(".client-create > summary").click();
@@ -175,6 +182,22 @@ test("multi-select draft survives blur and a list fragment replacement", async (
   } finally {
     await peer.close();
   }
+
+  await page.goto(new URL(page.url()).origin + new URL(page.url()).pathname.replace(/\/clients$/, "/client-fields"));
+  const field = page.locator(".client-field-card").filter({ hasText: "Browser multi-select" });
+  const option = field.locator(".client-field-option-list li").filter({ hasText: "Second" });
+  page.once("dialog", (dialog) => dialog.accept());
+  await option.getByRole("button", { name: "Delete option" }).click();
+  await expect(field.locator(".client-field-option-list li")).toHaveCount(2);
+
+  await field.getByRole("button", { name: "Archive" }).click();
+  await expect(field.getByText("Archived")).toBeVisible();
+  await field.getByRole("button", { name: "Restore" }).click();
+  await expect(field.getByText("Active")).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  await field.getByRole("button", { name: "Archive" }).click();
+  await field.getByRole("button", { name: "Delete permanently" }).click();
+  await expect(page.locator(".client-field-card").filter({ hasText: "Browser multi-select" })).toHaveCount(0);
 });
 
 test("query-open filter details do not block realtime refresh", async ({ page }) => {

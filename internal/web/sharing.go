@@ -43,7 +43,7 @@ func (h *Handler) shareMutation(writer http.ResponseWriter, request *http.Reques
 			h.renderItems(writer, request, http.StatusConflict, "The public link could not be revoked.")
 			return
 		}
-		h.afterMutation(writer, request)
+		h.redirect(writer, request, h.itemsPath(workspaceID)+clientQuerySuffix(request.URL.Query()))
 	default:
 		h.renderItems(writer, request, http.StatusBadRequest, "The public link action is invalid.")
 	}
