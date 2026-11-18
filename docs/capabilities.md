@@ -2,6 +2,21 @@
 
 This ledger records implemented conformance evidence and deferred triggers.
 
+## Route and navigation journey verification (#431, 2026-11-18)
+
+Scope: route families represented by the six migration commits on this branch:
+workspace/home and Items (#402), clients and custom fields (#403), members and
+invitations (#405), workspace settings (#406), account/security (#407), and
+public/share/error routes (#409). Browser runs:
+`sh scripts/playwright-smoke.sh ui.spec.mjs clients-list.spec.mjs files.spec.mjs members.spec.mjs invitations.spec.mjs settings.spec.mjs notifications.spec.mjs`
+and `sh scripts/playwright-smoke.sh account.spec.mjs`.
+
+- Passed: 113 browser tests; 2 notification tests skipped by their own fixture/condition. Home, Items, Clients, and Files rendered in the shared authenticated shell. Screenshots covered desktop/mobile and light/dark for Home, Items, Clients, and Files.
+- Passed: direct navigation for tested route pages; Items query back/forward history; Files navigation from the workspace sidebar; active route-specific workspace navigation checked in route journeys; a viewer could download Files but had no upload controls; OIDC denied unrelated workspace access; settings permission tests kept restricted content read-only/hidden.
+- Passed: keyboard skip-link focus and page controls in tested journeys; no-JavaScript workspace creation, Items forms, Clients forms, Files upload/filtering, member filtering, invitation acceptance, settings forms, and Spanish notification fallback.
+- Limits: browser history was explicitly asserted for Items query state, not every route family. The navigation journeys do not exhaustively direct-link every route listed in the migration tickets or every permission/state combination. Notification read/replay tests were skipped by spec conditions. No manual assistive-technology or hardware mobile walkthrough was performed; automated browser evidence is not full WCAG certification.
+- Verification: `make lint`, `make test`, and `make templ-check` passed. No route behavior change was made; the route inventory's existing major-state descriptions remain accurate. Browser details and gaps are reflected in [web behavior docs](web.md#browser-journey-coverage-reconciliation).
+
 ## Browser journey reconciliation (#454, 2026-11-17)
 
 [Browser journey coverage reconciliation](web.md#browser-journey-coverage-reconciliation)

@@ -403,8 +403,19 @@ states in the next section.
 
 ## Browser journey coverage reconciliation
 
-Review date: 2026-11-17. This inventory connects the route families and major
-states above to automated browser or route checks. Browser checks run in pinned
+Review date: 2026-11-18. Issue #431's route and navigation runs passed 113
+Playwright checks (2 notification tests skipped by spec conditions) across
+`ui.spec.mjs`, `clients-list.spec.mjs`, `files.spec.mjs`, `members.spec.mjs`,
+`invitations.spec.mjs`, `settings.spec.mjs`, `notifications.spec.mjs`, and
+`account.spec.mjs`.
+It verified Home, Items, Clients, and Files within the shared shell, tested
+Items back/forward query history, workspace Files navigation, role-sensitive
+access, mobile layouts, keyboard focus, and representative no-JavaScript flows.
+Only Items browser history was explicitly asserted; direct-link and permission
+coverage is representative, not exhaustive for all route states. Two notification
+checks were skipped under their fixture conditions. See [issue #431 evidence](capabilities.md#route-and-navigation-journey-verification-431-2026-11-18).
+
+This inventory connects the route families and major states above to automated browser or route checks. Browser checks run in pinned
 Chrome against disposable SQLite fixtures. Route tests establish server
 responses and policy; they do not establish every browser state listed beside
 them. Paths below name evidence in the template repository; generated apps do
