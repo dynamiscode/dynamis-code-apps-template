@@ -1201,6 +1201,10 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = sessionsPage(data, data.CurrentSessionID, time.Now()).Render(context.Background(), writer)
 		return
 	}
+	if name == "security-page" {
+		_ = securityPage(data).Render(context.Background(), writer)
+		return
+	}
 	if name == "account-page" {
 		_ = accountPage(data).Render(context.Background(), writer)
 		return

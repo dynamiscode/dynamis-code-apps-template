@@ -129,7 +129,7 @@ func (h *Handler) securityTOTPStart(writer http.ResponseWriter, request *http.Re
 	}
 	status, _ := h.identity.MFAStatus(request.Context(), session.UserID)
 	passkeys, _ := h.identity.ListPasskeys(request.Context(), session.UserID)
-	h.render(writer, http.StatusOK, "security.html", pageData{Title: "Security", NavPage: "security", CSRF: csrf, OIDCProviders: h.providers(), TOTPEnrollment: &enrollment, Passkeys: passkeys, MFAStatus: status})
+	h.render(writer, http.StatusOK, "security-page", pageData{Title: "Security", NavPage: "security", CSRF: csrf, OIDCProviders: h.providers(), TOTPEnrollment: &enrollment, Passkeys: passkeys, MFAStatus: status})
 }
 
 func (h *Handler) securityTOTPComplete(writer http.ResponseWriter, request *http.Request) {
@@ -148,7 +148,7 @@ func (h *Handler) securityTOTPComplete(writer http.ResponseWriter, request *http
 	}
 	status, _ := h.identity.MFAStatus(request.Context(), session.UserID)
 	passkeys, _ := h.identity.ListPasskeys(request.Context(), session.UserID)
-	h.render(writer, http.StatusOK, "security.html", pageData{Title: "Security", NavPage: "security", CSRF: csrf, OIDCProviders: h.providers(), MFARecoveryCodes: codes, Passkeys: passkeys, MFAStatus: status})
+	h.render(writer, http.StatusOK, "security-page", pageData{Title: "Security", NavPage: "security", CSRF: csrf, OIDCProviders: h.providers(), MFARecoveryCodes: codes, Passkeys: passkeys, MFAStatus: status})
 }
 
 func (h *Handler) securityTOTPRemove(writer http.ResponseWriter, request *http.Request) {
@@ -184,5 +184,5 @@ func (h *Handler) securityPasskeyRemove(writer http.ResponseWriter, request *htt
 }
 
 func (h *Handler) securityError(writer http.ResponseWriter, request *http.Request, csrf, message string) {
-	h.render(writer, http.StatusUnauthorized, "security.html", pageData{Title: "Security", NavPage: "security", CSRF: csrf, OIDCProviders: h.providers(), MFAError: message})
+	h.render(writer, http.StatusUnauthorized, "security-page", pageData{Title: "Security", NavPage: "security", CSRF: csrf, OIDCProviders: h.providers(), MFAError: message})
 }
