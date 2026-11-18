@@ -1171,15 +1171,15 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 	case "verification.html":
 		_ = authEmailVerification(data).Render(context.Background(), writer)
 	case "account.html":
-		_ = accountPage(data).Render(context.Background(), writer)
+		_ = accountPageView(data).Render(context.Background(), writer)
 	case "sessions-page":
 		_ = sessionsPage(data, data.CurrentSessionID, time.Now()).Render(context.Background(), writer)
 	case "security-page":
 		_ = securityPage(data).Render(context.Background(), writer)
 	case "account-page":
-		_ = accountPage(data).Render(context.Background(), writer)
-	case "language-settings-page":
-		_ = languageSettingsPage(data).Render(context.Background(), writer)
+		_ = accountPageView(data).Render(context.Background(), writer)
+	case "language-settings-page", "language-page":
+		_ = languageSettingsView(data).Render(context.Background(), writer)
 	case "members.html":
 		_ = membersPage(data).Render(context.Background(), writer)
 	case "mcp-consent.html":
