@@ -421,7 +421,14 @@ Only Items browser history was explicitly asserted; direct-link and permission
 coverage is representative, not exhaustive for all route states. Two notification
 checks were skipped under their fixture conditions. See [issue #431 evidence](capabilities.md#route-and-navigation-journey-verification-431-2026-11-18).
 
-This inventory connects the route families and major states above to automated browser or route checks. Browser checks run in pinned
+Verification for issue #433 ran on 2026-11-18. Full Chrome journey suite: 146
+passed, 2 conditionally skipped; all committed screenshot assertions matched.
+Automated axe reported zero violations for its enumerated English and Spanish
+route scans. Keyboard/focus, reduced-motion, no-JavaScript, and request-failure
+journeys passed where covered by the suite. See [dated verification evidence](capabilities.md#browser-verification-for-templ-route-migration-433-2026-11-18).
+
+Review date: 2026-11-18. This inventory connects the route families and major
+states above to automated browser or route checks. Browser checks run in pinned
 Chrome against disposable SQLite fixtures. Route tests establish server
 responses and policy; they do not establish every browser state listed beside
 them. Paths below name evidence in the template repository; generated apps do
