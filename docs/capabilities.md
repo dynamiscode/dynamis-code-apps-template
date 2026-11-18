@@ -1120,6 +1120,22 @@ deletion consequences with ordinary CSRF-protected forms.
 - Not run: `npm run typecheck` and `npm run test`; this repository defines no
   such npm scripts. The full browser accessibility suite was not run.
 
+## Client route templ migration evidence (#403, 2026-11-18)
+
+Issues #498 and #508 complete the client list, detail, custom-field, and choice-option
+route migration. The list and detail render through `clients.templ`; custom-field
+management renders through `client_fields.templ` and shared components. Inspection
+found no client-family `html/template` view or remaining client caller of the legacy
+`render()` dispatcher, so no client-specific legacy path was removed. The shared
+dispatcher remains for other route families. Route inventory is updated in
+[Web and Realtime Interface](web.md#rendering-migration-inventory).
+
+- Passed: `make lint`, `make test`, and `sh scripts/playwright-smoke.sh clients-list`
+  (9 browser tests, including list, detail, field lifecycle, responsive layouts,
+  localization, accessibility, and no-JavaScript fallback).
+- The first parallel test/browser run hit resource-related timeouts; serial reruns
+  passed all checks.
+
 ## File management progress and localization evidence (2026-11-15)
 
 Ticket #378 adds determinate byte progress to the existing single-request
