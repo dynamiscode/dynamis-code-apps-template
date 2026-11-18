@@ -313,6 +313,7 @@ test("workspace home passes automated axe checks", async ({ page }) => {
 
 test("Items sharing creates a read-only public link and revokes it", async ({ page }) => {
   await openItems(page);
+  const itemsURL = page.url();
   const title = "Playwright shared item";
   await page.getByLabel("New item title").fill(title);
   await page.getByRole("button", { name: "Add item" }).click();
@@ -328,10 +329,10 @@ test("Items sharing creates a read-only public link and revokes it", async ({ pa
   await expect(page.locator("main.public-share-card")).toContainText(title);
   await expect(page.locator("main.public-share-card")).not.toContainText("UI Baselines");
 
-  await page.goBack();
+  await page.goto(itemsURL);
   const activeRow = page.locator(`#item-list tr[data-item-row]:has(input[name="title"][value="${title}"])`);
   page.once("dialog", (dialog) => dialog.accept());
-  await activeRow.locator("form.share button[value=revoke]").click();
+  await activeRow.getByRole("button", { name: "Revoke public link" }).click();
   await page.goto(shareURL);
   await expect(page.getByRole("heading", { name: /unavailable|no disponible/i })).toBeVisible();
 });
