@@ -139,15 +139,20 @@ Baseline browser surfaces:
   localized status and revocation feedback. CSRF-protected forms revoke any
   active session, including the current one; revoking the current session sends
   the browser to sign-in on its next request. The page shows a localized empty
-  state and retains the ordinary form fallback. `/security` uses `security.templ`
-  and `security_templ.go` to manage MFA factors, recovery codes, passkey removal,
+  state and retains the ordinary form fallback. The browser test covers expired
+  session rejection and status, plus active-session revocation:
+  `scripts/playwright/account.spec.mjs`. `/security` uses `security.templ` and
+  `security_templ.go` to manage MFA factors, recovery codes, passkey removal,
   and reauthenticated OIDC linking with ordinary credential-sensitive forms.
 - `/account` edits profile preferences, changes a local password, requests email
   verification, and deletes the account after current-password reauthentication
   and an explicit confirmation checkbox. The server rejects deletion without
   confirmation and retains the owner-transfer restriction. `/settings/language`
   persists the account language. `/password-reset` provides localized generic
-  request and single-use completion pages.
+  request and single-use completion pages. `scripts/playwright/account.spec.mjs`
+  covers account, language, security, and sessions across locales, themes, and
+  viewport sizes, plus profile save, session revoke, and no-JavaScript deletion
+  confirmation.
 - `/notifications` lists recipient-scoped in-app records, shows unread state,
   marks them read, and updates the unread count through recipient-scoped SSE.
   Its initial SSE cursor is the newest row rendered, or empty when the inbox is
