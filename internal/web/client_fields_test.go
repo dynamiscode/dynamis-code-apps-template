@@ -19,8 +19,10 @@ func (env clientsTestEnv) fieldsPath() string {
 func TestClientFieldsDefineArchiveAndRestoreThroughForms(t *testing.T) {
 	env := newClientsTestEnv(t)
 	page := request(env.routes, http.MethodGet, env.fieldsPath(), nil, env.cookies, nil)
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `name="label"`) || !strings.Contains(page.Body.String(), `class="btn btn-primary"`) {
-		t.Fatalf("owner fields page = %d, want the define form: %s", page.Code, page.Body.String())
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `name="label"`) ||
+		!strings.Contains(page.Body.String(), `class="input" id="client-field-label"`) ||
+		!strings.Contains(page.Body.String(), `class="btn btn-primary" type="submit"`) {
+		t.Fatalf("owner fields page rendering is incorrect (%d): %s", page.Code, page.Body.String())
 	}
 
 	created := request(env.routes, http.MethodPost, env.fieldsPath(), url.Values{

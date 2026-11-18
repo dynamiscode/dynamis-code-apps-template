@@ -365,7 +365,7 @@ accessibility results and remaining limits are recorded in
 | `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
 | `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.js`, `public_pages.templ`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge/retry/expired redirect, verification success/invalid-or-expired, OAuth approval/denial |
 | `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | Empty/results states, filters, sorting and paging, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
-| Workspace clients and custom fields | `clients.templ`, `client_fields.templ`, `components.templ`, `workspace.templ`, `client.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field and option lifecycle, realtime refresh |
+| Workspace clients and custom fields | `clients.templ`, `client_details.templ`, `client_fields.templ`, `components.templ`, `workspace.templ`, `navigation.templ` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field and option lifecycle, realtime refresh |
 | Workspace members | `members.templ`, `members_templ.go` | Role changes, removal and ownership transfer |
 | `/workspaces/{workspaceId}/settings/invitations`, `/invitations/{secret}`, `/invitations/{secret}/sign-in`, `/invitations/continue` | `invitations.templ`, `invitations_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Create/resend/revoke with explicit revoke confirmation; registration, account-matched acceptance, sign-in return through MFA/OIDC, invalid/expired/unavailable states; ordinary form fallback |
 | `/workspaces/{workspaceId}/settings/audit` | `audit.templ`, `audit_templ.go`, `components.templ`, `components_templ.go` | Scoped redacted history, lazy table fragment, empty state, ordinary `?all=1` fallback, permission denial and expired-session redirect |
@@ -378,8 +378,8 @@ accessibility results and remaining limits are recorded in
 | `/notifications`, `/notifications/events` | `notifications.templ`, `notifications_templ.go` | Recipient-scoped list and unread count, empty state, CSRF-protected mark-read, initial cursor and SSE replay after reconnect |
 | `/security` | `security.templ`, `security_templ.go`, `components.templ`, `navigation.templ` | Factor enrollment, removal and recovery, provider linking, no-provider state, validation/failure alerts, one-time secret display; ordinary form fallback |
 | `/workspaces/{workspaceId}/settings/webhooks` and `/workspaces/{workspaceId}/settings/webhooks/{webhookId}/deliveries` | `webhooks.templ`, `webhooks_templ.go`, `components.templ`, `navigation.templ` | Permission-denied and unavailable states, one-time secret creation/rotation, required localized delete confirmation, no-store redacted delivery history, keyboard/accessibility, mobile light/dark themes, no-JS confirmation and ordinary form fallback |
-| `/account`, `/settings/language` | `account_pages.templ`, `account_pages_templ.go`, `components.templ`, `navigation.templ` | Profile, theme, language, notifications, email verification, password change, reauthenticated account deletion, saved/validation/delivery failure; ordinary CSRF-protected forms and password exclusion from drafts |
-| Workspace access and integration settings | `credential_settings.templ`, `credential_settings_templ.go`, `security.html`, `navigation.html` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |
+| `/account`, `/settings/language` | `account.templ`, `account_templ.go`, `components.templ`, `navigation.templ` | Profile, theme, language, notifications, email verification, password change, reauthenticated account deletion, saved/validation/delivery failure; ordinary CSRF-protected forms and password exclusion from drafts |
+| Workspace access and integration settings | `credential_settings.templ`, `credential_settings_templ.go`, `security.templ`, `security_templ.go`, `navigation.templ` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |
 | `/workspaces/{workspaceId}/settings/export`, `/workspaces/{workspaceId}/settings/export/download`, `/workspaces/{workspaceId}/settings/import` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Authorized no-store export page and JSON download; import file selection, bounded preview, safe validation feedback, explicit multipart confirmation, and atomic result; ordinary form fallback |
 | `/share/{token}` | `public_pages.templ`, `public_pages_templ.go`, `components.templ` | Localized title/status-only share projection, invalid/expired/revoked unavailable state, no-store and referrer/robots headers |
 | `/oauth/authorize` and generic errors | `public_pages.templ`, `public_pages_templ.go`, `auth.templ`, `components.templ` | Localized OAuth consent and generic errors; ordinary CSRF-protected approve/deny forms; invalid request and unavailable permission errors; no-store and preload/history-cache exclusion |
@@ -519,7 +519,7 @@ The Clients list page loads local HTMX and `app.js`. Its `client.changed` and
 state. Refresh waits while a list form is dirty, submitting, or focused. The
 stream and list require `ResourcesRead`; without JavaScript, links and ordinary
 forms continue to work.
-`/workspaces/{workspaceId}/clients/{clientId}` shows one client. Writers get an
+`/workspaces/{workspaceId}/clients/{clientId}` renders with templ and shows one client. Writers get an
 edit form that carries the client's version; a stale version shows a retry
 message. Writes are ordinary CSRF-protected POST forms that redirect after
 success, with no HTMX or WebMCP enhancement. Every client and field form submits
@@ -538,7 +538,7 @@ and admins also see a confirmed permanent delete, which returns to the list. The
 detail page displays the permanent-delete effects beside the control, including
 when JavaScript is unavailable. The list form has an archived selector (active,
 archived, or all), and the next-page link keeps it.
-`/workspaces/{workspaceId}/client-fields` lists custom fields, archived ones
+`/workspaces/{workspaceId}/client-fields` renders with templ and lists custom fields, archived ones
 included. Owners and admins see the define form and the archive or restore
 buttons; other roles see the list read-only. Writes are CSRF-protected POST
 forms that redirect to the list. Labels are shown exactly as typed, escaped for

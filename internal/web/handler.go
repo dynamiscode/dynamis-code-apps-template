@@ -329,13 +329,6 @@ func newHandler(
 	}
 	templates, err := template.New("root").Funcs(template.FuncMap{
 		"navigation": renderNavigation,
-		// deref reads an optional string, such as a client value, as text.
-		"deref": func(value *string) string {
-			if value == nil {
-				return ""
-			}
-			return *value
-		},
 		"dict": func(values ...any) map[string]any {
 			result := make(map[string]any, len(values)/2)
 			for index := 0; index+1 < len(values); index += 2 {
@@ -1182,6 +1175,10 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = languageSettingsView(data).Render(context.Background(), writer)
 	case "members.html":
 		_ = membersPage(data).Render(context.Background(), writer)
+	case "client-detail-page":
+		_ = clientDetailPage(data).Render(context.Background(), writer)
+	case "client-fields-page":
+		_ = clientFieldsPage(data).Render(context.Background(), writer)
 	case "mcp-consent.html":
 		_ = mcpConsentPage(data).Render(context.Background(), writer)
 	case "error.html":

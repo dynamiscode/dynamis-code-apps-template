@@ -14,7 +14,7 @@ templ dashboardShell(data pageData, header, navigation templ.Component) {
 			}
 			@uiHead(data)
 		</head>
-		<body class={ templ.KV("dashboard-workspace", navigation != nil) } data-workspace-home?={ data.NavPage == "workspace" } if data.NavPage != "import" { data-webmcp-page={ data.NavPage } }>
+		<body class={ templ.KV("dashboard-workspace", navigation != nil) } data-workspace-home?={ data.NavPage == "workspace" } if data.NavPage != "import" && data.NavPage != "client-detail" && data.NavPage != "client-fields" { data-webmcp-page={ data.NavPage } }>
 			@skipLink(data)
 			@header
 			<div class={ templ.KV("app-shell", navigation != nil) }>
