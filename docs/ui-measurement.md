@@ -1,9 +1,10 @@
 # UI measurement method and asset inventory
 
 Issue #446 established the method for the screen baseline in #439. This page
-records the shared fixture and asset inventory; the [administration evidence](ui-measurement-admin.md)
-contains measured settings and data-management screens. The inventory below
-maps all requested screens and interactions, with unmeasured coverage marked.
+records the shared fixture and asset inventory; [administration evidence](ui-measurement-admin.md)
+contains settings and data-management screens, while [identity evidence](ui-measurement-identity.md)
+contains account, authentication and public screens. The inventory below maps
+all requested screens and interactions, with unmeasured coverage marked.
 No performance budgets are set. Repeat measurements on the same commit and
 report changes to the environment or fixture with the results.
 
@@ -149,9 +150,9 @@ capture exists. Do not infer zero cost or absence from those cells.
 | Files list and upload | `scripts/playwright/files.spec.mjs`; #417 | Behavior tested; navigation, upload/download transfer and feedback timing unmeasured. Empty, pending, validation, failure, permission and no-JS measures absent. |
 | Members and invitations | `scripts/playwright/members.spec.mjs`, `invitations.spec.mjs`; #419, #420 | Behavior tested; list/creation/acceptance navigation and mutation timings unmeasured. Empty, pending, validation, failure, permission and no-JS measures absent. |
 | General/email settings, tokens/SCIM, webhooks/deliveries, audit, import/export | [Administration evidence](ui-measurement-admin.md); #422, #423, #424, #425, #426 | Cold/warm navigation and selected audit, import-preview and export interactions measured. Detailed states and limits are in linked evidence. |
-| Account, security, sessions, notifications | `scripts/playwright/settings.spec.mjs`, `notifications.spec.mjs`; #427, #429 | Behavior tests exist; navigation and interactions unmeasured. Empty, pending, validation, error, permission and no-JS measures absent. |
-| Setup, login, MFA, recovery | `scripts/playwright/ui.spec.mjs`, `password-reset.spec.mjs`; #430 | Behavior tests exist; cold/warm timing and request counts unmeasured. Invalid credentials, MFA, validation, errors, pending and no-JS measures absent. |
-| Public share and consent | `scripts/playwright/ui.spec.mjs`; #431 | Behavior tests exist; navigation and consent interaction unmeasured. Empty, pending, failure, permission and no-JS measures absent. |
+| Account, security, sessions, notifications | `scripts/playwright/settings.spec.mjs`, `notifications.spec.mjs`; #427, #429 | Cold/warm navigation measured. Notification SSE connection state measured; delivery, replay, reconnect, mutation timings and other states remain unmeasured. See [identity evidence](ui-measurement-identity.md). |
+| Setup, login, MFA, recovery | `scripts/playwright/ui.spec.mjs`, `password-reset.spec.mjs`; #430 | Cold/warm navigation and invalid-login/password-recovery feedback measured. Valid login, MFA, setup submission, validation, other failures, pending and no-JS timings remain unmeasured. See [identity evidence](ui-measurement-identity.md). |
+| Public share and consent | `scripts/playwright/ui.spec.mjs`; #431 | Cold/warm unavailable-share navigation measured. Valid/expired/revoked share and consent navigation/interactions remain unmeasured. See [identity evidence](ui-measurement-identity.md). |
 | Loading, empty, pending, validation, error, permission, no-JS across routes | Route-specific tests above | Selected admin state observations exist; other states and cross-screen loading feedback durations are unmeasured. |
 
 No per-screen performance budgets or fixes are proposed. Asset raw/gzip sizes

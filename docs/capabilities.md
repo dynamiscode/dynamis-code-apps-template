@@ -8,9 +8,10 @@ of what was verified on its date.
 
 The [UI measurement method and asset inventory](ui-measurement.md) records the
 baseline environment, screen inventory, home observation and remaining screen
-measurements for issue #439. The [administration evidence](ui-measurement-admin.md)
-records settings and data-management observations. Neither establishes
-performance budgets or claims screen measurements are complete.
+measurements for issue #439. [Administration evidence](ui-measurement-admin.md)
+records settings and data-management observations; [identity evidence](ui-measurement-identity.md)
+records account, authentication and public-screen observations. These establish
+no performance budgets and do not claim screen measurements are complete.
 
 The [administration measurement evidence](ui-measurement-admin.md) is partial
 for issue #448; its isolated run may have experienced concurrent check load.
@@ -1360,3 +1361,14 @@ continues to enforce owner/admin management and owner-only transfer.
   recorded `go test ./...` result remains the latest Go evidence.
 - Issue #439 remains partial. The route and state gaps, unavailable wire-byte
   metrics, and no-budget decision remain as recorded above.
+
+## UI identity measurement evidence (#439, 2026-11-18)
+
+- Reused the isolated #449 account, authentication and public-screen evidence
+  in [identity measurement](ui-measurement-identity.md). It records cold/warm
+  navigation for setup, login, password recovery, account, security, sessions,
+  notifications and unavailable public share, plus invalid-login and password
+  recovery feedback timings.
+- The evidence remains partial: MFA challenge and enrollment, valid public
+  share, consent, session revocation, notification delivery, and additional
+  validation/error/permission states remain unmeasured. No budget is proposed.
