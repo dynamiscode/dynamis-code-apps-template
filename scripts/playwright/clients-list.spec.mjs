@@ -24,6 +24,41 @@ async function openClients(page) {
   await page.locator(".workspace-cards a[href$='/clients']").first().click();
 }
 
+test("client detail supports editing, values, and lifecycle actions", async ({ page }) => {
+  await openClients(page);
+  const name = `Lifecycle ${Date.now()}`;
+  await page.locator("#client-create > details.client-create > summary").click();
+  await page.getByLabel("Display name").fill(name);
+  await page.getByRole("button", { name: "Add client" }).click();
+  await expect(page).toHaveURL(/\/clients\/[^/?]+$/);
+  const detailPath = new URL(page.url()).pathname;
+
+  await page.getByLabel("Display name").fill(`${name} updated`);
+  await page.getByRole("button", { name: "Save client" }).click();
+  await expect(page.getByRole("heading", { name: `${name} updated` })).toBeVisible();
+
+  await page.getByRole("link", { name: "Manage custom fields" }).click();
+  await page.locator(".client-create > summary").click();
+  await page.getByLabel("Field label").fill("Lifecycle note");
+  await page.getByRole("button", { name: "Add field" }).click();
+  await page.goto(detailPath);
+  await page.getByLabel("Lifecycle note (optional)").fill("Follow up");
+  await page.locator(".client-value").getByRole("button", { name: "Save value" }).click();
+  await expect(page.getByLabel("Lifecycle note (optional)")).toHaveValue("Follow up");
+  await page.locator(".client-value-clear").getByRole("button", { name: "Clear value" }).click();
+  await expect(page.locator(".client-value-clear")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Archive" }).click();
+  await expect(page.getByText("This client is archived. It is hidden from the default list.", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Unarchive" }).click();
+  await expect(page.getByRole("button", { name: "Archive" })).toBeVisible();
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Delete permanently" }).click();
+  await expect(page).toHaveURL(/\/clients$/);
+  await expect(page.getByText(`${name} updated`, { exact: true })).toHaveCount(0);
+});
+
 test("Clients list adapts across desktop/mobile and light/dark themes", async ({ page }) => {
   await openClients(page);
   for (const colorScheme of ["light", "dark"]) {

@@ -458,4 +458,7 @@ func TestClientEditRefusalKeepsTheTypedValues(t *testing.T) {
 	if !strings.Contains(refused.Body.String(), `value="555-0100"`) {
 		t.Fatalf("refused edit lost the typed phone: %s", refused.Body.String())
 	}
+	if !strings.Contains(refused.Body.String(), `class="dashboard-workspace"`) || !strings.Contains(refused.Body.String(), `class="input"`) {
+		t.Fatalf("detail response did not use the templ dashboard and shared input: %s", refused.Body.String())
+	}
 }

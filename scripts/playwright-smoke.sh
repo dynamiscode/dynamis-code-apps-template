@@ -11,7 +11,7 @@ oidc_pid=""
 setup_pid=""
 members_pid=""
 
-if [ "${UI_MEASURE:-0}" != 1 ] && { [ "$members_port" = "$port" ] || [ "$members_port" = "$oidc_port" ] || [ "$members_port" = "$setup_port" ]; }; then
+if [ "${UI_MEASURE:-0}" != 1 ] && [ "${UI_MEASURE:-0}" != core ] && [ "${UI_MEASURE:-0}" != members ] && { [ "$members_port" = "$port" ] || [ "$members_port" = "$oidc_port" ] || [ "$members_port" = "$setup_port" ]; }; then
   echo "Members fixture port $members_port conflicts with another fixture port" >&2
   exit 1
 fi
@@ -49,7 +49,7 @@ if curl --noproxy '*' --silent "http://127.0.0.1:$setup_port/health/ready" >/dev
   echo "setup fixture port $setup_port is already in use; set PLAYWRIGHT_SETUP_PORT" >&2
   exit 1
 fi
-if [ "${UI_MEASURE:-0}" != 1 ]; then
+if [ "${UI_MEASURE:-0}" != 1 ] && [ "${UI_MEASURE:-0}" != core ] && [ "${UI_MEASURE:-0}" != members ]; then
   if curl --noproxy '*' --silent "http://127.0.0.1:$members_port/health/ready" >/dev/null 2>&1; then
     echo "Members fixture port $members_port is already in use; set PLAYWRIGHT_MEMBERS_PORT" >&2
     exit 1
@@ -68,7 +68,7 @@ export PLAYWRIGHT_EMAIL=playwright@example.com PLAYWRIGHT_PASSWORD=playwright-pa
 export PLAYWRIGHT_MEMBER_EMAIL=playwright-member@example.com
 export PLAYWRIGHT_MEMBER_PASSWORD=playwright-member-password-123
 "$work/seed-member"
-if [ "${UI_MEASURE:-0}" != 1 ]; then
+if [ "${UI_MEASURE:-0}" != 1 ] && [ "${UI_MEASURE:-0}" != core ] && [ "${UI_MEASURE:-0}" != members ]; then
   env -i HOME="$work" TMPDIR="$work" BOOTSTRAP_ADMIN_PASSWORD=playwright-password-123 \
     DATABASE_DRIVER=sqlite SQLITE_PATH="$work/members.db" STORAGE_DRIVER=local STORAGE_LOCAL_PATH="$work/members-files" \
     "$work/bootstrap-admin" -email playwright@example.com -workspace "UI Baselines" >/dev/null
@@ -93,6 +93,8 @@ env -i HOME="$work" TMPDIR="$work" MULTI_WORKSPACE_ENABLED=true \
   DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" STORAGE_DRIVER=local STORAGE_LOCAL_PATH="$work/files" \
   HTTP_SSE_POLL_INTERVAL="${PLAYWRIGHT_SSE_POLL_INTERVAL:-1s}" \
   HTTP_SSE_MAX_LIFETIME="${PLAYWRIGHT_SSE_MAX_LIFETIME:-5m}" \
+  WEBHOOK_ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
+  ENCRYPTION_KEY= \
   HTTP_ADDRESS="127.0.0.1:$port" \
   "$work/server" >"$work/server.log" 2>&1 &
 pid=$!
@@ -125,7 +127,7 @@ if ! curl --noproxy '*' --fail --silent --retry 30 --retry-delay 1 --retry-connr
   exit 1
 fi
 
-if [ "${UI_MEASURE:-0}" != 1 ]; then
+if [ "${UI_MEASURE:-0}" != 1 ] && [ "${UI_MEASURE:-0}" != core ]; then
   env -i HOME="$work" TMPDIR="$work" MULTI_WORKSPACE_ENABLED=true \
     HTTP_REQUESTS_PER_MINUTE=10000 HTTP_AUTH_REQUESTS_PER_MINUTE=1000 \
     DATABASE_DRIVER=sqlite SQLITE_PATH="$work/members.db" STORAGE_DRIVER=local STORAGE_LOCAL_PATH="$work/members-files" \
@@ -142,7 +144,13 @@ fi
 export PLAYWRIGHT_BASE_URL="http://127.0.0.1:$port"
 export PLAYWRIGHT_OIDC_BASE_URL="http://127.0.0.1:$oidc_port"
 export PLAYWRIGHT_SETUP_BASE_URL="http://127.0.0.1:$setup_port"
-if [ "${UI_MEASURE:-0}" = 1 ]; then
+if [ "${UI_MEASURE:-0}" = identity ]; then
+  node scripts/ui-measurement-identity.mjs
+elif [ "${UI_MEASURE:-0}" = core ]; then
+  node scripts/ui-measurement-core.mjs
+elif [ "${UI_MEASURE:-0}" = members ]; then
+  node scripts/ui-measurement-members.mjs
+elif [ "${UI_MEASURE:-0}" = 1 ]; then
   node scripts/ui-measurement.mjs
 elif [ "${UI_MEASURE_IDENTITY:-0}" = 1 ]; then
   node scripts/ui-measurement-identity.mjs
