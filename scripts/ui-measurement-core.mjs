@@ -80,6 +80,24 @@ try {
     await createCDP.detach();
   }
 
+  phase = "item edit";
+  const editForm = page.locator("#item-list form[data-item-edit]").first();
+  await editForm.locator('input[name="title"]').fill("UI measurement item edited");
+  const editCDP = await context.newCDPSession(page);
+  try {
+    await editCDP.send("Network.enable");
+    const stopEdit = observeNetwork(editCDP);
+    const editStart = performance.now();
+    const editResponse = page.waitForResponse((response) =>
+      response.request().method() === "POST" && new URL(response.url()).pathname.startsWith(`${workspacePath}/items/`));
+    await editForm.locator('button[type="submit"][value="update"]').click();
+    const status = (await editResponse).status();
+    await page.locator('#item-list input[name="title"][value="UI measurement item edited"]').waitFor();
+    results.push({ interaction: "edit item title", status, ...stopEdit(), feedbackMs: performance.now() - editStart });
+  } finally {
+    await editCDP.detach();
+  }
+
   phase = "item validation";
   await page.goto(`${workspacePath}/items`);
   const validationForm = page.locator("#item-list form.create");

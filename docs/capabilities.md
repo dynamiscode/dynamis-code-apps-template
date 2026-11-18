@@ -1459,3 +1459,18 @@ continues to enforce owner/admin management and owner-only transfer.
   `SANDCASTLE_VERIFY` is unset, so wrapped full suites were unavailable. Issue
   #439 remains partial; download bytes, upload failure/progress, and route/state
   coverage remain open.
+
+## UI Item edit measurement (#439, 2026-11-18)
+
+- Extended the isolated core runner to edit its synthetic Item and record
+  request count, response bytes, request-body bytes, status and feedback time.
+  One run returned 200 with one request, 7,273 completed encoded response
+  bytes, 119 request-body bytes and 42.2 ms feedback. Full conditions and
+  limitations are in [UI measurement](ui-measurement.md). No budget is set.
+- Client detail, populated and failure states, permission/no-JavaScript
+  coverage, download transfer bytes and other route/state gaps remain. Issue
+  #439 remains partial.
+- `node --check scripts/ui-measurement-core.mjs`, isolated core measurement,
+  `npm run test:unit` (40 tests), and `git diff --check` passed. The requested
+  `npm run typecheck` and `npm run test` scripts are absent. `SANDCASTLE_VERIFY`
+  is unset, so wrapped full-suite checks are unavailable.

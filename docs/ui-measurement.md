@@ -54,8 +54,8 @@ cache with CDP, then measures workspace-home navigation and repeats it warm.
 `UI_MEASURE=identity ./scripts/playwright-smoke.sh` runs the identity navigation
 and interaction measurements in [identity evidence](ui-measurement-identity.md).
 `UI_MEASURE=core ./scripts/playwright-smoke.sh` measures cold/warm empty Items,
-Clients and Files navigation, synthetic Item creation and empty-title browser
-validation, then uploads a synthetic 256 KiB file. It uses the same isolated
+Clients and Files navigation, synthetic Item creation and edit, empty-title
+browser validation, then uploads a synthetic 256 KiB file. It uses the same isolated
 fixture and emits aggregate JSON. Upload feedback timing includes automation
 overhead. `requestBodyBytes` counts request-body bytes from CDP `postData` when
 present, otherwise from a known `Content-Length`; bodies without either are
@@ -164,7 +164,7 @@ capture exists. Do not infer zero cost or absence from those cells.
 | Screen or interaction | Existing behavior evidence / owner | Performance and state coverage |
 |---|---|---|
 | Workspace home | `scripts/playwright/ui.spec.mjs`; #439 | Cold/warm navigation measured below; empty fixture only. Populated, pending, error, permission and no-JS states unmeasured. |
-| Items list, create, edit | `scripts/playwright/ui.spec.mjs`; #413–#416 | Empty list cold/warm navigation and one create plus empty-title browser-validation timing measured below. Edit, fragment/SSE bytes, populated, server validation/error, permission and no-JS performance states unmeasured. |
+| Items list, create, edit | `scripts/playwright/ui.spec.mjs`; #413–#416 | Empty list cold/warm navigation, one create and edit, plus empty-title browser-validation timing measured below. Fragment/SSE bytes, populated, server validation/error, permission and no-JS performance states unmeasured. |
 | Clients list and detail | `scripts/playwright/clients-list.spec.mjs`; #415 | Empty list cold/warm navigation measured below. SSE refresh and validation behavior tested; detail, populated, pending, failure, permission, and no-JS performance measures absent. |
 | Files list and upload | `scripts/playwright/files.spec.mjs`; #417 | Empty list cold/warm navigation and one synthetic 256 KiB upload body size, response bytes, and success feedback measured below. Download wire bytes and upload progress duration, failure, permission and no-JS performance states remain unmeasured. |
 | Members and invitations | `scripts/playwright/members.spec.mjs`, `invitations.spec.mjs`; #419, #420 | Cold/warm navigation and one synthetic invitation creation measured below. Member changes, acceptance, pending, validation, failure, permission and no-JS performance measures absent. |
@@ -332,11 +332,31 @@ Item creation returned 200; upload returned 303 with one redirect. No captured
 request bodies had unknown sizes. Validation used the native `required`
 constraint and sent no request. Interaction feedback includes Playwright
 automation overhead. One observation does not establish a distribution or
-budget. Item edit, client detail, download wire bytes, populated records,
+budget. Client detail, download wire bytes, populated records,
 server-side validation, upload progress/failure, permission and no-JavaScript
 performance states remain unmeasured. The open SSE requests explain why list
 request counts exceed completed responses. Request initiators and unnecessary
 requests remain unattributed.
+
+### Item edit interaction rerun
+
+On 2026-11-18T03:34:53Z, the isolated core runner on application commit
+`5c37624057ba95c95627645ceda008d24ac52919` used a fresh SQLite fixture with
+one owner and workspace and no Items, Clients or Files. The measurement runner
+included the synthetic edit capture added for this run. Browser conditions
+were Darwin 27.2.0 arm64, Chrome 157.0.8103.79, Node 26.10.0, Playwright
+1.64.1, 1280×900, device scale 1, `en-US`, light theme, reduced motion and
+unthrottled loopback. This was one run, not a distribution or budget.
+
+Item creation returned 200 with one request, 7,245 completed encoded response
+bytes, 123 request-body bytes and 52.6 ms feedback. Editing that Item's title
+returned 200 with one request, 7,273 completed encoded response bytes, 119
+request-body bytes and 42.2 ms feedback. Empty-title native browser validation
+sent no request and showed feedback in 40.3 ms. Interaction timings include
+Playwright automation overhead. The run repeated earlier list and upload
+observations; cold navigations again each reported one favicon 404, and the
+Items and Clients list SSE requests remained unfinished. Server-side validation,
+edit failure, permission and no-JavaScript performance states remain unmeasured.
 
 ## Current rerun on issue branch
 
