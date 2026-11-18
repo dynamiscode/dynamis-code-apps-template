@@ -237,7 +237,7 @@ func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
 		"action": {"create"}, "lifetime": {"7"}, "csrf": {session.CSRFSecret},
 	}, cookies, nil)
 	if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" {
-		t.Fatalf("create public link = %d, %s", response.Code, response.Body.String())
+		t.Fatalf("create public link = %d, headers=%+v body=%s", response.Code, response.Header(), response.Body.String())
 	}
 	body := response.Body.String()
 	if !strings.Contains(body, "<section id=\"item-list\"") || !strings.Contains(body, "Cualquiera con este enlace") ||
