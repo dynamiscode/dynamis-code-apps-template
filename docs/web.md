@@ -201,7 +201,8 @@ Baseline browser surfaces:
   empty/success states, and browser accessibility are covered by
   [audit handler tests](../internal/web/handler_test.go) and
   [accessibility evidence](accessibility.md#workspace-administration-and-data-evidence-2026-11-17).
-- `/share/{token}` presents a read-only Item projection containing only title
+- `/share/{token}` renders through `public_pages.templ` as a localized public
+  card with shared alert components. It presents a read-only Item projection containing only title
   and localized status. Invalid, expired, and revoked links share the same
   unavailable page. The Items page lets principals with `resources:write`
   create seven- or 30-day links and revoke active links with CSRF-protected
@@ -228,9 +229,13 @@ Public sharing uses `private, no-store`, `no-referrer`, and
 rate limit applies to public access. There is no public write, search, listing,
 REST, CLI, MCP, or WebMCP sharing surface.
 
-The MCP consent page shows the client name, requested item permissions, and
-eligible workspace choices. Approve and deny remain ordinary CSRF-protected
-form submissions; the page does not load WebMCP or submit automatically.
+`/oauth/authorize` renders consent and generic errors through `public_pages.templ`.
+The consent page shows the client name, requested item permissions, and eligible
+workspace choices in the shared card layout. Approve and deny remain ordinary
+CSRF-protected form submissions; the page does not load WebMCP or submit
+automatically. Invalid requests and unavailable workspace permissions use the
+localized error page. These pages use `no-store` and are excluded from preload
+and history caching.
 
 The workspace sidebar exposes `Home` above `Items` in the workspace context.
 Home is active at `/workspaces/{workspaceId}`. Settings uses the nested
@@ -357,7 +362,7 @@ accessibility results and remaining limits are recorded in
 | Route family | Views and shared templates | Major states covered |
 |---|---|---|
 | `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
-| `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.js`, `mcp-consent.html`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge/retry/expired redirect, verification success/invalid-or-expired, OAuth approval/denial |
+| `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.js`, `public_pages.templ`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge/retry/expired redirect, verification success/invalid-or-expired, OAuth approval/denial |
 | `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | Empty/results states, filters, sorting and paging, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
 | Workspace clients and custom fields | `clients.templ`, `client_fields.templ`, `components.templ`, `workspace.templ`, `client.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field and option lifecycle, realtime refresh |
 | Workspace members | `members.templ`, `members_templ.go` | Role changes, removal and ownership transfer |
@@ -374,9 +379,12 @@ accessibility results and remaining limits are recorded in
 | `/account`, `/settings/language` | `account_pages.templ`, `account_pages_templ.go`, `components.templ`, `navigation.templ` | Profile, theme, language, notifications, email verification, password change, reauthenticated account deletion, saved/validation/delivery failure; ordinary CSRF-protected forms and password exclusion from drafts |
 | Workspace access and integration settings | `credential_settings.templ`, `credential_settings_templ.go`, `security.html`, `navigation.html` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |
 | `/workspaces/{workspaceId}/settings/export`, `/workspaces/{workspaceId}/settings/export/download`, `/workspaces/{workspaceId}/settings/import` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Authorized no-store export page and JSON download; import file selection, bounded preview, safe validation feedback, explicit multipart confirmation, and atomic result; ordinary form fallback |
-| Public and unavailable pages | `public-share.html`, `error.html` | Share projection and invalid/expired/revoked links, not-found and request errors |
+| `/share/{token}` | `public_pages.templ`, `public_pages_templ.go`, `components.templ` | Localized title/status-only share projection, invalid/expired/revoked unavailable state, no-store and referrer/robots headers |
+| `/oauth/authorize` and generic errors | `public_pages.templ`, `public_pages_templ.go`, `auth.templ`, `components.templ` | Localized OAuth consent and generic errors; ordinary CSRF-protected approve/deny forms; invalid request and unavailable permission errors; no-store and preload/history-cache exclusion |
 
-Corresponding route and handler tests cover server-rendered behavior.
+Corresponding route and handler tests cover server-rendered behavior, including
+public-share projection and unavailable states, consent approval and denial,
+and generic OAuth errors.
 `make ux-smoke` and `make accessibility-smoke` cover the browser paths they
 enumerate; [the accessibility evidence](accessibility.md) records that
 automated coverage. Workspace selection, workspace home, audit history, API token
