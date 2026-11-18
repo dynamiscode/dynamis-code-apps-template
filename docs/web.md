@@ -188,13 +188,15 @@ Baseline browser surfaces:
   read-only latest-100 audit history with redacted fields.
 - `/share/{token}` presents a read-only Item projection containing only title
   and localized status. Invalid, expired, and revoked links share the same
-  unavailable page. The Items page lets principals with `resources:write` create
-  seven- or 30-day links and revoke active links with CSRF-protected ordinary
-  forms. The controls state what link holders can see and explain revocation
-  consequences without JavaScript. Its shared list view persists each member's
-  title and status column
-  visibility per workspace, filters by title and status, sorts by creation
-  time, and carries query state through pagination and realtime refreshes. The
+  unavailable page. The Items page lets principals with `resources:write`
+  create seven- or 30-day links and revoke active links with CSRF-protected
+  forms. Create returns the targeted list fragment; revoke uses ordinary
+  redirect navigation. Share forms opt out of HTMX history snapshots so a
+  one-time URL is not cached. The controls state what link holders can see and
+  explain revocation consequences without JavaScript. Its shared list view
+  persists each member's title and status column visibility per workspace,
+  filters by title and status, sorts by creation time, and carries query state
+  through pagination and realtime refreshes. The
   same rows adapt from a table to cards on narrow screens; inline title/status
   editing and authorized row actions remain available when either data column
   is hidden.
@@ -342,7 +344,7 @@ accessibility results and remaining limits are recorded in
 | `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
 | `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.js`, `mcp-consent.html`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge/retry/expired redirect, verification success/invalid-or-expired, OAuth approval/denial |
 | `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | Empty/results states, filters, sorting and paging, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
-| Workspace clients and custom fields | `clients.templ`, `components.templ`, `workspace.templ`, `client.html`, `client-fields.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field lifecycle, realtime refresh |
+| Workspace clients and custom fields | `clients.templ`, `client_fields.templ`, `components.templ`, `workspace.templ`, `client.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field and option lifecycle, realtime refresh |
 | Workspace members | `members.templ`, `members_templ.go` | Role changes, removal and ownership transfer |
 | `/workspaces/{workspaceId}/settings/invitations`, `/invitations/{secret}`, `/invitations/{secret}/sign-in`, `/invitations/continue` | `invitations.templ`, `invitations_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Create/resend/revoke with explicit revoke confirmation; registration, account-matched acceptance, sign-in return through MFA/OIDC, invalid/expired/unavailable states; ordinary form fallback |
 | `/workspaces/{workspaceId}/settings/audit` | `audit.templ`, `audit_templ.go`, `components.templ`, `components_templ.go` | Scoped redacted history, lazy table fragment, empty state, ordinary `?all=1` fallback, permission denial and expired-session redirect |
@@ -366,6 +368,54 @@ and SCIM settings, webhook registry, and delivery history use templ; the remaini
 listed legacy views are an intentional exception to the migration target, not an
 exception to escaping, authorization, accessibility, localization, or
 ordinary-form requirements.
+
+The issue #454 reconciliation maps each route family and major state to its
+automated evidence, committed screenshot samples, and remaining unverified
+states in the next section.
+
+## Browser journey coverage reconciliation
+
+Review date: 2026-11-17. This inventory connects the route families and major
+states above to automated browser or route checks. Browser checks run in pinned
+Chrome against disposable SQLite fixtures. Route tests establish server
+responses and policy; they do not establish every browser state listed beside
+them. Paths below name evidence in the template repository; generated apps do
+not include these Playwright specs or source tests.
+
+| Route family and named states | Automated evidence in the template | Screenshot baselines | Remaining unverified states |
+|---|---|---|---|
+| `/setup`, `/login`, OIDC provider and callback; setup validation, login failure, OIDC callback failure/success and denied workspace | `scripts/playwright/ui.spec.mjs`; `internal/web/auth_journeys_test.go`; `internal/web/oidc_test.go` | None committed for auth routes | No browser screenshot comparison for setup, login, or OIDC. MFA, email verification, and password-reset token success are not exercised as complete browser journeys. |
+| `/`, `/workspaces/{workspaceId}`; workspace selection, creation, home, unavailable/setup-required | `scripts/playwright/ui.spec.mjs`; `internal/web/workspace_mode_test.go` | `scripts/playwright/ui.spec.mjs-snapshots/workspace-{selection,home}-{desktop,mobile}-{light,dark}.png` | Unavailable-workspace and setup-required error views have route coverage, not screenshot baselines. |
+| `/workspaces/{workspaceId}/items`; empty/results, filters, sorting, paging, create/edit/delete, validation, sharing, denied writes, refresh and query history | `scripts/playwright/ui.spec.mjs`; `internal/web/items_list_test.go`; `internal/web/item_create_model_test.go` | `scripts/playwright/ui.spec.mjs-snapshots/items-{desktop,mobile}-{light,dark}.png` | Dedicated browser screenshots cover the representative list state; every mutation and permission state is not captured. |
+| Workspace clients and custom fields; list, validation, CRUD, custom-field lifecycle, refresh and draft preservation | `scripts/playwright/clients-list.spec.mjs`; focused client route tests under `internal/web/` | `scripts/playwright/clients-list.spec.mjs-snapshots/clients-{light,dark}-{desktop,mobile}.png` | Client detail and custom-field pages have behavior tests but no screenshot baseline. |
+| Workspace members; list, role change, removal, ownership transfer, denied actions | `scripts/playwright/members.spec.mjs`; `internal/web/members_list_test.go`; `internal/web/members_role_test.go` | `scripts/playwright/members.spec.mjs-snapshots/members-{desktop,mobile}-{light,dark}[-linux].png` | Full confirmation and denial state coverage is behavioral; screenshots represent the list. |
+| Invitations and acceptance; create/resend/revoke, existing-account sign-in, invalid/unavailable guidance | `scripts/playwright/invitations.spec.mjs`; `internal/web/invitation_guidance_test.go`; `internal/web/management_test.go` | None committed | Browser journey covers acceptance without JavaScript; management and invalid/expired states have route tests, not screenshots. |
+| `/workspaces/{workspaceId}/settings/audit`; scoped history, lazy fragment, empty, permission denial and expired session | `scripts/accessibility.mjs`; `internal/web/handler_test.go` | None committed | Audit table fragment and denial states have route checks; no browser screenshot baseline. |
+| `/sessions`; current/active/expired/revoked and revoke actions | `scripts/accessibility.mjs`; `internal/web/handler_test.go` | None committed | No dedicated Playwright session lifecycle journey or screenshot baseline. |
+| Workspace files; list/filter/sort, upload progress/success/validation/failure/retry, viewer download and no-JavaScript fallback | `scripts/playwright/files.spec.mjs`; `internal/web/files_test.go` | `scripts/playwright/files.spec.mjs-snapshots/files-{desktop,mobile}-{light,dark}.png` | Upload states are exercised behaviorally, not captured as separate screenshots. |
+| General and email settings; save, validation, provider verification failure, read-only permission | `scripts/playwright/settings.spec.mjs`; `internal/web/email_settings_test.go` | `scripts/playwright/settings.spec.mjs-snapshots/{general,email}-settings-{desktop,mobile}-{light,dark}.png` (email mobile also has Linux baselines) | Failure and permission variants are behavior checks, not screenshot baselines. |
+| Account, language, security, tokens, webhooks, SCIM; validation, one-time secret, integration failure and permissions | `scripts/playwright/settings.spec.mjs`; `scripts/accessibility.mjs`; `internal/web/webhooks_test.go`; `internal/web/handler_test.go` | Token and provisioning settings have desktop/mobile light/dark snapshots; no baselines for account, language, security, or webhooks | One-time-secret and integration failure states have no screenshot comparisons. |
+| `/notifications`, `/notifications/events`; empty/list, mark-read, reconnect/replay, Spanish no-JavaScript navigation | `scripts/playwright/notifications.spec.mjs`; `internal/web/notifications_test.go` | `scripts/playwright/notifications.spec.mjs-snapshots/notifications-empty-{desktop,mobile}-{light,dark}.png` | Populated list and replay states have behavior checks, not screenshot baselines. |
+| Export and import; authorized download, preview, invalid input, confirmation and atomic result | `scripts/accessibility.mjs`; `internal/web/management_test.go` | None committed | Browser accessibility smoke checks import page and preview. Export download and import failure/result states rely on route and application tests; no Playwright journey or screenshots. |
+| Public share, OAuth consent, not-found and request errors | `scripts/accessibility.mjs`; `internal/web/handler_test.go`; `internal/web/mcp_consent_test.go` | None committed | Public share and consent are axe-scanned; no screenshot baselines. Generic request errors have route checks only. |
+
+### Accessibility limits
+
+`make accessibility-smoke` runs axe scans for English and Spanish on the routes
+enumerated in `scripts/accessibility.mjs`. The runner also checks selected
+keyboard order, focus, accessible names, reduced motion, 320 CSS-pixel
+overflow, and import/upload contracts. Focused Playwright specs add route-
+specific axe and keyboard checks. These checks cannot establish full WCAG
+conformance, screen-reader behavior across assistive technologies, 200% zoom,
+or every state and locale/theme combination. The only recorded screen-reader
+walkthrough is the historical VoiceOver observation in
+`docs/accessibility.md`; it is not a repeatable automated check.
+
+Screenshot assertions intentionally sample routes rather than every state and
+combination. Captures disable animation. Reduced-motion behavior is checked
+separately in the journey suite. `make browser-smoke` is the baseline refresh
+gate; update committed images only when the rendered change is intentional and
+review actual/diff artifacts before accepting them.
 
 ## WebMCP progressive enhancement
 
@@ -469,7 +519,10 @@ forms that redirect to the list. Labels are shown exactly as typed, escaped for
 HTML. Permanent deletion is offered only for archived fields, with the effect on
 all client values and choice options shown beside the control, including without
 JavaScript. A refused label returns 422 and a reached limit returns 409, both on
-the same page.
+the same page. The route uses generated `client_fields.templ` and shared
+DaisyUI form, alert, and confirmation components. Choice fields expose option
+add and delete forms to owners and admins; deleting an option warns that client
+values using it will be cleared. All actions retain ordinary POST fallback.
 
 ## Realtime contract
 

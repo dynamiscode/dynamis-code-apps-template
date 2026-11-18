@@ -2,6 +2,20 @@
 
 This ledger records implemented conformance evidence and deferred triggers.
 
+## Browser journey reconciliation (#454, 2026-11-17)
+
+[Browser journey coverage reconciliation](web.md#browser-journey-coverage-reconciliation)
+maps the route inventory's named route families and major states to Playwright
+journeys, route tests, screenshot baselines, and explicit gaps. Representative
+baselines cover workspace selection/home, Items, Clients, Members, Files,
+notifications, and selected settings in desktop/mobile light/dark variants.
+They do not capture every state or route.
+
+Automated axe, keyboard/focus, accessible-name, reduced-motion, and 320px
+reflow checks cover only their enumerated journeys. They do not establish full
+WCAG conformance or replace assistive-technology and manual zoom checks. See
+the [accessibility evidence](accessibility.md) for existing audit limits.
+
 Dated evidence sections are append-only. New verification is recorded as a new
 dated section; past dated sections are never rewritten, because each is a record
 of what was verified on its date.
@@ -12,10 +26,18 @@ not establish performance budgets or claim screen measurements are complete.
 The [workspace journey evidence](ui-measurement-workspace.md) records request,
 transfer, timing, mutation, loading and failure observations for issue #447,
 with unavailable metrics and states marked explicitly.
+The [reconciliation and budget recommendation](ui-measurement-reconciliation-450.md)
+summarizes measured results, limitations, unverified surfaces, and budget
+decisions; it does not claim implementation of proposed fixes.
 
 The [administration measurement evidence](ui-measurement-admin.md) records the
 bounded screen and state measurements for issue #448. Metrics the harness cannot
 isolate remain explicitly unavailable; no budgets or performance fixes are claimed.
+
+The [account, authentication, and public measurement evidence](ui-measurement-identity.md)
+is partial for issue #449; invalid-login and password-recovery feedback and
+notification SSE connection are measured. MFA, MCP consent, valid public
+shares, and remaining interaction states remain unmeasured.
 
 ## Profile status
 
@@ -472,6 +494,16 @@ Issue #444 migrates `/security` factor and linked-identity rendering to
 `security.templ` and the shared DaisyUI/account components. Route tests cover
 CSRF-protected factor forms, inaccessible enrollment secrets on the idle page,
 focused reauthentication failure feedback, and the ordinary provider-link form.
+
+## Account security form evidence
+
+Issue #443 moves `/account` to `account.templ` and generated `account_templ.go`.
+Browser route tests cover password mismatch, invalid current password, successful
+password change with session revocation, required deletion confirmation,
+owner-transfer refusal, and successful deletion. Password fields remain outside
+draft persistence. Email verification request and delivery outcomes retain
+ordinary CSRF-protected forms. Verified 2026-11-17 with `make test`,
+`make templ-check`, and `make fmt-check`.
 
 ## Item short ID evidence
 
@@ -1057,6 +1089,21 @@ are visible next to their controls, including without JavaScript.
   keyboard, focus, 320px reflow, reduced-motion, and accessibility-tree checks).
 - Not run: full `make verify`; this ticket's web, lint, and accessibility checks
   passed.
+
+## Client custom-field templ migration evidence (2026-11-17)
+
+Issue #441 migrates `/workspaces/{workspaceId}/client-fields` to generated
+`client_fields.templ` and shared DaisyUI form, alert, and confirmation
+components. Field and choice-option lifecycle remains on the shared clients
+service. Route checks cover create, archive, restore, permanent delete,
+option add/delete, validation, permission denial, escaped labels, and explicit
+deletion consequences with ordinary CSRF-protected forms.
+
+- Passed: `go test ./internal/web` (212 tests), `make templ-check`, and
+  `make lint`, `make test` (39 JS and 1,070 Go tests), and the focused
+  Playwright custom-field lifecycle journey.
+- Not run: `npm run typecheck` and `npm run test`; this repository defines no
+  such npm scripts. The full browser accessibility suite was not run.
 
 ## File management progress and localization evidence (2026-11-15)
 
