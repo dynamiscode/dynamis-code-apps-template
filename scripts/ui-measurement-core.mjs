@@ -66,16 +66,19 @@ try {
   const itemForm = page.locator("#item-list form.create");
   await itemForm.locator('input[name="title"]').fill("UI measurement item");
   const createCDP = await context.newCDPSession(page);
-  await createCDP.send("Network.enable");
-  const stopCreate = observeNetwork(createCDP);
-  const createStart = performance.now();
-  const createResponse = page.waitForResponse((response) =>
-    response.request().method() === "POST" && new URL(response.url()).pathname === `${workspacePath}/items`);
-  await itemForm.getByRole("button", { name: "Add item" }).click();
-  const status = (await createResponse).status();
-  await page.locator('#item-list input[name="title"][value="UI measurement item"]').waitFor();
-  results.push({ interaction: "create item", status, ...stopCreate(), feedbackMs: performance.now() - createStart });
-  await createCDP.detach();
+  try {
+    await createCDP.send("Network.enable");
+    const stopCreate = observeNetwork(createCDP);
+    const createStart = performance.now();
+    const createResponse = page.waitForResponse((response) =>
+      response.request().method() === "POST" && new URL(response.url()).pathname === `${workspacePath}/items`);
+    await itemForm.getByRole("button", { name: "Add item" }).click();
+    const status = (await createResponse).status();
+    await page.locator('#item-list input[name="title"][value="UI measurement item"]').waitFor();
+    results.push({ interaction: "create item", status, ...stopCreate(), feedbackMs: performance.now() - createStart });
+  } finally {
+    await createCDP.detach();
+  }
 
   phase = "item validation";
   await page.goto(`${workspacePath}/items`);
