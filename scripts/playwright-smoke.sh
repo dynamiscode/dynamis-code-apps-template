@@ -92,6 +92,8 @@ env -i HOME="$work" TMPDIR="$work" MULTI_WORKSPACE_ENABLED=true \
   DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" STORAGE_DRIVER=local STORAGE_LOCAL_PATH="$work/files" \
   HTTP_SSE_POLL_INTERVAL="${PLAYWRIGHT_SSE_POLL_INTERVAL:-1s}" \
   HTTP_SSE_MAX_LIFETIME="${PLAYWRIGHT_SSE_MAX_LIFETIME:-5m}" \
+  WEBHOOK_ENCRYPTION_KEY= \
+  ENCRYPTION_KEY= \
   HTTP_ADDRESS="127.0.0.1:$port" \
   "$work/server" >"$work/server.log" 2>&1 &
 pid=$!
