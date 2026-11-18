@@ -785,7 +785,7 @@ func (h *Handler) securityPage(writer http.ResponseWriter, request *http.Request
 	}
 	status, _ := h.identity.MFAStatus(request.Context(), session.UserID)
 	passkeys, _ := h.identity.ListPasskeys(request.Context(), session.UserID)
-	h.render(writer, http.StatusOK, "security.html", pageData{
+	h.render(writer, http.StatusOK, "security-page", pageData{
 		Title: "Security", NavPage: "security", CSRF: csrf, OIDCProviders: h.providers(),
 		Error: request.URL.Query().Get("error"), Email: session.UserID.String(), MFAStatus: status, Passkeys: passkeys,
 	})
@@ -805,16 +805,16 @@ func (h *Handler) securityMutation(writer http.ResponseWriter, request *http.Req
 		return
 	}
 	if h.oidc == nil || len(h.providers()) == 0 || request.FormValue("provider") == "" {
-		h.render(writer, http.StatusUnprocessableEntity, "security.html", pageData{Title: "Security", NavPage: "security", CSRF: request.FormValue("csrf"), Error: "No OIDC provider is configured."})
+		h.render(writer, http.StatusUnprocessableEntity, "security-page", pageData{Title: "Security", NavPage: "security", CSRF: request.FormValue("csrf"), Error: "No OIDC provider is configured."})
 		return
 	}
 	if err := h.identity.ReauthenticateLocal(request.Context(), session.UserID, request.FormValue("password")); err != nil {
-		h.render(writer, http.StatusUnauthorized, "security.html", pageData{Title: "Security", NavPage: "security", CSRF: request.FormValue("csrf"), OIDCProviders: h.providers(), Error: "Reauthentication failed."})
+		h.render(writer, http.StatusUnauthorized, "security-page", pageData{Title: "Security", NavPage: "security", CSRF: request.FormValue("csrf"), OIDCProviders: h.providers(), Error: "Reauthentication failed."})
 		return
 	}
 	transaction, loginURL, err := h.oidc.BeginLink(request.Context(), h.identity, request.FormValue("provider"), session.ID, session.UserID)
 	if err != nil {
-		h.render(writer, http.StatusUnprocessableEntity, "security.html", pageData{Title: "Security", NavPage: "security", CSRF: request.FormValue("csrf"), OIDCProviders: h.providers(), Error: "The OIDC link could not be started."})
+		h.render(writer, http.StatusUnprocessableEntity, "security-page", pageData{Title: "Security", NavPage: "security", CSRF: request.FormValue("csrf"), OIDCProviders: h.providers(), Error: "The OIDC link could not be started."})
 		return
 	}
 	h.setOIDCCookies(writer, "link", transaction)

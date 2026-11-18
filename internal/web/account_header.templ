@@ -1,0 +1,12 @@
+package web
+
+templ accountHeader(data pageData) {
+	<header class="topbar">
+		<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
+		<div class="topbar-context">
+			@defaultHomeCrumb(data)
+			<span>{ data.T("common.account") }</span>
+		</div>
+		@accountMenu(data)
+	</header>
+}
