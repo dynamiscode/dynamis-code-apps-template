@@ -2,26 +2,20 @@
 
 Issue #449 covers account, authentication, public share and consent screens.
 This slice uses the [common measurement method](ui-measurement.md); it sets no
-performance budget. Run the isolated synthetic fixture from the repository root:
+performance budget. The identity route-level runner used for the observations
+below is not present in this checkout. The current browser script supports only
+the workspace-home measurement:
 
 ```sh
 npm ci
-UI_MEASURE_IDENTITY=1 ./scripts/playwright-smoke.sh
+UI_MEASURE=1 ./scripts/playwright-smoke.sh
 ```
 
-The command uses fresh SQLite databases, synthetic owner credentials, loopback
-servers, Chrome 1280×900 at device scale 1, `en-US`, light theme, reduced motion,
-and unthrottled local requests. It reports one cold and one warm navigation for
-setup, login, password recovery, account, security, sessions, notifications,
-and the unavailable public-share page. It also measures one invalid login
-submission, including HTTP status, safe network aggregates, and time until the
-accessible error appears. It submits a reset request for the synthetic owner
-with mail delivery disabled and times the generic accessible success feedback.
-It reports request counts, redirects, completed encoded bytes, unfinished
-requests, HTTP errors by safe class, transport failures, cache events,
-DOMContentLoaded and load timings. These are single observations; automation
-overhead and host load are not controlled. The output excludes URLs, headers,
-bodies, cookies, credentials and tokens.
+`UI_MEASURE=1` measures workspace-home navigation only. It does not reproduce
+the identity route or interaction values below. Those historical measurements
+remain evidence, but their exact runner and command are unavailable; the listed
+route values are not reproducible from this checkout. The regular Playwright
+journey suite checks observable behavior, not performance.
 
 ## Latest isolated run
 

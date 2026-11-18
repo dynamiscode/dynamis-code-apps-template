@@ -1372,3 +1372,7 @@ continues to enforce owner/admin management and owner-only transfer.
 - The evidence remains partial: MFA challenge and enrollment, valid public
   share, consent, session revocation, notification delivery, and additional
   validation/error/permission states remain unmeasured. No budget is proposed.
+- `npm run test:journeys` passed 112 tests with 2 skipped on this issue branch.
+  This is behavior evidence only. The historical identity performance runner
+  is absent from this checkout; [identity measurement](ui-measurement-identity.md)
+  now states that limit and gives the current home-only measurement command.
