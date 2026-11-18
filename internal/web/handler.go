@@ -1145,76 +1145,49 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)
-	if name == "workspace-home" {
+	switch name {
+	case "workspace-home":
 		_ = workspaceHome(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "items-page" {
+	case "items-page":
 		_ = itemsPage(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "items-fragment" {
+	case "items-fragment":
 		_ = itemsList(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "webhooks.html" {
+	case "webhooks.html":
 		_ = webhooksPage(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "home.html" {
+	case "home.html":
 		_ = workspaceSelection(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "audit-history" {
+	case "audit-history":
 		_ = auditHistory(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "audit-table" {
+	case "audit-table":
 		_ = auditTable(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "login.html" {
+	case "login.html":
 		_ = authLogin(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "setup.html" {
+	case "setup.html":
 		_ = authSetup(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "password-reset.html" {
+	case "password-reset.html":
 		_ = authPasswordReset(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "mfa.html" {
+	case "mfa.html":
 		_ = authMFA(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "verification.html" {
+	case "verification.html":
 		_ = authEmailVerification(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "sessions-page" {
-		_ = sessionsPage(data, data.CurrentSessionID, time.Now()).Render(context.Background(), writer)
-		return
-	}
-	if name == "security-page" {
-		_ = securityPage(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "account-page" {
+	case "account.html":
 		_ = accountPageView(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "language-page" {
+	case "sessions-page":
+		_ = sessionsPage(data, data.CurrentSessionID, time.Now()).Render(context.Background(), writer)
+	case "security-page":
+		_ = securityPage(data).Render(context.Background(), writer)
+	case "account-page":
+		_ = accountPageView(data).Render(context.Background(), writer)
+	case "language-settings-page", "language-page":
 		_ = languageSettingsView(data).Render(context.Background(), writer)
-		return
-	}
-	if name == "members.html" {
+	case "members.html":
 		_ = membersPage(data).Render(context.Background(), writer)
-		return
-	}
-	if err := h.template.ExecuteTemplate(writer, name, data); err != nil {
-		return
+	case "mcp-consent.html":
+		_ = mcpConsentPage(data).Render(context.Background(), writer)
+	case "error.html":
+		_ = errorPage(data).Render(context.Background(), writer)
+	default:
+		_ = h.template.ExecuteTemplate(writer, name, data)
 	}
 }
 
@@ -1238,7 +1211,7 @@ func (h *Handler) renderPublic(writer http.ResponseWriter, status int, data page
 	writer.Header().Set("Referrer-Policy", "no-referrer")
 	writer.Header().Set("X-Robots-Tag", "noindex, nofollow, noarchive")
 	writer.WriteHeader(status)
-	_ = h.template.ExecuteTemplate(writer, "public-share.html", data)
+	_ = publicSharePage(data).Render(context.Background(), writer)
 }
 
 func (h *Handler) renderPublicError(writer http.ResponseWriter) {
