@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { execFileSync } from "node:child_process";
 
 const email = process.env.PLAYWRIGHT_EMAIL;
 const password = process.env.PLAYWRIGHT_PASSWORD;
@@ -34,8 +35,14 @@ for (const layout of layouts) {
       theme: await profile.locator('[name="theme"]').inputValue(),
     };
     await profile.locator('[name="theme"]').selectOption(layout.theme);
+    await profile.locator('[name="locale"]').selectOption("");
     await profile.getByRole("button", { name: /save/i }).click();
     await expect(page).toHaveURL(/saved=1/);
+    await expect(page).toHaveScreenshot(`account-${layout.name}.png`, {
+      animations: "disabled",
+      fullPage: true,
+      mask: [profile.locator('[name="display_name"]')],
+    });
 
     try {
       for (const [path, heading] of [
@@ -113,6 +120,7 @@ test.describe("account forms without JavaScript", () => {
 });
 
 test("session can be revoked from its ordinary form", async ({ browser, page }) => {
+  test.setTimeout(60_000);
   await signIn(page);
   const secondContext = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL });
   try {
@@ -123,6 +131,35 @@ test("session can be revoked from its ordinary form", async ({ browser, page }) 
     await revoke.getByRole("button").click();
     await expect(page).toHaveURL(/revoked=1/);
     await expect(page.getByRole("status")).toContainText("Session revoked");
+  } finally {
+    await secondContext.close();
+  }
+});
+
+test("expired session is rejected and shown in the session list", async ({ browser, page }) => {
+  test.setTimeout(60_000);
+  await signIn(page);
+  const secondContext = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL });
+  try {
+    const secondPage = await secondContext.newPage();
+    await signIn(secondPage);
+    const sql = `UPDATE sessions SET expires_at = strftime('%Y-%m-%dT%H:%M:%fZ','now','-1 minute')
+      WHERE id = (
+        SELECT s.id FROM sessions s JOIN users u ON u.id = s.user_id
+        WHERE u.email = 'playwright@example.com' AND s.revoked_at IS NULL
+        ORDER BY s.created_at DESC LIMIT 1
+      );`;
+    execFileSync("sqlite3", ["-batch", "-bail", process.env.PLAYWRIGHT_SQLITE_PATH, sql], {
+      env: { PATH: process.env.PATH },
+      stdio: "pipe",
+    });
+
+    await secondPage.goto("/account");
+    await expect(secondPage).toHaveURL(/\/login(?:\?|$)/);
+    await page.goto("/sessions");
+    const expired = page.locator(".session-card").filter({ hasText: "Expired" });
+    await expect(expired).toBeVisible();
+    await expect(expired.locator('form[action^="/sessions/"]')).toHaveCount(0);
   } finally {
     await secondContext.close();
   }

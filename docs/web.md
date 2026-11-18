@@ -126,8 +126,10 @@ Baseline browser surfaces:
   localized status and revocation feedback. CSRF-protected forms revoke any
   active session, including the current one; revoking the current session sends
   the browser to sign-in on its next request. The page shows a localized empty
-  state and retains the ordinary form fallback. `/security` manages MFA factors
-  and starts reauthenticated OIDC linking.
+  state and retains the ordinary form fallback. The browser test covers expired
+  session rejection and status, plus active-session revocation:
+  `scripts/playwright/account.spec.mjs`. `/security` manages MFA factors and
+  starts reauthenticated OIDC linking.
 - `/account` edits profile preferences, changes a local password, requests email
   verification, and deletes the account after current-password reauthentication
   and an explicit confirmation checkbox. The server rejects deletion without

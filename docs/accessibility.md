@@ -50,9 +50,10 @@ persistence, session revocation feedback, and account deletion's required
 confirmation with JavaScript disabled. Password recovery and invitation
 acceptance have separate Playwright suites. The repeatable `test:a11y` runner
 covers setup, sign-in, MFA, verification, recovery, account, language, security,
-sessions, public share, and MCP consent. These automated checks do not replace
-manual assistive-technology review; account screenshot baselines and expired
-session browser fixtures remain uncovered.
+sessions, public share, and MCP consent. Account screenshot baselines cover
+desktop/mobile and light/dark themes. The browser suite expires an isolated
+session, verifies rejection on its next request, and checks its listed status.
+These automated checks do not replace manual assistive-technology review.
 
 ## Manual checklist
 
