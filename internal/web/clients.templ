@@ -23,6 +23,9 @@ templ clientDetailPage(data pageData) {
 		@pageHeading(data.Client.DisplayName, data.T("clients.title")) {
 			<div class="actions client-page-actions">
 				<a class="btn btn-ghost" href={ data.CurrentPath }>{ data.T("clients.back") }</a>
+				if data.CanManageFields {
+					<a class="btn btn-ghost" href={ data.FieldsPath }>{ data.T("clients.fields_link") }</a>
+				}
 			</div>
 		}
 		@clientDetail(data)

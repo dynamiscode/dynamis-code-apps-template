@@ -339,8 +339,10 @@ func (h *Handler) renderClientDetail(
 		Title: client.DisplayName, ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		NavPage: "clients", NavSection: "clients",
-		CurrentPath: h.clientsPath(workspaceID),
-		Client:      client, ClientValues: rows, CanEditClients: principal.Permissions[identity.ResourcesWrite],
+		CurrentPath:     h.clientsPath(workspaceID),
+		FieldsPath:      h.clientFieldsPath(workspaceID),
+		CanManageFields: principal.Permissions[identity.WorkspaceUpdate],
+		Client:          client, ClientValues: rows, CanEditClients: principal.Permissions[identity.ResourcesWrite],
 		CanDeleteClients: principal.Permissions[identity.WorkspaceUpdate],
 	})
 }
