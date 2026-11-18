@@ -1118,6 +1118,17 @@ are visible next to their controls, including without JavaScript.
 - Not run: full `make verify`; this ticket's web, lint, and accessibility checks
   passed.
 
+## Account route templ migration evidence (#407)
+
+- Verified `/account`, `/settings/language`, `/notifications` and recipient SSE,
+  `/sessions`, and `/security` use generated templ renderers, including their
+  error and lifecycle states. Removed the unused `account.html` dispatcher case;
+  no account-family `html/template` caller remains.
+- Route-family browser evidence: `scripts/playwright/account.spec.mjs` and
+  `scripts/playwright/notifications.spec.mjs`; route behavior tests are in
+  `internal/web/handler_test.go` and `internal/web/notifications_test.go`.
+  Inventory: [web route migration inventory](web.md#rendering-migration-inventory).
+
 ## Client custom-field templ migration evidence (2026-11-17)
 
 Issue #441 migrates `/workspaces/{workspaceId}/client-fields` to generated
