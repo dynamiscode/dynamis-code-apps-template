@@ -64,3 +64,29 @@ func TestWebThemePreferenceAppliesToFirstPaint(t *testing.T) {
 		t.Fatalf("invalid cookie should fall back to system: %s", invalid.Body.String())
 	}
 }
+
+func TestAccountAndLanguageStatesRenderAcrossLocalesAndThemes(t *testing.T) {
+	handler, auth, _, _, owner := testWeb(t, 10)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+
+	for _, locale := range []string{"en", "es"} {
+		for _, theme := range []string{"light", "dark", "system"} {
+			if err := auth.UpdateUserProfile(context.Background(), owner.UserID, identity.ProfileUpdateInput{
+				DisplayName: "Owner", Locale: locale, Timezone: "UTC", Theme: theme,
+			}, identity.AuditContext{}); err != nil {
+				t.Fatal(err)
+			}
+			for _, path := range []string{"/account", "/settings/language"} {
+				response := request(handler, http.MethodGet, path, nil, cookies, nil)
+				if response.Code != http.StatusOK || response.Header().Get("Content-Language") != locale ||
+					!strings.Contains(response.Body.String(), `data-theme="`+theme+`"`) || !hasHTMLRootLang(response.Body.String(), locale) {
+					t.Fatalf("%s locale=%s theme=%s: status=%d language=%q", path, locale, theme, response.Code, response.Header().Get("Content-Language"))
+				}
+			}
+		}
+	}
+}

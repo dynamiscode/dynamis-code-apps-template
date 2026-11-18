@@ -21,8 +21,11 @@ dated section; past dated sections are never rewritten, because each is a record
 of what was verified on its date.
 
 The [UI measurement method and asset inventory](ui-measurement.md) records the
-baseline environment and remaining screen measurements for issue #439. It does
-not establish performance budgets or claim screen measurements are complete.
+baseline environment, screen inventory, home observation and remaining screen
+measurements for issue #439. [Administration evidence](ui-measurement-admin.md)
+records settings and data-management observations; [identity evidence](ui-measurement-identity.md)
+records account, authentication and public-screen observations. These establish
+no performance budgets and do not claim screen measurements are complete.
 The [workspace journey evidence](ui-measurement-workspace.md) records request,
 transfer, timing, mutation, loading and failure observations for issue #447,
 with unavailable metrics and states marked explicitly.
@@ -63,7 +66,7 @@ durable production data and records its deployment-specific evidence.
 |---|---|---:|---|---|
 | Purpose, modular-monolith boundaries, scaling path | bootstrap, recurring | 01 | conforming | [Architecture](architecture.md), [composition test](../internal/bootstrap/app_test.go) |
 | Optional WebMCP browser enhancement | triggered, recurring | 04, 07 | conforming | [WebMCP contract](web.md#webmcp-progressive-enhancement), [browser test](../internal/web/handler_test.go), [smoke](../scripts/webmcp-smoke.sh) |
-| Browser baseline surfaces | bootstrap, recurring | 02, 04, 06 | conforming | [Web routes and controls](web.md), [browser tests](../internal/web/handler_test.go) |
+| Browser baseline surfaces | bootstrap, recurring | 02, 04, 06 | conforming | [Web routes and controls](web.md), [route handler tests](../internal/web/handler_test.go), [members and invitation browser journeys](../scripts/playwright/members.spec.mjs), [workspace administration and data journeys](../scripts/playwright/workspace-admin-data.spec.mjs) |
 | English/Spanish browser and invitation localization | bootstrap, recurring | 02, 04, 06 | conforming | [Localization contract](web.md#localization), [catalog tests](../internal/i18n/i18n_test.go), [identity tests](../internal/identity/locale_test.go), [web tests](../internal/web/handler_test.go) |
 | Light, dark, and system appearance | bootstrap, recurring | 02, 04, 06 | conforming | [Theme contract](web.md#theme), [theme tests](../internal/web/theme_test.go), [web tests](../internal/web/handler_test.go) |
 | REST and optional Agent MCP/remote CLI interfaces | bootstrap, recurring | 03-05, 09 | conforming | REST: [OpenAPI](../api/openapi.json), [HTTP contracts](../internal/httpapi/handler_test.go), [SCIM contracts](../internal/httpapi/scim_test.go); [MCP tests](../internal/mcpserver/server_test.go); [CLI tests](../internal/appctl/run_test.go) |
@@ -72,7 +75,7 @@ durable production data and records its deployment-specific evidence.
 | Built-in MCP OAuth authorization server | bootstrap, recurring | 05 | implemented behind `MCP_OAUTH_ENABLED`; expired-record pruning and accessibility-smoke evidence pending | [decision 0008](decisions/0008-built-in-mcp-authorization-server.md), [MCP OAuth](mcp.md#built-in-authorization-server), `internal/identity/mcp_oauth_test.go`, `internal/mcpserver/oauth_token_test.go`, [configuration tests](../internal/platform/config/config_test.go) |
 | Permissions, roles, workspaces, invitations, sessions, tokens, SCIM provisioning, account lifecycle, preferences, and notifications service | bootstrap, recurring | 02, 09 | conforming | [Authorization and lifecycle tests](../internal/identity/service_test.go), [SCIM lifecycle tests](../internal/identity/scim_test.go), [account and notification tests](../internal/identity/account_notification_test.go), [PostgreSQL identity test](../internal/identity/postgres_test.go) |
 | SQLite, PostgreSQL, migrations, and rolling compatibility | bootstrap, recurring | 01, 06 | conforming | [Database tests](../internal/platform/database/migrate_test.go), [PostgreSQL tests](../internal/platform/database/postgres_test.go), [upgrade procedure](operations.md#upgrades-and-alerts) |
-| Data governance, portability, deletion, archive, restoration, account retention, and import | bootstrap, operational | 06, 07 | conforming | [Data lifecycle](data-lifecycle.md), [import/export tests](../internal/portability/service_test.go), [item lifecycle tests](../internal/items/service_test.go), [account tests](../internal/identity/account_notification_test.go), [retention tests](../internal/platform/maintenance/maintenance_test.go), [demo seed](../cmd/demo/main.go) |
+| Data governance, portability, deletion, archive, restoration, account retention, and import | bootstrap, operational | 06, 07 | conforming | [Data lifecycle](data-lifecycle.md), [import/export service tests](../internal/portability/service_test.go), [web import safeguards](../internal/web/handler_test.go), [import/export browser journey](../scripts/playwright/workspace-admin-data.spec.mjs), [item lifecycle tests](../internal/items/service_test.go), [account tests](../internal/identity/account_notification_test.go), [retention tests](../internal/platform/maintenance/maintenance_test.go), [demo seed](../cmd/demo/main.go) |
 | Per-user workspace list-column visibility preferences | triggered, recurring | 04 | partial | [Preference service tests](../internal/listprefs/service_test.go), [migration](../internal/platform/database/migrations/000026_list_column_preferences.sql); list-specific defaults and UI integration are delivered with each list migration. |
 | Configuration and secrets | bootstrap, recurring | 01 | conforming | [Configuration](configuration.md), [validation tests](../internal/platform/config/config_test.go), safe `.env.example` |
 | HTTP limits, request IDs, timeouts, headers, and abuse controls | bootstrap, recurring | 03 | conforming | [HTTP component tests](../internal/httpapi/handler_test.go), [configuration](configuration.md) |
@@ -83,11 +86,11 @@ durable production data and records its deployment-specific evidence.
 | Realtime delivery | bootstrap, recurring | 04 | conforming | [SSE contract](web.md#realtime-contract), [scope/reconnect/heartbeat/limit tests](../internal/web/handler_test.go) |
 | Quotas and resource limits | bootstrap, operational | 06 | conforming | [Limit tests](../internal/httpapi/handler_test.go), [session tests](../internal/identity/service_test.go), [resource limits](operations.md#health-telemetry-and-limits) |
 | Audit events | bootstrap, recurring | 02, 04, 06 | conforming | [Identity audit tests](../internal/identity/audit_test.go), [browser audit tests](../internal/web/handler_test.go), [retention tests](../internal/platform/maintenance/maintenance_test.go), [access/deletion rules](data-lifecycle.md), [decision](decisions/0006-workspace-audit-history.md) |
-| Workspace webhooks | triggered, recurring | 08-09 | conforming | [Decision](decisions/0004-webhooks.md), [REST contract](api.md#webhooks), [browser contract](web.md), [service tests](../internal/webhooks/service_test.go), [browser tests](../internal/web/webhooks_test.go), [operations](operations.md#webhook-delivery) |
+| Workspace webhooks | triggered, recurring | 08-09 | conforming | [Decision](decisions/0004-webhooks.md), [REST contract](api.md#webhooks), [browser contract](web.md), [service tests](../internal/webhooks/service_test.go), [handler lifecycle and delivery-redaction tests](../internal/web/webhooks_test.go), [no-key browser guard](../scripts/playwright/workspace-admin-data.spec.mjs), [operations](operations.md#webhook-delivery) |
 | Background jobs | triggered, recurring | 09 | conforming | [Decision](decisions/0005-background-jobs.md), [queue tests](../internal/jobs/queue_test.go), [migration](../internal/platform/database/migrations/000010_background_jobs.sql), [operations](operations.md#health-telemetry-and-limits) |
 | Bounded public Item sharing | triggered, recurring | 09 | conforming | [Decision](decisions/0005-public-sharing.md), [web contract](web.md), [sharing tests](../internal/sharing/service_test.go), [browser tests](../internal/web/handler_test.go), [lifecycle](data-lifecycle.md) |
 | Backup, restore, upgrades, RPO, and RTO | operational | 06 | conforming | [SQLite/PostgreSQL restore tests](../internal/platform/backup/backup_test.go), [operator procedures](operations.md#backup-and-restore) |
-| WCAG 2.2 AA accessibility | bootstrap, recurring | 04, 07 | conforming | [Automated runner](../scripts/accessibility.mjs), [dated automated and manual evidence](accessibility.md) |
+| WCAG 2.2 AA accessibility | bootstrap, recurring | 04, 07 | conforming | [Automated runner](../scripts/accessibility.mjs), [dated automated and manual evidence](accessibility.md), including workspace admin and data routes |
 | Containers and deployment | bootstrap, operational | 07 | conforming | Pinned [image](../Dockerfile), [SQLite Compose](../compose.yaml), [PostgreSQL overlay](../compose.postgres.yaml), [smoke](../scripts/docker-smoke.sh), and [deployment contract](deployment.md) |
 | CI, source security, container SBOM | operational | 07 | conforming | [CI](../.github/workflows/ci.yml), [source security workflow](../.github/workflows/source-security.yml), [dependency monitoring](../.github/dependabot.yml), [Scorecard](../.github/workflows/scorecard.yml) |
 | MIT licensing, SPDX metadata, dependency attribution, and generated-repository governance | bootstrap, recurring | 07 | conforming | [Governance](governance.md), [SUPPORT](../SUPPORT.md), [LICENSE](../LICENSE), and [handoff test](../internal/conformance/handoff_test.go) |
@@ -1209,6 +1212,22 @@ strings cover the changed screens.
   journeys, including account and security; zero axe violations.
 - Not run: full `make verify`; no authentication policy, schema, or API changes.
 
+## Account profile, preferences, language, and appearance evidence (#442)
+
+The `/account` and `/settings/language` templ pages render with the saved
+English or Spanish locale and light, dark, or system theme. Existing handler
+checks cover successful profile and notification preference saves, invalid
+profile and language submissions without overwriting saved values, and
+automatic language fallback. A focused rendering matrix covers both routes in
+all six locale/theme combinations.
+
+- Passed: `go test ./internal/web ./internal/i18n -count=1`,
+  `npm run test:unit`, `make templ-check`, and `make css-check`.
+- Blocked: `make lint` and `make test` stop at the existing broken relative
+  Markdown link in `docs/htmx-review-438.md`.
+- Not run: `npm run typecheck` and `npm run test`; `package.json` defines
+  neither script.
+
 ## Session list and revocation UI evidence (#445, 2026-11-16)
 
 Ticket #445 migrates `/sessions` to the generated templ account layout. The
@@ -1370,3 +1389,165 @@ continues to enforce owner/admin management and owner-only transfer.
   test shim. It verified the tool prepares and focuses the existing form and
   does not submit it; native-browser WebMCP integration remains unverified.
 - Passed: `go generate ./internal/web` with zero generated drift.
+
+## UI performance baseline evidence (#439, 2026-11-17)
+
+- Measured one cold and warm workspace-home navigation and cold/warm settings,
+  provisioning, webhooks, audit, import, export and delivery navigation on
+  commit `1c2ff7f59d106988976daf1370e52463f60d0896` using isolated synthetic
+  SQLite fixtures, Chrome 157.0.8103.79, Playwright 1.64.1 and an unthrottled
+  loopback server. Full values and boundaries are in
+  [UI measurement](ui-measurement.md) and
+  [administration measurement](ui-measurement-admin.md).
+- Measured selected warm audit-fragment, import-preview and export interactions.
+  Export wire bytes are unavailable; CDP reported a transport failure although
+  Playwright completed a local download. One cold favicon 404 appeared on each
+  measured navigation; no fix is claimed.
+- Partial: Items, Clients, Files, members/invitations, account/security,
+  sessions/notifications, setup/login/MFA/recovery and public share have
+  behavior tests but no performance measurements. State coverage remains
+  incomplete for measured routes too. Both docs list unverified states and
+  current route-ticket owners.
+- No performance budget or optimization was proposed from one observation per
+  cache condition. Per-resource attribution, HTTP compression, upload wire
+  bytes, SSE, loading durations, and repeated-run variance remain unmeasured.
+
+## UI performance baseline rerun (#439, 2026-11-18)
+
+- Repeated workspace-home and administration measurements on
+  `d47ad87eab45db60315310a662e3d57d46a91e4e` with isolated SQLite fixtures.
+  Updated values and exact commands are in
+  [UI measurement](ui-measurement.md) and
+  [administration measurement](ui-measurement-admin.md).
+- All cold navigations again reported a favicon 404. Export completed to a
+  local file, but transfer bytes remained unavailable. These observations do
+  not add per-resource attribution, loading-state timings, or repeated-run
+  distributions.
+- Route inventory and incomplete state coverage remain as documented above.
+  No performance budgets or fixes are proposed from single samples.
+- `go test ./...` passed (1070 tests in 37 packages). `npm run typecheck` and
+  `npm run test` are unavailable because neither script is defined.
+
+## UI baseline verification follow-up (#439, 2026-11-18)
+
+- On `20aa17caf09d99acb0bc8b3cd69b9e7fb322fb63`, `npm run test:unit` passed
+  (39 tests). The requested `npm run typecheck` and `npm run test` scripts are
+  still undefined.
+- The full Go suite was not rerun: `SANDCASTLE_VERIFY` is unset in this
+  worktree, so the required verification wrapper is unavailable. The previous
+  recorded `go test ./...` result remains the latest Go evidence.
+- Issue #439 remains partial. The route and state gaps, unavailable wire-byte
+  metrics, and no-budget decision remain as recorded above.
+
+## UI identity measurement evidence (#439, 2026-11-18)
+
+- Reused the isolated #449 account, authentication and public-screen evidence
+  in [identity measurement](ui-measurement-identity.md). It records cold/warm
+  navigation for setup, login, password recovery, account, security, sessions,
+  notifications and unavailable public share, plus invalid-login and password
+  recovery feedback timings.
+- The evidence remains partial: MFA challenge and enrollment, valid public
+  share, consent, session revocation, notification delivery, and additional
+  validation/error/permission states remain unmeasured. No budget is proposed.
+- `npm run test:journeys` passed 112 tests with 2 skipped on this issue branch.
+  This is behavior evidence only. The reproducible identity measurement command
+  is `UI_MEASURE=identity ./scripts/playwright-smoke.sh`; the home baseline uses
+  `UI_MEASURE=1`. Coverage gaps and the no-budget decision remain in
+  [identity measurement](ui-measurement-identity.md).
+
+## UI core list measurement evidence (#439, 2026-11-18)
+
+- Added `UI_MEASURE=core ./scripts/playwright-smoke.sh` for reproducible cold
+  and warm empty Items, Clients and Files navigation, synthetic Item creation,
+  and empty-title browser validation. One run passed on commit
+  `4492d2c86536e6f528c7bb9a73287d568ee081ff`; exact values and conditions are
+  in [UI measurement](ui-measurement.md).
+- Cold list navigations each reported the favicon 404. Items and Clients had
+  one unfinished live stream per navigation. The single run sets no budget.
+- Populated states, Item edit/server validation, Client detail, member and
+  invitation flows, upload/download transfer, permission/no-JavaScript states,
+  and repeated-run variance remain unmeasured. Issue #439 remains partial.
+
+## UI measurement rerun on issue branch (#439, 2026-11-18)
+
+- Repeated core, administration, and identity isolated Playwright measurements
+  on `132086464fa822f5b2510de4eb061ec3317d5fc5`. Exact commands, current
+  interaction results, environment, and known limitations are recorded in the
+  linked [UI measurement](ui-measurement.md), [administration evidence](ui-measurement-admin.md),
+  and [identity evidence](ui-measurement-identity.md).
+- Cold navigations again reported a favicon 404. Export transfer bytes remain
+  unavailable; measured states remain partial. No budgets or fixes are claimed.
+- `npm run typecheck` and `npm run test` are undefined. `SANDCASTLE_VERIFY` is
+  unset, so required wrapped full-suite checks were unavailable. Issue #439
+  remains partial; uncovered routes and state gaps are mapped in the evidence.
+
+## UI members and invitations measurement (#439, 2026-11-18)
+
+- Added `UI_MEASURE=members ./scripts/playwright-smoke.sh` for cold/warm
+  Members and Invitations navigation and synthetic invitation creation.
+  One isolated run passed; exact counts and timings are in
+  [UI measurement](ui-measurement.md).
+- The cold pages again reported one favicon 404. The invitation URL stayed in
+  the browser and was not emitted. Member changes, acceptance and failure,
+  permission and no-JavaScript states remain unmeasured. No budget is proposed.
+- `npm run test:unit` passed 39 tests. `npm run typecheck` and `npm run test`
+  are undefined. `SANDCASTLE_VERIFY` is unset, so wrapped full suites could not
+  run. Issue #439 remains partial.
+
+## UI baseline current follow-up (#439, 2026-11-18)
+
+- Repeated the isolated members/invitations runner on
+  `9fc03f2c6312086167949344bd97d91c837a3a20`; cold/warm navigation and
+  invitation-creation values are recorded in [UI measurement](ui-measurement.md).
+- The same-commit core runner reached upload but Chrome closed the page before
+  observing its POST. No aggregate results were emitted; upload metrics remain
+  unavailable and the failure needs diagnosis.
+- `npm run test:unit` passed 39 tests and `git diff --check` passed. The
+  requested npm `typecheck` and `test` scripts are undefined. `SANDCASTLE_VERIFY`
+  is unset, so wrapped full-suite checks could not run. Issue #439 remains
+  partial; route, state and transfer-metric gaps remain in the evidence.
+
+## UI upload measurement follow-up (#439, 2026-11-18)
+
+- Fixed the core measurement locator to target the upload submit button. The
+  isolated 256 KiB upload returned 303 with 7 requests, 128,354 encoded bytes,
+  1 redirect, zero transport failures and 89.6 ms feedback. Exact environment,
+  command and list observations are in [UI measurement](ui-measurement.md).
+- Upload failure, progress timing, download transfer, permission and
+  no-JavaScript performance states remain unmeasured. Issue #439 remains
+  partial; no budget or product fix is claimed.
+- Passed: `node --check scripts/ui-measurement-core.mjs`,
+  `npm run test:unit` (39 tests), and `git diff --check`. The required
+  `npm run typecheck` and `npm run test` scripts are undefined, and
+  `SANDCASTLE_VERIFY` is unset, so wrapped full-suite checks are unavailable.
+
+## UI upload request-body measurement (#439, 2026-11-18)
+
+- The core runner now measures the synthetic upload request-body size through
+  CDP and keeps it separate from completed response bytes. It stores and emits
+  no request headers or payloads. Evidence and exact run conditions are in
+  [UI measurement](ui-measurement.md).
+- On `e4302a4e831dd384bd65aa199530a7784c1f5ef2`, a 256 KiB upload returned
+  303 with 262,477 request-body bytes, 128,354 completed response bytes, 7
+  requests, 1 redirect and 83.2 ms feedback. These are body bytes, not full
+  wire bytes, and one observation sets no budget.
+- `npm run test:unit` passed 40 tests; syntax checks and `git diff --check`
+  passed. Requested `npm run typecheck` and `npm run test` scripts are absent.
+  `SANDCASTLE_VERIFY` is unset, so wrapped full suites were unavailable. Issue
+  #439 remains partial; download bytes, upload failure/progress, and route/state
+  coverage remain open.
+
+## UI Item edit measurement (#439, 2026-11-18)
+
+- Extended the isolated core runner to edit its synthetic Item and record
+  request count, response bytes, request-body bytes, status and feedback time.
+  One run returned 200 with one request, 7,273 completed encoded response
+  bytes, 119 request-body bytes and 42.2 ms feedback. Full conditions and
+  limitations are in [UI measurement](ui-measurement.md). No budget is set.
+- Client detail, populated and failure states, permission/no-JavaScript
+  coverage, download transfer bytes and other route/state gaps remain. Issue
+  #439 remains partial.
+- `node --check scripts/ui-measurement-core.mjs`, isolated core measurement,
+  `npm run test:unit` (40 tests), and `git diff --check` passed. The requested
+  `npm run typecheck` and `npm run test` scripts are absent. `SANDCASTLE_VERIFY`
+  is unset, so wrapped full-suite checks are unavailable.

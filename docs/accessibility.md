@@ -1,7 +1,7 @@
 # Accessibility Evidence
 
 Standard: WCAG 2.2 Level AA  
-Review date: 2026-11-16
+Review date: 2026-11-17
 Owner: template maintainer
 
 ## Result
@@ -52,6 +52,23 @@ both locales, verifies the named upload progress control, and checks 320
 CSS-pixel reflow. `make ux-smoke` creates a client, defines a choice field, and
 enters a value.
 
+### Workspace journeys — issue #451
+
+The Playwright suite covers workspace home and Items screenshots at desktop and
+mobile widths in light and dark themes with reduced motion. Workspace home has
+an axe scan. Items covers creation, edit validation, deletion conflict,
+sharing creation and revocation, Spanish labels, theme preference, browser
+history, and ordinary form submission without JavaScript. Files has separate
+screenshots, axe and keyboard checks, upload failure and retry, read-only
+permissions, and ordinary upload and filter forms. Existing Clients tests
+cover custom fields and client validation. Run `make browser-smoke` against its
+disposable server to execute journey checks.
+
+These are automated browser checks, not manual verification of every state
+across every locale, viewport, theme, and permission. The complete matrix and
+screen-reader behavior remain gaps; axe does not replace manual assistive
+technology review.
+
 ## Manual checklist
 
 | Check | Result | Evidence |
@@ -87,6 +104,27 @@ without horizontal overflow, and the workspace menu stays within the viewport. T
 reports connecting, connected, reconnecting, or unavailable realtime states;
 permanent deletion, member removal, ownership transfer, account deletion, and
 every revoke confirm before submission when scripting is available.
+
+## Workspace administration and data evidence 2026-11-17
+
+`make accessibility-smoke` passed for English and Spanish. The runner reported
+zero critical or serious axe violations on members, invitations, general and
+credential settings, webhooks, SCIM provisioning, audit history, import, and
+import preview. It also checks keyboard order, reduced motion, accessible names,
+and import reflow at 320 CSS pixels. Settings Playwright coverage checks both
+locales, light and dark themes, desktop and mobile screenshots, keyboard access,
+and no-JavaScript form validation.
+
+The full `scripts/playwright/workspace-admin-data.spec.mjs` journey passed with
+JavaScript disabled for export, invalid-import diagnostics, read-only preview,
+explicit file reselection and confirmation, and successful import. It also
+checks that token secrets disappear on a later GET, audit history has no forms,
+and missing webhook encryption configuration disables creation accessibly.
+Webhook create/rotate, one-time secret redaction, delivery history redaction,
+CSRF, and owner/member/workspace permission checks remain covered by
+[`webhooks_test.go`](../internal/web/webhooks_test.go). Browser create/rotate and
+delivery runs with an encryption key remain unverified by the disposable
+Playwright fixture, which starts without one.
 
 Optional WebMCP preparation uses the same visible controls and focus ring as
 ordinary keyboard interaction. `make webmcp-smoke` verifies focus after native

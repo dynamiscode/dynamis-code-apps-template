@@ -1,120 +1,99 @@
 package web
 
-import (
-	"fmt"
-	"strings"
-)
-
-func (p pageData) mfaTOTPStatus() string {
-	if p.MFAStatus.TOTPEnabled {
-		return p.T("security.mfa_enabled")
-	}
-	return p.T("security.mfa_not_enabled")
-}
+import "strings"
 
 templ securityPage(data pageData) {
-	<!doctype html>
-	<html lang={ data.Locale } data-theme={ data.Theme }>
-		<head>
-			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width,initial-scale=1"/>
-			<title>{ data.T("security.security") } · { data.T("common.product_name") }</title>
-			<link rel="stylesheet" href="/assets/components.css"/>
-			<link rel="stylesheet" href="/assets/app.css"/>
-			@uiHead(data)
-			<script src="/assets/mfa.js" defer></script>
-		</head>
-		<body>
-			@skipLink(data)
-			<header class="topbar">
-				<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
-				<div class="topbar-context">@workspaceListCrumb(data)<span>{ data.T("common.account") }</span></div>
-				@accountMenu(data)
+	@dashboardShell(data, accountHeader(data), nil) {
+		<div class="account-page" data-account-page aria-labelledby="security-heading">
+			<header class="account-heading">
+				<p class="eyebrow">{ data.T("common.account") }</p>
+				<h1 id="security-heading">{ data.T("security.security") }</h1>
+				<p class="account-intro">{ data.T("security.description") }</p>
 			</header>
-			<main class="account-page" id="main" data-account-page>
-				<header class="account-heading">
-					<p class="eyebrow">{ data.T("common.account") }</p>
-					<h1>{ data.T("security.security") }</h1>
-					<p class="account-intro">{ data.T("security.description") }</p>
-				</header>
-				if data.Error != "" {
-					@errorAlert(data.Error)
-				}
-				if data.MFAError != "" {
-					@errorAlert(data.MFAError)
-				}
-				<section class="settings-panel" aria-labelledby="security-mfa-heading">
-					<h2 id="security-mfa-heading">{ data.T("security.mfa_title") }</h2>
-					<p>{ data.T("security.mfa_description") }</p>
-					if data.MFAStatus.Enabled {
-						<p>{ data.T("security.mfa_passkeys") }: { fmt.Sprint(data.MFAStatus.PasskeyCount) } · { data.T("security.mfa_authenticator") }: { data.mfaTOTPStatus() } · { data.T("security.mfa_recovery_remaining") }: { fmt.Sprint(data.MFAStatus.RecoveryRemain) }</p>
-						<form id="passkey-enroll" action="/api/v1/auth/mfa/passkeys/register/options" method="post">
-							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							@textField("passkey-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
-							@submitButton(data.T("security.mfa_add_passkey"), nil)
-						</form>
-						if !data.MFAStatus.TOTPEnabled {
-							<form action="/security/totp/start" method="post">
-								<input type="hidden" name="csrf" value={ data.CSRF }/>
-								@textField("totp-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
-								@submitButton(data.T("security.mfa_setup_authenticator"), nil)
-							</form>
-						} else {
-							<form action="/security/totp/remove" method="post">
-								<input type="hidden" name="csrf" value={ data.CSRF }/>
-								@textField("remove-totp-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
-								@confirmButton(data.T("security.mfa_remove_authenticator"), data.T("security.mfa_remove_authenticator"), templ.Attributes{"class": "btn btn-error danger"})
-							</form>
-						}
-						for _, passkey := range data.Passkeys {
-							if passkey.RevokedAt == nil {
-								<form action={ "/security/passkey/" + passkey.ID } method="post">
-									<input type="hidden" name="csrf" value={ data.CSRF }/>
-									@textField("remove-"+passkey.ID, data.T("security.mfa_password_optional")+" — "+passkey.Name, templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
-									@confirmButton(data.T("security.mfa_remove_passkey"), data.T("security.mfa_remove_passkey"), templ.Attributes{"class": "btn btn-error danger"})
-								</form>
-							}
-						}
-						if data.TOTPEnrollment != nil {
-							<p>{ data.T("security.mfa_setup_value") }: <code>{ data.TOTPEnrollment.Secret }</code></p>
-							<form action="/security/totp/complete" method="post">
-								<input type="hidden" name="csrf" value={ data.CSRF }/>
-								<input type="hidden" name="challenge" value={ data.TOTPEnrollment.Challenge }/>
-								@textField("totp-enrollment-code", data.T("security.mfa_authenticator_code"), templ.Attributes{"name": "code", "inputmode": "numeric", "autocomplete": "one-time-code", "minlength": "6", "maxlength": "9", "required": true, "data-mask": "digits", "data-mask-length": "6"})
-								@submitButton(data.T("security.mfa_confirm_authenticator"), nil)
-							</form>
-						}
-						if len(data.MFARecoveryCodes) > 0 {
-							<h3>{ data.T("security.mfa_recovery_codes") }</h3>
-							<p>{ data.T("security.mfa_store_recovery") } { data.T("security.mfa_each_recovery_once") }</p>
-							<pre>{ strings.Join(data.MFARecoveryCodes, "\n") + "\n" }</pre>
-						}
-						<div id="mfa-recovery-output" hidden>
-							<h3>{ data.T("security.mfa_recovery_codes") }</h3>
-							<p>{ data.T("security.mfa_store_recovery") } { data.T("security.mfa_each_recovery_once") }</p>
-							<pre id="mfa-recovery-values"></pre>
-						</div>
+			if data.Error != "" {
+				@errorAlert(data.Error)
+			}
+			if data.MFAError != "" {
+				@errorAlert(data.MFAError)
+			}
+			<section class="settings-panel" aria-labelledby="mfa-heading">
+				<h2 id="mfa-heading">{ data.T("security.mfa_title") }</h2>
+				<p>{ data.T("security.mfa_description") }</p>
+				if data.MFAStatus.Enabled {
+					<p>{ data.T("security.mfa_passkeys") }{ ": " }{ data.MFAStatus.PasskeyCount }{ " · " }{ data.T("security.mfa_authenticator") }{ ": " }
+					if data.MFAStatus.TOTPEnabled {
+						{ data.T("security.mfa_enabled") }
+					} else {
+						{ data.T("security.mfa_not_enabled") }
 					}
-				</section>
-				<section class="settings-panel" aria-labelledby="security-linked-identity-heading">
-					<h2 id="security-linked-identity-heading">{ data.T("security.linked_identity_title") }</h2>
-					<p>{ data.T("security.linked_identity_description") }</p>
-					if len(data.OIDCProviders) > 0 {
-						<form action="/security" method="post">
+					{ " · " }{ data.T("security.mfa_recovery_remaining") }{ ": " }{ data.MFAStatus.RecoveryRemain }</p>
+					<form id="passkey-enroll" action="/api/v1/auth/mfa/passkeys/register/options" method="post">
+						<input type="hidden" name="csrf" value={ data.CSRF }/>
+						@textField("passkey-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
+						@submitButton(data.T("security.mfa_add_passkey"), nil)
+					</form>
+					if !data.MFAStatus.TOTPEnabled {
+						<form action="/security/totp/start" method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							@selectField("provider", data.T("security.provider"), templ.Attributes{"name": "provider"}) {
-								for _, provider := range data.OIDCProviders {
-									<option value={ provider.ID }>{ provider.Name }</option>
-								}
-							}
-							@textField("reauth-password", data.T("security.password"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password", "required": true})
-							@submitButton(data.T("security.link"), nil)
+							@textField("totp-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
+							@submitButton(data.T("security.mfa_setup_authenticator"), nil)
 						</form>
 					} else {
-						<p>{ data.T("errors.no_oidc") }</p>
+						<form action="/security/totp/remove" method="post">
+							<input type="hidden" name="csrf" value={ data.CSRF }/>
+							@textField("remove-totp-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
+							@confirmButton(data.T("security.mfa_remove_authenticator"), data.T("security.mfa_remove_authenticator"), templ.Attributes{"class": "btn btn-error danger"})
+						</form>
 					}
-				</section>
-			</main>
-		</body>
-	</html>
+					for _, passkey := range data.Passkeys {
+						if passkey.RevokedAt == nil {
+							<form action={ "/security/passkey/" + passkey.ID } method="post">
+								<input type="hidden" name="csrf" value={ data.CSRF }/>
+								@textField("remove-"+passkey.ID, data.T("security.mfa_password_optional")+" — "+passkey.Name, templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
+								@confirmButton(data.T("security.mfa_remove_passkey"), data.T("security.mfa_remove_passkey"), templ.Attributes{"class": "btn btn-error danger"})
+							</form>
+						}
+					}
+					if data.TOTPEnrollment != nil {
+						<p>{ data.T("security.mfa_setup_value") }{ ": " }<code>{ data.TOTPEnrollment.Secret }</code></p>
+						<form action="/security/totp/complete" method="post">
+							<input type="hidden" name="csrf" value={ data.CSRF }/>
+							<input type="hidden" name="challenge" value={ data.TOTPEnrollment.Challenge }/>
+							@textField("totp-enrollment-code", data.T("security.mfa_authenticator_code"), templ.Attributes{"name": "code", "inputmode": "numeric", "autocomplete": "one-time-code", "minlength": "6", "maxlength": "9", "required": true, "data-mask": "digits", "data-mask-length": "6"})
+							@submitButton(data.T("security.mfa_confirm_authenticator"), nil)
+						</form>
+					}
+					if len(data.MFARecoveryCodes) > 0 {
+						<h3>{ data.T("security.mfa_recovery_codes") }</h3>
+						<p>{ data.T("security.mfa_store_recovery") }{ " " }{ data.T("security.mfa_each_recovery_once") }</p>
+						<pre>{ strings.Join(data.MFARecoveryCodes, "\n") + "\n" }</pre>
+					}
+					<div id="mfa-recovery-output" hidden>
+						<h3>{ data.T("security.mfa_recovery_codes") }</h3>
+						<p>{ data.T("security.mfa_store_recovery") }{ " " }{ data.T("security.mfa_each_recovery_once") }</p>
+						<pre id="mfa-recovery-values"></pre>
+					</div>
+				}
+			</section>
+			<section class="settings-panel" aria-labelledby="linked-identity-heading">
+				<h2 id="linked-identity-heading">{ data.T("security.linked_identity_title") }</h2>
+				<p>{ data.T("security.linked_identity_description") }</p>
+				if len(data.OIDCProviders) > 0 {
+					<form action="/security" method="post">
+						<input type="hidden" name="csrf" value={ data.CSRF }/>
+						@selectField("provider", data.T("security.provider"), templ.Attributes{"name": "provider"}) {
+							for _, provider := range data.OIDCProviders {
+								<option value={ provider.ID }>{ provider.Name }</option>
+							}
+						}
+						@textField("reauth-password", data.T("security.password"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password", "required": true})
+						@submitButton(data.T("security.link"), nil)
+					</form>
+				} else {
+					<p>{ data.T("errors.no_oidc") }</p>
+				}
+			</section>
+			<script src="/assets/mfa.js" defer></script>
+		</div>
+	}
 }

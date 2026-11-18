@@ -1193,24 +1193,20 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = authEmailVerification(data).Render(context.Background(), writer)
 		return
 	}
-	if name == "account.html" {
-		_ = accountPage(data).Render(context.Background(), writer)
-		return
-	}
 	if name == "sessions-page" {
 		_ = sessionsPage(data, data.CurrentSessionID, time.Now()).Render(context.Background(), writer)
 		return
 	}
-	if name == "security.html" {
+	if name == "security-page" {
 		_ = securityPage(data).Render(context.Background(), writer)
 		return
 	}
 	if name == "account-page" {
-		_ = accountPage(data).Render(context.Background(), writer)
+		_ = accountPageView(data).Render(context.Background(), writer)
 		return
 	}
-	if name == "language-settings-page" {
-		_ = languageSettingsPage(data).Render(context.Background(), writer)
+	if name == "language-page" {
+		_ = languageSettingsView(data).Render(context.Background(), writer)
 		return
 	}
 	if name == "members.html" {

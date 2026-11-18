@@ -89,6 +89,8 @@ Baseline browser surfaces:
   resources stop. Shared identity policy authorizes role changes and removals
   for owners/admins, and ownership transfer for owners only. The page exposes
   non-secret WebMCP form markers while leaving submission to the user.
+  Browser screenshots, no-JavaScript filtering, permissions, confirmations, and
+  locale coverage live in [the members Playwright suite](../scripts/playwright/members.spec.mjs).
 - `/workspaces/{workspaceId}/settings/invitations` creates, resends, revokes, and shows
   copyable links. `/invitations/{secret}` registers an invitee or starts existing-account
   sign-in through a CSRF-protected form. The server keeps only hashed, browser-bound
@@ -96,7 +98,8 @@ Baseline browser surfaces:
   `/invitations/continue`; the raw invitation secret stays out of redirects and logs.
   Acceptance rechecks invitation status, matches the signed-in email, and consumes the
   handoff atomically with membership creation. Invitation pages use `private, no-store`,
-  `no-referrer`, and `noindex` headers; forms work without JavaScript.
+  `no-referrer`, and `noindex` headers; forms work without JavaScript. Existing-account
+  acceptance without JavaScript is covered in [the invitation Playwright suite](../scripts/playwright/invitations.spec.mjs).
 - `/workspaces/{workspaceId}/settings/email` lets owners/admins save the workspace invitation sender, either SMTP, Resend, or Postmark. Saving runs a provider check first (an SMTP login test, a read-only Resend domain check, or a read-only Postmark server and domain check) and stores nothing on failure. The Resend and Postmark pages show setup steps and the sender domain status from the last save. The password or API key is never shown again, and a blank value keeps the stored one for the same provider. Members cannot view or change it.
 - `/workspaces/{workspaceId}/settings/tokens` manages current-user scoped tokens with
   CSRF-protected create and revoke forms. Creation shows its secret once; the
@@ -111,6 +114,10 @@ Baseline browser surfaces:
   checkbox; the handler rejects unconfirmed submissions. Webhook IDs in paths and forms are short IDs;
   a malformed, integer, or unknown ID shows the not-found page for the history
   view and a "could not be found" message for rotate and delete.
+  Browser and accessibility evidence, including the no-key guard, is recorded in
+  [accessibility evidence](accessibility.md#workspace-administration-and-data-evidence-2026-11-17);
+  lifecycle, permission, CSRF, and delivery-redaction behavior is covered by
+  [webhook handler tests](../internal/web/webhooks_test.go).
 - `/workspaces/{workspaceId}/settings/provisioning` is restricted to workspace
   owners and admins. It shows the workspace SCIM endpoint and setup instructions,
   creates or rotates the dedicated SCIM credential with its secret shown once,
@@ -132,11 +139,10 @@ Baseline browser surfaces:
   localized status and revocation feedback. CSRF-protected forms revoke any
   active session, including the current one; revoking the current session sends
   the browser to sign-in on its next request. The page shows a localized empty
-  state and retains the ordinary form fallback. `/security` renders with
-  `security.templ`, shared DaisyUI fields and alerts, and the account layout.
-  It retains ordinary passkey, TOTP, recovery, and reauthenticated OIDC-link
-  forms; removal uses progressive confirmation. Factor failures render focused
-  alerts, and one-time enrollment secrets appear only in their active states.
+  state and retains the ordinary form fallback. `/security` uses `security.templ`
+  and `security_templ.go` with the shared account layout to manage MFA factors,
+  recovery codes, passkey removal, and reauthenticated OIDC linking. Factor removal
+  uses progressive confirmation; one-time enrollment secrets appear only in their active states.
 - `/account` edits profile preferences, changes a local password, requests email
   verification, and deletes the account after current-password reauthentication
   and an explicit confirmation checkbox. The server rejects deletion without
@@ -183,9 +189,14 @@ Baseline browser surfaces:
   Duplicate titles remain separate new items. Both steps work without
   JavaScript and render through templ with shared form, table, and alert
   components. Errors report safe categories and bounded row diagnostics without
-  echoing file contents.
+  echoing file contents. Ordinary-form browser coverage for preview, no-write
+  behavior, confirmation, and export is in
+  [the workspace administration Playwright suite](../scripts/playwright/workspace-admin-data.spec.mjs).
 - `/workspaces/{workspaceId}/settings/audit` presents the authorized,
-  read-only latest-100 audit history with redacted fields.
+  read-only latest-100 audit history with redacted fields. Its permissions,
+  empty/success states, and browser accessibility are covered by
+  [audit handler tests](../internal/web/handler_test.go) and
+  [accessibility evidence](accessibility.md#workspace-administration-and-data-evidence-2026-11-17).
 - `/share/{token}` presents a read-only Item projection containing only title
   and localized status. Invalid, expired, and revoked links share the same
   unavailable page. The Items page lets principals with `resources:write`
@@ -349,14 +360,16 @@ accessibility results and remaining limits are recorded in
 | `/workspaces/{workspaceId}/settings/invitations`, `/invitations/{secret}`, `/invitations/{secret}/sign-in`, `/invitations/continue` | `invitations.templ`, `invitations_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Create/resend/revoke with explicit revoke confirmation; registration, account-matched acceptance, sign-in return through MFA/OIDC, invalid/expired/unavailable states; ordinary form fallback |
 | `/workspaces/{workspaceId}/settings/audit` | `audit.templ`, `audit_templ.go`, `components.templ`, `components_templ.go` | Scoped redacted history, lazy table fragment, empty state, ordinary `?all=1` fallback, permission denial and expired-session redirect |
 | `/sessions` | `sessions.templ`, `sessions_templ.go` | Current, active, expired and revoked status; revoke current or other active sessions; feedback and empty state |
-| `/account`, `/settings/language` | `account.templ`, `account_templ.go`, `components.templ`, `navigation.templ` | Profile, theme, language, notifications, email verification, password change, reauthenticated account deletion, saved/validation/delivery failure; ordinary CSRF-protected forms and password exclusion from drafts |
+| `/security` | `security.templ`, `security_templ.go`, shared account shell and form components | MFA enrollment/removal, recovery codes, passkey removal, linked identity with reauthentication, validation and failure feedback |
+| `/account`, `/settings/language` | `account.templ`, `account_templ.go`, `account_header.templ`, `components.templ` | Profile, theme, language, notifications, email verification, password change, reauthenticated account deletion, saved/validation/delivery failure; ordinary CSRF-protected forms and password exclusion from drafts |
 | Workspace files | `files.templ`, `workspace.templ`, `navigation.templ`, `components.templ` | Empty/results, filters, sort, saved columns and paging; read-only viewer list/download; write-authorized multipart upload progress/success/validation/failure with no-JavaScript fallback; authorized downloads |
 | `/workspaces/{workspaceId}/settings/general` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Workspace locale and notification preferences, empty and saved states, invalid input and permission handling |
 | `/workspaces/{workspaceId}/settings/email` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Unconfigured/configured provider, saved state, validation, provider verification failure, redacted credentials and permission handling |
 | `/notifications`, `/notifications/events` | `notifications.templ`, `notifications_templ.go` | Recipient-scoped list and unread count, empty state, CSRF-protected mark-read, initial cursor and SSE replay after reconnect |
 | `/security` | `security.templ`, `security_templ.go`, `components.templ`, `navigation.templ` | Factor enrollment, removal and recovery, provider linking, no-provider state, validation/failure alerts, one-time secret display; ordinary form fallback |
 | `/workspaces/{workspaceId}/settings/webhooks` and `/workspaces/{workspaceId}/settings/webhooks/{webhookId}/deliveries` | `webhooks.templ`, `webhooks_templ.go`, `components.templ`, `navigation.templ` | Permission-denied and unavailable states, one-time secret creation/rotation, required localized delete confirmation, no-store redacted delivery history, keyboard/accessibility, mobile light/dark themes, no-JS confirmation and ordinary form fallback |
-| Account and workspace settings | `account.templ`, `account_templ.go`, `credential_settings.templ`, `credential_settings_templ.go`, `security.html`, `navigation.html` | Account profile and language; settings validation, secret one-time display, integration setup and failure, responsive navigation |
+| `/account`, `/settings/language` | `account_pages.templ`, `account_pages_templ.go`, `components.templ`, `navigation.templ` | Profile, theme, language, notifications, email verification, password change, reauthenticated account deletion, saved/validation/delivery failure; ordinary CSRF-protected forms and password exclusion from drafts |
+| Workspace access and integration settings | `credential_settings.templ`, `credential_settings_templ.go`, `security.html`, `navigation.html` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |
 | `/workspaces/{workspaceId}/settings/export`, `/workspaces/{workspaceId}/settings/export/download`, `/workspaces/{workspaceId}/settings/import` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Authorized no-store export page and JSON download; import file selection, bounded preview, safe validation feedback, explicit multipart confirmation, and atomic result; ordinary form fallback |
 | Public and unavailable pages | `public-share.html`, `error.html` | Share projection and invalid/expired/revoked links, not-found and request errors |
 

@@ -1,17 +1,6 @@
 package web
 
-templ accountHeader(data pageData) {
-	<header class="topbar">
-		<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
-		<div class="topbar-context">
-			@defaultHomeCrumb(data)
-			<span>{ data.T("common.account") }</span>
-		</div>
-		@accountMenu(data)
-	</header>
-}
-
-templ accountPage(data pageData) {
+templ accountPageView(data pageData) {
 	<!doctype html>
 	<html lang={ data.Locale } data-theme={ data.Theme }>
 		<head>
@@ -147,7 +136,7 @@ templ accountPage(data pageData) {
 	</html>
 }
 
-templ languageSettingsPage(data pageData) {
+templ languageSettingsView(data pageData) {
 	<!doctype html>
 	<html lang={ data.Locale } data-theme={ data.Theme }>
 		<head>

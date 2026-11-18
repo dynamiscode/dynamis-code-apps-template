@@ -419,6 +419,16 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	if profile, err := auth.GetUserProfile(context.Background(), owner.UserID); err != nil || profile.DisplayName != "Owner" || profile.Timezone != "America/Bogota" || profile.Theme != "dark" {
 		t.Fatalf("profile = %+v, %v", profile, err)
 	}
+	invalidProfile := request(handler, http.MethodPost, "/account/profile", url.Values{
+		"csrf": {session.CSRFSecret}, "display_name": {"Owner"}, "locale": {"es"},
+		"timezone": {"Not/A_Timezone"}, "theme": {"dark"},
+	}, cookies, nil)
+	if invalidProfile.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidProfile.Body.String(), "La configuración de cuenta no es válida.") {
+		t.Fatalf("invalid profile = %d, %s", invalidProfile.Code, invalidProfile.Body.String())
+	}
+	if profile, err := auth.GetUserProfile(context.Background(), owner.UserID); err != nil || profile.Timezone != "America/Bogota" {
+		t.Fatalf("invalid profile changed saved timezone = %+v, %v", profile, err)
+	}
 	passwordMismatch := request(handler, http.MethodPost, "/account/password", url.Values{
 		"csrf": {session.CSRFSecret}, "new_password": {"a-new-password-1234"}, "password_confirmation": {"different-password-1234"},
 	}, cookies, nil)
@@ -430,6 +440,10 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	}, cookies, nil)
 	if preference.Code != http.StatusSeeOther {
 		t.Fatalf("notification preference status = %d", preference.Code)
+	}
+	preferences, err := auth.GetNotificationPreferences(context.Background(), owner.UserID, 0)
+	if err != nil || len(preferences) != 1 || preferences[0].NotificationType != "system" || preferences[0].Enabled {
+		t.Fatalf("saved notification preferences = %+v, %v", preferences, err)
 	}
 
 	notification, err := auth.CreateNotification(context.Background(), PrincipalSystem(), identity.NotificationInput{
@@ -712,6 +726,15 @@ func TestSessionsPageExpiredAndSpanishEmptyStates(t *testing.T) {
 	if !strings.Contains(active.String(), "Activa") || !strings.Contains(active.String(), `action="/sessions/expired-session"`) {
 		t.Fatalf("current active session lacks its revocation form: %s", active.String())
 	}
+	revokedAt := time.Now()
+	data.Sessions[0].RevokedAt = &revokedAt
+	var revoked bytes.Buffer
+	if err := sessionsPage(data, "", time.Now()).Render(context.Background(), &revoked); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(revoked.String(), "Revocada") || strings.Contains(revoked.String(), `action="/sessions/expired-session"`) {
+		t.Fatalf("revoked session status or action is wrong: %s", revoked.String())
+	}
 	data.Sessions = nil
 	var empty bytes.Buffer
 	if err := sessionsPage(data, "", time.Now()).Render(context.Background(), &empty); err != nil {
@@ -719,6 +742,38 @@ func TestSessionsPageExpiredAndSpanishEmptyStates(t *testing.T) {
 	}
 	if !strings.Contains(empty.String(), "No hay sesiones de navegador disponibles.") || !strings.Contains(empty.String(), `data-theme="dark"`) {
 		t.Fatalf("Spanish empty session state = %s", empty.String())
+	}
+}
+
+func TestSecurityPageUsesTemplAndRetainsCredentialBoundaries(t *testing.T) {
+	handler, auth, _, _, owner := testWebWithMFA(t, 10, true)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+
+	page := request(handler, http.MethodGet, "/security", nil, cookies, nil)
+	body := page.Body.String()
+	if page.Code != http.StatusOK || !strings.Contains(body, `id="security-heading"`) || !strings.Contains(body, `href="/assets/components.css"`) || !strings.Contains(body, `action="/security/totp/start"`) {
+		t.Fatalf("security page = %d, %s", page.Code, body)
+	}
+	if strings.Contains(body, session.Secret) {
+		t.Fatalf("security page exposed template source or session secret: %s", body)
+	}
+
+	badPassword := request(handler, http.MethodPost, "/security/totp/start", url.Values{
+		"csrf": {session.CSRFSecret}, "password": {"wrong-password"},
+	}, cookies, nil)
+	if badPassword.Code != http.StatusUnauthorized || !strings.Contains(badPassword.Body.String(), "Fresh authentication failed.") || !strings.Contains(badPassword.Body.String(), `id="security-heading"`) {
+		t.Fatalf("reauthentication failure = %d, %s", badPassword.Code, badPassword.Body.String())
+	}
+
+	enrollment := request(handler, http.MethodPost, "/security/totp/start", url.Values{
+		"csrf": {session.CSRFSecret}, "password": {"long-enough-password"},
+	}, cookies, nil)
+	if enrollment.Code != http.StatusOK || !strings.Contains(enrollment.Body.String(), `id="security-heading"`) || !strings.Contains(enrollment.Body.String(), "Scan or enter this one-time authenticator setup value") || strings.Contains(enrollment.Body.String(), session.Secret) {
+		t.Fatalf("TOTP enrollment response = %d, %s", enrollment.Code, enrollment.Body.String())
 	}
 }
 
@@ -827,6 +882,23 @@ func TestWebLanguageSettingsRoutes(t *testing.T) {
 	}
 	if locale, err := auth.GetUserLocale(context.Background(), owner.UserID); err != nil || locale != "es" {
 		t.Fatalf("saved user locale = %q, %v", locale, err)
+	}
+	if err := auth.UpdateUserProfile(context.Background(), owner.UserID, identity.ProfileUpdateInput{
+		Locale: "es", Timezone: "America/Bogota", Theme: "dark",
+	}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	invalidLocale := request(handler, http.MethodPost, "/settings/language", url.Values{
+		"csrf": {session.CSRFSecret}, "locale": {"fr"},
+	}, cookies, nil)
+	if invalidLocale.Code != http.StatusUnprocessableEntity || !hasHTMLRootLang(invalidLocale.Body.String(), "es") ||
+		!strings.Contains(invalidLocale.Body.String(), `data-theme="dark"`) ||
+		!strings.Contains(invalidLocale.Body.String(), "El idioma seleccionado no es válido.") ||
+		!strings.Contains(invalidLocale.Body.String(), `value="es" selected`) {
+		t.Fatalf("invalid language form lost localized account context = %d, %s", invalidLocale.Code, invalidLocale.Body.String())
+	}
+	if locale, err := auth.GetUserLocale(context.Background(), owner.UserID); err != nil || locale != "es" {
+		t.Fatalf("invalid language changed saved locale = %q, %v", locale, err)
 	}
 	reset := request(handler, http.MethodPost, "/settings/language", url.Values{
 		"csrf": {session.CSRFSecret}, "locale": {""},
