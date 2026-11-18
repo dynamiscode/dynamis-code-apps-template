@@ -15,7 +15,8 @@ loopback HTTP, and `OTEL_SDK_DISABLED=true`. Caller storage, telemetry and mail
 provider settings are excluded. `node --test scripts/ui-measurement-admin-env.test.mjs`
 checks this boundary without starting the server or collecting measurements.
 It records cold and warm navigation to eight settings pages, with the same CDP
-network definitions as #446. Each cold navigation clears the HTTP cache after
+network definitions as #446. The later webhook-deliveries page is also measured.
+Each cold navigation clears the HTTP cache after
 sign-in; warm repeats the same page. A single context is reused. Each interval
 ends after the load event and visible main heading. The audit lazy request may
 overlap that interval and must not be interpreted as a separate fragment result.
@@ -303,7 +304,9 @@ The automatic audit duration starts at navigation start, so it includes page
 navigation and is not isolated fragment latency. CDP reported one transport
 failure and zero completed encoded bytes for export even though Playwright
 returned a completed file; interpret those CDP fields as unavailable for this
-download. The three interaction cases had no HTTP errors, redirects or cache
-events. Download failure classification and transfer bytes remain unverified.
+download. The audit fetch and import preview had no HTTP errors, redirects,
+cache events or transport failures. Export had no HTTP errors, redirects or
+cache events; its transport failure is described above. Download failure
+classification and transfer bytes remain unverified.
 The run observed a cold favicon 404 but did not assign a fix ticket. It proposes
 no budget or implementation change.
