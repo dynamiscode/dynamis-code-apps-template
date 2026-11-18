@@ -721,6 +721,18 @@ visibility, translated script messages, and logout CSRF escaping.
   reduced-motion, and accessibility-tree checks.
 - Not run: full test and verification suites, deferred while PR checks run.
 
+## Account and public journey evidence (#453, 2026-11-17)
+
+- Passed: `./scripts/playwright-smoke.sh --grep 'account and security pages|profile preference persists|profile saves and account deletion|session can be revoked'` (7 checks). Account, language, security, and session routes render across English/Spanish, desktop/mobile, and light/dark themes; profile persistence, ordinary-form deletion safeguards, and active-session revocation pass.
+- Existing coverage: `scripts/accessibility.mjs` audits setup, sign-in, MFA, verification, recovery, account, language, security, sessions, public share, and MCP consent. `scripts/playwright/password-reset.spec.mjs` and `scripts/playwright/invitations.spec.mjs` cover password recovery and invitation acceptance.
+- Gaps: browser screenshots and an expired-session browser fixture remain uncovered; automated accessibility checks do not replace assistive-technology review.
+
+## Account browser follow-up evidence (#453, 2026-11-17)
+
+- Passed: `PLAYWRIGHT_PORT=58395 ./scripts/playwright-smoke.sh account.spec.mjs --grep 'session can be revoked|expired session'` (2/2). An expired fixture session is rejected on its next request and shown without a revoke action; an active session remains revocable.
+- Added: `scripts/playwright/account.spec.mjs-snapshots/` records account page baselines for desktop/mobile and light/dark themes. The full account suite must pass before these baselines count as verified.
+- Limitation: automated accessibility checks do not replace assistive-technology review.
+
 ## Files evidence
 
 Files metadata migration and workspace authorization, local filesystem uploads
