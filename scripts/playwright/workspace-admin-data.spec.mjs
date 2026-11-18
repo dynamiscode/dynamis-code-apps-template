@@ -74,35 +74,36 @@ test.describe("workspace administration and data", () => {
     const importedExport = await downloadWorkspaceExport(page, workspacePath);
     expect(importedExport.items.some((item) => item.title === title)).toBe(true);
   });
-  test("token secret appears once and webhook controls explain missing encryption setup", async ({ page }) => {
-    const workspacePath = await openAdminWorkspace(page);
-    await page.goto(`${workspacePath}/settings/tokens`);
-    const tokenName = `browser token ${Date.now()}`;
-    await page.locator("#token-name").fill(tokenName);
-    const createTokenButton = page.locator(
-      'form[action$="/settings/tokens"] button[name="action"][value="create"]',
-    );
-    await createTokenButton.click();
-    const secret = await page.locator(".success code").textContent();
-    expect(secret).toBeTruthy();
-    await page.goto(`${workspacePath}/settings/tokens`);
-    await expect(page.locator(".settings-record").filter({ hasText: tokenName }).first()).toBeVisible();
-    await expect(page.locator(".success code")).toHaveCount(0);
-    await expect(page.locator("body")).not.toContainText(secret);
+});
 
-    await page.goto(`${workspacePath}/settings/webhooks`);
-    await expect(page.locator("#webhook-secret-key-warning")).toContainText("ENCRYPTION_KEY");
-    const createWebhookButton = page.locator(
-      'form[data-persist="webhook-create"] button[value="create"]',
-    );
-    await expect(createWebhookButton).toBeDisabled();
-    });
+test("token secret appears once and webhook controls explain missing encryption setup", async ({ page }) => {
+  const workspacePath = await openAdminWorkspace(page);
+  await page.goto(`${workspacePath}/settings/tokens`);
+  const tokenName = `browser token ${Date.now()}`;
+  await page.locator("#token-name").fill(tokenName);
+  const createTokenButton = page.locator(
+    'form[action$="/settings/tokens"] button[name="action"][value="create"]',
+  );
+  await createTokenButton.click();
+  const secret = await page.locator(".success code").textContent();
+  expect(secret).toBeTruthy();
+  await page.goto(`${workspacePath}/settings/tokens`);
+  await expect(page.locator(".settings-record").filter({ hasText: tokenName }).first()).toBeVisible();
+  await expect(page.locator(".success code")).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText(secret);
 
-  test("audit history renders its read-only route", async ({ page }) => {
-    const workspacePath = await openAdminWorkspace(page);
-    await page.goto(`${workspacePath}/settings/audit?all=1`);
-    await expect(page.getByRole("heading", { level: 1, name: /Audit history|Historial de auditoría/i })).toBeVisible();
-    await expect(page.locator("#audit-table")).toBeVisible();
-    await expect(page.locator("#audit-table form")).toHaveCount(0);
-    });
+  await page.goto(`${workspacePath}/settings/webhooks`);
+  await expect(page.locator("#webhook-secret-key-warning")).toContainText("ENCRYPTION_KEY");
+  const createWebhookButton = page.locator(
+    'form[data-persist="webhook-create"] button[value="create"]',
+  );
+  await expect(createWebhookButton).toBeDisabled();
+});
+
+test("audit history renders its read-only route", async ({ page }) => {
+  const workspacePath = await openAdminWorkspace(page);
+  await page.goto(`${workspacePath}/settings/audit?all=1`);
+  await expect(page.getByRole("heading", { level: 1, name: /Audit history|Historial de auditoría/i })).toBeVisible();
+  await expect(page.locator("#audit-table")).toBeVisible();
+  await expect(page.locator("#audit-table form")).toHaveCount(0);
 });

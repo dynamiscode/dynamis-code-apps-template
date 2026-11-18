@@ -77,7 +77,7 @@ reports connecting, connected, reconnecting, or unavailable realtime states;
 permanent deletion, member removal, ownership transfer, account deletion, and
 every revoke confirm before submission when scripting is available.
 
-## Workspace administration and data evidence — 2026-11-17
+## Workspace administration and data evidence 2026-11-17
 
 `make accessibility-smoke` passed for English and Spanish. The runner reported
 zero critical or serious axe violations on members, invitations, general and
