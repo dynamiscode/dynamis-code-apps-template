@@ -7,13 +7,6 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 )
 
-func clientOptionalString(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return *value
-}
-
 func (h *Handler) archiveClient(writer http.ResponseWriter, request *http.Request) {
 	h.changeClientArchive(writer, request, true)
 }

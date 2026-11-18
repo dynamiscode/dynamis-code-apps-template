@@ -37,6 +37,13 @@ func (h *Handler) clientsPath(workspaceID identity.WorkspaceID) string {
 	return "/workspaces/" + workspaceID.String() + "/clients"
 }
 
+func clientOptionalString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
 func (h *Handler) clientList(writer http.ResponseWriter, request *http.Request) {
 	h.renderClientList(writer, request, http.StatusOK, "", clients.Input{})
 }
