@@ -16,8 +16,8 @@ templ securityPage(data pageData) {
 			if data.MFAError != "" {
 				@errorAlert(data.MFAError)
 			}
-			<section class="settings-panel" aria-labelledby="mfa-heading">
-				<h2 id="mfa-heading">{ data.T("security.mfa_title") }</h2>
+			<section class="settings-panel" aria-labelledby="security-mfa-heading">
+				<h2 id="security-mfa-heading">{ data.T("security.mfa_title") }</h2>
 				<p>{ data.T("security.mfa_description") }</p>
 				if data.MFAStatus.Enabled {
 					<p>{ data.T("security.mfa_passkeys") }{ ": " }{ data.MFAStatus.PasskeyCount }{ " · " }{ data.T("security.mfa_authenticator") }{ ": " }
@@ -75,8 +75,8 @@ templ securityPage(data pageData) {
 					</div>
 				}
 			</section>
-			<section class="settings-panel" aria-labelledby="linked-identity-heading">
-				<h2 id="linked-identity-heading">{ data.T("security.linked_identity_title") }</h2>
+			<section class="settings-panel" aria-labelledby="security-linked-identity-heading">
+				<h2 id="security-linked-identity-heading">{ data.T("security.linked_identity_title") }</h2>
 				<p>{ data.T("security.linked_identity_description") }</p>
 				if len(data.OIDCProviders) > 0 {
 					<form action="/security" method="post">
