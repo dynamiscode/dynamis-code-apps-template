@@ -340,7 +340,11 @@ render through `workspace.templ` and generated `workspace_templ.go`. The
 inventory below names each route family's current renderer: `.templ` entries
 are migrated, and named `html/template` views remain deferred. It records major
 states while preserving escaping, HTMX fragment boundaries, ordinary-form
-fallbacks, and route behavior during the incremental migration.
+fallbacks, and route behavior during the incremental migration. Issue #432
+rechecked every fallback caller: `templates/*.html` remains parsed and the
+`render()` fallback remains live for auth/setup, members, and webhooks; therefore
+neither the dispatcher nor embedded legacy templates are dead code. See the
+[issue #432 verification evidence](capabilities.md#rendering-assets-and-generated-app-verification-432).
 
 Shared navigation uses `navigation.templ`. The named definitions in
 `navigation.html` bridge remaining `html/template` callers to the same escaped
@@ -389,7 +393,9 @@ public-share projection and unavailable states, consent approval and denial,
 and generic OAuth errors.
 `make ux-smoke` and `make accessibility-smoke` cover the browser paths they
 enumerate; [the accessibility evidence](accessibility.md) records that
-automated coverage. Workspace selection, workspace home, audit history, API token
+automated coverage. Issue #432 ran the `ui` and `components` Playwright suites;
+these cover representative route rendering and reusable responsive components,
+not every route family or all browser states. Workspace selection, workspace home, audit history, API token
 and SCIM settings, webhook registry, and delivery history use templ. General and
 email settings use `settings_pages.templ`; #406 route-family verification is
 recorded in [workspace settings migration evidence](capabilities.md#workspace-settings-template-migration-evidence-406).
