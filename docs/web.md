@@ -341,7 +341,7 @@ accessibility results and remaining limits are recorded in
 | `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
 | `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.js`, `mcp-consent.html`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge/retry/expired redirect, verification success/invalid-or-expired, OAuth approval/denial |
 | `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | Empty/results states, filters, sorting and paging, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
-| Workspace clients and custom fields | `clients.templ`, `components.templ`, `workspace.templ`, `client.html`, `client-fields.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field lifecycle, realtime refresh |
+| Workspace clients and custom fields | `clients.templ`, `client_fields.templ`, `components.templ`, `workspace.templ`, `client.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field and option lifecycle, realtime refresh |
 | Workspace members | `members.templ`, `members_templ.go` | Role changes, removal and ownership transfer |
 | `/workspaces/{workspaceId}/settings/invitations`, `/invitations/{secret}`, `/invitations/{secret}/sign-in`, `/invitations/continue` | `invitations.templ`, `invitations_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Create/resend/revoke with explicit revoke confirmation; registration, account-matched acceptance, sign-in return through MFA/OIDC, invalid/expired/unavailable states; ordinary form fallback |
 | `/workspaces/{workspaceId}/settings/audit` | `audit.templ`, `audit_templ.go`, `components.templ`, `components_templ.go` | Scoped redacted history, lazy table fragment, empty state, ordinary `?all=1` fallback, permission denial and expired-session redirect |
@@ -467,7 +467,10 @@ forms that redirect to the list. Labels are shown exactly as typed, escaped for
 HTML. Permanent deletion is offered only for archived fields, with the effect on
 all client values and choice options shown beside the control, including without
 JavaScript. A refused label returns 422 and a reached limit returns 409, both on
-the same page.
+the same page. The route uses generated `client_fields.templ` and shared
+DaisyUI form, alert, and confirmation components. Choice fields expose option
+add and delete forms to owners and admins; deleting an option warns that client
+values using it will be cleared. All actions retain ordinary POST fallback.
 
 ## Realtime contract
 

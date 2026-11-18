@@ -104,7 +104,7 @@ test("Clients list follows Spanish workspace locale", async ({ page }) => {
   await expect(page.getByLabel("Nombre para mostrar")).toBeVisible();
 });
 
-test("multi-select draft survives blur and a list fragment replacement", async ({ page }) => {
+test("custom field lifecycle and multi-select draft survive list refresh", async ({ page }) => {
   await openClients(page);
   await page.getByRole("link", { name: "Manage custom fields" }).click();
   await page.locator(".client-create > summary").click();
@@ -140,6 +140,22 @@ test("multi-select draft survives blur and a list fragment replacement", async (
   } finally {
     await peer.close();
   }
+
+  await page.goto(new URL(page.url()).origin + new URL(page.url()).pathname.replace(/\/clients$/, "/client-fields"));
+  const field = page.locator(".client-field-card").filter({ hasText: "Browser multi-select" });
+  const option = field.locator(".client-field-option-list li").filter({ hasText: "Second" });
+  page.once("dialog", (dialog) => dialog.accept());
+  await option.getByRole("button", { name: "Delete option" }).click();
+  await expect(field.locator(".client-field-option-list li")).toHaveCount(2);
+
+  await field.getByRole("button", { name: "Archive" }).click();
+  await expect(field.getByText("Archived")).toBeVisible();
+  await field.getByRole("button", { name: "Restore" }).click();
+  await expect(field.getByText("Active")).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  await field.getByRole("button", { name: "Archive" }).click();
+  await field.getByRole("button", { name: "Delete permanently" }).click();
+  await expect(page.locator(".client-field-card").filter({ hasText: "Browser multi-select" })).toHaveCount(0);
 });
 
 test("query-open filter details do not block realtime refresh", async ({ page }) => {

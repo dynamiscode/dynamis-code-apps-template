@@ -19,7 +19,7 @@ func (env clientsTestEnv) fieldsPath() string {
 func TestClientFieldsDefineArchiveAndRestoreThroughForms(t *testing.T) {
 	env := newClientsTestEnv(t)
 	page := request(env.routes, http.MethodGet, env.fieldsPath(), nil, env.cookies, nil)
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `name="label"`) {
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `name="label"`) || !strings.Contains(page.Body.String(), `class="btn btn-primary"`) {
 		t.Fatalf("owner fields page = %d, want the define form: %s", page.Code, page.Body.String())
 	}
 

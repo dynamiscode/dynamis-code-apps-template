@@ -310,6 +310,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/httpapi/clients.go" || relative == "internal/httpapi/clients_test.go" ||
 		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" ||
 		relative == "internal/web/clients.templ" || relative == "internal/web/clients_templ.go" ||
+		relative == "internal/web/client_fields.templ" || relative == "internal/web/client_fields_templ.go" ||
 		relative == "internal/web/templates/clients.html" || relative == "internal/web/templates/client.html" ||
 		relative == "internal/platform/database/migrations/000022_clients.sql" ||
 		relative == "internal/platform/database/migrations/000023_client_fields.sql" ||

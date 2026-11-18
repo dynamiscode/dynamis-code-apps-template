@@ -1058,6 +1058,21 @@ are visible next to their controls, including without JavaScript.
 - Not run: full `make verify`; this ticket's web, lint, and accessibility checks
   passed.
 
+## Client custom-field templ migration evidence (2026-11-17)
+
+Issue #441 migrates `/workspaces/{workspaceId}/client-fields` to generated
+`client_fields.templ` and shared DaisyUI form, alert, and confirmation
+components. Field and choice-option lifecycle remains on the shared clients
+service. Route checks cover create, archive, restore, permanent delete,
+option add/delete, validation, permission denial, escaped labels, and explicit
+deletion consequences with ordinary CSRF-protected forms.
+
+- Passed: `go test ./internal/web` (212 tests), `make templ-check`, and
+  `make lint`, `make test` (39 JS and 1,070 Go tests), and the focused
+  Playwright custom-field lifecycle journey.
+- Not run: `npm run typecheck` and `npm run test`; this repository defines no
+  such npm scripts. The full browser accessibility suite was not run.
+
 ## File management progress and localization evidence (2026-11-15)
 
 Ticket #378 adds determinate byte progress to the existing single-request
