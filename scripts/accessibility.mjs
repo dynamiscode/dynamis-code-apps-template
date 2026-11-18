@@ -262,7 +262,7 @@ try {
 		state: "accessibility-smoke-state",
 	});
 	await driver.get(`${baseURL}/oauth/authorize?${consent}`);
-	await driver.wait(until.elementLocated(By.css("main.consent-card")), 5000);
+	await driver.wait(until.elementLocated(By.css('main.auth-card form[action="/oauth/authorize"]')), 5000);
 	await audit("MCP consent");
 	await driver.get(`${workspaceURL.origin}${workspaceURL.pathname}/settings/import`);
 	await driver.wait(until.elementLocated(By.id("import-file")), 5000);
