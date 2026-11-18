@@ -6,6 +6,7 @@ import (
 
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
 
 func (h *Handler) clientFieldsPath(workspaceID identity.WorkspaceID) string {
@@ -51,7 +52,7 @@ func (h *Handler) renderClientFieldList(
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, status, "client-fields.html", pageData{
+	h.renderClientFieldsTempl(writer, request, status, pageData{
 		Title: "Custom fields", ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		NavPage: "clients", NavSection: "clients",
@@ -61,6 +62,18 @@ func (h *Handler) renderClientFieldList(
 		FieldDraft:      draft,
 		FieldsPath:      h.clientFieldsPath(workspaceID),
 	})
+}
+
+func (h *Handler) renderClientFieldsTempl(writer http.ResponseWriter, request *http.Request, status int, data pageData) {
+	data.FilesEnabled = h.filesEnabled
+	data.ClientsEnabled = h.clients != nil
+	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
+	h.localizePage(writer, &data)
+	data.Title = data.T("clients.fields_title")
+	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+	writer.Header().Set("Cache-Control", "no-store")
+	writer.WriteHeader(status)
+	_ = clientFieldsPage(data).Render(request.Context(), writer)
 }
 
 func (h *Handler) createClientField(writer http.ResponseWriter, request *http.Request) {
