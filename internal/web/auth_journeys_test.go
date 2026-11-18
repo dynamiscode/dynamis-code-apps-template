@@ -79,6 +79,9 @@ func TestAuthenticationPagesUseBrandAndOrdinaryFormPaths(t *testing.T) {
 					}
 				}
 			}
+			if strings.Contains(path, "verify-email") && !strings.Contains(body, `role="alert" tabindex="-1"`) {
+				t.Fatal("invalid verification link missing focused error")
+			}
 			if path == "/login" {
 				for _, marker := range []string{`class="input"`, `class="btn btn-primary"`, `action="/login" method="post"`, `name="csrf"`} {
 					if !strings.Contains(body, marker) {
@@ -144,10 +147,18 @@ func TestMFAPageKeepsFormFallbacksAvailable(t *testing.T) {
 	if response.Code != http.StatusOK || !strings.Contains(body, `class="brand auth-brand"`) {
 		t.Fatalf("MFA page status = %d; missing auth brand", response.Code)
 	}
-	for _, marker := range []string{`action="/mfa/totp" method="post"`, `action="/mfa/recovery" method="post"`, `id="totp-code"`, `id="recovery-code"`} {
+	for _, marker := range []string{`action="/mfa/totp" method="post"`, `action="/mfa/recovery" method="post"`, `class="input" id="totp-code"`, `class="input" id="recovery-code"`, `class="btn btn-primary"`} {
 		if !strings.Contains(body, marker) {
 			t.Fatalf("MFA page missing marker %q", marker)
 		}
+	}
+	csrf := responseCookie(response, "mfa_csrf")
+	retry := request(handler, http.MethodPost, "/mfa/totp", mapValues("csrf", csrf.Value, "code", "invalid"), []*http.Cookie{
+		{Name: "mfa_challenge", Value: challenge.Token}, csrf,
+	}, map[string]string{"Accept-Language": "es"})
+	if retry.Code != http.StatusUnauthorized || !strings.Contains(retry.Body.String(), `class="alert alert-error error"`) ||
+		!strings.Contains(retry.Body.String(), "El código de verificación no es válido.") {
+		t.Fatalf("MFA retry status = %d; expected localized verification error", retry.Code)
 	}
 }
 

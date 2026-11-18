@@ -33,6 +33,20 @@ func TestWebhooksBrowserLifecycleAndRedaction(t *testing.T) {
 		t.Fatalf("webhooks page = %d, headers=%v, body=%s", page.Code, page.Header(), page.Body.String())
 	}
 	assertAccessiblePage(t, page.Body.String(), "HTTPS endpoint")
+	if !strings.Contains(page.Body.String(), `data-theme="system"`) || !strings.Contains(page.Body.String(), `class="card"`) || !strings.Contains(page.Body.String(), `name="csrf"`) {
+		t.Fatalf("webhooks page missing theme, card, or ordinary CSRF form: %s", page.Body.String())
+	}
+	if !strings.Contains(page.Body.String(), `for="webhook-name"`) || !strings.Contains(page.Body.String(), `class="input" id="webhook-name"`) || !strings.Contains(page.Body.String(), `for="webhook-url"`) || !strings.Contains(page.Body.String(), `class="input" id="webhook-url"`) {
+		t.Fatalf("webhook labels and input classes are not associated: %s", page.Body.String())
+	}
+	if strings.Contains(page.Body.String(), `aria-describedby=""`) {
+		t.Fatalf("webhook page contains empty accessibility references: %s", page.Body.String())
+	}
+	spanishCookies := append(append([]*http.Cookie(nil), cookies...), &http.Cookie{Name: "locale", Value: "es"})
+	spanish := request(handler, http.MethodGet, base, nil, spanishCookies, nil)
+	if spanish.Code != http.StatusOK || spanish.Header().Get("Content-Language") != "es" || !hasHTMLRootLang(spanish.Body.String(), "es") || !strings.Contains(spanish.Body.String(), "Crear webhook") {
+		t.Fatalf("Spanish webhook page = %d language=%q, %s", spanish.Code, spanish.Header().Get("Content-Language"), spanish.Body.String())
+	}
 	if !strings.Contains(page.Body.String(), `aria-current="page" href="`+base+`"`) {
 		t.Fatalf("webhooks navigation missing current state: %s", page.Body.String())
 	}
@@ -99,8 +113,11 @@ func TestWebhooksBrowserLifecycleAndRedaction(t *testing.T) {
 		t.Fatal(err)
 	}
 	history := request(handler, http.MethodGet, base+"/"+webhookID+"/deliveries", nil, cookies, nil)
-	if history.Code != http.StatusOK || !strings.Contains(history.Body.String(), "network-error") || !strings.Contains(history.Body.String(), "500") || strings.Contains(history.Body.String(), "must not render") {
+	if history.Code != http.StatusOK || history.Header().Get("Cache-Control") != "no-store" || !strings.Contains(history.Body.String(), "network-error") || !strings.Contains(history.Body.String(), "500") || strings.Contains(history.Body.String(), "must not render") {
 		t.Fatalf("delivery history redaction = %d, %s", history.Code, history.Body.String())
+	}
+	if strings.Contains(history.Body.String(), `data-theme="system"`) == false || !strings.Contains(history.Body.String(), `<table class="table">`) {
+		t.Fatalf("delivery history missing themed table: %s", history.Body.String())
 	}
 
 	otherWorkspace := strings.Repeat("f", 32)
@@ -123,8 +140,18 @@ func TestWebhooksBrowserLifecycleAndRedaction(t *testing.T) {
 		t.Fatalf("member webhook access = %d", response.Code)
 	}
 
-	deleted := request(handler, http.MethodPost, base+"/"+webhookID, url.Values{
+	unconfirmedDelete := request(handler, http.MethodPost, base+"/"+webhookID, url.Values{
 		"action": {"delete"}, "csrf": {session.CSRFSecret},
+	}, spanishCookies, nil)
+	if unconfirmedDelete.Code != http.StatusUnprocessableEntity || unconfirmedDelete.Header().Get("Content-Language") != "es" || !strings.Contains(unconfirmedDelete.Body.String(), "Confirma que quieres eliminar este webhook") {
+		t.Fatalf("unconfirmed delete = %d, %s", unconfirmedDelete.Code, unconfirmedDelete.Body.String())
+	}
+	remaining, err := service.List(ctx, mustPrincipal(t, auth, owner.UserID, workspaceID, identity.WebhooksRead), workspaceID)
+	if err != nil || len(remaining) != 1 || remaining[0].ID.String() != webhookID {
+		t.Fatalf("unconfirmed delete registrations = %+v, %v", remaining, err)
+	}
+	deleted := request(handler, http.MethodPost, base+"/"+webhookID, url.Values{
+		"action": {"delete"}, "csrf": {session.CSRFSecret}, "confirm_delete": {"yes"},
 	}, cookies, nil)
 	if deleted.Code != http.StatusSeeOther || deleted.Header().Get("Location") != base {
 		t.Fatalf("delete webhook = %d, location=%q", deleted.Code, deleted.Header().Get("Location"))
@@ -186,7 +213,7 @@ func TestWebhookSecretKeyErrorIsActionable(t *testing.T) {
 	rawHandler.webhooks = failingWebhookManager{service: service, createErr: webhooks.ErrSecretKey}
 
 	page := request(handler, http.MethodGet, base, nil, cookies, nil)
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `class="warning"`) || !strings.Contains(page.Body.String(), "Webhook configuration required") || !strings.Contains(page.Body.String(), "ENCRYPTION_KEY") || !strings.Contains(page.Body.String(), "disabled aria-describedby=\"webhook-secret-key-warning\"") {
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `id="webhook-secret-key-warning" class="warning`) || !strings.Contains(page.Body.String(), "Webhook configuration required") || !strings.Contains(page.Body.String(), "ENCRYPTION_KEY") || !strings.Contains(page.Body.String(), `value="create" disabled`) {
 		t.Fatalf("missing webhook secret key page = %d, %s", page.Code, page.Body.String())
 	}
 
