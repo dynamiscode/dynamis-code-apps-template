@@ -98,6 +98,15 @@ try {
     mimeType: "text/plain",
     buffer: Buffer.alloc(256 * 1024, "x"),
   });
+  let uploadRequestId;
+  let uploadRequestBody;
+  const captureUploadRequest = (event) => {
+    if (event.request.method === "POST" && new URL(event.request.url).pathname === `${workspacePath}/files`) {
+      uploadRequestId = event.requestId;
+      uploadRequestBody = cdp.send("Network.getRequestPostData", { requestId: uploadRequestId });
+    }
+  };
+  cdp.on("Network.requestWillBeSent", captureUploadRequest);
   const stopUpload = observeNetwork(cdp);
   const uploadStart = performance.now();
   try {
@@ -108,8 +117,16 @@ try {
     ]);
     assert.ok(response.status() >= 200 && response.status() < 400, "file upload failed");
     await page.getByRole("link", { name: /ui-measurement-upload\.txt$/ }).waitFor();
-    results.push({ interaction: "upload synthetic 256 KiB file", status: response.status(), ...stopUpload(), feedbackMs: performance.now() - uploadStart });
+    assert.ok(uploadRequestId, "upload request ID missing");
+    const requestBody = await uploadRequestBody;
+    assert.ok(Buffer.byteLength(requestBody.postData) >= 256 * 1024, "upload request body missing");
+    const network = stopUpload();
+    results.push({ interaction: "upload synthetic 256 KiB file", status: response.status(), ...network,
+      requestBodyBytes: Buffer.byteLength(requestBody.postData),
+      requestsWithUnknownBodyBytes: network.requestsWithUnknownBodyBytes - 1,
+      feedbackMs: performance.now() - uploadStart });
   } finally {
+    cdp.off("Network.requestWillBeSent", captureUploadRequest);
     stopUpload();
   }
 
