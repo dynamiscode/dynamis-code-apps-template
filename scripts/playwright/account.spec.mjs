@@ -9,6 +9,12 @@ const layouts = [
   { name: "mobile-light", width: 390, height: 844, theme: "light" },
   { name: "mobile-dark", width: 390, height: 844, theme: "dark" },
 ];
+const accountPages = [
+  { path: "/account", heading: "Account", locale: "en" },
+  { path: "/settings/language", heading: "Configuración de idioma", locale: "es" },
+  { path: "/security", heading: "Security", locale: "en" },
+  { path: "/sessions", heading: "Sessions", locale: "en" },
+];
 
 async function signIn(page) {
   await page.goto("/login");
@@ -45,29 +51,18 @@ for (const layout of layouts) {
     });
 
     try {
-      for (const [path, heading] of [
-      ["/account", "Account"],
-      ["/settings/language", "Language"],
-      ["/security", "Security"],
-      ["/sessions", "Sessions"],
-      ]) {
-      const locale = path === "/settings/language" ? "es" : "en";
-      await page.goto(`/language?locale=${locale}&return_to=${encodeURIComponent(path)}`);
-      const response = await page.goto(path);
-      expect(response?.ok()).toBeTruthy();
-      await expect(page.locator("html")).toHaveAttribute("lang", locale);
-      await expect(page.locator("html")).toHaveAttribute("data-theme", layout.theme);
-      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-      if (path === "/settings/language") {
-        await expect(page.getByRole("heading", { level: 1 })).toContainText("Configuración de idioma");
-      } else {
+      for (const { path, heading, locale } of accountPages) {
+        await page.goto(`/language?locale=${locale}&return_to=${encodeURIComponent(path)}`);
+        const response = await page.goto(path);
+        expect(response?.ok()).toBeTruthy();
+        await expect(page.locator("html")).toHaveAttribute("lang", locale);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", layout.theme);
         await expect(page.getByRole("heading", { level: 1 })).toContainText(heading);
+        if (layout.width < 608) {
+          const dimensions = await page.locator("html").evaluate((html) => [html.scrollWidth, html.clientWidth]);
+          expect(dimensions[0]).toBeLessThanOrEqual(dimensions[1]);
+        }
       }
-      if (layout.width < 608) {
-        const dimensions = await page.locator("html").evaluate((html) => [html.scrollWidth, html.clientWidth]);
-        expect(dimensions[0]).toBeLessThanOrEqual(dimensions[1]);
-      }
-    }
     } finally {
       await page.request.post("/account/profile", { maxRedirects: 0, form: original });
     }
