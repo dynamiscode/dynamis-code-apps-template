@@ -2,6 +2,20 @@
 
 This ledger records implemented conformance evidence and deferred triggers.
 
+## Browser journey reconciliation (#454, 2026-11-17)
+
+[Browser journey coverage reconciliation](web.md#browser-journey-coverage-reconciliation)
+maps the route inventory's named route families and major states to Playwright
+journeys, route tests, screenshot baselines, and explicit gaps. Representative
+baselines cover workspace selection/home, Items, Clients, Members, Files,
+notifications, and selected settings in desktop/mobile light/dark variants.
+They do not capture every state or route.
+
+Automated axe, keyboard/focus, accessible-name, reduced-motion, and 320px
+reflow checks cover only their enumerated journeys. They do not establish full
+WCAG conformance or replace assistive-technology and manual zoom checks. See
+the [accessibility evidence](accessibility.md) for existing audit limits.
+
 Dated evidence sections are append-only. New verification is recorded as a new
 dated section; past dated sections are never rewritten, because each is a record
 of what was verified on its date.

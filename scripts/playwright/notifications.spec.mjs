@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { execFileSync } from "node:child_process";
+import { setAccountTheme } from "./theme.mjs";
 
 const email = process.env.PLAYWRIGHT_EMAIL;
 const password = process.env.PLAYWRIGHT_PASSWORD;
@@ -27,14 +28,20 @@ for (const screenshot of screenshots) {
     await page.setViewportSize({ width: screenshot.width, height: screenshot.height });
     await page.emulateMedia({ colorScheme: screenshot.colorScheme, reducedMotion: "reduce" });
     await openNotifications(page);
-    await expect(page.locator(".notification-empty")).toBeVisible();
-    const heading = await page.getByRole("heading", { name: "Notifications", exact: true }).boundingBox();
-    const description = await page.locator(".notification-description").boundingBox();
-    expect(description.y).toBeGreaterThanOrEqual(heading.y + heading.height);
-    await expect(page).toHaveScreenshot(`notifications-empty-${screenshot.name}.png`, {
-      animations: "disabled",
-      fullPage: true,
-    });
+    const restoreTheme = await setAccountTheme(page, screenshot.colorScheme);
+    try {
+      await expect(page.locator("html")).toHaveAttribute("data-theme", screenshot.colorScheme);
+      await expect(page.locator(".notification-empty")).toBeVisible();
+      const heading = await page.getByRole("heading", { name: "Notifications", exact: true }).boundingBox();
+      const description = await page.locator(".notification-description").boundingBox();
+      expect(description.y).toBeGreaterThanOrEqual(heading.y + heading.height);
+      await expect(page).toHaveScreenshot(`notifications-empty-${screenshot.name}.png`, {
+        animations: "disabled",
+        fullPage: true,
+      });
+    } finally {
+      await restoreTheme();
+    }
   });
 }
 
