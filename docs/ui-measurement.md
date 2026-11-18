@@ -19,7 +19,9 @@ The Go build and browser tools retain the caller's environment. Initially it
 contains zero Items, Clients, Files, invitations, and notifications. The smoke
 journey creates one Item; rerun the script for a fresh fixture. It does not seed
 the populated, permission, upload, sharing, MFA, or failure states needed by
-#439. Record the exact synthetic setup and counts for each additional state;
+#439. The core measurement creates one synthetic Client, one Item and one
+File during its run. Record the exact synthetic setup and counts for each
+additional state;
 do not reuse a database modified by another scenario. Never copy production data.
 
 Run from the repository root with Go, Node, npm dependencies and Chrome installed:
@@ -54,8 +56,9 @@ cache with CDP, then measures workspace-home navigation and repeats it warm.
 `UI_MEASURE=identity ./scripts/playwright-smoke.sh` runs the identity navigation
 and interaction measurements in [identity evidence](ui-measurement-identity.md).
 `UI_MEASURE=core ./scripts/playwright-smoke.sh` measures cold/warm empty Items,
-Clients and Files navigation, synthetic Item creation and edit, empty-title
-browser validation, then uploads a synthetic 256 KiB file. It uses the same isolated
+Clients and Files navigation, creates a synthetic Client and measures its
+cold/warm detail page, then measures synthetic Item creation and edit,
+empty-title browser validation, and uploads a synthetic 256 KiB file. It uses the same isolated
 fixture and emits aggregate JSON. Upload feedback timing includes automation
 overhead. `requestBodyBytes` counts request-body bytes from CDP `postData` when
 present, otherwise from a known `Content-Length`; bodies without either are

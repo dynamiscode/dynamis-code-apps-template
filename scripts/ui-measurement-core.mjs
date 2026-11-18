@@ -61,6 +61,31 @@ try {
     await measureNavigation(screen, `${workspacePath}${suffix}`, marker);
   }
 
+  phase = "client detail";
+  await page.goto(`${workspacePath}/clients`);
+  await page.locator("#client-create > details.client-create > summary").click();
+  await page.getByLabel("Display name").fill("UI measurement client");
+  await page.getByLabel("Email").fill("ui-measurement-client@example.test");
+  const clientCreateCDP = await context.newCDPSession(page);
+  let clientPath;
+  try {
+    await clientCreateCDP.send("Network.enable");
+    const stopCreateClient = observeNetwork(clientCreateCDP);
+    const createClientStart = performance.now();
+    const createClientResponse = page.waitForResponse((response) =>
+      response.request().method() === "POST" && new URL(response.url()).pathname === `${workspacePath}/clients`);
+    await page.getByRole("button", { name: "Add client" }).click();
+    const status = (await createClientResponse).status();
+    await page.waitForURL(new RegExp(`${workspacePath}/clients/[^/?]+$`));
+    await page.locator("#client-detail").waitFor();
+    clientPath = new URL(page.url()).pathname;
+    results.push({ interaction: "create synthetic client", status, ...stopCreateClient(),
+      feedbackMs: performance.now() - createClientStart });
+  } finally {
+    await clientCreateCDP.detach();
+  }
+  await measureNavigation("Client detail", clientPath, "#client-detail");
+
   phase = "item create";
   await page.goto(`${workspacePath}/items`);
   const itemForm = page.locator("#item-list form.create");
@@ -153,8 +178,8 @@ try {
     date: new Date().toISOString(), os: `${os.type()} ${os.release()} ${os.arch()}`,
     browser: `Chrome ${browser.version()}`, node: process.version,
     playwright: JSON.parse(readFileSync("node_modules/@playwright/test/package.json", "utf8")).version,
-    fixture: "fresh isolated SQLite: one owner, one workspace, zero items, clients, and files",
-    scenario: "empty Items, Clients, Files list navigation; synthetic Item creation, invalid-title feedback, and file upload",
+    fixture: "fresh isolated SQLite: one owner, one workspace, one synthetic client, one item, and one uploaded file",
+    scenario: "empty Items, Clients, Files list navigation; synthetic Client creation and detail, Item creation/edit/validation, and file upload",
     viewport: "1280x900, device scale 1", locale: "en-US", theme: "light",
     reducedMotion: "reduce", network: "unthrottled loopback", results,
   }, null, 2));
