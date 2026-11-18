@@ -297,6 +297,47 @@ states remain unmeasured.
 
 ### Core list and Item interaction observation
 
+On 2026-11-18T03:26:19.521Z, commit
+`bb93d9ea53d0596a9f98ee95db6f7601b6cfbd7c`, Darwin 27.2.0 arm64, Go
+1.27.4, Node 26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1, the
+isolated core harness completed:
+
+```sh
+PLAYWRIGHT_PORT=59435 UI_MEASURE=core ./scripts/playwright-smoke.sh
+```
+
+The fresh SQLite fixture had one owner, one workspace and no Items, Clients
+or Files. Browser conditions were 1280×900, device scale 1, `en-US`, light
+theme, reduced motion, blocked service workers and unthrottled loopback. Cold
+cleared HTTP cache; warm repeated each route in the same context. Requests
+span navigation to load and a visible route marker. Bytes are completed CDP
+encoded response bytes. Items and Clients each had one unfinished SSE request;
+it is counted as unfinished, not a completed page response. Each cold route
+reported one favicon 404. There were no other HTTP errors, redirects or
+transport failures except the upload redirect.
+
+| Screen / interaction | Cache | Requests | Completed encoded bytes | Request body bytes | DOMContentLoaded ms | Load / feedback ms |
+|---|---|---:|---:|---:|---:|---:|
+| Items list | Cold | 10 | 167739 | 0 | 20.7 | 24.7 |
+| Items list | Warm | 9 | 167227 | 0 | 15.0 | 16.5 |
+| Clients list | Cold | 10 | 170170 | 0 | 16.8 | 19.5 |
+| Clients list | Warm | 9 | 169658 | 0 | 14.5 | 16.8 |
+| Files list | Cold | 6 | 119061 | 0 | 15.9 | 17.3 |
+| Files list | Warm | 5 | 118549 | 0 | 13.3 | 14.6 |
+| Item creation | — | 1 | 7245 | 123 | — | 87.0 |
+| Empty-title browser validation | — | 0 | unavailable | 0 | — | 83.7 |
+| Synthetic 256 KiB upload | — | 7 | 128354 | 262477 | — | 141.7 |
+
+Item creation returned 200; upload returned 303 with one redirect. No captured
+request bodies had unknown sizes. Validation used the native `required`
+constraint and sent no request. Interaction feedback includes Playwright
+automation overhead. One observation does not establish a distribution or
+budget. Item edit, client detail, download wire bytes, populated records,
+server-side validation, upload progress/failure, permission and no-JavaScript
+performance states remain unmeasured. The open SSE requests explain why list
+request counts exceed completed responses. Request initiators and unnecessary
+requests remain unattributed.
+
 ## Current rerun on issue branch
 
 On 2026-11-18T02:35:36Z, commit
