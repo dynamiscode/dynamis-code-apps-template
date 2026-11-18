@@ -12,6 +12,9 @@ not establish performance budgets or claim screen measurements are complete.
 The [workspace journey evidence](ui-measurement-workspace.md) records request,
 transfer, timing, mutation, loading and failure observations for issue #447,
 with unavailable metrics and states marked explicitly.
+The [reconciliation and budget recommendation](ui-measurement-reconciliation-450.md)
+summarizes measured results, limitations, unverified surfaces, and budget
+decisions; it does not claim implementation of proposed fixes.
 
 The [administration measurement evidence](ui-measurement-admin.md) records the
 bounded screen and state measurements for issue #448. Metrics the harness cannot
