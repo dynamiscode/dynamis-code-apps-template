@@ -30,10 +30,14 @@ templ clientDetail(data pageData) {
 		} else {
 			<p class="status">{ data.T("clients.read_only") }</p>
 			<dl>
-				<dt>{ data.T("clients.display_name") }</dt><dd>{ data.Client.DisplayName }</dd>
-				<dt>{ data.T("common.email") }</dt><dd>{ data.Client.Email }</dd>
-				<dt>{ data.T("clients.phone") }</dt><dd>{ data.Client.Phone }</dd>
-				<dt>{ data.T("clients.notes") }</dt><dd>{ data.Client.Notes }</dd>
+				<dt>{ data.T("clients.display_name") }</dt>
+				<dd>{ data.Client.DisplayName }</dd>
+				<dt>{ data.T("common.email") }</dt>
+				<dd>{ data.Client.Email }</dd>
+				<dt>{ data.T("clients.phone") }</dt>
+				<dd>{ data.Client.Phone }</dd>
+				<dt>{ data.T("clients.notes") }</dt>
+				<dd>{ data.Client.Notes }</dd>
 			</dl>
 		}
 		if data.Client.ArchivedAt != nil {
@@ -108,21 +112,24 @@ templ clientValues(data pageData) {
 						</form>
 					}
 				} else {
-					<dl><dt>{ value.Label }</dt><dd>
-						if value.Value == nil {
-							{ data.T("clients.value_none") }
-						} else if value.Type == "yes_no" {
-							if *value.Value == "true" {
-								{ data.T("clients.yes") }
+					<dl>
+						<dt>{ value.Label }</dt>
+						<dd>
+							if value.Value == nil {
+								{ data.T("clients.value_none") }
+							} else if value.Type == "yes_no" {
+								if *value.Value == "true" {
+									{ data.T("clients.yes") }
+								} else {
+									{ data.T("clients.no") }
+								}
+							} else if value.Type == "single_choice" {
+								{ value.ValueLabel }
 							} else {
-								{ data.T("clients.no") }
+								{ *value.Value }
 							}
-						} else if value.Type == "single_choice" {
-							{ value.ValueLabel }
-						} else {
-							{ *value.Value }
-						}
-					</dd></dl>
+						</dd>
+					</dl>
 				}
 			}
 		} else {
