@@ -1416,3 +1416,16 @@ continues to enforce owner/admin management and owner-only transfer.
 - `npm run test:unit` passed 39 tests. `npm run typecheck` and `npm run test`
   are undefined. `SANDCASTLE_VERIFY` is unset, so wrapped full suites could not
   run. Issue #439 remains partial.
+
+## UI baseline current follow-up (#439, 2026-11-18)
+
+- Repeated the isolated members/invitations runner on
+  `9fc03f2c6312086167949344bd97d91c837a3a20`; cold/warm navigation and
+  invitation-creation values are recorded in [UI measurement](ui-measurement.md).
+- The same-commit core runner reached upload but Chrome closed the page before
+  observing its POST. No aggregate results were emitted; upload metrics remain
+  unavailable and the failure needs diagnosis.
+- `npm run test:unit` passed 39 tests and `git diff --check` passed. The
+  requested npm `typecheck` and `test` scripts are undefined. `SANDCASTLE_VERIFY`
+  is unset, so wrapped full-suite checks could not run. Issue #439 remains
+  partial; route, state and transfer-metric gaps remain in the evidence.

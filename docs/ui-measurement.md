@@ -159,7 +159,7 @@ capture exists. Do not infer zero cost or absence from those cells.
 | Workspace home | `scripts/playwright/ui.spec.mjs`; #439 | Cold/warm navigation measured below; empty fixture only. Populated, pending, error, permission and no-JS states unmeasured. |
 | Items list, create, edit | `scripts/playwright/ui.spec.mjs`; #413–#416 | Empty list cold/warm navigation and one create plus empty-title browser-validation timing measured below. Edit, fragment/SSE bytes, populated, server validation/error, permission and no-JS performance states unmeasured. |
 | Clients list and detail | `scripts/playwright/clients-list.spec.mjs`; #415 | Empty list cold/warm navigation measured below. SSE refresh and validation behavior tested; detail, populated, pending, failure, permission, and no-JS performance measures absent. |
-| Files list and upload | `scripts/playwright/files.spec.mjs`; #417 | Empty list cold/warm navigation measured below. Core runner now captures one synthetic 256 KiB upload request and success feedback; run it to record results. Download wire bytes and upload progress duration, failure, permission and no-JS performance states remain unmeasured. |
+| Files list and upload | `scripts/playwright/files.spec.mjs`; #417 | Empty list cold/warm navigation measured below. Core runner captures one synthetic 256 KiB upload request and success feedback, but the current run closes the browser page before the response; upload metrics remain unavailable. Download wire bytes and upload progress duration, failure, permission and no-JS performance states remain unmeasured. |
 | Members and invitations | `scripts/playwright/members.spec.mjs`, `invitations.spec.mjs`; #419, #420 | Cold/warm navigation and one synthetic invitation creation measured below. Member changes, acceptance, pending, validation, failure, permission and no-JS performance measures absent. |
 | General/email settings, tokens/SCIM, webhooks/deliveries, audit, import/export | [Administration evidence](ui-measurement-admin.md); #422, #423, #424, #425, #426 | Cold/warm navigation and selected audit, import-preview and export interactions measured. Detailed states and limits are in linked evidence. |
 | Account, security, sessions, notifications | `scripts/playwright/settings.spec.mjs`, `notifications.spec.mjs`; #427, #429 | Cold/warm navigation measured. Notification SSE connection state measured; delivery, replay, reconnect, mutation timings and other states remain unmeasured. See [identity evidence](ui-measurement-identity.md). |
@@ -211,6 +211,42 @@ Invitation creation returned HTTP 200. Feedback timing includes Playwright
 automation overhead. The browser-only invitation link was not emitted. Member
 changes, invitation acceptance, populated invitation history, failure,
 permission and no-JavaScript performance states remain unmeasured.
+
+### Members and invitations current rerun
+
+On 2026-11-18T03:08:18Z, commit
+`9fc03f2c6312086167949344bd97d91c837a3a20`, Darwin 27.2.0 arm64,
+Go 1.27.4, Node 26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1:
+
+```sh
+PLAYWRIGHT_PORT=59141 UI_MEASURE=members ./scripts/playwright-smoke.sh
+```
+
+One unthrottled run used a fresh SQLite fixture with one owner, one workspace,
+one synthetic member and no invitations. Browser conditions were 1280×900,
+device scale 1, `en-US`, light theme, reduced motion and blocked service
+workers. Cold cleared HTTP cache; warm repeated the route in the same context.
+Counts span navigation through load and a visible route marker. Cold pages each
+reported one favicon 404; there were no other HTTP errors, redirects, transport
+failures or unfinished requests.
+
+| Screen / interaction | Cache | Requests | Completed encoded bytes | DOMContentLoaded ms | Load / feedback ms |
+|---|---|---:|---:|---:|---:|
+| Members | Cold | 6 | 124321 | 28.2 | 32.7 |
+| Members | Warm | 5 | 123809 | 13.0 | 16.9 |
+| Invitations | Cold | 6 | 116898 | 20.1 | 20.4 |
+| Invitations | Warm | 5 | 116386 | 15.1 | 15.4 |
+| Invitation creation | — | 5 | 117548 | — | 77.4 |
+
+Invitation creation returned 200. Feedback timing includes Playwright
+automation overhead; the browser-only invitation URL was not emitted. These
+single observations do not establish distributions or budgets.
+
+The current core rerun used a fresh isolated fixture and reached the file-upload
+interaction, but the browser page closed before `waitForResponse` observed the
+upload POST. The runner exited without emitting aggregate results, so this run
+provides no new list or upload values. The upload failure needs diagnosis before
+the runner can establish a reproducible upload baseline.
 
 ### Core list and Item interaction observation
 
