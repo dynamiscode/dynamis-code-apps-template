@@ -8,9 +8,9 @@ set -a; . ./.env; set +a
 go run ./cmd/server
 ```
 
-Running `make setup` configures `.githooks` (enforcing `gofmt` on staged Go files, plus `go vet` and generate drift checks on commit, and `make ci-local` on push) and installs dependencies. Refresh only the hook path with `make setup-hooks`. The `commit-msg` hook rejects AI attribution trailers (`Co-Authored-By: Claude` and `Generated with Claude Code`), and `make lint` tests that hook via `scripts/test-commit-msg-hook.sh`.
+Running `make setup` configures `.githooks` (checking Go formatting and conflict markers on commit) and installs dependencies. Refresh only the hook path with `make setup-hooks`. The `commit-msg` hook rejects AI attribution trailers (`Co-Authored-By: Claude` and `Generated with Claude Code`), and `make lint` tests that hook via `scripts/test-commit-msg-hook.sh`.
 
-`make ci-local` runs the CI checks that work without Docker, Postgres, or browser smoke (`lint`, `test-unit`, `race`, `deps-check`, `generate-check`, `build`, `secret-check`); the pre-push hook runs it. CI-only targets are listed in the Makefile comment above `ci-local`.
+Run `make ci-local` optionally to check locally before pushing. It runs the CI checks that work without Docker, Postgres, or browser smoke (`lint`, `test-unit`, `race`, `deps-check`, `generate-check`, `templ-check`, `css-check`, `build`, `secret-check`). CI-only targets are listed in the Makefile comment above `ci-local`.
 `make setup` also enables git rerere for this repo (`rerere.enabled`), which records conflict resolutions and replays them when the same conflict recurs, such as when rebasing stacked branches.
 
 Use Go 1.26 or newer; the module records the development toolchain. Use an

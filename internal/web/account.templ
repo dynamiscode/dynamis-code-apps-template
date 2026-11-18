@@ -1,5 +1,16 @@
 package web
 
+templ accountHeader(data pageData) {
+	<header class="topbar">
+		<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
+		<div class="topbar-context">
+			@defaultHomeCrumb(data)
+			<span>{ data.T("common.account") }</span>
+		</div>
+		@accountMenu(data)
+	</header>
+}
+
 templ accountPage(data pageData) {
 	<!doctype html>
 	<html lang={ data.Locale } data-theme={ data.Theme }>
@@ -13,12 +24,8 @@ templ accountPage(data pageData) {
 		</head>
 		<body data-account-page>
 			@skipLink(data)
-			<header class="topbar">
-				<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
-				<div class="topbar-context">@defaultHomeCrumb(data)<span>{ data.T("common.account") }</span></div>
-				@accountMenu(data)
-			</header>
-			<main class="account-page" id="main">
+			@accountHeader(data)
+			<main id="main" class="account-page">
 				<header class="account-heading">
 					<p class="eyebrow">{ data.T("common.account") }</p>
 					<h1>{ data.T("account.account") }</h1>
@@ -30,7 +37,7 @@ templ accountPage(data pageData) {
 					</nav>
 				</header>
 				if data.Saved {
-					<p class="success" role="status">{ data.T("account.saved") }</p>
+					@successAlert(data.T("account.saved"))
 				}
 				if data.ErrorKey != "" {
 					@errorAlert(data.T(data.ErrorKey))
@@ -47,32 +54,30 @@ templ accountPage(data pageData) {
 						<p>{ data.T("account.profile_description") }</p>
 						<form action="/account/profile" method="post" data-dirty-track data-unsaved-warning>
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							<label for="display-name">{ data.T("account.display_name") } { data.T("ui.optional") }</label>
-							<input id="display-name" name="display_name" value={ data.Profile.DisplayName } maxlength="120"/>
+							<label for="display-name">{ data.T("account.display_name") }{ " " }{ data.T("ui.optional") }</label>
+							<input class="input" id="display-name" name="display_name" value={ data.Profile.DisplayName } maxlength="120" data-trim/>
 							<label for="account-email">{ data.T("common.email") }</label>
-							<input id="account-email" value={ data.Profile.Email } readonly/>
+							<input class="input" id="account-email" value={ data.Profile.Email } readonly/>
 							<label for="account-timezone">{ data.T("account.timezone") }</label>
-							<input id="account-timezone" name="timezone" value={ data.Profile.Timezone } required maxlength="128" data-default="timezone" data-trim/>
-							<label for="account-theme">{ data.T("account.theme") }</label>
-							<select id="account-theme" name="theme">
+							<input class="input" id="account-timezone" name="timezone" value={ data.Profile.Timezone } required maxlength="128" data-default="timezone" data-trim/>
+							@selectField("account-theme", data.T("account.theme"), templ.Attributes{"name": "theme"}) {
 								<option value="system" selected?={ data.Profile.Theme == "system" }>{ data.T("account.theme_system") }</option>
 								<option value="light" selected?={ data.Profile.Theme == "light" }>{ data.T("account.theme_light") }</option>
 								<option value="dark" selected?={ data.Profile.Theme == "dark" }>{ data.T("account.theme_dark") }</option>
-							</select>
-							<label for="account-locale">{ data.T("common.language") }</label>
-							<select id="account-locale" name="locale">
+							}
+							@selectField("account-locale", data.T("common.language"), templ.Attributes{"name": "locale"}) {
 								<option value="" selected?={ data.Profile.Locale == "" }>{ data.T("common.automatic") }</option>
 								<option value="en" selected?={ data.Profile.Locale == "en" }>{ data.T("common.english") }</option>
 								<option value="es" selected?={ data.Profile.Locale == "es" }>{ data.T("common.spanish") }</option>
-							</select>
-							<button type="submit" data-requires-change>{ data.T("common.save") }</button>
+							}
+							@submitButton(data.T("common.save"), templ.Attributes{"data-requires-change": true})
 						</form>
 					</section>
 					<section class="settings-panel">
 						<h2>{ data.T("account.email_verification") }</h2>
 						<p>{ data.T("account.email_verification_description") }</p>
 						if data.Profile.EmailVerifiedAt != nil {
-							<p class="success" role="status">{ data.T("account.email_verified") }</p>
+							@successAlert(data.T("account.email_verified"))
 						} else {
 							<p>{ data.T("account.email_unverified") }</p>
 							<form action="/account/verify-email" method="post">
@@ -87,12 +92,9 @@ templ accountPage(data pageData) {
 							<p>{ data.T("account.password_description") }</p>
 							<form action="/account/password" method="post">
 								<input type="hidden" name="csrf" value={ data.CSRF }/>
-								<label for="current-password">{ data.T("account.current_password") }</label>
-								<input class="input" id="current-password" name="current_password" type="password" autocomplete="current-password" required maxlength="1024"/>
-								<label for="new-password">{ data.T("account.new_password") }</label>
-								<input class="input" id="new-password" name="new_password" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required data-strength/>
-								<label for="password-confirmation">{ data.T("account.confirm_password") }</label>
-								<input class="input" id="password-confirmation" name="password_confirmation" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required data-match="new-password"/>
+								@textField("current-password", data.T("account.current_password"), templ.Attributes{"name": "current_password", "type": "password", "autocomplete": "current-password", "required": true})
+								@textField("new-password", data.T("account.new_password"), templ.Attributes{"name": "new_password", "type": "password", "autocomplete": "new-password", "minlength": "12", "maxlength": "1024", "required": true, "data-strength": true})
+								@textField("password-confirmation", data.T("account.confirm_password"), templ.Attributes{"name": "password_confirmation", "type": "password", "autocomplete": "new-password", "minlength": "12", "maxlength": "1024", "required": true, "data-match": "new-password"})
 								@submitButton(data.T("account.change_password"), nil)
 							</form>
 						</section>
@@ -100,16 +102,33 @@ templ accountPage(data pageData) {
 					<section class="settings-panel">
 						<h2>{ data.T("account.notifications") }</h2>
 						<p><a href="/notifications">{ data.T("account.view_notifications") }</a></p>
-						for _, preference := range data.NotificationPreferences {
-							<p>{ workspaceNotificationLabel(data, preference.NotificationType) }: { accountNotificationState(data, preference.Enabled) }</p>
+						if len(data.NotificationPreferences) == 0 {
+							@emptyState(data.T("workspace.notifications_empty"))
+						} else {
+							<ul class="settings-records">
+								for _, preference := range data.NotificationPreferences {
+									<li class="settings-record"><span>{ workspaceNotificationLabel(data, preference.NotificationType) }</span><span>
+										if preference.Enabled {
+											{ data.T("account.enabled") }
+										} else {
+										{ data.T("account.disabled") }
+										}
+									</span></li>
+								}
+							</ul>
 						}
 						<form action="/account/notifications" method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							<label for="notification-type">{ data.T("account.notification_type") }</label>
-							<select id="notification-type" name="notification_type"><option value="security">security</option><option value="workspace">workspace</option><option value="system">system</option></select>
-							<label for="notification-enabled">{ data.T("account.notification_delivery") }</label>
-							<select id="notification-enabled" name="enabled"><option value="true">{ data.T("account.enabled") }</option><option value="false">{ data.T("account.disabled") }</option></select>
-							<button type="submit">{ data.T("common.save") }</button>
+							@selectField("notification-type", data.T("account.notification_type"), templ.Attributes{"name": "notification_type"}) {
+								<option value="security">{ data.T("workspace.notification_security") }</option>
+								<option value="workspace">{ data.T("workspace.notification_workspace") }</option>
+								<option value="system">{ data.T("workspace.notification_system") }</option>
+							}
+							@selectField("notification-enabled", data.T("account.notification_delivery"), templ.Attributes{"name": "enabled"}) {
+								<option value="true">{ data.T("account.enabled") }</option>
+								<option value="false">{ data.T("account.disabled") }</option>
+							}
+							@submitButton(data.T("common.save"), nil)
 						</form>
 					</section>
 					<section class="settings-panel danger-panel settings-panel-wide">
@@ -117,13 +136,9 @@ templ accountPage(data pageData) {
 						<p id="delete-description">{ data.T("account.delete_description") }</p>
 						<form action="/account/delete" method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							<label for="delete-password">{ data.T("account.current_password") }</label>
-							<input class="input" id="delete-password" name="password" type="password" autocomplete="current-password" required maxlength="1024"/>
-							<label class="confirmation" for="delete-confirm">
-								<input id="delete-confirm" name="confirm_delete" type="checkbox" value="yes" required aria-describedby="delete-description"/>
-								<span>{ data.T("account.delete_confirmation_label") }</span>
-							</label>
-							<button class="danger" type="submit">{ data.T("account.delete_account") }</button>
+							@textField("delete-password", data.T("account.current_password"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password", "required": true})
+							<label class="confirmation" for="delete-confirm"><input id="delete-confirm" name="confirm_delete" type="checkbox" value="yes" required aria-describedby="delete-description"/><span>{ data.T("account.delete_confirmation_label") }</span></label>
+							<button class="btn btn-error danger" type="submit">{ data.T("account.delete_account") }</button>
 						</form>
 					</section>
 				</div>
@@ -132,9 +147,46 @@ templ accountPage(data pageData) {
 	</html>
 }
 
-func accountNotificationState(data pageData, enabled bool) string {
-	if enabled {
-		return data.T("account.enabled")
-	}
-	return data.T("account.disabled")
+templ languageSettingsPage(data pageData) {
+	<!doctype html>
+	<html lang={ data.Locale } data-theme={ data.Theme }>
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width,initial-scale=1"/>
+			<title>{ data.T("account.language_settings_title") } · { data.T("common.product_name") }</title>
+			<link rel="stylesheet" href="/assets/components.css"/>
+			<link rel="stylesheet" href="/assets/app.css"/>
+			@uiHead(data)
+		</head>
+		<body data-account-page>
+			@skipLink(data)
+			<header class="topbar">
+				<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
+				<div class="topbar-context">@workspaceListCrumb(data)<span>{ data.T("common.account") }</span></div>
+				@accountMenu(data)
+			</header>
+			<main id="main" class="account-page narrow">
+				<p class="eyebrow">{ data.T("common.account") }</p>
+				<h1>{ data.T("account.language_settings_title") }</h1>
+				<p class="account-intro">{ data.T("account.language_settings_description") }</p>
+				if data.Saved {
+					@successAlert(data.T("account.language_saved"))
+				}
+				if data.Error != "" {
+					@errorAlert(data.Error)
+				}
+				<section class="settings-panel">
+					<form action="/settings/language" method="post">
+						<input type="hidden" name="csrf" value={ data.CSRF }/>
+						@selectField("language", data.T("common.language"), templ.Attributes{"name": "locale", "aria-label": data.T("common.language")}) {
+							<option value="" selected?={ data.UserLocale == "" }>{ data.T("common.automatic") }</option>
+							<option value="en" selected?={ data.UserLocale == "en" }>{ data.T("common.english") }</option>
+							<option value="es" selected?={ data.UserLocale == "es" }>{ data.T("common.spanish") }</option>
+						}
+						@submitButton(data.T("common.save"), nil)
+					</form>
+				</section>
+			</main>
+		</body>
+	</html>
 }

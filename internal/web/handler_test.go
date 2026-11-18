@@ -538,6 +538,9 @@ func TestAccountSecurityPagesUseSharedBrandAndRequireDeletionConfirmation(t *tes
 		if path == "/account" && (!strings.Contains(body, `action="/account/password"`) || strings.Contains(body, `name="new_password" data-persist`)) {
 			t.Errorf("account page lacks password form or persists password fields: %s", body)
 		}
+		if path == "/settings/language" && (!strings.Contains(body, `<main id="main" class="account-page narrow"`) || !strings.Contains(body, `aria-label="Idioma"`)) {
+			t.Errorf("language page lacks templ account layout or labelled language form: %s", body)
+		}
 	}
 
 	account := request(handler, http.MethodPost, "/account/delete", url.Values{
