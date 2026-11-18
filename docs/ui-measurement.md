@@ -56,6 +56,10 @@ and interaction measurements in [identity evidence](ui-measurement-identity.md).
 `UI_MEASURE=core ./scripts/playwright-smoke.sh` measures cold/warm empty Items,
 Clients and Files navigation, then synthetic Item creation and empty-title
 browser validation. It uses the same isolated fixture and emits aggregate JSON.
+`UI_MEASURE=members ./scripts/playwright-smoke.sh` measures cold/warm Members
+and Invitations navigation, then one synthetic invitation creation. It reports
+only aggregate counters and feedback timing; the generated invitation URL is
+never emitted.
 Both commands print JSON without paths, headers or response bodies. Each result counts CDP
 request starts from navigation until the home marker is visible and timing is
 read after the load event, including redirects; completed encoded
@@ -153,7 +157,7 @@ capture exists. Do not infer zero cost or absence from those cells.
 | Items list, create, edit | `scripts/playwright/ui.spec.mjs`; #413–#416 | Empty list cold/warm navigation and one create plus empty-title browser-validation timing measured below. Edit, fragment/SSE bytes, populated, server validation/error, permission and no-JS performance states unmeasured. |
 | Clients list and detail | `scripts/playwright/clients-list.spec.mjs`; #415 | Empty list cold/warm navigation measured below. SSE refresh and validation behavior tested; detail, populated, pending, failure, permission, and no-JS performance measures absent. |
 | Files list and upload | `scripts/playwright/files.spec.mjs`; #417 | Empty list cold/warm navigation measured below. Upload/download transfer and feedback timing unmeasured. Populated, pending, validation, failure, permission and no-JS performance states absent. |
-| Members and invitations | `scripts/playwright/members.spec.mjs`, `invitations.spec.mjs`; #419, #420 | Behavior tested; list/creation/acceptance navigation and mutation timings unmeasured. Empty, pending, validation, failure, permission and no-JS measures absent. |
+| Members and invitations | `scripts/playwright/members.spec.mjs`, `invitations.spec.mjs`; #419, #420 | Cold/warm navigation and one synthetic invitation creation measured below. Member changes, acceptance, pending, validation, failure, permission and no-JS performance measures absent. |
 | General/email settings, tokens/SCIM, webhooks/deliveries, audit, import/export | [Administration evidence](ui-measurement-admin.md); #422, #423, #424, #425, #426 | Cold/warm navigation and selected audit, import-preview and export interactions measured. Detailed states and limits are in linked evidence. |
 | Account, security, sessions, notifications | `scripts/playwright/settings.spec.mjs`, `notifications.spec.mjs`; #427, #429 | Cold/warm navigation measured. Notification SSE connection state measured; delivery, replay, reconnect, mutation timings and other states remain unmeasured. See [identity evidence](ui-measurement-identity.md). |
 | Setup, login, MFA, recovery | `scripts/playwright/ui.spec.mjs`, `password-reset.spec.mjs`; #430 | Cold/warm navigation and invalid-login/password-recovery feedback measured. Valid login, MFA, setup submission, validation, other failures, pending and no-JS timings remain unmeasured. See [identity evidence](ui-measurement-identity.md). |
@@ -167,6 +171,43 @@ script ownership, or whether repeat requests are unnecessary. HTMX, SSE,
 upload/download wire bytes and loading feedback require separately bounded
 interaction measurements. See route owners above for follow-up; no behavior
 change is claimed.
+
+### Members and invitation observation
+
+`UI_MEASURE=members ./scripts/playwright-smoke.sh` uses the isolated owner and
+one synthetic member fixture. It records cold/warm Members and Invitations
+navigation, then creates one invitation for `ui-measurement-invite@example.test`.
+The generated invitation URL remains in the browser only. The fixture is
+discarded at exit. Member changes, invitation acceptance, and error/permission
+states are not measured in this run.
+
+On 2026-11-18T03:03:04Z, the isolated run completed on commit
+`c54314cedf6ea614ffb7efc1501f71a598d84eb7`, Darwin 27.2.0 arm64, Node
+26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1:
+
+```sh
+PLAYWRIGHT_PORT=59211 UI_MEASURE=members ./scripts/playwright-smoke.sh
+```
+
+The fixture had one owner, one workspace, one synthetic member and no
+invitations. Browser conditions were 1280×900, device scale 1, `en-US`, light
+theme, reduced motion and unthrottled loopback. Cold cleared HTTP cache after
+sign-in; warm repeated each page in the same context. This is one sample, not a
+budget. Request counts span navigation to load and visible heading; bytes sum
+completed CDP encoded bytes. Timings are Navigation Timing milliseconds.
+
+| Screen or interaction | Cache | Requests | Completed encoded bytes | DOMContentLoaded ms | Load or feedback ms | HTTP errors |
+|---|---|---:|---:|---:|---:|---|
+| Members | cold | 6 | 124321 | 26.8 | 28.8 | One favicon 404 |
+| Members | warm | 5 | 123809 | 15.0 | 16.0 | None |
+| Invitations | cold | 6 | 116898 | 15.8 | 16.0 | One favicon 404 |
+| Invitations | warm | 5 | 116386 | 15.6 | 15.7 | None |
+| Create invitation | — | 5 | 117548 | — | 83.2 | None |
+
+Invitation creation returned HTTP 200. Feedback timing includes Playwright
+automation overhead. The browser-only invitation link was not emitted. Member
+changes, invitation acceptance, populated invitation history, failure,
+permission and no-JavaScript performance states remain unmeasured.
 
 ### Core list and Item interaction observation
 

@@ -1403,3 +1403,16 @@ continues to enforce owner/admin management and owner-only transfer.
 - `npm run typecheck` and `npm run test` are undefined. `SANDCASTLE_VERIFY` is
   unset, so required wrapped full-suite checks were unavailable. Issue #439
   remains partial; uncovered routes and state gaps are mapped in the evidence.
+
+## UI members and invitations measurement (#439, 2026-11-18)
+
+- Added `UI_MEASURE=members ./scripts/playwright-smoke.sh` for cold/warm
+  Members and Invitations navigation and synthetic invitation creation.
+  One isolated run passed; exact counts and timings are in
+  [UI measurement](ui-measurement.md).
+- The cold pages again reported one favicon 404. The invitation URL stayed in
+  the browser and was not emitted. Member changes, acceptance and failure,
+  permission and no-JavaScript states remain unmeasured. No budget is proposed.
+- `npm run test:unit` passed 39 tests. `npm run typecheck` and `npm run test`
+  are undefined. `SANDCASTLE_VERIFY` is unset, so wrapped full suites could not
+  run. Issue #439 remains partial.
