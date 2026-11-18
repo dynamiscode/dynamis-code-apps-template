@@ -53,6 +53,9 @@ unavailable metrics. Do not infer transfer bytes from asset gzip sizes below.
 cache with CDP, then measures workspace-home navigation and repeats it warm.
 `UI_MEASURE=identity ./scripts/playwright-smoke.sh` runs the identity navigation
 and interaction measurements in [identity evidence](ui-measurement-identity.md).
+`UI_MEASURE=core ./scripts/playwright-smoke.sh` measures cold/warm empty Items,
+Clients and Files navigation, then synthetic Item creation and empty-title
+browser validation. It uses the same isolated fixture and emits aggregate JSON.
 Both commands print JSON without paths, headers or response bodies. Each result counts CDP
 request starts from navigation until the home marker is visible and timing is
 read after the load event, including redirects; completed encoded
@@ -147,9 +150,9 @@ capture exists. Do not infer zero cost or absence from those cells.
 | Screen or interaction | Existing behavior evidence / owner | Performance and state coverage |
 |---|---|---|
 | Workspace home | `scripts/playwright/ui.spec.mjs`; #439 | Cold/warm navigation measured below; empty fixture only. Populated, pending, error, permission and no-JS states unmeasured. |
-| Items list, create, edit | `scripts/playwright/ui.spec.mjs`; #413–#416 | Navigation and create/edit interaction timing, fragment/SSE request counts and bytes unmeasured. Empty, populated, validation, error, permission and no-JS performance states unmeasured. |
-| Clients list and detail | `scripts/playwright/clients-list.spec.mjs`; #415 | SSE refresh and validation behavior tested; performance unmeasured. Empty, populated, pending, failure, permission, detail, and no-JS measures absent. |
-| Files list and upload | `scripts/playwright/files.spec.mjs`; #417 | Behavior tested; navigation, upload/download transfer and feedback timing unmeasured. Empty, pending, validation, failure, permission and no-JS measures absent. |
+| Items list, create, edit | `scripts/playwright/ui.spec.mjs`; #413–#416 | Empty list cold/warm navigation and one create plus empty-title browser-validation timing measured below. Edit, fragment/SSE bytes, populated, server validation/error, permission and no-JS performance states unmeasured. |
+| Clients list and detail | `scripts/playwright/clients-list.spec.mjs`; #415 | Empty list cold/warm navigation measured below. SSE refresh and validation behavior tested; detail, populated, pending, failure, permission, and no-JS performance measures absent. |
+| Files list and upload | `scripts/playwright/files.spec.mjs`; #417 | Empty list cold/warm navigation measured below. Upload/download transfer and feedback timing unmeasured. Populated, pending, validation, failure, permission and no-JS performance states absent. |
 | Members and invitations | `scripts/playwright/members.spec.mjs`, `invitations.spec.mjs`; #419, #420 | Behavior tested; list/creation/acceptance navigation and mutation timings unmeasured. Empty, pending, validation, failure, permission and no-JS measures absent. |
 | General/email settings, tokens/SCIM, webhooks/deliveries, audit, import/export | [Administration evidence](ui-measurement-admin.md); #422, #423, #424, #425, #426 | Cold/warm navigation and selected audit, import-preview and export interactions measured. Detailed states and limits are in linked evidence. |
 | Account, security, sessions, notifications | `scripts/playwright/settings.spec.mjs`, `notifications.spec.mjs`; #427, #429 | Cold/warm navigation measured. Notification SSE connection state measured; delivery, replay, reconnect, mutation timings and other states remain unmeasured. See [identity evidence](ui-measurement-identity.md). |
@@ -164,6 +167,44 @@ script ownership, or whether repeat requests are unnecessary. HTMX, SSE,
 upload/download wire bytes and loading feedback require separately bounded
 interaction measurements. See route owners above for follow-up; no behavior
 change is claimed.
+
+### Core list and Item interaction observation
+
+On 2026-11-18T02:07:21.220Z, commit
+`4492d2c86536e6f528c7bb9a73287d568ee081ff`, Darwin 27.2.0 arm64,
+Go 1.27.4, Node 26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1:
+
+```sh
+PLAYWRIGHT_PORT=58971 UI_MEASURE=core ./scripts/playwright-smoke.sh
+```
+
+One unthrottled loopback run used a fresh SQLite fixture with one synthetic
+owner, one workspace and zero Items, Clients and Files. Browser conditions
+were 1280×900, device scale 1, `en-US`, light theme, reduced motion and blocked
+service workers. Cold cleared HTTP cache before each navigation; warm repeated
+the route in the same context. Counts span navigation through load and a visible
+route marker. All three live list pages had one unfinished SSE request, counted
+but excluded from completed bytes. Cold pages each reported the favicon 404;
+there were no other errors, redirects or transport failures.
+
+| Screen / interaction | Cache | Requests | Completed encoded bytes | DOMContentLoaded ms | Load / feedback ms |
+|---|---|---:|---:|---:|---:|
+| Items list | Cold | 10 | 167739 | 19.1 | 20.7 |
+| Items list | Warm | 9 | 167227 | 15.1 | 16.5 |
+| Clients list | Cold | 10 | 170170 | 15.7 | 17.9 |
+| Clients list | Warm | 9 | 169658 | 25.4 | 29.2 |
+| Files list | Cold | 6 | 119061 | 15.0 | 16.4 |
+| Files list | Warm | 5 | 118549 | 14.0 | 15.3 |
+| Item create | — | 1 | 7245 | — | 58.8 |
+| Empty-title browser validation | — | 0 captured | unavailable | — | 104.6 |
+
+Creation returned 200. Empty-title validation used the browser's native
+`required` constraint, so it sent no request. Interaction durations use Node's
+monotonic clock and include Playwright automation overhead. These single
+observations do not establish distributions or budgets. The runner and results
+do not measure populated states, Item edit, server validation, client detail,
+upload/download transfer, feedback under failure, permission/no-JavaScript
+states, asset initiators or whether repeated requests are unnecessary.
 
 ### Earlier workspace home navigation observation
 

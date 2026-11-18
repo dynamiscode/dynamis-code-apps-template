@@ -1377,3 +1377,16 @@ continues to enforce owner/admin management and owner-only transfer.
   is `UI_MEASURE=identity ./scripts/playwright-smoke.sh`; the home baseline uses
   `UI_MEASURE=1`. Coverage gaps and the no-budget decision remain in
   [identity measurement](ui-measurement-identity.md).
+
+## UI core list measurement evidence (#439, 2026-11-18)
+
+- Added `UI_MEASURE=core ./scripts/playwright-smoke.sh` for reproducible cold
+  and warm empty Items, Clients and Files navigation, synthetic Item creation,
+  and empty-title browser validation. One run passed on commit
+  `4492d2c86536e6f528c7bb9a73287d568ee081ff`; exact values and conditions are
+  in [UI measurement](ui-measurement.md).
+- Cold list navigations each reported the favicon 404. Items and Clients had
+  one unfinished live stream per navigation. The single run sets no budget.
+- Populated states, Item edit/server validation, Client detail, member and
+  invitation flows, upload/download transfer, permission/no-JavaScript states,
+  and repeated-run variance remain unmeasured. Issue #439 remains partial.
