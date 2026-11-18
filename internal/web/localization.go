@@ -186,10 +186,16 @@ func (h *Handler) languageSettingsPage(writer http.ResponseWriter, request *http
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, http.StatusOK, "language-settings-page", pageData{
+	data := h.languageSettingsData(request, session.UserID, csrf, locale)
+	data.Saved = request.URL.Query().Get("saved") == "1"
+	h.render(writer, http.StatusOK, "language-page", data)
+}
+
+func (h *Handler) languageSettingsData(request *http.Request, userID identity.UserID, csrf, locale string) pageData {
+	return pageData{
 		Title: "Language settings", NavPage: "language", CSRF: csrf, UserLocale: locale,
-		Saved: request.URL.Query().Get("saved") == "1",
-	})
+		DefaultWorkspaceHref: h.defaultHomeHref(request.Context(), userID),
+	}
 }
 
 func (h *Handler) languageSettings(writer http.ResponseWriter, request *http.Request) {
@@ -208,15 +214,15 @@ func (h *Handler) languageSettings(writer http.ResponseWriter, request *http.Req
 	locale := strings.TrimSpace(request.FormValue("locale"))
 	if locale != "" {
 		if _, ok := i18n.ParseLocale(locale); !ok {
-			profile, profileErr := h.identity.GetUserProfile(request.Context(), session.UserID)
-			if profileErr != nil {
+			profile, err := h.identity.GetUserProfile(request.Context(), session.UserID)
+			if err != nil {
 				h.renderError(writer, http.StatusInternalServerError)
 				return
 			}
-			h.render(writer, http.StatusUnprocessableEntity, "language-settings-page", pageData{
-				Title: "Language settings", NavPage: "language", CSRF: csrf, UserLocale: profile.Locale,
-				Locale: profile.Locale, Theme: profile.Theme, Error: "The selected language is invalid.",
-			})
+			data := h.languageSettingsData(request, session.UserID, csrf, profile.Locale)
+			data.Theme = profile.Theme
+			data.Error = "The selected language is invalid."
+			h.render(writer, http.StatusUnprocessableEntity, "language-page", data)
 			return
 		}
 	}

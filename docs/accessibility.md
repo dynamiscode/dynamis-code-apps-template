@@ -66,6 +66,23 @@ desktop/mobile and light/dark themes. The browser suite expires an isolated
 session, verifies rejection on its next request, and checks its listed status.
 These automated checks do not replace manual assistive-technology review.
 
+### Workspace journeys — issue #451
+
+The Playwright suite covers workspace home and Items screenshots at desktop and
+mobile widths in light and dark themes with reduced motion. Workspace home has
+an axe scan. Items covers creation, edit validation, deletion conflict,
+sharing creation and revocation, Spanish labels, theme preference, browser
+history, and ordinary form submission without JavaScript. Files has separate
+screenshots, axe and keyboard checks, upload failure and retry, read-only
+permissions, and ordinary upload and filter forms. Existing Clients tests
+cover custom fields and client validation. Run `make browser-smoke` against its
+disposable server to execute journey checks.
+
+These are automated browser checks, not manual verification of every state
+across every locale, viewport, theme, and permission. The complete matrix and
+screen-reader behavior remain gaps; axe does not replace manual assistive
+technology review.
+
 ## Manual checklist
 
 | Check | Result | Evidence |
