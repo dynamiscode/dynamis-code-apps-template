@@ -1429,3 +1429,17 @@ continues to enforce owner/admin management and owner-only transfer.
   requested npm `typecheck` and `test` scripts are undefined. `SANDCASTLE_VERIFY`
   is unset, so wrapped full-suite checks could not run. Issue #439 remains
   partial; route, state and transfer-metric gaps remain in the evidence.
+
+## UI upload measurement follow-up (#439, 2026-11-18)
+
+- Fixed the core measurement locator to target the upload submit button. The
+  isolated 256 KiB upload returned 303 with 7 requests, 128,354 encoded bytes,
+  1 redirect, zero transport failures and 89.6 ms feedback. Exact environment,
+  command and list observations are in [UI measurement](ui-measurement.md).
+- Upload failure, progress timing, download transfer, permission and
+  no-JavaScript performance states remain unmeasured. Issue #439 remains
+  partial; no budget or product fix is claimed.
+- Passed: `node --check scripts/ui-measurement-core.mjs`,
+  `npm run test:unit` (39 tests), and `git diff --check`. The required
+  `npm run typecheck` and `npm run test` scripts are undefined, and
+  `SANDCASTLE_VERIFY` is unset, so wrapped full-suite checks are unavailable.

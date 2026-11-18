@@ -159,7 +159,7 @@ capture exists. Do not infer zero cost or absence from those cells.
 | Workspace home | `scripts/playwright/ui.spec.mjs`; #439 | Cold/warm navigation measured below; empty fixture only. Populated, pending, error, permission and no-JS states unmeasured. |
 | Items list, create, edit | `scripts/playwright/ui.spec.mjs`; #413–#416 | Empty list cold/warm navigation and one create plus empty-title browser-validation timing measured below. Edit, fragment/SSE bytes, populated, server validation/error, permission and no-JS performance states unmeasured. |
 | Clients list and detail | `scripts/playwright/clients-list.spec.mjs`; #415 | Empty list cold/warm navigation measured below. SSE refresh and validation behavior tested; detail, populated, pending, failure, permission, and no-JS performance measures absent. |
-| Files list and upload | `scripts/playwright/files.spec.mjs`; #417 | Empty list cold/warm navigation measured below. Core runner captures one synthetic 256 KiB upload request and success feedback, but the current run closes the browser page before the response; upload metrics remain unavailable. Download wire bytes and upload progress duration, failure, permission and no-JS performance states remain unmeasured. |
+| Files list and upload | `scripts/playwright/files.spec.mjs`; #417 | Empty list cold/warm navigation and one synthetic 256 KiB upload request/success feedback measured below. Download wire bytes and upload progress duration, failure, permission and no-JS performance states remain unmeasured. |
 | Members and invitations | `scripts/playwright/members.spec.mjs`, `invitations.spec.mjs`; #419, #420 | Cold/warm navigation and one synthetic invitation creation measured below. Member changes, acceptance, pending, validation, failure, permission and no-JS performance measures absent. |
 | General/email settings, tokens/SCIM, webhooks/deliveries, audit, import/export | [Administration evidence](ui-measurement-admin.md); #422, #423, #424, #425, #426 | Cold/warm navigation and selected audit, import-preview and export interactions measured. Detailed states and limits are in linked evidence. |
 | Account, security, sessions, notifications | `scripts/playwright/settings.spec.mjs`, `notifications.spec.mjs`; #427, #429 | Cold/warm navigation measured. Notification SSE connection state measured; delivery, replay, reconnect, mutation timings and other states remain unmeasured. See [identity evidence](ui-measurement-identity.md). |
@@ -242,11 +242,26 @@ Invitation creation returned 200. Feedback timing includes Playwright
 automation overhead; the browser-only invitation URL was not emitted. These
 single observations do not establish distributions or budgets.
 
-The current core rerun used a fresh isolated fixture and reached the file-upload
-interaction, but the browser page closed before `waitForResponse` observed the
-upload POST. The runner exited without emitting aggregate results, so this run
-provides no new list or upload values. The upload failure needs diagnosis before
-the runner can establish a reproducible upload baseline.
+The current core rerun used a fresh isolated fixture. Upload now completes and
+reports its response and transfer metrics; the prior failure came from a role
+locator matching both the file input and submit button.
+
+On 2026-11-18T03:12:21.005Z, commit
+`e4b317dc791f519dbb9d1b24a16f00a1ce94e7ea`, Darwin 27.2.0 arm64, Node
+26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1:
+
+```sh
+PLAYWRIGHT_PORT=59434 UI_MEASURE=core ./scripts/playwright-smoke.sh
+```
+
+The isolated fixture and browser conditions match the core run above. Item
+creation returned 200 with 7,245 completed encoded bytes and 46.2 ms feedback;
+empty-title validation took 42.6 ms and sent no request. The synthetic 256 KiB
+file upload returned 303, with 7 requests, 1 redirect, 128,354 completed
+encoded bytes, zero HTTP errors or transport failures, and 89.6 ms feedback.
+Interaction durations include Playwright overhead. This single successful
+upload does not measure failure, permission, progress timing, download bytes or
+no-JavaScript fallback.
 
 ### Core list and Item interaction observation
 
@@ -303,7 +318,7 @@ Creation returned 200. Empty-title validation used the browser's native
 monotonic clock and include Playwright automation overhead. These single
 observations do not establish distributions or budgets. The runner and results
 do not measure populated states, Item edit, server validation, client detail,
-upload/download transfer, feedback under failure, permission/no-JavaScript
+download transfer, feedback under failure, permission/no-JavaScript
 states, asset initiators or whether repeated requests are unnecessary.
 
 ### Earlier workspace home navigation observation

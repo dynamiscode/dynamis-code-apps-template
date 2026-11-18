@@ -101,10 +101,11 @@ try {
   const stopUpload = observeNetwork(cdp);
   const uploadStart = performance.now();
   try {
-    const responsePromise = page.waitForResponse((response) =>
-      response.request().method() === "POST" && new URL(response.url()).pathname === `${workspacePath}/files`);
-    await uploadForm.getByRole("button").click();
-    const response = await responsePromise;
+    const [response] = await Promise.all([
+      page.waitForResponse((response) =>
+        response.request().method() === "POST" && new URL(response.url()).pathname === `${workspacePath}/files`),
+      uploadForm.locator('button[type="submit"]').click(),
+    ]);
     assert.ok(response.status() >= 200 && response.status() < 400, "file upload failed");
     await page.getByRole("link", { name: /ui-measurement-upload\.txt$/ }).waitFor();
     results.push({ interaction: "upload synthetic 256 KiB file", status: response.status(), ...stopUpload(), feedbackMs: performance.now() - uploadStart });
