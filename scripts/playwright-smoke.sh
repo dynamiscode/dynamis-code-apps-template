@@ -141,7 +141,9 @@ fi
 export PLAYWRIGHT_BASE_URL="http://127.0.0.1:$port"
 export PLAYWRIGHT_OIDC_BASE_URL="http://127.0.0.1:$oidc_port"
 export PLAYWRIGHT_SETUP_BASE_URL="http://127.0.0.1:$setup_port"
-if [ "${UI_MEASURE:-0}" = 1 ]; then
+if [ "${UI_MEASURE:-0}" = identity ]; then
+  node scripts/ui-measurement-identity.mjs
+elif [ "${UI_MEASURE:-0}" = 1 ]; then
   node scripts/ui-measurement.mjs
 else
   export PLAYWRIGHT_MEMBERS_BASE_URL="http://127.0.0.1:$members_port"

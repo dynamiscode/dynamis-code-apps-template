@@ -1373,6 +1373,7 @@ continues to enforce owner/admin management and owner-only transfer.
   share, consent, session revocation, notification delivery, and additional
   validation/error/permission states remain unmeasured. No budget is proposed.
 - `npm run test:journeys` passed 112 tests with 2 skipped on this issue branch.
-  This is behavior evidence only. The historical identity performance runner
-  is absent from this checkout; [identity measurement](ui-measurement-identity.md)
-  now states that limit and gives the current home-only measurement command.
+  This is behavior evidence only. The reproducible identity measurement command
+  is `UI_MEASURE=identity ./scripts/playwright-smoke.sh`; the home baseline uses
+  `UI_MEASURE=1`. Coverage gaps and the no-budget decision remain in
+  [identity measurement](ui-measurement-identity.md).

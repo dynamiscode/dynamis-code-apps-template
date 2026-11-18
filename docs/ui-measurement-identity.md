@@ -2,22 +2,49 @@
 
 Issue #449 covers account, authentication, public share and consent screens.
 This slice uses the [common measurement method](ui-measurement.md); it sets no
-performance budget. The identity route-level runner used for the observations
-below is not present in this checkout. The current browser script supports only
-the workspace-home measurement:
+performance budget. The identity runner uses the shared isolated SQLite fixture
+and Playwright Chrome setup:
 
 ```sh
 npm ci
-UI_MEASURE=1 ./scripts/playwright-smoke.sh
+UI_MEASURE=identity ./scripts/playwright-smoke.sh
 ```
 
-`UI_MEASURE=1` measures workspace-home navigation only. It does not reproduce
-the identity route or interaction values below. Those historical measurements
-remain evidence, but their exact runner and command are unavailable; the listed
-route values are not reproducible from this checkout. The regular Playwright
-journey suite checks observable behavior, not performance.
+`UI_MEASURE=1` still measures workspace-home navigation. The identity command
+measures cold and warm setup, login, recovery, account, security, sessions,
+notifications and unavailable-share navigation. It also measures invalid-login
+and recovery feedback plus notification SSE connection state. Output contains
+aggregate counters and environment metadata, not URLs, bodies, credentials or
+headers. The regular Playwright journey suite checks observable behavior, not
+performance.
 
-## Latest isolated run
+## Reproducible isolated run
+
+`UI_MEASURE=identity ./scripts/playwright-smoke.sh` completed on
+2026-11-18T02:00:32.471Z. The runner uses the existing fresh SQLite fixture
+and reports the checked-out commit, environment, cold/warm navigation counters,
+interaction counters and timing values. This run used commit
+`b85c9dcc834c23012bf41bd8737e768ebd35284a` as reported by the runner, Darwin
+27.2.0 arm64, Node 26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1.
+Viewport was 1280×900, locale `en-US`, light theme, reduced motion and
+unthrottled loopback. Values are single observations; no budgets follow.
+
+| Interaction | Status/state | Requests | Encoded bytes | Feedback/connect ms |
+|---|---:|---:|---:|---:|
+| Invalid login | 401 | 4 | 95744 | 140.6 |
+| Password recovery request | 200 | 4 | 95187 | 255.4 |
+| Notification SSE connection | open, 0 events | unavailable | unavailable | 27.1 |
+
+The runner measured cold and warm navigation for setup, login, password
+recovery, account, security, sessions, notifications and unavailable public
+share. Each captured the Navigation Timing DOMContentLoaded and load values,
+request count and completed encoded bytes. Notifications had one unfinished
+request, its SSE connection. Cold pages reported the favicon 404; the public
+share route also returned the expected document 404. Invalid login retained
+the form and showed its accessible alert. Recovery showed its generic status;
+email delivery was disabled. The runner emits no submitted values.
+
+## Earlier isolated run
 
 On 2026-11-17T20:43:26.714Z, commit `f2abeb30ffa537b9fa0255e04239499801c090e0`,
 Darwin 27.2.0 arm64, Node 26.10.0, Chrome 157.0.8103.79, and Playwright 1.64.1,

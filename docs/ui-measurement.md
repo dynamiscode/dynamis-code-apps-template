@@ -49,9 +49,11 @@ navigation, HTMX fragments, SSE connections/events and uploads/downloads;
 long-lived SSE must not be treated as a completed page load. Record definitions,
 start and end markers, errors, redirects, cache hits, loading feedback and
 unavailable metrics. Do not infer transfer bytes from asset gzip sizes below.
-The measurement command signs in, clears Chrome's HTTP cache with CDP, then
-measures workspace-home navigation in a new context and repeats it warm. It
-prints JSON without paths, headers or response bodies. Each result counts CDP
+`UI_MEASURE=1 ./scripts/playwright-smoke.sh` signs in, clears Chrome's HTTP
+cache with CDP, then measures workspace-home navigation and repeats it warm.
+`UI_MEASURE=identity ./scripts/playwright-smoke.sh` runs the identity navigation
+and interaction measurements in [identity evidence](ui-measurement-identity.md).
+Both commands print JSON without paths, headers or response bodies. Each result counts CDP
 request starts from navigation until the home marker is visible and timing is
 read after the load event, including redirects; completed encoded
 bytes sum `Network.loadingFinished.encodedDataLength` in that interval.
