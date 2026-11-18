@@ -107,7 +107,8 @@ Baseline browser surfaces:
   history. Creation and rotation display the webhook secret once. When
   neither `ENCRYPTION_KEY` nor `WEBHOOK_ENCRYPTION_KEY` is set, managers see an actionable warning and
   create/rotate controls are disabled. Stale form submissions keep the user on
-  this page with an inline error. Webhook IDs in paths and forms are short IDs;
+  this page with an inline error. Delete requires a localized confirmation
+  checkbox; the handler rejects unconfirmed submissions. Webhook IDs in paths and forms are short IDs;
   a malformed, integer, or unknown ID shows the not-found page for the history
   view and a "could not be found" message for rotate and delete.
 - `/workspaces/{workspaceId}/settings/provisioning` is restricted to workspace
@@ -118,16 +119,22 @@ Baseline browser surfaces:
   REST/IdP-only.
 - `/login`, `/setup`, password recovery, `/mfa`, and email verification share the generated app
   brand and compact responsive auth layout. Setup keeps required fields first
-  and marks workspace language as deferrable. Sign-in, MFA, and setup remain
-  ordinary CSRF-protected forms without JavaScript. Password-reset request,
+  and marks workspace language as deferrable. Sign-in, setup, TOTP, and
+  recovery-code flows retain ordinary CSRF-protected forms without JavaScript;
+  passkey authentication stays an optional enhancement. Password-reset request,
   completion, unavailable, and validation states use the same templ layout and
-  ordinary forms.
+  ordinary forms. MFA keeps passkey enhancement plus TOTP and one-use recovery
+  code form fallbacks. Invalid MFA attempts show localized retry feedback;
+  missing or expired challenges return to sign-in. Email verification shows
+  localized success and invalid-or-expired states with ordinary account and
+  sign-in links. These pages use `auth.templ` and generated `auth_templ.go`.
 - `/sessions` shows current, active, expired, and revoked browser sessions with
   localized status and revocation feedback. CSRF-protected forms revoke any
   active session, including the current one; revoking the current session sends
   the browser to sign-in on its next request. The page shows a localized empty
-  state and retains the ordinary form fallback. `/security` manages MFA factors
-  and starts reauthenticated OIDC linking.
+  state and retains the ordinary form fallback. `/security` uses `security.templ`
+  and `security_templ.go` to manage MFA factors, recovery codes, passkey removal,
+  and reauthenticated OIDC linking with ordinary credential-sensitive forms.
 - `/account` edits profile preferences, changes a local password, requests email
   verification, and deletes the account after current-password reauthentication
   and an explicit confirmation checkbox. The server rejects deletion without
@@ -179,13 +186,15 @@ Baseline browser surfaces:
   read-only latest-100 audit history with redacted fields.
 - `/share/{token}` presents a read-only Item projection containing only title
   and localized status. Invalid, expired, and revoked links share the same
-  unavailable page. The Items page lets principals with `resources:write` create
-  seven- or 30-day links and revoke active links with CSRF-protected ordinary
-  forms. The controls state what link holders can see and explain revocation
-  consequences without JavaScript. Its shared list view persists each member's
-  title and status column
-  visibility per workspace, filters by title and status, sorts by creation
-  time, and carries query state through pagination and realtime refreshes. The
+  unavailable page. The Items page lets principals with `resources:write`
+  create seven- or 30-day links and revoke active links with CSRF-protected
+  forms. Create returns the targeted list fragment; revoke uses ordinary
+  redirect navigation. Share forms opt out of HTMX history snapshots so a
+  one-time URL is not cached. The controls state what link holders can see and
+  explain revocation consequences without JavaScript. Its shared list view
+  persists each member's title and status column visibility per workspace,
+  filters by title and status, sorts by creation time, and carries query state
+  through pagination and realtime refreshes. The
   same rows adapt from a table to cards on narrow screens; inline title/status
   editing and authorized row actions remain available when either data column
   is hidden.
@@ -321,7 +330,7 @@ shell composes those components directly.
 | Workspace context and breadcrumbs | Single mode omits workspace selection; multi mode retains the native switcher and ordinary links; `TestSingleModeHidesWorkspaceListNavigation` and `TestMultiModeKeepsWorkspaceListNavigation` | #410 and #434 |
 | Workspace and settings navigation | Home, Items, Clients, Files and settings retain feature and role gates; `TestWebNavigationAndActionFeedback` checks current pages and settings | #434; resource routes remain separate |
 | Member and invitation tabs | Both retain ordinary links and current-page state; `TestWebNavigationAndActionFeedback` | #434; member and invitation pages remain separate |
-| Account menu | Native disclosure and CSRF-protected logout remain; `TestLegacyNavigationBridge` checks escaping | #434; account pages remain separate |
+| Account menu | Native disclosure and CSRF-protected logout remain; `TestLegacyNavigationBridge` checks escaping | #434; account pages use templ |
 
 Empty, validation, pending and error states belong to the page routes above;
 navigation remains present when those pages render it. Focused browser and
@@ -333,7 +342,7 @@ accessibility results and remaining limits are recorded in
 | `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
 | `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.js`, `mcp-consent.html`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge/retry/expired redirect, verification success/invalid-or-expired, OAuth approval/denial |
 | `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | Empty/results states, filters, sorting and paging, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
-| Workspace clients and custom fields | `clients.templ`, `client_details.templ`, `client_fields.templ`, `components.templ`, `workspace.templ`, `navigation.templ`, `client.html` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field and option lifecycle, realtime refresh |
+| Workspace clients and custom fields | `clients.templ`, `client_details.templ`, `client_fields.templ`, `components.templ`, `workspace.templ`, `navigation.templ` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field and option lifecycle, realtime refresh |
 | Workspace members | `members.templ`, `members_templ.go` | Role changes, removal and ownership transfer |
 | `/workspaces/{workspaceId}/settings/invitations`, `/invitations/{secret}`, `/invitations/{secret}/sign-in`, `/invitations/continue` | `invitations.templ`, `invitations_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Create/resend/revoke with explicit revoke confirmation; registration, account-matched acceptance, sign-in return through MFA/OIDC, invalid/expired/unavailable states; ordinary form fallback |
 | `/workspaces/{workspaceId}/settings/audit` | `audit.templ`, `audit_templ.go`, `components.templ`, `components_templ.go` | Scoped redacted history, lazy table fragment, empty state, ordinary `?all=1` fallback, permission denial and expired-session redirect |
@@ -353,10 +362,15 @@ accessibility results and remaining limits are recorded in
 Corresponding route and handler tests cover server-rendered behavior.
 `make ux-smoke` and `make accessibility-smoke` cover the browser paths they
 enumerate; [the accessibility evidence](accessibility.md) records that
-automated coverage. Workspace selection and workspace home use templ; the
-listed legacy views are an intentional exception to the migration target, not
-an exception to escaping, authorization, accessibility, localization, or
+automated coverage. Workspace selection, workspace home, audit history, API token
+and SCIM settings, webhook registry, and delivery history use templ; the remaining
+listed legacy views are an intentional exception to the migration target, not an
+exception to escaping, authorization, accessibility, localization, or
 ordinary-form requirements.
+
+The issue #454 reconciliation maps each route family and major state to its
+automated evidence, committed screenshot samples, and remaining unverified
+states in the next section.
 
 ## Browser journey coverage reconciliation
 
@@ -504,7 +518,10 @@ forms that redirect to the list. Labels are shown exactly as typed, escaped for
 HTML. Permanent deletion is offered only for archived fields, with the effect on
 all client values and choice options shown beside the control, including without
 JavaScript. A refused label returns 422 and a reached limit returns 409, both on
-the same page.
+the same page. The route uses generated `client_fields.templ` and shared
+DaisyUI form, alert, and confirmation components. Choice fields expose option
+add and delete forms to owners and admins; deleting an option warns that client
+values using it will be cleared. All actions retain ordinary POST fallback.
 
 ## Realtime contract
 

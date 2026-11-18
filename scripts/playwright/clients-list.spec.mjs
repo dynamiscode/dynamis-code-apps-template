@@ -111,6 +111,25 @@ test("Clients list follows Spanish workspace locale", async ({ page }) => {
   await expect(page.getByLabel("Nombre para mostrar")).toBeVisible();
 });
 
+test("client detail and field management have accessible responsive layouts", async ({ page }) => {
+  await openClients(page);
+  await page.locator("#client-create > details.client-create > summary").click();
+  await page.getByLabel("Display name").fill(`Accessibility client ${Date.now()}`);
+  await page.getByRole("button", { name: "Add client" }).click();
+  await expect(page).toHaveURL(/\/clients\/[^/?]+$/);
+  const detailURL = page.url();
+  const axeURL = new URL("/__test/axe.js", process.env.PLAYWRIGHT_BASE_URL).href;
+  await page.route(axeURL, (route) => route.fulfill({ contentType: "application/javascript", body: axeSource }));
+  for (const path of [detailURL, new URL(detailURL).pathname.replace(/\/clients\/[^/]+$/, "/client-fields")]) {
+    await page.goto(path);
+    await page.setViewportSize({ width: 390, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await page.addScriptTag({ url: axeURL });
+    const result = await page.evaluate(async () => window.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] } }));
+    expect(result.violations.map(({ id, impact }) => `${id}:${impact}`)).toEqual([]);
+  }
+});
+
 test("custom field lifecycle and multi-select draft survive list refresh", async ({ page }) => {
   await openClients(page);
   await page.getByRole("link", { name: "Manage custom fields" }).click();
@@ -191,6 +210,19 @@ test("query-open filter details do not block realtime refresh", async ({ page })
 
 test.describe("Clients list without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
+
+  test("client detail supports ordinary edit and archive forms", async ({ page }) => {
+    await openClients(page);
+    await page.locator("#client-create > details.client-create > summary").click();
+    await page.getByLabel("Display name").fill(`Native client ${Date.now()}`);
+    await page.getByRole("button", { name: "Add client" }).click();
+    await expect(page).toHaveURL(/\/clients\/[^/?]+$/);
+    await page.locator("#client-display-name").fill("Native client updated");
+    await page.locator("#client-detail").getByRole("button", { name: "Save" }).click();
+    await expect(page.locator("#client-display-name")).toHaveValue("Native client updated");
+    await page.locator("#client-detail").getByRole("button", { name: "Archive" }).click();
+    await expect(page.locator("#client-detail").getByRole("button", { name: "Unarchive" })).toBeVisible();
+  });
 
   test("renders native controls and validation fallback", async ({ page }) => {
     await openClients(page);
