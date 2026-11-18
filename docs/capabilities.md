@@ -1405,7 +1405,12 @@ The Members route uses a responsive shared list with per-user columns, search,
 role filters, sorting, and opt-in paging. Separate ordinary CSRF-protected
 forms change roles, remove members, and transfer ownership. The server requires
 explicit removal and transfer confirmation; shared identity authorization
-continues to enforce owner/admin management and owner-only transfer.
+continues to enforce owner/admin management and owner-only transfer. Issue #405
+verification confirms member routes dispatch to `membersPage`, and invitation
+routes dispatch through `renderInvitationComponent` to templ views including
+`invitationManagementView`; the legacy `members.html` template has no route
+caller. The shared `navigation.html` bridge remains because other
+legacy route templates and its parity test still use it.
 
 - Passed: `make test`, `make lint`, `go test ./internal/web/...` (198 tests),
   and `go test -race ./...` (1,050 tests across 36 packages) during initial
