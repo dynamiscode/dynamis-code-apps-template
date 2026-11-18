@@ -17,6 +17,11 @@ The [administration measurement evidence](ui-measurement-admin.md) records the
 bounded screen and state measurements for issue #448. Metrics the harness cannot
 isolate remain explicitly unavailable; no budgets or performance fixes are claimed.
 
+The [account, authentication, and public measurement evidence](ui-measurement-identity.md)
+is partial for issue #449; invalid-login and password-recovery feedback and
+notification SSE connection are measured. MFA, MCP consent, valid public
+shares, and remaining interaction states remain unmeasured.
+
 ## Profile status
 
 | Profile | Status | Evidence |
