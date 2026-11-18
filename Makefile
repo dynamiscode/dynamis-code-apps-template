@@ -86,13 +86,7 @@ templ-generate:
 	go generate ./internal/web
 
 templ-check:
-	set -eu; tmp="$$(mktemp -d)"; \
-	trap 'rm -rf "$$tmp"' EXIT; \
-	mkdir "$$tmp/before" "$$tmp/after"; \
-	cp internal/web/*_templ.go "$$tmp/before/"; \
-	go generate ./internal/web; \
-	cp internal/web/*_templ.go "$$tmp/after/"; \
-	diff -r "$$tmp/before" "$$tmp/after"
+	go tool templ generate -path internal/web -check
 
 test-templ-check:
 	sh scripts/test-templ-check.sh
