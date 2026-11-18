@@ -19,10 +19,10 @@ The Go build and browser tools retain the caller's environment. Initially it
 contains zero Items, Clients, Files, invitations, and notifications. The smoke
 journey creates one Item; rerun the script for a fresh fixture. It does not seed
 the populated, permission, upload, sharing, MFA, or failure states needed by
-#439. The core measurement creates one synthetic Client, one Item and one
-File during its run. Record the exact synthetic setup and counts for each
-additional state;
-do not reuse a database modified by another scenario. Never copy production data.
+#439. The core measurement creates one synthetic Client, one Item and one File
+during its run. Record exact synthetic setup and counts for each additional
+state. Do not reuse a database modified by another scenario. Never copy
+production data.
 
 Run from the repository root with Go, Node, npm dependencies and Chrome installed:
 
@@ -58,13 +58,14 @@ and interaction measurements in [identity evidence](ui-measurement-identity.md).
 `UI_MEASURE=core ./scripts/playwright-smoke.sh` measures cold/warm empty Items,
 Clients and Files navigation, creates a synthetic Client and measures its
 cold/warm detail page, then measures synthetic Item creation and edit,
-empty-title browser validation, and uploads a synthetic 256 KiB file. It uses the same isolated
-fixture and emits aggregate JSON. Upload feedback timing includes automation
-overhead. `requestBodyBytes` counts request-body bytes from CDP `postData` when
-present, otherwise from a known `Content-Length`; bodies without either are
-counted separately. The upload runner queries CDP for the synthetic upload
-request body. It emits and stores no headers or payloads. Counts exclude HTTP
-headers and framing, so they are body sizes rather than full wire bytes. Server
+empty-title browser validation, and uploads a synthetic 256 KiB file. It uses
+the same isolated fixture and emits aggregate JSON. Upload feedback timing
+includes automation overhead. `requestBodyBytes` counts request-body bytes from
+CDP `postData` when present, otherwise from a known `Content-Length`; bodies
+without either are counted separately. The upload runner queries CDP for the
+synthetic upload request body. It emits and stores no headers or payloads.
+Counts exclude HTTP headers and framing, so they are body sizes rather than
+full wire bytes. Server
 storage is discarded with the fixture.
 `UI_MEASURE=members ./scripts/playwright-smoke.sh` measures cold/warm Members
 and Invitations navigation, then one synthetic invitation creation. It reports

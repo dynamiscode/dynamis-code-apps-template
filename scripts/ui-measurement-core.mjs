@@ -76,7 +76,8 @@ try {
       response.request().method() === "POST" && new URL(response.url()).pathname === `${workspacePath}/clients`);
     await page.getByRole("button", { name: "Add client" }).click();
     const status = (await createClientResponse).status();
-    await page.waitForURL(new RegExp(`${workspacePath}/clients/[^/?]+$`));
+    await page.waitForURL((url) =>
+      url.pathname.startsWith(`${workspacePath}/clients/`) && url.pathname !== `${workspacePath}/clients/`);
     await page.locator("#client-detail").waitFor();
     clientPath = new URL(page.url()).pathname;
     results.push({ interaction: "create synthetic client", status, ...stopCreateClient(),
