@@ -57,8 +57,12 @@ and interaction measurements in [identity evidence](ui-measurement-identity.md).
 Clients and Files navigation, synthetic Item creation and empty-title browser
 validation, then uploads a synthetic 256 KiB file. It uses the same isolated
 fixture and emits aggregate JSON. Upload feedback timing includes automation
-overhead; request bytes include the multipart body, while server storage is
-discarded with the fixture.
+overhead. `requestBodyBytes` counts request-body bytes from CDP `postData` when
+present, otherwise from a known `Content-Length`; bodies without either are
+counted separately. The upload runner queries CDP for the synthetic upload
+request body. It emits and stores no headers or payloads. Counts exclude HTTP
+headers and framing, so they are body sizes rather than full wire bytes. Server
+storage is discarded with the fixture.
 `UI_MEASURE=members ./scripts/playwright-smoke.sh` measures cold/warm Members
 and Invitations navigation, then one synthetic invitation creation. It reports
 only aggregate counters and feedback timing; the generated invitation URL is
@@ -72,8 +76,11 @@ their bytes are unavailable. Redirect bytes may be incomplete; HTTP responses
 with status 400 or higher and transport failures are counted separately. HTTP
 error details contain only the status, an allowlisted resource type and a
 `favicon` or `other` classification; URLs and query strings are never emitted.
-Redirects and CDP cache-served events are also reported. Timings are Navigation Timing milliseconds from
-navigation start to DOMContentLoaded and load. This is one unthrottled run,
+Redirects and CDP cache-served events are also reported. For interactions,
+`completedEncodedBytes` counts completed response bytes; it does not include
+request bodies. `requestBodyBytes` reports known request body lengths
+separately. Timings are Navigation Timing milliseconds from navigation start
+to DOMContentLoaded and load. This is one unthrottled run,
 not an aggregate or a complete per-screen baseline. Adapt the script for each
 interaction and report its exact command and boundaries; HTMX, SSE, uploads,
 downloads and loading feedback remain unmeasured by this navigation procedure.
@@ -159,7 +166,7 @@ capture exists. Do not infer zero cost or absence from those cells.
 | Workspace home | `scripts/playwright/ui.spec.mjs`; #439 | Cold/warm navigation measured below; empty fixture only. Populated, pending, error, permission and no-JS states unmeasured. |
 | Items list, create, edit | `scripts/playwright/ui.spec.mjs`; #413–#416 | Empty list cold/warm navigation and one create plus empty-title browser-validation timing measured below. Edit, fragment/SSE bytes, populated, server validation/error, permission and no-JS performance states unmeasured. |
 | Clients list and detail | `scripts/playwright/clients-list.spec.mjs`; #415 | Empty list cold/warm navigation measured below. SSE refresh and validation behavior tested; detail, populated, pending, failure, permission, and no-JS performance measures absent. |
-| Files list and upload | `scripts/playwright/files.spec.mjs`; #417 | Empty list cold/warm navigation and one synthetic 256 KiB upload request/success feedback measured below. Download wire bytes and upload progress duration, failure, permission and no-JS performance states remain unmeasured. |
+| Files list and upload | `scripts/playwright/files.spec.mjs`; #417 | Empty list cold/warm navigation and one synthetic 256 KiB upload body size, response bytes, and success feedback measured below. Download wire bytes and upload progress duration, failure, permission and no-JS performance states remain unmeasured. |
 | Members and invitations | `scripts/playwright/members.spec.mjs`, `invitations.spec.mjs`; #419, #420 | Cold/warm navigation and one synthetic invitation creation measured below. Member changes, acceptance, pending, validation, failure, permission and no-JS performance measures absent. |
 | General/email settings, tokens/SCIM, webhooks/deliveries, audit, import/export | [Administration evidence](ui-measurement-admin.md); #422, #423, #424, #425, #426 | Cold/warm navigation and selected audit, import-preview and export interactions measured. Detailed states and limits are in linked evidence. |
 | Account, security, sessions, notifications | `scripts/playwright/settings.spec.mjs`, `notifications.spec.mjs`; #427, #429 | Cold/warm navigation measured. Notification SSE connection state measured; delivery, replay, reconnect, mutation timings and other states remain unmeasured. See [identity evidence](ui-measurement-identity.md). |
@@ -242,9 +249,9 @@ Invitation creation returned 200. Feedback timing includes Playwright
 automation overhead; the browser-only invitation URL was not emitted. These
 single observations do not establish distributions or budgets.
 
-The current core rerun used a fresh isolated fixture. Upload now completes and
-reports its response and transfer metrics; the prior failure came from a role
-locator matching both the file input and submit button.
+The previous core rerun used a fresh isolated fixture. Upload completed, but
+that runner version did not capture request body size. The prior failure came
+from a role locator matching both the file input and submit button.
 
 On 2026-11-18T03:12:21.005Z, commit
 `e4b317dc791f519dbb9d1b24a16f00a1ce94e7ea`, Darwin 27.2.0 arm64, Node
@@ -258,10 +265,35 @@ The isolated fixture and browser conditions match the core run above. Item
 creation returned 200 with 7,245 completed encoded bytes and 46.2 ms feedback;
 empty-title validation took 42.6 ms and sent no request. The synthetic 256 KiB
 file upload returned 303, with 7 requests, 1 redirect, 128,354 completed
-encoded bytes, zero HTTP errors or transport failures, and 89.6 ms feedback.
-Interaction durations include Playwright overhead. This single successful
-upload does not measure failure, permission, progress timing, download bytes or
-no-JavaScript fallback.
+encoded response bytes, zero HTTP errors or transport failures, and 89.6 ms
+feedback. Request body size was unavailable in this run. Interaction durations
+include Playwright overhead. This single successful upload does not measure
+failure, permission, progress timing, download bytes or no-JavaScript fallback.
+
+### Upload request-body observation
+
+On 2026-11-18T03:22:34.617Z, commit
+`e4302a4e831dd384bd65aa199530a7784c1f5ef2`, Darwin 27.2.0 arm64, Node
+26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1:
+
+```sh
+PLAYWRIGHT_PORT=59593 UI_MEASURE=core ./scripts/playwright-smoke.sh
+```
+
+The fresh isolated SQLite fixture and browser conditions match the preceding
+core run. Items, Clients and Files list request counts, completed response
+bytes, and timings repeated the earlier values. Cold list pages each reported
+one favicon 404; live Items and Clients pages each had one unfinished SSE
+request. Item creation returned 200 with 123 request-body bytes and 7,245
+completed response bytes; feedback was 49.5 ms. Empty-title browser validation
+took 59.7 ms and sent no request. The synthetic 256 KiB upload returned 303
+with 262,477 request-body bytes, 128,354 completed response bytes, 7 requests,
+1 redirect and 83.2 ms feedback. No HTTP or transport errors occurred.
+
+Request-body bytes exclude HTTP headers and framing. Feedback includes
+Playwright automation overhead. This single run is not a distribution or
+budget. Upload failure/progress, download bytes, permission and no-JavaScript
+states remain unmeasured.
 
 ### Core list and Item interaction observation
 

@@ -1443,3 +1443,19 @@ continues to enforce owner/admin management and owner-only transfer.
   `npm run test:unit` (39 tests), and `git diff --check`. The required
   `npm run typecheck` and `npm run test` scripts are undefined, and
   `SANDCASTLE_VERIFY` is unset, so wrapped full-suite checks are unavailable.
+
+## UI upload request-body measurement (#439, 2026-11-18)
+
+- The core runner now measures the synthetic upload request-body size through
+  CDP and keeps it separate from completed response bytes. It stores and emits
+  no request headers or payloads. Evidence and exact run conditions are in
+  [UI measurement](ui-measurement.md).
+- On `e4302a4e831dd384bd65aa199530a7784c1f5ef2`, a 256 KiB upload returned
+  303 with 262,477 request-body bytes, 128,354 completed response bytes, 7
+  requests, 1 redirect and 83.2 ms feedback. These are body bytes, not full
+  wire bytes, and one observation sets no budget.
+- `npm run test:unit` passed 40 tests; syntax checks and `git diff --check`
+  passed. Requested `npm run typecheck` and `npm run test` scripts are absent.
+  `SANDCASTLE_VERIFY` is unset, so wrapped full suites were unavailable. Issue
+  #439 remains partial; download bytes, upload failure/progress, and route/state
+  coverage remain open.
