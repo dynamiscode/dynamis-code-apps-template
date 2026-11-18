@@ -89,6 +89,8 @@ Baseline browser surfaces:
   resources stop. Shared identity policy authorizes role changes and removals
   for owners/admins, and ownership transfer for owners only. The page exposes
   non-secret WebMCP form markers while leaving submission to the user.
+  Browser screenshots, no-JavaScript filtering, permissions, confirmations, and
+  locale coverage live in [the members Playwright suite](../scripts/playwright/members.spec.mjs).
 - `/workspaces/{workspaceId}/settings/invitations` creates, resends, revokes, and shows
   copyable links. `/invitations/{secret}` registers an invitee or starts existing-account
   sign-in through a CSRF-protected form. The server keeps only hashed, browser-bound
@@ -96,7 +98,8 @@ Baseline browser surfaces:
   `/invitations/continue`; the raw invitation secret stays out of redirects and logs.
   Acceptance rechecks invitation status, matches the signed-in email, and consumes the
   handoff atomically with membership creation. Invitation pages use `private, no-store`,
-  `no-referrer`, and `noindex` headers; forms work without JavaScript.
+  `no-referrer`, and `noindex` headers; forms work without JavaScript. Existing-account
+  acceptance without JavaScript is covered in [the invitation Playwright suite](../scripts/playwright/invitations.spec.mjs).
 - `/workspaces/{workspaceId}/settings/email` lets owners/admins save the workspace invitation sender, either SMTP, Resend, or Postmark. Saving runs a provider check first (an SMTP login test, a read-only Resend domain check, or a read-only Postmark server and domain check) and stores nothing on failure. The Resend and Postmark pages show setup steps and the sender domain status from the last save. The password or API key is never shown again, and a blank value keeps the stored one for the same provider. Members cannot view or change it.
 - `/workspaces/{workspaceId}/settings/tokens` manages current-user scoped tokens with
   CSRF-protected create and revoke forms. Creation shows its secret once; the
@@ -111,6 +114,10 @@ Baseline browser surfaces:
   checkbox; the handler rejects unconfirmed submissions. Webhook IDs in paths and forms are short IDs;
   a malformed, integer, or unknown ID shows the not-found page for the history
   view and a "could not be found" message for rotate and delete.
+  Browser and accessibility evidence, including the no-key guard, is recorded in
+  [accessibility evidence](accessibility.md#workspace-administration-and-data-evidence-2026-11-17);
+  lifecycle, permission, CSRF, and delivery-redaction behavior is covered by
+  [webhook handler tests](../internal/web/webhooks_test.go).
 - `/workspaces/{workspaceId}/settings/provisioning` is restricted to workspace
   owners and admins. It shows the workspace SCIM endpoint and setup instructions,
   creates or rotates the dedicated SCIM credential with its secret shown once,
@@ -186,9 +193,14 @@ Baseline browser surfaces:
   Duplicate titles remain separate new items. Both steps work without
   JavaScript and render through templ with shared form, table, and alert
   components. Errors report safe categories and bounded row diagnostics without
-  echoing file contents.
+  echoing file contents. Ordinary-form browser coverage for preview, no-write
+  behavior, confirmation, and export is in
+  [the workspace administration Playwright suite](../scripts/playwright/workspace-admin-data.spec.mjs).
 - `/workspaces/{workspaceId}/settings/audit` presents the authorized,
-  read-only latest-100 audit history with redacted fields.
+  read-only latest-100 audit history with redacted fields. Its permissions,
+  empty/success states, and browser accessibility are covered by
+  [audit handler tests](../internal/web/handler_test.go) and
+  [accessibility evidence](accessibility.md#workspace-administration-and-data-evidence-2026-11-17).
 - `/share/{token}` presents a read-only Item projection containing only title
   and localized status. Invalid, expired, and revoked links share the same
   unavailable page. The Items page lets principals with `resources:write`
