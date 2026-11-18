@@ -247,7 +247,7 @@ zero completed encoded bytes; that is not a measurement of its wire size.
 declared minimum; this harness uses Playwright, and the run completed. No
 browser performance measurement was repeated to estimate variability.
 
-## Current isolated navigation and interaction observation
+## Earlier isolated navigation and interaction observation
 
 On 2026-11-17T23:26:52.500Z, commit
 `1c2ff7f59d106988976daf1370e52463f60d0896`, Darwin 27.2.0 arm64,
@@ -310,3 +310,61 @@ cache events; its transport failure is described above. Download failure
 classification and transfer bytes remain unverified.
 The run observed a cold favicon 404 but did not assign a fix ticket. It proposes
 no budget or implementation change.
+
+## Current isolated navigation and interaction observation
+
+On 2026-11-18T00:40:54.271Z, commit
+`a0088c636dcaf8d3073dffe1e936b12e96b0ac65`, Darwin 27.2.0 arm64,
+Go 1.27.4, Node 26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1:
+
+```sh
+PLAYWRIGHT_PORT=58141 sh scripts/ui-measurement-admin.sh
+```
+
+One unthrottled loopback run used a fresh SQLite fixture with one owner, one
+workspace, zero Items, then one synthetic webhook with zero deliveries. Browser
+conditions and navigation/interaction boundaries match the
+[earlier observation](#earlier-isolated-navigation-and-interaction-observation).
+Results are one sample, not a distribution. Timing values are milliseconds
+from Navigation Timing or the interaction boundaries described above, rounded
+to one decimal.
+
+| Screen | Cache | Requests | Completed encoded bytes | DOMContentLoaded ms | Load ms |
+|---|---|---:|---:|---:|---:|
+| General | cold | 5 | 99752 | 13.0 | 16.4 |
+| General | warm | 4 | 99240 | 9.9 | 12.3 |
+| Email | cold | 5 | 102276 | 9.7 | 12.8 |
+| Email | warm | 4 | 101764 | 9.6 | 12.5 |
+| Tokens | cold | 7 | 116325 | 16.3 | 16.5 |
+| Tokens | warm | 6 | 115813 | 13.6 | 13.9 |
+| SCIM provisioning | cold | 5 | 99554 | 9.3 | 10.6 |
+| SCIM provisioning | warm | 4 | 99042 | 12.9 | 13.0 |
+| Webhooks | cold | 5 | 79134 | 20.7 | 20.9 |
+| Webhooks | warm | 4 | 78622 | 9.8 | 11.6 |
+| Audit | cold | 6 | 100148 | 10.5 | 11.7 |
+| Audit | warm | 5 | 99636 | 13.2 | 13.2 |
+| Import | cold | 5 | 98811 | 13.7 | 15.4 |
+| Import | warm | 4 | 98299 | 9.3 | 10.7 |
+| Export | cold | 6 | 115212 | 13.3 | 13.4 |
+| Export | warm | 5 | 114700 | 14.0 | 14.0 |
+| Webhook deliveries | cold | 5 | 77523 | 14.5 | 14.6 |
+| Webhook deliveries | warm | 4 | 77011 | 13.7 | 13.7 |
+
+Every cold navigation recorded one favicon HTTP 404; warm runs recorded no
+HTTP errors. All navigations had zero redirects, transport failures and
+unfinished requests. Tokens recorded one cache-served event in both cold and
+warm runs; other navigations recorded none. Cache clearing therefore does not
+prove every cold resource reached the network. No per-resource attribution was
+collected.
+
+| Interaction | Requests | Completed encoded bytes | Elapsed ms | Observation |
+|---|---:|---:|---:|---|
+| Automatic audit fragment and DOM swap | unavailable | unavailable | 29.8 from navigation start | Includes navigation; loading observed; response sizes: 534 header bytes, 1505 body bytes |
+| Separate warm audit fragment fetch | 1 | 2039 | 5.7 | Response body consumed |
+| Warm CSV import preview | 4 | 100043 | 71.4 | One synthetic row; preview visible |
+| Warm export download | 1 | unavailable | 74.7 | Completed local file: 2052 decoded bytes; wire bytes unavailable |
+
+These are single observations. The automatic audit duration includes page
+navigation. CDP reported one export transport failure and zero completed
+encoded bytes although Playwright returned a completed file. Export transfer
+bytes remain unavailable. The run proposes no budget or implementation change.

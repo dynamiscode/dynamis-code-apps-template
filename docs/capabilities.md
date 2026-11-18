@@ -1333,3 +1333,17 @@ continues to enforce owner/admin management and owner-only transfer.
 - No performance budget or optimization was proposed from one observation per
   cache condition. Per-resource attribution, HTTP compression, upload wire
   bytes, SSE, loading durations, and repeated-run variance remain unmeasured.
+
+## UI performance baseline rerun (#439, 2026-11-18)
+
+- Repeated workspace-home and administration measurements on
+  `a0088c636dcaf8d3073dffe1e936b12e96b0ac65` with isolated SQLite fixtures.
+  Updated values and exact commands are in
+  [UI measurement](ui-measurement.md) and
+  [administration measurement](ui-measurement-admin.md).
+- All cold navigations again reported a favicon 404. Export completed to a
+  local file, but transfer bytes remained unavailable. These observations do
+  not add per-resource attribution, loading-state timings, or repeated-run
+  distributions.
+- Route inventory and incomplete state coverage remain as documented above.
+  No performance budgets or fixes are proposed from single samples.

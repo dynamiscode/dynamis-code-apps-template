@@ -162,7 +162,7 @@ upload/download wire bytes and loading feedback require separately bounded
 interaction measurements. See route owners above for follow-up; no behavior
 change is claimed.
 
-### Workspace home navigation observation
+### Earlier workspace home navigation observation
 
 On 2026-11-17T23:27:16.556Z, commit
 `1c2ff7f59d106988976daf1370e52463f60d0896`, Darwin 27.2.0 arm64,
@@ -187,7 +187,38 @@ not a distribution.
 | Cold | 5 | 98293 | 13.4 | 15.4 |
 | Warm | 4 | 97781 | 13.5 | 13.6 |
 
+This earlier run measures workspace-home navigation only. It does not measure
+other routes, screen interactions, populated states, loading duration,
+compression over HTTP or per-resource attribution. The cold favicon 404 is
+observed and not fixed here; route ownership needs triage before assigning a
+specific ticket.
+
+### Current workspace home navigation observation
+
+On 2026-11-18T00:40:57.686Z, commit
+`a0088c636dcaf8d3073dffe1e936b12e96b0ac65`, Darwin 27.2.0 arm64,
+Go 1.27.4, Node 26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1:
+
+```sh
+PLAYWRIGHT_PORT=58131 UI_MEASURE=1 ./scripts/playwright-smoke.sh
+```
+
+One unthrottled loopback run used a fresh SQLite fixture with one synthetic
+owner, one workspace and zero Items. Browser conditions were 1280×900, device
+scale 1, `en-US`, light theme, reduced motion, service workers blocked. Cold
+cleared the HTTP cache after sign-in; warm immediately repeated the route.
+Counts cover request starts and completed encoded bytes until load and the home
+marker. Navigation Timing supplies DOMContentLoaded and load. One cold favicon
+404 occurred; warm had no HTTP errors. No redirects, transport failures, cache
+events or unfinished requests occurred. Results are one sample, not a
+distribution.
+
+| Cache | Requests | Completed encoded bytes | DOMContentLoaded ms | Load ms |
+|---|---:|---:|---:|---:|
+| Cold | 5 | 98293 | 12.2 | 13.7 |
+| Warm | 4 | 97781 | 10.4 | 11.9 |
+
 This run measures workspace-home navigation only. It does not measure other
 routes, screen interactions, populated states, loading duration, compression
-over HTTP or per-resource attribution. The cold favicon 404 is observed and
-not fixed here; route ownership needs triage before assigning a specific ticket.
+over HTTP or per-resource attribution. The cold favicon 404 remains unassigned
+to a fix ticket.
