@@ -13,7 +13,7 @@ Read only the route needed for the change.
 | Change entity keys, short IDs, type codes, or typed audit, idempotency, and job keys | [Identity keys decision](decisions/0011-identity-integer-keys.md), [Short-ID codec decision](decisions/0009-short-id-codec.md), [Architecture](architecture.md#ids-time-and-transactions) | `change-go-data` |
 | Change web, WebMCP, or realtime behavior | [Web](web.md), [accessibility](accessibility.md), [API](api.md) | `implement-go-feature` |
 | Measure browser performance | [Measurement method and asset inventory](ui-measurement.md), [workspace journey evidence](ui-measurement-workspace.md) | None |
-| Measure administration and data screens | [Partial administration measurement evidence](ui-measurement-admin.md) | None |
+| Measure administration and data screens | [Administration measurement evidence](ui-measurement-admin.md) | None |
 | Deploy, operate, back up, restore, or upgrade | [Deployment](deployment.md), [operations](operations.md), [configuration](configuration.md) | None |
 | Generate, update, or release the template | [Template lifecycle](template-lifecycle.md), [release](release.md), [capabilities](capabilities.md) | `verify-template-conformance` for verification |
 | Set up a generated application (identity, sample, demo, verify gate) | [Template lifecycle](template-lifecycle.md) | `setup-generated-app` |

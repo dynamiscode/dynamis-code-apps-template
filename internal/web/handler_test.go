@@ -370,6 +370,15 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	if account.Code != http.StatusOK || !strings.Contains(account.Body.String(), "Profile and preferences") {
 		t.Fatalf("account page status = %d; missing profile heading", account.Code)
 	}
+	for _, marker := range []string{`<main id="main" class="account-page"`, `data-dirty-track data-unsaved-warning`, `data-strength`, `name="confirm_delete"`, `data-account-page`} {
+		if !strings.Contains(account.Body.String(), marker) {
+			t.Errorf("account templ page missing %q", marker)
+		}
+	}
+	if strings.Contains(account.Body.String(), `<form action="/account/password" method="post" data-dirty-track`) ||
+		strings.Contains(account.Body.String(), `<form action="/account/delete" method="post" data-dirty-track`) {
+		t.Fatal("account password forms must not be draft-tracked")
+	}
 	updated := request(handler, http.MethodPost, "/account/profile", url.Values{
 		"csrf": {session.CSRFSecret}, "display_name": {"Owner"}, "locale": {"es"},
 		"timezone": {"America/Bogota"}, "theme": {"dark"},
@@ -506,6 +515,9 @@ func TestAccountSecurityPagesUseSharedBrandAndRequireDeletionConfirmation(t *tes
 		}
 		if path == "/account" && (!strings.Contains(body, `name="confirm_delete" type="checkbox" value="yes" required`) || !strings.Contains(body, "Entiendo que eliminar la cuenta es permanente")) {
 			t.Errorf("account page lacks the Spanish no-JavaScript deletion confirmation: %s", body)
+		}
+		if path == "/settings/language" && (!strings.Contains(body, `<main id="main" class="account-page narrow"`) || !strings.Contains(body, `aria-label="Idioma"`)) {
+			t.Errorf("language page lacks templ account layout or labelled language form: %s", body)
 		}
 	}
 
@@ -709,6 +721,11 @@ func TestInvitationEmailUsesWorkspaceLocale(t *testing.T) {
 
 func TestWebLanguageSettingsRoutes(t *testing.T) {
 	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	if err := auth.UpdateUserProfile(context.Background(), owner.UserID, identity.ProfileUpdateInput{
+		Locale: "es", Timezone: "America/Bogota", Theme: "dark",
+	}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -724,7 +741,7 @@ func TestWebLanguageSettingsRoutes(t *testing.T) {
 	}
 
 	settings := request(handler, http.MethodGet, "/settings/language", nil, cookies, nil)
-	if settings.Code != http.StatusOK || !strings.Contains(settings.Body.String(), "Automatic") {
+	if settings.Code != http.StatusOK || !strings.Contains(settings.Body.String(), "Automático") {
 		t.Fatalf("language settings = %d, %s", settings.Code, settings.Body.String())
 	}
 	saved := request(handler, http.MethodPost, "/settings/language", url.Values{
@@ -735,6 +752,14 @@ func TestWebLanguageSettingsRoutes(t *testing.T) {
 	}
 	if locale, err := auth.GetUserLocale(context.Background(), owner.UserID); err != nil || locale != "es" {
 		t.Fatalf("saved user locale = %q, %v", locale, err)
+	}
+	invalidLocale := request(handler, http.MethodPost, "/settings/language", url.Values{
+		"csrf": {session.CSRFSecret}, "locale": {"fr"},
+	}, cookies, nil)
+	if invalidLocale.Code != http.StatusUnprocessableEntity || !hasHTMLRootLang(invalidLocale.Body.String(), "es") ||
+		!strings.Contains(invalidLocale.Body.String(), `data-theme="dark"`) ||
+		!strings.Contains(invalidLocale.Body.String(), "El idioma seleccionado no es válido.") {
+		t.Fatalf("invalid language form lost localized account context = %d, %s", invalidLocale.Code, invalidLocale.Body.String())
 	}
 	reset := request(handler, http.MethodPost, "/settings/language", url.Values{
 		"csrf": {session.CSRFSecret}, "locale": {""},

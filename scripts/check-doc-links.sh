@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-# Reports relative Markdown links whose target path does not exist.
-# Anchors are not validated; external, mailto, and absolute links are skipped.
+# Reports relative Markdown links whose target path or anchor does not exist.
+# External, mailto, and absolute links are skipped.
 status=0
 for file in $(find . -name '*.md' -not -path './.git/*' -not -path './node_modules/*'); do
 	dir="$(dirname "$file")"
@@ -14,4 +14,9 @@ for file in $(find . -name '*.md' -not -path './.git/*' -not -path './node_modul
 		fi
 	done
 done
+
+if ! node "$(dirname "$0")/check-doc-link-anchors.mjs"; then
+	status=1
+fi
+
 exit "$status"

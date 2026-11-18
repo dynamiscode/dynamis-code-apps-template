@@ -25,7 +25,7 @@ func (h *Handler) accountPage(writer http.ResponseWriter, request *http.Request)
 	}
 	data.CurrentAuthMethod = session.AuthMethod
 	data.Saved = request.URL.Query().Get("saved") == "1"
-	h.render(writer, http.StatusOK, "account.html", data)
+	h.render(writer, http.StatusOK, "account-page", data)
 }
 
 func (h *Handler) accountData(request *http.Request, userID identity.UserID, csrf string) (pageData, bool) {
@@ -68,7 +68,7 @@ func (h *Handler) accountProfileMutation(writer http.ResponseWriter, request *ht
 			return
 		}
 		data.Error = "The account settings are invalid."
-		h.render(writer, http.StatusUnprocessableEntity, "account.html", data)
+		h.render(writer, http.StatusUnprocessableEntity, "account-page", data)
 		return
 	}
 	h.setCookie(writer, themeCookie, strings.TrimSpace(request.FormValue("theme")), time.Now().Add(themeCookieTTL), true)
@@ -89,7 +89,7 @@ func (h *Handler) accountNotificationMutation(writer http.ResponseWriter, reques
 		}
 		data.CurrentAuthMethod = session.AuthMethod
 		data.Error = "The notification preference is invalid."
-		h.render(writer, http.StatusUnprocessableEntity, "account.html", data)
+		h.render(writer, http.StatusUnprocessableEntity, "account-page", data)
 		return
 	}
 	h.redirect(writer, request, "/account?saved=1")
@@ -116,7 +116,7 @@ func (h *Handler) accountPasswordMutation(writer http.ResponseWriter, request *h
 		}
 		data.CurrentAuthMethod = session.AuthMethod
 		data.ErrorKey = "account.password_mismatch"
-		h.render(writer, http.StatusUnprocessableEntity, "account.html", data)
+		h.render(writer, http.StatusUnprocessableEntity, "account-page", data)
 		return
 	}
 	if err := h.identity.ChangePassword(request.Context(), session.UserID,
@@ -128,7 +128,7 @@ func (h *Handler) accountPasswordMutation(writer http.ResponseWriter, request *h
 		}
 		data.CurrentAuthMethod = session.AuthMethod
 		data.ErrorKey = "account.password_invalid"
-		h.render(writer, http.StatusUnprocessableEntity, "account.html", data)
+		h.render(writer, http.StatusUnprocessableEntity, "account-page", data)
 		return
 	}
 	if enrolled, err := h.identity.MFAEnrolled(request.Context(), session.UserID); err != nil {
@@ -171,7 +171,7 @@ func (h *Handler) accountDeleteMutation(writer http.ResponseWriter, request *htt
 		}
 		data.CurrentAuthMethod = session.AuthMethod
 		data.ErrorKey = "account.delete_confirmation_required"
-		h.render(writer, http.StatusUnprocessableEntity, "account.html", data)
+		h.render(writer, http.StatusUnprocessableEntity, "account-page", data)
 		return
 	}
 	err := h.identity.DeleteAccount(request.Context(), session.UserID, request.FormValue("password"), auditContext(request))
@@ -187,7 +187,7 @@ func (h *Handler) accountDeleteMutation(writer http.ResponseWriter, request *htt
 		} else {
 			data.ErrorKey = "account.delete_password_required"
 		}
-		h.render(writer, http.StatusUnprocessableEntity, "account.html", data)
+		h.render(writer, http.StatusUnprocessableEntity, "account-page", data)
 		return
 	}
 	h.clearCookie(writer, "session")
@@ -217,7 +217,7 @@ func (h *Handler) emailVerificationMutation(writer http.ResponseWriter, request 
 			return
 		}
 		data.DeliveryWarning = "Email delivery is not configured."
-		h.render(writer, http.StatusServiceUnavailable, "account.html", data)
+		h.render(writer, http.StatusServiceUnavailable, "account-page", data)
 		return
 	}
 	locale := h.accountLocale(request, session.UserID)
@@ -230,7 +230,7 @@ func (h *Handler) emailVerificationMutation(writer http.ResponseWriter, request 
 			return
 		}
 		data.DeliveryWarning = "Verification email could not be delivered. Try again later."
-		h.render(writer, http.StatusServiceUnavailable, "account.html", data)
+		h.render(writer, http.StatusServiceUnavailable, "account-page", data)
 		return
 	}
 	h.redirect(writer, request, "/account?saved=1")
