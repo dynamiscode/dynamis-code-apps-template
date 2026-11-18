@@ -332,7 +332,7 @@ test("Items sharing creates a read-only public link and revokes it", async ({ pa
   await page.goto(itemsURL);
   const activeRow = page.locator(`#item-list tr[data-item-row]:has(input[name="title"][value="${title}"])`);
   page.once("dialog", (dialog) => dialog.accept());
-  await activeRow.getByRole("button", { name: "Revoke public link" }).click();
+  await activeRow.locator('form button[value="revoke"]').click();
   await page.goto(shareURL);
   await expect(page.getByRole("heading", { name: /unavailable|no disponible/i })).toBeVisible();
 });
