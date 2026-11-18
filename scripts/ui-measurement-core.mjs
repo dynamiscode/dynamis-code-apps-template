@@ -90,13 +90,35 @@ try {
   assert.equal(invalid, true, "empty title browser validation missing");
   results.push({ interaction: "empty item title browser validation", feedbackMs: performance.now() - validationStart });
 
+  phase = "file upload";
+  await page.goto(`${workspacePath}/files`);
+  const uploadForm = page.locator("form[data-file-upload]");
+  await page.locator("#file-upload").setInputFiles({
+    name: "ui-measurement-upload.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.alloc(256 * 1024, "x"),
+  });
+  const stopUpload = observeNetwork(cdp);
+  const uploadStart = performance.now();
+  try {
+    const responsePromise = page.waitForResponse((response) =>
+      response.request().method() === "POST" && new URL(response.url()).pathname === `${workspacePath}/files`);
+    await uploadForm.getByRole("button").click();
+    const response = await responsePromise;
+    assert.ok(response.status() >= 200 && response.status() < 400, "file upload failed");
+    await page.getByRole("link", { name: /ui-measurement-upload\.txt$/ }).waitFor();
+    results.push({ interaction: "upload synthetic 256 KiB file", status: response.status(), ...stopUpload(), feedbackMs: performance.now() - uploadStart });
+  } finally {
+    stopUpload();
+  }
+
   console.log(JSON.stringify({
     commit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
     date: new Date().toISOString(), os: `${os.type()} ${os.release()} ${os.arch()}`,
     browser: `Chrome ${browser.version()}`, node: process.version,
     playwright: JSON.parse(readFileSync("node_modules/@playwright/test/package.json", "utf8")).version,
     fixture: "fresh isolated SQLite: one owner, one workspace, zero items, clients, and files",
-    scenario: "empty Items, Clients, Files list navigation; synthetic Item creation and invalid-title feedback",
+    scenario: "empty Items, Clients, Files list navigation; synthetic Item creation, invalid-title feedback, and file upload",
     viewport: "1280x900, device scale 1", locale: "en-US", theme: "light",
     reducedMotion: "reduce", network: "unthrottled loopback", results,
   }, null, 2));

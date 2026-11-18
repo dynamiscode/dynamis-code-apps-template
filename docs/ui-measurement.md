@@ -54,8 +54,11 @@ cache with CDP, then measures workspace-home navigation and repeats it warm.
 `UI_MEASURE=identity ./scripts/playwright-smoke.sh` runs the identity navigation
 and interaction measurements in [identity evidence](ui-measurement-identity.md).
 `UI_MEASURE=core ./scripts/playwright-smoke.sh` measures cold/warm empty Items,
-Clients and Files navigation, then synthetic Item creation and empty-title
-browser validation. It uses the same isolated fixture and emits aggregate JSON.
+Clients and Files navigation, synthetic Item creation and empty-title browser
+validation, then uploads a synthetic 256 KiB file. It uses the same isolated
+fixture and emits aggregate JSON. Upload feedback timing includes automation
+overhead; request bytes include the multipart body, while server storage is
+discarded with the fixture.
 `UI_MEASURE=members ./scripts/playwright-smoke.sh` measures cold/warm Members
 and Invitations navigation, then one synthetic invitation creation. It reports
 only aggregate counters and feedback timing; the generated invitation URL is
@@ -156,7 +159,7 @@ capture exists. Do not infer zero cost or absence from those cells.
 | Workspace home | `scripts/playwright/ui.spec.mjs`; #439 | Cold/warm navigation measured below; empty fixture only. Populated, pending, error, permission and no-JS states unmeasured. |
 | Items list, create, edit | `scripts/playwright/ui.spec.mjs`; #413–#416 | Empty list cold/warm navigation and one create plus empty-title browser-validation timing measured below. Edit, fragment/SSE bytes, populated, server validation/error, permission and no-JS performance states unmeasured. |
 | Clients list and detail | `scripts/playwright/clients-list.spec.mjs`; #415 | Empty list cold/warm navigation measured below. SSE refresh and validation behavior tested; detail, populated, pending, failure, permission, and no-JS performance measures absent. |
-| Files list and upload | `scripts/playwright/files.spec.mjs`; #417 | Empty list cold/warm navigation measured below. Upload/download transfer and feedback timing unmeasured. Populated, pending, validation, failure, permission and no-JS performance states absent. |
+| Files list and upload | `scripts/playwright/files.spec.mjs`; #417 | Empty list cold/warm navigation measured below. Core runner now captures one synthetic 256 KiB upload request and success feedback; run it to record results. Download wire bytes and upload progress duration, failure, permission and no-JS performance states remain unmeasured. |
 | Members and invitations | `scripts/playwright/members.spec.mjs`, `invitations.spec.mjs`; #419, #420 | Cold/warm navigation and one synthetic invitation creation measured below. Member changes, acceptance, pending, validation, failure, permission and no-JS performance measures absent. |
 | General/email settings, tokens/SCIM, webhooks/deliveries, audit, import/export | [Administration evidence](ui-measurement-admin.md); #422, #423, #424, #425, #426 | Cold/warm navigation and selected audit, import-preview and export interactions measured. Detailed states and limits are in linked evidence. |
 | Account, security, sessions, notifications | `scripts/playwright/settings.spec.mjs`, `notifications.spec.mjs`; #427, #429 | Cold/warm navigation measured. Notification SSE connection state measured; delivery, replay, reconnect, mutation timings and other states remain unmeasured. See [identity evidence](ui-measurement-identity.md). |
