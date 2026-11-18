@@ -485,3 +485,43 @@ This run measures workspace-home navigation only. It does not measure other
 routes, screen interactions, populated states, loading duration, compression
 over HTTP or per-resource attribution. The cold favicon 404 remains unassigned
 to a fix ticket.
+
+### Current core rerun
+
+On 2026-11-18T03:38:18.415Z, commit
+`48907564e779597e849c8fdcf2df8d4392ebd0a6`, Darwin 27.2.0 arm64, Go
+1.27.4, Node 26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1:
+
+```sh
+PLAYWRIGHT_PORT=59231 UI_MEASURE=core ./scripts/playwright-smoke.sh
+```
+
+One unthrottled run used a fresh SQLite fixture with one owner, one workspace,
+and zero Items, Clients or Files. Browser conditions were 1280×900, device
+scale 1, `en-US`, light theme, reduced motion and loopback. Cold cleared HTTP
+cache after sign-in; warm repeated each route in the same context. Navigation
+counts span request starts to load and a visible route marker; bytes are
+completed CDP encoded response bytes. Items and Clients each had one unfinished
+SSE request. Each cold page reported one favicon 404; no other errors,
+redirects or transport failures occurred.
+
+| Screen / interaction | Cache | Requests | Completed encoded bytes | DOMContentLoaded ms | Load / feedback ms |
+|---|---|---:|---:|---:|---:|
+| Items list | Cold | 10 | 167739 | 17.8 | 19.4 |
+| Items list | Warm | 9 | 167227 | 14.3 | 15.9 |
+| Clients list | Cold | 10 | 170170 | 16.3 | 18.6 |
+| Clients list | Warm | 9 | 169658 | 16.7 | 18.8 |
+| Files list | Cold | 6 | 119061 | 14.6 | 15.9 |
+| Files list | Warm | 5 | 118549 | 14.1 | 15.6 |
+| Item create | — | 1 | 7245 | — | 56.0 |
+| Item title edit | — | 1 | 7273 | — | 57.4 |
+| Empty-title browser validation | — | 0 | unavailable | — | 57.7 |
+| Synthetic 256 KiB upload | — | 7 | 128354 | — | 88.9 |
+
+Item create and edit returned 200 with 123 and 119 request-body bytes. Empty
+title validation sent no request. Upload returned 303 with 262477 request-body
+bytes, including multipart overhead. Interaction feedback timings include
+Playwright overhead. These are single observations, not distributions or
+budgets. Populated lists, Client detail, server validation, failure and
+permission states, download wire bytes, no-JavaScript interactions, and
+per-resource script initiators remain unmeasured.
