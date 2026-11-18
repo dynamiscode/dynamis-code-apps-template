@@ -1174,6 +1174,8 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = accountPage(data).Render(context.Background(), writer)
 	case "sessions-page":
 		_ = sessionsPage(data, data.CurrentSessionID, time.Now()).Render(context.Background(), writer)
+	case "security-page":
+		_ = securityPage(data).Render(context.Background(), writer)
 	case "account-page":
 		_ = accountPage(data).Render(context.Background(), writer)
 	case "language-settings-page":
