@@ -439,6 +439,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 	case "docs/api.md":
 		value = removeText(value, "\n- Clients (Clients profile):", "\n\n## Webhooks")
 	case "docs/web.md":
+		value = removeLineStarting(value, "| Workspace clients and custom fields;")
 		value = removeText(value, "\n\n`/workspaces/{workspaceId}/clients` lists", "\n\n## Realtime contract")
 		value = removeText(value, "\n\n`GET /workspaces/{workspaceId}/clients/events` is", "\n\n`GET /notifications/events`")
 	case "api/openapi.json":

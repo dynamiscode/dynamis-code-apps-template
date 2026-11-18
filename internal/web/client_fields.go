@@ -6,25 +6,11 @@ import (
 
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
 
 func (h *Handler) clientFieldsPath(workspaceID identity.WorkspaceID) string {
 	return "/workspaces/" + workspaceID.String() + "/client-fields"
-}
-
-func clientFieldTypeLabel(data pageData, fieldType string) string {
-	switch fieldType {
-	case "text":
-		return data.T("clients.field_type_text")
-	case "number":
-		return data.T("clients.field_type_number")
-	case "date":
-		return data.T("clients.field_type_date")
-	case "single_choice":
-		return data.T("clients.field_type_single_choice")
-	default:
-		return data.T("clients.field_type_yes_no")
-	}
 }
 
 func (h *Handler) clientFieldList(writer http.ResponseWriter, request *http.Request) {
@@ -66,16 +52,28 @@ func (h *Handler) renderClientFieldList(
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, status, "client-fields-page", pageData{
+	h.renderClientFieldsTempl(writer, request, status, pageData{
 		Title: "Custom fields", ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		NavPage: "client-fields", NavSection: "clients",
+		NavPage: "clients", NavSection: "clients",
 		CurrentPath:     h.clientFieldsPath(workspaceID),
 		ClientFields:    rows,
 		CanManageFields: principal.Permissions[identity.WorkspaceUpdate],
 		FieldDraft:      draft,
 		FieldsPath:      h.clientFieldsPath(workspaceID),
 	})
+}
+
+func (h *Handler) renderClientFieldsTempl(writer http.ResponseWriter, request *http.Request, status int, data pageData) {
+	data.FilesEnabled = h.filesEnabled
+	data.ClientsEnabled = h.clients != nil
+	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
+	h.localizePage(writer, &data)
+	data.Title = data.T("clients.fields_title")
+	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+	writer.Header().Set("Cache-Control", "no-store")
+	writer.WriteHeader(status)
+	_ = clientFieldsPage(data).Render(request.Context(), writer)
 }
 
 func (h *Handler) createClientField(writer http.ResponseWriter, request *http.Request) {

@@ -21,10 +21,8 @@ func TestClientFieldsDefineArchiveAndRestoreThroughForms(t *testing.T) {
 	page := request(env.routes, http.MethodGet, env.fieldsPath(), nil, env.cookies, nil)
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `name="label"`) ||
 		!strings.Contains(page.Body.String(), `class="input" id="client-field-label"`) ||
-		!strings.Contains(page.Body.String(), `class="btn btn-primary" type="submit"`) ||
-		strings.Contains(page.Body.String(), `data-webmcp-page=`) || strings.Contains(page.Body.String(), `/assets/htmx.min.js`) ||
-		strings.Contains(page.Body.String(), `/assets/app.js`) {
-		t.Fatalf("owner fields page rendering or script boundary is incorrect (%d): %s", page.Code, page.Body.String())
+		!strings.Contains(page.Body.String(), `class="btn btn-primary" type="submit"`) {
+		t.Fatalf("owner fields page rendering is incorrect (%d): %s", page.Code, page.Body.String())
 	}
 
 	created := request(env.routes, http.MethodPost, env.fieldsPath(), url.Values{

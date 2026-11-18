@@ -1,16 +1,21 @@
 package web
 
+import "example.com/dynamis-code/apps-template/internal/clients"
 templ clientFieldsPage(data pageData) {
 	@dashboardShell(data, dashboardHeader(data), dashboardHomeNavigation(data)) {
 		@pageHeading(data.T("clients.fields_title"), data.T("clients.title")) {
-			<a class="btn secondary" href={ "/workspaces/" + data.Workspace.ID.String() + "/clients" }>{ data.T("clients.back") }</a>
+			<a class="btn btn-ghost" href={ clientFieldsBackPath(data.FieldsPath) }>{ data.T("clients.back") }</a>
 		}
 		@clientFieldList(data)
 	}
 }
 
+func clientFieldsBackPath(fieldsPath string) string {
+	return fieldsPath[:len(fieldsPath)-len("/client-fields")] + "/clients"
+}
+
 templ clientFieldList(data pageData) {
-	<section id="client-field-list" class="card client-panel" aria-labelledby="client-fields-heading">
+	<section id="client-field-list" class="client-panel" aria-labelledby="client-fields-heading">
 		<h2 id="client-fields-heading" class="visually-hidden">{ data.T("clients.fields_title") }</h2>
 		<p class="client-intro">{ data.T("clients.fields_intro") }</p>
 		if data.ErrorKey != "" {
@@ -41,60 +46,42 @@ templ clientFieldList(data pageData) {
 					<li class="client-field-card">
 						<div class="client-field-heading">
 							<strong>{ field.Label }</strong>
-							<span>{ clientFieldTypeLabel(data, field.Type) }</span>
-							if field.ArchivedAt != nil {
-								<span class="status">{ data.T("clients.field_archived") }</span>
-							} else {
-								<span class="status">{ data.T("clients.field_active") }</span>
-							}
+							<span>{ data.T("clients.field_type_" + field.Type) }</span>
+							<span class="status">{ data.T(clientFieldStatusKey(field.ArchivedAt != nil)) }</span>
 						</div>
 						if data.CanManageFields {
 							<div class="client-field-actions">
 								if field.ArchivedAt != nil {
-									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/restore" }>
-										<input type="hidden" name="csrf" value={ data.CSRF }/>
-										<button class="btn secondary" type="submit">{ data.T("clients.restore_field") }</button>
-									</form>
-									<div class="client-delete">
-										<p class="warning">{ data.T("clients.delete_field_confirm") }</p>
-										<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/delete" }>
-											<input type="hidden" name="csrf" value={ data.CSRF }/>
-											@confirmButton(data.T("clients.delete_field"), data.T("clients.delete_field_confirm"), nil)
-										</form>
-									</div>
+									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/restore" }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-secondary" type="submit">{ data.T("clients.restore_field") }</button></form>
+									<div class="client-delete"><p class="warning">{ data.T("clients.delete_field_confirm") }</p><form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/delete" }><input type="hidden" name="csrf" value={ data.CSRF }/>@confirmButton(data.T("clients.delete_field"), data.T("clients.delete_field_confirm"), nil)</form></div>
 								} else {
-									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/archive" }>
-										<input type="hidden" name="csrf" value={ data.CSRF }/>
-										<button class="btn secondary" type="submit">{ data.T("clients.archive_field") }</button>
-									</form>
+									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/archive" }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-secondary" type="submit">{ data.T("clients.archive_field") }</button></form>
 								}
 							</div>
 						}
-						if field.Type == "single_choice" {
+						if field.Type == clients.FieldTypeSingleChoice {
 							<div class="client-field-options">
 								<h3>{ data.T("clients.options_heading") }</h3>
 								if len(field.Options) > 0 {
 									<ul class="client-field-option-list">
-										for _, option := range field.Options {
-											<li><span>{ option.Label }</span>
-												if data.CanManageFields {
-													<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/options/" + option.ID.String() + "/delete" }>
-														<input type="hidden" name="csrf" value={ data.CSRF }/>
-														@confirmButton(data.T("clients.option_delete"), data.T("clients.option_delete_confirm"), nil)
-													</form>
-											}
-										</li>
+						for _, option := range field.Options {
+							<li>
+								<span>{ option.Label }</span>
+								if data.CanManageFields {
+									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/options/" + option.ID.String() + "/delete" }>
+										<input type="hidden" name="csrf" value={ data.CSRF }/>
+										<p class="warning">{ data.T("clients.option_delete_confirm") }</p>
+										@confirmButton(data.T("clients.option_delete"), data.T("clients.option_delete_confirm"), nil)
+									</form>
+								}
+							</li>
 										}
 									</ul>
 								} else {
 									<p>{ data.T("clients.option_none") }</p>
 								}
 								if data.CanManageFields && field.ArchivedAt == nil {
-									<form class="option-create" action={ data.FieldsPath + "/" + field.ID.String() + "/options" } method="post">
-										<input type="hidden" name="csrf" value={ data.CSRF }/>
-										@textField("option-label-"+field.ID.String(), data.T("clients.option_label"), templ.Attributes{"name": "label", "required": true, "maxlength": "100", "data-trim": ""})
-										@submitButton(data.T("clients.option_add"), nil)
-									</form>
+									<form class="option-create" action={ data.FieldsPath + "/" + field.ID.String() + "/options" } method="post"><input type="hidden" name="csrf" value={ data.CSRF }/>@textField("option-label-"+field.ID.String(), data.T("clients.option_label"), templ.Attributes{"name": "label", "required": true, "maxlength": "100", "data-trim": ""})@submitButton(data.T("clients.option_add"), nil)</form>
 								}
 							</div>
 						}
@@ -105,4 +92,11 @@ templ clientFieldList(data pageData) {
 			<p class="status">{ data.T("clients.fields_none") }</p>
 		}
 	</section>
+}
+
+func clientFieldStatusKey(archived bool) string {
+	if archived {
+		return "clients.field_archived"
+	}
+	return "clients.field_active"
 }
