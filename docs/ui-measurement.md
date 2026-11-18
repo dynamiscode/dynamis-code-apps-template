@@ -195,12 +195,12 @@ specific ticket.
 
 ### Current workspace home navigation observation
 
-On 2026-11-18T00:40:57.686Z, commit
-`a0088c636dcaf8d3073dffe1e936b12e96b0ac65`, Darwin 27.2.0 arm64,
+On 2026-11-18T01:35:54.846Z, commit
+`d47ad87eab45db60315310a662e3d57d46a91e4e`, Darwin 27.2.0 arm64,
 Go 1.27.4, Node 26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1:
 
 ```sh
-PLAYWRIGHT_PORT=58131 UI_MEASURE=1 ./scripts/playwright-smoke.sh
+PLAYWRIGHT_PORT=58311 UI_MEASURE=1 ./scripts/playwright-smoke.sh
 ```
 
 One unthrottled loopback run used a fresh SQLite fixture with one synthetic
@@ -217,6 +217,17 @@ distribution.
 |---|---:|---:|---:|---:|
 | Cold | 5 | 98293 | 12.2 | 13.7 |
 | Warm | 4 | 97781 | 10.4 | 11.9 |
+
+The latest rerun on this issue branch used the same fixture and conditions:
+
+| Cache | Requests | Completed encoded bytes | DOMContentLoaded ms | Load ms |
+|---|---:|---:|---:|---:|
+| Cold | 5 | 98293 | 10.6 | 12.0 |
+| Warm | 4 | 97781 | 13.4 | 14.7 |
+
+The cold run again recorded one favicon 404; warm had no HTTP errors. There
+were no redirects, transport failures, cache-served events or unfinished
+requests. This remains one sample per cache condition.
 
 This run measures workspace-home navigation only. It does not measure other
 routes, screen interactions, populated states, loading duration, compression

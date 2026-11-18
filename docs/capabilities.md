@@ -1337,7 +1337,7 @@ continues to enforce owner/admin management and owner-only transfer.
 ## UI performance baseline rerun (#439, 2026-11-18)
 
 - Repeated workspace-home and administration measurements on
-  `a0088c636dcaf8d3073dffe1e936b12e96b0ac65` with isolated SQLite fixtures.
+  `d47ad87eab45db60315310a662e3d57d46a91e4e` with isolated SQLite fixtures.
   Updated values and exact commands are in
   [UI measurement](ui-measurement.md) and
   [administration measurement](ui-measurement-admin.md).
@@ -1347,3 +1347,5 @@ continues to enforce owner/admin management and owner-only transfer.
   distributions.
 - Route inventory and incomplete state coverage remain as documented above.
   No performance budgets or fixes are proposed from single samples.
+- `go test ./...` passed (1070 tests in 37 packages). `npm run typecheck` and
+  `npm run test` are unavailable because neither script is defined.
