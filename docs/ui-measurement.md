@@ -56,6 +56,11 @@ their bytes are unavailable. Redirect bytes may be incomplete; HTTP responses
 with status 400 or higher and transport failures are counted separately. HTTP
 error details contain only the status, an allowlisted resource type and a
 `favicon` or `other` classification; URLs and query strings are never emitted.
+Request starts also report counts by allowlisted embedded asset name or CDP
+resource type, plus repeated identical GET URLs within the observation interval.
+URLs are compared only in memory and never emitted. A repeat is a candidate,
+not proof of an unnecessary request; redirects, polling and reconnects need
+separate interpretation. Unknown asset names are reported only by type.
 Redirects and CDP cache-served events are also reported. Timings are Navigation Timing milliseconds from
 navigation start to DOMContentLoaded and load. This is one unthrottled run,
 not an aggregate or a complete per-screen baseline. Adapt the script for each

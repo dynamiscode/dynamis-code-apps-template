@@ -491,6 +491,7 @@
   "webhooks.rotate": "Rotar secreto",
   "webhooks.delete": "Eliminar webhook",
   "webhooks.delete_confirm": "¿Eliminar este webhook? También se eliminará el historial de entregas.",
+  "webhooks.delete_confirmation_required": "Confirma que quieres eliminar este webhook y su historial de entregas.",
   "webhooks.no_deliveries": "Aún no hay entregas.",
   "webhooks.event": "Evento",
   "webhooks.status": "Estado",

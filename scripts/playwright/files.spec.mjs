@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import axe from "axe-core";
+import { setAccountTheme } from "./theme.mjs";
 
 const email = process.env.PLAYWRIGHT_EMAIL;
 const password = process.env.PLAYWRIGHT_PASSWORD;
@@ -36,14 +37,20 @@ for (const screenshot of filesScreenshots) {
     await page.setViewportSize({ width: screenshot.width, height: screenshot.height });
     await page.emulateMedia({ colorScheme: screenshot.colorScheme, reducedMotion: "reduce" });
     await openFiles(page);
-    const canvas = await page.locator("html").evaluate((element) => getComputedStyle(element).getPropertyValue("--canvas").trim());
-    expect(canvas).toBe(screenshot.colorScheme === "dark" ? "#111826" : "#f3f6fa");
-    const listDisplay = await page.locator(".list-view-table").evaluate((element) => getComputedStyle(element).display);
-    const cardsDisplay = await page.locator(".list-view-cards").evaluate((element) => getComputedStyle(element).display);
-    expect(listDisplay).toBe(screenshot.width < 608 ? "none" : "block");
-    expect(cardsDisplay).toBe(screenshot.width < 608 ? "grid" : "none");
-    await expect(page).toHaveScreenshot(`files-${screenshot.name}.png`, { animations: "disabled", fullPage: true });
-    await expect(page.locator("details.client-filters summary")).toHaveText("File list options");
+    const restoreTheme = await setAccountTheme(page, screenshot.colorScheme);
+    try {
+      await expect(page.locator("html")).toHaveAttribute("data-theme", screenshot.colorScheme);
+      const canvas = await page.locator("html").evaluate((element) => getComputedStyle(element).getPropertyValue("--canvas").trim());
+      expect(canvas).toBe(screenshot.colorScheme === "dark" ? "#111826" : "#f3f6fa");
+      const listDisplay = await page.locator(".list-view-table").evaluate((element) => getComputedStyle(element).display);
+      const cardsDisplay = await page.locator(".list-view-cards").evaluate((element) => getComputedStyle(element).display);
+      expect(listDisplay).toBe(screenshot.width < 608 ? "none" : "block");
+      expect(cardsDisplay).toBe(screenshot.width < 608 ? "grid" : "none");
+      await expect(page).toHaveScreenshot(`files-${screenshot.name}.png`, { animations: "disabled", fullPage: true });
+      await expect(page.locator("details.client-filters summary")).toHaveText("File list options");
+    } finally {
+      await restoreTheme();
+    }
   });
 }
 

@@ -127,6 +127,57 @@ templ authPasswordReset(data pageData) {
 	}
 }
 
+templ authMFA(data pageData) {
+	@authLayout(data, data.T("security.mfa_title")) {
+		<h1>{ data.T("security.mfa_title") }</h1>
+		<p class="auth-intro">{ data.T("security.mfa_verify_prompt") }</p>
+		if data.MFAError != "" {
+			@errorAlert(data.MFAError)
+		}
+		if len(data.MFAOptions) > 0 {
+			<section class="auth-method" aria-labelledby="passkey-heading">
+				<h2 id="passkey-heading">{ data.T("security.mfa_use_passkey") }</h2>
+				<button class="btn btn-primary" id="passkey-login" type="button" data-challenge={ data.MFAChallenge } data-csrf={ data.CSRF }>{ data.T("security.mfa_use_passkey") }</button>
+				@templ.JSONScript("mfa-options", data.MFAOptions)
+			</section>
+		}
+		<section class="auth-method" aria-labelledby="totp-heading">
+			<h2 id="totp-heading">{ data.T("security.mfa_authenticator") }</h2>
+			<p>{ data.T("security.mfa_authenticator_description") }</p>
+			<form action="/mfa/totp" method="post">
+				<input type="hidden" name="csrf" value={ data.CSRF }/>
+				<label for="totp-code">{ data.T("security.mfa_authenticator_code") }</label>
+				<input class="input" id="totp-code" name="code" inputmode="numeric" autocomplete="one-time-code" minlength="6" maxlength="9" required data-mask="digits" data-mask-length="6"/>
+				@submitButton(data.T("security.mfa_verify_code"), nil)
+			</form>
+		</section>
+		<section class="auth-method" aria-labelledby="recovery-heading">
+			<h2 id="recovery-heading">{ data.T("security.mfa_recovery_title") }</h2>
+			<p>{ data.T("security.mfa_recovery_description") }</p>
+			<form action="/mfa/recovery" method="post">
+				<input type="hidden" name="csrf" value={ data.CSRF }/>
+				<label for="recovery-code">{ data.T("security.mfa_recovery_code") }</label>
+				<input class="input" id="recovery-code" name="code" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" required data-mask="upper"/>
+				@submitButton(data.T("security.mfa_use_recovery"), nil)
+			</form>
+		</section>
+		<script src="/assets/mfa.js" defer></script>
+	}
+}
+
+templ authEmailVerification(data pageData) {
+	@authLayout(data, data.T("account.email_verification")) {
+		<h1>{ data.T("account.email_verification") }</h1>
+		if data.Saved {
+			@successAlert(data.T("account.email_verified"))
+			<p>@linkButton("/account", data.T("account.return_account"))</p>
+		} else {
+			@errorAlert(data.Error)
+			<p>@linkButton("/login", data.T("account.sign_in"))</p>
+		}
+	}
+}
+
 func authPasswordResetTitle(data pageData) string {
 	if data.PasswordResetCompleted {
 		return "account.password_reset_completed_title"

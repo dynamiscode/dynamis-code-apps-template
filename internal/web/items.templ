@@ -190,7 +190,7 @@ templ itemRowActions(data pageData, row clientListRow) {
 		</form>
 	}
 	if data.CanShare {
-		<form class="share" data-dirty-track action={ data.CurrentPath + "/" + row.ID + "/share" + data.ItemQuerySuffix } method="post" hx-post={ data.CurrentPath + "/" + row.ID + "/share" + data.ItemQuerySuffix } hx-target="#item-list" hx-swap="outerHTML">
+		<form class="share" data-dirty-track action={ data.CurrentPath + "/" + row.ID + "/share" + data.ItemQuerySuffix } method="post" hx-post={ data.CurrentPath + "/" + row.ID + "/share" + data.ItemQuerySuffix } hx-target="#item-list" hx-swap="outerHTML" hx-history="false">
 			<input type="hidden" name="csrf" value={ data.CSRF }/>
 			@selectField("share-lifetime-"+row.ID, data.T("sharing.expiration"), templ.Attributes{"name": "lifetime"}) {
 				<option value="7">{ data.T("sharing.seven_days") }</option>
@@ -203,7 +203,7 @@ templ itemRowActions(data pageData, row clientListRow) {
 			if link.ItemID == row.Item.ID {
 				<div class="status share-active">{ data.T("sharing.active_until") }{ " " }{ data.DateTime(link.ExpiresAt) }
 					<p class="share-revoke-consequence">{ data.T("sharing.revoke_consequence") }</p>
-					<form class="inline" data-dirty-track action={ data.CurrentPath + "/" + row.ID + "/share" + data.ItemQuerySuffix } method="post">
+					<form class="inline" data-dirty-track action={ data.CurrentPath + "/" + row.ID + "/share" + data.ItemQuerySuffix } method="post" hx-history="false">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
 						<input type="hidden" name="link_id" value={ link.ID }/>
 						@confirmButton(data.T("sharing.revoke"), data.T("sharing.revoke_confirm"), templ.Attributes{"name": "action", "value": "revoke"})

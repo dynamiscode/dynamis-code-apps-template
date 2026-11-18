@@ -2,6 +2,20 @@
 
 This ledger records implemented conformance evidence and deferred triggers.
 
+## Browser journey reconciliation (#454, 2026-11-17)
+
+[Browser journey coverage reconciliation](web.md#browser-journey-coverage-reconciliation)
+maps the route inventory's named route families and major states to Playwright
+journeys, route tests, screenshot baselines, and explicit gaps. Representative
+baselines cover workspace selection/home, Items, Clients, Members, Files,
+notifications, and selected settings in desktop/mobile light/dark variants.
+They do not capture every state or route.
+
+Automated axe, keyboard/focus, accessible-name, reduced-motion, and 320px
+reflow checks cover only their enumerated journeys. They do not establish full
+WCAG conformance or replace assistive-technology and manual zoom checks. See
+the [accessibility evidence](accessibility.md) for existing audit limits.
+
 Dated evidence sections are append-only. New verification is recorded as a new
 dated section; past dated sections are never rewritten, because each is a record
 of what was verified on its date.
@@ -9,9 +23,21 @@ of what was verified on its date.
 The [UI measurement method and asset inventory](ui-measurement.md) records the
 baseline environment and remaining screen measurements for issue #439. It does
 not establish performance budgets or claim screen measurements are complete.
+The [workspace journey evidence](ui-measurement-workspace.md) records request,
+transfer, timing, mutation, loading and failure observations for issue #447,
+with unavailable metrics and states marked explicitly.
+The [reconciliation and budget recommendation](ui-measurement-reconciliation-450.md)
+summarizes measured results, limitations, unverified surfaces, and budget
+decisions; it does not claim implementation of proposed fixes.
 
-The [administration measurement evidence](ui-measurement-admin.md) is partial
-for issue #448; its isolated run may have experienced concurrent check load.
+The [administration measurement evidence](ui-measurement-admin.md) records the
+bounded screen and state measurements for issue #448. Metrics the harness cannot
+isolate remain explicitly unavailable; no budgets or performance fixes are claimed.
+
+The [account, authentication, and public measurement evidence](ui-measurement-identity.md)
+is partial for issue #449; invalid-login and password-recovery feedback and
+notification SSE connection are measured. MFA, MCP consent, valid public
+shares, and remaining interaction states remain unmeasured.
 
 ## Profile status
 
@@ -452,12 +478,27 @@ fresh PostgreSQL 14.24 container; `go generate ./api` shows no drift.
 
 ## Authentication journey evidence
 
-Issue #384 gives setup, sign-in, MFA, email verification, and password reset a
-shared generated-app brand and responsive auth layout. Required account and
+Issues #419 and #420 use the shared generated-app auth layout for setup,
+sign-in, password reset, MFA, and email verification. Required account and
 workspace details remain first; the workspace language preference is optional.
 Authentication mutations retain ordinary CSRF-protected forms and reset
-requests retain generic responses. `internal/web/auth_journeys_test.go` checks
-English and Spanish setup plus auth-page form fallbacks.
+requests retain generic responses. MFA keeps passkey enhancement plus TOTP and
+single-use recovery form fallbacks. `auth_journeys_test.go` checks setup,
+localized MFA retry and fallback states; `handler_test.go` checks safe passkey
+JSON and verification success without token reflection or caching. Verified
+2026-11-17: the focused web tests passed 8 tests, `make templ-check` passed, and
+the isolated Playwright run passed all 12 email verification and 8 password
+reset cases.
+
+## Account security form evidence
+
+Issue #443 moves `/account` to `account.templ` and generated `account_templ.go`.
+Browser route tests cover password mismatch, invalid current password, successful
+password change with session revocation, required deletion confirmation,
+owner-transfer refusal, and successful deletion. Password fields remain outside
+draft persistence. Email verification request and delivery outcomes retain
+ordinary CSRF-protected forms. Verified 2026-11-17 with `make test`,
+`make templ-check`, and `make fmt-check`.
 
 ## Item short ID evidence
 
@@ -1055,6 +1096,21 @@ are visible next to their controls, including without JavaScript.
   keyboard, focus, 320px reflow, reduced-motion, and accessibility-tree checks).
 - Not run: full `make verify`; this ticket's web, lint, and accessibility checks
   passed.
+
+## Client custom-field templ migration evidence (2026-11-17)
+
+Issue #441 migrates `/workspaces/{workspaceId}/client-fields` to generated
+`client_fields.templ` and shared DaisyUI form, alert, and confirmation
+components. Field and choice-option lifecycle remains on the shared clients
+service. Route checks cover create, archive, restore, permanent delete,
+option add/delete, validation, permission denial, escaped labels, and explicit
+deletion consequences with ordinary CSRF-protected forms.
+
+- Passed: `go test ./internal/web` (212 tests), `make templ-check`, and
+  `make lint`, `make test` (39 JS and 1,070 Go tests), and the focused
+  Playwright custom-field lifecycle journey.
+- Not run: `npm run typecheck` and `npm run test`; this repository defines no
+  such npm scripts. The full browser accessibility suite was not run.
 
 ## File management progress and localization evidence (2026-11-15)
 
