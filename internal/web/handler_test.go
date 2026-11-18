@@ -347,6 +347,8 @@ func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
 	public := request(handler, http.MethodGet, publicPath, nil, []*http.Cookie{{Name: "locale", Value: "es"}}, nil)
 	publicBody := public.Body.String()
 	if public.Code != http.StatusOK || public.Header().Get("Content-Language") != "es" ||
+		!hasHTMLRootLang(publicBody, "es") || !strings.Contains(publicBody, "<main") ||
+		!strings.Contains(publicBody, "<h1>Elemento compartido</h1>") ||
 		!strings.Contains(publicBody, "Public title") || !strings.Contains(publicBody, "Activo") ||
 		!strings.Contains(publicBody, "Dynamis Code") || !strings.Contains(publicBody, "Cualquiera con este enlace") {
 		t.Fatalf("public page = %d, %s", public.Code, publicBody)
@@ -377,7 +379,10 @@ func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
 		unavailable := request(handler, http.MethodGet, unavailablePath, nil, []*http.Cookie{{Name: "locale", Value: "es"}}, nil)
 		body := unavailable.Body.String()
 		if unavailable.Code != http.StatusNotFound || !strings.Contains(body, "no está disponible") ||
+			!hasHTMLRootLang(body, "es") || !strings.Contains(body, "<main") ||
+			!strings.Contains(body, "<h1>Elemento compartido no disponible</h1>") ||
 			strings.Contains(body, "Public title") || strings.Contains(body, unavailablePath) ||
+			!strings.Contains(body, `role="alert"`) ||
 			unavailable.Header().Get("Cache-Control") != "private, no-store" ||
 			unavailable.Header().Get("Referrer-Policy") != "no-referrer" ||
 			unavailable.Header().Get("X-Robots-Tag") != "noindex, nofollow, noarchive" {
