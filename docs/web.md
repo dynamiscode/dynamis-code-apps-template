@@ -142,8 +142,9 @@ Baseline browser surfaces:
   state and retains the ordinary form fallback. The browser test covers expired
   session rejection and status, plus active-session revocation:
   `scripts/playwright/account.spec.mjs`. `/security` uses `security.templ` and
-  `security_templ.go` to manage MFA factors, recovery codes, passkey removal,
-  and reauthenticated OIDC linking with ordinary credential-sensitive forms.
+  `security_templ.go` with the shared account layout to manage MFA factors,
+  recovery codes, passkey removal, and reauthenticated OIDC linking. Factor removal
+  uses progressive confirmation; one-time enrollment secrets appear only in their active states.
 - `/account` edits profile preferences, changes a local password, requests email
   verification, and deletes the account after current-password reauthentication
   and an explicit confirmation checkbox. The server rejects deletion without
@@ -375,6 +376,7 @@ accessibility results and remaining limits are recorded in
 | `/workspaces/{workspaceId}/settings/general` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Workspace locale and notification preferences, empty and saved states, invalid input and permission handling |
 | `/workspaces/{workspaceId}/settings/email` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Unconfigured/configured provider, saved state, validation, provider verification failure, redacted credentials and permission handling |
 | `/notifications`, `/notifications/events` | `notifications.templ`, `notifications_templ.go` | Recipient-scoped list and unread count, empty state, CSRF-protected mark-read, initial cursor and SSE replay after reconnect |
+| `/security` | `security.templ`, `security_templ.go`, `components.templ`, `navigation.templ` | Factor enrollment, removal and recovery, provider linking, no-provider state, validation/failure alerts, one-time secret display; ordinary form fallback |
 | `/workspaces/{workspaceId}/settings/webhooks` and `/workspaces/{workspaceId}/settings/webhooks/{webhookId}/deliveries` | `webhooks.templ`, `webhooks_templ.go`, `components.templ`, `navigation.templ` | Permission-denied and unavailable states, one-time secret creation/rotation, required localized delete confirmation, no-store redacted delivery history, keyboard/accessibility, mobile light/dark themes, no-JS confirmation and ordinary form fallback |
 | `/account`, `/settings/language` | `account_pages.templ`, `account_pages_templ.go`, `components.templ`, `navigation.templ` | Profile, theme, language, notifications, email verification, password change, reauthenticated account deletion, saved/validation/delivery failure; ordinary CSRF-protected forms and password exclusion from drafts |
 | Workspace access and integration settings | `credential_settings.templ`, `credential_settings_templ.go`, `security.html`, `navigation.html` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |

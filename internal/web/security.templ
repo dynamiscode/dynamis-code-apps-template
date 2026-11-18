@@ -16,8 +16,8 @@ templ securityPage(data pageData) {
 			if data.MFAError != "" {
 				@errorAlert(data.MFAError)
 			}
-			<section class="settings-panel" aria-labelledby="mfa-heading">
-				<h2 id="mfa-heading">{ data.T("security.mfa_title") }</h2>
+			<section class="settings-panel" aria-labelledby="security-mfa-heading">
+				<h2 id="security-mfa-heading">{ data.T("security.mfa_title") }</h2>
 				<p>{ data.T("security.mfa_description") }</p>
 				if data.MFAStatus.Enabled {
 					<p>{ data.T("security.mfa_passkeys") }{ ": " }{ data.MFAStatus.PasskeyCount }{ " · " }{ data.T("security.mfa_authenticator") }{ ": " }
@@ -42,7 +42,7 @@ templ securityPage(data pageData) {
 						<form action="/security/totp/remove" method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							@textField("remove-totp-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
-							@submitButton(data.T("security.mfa_remove_authenticator"), nil)
+							@confirmButton(data.T("security.mfa_remove_authenticator"), data.T("security.mfa_remove_authenticator"), templ.Attributes{"class": "btn btn-error danger"})
 						</form>
 					}
 					for _, passkey := range data.Passkeys {
@@ -50,7 +50,7 @@ templ securityPage(data pageData) {
 							<form action={ "/security/passkey/" + passkey.ID } method="post">
 								<input type="hidden" name="csrf" value={ data.CSRF }/>
 								@textField("remove-"+passkey.ID, data.T("security.mfa_password_optional")+" — "+passkey.Name, templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
-								@submitButton(data.T("security.mfa_remove_passkey"), nil)
+								@confirmButton(data.T("security.mfa_remove_passkey"), data.T("security.mfa_remove_passkey"), templ.Attributes{"class": "btn btn-error danger"})
 							</form>
 						}
 					}
@@ -66,7 +66,7 @@ templ securityPage(data pageData) {
 					if len(data.MFARecoveryCodes) > 0 {
 						<h3>{ data.T("security.mfa_recovery_codes") }</h3>
 						<p>{ data.T("security.mfa_store_recovery") }{ " " }{ data.T("security.mfa_each_recovery_once") }</p>
-						<pre>{ strings.Join(data.MFARecoveryCodes, "\n") }</pre>
+						<pre>{ strings.Join(data.MFARecoveryCodes, "\n") + "\n" }</pre>
 					}
 					<div id="mfa-recovery-output" hidden>
 						<h3>{ data.T("security.mfa_recovery_codes") }</h3>
@@ -75,8 +75,8 @@ templ securityPage(data pageData) {
 					</div>
 				}
 			</section>
-			<section class="settings-panel" aria-labelledby="linked-identity-heading">
-				<h2 id="linked-identity-heading">{ data.T("security.linked_identity_title") }</h2>
+			<section class="settings-panel" aria-labelledby="security-linked-identity-heading">
+				<h2 id="security-linked-identity-heading">{ data.T("security.linked_identity_title") }</h2>
 				<p>{ data.T("security.linked_identity_description") }</p>
 				if len(data.OIDCProviders) > 0 {
 					<form action="/security" method="post">

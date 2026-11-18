@@ -161,3 +161,69 @@ func TestMFAPageKeepsFormFallbacksAvailable(t *testing.T) {
 		t.Fatalf("MFA retry status = %d; expected localized verification error", retry.Code)
 	}
 }
+
+func TestSecurityPageUsesTemplAndPreservesFactorForms(t *testing.T) {
+	handler, auth, _, _, owner := testWebWithMFA(t, 10, true)
+	ctx := t.Context()
+	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+
+	cookies = append(cookies, &http.Cookie{Name: "locale", Value: "en"})
+	page := request(handler, http.MethodGet, "/security", nil, cookies, nil)
+	body := page.Body.String()
+	if page.Code != http.StatusOK {
+		t.Fatalf("security page status = %d", page.Code)
+	}
+	for _, marker := range []string{
+		`class="settings-panel"`, `class="input"`, `class="btn btn-primary"`,
+		`action="/api/v1/auth/mfa/passkeys/register/options" method="post"`,
+		`action="/security/totp/start" method="post"`, `id="security-linked-identity-heading"`,
+		`name="csrf"`, `aria-labelledby="security-mfa-heading"`, `aria-labelledby="security-linked-identity-heading"`,
+	} {
+		if !strings.Contains(body, marker) {
+			t.Errorf("security page missing %q", marker)
+		}
+	}
+	if strings.Contains(body, `name="challenge"`) || strings.Contains(body, `name="code"`) || strings.Contains(body, "otpauth://") {
+		t.Fatal("inactive security page leaked TOTP enrollment credentials")
+	}
+
+	start := request(handler, http.MethodPost, "/security/totp/start", url.Values{
+		"csrf": {session.CSRFSecret}, "password": {"wrong-password"},
+	}, cookies, nil)
+	if start.Code != http.StatusUnauthorized || !strings.Contains(start.Body.String(), `role="alert" tabindex="-1"`) ||
+		!strings.Contains(start.Body.String(), "Fresh authentication failed.") {
+		t.Fatalf("invalid TOTP enrollment status = %d; missing accessible failure feedback", start.Code)
+	}
+}
+
+func TestSecurityPageRendersReauthenticatedOIDCLinkForm(t *testing.T) {
+	catalog, err := i18n.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body bytes.Buffer
+	data := pageData{
+		Locale: "en", Theme: "dark", Catalog: catalog, CSRF: "csrf-value",
+		MFAStatus: identity.MFAStatus{Enabled: true}, MFARecoveryCodes: []string{"recovery-one", "recovery-two"},
+		OIDCProviders: []identity.OIDCProviderInfo{{ID: "company", Name: "Company SSO"}},
+	}
+	if err := securityPage(data).Render(t.Context(), &body); err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{
+		`<form action="/security" method="post">`, `name="csrf" value="csrf-value"`,
+		`<option value="company">Company SSO</option>`, `id="reauth-password"`,
+		`name="password"`, `type="password"`, `autocomplete="current-password"`, `required`, `class="input"`,
+	} {
+		if !strings.Contains(body.String(), marker) {
+			t.Errorf("OIDC linking form missing %q", marker)
+		}
+	}
+	if !strings.Contains(body.String(), "<pre>recovery-one\nrecovery-two\n</pre>") {
+		t.Fatal("recovery codes lost their per-code line breaks")
+	}
+}

@@ -493,6 +493,11 @@ JSON and verification success without token reflection or caching. Verified
 the isolated Playwright run passed all 12 email verification and 8 password
 reset cases.
 
+Issue #444 migrates `/security` factor and linked-identity rendering to
+`security.templ` and the shared DaisyUI/account components. Route tests cover
+CSRF-protected factor forms, inaccessible enrollment secrets on the idle page,
+focused reauthentication failure feedback, and the ordinary provider-link form.
+
 ## Account security form evidence
 
 Issue #443 moves `/account` to `account.templ` and generated `account_templ.go`.
