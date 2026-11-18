@@ -114,7 +114,7 @@ Baseline browser surfaces:
   a malformed, integer, or unknown ID shows the not-found page for the history
   view and a "could not be found" message for rotate and delete.
   Browser and accessibility evidence, including the no-key guard, is recorded in
-  [accessibility evidence](accessibility.md#workspace-administration-and-data-evidence--2026-11-17);
+  [accessibility evidence](accessibility.md#workspace-administration-and-data-evidence-2026-11-17);
   lifecycle, permission, CSRF, and delivery-redaction behavior is covered by
   [webhook handler tests](../internal/web/webhooks_test.go).
 - `/workspaces/{workspaceId}/settings/provisioning` is restricted to workspace
@@ -188,7 +188,7 @@ Baseline browser surfaces:
   read-only latest-100 audit history with redacted fields. Its permissions,
   empty/success states, and browser accessibility are covered by
   [audit handler tests](../internal/web/handler_test.go) and
-  [accessibility evidence](accessibility.md#workspace-administration-and-data-evidence--2026-11-17).
+  [accessibility evidence](accessibility.md#workspace-administration-and-data-evidence-2026-11-17).
 - `/share/{token}` presents a read-only Item projection containing only title
   and localized status. Invalid, expired, and revoked links share the same
   unavailable page. The Items page lets principals with `resources:write` create
