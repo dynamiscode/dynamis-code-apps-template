@@ -16,10 +16,11 @@ Those gzip values compare files and do not establish HTTP transfer size.
 The isolated admin run in [admin measurement evidence](ui-measurement-admin.md)
 used commit `763a333db4afb6c1f6dda84acfb33e42d2a6854e`, Chrome 157.0.8103.78,
 Playwright 1.64.1, Node 26.10.0, Go 1.27.4, a fresh SQLite fixture, 1280×900
-viewport, and one unthrottled run. Its cold and warm observations cover eight
-admin pages, audit fetch, one-row import preview, and export. The method and
-fixture details are recorded with that result. A prior run may have concurrent
-check load; timings must not be treated as uncontended.
+viewport, and one unthrottled run. Cold and warm navigation covered eight
+settings pages; a separate deliveries navigation had an empty list. The run
+also measured audit fetch, one-row import preview, and export. Fixture details
+are recorded with the result. Concurrent checks may have affected timings, so
+they are not claimed as uncontended.
 
 Across the eight page cold runs, requests ranged from 4 to 6, completed encoded
 bytes from 58,875 to 76,653, DOMContentLoaded from 12.8 to 23.0 ms, and load
@@ -60,22 +61,21 @@ measurement method provides the commands and result schema.
 
 ## Coverage and owning work
 
-The evidence currently measures the eight admin navigation pages, audit fetch,
-import preview, and export noted above. It does not establish comparable
-measurements for workspace home, Items list/create/edit, Clients list/detail,
-Files list/upload, members/invitations, deliveries beyond navigation, account
-security/sessions/notifications, setup/login/MFA/recovery, public share, or
-consent. Populated data, upload wire bytes, SSE behavior, per-request script
-initiators, broader loading states, and cross-locale/theme performance remain
-unverified.
+The evidence measures eight settings-page navigations and one empty-list
+deliveries navigation, plus audit fetch, import preview, and export noted
+above. It does not establish comparable measurements for workspace home, Items
+list/create/edit, Clients list/detail, Files list/upload, members/invitations,
+deliveries beyond navigation, account security/sessions/notifications,
+setup/login/MFA/recovery, public share, or consent. Populated data, upload wire
+bytes, SSE behavior, per-request script initiators, broader loading states, and
+cross-locale/theme performance remain unverified.
 
-The repeated cold favicon 404 is the only observed candidate for a fix. Route it
-to the shared web-shell owner, issue #425, for investigation; the measurement
-does not prove a fix is needed or identify its cause. No other specific
-performance fix is supported by the current request attribution. Do not assign
-optimization work from aggregate counts alone. The remaining screen runs and
-attribution belong with the corresponding route tickets in #439; add owning
-ticket links when a measured issue identifies a concrete fix.
+The cold favicon 404 is the only observed candidate for investigation by the
+shared web-shell owner in issue #425. One run does not establish repeatability,
+need for a fix, or cause. Current request attribution supports no other specific
+performance fix. Do not assign optimization work from aggregate counts alone.
+The remaining screen runs and attribution belong with their route tickets in
+#439; add owning ticket links when measurements identify a concrete fix.
 
 Reproduce asset inventory with the command in [the measurement method](ui-measurement.md).
 Reproduce admin measurements with `sh scripts/ui-measurement-admin.sh` after
