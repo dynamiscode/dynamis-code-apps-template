@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { setAccountTheme } from "./theme.mjs";
 
 const require = createRequire(import.meta.url);
 const axeSource = readFileSync(require.resolve("axe-core"), "utf8");
@@ -27,31 +28,37 @@ test("Clients list adapts across desktop/mobile and light/dark themes", async ({
   await openClients(page);
   for (const colorScheme of ["light", "dark"]) {
     await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
-    const transitionDuration = await page.evaluate(() => {
-      const wrapper = document.createElement("div");
-      wrapper.className = "cards";
-      const link = document.createElement("a");
-      wrapper.append(link);
-      document.body.append(wrapper);
-      const duration = getComputedStyle(link).transitionDuration;
-      wrapper.remove();
-      return duration;
-    });
-    expect(transitionDuration.split(",").every((duration) => duration.trim() === "0s")).toBe(true);
-    for (const width of [1280, 390]) {
-      await page.setViewportSize({ width, height: 900 });
-      const layout = await page.evaluate(() => ({
-        table: getComputedStyle(document.querySelector(".list-view-table")).display,
-        cards: getComputedStyle(document.querySelector(".list-view-cards")).display,
-        canvas: getComputedStyle(document.documentElement).getPropertyValue("--canvas").trim(),
-        overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-      }));
-      expect(layout.table).toBe(width <= 608 ? "none" : "block");
-      expect(layout.cards).toBe(width <= 608 ? "grid" : "none");
-      expect(layout.canvas).toBe(colorScheme === "dark" ? "#111826" : "#f3f6fa");
-      expect(layout.overflow).toBe(false);
-      await expect(page.locator("#realtime-status")).toContainText("Live updates connected");
-      await expect(page).toHaveScreenshot(`clients-${colorScheme}-${width <= 608 ? "mobile" : "desktop"}.png`, { animations: "disabled", fullPage: true });
+    const restoreTheme = await setAccountTheme(page, colorScheme);
+    try {
+      await expect(page.locator("html")).toHaveAttribute("data-theme", colorScheme);
+      const transitionDuration = await page.evaluate(() => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "cards";
+        const link = document.createElement("a");
+        wrapper.append(link);
+        document.body.append(wrapper);
+        const duration = getComputedStyle(link).transitionDuration;
+        wrapper.remove();
+        return duration;
+      });
+      expect(transitionDuration.split(",").every((duration) => duration.trim() === "0s")).toBe(true);
+      for (const width of [1280, 390]) {
+        await page.setViewportSize({ width, height: 900 });
+        const layout = await page.evaluate(() => ({
+          table: getComputedStyle(document.querySelector(".list-view-table")).display,
+          cards: getComputedStyle(document.querySelector(".list-view-cards")).display,
+          canvas: getComputedStyle(document.documentElement).getPropertyValue("--canvas").trim(),
+          overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        }));
+        expect(layout.table).toBe(width <= 608 ? "none" : "block");
+        expect(layout.cards).toBe(width <= 608 ? "grid" : "none");
+        expect(layout.canvas).toBe(colorScheme === "dark" ? "#111826" : "#f3f6fa");
+        expect(layout.overflow).toBe(false);
+        await expect(page.locator("#realtime-status")).toContainText("Live updates connected");
+        await expect(page).toHaveScreenshot(`clients-${colorScheme}-${width <= 608 ? "mobile" : "desktop"}.png`, { animations: "disabled", fullPage: true });
+      }
+    } finally {
+      await restoreTheme();
     }
   }
 });
