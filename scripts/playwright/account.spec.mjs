@@ -44,13 +44,13 @@ for (const layout of layouts) {
     await profile.locator('[name="locale"]').selectOption("");
     await profile.getByRole("button", { name: /save/i }).click();
     await expect(page).toHaveURL(/saved=1/);
-    await expect(page).toHaveScreenshot(`account-${layout.name}.png`, {
-      animations: "disabled",
-      fullPage: true,
-      mask: [profile.locator('[name="display_name"]')],
-    });
 
     try {
+      await expect(page).toHaveScreenshot(`account-${layout.name}.png`, {
+        animations: "disabled",
+        fullPage: true,
+        mask: [profile.locator('[name="display_name"]')],
+      });
       for (const { path, heading, locale } of accountPages) {
         await page.goto(`/language?locale=${locale}&return_to=${encodeURIComponent(path)}`);
         const response = await page.goto(path);
