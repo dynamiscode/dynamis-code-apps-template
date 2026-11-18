@@ -1204,6 +1204,22 @@ strings cover the changed screens.
   journeys, including account and security; zero axe violations.
 - Not run: full `make verify`; no authentication policy, schema, or API changes.
 
+## Account profile, preferences, language, and appearance evidence (#442)
+
+The `/account` and `/settings/language` templ pages render with the saved
+English or Spanish locale and light, dark, or system theme. Existing handler
+checks cover successful profile and notification preference saves, invalid
+profile and language submissions without overwriting saved values, and
+automatic language fallback. A focused rendering matrix covers both routes in
+all six locale/theme combinations.
+
+- Passed: `go test ./internal/web ./internal/i18n -count=1`,
+  `npm run test:unit`, `make templ-check`, and `make css-check`.
+- Blocked: `make lint` and `make test` stop at the existing broken relative
+  Markdown link in `docs/htmx-review-438.md`.
+- Not run: `npm run typecheck` and `npm run test`; `package.json` defines
+  neither script.
+
 ## Session list and revocation UI evidence (#445, 2026-11-16)
 
 Ticket #445 migrates `/sessions` to the generated templ account layout. The
