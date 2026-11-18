@@ -1390,3 +1390,16 @@ continues to enforce owner/admin management and owner-only transfer.
 - Populated states, Item edit/server validation, Client detail, member and
   invitation flows, upload/download transfer, permission/no-JavaScript states,
   and repeated-run variance remain unmeasured. Issue #439 remains partial.
+
+## UI measurement rerun on issue branch (#439, 2026-11-18)
+
+- Repeated core, administration, and identity isolated Playwright measurements
+  on `132086464fa822f5b2510de4eb061ec3317d5fc5`. Exact commands, current
+  interaction results, environment, and known limitations are recorded in the
+  linked [UI measurement](ui-measurement.md), [administration evidence](ui-measurement-admin.md),
+  and [identity evidence](ui-measurement-identity.md).
+- Cold navigations again reported a favicon 404. Export transfer bytes remain
+  unavailable; measured states remain partial. No budgets or fixes are claimed.
+- `npm run typecheck` and `npm run test` are undefined. `SANDCASTLE_VERIFY` is
+  unset, so required wrapped full-suite checks were unavailable. Issue #439
+  remains partial; uncovered routes and state gaps are mapped in the evidence.

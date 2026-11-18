@@ -170,6 +170,26 @@ change is claimed.
 
 ### Core list and Item interaction observation
 
+## Current rerun on issue branch
+
+On 2026-11-18T02:35:36Z, commit
+`132086464fa822f5b2510de4eb061ec3317d5fc5`, Darwin 27.2.0 arm64,
+Go 1.27.4, Node 26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1,
+the core harness completed:
+
+```sh
+PLAYWRIGHT_PORT=59101 UI_MEASURE=core ./scripts/playwright-smoke.sh
+```
+
+It used the fresh isolated SQLite fixture and browser conditions above. This
+single unthrottled sample repeats the previous empty-list baseline. Items,
+Clients and Files cold/warm requests, bytes and timings were unchanged from the
+previous recorded sample. The three cold navigations again reported one favicon
+404; Items and Clients each had one unfinished SSE request. Synthetic Item
+creation returned 200 with 7245 completed encoded bytes and 125.9 ms feedback;
+empty-title native validation sent no request and showed feedback in 66.6 ms.
+These are observations, not budgets or distributions.
+
 On 2026-11-18T02:07:21.220Z, commit
 `4492d2c86536e6f528c7bb9a73287d568ee081ff`, Darwin 27.2.0 arm64,
 Go 1.27.4, Node 26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1:

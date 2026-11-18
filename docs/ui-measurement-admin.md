@@ -247,6 +247,27 @@ zero completed encoded bytes; that is not a measurement of its wire size.
 declared minimum; this harness uses Playwright, and the run completed. No
 browser performance measurement was repeated to estimate variability.
 
+## Current rerun on issue branch
+
+On 2026-11-18T02:35:28Z, commit
+`132086464fa822f5b2510de4eb061ec3317d5fc5`, Darwin 27.2.0 arm64,
+Go 1.27.4, Node 26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1,
+the isolated admin harness completed:
+
+```sh
+PLAYWRIGHT_PORT=59111 sh scripts/ui-measurement-admin.sh
+```
+
+All eight settings/data screens and webhook deliveries again produced cold and
+warm navigation observations. The sample again showed one cold favicon 404
+per navigation; tokens recorded one cache hit in both conditions. Automatic
+audit swap and loading feedback appeared (35.5 ms); warm manual fragment fetch
+was 2034 encoded bytes (4.5 ms), and one-row import preview was 100043 encoded
+bytes (70.2 ms). Export completed to a 2057-byte local file in 84.3 ms; wire
+bytes remained unavailable, and CDP reported one transport failure during the
+download. Values are one unthrottled observation; they set no budget and do not
+establish that a request is unnecessary.
+
 ## Earlier isolated navigation and interaction observation
 
 On 2026-11-17T23:26:52.500Z, commit

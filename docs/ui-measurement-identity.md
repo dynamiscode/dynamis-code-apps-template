@@ -44,6 +44,25 @@ share route also returned the expected document 404. Invalid login retained
 the form and showed its accessible alert. Recovery showed its generic status;
 email delivery was disabled. The runner emits no submitted values.
 
+## Current rerun on issue branch
+
+On 2026-11-18T02:35:41Z, commit
+`132086464fa822f5b2510de4eb061ec3317d5fc5`, Darwin 27.2.0 arm64,
+Node 26.10.0, Chrome 157.0.8103.79 and Playwright 1.64.1, the harness
+completed:
+
+```sh
+PLAYWRIGHT_PORT=59121 UI_MEASURE=identity ./scripts/playwright-smoke.sh
+```
+
+The existing cold/warm navigation screens and interaction observations repeated
+on the isolated fixture. Invalid login returned 401 with 95744 encoded bytes
+and 131.7 ms feedback; password recovery returned 200 with 95187 encoded bytes
+and 136.0 ms feedback. Notification SSE opened in 16.9 ms with zero events.
+Cold navigations again reported the favicon 404. The unavailable share route
+returned the expected 404. Values are single unthrottled observations and set
+no budget. MFA, consent, valid share, and other state gaps remain.
+
 ## Earlier isolated run
 
 On 2026-11-17T20:43:26.714Z, commit `f2abeb30ffa537b9fa0255e04239499801c090e0`,
