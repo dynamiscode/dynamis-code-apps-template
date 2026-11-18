@@ -50,8 +50,8 @@ for permission and localization limits.
 Do not set numeric page-load, request-count, or transfer-byte budgets from these
 data. Each page and interaction has one run, the fixture is sparse, network is
 unthrottled, and no variability or representative populated-state measurements
-exist. The single favicon failure is reproducible in that run but needs repeat
-confirmation before it becomes a reliability threshold.
+exist. The favicon 404 appeared on each cold navigation in one run; repeat
+confirmation is needed before it becomes a reliability threshold.
 
 Use the following as collection gates, not performance budgets: retain cold and
 warm labels; report page navigation separately from HTMX, SSE, upload, and
