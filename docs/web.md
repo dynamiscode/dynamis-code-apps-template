@@ -338,10 +338,11 @@ file drift.
 Ticket #386 reconciles the route and template surface. `/` and `/workspaces/{workspaceId}`
 render through `workspace.templ` and generated `workspace_templ.go`. The
 inventory below names each route family's current renderer and major states.
-All browser route names passed to `render()` dispatch to generated templ views;
-no route currently falls through to its `html/template` execution fallback.
+The current route inventory and named calls to `render()` map the known page
+routes to generated templ views. This is a source-traced claim, not an automated
+exhaustiveness check: unknown names still reach the `html/template` fallback.
 Legacy HTML files remain embedded for compatibility checks and the shared
-navigation bridge, not as active page renderers. See [issue #401 migration evidence](capabilities.md#setup-and-authentication-templ-migration-401) and
+navigation bridge. See [issue #401 migration evidence](capabilities.md#setup-and-authentication-templ-migration-401) and
 [issue #432 verification evidence](capabilities.md#rendering-assets-and-generated-app-verification-432).
 
 Shared navigation uses `navigation.templ`. The named definitions in
@@ -397,14 +398,15 @@ not every route family or all browser states. Workspace selection, workspace hom
 and SCIM settings, webhook registry, and delivery history use templ. Issue #400
 migrates and verifies the workspace route family (selection, creation, home,
 switching, and shared navigation). The shared `render()` dispatcher remains,
-but all current route names map to templ views; its `html/template` fallback
-has no current route caller. General and
+and the known current route names map to templ views by source inspection; its
+`html/template` fallback remains reachable for an unrecognized render name.
+General and
 email settings use `settings_pages.templ`; #406 route-family verification is
 recorded in [workspace settings migration evidence](capabilities.md#workspace-settings-template-migration-evidence-406).
-Legacy HTML files and the default `html/template` branch remain as compatibility
-artifacts, but no current browser route dispatches to that branch. This does not
-change the escaping, authorization, accessibility, localization, or
-ordinary-form requirements.
+Legacy HTML files and the default `html/template` branch remain. The route
+inventory does not mechanically prove dispatch exhaustiveness; an explicit
+route-name coverage check is not present. This does not change escaping,
+authorization, accessibility, localization, or ordinary-form requirements.
 
 The issue #454 reconciliation maps each route family and major state to its
 automated evidence, committed screenshot samples, and remaining unverified
