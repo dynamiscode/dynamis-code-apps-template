@@ -6,7 +6,7 @@ import (
 )
 
 templ webhooksPage(data pageData) {
-	@webhooksShell(data) {
+	@dashboardShell(data, dashboardHeader(data), dashboardSettingsNavigation(data)) {
 		<p class="eyebrow">{ data.T("navigation.settings_access") }</p>
 		if data.SelectedWebhook.ID != 0 {
 			<p><a href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks" }>← { data.T("webhooks.back_to_webhooks") }</a></p>
@@ -121,18 +121,6 @@ templ webhooksPage(data pageData) {
 	}
 }
 
-
-templ webhooksShell(data pageData) {
-	<!doctype html>
-	<html lang={ data.Locale } data-theme={ data.Theme }>
-		<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{ data.Title } · { data.T("common.product_name") }</title><link rel="stylesheet" href="/assets/components.css"/><link rel="stylesheet" href="/assets/app.css"/>@uiHead(data)</head>
-		<body class="dashboard-workspace">
-			@skipLink(data)
-			@dashboardHeader(data)
-			<div class="app-shell"><aside class="sidebar"><a class="sidebar-back" href={ "/workspaces/" + data.Workspace.ID.String() }>← { data.T("workspace.back_to_home") }</a>@workspaceNav(data)</aside><main id="main" class="workspace-main">{ children... }</main></div>
-		</body>
-	</html>
-}
 
 func webhookStatusCode(code int) string {
 	if code == 0 {
