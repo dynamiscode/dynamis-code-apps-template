@@ -93,15 +93,13 @@ acceptance criteria against three evidence layers:
   smoke results, with skipped tests and scope limits recorded in
   [browser verification](#browser-verification-for-templ-route-migration-433-2026-11-18).
 
-After issue #401, the remaining live `html/template` boundary is workspace
-selection/error, the members route (including `list-view.html`'s
-`client-list-view` partial), and the webhooks fallback. Setup, sign-in, MFA,
-email verification, and password reset now dispatch through generated templ
-views; `templates/auth.html`, `templates/login.html`, and `templates/setup.html`
-were removed. `list-view.html` is referenced by the active members legacy
-template, so removal is not safe or evidence-backed. The [route inventory](web.md#rendering-migration-inventory)
-names the remaining exception explicitly. No claim is made that every route is
-fully migrated or that manual assistive-technology coverage is complete.
+The current route inventory shows browser routes dispatching through generated
+templ views; no route name falls through to the `html/template` compatibility
+branch. Legacy HTML files remain embedded for compatibility checks and the
+shared navigation bridge. The dated #432 evidence below records the earlier
+migration boundary at that verification point. The [route inventory](web.md#rendering-migration-inventory)
+continues to document coverage limits; this does not establish manual
+assistive-technology conformance.
 
 ## Rendering, assets, and generated-app verification (#432)
 
@@ -636,9 +634,10 @@ focused reauthentication failure feedback, and the ordinary provider-link form.
 
 Route-family verification confirms general/email settings, API tokens, webhooks,
 SCIM provisioning, and audit history render with templ. `internal/web/handler.go`
-retains legacy `html/template` dispatch only for views still routed through its
-default branch; the #406 routes above dispatch to generated templ components.
-The route inventory is recorded in [web behavior documentation](web.md#rendering-migration-inventory).
+retains a default `html/template` compatibility branch, but no current browser
+route name falls through to it; the #406 routes above dispatch to generated
+templ components. The route inventory is recorded in [web behavior
+documentation](web.md#rendering-migration-inventory).
 
 - Passed: `make lint`.
 - Passed: settings Playwright coverage, 145 passed and 2 skipped; the runner also included unrelated route families. One unrelated account theme snapshot failed (`data-theme`: expected `light`, received `system`).
