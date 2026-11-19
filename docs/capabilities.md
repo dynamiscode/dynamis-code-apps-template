@@ -1379,6 +1379,21 @@ these pages do not enable WebMCP.
 - Not run: full `make test` and `make verify`; no data, API, or runtime contract
   changed.
 
+## Public sharing, consent, and error-page templ verification (#409)
+
+Issue #409's route family is already implemented by #430/#491. Public share
+projection and unavailable responses use `public_pages.templ`; OAuth consent
+and generic request errors dispatch to generated templ views. Existing route
+coverage checks public projection, no-store/referrer/robots headers, localized
+unavailable states, CSRF enforcement, approval and denial. The authentication
+`login.html` file remains outside this family because login routes still use
+the shared renderer.
+
+- Route inventory: [public share, OAuth consent, and request errors](web.md#rendering-migration-inventory).
+- Passed: `make lint`, `make templ-check`, `go test ./internal/web -run 'TestWebSharing|TestMCPConsent' -count=1`, and `make accessibility-smoke` (public share and MCP consent: zero axe violations in English and Spanish; keyboard/focus/reflow checks passed).
+- Failed: `make test` timed out after 10 minutes in unrelated `cmd/template-init/TestGenerateWithoutAgentPrunesAgentSurfaceAndBuilds`; `internal/web` package tests passed in that run.
+- Blocked: `sh scripts/playwright-smoke.sh share` found no matching Playwright spec. No dedicated Playwright spec exists for this route family.
+
 ## UI migration and generated-app evidence (#386, 2026-11-16)
 
 Ticket #386 inventories all browser page and shared-template files in
