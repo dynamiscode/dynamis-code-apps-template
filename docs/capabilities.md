@@ -1830,6 +1830,19 @@ legacy route templates and its parity test still use it.
   `make templ-check`, `make lint`, `make accessibility-smoke` (0 violations on
   every route it scans).
 
+## Shared page head (templ finish, PR 6, 2026-11-18)
+
+- Added `pageHead(data, title)` in `components.templ`: charset, viewport,
+  title, the two stylesheets and `uiHead`. `dashboardShell`, `authLayout` and
+  `publicSharePage` render it instead of repeating those lines.
+- Public share keeps its own `main` card on purpose. Its layout differs from the
+  auth card, so a shared public layout would save little and was not added.
+- Accepted change: `clients.css` on the clients pages now loads after `uiHead`
+  instead of before it. Stylesheets are not affected by script order.
+- Verified: `go test ./internal/web/...`, rendered-page diff against the
+  previous state (only CSRF, timestamp and ID noise), `make templ-check`,
+  `make lint`, `make accessibility-smoke` (0 violations on every route it scans).
+
 ## UI Item edit measurement (#439, 2026-11-18)
 
 - Extended the isolated core runner to edit its synthetic Item and record

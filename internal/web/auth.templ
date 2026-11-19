@@ -4,12 +4,7 @@ templ authLayout(data pageData, heading string) {
 	<!doctype html>
 	<html lang={ data.Locale } data-theme={ data.Theme }>
 		<head>
-			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width,initial-scale=1"/>
-			<title>{ heading } · { data.T("common.product_name") }</title>
-			<link rel="stylesheet" href="/assets/components.css"/>
-			<link rel="stylesheet" href="/assets/app.css"/>
-			@uiHead(data)
+			@pageHead(data, heading)
 		</head>
 		<body>
 			@skipLink(data)
