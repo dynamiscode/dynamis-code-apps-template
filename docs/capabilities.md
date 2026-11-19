@@ -93,6 +93,27 @@ Limits: no full browser sweep of every inventory row, manual assistive-technolog
 walkthrough, asset budget, or generated-app live startup/readiness check was
 performed for #432. Do not infer those outcomes from these checks.
 
+## Browser verification for templ route migration (#433, 2026-11-18)
+
+Ran `sh scripts/playwright-smoke.sh` against disposable SQLite fixtures: 146
+passed, 0 failed, 2 skipped, across 148 collected Chrome tests. Coverage includes
+English/Spanish and light/dark variants where each spec defines them, desktop
+and mobile viewports, representative screenshot baselines, keyboard/focus,
+reduced motion, no-JavaScript journeys, and simulated request failures. Existing
+baselines matched; no screenshots were refreshed. Two notification tests were
+skipped by their own conditions (no notification fixture/reconnect setup in this
+run), so notification mark-read fallback and lifetime reconnect remain unverified
+in this execution.
+
+Ran `sh scripts/accessibility-smoke.sh`: both English and Spanish scans reported
+zero axe violations across the runner's enumerated routes/states; its manual
+contract checks for keyboard, focus, 320 CSS-pixel reflow, reduced motion, and
+the accessibility tree passed. This is automated evidence only: it does not
+prove WCAG conformance, cover every route/state/locale/theme combination, or
+replace assistive-technology testing and 200% zoom review. The route-level
+coverage map and baseline inventory are in [browser journey coverage
+reconciliation](web.md#browser-journey-coverage-reconciliation).
+
 ## Profile status
 
 | Profile | Status | Evidence |
