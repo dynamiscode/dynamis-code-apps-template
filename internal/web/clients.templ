@@ -69,7 +69,7 @@ templ clientDetail(data pageData) {
 			</dl>
 		}
 		if data.Client.ArchivedAt != nil {
-			<p class="status" role="status">{ data.T("clients.archived_status") }</p>
+			@statusLine(data.T("clients.archived_status"), nil)
 		}
 		if data.CanEditClients {
 			<div class="client-lifecycle">
@@ -170,7 +170,7 @@ templ clientList(data pageData) {
 		<div class="client-results" id="client-results">
 			@clientListView(data)
 			@nextPage(data.NextPath, data.T("items.next_page"))
-			<p class="status" role="status" aria-live="polite" id="realtime-status">{ data.T("clients.live_fallback") }</p>
+			@statusLine(data.T("clients.live_fallback"), templ.Attributes{"aria-live": "polite", "id": "realtime-status"})
 		</div>
 		<div id="client-create">
 			if data.CanEditClients {
@@ -274,7 +274,7 @@ templ clientListView(data pageData) {
 			}
 		}
 	} else {
-		<p class="status" role="status">{ data.T("clients.columns_choose") }</p>
+		@statusLine(data.T("clients.columns_choose"), nil)
 	}
 	if len(data.ClientListRows) == 0 {
 		<p id="client-empty-state">

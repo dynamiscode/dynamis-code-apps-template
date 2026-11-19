@@ -125,7 +125,7 @@ templ memberListView(data pageData) {
 			}
 		}
 	} else {
-		<p class="status" role="status">{ data.T("clients.columns_choose") }</p>
+		@statusLine(data.T("clients.columns_choose"), nil)
 	}
 	if data.MemberTotal == 0 {
 		<p id="member-results" role="status">{ data.T("members.none") } <a href={ data.ClearClientFiltersPath }>{ data.T("clients.clear_filters") }</a></p>

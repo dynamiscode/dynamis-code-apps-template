@@ -10,6 +10,11 @@ templ pageHeading(title, eyebrow string) {
 	</div>{ children... }</div>
 }
 
+// statusLine is a polite or plain status message; attrs adds live-region ids.
+templ statusLine(text string, attrs templ.Attributes) {
+	<p class="status" role="status" { attrs... }>{ text }</p>
+}
+
 templ textField(id, label string, attrs templ.Attributes) {
 	<label for={ id }>{ label }</label>
 	<input class="input" id={ id } { attrs... }/>

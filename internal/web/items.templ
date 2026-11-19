@@ -109,7 +109,7 @@ templ itemsList(data pageData) {
 				}
 			</div>
 		} else {
-			<p class="status" role="status">{ data.T("clients.columns_choose") }</p>
+			@statusLine(data.T("clients.columns_choose"), nil)
 		}
 		if len(data.Items) == 0 {
 			<p id="item-results" role="status">
@@ -121,7 +121,7 @@ templ itemsList(data pageData) {
 			</p>
 		}
 		@nextPage(data.NextPath, data.T("items.next_page"))
-		<p class="status" role="status" aria-live="polite" id="realtime-status">{ data.T("items.live_fallback") }</p>
+		@statusLine(data.T("items.live_fallback"), templ.Attributes{"aria-live": "polite", "id": "realtime-status"})
 	</section>
 }
 
