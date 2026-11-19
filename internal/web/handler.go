@@ -1163,8 +1163,6 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 		_ = authMFA(data).Render(context.Background(), writer)
 	case "verification.html":
 		_ = authEmailVerification(data).Render(context.Background(), writer)
-	case "account.html":
-		_ = accountPageView(data).Render(context.Background(), writer)
 	case "sessions-page":
 		_ = sessionsPage(data, data.CurrentSessionID, time.Now()).Render(context.Background(), writer)
 	case "security-page":
