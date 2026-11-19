@@ -342,8 +342,13 @@ are migrated, and named `html/template` views remain deferred. It records major
 states while preserving escaping, HTMX fragment boundaries, ordinary-form
 fallbacks, and route behavior during the incremental migration. Issue #432
 rechecked every fallback caller: `templates/*.html` remains parsed and the
-`render()` fallback remains live for auth/setup, members, and webhooks; therefore
-neither the dispatcher nor embedded legacy templates are dead code. See the
+`render()` fallback remains live for auth/setup, members, and webhooks. These are
+the specific remaining `html/template` exceptions: auth/setup pages, the members
+route (including its `client-list-view` partial), and webhooks fallback. The
+members route has a templ view, but runtime dispatch still uses the legacy
+renderer. The unused account dispatcher case was removed; `list-view.html` is
+not dead: `members.html` calls its `client-list-view` definition. Therefore the
+dispatcher and these embedded templates are not removable as a whole. See the
 [issue #432 verification evidence](capabilities.md#rendering-assets-and-generated-app-verification-432).
 
 Shared navigation uses `navigation.templ`. The named definitions in
@@ -370,7 +375,7 @@ accessibility results and remaining limits are recorded in
 | `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.js`, `public_pages.templ`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge/retry/expired redirect, verification success/invalid-or-expired, OAuth approval/denial |
 | `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | Empty/results states, filters, sorting and paging, shareable query state, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
 | Workspace clients and custom fields | `clients.templ` (list and detail), `client_fields.templ`, `components.templ`, `workspace.templ`, `navigation.templ` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field and option lifecycle, realtime refresh; no client-family `html/template` views remain |
-| Workspace members | `members.templ`, `members_templ.go`, `navigation.templ`, `components.templ` | Role changes, removal and ownership transfer; responsive table/cards, filters, sorting, paging, validation, permission denial, and ordinary-form confirmations |
+| Workspace members | `members.html` and `list-view.html` through live `html/template` fallback (specific #432 exception); `members.templ` and generated `members_templ.go` also exist; shared navigation/components | Role changes, removal and ownership transfer; responsive table/cards, filters, sorting, paging, validation, permission denial, and ordinary-form confirmations |
 | `/workspaces/{workspaceId}/settings/invitations`, `/invitations/{secret}`, `/invitations/{secret}/sign-in`, `/invitations/continue` | `invitations.templ`, `invitations_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Create/resend/revoke with explicit revoke confirmation; registration, account-matched acceptance, sign-in return through MFA/OIDC, invalid/expired/unavailable states; ordinary form fallback |
 | `/workspaces/{workspaceId}/settings/audit` | `audit.templ`, `audit_templ.go`, `components.templ`, `components_templ.go` | Scoped redacted history, lazy table fragment, empty state, ordinary `?all=1` fallback, permission denial and expired-session redirect |
 | `/sessions` | `sessions.templ`, `sessions_templ.go` | Current, active, expired and revoked status; revoke current or other active sessions; feedback and empty state |

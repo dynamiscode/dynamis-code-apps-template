@@ -57,6 +57,28 @@ is partial for issue #449; invalid-login and password-recovery feedback and
 notification SSE connection are measured. MFA, MCP consent, valid public
 shares, and remaining interaction states remain unmeasured.
 
+## Issue #408 umbrella reconciliation (2026-11-18)
+
+The branch's nine route-family and verification commits reconcile the #408
+acceptance criteria against three evidence layers:
+
+- Route journeys (#431): browser navigation, representative states, forms,
+  permissions, keyboard paths, and responsive/theme screenshots; documented
+  coverage limits remain in [web journey evidence](web.md#browser-journey-coverage-reconciliation).
+- Rendering and generated app (#432): `templ-check`, CSS drift, generated-app
+  tests, and renderer/caller tracing; see [rendering evidence](#rendering-assets-and-generated-app-verification-432).
+- Browser/accessibility journeys (#433): Playwright and automated accessibility
+  smoke results, with skipped tests and scope limits recorded in
+  [browser verification](#browser-verification-for-templ-route-migration-433-2026-11-18).
+
+Exception: the remaining live `html/template` boundary is auth/setup pages,
+the members route (including `list-view.html`'s `client-list-view` partial), and
+the webhooks fallback. The unused account dispatcher case is already removed.
+`list-view.html` is referenced by the active members legacy template, so removal
+is not safe or evidence-backed. The [route inventory](web.md#rendering-migration-inventory)
+now names this exception explicitly. No claim is made that every route is fully
+migrated or that manual assistive-technology coverage is complete.
+
 ## Rendering, assets, and generated-app verification (#432)
 
 Verified on the `sc/verify-432` stack against the six route-family commits in
