@@ -231,6 +231,11 @@ main form:not(.inline) > button.reveal { display: block; margin-top: .35rem; min
 .workspace-cards strong { font-size: 1.05rem; }
 .workspace-main .btn { flex: none; min-height: 2.75rem; padding: .45rem .75rem; border: 1px solid var(--accent); border-radius: var(--brand-radius); background: var(--accent); color: var(--on-accent); font-weight: 700; text-decoration: none; }
 .workspace-main .btn:hover { border-color: var(--accent-hover); background: var(--accent-hover); color: var(--on-accent); }
+/* Account pages keep their danger and disabled button states inside the dashboard shell. */
+main:has(> .account-page) { width: min(72rem, 100%); padding: 0; }
+.account-page .btn:is(.btn-error, .danger) { border-color: var(--danger); background: var(--danger); color: var(--on-accent); }
+.account-page .btn:is(.btn-error, .danger):not(:disabled):hover { border-color: var(--danger); background: var(--danger); }
+.account-page .btn:disabled { border-color: var(--border-muted); background: var(--disabled-surface); color: var(--muted); cursor: not-allowed; }
 .notification-center { width: min(56rem, 100%); }
 .notification-center .workspace-heading { margin-bottom: 1.5rem; }
 .notification-description { max-width: 48rem; color: var(--muted); }
