@@ -498,6 +498,19 @@ Issue #444 migrates `/security` factor and linked-identity rendering to
 CSRF-protected factor forms, inaccessible enrollment secrets on the idle page,
 focused reauthentication failure feedback, and the ordinary provider-link form.
 
+## Workspace settings template migration evidence (#406)
+
+Route-family verification confirms general/email settings, API tokens, webhooks,
+SCIM provisioning, and audit history render with templ. `internal/web/handler.go`
+retains legacy `html/template` dispatch only for views still routed through its
+default branch; the #406 routes above dispatch to generated templ components.
+The route inventory is recorded in [web behavior documentation](web.md#rendering-migration-inventory).
+
+- Passed: `make lint`.
+- Passed: settings Playwright coverage, 145 passed and 2 skipped; the runner also included unrelated route families. One unrelated account theme snapshot failed (`data-theme`: expected `light`, received `system`).
+- Blocked: `make test` timed out after 600 seconds while running `go test ./...`; browser unit tests passed (43/43).
+- Not run: commit/push pending successful required checks.
+
 ## Account security form evidence
 
 Issue #443 moves `/account` to `account.templ` and generated `account_templ.go`.

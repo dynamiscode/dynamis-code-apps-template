@@ -390,8 +390,10 @@ and generic OAuth errors.
 `make ux-smoke` and `make accessibility-smoke` cover the browser paths they
 enumerate; [the accessibility evidence](accessibility.md) records that
 automated coverage. Workspace selection, workspace home, audit history, API token
-and SCIM settings, webhook registry, and delivery history use templ; the remaining
-listed legacy views are an intentional exception to the migration target, not an
+and SCIM settings, webhook registry, and delivery history use templ. General and
+email settings use `settings_pages.templ`; #406 route-family verification is
+recorded in [workspace settings migration evidence](capabilities.md#workspace-settings-template-migration-evidence-406).
+The remaining listed legacy views are an intentional exception to the migration target, not an
 exception to escaping, authorization, accessibility, localization, or
 ordinary-form requirements.
 
