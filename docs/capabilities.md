@@ -1764,6 +1764,24 @@ legacy route templates and its parity test still use it.
   #439 remains partial; download bytes, upload failure/progress, and route/state
   coverage remain open.
 
+## Legacy html/template renderer removal (templ finish, PR 1, 2026-11-18)
+
+- Removed `templates/members.html`, `templates/list-view.html`,
+  `templates/navigation.html`, the `html/template` navigation bridge, and the
+  `html/template` parse and `default:` fallback in `render()`. Every literal view
+  name already dispatched to templ, so runtime behavior is unchanged.
+  `render()` now panics on an unknown view name.
+- Replaced `TestLegacyNavigationBridge` with `TestNavigationComponentsEscapeInput`,
+  which calls the templ navigation components directly.
+- Removed `TestFormMarkupRules` with the legacy templates it scanned. Its regexes
+  do not match templ syntax; the form-markup rules are now a manual review item
+  (see `.agents/skills/form-markup/SKILL.md`).
+- Updated the template-init pruning and its test, `scripts/check-web-conformance.sh`
+  (the dead `templates/*.html` loop is gone), and the stale `docs/web.md` inventory
+  text. Earlier dated sections above are historical records and were not rewritten.
+- Verified: `make templ-check` (zero drift), `go vet`, `go test ./...`. See the
+  command results in the change summary.
+
 ## UI Item edit measurement (#439, 2026-11-18)
 
 - Extended the isolated core runner to edit its synthetic Item and record

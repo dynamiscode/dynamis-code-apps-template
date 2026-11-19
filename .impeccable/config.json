@@ -26,10 +26,7 @@
       {
         "rule": "design-system-color",
         "value": "rgb(0, 0, 0)",
-        "files": [
-          "internal/web/templates/item-list.html",
-          "internal/web/templates/navigation.html"
-        ],
+        "files": [],
         "createdAt": "2026-11-15T11:58:54.752Z",
         "reason": "Agent: rendered pages use theme tokens; standalone template scan omits shared CSS."
       }

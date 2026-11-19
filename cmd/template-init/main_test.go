@@ -403,8 +403,7 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 	}
 	for path, retained := range map[string]string{
 		"docs/api.md": "/clients", "docs/web.md": "/clients", "docs/capabilities.md": "| Clients |",
-		"docs/mcp.md":                            "clients_",
-		"internal/web/templates/navigation.html": "clients",
+		"docs/mcp.md": "clients_",
 	} {
 		content, err := os.ReadFile(filepath.Join(output, path))
 		if err != nil || strings.Contains(string(content), retained) {

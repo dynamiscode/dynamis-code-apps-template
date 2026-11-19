@@ -429,8 +429,6 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeText(value, "\tvar clientEventOldID int64\n", "\tvar notificationOldID int64\n")
 		value = strings.ReplaceAll(value, ` "client_events": clientEventOldID,`, "")
 		value = strings.ReplaceAll(value, "result.ClientRealtimeReplay < 1 || ", "")
-	case "internal/web/templates/navigation.html":
-		value = strings.ReplaceAll(value, `{{if .ClientsEnabled}}<a{{if eq .NavPage "clients"}} class="active" aria-current="page"{{end}} href="/workspaces/{{.Workspace.ID}}/clients">{{.T "clients.title"}}</a>{{end}}`, "")
 	case "docs/mcp.md":
 		value = removeText(value, "\n## Clients tools (Clients profile)", "\n## Prompts\n")
 	case "docs/capabilities.md":
