@@ -364,8 +364,8 @@ accessibility results and remaining limits are recorded in
 |---|---|---|
 | `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
 | `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.js`, `public_pages.templ`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge/retry/expired redirect, verification success/invalid-or-expired, OAuth approval/denial |
-| `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | empty/results states, filters, sorting and paging, shareable query state, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
-| Workspace clients and custom fields | `clients.templ`, `client_details.templ`, `client_fields.templ`, `components.templ`, `workspace.templ`, `navigation.templ` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field and option lifecycle, realtime refresh |
+| `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | Empty/results states, filters, sorting and paging, shareable query state, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
+| Workspace clients and custom fields | `clients.templ` (list and detail), `client_fields.templ`, `components.templ`, `workspace.templ`, `navigation.templ` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field and option lifecycle, realtime refresh; no client-family `html/template` views remain |
 | Workspace members | `members.templ`, `members_templ.go` | Role changes, removal and ownership transfer |
 | `/workspaces/{workspaceId}/settings/invitations`, `/invitations/{secret}`, `/invitations/{secret}/sign-in`, `/invitations/continue` | `invitations.templ`, `invitations_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Create/resend/revoke with explicit revoke confirmation; registration, account-matched acceptance, sign-in return through MFA/OIDC, invalid/expired/unavailable states; ordinary form fallback |
 | `/workspaces/{workspaceId}/settings/audit` | `audit.templ`, `audit_templ.go`, `components.templ`, `components_templ.go` | Scoped redacted history, lazy table fragment, empty state, ordinary `?all=1` fallback, permission denial and expired-session redirect |
@@ -577,10 +577,10 @@ version. It carries no client fields. A missing, malformed, unknown, or expired
 cursor receives `resync`. Viewers receive events, and a user outside the
 workspace gets not found. The latest 1,000 client events per workspace are
 retained, and older events fall under the same replay window as Items.
-The list fragment and listener exist, but the client page does not load the
-scripts needed to start its browser refresh. [#415](https://github.com/dynamiscode/dynamis-code-apps-template/issues/415)
-tracks wiring it and protecting unsaved input; both stream and fragment must
-continue to require `identity.ResourcesRead`.
+The client page loads the local HTMX and `app.js` assets to start browser refresh;
+the listener preserves URL state and defers replacement while forms are focused,
+dirty, or submitting. The list fragment and stream both require
+`identity.ResourcesRead`.
 
 `GET /notifications/events` uses the same stream limits, heartbeat, lifetime,
 and database polling. Events carry the notification ID, type, title, body, and
