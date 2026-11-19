@@ -1782,6 +1782,20 @@ legacy route templates and its parity test still use it.
 - Verified: `make templ-check` (zero drift), `go vet`, `go test ./...`. See the
   command results in the change summary.
 
+## Shared templ status, alert and confirm markup (templ finish, PR 2, 2026-11-18)
+
+- Added `statusLine` in `components.templ` and replaced the text-only
+  `p.status[role=status]` lines in clients, files, items and members, plus the
+  import preview error in `settings_pages.templ`, which now uses `errorAlert`.
+  The `errorAlert` swap adds `tabindex="-1"` to that alert.
+- Intentional omissions, kept inline on purpose:
+  - Clients delete button: `confirmButton` adds the `danger` class, and
+    `.danger` sets a background, so the swap would change its look.
+  - Files empty state (`div.file-empty-state.card`), webhook warning alerts,
+    the items success alert with a link, members count status with
+    conditional text, and the notification and invitation status lines have
+    markup that the shared components do not cover.
+
 ## UI Item edit measurement (#439, 2026-11-18)
 
 - Extended the isolated core runner to edit its synthetic Item and record

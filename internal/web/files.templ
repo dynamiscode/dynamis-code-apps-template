@@ -150,7 +150,7 @@ templ fileList(data pageData) {
 			}
 		}
 	} else {
-		<p class="status" role="status">{ data.T("clients.columns_choose") }</p>
+		@statusLine(data.T("clients.columns_choose"), nil)
 	}
 	if len(data.Files) == 0 {
 		<div class="file-empty-state card" role="status">
