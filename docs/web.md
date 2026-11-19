@@ -340,15 +340,14 @@ render through `workspace.templ` and generated `workspace_templ.go`. The
 inventory below names each route family's current renderer: `.templ` entries
 are migrated, and named `html/template` views remain deferred. It records major
 states while preserving escaping, HTMX fragment boundaries, ordinary-form
-fallbacks, and route behavior during the incremental migration. Issue #432
-rechecked every fallback caller: `templates/*.html` remains parsed and the
-`render()` fallback remains live for auth/setup, members, and webhooks. These are
-the specific remaining `html/template` exceptions: auth/setup pages, the members
-route (including its `client-list-view` partial), and webhooks fallback. The
-members route has a templ view, but runtime dispatch still uses the legacy
-renderer. The unused account dispatcher case was removed; `list-view.html` is
-not dead: `members.html` calls its `client-list-view` definition. Therefore the
-dispatcher and these embedded templates are not removable as a whole. See the
+fallbacks, and route behavior during the incremental migration. Issue #432 traced the fallback callers; issue #401 migrated setup and
+authentication routes to generated templ views and removed their legacy
+`auth.html`, `login.html`, and `setup.html` templates. The `render()` fallback
+and embedded templates remain live only for workspace selection/error,
+members (including its `client-list-view` partial), and webhooks. The members
+route has a templ view, but runtime dispatch still uses the legacy renderer.
+`list-view.html` is called by `members.html`; retain it and the shared navigation
+bridge while those callers remain. See [issue #401 migration evidence](capabilities.md#setup-and-authentication-templ-migration-401) and
 [issue #432 verification evidence](capabilities.md#rendering-assets-and-generated-app-verification-432).
 
 Shared navigation uses `navigation.templ`. The named definitions in
@@ -371,8 +370,8 @@ accessibility results and remaining limits are recorded in
 
 | Route family | Views and shared templates | Major states covered |
 |---|---|---|
-| `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `workspace_templ.go`, `navigation.templ`, `components.templ` | Issue #400: membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors; native workspace switcher and shared templ navigation; CSRF-protected creation and ordinary-form fallback |
-| `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.js`, `public_pages.templ`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge/retry/expired redirect, verification success/invalid-or-expired, OAuth approval/denial |
+| `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `workspace_templ.go`, `navigation.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors; native workspace switcher and shared templ navigation; CSRF-protected creation and ordinary-form fallback |
+| `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.js`, `public_pages.templ` | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge/retry/expired redirect, verification success/invalid-or-expired, OAuth approval/denial; all setup/auth states dispatch through templ |
 | `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | Empty/results states, filters, sorting and paging, shareable query state, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
 | Workspace clients and custom fields | `clients.templ` (list and detail), `client_fields.templ`, `components.templ`, `workspace.templ`, `navigation.templ` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field and option lifecycle, realtime refresh; no client-family `html/template` views remain |
 | Workspace members | `members.html` and `list-view.html` through live `html/template` fallback (specific #432 exception); `members.templ` and generated `members_templ.go` also exist; shared navigation/components | Role changes, removal and ownership transfer; responsive table/cards, filters, sorting, paging, validation, permission denial, and ordinary-form confirmations |
