@@ -19,6 +19,8 @@ import (
 	"time"
 	"unicode/utf16"
 
+	"github.com/a-h/templ"
+
 	"example.com/dynamis-code/apps-template/internal/clients"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/i18n"
@@ -1124,6 +1126,31 @@ func (h *Handler) defaultHomeHref(ctx context.Context, userID identity.UserID) s
 	return "/workspaces/" + workspaceID.String()
 }
 
+var templViews = map[string]func(pageData) templ.Component{
+	"workspace-home":         workspaceHome,
+	"items-page":             itemsPage,
+	"items-fragment":         itemsList,
+	"webhooks.html":          webhooksPage,
+	"home.html":              workspaceSelection,
+	"audit-history":          auditHistory,
+	"audit-table":            auditTable,
+	"login.html":             authLogin,
+	"setup.html":             authSetup,
+	"password-reset.html":    authPasswordReset,
+	"mfa.html":               authMFA,
+	"verification.html":      authEmailVerification,
+	"sessions-page":          func(data pageData) templ.Component { return sessionsPage(data, data.CurrentSessionID, time.Now()) },
+	"security-page":          securityPage,
+	"account-page":           accountPageView,
+	"language-settings-page": languageSettingsView,
+	"language-page":          languageSettingsView,
+	"members.html":           membersPage,
+	"client-detail-page":     clientDetailPage,
+	"client-fields-page":     clientFieldsPage,
+	"mcp-consent.html":       mcpConsentPage,
+	"error.html":             errorPage,
+}
+
 func (h *Handler) render(writer http.ResponseWriter, status int, name string, data pageData) {
 	data.FilesEnabled = h.files != nil
 	data.ClientsEnabled = h.clients != nil
@@ -1138,52 +1165,11 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)
-	switch name {
-	case "workspace-home":
-		_ = workspaceHome(data).Render(context.Background(), writer)
-	case "items-page":
-		_ = itemsPage(data).Render(context.Background(), writer)
-	case "items-fragment":
-		_ = itemsList(data).Render(context.Background(), writer)
-	case "webhooks.html":
-		_ = webhooksPage(data).Render(context.Background(), writer)
-	case "home.html":
-		_ = workspaceSelection(data).Render(context.Background(), writer)
-	case "audit-history":
-		_ = auditHistory(data).Render(context.Background(), writer)
-	case "audit-table":
-		_ = auditTable(data).Render(context.Background(), writer)
-	case "login.html":
-		_ = authLogin(data).Render(context.Background(), writer)
-	case "setup.html":
-		_ = authSetup(data).Render(context.Background(), writer)
-	case "password-reset.html":
-		_ = authPasswordReset(data).Render(context.Background(), writer)
-	case "mfa.html":
-		_ = authMFA(data).Render(context.Background(), writer)
-	case "verification.html":
-		_ = authEmailVerification(data).Render(context.Background(), writer)
-	case "sessions-page":
-		_ = sessionsPage(data, data.CurrentSessionID, time.Now()).Render(context.Background(), writer)
-	case "security-page":
-		_ = securityPage(data).Render(context.Background(), writer)
-	case "account-page":
-		_ = accountPageView(data).Render(context.Background(), writer)
-	case "language-settings-page", "language-page":
-		_ = languageSettingsView(data).Render(context.Background(), writer)
-	case "members.html":
-		_ = membersPage(data).Render(context.Background(), writer)
-	case "client-detail-page":
-		_ = clientDetailPage(data).Render(context.Background(), writer)
-	case "client-fields-page":
-		_ = clientFieldsPage(data).Render(context.Background(), writer)
-	case "mcp-consent.html":
-		_ = mcpConsentPage(data).Render(context.Background(), writer)
-	case "error.html":
-		_ = errorPage(data).Render(context.Background(), writer)
-	default:
-		_ = h.template.ExecuteTemplate(writer, name, data)
+	if view, ok := templViews[name]; ok {
+		_ = view(data).Render(context.Background(), writer)
+		return
 	}
+	_ = h.template.ExecuteTemplate(writer, name, data)
 }
 
 func (h *Handler) publicShare(writer http.ResponseWriter, request *http.Request) {

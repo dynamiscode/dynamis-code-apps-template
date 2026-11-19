@@ -339,10 +339,13 @@ Ticket #386 reconciles the route and template surface. `/` and `/workspaces/{wor
 render through `workspace.templ` and generated `workspace_templ.go`. The
 inventory below names each route family's current renderer and major states.
 The current route inventory and named calls to `render()` map the known page
-routes to generated templ views. This is a source-traced claim, not an automated
-exhaustiveness check: unknown names still reach the `html/template` fallback.
-Legacy HTML files remain embedded for compatibility checks and the shared
-navigation bridge. See [issue #401 migration evidence](capabilities.md#setup-and-authentication-templ-migration-401) and
+routes to generated templ views. `TestRegisteredTemplViewsDispatchToTempl` in
+`internal/web/handler_test.go` exercises each dispatch-registry entry and checks
+that it produces output without reaching the legacy fallback. This is not an
+inventory-to-call-site exhaustiveness check: it cannot detect a render caller
+whose name is missing from the registry, and unknown names still reach the
+`html/template` fallback. Legacy HTML files remain embedded for compatibility
+checks and the shared navigation bridge. See [issue #401 migration evidence](capabilities.md#setup-and-authentication-templ-migration-401) and
 [issue #432 verification evidence](capabilities.md#rendering-assets-and-generated-app-verification-432).
 
 Shared navigation uses `navigation.templ`. The named definitions in
@@ -403,9 +406,9 @@ and the known current route names map to templ views by source inspection; its
 General and
 email settings use `settings_pages.templ`; #406 route-family verification is
 recorded in [workspace settings migration evidence](capabilities.md#workspace-settings-template-migration-evidence-406).
-Legacy HTML files and the default `html/template` branch remain. The route
-inventory does not mechanically prove dispatch exhaustiveness; an explicit
-route-name coverage check is not present. This does not change escaping,
+Legacy HTML files and the default `html/template` branch remain. The test
+verifies registry entries, not that every route inventory row or render call
+site has a corresponding registry entry. This does not change escaping,
 authorization, accessibility, localization, or ordinary-form requirements.
 
 The issue #454 reconciliation maps each route family and major state to its

@@ -33,6 +33,27 @@ import (
 	"example.com/dynamis-code/apps-template/internal/sharing"
 )
 
+func TestRegisteredTemplViewsDispatchToTempl(t *testing.T) {
+	catalog, err := i18n.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := &Handler{catalog: catalog, template: nil}
+	for name := range templViews {
+		t.Run(name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			data := pageData{Locale: "en"}
+			if name == "client-fields-page" {
+				data.FieldsPath = "/workspaces/example/client-fields"
+			}
+			h.render(response, http.StatusOK, name, data)
+			if response.Body.Len() == 0 {
+				t.Fatalf("render view %q produced no response", name)
+			}
+		})
+	}
+}
+
 func TestMFAOptionsRenderAsJSON(t *testing.T) {
 	catalog, err := i18n.New()
 	if err != nil {
