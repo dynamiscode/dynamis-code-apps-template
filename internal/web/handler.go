@@ -923,15 +923,15 @@ func (h *Handler) renderItems(
 		data.PublicShareURL = shareURL[0]
 		data.PublicShareItemID = items.ParseItemIDOrZero(request.PathValue("itemId"))
 	}
-	name := "items-page"
 	if request.Header.Get("HX-Request") == "true" {
-		name = "items-fragment"
 		if status >= http.StatusBadRequest {
 			writer.Header().Set("HX-Trigger", "form-error")
 			status = http.StatusOK
 		}
+		h.render(writer, status, "items-fragment", data)
+		return
 	}
-	h.render(writer, status, name, data)
+	h.render(writer, status, "items-page", data)
 }
 
 // asciiJSON escapes non-ASCII runes as \uXXXX so a JSON value is safe in an

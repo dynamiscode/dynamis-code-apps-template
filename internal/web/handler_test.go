@@ -13,11 +13,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -50,6 +55,51 @@ func TestRegisteredTemplViewsDispatchToTempl(t *testing.T) {
 			if response.Body.Len() == 0 {
 				t.Fatalf("render view %q produced no response", name)
 			}
+		})
+	}
+}
+
+func TestRenderCallSitesUseRegisteredTemplViews(t *testing.T) {
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := token.NewFileSet()
+	for _, filename := range files {
+		if strings.HasSuffix(filename, "_test.go") {
+			continue
+		}
+		file, err := parser.ParseFile(fset, filename, nil, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", filename, err)
+		}
+		ast.Inspect(file, func(node ast.Node) bool {
+			call, ok := node.(*ast.CallExpr)
+			if !ok || len(call.Args) < 3 {
+				return true
+			}
+			selector, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok || selector.Sel.Name != "render" {
+				return true
+			}
+			receiver, ok := selector.X.(*ast.Ident)
+			if !ok || receiver.Name != "h" {
+				return true
+			}
+			literal, ok := call.Args[2].(*ast.BasicLit)
+			if !ok || literal.Kind != token.STRING {
+				t.Errorf("%s: h.render view name must be a string literal; dispatch dynamically by explicit literal calls", fset.Position(call.Pos()))
+				return true
+			}
+			name, err := strconv.Unquote(literal.Value)
+			if err != nil {
+				t.Errorf("%s: invalid render view literal: %v", fset.Position(literal.Pos()), err)
+				return true
+			}
+			if _, ok := templViews[name]; !ok {
+				t.Errorf("%s: h.render view %q is not registered in templViews", fset.Position(literal.Pos()), name)
+			}
+			return true
 		})
 	}
 }
