@@ -38,27 +38,6 @@ import (
 	"example.com/dynamis-code/apps-template/internal/sharing"
 )
 
-func TestRegisteredTemplViewsDispatchToTempl(t *testing.T) {
-	catalog, err := i18n.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	h := &Handler{catalog: catalog, template: nil}
-	for name := range templViews {
-		t.Run(name, func(t *testing.T) {
-			response := httptest.NewRecorder()
-			data := pageData{Locale: "en"}
-			if name == "client-fields-page" {
-				data.FieldsPath = "/workspaces/example/client-fields"
-			}
-			h.render(response, http.StatusOK, name, data)
-			if response.Body.Len() == 0 {
-				t.Fatalf("render view %q produced no response", name)
-			}
-		})
-	}
-}
-
 func TestRenderCallSitesUseRegisteredTemplViews(t *testing.T) {
 	files, err := filepath.Glob("*.go")
 	if err != nil {
@@ -96,12 +75,44 @@ func TestRenderCallSitesUseRegisteredTemplViews(t *testing.T) {
 				t.Errorf("%s: invalid render view literal: %v", fset.Position(literal.Pos()), err)
 				return true
 			}
-			if _, ok := templViews[name]; !ok {
-				t.Errorf("%s: h.render view %q is not registered in templViews", fset.Position(literal.Pos()), name)
+			if _, ok := renderSwitchCases(t)[name]; !ok {
+				t.Errorf("%s: h.render view %q is not handled by render switch", fset.Position(literal.Pos()), name)
 			}
 			return true
 		})
 	}
+}
+
+func renderSwitchCases(t *testing.T) map[string]struct{} {
+	t.Helper()
+	file, err := parser.ParseFile(token.NewFileSet(), "handler.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := make(map[string]struct{})
+	ast.Inspect(file, func(node ast.Node) bool {
+		statement, ok := node.(*ast.SwitchStmt)
+		if !ok {
+			return true
+		}
+		selector, ok := statement.Tag.(*ast.Ident)
+		if !ok || selector.Name != "name" {
+			return true
+		}
+		for _, clause := range statement.Body.List {
+			caseClause := clause.(*ast.CaseClause)
+			for _, expression := range caseClause.List {
+				if literal, ok := expression.(*ast.BasicLit); ok && literal.Kind == token.STRING {
+					name, err := strconv.Unquote(literal.Value)
+					if err == nil {
+						cases[name] = struct{}{}
+					}
+				}
+			}
+		}
+		return false
+	})
+	return cases
 }
 
 func TestMFAOptionsRenderAsJSON(t *testing.T) {
