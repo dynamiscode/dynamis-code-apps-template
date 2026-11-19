@@ -1205,6 +1205,25 @@ ordinary forms and need no JavaScript.
   journeys, including import preview; zero axe violations.
 - Not run: full `make verify`.
 
+## Item route templ migration evidence (#402)
+
+The Items list and Settings export/import views already render through
+`items.templ` and `settings_pages.templ`; the legacy `client-list-view` in
+`templates/list-view.html` remains live for the Members route and is not dead
+code for this family. The [route inventory](web.md#rendering-migration-inventory)
+records item filtering, sorting, paging, shareable URL state, export, and the
+preview-first create-only import journey. Existing handler and browser tests
+cover route behavior and no-JavaScript import/export.
+
+- Passed: `make templ-check`, `make lint`, and
+  `PLAYWRIGHT_PORT=58921 sh scripts/playwright-smoke.sh workspace-admin-data`
+  (3 tests; the route-family journey passed).
+- Blocked: `make test` timed out after 10 minutes in
+  `cmd/template-init.TestGenerateWithClientsProfileRecordsLockAndBuilds`; all
+  other packages shown before the timeout passed, including `internal/web`.
+- No item-family `html/template` path was removed: the remaining shared list
+  template still has a Members caller.
+
 ## Account and security UI evidence (#382)
 
 Ticket #382 refreshes the account, language, sessions, security, and password
