@@ -94,7 +94,7 @@ acceptance criteria against three evidence layers:
   [browser verification](#browser-verification-for-templ-route-migration-433-2026-11-18).
 
 Production `h.render` call sites dispatch through `Handler.render`'s switch:
-[`TestRenderCallSitesUseRegisteredTemplViews`](../internal/web/handler_test.go)
+[`TestRenderCallSitesUseTemplSwitchCases`](../internal/web/handler_test.go)
 checks each literal call name against that method's switch cases; non-literal
 call names fail the check. This verifies call-site names against dispatch cases,
 not renderer output. Unknown names can still reach the `html/template`

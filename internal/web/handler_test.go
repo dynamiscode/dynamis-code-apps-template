@@ -38,7 +38,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/sharing"
 )
 
-func TestRenderCallSitesUseRegisteredTemplViews(t *testing.T) {
+func TestRenderCallSitesUseTemplSwitchCases(t *testing.T) {
 	files, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatal(err)

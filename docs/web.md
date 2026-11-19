@@ -339,7 +339,7 @@ Ticket #386 reconciles the route and template surface. `/` and `/workspaces/{wor
 render through `workspace.templ` and generated `workspace_templ.go`. The
 inventory below names each route family's current renderer and major states.
 The current route inventory and named calls to `render()` map the known page
-routes to generated templ views. `TestRenderCallSitesUseRegisteredTemplViews`
+routes to generated templ views. `TestRenderCallSitesUseTemplSwitchCases`
 parses production Go files and verifies every literal `h.render` call name has a
 matching case in `Handler.render`'s switch; non-literal names fail the check.
 This checks call-site names against dispatch cases, but does not execute each
