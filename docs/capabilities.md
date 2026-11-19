@@ -93,17 +93,16 @@ acceptance criteria against three evidence layers:
   smoke results, with skipped tests and scope limits recorded in
   [browser verification](#browser-verification-for-templ-route-migration-433-2026-11-18).
 
-Production `h.render` call sites use registered generated templ views:
+Production `h.render` call sites dispatch through `Handler.render`'s switch:
 [`TestRenderCallSitesUseRegisteredTemplViews`](../internal/web/handler_test.go)
-checks each call's literal name against `templViews`, and
-[`TestRegisteredTemplViewsDispatchToTempl`](../internal/web/handler_test.go)
-exercises each registered view without the legacy fallback. Unknown names can
-still reach the `html/template` fallback. These checks do not prove that every
-route inventory row is exercised or cover routes that render components
-directly. Legacy HTML files remain embedded for compatibility checks and the
-shared navigation bridge. The dated #432 evidence below records the earlier
-migration boundary at that verification point. This does not establish manual
-assistive-technology conformance.
+checks each literal call name against that method's switch cases; non-literal
+call names fail the check. This verifies call-site names against dispatch cases,
+not renderer output. Unknown names can still reach the `html/template`
+fallback. The check does not prove that every route inventory row is exercised
+or cover routes that render components directly. Legacy HTML files remain
+embedded for compatibility checks and the shared navigation bridge. The dated
+#432 evidence below records the earlier migration boundary at that verification
+point. This does not establish manual assistive-technology conformance.
 
 ## Rendering, assets, and generated-app verification (#432)
 

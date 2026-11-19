@@ -340,14 +340,12 @@ render through `workspace.templ` and generated `workspace_templ.go`. The
 inventory below names each route family's current renderer and major states.
 The current route inventory and named calls to `render()` map the known page
 routes to generated templ views. `TestRenderCallSitesUseRegisteredTemplViews`
-parses production Go files and verifies every `h.render` call has a string
-literal view name registered in `templViews`; non-literal names fail the check.
-`TestRegisteredTemplViewsDispatchToTempl` exercises each registry entry and
-checks that it produces output without reaching the legacy fallback. Together,
-these checks cover production `h.render` call sites and their dispatch. Unknown
-names from other callers can still reach the `html/template` fallback. Legacy
-HTML files remain embedded for compatibility checks and the shared navigation
-bridge. See [issue #401 migration evidence](capabilities.md#setup-and-authentication-templ-migration-401) and
+parses production Go files and verifies every literal `h.render` call name has a
+matching case in `Handler.render`'s switch; non-literal names fail the check.
+This checks call-site names against dispatch cases, but does not execute each
+view or prove that its renderer produces output. Unknown names from other
+callers can still reach the `html/template` fallback. Legacy HTML files remain
+embedded for compatibility checks and the shared navigation bridge. See [issue #401 migration evidence](capabilities.md#setup-and-authentication-templ-migration-401) and
 [issue #432 verification evidence](capabilities.md#rendering-assets-and-generated-app-verification-432).
 
 Shared navigation uses `navigation.templ`. The named definitions in

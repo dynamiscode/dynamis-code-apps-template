@@ -43,6 +43,7 @@ func TestRenderCallSitesUseRegisteredTemplViews(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	switchCases := renderSwitchCases(t)
 	fset := token.NewFileSet()
 	for _, filename := range files {
 		if strings.HasSuffix(filename, "_test.go") {
@@ -75,7 +76,7 @@ func TestRenderCallSitesUseRegisteredTemplViews(t *testing.T) {
 				t.Errorf("%s: invalid render view literal: %v", fset.Position(literal.Pos()), err)
 				return true
 			}
-			if _, ok := renderSwitchCases(t)[name]; !ok {
+			if _, ok := switchCases[name]; !ok {
 				t.Errorf("%s: h.render view %q is not handled by render switch", fset.Position(literal.Pos()), name)
 			}
 			return true
@@ -90,28 +91,44 @@ func renderSwitchCases(t *testing.T) map[string]struct{} {
 		t.Fatal(err)
 	}
 	cases := make(map[string]struct{})
-	ast.Inspect(file, func(node ast.Node) bool {
-		statement, ok := node.(*ast.SwitchStmt)
+	for _, declaration := range file.Decls {
+		method, ok := declaration.(*ast.FuncDecl)
+		if !ok || method.Name.Name != "render" || method.Recv == nil || len(method.Recv.List) != 1 {
+			continue
+		}
+		receiver, ok := method.Recv.List[0].Type.(*ast.StarExpr)
 		if !ok {
-			return true
+			continue
 		}
-		selector, ok := statement.Tag.(*ast.Ident)
-		if !ok || selector.Name != "name" {
-			return true
+		typeName, ok := receiver.X.(*ast.Ident)
+		if !ok || typeName.Name != "Handler" {
+			continue
 		}
-		for _, clause := range statement.Body.List {
-			caseClause := clause.(*ast.CaseClause)
-			for _, expression := range caseClause.List {
-				if literal, ok := expression.(*ast.BasicLit); ok && literal.Kind == token.STRING {
-					name, err := strconv.Unquote(literal.Value)
-					if err == nil {
-						cases[name] = struct{}{}
+		ast.Inspect(method.Body, func(node ast.Node) bool {
+			statement, ok := node.(*ast.SwitchStmt)
+			if !ok {
+				return true
+			}
+			selector, ok := statement.Tag.(*ast.Ident)
+			if !ok || selector.Name != "name" {
+				return true
+			}
+			for _, clause := range statement.Body.List {
+				caseClause := clause.(*ast.CaseClause)
+				for _, expression := range caseClause.List {
+					if literal, ok := expression.(*ast.BasicLit); ok && literal.Kind == token.STRING {
+						name, err := strconv.Unquote(literal.Value)
+						if err == nil {
+							cases[name] = struct{}{}
+						}
 					}
 				}
 			}
-		}
-		return false
-	})
+			return false
+		})
+		return cases
+	}
+	t.Fatal("Handler.render method not found")
 	return cases
 }
 
