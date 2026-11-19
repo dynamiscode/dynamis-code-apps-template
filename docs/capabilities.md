@@ -115,6 +115,21 @@ Limits: no full browser sweep of every inventory row, manual assistive-technolog
 walkthrough, asset budget, or generated-app live startup/readiness check was
 performed for #432. Do not infer those outcomes from these checks.
 
+## Workspace route templ migration (#400)
+
+Workspace selection (`/`), workspace creation and its validation rerender,
+workspace home, switching, and shared navigation render through
+`workspace.templ`/`navigation.templ` and generated Go views. Existing handler
+coverage asserts the CSRF-protected creation form, single-workspace redirect and
+creation prohibition, validation feedback, workspace home's Items link, and
+native switcher. `docs/web.md` records the route inventory. Keep the shared
+`html/template` dispatcher and navigation bridge: auth/setup, members, and
+webhooks still have legacy callers outside #400's scope. No members or webhook
+legacy boundary is removed.
+
+Checks for this issue are recorded with the change: `make templ-check`,
+`make lint`, `make test`, and workspace selection/home Playwright coverage.
+
 ## Browser verification for templ route migration (#433, 2026-11-18)
 
 Ran `sh scripts/playwright-smoke.sh` against disposable SQLite fixtures: 146

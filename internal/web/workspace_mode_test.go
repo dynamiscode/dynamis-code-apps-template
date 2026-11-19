@@ -59,8 +59,9 @@ func TestMultiWorkspaceModeKeepsCreation(t *testing.T) {
 		t.Fatalf("multi mode home = %d, create form missing", home.Code)
 	}
 	if !strings.Contains(home.Body.String(), `name="csrf" value="`+session.CSRFSecret+`"`) ||
-		!strings.Contains(home.Body.String(), `data-webmcp-page="home"`) {
-		t.Fatal("workspace selection lacks its CSRF field or WebMCP marker")
+		!strings.Contains(home.Body.String(), `data-webmcp-page="home"`) ||
+		!strings.Contains(home.Header().Get("Content-Type"), "text/html") {
+		t.Fatal("workspace selection lacks its templ HTML response, CSRF field, or WebMCP marker")
 	}
 
 	invalid := request(handler, http.MethodPost, "/workspaces", url.Values{
@@ -103,5 +104,9 @@ func TestWorkspaceHomeGuidesUserToFirstTask(t *testing.T) {
 	}
 	if !strings.Contains(page.Body.String(), `href="/workspaces/`+workspaces[0].ID.String()+`/items"`) {
 		t.Fatalf("first-task link does not open workspace items: %s", page.Body.String())
+	}
+	if !strings.Contains(page.Body.String(), `class="workspace-switcher"`) ||
+		!strings.Contains(page.Body.String(), `href="/"`) {
+		t.Fatalf("workspace home lacks native workspace-switching navigation: %s", page.Body.String())
 	}
 }
