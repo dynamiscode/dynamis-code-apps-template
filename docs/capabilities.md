@@ -57,6 +57,42 @@ is partial for issue #449; invalid-login and password-recovery feedback and
 notification SSE connection are measured. MFA, MCP consent, valid public
 shares, and remaining interaction states remain unmeasured.
 
+## Rendering, assets, and generated-app verification (#432)
+
+Verified on the `sc/verify-432` stack against the six route-family commits in
+`origin/main..HEAD`. `make templ-check` passed with zero generated-file updates;
+`make css-check` rebuilt `components.css` from pinned Tailwind CSS 4.3.5 and
+daisyUI 5.8.1 and matched the committed asset byte-for-byte. The legacy
+`html/template` fallback was traced from `Handler.render` to callers: auth/setup
+(login, setup, password reset, verification, MFA, selection/error), members, and
+webhooks still dispatch there. It is live shared code, not removable dead code;
+`templates/list-view.html` is not included in embedded `templates/*.html` and has
+no runtime caller. The navigation bridge remains used by legacy templates and
+is also not removable yet. The [route inventory](web.md#rendering-migration-inventory)
+now identifies this boundary.
+
+Measured checked-in browser asset sizes (`wc -c`, bytes): app.css 30,908;
+app.js 16,344; clients.css 2,873; components.css 36,868; forms.js 23,932;
+htmx.min.js 37,448; import.css 579; items.js 5,421; mfa.js 6,470;
+notifications.js 933. Total assets directory, including test files and license:
+198,617 bytes. No asset-size budget exists, so these are measurements, not a
+budget-conformance claim.
+
+`make template-smoke` passed: template-init generated Core+Identity+Agent app,
+all generated Go tests passed including generated `internal/web`, and Core+
+Identity profile docs links passed. Startup was not separately launched; the
+smoke proves generated compilation/tests, not a live process readiness check.
+`make lint` and `make test` passed (43 JS tests; all Go packages including
+`cmd/template-init`). Playwright `components` passed 4/4 and `ui` passed 52/52,
+including desktop/mobile, light/dark, English/Spanish, axe checks on enumerated
+pages, OIDC, setup, login, representative workspace/Items flows, and ordinary
+form fallbacks. Initial `components` invocation was blocked by occupied default
+port; rerun passed using `PLAYWRIGHT_PORT=58941`.
+
+Limits: no full browser sweep of every inventory row, manual assistive-technology
+walkthrough, asset budget, or generated-app live startup/readiness check was
+performed for #432. Do not infer those outcomes from these checks.
+
 ## Profile status
 
 | Profile | Status | Evidence |
