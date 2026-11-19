@@ -75,9 +75,9 @@ covering `ui.spec.mjs`, `password-reset.spec.mjs`, and
 `email-verification.spec.mjs` (72 passed, 0 failed). Browser coverage includes
 English/Spanish, desktop/mobile, setup validation/completion/unavailability,
 login failure/accessibility, reset states, verification failure, and configured
-OIDC sign-in. The dispatcher and shared navigation bridge remain because
-workspace selection/error, members, and webhooks callers still use the legacy
-renderer.
+OIDC sign-in. At this verification point, the shared dispatcher and navigation bridge
+remain; workspace selection/error, members, and webhooks had legacy callers at
+the #401 baseline. Later migrations are recorded below.
 
 ## Issue #408 umbrella reconciliation (2026-11-18)
 
@@ -93,15 +93,16 @@ acceptance criteria against three evidence layers:
   smoke results, with skipped tests and scope limits recorded in
   [browser verification](#browser-verification-for-templ-route-migration-433-2026-11-18).
 
-After issue #401, the remaining live `html/template` boundary is workspace
-selection/error, the members route (including `list-view.html`'s
-`client-list-view` partial), and the webhooks fallback. Setup, sign-in, MFA,
-email verification, and password reset now dispatch through generated templ
-views; `templates/auth.html`, `templates/login.html`, and `templates/setup.html`
-were removed. `list-view.html` is referenced by the active members legacy
-template, so removal is not safe or evidence-backed. The [route inventory](web.md#rendering-migration-inventory)
-names the remaining exception explicitly. No claim is made that every route is
-fully migrated or that manual assistive-technology coverage is complete.
+Production `h.render` call sites dispatch through `Handler.render`'s switch:
+[`TestRenderCallSitesUseTemplSwitchCases`](../internal/web/handler_test.go)
+checks each literal call name against that method's switch cases; non-literal
+call names fail the check. This verifies call-site names against dispatch cases,
+not renderer output. Unknown names can still reach the `html/template`
+fallback. The check does not prove that every route inventory row is exercised
+or cover routes that render components directly. Legacy HTML files remain
+embedded for compatibility checks and the shared navigation bridge. The dated
+#432 evidence below records the earlier migration boundary at that verification
+point. This does not establish manual assistive-technology conformance.
 
 ## Rendering, assets, and generated-app verification (#432)
 
@@ -147,10 +148,10 @@ workspace home, switching, and shared navigation render through
 `workspace.templ`/`navigation.templ` and generated Go views. Existing handler
 coverage asserts the CSRF-protected creation form, single-workspace redirect and
 creation prohibition, validation feedback, workspace home's Items link, and
-native switcher. `docs/web.md` records the route inventory. Keep the shared
-`html/template` dispatcher and navigation bridge: auth/setup, members, and
-webhooks still have legacy callers outside #400's scope. No members or webhook
-legacy boundary is removed.
+native switcher. `docs/web.md` records the route inventory. The shared
+`html/template` dispatcher and navigation bridge remained at the #400 baseline;
+its contemporaneous statement about auth/setup, members, and webhooks is
+historical, not current-state evidence.
 
 Checks for this issue are recorded with the change: `make templ-check`,
 `make lint`, `make test`, and workspace selection/home Playwright coverage.
@@ -187,7 +188,7 @@ reconciliation](web.md#browser-journey-coverage-reconciliation).
 | Clients | partial | Create and edit clients over REST and web: [service tests](../internal/clients/service_test.go), [PostgreSQL lifecycle](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/clients_test.go), [web tests](../internal/web/clients_test.go), template-init generation tests (`cmd/template-init`). Client list, detail, and custom-field management pages use templ and shared form components; detail and field lifecycle route checks are in [client web tests](../internal/web/clients_test.go), [field tests](../internal/web/client_fields_test.go), [option tests](../internal/web/client_options_test.go), and [field-delete tests](../internal/web/client_field_delete_test.go). The list uses `clients.templ`, loads local HTMX and `app.js`, and refreshes its list fragment from the `client.changed` and `resync` SSE events under `ResourcesRead`; it defers replacement while forms are focused, dirty, or submitting: [#415 evidence](clients-list-evidence-415.md), [browser coverage](../scripts/playwright/clients-list.spec.mjs), [listener tests](../internal/web/assets/realtime-lists.test.mjs). Define, archive, and restore text, number, date, and yes/no custom fields over REST and web: [field service tests](../internal/clients/fields_test.go), [REST tests](../internal/httpapi/client_fields_test.go), [slot-index tests](../internal/platform/database/client_slot_indexes_test.go). Set and clear text, number, date, and yes/no values with the field type lock: [value service tests](../internal/clients/values_test.go), [typed value tests](../internal/clients/typed_values_test.go), [PostgreSQL values](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/client_values_test.go), [web tests](../internal/web/client_values_test.go). Client changes have a workspace SSE feed and list fragment: [change feed tests](../internal/clients/events_test.go), [PostgreSQL feed check](../internal/clients/postgres_test.go), [stream and fragment tests](../internal/web/clients_events_test.go), [listener unit tests](../internal/web/assets/realtime-lists.test.mjs). Single-choice fields with up to 100 options per field over REST and web, with option deletion clearing values: [option service tests](../internal/clients/options_test.go), [option ID tests](../internal/clients/option_id_test.go), [PostgreSQL options](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/client_options_test.go). Permanent deletion of an archived custom field over REST and web, clearing its values and choice options in one transaction: [field delete service tests](../internal/clients/field_delete_test.go), [REST tests](../internal/httpapi/client_field_delete_test.go), [PostgreSQL lifecycle](../internal/clients/postgres_test.go). Client archive, unarchive, and permanent client delete over REST and web, with the archived list selector: [lifecycle service tests](../internal/clients/lifecycle_test.go), [PostgreSQL archive and delete](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/client_lifecycle_test.go), [web tests](../internal/web/client_lifecycle_test.go). Client webhook events `client.created`, `client.updated`, `client.archived`, and `client.deleted` through the existing outbox, written in the change's transaction, with custom value set and clear emitting `client.updated`: [SQLite and PostgreSQL outbox tests](../internal/clients/webhook_events_test.go), [subscription test](../internal/webhooks/client_events_test.go). Client export, MCP, and `appctl` for archive and delete not implemented |
 | Clients shared list view | partial | Per-user columns and custom Client values, responsive table/card markup, sort/filter/pagination URL state, explicit-empty and typed timestamp filters, filter chips, reset actions, and viewer isolation: [web behavior tests](../internal/web/clients_test.go), [typed query tests](../internal/clients/query_test.go), [REST compatibility tests](../internal/httpapi/clients_test.go), [preference service tests](../internal/listprefs/service_test.go), and generated-profile checks (`cmd/template-init`). Required 1,000/10,000-row latency benchmarks and VoiceOver walkthrough remain pending. |
 | Items shared list view | partial | Per-user title/status visibility, responsive shared table/card layout, title search and status filters, stable creation-time ordering, cursor pagination URL state, query-preserving realtime refresh, and inline editing with hidden columns: [web behavior test](../internal/web/items_list_test.go), [Items service tests](../internal/items/service_test.go), [realtime browser test](../internal/web/assets/realtime-lists.test.mjs), [preference service tests](../internal/listprefs/service_test.go), and generated-profile checks (`cmd/template-init`). Required 1,000/10,000-row latency benchmarks and VoiceOver walkthrough remain pending. |
-| Members shared list view | partial | Per-user email/role/created visibility, responsive shared table/card layout, email and role filters, stable sorting, full results by default, opt-in cursor paging in web and REST, separate CSRF-protected role/removal/ownership forms, explicit no-JavaScript confirmations, and user-controlled WebMCP actions: [web behavior tests](../internal/web/members_list_test.go), [mutation tests](../internal/web/members_role_test.go), [member browser coverage](../scripts/playwright/members.spec.mjs), [REST behavior tests](../internal/httpapi/handler_test.go), and [preference service tests](../internal/listprefs/service_test.go). Full suite and browser/accessibility checks passed; required 1,000/10,000-row latency benchmarks and VoiceOver walkthrough remain pending. |
+| Members shared list view | partial | Per-user email/role/created visibility, responsive shared table/card layout, email and role filters, stable sorting, full results by default, opt-in cursor paging in web and REST, separate CSRF-protected role/removal/ownership forms, explicit no-JavaScript confirmations, and user-controlled WebMCP actions: [web behavior tests](../internal/web/members_list_test.go), [mutation tests](../internal/web/members_role_test.go), [member browser coverage](../scripts/playwright/members.spec.mjs), [REST behavior tests](../internal/httpapi/handler_test.go), and [preference service tests](../internal/listprefs/service_test.go). Member browser suite includes responsive/theme snapshots, no-JavaScript empty/filter states, an axe scan, action and permission states, and Spanish; it is not exhaustive accessibility coverage of every member state/locale/theme. The general accessibility-smoke route list does not itself establish member-page coverage. Required 1,000/10,000-row latency benchmarks and manual VoiceOver walkthrough remain pending. |
 | Files shared list view | partial | Saved columns, typed filters, stable sorting, keyset pagination, and shared responsive table/card rendering: [Files web tests](../internal/web/files_test.go), service tests and generated-profile checks. Required 1,000/10,000-row latency benchmarks and VoiceOver walkthrough remain pending. |
 | Production | not applicable | No deployment serves real users or durable data |
 
@@ -636,9 +637,10 @@ focused reauthentication failure feedback, and the ordinary provider-link form.
 
 Route-family verification confirms general/email settings, API tokens, webhooks,
 SCIM provisioning, and audit history render with templ. `internal/web/handler.go`
-retains legacy `html/template` dispatch only for views still routed through its
-default branch; the #406 routes above dispatch to generated templ components.
-The route inventory is recorded in [web behavior documentation](web.md#rendering-migration-inventory).
+retains a default `html/template` compatibility branch, but no current browser
+route name falls through to it; the #406 routes above dispatch to generated
+templ components. The route inventory is recorded in [web behavior
+documentation](web.md#rendering-migration-inventory).
 
 - Passed: `make lint`.
 - Passed: settings Playwright coverage, 145 passed and 2 skipped; the runner also included unrelated route families. One unrelated account theme snapshot failed (`data-theme`: expected `light`, received `system`).

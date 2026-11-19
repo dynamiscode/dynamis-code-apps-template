@@ -337,17 +337,15 @@ file drift.
 
 Ticket #386 reconciles the route and template surface. `/` and `/workspaces/{workspaceId}`
 render through `workspace.templ` and generated `workspace_templ.go`. The
-inventory below names each route family's current renderer: `.templ` entries
-are migrated, and named `html/template` views remain deferred. It records major
-states while preserving escaping, HTMX fragment boundaries, ordinary-form
-fallbacks, and route behavior during the incremental migration. Issue #432 traced the fallback callers; issue #401 migrated setup and
-authentication routes to generated templ views and removed their legacy
-`auth.html`, `login.html`, and `setup.html` templates. The `render()` fallback
-and embedded templates remain live only for workspace selection/error,
-members (including its `client-list-view` partial), and webhooks. The members
-route has a templ view, but runtime dispatch still uses the legacy renderer.
-`list-view.html` is called by `members.html`; retain it and the shared navigation
-bridge while those callers remain. See [issue #401 migration evidence](capabilities.md#setup-and-authentication-templ-migration-401) and
+inventory below names each route family's current renderer and major states.
+The current route inventory and named calls to `render()` map the known page
+routes to generated templ views. `TestRenderCallSitesUseTemplSwitchCases`
+parses production Go files and verifies every literal `h.render` call name has a
+matching case in `Handler.render`'s switch; non-literal names fail the check.
+This checks call-site names against dispatch cases, but does not execute each
+view or prove that its renderer produces output. Unknown names from other
+callers can still reach the `html/template` fallback. Legacy HTML files remain
+embedded for compatibility checks and the shared navigation bridge. See [issue #401 migration evidence](capabilities.md#setup-and-authentication-templ-migration-401) and
 [issue #432 verification evidence](capabilities.md#rendering-assets-and-generated-app-verification-432).
 
 Shared navigation uses `navigation.templ`. The named definitions in
@@ -374,7 +372,7 @@ accessibility results and remaining limits are recorded in
 | `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.js`, `public_pages.templ` | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge/retry/expired redirect, verification success/invalid-or-expired, OAuth approval/denial; all setup/auth states dispatch through templ |
 | `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | Empty/results states, filters, sorting and paging, shareable query state, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
 | Workspace clients and custom fields | `clients.templ` (list and detail), `client_fields.templ`, `components.templ`, `workspace.templ`, `navigation.templ` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field and option lifecycle, realtime refresh; no client-family `html/template` views remain |
-| Workspace members | `members.html` and `list-view.html` through live `html/template` fallback (specific #432 exception); `members.templ` and generated `members_templ.go` also exist; shared navigation/components | Role changes, removal and ownership transfer; responsive table/cards, filters, sorting, paging, validation, permission denial, and ordinary-form confirmations |
+| Workspace members | `members.templ`, generated `members_templ.go`, shared navigation/components | Role changes, removal and ownership transfer; responsive table/cards, filters, sorting, paging, validation, permission denial, and ordinary-form confirmations |
 | `/workspaces/{workspaceId}/settings/invitations`, `/invitations/{secret}`, `/invitations/{secret}/sign-in`, `/invitations/continue` | `invitations.templ`, `invitations_templ.go`, `workspace.templ`, `navigation.templ`, `components.templ` | Create/resend/revoke with explicit revoke confirmation; registration, account-matched acceptance, sign-in return through MFA/OIDC, invalid/expired/unavailable states; ordinary form fallback |
 | `/workspaces/{workspaceId}/settings/audit` | `audit.templ`, `audit_templ.go`, `components.templ`, `components_templ.go` | Scoped redacted history, lazy table fragment, empty state, ordinary `?all=1` fallback, permission denial and expired-session redirect |
 | `/sessions` | `sessions.templ`, `sessions_templ.go` | Current, active, expired and revoked status; revoke current or other active sessions; feedback and empty state |
@@ -402,14 +400,17 @@ these cover representative route rendering and reusable responsive components,
 not every route family or all browser states. Workspace selection, workspace home, audit history, API token
 and SCIM settings, webhook registry, and delivery history use templ. Issue #400
 migrates and verifies the workspace route family (selection, creation, home,
-switching, and shared navigation); the embedded navigation bridge and overall
-legacy dispatcher remain because auth/setup, members, and webhooks still call
-them. General and
+switching, and shared navigation). The shared `render()` dispatcher remains,
+and the known current route names map to templ views by source inspection; its
+`html/template` fallback remains reachable for an unrecognized render name.
+General and
 email settings use `settings_pages.templ`; #406 route-family verification is
 recorded in [workspace settings migration evidence](capabilities.md#workspace-settings-template-migration-evidence-406).
-The remaining listed legacy views are an intentional exception to the migration target, not an
-exception to escaping, authorization, accessibility, localization, or
-ordinary-form requirements.
+Legacy HTML files and the default `html/template` branch remain. The AST test
+covers production `h.render` call sites; it does not parse route handlers or
+prove that every documented route inventory row is exercised. This does not
+change escaping,
+authorization, accessibility, localization, or ordinary-form requirements.
 
 The issue #454 reconciliation maps each route family and major state to its
 automated evidence, committed screenshot samples, and remaining unverified
@@ -457,7 +458,7 @@ not include these Playwright specs or source tests.
 | Account, language, security, tokens, webhooks, SCIM; validation, one-time secret, integration failure and permissions | `scripts/playwright/settings.spec.mjs`; `scripts/accessibility.mjs`; `internal/web/webhooks_test.go`; `internal/web/handler_test.go` | Token and provisioning settings have desktop/mobile light/dark snapshots; no baselines for account, language, security, or webhooks | One-time-secret and integration failure states have no screenshot comparisons. |
 | `/notifications`, `/notifications/events`; empty/list, mark-read, reconnect/replay, Spanish no-JavaScript navigation | `scripts/playwright/notifications.spec.mjs`; `internal/web/notifications_test.go` | `scripts/playwright/notifications.spec.mjs-snapshots/notifications-empty-{desktop,mobile}-{light,dark}.png` | Populated list and replay states have behavior checks, not screenshot baselines. |
 | Export and import; authorized download, preview, invalid input, confirmation and atomic result | `scripts/accessibility.mjs`; `internal/web/management_test.go` | None committed | Browser accessibility smoke checks import page and preview. Export download and import failure/result states rely on route and application tests; no Playwright journey or screenshots. |
-| Public share, OAuth consent, not-found and request errors | `scripts/accessibility.mjs`; `internal/web/handler_test.go`; `internal/web/mcp_consent_test.go` | None committed | Public share and consent are axe-scanned; no screenshot baselines. Generic request errors have route checks only. These routes use `public_pages.templ`; legacy `auth.html`/`login.html` files are not removed here because authentication routes still call the shared renderer. |
+| Public share, OAuth consent, not-found and request errors | `scripts/accessibility.mjs`; `internal/web/handler_test.go`; `internal/web/mcp_consent_test.go` | None committed | Public share and consent are axe-scanned; no screenshot baselines. Generic request errors have route checks only. These routes use `public_pages.templ`; authentication route names also dispatch to templ views through the shared renderer. |
 
 ### Accessibility limits
 

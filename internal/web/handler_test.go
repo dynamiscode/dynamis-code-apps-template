@@ -13,11 +13,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -32,6 +37,100 @@ import (
 	"example.com/dynamis-code/apps-template/internal/portability"
 	"example.com/dynamis-code/apps-template/internal/sharing"
 )
+
+func TestRenderCallSitesUseTemplSwitchCases(t *testing.T) {
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	switchCases := renderSwitchCases(t)
+	fset := token.NewFileSet()
+	for _, filename := range files {
+		if strings.HasSuffix(filename, "_test.go") {
+			continue
+		}
+		file, err := parser.ParseFile(fset, filename, nil, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", filename, err)
+		}
+		ast.Inspect(file, func(node ast.Node) bool {
+			call, ok := node.(*ast.CallExpr)
+			if !ok || len(call.Args) < 3 {
+				return true
+			}
+			selector, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok || selector.Sel.Name != "render" {
+				return true
+			}
+			receiver, ok := selector.X.(*ast.Ident)
+			if !ok || receiver.Name != "h" {
+				return true
+			}
+			literal, ok := call.Args[2].(*ast.BasicLit)
+			if !ok || literal.Kind != token.STRING {
+				t.Errorf("%s: h.render view name must be a string literal; dispatch dynamically by explicit literal calls", fset.Position(call.Pos()))
+				return true
+			}
+			name, err := strconv.Unquote(literal.Value)
+			if err != nil {
+				t.Errorf("%s: invalid render view literal: %v", fset.Position(literal.Pos()), err)
+				return true
+			}
+			if _, ok := switchCases[name]; !ok {
+				t.Errorf("%s: h.render view %q is not handled by render switch", fset.Position(literal.Pos()), name)
+			}
+			return true
+		})
+	}
+}
+
+func renderSwitchCases(t *testing.T) map[string]struct{} {
+	t.Helper()
+	file, err := parser.ParseFile(token.NewFileSet(), "handler.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := make(map[string]struct{})
+	for _, declaration := range file.Decls {
+		method, ok := declaration.(*ast.FuncDecl)
+		if !ok || method.Name.Name != "render" || method.Recv == nil || len(method.Recv.List) != 1 {
+			continue
+		}
+		receiver, ok := method.Recv.List[0].Type.(*ast.StarExpr)
+		if !ok {
+			continue
+		}
+		typeName, ok := receiver.X.(*ast.Ident)
+		if !ok || typeName.Name != "Handler" {
+			continue
+		}
+		ast.Inspect(method.Body, func(node ast.Node) bool {
+			statement, ok := node.(*ast.SwitchStmt)
+			if !ok {
+				return true
+			}
+			selector, ok := statement.Tag.(*ast.Ident)
+			if !ok || selector.Name != "name" {
+				return true
+			}
+			for _, clause := range statement.Body.List {
+				caseClause := clause.(*ast.CaseClause)
+				for _, expression := range caseClause.List {
+					if literal, ok := expression.(*ast.BasicLit); ok && literal.Kind == token.STRING {
+						name, err := strconv.Unquote(literal.Value)
+						if err == nil {
+							cases[name] = struct{}{}
+						}
+					}
+				}
+			}
+			return false
+		})
+		return cases
+	}
+	t.Fatal("Handler.render method not found")
+	return cases
+}
 
 func TestMFAOptionsRenderAsJSON(t *testing.T) {
 	catalog, err := i18n.New()
