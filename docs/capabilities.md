@@ -57,6 +57,28 @@ is partial for issue #449; invalid-login and password-recovery feedback and
 notification SSE connection are measured. MFA, MCP consent, valid public
 shares, and remaining interaction states remain unmeasured.
 
+## Setup and authentication templ migration (#401)
+
+Setup, sign-in, MFA, email verification, and password-reset routes render through
+generated `auth.templ` views from the shared dispatcher. The route tests cover
+English/Spanish setup validation, login form and recovery link, MFA TOTP and
+recovery-code fallback plus localized retry, reset and verification available /
+unavailable states, and ordinary form behavior. Removed embedded
+`templates/auth.html`, `templates/login.html`, and `templates/setup.html`; no
+route in this family calls the legacy renderer. CSRF cookies/validation, setup
+availability and token checks, safe redirects, generic reset responses, and
+safe failure behavior remain in existing handlers.
+
+Verified with `make templ-check` (zero generated drift), focused
+`internal/web` setup/login/MFA journey tests, and the targeted Playwright command
+covering `ui.spec.mjs`, `password-reset.spec.mjs`, and
+`email-verification.spec.mjs` (72 passed, 0 failed). Browser coverage includes
+English/Spanish, desktop/mobile, setup validation/completion/unavailability,
+login failure/accessibility, reset states, verification failure, and configured
+OIDC sign-in. The dispatcher and shared navigation bridge remain because
+workspace selection/error, members, and webhooks callers still use the legacy
+renderer.
+
 ## Issue #408 umbrella reconciliation (2026-11-18)
 
 The branch's nine route-family and verification commits reconcile the #408
@@ -71,13 +93,15 @@ acceptance criteria against three evidence layers:
   smoke results, with skipped tests and scope limits recorded in
   [browser verification](#browser-verification-for-templ-route-migration-433-2026-11-18).
 
-Exception: the remaining live `html/template` boundary is auth/setup pages,
-the members route (including `list-view.html`'s `client-list-view` partial), and
-the webhooks fallback. The unused account dispatcher case is already removed.
-`list-view.html` is referenced by the active members legacy template, so removal
-is not safe or evidence-backed. The [route inventory](web.md#rendering-migration-inventory)
-now names this exception explicitly. No claim is made that every route is fully
-migrated or that manual assistive-technology coverage is complete.
+After issue #401, the remaining live `html/template` boundary is workspace
+selection/error, the members route (including `list-view.html`'s
+`client-list-view` partial), and the webhooks fallback. Setup, sign-in, MFA,
+email verification, and password reset now dispatch through generated templ
+views; `templates/auth.html`, `templates/login.html`, and `templates/setup.html`
+were removed. `list-view.html` is referenced by the active members legacy
+template, so removal is not safe or evidence-backed. The [route inventory](web.md#rendering-migration-inventory)
+names the remaining exception explicitly. No claim is made that every route is
+fully migrated or that manual assistive-technology coverage is complete.
 
 ## Rendering, assets, and generated-app verification (#432)
 
@@ -85,13 +109,14 @@ Verified on the `sc/verify-432` stack against the six route-family commits in
 `origin/main..HEAD`. `make templ-check` passed with zero generated-file updates;
 `make css-check` rebuilt `components.css` from pinned Tailwind CSS 4.3.5 and
 daisyUI 5.8.1 and matched the committed asset byte-for-byte. The legacy
-`html/template` fallback was traced from `Handler.render` to callers: auth/setup
-(login, setup, password reset, verification, MFA, selection/error), members, and
-webhooks still dispatch there. It is live shared code, not removable dead code;
-`templates/list-view.html` is not included in embedded `templates/*.html` and has
-no runtime caller. The navigation bridge remains used by legacy templates and
-is also not removable yet. The [route inventory](web.md#rendering-migration-inventory)
-now identifies this boundary.
+At the #432 baseline, `html/template` fallback callers included auth/setup,
+selection/error, members, and webhooks. Issue #401 removed the auth/setup callers
+and their three legacy templates. The remaining fallback is live for
+selection/error, members, and webhooks; `templates/list-view.html` is not
+included in embedded `templates/*.html` and has no runtime caller. The navigation
+bridge remains used by legacy templates and is not removable yet. The
+[route inventory](web.md#rendering-migration-inventory) identifies this updated
+boundary.
 
 Measured checked-in browser asset sizes (`wc -c`, bytes): app.css 30,908;
 app.js 16,344; clients.css 2,873; components.css 36,868; forms.js 23,932;
