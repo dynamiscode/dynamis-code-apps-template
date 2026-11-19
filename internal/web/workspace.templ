@@ -32,6 +32,9 @@ templ dashboardShell(data pageData, header, navigation templ.Component) {
 				<script defer src="/assets/htmx.min.js"></script>
 				<script defer src="/assets/app.js"></script>
 			}
+			if data.NavPage == "notifications" {
+				<script defer src="/assets/notifications.js"></script>
+			}
 		</body>
 	</html>
 }

@@ -1796,6 +1796,21 @@ legacy route templates and its parity test still use it.
     conditional text, and the notification and invitation status lines have
     markup that the shared components do not cover.
 
+## Account, language and notifications shell (templ finish, PR 4, 2026-11-18)
+
+- `accountPageView`, `languageSettingsView` and `notificationsPage` now render
+  inside `dashboardShell` with `accountHeader`, like security and sessions.
+  Their hand-written document, head and topbar are gone. `data-account-page`
+  moved from `body` to the page wrapper; no script or stylesheet read the body
+  attribute.
+- `dashboardShell` loads `/assets/notifications.js` for `NavPage` `notifications`
+  (previously loaded from the page head).
+- Accepted change: the language page crumb is now the account crumb
+  (`accountHeader`) instead of the workspace list crumb, and the notifications
+  topbar uses the standard account menu.
+- Verified: `go test ./...`, `make templ-check`, `make lint`,
+  `make accessibility-smoke` (0 violations on every route it scans).
+
 ## UI Item edit measurement (#439, 2026-11-18)
 
 - Extended the isolated core runner to edit its synthetic Item and record
