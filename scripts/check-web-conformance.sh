@@ -14,15 +14,6 @@ if [ -n "$bad_colours" ]; then
 	status=1
 fi
 
-for template in internal/web/templates/*.html; do
-	missing="$(grep -n '<html' "$template" | grep -v 'data-theme="{{.Theme}}"' || true)"
-	if [ -n "$missing" ]; then
-		echo "<html> root without data-theme=\"{{.Theme}}\" in $template:" >&2
-		echo "$missing" >&2
-		status=1
-	fi
-done
-
 for template in internal/web/*.templ; do
 	missing="$(grep -n '<html' "$template" | grep -v 'data-theme={ data.Theme }' || true)"
 	if [ -n "$missing" ]; then

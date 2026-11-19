@@ -2,32 +2,35 @@ package web
 
 import (
 	"bytes"
-	"html/template"
+	"context"
 	"strings"
 	"testing"
+
+	"github.com/a-h/templ"
 
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
 )
 
-func TestLegacyNavigationBridge(t *testing.T) {
+func TestNavigationComponentsEscapeInput(t *testing.T) {
 	_, _, _, workspaceID, _ := testWeb(t, 10)
 	catalog, err := i18n.New()
 	if err != nil {
 		t.Fatal(err)
 	}
-	legacy, err := template.New("root").Funcs(template.FuncMap{"navigation": renderNavigation}).ParseFS(files, "templates/navigation.html")
-	if err != nil {
-		t.Fatal(err)
+	components := map[string]func(pageData) templ.Component{
+		"ui-head": uiHead, "skip-link": skipLink, "workspace-context": workspaceContext,
+		"workspace-list-crumb": workspaceListCrumb, "default-home-crumb": defaultHomeCrumb,
+		"account-menu": accountMenu, "workspace-nav": workspaceNav, "people-tabs": peopleTabs,
 	}
 	data := pageData{
 		Catalog: catalog, Locale: "es", NavSection: "settings", NavPage: "invitations",
 		Workspace: identity.WorkspaceSummary{ID: workspaceID, Name: "<script>", Role: identity.Viewer},
 		CSRF:      `"><script>`,
 	}
-	for _, name := range []string{"ui-head", "skip-link", "workspace-context", "workspace-list-crumb", "default-home-crumb", "account-menu", "workspace-nav", "people-tabs"} {
+	for name, component := range components {
 		var body bytes.Buffer
-		if err := legacy.ExecuteTemplate(&body, name, data); err != nil {
+		if err := component(data).Render(context.Background(), &body); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
 		if strings.Contains(body.String(), "<script>") {

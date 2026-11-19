@@ -267,8 +267,8 @@ error pages never replace the list. The exact upstream license is served from
 
 ## Form enhancements
 
-Every page loads `internal/web/assets/forms.js` through the `ui-head` partial in
-`navigation.html`. Pages work without it: forms post, the server validates, and
+Every page loads `internal/web/assets/forms.js` through the shared `uiHead`
+component in `navigation.templ`. Pages work without it: forms post, the server validates, and
 errors render as `role="alert"`. With scripting, forms gain these behaviors,
 each driven by a template attribute:
 
@@ -343,23 +343,21 @@ routes to generated templ views. `TestRenderCallSitesUseTemplSwitchCases`
 parses production Go files and verifies every literal `h.render` call name has a
 matching case in `Handler.render`'s switch; non-literal names fail the check.
 This checks call-site names against dispatch cases, but does not execute each
-view or prove that its renderer produces output. Unknown names from other
-callers can still reach the `html/template` fallback. Legacy HTML files remain
-embedded for compatibility checks and the shared navigation bridge. See [issue #401 migration evidence](capabilities.md#setup-and-authentication-templ-migration-401) and
+view or prove that its renderer produces output. An unknown view name panics.
+The legacy HTML files, the `html/template` fallback and the navigation bridge
+were removed. See [issue #401 migration evidence](capabilities.md#setup-and-authentication-templ-migration-401) and
 [issue #432 verification evidence](capabilities.md#rendering-assets-and-generated-app-verification-432).
 
-Shared navigation uses `navigation.templ`. The named definitions in
-`navigation.html` bridge remaining `html/template` callers to the same escaped
-components; remove each bridge when its final caller migrates. The workspace
-shell composes those components directly.
+Shared navigation uses `navigation.templ` directly. The workspace shell
+composes those components without a bridge.
 
 | Navigation surface | Decision and evidence | Route owner |
 |---|---|---|
-| Script messages and skip link | Shared on authenticated, auth, public, and error pages; `TestLegacyNavigationBridge` checks escaping and message placeholders | #434; page migrations remain separate |
+| Script messages and skip link | Shared on authenticated, auth, public, and error pages; `TestNavigationComponentsEscapeInput` checks escaping and message placeholders | #434; page migrations remain separate |
 | Workspace context and breadcrumbs | Single mode omits workspace selection; multi mode retains the native switcher and ordinary links; `TestSingleModeHidesWorkspaceListNavigation` and `TestMultiModeKeepsWorkspaceListNavigation` | #410 and #434 |
 | Workspace and settings navigation | Home, Items, Clients, Files and settings retain feature and role gates; `TestWebNavigationAndActionFeedback` checks current pages and settings | #434; resource routes remain separate |
 | Member and invitation tabs | Both retain ordinary links and current-page state; `TestWebNavigationAndActionFeedback` | #434; member and invitation pages remain separate |
-| Account menu | Native disclosure and CSRF-protected logout remain; `TestLegacyNavigationBridge` checks escaping | #434; account pages use templ |
+| Account menu | Native disclosure and CSRF-protected logout remain; `TestNavigationComponentsEscapeInput` checks escaping | #434; account pages use templ |
 
 Empty, validation, pending and error states belong to the page routes above;
 navigation remains present when those pages render it. Focused browser and
@@ -400,13 +398,12 @@ these cover representative route rendering and reusable responsive components,
 not every route family or all browser states. Workspace selection, workspace home, audit history, API token
 and SCIM settings, webhook registry, and delivery history use templ. Issue #400
 migrates and verifies the workspace route family (selection, creation, home,
-switching, and shared navigation). The shared `render()` dispatcher remains,
-and the known current route names map to templ views by source inspection; its
-`html/template` fallback remains reachable for an unrecognized render name.
+switching, and shared navigation). The shared `render()` switch names each view
+explicitly; an unrecognized name panics.
 General and
 email settings use `settings_pages.templ`; #406 route-family verification is
 recorded in [workspace settings migration evidence](capabilities.md#workspace-settings-template-migration-evidence-406).
-Legacy HTML files and the default `html/template` branch remain. The AST test
+The AST test
 covers production `h.render` call sites; it does not parse route handlers or
 prove that every documented route inventory row is exercised. This does not
 change escaping,

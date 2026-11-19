@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -34,7 +33,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/workspaceemail"
 )
 
-//go:embed assets/* templates/*
+//go:embed assets/*
 var files embed.FS
 
 type Handler struct {
@@ -55,7 +54,6 @@ type Handler struct {
 	mailer          appmail.Sender
 	cfg             config.HTTP
 	setupTokenHash  string
-	template        *template.Template
 	streams         *streamLimit
 	catalog         *i18n.Catalog
 	mcpResource     string
@@ -327,21 +325,6 @@ func newHandler(
 	if err != nil {
 		return nil, err
 	}
-	templates, err := template.New("root").Funcs(template.FuncMap{
-		"navigation": renderNavigation,
-		"dict": func(values ...any) map[string]any {
-			result := make(map[string]any, len(values)/2)
-			for index := 0; index+1 < len(values); index += 2 {
-				if key, ok := values[index].(string); ok {
-					result[key] = values[index+1]
-				}
-			}
-			return result
-		},
-	}).ParseFS(files, "templates/*.html")
-	if err != nil {
-		return nil, err
-	}
 	setupTokenHash := ""
 	if strings.TrimSpace(setupToken) != "" {
 		setupTokenHash = identity.SecretHash(setupToken)
@@ -353,7 +336,6 @@ func newHandler(
 		importer: importerFor(exporterService),
 		oidc:     oidcRegistry, publicURL: publicURL, mailer: mailer, cfg: cfg,
 		setupTokenHash: setupTokenHash,
-		template:       templates,
 		streams:        newStreamLimit(cfg.SSEMaxConnections, cfg.SSEMaxPerUser),
 		catalog:        catalog,
 	}, nil
@@ -1182,7 +1164,8 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 	case "error.html":
 		_ = errorPage(data).Render(context.Background(), writer)
 	default:
-		_ = h.template.ExecuteTemplate(writer, name, data)
+		// Every view name is a literal in the switch above; an unknown name is a programmer error.
+		panic("web: unknown view " + name)
 	}
 }
 
