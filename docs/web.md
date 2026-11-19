@@ -371,7 +371,7 @@ accessibility results and remaining limits are recorded in
 
 | Route family | Views and shared templates | Major states covered |
 |---|---|---|
-| `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors |
+| `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `workspace_templ.go`, `navigation.templ`, `components.templ` | Issue #400: membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors; native workspace switcher and shared templ navigation; CSRF-protected creation and ordinary-form fallback |
 | `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.js`, `public_pages.templ`, `auth.html` (bridge for remaining legacy auth views) | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge/retry/expired redirect, verification success/invalid-or-expired, OAuth approval/denial |
 | `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | Empty/results states, filters, sorting and paging, shareable query state, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
 | Workspace clients and custom fields | `clients.templ` (list and detail), `client_fields.templ`, `components.templ`, `workspace.templ`, `navigation.templ` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field and option lifecycle, realtime refresh; no client-family `html/template` views remain |
@@ -401,7 +401,11 @@ enumerate; [the accessibility evidence](accessibility.md) records that
 automated coverage. Issue #432 ran the `ui` and `components` Playwright suites;
 these cover representative route rendering and reusable responsive components,
 not every route family or all browser states. Workspace selection, workspace home, audit history, API token
-and SCIM settings, webhook registry, and delivery history use templ. General and
+and SCIM settings, webhook registry, and delivery history use templ. Issue #400
+migrates and verifies the workspace route family (selection, creation, home,
+switching, and shared navigation); the embedded navigation bridge and overall
+legacy dispatcher remain because auth/setup, members, and webhooks still call
+them. General and
 email settings use `settings_pages.templ`; #406 route-family verification is
 recorded in [workspace settings migration evidence](capabilities.md#workspace-settings-template-migration-evidence-406).
 The remaining listed legacy views are an intentional exception to the migration target, not an
