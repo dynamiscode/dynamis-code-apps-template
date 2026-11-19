@@ -93,12 +93,14 @@ acceptance criteria against three evidence layers:
   smoke results, with skipped tests and scope limits recorded in
   [browser verification](#browser-verification-for-templ-route-migration-433-2026-11-18).
 
-The current route inventory shows browser routes dispatching through generated
-templ views according to the route inventory. This claim is based on tracing
-named calls to `render()` against its switch cases, not on an automated
-exhaustiveness check: unknown names still reach the `html/template` fallback.
-The route inventory is a documented inventory, not a machine-checked dispatch
-proof. Legacy HTML files remain embedded for compatibility checks and the
+Production `h.render` call sites use registered generated templ views:
+[`TestRenderCallSitesUseRegisteredTemplViews`](../internal/web/handler_test.go)
+checks each call's literal name against `templViews`, and
+[`TestRegisteredTemplViewsDispatchToTempl`](../internal/web/handler_test.go)
+exercises each registered view without the legacy fallback. Unknown names can
+still reach the `html/template` fallback. These checks do not prove that every
+route inventory row is exercised or cover routes that render components
+directly. Legacy HTML files remain embedded for compatibility checks and the
 shared navigation bridge. The dated #432 evidence below records the earlier
 migration boundary at that verification point. This does not establish manual
 assistive-technology conformance.
