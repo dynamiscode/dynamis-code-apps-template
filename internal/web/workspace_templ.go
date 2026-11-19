@@ -127,7 +127,7 @@ func dashboardShell(data pageData, header, navigation templ.Component) templ.Com
 				return templ_7745c5c3_Err
 			}
 		}
-		if data.NavPage != "import" && data.NavPage != "client-detail" && data.NavPage != "client-fields" {
+		if data.NavPage != "import" && data.NavPage != "client-detail" && data.NavPage != "client-fields" && data.NavPage != "webhooks" && data.NavPage != "provisioning" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, " data-webmcp-page=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -135,7 +135,7 @@ func dashboardShell(data pageData, header, navigation templ.Component) templ.Com
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.NavPage)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `workspace.templ`, Line: 17, Col: 253}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `workspace.templ`, Line: 17, Col: 317}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 			if templ_7745c5c3_Err != nil {
@@ -198,7 +198,7 @@ func dashboardShell(data pageData, header, navigation templ.Component) templ.Com
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if data.NavPage == "home" || data.NavPage == "export" {
+		if data.NavPage == "home" || data.NavPage == "export" || data.NavPage == "tokens" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<script defer src=\"/assets/app.js\"></script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

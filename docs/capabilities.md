@@ -1811,6 +1811,25 @@ legacy route templates and its parity test still use it.
 - Verified: `go test ./...`, `make templ-check`, `make lint`,
   `make accessibility-smoke` (0 violations on every route it scans).
 
+## Duplicate settings shells folded into dashboardShell (templ finish, PR 5, 2026-11-18)
+
+- Removed `webhooksShell` and `credentialSettingsShell`. Webhooks use
+  `dashboardShell` with `dashboardSettingsNavigation`, which renders the same
+  sidebar. API tokens and SCIM provisioning use `dashboardShell` with
+  `settingsSidebar`, like the other settings pages. Their inner `main` wrappers
+  are removed because the shell provides the same `main`.
+- WebMCP markers are unchanged for API tokens (`data-webmcp-page="tokens"`) and
+  the token page still loads `app.js`. The shell no longer emits
+  `data-webmcp-page` for the webhooks or provisioning pages, so those pages keep
+  no browser-agent marker.
+- Accepted change: the token and SCIM pages now get the `dashboard-workspace`
+  body class, the same as the other settings pages. `app.js` moved from the
+  start of `body` to the end, like the other shell pages.
+- Verified: a before/after render of the settings pages differed only in CSRF
+  values, the body class and the `app.js` position. `go test ./internal/web/...`,
+  `make templ-check`, `make lint`, `make accessibility-smoke` (0 violations on
+  every route it scans).
+
 ## UI Item edit measurement (#439, 2026-11-18)
 
 - Extended the isolated core runner to edit its synthetic Item and record
