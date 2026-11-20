@@ -575,13 +575,13 @@ func loadHTTP(lookup LookupEnv) (HTTP, error) {
 		return HTTP{}, err
 	}
 	requestsPerMinute, err := rangedInt(
-		lookup, "HTTP_REQUESTS_PER_MINUTE", 120, 1, 10000,
+		lookup, "HTTP_REQUESTS_PER_MINUTE", 300, 1, 10000,
 	)
 	if err != nil {
 		return HTTP{}, err
 	}
 	authRequestsPerMin, err := rangedInt(
-		lookup, "HTTP_AUTH_REQUESTS_PER_MINUTE", 10, 1, requestsPerMinute,
+		lookup, "HTTP_AUTH_REQUESTS_PER_MINUTE", 30, 1, requestsPerMinute,
 	)
 	if err != nil {
 		return HTTP{}, err
