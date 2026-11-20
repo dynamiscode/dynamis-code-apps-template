@@ -6,16 +6,16 @@ Owner: template maintainer
 
 ## Result
 
-The repeatable runner is `npm run test:a11y` against a bootstrapped local
-server; `make accessibility-smoke` runs it once per locale. It fails on
+The repeatable runner is `cmd/browsersmoke` (`-mode accessibility`) against a
+bootstrapped local server; `make accessibility-smoke` runs it once per locale. It fails on
 critical or serious axe violations, keyboard order, missing focus visibility,
 horizontal overflow at 320 CSS pixels, reduced-motion mismatch, or missing
 accessible names in Chrome's accessibility tree.
 
-Install the locked development dependencies with `npm ci`, start a local
-bootstrapped server, then provide `A11Y_BASE_URL`, `A11Y_EMAIL`, and
-`A11Y_PASSWORD` to `npm run test:a11y`; set `A11Y_LOCALE=en` or `es`. The runner
-never prints the password.
+Start a local bootstrapped server, then provide `A11Y_BASE_URL`, `A11Y_EMAIL`, and
+`A11Y_PASSWORD` to `go run ./cmd/browsersmoke -mode accessibility`; set
+`A11Y_LOCALE=en` or `es`. Set `CHROME_PATH` when Chrome is not in a standard
+install location. The runner never prints the password.
 
 ### Audit history finding — 2026-11-16
 
@@ -59,7 +59,7 @@ session pages in English and Spanish, desktop and mobile, and light and dark
 themes with reduced motion. It verifies mobile reflow, profile preference
 persistence, session revocation feedback, and account deletion's required
 confirmation with JavaScript disabled. Password recovery and invitation
-acceptance have separate Playwright suites. The repeatable `test:a11y` runner
+acceptance have separate Playwright suites. The repeatable `cmd/browsersmoke` accessibility runner
 covers setup, sign-in, MFA, verification, recovery, account, language, security,
 sessions, public share, and MCP consent. Account screenshot baselines cover
 desktop/mobile and light/dark themes. The browser suite expires an isolated

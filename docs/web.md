@@ -448,19 +448,19 @@ not include these Playwright specs or source tests.
 | Workspace clients and custom fields; list, validation, CRUD, custom-field lifecycle, refresh and draft preservation | `scripts/playwright/clients-list.spec.mjs`; focused client route tests under `internal/web/` | `scripts/playwright/clients-list.spec.mjs-snapshots/clients-{light,dark}-{desktop,mobile}.png` | Client detail and custom-field pages have behavior tests but no screenshot baseline. |
 | Workspace members; list, role change, removal, ownership transfer, denied actions | `scripts/playwright/members.spec.mjs`; `internal/web/members_list_test.go`; `internal/web/members_role_test.go` | `scripts/playwright/members.spec.mjs-snapshots/members-{desktop,mobile}-{light,dark}[-linux].png` | Full confirmation and denial state coverage is behavioral; screenshots represent the list. |
 | Invitations and acceptance; create/resend/revoke, existing-account sign-in, invalid/unavailable guidance | `scripts/playwright/invitations.spec.mjs`; `internal/web/invitation_guidance_test.go`; `internal/web/management_test.go` | None committed | Browser journey covers acceptance without JavaScript; management and invalid/expired states have route tests, not screenshots. |
-| `/workspaces/{workspaceId}/settings/audit`; scoped history, lazy fragment, empty, permission denial and expired session | `scripts/accessibility.mjs`; `internal/web/handler_test.go` | None committed | Audit table fragment and denial states have route checks; no browser screenshot baseline. |
-| `/sessions`; current/active/expired/revoked and revoke actions | `scripts/accessibility.mjs`; `internal/web/handler_test.go` | None committed | No dedicated Playwright session lifecycle journey or screenshot baseline. |
+| `/workspaces/{workspaceId}/settings/audit`; scoped history, lazy fragment, empty, permission denial and expired session | `cmd/browsersmoke/accessibility.go`; `internal/web/handler_test.go` | None committed | Audit table fragment and denial states have route checks; no browser screenshot baseline. |
+| `/sessions`; current/active/expired/revoked and revoke actions | `cmd/browsersmoke/accessibility.go`; `internal/web/handler_test.go` | None committed | No dedicated Playwright session lifecycle journey or screenshot baseline. |
 | Workspace files; list/filter/sort, upload progress/success/validation/failure/retry, viewer download and no-JavaScript fallback | `scripts/playwright/files.spec.mjs`; `internal/web/files_test.go` | `scripts/playwright/files.spec.mjs-snapshots/files-{desktop,mobile}-{light,dark}.png` | Upload states are exercised behaviorally, not captured as separate screenshots. |
 | General and email settings; save, validation, provider verification failure, read-only permission | `scripts/playwright/settings.spec.mjs`; `internal/web/email_settings_test.go` | `scripts/playwright/settings.spec.mjs-snapshots/{general,email}-settings-{desktop,mobile}-{light,dark}.png` (email mobile also has Linux baselines) | Failure and permission variants are behavior checks, not screenshot baselines. |
-| Account, language, security, tokens, webhooks, SCIM; validation, one-time secret, integration failure and permissions | `scripts/playwright/settings.spec.mjs`; `scripts/accessibility.mjs`; `internal/web/webhooks_test.go`; `internal/web/handler_test.go` | Token and provisioning settings have desktop/mobile light/dark snapshots; no baselines for account, language, security, or webhooks | One-time-secret and integration failure states have no screenshot comparisons. |
+| Account, language, security, tokens, webhooks, SCIM; validation, one-time secret, integration failure and permissions | `scripts/playwright/settings.spec.mjs`; `cmd/browsersmoke/accessibility.go`; `internal/web/webhooks_test.go`; `internal/web/handler_test.go` | Token and provisioning settings have desktop/mobile light/dark snapshots; no baselines for account, language, security, or webhooks | One-time-secret and integration failure states have no screenshot comparisons. |
 | `/notifications`, `/notifications/events`; empty/list, mark-read, reconnect/replay, Spanish no-JavaScript navigation | `scripts/playwright/notifications.spec.mjs`; `internal/web/notifications_test.go` | `scripts/playwright/notifications.spec.mjs-snapshots/notifications-empty-{desktop,mobile}-{light,dark}.png` | Populated list and replay states have behavior checks, not screenshot baselines. |
-| Export and import; authorized download, preview, invalid input, confirmation and atomic result | `scripts/accessibility.mjs`; `internal/web/management_test.go` | None committed | Browser accessibility smoke checks import page and preview. Export download and import failure/result states rely on route and application tests; no Playwright journey or screenshots. |
-| Public share, OAuth consent, not-found and request errors | `scripts/accessibility.mjs`; `internal/web/handler_test.go`; `internal/web/mcp_consent_test.go` | None committed | Public share and consent are axe-scanned; no screenshot baselines. Generic request errors have route checks only. These routes use `public_pages.templ`; authentication route names also dispatch to templ views through the shared renderer. |
+| Export and import; authorized download, preview, invalid input, confirmation and atomic result | `cmd/browsersmoke/accessibility.go`; `internal/web/management_test.go` | None committed | Browser accessibility smoke checks import page and preview. Export download and import failure/result states rely on route and application tests; no Playwright journey or screenshots. |
+| Public share, OAuth consent, not-found and request errors | `cmd/browsersmoke/accessibility.go`; `internal/web/handler_test.go`; `internal/web/mcp_consent_test.go` | None committed | Public share and consent are axe-scanned; no screenshot baselines. Generic request errors have route checks only. These routes use `public_pages.templ`; authentication route names also dispatch to templ views through the shared renderer. |
 
 ### Accessibility limits
 
 `make accessibility-smoke` runs axe scans for English and Spanish on the routes
-enumerated in `scripts/accessibility.mjs`. The runner also checks selected
+enumerated in `cmd/browsersmoke/accessibility.go`. The runner also checks selected
 keyboard order, focus, accessible names, reduced motion, 320 CSS-pixel
 overflow, and import/upload contracts. Focused Playwright specs add route-
 specific axe and keyboard checks. These checks cannot establish full WCAG
@@ -521,8 +521,8 @@ safe statuses only. The `tools=(self)` Permissions Policy and
 `Origin-Agent-Cluster: ?1` response headers provide the browser security
 boundary; same-origin page state and existing authorization remain required.
 
-Test with `make webmcp-smoke`. The runner checks ordinary fallback on every
-configured Selenium browser. It runs native tool names, schema/redaction,
+Test with `make webmcp-smoke`. The runner checks ordinary fallback in Chrome, the only
+browser `cmd/browsersmoke/webmcp.go` drives. It runs native tool names, schema/redaction,
 focus, and non-submission assertions only when `document.modelContext` exists;
 missing WebMCP support is a passing fallback result. Debug registration with
 the browser's `document.modelContext.getTools()` inspection without copying
