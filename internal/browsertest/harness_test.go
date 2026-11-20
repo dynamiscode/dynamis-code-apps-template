@@ -285,7 +285,13 @@ var awaitPromise = chromedp.EvalAwaitPromise
 // eventually polls a page predicate until it holds or actionWait passes.
 func eventually(t *testing.T, tab context.Context, expr, message string) {
 	t.Helper()
-	deadline := time.Now().Add(actionWait)
+	eventuallyWithin(t, tab, expr, message, actionWait)
+}
+
+// eventuallyWithin polls a page predicate until it holds or the wait passes.
+func eventuallyWithin(t *testing.T, tab context.Context, expr, message string, wait time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(wait)
 	for {
 		ok, err := chromedp.Run(tab, chromedp.Evaluate[bool](expr))
 		if err == nil && ok {

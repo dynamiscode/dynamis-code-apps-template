@@ -36,7 +36,9 @@ templ filesPage(data viewmodel.PageData, canUpload bool) {
 			</section>
 		</div>
 		<script defer src="/assets/htmx.min.js"></script>
-		<script defer src="/assets/app.js"></script>
+		if canUpload {
+			<script defer src="/assets/app.js"></script>
+		}
 	}
 }
 
