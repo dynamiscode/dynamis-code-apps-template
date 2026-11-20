@@ -71,7 +71,7 @@ func expectNoCriticalOrSeriousAxe(t *testing.T, tab context.Context) {
 // responseStatus loads a full URL and returns the document's HTTP status.
 func responseStatus(t *testing.T, tab context.Context, url string) int64 {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(tab, actionWait)
+	ctx, cancel := context.WithTimeout(tab, navigationWait)
 	defer cancel()
 	response, err := chromedp.Run(ctx, chromedp.NavigateResponse(url))
 	if err != nil || response == nil {

@@ -288,7 +288,7 @@ func TestMembersActionsAndPermissions(t *testing.T) {
 // navigateStatus loads a path and returns the document's HTTP status.
 func navigateStatus(t *testing.T, tab context.Context, path string) int64 {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(tab, actionWait)
+	ctx, cancel := context.WithTimeout(tab, navigationWait)
 	defer cancel()
 	response, err := chromedp.Run(ctx, chromedp.NavigateResponse(baseURL+path))
 	if err != nil || response == nil {

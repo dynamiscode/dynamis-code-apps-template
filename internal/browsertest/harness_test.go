@@ -554,3 +554,6 @@ var appDBFile string
 
 // uxURL is a fresh server for the form UX journey, which creates its own owner.
 var uxURL string
+
+// navigationWait bounds a page load whose response status is read; CI runners can be slow.
+const navigationWait = 15 * time.Second
