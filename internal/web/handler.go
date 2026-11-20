@@ -641,12 +641,9 @@ func (h *Handler) renderItems(
 	if !valid {
 		status, message = http.StatusBadRequest, "The Items list query is invalid."
 	}
-	// A lazy GET page sends the skeleton and loads the items in the results fragment. Writes and htmx requests
-	// keep the rows.
-	lazy := request.Method == http.MethodGet && listLazyRequest(request)
 	var page items.Page
 	var err error
-	if valid && !lazy {
+	if valid {
 		page, err = h.items.List(request.Context(), principal, workspaceID, items.ListInput{
 			Status: items.Status(form.Status), Search: form.Search, Match: form.Match, Sort: form.Sort,
 			Limit: form.Limit, Page: listPageNumber(query),
@@ -705,10 +702,6 @@ func (h *Handler) renderItems(
 	pager := newListPager(h.itemsPath(workspaceID), query, listPageNumber(query), form.Limit, page.Total)
 	querySuffix := clientQuerySuffix(query)
 	filterView := buildListFilterView(h.itemsPath(workspaceID), query, itemFilterFields, form.Filter)
-	var resultsSrc, fullHref string
-	if lazy {
-		resultsSrc, fullHref = listResultsURLs(h.itemsPath(workspaceID), query)
-	}
 	if h.openDefaultListView(writer, request, listviews.ListItems, principal, workspaceID) {
 		return
 	}
@@ -720,7 +713,7 @@ func (h *Handler) renderItems(
 		CurrentPath: h.itemsPath(workspaceID), CanShare: h.sharing != nil && principal.Permissions[identity.ResourcesWrite],
 		CanEditItems: principal.Permissions[identity.ResourcesWrite],
 		IsItemList:   true, ItemListQuery: form, ListSearch: form.Search, ItemQuerySuffix: querySuffix, ListPreservedQuery: filterView.Preserved,
-		ListLazy: lazy, ListResultsSrc: resultsSrc, ListFullHref: fullHref, ListLive: true, ListFragment: listResultsFragment(request), ListViews: view.Views, ListViewQuery: view.Query, ListViewBase: view.Base, ListViewRoute: view.Route, ListViewCanShare: view.CanShare, ListViewSaveReason: view.SaveReason,
+		ListLive: true, ListFragment: listResultsFragment(request), ListViews: view.Views, ListViewQuery: view.Query, ListViewBase: view.Base, ListViewRoute: view.Route, ListViewCanShare: view.CanShare, ListViewSaveReason: view.SaveReason,
 		ListColumns: columns, ListRows: itemListRows(page.Items), ListTotal: page.Total, ListStart: listStart(listPageNumber(query), form.Limit),
 		HasVisibleClientColumns: true,
 		Filter:                  filterView,

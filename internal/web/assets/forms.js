@@ -74,7 +74,7 @@
 		return response.ok && !response.redirected && new URL(response.url, baseURL).pathname === new URL(baseURL).pathname && firstElementID === "audit-table";
 	}
 
-	// A lazy list places its results fragment in the placeholder with the same id, from the same path.
+	// A lazy section places a fragment with the same id as its placeholder, from the same path.
 	function isLazyFragment(response, baseURL, firstElementID, expectedID) {
 		return response.ok && !response.redirected && new URL(response.url, baseURL).pathname === new URL(baseURL).pathname && firstElementID === expectedID;
 	}
@@ -422,11 +422,10 @@
 		} catch (_) {
 			// The results are already shown when the failure came after the swap, so there is nothing to retry.
 			if (!box.isConnected) return;
-			// A failed section shows its message and a retry control, not the loading skeleton.
+			// A failed section shows its message and a retry control, not the loading state.
 			delete box.dataset.loading;
 			box.removeAttribute("aria-busy");
 			box.querySelector(".loading")?.classList.remove("loading");
-			box.querySelector(".list-skeleton")?.setAttribute("hidden", "");
 			const status = box.querySelector('[role="status"]');
 			if (status) status.textContent = msg("load-failed");
 			if (box.querySelector(".lazy-retry")) return;
@@ -438,10 +437,9 @@
 				retry.remove();
 				box.setAttribute("aria-busy", "true");
 				if (status) status.textContent = msg("loading");
-				box.querySelector(".list-skeleton")?.removeAttribute("hidden");
 				loadLazy(box);
 			});
-			box.insertBefore(retry, box.querySelector(".list-results-fallback"));
+			box.append(retry);
 		}
 	}
 

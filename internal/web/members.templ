@@ -45,9 +45,8 @@ templ memberListTools(data viewmodel.PageData) {
 	@components.ListColumnsMenu(data, data.ClientQuerySuffix)
 }
 
-// memberResults is the Members results region: the table or cards and the empty state. A lazy page shows a
-// skeleton here until the results fragment, which is this region, loads. A live search also refreshes the filter
-// bar out of band.
+// memberResults is the Members results region: the table or cards and the empty state. A live search also
+// refreshes the filter bar out of band.
 templ memberResults(data viewmodel.PageData) {
 	@components.ListResults(data, data.MemberListQuery.Limit, listPageSizeOptions(data.MemberListQuery.Limit, memberPageSizes), data.ClientQuerySuffix, memberRows(data), templ.NopComponent)
 }

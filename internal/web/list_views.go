@@ -335,8 +335,8 @@ func (h *Handler) setListViewDefault(writer http.ResponseWriter, request *http.R
 // openDefaultListView sends a member who opens a list with no query to the list's default view. It reports whether
 // it redirected, so the caller stops rendering.
 func (h *Handler) openDefaultListView(writer http.ResponseWriter, request *http.Request, listKey string, principal identity.Principal, workspaceID identity.WorkspaceID) bool {
-	// Only a bare list address opens the default view. Any parameter, including the results and full-list markers a
-	// lazy load sends, must render as it was asked for.
+	// Only a bare list address opens the default view. Any parameter, including the results marker an htmx swap
+	// sends, must render as it was asked for.
 	if h.listViews == nil || request.Method != http.MethodGet || len(request.URL.Query()) > 0 {
 		return false
 	}

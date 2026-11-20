@@ -89,11 +89,6 @@ func (h *Handler) renderMembersList(writer http.ResponseWriter, request *http.Re
 	if encoded := formValues.Encode(); encoded != "" {
 		querySuffix = "?" + encoded
 	}
-	lazy := listLazyRequest(request)
-	var resultsSrc, fullHref string
-	if lazy {
-		resultsSrc, fullHref = listResultsURLs(request.URL.Path, request.URL.Query())
-	}
 	if h.openDefaultListView(writer, request, listviews.ListMembers, principal, workspaceID) {
 		return
 	}
@@ -107,7 +102,7 @@ func (h *Handler) renderMembersList(writer http.ResponseWriter, request *http.Re
 		HasVisibleClientColumns: hasVisibleClientColumns(visible), HasClientFilters: len(query.Filter.Filters) > 0,
 		ClearClientFiltersPath: filterView.ClearHref, ClientQuerySuffix: querySuffix, IsMembersList: true,
 		MemberListQuery: query, ListSearch: query.Search, ListPreservedQuery: filterView.Preserved,
-		ListLazy: lazy, ListResultsSrc: resultsSrc, ListFullHref: fullHref, ListLive: true, ListFragment: listResultsFragment(request), ListViews: view.Views, ListViewQuery: view.Query, ListViewBase: view.Base, ListViewRoute: view.Route, ListViewCanShare: view.CanShare, ListViewSaveReason: view.SaveReason,
+		ListLive: true, ListFragment: listResultsFragment(request), ListViews: view.Views, ListViewQuery: view.Query, ListViewBase: view.Base, ListViewRoute: view.Route, ListViewCanShare: view.CanShare, ListViewSaveReason: view.SaveReason,
 	})
 }
 

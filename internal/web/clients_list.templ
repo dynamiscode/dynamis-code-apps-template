@@ -51,8 +51,8 @@ templ clientNotice(data viewmodel.PageData) {
 	}
 }
 
-// clientResults is the results region: the table or cards, the empty state, and the footer. The results
-// fragment that a lazy list loads is this region.
+// clientResults is the results region: the table or cards, the empty state, and the footer. A sort, filter, or
+// search swaps this region alone.
 templ clientResults(data viewmodel.PageData) {
 	@components.ListResults(data, clientPageLimit(data.ClientQuery.Limit), listPageSizeOptions(clientPageLimit(data.ClientQuery.Limit), listPageSizes), data.ClientQuerySuffix, clientBody(data), clientScopeLink(data))
 }

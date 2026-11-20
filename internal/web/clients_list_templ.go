@@ -304,8 +304,8 @@ func clientNotice(data viewmodel.PageData) templ.Component {
 	})
 }
 
-// clientResults is the results region: the table or cards, the empty state, and the footer. The results
-// fragment that a lazy list loads is this region.
+// clientResults is the results region: the table or cards, the empty state, and the footer. A sort, filter, or
+// search swaps this region alone.
 func clientResults(data viewmodel.PageData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

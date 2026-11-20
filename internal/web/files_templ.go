@@ -251,8 +251,7 @@ func fileListTools(data viewmodel.PageData) templ.Component {
 	})
 }
 
-// fileResults is the Files results region, shared with every list: the table or cards and the footer. A lazy page
-// shows a skeleton here until the results fragment, which is this region, loads.
+// fileResults is the Files results region, shared with every list: the table or cards and the footer.
 func fileResults(data viewmodel.PageData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -435,7 +434,7 @@ func fileList(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var20 templ.SafeURL
 				templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinURLErrs(data.ClearClientFiltersPath)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 81, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 80, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 				if templ_7745c5c3_Err != nil {
@@ -448,7 +447,7 @@ func fileList(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var21 string
 				templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.clear_filters"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 81, Col: 77}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 80, Col: 77}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 				if templ_7745c5c3_Err != nil {

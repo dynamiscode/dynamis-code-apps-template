@@ -134,13 +134,7 @@ func (h *Handler) renderFilesPage(writer http.ResponseWriter, request *http.Requ
 		h.renderError(writer, http.StatusBadRequest)
 		return
 	}
-	// A lazy page sends the skeleton and loads the files in the results fragment.
-	lazy := listLazyRequest(request)
-	var page appfiles.Page
-	var err error
-	if !lazy {
-		page, err = h.files.ListPage(request.Context(), principal, workspaceID, query.ListInput())
-	}
+	page, err := h.files.ListPage(request.Context(), principal, workspaceID, query.ListInput())
 	if err != nil {
 		if errors.Is(err, appfiles.ErrInvalidInput) {
 			h.renderError(writer, http.StatusBadRequest)
@@ -184,10 +178,6 @@ func (h *Handler) renderFilesPage(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 	filterView := buildListFilterView(request.URL.Path, request.URL.Query(), fileFilterFields, query.Filter)
-	var resultsSrc, fullHref string
-	if lazy {
-		resultsSrc, fullHref = listResultsURLs(h.filesPath(workspaceID), request.URL.Query())
-	}
 	if h.openDefaultListView(writer, request, listviews.ListFiles, principal, workspaceID) {
 		return
 	}
@@ -201,7 +191,7 @@ func (h *Handler) renderFilesPage(writer http.ResponseWriter, request *http.Requ
 		ClientQuerySuffix: fileQuerySuffix(request.URL.Query()), FileListQuery: query, ListSearch: query.Search,
 		ListPreservedQuery: filterView.Preserved,
 		Filter:             filterView,
-		ListLazy:           lazy, ListResultsSrc: resultsSrc, ListFullHref: fullHref, ListLive: true, ListFragment: listResultsFragment(request), ListViews: view.Views, ListViewQuery: view.Query, ListViewBase: view.Base, ListViewRoute: view.Route, ListViewCanShare: view.CanShare, ListViewSaveReason: view.SaveReason,
+		ListLive:           true, ListFragment: listResultsFragment(request), ListViews: view.Views, ListViewQuery: view.Query, ListViewBase: view.Base, ListViewRoute: view.Route, ListViewCanShare: view.CanShare, ListViewSaveReason: view.SaveReason,
 		FileMinSize: request.URL.Query().Get("min_size"), FileMaxSize: request.URL.Query().Get("max_size"),
 		HasVisibleClientColumns: hasVisibleClientColumns(visible), HasClientFilters: query.Search != "" || query.MIME != "" || query.HasMinSize || query.HasMaxSize,
 		ClearClientFiltersPath: fileClearFiltersPath(request.URL.Path, request.URL.Query()),

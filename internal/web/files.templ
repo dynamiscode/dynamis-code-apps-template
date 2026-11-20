@@ -45,8 +45,7 @@ templ fileListTools(data viewmodel.PageData) {
 	@components.ListColumnsMenu(data, data.ClientQuerySuffix)
 }
 
-// fileResults is the Files results region, shared with every list: the table or cards and the footer. A lazy page
-// shows a skeleton here until the results fragment, which is this region, loads.
+// fileResults is the Files results region, shared with every list: the table or cards and the footer.
 templ fileResults(data viewmodel.PageData) {
 	@components.ListResults(data, data.FileListQuery.Limit, listPageSizeOptions(data.FileListQuery.Limit, listPageSizes), data.ClientQuerySuffix, fileList(data), templ.NopComponent)
 }

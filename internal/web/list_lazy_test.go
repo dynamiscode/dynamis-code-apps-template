@@ -7,10 +7,10 @@ import (
 	"testing"
 )
 
-// TestClientsListLoadsRowsAfterTheSkeleton checks the two steps of a Clients list: a normal page shows the
-// controls and a skeleton that names the results fragment, the fragment carries the rows, and the full-list
-// and realtime requests still render rows directly.
-func TestClientsListLoadsRowsAfterTheSkeleton(t *testing.T) {
+// TestClientsListRendersRowsWithoutJavaScript checks that a normal Clients page renders its rows itself, so a client
+// without JavaScript sees the list. The results fragment still carries the rows for an htmx request, and the search
+// form is wired to refresh the results region in place.
+func TestClientsListRendersRowsWithoutJavaScript(t *testing.T) {
 	env := newClientsTestEnv(t)
 	created := request(env.routes, http.MethodPost, env.listPath(), url.Values{
 		"csrf": {env.csrf}, "display_name": {"Ada"},
@@ -22,10 +22,9 @@ func TestClientsListLoadsRowsAfterTheSkeleton(t *testing.T) {
 	page := request(env.routes, http.MethodGet, env.listPath(), nil, env.cookies, nil)
 	body := page.Body.String()
 	fragment := env.listPath() + "?part=results"
-	if page.Code != http.StatusOK || !strings.Contains(body, `data-lazy-src="`+fragment+`"`) ||
-		!strings.Contains(body, `class="list-skeleton"`) || !strings.Contains(body, `href="`+env.listPath()+`?all=1"`) ||
-		strings.Contains(body, "list-row-link") {
-		t.Fatalf("lazy page = %d: %s", page.Code, body)
+	if page.Code != http.StatusOK || !strings.Contains(body, "list-row-link") ||
+		strings.Contains(body, "data-lazy-src") || strings.Contains(body, "list-skeleton") {
+		t.Fatalf("list page = %d: %s", page.Code, body)
 	}
 
 	results := request(env.routes, http.MethodGet, fragment, nil, env.cookies, map[string]string{"HX-Request": "true"})
@@ -33,11 +32,6 @@ func TestClientsListLoadsRowsAfterTheSkeleton(t *testing.T) {
 	if results.Code != http.StatusOK || !strings.HasPrefix(rows, `<div id="list-results"`) ||
 		!strings.Contains(rows, "list-row-link") || strings.Contains(rows, "<html") {
 		t.Fatalf("results fragment = %d: %s", results.Code, rows)
-	}
-
-	full := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil).Body.String()
-	if !strings.Contains(full, "list-row-link") || strings.Contains(full, "list-skeleton") {
-		t.Fatalf("full list must render rows and no skeleton: %s", full)
 	}
 
 	// The search form updates the results region in place and keeps its normal GET submit without JavaScript.
@@ -48,7 +42,7 @@ func TestClientsListLoadsRowsAfterTheSkeleton(t *testing.T) {
 
 	bad := request(env.routes, http.MethodGet, env.listPath()+"?archived=nope", nil, env.cookies, nil)
 	if bad.Code != http.StatusBadRequest {
-		t.Fatalf("bad selector on a lazy page = %d, want 400", bad.Code)
+		t.Fatalf("bad selector on a list page = %d, want 400", bad.Code)
 	}
 }
 
@@ -102,8 +96,7 @@ func TestClientColumnOrderIsSavedAndRendered(t *testing.T) {
 	}
 }
 
-// withAll adds the full-list parameter to a list query, so a test reads the rows the page would render without
-// the lazy skeleton.
+// withAll adds the all parameter to a list query. Existing links carry it, and the list accepts it.
 func withAll(query string) string {
 	if strings.Contains(query, "?") {
 		return query + "&all=1"

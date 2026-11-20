@@ -68,11 +68,6 @@ type PageData struct {
 	Filter               ListFilterView
 	ClientPreservedQuery []ClientHiddenField
 	ListPreservedQuery   []ClientHiddenField
-	// ListLazy makes the page send a skeleton; forms.js then loads ListResultsSrc into it. ListFullHref is
-	// the full list for clients without JavaScript.
-	ListLazy       bool
-	ListResultsSrc string
-	ListFullHref   string
 	// ListLive makes the list's search update the results region in place.
 	ListLive bool
 	// ListSelectable adds a selection column and the bulk bar to a list whose rows can be acted on together.

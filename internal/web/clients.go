@@ -133,17 +133,9 @@ func (h *Handler) renderClientList(
 	if form.Limit > 0 {
 		limit = form.Limit
 	}
-	lazy := listLazyRequest(request)
-	if lazy && !clients.ValidArchivedSelector(query.Get("archived")) {
-		// A lazy page does not read the rows, so it checks the selector here, where the service would refuse it.
-		status, errorKey = http.StatusBadRequest, "clients.query_invalid"
-	}
 	pageNumber := listPageNumber(query)
-	var page clients.Page
-	if !lazy {
-		page, err = h.clients.List(request.Context(), principal, workspaceID,
-			form.ListInput(limit, pageNumber))
-	}
+	page, err := h.clients.List(request.Context(), principal, workspaceID,
+		form.ListInput(limit, pageNumber))
 	if errors.Is(err, clients.ErrInvalidQuery) || errors.Is(err, clients.ErrInvalidInput) {
 		status, errorKey, page = http.StatusBadRequest, "clients.query_invalid", clients.Page{}
 	} else if err != nil {
@@ -179,13 +171,10 @@ func (h *Handler) renderClientList(
 			}
 		}
 	}
-	var rows []viewmodel.ListRow
-	if !lazy {
-		rows, err = h.clientListRows(request, principal, workspaceID, page.Clients, fields, visible)
-		if err != nil {
-			h.clientError(writer, request, err)
-			return
-		}
+	rows, err := h.clientListRows(request, principal, workspaceID, page.Clients, fields, visible)
+	if err != nil {
+		h.clientError(writer, request, err)
+		return
 	}
 	filterView := buildListFilterView(h.clientsPath(workspaceID), query, clientListFilterFields(fields, choices), form.Filter)
 	hiddenSort := ""
@@ -212,10 +201,6 @@ func (h *Handler) renderClientList(
 		// A realtime refresh swaps only the list section, as the Items list does.
 		component = clientList
 	}
-	var resultsSrc, fullHref string
-	if lazy {
-		resultsSrc, fullHref = listResultsURLs(h.clientsPath(workspaceID), query)
-	}
 	if h.openDefaultListView(writer, request, listviews.ListClients, principal, workspaceID) {
 		return
 	}
@@ -236,7 +221,7 @@ func (h *Handler) renderClientList(
 		ClientQuery:              form, ClientQueryFields: fields,
 		ListColumns: columns, ListRows: rows, ListTotal: page.Total, ListStart: listStart(pageNumber, limit), Filter: filterView,
 		ClientPreservedQuery: clientPreservedQuery(query), ListPreservedQuery: filterView.Preserved,
-		ListLazy: lazy, ListResultsSrc: resultsSrc, ListFullHref: fullHref, ListLive: true, ListSearch: form.Search, ListFragment: listResultsFragment(request), ListViews: view.Views, ListViewQuery: view.Query, ListViewBase: view.Base, ListViewRoute: view.Route, ListViewCanShare: view.CanShare, ListViewSaveReason: view.SaveReason, ArchivedClientCount: archivedCount,
+		ListLive: true, ListSearch: form.Search, ListFragment: listResultsFragment(request), ListViews: view.Views, ListViewQuery: view.Query, ListViewBase: view.Base, ListViewRoute: view.Route, ListViewCanShare: view.CanShare, ListViewSaveReason: view.SaveReason, ArchivedClientCount: archivedCount,
 		HasVisibleClientColumns: hasVisibleClientColumns(visible), HasClientFilters: len(form.Filters) > 0,
 		HiddenClientSort:       hiddenSort,
 		ClearClientFiltersPath: clearFilters, ClientQuerySuffix: querySuffix,
