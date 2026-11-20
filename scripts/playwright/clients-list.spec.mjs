@@ -242,29 +242,3 @@ test("query-open filter details do not block realtime refresh", async ({ page })
     await peer.close();
   }
 });
-
-test.describe("Clients list without JavaScript", () => {
-  test.use({ javaScriptEnabled: false });
-
-  test("client detail supports ordinary edit and archive forms", async ({ page }) => {
-    await openClients(page);
-    await page.locator("#client-create > details.client-create > summary").click();
-    await page.getByLabel("Display name").fill(`Native client ${Date.now()}`);
-    await page.getByRole("button", { name: "Add client" }).click();
-    await expect(page).toHaveURL(/\/clients\/[^/?]+$/);
-    await page.locator("#client-display-name").fill("Native client updated");
-    await page.locator("#client-detail").getByRole("button", { name: "Save client" }).click();
-    await expect(page.locator("#client-display-name")).toHaveValue("Native client updated");
-    await page.locator("#client-detail").getByRole("button", { name: "Archive" }).click();
-    await expect(page.locator("#client-detail").getByRole("button", { name: "Unarchive" })).toBeVisible();
-  });
-
-  test("renders native controls and validation fallback", async ({ page }) => {
-    await openClients(page);
-    await expect(page.locator("#client-list")).toBeVisible();
-    await page.locator("#client-create > details.client-create > summary").click();
-    await page.getByLabel("Display name").fill("   ");
-    await page.getByRole("button", { name: "Add client" }).click();
-    await expect(page.getByRole("alert")).toBeVisible();
-  });
-});

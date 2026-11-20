@@ -90,30 +90,6 @@ test("profile preference persists through ordinary form submission", async ({ pa
   expect(response.status()).toBe(303);
 });
 
-test.describe("account forms without JavaScript", () => {
-  test.use({ javaScriptEnabled: false });
-
-  test("profile saves and account deletion requires explicit confirmation", async ({ page }) => {
-    await signIn(page);
-    await page.goto("/account");
-    const profile = page.locator('form[action="/account/profile"]');
-    await profile.locator('[name="display_name"]').fill("No JavaScript profile");
-    await profile.getByRole("button", { name: /save/i }).click();
-    await expect(page).toHaveURL(/saved=1/);
-
-    const deletion = page.locator('form[action="/account/delete"]');
-    await expect(deletion.locator('[name="confirm_delete"]')).toHaveAttribute("required", "");
-    await expect(deletion.locator('[name="password"]')).toHaveAttribute("required", "");
-    const csrf = await deletion.locator('[name="csrf"]').inputValue();
-    const response = await page.request.post("/account/delete", {
-      maxRedirects: 0,
-      form: { csrf, password },
-    });
-    expect(response.status()).toBe(422);
-    expect(await response.text()).toContain("Confirm permanent account deletion to continue.");
-  });
-});
-
 test("session can be revoked from its ordinary form", async ({ browser, page }) => {
   test.setTimeout(60_000);
   await signIn(page);

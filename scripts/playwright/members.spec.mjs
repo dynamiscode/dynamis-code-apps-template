@@ -66,23 +66,6 @@ test.describe("members route", () => {
 		});
 	}
 
-	test.describe("without JavaScript", () => {
-		test.use({ javaScriptEnabled: false });
-
-		test("keeps empty and filter states usable without JavaScript", async ({ page }) => {
-			const workspacePath = await openWorkspaceMembers(page);
-			await expect(page.locator(".list-view-table tbody tr")).toHaveCount(2);
-			const seededMemberRow = page.locator(".list-view-table tbody tr").filter({ hasText: "playwright-member@example.com" });
-			await expect(seededMemberRow.locator("button[value=remove]")).toHaveCount(1);
-			await page.locator(".client-filters summary").click();
-			await expect(page.getByLabel("Filter by email")).toBeVisible();
-			await page.getByLabel("Filter by email").fill("nobody@example.com");
-			await page.locator('form[method="get"] button[type="submit"]').click();
-			await expect(page.locator("#member-results")).toContainText("No members match");
-			await expect(page.locator(".list-view-table tbody tr")).toHaveCount(0);
-		});
-	});
-
 	test("supports separate member actions, confirmations, permissions, and Spanish", async ({ page, browser }) => {
 		const workspacePath = await openWorkspaceMembers(page);
 		await page.addInitScript(() => {

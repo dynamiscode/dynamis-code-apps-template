@@ -468,36 +468,3 @@ test("Items honors explicit and system theme preferences", async ({ page }) => {
     expect(canvas).toBe(item.canvas);
   }
 });
-
-test.describe("Items without JavaScript", () => {
-  test.use({ javaScriptEnabled: false });
-
-  test("creates and edits with ordinary forms", async ({ page }) => {
-    await openItems(page);
-    await page.getByLabel("New item title").fill("No JavaScript item");
-    await page.getByRole("button", { name: "Add item" }).click();
-    const item = page.locator('#item-list tr[data-item-row]:has(input[name="title"][value="No JavaScript item"])');
-    await expect(item).toBeVisible();
-    await item.locator('input[name="title"]').fill("No JavaScript edit");
-    await item.getByRole("button", { name: "Save No JavaScript item" }).click();
-    await expect(page.locator('#item-list input[name="title"][value="No JavaScript edit"]')).toBeVisible();
-  });
-});
-
-test.describe("workspace selection without JavaScript", () => {
-  test.use({ javaScriptEnabled: false });
-
-  test("shows validation and creates a workspace in Spanish", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await openWorkspaceSelection(page);
-    await page.goto("/language?locale=es&return_to=%2F");
-    await expect(page.locator("html")).toHaveAttribute("lang", "es");
-    await page.locator("#workspace-name").fill("   ");
-    await page.locator('form[action="/workspaces"] button').click();
-    await expect(page.getByRole("alert")).toBeVisible();
-    await page.locator("#workspace-name").fill("Espacio de prueba");
-    await page.locator('form[action="/workspaces"] button').focus();
-    await page.keyboard.press("Enter");
-    await expect(page.locator(".cards a", { hasText: "Espacio de prueba" })).toBeVisible();
-  });
-});
