@@ -19,7 +19,13 @@ jobs:
     needs: [go-verify, go-race]
     runs-on: ubuntu-24.04
     steps:
-      - run: test '${{ needs.go-verify.result }}' = success && test '${{ needs.go-race.result }}' = success
+      - name: Require go-race on merge queue and main
+        run: |
+          test '${{ needs.go-verify.result }}' = success
+          case '${{ github.event_name }}' in
+            pull_request) test '${{ needs.go-race.result }}' = success || test '${{ needs.go-race.result }}' = skipped ;;
+            *) test '${{ needs.go-race.result }}' = success ;;
+          esac
 
   go-verify:
     runs-on: ubuntu-24.04
@@ -45,6 +51,7 @@ jobs:
       - run: make lint test deps-check workflow-check generate-check templ-check css-check build template-smoke
 
   go-race:
+    if: github.event_name == 'merge_group' || github.event_name == 'push'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -55,6 +62,7 @@ jobs:
       - run: make race
 
   postgres:
+    if: github.event_name == 'merge_group' || github.event_name == 'push'
     runs-on: ubuntu-24.04
     services:
       postgres:
@@ -94,6 +102,12 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - id: playwright-version
+        run: echo "version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
       - run: npx playwright install --with-deps chrome
       - run: make browser-smoke
       - if: failure()
