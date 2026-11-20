@@ -56,6 +56,10 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	code := m.Run()
+	if code != 0 && serverLog != nil {
+		fmt.Fprintln(os.Stderr, "--- main server log ---")
+		fmt.Fprintln(os.Stderr, serverLog.String())
+	}
 	cleanup()
 	os.Exit(code)
 }
@@ -88,6 +92,11 @@ func startFixtures() (func(), error) {
 		"server":          "./cmd/server",
 		"bootstrap-admin": "./cmd/bootstrap-admin",
 		"seed-member":     "./scripts/playwright/seed-member",
+	}
+	oidcBuild := exec.Command("go", "build", "-tags", "oidcfixture", "-o", filepath.Join(dir, "oidc-fixture"), "./internal/web/testdata/oidcfixture")
+	oidcBuild.Dir = repoRoot
+	if out, err := oidcBuild.CombinedOutput(); err != nil {
+		return fail(fmt.Errorf("build oidc-fixture: %w\n%s", err, out))
 	}
 	for name, pkg := range binaries {
 		build := exec.Command("go", "build", "-o", filepath.Join(dir, name), pkg)
@@ -123,7 +132,8 @@ func startFixtures() (func(), error) {
 		"HTTP_SSE_MAX_LIFETIME=5m", fmt.Sprintf("HTTP_ADDRESS=127.0.0.1:%d", port)}
 	server := exec.Command(filepath.Join(dir, "server"))
 	server.Env = serverEnv
-	server.Stdout, server.Stderr = &bytes.Buffer{}, &bytes.Buffer{}
+	serverLog = &bytes.Buffer{}
+	server.Stdout, server.Stderr = serverLog, serverLog
 	if err := server.Start(); err != nil {
 		return fail(err)
 	}
@@ -133,6 +143,49 @@ func startFixtures() (func(), error) {
 	})
 	baseURL = fmt.Sprintf("http://127.0.0.1:%d", port)
 	if err := waitReady(baseURL + "/health/ready"); err != nil {
+		return fail(err)
+	}
+
+	// The OIDC fixture is a separate server with its own database.
+	oidcPort, err := freePort()
+	if err != nil {
+		return fail(err)
+	}
+	oidc := exec.Command(filepath.Join(dir, "oidc-fixture"))
+	oidc.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + dir, "TMPDIR=" + dir,
+		fmt.Sprintf("OIDC_FIXTURE_ADDRESS=127.0.0.1:%d", oidcPort), "OIDC_FIXTURE_DATABASE=" + filepath.Join(dir, "oidc-fixture.db")}
+	oidc.Stdout, oidc.Stderr = &bytes.Buffer{}, &bytes.Buffer{}
+	if err := oidc.Start(); err != nil {
+		return fail(err)
+	}
+	cleanups = append(cleanups, func() {
+		_ = oidc.Process.Kill()
+		_, _ = oidc.Process.Wait()
+	})
+	oidcURL = fmt.Sprintf("http://127.0.0.1:%d", oidcPort)
+	if err := waitReady(oidcURL + "/health/ready"); err != nil {
+		return fail(err)
+	}
+
+	// The setup server starts with an empty database, so the first-owner wizard is open.
+	setupPort, err := freePort()
+	if err != nil {
+		return fail(err)
+	}
+	setupEnv := append(append([]string{}, serverEnv...), "SQLITE_PATH="+filepath.Join(dir, "setup.db"),
+		"STORAGE_LOCAL_PATH="+filepath.Join(dir, "setup-files"), fmt.Sprintf("HTTP_ADDRESS=127.0.0.1:%d", setupPort))
+	setup := exec.Command(filepath.Join(dir, "server"))
+	setup.Env = setupEnv
+	setup.Stdout, setup.Stderr = &bytes.Buffer{}, &bytes.Buffer{}
+	if err := setup.Start(); err != nil {
+		return fail(err)
+	}
+	cleanups = append(cleanups, func() {
+		_ = setup.Process.Kill()
+		_, _ = setup.Process.Wait()
+	})
+	setupURL = fmt.Sprintf("http://127.0.0.1:%d", setupPort)
+	if err := waitReady(setupURL + "/health/ready"); err != nil {
 		return fail(err)
 	}
 
@@ -169,7 +222,7 @@ func waitReady(url string) error {
 		response, err := http.Get(url)
 		if err == nil {
 			response.Body.Close()
-			if response.StatusCode == http.StatusOK {
+			if response.StatusCode >= 200 && response.StatusCode < 300 {
 				return nil
 			}
 		}
@@ -186,6 +239,8 @@ func startChrome() (context.Context, func(), error) {
 		chromedp.NoFirstRun,
 		chromedp.NoDefaultBrowserCheck,
 		chromedp.WindowSize(1280, 900),
+		// The OIDC fixture redirects to an HTTPS origin, as the Playwright suite allowed.
+		chromedp.Flag("ignore-certificate-errors", true),
 	}
 	if path := chromePath(); path != "" {
 		opts = append(opts, chromedp.ExecPath(path))
@@ -424,3 +479,9 @@ func settle(t *testing.T, tab context.Context) {
 		time.Sleep(50 * time.Millisecond)
 	}
 }
+
+// oidcURL and setupURL are the OIDC fixture and the empty-database setup server.
+var oidcURL, setupURL string
+
+// serverLog collects the main server's output, printed when a run fails.
+var serverLog *bytes.Buffer
