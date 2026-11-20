@@ -107,6 +107,7 @@ func startFixtures() (func(), error) {
 	}
 
 	appDB := filepath.Join(dir, "app.db")
+	appDBFile = appDB
 	// membersDB is a copy of the seeded database, so the unkeyed server starts from the same data.
 	membersDB := filepath.Join(dir, "members.db")
 	membersDBFile = membersDB
@@ -525,3 +526,6 @@ var membersURL string
 
 // membersDBFile is the unkeyed server's database, for fixtures that write to it directly.
 var membersDBFile string
+
+// appDBFile is the main server's database, for fixtures that inspect it.
+var appDBFile string

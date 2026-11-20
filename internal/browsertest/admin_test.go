@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/chromedp/cdproto/page"
-	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	_ "modernc.org/sqlite"
 )
@@ -93,30 +92,37 @@ func TestNotificationsKeyboardAndSpanishNavigation(t *testing.T) {
 }
 
 // TestNotificationsReplayAfterNativeLifetimeReconnect ports the replay test. The unkeyed
-// server ends its event streams after five seconds; the browser reconnects and replays the
-// notification written while the stream was closed.
+// server ends its event streams after one minute, the configured minimum. The page's
+// EventSource reports the ended stream as an error and reconnects with its cursor. A notification
+// written while the stream is closed must be replayed to the page and counted.
 func TestNotificationsReplayAfterNativeLifetimeReconnect(t *testing.T) {
 	tab := newTab(t, 1280, 900, "")
-	db, err := sql.Open("sqlite", membersDBFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	_ = chromedp.Listen(tab, func(ev any) {
-		if called, ok := ev.(*runtime.EventBindingCalled); ok && called.Name == "notificationLifetimeClosed" {
-			_, _ = db.Exec(`INSERT INTO notifications (user_id, workspace_id, notification_type, title, body, created_at)
-				SELECT u.id, wm.workspace_id, 'system', 'Reconnect after lifetime', 'Replay body', strftime('%Y-%m-%dT%H:%M:%fZ','now')
-				FROM users u JOIN workspace_members wm ON wm.user_id=u.id WHERE u.email=? LIMIT 1`, fixtureOwnerEmail)
-		}
-	})
-	call(t, tab, runtime.AddBinding, runtime.AddBindingParams{Name: "notificationLifetimeClosed"})
-	script := `(() => { const NativeEventSource = window.EventSource; window.EventSource = class extends NativeEventSource { constructor(...args) { super(...args); this.addEventListener("close", () => window.notificationLifetimeClosed()); } }; })();`
+	script := `(() => { window.__esErrors = 0; const NativeEventSource = window.EventSource; window.EventSource = class extends NativeEventSource { constructor(...args) { super(...args); this.addEventListener("error", () => { window.__esErrors++; }); } }; })();`
 	call(t, tab, page.AddScriptToEvaluateOnNewDocument, page.AddScriptToEvaluateOnNewDocumentParams{Source: script})
 	signInOn(t, tab, membersURL)
 	navigateTo(t, tab, membersURL+"/notifications")
 	waitVisible(t, tab, "[data-notification-cursor]")
 	eventually(t, tab, `document.querySelector("[data-unread-count]")?.textContent.trim() === "0"`, "unread count did not start at zero")
-	eventuallyWithin(t, tab, `document.querySelector("[data-unread-count]")?.textContent.trim() === "1"`, "replayed notification not counted", 90*time.Second)
+
+	// Wait for the stream to end, then write the notification while no stream is open.
+	deadline := time.Now().Add(100 * time.Second)
+	for eval[int](t, tab, `window.__esErrors`) == 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("event stream did not end within its lifetime")
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	db, err := sql.Open("sqlite", membersDBFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`INSERT INTO notifications (user_id, workspace_id, notification_type, title, body, created_at)
+		SELECT u.id, wm.workspace_id, 'system', 'Reconnect after lifetime', 'Replay body', strftime('%Y-%m-%dT%H:%M:%fZ','now')
+		FROM users u JOIN workspace_members wm ON wm.user_id=u.id WHERE u.email=? LIMIT 1`, fixtureOwnerEmail); err != nil {
+		t.Fatalf("write notification: %v", err)
+	}
+	eventuallyWithin(t, tab, `document.querySelector("[data-unread-count]")?.textContent.trim() === "1"`, "replayed notification not counted", 30*time.Second)
 }
 
 // signInOn signs the owner in on the origin without navigating away from the origin's login page.

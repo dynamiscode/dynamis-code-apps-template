@@ -403,7 +403,10 @@ func TestItemsSharingCreatesAndRevokesPublicLink(t *testing.T) {
 	eval[any](t, tab, fmt.Sprintf(`(() => { const row = %s; const revoke = row.querySelector('form button[value="revoke"]'); for (let menu = revoke.closest("details"); menu; menu = menu.parentElement?.closest("details")) menu.open = true; window.__bt = 1; revoke.click(); })()`, itemRowExpr(title)))
 	settle(t, tab)
 	navigate(t, tab, shareURL[len(baseURL):])
-	eventually(t, tab, `[...document.querySelectorAll("h1")].some((h) => /unavailable|no disponible/i.test(h.textContent))`, "revoked share not unavailable")
+	if status := responseStatus(t, tab, shareURL); status != 404 {
+		t.Fatalf("revoked share status %d, want 404", status)
+	}
+	eventually(t, tab, `[...document.querySelectorAll("h1, h2, h3")].some((h) => /unavailable|no disponible/i.test(h.textContent))`, "revoked share has no unavailable heading")
 }
 
 // TestItemsSearchHistoryNavigation ports the Items query history test. The search field
