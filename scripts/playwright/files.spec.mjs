@@ -180,40 +180,6 @@ test("upload reports byte progress, recovers from failure, and retries", async (
   await expect(visibleDownload(page, "retry-upload.txt")).toBeVisible();
 });
 
-test.describe("Files without JavaScript", () => {
-  test.use({ javaScriptEnabled: false });
-
-  test("native upload, filtering, and localized validation work", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    const workspacePath = await openFiles(page);
-    const options = page.locator("details.client-filters");
-    if (!(await options.locator("form").isVisible())) await options.locator("summary").click();
-    await page.locator("#file-upload").setInputFiles({
-      name: "native-upload.txt",
-      mimeType: "text/plain",
-      buffer: Buffer.from("native upload"),
-    });
-    await page.locator('.file-upload-form button[type="submit"]').click();
-    await expect(visibleDownload(page, "native-upload.txt")).toBeVisible();
-
-    const optionsAfterUpload = page.locator("details.client-filters");
-    if (!(await optionsAfterUpload.locator("form").isVisible())) await optionsAfterUpload.locator("summary").click();
-    await page.locator('input[name="search"]').fill("missing-file");
-    await page.locator('.client-query button[type="submit"]').click();
-    await expect(page.getByText("No files yet.", { exact: true })).toBeVisible();
-
-    const filesPath = `${workspacePath}/files`;
-    await page.goto(`/language?locale=es&return_to=${encodeURIComponent(filesPath)}`);
-    await page.locator("#file-upload").setInputFiles({
-      name: "unsupported.exe",
-      mimeType: "application/octet-stream",
-      buffer: Buffer.from("unsupported"),
-    });
-    await page.locator('.file-upload-form button[type="submit"]').click();
-    await expect(page.getByRole("alert")).toContainText("El archivo seleccionado no es válido.");
-  });
-});
-
 test("read-only viewer lists and downloads files without upload controls", async ({ browser, page }) => {
   const workspacePath = await openFiles(page);
   await page.locator("#file-upload").setInputFiles({

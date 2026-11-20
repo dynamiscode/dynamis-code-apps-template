@@ -163,33 +163,3 @@ test.describe("webhook registry viewport screenshots", () => {
     });
   }
 });
-
-test.describe("webhook delete without JavaScript", () => {
-  test.use({ javaScriptEnabled: false });
-
-  test("requires the native confirmation checkbox before deletion", async ({ page }) => {
-    test.setTimeout(30_000);
-    const workspacePath = await openWorkspace(page);
-    const fixtureName = `No-JS fixture ${Date.now()}`;
-    await createWebhook(page, workspacePath, fixtureName, "http://localhost:58123/hook");
-    await page.goto(`${workspacePath}/settings/webhooks`);
-    const card = page.locator(".webhook-card").filter({ hasText: fixtureName });
-    const historyPath = await card.locator('a[href$="/deliveries"]').getAttribute("href");
-    const emptyHistory = await page.goto(historyPath);
-    expect(emptyHistory.headers()["cache-control"]).toBe("no-store");
-    await expect(page.getByText("No deliveries yet.")).toBeVisible();
-    await page.goto(`${workspacePath}/settings/webhooks`);
-    const reloadedCard = page.locator(".webhook-card").filter({ hasText: fixtureName });
-    const confirm = reloadedCard.getByRole("checkbox");
-    expect(await confirm.evaluate((element) => element.required)).toBe(true);
-    expect(await confirm.evaluate((element) => element.checkValidity())).toBe(false);
-    await reloadedCard.getByRole("button", { name: "Delete webhook" }).click();
-    await expect(reloadedCard).toBeVisible();
-    await confirm.check();
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: "load" }),
-      reloadedCard.getByRole("button", { name: "Delete webhook" }).click(),
-    ]);
-    await expect(reloadedCard).toHaveCount(0);
-  });
-});

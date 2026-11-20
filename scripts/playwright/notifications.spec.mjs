@@ -59,28 +59,6 @@ test("notifications keep keyboard and Spanish no-JavaScript navigation", async (
   await expect(page.getByRole("heading", { name: "Notificaciones", exact: true })).toBeVisible();
 });
 
-test.describe("notifications fallback without JavaScript", () => {
-  test.use({ javaScriptEnabled: false });
-
-  test("shows the empty state and reload link in Spanish", async ({ page }) => {
-    await openNotifications(page);
-    await page.goto("/language?locale=es&return_to=%2Fnotifications");
-    await expect(page.locator("html")).toHaveAttribute("lang", "es");
-    await expect(page.getByRole("heading", { name: "No hay notificaciones." })).toBeVisible();
-    await page.getByRole("link", { name: "Actualizar notificaciones" }).click();
-    await expect(page.getByRole("heading", { name: "No hay notificaciones." })).toBeVisible();
-  });
-
-  test("marks a notification read without JavaScript", async ({ page }) => {
-    test.skip(process.env.PLAYWRIGHT_NOTIFICATION_SEEDED !== "1", "requires disposable SQLite fixture");
-    await openNotifications(page);
-    await expect(page.getByRole("heading", { name: "Playwright notification" })).toBeVisible();
-    await page.getByRole("button", { name: "Mark as read" }).click();
-    await expect(page.getByText("read", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Mark as read" })).toHaveCount(0);
-  });
-});
-
 test("replays a gap after native lifetime reconnect", async ({ page }) => {
   test.skip(process.env.PLAYWRIGHT_NOTIFICATION_RECONNECT !== "1", "requires disposable SQLite and short SSE lifetime");
   test.setTimeout(90_000);

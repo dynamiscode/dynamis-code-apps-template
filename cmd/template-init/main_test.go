@@ -358,7 +358,7 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		"internal/web/templates/clients.html", "internal/web/templates/client.html",
 		"internal/platform/database/migrations/000022_clients.sql",
 		"internal/platform/database/migrations/000024_client_events.sql",
-		"internal/web/clients_events.go",
+		"internal/web/clients_events.go", "internal/web/clients_no_javascript_test.go",
 		"internal/mcpserver/clients.go", "internal/mcpserver/clients_test.go",
 		"internal/appctl/clients_test.go",
 	} {

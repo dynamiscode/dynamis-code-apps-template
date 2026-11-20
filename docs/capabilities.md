@@ -8,7 +8,7 @@ Scope: route families represented by the six migration commits on this branch:
 workspace/home and Items (#402), clients and custom fields (#403), members and
 invitations (#405), workspace settings (#406), account/security (#407), and
 public/share/error routes (#409). Browser runs:
-`sh scripts/playwright-smoke.sh ui.spec.mjs clients-list.spec.mjs files.spec.mjs members.spec.mjs invitations.spec.mjs settings.spec.mjs notifications.spec.mjs`
+`sh scripts/playwright-smoke.sh ui.spec.mjs clients-list.spec.mjs files.spec.mjs members.spec.mjs settings.spec.mjs notifications.spec.mjs`
 and `sh scripts/playwright-smoke.sh account.spec.mjs`.
 
 - Passed: 113 browser tests; 2 notification tests skipped by their own fixture/condition. Home, Items, Clients, and Files rendered in the shared authenticated shell. Screenshots covered desktop/mobile and light/dark for Home, Items, Clients, and Files.
@@ -873,7 +873,7 @@ visibility, translated script messages, and logout CSRF escaping.
 ## Account and public journey evidence (#453, 2026-11-17)
 
 - Passed: `./scripts/playwright-smoke.sh --grep 'account and security pages|profile preference persists|profile saves and account deletion|session can be revoked'` (7 checks). Account, language, security, and session routes render across English/Spanish, desktop/mobile, and light/dark themes; profile persistence, ordinary-form deletion safeguards, and active-session revocation pass.
-- Existing coverage: `scripts/accessibility.mjs` audits setup, sign-in, MFA, verification, recovery, account, language, security, sessions, public share, and MCP consent. `scripts/playwright/password-reset.spec.mjs` and `scripts/playwright/invitations.spec.mjs` cover password recovery and invitation acceptance.
+- Existing coverage: `scripts/accessibility.mjs` audits setup, sign-in, MFA, verification, recovery, account, language, security, sessions, public share, and MCP consent. `scripts/playwright/password-reset.spec.mjs` covers password recovery. Invitation acceptance without JavaScript is in `internal/web/no_javascript_journeys_test.go`.
 - Gaps: browser screenshots and an expired-session browser fixture remain uncovered; automated accessibility checks do not replace assistive-technology review.
 
 ## Account browser follow-up evidence (#453, 2026-11-17)

@@ -21,61 +21,6 @@ async function openAdminWorkspace(page, baseURL = process.env.PLAYWRIGHT_BASE_UR
   return new URL(page.url()).pathname;
 }
 
-async function downloadWorkspaceExport(page, workspacePath) {
-  const response = await page.request.get(`${workspacePath}/settings/export/download`);
-  expect(response.status()).toBe(200);
-  expect(response.headers()["cache-control"]).toContain("no-store");
-  expect(response.headers()["content-type"]).toContain("application/json");
-  return response.json();
-}
-
-test.describe("workspace administration and data", () => {
-  test.use({ javaScriptEnabled: false });
-
-  test("export, preview, reject invalid input, and confirm import with ordinary forms", async ({ page }) => {
-    const workspacePath = await openAdminWorkspace(page);
-    const before = await downloadWorkspaceExport(page, workspacePath);
-    expect(before.formatVersion).toBe("dynamis-code.workspace/v1");
-
-    await page.goto(`${workspacePath}/settings/import`);
-    const privateTitle = `Do not echo ${Date.now()}`;
-    await page.locator("#import-file").setInputFiles({
-      name: "invalid.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from(`title,status\n${privateTitle},unknown\n`),
-    });
-    await page.locator('form.import-preview-form button[type="submit"]').click();
-    await expect(page.locator(".import-preview-errors")).toContainText(/Record 1|Registro 1/i);
-    await expect(page.locator(".import-preview-errors")).not.toContainText(privateTitle);
-
-    const title = `Browser import ${Date.now()}`;
-    const csv = `title,status\n${title},active\n`;
-    await page.locator("#import-file").setInputFiles({
-      name: "items.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from(csv),
-    });
-    await page.locator('form.import-preview-form button[type="submit"]').click();
-    await expect(page.locator("#import-preview-heading")).toBeVisible();
-    await expect(page.locator(".import-preview")).toContainText(title);
-    await expect(page.locator(".import-confirm-form")).toBeVisible();
-    const previewExport = await downloadWorkspaceExport(page, workspacePath);
-    expect(previewExport.items.some((item) => item.title === title)).toBe(false);
-
-    await page.locator("#import-confirm-file").setInputFiles({
-      name: "items.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from(csv),
-    });
-    await page.locator("#import-confirm").check();
-    await page.locator('.import-confirm-form button[type="submit"]').click();
-    await expect(page).toHaveURL(/\/settings\/import\?imported=1$/);
-    await expect(page.getByRole("status")).toContainText("1");
-    const importedExport = await downloadWorkspaceExport(page, workspacePath);
-    expect(importedExport.items.some((item) => item.title === title)).toBe(true);
-  });
-});
-
 test.describe("unconfigured webhook encryption", () => {
   test.use({ baseURL: process.env.PLAYWRIGHT_MEMBERS_BASE_URL });
 
