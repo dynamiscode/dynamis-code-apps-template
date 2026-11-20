@@ -2,77 +2,23 @@ package web
 
 import (
 	"errors"
-	"net/http"
-	"net/url"
-	"slices"
-	"strconv"
-	"strings"
-	"time"
-
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
+	"example.com/dynamis-code/apps-template/internal/listviews"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 )
 
-type memberListQuery struct {
-	Email  string
-	Role   string
-	Sort   string
-	Limit  int
-	Cursor string
-}
-
-func memberListColumns() []clientListColumn {
-	return []clientListColumn{
-		{Key: "id", LabelKey: "members.id", ValueType: "text", DefaultVisible: true},
-		{Key: "email", LabelKey: "common.email", ValueType: "text", DefaultVisible: true},
-		{Key: "role", LabelKey: "members.role", ValueType: "text", DefaultVisible: true},
-		{Key: "created_at", LabelKey: "clients.created_at", ValueType: "timestamp"},
+func memberListColumns() []viewmodel.ListColumn {
+	return []viewmodel.ListColumn{
+		{Key: "id", LabelKey: "ui.id"},
+		{Key: "email", LabelKey: "common.email", DefaultVisible: true},
+		{Key: "role", LabelKey: "members.role", DefaultVisible: true},
+		{Key: "created_at", LabelKey: "clients.created_at"},
 	}
-}
-
-func parseMemberListQuery(values url.Values, defaultLimit int) (memberListQuery, bool) {
-	form := memberListQuery{Email: strings.TrimSpace(values.Get("email")), Role: values.Get("role"), Sort: values.Get("sort")}
-	for key, entries := range values {
-		if len(entries) != 1 {
-			return form, false
-		}
-		switch key {
-		case "email", "role", "sort":
-		case "limit":
-			if entries[0] == "" {
-				continue
-			}
-			limit, err := strconv.Atoi(entries[0])
-			if err != nil || limit < 1 || limit > 100 {
-				return form, false
-			}
-			form.Limit = limit
-		case "cursor":
-			form.Cursor = entries[0]
-			if form.Cursor == "" {
-				return form, false
-			}
-		default:
-			return form, false
-		}
-	}
-	if form.Role != "" && form.Role != "owner" && form.Role != "admin" && form.Role != "member" && form.Role != "viewer" {
-		return form, false
-	}
-	if len(form.Email) > 320 || len(form.Cursor) > 64 {
-		return form, false
-	}
-	if form.Sort == "" {
-		form.Sort = "email"
-	}
-	if form.Sort != "email" && form.Sort != "-email" && form.Sort != "role" && form.Sort != "-role" &&
-		form.Sort != "created_at" && form.Sort != "-created_at" {
-		return form, false
-	}
-	if form.Cursor != "" && form.Limit == 0 {
-		form.Limit = defaultLimit
-	}
-	return form, true
 }
 
 func (h *Handler) renderMembersList(writer http.ResponseWriter, request *http.Request) {
@@ -93,25 +39,25 @@ func (h *Handler) renderMembersList(writer http.ResponseWriter, request *http.Re
 	}
 	members = filterAndSortMembers(members, query)
 	total := len(members)
-	if query.Cursor != "" {
-		index := slices.IndexFunc(members, func(member identity.MemberSummary) bool { return member.ID.String() == query.Cursor })
-		if index < 0 {
-			h.renderError(writer, http.StatusBadRequest)
-			return
-		}
-		members = members[index+1:]
+	page := max(query.Page, 1)
+	if query.Limit > 0 {
+		from := min((page-1)*query.Limit, len(members))
+		to := min(from+query.Limit, len(members))
+		members = members[from:to]
 	}
-	var nextCursor string
-	if query.Limit > 0 && len(members) > query.Limit {
-		members = members[:query.Limit]
-		nextCursor = members[len(members)-1].ID.String()
-	}
+	start := listStart(page, query.Limit)
 	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
 	if err != nil {
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
 	columns := memberListColumns()
+	var orderErr error
+	columns, orderErr = h.orderListColumns(request, principal, workspaceID, listprefs.ListMembers, columns)
+	if orderErr != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	}
 	defaults := make(map[string]bool, len(columns))
 	for _, column := range columns {
 		defaults[column.Key] = column.DefaultVisible
@@ -135,89 +81,58 @@ func (h *Handler) renderMembersList(writer http.ResponseWriter, request *http.Re
 		}
 	}
 	rows := memberListRows(members)
-	filterChips := memberFilterChips(query, request.URL.Query(), request.URL.Path)
-	nextPath := ""
-	if nextCursor != "" {
-		next := cloneClientQuery(request.URL.Query())
-		next.Set("cursor", nextCursor)
-		nextPath = request.URL.Path + "?" + next.Encode()
-	}
+	filterView := buildListFilterView(request.URL.Path, request.URL.Query(), memberFilterFields, query.Filter)
+	pager := newListPager(request.URL.Path, request.URL.Query(), page, query.Limit, total)
 	formValues := cloneClientQuery(request.URL.Query())
-	formValues.Del("cursor")
+	formValues.Del("page")
 	querySuffix := ""
 	if encoded := formValues.Encode(); encoded != "" {
 		querySuffix = "?" + encoded
 	}
-	clear := cloneClientQuery(request.URL.Query())
-	clear.Del("email")
-	clear.Del("role")
-	clear.Del("cursor")
-	clearHref := request.URL.Path
-	if encoded := clear.Encode(); encoded != "" {
-		clearHref += "?" + encoded
+	if h.openDefaultListView(writer, request, listviews.ListMembers, principal, workspaceID) {
+		return
 	}
-	h.render(writer, http.StatusOK, "members.html", pageData{
-		Title: "Members", NavPage: "members", NavSection: "settings", CSRF: csrf,
+	view := h.listViewState(request, principal, workspaceID, listviews.ListMembers, false)
+	h.render(writer, http.StatusOK, "members.html", viewmodel.PageData{
+		Title: "Members", TopbarTitleKey: "members.members", NavPage: "members", NavSection: "settings", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces, Members: members,
 		CanManage: principal.Permissions[identity.MembersManage], CanTransfer: principal.Permissions[identity.OwnershipTransfer],
-		CurrentPath: request.URL.Path, MemberTotal: total, NextCursor: nextCursor, NextPath: nextPath,
-		ClientListColumns: columns, ClientListRows: rows, ClientFilterChips: filterChips,
-		HasVisibleClientColumns: hasVisibleClientColumns(visible), HasClientFilters: query.Email != "" || query.Role != "",
-		ClearClientFiltersPath: clearHref, ClientQuerySuffix: querySuffix, IsMembersList: true,
-		MemberListQuery: query,
+		CurrentPath: request.URL.Path, MemberTotal: total, ListPager: pager,
+		ListColumns: columns, ListRows: rows, ListTotal: total, ListStart: start, Filter: filterView,
+		HasVisibleClientColumns: hasVisibleClientColumns(visible), HasClientFilters: len(query.Filter.Filters) > 0,
+		ClearClientFiltersPath: filterView.ClearHref, ClientQuerySuffix: querySuffix, IsMembersList: true,
+		MemberListQuery: query, ListSearch: query.Search, ListPreservedQuery: filterView.Preserved,
+		ListLive: true, ListFragment: listResultsFragment(request), ListViews: view.Views, ListViewQuery: view.Query, ListViewBase: view.Base, ListViewRoute: view.Route, ListViewCanShare: view.CanShare, ListViewSaveReason: view.SaveReason,
 	})
 }
 
-func filterAndSortMembers(members []identity.MemberSummary, query memberListQuery) []identity.MemberSummary {
+func filterAndSortMembers(members []identity.MemberSummary, query viewmodel.MemberListQuery) []identity.MemberSummary {
 	filtered := make([]identity.MemberSummary, 0, len(members))
 	for _, member := range members {
-		if query.Email != "" && !strings.Contains(strings.ToLower(member.Email), strings.ToLower(query.Email)) {
+		if query.Search != "" && !identity.MemberSearchMatches(member, query.Search) {
 			continue
 		}
-		if query.Role != "" && string(member.Role) != query.Role {
-			continue
+		if matchListFilters(query.Filter.Filters, query.Filter.Match, func(filter viewmodel.ListFilter) bool {
+			return memberMatchesFilter(member, filter)
+		}) {
+			filtered = append(filtered, member)
 		}
-		filtered = append(filtered, member)
 	}
-	descending := strings.HasPrefix(query.Sort, "-")
-	field := strings.TrimPrefix(query.Sort, "-")
-	slices.SortFunc(filtered, func(a, b identity.MemberSummary) int {
-		var order int
-		switch field {
-		case "role":
-			order = strings.Compare(string(a.Role), string(b.Role))
-		case "created_at":
-			if a.CreatedAt.Before(b.CreatedAt) {
-				order = -1
-			} else if a.CreatedAt.After(b.CreatedAt) {
-				order = 1
-			}
-		default:
-			order = strings.Compare(strings.ToLower(a.Email), strings.ToLower(b.Email))
-		}
-		if order == 0 {
-			order = strings.Compare(a.ID.String(), b.ID.String())
-		}
-		if descending {
-			return -order
-		}
-		return order
-	})
-	return filtered
+	return identity.SortMembers(filtered, query.Sort)
 }
 
-func memberListRows(members []identity.MemberSummary) []clientListRow {
-	rows := make([]clientListRow, 0, len(members))
+func memberListRows(members []identity.MemberSummary) []viewmodel.ListRow {
+	rows := make([]viewmodel.ListRow, 0, len(members))
 	for index, member := range members {
-		rows = append(rows, clientListRow{ID: member.ID.String(), Member: member, ActionContext: member.Email, ActionPosition: index + 1,
-			Values: map[string]string{"id": member.ID.String(), "email": member.Email, "role": string(member.Role), "created_at": member.CreatedAt.Format(time.RFC3339)}})
+		rows = append(rows, viewmodel.ListRow{ID: member.ID.String(), Member: member, ActionContext: member.Email, ActionPosition: index + 1,
+			Cells: map[string]viewmodel.ListCell{"email": viewmodel.TextCell(member.Email), "role": viewmodel.RoleCell(member.Role), "created_at": viewmodel.TimeCell(member.CreatedAt)}})
 	}
 	return rows
 }
 
 func memberSortHref(path string, query url.Values, key string) string {
 	copy := cloneClientQuery(query)
-	copy.Del("cursor")
+	copy.Del("page")
 	current := query.Get("sort")
 	if current == "" {
 		current = "email"
@@ -228,27 +143,6 @@ func memberSortHref(path string, query url.Values, key string) string {
 		copy.Set("sort", key)
 	}
 	return path + "?" + copy.Encode()
-}
-
-func memberFilterChips(query memberListQuery, values url.Values, path string) []clientFilterChip {
-	var chips []clientFilterChip
-	for _, filter := range []struct{ key, value, label, operator string }{
-		{"email", query.Email, "common.email", "clients.op_contains"},
-		{"role", query.Role, "members.role", "clients.op_equals"},
-	} {
-		if filter.value == "" {
-			continue
-		}
-		copy := cloneClientQuery(values)
-		copy.Del(filter.key)
-		copy.Del("cursor")
-		href := path
-		if encoded := copy.Encode(); encoded != "" {
-			href += "?" + encoded
-		}
-		chips = append(chips, clientFilterChip{FieldLabelKey: filter.label, OperatorLabelKey: filter.operator, Value: filter.value, RemoveHref: href})
-	}
-	return chips
 }
 
 func (h *Handler) setMemberColumn(writer http.ResponseWriter, request *http.Request) {
@@ -303,5 +197,5 @@ func (h *Handler) memberColumnPreference(writer http.ResponseWriter, request *ht
 		}
 		return
 	}
-	h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/settings/members"+clientQuerySuffix(request.URL.Query()))
+	h.afterListChange(writer, request, "/workspaces/"+workspaceID.String()+"/settings/members"+clientQuerySuffix(request.URL.Query()), h.rerenderMembers)
 }

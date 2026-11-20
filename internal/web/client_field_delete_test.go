@@ -1,12 +1,11 @@
 package web
 
 import (
+	"example.com/dynamis-code/apps-template/internal/clients"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
-
-	"example.com/dynamis-code/apps-template/internal/clients"
 )
 
 // TestArchivedFieldIsPermanentlyDeletedThroughForms covers the custom-fields

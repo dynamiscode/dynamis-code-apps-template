@@ -3,14 +3,13 @@ package web
 import (
 	"bufio"
 	"context"
+	"example.com/dynamis-code/apps-template/internal/identity"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
-
-	"example.com/dynamis-code/apps-template/internal/identity"
 )
 
 func TestNotificationSSELifetimeReconnectReplaysAfterLastEvent(t *testing.T) {

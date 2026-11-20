@@ -16,7 +16,7 @@ filesystem, code execution, or external networks.
 
 | Tool | Scope | Safety |
 |---|---|---|
-| `items_list_v1` | `resources:read` | read-only, idempotent, closed-world; bounded search, limit 1-100, and opaque cursor |
+| `items_list_v1` | `resources:read` | read-only, idempotent, closed-world; bounded search, limit 1-100, and page number |
 | `items_get_v1` | `resources:read` | read-only, idempotent, closed-world |
 | `items_create_v1` | `resources:write` | additive, idempotent with caller key, closed-world |
 | `items_update_v1` | `resources:write` | destructive, idempotent with version, closed-world, MRTR confirmation |
@@ -59,8 +59,8 @@ item delete.
   found, as REST answers it.
 - `clients_list_v1` takes `archived` (`active`, `archived`, or `all`), one
   `sort` (`field` or `-field`), up to 10 `filters` of `{field, op, value}`
-  (AND-combined), a limit of 1 to 100, and an opaque cursor. The cursor binds
-  the sort, filters, and archived selector.
+  (AND-combined), a limit of 1 to 100, and a 1-based page. The output carries
+  `total` and the `page` returned.
 - `clients_update_v1` needs `version` and at least one of `displayName`,
   `email`, `phone`, or `notes`. An empty `email`, `phone`, or `notes` clears
   it. A stale version returns `client version is stale`.
@@ -101,7 +101,7 @@ failed audit record without workspace or item identifiers, because the caller's
 workspace is not authorized input at that point. The published constraints are
 enforced for every field, so inputs the previous handler accepted silently or
 mapped to defaults, such as `limit: 0`, an empty `search`, `status`, or `sort`,
-`status: null`, and cursors over 512 characters, are now rejected.
+and `status: null`, are now rejected.
 
 ## Prompts and completion
 

@@ -1,0 +1,75 @@
+package layouts
+
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+templ DashboardShell(data viewmodel.PageData, header, navigation templ.Component) {
+	<!doctype html>
+	<html lang={ data.Locale } data-theme={ data.Theme }>
+		<head>
+			@PageHead(data, data.Title)
+				<script defer src="/assets/list-table.js"></script>
+			<link rel="stylesheet" href="/assets/clients.css"/>
+		</head>
+		<body class={ templ.KV("dashboard-workspace", navigation != nil) } data-workspace-home?={ data.NavPage == "workspace" } if data.NavPage != "import" && data.NavPage != "client-detail" && data.NavPage != "client-fields" && data.NavPage != "webhooks" && data.NavPage != "provisioning" { data-webmcp-page={ data.NavPage } }>
+			@SkipLink(data)
+			@header
+			<div class={ templ.KV("app-shell", navigation != nil) }>
+				if navigation != nil {
+					@navigation
+				}
+				<main id="main" class="workspace-main">
+					{ children... }
+				</main>
+			</div>
+			if data.NavPage == "home" || data.NavPage == "export" || data.NavPage == "tokens" {
+				<script defer src="/assets/app.js"></script>
+			}
+			if data.NavPage == "clients" {
+				<script defer src="/assets/htmx.min.js"></script>
+				<script defer src="/assets/app.js"></script>
+			}
+			if data.NavPage == "notifications" {
+				<script defer src="/assets/notifications.js"></script>
+			}
+		</body>
+	</html>
+}
+
+templ DashboardHeader(data viewmodel.PageData) {
+	<header class="topbar">
+		<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
+		if data.TopbarTitleKey != "" {
+			<h1 class="topbar-title">{ data.T(data.TopbarTitleKey) }</h1>
+		}
+		<div class="topbar-context">
+			if data.NavPage == "home" {
+				<span>{ data.T("workspace.workspaces") }</span>
+			} else {
+				if data.NavPage == "audit" {
+					@DefaultHomeCrumb(data)
+				} else {
+					@WorkspaceListCrumb(data)
+				}
+				@WorkspaceContext(data)
+			}
+		</div>
+		@AccountMenu(data)
+	</header>
+}
+
+templ DashboardHomeNavigation(data viewmodel.PageData) {
+	<aside class="sidebar">
+		if !data.SingleWorkspace {
+			<a class="sidebar-back" href="/">← { data.T("workspace.back_to_workspaces") }</a>
+		}
+		@WorkspaceNav(data)
+	</aside>
+}
+
+templ DashboardSettingsNavigation(data viewmodel.PageData) {
+	<aside class="sidebar">
+		<a class="sidebar-back" href={ "/workspaces/" + data.Workspace.ID.String() }>← { data.T("workspace.back_to_home") }</a>
+		@WorkspaceNav(data)
+	</aside>
+}
+

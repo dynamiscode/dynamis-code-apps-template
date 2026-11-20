@@ -1,0 +1,147 @@
+package web
+
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import "example.com/dynamis-code/apps-template/internal/web/components"
+
+import "strconv"
+
+templ clientList(data viewmodel.PageData) {
+	<section id="client-list" data-events={ data.CurrentPath + "/events" }
+		data-live-connecting={ data.T("clients.live_connecting") }
+		data-live-connected={ data.T("clients.live_connected") }
+		data-live-unavailable={ data.T("clients.live_unavailable") }
+		data-live-reconnecting={ data.T("clients.live_reconnecting") }
+		data-live-waiting={ data.T("ui.updates_waiting") }
+		aria-labelledby="clients-heading">
+		<h2 id="clients-heading" class="visually-hidden">{ data.T("clients.title") }</h2>
+		if data.ErrorKey != "" {
+			@components.ErrorAlert(data.T(data.ErrorKey))
+		}
+		<div class="client-results" id="client-results">
+			@clientListView(data)
+		</div>
+	</section>
+}
+
+templ clientListView(data viewmodel.PageData) {
+	@components.ListScreen(data, "clients.search", clientListTools(data), clientResults(data))
+}
+
+// clientListTools are the client list's own controls on the toolbar: the columns, the bulk actions, the create
+// menu, and the live status.
+templ clientListTools(data viewmodel.PageData) {
+	@components.ListColumnsMenu(data, data.ClientQuerySuffix)
+	if data.ListSelectable {
+		@clientBulkBar(data)
+	}
+	@clientCreateMenu(data)
+	@components.StatusLine(data.T("clients.live_fallback"), templ.Attributes{"aria-live": "polite", "id": "realtime-status"})
+}
+
+// clientNotice tells the user when the sort is hidden by the columns.
+templ clientNotice(data viewmodel.PageData) {
+	if data.HiddenClientSort != "" {
+		<p class="status">{ data.T("clients.hidden_sort") }{ " " }
+			if data.HiddenClientSortLabelKey != "" {
+				{ data.T(data.HiddenClientSortLabelKey) }
+			} else {
+				{ data.HiddenClientSort }
+			}
+		</p>
+	}
+}
+
+// clientResults is the results region: the table or cards, the empty state, and the footer. A sort, filter, or
+// search swaps this region alone.
+templ clientResults(data viewmodel.PageData) {
+	@components.ListResults(data, clientPageLimit(data.ClientQuery.Limit), listPageSizeOptions(clientPageLimit(data.ClientQuery.Limit), listPageSizes), data.ClientQuerySuffix, clientBody(data), clientScopeLink(data))
+}
+
+// clientBody is the client list's rows: the table or cards, and the empty state.
+templ clientBody(data viewmodel.PageData) {
+	@clientNotice(data)
+	if data.ClientQuery.Archived == "archived" {
+		@components.StatusLine(data.T("clients.viewing_archived"), nil)
+	}
+	if data.HasVisibleClientColumns {
+		@components.ListTable(data.T("clients.title"), true) {
+			@components.ListHeader(data, data.T("clients.actions"))
+			<tbody>
+				for _, row := range data.ListRows {
+					@components.ListRow(data.CurrentPath + "/" + row.ID) {
+						if data.ListSelectable {
+							@clientRowSelect(data, row)
+						}
+						@components.ListCells(data, row, data.CurrentPath + "/" + row.ID)
+						@components.ListActionsCell(data, clientRowActions(data, row))
+					}
+				}
+			</tbody>
+		}
+		@components.ListCards() {
+			for _, row := range data.ListRows {
+				@components.ListCardItem(data, row, data.CurrentPath + "/" + row.ID) {
+					if data.ListSelectable {
+						@clientCardSelect(data, row)
+					}
+					@components.ListActionsMenu(data, clientRowActions(data, row), true)
+				}
+			}
+		}
+	} else {
+		@components.StatusLine(data.T("clients.columns_choose"), nil)
+	}
+	if len(data.ListRows) == 0 {
+		<p id="client-empty-state">
+			if data.HasClientFilters {
+				{ data.T("clients.no_matches") }{ " " }<a href={ data.ClearClientFiltersPath }>{ data.T("clients.clear_filters") }</a>
+			} else {
+				{ data.T("clients.none") }
+			}
+		</p>
+	}
+}
+
+// clientCreateMenu is the toolbar's "New client" action. Users who cannot write see a read-only note.
+templ clientCreateMenu(data viewmodel.PageData) {
+	<div class="list-create">
+			if data.CanManageFields {
+				<a class="btn btn-ghost btn-xs" href={ data.FieldsPath }>{ data.T("clients.fields_link") }</a>
+			}
+		if data.CanEditClients {
+			@components.ListCreateMenu(data.T("clients.new_client"), data.ErrorKey != "") {
+				<form class="create" action={ data.CurrentPath } method="post" data-dirty-track data-dirty-on-load?={ clientDraftHasInput(data.ClientDraft) }>
+					<input type="hidden" name="csrf" value={ data.CSRF }/>
+					@components.TextField("client-display-name", data.T("clients.display_name"), templ.Attributes{"name": "display_name", "required": true, "maxlength": "200", "value": data.ClientDraft.DisplayName, "data-trim": ""})
+					@components.TextField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{"name": "email", "type": "email", "maxlength": "254", "value": data.ClientDraft.Email})
+					@components.TextField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{"name": "phone", "maxlength": "50", "value": data.ClientDraft.Phone})
+					@components.TextareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.ClientDraft.Notes, templ.Attributes{"name": "notes", "maxlength": "5000"})
+					<div class="actions"><button class="btn btn-primary" type="submit">{ data.T("clients.add") }</button></div>
+				</form>
+			}
+		} else {
+			<p class="status">{ data.T("clients.read_only") }</p>
+		}
+	</div>
+}
+
+
+
+
+
+
+
+// clientScopeLink is the footer's way to the archived clients, and back. It is kept out of the toolbar so the
+// archived view stays easy to find without competing with search and the primary actions.
+templ clientScopeLink(data viewmodel.PageData) {
+	if data.ClientQuery.Archived == "archived" {
+		<a class="client-scope-link" href={ templ.SafeURL(clientScopeHref(data, "active")) }>{ data.T("clients.back_to_active") }</a>
+	} else {
+		<a class="client-scope-link" href={ templ.SafeURL(clientScopeHref(data, "archived")) }>
+			{ data.T("clients.show_archived") }
+			if data.ArchivedClientCount > 0 {
+				<span class="client-scope-count">({ strconv.Itoa(data.ArchivedClientCount) })</span>
+			}
+		</a>
+	}
+}

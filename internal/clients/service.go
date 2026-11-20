@@ -23,7 +23,6 @@ var (
 	ErrInvalidEmail        = fmt.Errorf("%w: email is invalid", ErrInvalidInput)
 	ErrNotFound            = errors.New("client not found")
 	ErrPreconditionFailed  = errors.New("client version does not match")
-	ErrInvalidCursor       = errors.New("cursor is invalid")
 )
 
 const (
@@ -47,19 +46,28 @@ type Client struct {
 	UpdatedAt       time.Time            `json:"updatedAt"`
 }
 
+// MaxListPage bounds the page number, so the row offset (page minus one, times the limit) stays a small integer.
+const MaxListPage = 1000000
+
 type ListInput struct {
+	// Page is 1-based. Limit rows make a page; a page past the end is empty.
+	Page    int
 	Limit   int
-	Cursor  string
 	Sort    SortInput
 	Filters []FilterInput
+	// Search matches text in any common text field or active custom field. It always combines with AND.
+	Search string
+	// Match is MatchAll when empty or MatchAll, or MatchAny to join the filters with OR.
+	Match string
 	// Archived is ArchivedActive when empty, ArchivedOnly, or ArchivedAll.
 	Archived string
 }
 
-// Page is one keyset page of clients, newest first. The cursor is opaque.
+// Page is one numbered page of clients. Total counts every client the filters match, across all pages.
 type Page struct {
-	Clients    []Client `json:"clients"`
-	NextCursor string   `json:"nextCursor,omitempty"`
+	Clients []Client `json:"clients"`
+	Total   int      `json:"total"`
+	Page    int      `json:"page"`
 }
 
 // Input carries the common fields. Email, phone, and notes may be empty.
@@ -332,19 +340,18 @@ func normalizeUpdate(input *UpdateInput) error {
 // List returns one page of clients. The archived selector picks active (the
 // default), archived, or all clients. Without a sort the page is newest first.
 // A sort orders by one field with empty values last, and a filter narrows the
-// rows. The cursor binds the sort, filters, and archived selector.
+// rows.
 func (s *Service) List(
 	ctx context.Context,
 	actor identity.Principal,
 	workspaceID identity.WorkspaceID,
 	input ListInput,
 ) (Page, error) {
-	if input.Limit < 1 {
+	if input.Limit < 1 || input.Page < 0 || input.Page > MaxListPage {
 		return Page{}, ErrInvalidInput
 	}
-	cursor, err := decodeListCursor(input.Cursor)
-	if err != nil {
-		return Page{}, err
+	if input.Page == 0 {
+		input.Page = 1
 	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: true})
 	if err != nil {
@@ -356,17 +363,21 @@ func (s *Service) List(
 	); err != nil {
 		return Page{}, identity.ErrForbidden
 	}
-	query, err := s.buildListQuery(ctx, tx, workspaceID, input, cursor)
+	query, err := s.buildListQuery(ctx, tx, workspaceID, input)
 	if err != nil {
 		return Page{}, err
 	}
-	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, query.sql), append(query.args, input.Limit+1)...)
+	var total int
+	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, query.countSQL), query.countArgs...).Scan(&total); err != nil {
+		return Page{}, err
+	}
+	offset := (input.Page - 1) * input.Limit
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, query.sql), append(query.args, input.Limit, offset)...)
 	if err != nil {
 		return Page{}, err
 	}
 	defer rows.Close()
-	clients := make([]Client, 0, input.Limit+1)
-	sortValues := make([]sql.NullString, 0, input.Limit+1)
+	clients := make([]Client, 0, input.Limit)
 	for rows.Next() {
 		var sortValue sql.NullString
 		client, err := scanClient(listRow{rows: rows, sortValue: &sortValue})
@@ -374,7 +385,6 @@ func (s *Service) List(
 			return Page{}, err
 		}
 		clients = append(clients, client)
-		sortValues = append(sortValues, sortValue)
 	}
 	if err := rows.Err(); err != nil {
 		return Page{}, err
@@ -382,19 +392,10 @@ func (s *Service) List(
 	if err := rows.Close(); err != nil {
 		return Page{}, err
 	}
-	page := Page{Clients: clients}
-	if len(clients) > input.Limit {
-		page.Clients = clients[:input.Limit]
-		last := input.Limit - 1
-		page.NextCursor, err = encodeListCursor(query, input, sortValues[last], clients[last].ID)
-		if err != nil {
-			return Page{}, err
-		}
-	}
 	if err := tx.Commit(); err != nil {
 		return Page{}, err
 	}
-	return page, nil
+	return Page{Clients: clients, Total: total, Page: input.Page}, nil
 }
 
 func (s *Service) get(

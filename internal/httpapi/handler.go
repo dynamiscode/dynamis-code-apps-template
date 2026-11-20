@@ -418,7 +418,7 @@ func (h *handler) logout(writer http.ResponseWriter, request *http.Request) {
 func (h *handler) listItems(writer http.ResponseWriter, request *http.Request) {
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	if !onlyQuery(
-		request, "status", "search", "sort", "limit", "cursor",
+		request, "status", "search", "sort", "limit", "page",
 	) {
 		h.invalidRequest(writer, request, "The collection parameters are invalid.")
 		return
@@ -448,9 +448,14 @@ func (h *handler) listItems(writer http.ResponseWriter, request *http.Request) {
 	if sort == "" {
 		sort = "-created_at"
 	}
+	pageNumber, ok := parsePage(query)
+	if !ok {
+		h.invalidRequest(writer, request, "The page is invalid.")
+		return
+	}
 	page, err := h.items.List(request.Context(), principal, workspaceID, items.ListInput{
 		Status: items.Status(query.Get("status")), Search: search, Sort: sort,
-		Limit: limit, Cursor: query.Get("cursor"),
+		Limit: limit, Page: pageNumber,
 	})
 	if err != nil {
 		h.itemError(writer, request, err)
@@ -653,8 +658,6 @@ func (h *handler) itemError(
 		writeProblem(writer, request, http.StatusForbidden, "forbidden", "Access is denied.")
 	case errors.Is(err, items.ErrNotFound):
 		notFoundProblem(writer, request)
-	case errors.Is(err, items.ErrInvalidCursor):
-		h.invalidRequest(writer, request, "The cursor is invalid.")
 	case errors.Is(err, items.ErrInvalidInput):
 		h.invalidRequest(writer, request, "The item input is invalid.")
 	case errors.Is(err, items.ErrIdempotencyConflict):

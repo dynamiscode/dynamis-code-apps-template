@@ -1,20 +1,20 @@
 package web
 
 import (
-	"net/http"
-	"strconv"
-
 	"example.com/dynamis-code/apps-template/internal/platform/config"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"example.com/dynamis-code/apps-template/internal/workspaceemail"
 	"github.com/a-h/templ"
+	"net/http"
+	"strconv"
 )
 
 func (h *Handler) renderSettingsPage(
 	writer http.ResponseWriter,
 	request *http.Request,
 	status int,
-	data pageData,
-	component func(pageData) templ.Component,
+	data viewmodel.PageData,
+	component func(viewmodel.PageData) templ.Component,
 ) {
 	data.FilesEnabled = h.filesEnabled
 	data.ClientsEnabled = h.clientsEnabled
@@ -40,7 +40,7 @@ func emailSMTPValue(settings workspaceemail.Settings, value string) string {
 	return ""
 }
 
-func workspaceNotificationLabel(data pageData, notificationType string) string {
+func workspaceNotificationLabel(data viewmodel.PageData, notificationType string) string {
 	switch notificationType {
 	case "security":
 		return data.T("workspace.notification_security")

@@ -2,11 +2,11 @@ package web
 
 import (
 	"errors"
-	"net/http"
-
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
+	"net/http"
 )
 
 func (h *Handler) clientFieldsPath(workspaceID identity.WorkspaceID) string {
@@ -52,7 +52,7 @@ func (h *Handler) renderClientFieldList(
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.renderClientFieldsTempl(writer, request, status, pageData{
+	h.renderClientFieldsTempl(writer, request, status, viewmodel.PageData{
 		Title: "Custom fields", ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		NavPage: "clients", NavSection: "clients",
@@ -64,7 +64,7 @@ func (h *Handler) renderClientFieldList(
 	})
 }
 
-func (h *Handler) renderClientFieldsTempl(writer http.ResponseWriter, request *http.Request, status int, data pageData) {
+func (h *Handler) renderClientFieldsTempl(writer http.ResponseWriter, request *http.Request, status int, data viewmodel.PageData) {
 	data.FilesEnabled = h.filesEnabled
 	data.ClientsEnabled = h.clients != nil
 	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle

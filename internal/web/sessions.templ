@@ -1,9 +1,13 @@
 package web
 
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import "example.com/dynamis-code/apps-template/internal/web/components"
+import "example.com/dynamis-code/apps-template/internal/web/layouts"
+
 import "time"
 
-templ sessionsPage(data pageData, currentSessionID string, now time.Time) {
-	@dashboardShell(data, accountHeader(data), nil) {
+templ sessionsPage(data viewmodel.PageData, currentSessionID string, now time.Time) {
+	@layouts.DashboardShell(data, layouts.AccountHeader(data), nil) {
 		<section class="account-page" aria-labelledby="sessions-heading">
 			<header class="account-heading">
 				<p class="eyebrow">{ data.T("navigation.security") }</p>
@@ -11,10 +15,10 @@ templ sessionsPage(data pageData, currentSessionID string, now time.Time) {
 				<p class="account-intro">{ data.T("sessions.description") }</p>
 			</header>
 			if data.Saved {
-				@successAlert(data.T("sessions.revoked_feedback"))
+				@components.SuccessAlert(data.T("sessions.revoked_feedback"))
 			}
 			if len(data.Sessions) == 0 {
-				@emptyState(data.T("sessions.empty"))
+				@components.EmptyState(data.T("sessions.empty"))
 			} else {
 				<ul class="session-list">
 					for _, session := range data.Sessions {

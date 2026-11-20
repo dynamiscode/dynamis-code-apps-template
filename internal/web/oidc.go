@@ -3,11 +3,11 @@ package web
 import (
 	"crypto/subtle"
 	"errors"
-	"net/http"
-	"time"
-
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
+	"net/http"
+	"time"
 )
 
 var (
@@ -190,7 +190,7 @@ func (h *Handler) oidcCallback(writer http.ResponseWriter, request *http.Request
 }
 
 func (h *Handler) oidcError(writer http.ResponseWriter, request *http.Request) {
-	h.render(writer, http.StatusUnauthorized, "login.html", pageData{
+	h.render(writer, http.StatusUnauthorized, "login.html", viewmodel.PageData{
 		Title: "Sign in", Error: "The identity provider sign-in could not be completed.",
 		OIDCProviders: h.providers(),
 	})

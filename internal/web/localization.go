@@ -2,12 +2,12 @@ package web
 
 import (
 	"context"
+	"example.com/dynamis-code/apps-template/internal/i18n"
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"net/http"
 	"strings"
 	"time"
-
-	"example.com/dynamis-code/apps-template/internal/i18n"
-	"example.com/dynamis-code/apps-template/internal/identity"
 )
 
 type localeContextKey struct{}
@@ -48,7 +48,7 @@ func (h *Handler) localeMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func (h *Handler) pageLocale(writer http.ResponseWriter, data pageData) i18n.Locale {
+func (h *Handler) pageLocale(writer http.ResponseWriter, data viewmodel.PageData) i18n.Locale {
 	state, _ := writer.(*localeWriter)
 	userLocale, cookieLocale, acceptLanguage := "", "", ""
 	if state != nil {
@@ -68,7 +68,7 @@ func (h *Handler) pageLocale(writer http.ResponseWriter, data pageData) i18n.Loc
 	return locale
 }
 
-func (h *Handler) localizePage(writer http.ResponseWriter, data *pageData) {
+func (h *Handler) localizePage(writer http.ResponseWriter, data *viewmodel.PageData) {
 	locale := h.pageLocale(writer, *data)
 	data.Locale = string(locale)
 	data.Theme = h.pageTheme(writer)
@@ -191,8 +191,8 @@ func (h *Handler) languageSettingsPage(writer http.ResponseWriter, request *http
 	h.render(writer, http.StatusOK, "language-page", data)
 }
 
-func (h *Handler) languageSettingsData(request *http.Request, userID identity.UserID, csrf, locale string) pageData {
-	return pageData{
+func (h *Handler) languageSettingsData(request *http.Request, userID identity.UserID, csrf, locale string) viewmodel.PageData {
+	return viewmodel.PageData{
 		Title: "Language settings", NavPage: "language", CSRF: csrf, UserLocale: locale,
 		DefaultWorkspaceHref: h.defaultHomeHref(request.Context(), userID),
 	}
@@ -252,7 +252,7 @@ func (h *Handler) generalSettingsPage(writer http.ResponseWriter, request *http.
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.renderSettingsPage(writer, request, http.StatusOK, pageData{
+	h.renderSettingsPage(writer, request, http.StatusOK, viewmodel.PageData{
 		Title: "General workspace settings", NavPage: "general", NavSection: "settings", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		WorkspaceNotificationPreferences: preferences,

@@ -162,7 +162,8 @@ func TestClientListSortAndFilterParameters(t *testing.T) {
 			Clients []struct {
 				DisplayName string `json:"displayName"`
 			} `json:"clients"`
-			NextCursor string `json:"nextCursor"`
+			Total int `json:"total"`
+			Page  int `json:"page"`
 		}
 		if err := json.Unmarshal(response.Body.Bytes(), &page); err != nil {
 			t.Fatal(err)
@@ -171,7 +172,10 @@ func TestClientListSortAndFilterParameters(t *testing.T) {
 		for _, client := range page.Clients {
 			got = append(got, client.DisplayName)
 		}
-		return page.NextCursor, got
+		if page.Total < len(got) || page.Page < 1 {
+			t.Fatalf("page %q = total %d, page %d; want a total and a page number", query, page.Total, page.Page)
+		}
+		return "", got
 	}
 	for query, want := range map[string][]string{
 		"":             {"Cy", "Bea", "Ada"},
@@ -198,15 +202,15 @@ func TestClientListSortAndFilterParameters(t *testing.T) {
 		t.Fatalf("REST v1 rejected a filter longer than the browser limit: %d %s", response.Code, response.Body.String())
 	}
 
-	next, first := names(t, "?limit=1&sort=email")
-	if next == "" || !reflect.DeepEqual(first, []string{"Ada"}) {
-		t.Fatalf("first sorted page = %v with cursor %q", first, next)
+	_, first := names(t, "?limit=1&sort=email")
+	if !reflect.DeepEqual(first, []string{"Ada"}) {
+		t.Fatalf("first sorted page = %v", first)
 	}
-	if _, second := names(t, "?limit=1&sort=email&cursor="+next); !reflect.DeepEqual(second, []string{"Cy"}) {
+	if _, second := names(t, "?limit=1&sort=email&page=2"); !reflect.DeepEqual(second, []string{"Cy"}) {
 		t.Fatalf("second sorted page = %v", second)
 	}
-	if response := serveAuthorized(handler, http.MethodGet, base+"?sort=displayName&cursor="+next, "", token, nil); response.Code != http.StatusBadRequest {
-		t.Fatalf("cursor from another sort = %d %s", response.Code, response.Body.String())
+	if response := serveAuthorized(handler, http.MethodGet, base+"?sort=email&page=0", "", token, nil); response.Code != http.StatusBadRequest {
+		t.Fatalf("page 0 = %d %s", response.Code, response.Body.String())
 	}
 
 	for _, query := range []string{

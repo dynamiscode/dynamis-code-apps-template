@@ -1,0 +1,300 @@
+package components
+
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+import "strconv"
+
+// Shared list pieces. Every list table and its mobile cards are built from these, so header sorting,
+// row hover, tap-to-open rows and the name link behave the same on every page.
+
+// ListHeader renders one heading per visible column with its sort link and aria-sort state. The last
+// heading holds the column settings, and actionsLabel adds an actions heading before it when set.
+templ ListHeader(data viewmodel.PageData, actionsLabel string) {
+	<thead><tr>
+			if data.ListSelectable {
+				<th scope="col" class="list-select-cell"><input type="checkbox" data-bulk-all aria-label={ data.T("clients.bulk_select_all") }/></th>
+			}
+		for _, column := range data.ListColumns {
+			if column.Visible {
+				@ClientColumnHeading(data, column)
+			}
+		}
+		if actionsLabel != "" {
+			<th scope="col" class="list-actions-cell"><span class="visually-hidden">{ actionsLabel }</span></th>
+		}
+	</tr></thead>
+}
+
+// ListRow is one table row. A non-empty href makes a tap or click on the row open that href.
+templ ListRow(href string) {
+	<tr class="list-row" data-row-href={ href }>
+		{ children... }
+	</tr>
+}
+
+// ListRowWith is a table row with extra attributes, for lists whose scripts find a row by an attribute.
+templ ListRowWith(href string, attrs templ.Attributes) {
+	<tr class="list-row" data-row-href={ href } { attrs... }>
+		{ children... }
+	</tr>
+}
+
+// ListCells renders the visible cells. The first visible cell links to href when href is set.
+templ ListCells(data viewmodel.PageData, row viewmodel.ListRow, href string) {
+	for _, column := range data.ListColumns {
+		if column.Visible {
+			<td data-column={ column.Key } data-label={ ClientColumnLabelText(data, column) } title={ data.ClientListCellValue(column, row) }>
+				@ListCellValue(data, row, column, href)
+			</td>
+		}
+	}
+}
+
+// ListCellValue writes one cell. The first visible column is the row link with the row's initials; role
+// and status columns are colored badges.
+templ ListCellValue(data viewmodel.PageData, row viewmodel.ListRow, column viewmodel.ListColumn, href string) {
+	if href != "" && column.Key == data.ClientListLinkKey() {
+		<span class="list-identity">
+			<span class="list-initials" aria-hidden="true">{ ListInitials(data.ClientListCellValue(column, row)) }</span>
+			<span class="list-name"><a class="list-row-link" href={ href }>@ListHighlight(data.ClientListCellValue(column, row), data.ListSearch)</a></span>
+		</span>
+	} else if ListBadgeColumn(column.Key) {
+		<span class={ "list-badge list-badge-" + row.CellText(column.Key) }>{ data.ClientListCellValue(column, row) }</span>
+	} else {
+		@ListHighlight(data.ClientListCellValue(column, row), data.ListSearch)
+	}
+}
+
+// ListCardItem is one mobile card. Children render after the fields, for example row actions.
+templ ListCardItem(data viewmodel.PageData, row viewmodel.ListRow, href string) {
+	<li class="list-row" data-row-href={ href }>
+		<dl>
+			for _, column := range data.ListColumns {
+				if column.Visible {
+					<dt>@ClientColumnLabel(data, column)</dt>
+					<dd data-column={ column.Key }>
+						@ListCellValue(data, row, column, href)
+					</dd>
+				}
+			}
+		</dl>
+		{ children... }
+	</li>
+}
+
+// ListToolbar groups a list's Columns and sort/filter menus above its table.
+templ ListToolbar() {
+	<div class="list-toolbar">
+		{ children... }
+	</div>
+}
+
+
+// ListColumnsIcon is the common "columns" glyph: three bars in a frame. It is decorative; the summary names it.
+templ ListColumnsIcon() {
+	<svg class="list-columns-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+		<rect x="3" y="4" width="18" height="16" rx="2"/>
+		<line x1="9" y1="4" x2="9" y2="20"/>
+		<line x1="15" y1="4" x2="15" y2="20"/>
+	</svg>
+}
+
+// ListPageSize sets how many rows a page shows, as a dropdown on the toolbar's right. It keeps the
+// sort, filters, and match mode.
+templ ListPageSize(data viewmodel.PageData, limit int, sizes []int) {
+	<form class="list-page-size" method="get" action={ data.CurrentPath } { ListLivePageSizeAttributes(data)... }>
+		for _, field := range data.ListPreservedQuery {
+			if field.Name != "limit" {
+				<input type="hidden" name={ field.Name } value={ field.Value }/>
+			}
+		}
+		<label for="list-page-size">{ data.T("clients.page_size") }</label>
+		<select class="select" id="list-page-size" name="limit" data-autosubmit="true">
+			for _, size := range sizes {
+				<option value={ strconv.Itoa(size) } selected?={ limit == size }>{ ListPageSizeLabel(data, size) }</option>
+			}
+		</select>
+		<button class="btn btn-ghost btn-xs" type="submit" data-submit-button="true">{ data.T("clients.apply") }</button>
+	</form>
+}
+
+// ListCreateMenu is the list's primary action. Its form opens in a popover from the toolbar.
+templ ListCreateMenu(label string, open bool) {
+	<details class="list-create-menu client-controls client-create" open?={ open }>
+		<summary class="btn btn-primary">{ label }</summary>
+		<div class="list-menu-panel">
+			{ children... }
+		</div>
+	</details>
+}
+
+// ListAddMenu is the "+" control after the last filter chip. It opens the add-filter steps. Without
+// chips, labelled shows the label as text, so the control is never a lone symbol.
+templ ListAddMenu(label string, open bool, labelled bool) {
+	<details class="list-add-menu" open?={ open }>
+		if labelled {
+			<summary class="list-add-label list-tool" aria-label={ label }>@ListFilterIcon()<span>{ label }</span></summary>
+		} else {
+			<summary aria-label={ label } title={ label }>@ListFilterIcon()</summary>
+		}
+		<div class="list-menu-panel">
+			{ children... }
+		</div>
+	</details>
+}
+
+// ListFilterMenu wraps one page's sort and filter form in the shared menu.
+templ ListFilterMenu(label string, open bool) {
+	<details class="client-controls client-filters" open?={ open }>
+		<summary>{ label }</summary>
+		<div class="list-menu-panel">
+			{ children... }
+		</div>
+	</details>
+}
+
+templ ClientColumnLabel(data viewmodel.PageData, column viewmodel.ListColumn) {
+	if column.LabelKey != "" {
+		{ data.T(column.LabelKey) }
+	} else {
+		{ column.Label }
+	}
+}
+
+templ ClientColumnHeading(data viewmodel.PageData, column viewmodel.ListColumn) {
+	if column.SortDirection != "" {
+		<th scope="col" data-column={ column.Key } aria-sort={ column.SortDirection }>
+			if column.SortHref != "" {
+				<a href={ column.SortHref } { ListLiveLinkAttributes(data, column.SortHref)... }>@ClientColumnLabel(data, column)</a>
+			} else {
+				@ClientColumnLabel(data, column)
+			}
+		</th>
+	} else {
+		<th scope="col" data-column={ column.Key }>
+			if column.SortHref != "" {
+				<a href={ column.SortHref } { ListLiveLinkAttributes(data, column.SortHref)... }>@ClientColumnLabel(data, column)</a>
+			} else {
+				@ClientColumnLabel(data, column)
+			}
+		</th>
+	}
+}
+
+
+// ListActionRow is the row above a list's toolbar, right-aligned. It holds the primary actions, such as
+// creating a record and managing fields, so the toolbar keeps only search, filters and view settings.
+templ ListActionRow() {
+	<div class="list-action-row">
+		{ children... }
+	</div>
+}
+
+// ListFooter sits under each list: the row count, and the rows-per-page dropdown on the right.
+templ ListFooter(data viewmodel.PageData, limit int, sizes []int) {
+	<div class="list-footer">
+		<p class="list-footer-count">{ ListFooterCount(data) }</p>
+		{ children... }
+		@ListPageSize(data, limit, sizes)
+	</div>
+}
+
+// ListSearch is the search box at the start of a list's toolbar. It sends q and always combines with the
+// filters, whatever their match mode. placeholderKey names what the list searches.
+templ ListSearch(data viewmodel.PageData, placeholderKey string, value string) {
+	<form class="list-search" role="search" method="get" action={ data.CurrentPath } { ListSearchLive(data)... }>
+		for _, field := range data.ListPreservedQuery {
+			if field.Name != "q" && field.Name != "search" {
+				<input type="hidden" name={ field.Name } value={ field.Value }/>
+			}
+		}
+		<label class="visually-hidden" for="list-search">{ data.T(placeholderKey) }</label>
+		<input class="input" id="list-search" type="search" name="q" value={ value } maxlength="200" placeholder={ data.T(placeholderKey) }/>
+		<button class="btn btn-ghost btn-xs" type="submit">{ data.T("ui.search") }</button>
+		<p class="list-search-status" role="status" aria-live="polite" data-error-text={ data.T("ui.search_failed") } hidden></p>
+		<p class="visually-hidden" role="status" aria-live="polite" data-list-announce></p>
+	</form>
+}
+
+// ListRowMenu holds a row's actions behind a "⋯" button. Only rows with actions use it.
+templ ListRowMenu(data viewmodel.PageData) {
+	<details class="list-row-menu">
+		<summary aria-label={ data.T("ui.row_actions") } title={ data.T("ui.row_actions") }>&#8943;</summary>
+		<div class="list-menu-panel">
+			{ children... }
+		</div>
+	</details>
+}
+
+// ListDragHandleIcon is the six-dot grip that marks a column row as draggable. It is decorative.
+templ ListDragHandleIcon() {
+	<svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor" aria-hidden="true" focusable="false">
+		<circle cx="3" cy="3" r="1.4"/><circle cx="9" cy="3" r="1.4"/>
+		<circle cx="3" cy="8" r="1.4"/><circle cx="9" cy="8" r="1.4"/>
+		<circle cx="3" cy="13" r="1.4"/><circle cx="9" cy="13" r="1.4"/>
+	</svg>
+}
+
+// ListColumnsMenu is the column control in a list's toolbar: a columns button that opens the switches, the drag
+// handles, and the reset. suffix keeps the list query on the preference routes. A change updates the list's results
+// in place, and the switches refresh out of band, so the menu stays open.
+templ ListColumnsMenu(data viewmodel.PageData, suffix string) {
+	<details class="client-controls list-view-columns list-settings">
+		<summary class="list-tool" aria-label={ data.T("clients.columns") } title={ data.T("clients.columns") }>@ListColumnsIcon()<span>{ data.T("clients.columns") }</span></summary>
+		<div class="list-menu-panel" aria-label={ data.T("clients.columns") }>
+			@ListColumnsBody(data, suffix, false)
+			<form method="post" action={ data.CurrentPath + "/preferences/columns/reset" + suffix } hx-post={ ListResultsURL(data.CurrentPath+"/preferences/columns/reset", suffix) } hx-target="#list-results" hx-swap="outerHTML">
+				<input type="hidden" name="csrf" value={ data.CSRF }/>
+				<button class="btn btn-ghost btn-xs" type="submit">{ data.T("clients.columns_reset") }</button>
+			</form>
+		</div>
+	</details>
+}
+
+// ListColumnsBody is the switch list, the drag order form and the count. As an out-of-band swap it refreshes those
+// parts of the menu after a live change, and leaves the open menu as it is.
+templ ListColumnsBody(data viewmodel.PageData, suffix string, oob bool) {
+	<ul id="list-column-switches" class="list-column-switches" { ListOOB(oob)... }>
+		for i, column := range data.ListColumns {
+			<li class="list-column-switch" data-column-key={ column.Key } draggable={ strconv.FormatBool(i > 0) } data-locked?={ i == 0 }>
+				if i > 0 {
+					<span class="list-column-handle" aria-hidden="true">@ListDragHandleIcon()</span>
+				} else {
+					<span class="list-column-handle" aria-hidden="true"></span>
+				}
+				<form method="post" action={ data.CurrentPath + "/preferences/columns/" + column.Key + suffix } hx-post={ ListResultsURL(data.CurrentPath+"/preferences/columns/"+column.Key, suffix) } hx-target="#list-results" hx-swap="outerHTML">
+					<input type="hidden" name="csrf" value={ data.CSRF }/>
+					<input type="hidden" name="visible" value={ ClientColumnVisibilityValue(column.Visible) }/>
+					<button class="list-switch" type="submit" role="switch" aria-checked={ strconv.FormatBool(column.Visible) } disabled?={ i == 0 } aria-label={ ClientColumnLabelText(data, column) }>
+						<span class="list-switch-track"><span class="list-switch-thumb"></span></span>
+					</button>
+				</form>
+				<span class="list-column-name">
+					@ClientColumnLabel(data, column)
+					if i == 0 {
+						<span class="list-column-note">{ data.T("ui.column_required") }</span>
+					}
+				</span>
+					if i > 1 {
+						<form method="post" action={ ListColumnOrderHref(data.CurrentPath, suffix) } hx-post={ ListColumnOrderHref(data.CurrentPath, suffix) } hx-target="#list-results" hx-swap="outerHTML">
+							<input type="hidden" name="csrf" value={ data.CSRF }/>
+							<input type="hidden" name="order" value={ ListColumnOrderAfterMove(data, i, -1) }/>
+							<button class="btn btn-ghost btn-xs" type="submit" aria-label={ data.T("ui.move_column_up", map[string]any{"name": ClientColumnLabelText(data, column)}) }><span aria-hidden="true">&#8593;</span></button>
+						</form>
+					}
+					if i > 0 && i < len(data.ListColumns)-1 {
+						<form method="post" action={ ListColumnOrderHref(data.CurrentPath, suffix) } hx-post={ ListColumnOrderHref(data.CurrentPath, suffix) } hx-target="#list-results" hx-swap="outerHTML">
+							<input type="hidden" name="csrf" value={ data.CSRF }/>
+							<input type="hidden" name="order" value={ ListColumnOrderAfterMove(data, i, 1) }/>
+							<button class="btn btn-ghost btn-xs" type="submit" aria-label={ data.T("ui.move_column_down", map[string]any{"name": ClientColumnLabelText(data, column)}) }><span aria-hidden="true">&#8595;</span></button>
+						</form>
+					}
+			</li>
+		}
+	</ul>
+	<form id="list-column-order" class="list-column-order" method="post" action={ ListColumnOrderHref(data.CurrentPath, suffix) } hx-post={ ListColumnOrderHref(data.CurrentPath, suffix) } hx-target="#list-results" hx-swap="outerHTML" { ListOOB(oob)... }>
+		<input type="hidden" name="csrf" value={ data.CSRF }/>
+		<input type="hidden" name="order" value={ ListColumnOrderValue(data) }/>
+	</form>
+	<p id="list-column-count" class="list-column-count" { ListOOB(oob)... }>{ data.T("ui.columns_shown", ListColumnCounts(data.ListColumns)) }</p>
+}

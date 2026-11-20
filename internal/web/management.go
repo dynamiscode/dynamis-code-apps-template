@@ -7,6 +7,13 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"errors"
+	"example.com/dynamis-code/apps-template/internal/i18n"
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/items"
+	"example.com/dynamis-code/apps-template/internal/platform/id"
+	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
+	"example.com/dynamis-code/apps-template/internal/portability"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"fmt"
 	"io"
 	"mime"
@@ -17,13 +24,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"example.com/dynamis-code/apps-template/internal/i18n"
-	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
-	"example.com/dynamis-code/apps-template/internal/platform/id"
-	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
-	"example.com/dynamis-code/apps-template/internal/portability"
 )
 
 type exporter interface {
@@ -33,27 +33,6 @@ type exporter interface {
 type importer interface {
 	Preview(context.Context, identity.Principal, identity.WorkspaceID, portability.ImportInput) (portability.ImportPreview, error)
 	Import(context.Context, identity.Principal, identity.WorkspaceID, portability.ImportInput, identity.AuditContext) (portability.ImportResult, error)
-}
-
-type importPreviewView struct {
-	RecordCount int
-	Sample      []importSampleView
-	Issues      []importIssueView
-	IssueCount  int
-	MoreIssues  int
-	Digest      string
-	Format      string
-}
-
-type importSampleView struct {
-	Title     string
-	StatusKey string
-	Status    string
-}
-
-type importIssueView struct {
-	Record     int
-	MessageKey string
 }
 
 func importerFor(service exporter) importer {
@@ -89,7 +68,7 @@ func (h *Handler) createWorkspace(writer http.ResponseWriter, request *http.Requ
 			h.renderError(writer, http.StatusInternalServerError)
 			return
 		}
-		h.render(writer, http.StatusUnprocessableEntity, "home.html", pageData{
+		h.render(writer, http.StatusUnprocessableEntity, "home.html", viewmodel.PageData{
 			Title: "Workspaces", NavPage: "home", CSRF: csrf, Workspaces: workspaces,
 			CanCreateWorkspace: h.workspaceCreationEnabled(),
 			Error:              "Enter a workspace name between 1 and 120 characters.",
@@ -191,7 +170,7 @@ func (h *Handler) invitationsPage(writer http.ResponseWriter, request *http.Requ
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.renderInvitationComponent(writer, request, http.StatusOK, pageData{
+	h.renderInvitationComponent(writer, request, http.StatusOK, viewmodel.PageData{
 		Title: "Invitations", NavPage: "invitations", NavSection: "settings", CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID),
 		Workspaces: workspaces, Invitations: invitations,
 	}, invitationManagementView)
@@ -273,7 +252,7 @@ func (h *Handler) renderInvitationResult(writer http.ResponseWriter, request *ht
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.renderInvitationComponent(writer, request, http.StatusOK, pageData{
+	h.renderInvitationComponent(writer, request, http.StatusOK, viewmodel.PageData{
 		Title: "Invitations", NavPage: "invitations", NavSection: "settings", CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID),
 		Workspaces: workspaces, Invitations: invitations, InvitationURL: link,
 		DeliveryWarning: warning,
@@ -348,7 +327,7 @@ func (h *Handler) renderTokenSettingsPage(
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.renderSettingsPage(writer, request, status, pageData{
+	h.renderSettingsPage(writer, request, status, viewmodel.PageData{
 		Title: "API tokens", NavPage: "tokens", NavSection: "settings", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, principal.WorkspaceID), Workspaces: workspaces,
 		Tokens: tokens, TokenSecret: secret, Error: errorMessage,
@@ -405,7 +384,7 @@ func (h *Handler) renderProvisioningPage(
 		return
 	}
 	workspaceID := principal.WorkspaceID
-	h.renderSettingsPage(writer, request, status, pageData{
+	h.renderSettingsPage(writer, request, status, viewmodel.PageData{
 		Title: "SCIM provisioning", NavPage: "provisioning", NavSection: "settings", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		SCIMEndpoint: scimEndpoint(h.publicURL, h.cfg.Secure, request, workspaceID), SCIMTokenSecret: secret, Error: errorMessage,
@@ -437,7 +416,7 @@ func (h *Handler) sessionsPage(writer http.ResponseWriter, request *http.Request
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, http.StatusOK, "sessions-page", pageData{Title: "Sessions", NavPage: "sessions", CSRF: csrf, Sessions: sessions, CurrentSessionID: session.ID, Saved: request.URL.Query().Get("revoked") == "1"})
+	h.render(writer, http.StatusOK, "sessions-page", viewmodel.PageData{Title: "Sessions", NavPage: "sessions", CSRF: csrf, Sessions: sessions, CurrentSessionID: session.ID, Saved: request.URL.Query().Get("revoked") == "1"})
 }
 
 func (h *Handler) sessionMutation(writer http.ResponseWriter, request *http.Request) {
@@ -467,7 +446,7 @@ func (h *Handler) exportPage(writer http.ResponseWriter, request *http.Request) 
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.renderSettingsPage(writer, request, http.StatusOK, pageData{
+	h.renderSettingsPage(writer, request, http.StatusOK, viewmodel.PageData{
 		Title: "Export", NavPage: "export", NavSection: "settings", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		DefaultWorkspaceHref: h.defaultHomeHref(request.Context(), session.UserID),
@@ -494,8 +473,13 @@ func (h *Handler) auditHistoryPage(writer http.ResponseWriter, request *http.Req
 			return
 		}
 	}
+	// Emails name actors in history rows only, so the member lookup is skipped for an empty or lazy table.
+	var emails map[identity.UserID]string
+	if len(history) > 0 {
+		emails = h.auditActorEmails(request.Context(), principal)
+	}
 	if fragment {
-		data := pageData{AuditHistory: history}
+		data := viewmodel.PageData{AuditHistory: history, AuditActorEmails: emails}
 		h.render(writer, http.StatusOK, "audit-table", data)
 		return
 	}
@@ -504,13 +488,27 @@ func (h *Handler) auditHistoryPage(writer http.ResponseWriter, request *http.Req
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	data := pageData{
+	data := viewmodel.PageData{
 		Title: "Audit history", NavPage: "audit", NavSection: "settings", CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		AuditHistory: history, AuditLazy: lazy, CurrentPath: request.URL.Path,
+		AuditHistory: history, AuditActorEmails: emails, AuditLazy: lazy, CurrentPath: request.URL.Path,
 		DefaultWorkspaceHref: h.defaultHomeHref(request.Context(), session.UserID),
 	}
 	h.render(writer, http.StatusOK, "audit-history", data)
+}
+
+// auditActorEmails maps workspace users to their emails so the audit table can name actors. A user who has left
+// the workspace is absent, and the table falls back to the user ID. A caller without member read access gets none.
+func (h *Handler) auditActorEmails(ctx context.Context, principal identity.Principal) map[identity.UserID]string {
+	members, err := h.identity.ListMembers(ctx, principal)
+	if err != nil {
+		return nil
+	}
+	emails := make(map[identity.UserID]string, len(members))
+	for _, member := range members {
+		emails[member.UserID] = member.Email
+	}
+	return emails
 }
 
 func (h *Handler) exportWorkspace(writer http.ResponseWriter, request *http.Request) {
@@ -664,15 +662,15 @@ func (h *Handler) importMutation(writer http.ResponseWriter, request *http.Reque
 			return
 		}
 		digest := sha256.Sum256(encoded)
-		view := importPreviewView{
+		view := viewmodel.ImportPreviewView{
 			RecordCount: preview.RecordCount, IssueCount: preview.IssueCount,
 			MoreIssues: preview.IssueCount - len(preview.Issues),
 			Digest:     hex.EncodeToString(digest[:]), Format: format,
-			Sample: make([]importSampleView, 0, len(preview.Sample)),
-			Issues: make([]importIssueView, 0, len(preview.Issues)),
+			Sample: make([]viewmodel.ImportSampleView, 0, len(preview.Sample)),
+			Issues: make([]viewmodel.ImportIssueView, 0, len(preview.Issues)),
 		}
 		for _, item := range preview.Sample {
-			sample := importSampleView{Title: item.Title, Status: string(item.Status)}
+			sample := viewmodel.ImportSampleView{Title: item.Title, Status: string(item.Status)}
 			if item.Status == items.Active || item.Status == items.Complete {
 				sample.StatusKey = "items." + string(item.Status)
 				sample.Status = ""
@@ -680,7 +678,7 @@ func (h *Handler) importMutation(writer http.ResponseWriter, request *http.Reque
 			view.Sample = append(view.Sample, sample)
 		}
 		for _, issue := range preview.Issues {
-			view.Issues = append(view.Issues, importIssueView{Record: issue.Record, MessageKey: "import.invalid_" + issue.Field})
+			view.Issues = append(view.Issues, viewmodel.ImportIssueView{Record: issue.Record, MessageKey: "import.invalid_" + issue.Field})
 		}
 		status := http.StatusOK
 		if preview.IssueCount > 0 {
@@ -729,7 +727,7 @@ func (h *Handler) renderImportPage(
 	csrf, message string,
 	completed bool,
 	imported int,
-	preview *importPreviewView,
+	preview *viewmodel.ImportPreviewView,
 ) {
 	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
 	if err != nil {
@@ -737,7 +735,7 @@ func (h *Handler) renderImportPage(
 		return
 	}
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	h.renderSettingsPage(writer, request, status, pageData{
+	h.renderSettingsPage(writer, request, status, viewmodel.PageData{
 		Title: "Import", NavPage: "import", NavSection: "settings", Error: message,
 		CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		DefaultWorkspaceHref: h.defaultHomeHref(request.Context(), session.UserID),
@@ -785,7 +783,7 @@ func (h *Handler) securityPage(writer http.ResponseWriter, request *http.Request
 	}
 	status, _ := h.identity.MFAStatus(request.Context(), session.UserID)
 	passkeys, _ := h.identity.ListPasskeys(request.Context(), session.UserID)
-	h.render(writer, http.StatusOK, "security-page", pageData{
+	h.render(writer, http.StatusOK, "security-page", viewmodel.PageData{
 		Title: "Security", NavPage: "security", CSRF: csrf, OIDCProviders: h.providers(),
 		Error: request.URL.Query().Get("error"), Email: session.UserID.String(), MFAStatus: status, Passkeys: passkeys,
 	})
@@ -805,16 +803,16 @@ func (h *Handler) securityMutation(writer http.ResponseWriter, request *http.Req
 		return
 	}
 	if h.oidc == nil || len(h.providers()) == 0 || request.FormValue("provider") == "" {
-		h.render(writer, http.StatusUnprocessableEntity, "security-page", pageData{Title: "Security", NavPage: "security", CSRF: request.FormValue("csrf"), Error: "No OIDC provider is configured."})
+		h.render(writer, http.StatusUnprocessableEntity, "security-page", viewmodel.PageData{Title: "Security", NavPage: "security", CSRF: request.FormValue("csrf"), Error: "No OIDC provider is configured."})
 		return
 	}
 	if err := h.identity.ReauthenticateLocal(request.Context(), session.UserID, request.FormValue("password")); err != nil {
-		h.render(writer, http.StatusUnauthorized, "security-page", pageData{Title: "Security", NavPage: "security", CSRF: request.FormValue("csrf"), OIDCProviders: h.providers(), Error: "Reauthentication failed."})
+		h.render(writer, http.StatusUnauthorized, "security-page", viewmodel.PageData{Title: "Security", NavPage: "security", CSRF: request.FormValue("csrf"), OIDCProviders: h.providers(), Error: "Reauthentication failed."})
 		return
 	}
 	transaction, loginURL, err := h.oidc.BeginLink(request.Context(), h.identity, request.FormValue("provider"), session.ID, session.UserID)
 	if err != nil {
-		h.render(writer, http.StatusUnprocessableEntity, "security-page", pageData{Title: "Security", NavPage: "security", CSRF: request.FormValue("csrf"), OIDCProviders: h.providers(), Error: "The OIDC link could not be started."})
+		h.render(writer, http.StatusUnprocessableEntity, "security-page", viewmodel.PageData{Title: "Security", NavPage: "security", CSRF: request.FormValue("csrf"), OIDCProviders: h.providers(), Error: "The OIDC link could not be started."})
 		return
 	}
 	h.setOIDCCookies(writer, "link", transaction)
@@ -837,7 +835,7 @@ func (h *Handler) renderInvitationPage(writer http.ResponseWriter, request *http
 		if errorKey == "" {
 			errorKey = "invitations.unavailable"
 		}
-		h.renderInvitationComponent(writer, request, status, pageData{
+		h.renderInvitationComponent(writer, request, status, viewmodel.PageData{
 			Title: "Workspace invitation", InvitationSecret: secret,
 			ErrorKey: errorKey,
 		}, invitationView)
@@ -860,7 +858,7 @@ func (h *Handler) renderInvitationPage(writer http.ResponseWriter, request *http
 			h.setCookie(writer, "invitation_csrf", csrf, time.Now().Add(10*time.Minute), true)
 		}
 	}
-	h.renderInvitationComponent(writer, request, status, pageData{
+	h.renderInvitationComponent(writer, request, status, viewmodel.PageData{
 		Title: "Workspace invitation", CSRF: csrf, Invitation: invitation,
 		InvitationSecret: secret, InvitationAuthenticated: authenticated,
 		ErrorKey: errorKey,
@@ -924,7 +922,7 @@ func (h *Handler) managementError(writer http.ResponseWriter, request *http.Requ
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, http.StatusUnprocessableEntity, "error.html", pageData{
+	h.render(writer, http.StatusUnprocessableEntity, "error.html", viewmodel.PageData{
 		Title: "Request failed", Error: message, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 	})
 }

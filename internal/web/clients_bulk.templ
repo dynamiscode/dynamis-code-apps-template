@@ -1,0 +1,28 @@
+package web
+
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import "example.com/dynamis-code/apps-template/internal/web/components"
+// clientBulkBar is the bulk form for the rows on this page. Its checkboxes and buttons name the form by id, so the
+// table needs no form of its own. Archive and delete read the selected client IDs and return to this list.
+templ clientBulkBar(data viewmodel.PageData) {
+	<form id="client-bulk" class="client-bulk" method="post" action={ data.CurrentPath + "/bulk" }>
+		<input type="hidden" name="csrf" value={ data.CSRF }/>
+		<input type="hidden" name="return" value={ data.CurrentPath + data.ClientQuerySuffix }/>
+				<span class="client-bulk-count" aria-live="polite" data-count-template={ data.T("clients.bulk_selected", map[string]any{"count": "COUNT"}) }>{ data.T("clients.bulk_selected", map[string]any{"count": 0}) }</span>
+		<button class="btn btn-ghost btn-xs" type="submit" name="action" value="archive" data-bulk-action>@components.ListActionIcon("archive") { data.T("clients.bulk_archive") }</button>
+		if data.CanDeleteClients {
+			<button class="btn btn-xs client-bulk-danger" type="submit" name="action" value="delete" data-bulk-action data-confirm={ data.T("clients.bulk_delete_confirm") }>@components.ListActionIcon("delete") { data.T("clients.bulk_delete") }</button>
+		}
+	</form>
+}
+
+// clientRowSelect is a row's selection checkbox in the table.
+templ clientRowSelect(data viewmodel.PageData, row viewmodel.ListRow) {
+	<td class="list-select-cell"><input type="checkbox" form="client-bulk" name="client_id" value={ row.ID } data-bulk-row aria-label={ data.T("clients.bulk_select_row", map[string]any{"name": row.CellText(data.ClientListLinkKey())}) }/></td>
+}
+
+// clientCardSelect is a card's selection checkbox on small screens.
+templ clientCardSelect(data viewmodel.PageData, row viewmodel.ListRow) {
+	<label class="list-select"><input type="checkbox" form="client-bulk" name="client_id" value={ row.ID } data-bulk-row aria-label={ data.T("clients.bulk_select_row", map[string]any{"name": row.CellText(data.ClientListLinkKey())}) }/> <span>{ data.T("clients.bulk_select") }</span></label>
+}
+

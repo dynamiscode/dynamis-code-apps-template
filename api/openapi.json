@@ -138,7 +138,7 @@
     "/api/v1/workspaces/{workspaceId}/items": {
       "get": {
         "operationId": "listItems",
-        "description": "Returns a deterministic page. Search is a trimmed, case-insensitive literal substring of title. The cursor is opaque and bound to status, search, and sort.",
+        "description": "Returns a deterministic numbered page. Search is a trimmed, case-insensitive literal substring of title. Total counts every item the filters match.",
         "security": [{"bearerAuth": []}],
         "parameters": [
           {"$ref": "#/components/parameters/WorkspaceId"},
@@ -146,10 +146,10 @@
           {"$ref": "#/components/parameters/ItemSearch"},
           {"$ref": "#/components/parameters/ItemSort"},
           {"$ref": "#/components/parameters/PageLimit"},
-          {"$ref": "#/components/parameters/PageCursor"}
+          {"$ref": "#/components/parameters/PageNumber"}
         ],
         "responses": {
-          "200": {"description": "Stable cursor page", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ItemPage"}}}},
+          "200": {"description": "Numbered page", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ItemPage"}}}},
           "400": {"$ref": "#/components/responses/Problem"},
           "401": {"$ref": "#/components/responses/Problem"},
           "403": {"$ref": "#/components/responses/Problem"},
@@ -293,7 +293,7 @@
     "/api/v1/workspaces/{workspaceId}/clients": {
         "get": {
           "operationId": "listClients",
-          "description": "Returns a deterministic page. Archived clients are excluded. Without sort, the page is newest first. Sort orders by one field, with empty values last and ties broken by client ID in the sort direction. Filters combine with AND. The cursor binds the sort and filters, so a cursor from another query is refused. Clients have no free-text search in v1.",
+          "description": "Returns a deterministic page. Archived clients are excluded. Without sort, the page is newest first. Sort orders by one field, with empty values last and ties broken by client ID in the sort direction. Filters combine with AND. Total counts every client the filters and archived selector match. Clients have no free-text search in v1.",
           "security": [
             {
               "bearerAuth": []
@@ -307,7 +307,7 @@
               "$ref": "#/components/parameters/PageLimit"
             },
             {
-              "$ref": "#/components/parameters/PageCursor"
+              "$ref": "#/components/parameters/PageNumber"
             },
             {
               "$ref": "#/components/parameters/ClientSort"
@@ -321,7 +321,7 @@
           ],
           "responses": {
             "200": {
-              "description": "Stable cursor page",
+              "description": "Numbered page",
               "content": {
                 "application/json": {
                   "schema": {
@@ -908,7 +908,7 @@
     "/api/v1/workspaces/{workspaceId}/members": {
       "get": {
         "operationId": "listMembers", "security": [{"bearerAuth": []}],
-        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "limit", "in": "query", "description": "Opt in to pagination. Omit it and cursor to receive all members.", "required": false, "schema": {"type": "integer", "minimum": 1, "maximum": 100}}, {"name": "cursor", "in": "query", "description": "Request the next page; when limit is omitted, the configured default page size is used.", "required": false, "schema": {"type": "string"}}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "limit", "in": "query", "description": "Opt in to pagination. Omit it and page to receive all members.", "required": false, "schema": {"type": "integer", "minimum": 1, "maximum": 100}}, {"name": "page", "in": "query", "description": "1-based page number; the first page when omitted. When limit is omitted, the configured default page size is used.", "required": false, "schema": {"type": "integer", "minimum": 1, "maximum": 1000000}}],
         "responses": {"200": {"description": "Workspace members", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/MemberPage"}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}
       }
     },
@@ -1096,10 +1096,10 @@
       "ItemSearch": {"name": "search", "in": "query", "description": "Optional trimmed, case-insensitive literal substring of item title. Wildcards are not interpreted.", "schema": {"type": "string", "minLength": 1, "maxLength": 100}},
       "ItemSort": {"name": "sort", "in": "query", "description": "Stable sort; ties use item id in the same direction.", "schema": {"type": "string", "enum": ["created_at", "-created_at"], "default": "-created_at"}},
       "PageLimit": {"name": "limit", "in": "query", "description": "Number of resources to return.", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50}},
-      "PageCursor": {"name": "cursor", "in": "query", "description": "Opaque cursor from the previous page; do not modify or combine with different query parameters.", "schema": {"type": "string", "maxLength": 512}},
+      "PageNumber": {"name": "page", "in": "query", "description": "1-based page number. Omit it for the first page; a page past the end is empty.", "schema": {"type": "integer", "minimum": 1, "maximum": 1000000}},
       "ClientSort": {"name": "sort", "in": "query", "description": "Optional sort field: a common field (displayName, email, phone, notes, createdAt, updatedAt) or a custom field's short ID. A leading minus sorts descending. Number fields sort numerically. Text sorts by bytes. Empty values sort last.", "schema": {"type": "string", "minLength": 1, "maxLength": 64}},
       "ClientFilter": {"name": "filter", "in": "query", "description": "Optional condition as field:operator:value. May repeat; conditions combine with AND. A field may repeat in REST v1. is_empty takes an empty value and matches absent, null, or empty values. Common text fields (displayName, email, phone, notes) take equals or contains. Custom fields are named by short ID. Text takes equals or contains, case-insensitive for ASCII letters. Number and date take equals, before, after, or between (value from,to, inclusive). createdAt and updatedAt accept RFC3339 timestamp values with equals, before, after, or between. Before and after are strict. Yes/no takes equals with true or false. Single choice takes equals with one or more comma-separated option IDs. Equals on a number compares canonical decimal text, so 10.0 matches 10. Operators are documented in docs/api.md.", "schema": {"type": "string", "minLength": 1}},
-      "ClientArchived": {"name": "archived", "in": "query", "description": "Which clients the list shows. active (the default) excludes archived clients, archived shows only archived clients, and all shows both. The cursor binds this value.", "schema": {"type": "string", "enum": ["active", "archived", "all"]}},
+      "ClientArchived": {"name": "archived", "in": "query", "description": "Which clients the list shows. active (the default) excludes archived clients, archived shows only archived clients, and all shows both. Pages keep this value.", "schema": {"type": "string", "enum": ["active", "archived", "all"]}},
       "IdempotencyKey": {"name": "Idempotency-Key", "in": "header", "required": true, "description": "1-255 visible ASCII characters; scoped to credential, workspace, and operation; retained 24 hours", "schema": {"type": "string", "minLength": 1, "maxLength": 255}},
       "CSRFToken": {"name": "X-CSRF-Token", "in": "header", "required": true, "schema": {"type": "string"}},
       "SCIMUserId": {"name": "userId", "in": "path", "required": true, "description": "SCIM resource id: the user's short ID. The IdP externalId, malformed, unknown, and foreign IDs return the same SCIM not-found error.", "schema": {"type": "string", "maxLength": 256}},
@@ -1127,13 +1127,13 @@
       "ClientFieldOptionList": {"type": "object", "required": ["options"], "properties": {"options": {"type": "array", "items": {"$ref": "#/components/schemas/ClientFieldOption"}}}},
       "CreateClientFieldOptionRequest": {"type": "object", "additionalProperties": false, "required": ["label"], "properties": {"label": {"type": "string", "minLength": 1, "maxLength": 100}}},
       "CreateClientFieldRequest": {"type": "object", "additionalProperties": false, "required": ["label", "type"], "properties": {"label": {"type": "string", "minLength": 1, "maxLength": 100}, "type": {"type": "string", "enum": ["text", "number", "date", "yes_no", "single_choice"]}}},
-      "ClientPage": {"type": "object", "required": ["clients"], "properties": {"clients": {"type": "array", "items": {"$ref": "#/components/schemas/Client"}}, "nextCursor": {"type": "string"}}},
+      "ClientPage": {"type": "object", "required": ["clients"], "properties": {"clients": {"type": "array", "items": {"$ref": "#/components/schemas/Client"}}, "total": {"type": "integer"}, "page": {"type": "integer"}}},
       "CreateClientRequest": {"type": "object", "additionalProperties": false, "required": ["displayName"], "properties": {"displayName": {"type": "string", "minLength": 1, "maxLength": 200}, "email": {"type": "string", "maxLength": 254, "description": "Optional. A bare email address when present."}, "phone": {"type": "string", "maxLength": 50}, "notes": {"type": "string", "maxLength": 5000}}},
       "UpdateClientRequest": {"type": "object", "additionalProperties": false, "minProperties": 1, "properties": {"displayName": {"type": "string", "minLength": 1, "maxLength": 200}, "email": {"type": "string", "maxLength": 254, "description": "Optional. A bare email address when present."}, "phone": {"type": "string", "maxLength": 50}, "notes": {"type": "string", "maxLength": 5000}}},
       "ClientValue": {"type": "object", "required": ["fieldId", "label", "type", "value"], "properties": {"fieldId": {"type": "string"}, "label": {"type": "string", "description": "Workspace-entered text, shown as typed."}, "type": {"type": "string", "enum": ["text", "number", "date", "yes_no", "single_choice"]}, "value": {"type": ["string", "null"], "maxLength": 500, "description": "Null when the field has no value. Otherwise the stored text: a decimal for number, YYYY-MM-DD for date, true or false for yes_no, and the option's short ID for single_choice."}}},
       "ClientValueList": {"type": "object", "required": ["values"], "properties": {"values": {"type": "array", "items": {"$ref": "#/components/schemas/ClientValue"}}}},
       "SetClientValueRequest": {"type": "object", "additionalProperties": false, "required": ["value"], "properties": {"value": {"type": "string", "minLength": 1, "maxLength": 500, "description": "Text value, or the short ID of a choice option of a single-choice field. Blank values are refused; use DELETE to clear."}}},
-      "ItemPage": {"type": "object", "required": ["items"], "properties": {"items": {"type": "array", "items": {"$ref": "#/components/schemas/Item"}}, "nextCursor": {"type": "string"}}},
+      "ItemPage": {"type": "object", "required": ["items"], "properties": {"items": {"type": "array", "items": {"$ref": "#/components/schemas/Item"}}, "total": {"type": "integer"}, "page": {"type": "integer"}}},
       "UploadFileRequest": {"type": "object", "required": ["file"], "properties": {"file": {"type": "string", "format": "binary"}}},
       "InitiateFileRequest": {"type": "object", "additionalProperties": false, "required": ["originalName", "size"], "properties": {"originalName": {"type": "string", "maxLength": 255}, "size": {"type": "integer", "minimum": 1}, "contentType": {"type": "string", "maxLength": 255}}},
       "File": {"type": "object", "required": ["id", "workspaceId", "ownerUserId", "originalName", "size", "status", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "ownerUserId": {"type": ["string", "null"]}, "originalName": {"type": "string"}, "detectedMime": {"type": "string"}, "size": {"type": "integer", "minimum": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "status": {"type": "string", "enum": ["pending", "ready", "failed"]}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}}},
@@ -1146,7 +1146,7 @@
       "WorkspaceExport": {"type": "object", "required": ["formatVersion", "exportedAt", "workspace", "members", "items", "auditEvents", "excluded"], "properties": {"formatVersion": {"const": "dynamis-code.workspace/v1"}, "exportedAt": {"type": "string", "format": "date-time"}, "workspace": {"$ref": "#/components/schemas/ExportWorkspace"}, "members": {"type": "array", "items": {"$ref": "#/components/schemas/ExportMember"}}, "items": {"type": "array", "items": {"$ref": "#/components/schemas/Item"}}, "clients": {"description": "Additive v1 key. Readers ignore unknown fields; this importer accepts it but does not import clients.", "type": "array", "items": {"$ref": "#/components/schemas/ExportClient"}}, "clientFields": {"description": "Additive v1 key. Includes archived fields.", "type": "array", "items": {"$ref": "#/components/schemas/ClientField"}}, "clientFieldOptions": {"description": "Additive v1 key. Choice options of single-choice fields.", "type": "array", "items": {"$ref": "#/components/schemas/ClientFieldOption"}}, "auditEvents": {"type": "array", "items": {"$ref": "#/components/schemas/ExportAuditEvent"}}, "excluded": {"type": "array", "items": {"type": "string"}}}},
       "WorkspaceImportResult": {"type": "object", "required": ["imported"], "properties": {"imported": {"type": "integer", "minimum": 1}}},
       "Member": {"type": "object", "required": ["id", "email", "role", "createdAt"], "properties": {"id": {"type": "string"}, "email": {"type": "string", "format": "email"}, "role": {"type": "string", "enum": ["owner", "admin", "member", "viewer"]}, "createdAt": {"type": "string", "format": "date-time"}}},
-      "MemberPage": {"type": "object", "required": ["members"], "properties": {"members": {"type": "array", "items": {"$ref": "#/components/schemas/Member"}}, "nextCursor": {"type": "string", "description": "Present when pagination is requested; empty when there is no next page."}}},
+      "MemberPage": {"type": "object", "required": ["members"], "properties": {"members": {"type": "array", "items": {"$ref": "#/components/schemas/Member"}}, "total": {"type": "integer", "description": "Every member, before paging."}, "page": {"type": "integer", "description": "The page returned; present when pagination is requested."}}},
       "MemberRoleRequest": {"type": "object", "additionalProperties": false, "required": ["role"], "properties": {"role": {"type": "string", "enum": ["admin", "member", "viewer"]}}},
       "OwnershipRequest": {"type": "object", "additionalProperties": false, "required": ["memberId"], "properties": {"memberId": {"type": "string"}}},
       "Invitation": {"type": "object", "required": ["id", "workspaceId", "email", "role", "createdAt", "expiresAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "email": {"type": "string", "format": "email"}, "role": {"type": "string", "enum": ["admin", "member", "viewer"]}, "createdAt": {"type": "string", "format": "date-time"}, "expiresAt": {"type": "string", "format": "date-time"}, "acceptedAt": {"type": ["string", "null"], "format": "date-time"}, "expiredAt": {"type": ["string", "null"], "format": "date-time"}, "revokedAt": {"type": ["string", "null"], "format": "date-time"}}},

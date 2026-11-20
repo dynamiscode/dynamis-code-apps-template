@@ -1,0 +1,97 @@
+package components
+
+
+// PageHeading matches the workspace and resource page heading pattern.
+templ PageHeading(title, eyebrow string) {
+	<div class="workspace-heading"><div>
+		if eyebrow != "" {
+			<p class="eyebrow">{ eyebrow }</p>
+		}
+		<h1>{ title }</h1>
+	</div>{ children... }</div>
+}
+
+// StatusLine is a polite or plain status message; attrs adds live-region ids.
+templ StatusLine(text string, attrs templ.Attributes) {
+	<p class="status" role="status" { attrs... }>{ text }</p>
+}
+
+templ TextField(id, label string, attrs templ.Attributes) {
+	<label for={ id }>{ label }</label>
+	<input class="input" id={ id } { attrs... }/>
+}
+
+templ SelectField(id, label string, attrs templ.Attributes) {
+	<label for={ id }>{ label }</label>
+	<select class="select" id={ id } { attrs... }>{ children... }</select>
+}
+
+templ TextareaField(id, label, value string, attrs templ.Attributes) {
+	<label for={ id }>{ label }</label>
+	<textarea class="textarea" id={ id } { attrs... }>{ value }</textarea>
+}
+
+templ FieldError(id, message string) {
+	<p id={ id } class="error">{ message }</p>
+}
+
+templ SubmitButton(label string, attrs templ.Attributes) {
+	<button class="btn btn-primary" type="submit" { attrs... }>{ label }</button>
+}
+
+templ LinkButton(href, label string) {
+	<a class="btn btn-primary" href={ href }>{ label }</a>
+}
+
+// ConfirmButton preserves the existing progressive enhancement for destructive actions.
+templ ConfirmButton(label, prompt string, attrs templ.Attributes) {
+	<button class="btn btn-error danger" type="submit" data-confirm={ prompt } { attrs... }>{ label }</button>
+}
+
+templ ConfirmationField(id, name, label string) {
+	<label class="confirmation" for={ id }><input id={ id } name={ name } type="checkbox" value="yes" required/> <span>{ label }</span></label>
+}
+
+templ ErrorAlert(message string) {
+	<p class="alert alert-error error" role="alert" tabindex="-1">{ message }</p>
+}
+
+templ SuccessAlert(message string) {
+	<p class="alert alert-success success" role="status">{ message }{ " " }{ children... }</p>
+}
+
+templ DataTable(caption string, hiddenCaption bool) {
+	<div class="table-scroll"><table class="table">
+		<caption class={ templ.KV("visually-hidden", hiddenCaption) }>{ caption }</caption>
+		{ children... }
+	</table></div>
+}
+
+templ AuditDataTable(caption, label string) {
+	<div class="table-wrap" tabindex="0" role="region" aria-label={ label }><table>
+		<caption class="visually-hidden">{ caption }</caption>
+		{ children... }
+	</table></div>
+}
+
+templ ListTable(caption string, hiddenCaption bool) {
+	<div class="list-view-table">
+		<table class="table table-md table-pin-rows">
+			<caption class={ templ.KV("visually-hidden", hiddenCaption) }>{ caption }</caption>
+			{ children... }
+		</table>
+	</div>
+}
+
+templ LinkedCard(href, title, description string) {
+	<li class="card"><a href={ href }><strong>{ title }</strong><span>{ description }</span></a></li>
+}
+
+templ ListCards() {
+	<ul class="list-view-cards">{ children... }</ul>
+}
+
+templ EmptyState(message string) {
+	<p>{ message }{ " " }{ children... }</p>
+}
+

@@ -3,15 +3,14 @@ package web
 import (
 	"bufio"
 	"context"
+	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
-
-	"example.com/dynamis-code/apps-template/internal/clients"
-	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
 
 func TestClientEventsStreamDeliversChangesToViewersOnly(t *testing.T) {

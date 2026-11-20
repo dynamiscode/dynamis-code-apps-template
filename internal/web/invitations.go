@@ -1,11 +1,11 @@
 package web
 
 import (
+	"example.com/dynamis-code/apps-template/internal/platform/config"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
+	"github.com/a-h/templ"
 	"net/http"
 	"strings"
-
-	"example.com/dynamis-code/apps-template/internal/platform/config"
-	"github.com/a-h/templ"
 )
 
 const (
@@ -35,8 +35,8 @@ func (h *Handler) renderInvitationComponent(
 	writer http.ResponseWriter,
 	request *http.Request,
 	status int,
-	data pageData,
-	component func(pageData) templ.Component,
+	data viewmodel.PageData,
+	component func(viewmodel.PageData) templ.Component,
 ) {
 	data.FilesEnabled = h.filesEnabled
 	data.ClientsEnabled = h.clientsEnabled
@@ -93,7 +93,7 @@ func (h *Handler) invitationContinuePage(writer http.ResponseWriter, request *ht
 	)
 	if err != nil {
 		h.renderInvitationComponent(writer, request, http.StatusNotFound,
-			pageData{Title: "Workspace invitation", ErrorKey: "invitations.unavailable"}, invitationContinueView)
+			viewmodel.PageData{Title: "Workspace invitation", ErrorKey: "invitations.unavailable"}, invitationContinueView)
 		return
 	}
 	session, err := h.identity.AuthenticateSession(request.Context(), cookieValue(request, "session"))
@@ -102,7 +102,7 @@ func (h *Handler) invitationContinuePage(writer http.ResponseWriter, request *ht
 		http.Redirect(writer, request, invitationLoginLocation, http.StatusSeeOther)
 		return
 	}
-	h.renderInvitationComponent(writer, request, http.StatusOK, pageData{
+	h.renderInvitationComponent(writer, request, http.StatusOK, viewmodel.PageData{
 		Title: "Workspace invitation", CSRF: csrf, Invitation: invitation,
 		InvitationAuthenticated: true,
 	}, invitationContinueView)
@@ -119,7 +119,7 @@ func (h *Handler) invitationContinuePost(writer http.ResponseWriter, request *ht
 	invitation, err := h.identity.InvitationForReturn(request.Context(), token, binding)
 	if err != nil {
 		h.renderInvitationComponent(writer, request, http.StatusNotFound,
-			pageData{Title: "Workspace invitation", ErrorKey: "invitations.unavailable"}, invitationContinueView)
+			viewmodel.PageData{Title: "Workspace invitation", ErrorKey: "invitations.unavailable"}, invitationContinueView)
 		return
 	}
 	session, err := h.identity.AuthenticateSession(request.Context(), cookieValue(request, "session"))
@@ -135,7 +135,7 @@ func (h *Handler) invitationContinuePost(writer http.ResponseWriter, request *ht
 		request.Context(), token, binding, session.UserID, auditContext(request),
 	)
 	if err != nil {
-		h.renderInvitationComponent(writer, request, http.StatusUnprocessableEntity, pageData{
+		h.renderInvitationComponent(writer, request, http.StatusUnprocessableEntity, viewmodel.PageData{
 			Title: "Workspace invitation", CSRF: cookieValue(request, "csrf"),
 			Invitation: invitation, InvitationAuthenticated: true,
 			ErrorKey: "invitations.accept_failed",

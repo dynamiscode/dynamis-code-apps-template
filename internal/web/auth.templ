@@ -1,13 +1,17 @@
 package web
 
-templ authLayout(data pageData, heading string) {
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import "example.com/dynamis-code/apps-template/internal/web/components"
+import "example.com/dynamis-code/apps-template/internal/web/layouts"
+
+templ authLayout(data viewmodel.PageData, heading string) {
 	<!doctype html>
 	<html lang={ data.Locale } data-theme={ data.Theme }>
 		<head>
-			@pageHead(data, heading)
+			@layouts.PageHead(data, heading)
 		</head>
 		<body>
-			@skipLink(data)
+			@layouts.SkipLink(data)
 			<main class="narrow auth-card" id="main">
 				<div class="brand auth-brand"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</div>
 				{ children... }
@@ -16,12 +20,12 @@ templ authLayout(data pageData, heading string) {
 	</html>
 }
 
-templ authLogin(data pageData) {
+templ authLogin(data viewmodel.PageData) {
 	@authLayout(data, data.T("account.sign_in")) {
 		<h1>{ data.T("account.sign_in") }</h1>
 		<p class="auth-intro">{ data.T("account.sign_in_description") }</p>
 		if data.Error != "" {
-			@errorAlert(data.Error)
+			@components.ErrorAlert(data.Error)
 		}
 		<form action="/login" method="post">
 			<input type="hidden" name="csrf" value={ data.CSRF }/>
@@ -30,7 +34,7 @@ templ authLogin(data pageData) {
 			<input class="input" id="email" name="email" type="email" autocomplete="username" required maxlength="320" value={ data.Email } data-trim/>
 			<label for="password">{ data.T("common.password") }</label>
 			<input class="input" id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024"/>
-			@submitButton(data.T("account.sign_in"), nil)
+			@components.SubmitButton(data.T("account.sign_in"), nil)
 		</form>
 		<p><a class="auth-recovery-link" href="/password-reset">{ data.T("account.forgot_password") }</a></p>
 		if len(data.OIDCProviders) > 0 {
@@ -46,13 +50,13 @@ templ authLogin(data pageData) {
 	}
 }
 
-templ authSetup(data pageData) {
+templ authSetup(data viewmodel.PageData) {
 	@authLayout(data, data.T("setup.title")) {
 		<h1>{ data.T("setup.title") }</h1>
 		<p class="auth-intro">{ data.T("setup.description") }</p>
 		<p class="auth-note" data-setup-optional>{ data.T("setup.optional_later") }</p>
 		if data.Error != "" {
-			@errorAlert(data.Error)
+			@components.ErrorAlert(data.Error)
 		}
 		<form action="/setup" method="post" data-wizard>
 			<input type="hidden" name="csrf" value={ data.CSRF }/>
@@ -84,20 +88,20 @@ templ authSetup(data pageData) {
 					<option value="es" selected?={ data.WorkspaceLocale == "es" || data.WorkspaceLocale == "" && data.Locale == "es" }>{ data.T("common.spanish") }</option>
 				</select>
 			</fieldset>
-			@submitButton(data.T("setup.create_owner"), nil)
+			@components.SubmitButton(data.T("setup.create_owner"), nil)
 		</form>
 	}
 }
 
-templ authPasswordReset(data pageData) {
+templ authPasswordReset(data viewmodel.PageData) {
 	@authLayout(data, data.T(authPasswordResetTitle(data))) {
 		<h1>{ data.T(authPasswordResetTitle(data)) }</h1>
 		if data.Saved {
-			@successAlert(data.T(authPasswordResetSuccess(data)))
-			<p>@linkButton("/login", data.T("account.sign_in"))</p>
+			@components.SuccessAlert(data.T(authPasswordResetSuccess(data)))
+			<p>@components.LinkButton("/login", data.T("account.sign_in"))</p>
 		} else {
 			if data.ErrorKey != "" {
-				@errorAlert(data.T(data.ErrorKey))
+				@components.ErrorAlert(data.T(data.ErrorKey))
 			}
 			if data.PasswordResetSecret != "" {
 				<p class="auth-intro">{ data.T("account.choose_password_description") }</p>
@@ -107,7 +111,7 @@ templ authPasswordReset(data pageData) {
 					<input class="input" id="reset-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required data-strength/>
 					<label for="reset-password-confirmation">{ data.T("account.confirm_password") }</label>
 					<input class="input" id="reset-password-confirmation" name="password_confirmation" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required data-match="reset-password"/>
-					@submitButton(data.T("account.reset_password"), nil)
+					@components.SubmitButton(data.T("account.reset_password"), nil)
 				</form>
 			} else {
 				<p class="auth-intro">{ data.T("account.password_reset_description") }</p>
@@ -115,19 +119,19 @@ templ authPasswordReset(data pageData) {
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
 					<label for="reset-email">{ data.T("common.email") }</label>
 					<input class="input" id="reset-email" name="email" type="email" autocomplete="username" maxlength="320" required/>
-					@submitButton(data.T("account.send_reset"), nil)
+					@components.SubmitButton(data.T("account.send_reset"), nil)
 				</form>
 			}
 		}
 	}
 }
 
-templ authMFA(data pageData) {
+templ authMFA(data viewmodel.PageData) {
 	@authLayout(data, data.T("security.mfa_title")) {
 		<h1>{ data.T("security.mfa_title") }</h1>
 		<p class="auth-intro">{ data.T("security.mfa_verify_prompt") }</p>
 		if data.MFAError != "" {
-			@errorAlert(data.MFAError)
+			@components.ErrorAlert(data.MFAError)
 		}
 		if len(data.MFAOptions) > 0 {
 			<section class="auth-method" aria-labelledby="passkey-heading">
@@ -143,7 +147,7 @@ templ authMFA(data pageData) {
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
 				<label for="totp-code">{ data.T("security.mfa_authenticator_code") }</label>
 				<input class="input" id="totp-code" name="code" inputmode="numeric" autocomplete="one-time-code" minlength="6" maxlength="9" required data-mask="digits" data-mask-length="6"/>
-				@submitButton(data.T("security.mfa_verify_code"), nil)
+				@components.SubmitButton(data.T("security.mfa_verify_code"), nil)
 			</form>
 		</section>
 		<section class="auth-method" aria-labelledby="recovery-heading">
@@ -153,27 +157,27 @@ templ authMFA(data pageData) {
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
 				<label for="recovery-code">{ data.T("security.mfa_recovery_code") }</label>
 				<input class="input" id="recovery-code" name="code" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" required data-mask="upper"/>
-				@submitButton(data.T("security.mfa_use_recovery"), nil)
+				@components.SubmitButton(data.T("security.mfa_use_recovery"), nil)
 			</form>
 		</section>
 		<script src="/assets/mfa.js" defer></script>
 	}
 }
 
-templ authEmailVerification(data pageData) {
+templ authEmailVerification(data viewmodel.PageData) {
 	@authLayout(data, data.T("account.email_verification")) {
 		<h1>{ data.T("account.email_verification") }</h1>
 		if data.Saved {
-			@successAlert(data.T("account.email_verified"))
-			<p>@linkButton("/account", data.T("account.return_account"))</p>
+			@components.SuccessAlert(data.T("account.email_verified"))
+			<p>@components.LinkButton("/account", data.T("account.return_account"))</p>
 		} else {
-			@errorAlert(data.Error)
-			<p>@linkButton("/login", data.T("account.sign_in"))</p>
+			@components.ErrorAlert(data.Error)
+			<p>@components.LinkButton("/login", data.T("account.sign_in"))</p>
 		}
 	}
 }
 
-func authPasswordResetTitle(data pageData) string {
+func authPasswordResetTitle(data viewmodel.PageData) string {
 	if data.PasswordResetCompleted {
 		return "account.password_reset_completed_title"
 	}
@@ -183,7 +187,7 @@ func authPasswordResetTitle(data pageData) string {
 	return "account.reset_password"
 }
 
-func authPasswordResetSuccess(data pageData) string {
+func authPasswordResetSuccess(data viewmodel.PageData) string {
 	if data.PasswordResetCompleted {
 		return "account.password_reset_done"
 	}

@@ -71,7 +71,7 @@ are JSON on stdout, and errors are JSON on stderr.
 | `4` | request, not-found, conflict, or precondition failure |
 | `5` | rate limited |
 
-List filters, cursors, ETags, idempotency, scopes, and public errors retain the
+List filters, pages, ETags, idempotency, scopes, and public errors retain the
 REST behavior documented in [HTTP and REST API](api.md).
 `items list --search TERM` uses the same bounded, case-insensitive literal title
 search as REST.

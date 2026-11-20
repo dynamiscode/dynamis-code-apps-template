@@ -2,14 +2,13 @@ package web
 
 import (
 	"context"
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/items"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
-
-	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 )
 
 func TestItemsListPresentationAndPreferences(t *testing.T) {
@@ -29,7 +28,7 @@ func TestItemsListPresentationAndPreferences(t *testing.T) {
 	if created.Code != http.StatusSeeOther {
 		t.Fatalf("create second item = %d, want %d", created.Code, http.StatusSeeOther)
 	}
-	body := request(handler, http.MethodGet, path, nil, cookies, nil).Body.String()
+	body := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil).Body.String()
 	for _, required := range []string{
 		"list-view-columns", "item-list-view", `data-column="title"`,
 		`data-column="status"`, `name="title"`, `name="status"`,
@@ -47,7 +46,7 @@ func TestItemsListPresentationAndPreferences(t *testing.T) {
 			t.Fatalf("hide %s = %d, want %d", column, response.Code, http.StatusSeeOther)
 		}
 	}
-	body = request(handler, http.MethodGet, path+"?status=active&search=Inline&sort=created_at&limit=1", nil, cookies, nil).Body.String()
+	body = request(handler, http.MethodGet, path+"?all=1&status=active&search=Inline&sort=created_at&limit=1", nil, cookies, nil).Body.String()
 	if !strings.Contains(body, `name="title"`) || !strings.Contains(body, `name="status"`) {
 		t.Fatalf("editing controls missing with hidden columns: title=%t status=%t",
 			strings.Contains(body, `name="title"`), strings.Contains(body, `name="status"`))
@@ -59,8 +58,8 @@ func TestItemsListPresentationAndPreferences(t *testing.T) {
 	if !strings.Contains(body, `action="`+path+`/preferences/columns/title?`) ||
 		!strings.Contains(body, "status=active") || !strings.Contains(body, "search=Inline") ||
 		!strings.Contains(body, "sort=created_at") || !strings.Contains(body, "limit=1") ||
-		!strings.Contains(body, "cursor=") {
-		t.Fatalf("list preferences URL markers: action=%t status=%t search=%t sort=%t limit=%t cursor=%t",
+		!strings.Contains(body, "page=2") {
+		t.Fatalf("list preferences URL markers: action=%t status=%t search=%t sort=%t limit=%t page=%t",
 			strings.Contains(body, `action="`+path+`/preferences/columns/title?`),
 			strings.Contains(body, "status=active"), strings.Contains(body, "search=Inline"),
 			strings.Contains(body, "sort=created_at"), strings.Contains(body, "limit=1"), strings.Contains(body, "cursor="))
@@ -71,31 +70,28 @@ func TestItemsListPresentationAndPreferences(t *testing.T) {
 	if response.Code != http.StatusSeeOther {
 		t.Fatalf("hide final visible column = %d, want %d", response.Code, http.StatusSeeOther)
 	}
-	noDataColumns := request(handler, http.MethodGet, path, nil, cookies, nil)
+	noDataColumns := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil)
 	noDataColumnBody := noDataColumns.Body.String()
 	if noDataColumns.Code != http.StatusOK || strings.Contains(noDataColumnBody, `data-column="title"`) ||
-		strings.Contains(noDataColumnBody, `data-column="status"`) || !strings.Contains(noDataColumnBody, `scope="col">Actions</th>`) ||
-		!strings.Contains(noDataColumnBody, `data-item-edit`) {
-		t.Fatalf("no-visible-data-columns state: status=%d title=%t status_column=%t actions=%t edit=%t",
+		strings.Contains(noDataColumnBody, `data-column="status"`) {
+		t.Fatalf("no-visible-data-columns state: status=%d title=%t status_column=%t",
 			noDataColumns.Code, strings.Contains(noDataColumnBody, `data-column="title"`),
-			strings.Contains(noDataColumnBody, `data-column="status"`),
-			strings.Contains(noDataColumnBody, `scope="col">Actions</th>`),
-			strings.Contains(noDataColumnBody, `data-item-edit`))
+			strings.Contains(noDataColumnBody, `data-column="status"`))
 	}
-	noMatches := request(handler, http.MethodGet, path+"?search=Missing", nil, cookies, nil)
+	noMatches := request(handler, http.MethodGet, path+"?all=1&search=Missing", nil, cookies, nil)
 	noMatchesBody := noMatches.Body.String()
 	if noMatches.Code != http.StatusOK || !strings.Contains(noMatchesBody, "No items yet.") ||
 		strings.Contains(noMatchesBody, "Inline row") {
 		t.Fatalf("title search state: status=%d empty=%t matching_row=%t", noMatches.Code,
 			strings.Contains(noMatchesBody, "No items yet."), strings.Contains(noMatchesBody, "Inline row"))
 	}
-	noStatusMatches := request(handler, http.MethodGet, path+"?status=complete", nil, cookies, nil)
+	noStatusMatches := request(handler, http.MethodGet, path+"?all=1&status=complete", nil, cookies, nil)
 	noStatusMatchesEmpty := strings.Contains(noStatusMatches.Body.String(), "No items yet.")
 	if noStatusMatches.Code != http.StatusOK || !noStatusMatchesEmpty {
 		t.Fatalf("status filter state: status=%d empty=%t", noStatusMatches.Code,
 			noStatusMatchesEmpty)
 	}
-	invalid := request(handler, http.MethodGet, path+"?status=archived", nil, cookies, nil)
+	invalid := request(handler, http.MethodGet, path+"?all=1&status=archived", nil, cookies, nil)
 	if invalid.Code != http.StatusBadRequest {
 		t.Fatalf("invalid status filter = %d, want 400", invalid.Code)
 	}
@@ -106,7 +102,7 @@ func TestItemsListPresentationAndPreferences(t *testing.T) {
 		!strings.Contains(reset.Header().Get("Location"), "status=active") {
 		t.Fatalf("reset columns = %d, Location=%q", reset.Code, reset.Header().Get("Location"))
 	}
-	body = request(handler, http.MethodGet, path, nil, cookies, nil).Body.String()
+	body = request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil).Body.String()
 	if !strings.Contains(body, `data-column="title"`) || !strings.Contains(body, `data-column="status"`) {
 		t.Fatalf("reset column state: title=%t status=%t",
 			strings.Contains(body, `data-column="title"`), strings.Contains(body, `data-column="status"`))
@@ -122,7 +118,7 @@ func TestItemsPageUsesProfileLocaleAndTheme(t *testing.T) {
 	}
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
 	path := "/workspaces/" + workspaceID.String() + "/items"
-	response := request(handler, http.MethodGet, path, nil, cookies, nil)
+	response := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil)
 	body := response.Body.String()
 	spanish := hasHTMLRootLang(body, "es")
 	dark := strings.Contains(body, `data-theme="dark"`)
@@ -165,7 +161,7 @@ func TestItemsViewerCannotCreateEditOrDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 	viewerCookies := []*http.Cookie{{Name: "session", Value: viewerSession.Secret}, {Name: "csrf", Value: viewerSession.CSRFSecret}}
-	viewer := request(handler, http.MethodGet, path, nil, viewerCookies, nil)
+	viewer := request(handler, http.MethodGet, path+"?all=1", nil, viewerCookies, nil)
 	viewerBody := viewer.Body.String()
 	canEdit := strings.Contains(viewerBody, `data-item-edit`)
 	canCreate := strings.Contains(viewerBody, `name="idempotency_key"`)

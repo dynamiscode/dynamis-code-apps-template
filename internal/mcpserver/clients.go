@@ -96,7 +96,7 @@ type (
 		Sort        sortKey          `json:"sort,omitempty"`
 		Filters     []clientFilter   `json:"filters,omitempty"`
 		Limit       pageLimit        `json:"limit,omitempty"`
-		Cursor      cursorToken      `json:"cursor,omitempty"`
+		Page        pageNumber       `json:"page,omitempty"`
 	}
 	clientFilter struct {
 		Field filterField    `json:"field"`
@@ -160,7 +160,7 @@ type (
 
 func (c clientTools) register(h *handler, server *mcp.Server) {
 	addToolWithTypes(server, h, &mcp.Tool{
-		Name: "clients_list_v1", Description: "List one workspace's clients with filter, sort, archived selector, and bounded cursor pagination.",
+		Name: "clients_list_v1", Description: "List one workspace's clients with filter, sort, archived selector, and bounded page pagination.",
 		Annotations: clientRead,
 	}, clientContractTypes, func(input, output *jsonschema.Schema) {
 		boundArray(input, "filters", 10)
@@ -273,7 +273,7 @@ func (c clientTools) listClients(ctx context.Context, request *mcp.CallToolReque
 		filters = append(filters, clients.FilterInput{Field: string(filter.Field), Op: string(filter.Op), Value: string(filter.Value)})
 	}
 	page, err := c.service.List(ctx, principal(request), workspaceID, clients.ListInput{
-		Limit: int(input.Limit), Cursor: string(input.Cursor), Sort: sortOrder, Filters: filters, Archived: string(input.Archived),
+		Limit: int(input.Limit), Page: int(input.Page), Sort: sortOrder, Filters: filters, Archived: string(input.Archived),
 	})
 	run.err = clientRefusal(request, workspaceID, err, errWorkspaceNotFound)
 	return toClientPageOutput(page), run
@@ -524,8 +524,6 @@ func publicClientError(err error) error {
 		return &toolError{category: "resource_limit", message: "choice option limit reached"}
 	case errors.Is(err, clients.ErrPreconditionFailed):
 		return &toolError{category: "precondition_failed", message: "client version is stale"}
-	case errors.Is(err, clients.ErrInvalidCursor):
-		return &toolError{category: "invalid_parameters", message: "cursor is invalid"}
 	case errors.Is(err, clients.ErrInvalidInput):
 		return invalidParameters()
 	default:
@@ -543,7 +541,7 @@ func toClientOutput(client clients.Client) clientOutput {
 }
 
 func toClientPageOutput(page clients.Page) clientPageOutput {
-	output := clientPageOutput{Clients: make([]clientOutput, 0, len(page.Clients)), NextCursor: nextCursor(page.NextCursor)}
+	output := clientPageOutput{Clients: make([]clientOutput, 0, len(page.Clients)), Total: page.Total, Page: page.Page}
 	for _, client := range page.Clients {
 		output.Clients = append(output.Clients, toClientOutput(client))
 	}
@@ -589,8 +587,9 @@ type (
 		UpdatedAt       time.Time        `json:"updatedAt"`
 	}
 	clientPageOutput struct {
-		Clients    []clientOutput `json:"clients"`
-		NextCursor nextCursor     `json:"nextCursor,omitempty"`
+		Clients []clientOutput `json:"clients"`
+		Total   int            `json:"total"`
+		Page    int            `json:"page"`
 	}
 	valueOutput struct {
 		FieldID fieldShortID    `json:"fieldId"`

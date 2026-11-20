@@ -4,12 +4,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"example.com/dynamis-code/apps-template/internal/identity"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
-
-	"example.com/dynamis-code/apps-template/internal/identity"
 )
 
 const (

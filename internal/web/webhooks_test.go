@@ -4,18 +4,17 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"net/http"
-	"net/url"
-	"strings"
-	"testing"
-	"time"
-
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
+	"net/http"
+	"net/url"
+	"strings"
+	"testing"
+	"time"
 )
 
 func TestWebhooksBrowserLifecycleAndRedaction(t *testing.T) {

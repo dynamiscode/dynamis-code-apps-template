@@ -16,7 +16,7 @@ import (
 const itemReviewPromptName = "item_review_v1"
 
 // ponytail: completion scans only the newest 100 items of a workspace (one
-// list page). Add cursor paging, or an exact-ID lookup, when workspaces outgrow it.
+// list page). Add paging, or an exact-ID lookup, when workspaces outgrow it.
 const completionScanLimit = 100
 
 var itemStatuses = []string{string(items.Active), string(items.Complete)}
@@ -106,7 +106,7 @@ func (h *handler) completeItemIDs(ctx context.Context, request *mcp.CompleteRequ
 			ids = append(ids, shortID)
 		}
 	}
-	return ids, page.NextCursor != "", nil
+	return ids, page.Total > len(page.Items), nil
 }
 
 func completeValues(values []string, hasMore bool) *mcp.CompleteResult {

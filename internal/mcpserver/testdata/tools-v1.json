@@ -42,8 +42,8 @@
         "createdByUserId": {
           "pattern": "^[2-9a-hjkmnp-z]{4,}$",
           "type": [
-            "string",
-            "null"
+            "null",
+            "string"
           ]
         },
         "id": {
@@ -171,8 +171,8 @@
         "createdByUserId": {
           "pattern": "^[2-9a-hjkmnp-z]{4,}$",
           "type": [
-            "string",
-            "null"
+            "null",
+            "string"
           ]
         },
         "id": {
@@ -222,17 +222,19 @@
       "openWorldHint": false,
       "readOnlyHint": true
     },
-    "description": "List one workspace's items with bounded cursor pagination.",
+    "description": "List one workspace's items with bounded page pagination.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
-        "cursor": {
-          "maxLength": 512,
-          "type": "string"
-        },
         "limit": {
           "default": 50,
           "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "page": {
+          "description": "1-based page number. The first page is 1.",
+          "maximum": 1000000,
           "minimum": 1,
           "type": "integer"
         },
@@ -281,8 +283,8 @@
               "createdByUserId": {
                 "pattern": "^[2-9a-hjkmnp-z]{4,}$",
                 "type": [
-                  "string",
-                  "null"
+                  "null",
+                  "string"
                 ]
               },
               "id": {
@@ -309,8 +311,8 @@
                 "type": "integer"
               },
               "workspaceId": {
-          "type": "string"
-        }
+                "type": "string"
+              }
             },
             "required": [
               "id",
@@ -327,13 +329,17 @@
           "maxItems": 100,
           "type": "array"
         },
-        "nextCursor": {
-          "maxLength": 700,
-          "type": "string"
+        "page": {
+          "type": "integer"
+        },
+        "total": {
+          "type": "integer"
         }
       },
       "required": [
-        "items"
+        "items",
+        "total",
+        "page"
       ],
       "type": "object"
     }
@@ -403,8 +409,8 @@
         "createdByUserId": {
           "pattern": "^[2-9a-hjkmnp-z]{4,}$",
           "type": [
-            "string",
-            "null"
+            "null",
+            "string"
           ]
         },
         "id": {

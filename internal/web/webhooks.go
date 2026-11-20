@@ -3,10 +3,10 @@ package web
 import (
 	"context"
 	"errors"
-	"net/http"
-
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
+	"net/http"
 )
 
 type webhookManager interface {
@@ -74,7 +74,7 @@ func (h *Handler) renderWebhooksPageForPrincipalWithStatus(
 	csrf, selectedID, secret, message, errorKey string,
 	status int,
 ) {
-	data := pageData{
+	data := viewmodel.PageData{
 		Title: "Webhooks", NavPage: "webhooks", NavSection: "settings", Error: message, ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(nil, workspaceID), WebhookSecret: secret,
 		CanManage: principal.Permissions[identity.WebhooksManage], WebhookSecretKeyConfigured: h.webhooks.SecretKeyConfigured(),

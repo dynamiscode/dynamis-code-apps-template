@@ -3,14 +3,14 @@ package web
 import (
 	"bytes"
 	"context"
+	"example.com/dynamis-code/apps-template/internal/i18n"
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
-
-	"example.com/dynamis-code/apps-template/internal/i18n"
-	"example.com/dynamis-code/apps-template/internal/identity"
 )
 
 func TestSetupPresentsRequiredDetailsBeforeDeferrableTasks(t *testing.T) {
@@ -102,7 +102,7 @@ func TestConfiguredOIDCProviderChoiceIsOrdinaryLink(t *testing.T) {
 		t.Fatal(err)
 	}
 	var body bytes.Buffer
-	data := pageData{Locale: "en", Theme: "light", Catalog: catalog, OIDCProviders: []identity.OIDCProviderInfo{{ID: "company", Name: "Company SSO"}}}
+	data := viewmodel.PageData{Locale: "en", Theme: "light", Catalog: catalog, OIDCProviders: []identity.OIDCProviderInfo{{ID: "company", Name: "Company SSO"}}}
 	if err := authLogin(data).Render(context.Background(), &body); err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +206,7 @@ func TestSecurityPageRendersReauthenticatedOIDCLinkForm(t *testing.T) {
 		t.Fatal(err)
 	}
 	var body bytes.Buffer
-	data := pageData{
+	data := viewmodel.PageData{
 		Locale: "en", Theme: "dark", Catalog: catalog, CSRF: "csrf-value",
 		MFAStatus: identity.MFAStatus{Enabled: true}, MFARecoveryCodes: []string{"recovery-one", "recovery-two"},
 		OIDCProviders: []identity.OIDCProviderInfo{{ID: "company", Name: "Company SSO"}},
