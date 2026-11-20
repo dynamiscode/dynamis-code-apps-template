@@ -224,6 +224,28 @@ func startFixtures() (func(), error) {
 		return fail(err)
 	}
 
+	// The UX journey runs its own first-owner setup on a fresh database.
+	uxPort, err := freePort()
+	if err != nil {
+		return fail(err)
+	}
+	uxEnv := append(append([]string{}, serverEnv...), "SQLITE_PATH="+filepath.Join(dir, "ux.db"),
+		"STORAGE_LOCAL_PATH="+filepath.Join(dir, "ux-files"), fmt.Sprintf("HTTP_ADDRESS=127.0.0.1:%d", uxPort))
+	ux := exec.Command(filepath.Join(dir, "server"))
+	ux.Env = uxEnv
+	ux.Stdout, ux.Stderr = &bytes.Buffer{}, &bytes.Buffer{}
+	if err := ux.Start(); err != nil {
+		return fail(err)
+	}
+	cleanups = append(cleanups, func() {
+		_ = ux.Process.Kill()
+		_, _ = ux.Process.Wait()
+	})
+	uxURL = fmt.Sprintf("http://127.0.0.1:%d", uxPort)
+	if err := waitReady(uxURL + "/health/ready"); err != nil {
+		return fail(err)
+	}
+
 	browserCtx, stopBrowser, err := startChrome()
 	if err != nil {
 		return fail(err)
@@ -529,3 +551,6 @@ var membersDBFile string
 
 // appDBFile is the main server's database, for fixtures that inspect it.
 var appDBFile string
+
+// uxURL is a fresh server for the form UX journey, which creates its own owner.
+var uxURL string
