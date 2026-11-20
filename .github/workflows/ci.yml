@@ -35,6 +35,15 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Resolve Go build cache
+        id: gocache
+        run: echo "dir=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.gocache.outputs.dir }}
+          key: gobuild-${{ runner.os }}-go-verify-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            gobuild-${{ runner.os }}-go-verify-
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
@@ -59,6 +68,15 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Resolve Go build cache
+        id: gocache
+        run: echo "dir=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.gocache.outputs.dir }}
+          key: gobuild-${{ runner.os }}-go-race-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            gobuild-${{ runner.os }}-go-race-
       - run: make race
 
   postgres:
@@ -86,6 +104,15 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Resolve Go build cache
+        id: gocache
+        run: echo "dir=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.gocache.outputs.dir }}
+          key: gobuild-${{ runner.os }}-postgres-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            gobuild-${{ runner.os }}-postgres-
       - run: command -v pg_dump && command -v pg_restore
       - run: go test -race ./...
 
@@ -123,6 +150,15 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Resolve Go build cache
+        id: gocache
+        run: echo "dir=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.gocache.outputs.dir }}
+          key: gobuild-${{ runner.os }}-accessibility-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            gobuild-${{ runner.os }}-accessibility-
       - run: make browser-smoke
       - run: make accessibility-smoke
       - run: make webmcp-smoke
@@ -135,6 +171,15 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Resolve Go build cache
+        id: gocache
+        run: echo "dir=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.gocache.outputs.dir }}
+          key: gobuild-${{ runner.os }}-source-vulnerabilities-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            gobuild-${{ runner.os }}-source-vulnerabilities-
       - run: make vuln-check
 
   secrets-and-workflows:
@@ -148,6 +193,15 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Resolve Go build cache
+        id: gocache
+        run: echo "dir=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.gocache.outputs.dir }}
+          key: gobuild-${{ runner.os }}-secrets-and-workflows-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            gobuild-${{ runner.os }}-secrets-and-workflows-
       - run: make secret-check
 
   container:
