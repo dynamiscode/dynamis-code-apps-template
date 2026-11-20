@@ -3,8 +3,7 @@ package web
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "example.com/dynamis-code/apps-template/internal/web/components"
 import "example.com/dynamis-code/apps-template/internal/web/layouts"
-
-import "strings"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 templ securityPage(data viewmodel.PageData) {
 	@layouts.DashboardShell(data, layouts.AccountHeader(data), nil) {
@@ -70,7 +69,7 @@ templ securityPage(data viewmodel.PageData) {
 					if len(data.MFARecoveryCodes) > 0 {
 						<h3>{ data.T("security.mfa_recovery_codes") }</h3>
 						<p>{ data.T("security.mfa_store_recovery") }{ " " }{ data.T("security.mfa_each_recovery_once") }</p>
-						<pre>{ strings.Join(data.MFARecoveryCodes, "\n") + "\n" }</pre>
+						@atoms.MockupCode(atoms.MockupCodeProps{Lines: recoveryCodeLines(data.MFARecoveryCodes)})
 					}
 					<div id="mfa-recovery-output" hidden>
 						<h3>{ data.T("security.mfa_recovery_codes") }</h3>
@@ -85,11 +84,11 @@ templ securityPage(data viewmodel.PageData) {
 				if len(data.OIDCProviders) > 0 {
 					<form action="/security" method="post">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						@components.SelectField("provider", data.T("security.provider"), templ.Attributes{"name": "provider"}) {
-							for _, provider := range data.OIDCProviders {
-								<option value={ provider.ID }>{ provider.Name }</option>
-							}
-						}
+						{{ providerOptions := make([]atoms.SelectOption, 0, len(data.OIDCProviders)) }}
+						{{ for _, provider := range data.OIDCProviders {
+							providerOptions = append(providerOptions, atoms.SelectOption{Label: provider.Name, Value: provider.ID})
+						} }}
+						@atoms.Select(atoms.SelectProps{ID: "provider", Name: "provider", Label: data.T("security.provider"), Options: providerOptions})
 						@components.TextField("reauth-password", data.T("security.password"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password", "required": true})
 						@components.SubmitButton(data.T("security.link"), nil)
 					</form>
@@ -100,4 +99,12 @@ templ securityPage(data viewmodel.PageData) {
 			<script src="/assets/mfa.js" defer></script>
 		</div>
 	}
+}
+
+func recoveryCodeLines(codes []string) []atoms.CodeLine {
+	lines := make([]atoms.CodeLine, 0, len(codes))
+	for _, code := range codes {
+		lines = append(lines, atoms.CodeLine{Code: code})
+	}
+	return lines
 }

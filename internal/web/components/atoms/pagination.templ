@@ -12,6 +12,51 @@ type PaginationProps struct {
 	MaxPages int
 }
 
+type LinkPaginationProps struct {
+	Class string
+	// Label is the nav aria-label
+	Label string
+	// Pages are precomputed: prev/next links, numbered links, and gaps
+	Pages []LinkPage
+}
+
+type LinkPage struct {
+	Label   string
+	URL     string
+	Current bool
+	Disabled bool
+	Gap     bool
+	Rel     string
+	Attrs   templ.Attributes
+}
+
+templ LinkPagination(props LinkPaginationProps) {
+	<nav class={ "join", props.Class } aria-label={ props.Label }>
+		for _, p := range props.Pages {
+			if p.Gap {
+				<span class="btn btn-disabled join-item">…</span>
+			} else {
+				<a
+					href={ templ.SafeURL(p.URL) }
+					class={
+						"btn join-item",
+						templ.KV("btn-disabled", p.Current || p.Disabled),
+					}
+					if p.Current {
+						aria-current="page"
+					}
+					if p.Rel != "" {
+						rel={ p.Rel }
+					}
+					{ p.Attrs... }
+				>
+					{ p.Label }
+				</a>
+			}
+		}
+	</nav>
+}
+
 templ Pagination(id string, props PaginationProps) {
 	<div id={ id }>
 		<!-- paginated content goes here -->

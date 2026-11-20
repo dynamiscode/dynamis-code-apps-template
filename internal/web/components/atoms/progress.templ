@@ -7,6 +7,7 @@ type ProgressProps struct {
 	Max   int
 	Class string
 	Label string
+	Attrs templ.Attributes
 }
 
 func (props ProgressProps) max() int {
@@ -24,5 +25,6 @@ templ Progress(props ProgressProps) {
 		aria-label={ props.Label }
 		aria-valuemin="0"
 		aria-valuenow={ props.Value }
+		{ props.Attrs... }
 	></progress>
 }

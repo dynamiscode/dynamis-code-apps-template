@@ -1,5 +1,6 @@
 package web
 
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "example.com/dynamis-code/apps-template/internal/web/components"
 import "example.com/dynamis-code/apps-template/internal/web/layouts"
@@ -20,12 +21,11 @@ templ filesPage(data viewmodel.PageData, canUpload bool) {
 						data-status-choose-file={ data.T("files.status_choose_file") }
 						action={ data.CurrentPath } method="post" enctype="multipart/form-data">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						<label for="file-upload">{ data.T("files.choose") }</label>
 						<div class="file-upload-controls">
-							<input class="input" id="file-upload" type="file" name="file" required/>
+							@atoms.FileInput(atoms.FileInputProps{Name: "file", Label: data.T("files.choose"), Required: true, Attrs: templ.Attributes{"id": "file-upload"}})
 							@components.SubmitButton(data.T("files.upload"), nil)
 						</div>
-						<progress class="upload-progress" max="100" value="0" data-upload-progress aria-label={ data.T("files.progress") } hidden></progress>
+						@atoms.Progress(atoms.ProgressProps{Class: "upload-progress", Value: 0, Max: 100, Label: data.T("files.progress"), Attrs: templ.Attributes{"data-upload-progress": true, "hidden": true}})
 						<p class="status" role="status" aria-live="polite" data-upload-status hidden></p>
 					</form>
 				</section>

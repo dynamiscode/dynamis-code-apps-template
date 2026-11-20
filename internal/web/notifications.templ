@@ -1,5 +1,6 @@
 package web
 
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "example.com/dynamis-code/apps-template/internal/web/layouts"
 
@@ -13,7 +14,9 @@ templ notificationsPage(data viewmodel.PageData) {
 				</div></div>
 				<p class="notification-summary" role="status" aria-live="polite">
 					<span>{ data.T("notifications.unread") }</span>
-					<span class="badge badge-primary"><strong data-unread-count>{ data.UnreadNotifications }</strong></span>
+					@atoms.Badge(atoms.BadgeProps{Class: "badge-primary"}) {
+						<strong data-unread-count>{ data.UnreadNotifications }</strong>
+					}
 				</p>
 				<p class="notification-live" role="status" aria-live="polite"
 					data-notification-live
@@ -21,16 +24,16 @@ templ notificationsPage(data viewmodel.PageData) {
 					data-disconnected={ data.T("notifications.live_disconnected") }></p>
 				<p><a href="/notifications">{ data.T("notifications.refresh") }</a> · <a href="/account">{ data.T("notifications.manage_preferences") }</a></p>
 				if len(data.Notifications) > 0 {
-					<ul class="list notification-list">
+					@atoms.List(atoms.ListProps{Class: "notification-list"}) {
 						for _, notification := range data.Notifications {
-							<li class="list-row notification-card">
+							@atoms.ListRow("notification-card") {
 								<div>
 									<div class="notification-card-heading">
 										<h2>{ notification.Title }</h2>
 										if notification.ReadAt != nil {
-											<span class="badge notification-read">{ data.T("notifications.read") }</span>
+											@atoms.Badge(atoms.BadgeProps{Class: "notification-read", Label: data.T("notifications.read")})
 										} else {
-											<span class="badge badge-primary notification-unread">{ data.T("notifications.unread_status") }</span>
+											@atoms.Badge(atoms.BadgeProps{Class: "badge-primary notification-unread", Label: data.T("notifications.unread_status")})
 										}
 									</div>
 									<p>{ notification.Body }</p>
@@ -39,12 +42,12 @@ templ notificationsPage(data viewmodel.PageData) {
 								if notification.ReadAt == nil {
 									<form class="inline" action={ "/notifications/" + notification.ID.String() } method="post">
 										<input type="hidden" name="csrf" value={ data.CSRF }/>
-										<button class="btn btn-secondary" type="submit">{ data.T("notifications.mark_read") }</button>
+										@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("notifications.mark_read"), Attrs: templ.Attributes{"type": "submit"}})
 									</form>
 								}
-							</li>
-						}
-					</ul>
+								}
+							}
+					}
 				} else {
 					<section class="notification-empty" aria-labelledby="notification-empty-title">
 						<h2 id="notification-empty-title">{ data.T("notifications.none") }</h2>

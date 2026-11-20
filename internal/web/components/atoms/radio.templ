@@ -2,17 +2,24 @@
 // https://daisyui.com/components/radio
 package atoms
 
+type RadioOption struct {
+	Label   string
+	Value   string
+	Checked bool
+}
+
 type RadioProps struct {
-	Name   string
-	Values map[string]string
-	Class  string
-	Size   string
+	Name     string
+	Options  []RadioOption
+	Class    string
+	Size     string
+	Required bool
 }
 
 templ Radio(props RadioProps) {
 	<div class="space-y-2 w-full">
-		for l, v := range props.Values {
-			<label for={ props.Name } class="label cursor-pointer grid grid-cols-7">
+		for _, opt := range props.Options {
+			<label for={ props.Name + "-" + opt.Value } class="label cursor-pointer grid grid-cols-7">
 				<span
 					class={
 						"col-span-6 text-wrap",
@@ -21,11 +28,18 @@ templ Radio(props RadioProps) {
 						templ.KV("text-lg", props.Size == "lg"),
 						templ.KV("text-xl", props.Size == "xl"),
 					}
-				>{ l }</span>
+				>{ opt.Label }</span>
 				<input
+					id={ props.Name + "-" + opt.Value }
 					type="radio"
 					name={ props.Name }
-					value={ v }
+					value={ opt.Value }
+					if opt.Checked {
+						checked="checked"
+					}
+					if props.Required {
+						required
+					}
 					class={
 						"radio col-span-1", props.Class,
 						templ.KV("radio-xs", props.Size == "xs"),

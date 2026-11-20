@@ -1,9 +1,11 @@
 // data_input
+// https://daisyui.com/components/input
 package atoms
 
 type InputProps struct {
 	// common
 	Name            string
+	ID              string // when set, the label binds with for=id
 	Label           string
 	Type            string // defaults to "text"
 	Value           string
@@ -33,49 +35,29 @@ type InputProps struct {
 templ Input(props InputProps) {
 	<fieldset class="fieldset">
 		if props.Label != "" {
-			<legend class="fieldset-legend">{ props.Label }</legend>
+			if props.ID != "" {
+				<label class="fieldset-legend" for={ props.ID }>{ props.Label }</label>
+			} else {
+				<legend class="fieldset-legend">{ props.Label }</legend>
+			}
 		}
-		<label
-			for={ props.Name }
-			class={
-				"input validator tooltip tooltip-top",
-				templ.KV("tooltip tooltip-top", props.DisabledMessage != ""),
-				templ.KV("input-xs", props.Size == "xs"),
-				templ.KV("input-sm", props.Size == "sm"),
-				templ.KV("input-lg", props.Size == "lg"),
-				templ.KV("input-xl", props.Size == "xl"),
-			}
-			if props.DisabledMessage != "" {
-				data-tip={ props.DisabledMessage }
-			}
-		>
-			if props.Icon != nil {
+		if props.Icon != nil {
+			<label
+				for={ props.ID }
+				class={
+					"input w-full",
+					templ.KV("input-xs", props.Size == "xs"),
+					templ.KV("input-sm", props.Size == "sm"),
+					templ.KV("input-lg", props.Size == "lg"),
+					templ.KV("input-xl", props.Size == "xl"),
+				}
+			>
 				@props.Icon
-			}
-			<input
-				name={ props.Name }
-				if props.Type == "" {
-					type="text"
-				} else {
-					type={ props.Type }
-				}
-				value={ props.Value }
-				placeholder={ props.Placeholder }
-				if props.Required {
-					required
-				}
-				if props.Pattern != "" {
-					pattern={ props.Pattern }
-				}
-				if props.ValidatorHint != "" {
-					title={ props.ValidatorHint }
-				}
-				if props.DisabledMessage != "" {
-					disabled
-				}
-				{ props.Attrs... }
-			/>
-		</label>
+				@InputControl(props)
+			</label>
+		} else {
+			@InputControl(props)
+		}
 		if props.Description != "" {
 			<div class="label">{ props.Description }</div>
 		}
@@ -86,4 +68,55 @@ templ Input(props InputProps) {
 			<p class="validator-hint hidden text-xs max-w-xs mt-0!">{ props.ValidatorHint }</p>
 		}
 	</fieldset>
+}
+
+templ InputControl(props InputProps) {
+	<input
+		if props.ID != "" {
+			id={ props.ID }
+		}
+		name={ props.Name }
+		if props.Type == "" {
+			type="text"
+		} else {
+			type={ props.Type }
+		}
+		value={ props.Value }
+		placeholder={ props.Placeholder }
+		if props.Required {
+			required
+		}
+		if props.MinLength != "" {
+			minlength={ props.MinLength }
+		}
+		if props.MaxLength != "" {
+			maxlength={ props.MaxLength }
+		}
+		if props.Min != "" {
+			min={ props.Min }
+		}
+		if props.Max != "" {
+			max={ props.Max }
+		}
+		if props.Step != "" {
+			step={ props.Step }
+		}
+		if props.Pattern != "" {
+			pattern={ props.Pattern }
+		}
+		if props.DisabledMessage != "" {
+			disabled
+			data-tip={ props.DisabledMessage }
+		}
+		class={
+			"input w-full",
+			templ.KV("validator", props.ValidatorHint != ""),
+			templ.KV("input-xs", props.Size == "xs"),
+			templ.KV("input-sm", props.Size == "sm"),
+			templ.KV("input-lg", props.Size == "lg"),
+			templ.KV("input-xl", props.Size == "xl"),
+			templ.KV("tooltip tooltip-top", props.DisabledMessage != ""),
+		}
+		{ props.Attrs... }
+	/>
 }

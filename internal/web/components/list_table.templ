@@ -1,6 +1,10 @@
 package components
 
-import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import (
+	atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
+)
 
 import "strconv"
 
@@ -100,6 +104,18 @@ templ ListColumnsIcon() {
 }
 
 // ListPageSize sets how many rows a page shows, as a dropdown on the toolbar's right. It keeps the
+func listPageSizeSelectOptions(data viewmodel.PageData, limit int, sizes []int) []atoms.SelectOption {
+	options := make([]atoms.SelectOption, 0, len(sizes))
+	for _, size := range sizes {
+		options = append(options, atoms.SelectOption{
+			Value:    strconv.Itoa(size),
+			Selected: limit == size,
+			Label:    ListPageSizeLabel(data, size),
+		})
+	}
+	return options
+}
+
 // sort, filters, and match mode.
 templ ListPageSize(data viewmodel.PageData, limit int, sizes []int) {
 	<form class="list-page-size" method="get" action={ data.CurrentPath } { ListLivePageSizeAttributes(data)... }>
@@ -108,12 +124,13 @@ templ ListPageSize(data viewmodel.PageData, limit int, sizes []int) {
 				<input type="hidden" name={ field.Name } value={ field.Value }/>
 			}
 		}
-		<label for="list-page-size">{ data.T("clients.page_size") }</label>
-		<select class="select" id="list-page-size" name="limit" data-autosubmit="true">
-			for _, size := range sizes {
-				<option value={ strconv.Itoa(size) } selected?={ limit == size }>{ ListPageSizeLabel(data, size) }</option>
-			}
-		</select>
+		@atoms.Select(atoms.SelectProps{
+			ID:     "list-page-size",
+			Label:  data.T("clients.page_size"),
+			Name:   "limit",
+			Options: listPageSizeSelectOptions(data, limit, sizes),
+			Attrs:  templ.Attributes{"data-autosubmit": "true"},
+		})
 		<button class="btn btn-ghost btn-xs" type="submit" data-submit-button="true">{ data.T("clients.apply") }</button>
 	</form>
 }

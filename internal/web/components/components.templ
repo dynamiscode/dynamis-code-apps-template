@@ -1,5 +1,7 @@
 package components
 
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+
 
 // PageHeading matches the workspace and resource page heading pattern.
 templ PageHeading(title, eyebrow string) {
@@ -16,19 +18,25 @@ templ StatusLine(text string, attrs templ.Attributes) {
 	<p class="status" role="status" { attrs... }>{ text }</p>
 }
 
+// TextField renders a labeled text control. name/type/value/placeholder move to the atom's
+// own attributes: leaving them in Attrs would duplicate them and the atom's empty value would win.
 templ TextField(id, label string, attrs templ.Attributes) {
-	<label for={ id }>{ label }</label>
-	<input class="input" id={ id } { attrs... }/>
-}
-
-templ SelectField(id, label string, attrs templ.Attributes) {
-	<label for={ id }>{ label }</label>
-	<select class="select" id={ id } { attrs... }>{ children... }</select>
+	{{
+		name, _ := attrs["name"].(string)
+		inputType, _ := attrs["type"].(string)
+		value, _ := attrs["value"].(string)
+		placeholder, _ := attrs["placeholder"].(string)
+		delete(attrs, "name")
+		delete(attrs, "type")
+		delete(attrs, "value")
+		delete(attrs, "placeholder")
+	}}
+	@atoms.Input(atoms.InputProps{ID: id, Label: label, Name: name, Type: inputType, Value: value, Placeholder: placeholder, Attrs: attrs})
 }
 
 templ TextareaField(id, label, value string, attrs templ.Attributes) {
-	<label for={ id }>{ label }</label>
-	<textarea class="textarea" id={ id } { attrs... }>{ value }</textarea>
+	{{ name, _ := attrs["name"].(string); delete(attrs, "name") }}
+	@atoms.Textarea(atoms.TextareaProps{ID: id, Label: label, Name: name, Value: value, Attrs: attrs})
 }
 
 templ FieldError(id, message string) {
@@ -36,16 +44,34 @@ templ FieldError(id, message string) {
 }
 
 templ SubmitButton(label string, attrs templ.Attributes) {
-	<button class="btn btn-primary" type="submit" { attrs... }>{ label }</button>
+	{{
+		if attrs == nil {
+			attrs = templ.Attributes{}
+		}
+		attrs["type"] = "submit"
+	}}
+	@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: label, Attrs: attrs})
 }
 
 templ LinkButton(href, label string) {
-	<a class="btn btn-primary" href={ href }>{ label }</a>
+	@atoms.Anchor(atoms.AnchorProps{Href: href, Label: label, Class: "btn btn-primary"})
 }
 
 // ConfirmButton preserves the existing progressive enhancement for destructive actions.
 templ ConfirmButton(label, prompt string, attrs templ.Attributes) {
-	<button class="btn btn-error danger" type="submit" data-confirm={ prompt } { attrs... }>{ label }</button>
+	{{
+		if attrs == nil {
+			attrs = templ.Attributes{}
+		}
+		attrs["type"] = "submit"
+		attrs["data-confirm"] = prompt
+		class := "btn-error danger"
+		if extra, ok := attrs["class"].(string); ok {
+			delete(attrs, "class")
+			class += " " + extra
+		}
+	}}
+	@atoms.Button(atoms.ButtonProps{Class: class, Label: label, Attrs: attrs})
 }
 
 templ ConfirmationField(id, name, label string) {
@@ -53,38 +79,48 @@ templ ConfirmationField(id, name, label string) {
 }
 
 templ ErrorAlert(message string) {
-	<p class="alert alert-error error" role="alert" tabindex="-1">{ message }</p>
+	@atoms.Alert(atoms.AlertProps{Class: "alert-error error", Attrs: templ.Attributes{"tabindex": "-1"}}) {
+		{ message }
+	}
 }
 
 templ SuccessAlert(message string) {
-	<p class="alert alert-success success" role="status">{ message }{ " " }{ children... }</p>
+	@atoms.Alert(atoms.AlertProps{Class: "alert-success success", Attrs: templ.Attributes{"role": "status"}}) {
+		{ message }{ " " }
+		{ children... }
+	}
 }
 
 templ DataTable(caption string, hiddenCaption bool) {
-	<div class="table-scroll"><table class="table">
-		<caption class={ templ.KV("visually-hidden", hiddenCaption) }>{ caption }</caption>
+	@atoms.TableWrap(atoms.TableWrapProps{WrapClass: "table-scroll", Caption: caption, CaptionHidden: hiddenCaption}) {
 		{ children... }
-	</table></div>
+	}
 }
 
 templ AuditDataTable(caption, label string) {
-	<div class="table-wrap" tabindex="0" role="region" aria-label={ label }><table>
-		<caption class="visually-hidden">{ caption }</caption>
+	@atoms.TableWrap(atoms.TableWrapProps{
+		WrapClass:     "table-wrap",
+		Caption:        caption,
+		CaptionHidden:  true,
+		Attrs:          templ.Attributes{"tabindex": "0", "role": "region", "aria-label": label},
+	}) {
 		{ children... }
-	</table></div>
+	}
 }
 
 templ ListTable(caption string, hiddenCaption bool) {
-	<div class="list-view-table">
-		<table class="table table-md table-pin-rows">
-			<caption class={ templ.KV("visually-hidden", hiddenCaption) }>{ caption }</caption>
-			{ children... }
-		</table>
-	</div>
+	@atoms.TableWrap(atoms.TableWrapProps{
+		WrapClass:  "list-view-table",
+		TableClass: "table-md table-pin-rows",
+		Caption:     caption,
+		CaptionHidden: hiddenCaption,
+	}) {
+		{ children... }
+	}
 }
 
 templ LinkedCard(href, title, description string) {
-	<li class="card"><a href={ href }><strong>{ title }</strong><span>{ description }</span></a></li>
+	@atoms.ListCard(atoms.ListCardProps{Href: href, Title: title, Description: description})
 }
 
 templ ListCards() {

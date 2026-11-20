@@ -3,6 +3,7 @@ package web
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "example.com/dynamis-code/apps-template/internal/web/components"
 import "example.com/dynamis-code/apps-template/internal/web/layouts"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import "time"
 
@@ -29,14 +30,14 @@ templ sessionsPage(data viewmodel.PageData, currentSessionID string, now time.Ti
 									<span class="session-provider">{ session.OIDCProviderID }</span>
 								}
 								if session.ID == currentSessionID {
-									<span class="session-status">{ data.T("sessions.current") }</span>
+									@atoms.Badge(atoms.BadgeProps{Class: "session-status", Label: data.T("sessions.current")})
 								}
 								if session.RevokedAt != nil {
-									<span class="session-status session-status-revoked">{ data.T("sessions.revoked") }</span>
+									@atoms.Badge(atoms.BadgeProps{Class: "session-status session-status-revoked", Label: data.T("sessions.revoked")})
 								} else if !now.Before(session.ExpiresAt) {
-									<span class="session-status session-status-revoked">{ data.T("sessions.expired") }</span>
+									@atoms.Badge(atoms.BadgeProps{Class: "session-status session-status-revoked", Label: data.T("sessions.expired")})
 								} else {
-									<span class="session-status session-status-active">{ data.T("sessions.active") }</span>
+									@atoms.Badge(atoms.BadgeProps{Class: "session-status session-status-active", Label: data.T("sessions.active")})
 								}
 							</div>
 							<dl class="session-details">
@@ -46,7 +47,11 @@ templ sessionsPage(data viewmodel.PageData, currentSessionID string, now time.Ti
 							if session.RevokedAt == nil && now.Before(session.ExpiresAt) {
 								<form class="inline" data-webmcp-actions="session-revoke" data-webmcp-id={ session.ID } action={ "/sessions/" + session.ID } method="post">
 									<input type="hidden" name="csrf" value={ data.CSRF }/>
-									<button class="btn btn-secondary secondary" type="submit">{ data.T("sessions.revoke") }</button>
+									@atoms.Button(atoms.ButtonProps{
+										Class: "btn-secondary secondary",
+										Label: data.T("sessions.revoke"),
+										Attrs: templ.Attributes{"type": "submit"},
+									})
 								</form>
 							}
 						</li>

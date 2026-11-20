@@ -26,3 +26,17 @@ templ Card(props CardProps) {
 		</div>
 	</div>
 }
+
+// ListCard is a whole-card link in a cards grid (li.card inside a ul).
+type ListCardProps struct {
+	Class       string
+	Href        string
+	Title       string
+	Description string
+}
+
+templ ListCard(props ListCardProps) {
+	<li class={ "card", props.Class }>
+		<a href={ templ.SafeURL(props.Href) }><strong>{ props.Title }</strong><span>{ props.Description }</span></a>
+	</li>
+}

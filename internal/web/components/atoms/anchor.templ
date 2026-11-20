@@ -15,7 +15,7 @@ templ Anchor(props AnchorProps) {
 		if props.Href != "" {
 			href={ templ.SafeURL(props.Href) }
 		}
-		class={ "group items-center cursor-pointer", props.Class }
+		class={ props.Class }
 		{ props.Attrs... }
 	>
 		if props.LeftIcon != nil {

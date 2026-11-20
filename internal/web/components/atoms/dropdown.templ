@@ -3,23 +3,37 @@
 package atoms
 
 type DropdownProps struct {
-	Label     string
-	Class     string
-	ListClass string
-	Items     []DropdownItem
+	Label       string
+	Class       string
+	SummaryClass string
+	ListClass   string
+	Items       []DropdownItem
 }
 
 type DropdownItem struct {
-	Label string
-	Attrs templ.Attributes
+	Label   string
+	Attrs   templ.Attributes
+	Danger  bool
+	Divider bool
+	// Item, when set, renders instead of the default anchor,
+	// so forms and buttons (with CSRF) can live in the menu.
+	Item templ.Component
 }
 
 templ Dropdown(props DropdownProps) {
 	<details class={ "dropdown", props.Class }>
-		<summary class="btn m-1">{ props.Label }</summary>
+		<summary class={ "btn m-1", props.SummaryClass }>{ props.Label }{ children... }</summary>
 		<ul class={ "menu dropdown-content", props.ListClass }>
 			for _, di := range props.Items {
-				<li><a { di.Attrs... }>{ di.Label }</a></li>
+				if di.Divider {
+					<li class="my-1 border-t border-base-content/10"></li>
+				} else if di.Item != nil {
+					<li>@di.Item</li>
+				} else {
+					<li>
+						<a { di.Attrs... } class={ templ.KV("text-error", di.Danger) }>{ di.Label }</a>
+					</li>
+				}
 			}
 		</ul>
 	</details>

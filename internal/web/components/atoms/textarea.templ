@@ -22,7 +22,11 @@ type TextareaProps struct {
 templ Textarea(props TextareaProps) {
 	<fieldset class="fieldset">
 		if props.Label != "" {
-			<legend class="fieldset-legend">{ props.Label }</legend>
+			if props.ID != "" {
+				<label class="fieldset-legend" for={ props.ID }>{ props.Label }</label>
+			} else {
+				<legend class="fieldset-legend">{ props.Label }</legend>
+			}
 		}
 		<textarea
 			{ props.Attrs... }
@@ -54,6 +58,8 @@ templ Textarea(props TextareaProps) {
 		if props.Description != "" {
 			<div class="label">{ props.Description }</div>
 		}
-		<div class="h-6 p-0! fieldset-label text-error text-sm">{ props.Err }</div>
+		if props.Err != "" {
+			<div class="h-6 p-0! fieldset-label text-error text-sm" role="alert" tabindex="-1">{ props.Err }</div>
+		}
 	</fieldset>
 }

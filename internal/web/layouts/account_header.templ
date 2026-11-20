@@ -1,13 +1,15 @@
 package layouts
 
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 templ AccountHeader(data viewmodel.PageData) {
 	<header class="topbar">
 		<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
 		<div class="topbar-context">
-			@DefaultHomeCrumb(data)
-			<span>{ data.T("common.account") }</span>
+			@atoms.Breadcrumbs(atoms.BreadcrumbsProps{
+				Items: append(homeCrumbItems(data), atoms.BreadcrumbsProp{Label: data.T("common.account")}),
+			})
 		</div>
 		@AccountMenu(data)
 	</header>

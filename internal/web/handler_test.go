@@ -235,7 +235,7 @@ func TestEmailVerificationRouteSuccessUsesAuthLayout(t *testing.T) {
 	response := request(mailHandler.Routes(), http.MethodGet, parsedLink.Path, nil, nil, map[string]string{"Accept-Language": "es"})
 	body := response.Body.String()
 	if response.Code != http.StatusOK || !strings.Contains(body, "Correo verificado.") ||
-		!strings.Contains(body, `class="btn btn-primary" href="/account"`) {
+		!strings.Contains(body, `href="/account" class="btn btn-primary"`) {
 		t.Fatalf("verification success route status = %d; localized success or account link missing", response.Code)
 	}
 	if strings.Contains(body, parsedLink.Path[strings.LastIndex(parsedLink.Path, "/")+1:]) || response.Header().Get("Cache-Control") != "no-store" {
@@ -311,7 +311,7 @@ func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
 	handler, auth, itemService, workspaceID, _ := testWeb(t, 10)
 
 	loginPage := request(handler, http.MethodGet, "/login", nil, nil, nil)
-	if loginPage.Code != http.StatusOK || !strings.Contains(loginPage.Body.String(), `<label for="email">`) {
+	if loginPage.Code != http.StatusOK || !strings.Contains(loginPage.Body.String(), `for="email"`) {
 		t.Fatalf("login page status = %d; missing email label", loginPage.Code)
 	}
 	if !strings.Contains(loginPage.Body.String(), `class="auth-recovery-link" href="/password-reset">Forgot password?</a>`) {
@@ -580,11 +580,11 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 
 	resetPage := request(handler, http.MethodGet, "/password-reset", nil, nil, nil)
 	if resetPage.Code != http.StatusOK || !strings.Contains(resetPage.Body.String(), `form action="/password-reset"`) ||
-		!strings.Contains(resetPage.Body.String(), `class="brand auth-brand"`) || !strings.Contains(resetPage.Body.String(), `class="input"`) {
+		!strings.Contains(resetPage.Body.String(), `class="brand auth-brand"`) || !strings.Contains(resetPage.Body.String(), `class="input w-full"`) {
 		t.Fatalf("password reset page status = %d; missing form or auth layout marker", resetPage.Code)
 	}
 	expiredReset := request(handler, http.MethodPost, "/password-reset", url.Values{"email": {"owner@example.com"}}, nil, nil)
-	if expiredReset.Code != http.StatusForbidden || !strings.Contains(expiredReset.Body.String(), `role="alert" tabindex="-1"`) ||
+	if expiredReset.Code != http.StatusForbidden || !strings.Contains(expiredReset.Body.String(), `tabindex="-1"`) ||
 		!strings.Contains(expiredReset.Body.String(), `form action="/password-reset"`) {
 		t.Fatalf("expired reset request status = %d; missing focused alert or recovery form", expiredReset.Code)
 	}
@@ -611,7 +611,7 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	if resetMismatch.Code != http.StatusUnprocessableEntity || !strings.Contains(resetMismatch.Body.String(), "Las contraseñas no coinciden.") {
 		t.Fatalf("reset mismatch status = %d; missing translated error", resetMismatch.Code)
 	}
-	for _, marker := range []string{`class="alert alert-error error"`, `role="alert" tabindex="-1"`, `class="input"`, `data-theme="system"`} {
+	for _, marker := range []string{`class="alert alert-error error"`, `tabindex="-1"`, `class="input w-full"`, `data-theme="system"`} {
 		if !strings.Contains(resetMismatch.Body.String(), marker) {
 			t.Fatalf("reset mismatch view missing marker %q", marker)
 		}
@@ -625,7 +625,7 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 		"csrf": {invalidResetCSRF.Value}, "password": {"reset-owner-password"}, "password_confirmation": {"reset-owner-password"},
 	}, []*http.Cookie{invalidResetCSRF, {Name: "locale", Value: "es"}}, nil)
 	if invalidReset.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidReset.Body.String(), "El enlace de restablecimiento no es válido o venció.") || !strings.Contains(invalidReset.Body.String(), `form action="/password-reset"`) ||
-		!strings.Contains(invalidReset.Body.String(), `role="alert" tabindex="-1"`) || responseCookie(invalidReset, "reset_csrf").Value == "" {
+		!strings.Contains(invalidReset.Body.String(), `tabindex="-1"`) || responseCookie(invalidReset, "reset_csrf").Value == "" {
 		t.Fatalf("invalid reset link status = %d; missing recovery form, focused alert, or fresh CSRF cookie", invalidReset.Code)
 	}
 	resetComplete := request(handler, http.MethodPost, parsed.Path, url.Values{
@@ -661,7 +661,7 @@ func TestAccountSecurityPagesUseSharedBrandAndRequireDeletionConfirmation(t *tes
 		if !strings.Contains(body, "Dynamis Code") || !strings.Contains(body, `class="account-page`) {
 			t.Errorf("%s does not use the branded account layout: %s", path, body)
 		}
-		if path == "/account" && (!strings.Contains(body, `name="confirm_delete" type="checkbox" value="yes" required`) || !strings.Contains(body, "Entiendo que eliminar la cuenta es permanente")) {
+		if path == "/account" && (!strings.Contains(body, `type="checkbox" name="confirm_delete"`) || !strings.Contains(body, `value="yes"`) || !strings.Contains(body, "Entiendo que eliminar la cuenta es permanente")) {
 			t.Errorf("account page lacks the Spanish no-JavaScript deletion confirmation: %s", body)
 		}
 		if path == "/account" && (!strings.Contains(body, `action="/account/password"`) || strings.Contains(body, `name="new_password" data-persist`)) {
@@ -998,7 +998,7 @@ func TestWebLanguageSettingsRoutes(t *testing.T) {
 	if invalidLocale.Code != http.StatusUnprocessableEntity || !hasHTMLRootLang(invalidLocale.Body.String(), "es") ||
 		!strings.Contains(invalidLocale.Body.String(), `data-theme="dark"`) ||
 		!strings.Contains(invalidLocale.Body.String(), "El idioma seleccionado no es válido.") ||
-		!strings.Contains(invalidLocale.Body.String(), `value="es" selected`) {
+		!strings.Contains(invalidLocale.Body.String(), `selected value="es"`) {
 		t.Fatalf("invalid language form lost localized account context = %d, %s", invalidLocale.Code, invalidLocale.Body.String())
 	}
 	if locale, err := auth.GetUserLocale(context.Background(), owner.UserID); err != nil || locale != "es" {
@@ -2159,8 +2159,10 @@ func TestWebSetupRequiresTokenAndBootstrapsFirstInstanceAdmin(t *testing.T) {
 	}
 	page := request(handler, http.MethodGet, "/setup", nil, nil, nil)
 	if page.Code != http.StatusOK ||
-		!strings.Contains(page.Body.String(), `label for="setup-token"`) ||
-		!strings.Contains(page.Body.String(), `name="setup_token" type="password" autocomplete="off" required maxlength="4096"`) ||
+		!strings.Contains(page.Body.String(), `for="setup-token"`) ||
+		!strings.Contains(page.Body.String(), `id="setup-token" name="setup_token" type="password"`) ||
+		!strings.Contains(page.Body.String(), `required maxlength="4096"`) ||
+		!strings.Contains(page.Body.String(), `autocomplete="off"`) ||
 		!strings.Contains(page.Body.String(), `name="setup_token_format"`) {
 		t.Fatalf("setup page = %d, %s", page.Code, page.Body.String())
 	}

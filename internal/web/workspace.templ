@@ -3,6 +3,7 @@ package web
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "example.com/dynamis-code/apps-template/internal/web/components"
 import "example.com/dynamis-code/apps-template/internal/web/layouts"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 templ workspaceSelection(data viewmodel.PageData) {
 	@layouts.DashboardShell(data, layouts.DashboardHeader(data), nil) {
 		@components.PageHeading(data.T("workspace.workspaces"), "")
@@ -24,10 +25,13 @@ templ workspaceSelection(data viewmodel.PageData) {
 				<form data-webmcp-actions="workspace-create" action="/workspaces" method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
 					@components.TextField("workspace-name", data.T("workspace.name"), templ.Attributes{"name": "name", "required": true, "maxlength": "120"})
-					@components.SelectField("workspace-locale", data.T("workspace.language_fallback"), templ.Attributes{"name": "locale"}) {
-						<option value="en" selected?={ data.Locale == "en" }>{ data.T("common.english") }</option>
-						<option value="es" selected?={ data.Locale == "es" }>{ data.T("common.spanish") }</option>
-					}
+					@atoms.Select(atoms.SelectProps{
+						ID: "workspace-locale", Name: "locale", Label: data.T("workspace.language_fallback"),
+						Options: []atoms.SelectOption{
+							{Label: data.T("common.english"), Value: "en", Selected: data.Locale == "en"},
+							{Label: data.T("common.spanish"), Value: "es", Selected: data.Locale == "es"},
+						},
+					})
 					@components.SubmitButton(data.T("workspace.create"), nil)
 				</form>
 			</section>

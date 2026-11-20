@@ -3,6 +3,7 @@ package web
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "example.com/dynamis-code/apps-template/internal/web/components"
 import "example.com/dynamis-code/apps-template/internal/web/layouts"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 templ accountPageView(data viewmodel.PageData) {
 	@layouts.DashboardShell(data, layouts.AccountHeader(data), nil) {
@@ -35,22 +36,47 @@ templ accountPageView(data viewmodel.PageData) {
 						<p>{ data.T("account.profile_description") }</p>
 						<form action="/account/profile" method="post" data-dirty-track data-unsaved-warning>
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							<label for="display-name">{ data.T("account.display_name") }{ " " }{ data.T("ui.optional") }</label>
-							<input class="input" id="display-name" name="display_name" value={ data.Profile.DisplayName } maxlength="120" data-trim/>
-							<label for="account-email">{ data.T("common.email") }</label>
-							<input class="input" id="account-email" value={ data.Profile.Email } readonly/>
-							<label for="account-timezone">{ data.T("account.timezone") }</label>
-							<input class="input" id="account-timezone" name="timezone" value={ data.Profile.Timezone } required maxlength="128" data-default="timezone" data-trim/>
-							@components.SelectField("account-theme", data.T("account.theme"), templ.Attributes{"name": "theme"}) {
-								<option value="system" selected?={ data.Profile.Theme == "system" }>{ data.T("account.theme_system") }</option>
-								<option value="light" selected?={ data.Profile.Theme == "light" }>{ data.T("account.theme_light") }</option>
-								<option value="dark" selected?={ data.Profile.Theme == "dark" }>{ data.T("account.theme_dark") }</option>
-							}
-							@components.SelectField("account-locale", data.T("common.language"), templ.Attributes{"name": "locale"}) {
-								<option value="" selected?={ data.Profile.Locale == "" }>{ data.T("common.automatic") }</option>
-								<option value="en" selected?={ data.Profile.Locale == "en" }>{ data.T("common.english") }</option>
-								<option value="es" selected?={ data.Profile.Locale == "es" }>{ data.T("common.spanish") }</option>
-							}
+							@atoms.Input(atoms.InputProps{
+								ID:        "display-name",
+								Name:      "display_name",
+								Label:     data.T("account.display_name") + " " + data.T("ui.optional"),
+								Value:     data.Profile.DisplayName,
+								MaxLength: "120",
+								Attrs:     templ.Attributes{"data-trim": true},
+							})
+							@atoms.Input(atoms.InputProps{
+									ID:    "account-email",
+								Label: data.T("common.email"),
+								Value: data.Profile.Email,
+								Attrs: templ.Attributes{"readonly": true},
+							})
+							@atoms.Input(atoms.InputProps{
+									ID:        "account-timezone",
+								Name:      "timezone",
+								Label:     data.T("account.timezone"),
+								Value:     data.Profile.Timezone,
+								Required:  true,
+								MaxLength: "128",
+								Attrs:     templ.Attributes{"data-default": "timezone", "data-trim": true},
+							})
+							@atoms.Select(atoms.SelectProps{
+											ID: "account-theme", Name: "theme", Label: data.T("account.theme"),
+											Attrs: templ.Attributes{"name": "theme"},
+											Options: []atoms.SelectOption{
+												{Label: data.T("account.theme_system"), Value: "system", Selected: data.Profile.Theme == "system"},
+												{Label: data.T("account.theme_light"), Value: "light", Selected: data.Profile.Theme == "light"},
+												{Label: data.T("account.theme_dark"), Value: "dark", Selected: data.Profile.Theme == "dark"},
+											},
+							})
+							@atoms.Select(atoms.SelectProps{
+											ID: "account-locale", Name: "locale", Label: data.T("common.language"),
+											Attrs: templ.Attributes{"name": "locale"},
+											Options: []atoms.SelectOption{
+												{Label: data.T("common.automatic"), Value: "", Selected: data.Profile.Locale == ""},
+												{Label: data.T("common.english"), Value: "en", Selected: data.Profile.Locale == "en"},
+												{Label: data.T("common.spanish"), Value: "es", Selected: data.Profile.Locale == "es"},
+											},
+							})
 							@components.SubmitButton(data.T("common.save"), templ.Attributes{"data-requires-change": true})
 						</form>
 					</section>
@@ -100,15 +126,23 @@ templ accountPageView(data viewmodel.PageData) {
 						}
 						<form action="/account/notifications" method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							@components.SelectField("notification-type", data.T("account.notification_type"), templ.Attributes{"name": "notification_type"}) {
-								<option value="security">{ data.T("workspace.notification_security") }</option>
-								<option value="workspace">{ data.T("workspace.notification_workspace") }</option>
-								<option value="system">{ data.T("workspace.notification_system") }</option>
-							}
-							@components.SelectField("notification-enabled", data.T("account.notification_delivery"), templ.Attributes{"name": "enabled"}) {
-								<option value="true">{ data.T("account.enabled") }</option>
-								<option value="false">{ data.T("account.disabled") }</option>
-							}
+							@atoms.Select(atoms.SelectProps{
+											ID: "notification-type", Name: "notification_type", Label: data.T("account.notification_type"),
+											Attrs: templ.Attributes{"name": "notification_type"},
+											Options: []atoms.SelectOption{
+												{Label: data.T("workspace.notification_security"), Value: "security"},
+												{Label: data.T("workspace.notification_workspace"), Value: "workspace"},
+												{Label: data.T("workspace.notification_system"), Value: "system"},
+											},
+							})
+							@atoms.Select(atoms.SelectProps{
+											ID: "notification-enabled", Name: "enabled", Label: data.T("account.notification_delivery"),
+											Attrs: templ.Attributes{"name": "enabled"},
+											Options: []atoms.SelectOption{
+												{Label: data.T("account.enabled"), Value: "true"},
+												{Label: data.T("account.disabled"), Value: "false"},
+											},
+							})
 							@components.SubmitButton(data.T("common.save"), nil)
 						</form>
 					</section>
@@ -118,8 +152,18 @@ templ accountPageView(data viewmodel.PageData) {
 						<form action="/account/delete" method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							@components.TextField("delete-password", data.T("account.current_password"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password", "required": true})
-							<label class="confirmation" for="delete-confirm"><input id="delete-confirm" name="confirm_delete" type="checkbox" value="yes" required aria-describedby="delete-description"/><span>{ data.T("account.delete_confirmation_label") }</span></label>
-							<button class="btn btn-error danger" type="submit">{ data.T("account.delete_account") }</button>
+							@atoms.Checkbox(atoms.CheckboxProps{
+									ID:         "delete-confirm",
+									Name:       "confirm_delete",
+									After:      data.T("account.delete_confirmation_label"),
+									LabelClass: "confirmation",
+									Attrs:      templ.Attributes{"value": "yes", "required": true, "aria-describedby": "delete-description"},
+								})
+							@atoms.Button(atoms.ButtonProps{
+									Class: "btn-error danger",
+									Label: data.T("account.delete_account"),
+									Attrs: templ.Attributes{"type": "submit"},
+								})
 						</form>
 					</section>
 				</div>
@@ -142,11 +186,15 @@ templ languageSettingsView(data viewmodel.PageData) {
 				<section class="settings-panel">
 					<form action="/settings/language" method="post">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						@components.SelectField("language", data.T("common.language"), templ.Attributes{"name": "locale", "aria-label": data.T("common.language")}) {
-							<option value="" selected?={ data.UserLocale == "" }>{ data.T("common.automatic") }</option>
-							<option value="en" selected?={ data.UserLocale == "en" }>{ data.T("common.english") }</option>
-							<option value="es" selected?={ data.UserLocale == "es" }>{ data.T("common.spanish") }</option>
-						}
+						@atoms.Select(atoms.SelectProps{
+										ID: "language", Name: "locale", Label: data.T("common.language"),
+										Attrs: templ.Attributes{"aria-label": data.T("common.language")},
+										Options: []atoms.SelectOption{
+											{Label: data.T("common.automatic"), Value: "", Selected: data.UserLocale == ""},
+											{Label: data.T("common.english"), Value: "en", Selected: data.UserLocale == "en"},
+											{Label: data.T("common.spanish"), Value: "es", Selected: data.UserLocale == "es"},
+										},
+						})
 						@components.SubmitButton(data.T("common.save"), nil)
 					</form>
 				</section>

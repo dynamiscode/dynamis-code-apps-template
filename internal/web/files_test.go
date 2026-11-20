@@ -128,7 +128,7 @@ func TestFilesPageRendersOrdinaryMultipartUploadForm(t *testing.T) {
 	body := page.Body.String()
 	if page.Code != http.StatusOK || !strings.Contains(body, `action="`+env.filesPath()+`"`) ||
 		!strings.Contains(body, `method="post"`) || !strings.Contains(body, `enctype="multipart/form-data"`) ||
-		!strings.Contains(body, `name="csrf"`) || !strings.Contains(body, `type="file" name="file"`) {
+		!strings.Contains(body, `name="csrf"`) || !strings.Contains(body, `type="file"`) || !strings.Contains(body, `name="file"`) {
 		t.Fatalf("files page is not an ordinary multipart upload form: %d, %s", page.Code, body)
 	}
 	if strings.Contains(body, "data-presigned") || strings.Contains(body, "data-initiate") {

@@ -1,5 +1,6 @@
 package web
 
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "example.com/dynamis-code/apps-template/internal/web/components"
 import "example.com/dynamis-code/apps-template/internal/web/layouts"
@@ -16,8 +17,11 @@ templ webhooksPage(data viewmodel.PageData) {
 			<p><a href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks" }>← { data.T("webhooks.back_to_webhooks") }</a></p>
 			<h1>{ data.SelectedWebhook.Name } { data.T("webhooks.delivery_history") }</h1>
 			if len(data.WebhookDeliveries) > 0 {
-				<div class="table-scroll" role="region" tabindex="0" aria-label={ data.T("webhooks.delivery_history") }><table class="table">
-					<caption>{ data.T("webhooks.delivery_history") }</caption>
+				@atoms.TableWrap(atoms.TableWrapProps{
+					WrapClass: "table-scroll",
+					Caption:   data.T("webhooks.delivery_history"),
+					Attrs:     templ.Attributes{"role": "region", "tabindex": "0", "aria-label": data.T("webhooks.delivery_history")},
+				}) {
 					<thead><tr>
 						<th scope="col">{ data.T("webhooks.event") }</th>
 						<th scope="col">{ data.T("webhooks.status") }</th>
@@ -40,7 +44,7 @@ templ webhooksPage(data viewmodel.PageData) {
 							</tr>
 						}
 					</tbody>
-				</table></div>
+				}
 			} else {
 				@components.EmptyState(data.T("webhooks.no_deliveries"))
 			}
@@ -56,12 +60,14 @@ templ webhooksPage(data viewmodel.PageData) {
 				@components.ErrorAlert(data.T("webhooks.readback_warning"))
 			}
 			if data.CanManage && !data.WebhookSecretKeyConfigured {
-				<div id="webhook-secret-key-warning" class="warning alert alert-warning" role="alert">
+				@atoms.Alert(atoms.AlertProps{Class: "warning alert-warning", Attrs: templ.Attributes{"id": "webhook-secret-key-warning"}}) {
 					<strong>{ data.T("webhooks.secret_key_missing_title") }</strong><p>{ data.T("webhooks.secret_key_missing") }</p>
-				</div>
+				}
 			}
 			if data.WebhookSecret != "" {
-				<p class="alert alert-warning warning" role="alert" tabindex="-1">{ data.T("webhooks.secret_warning") } <code class="webhook-secret">{ data.WebhookSecret }</code></p>
+				@atoms.Alert(atoms.AlertProps{Class: "warning alert-warning", Attrs: templ.Attributes{"tabindex": "-1"}}) {
+					{ data.T("webhooks.secret_warning") } <code class="webhook-secret">{ data.WebhookSecret }</code>
+				}
 			}
 			if data.CanManage {
 				<section class="card" aria-labelledby="new-webhook-heading">
@@ -72,18 +78,18 @@ templ webhooksPage(data viewmodel.PageData) {
 						@components.TextField("webhook-url", data.T("webhooks.endpoint"), templ.Attributes{"name": "url", "type": "url", "required": true, "maxlength": "2048", "aria-describedby": "webhook-url-help", "data-trim": true})
 						<p id="webhook-url-help">{ data.T("webhooks.endpoint_help") }</p>
 						<fieldset aria-describedby="webhook-events-help"><legend>{ data.T("webhooks.events") }</legend><p id="webhook-events-help">{ data.T("webhooks.events_help") }</p>
-							<label><input type="checkbox" name="events" value="item.created"/> <code>item.created</code></label>
-							<label><input type="checkbox" name="events" value="item.updated"/> <code>item.updated</code></label>
-							<label><input type="checkbox" name="events" value="item.deleted"/> <code>item.deleted</code></label>
-							<label><input type="checkbox" name="events" value="client.created"/> <code>client.created</code></label>
-							<label><input type="checkbox" name="events" value="client.updated"/> <code>client.updated</code></label>
-							<label><input type="checkbox" name="events" value="client.archived"/> <code>client.archived</code></label>
-							<label><input type="checkbox" name="events" value="client.deleted"/> <code>client.deleted</code></label>
+						@webhookEventCheckbox("item.created")
+						@webhookEventCheckbox("item.updated")
+						@webhookEventCheckbox("item.deleted")
+						@webhookEventCheckbox("client.created")
+						@webhookEventCheckbox("client.updated")
+						@webhookEventCheckbox("client.archived")
+						@webhookEventCheckbox("client.deleted")
 						</fieldset>
 						if data.WebhookSecretKeyConfigured {
-							<button class="btn btn-primary" type="submit" name="action" value="create">{ data.T("webhooks.create") }</button>
+							@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("webhooks.create"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "create"}})
 						} else {
-							<button class="btn btn-primary" type="submit" name="action" value="create" disabled aria-describedby="webhook-secret-key-warning">{ data.T("webhooks.create") }</button>
+							@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("webhooks.create"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "create", "disabled": true, "aria-describedby": "webhook-secret-key-warning"}})
 						}
 					</form>
 				</section>
@@ -105,13 +111,15 @@ templ webhooksPage(data viewmodel.PageData) {
 								if data.CanManage {
 									<div class="actions">
 										<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks/" + webhook.ID.String() } method="post"><input type="hidden" name="csrf" value={ data.CSRF }/>
-											if data.WebhookSecretKeyConfigured {
-												<button class="btn" type="submit" name="action" value="rotate">{ data.T("webhooks.rotate") }</button>
-											} else {
-												<button class="btn" type="submit" name="action" value="rotate" disabled aria-describedby="webhook-secret-key-warning">{ data.T("webhooks.rotate") }</button>
-											}
+										if data.WebhookSecretKeyConfigured {
+											@atoms.Button(atoms.ButtonProps{Label: data.T("webhooks.rotate"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "rotate"}})
+										} else {
+											@atoms.Button(atoms.ButtonProps{Label: data.T("webhooks.rotate"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "rotate", "disabled": true, "aria-describedby": "webhook-secret-key-warning"}})
+										}
 										</form>
-										<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks/" + webhook.ID.String() } method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><label><input type="checkbox" name="confirm_delete" value="yes" required/> { data.T("webhooks.delete_confirm") }</label><button class="btn btn-error danger" type="submit" name="action" value="delete">{ data.T("webhooks.delete") }</button></form>
+										<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks/" + webhook.ID.String() } method="post"><input type="hidden" name="csrf" value={ data.CSRF }/>
+											@atoms.Checkbox(atoms.CheckboxProps{Name: "confirm_delete", After: data.T("webhooks.delete_confirm"), Attrs: templ.Attributes{"value": "yes", "required": true}})
+											@atoms.Button(atoms.ButtonProps{Class: "btn-error danger", Label: data.T("webhooks.delete"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "delete"}})</form>
 									</div>
 								}
 							</li>
@@ -125,6 +133,19 @@ templ webhooksPage(data viewmodel.PageData) {
 	}
 }
 
+
+// webhookEventCheckbox renders one event toggle with its code-formatted event name.
+templ webhookEventCheckbox(event string) {
+	@atoms.Checkbox(atoms.CheckboxProps{
+		Name:    "events",
+		Attrs:   templ.Attributes{"value": event},
+		Content: webhookEventCode(event),
+	})
+}
+
+templ webhookEventCode(event string) {
+	<code>{ event }</code>
+}
 
 func webhookStatusCode(code int) string {
 	if code == 0 {

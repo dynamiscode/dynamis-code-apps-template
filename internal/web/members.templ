@@ -3,6 +3,7 @@ package web
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "example.com/dynamis-code/apps-template/internal/web/components"
 import "example.com/dynamis-code/apps-template/internal/web/layouts"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import "example.com/dynamis-code/apps-template/internal/identity"
 
@@ -79,7 +80,7 @@ templ memberRows(data viewmodel.PageData) {
 		@components.StatusLine(data.T("clients.columns_choose"), nil)
 	}
 	if data.MemberTotal == 0 {
-		<p id="member-results" role="status">{ data.T("members.none") } <a href={ data.ClearClientFiltersPath }>{ data.T("clients.clear_filters") }</a></p>
+		<p id="member-results" role="status">{ data.T("members.none") } @atoms.Link(atoms.LinkProps{Href: data.ClearClientFiltersPath, Text: data.T("clients.clear_filters")})</p>
 	}
 }
 
@@ -89,22 +90,31 @@ templ memberActions(data viewmodel.PageData, member identity.MemberSummary, suff
 			<p class="visually-hidden">{ member.Email }</p>
 			<form data-webmcp-actions="member-role-update" data-webmcp-id={ member.ID.String() } action={ "/workspaces/"+data.Workspace.ID.String()+"/settings/members" } method="post">
 				<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="member_id" value={ member.ID.String() }/>
-				@components.SelectField("role-"+member.ID.String()+"-"+suffix, data.T("members.role"), templ.Attributes{"name": "role"}) {
-				<option value="admin" selected?={ member.Role == identity.Admin }>{ data.T("members.admin") }</option>
-				<option value="member" selected?={ member.Role == identity.Member }>{ data.T("members.member") }</option>
-				<option value="viewer" selected?={ member.Role == identity.Viewer }>{ data.T("members.viewer") }</option>
-				}
-				<button class="btn btn-primary" name="action" value="role">{ data.T("members.change_role") }</button>
+				@atoms.Select(atoms.SelectProps{
+					ID: "role-"+member.ID.String()+"-"+suffix, Name: "role", Label: data.T("members.role"),
+					Options: []atoms.SelectOption{
+						{Label: data.T("members.admin"), Value: "admin", Selected: member.Role == identity.Admin},
+						{Label: data.T("members.member"), Value: "member", Selected: member.Role == identity.Member},
+						{Label: data.T("members.viewer"), Value: "viewer", Selected: member.Role == identity.Viewer},
+					},
+				})
+				@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("members.change_role"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "role"}})
 			</form>
 			<form data-webmcp-actions="member-remove" data-webmcp-id={ member.ID.String() } action={ "/workspaces/"+data.Workspace.ID.String()+"/settings/members" } method="post">
 				<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="member_id" value={ member.ID.String() }/>
 				<p id={ "remove-consequence-"+member.ID.String()+"-"+suffix } class="status">{ data.T("members.remove_consequence") }</p>
-				<fieldset><legend>{ data.T("members.remove_confirm") }</legend><label class="confirmation" for={ "confirm-remove-"+member.ID.String()+"-"+suffix }><input id={ "confirm-remove-"+member.ID.String()+"-"+suffix } name="confirm_remove" type="checkbox" value="yes" required aria-describedby={ "remove-consequence-"+member.ID.String()+"-"+suffix }/> <span>{ data.T("members.remove_confirm") }</span></label><button class="btn btn-error danger" name="action" value="remove">{ data.T("members.remove") }</button></fieldset>
+				<fieldset><legend>{ data.T("members.remove_confirm") }</legend>@atoms.Checkbox(atoms.CheckboxProps{
+					ID:         "confirm-remove-" + member.ID.String() + "-" + suffix,
+					Name:       "confirm_remove",
+					LabelClass: "confirmation",
+					After:      data.T("members.remove_confirm"),
+					Attrs:      templ.Attributes{"value": "yes", "required": true, "aria-describedby": "remove-consequence-" + member.ID.String() + "-" + suffix},
+				})@atoms.Button(atoms.ButtonProps{Class: "btn-error danger", Label: data.T("members.remove"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "remove"}})</fieldset>
 			</form>
 			if data.CanTransfer {
 				<form data-webmcp-actions="ownership-transfer" data-webmcp-id={ member.ID.String() } action={ "/workspaces/"+data.Workspace.ID.String()+"/settings/members" } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="member_id" value={ member.ID.String() }/>
-					<fieldset><legend>{ data.T("members.transfer_consequence") }</legend>@components.ConfirmationField("confirm-transfer-"+member.ID.String()+"-"+suffix, "confirm_transfer", data.T("members.transfer_confirm"))<button class="btn btn-error danger" name="action" value="transfer">{ data.T("members.transfer") }</button></fieldset>
+					<fieldset><legend>{ data.T("members.transfer_consequence") }</legend>@components.ConfirmationField("confirm-transfer-"+member.ID.String()+"-"+suffix, "confirm_transfer", data.T("members.transfer_confirm"))@atoms.Button(atoms.ButtonProps{Class: "btn-error danger", Label: data.T("members.transfer"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "transfer"}})</fieldset>
 				</form>
 			}
 		</div>

@@ -85,11 +85,11 @@ func TestMembersListUsesSharedPresentationAndOptInPagination(t *testing.T) {
 	if all.Code != http.StatusOK || !strings.Contains(all.Body.String(), `class="list-view-table"`) ||
 		!strings.Contains(all.Body.String(), `class="list-view-cards"`) ||
 		!strings.Contains(all.Body.String(), `data-column="email"`) ||
-		!strings.Contains(all.Body.String(), `<option value="0" selected>All</option>`) {
+		!strings.Contains(all.Body.String(), `<option selected value="0">All</option>`) {
 		t.Fatalf("default members list = %d, want shared unpaginated view: %s", all.Code, all.Body.String())
 	}
-	if !strings.Contains(all.Body.String(), `name="action" value="remove"`) ||
-		!strings.Contains(all.Body.String(), `name="action" value="transfer"`) ||
+	if !strings.Contains(all.Body.String(), `name="action" type="submit" value="remove"`) ||
+		!strings.Contains(all.Body.String(), `name="action" type="submit" value="transfer"`) ||
 		!strings.Contains(all.Body.String(), `type="checkbox" value="yes" required`) ||
 		!strings.Contains(all.Body.String(), `data-webmcp-page="members"`) ||
 		!strings.Contains(all.Body.String(), `data-webmcp-actions="member-role-update"`) ||

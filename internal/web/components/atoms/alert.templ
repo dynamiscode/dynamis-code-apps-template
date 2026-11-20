@@ -2,14 +2,20 @@
 // https://daisyui.com/components/alert
 package atoms
 
-templ Alert(class string) {
-	<div role="alert" class={ "alert", class }>
+type AlertProps struct {
+	Class string
+	// Attrs render after the defaults, so role/id/tabindex can be overridden
+	Attrs templ.Attributes
+}
+
+templ Alert(props AlertProps) {
+	<div role="alert" class={ "alert", props.Class } { props.Attrs... }>
 		{ children... }
 	</div>
 }
 
 templ AlertInfo(message string) {
-	@Alert("alert-info") {
+	@Alert(AlertProps{Class: "alert-info"}) {
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
 			fill="none"
@@ -29,7 +35,7 @@ templ AlertInfo(message string) {
 }
 
 templ AlertSuccess(message string) {
-	@Alert("alert-success") {
+	@Alert(AlertProps{Class: "alert-success"}) {
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
 			fill="none"
@@ -49,7 +55,7 @@ templ AlertSuccess(message string) {
 }
 
 templ AlertWarning(message string) {
-	@Alert("alert-warning") {
+	@Alert(AlertProps{Class: "alert-warning"}) {
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
 			fill="none"
@@ -69,7 +75,7 @@ templ AlertWarning(message string) {
 }
 
 templ AlertError(message string) {
-	@Alert("alert-error") {
+	@Alert(AlertProps{Class: "alert-error"}) {
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
 			fill="none"

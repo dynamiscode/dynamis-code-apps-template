@@ -3,6 +3,7 @@ package web
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "example.com/dynamis-code/apps-template/internal/web/components"
 import "example.com/dynamis-code/apps-template/internal/web/layouts"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import "strconv"
 
@@ -50,7 +51,7 @@ templ clientDetail(data viewmodel.PageData) {
 					"name": "notes", "maxlength": "5000",
 				})
 				<div class="actions">
-					<button class="btn btn-primary" type="submit">{ data.T("clients.save") }</button>
+					@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.save"), Attrs: templ.Attributes{"type": "submit"}})
 				</div>
 			</form>
 		} else {
@@ -70,12 +71,12 @@ templ clientDetail(data viewmodel.PageData) {
 				if data.Client.ArchivedAt != nil {
 					<form method="post" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/unarchive" }>
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						<button class="btn btn-secondary" type="submit">{ data.T("clients.unarchive") }</button>
+						@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("clients.unarchive"), Attrs: templ.Attributes{"type": "submit"}})
 					</form>
 				} else {
 					<form method="post" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/archive" }>
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						<button class="btn btn-secondary" type="submit">{ data.T("clients.archive") }</button>
+						@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("clients.archive"), Attrs: templ.Attributes{"type": "submit"}})
 					</form>
 				}
 				if data.CanDeleteClients {
@@ -83,9 +84,7 @@ templ clientDetail(data viewmodel.PageData) {
 						<p class="warning">{ data.T("clients.delete_client_confirm") }</p>
 						<form method="post" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/delete" }>
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							<button class="btn btn-error" type="submit" data-confirm={ data.T("clients.delete_client_confirm") }>
-								{ data.T("clients.delete_client") }
-							</button>
+							@atoms.Button(atoms.ButtonProps{Class: "btn-error", Label: data.T("clients.delete_client"), Attrs: templ.Attributes{"type": "submit", "data-confirm": data.T("clients.delete_client_confirm")}})
 						</form>
 					</div>
 				}
@@ -104,36 +103,27 @@ templ clientValues(data viewmodel.PageData) {
 					<form class="client-value" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() } method="post">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
 						<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
-						<label for={ "value-" + value.FieldID.String() }>{ value.Label } { data.T("ui.optional") }</label>
+						@atoms.Label(atoms.LabelProps{For: "value-" + value.FieldID.String(), Text: value.Label + " " + data.T("ui.optional")})
 						if value.Type == "number" {
-							<input id={ "value-" + value.FieldID.String() } name="value" type="number" step="any" value={ clientValueDisplayValue(value.Value) }/>
+							@atoms.Input(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", Type: "number", Step: "any", Value: clientValueDisplayValue(value.Value)})
 						} else if value.Type == "date" {
-							<input id={ "value-" + value.FieldID.String() } name="value" type="date" value={ clientValueDisplayValue(value.Value) }/>
+							@atoms.Input(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", Type: "date", Value: clientValueDisplayValue(value.Value)})
 						} else if value.Type == "yes_no" {
-							<select id={ "value-" + value.FieldID.String() } name="value">
-								<option value="" disabled selected?={ value.Value == nil }>{ data.T("clients.value_choose") }</option>
-								<option value="true" selected?={ clientValueDisplayValue(value.Value) == "true" }>{ data.T("clients.yes") }</option>
-								<option value="false" selected?={ clientValueDisplayValue(value.Value) == "false" }>{ data.T("clients.no") }</option>
-							</select>
+							@atoms.Select(atoms.SelectProps{ID: "value-" + value.FieldID.String(), Name: "value", Options: clientValueYesNoOptions(data, value)})
 						} else if value.Type == "single_choice" {
-							<select id={ "value-" + value.FieldID.String() } name="value">
-								<option value="" disabled selected?={ value.Value == nil }>{ data.T("clients.value_choose") }</option>
-								for _, choice := range value.Choices {
-									<option value={ choice.ID } selected?={ choice.Selected }>{ choice.Label }</option>
-								}
-							</select>
+							@atoms.Select(atoms.SelectProps{ID: "value-" + value.FieldID.String(), Name: "value", Options: clientValueChoiceOptions(data, value)})
 						} else {
-							<input id={ "value-" + value.FieldID.String() } name="value" maxlength="500" value={ clientValueDisplayValue(value.Value) }/>
+							@atoms.Input(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", MaxLength: "500", Value: clientValueDisplayValue(value.Value)})
 						}
 						<div class="actions">
-							<button class="btn btn-primary" type="submit">{ data.T("clients.value_save") }</button>
+							@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.value_save"), Attrs: templ.Attributes{"type": "submit"}})
 						</div>
 					</form>
 					if value.Value != nil {
 						<form class="client-value-clear" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() + "/clear" } method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
-							<button class="btn btn-ghost" type="submit">{ data.T("clients.value_clear") }</button>
+							@atoms.Button(atoms.ButtonProps{Class: "btn-ghost", Label: data.T("clients.value_clear"), Attrs: templ.Attributes{"type": "submit"}})
 						</form>
 					}
 				} else {

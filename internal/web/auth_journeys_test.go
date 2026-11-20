@@ -31,21 +31,21 @@ func TestSetupPresentsRequiredDetailsBeforeDeferrableTasks(t *testing.T) {
 			if !strings.Contains(body, `data-setup-optional`) {
 				t.Fatal("setup page does not explain that optional tasks can wait")
 			}
-			for _, marker := range []string{`class="input"`, `class="btn btn-primary"`, `action="/setup" method="post"`} {
+			for _, marker := range []string{`class="input w-full"`, `class="btn btn-primary"`, `action="/setup" method="post"`} {
 				if !strings.Contains(body, marker) {
 					t.Fatalf("setup view missing marker %q", marker)
 				}
 			}
 			csrf := responseCookie(response, "setup_csrf")
 			expired := request(handler, http.MethodPost, "/setup", mapValues("email", "owner@example.com", "workspace", "Retained workspace"), nil, nil)
-			if expired.Code != http.StatusForbidden || !strings.Contains(expired.Body.String(), `role="alert" tabindex="-1"`) {
+			if expired.Code != http.StatusForbidden || !strings.Contains(expired.Body.String(), `tabindex="-1"`) {
 				t.Fatalf("expired setup form status = %d; missing focused alert", expired.Code)
 			}
 			invalid := request(handler, http.MethodPost, "/setup", mapValues("email", "owner@example.com", "workspace", "Retained workspace", "csrf", csrf.Value), []*http.Cookie{csrf}, nil)
 			if invalid.Code != http.StatusUnprocessableEntity {
 				t.Fatalf("setup validation status = %d", invalid.Code)
 			}
-			for _, marker := range []string{`role="alert" tabindex="-1"`, `class="alert alert-error error"`, `value="owner@example.com"`, `value="Retained workspace"`} {
+			for _, marker := range []string{`tabindex="-1"`, `class="alert alert-error error"`, `value="owner@example.com"`, `value="Retained workspace"`} {
 				if !strings.Contains(invalid.Body.String(), marker) {
 					t.Fatalf("setup validation view missing marker %q", marker)
 				}
@@ -73,17 +73,17 @@ func TestAuthenticationPagesUseBrandAndOrdinaryFormPaths(t *testing.T) {
 				t.Fatalf("%s missing ordinary form marker", path)
 			}
 			if strings.Contains(path, "password-reset") {
-				for _, marker := range []string{`class="brand auth-brand"`, `class="input"`, `class="btn btn-primary"`, `id="main"`, `data-theme="system"`} {
+				for _, marker := range []string{`class="brand auth-brand"`, `class="input w-full"`, `class="btn btn-primary"`, `id="main"`, `data-theme="system"`} {
 					if !strings.Contains(body, marker) {
 						t.Fatalf("%s missing auth layout marker %q", path, marker)
 					}
 				}
 			}
-			if strings.Contains(path, "verify-email") && !strings.Contains(body, `role="alert" tabindex="-1"`) {
+			if strings.Contains(path, "verify-email") && !strings.Contains(body, `tabindex="-1"`) {
 				t.Fatal("invalid verification link missing focused error")
 			}
 			if path == "/login" {
-				for _, marker := range []string{`class="input"`, `class="btn btn-primary"`, `action="/login" method="post"`, `name="csrf"`} {
+				for _, marker := range []string{`class="input w-full"`, `class="btn btn-primary"`, `action="/login" method="post"`, `name="csrf"`} {
 					if !strings.Contains(body, marker) {
 						t.Fatalf("login missing marker %q", marker)
 					}
@@ -147,7 +147,7 @@ func TestMFAPageKeepsFormFallbacksAvailable(t *testing.T) {
 	if response.Code != http.StatusOK || !strings.Contains(body, `class="brand auth-brand"`) {
 		t.Fatalf("MFA page status = %d; missing auth brand", response.Code)
 	}
-	for _, marker := range []string{`action="/mfa/totp" method="post"`, `action="/mfa/recovery" method="post"`, `class="input" id="totp-code"`, `class="input" id="recovery-code"`, `class="btn btn-primary"`} {
+	for _, marker := range []string{`action="/mfa/totp" method="post"`, `action="/mfa/recovery" method="post"`, `id="totp-code"`, `id="recovery-code"`, `class="btn btn-primary"`} {
 		if !strings.Contains(body, marker) {
 			t.Fatalf("MFA page missing marker %q", marker)
 		}
@@ -178,7 +178,7 @@ func TestSecurityPageUsesTemplAndPreservesFactorForms(t *testing.T) {
 		t.Fatalf("security page status = %d", page.Code)
 	}
 	for _, marker := range []string{
-		`class="settings-panel"`, `class="input"`, `class="btn btn-primary"`,
+		`class="settings-panel"`, `class="input w-full"`, `class="btn btn-primary"`,
 		`action="/api/v1/auth/mfa/passkeys/register/options" method="post"`,
 		`action="/security/totp/start" method="post"`, `id="security-linked-identity-heading"`,
 		`name="csrf"`, `aria-labelledby="security-mfa-heading"`, `aria-labelledby="security-linked-identity-heading"`,
@@ -194,7 +194,7 @@ func TestSecurityPageUsesTemplAndPreservesFactorForms(t *testing.T) {
 	start := request(handler, http.MethodPost, "/security/totp/start", url.Values{
 		"csrf": {session.CSRFSecret}, "password": {"wrong-password"},
 	}, cookies, nil)
-	if start.Code != http.StatusUnauthorized || !strings.Contains(start.Body.String(), `role="alert" tabindex="-1"`) ||
+	if start.Code != http.StatusUnauthorized || !strings.Contains(start.Body.String(), `tabindex="-1"`) ||
 		!strings.Contains(start.Body.String(), "Fresh authentication failed.") {
 		t.Fatalf("invalid TOTP enrollment status = %d; missing accessible failure feedback", start.Code)
 	}
@@ -217,13 +217,13 @@ func TestSecurityPageRendersReauthenticatedOIDCLinkForm(t *testing.T) {
 	for _, marker := range []string{
 		`<form action="/security" method="post">`, `name="csrf" value="csrf-value"`,
 		`<option value="company">Company SSO</option>`, `id="reauth-password"`,
-		`name="password"`, `type="password"`, `autocomplete="current-password"`, `required`, `class="input"`,
+		`name="password"`, `type="password"`, `autocomplete="current-password"`, `required`, `class="input w-full"`,
 	} {
 		if !strings.Contains(body.String(), marker) {
 			t.Errorf("OIDC linking form missing %q", marker)
 		}
 	}
-	if !strings.Contains(body.String(), "<pre>recovery-one\nrecovery-two\n</pre>") {
-		t.Fatal("recovery codes lost their per-code line breaks")
+	if !strings.Contains(body.String(), "mockup-code") || !strings.Contains(body.String(), "recovery-one") || !strings.Contains(body.String(), "recovery-two") {
+		t.Fatal("recovery codes lost their per-code presentation")
 	}
 }

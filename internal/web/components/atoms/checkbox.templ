@@ -3,18 +3,22 @@
 package atoms
 
 type CheckboxProps struct {
-	ID      string
-	Before  string
-	After   string
-	Name    string
-	Checked bool
-	Class   string
-	Attrs   templ.Attributes
-	Size    string
+	ID         string
+	Before     string
+	After      string
+	Name       string
+	Checked    bool
+	Class      string
+	LabelClass string
+	Attrs      templ.Attributes
+	Size       string
+	// Content is a rich-HTML label rendered after the input
+	// (e.g. a <code> event name); ignored when nil.
+	Content templ.Component
 }
 
 templ Checkbox(props CheckboxProps) {
-	<label class="label justify-center cursor-pointer">
+	<label class={ "label justify-center cursor-pointer", props.LabelClass }>
 		if props.Before != "" {
 			<span
 				class={
@@ -49,6 +53,11 @@ templ Checkbox(props CheckboxProps) {
 		if props.After != "" {
 			<span class="ml-2">
 				{ props.After }
+			</span>
+		}
+		if props.Content != nil {
+			<span class="ml-2">
+				@props.Content
 			</span>
 		}
 	</label>

@@ -2,22 +2,32 @@
 // https://daisyui.com/components/breadcrumbs
 package atoms
 
-type BreadcrumbsProps []BreadcrumbsProp
+type BreadcrumbsProps struct {
+	// Separator renders between items; "" omits a visible separator
+	Separator string
+	Items     []BreadcrumbsProp
+}
 
 type BreadcrumbsProp struct {
 	Label string
+	// Href renders the crumb as a link; the current (last) crumb
+	// should leave it empty so it renders as plain text
+	Href  string
 	Attrs templ.Attributes
 }
 
 templ Breadcrumbs(props BreadcrumbsProps) {
 	<div class="breadcrumbs text-sm">
 		<ul>
-			for i, prop := range props {
+			for i, prop := range props.Items {
 				<li class="select-none">
-					if i < len(props) - 1 {
-						<a { prop.Attrs... }>{ prop.Label }</a>
+					if prop.Href != "" {
+						<a href={ templ.SafeURL(prop.Href) } { prop.Attrs... }>{ prop.Label }</a>
 					} else {
 						{ prop.Label }
+					}
+					if i < len(props.Items) - 1 && props.Separator != "" {
+						<span aria-hidden="true">{ props.Separator }</span>
 					}
 				</li>
 			}

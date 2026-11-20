@@ -112,7 +112,7 @@ func TestClientChoiceValuesUseASelectAndViewersReadLabels(t *testing.T) {
 	valuePath := detail + "/values/" + fieldShort
 
 	owner := request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
-	if !strings.Contains(owner, `<select id="value-`+fieldShort+`"`) || !strings.Contains(owner, `<option value="`+optionShort+`"`) {
+	if !strings.Contains(owner, `id="value-`+fieldShort+`"`) || !strings.Contains(owner, `<option value="`+optionShort+`"`) {
 		t.Fatalf("owner detail has no select of the field's options: %s", owner)
 	}
 

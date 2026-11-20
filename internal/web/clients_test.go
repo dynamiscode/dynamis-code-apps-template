@@ -262,7 +262,8 @@ func TestClientDetailUsesSharedTemplComponents(t *testing.T) {
 	detail := request(env.routes, http.MethodGet, created.Header().Get("Location"), nil, env.cookies, nil)
 	body := detail.Body.String()
 	// shortcut: main (#498) renders the detail page inside the app shell; only the shared components are asserted now
-	if detail.Code != http.StatusOK || !strings.Contains(body, `class="input" id="client-display-name"`) ||
+	if detail.Code != http.StatusOK || !strings.Contains(body, `id="client-display-name"`) ||
+		!strings.Contains(body, `class="input w-full"`) ||
 		!strings.Contains(body, `class="btn btn-primary" type="submit"`) {
 		t.Fatalf("client detail rendering or script boundary is incorrect: %s", body)
 	}
@@ -588,7 +589,7 @@ func TestClientEditRefusalKeepsTheTypedValues(t *testing.T) {
 	if !strings.Contains(refused.Body.String(), `value="555-0100"`) {
 		t.Fatalf("refused edit lost the typed phone: %s", refused.Body.String())
 	}
-	if !strings.Contains(refused.Body.String(), `class="dashboard-workspace"`) || !strings.Contains(refused.Body.String(), `class="input"`) {
+	if !strings.Contains(refused.Body.String(), `class="dashboard-workspace"`) || !strings.Contains(refused.Body.String(), `class="input w-full"`) {
 		t.Fatalf("detail response did not use the templ dashboard and shared input: %s", refused.Body.String())
 	}
 }

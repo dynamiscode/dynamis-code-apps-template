@@ -1,5 +1,6 @@
 package web
 
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "example.com/dynamis-code/apps-template/internal/web/components"
 
@@ -25,7 +26,7 @@ templ itemList(data viewmodel.PageData) {
 	if len(data.Items) == 0 {
 		<p id="item-results" role="status">
 			if data.HasClientFilters {
-				{ data.T("items.none") }{ " " }<a href={ data.ClearClientFiltersPath }>{ data.T("clients.clear_filters") }</a>
+				{ data.T("items.none") }{ " " }@atoms.Anchor(atoms.AnchorProps{Href: data.ClearClientFiltersPath, Label: data.T("clients.clear_filters")})
 			} else {
 				{ data.T("items.none") }
 			}
@@ -39,12 +40,16 @@ templ itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) {
 			<input type="hidden" name="csrf" value={ data.CSRF }/>
 			<input type="hidden" name="version" value={ row.Item.Version }/>
 			@components.TextField("item-title-"+row.ID, data.T("items.title"), templ.Attributes{"name": "title", "value": row.Item.Title, "required": true, "maxlength": "200", "data-trim": true})
-			@components.SelectField("item-status-"+row.ID, data.T("items.status"), templ.Attributes{"name": "status", "data-autosave": "update"}) {
-				<option value="active" selected?={ string(row.Item.Status) == "active" }>{ data.T("items.active") }</option>
-				<option value="complete" selected?={ string(row.Item.Status) == "complete" }>{ data.T("items.complete") }</option>
-			}
+			@atoms.Select(atoms.SelectProps{
+				ID: "item-status-"+row.ID, Name: "status", Label: data.T("items.status"),
+				Attrs: templ.Attributes{"data-autosave": "update"},
+				Options: []atoms.SelectOption{
+					{Label: data.T("items.active"), Value: "active", Selected: string(row.Item.Status) == "active"},
+					{Label: data.T("items.complete"), Value: "complete", Selected: string(row.Item.Status) == "complete"},
+				},
+			})
 			<div class="actions">
-				<button class="btn btn-primary" type="submit" name="action" value="update" data-requires-change aria-label={ data.T("items.save") + " " + row.Item.Title }>{ data.T("items.save") }</button>
+				@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("items.save"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "update", "data-requires-change": true, "aria-label": data.T("items.save") + " " + row.Item.Title}})
 				@components.ConfirmButton(data.T("items.delete_permanently"), data.T("items.delete_confirm_full"), templ.Attributes{"name": "action", "value": "delete", "aria-label": data.T("items.delete_permanently") + " " + row.Item.Title, "data-optimistic": "remove"})
 			</div>
 		</form>
@@ -52,10 +57,13 @@ templ itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) {
 	if data.CanShare {
 		<form class="share" data-dirty-track action={ data.CurrentPath + "/" + row.ID + "/share" + data.ItemQuerySuffix } method="post" hx-post={ data.CurrentPath + "/" + row.ID + "/share" + data.ItemQuerySuffix } hx-target="#item-list" hx-swap="outerHTML" hx-history="false">
 			<input type="hidden" name="csrf" value={ data.CSRF }/>
-			@components.SelectField("share-lifetime-"+row.ID, data.T("sharing.expiration"), templ.Attributes{"name": "lifetime"}) {
-				<option value="7">{ data.T("sharing.seven_days") }</option>
-				<option value="30">{ data.T("sharing.thirty_days") }</option>
-			}
+			@atoms.Select(atoms.SelectProps{
+				ID: "share-lifetime-"+row.ID, Name: "lifetime", Label: data.T("sharing.expiration"),
+				Options: []atoms.SelectOption{
+					{Label: data.T("sharing.seven_days"), Value: "7"},
+					{Label: data.T("sharing.thirty_days"), Value: "30"},
+				},
+			})
 			<p class="status share-scope">{ data.T("sharing.scope_public") }</p>
 			<div class="row">@components.SubmitButton(data.T("sharing.create"), templ.Attributes{"name": "action", "value": "create"})</div>
 		</form>

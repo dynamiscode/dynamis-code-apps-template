@@ -2,6 +2,7 @@ package web
 
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "example.com/dynamis-code/apps-template/internal/web/components"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import "strconv"
 
@@ -94,7 +95,7 @@ templ clientBody(data viewmodel.PageData) {
 	if len(data.ListRows) == 0 {
 		<p id="client-empty-state">
 			if data.HasClientFilters {
-				{ data.T("clients.no_matches") }{ " " }<a href={ data.ClearClientFiltersPath }>{ data.T("clients.clear_filters") }</a>
+				{ data.T("clients.no_matches") }{ " " }@atoms.Link(atoms.LinkProps{Href: data.ClearClientFiltersPath, Text: data.T("clients.clear_filters")})
 			} else {
 				{ data.T("clients.none") }
 			}
@@ -117,7 +118,7 @@ templ clientCreateMenu(data viewmodel.PageData) {
 					@components.TextField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{"name": "email", "type": "email", "maxlength": "254", "value": data.ClientDraft.Email})
 					@components.TextField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{"name": "phone", "maxlength": "50", "value": data.ClientDraft.Phone})
 					@components.TextareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.ClientDraft.Notes, templ.Attributes{"name": "notes", "maxlength": "5000"})
-					<div class="actions"><button class="btn btn-primary" type="submit">{ data.T("clients.add") }</button></div>
+					<div class="actions">@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.add"), Attrs: templ.Attributes{"type": "submit"}})</div>
 				</form>
 			}
 			</div>

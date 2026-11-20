@@ -1,6 +1,9 @@
 package components
 
-import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import (
+	atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
+)
 
 // ListFilterBar is the shared filter strip of a list: the applied conditions as chips, and the match switch once
 // there are two or more. It sits under the toolbar and takes no height when no condition is applied.
@@ -75,11 +78,16 @@ templ ListFilterStrip(data viewmodel.PageData) {
 							<input type="hidden" name={ field.Name } value={ field.Value }/>
 						}
 					}
-					<label for="list-match">{ data.T("clients.match_label") }</label>
-					<select class="select" id="list-match" name="match" data-autosubmit="true">
-						<option value={ viewmodel.ListMatchAll } selected?={ data.Filter.Match == viewmodel.ListMatchAll }>{ data.T("clients.match_all") }</option>
-						<option value={ viewmodel.ListMatchAny } selected?={ data.Filter.Match == viewmodel.ListMatchAny }>{ data.T("clients.match_any") }</option>
-					</select>
+					@atoms.Select(atoms.SelectProps{
+						ID:    "list-match",
+						Label: data.T("clients.match_label"),
+						Name:  "match",
+						Options: []atoms.SelectOption{
+							{Label: data.T("clients.match_all"), Value: viewmodel.ListMatchAll, Selected: data.Filter.Match == viewmodel.ListMatchAll},
+							{Label: data.T("clients.match_any"), Value: viewmodel.ListMatchAny, Selected: data.Filter.Match == viewmodel.ListMatchAny},
+						},
+						Attrs: templ.Attributes{"data-autosubmit": "true"},
+					})
 					<button class="btn btn-ghost btn-xs" type="submit" data-submit-button="true">{ data.T("clients.apply") }</button>
 				</form>
 			}
@@ -113,30 +121,34 @@ templ ListFilterAddPanel(data viewmodel.PageData) {
 			<p class="client-step-field">{ ListLabel(data, data.Filter.Step.FieldLabelKey, data.Filter.Step.FieldLabel) }</p>
 			<div class="client-step-section" role="radiogroup" aria-labelledby="list-condition-heading">
 				<p id="list-condition-heading" class="client-field-prompt">{ data.T("clients.filter_op") }</p>
-				for _, op := range data.Filter.Step.Ops {
-					<label class="client-operator">
-						<input type="radio" name="filter_op" value={ op.Key } checked?={ op.Checked }/>
-						<span>{ data.T(op.LabelKey) }</span>
-					</label>
-				}
+				{{
+					opOptions := make([]atoms.RadioOption, 0, len(data.Filter.Step.Ops))
+					for _, op := range data.Filter.Step.Ops {
+						opOptions = append(opOptions, atoms.RadioOption{Label: data.T(op.LabelKey), Value: op.Key, Checked: op.Checked})
+					}
+				}}
+				@atoms.Radio(atoms.RadioProps{Name: "filter_op", Options: opOptions})
 			</div>
 			<div class="client-step-section" data-hide-for-operator="is_empty">
 				if data.Filter.Step.IsChoice {
-					<label class="client-field-prompt" for="list-filter-value">{ data.T("clients.filter_value") }</label>
-					<select class="select" id="list-filter-value" name="filter_value">
+					{{
+						options := make([]atoms.SelectOption, 0, len(data.Filter.Step.Choices))
 						for _, choice := range data.Filter.Step.Choices {
-							<option value={ choice.Value } selected?={ choice.Selected }>{ ListLabel(data, choice.LabelKey, choice.Label) }</option>
+							options = append(options, atoms.SelectOption{
+								Label:    ListLabel(data, choice.LabelKey, choice.Label),
+								Value:    choice.Value,
+								Selected: choice.Selected,
+							})
 						}
-					</select>
+					}}
+					@atoms.Select(atoms.SelectProps{ID: "list-filter-value", Label: data.T("clients.filter_value"), Name: "filter_value", Options: options})
 				} else {
-					<label class="client-field-prompt" for="list-filter-value">{ data.T("clients.filter_value") }</label>
-					<input class="input" id="list-filter-value" type={ ListInputType(data.Filter.Step.InputType) } name="filter_value" maxlength="1024" value={ data.Filter.Step.Value }/>
+					@atoms.Input(atoms.InputProps{ID: "list-filter-value", Label: data.T("clients.filter_value"), Name: "filter_value", Type: ListInputType(data.Filter.Step.InputType), Value: data.Filter.Step.Value, MaxLength: "1024"})
 				}
 			</div>
 			if data.Filter.Step.Range {
 				<div class="client-step-section" data-show-for-operator="between">
-					<label class="client-field-prompt" for="list-filter-value-to">{ data.T("clients.filter_value_to") }</label>
-					<input class="input" id="list-filter-value-to" type={ ListInputType(data.Filter.Step.InputType) } name="filter_value_to" maxlength="1024" value={ data.Filter.Step.ValueTo }/>
+					@atoms.Input(atoms.InputProps{ID: "list-filter-value-to", Label: data.T("clients.filter_value_to"), Name: "filter_value_to", Type: ListInputType(data.Filter.Step.InputType), Value: data.Filter.Step.ValueTo, MaxLength: "1024"})
 				</div>
 			}
 			<div class="client-step-actions">

@@ -3,6 +3,7 @@ package web
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "example.com/dynamis-code/apps-template/internal/web/components"
 import "example.com/dynamis-code/apps-template/internal/web/layouts"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import "example.com/dynamis-code/apps-template/internal/clients"
 templ clientFieldsPage(data viewmodel.PageData) {
@@ -26,21 +27,27 @@ templ clientFieldList(data viewmodel.PageData) {
 			@components.ErrorAlert(data.T(data.ErrorKey))
 		}
 		if data.CanManageFields {
-			<details class="client-controls client-create" open?={ data.ErrorKey != "" }>
-				<summary>{ data.T("clients.new_field") }</summary>
+			@atoms.CollapseDetails(atoms.CollapseDetailsProps{
+				Class: "client-controls client-create",
+				Open:  data.ErrorKey != "",
+				Title: data.T("clients.new_field"),
+			}) {
 				<form action={ data.FieldsPath } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
 					@components.TextField("client-field-label", data.T("clients.field_label"), templ.Attributes{"name": "label", "required": true, "maxlength": "100", "value": data.FieldDraft.Label, "data-trim": ""})
-					@components.SelectField("client-field-type", data.T("clients.field_type"), templ.Attributes{"name": "type"}) {
-						<option value="text" selected?={ data.FieldDraft.Type == "" || data.FieldDraft.Type == "text" }>{ data.T("clients.field_type_text") }</option>
-						<option value="number" selected?={ data.FieldDraft.Type == "number" }>{ data.T("clients.field_type_number") }</option>
-						<option value="date" selected?={ data.FieldDraft.Type == "date" }>{ data.T("clients.field_type_date") }</option>
-						<option value="yes_no" selected?={ data.FieldDraft.Type == "yes_no" }>{ data.T("clients.field_type_yes_no") }</option>
-						<option value="single_choice" selected?={ data.FieldDraft.Type == "single_choice" }>{ data.T("clients.field_type_single_choice") }</option>
-					}
+					@atoms.Select(atoms.SelectProps{
+									ID: "client-field-type", Name: "type", Label: data.T("clients.field_type"),
+																		Options: []atoms.SelectOption{
+										{Label: data.T("clients.field_type_text"), Value: "text", Selected: data.FieldDraft.Type == "" || data.FieldDraft.Type == "text"},
+										{Label: data.T("clients.field_type_number"), Value: "number", Selected: data.FieldDraft.Type == "number"},
+										{Label: data.T("clients.field_type_date"), Value: "date", Selected: data.FieldDraft.Type == "date"},
+										{Label: data.T("clients.field_type_yes_no"), Value: "yes_no", Selected: data.FieldDraft.Type == "yes_no"},
+										{Label: data.T("clients.field_type_single_choice"), Value: "single_choice", Selected: data.FieldDraft.Type == "single_choice"},
+									},
+					})
 					<div class="actions">@components.SubmitButton(data.T("clients.add_field"), nil)</div>
 				</form>
-			</details>
+			}
 		} else {
 			<p class="status">{ data.T("clients.fields_read_only") }</p>
 		}
@@ -56,10 +63,10 @@ templ clientFieldList(data viewmodel.PageData) {
 						if data.CanManageFields {
 							<div class="client-field-actions">
 								if field.ArchivedAt != nil {
-									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/restore" }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-secondary" type="submit">{ data.T("clients.restore_field") }</button></form>
+									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/restore" }><input type="hidden" name="csrf" value={ data.CSRF }/>@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("clients.restore_field"), Attrs: templ.Attributes{"type": "submit"}})</form>
 									<div class="client-delete"><p class="warning">{ data.T("clients.delete_field_confirm") }</p><form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/delete" }><input type="hidden" name="csrf" value={ data.CSRF }/>@components.ConfirmButton(data.T("clients.delete_field"), data.T("clients.delete_field_confirm"), nil)</form></div>
 								} else {
-									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/archive" }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-secondary" type="submit">{ data.T("clients.archive_field") }</button></form>
+									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/archive" }><input type="hidden" name="csrf" value={ data.CSRF }/>@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("clients.archive_field"), Attrs: templ.Attributes{"type": "submit"}})</form>
 								}
 							</div>
 						}

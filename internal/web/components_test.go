@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"example.com/dynamis-code/apps-template/internal/web/components"
+	atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"github.com/a-h/templ"
 	"io"
@@ -17,10 +18,6 @@ func TestSharedComponentsRenderAccessibleNativeControls(t *testing.T) {
 		_, err := io.WriteString(w, "<thead><tr><th scope=\"col\">Name</th></tr></thead><tbody><tr><td>Example</td></tr></tbody>")
 		return err
 	})
-	option := templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
-		_, err := io.WriteString(w, `<option value="en" selected>English</option>`)
-		return err
-	})
 	link := templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
 		_, err := io.WriteString(w, `<a href="/items">Open</a>`)
 		return err
@@ -32,12 +29,12 @@ func TestSharedComponentsRenderAccessibleNativeControls(t *testing.T) {
 		want      []string
 	}{
 		{"heading", components.PageHeading("Items <all>", "Workspace"), nil, []string{`<h1>Items &lt;all&gt;</h1>`, `class="eyebrow"`}},
-		{"field", components.TextField("title", "Title", templ.Attributes{"name": "title", "required": true, "aria-describedby": "title-error", "aria-invalid": "true"}), nil, []string{`<label for="title">Title</label>`, `id="title"`, `name="title"`, `required`, `aria-describedby="title-error"`, `aria-invalid="true"`}},
-		{"select", components.SelectField("locale", "Language", templ.Attributes{"name": "locale"}), option, []string{`<label for="locale">Language</label>`, `id="locale"`, `name="locale"`, `value="en" selected`}},
-		{"textarea", components.TextareaField("notes", "Notes", "<notes>", templ.Attributes{"name": "notes"}), nil, []string{`<label for="notes">Notes</label>`, `id="notes"`, `name="notes"`, `&lt;notes&gt;`}},
+		{"field", components.TextField("title", "Title", templ.Attributes{"name": "title", "required": true, "aria-describedby": "title-error", "aria-invalid": "true"}), nil, []string{`<label class="fieldset-legend" for="title">Title</label>`, `id="title"`, `name="title"`, `required`, `aria-describedby="title-error"`, `aria-invalid="true"`}},
+		{"select", atoms.Select(atoms.SelectProps{ID: "locale", Name: "locale", Label: "Language", Options: []atoms.SelectOption{{Label: "English", Value: "en", Selected: true}}}), nil, []string{`for="locale"`, `id="locale"`, `name="locale"`, `<option selected value="en">English</option>`}},
+		{"textarea", components.TextareaField("notes", "Notes", "<notes>", templ.Attributes{"name": "notes"}), nil, []string{`<label class="fieldset-legend" for="notes">Notes</label>`, `id="notes"`, `name="notes"`, `&lt;notes&gt;`}},
 		{"field error", components.FieldError("title-error", "Required"), nil, []string{`id="title-error"`, `>Required</p>`}},
 		{"button", components.SubmitButton("Save", templ.Attributes{"name": "action", "value": "save"}), nil, []string{`type="submit"`, `name="action"`, `value="save"`, `>Save</button>`}},
-		{"link button", components.LinkButton("/items", "Items"), nil, []string{`href="/items"`, `>Items</a>`}},
+		{"link button", components.LinkButton("/items", "Items"), nil, []string{`href="/items"`, `class="btn btn-primary"`, `Items </a>`}},
 		{"confirmation", components.ConfirmationField("confirm", "confirm", "I understand"), nil, []string{`for="confirm"`, `type="checkbox"`, `name="confirm"`, `required`, `I understand`}},
 		{"destructive action", components.ConfirmButton("Delete", "Delete this item?", templ.Attributes{"name": "action", "value": "delete"}), nil, []string{`type="submit"`, `data-confirm="Delete this item?"`, `value="delete"`}},
 		{"error", components.ErrorAlert("Invalid <title>"), nil, []string{`role="alert"`, `tabindex="-1"`, `Invalid &lt;title&gt;`}},

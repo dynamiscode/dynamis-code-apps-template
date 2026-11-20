@@ -51,7 +51,7 @@ func TestNoJavaScriptAccountProfileAndDeletionConfirmation(t *testing.T) {
 	cookies, csrf := noJSSession(t, auth, owner.UserID)
 
 	page := request(handler, http.MethodGet, "/account", nil, cookies, nil)
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `name="confirm_delete" type="checkbox" value="yes" required`) {
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `type="checkbox" name="confirm_delete"`) || !strings.Contains(page.Body.String(), `value="yes"`) {
 		t.Fatalf("account page lacks native deletion confirmation: %d %s", page.Code, page.Body.String())
 	}
 

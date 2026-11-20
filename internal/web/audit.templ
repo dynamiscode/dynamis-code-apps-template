@@ -3,6 +3,7 @@ package web
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "example.com/dynamis-code/apps-template/internal/web/components"
 import "example.com/dynamis-code/apps-template/internal/web/layouts"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import "strconv"
 
@@ -13,7 +14,7 @@ templ auditHistory(data viewmodel.PageData) {
 		<p class="settings-intro">{ data.T("audit.description") }</p>
 		if data.AuditLazy {
 			<div id="audit-table" data-lazy-src={ data.CurrentPath + "?part=table" } aria-busy="true">
-				<p class="loading" role="status">{ data.T("ui.loading") }</p>
+				<p class="loading" role="status">@atoms.Loading(atoms.LoadingProps{}) { data.T("ui.loading") }</p>
 				<p><a href={ data.CurrentPath + "?all=1" }>{ data.T("audit.show") }</a></p>
 			</div>
 		} else {

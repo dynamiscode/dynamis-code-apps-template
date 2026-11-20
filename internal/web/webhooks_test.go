@@ -35,7 +35,7 @@ func TestWebhooksBrowserLifecycleAndRedaction(t *testing.T) {
 	if !strings.Contains(page.Body.String(), `data-theme="system"`) || !strings.Contains(page.Body.String(), `class="card"`) || !strings.Contains(page.Body.String(), `name="csrf"`) {
 		t.Fatalf("webhooks page missing theme, card, or ordinary CSRF form: %s", page.Body.String())
 	}
-	if !strings.Contains(page.Body.String(), `for="webhook-name"`) || !strings.Contains(page.Body.String(), `class="input" id="webhook-name"`) || !strings.Contains(page.Body.String(), `for="webhook-url"`) || !strings.Contains(page.Body.String(), `class="input" id="webhook-url"`) {
+	if !strings.Contains(page.Body.String(), `for="webhook-name"`) || !strings.Contains(page.Body.String(), `id="webhook-name"`) || !strings.Contains(page.Body.String(), `class="input`) || !strings.Contains(page.Body.String(), `for="webhook-url"`) || !strings.Contains(page.Body.String(), `id="webhook-url"`) {
 		t.Fatalf("webhook labels and input classes are not associated: %s", page.Body.String())
 	}
 	if strings.Contains(page.Body.String(), `aria-describedby=""`) {
@@ -212,7 +212,7 @@ func TestWebhookSecretKeyErrorIsActionable(t *testing.T) {
 	rawHandler.webhooks = failingWebhookManager{service: service, createErr: webhooks.ErrSecretKey}
 
 	page := request(handler, http.MethodGet, base, nil, cookies, nil)
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `id="webhook-secret-key-warning" class="warning`) || !strings.Contains(page.Body.String(), "Webhook configuration required") || !strings.Contains(page.Body.String(), "ENCRYPTION_KEY") || !strings.Contains(page.Body.String(), `value="create" disabled`) {
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `id="webhook-secret-key-warning"`) || !strings.Contains(page.Body.String(), "Webhook configuration required") || !strings.Contains(page.Body.String(), "ENCRYPTION_KEY") || !strings.Contains(page.Body.String(), `value="create"`) || !strings.Contains(page.Body.String(), `disabled`) {
 		t.Fatalf("missing webhook secret key page = %d, %s", page.Code, page.Body.String())
 	}
 

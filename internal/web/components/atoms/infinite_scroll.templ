@@ -4,7 +4,7 @@ package atoms
 import "fmt"
 
 templ InfiniteScrollTable(headers, rows []templ.Component, spinnerID string) {
-	@Table(headers, rows, nil)
+	@Table(TableProps{Headers: headers, Rows: rows})
 	<div class="flex justify-center"><span id={ spinnerID } class="htmx-indicator loading loading-spinner"></span></div>
 }
 

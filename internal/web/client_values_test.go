@@ -135,7 +135,7 @@ func TestClientValuesUseTypedInputsAndValidate(t *testing.T) {
 		t.Fatalf("set yes/no = %d: %s", yes.Code, yes.Body.String())
 	}
 	shown := request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
-	if !strings.Contains(shown, `<option value="true" selected>`) {
+	if !strings.Contains(shown, `<option selected value="true">`) {
 		t.Fatalf("stored yes/no value is not selected: %s", shown)
 	}
 	viewerPage := request(env.routes, http.MethodGet, detail, nil, env.viewerCookies, nil).Body.String()

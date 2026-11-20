@@ -3,6 +3,7 @@ package web
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "example.com/dynamis-code/apps-template/internal/web/components"
 import "example.com/dynamis-code/apps-template/internal/web/layouts"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 templ publicSharePage(data viewmodel.PageData) {
 	<!doctype html>
@@ -60,14 +61,23 @@ templ mcpConsentPage(data viewmodel.PageData) {
 				<input type="hidden" name="state" value={ consent.Params.State }/>
 				<fieldset class="consent-workspaces">
 					<legend>{ data.T("common.workspace") }</legend>
-					for index, workspace := range consent.Workspaces {
-						<label><input type="radio" name="workspace_id" value={ workspace.ID } checked?={ index == 0 } required/> { workspace.Name }</label>
-					}
+					@atoms.Radio(atoms.RadioProps{
+						Name:     "workspace_id",
+						Required: true,
+						Options:  consentWorkspaceOptions(consent.Workspaces),
+					})
 				</fieldset>
 				<p class="status">{ data.T("oauth.consent_help") } { data.T("oauth.consent_scope_note") }</p>
 				<div class="consent-actions">
-					<button class="btn btn-primary" type="submit" name="decision" value="approve">{ data.T("oauth.approve") }</button>
-					<button class="btn" type="submit" name="decision" value="deny">{ data.T("oauth.deny") }</button>
+					@atoms.Button(atoms.ButtonProps{
+						Class: "btn-primary",
+						Label: data.T("oauth.approve"),
+						Attrs: templ.Attributes{"type": "submit", "name": "decision", "value": "approve"},
+					})
+					@atoms.Button(atoms.ButtonProps{
+						Label: data.T("oauth.deny"),
+						Attrs: templ.Attributes{"type": "submit", "name": "decision", "value": "deny"},
+					})
 				</div>
 			</form>
 		}
@@ -101,4 +111,12 @@ func mcpScopeKey(scope string) string {
 		return "oauth.scope_write"
 	}
 	return "oauth.scope_read"
+}
+
+func consentWorkspaceOptions(workspaces []viewmodel.McpWorkspaceChoice) []atoms.RadioOption {
+	options := make([]atoms.RadioOption, 0, len(workspaces))
+	for i, workspace := range workspaces {
+		options = append(options, atoms.RadioOption{Label: workspace.Name, Value: workspace.ID, Checked: i == 0})
+	}
+	return options
 }

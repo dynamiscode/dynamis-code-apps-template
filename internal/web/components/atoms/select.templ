@@ -24,7 +24,11 @@ type SelectOption struct {
 templ Select(props SelectProps) {
 	<fieldset class="fieldset">
 		if props.Label != "" {
-			<legend class="fieldset-legend">{ props.Label }</legend>
+			if props.ID != "" {
+				<label class="fieldset-legend" for={ props.ID }>{ props.Label }</label>
+			} else {
+				<legend class="fieldset-legend">{ props.Label }</legend>
+			}
 		}
 		<select
 			class={

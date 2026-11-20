@@ -3,6 +3,7 @@ package web
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "example.com/dynamis-code/apps-template/internal/web/components"
 import "example.com/dynamis-code/apps-template/internal/web/layouts"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import (
 	"time"
@@ -20,23 +21,41 @@ templ invitationManagementView(data viewmodel.PageData) {
 			}
 			if data.InvitationURL != "" {
 				<p role="status">{ data.T("invitations.copy_link") }</p>
-				<input class="input" aria-label={ data.T("invitations.copy_link") } value={ data.InvitationURL } readonly/>
+				@atoms.Input(atoms.InputProps{Value: data.InvitationURL, Attrs: templ.Attributes{"readonly": true, "aria-label": data.T("invitations.copy_link")}})
 			}
 			<section class="settings-panel" aria-labelledby="invitation-create-title">
 				<h2 id="invitation-create-title">{ data.T("invitations.create") }</h2>
 				<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/invitations" } method="post" data-persist="invitation-create">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					<label for="invite-email">{ data.T("common.email") }</label>
-					<input class="input" id="invite-email" name="email" type="email" required maxlength="320" data-trim/>
-					<label for="invite-role">{ data.T("members.role") }</label>
-					<select class="select" id="invite-role" name="role">
-						<option value="member">{ data.T("members.member") }</option>
-						<option value="admin">{ data.T("members.admin") }</option>
-						<option value="viewer">{ data.T("members.viewer") }</option>
-					</select>
+					@atoms.Input(atoms.InputProps{
+						ID:        "invite-email",
+						Label:     data.T("common.email"),
+						Name:      "email",
+						Type:      "email",
+						Required:  true,
+						MaxLength: "320",
+						Attrs:     templ.Attributes{"data-trim": true},
+					})
+					@atoms.Select(atoms.SelectProps{
+						ID:    "invite-role",
+						Name:  "role",
+						Label: data.T("members.role"),
+						Options: []atoms.SelectOption{
+							{Label: data.T("members.member"), Value: "member"},
+							{Label: data.T("members.admin"), Value: "admin"},
+							{Label: data.T("members.viewer"), Value: "viewer"},
+						},
+					})
 					<p class="status">{ data.T("members.role_help") }</p>
-					<label for="invite-life">{ data.T("invitations.lifetime") } { data.T("ui.optional") }</label>
-					<input class="input" id="invite-life" name="lifetime" type="number" min="1" max="43200" value="10080"/>
+					@atoms.Input(atoms.InputProps{
+						ID:    "invite-life",
+						Label: data.T("invitations.lifetime") + " " + data.T("ui.optional"),
+						Name:  "lifetime",
+						Type:  "number",
+						Min:   "1",
+						Max:   "43200",
+						Value: "10080",
+					})
 					@components.SubmitButton(data.T("invitations.create"), templ.Attributes{"name": "action", "value": "create"})
 				</form>
 			</section>
@@ -58,7 +77,7 @@ templ invitationManagementView(data viewmodel.PageData) {
 										if invitation.Status(time.Now()) == identity.InvitationPending || invitation.Status(time.Now()) == identity.InvitationExpired {
 											<form class="inline" action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/invitations" } method="post">
 												<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="invitation_id" value={ invitation.ID.String() }/>
-												<button class="btn" name="action" value="resend">{ data.T("invitations.resend") }</button>
+												@atoms.Button(atoms.ButtonProps{Label: data.T("invitations.resend"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "resend"}})
 											</form>
 										}
 										if invitation.Status(time.Now()) == identity.InvitationPending {
@@ -108,8 +127,16 @@ templ invitationView(data viewmodel.PageData) {
 					<p>{ data.T("invitations.existing_account_help") }</p>
 					<form action={ "/invitations/" + data.InvitationSecret } method="post">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						<label for="invite-password">{ data.T("common.password") }</label>
-						<input class="input" id="invite-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required data-strength/>
+						@atoms.Input(atoms.InputProps{
+							ID:        "invite-password",
+							Label:     data.T("common.password"),
+							Name:      "password",
+							Type:      "password",
+							Required:  true,
+							MinLength: "12",
+							MaxLength: "1024",
+							Attrs:     templ.Attributes{"autocomplete": "new-password", "data-strength": true},
+						})
 						@components.SubmitButton(data.T("invitations.create_account"), templ.Attributes{"name": "action", "value": "register"})
 					</form>
 				</section>

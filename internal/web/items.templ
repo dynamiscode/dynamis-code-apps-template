@@ -1,5 +1,6 @@
 package web
 
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "example.com/dynamis-code/apps-template/internal/web/components"
 import "example.com/dynamis-code/apps-template/internal/web/layouts"
@@ -32,9 +33,8 @@ templ itemsList(data viewmodel.PageData) {
 				hx-swap="outerHTML" hx-sync="this:drop">
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
 				<input type="hidden" name="idempotency_key" value={ data.CreateKey }/>
-				<label for="new-title">{ data.T("items.new_title") }</label>
 				<div class="row">
-					<input id="new-title" class="input" name="title" required maxlength="200" data-trim value={ data.NewTitle }/>
+					@atoms.Input(atoms.InputProps{ID: "new-title", Name: "title", Label: data.T("items.new_title"), Value: data.NewTitle, Required: true, MaxLength: "200", Attrs: templ.Attributes{"data-trim": true}})
 					@components.SubmitButton(data.T("items.add"), nil)
 				</div>
 			</form>

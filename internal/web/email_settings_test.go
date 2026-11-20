@@ -116,7 +116,7 @@ func TestWorkspaceEmailSettingsAreAdminOnlyAndLoginTested(t *testing.T) {
 	page := request(handler, http.MethodGet, base, nil, ownerCookies, nil)
 	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" ||
 		!strings.Contains(page.Body.String(), `class="dashboard-workspace"`) ||
-		!strings.Contains(page.Body.String(), `class="input"`) || !strings.Contains(page.Body.String(), `id="email-password"`) ||
+		!strings.Contains(page.Body.String(), `class="input`) || !strings.Contains(page.Body.String(), `id="email-password"`) ||
 		!strings.Contains(page.Body.String(), "No workspace email provider is set.") || strings.Contains(page.Body.String(), "wrong-pass") {
 		t.Fatalf("admin page = %d", page.Code)
 	}
