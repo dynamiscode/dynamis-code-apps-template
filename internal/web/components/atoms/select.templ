@@ -1,0 +1,69 @@
+// data_input
+// https://daisyui.com/components/select
+package atoms
+
+type SelectProps struct {
+	ID          string
+	Label       string
+	Name        string
+	Description string
+	Class       string
+	Size        string
+	Required    bool
+	Options     []SelectOption
+	Attrs       templ.Attributes
+}
+
+type SelectOption struct {
+	Label    string
+	Value    string
+	Selected bool
+	Disabled bool
+}
+
+templ Select(props SelectProps) {
+	<fieldset class="fieldset">
+		if props.Label != "" {
+			<legend class="fieldset-legend">{ props.Label }</legend>
+		}
+		<select
+			class={
+				"select w-full",
+				props.Class,
+				templ.KV("select-xs", props.Size == "xs"),
+				templ.KV("select-sm", props.Size == "sm"),
+				templ.KV("select-lg", props.Size == "lg"),
+				templ.KV("select-xl", props.Size == "xl"),
+			}
+			if props.ID != "" {
+				id={ props.ID }
+			}
+			name={ props.Name }
+			if props.Required {
+				required
+			}
+			{ props.Attrs... }
+		>
+			@SelectOptions(props.Options)
+		</select>
+		if props.Description != "" {
+			<span class="label">{ props.Description }</span>
+		}
+	</fieldset>
+}
+
+templ SelectOptions(options []SelectOption) {
+	for i := range options {
+		<option
+			if options[i].Selected {
+				selected
+			}
+			if options[i].Disabled {
+				disabled
+			}
+			value={ options[i].Value }
+		>
+			{ options[i].Label }
+		</option>
+	}
+}

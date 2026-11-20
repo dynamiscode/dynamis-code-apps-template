@@ -1,0 +1,28 @@
+// data_input
+// https://daisyui.com/components/label
+package atoms
+
+type LabelProps struct {
+	Class string
+	For   string
+	Text  string
+}
+
+templ Label(props LabelProps) {
+	<label for={ props.For } class={ "label", props.Class }>
+		<span class="label-text">{ props.Text }</span>
+	</label>
+}
+
+type FloatingLabelProps struct {
+	Class string
+	Text  string
+}
+
+// A DaisyUI5 floating label: wraps the input it labels.
+templ FloatingLabel(props FloatingLabelProps) {
+	<label class={ "floating-label", props.Class }>
+		<span>{ props.Text }</span>
+		{ children... }
+	</label>
+}

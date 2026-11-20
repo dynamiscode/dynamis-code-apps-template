@@ -1,0 +1,26 @@
+// data_input
+// https://daisyui.com/components/field
+package atoms
+
+type FieldProps struct {
+	Class   string
+	Label   string
+	Help    string
+	Error   string
+	Attrs   templ.Attributes
+}
+
+templ Field(props FieldProps) {
+	<fieldset class={ "fieldset", props.Class } { props.Attrs... }>
+		if props.Label != "" {
+			<legend class="fieldset-legend">{ props.Label }</legend>
+		}
+		{ children... }
+		if props.Help != "" {
+			<p class="fieldset-label">{ props.Help }</p>
+		}
+		if props.Error != "" {
+			<p class="text-xs text-error max-w-xs" role="alert" tabindex="-1">{ props.Error }</p>
+		}
+	</fieldset>
+}

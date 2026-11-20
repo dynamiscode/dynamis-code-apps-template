@@ -1,0 +1,15 @@
+// layout
+// https://daisyui.com/components/mockup-phone
+package atoms
+
+type MockupPhoneProps struct {
+	Class       string
+	DisplayClass string
+}
+
+templ MockupPhone(props MockupPhoneProps) {
+	<div class={ "mockup-phone", props.Class }>
+		<div class="mockup-phone-camera"></div>
+		<div class={ "mockup-phone-display", props.DisplayClass }>{ children... }</div>
+	</div>
+}

@@ -1,0 +1,108 @@
+// data_display
+package atoms
+
+import (
+	"fmt"
+	"time"
+)
+
+type CountdownProps struct {
+	Expires time.Time
+	Days    bool
+	Hours   bool
+	Minutes bool
+	Seconds bool
+}
+
+templ Countdown(props CountdownProps) {
+	{{ spanID := time.Now().UnixNano() }}
+	<div class="grid auto-cols-max grid-flow-col gap-5 text-center">
+		<div
+			class={
+				"bg-neutral rounded-box text-neutral-content flex flex-col p-2",
+				templ.KV("hidden", !props.Days),
+			}
+		>
+			<span class="countdown font-mono text-5xl">
+				<span id={ fmt.Sprintf("span-days-%d", spanID) } style="--value:15;" aria-live="polite" aria-label="15">15</span>
+			</span>
+			days
+		</div>
+		<div
+			class={
+				"bg-neutral rounded-box text-neutral-content flex flex-col p-2",
+				templ.KV("hidden", !props.Hours),
+			}
+		>
+			<span class="countdown font-mono text-5xl">
+				<span id={ fmt.Sprintf("span-hours-%d", spanID) } style="--value:10;" aria-live="polite" aria-label="10">10</span>
+			</span>
+			hours
+		</div>
+		<div
+			class={
+				"bg-neutral rounded-box text-neutral-content flex flex-col p-2",
+				templ.KV("hidden", !props.Minutes),
+			}
+		>
+			<span class="countdown font-mono text-5xl">
+				<span id={ fmt.Sprintf("span-minutes-%d", spanID) } style="--value:24;" aria-live="polite" aria-label="24">24</span>
+			</span>
+			min
+		</div>
+		<div
+			class={
+				"bg-neutral rounded-box text-neutral-content flex flex-col p-2",
+				templ.KV("hidden", !props.Seconds),
+			}
+		>
+			<span class="countdown font-mono text-5xl">
+				<span id={ fmt.Sprintf("span-seconds-%d", spanID) } style="--value:59;" aria-live="polite" aria-label="59">59</span>
+			</span>
+			sec
+		</div>
+		<script data-expires={ props.Expires.Format("2006-01-02T15:04:05Z") } data-id={ spanID }>
+            var intervalId = null;
+
+            function updateTimes(expires, days, hours, minutes, seconds) {
+                let expiresDate = Date.parse(expires);
+                let now = new Date()
+                let diffMs = Math.abs(expiresDate - now.getTime());
+                let totalSeconds = diffMs / 1000;
+
+                if (now.getTime() >= expiresDate) {
+                    clearInterval(intervalId);
+                    return
+                }
+
+                const daysRemaining = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+                diffMs -= daysRemaining * (1000 * 60 * 60 *24)
+                days.setAttribute("style", `--value:${daysRemaining};`)
+
+                const hoursRemaining = Math.floor(diffMs / (1000 * 60 * 60));
+                diffMs -= hoursRemaining * (1000 * 60 * 60)
+                hours.setAttribute("style", `--value:${hoursRemaining};`)
+
+                const minutesRemaining = Math.floor(diffMs / (1000 * 60));
+                diffMs -= minutesRemaining * (1000 * 60);
+                minutes.setAttribute("style", `--value:${minutesRemaining};`)
+
+                const secondsRemaining = Math.floor(diffMs / 1000);
+                seconds.setAttribute("style", `--value:${secondsRemaining};`)
+            }
+
+            function startUpdatingTimes(expires, days, hours, minutes, seconds) {
+                updateTimes(expires, days, hours, minutes, seconds);
+                intervalId = setInterval(() => updateTimes(expires, days, hours, minutes, seconds), 1000);
+            }
+
+            ((expires) => {
+                let days = document.getElementById(`span-days-${document.currentScript.getAttribute("data-id")}`);
+                let hours = document.getElementById(`span-hours-${document.currentScript.getAttribute("data-id")}`);
+                let minutes = document.getElementById(`span-minutes-${document.currentScript.getAttribute("data-id")}`);
+                let seconds = document.getElementById(`span-seconds-${document.currentScript.getAttribute("data-id")}`);
+                startUpdatingTimes(expires, days, hours, minutes, seconds);
+            })(document.currentScript.getAttribute("data-expires"))
+        </script>
+	</div>
+}

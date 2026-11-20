@@ -1,0 +1,13 @@
+// layout
+// DaisyUI has no scrollarea class; this is a themed overflow wrapper
+package atoms
+
+type ScrollAreaProps struct {
+	Class string
+}
+
+templ ScrollArea(props ScrollAreaProps) {
+	<div class={ "overflow-y-auto overscroll-contain", props.Class }>
+		{ children... }
+	</div>
+}

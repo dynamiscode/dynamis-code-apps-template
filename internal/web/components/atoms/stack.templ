@@ -1,0 +1,21 @@
+// layout
+// https://daisyui.com/components/stack
+package atoms
+
+type StackProps struct {
+	// Position: "" (center), "top", "bottom", "start", "end"
+	Position string
+	Class    string
+}
+
+templ Stack(props StackProps) {
+	<div
+		class={
+			"stack",
+			templ.KV("stack-"+props.Position, props.Position != ""),
+			props.Class,
+		}
+	>
+		{ children... }
+	</div>
+}

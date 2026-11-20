@@ -1,7 +1,6 @@
 @import "tailwindcss" source(none);
 @plugin "daisyui" {
   themes: light --default, dark --prefersdark;
-  include: button, input, select, textarea, alert, table, card, list, badge;
 }
 @source "./workspace.templ";
 @source "./components";

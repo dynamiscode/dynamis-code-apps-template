@@ -1,0 +1,12 @@
+// data_display
+// https://daisyui.com/components/divider
+package atoms
+
+type DividerProps struct {
+	Class string
+	Label string
+}
+
+templ Divider(props DividerProps) {
+	<div class={ "divider", props.Class }>{ props.Label }</div>
+}

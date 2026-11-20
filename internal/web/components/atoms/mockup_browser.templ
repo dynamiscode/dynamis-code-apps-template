@@ -1,0 +1,19 @@
+// layout
+// https://daisyui.com/components/mockup-browser
+package atoms
+
+type MockupBrowserProps struct {
+	Class string
+	URL   string
+}
+
+templ MockupBrowser(props MockupBrowserProps) {
+	<div class={ "mockup-browser", props.Class }>
+		<div class="mockup-browser-toolbar">
+			if props.URL != "" {
+				<div class="input">{ props.URL }</div>
+			}
+		</div>
+		{ children... }
+	</div>
+}

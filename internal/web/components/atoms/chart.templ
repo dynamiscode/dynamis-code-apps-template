@@ -1,0 +1,66 @@
+// data_display
+// DaisyUI has no chart class; server-rendered SVG bars, no JavaScript
+// https://daisyui.com — adapted from shadcn-templ "chart" concept
+package atoms
+
+import "fmt"
+
+type ChartBar struct {
+	Label string
+	Value float64
+}
+
+type BarChartProps struct {
+	Class  string
+	Unit   string // suffix shown next to values, e.g. "%"
+	Height int    // svg height in px, default 200
+	Bars   []ChartBar
+}
+
+func (props BarChartProps) height() int {
+	if props.Height == 0 {
+		return 200
+	}
+	return props.Height
+}
+
+func (props BarChartProps) max() float64 {
+	max := 0.0
+	for _, b := range props.Bars {
+		if b.Value > max {
+			max = b.Value
+		}
+	}
+	return max
+}
+
+templ BarChart(props BarChartProps) {
+	<figure role="img" aria-label={ fmt.Sprintf("Bar chart, %d series", len(props.Bars)) }>
+		<svg
+			class={ "w-full bg-base-200 rounded-box", props.Class }
+			viewBox={ fmt.Sprintf("0 0 %d 100", len(props.Bars)*10) }
+			height={ props.height() }
+			preserveAspectRatio="none"
+		>
+			{{ max := props.max() }}
+			for i, bar := range props.Bars {
+				<rect
+					x={ fmt.Sprintf("%d", i*10+2) }
+					width="6"
+					if max > 0 {
+						y={ fmt.Sprintf("%g", 100-(bar.Value/max)*100) }
+						height={ fmt.Sprintf("%g", (bar.Value/max)*100) }
+					}
+					class="fill-primary"
+				>
+					<title>{ fmt.Sprintf("%s: %g%s", bar.Label, bar.Value, props.Unit) }</title>
+				</rect>
+			}
+		</svg>
+		<figcaption class="flex justify-between text-xs text-base-content/70">
+			for _, bar := range props.Bars {
+				<span>{ bar.Label }</span>
+			}
+		</figcaption>
+	</figure>
+}

@@ -1,0 +1,12 @@
+// data_display
+// https://daisyui.com/components/badge
+package atoms
+
+type BadgeProps struct {
+	Class string
+	Label string
+}
+
+templ Badge(props BadgeProps) {
+	<div class={ "badge", props.Class }>{ props.Label }{ children... }</div>
+}

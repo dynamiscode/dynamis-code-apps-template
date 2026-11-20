@@ -1,0 +1,23 @@
+// feedback
+// https://daisyui.com/components/loading
+package atoms
+
+type LoadingProps struct {
+	// Variant: spinner (default), dots, ring, infinity, ball, bars, gear
+	Variant string
+	Class   string
+}
+
+func (props LoadingProps) variant() string {
+	if props.Variant == "" {
+		return "spinner"
+	}
+	return props.Variant
+}
+
+templ Loading(props LoadingProps) {
+	<span
+		class={ "loading", "loading-" + props.variant(), props.Class }
+		aria-hidden="true"
+	></span>
+}

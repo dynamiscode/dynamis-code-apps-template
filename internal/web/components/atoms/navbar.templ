@@ -1,0 +1,25 @@
+// navigation
+// https://daisyui.com/components/navbar
+package atoms
+
+type NavbarProps struct {
+	Class  string
+	Start  templ.Component
+	Center templ.Component
+	End    templ.Component
+}
+
+templ Navbar(props NavbarProps) {
+	<div class={ "navbar", props.Class }>
+		if props.Start != nil {
+			<div class="navbar-start">@props.Start</div>
+		}
+		if props.Center != nil {
+			<div class="navbar-center">@props.Center</div>
+		}
+		if props.End != nil {
+			<div class="navbar-end">@props.End</div>
+		}
+		{ children... }
+	</div>
+}

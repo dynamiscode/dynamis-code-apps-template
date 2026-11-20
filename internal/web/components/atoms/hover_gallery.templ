@@ -1,0 +1,17 @@
+// data_display
+// https://daisyui.com/components/hover-gallery
+package atoms
+
+type HoverGalleryProps struct {
+	Class  string
+	Images []string // all images must share dimensions; maximum of 10
+	Alt    string
+}
+
+templ HoverGallery(props HoverGalleryProps) {
+	<figure class={ "hover-gallery max-w-60", props.Class }>
+		for _, src := range props.Images {
+			<img src={ src } alt={ props.Alt }/>
+		}
+	</figure>
+}

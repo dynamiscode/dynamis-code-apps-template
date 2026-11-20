@@ -1,0 +1,89 @@
+// data_input
+package atoms
+
+type InputProps struct {
+	// common
+	Name            string
+	Label           string
+	Type            string // defaults to "text"
+	Value           string
+	Placeholder     string
+	Description     string
+	Error           string
+	DisabledMessage string
+	Size            string // xs sm lg xl, default: md
+	Required        bool
+	Icon            templ.Component
+	Attrs           templ.Attributes
+
+	// text input
+	MinLength     string
+	MaxLength     string
+	Pattern       string
+	ValidatorHint string
+
+	// integer/decimal input
+	Min string
+	Max string
+
+	// decimal input
+	Step string
+}
+
+templ Input(props InputProps) {
+	<fieldset class="fieldset">
+		if props.Label != "" {
+			<legend class="fieldset-legend">{ props.Label }</legend>
+		}
+		<label
+			for={ props.Name }
+			class={
+				"input validator tooltip tooltip-top",
+				templ.KV("tooltip tooltip-top", props.DisabledMessage != ""),
+				templ.KV("input-xs", props.Size == "xs"),
+				templ.KV("input-sm", props.Size == "sm"),
+				templ.KV("input-lg", props.Size == "lg"),
+				templ.KV("input-xl", props.Size == "xl"),
+			}
+			if props.DisabledMessage != "" {
+				data-tip={ props.DisabledMessage }
+			}
+		>
+			if props.Icon != nil {
+				@props.Icon
+			}
+			<input
+				name={ props.Name }
+				if props.Type == "" {
+					type="text"
+				} else {
+					type={ props.Type }
+				}
+				value={ props.Value }
+				placeholder={ props.Placeholder }
+				if props.Required {
+					required
+				}
+				if props.Pattern != "" {
+					pattern={ props.Pattern }
+				}
+				if props.ValidatorHint != "" {
+					title={ props.ValidatorHint }
+				}
+				if props.DisabledMessage != "" {
+					disabled
+				}
+				{ props.Attrs... }
+			/>
+		</label>
+		if props.Description != "" {
+			<div class="label">{ props.Description }</div>
+		}
+		if props.Error != "" {
+			<p class="text-xs text-error max-w-xs" role="alert" tabindex="-1">{ props.Error }</p>
+		}
+		if props.ValidatorHint != "" {
+			<p class="validator-hint hidden text-xs max-w-xs mt-0!">{ props.ValidatorHint }</p>
+		}
+	</fieldset>
+}

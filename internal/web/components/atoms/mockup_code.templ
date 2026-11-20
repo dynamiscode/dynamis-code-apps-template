@@ -1,0 +1,22 @@
+// layout
+// https://daisyui.com/components/mockup-code
+package atoms
+
+type CodeLine struct {
+	Prefix string
+	Code   string
+	Class  string
+}
+
+type MockupCodeProps struct {
+	Class string
+	Lines []CodeLine
+}
+
+templ MockupCode(props MockupCodeProps) {
+	<div class={ "mockup-code", props.Class }>
+		for _, l := range props.Lines {
+			<pre data-prefix={ l.Prefix } class={ l.Class }><code>{ l.Code }</code></pre>
+		}
+	</div>
+}

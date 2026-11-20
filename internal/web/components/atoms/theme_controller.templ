@@ -1,0 +1,28 @@
+// utils
+// https://daisyui.com/components/theme-controller
+package atoms
+
+type ThemeControllerProps struct {
+	// Theme must be a valid daisyUI theme name, e.g. "light", "dark"
+	Theme string
+	// Type: "checkbox" (default) or "radio"
+	Type  string
+	Class string
+	Attrs templ.Attributes
+}
+
+func (props ThemeControllerProps) typ() string {
+	if props.Type == "" {
+		return "checkbox"
+	}
+	return props.Type
+}
+
+templ ThemeController(props ThemeControllerProps) {
+	<input
+		type={ props.typ() }
+		value={ props.Theme }
+		class={ "theme-controller", props.Class }
+		{ props.Attrs... }
+	/>
+}

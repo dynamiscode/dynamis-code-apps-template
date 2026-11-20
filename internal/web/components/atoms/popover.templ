@@ -1,0 +1,34 @@
+// actions
+// popover: a dropdown whose content is an arbitrary panel, not a menu
+// https://daisyui.com/components/dropdown
+package atoms
+
+type PopoverPanelProps struct {
+	// Align: "end", "center", "top", "top-end", "bottom", "bottom-end" ("" = bottom start)
+	Align        string
+	Class        string
+	Trigger      templ.Component
+	TriggerClass string
+	TriggerAttrs templ.Attributes
+	ContentClass string
+}
+
+templ Popover(props PopoverPanelProps) {
+	<details
+		class={
+			"dropdown",
+			templ.KV("dropdown-"+props.Align, props.Align != ""),
+			props.Class,
+		}
+	>
+		<summary class={ "btn", props.TriggerClass } { props.TriggerAttrs... }>@props.Trigger</summary>
+		<div
+			class={
+				"dropdown-content bg-base-100 rounded-box shadow p-4 z-1",
+				props.ContentClass,
+			}
+		>
+			{ children... }
+		</div>
+	</details>
+}

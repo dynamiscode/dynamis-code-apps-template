@@ -1,0 +1,18 @@
+// data_display
+// https://daisyui.com/components/indicator
+package atoms
+
+type IndicatorProps struct {
+	Class     string
+	ItemClass string
+	Item      templ.Component
+}
+
+templ Indicator(props IndicatorProps) {
+	<div class={ "indicator", props.Class }>
+		if props.Item != nil {
+			<span class={ "indicator-item", props.ItemClass }>@props.Item</span>
+		}
+		{ children... }
+	</div>
+}

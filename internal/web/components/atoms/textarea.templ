@@ -1,0 +1,59 @@
+// data_input
+// https://daisyui.com/components/textarea
+package atoms
+
+import "fmt"
+
+type TextareaProps struct {
+	ID          string
+	Label       string
+	Name        string
+	Placeholder string
+	Value       string
+	Description string
+	Err         string
+	Class       string
+	Size        string
+	Required    bool
+	Rows        int
+	Attrs       templ.Attributes
+}
+
+templ Textarea(props TextareaProps) {
+	<fieldset class="fieldset">
+		if props.Label != "" {
+			<legend class="fieldset-legend">{ props.Label }</legend>
+		}
+		<textarea
+			{ props.Attrs... }
+			if props.ID != "" {
+				id={ props.ID }
+			}
+			name={ props.Name }
+			placeholder={ props.Placeholder }
+			class={
+				"textarea",
+				props.Class,
+				templ.KV("textarea-error", props.Err != ""),
+				templ.KV("textarea-xs", props.Size == "xs"),
+				templ.KV("textarea-sm", props.Size == "sm"),
+				templ.KV("textarea-lg", props.Size == "lg"),
+				templ.KV("textarea-xl", props.Size == "xl"),
+			}
+			if props.Rows > 0 {
+				rows={ fmt.Sprintf("%d", props.Rows) }
+			} else {
+				rows="3"
+			}
+			if props.Required {
+				required
+			}
+		>
+			{ props.Value }
+		</textarea>
+		if props.Description != "" {
+			<div class="label">{ props.Description }</div>
+		}
+		<div class="h-6 p-0! fieldset-label text-error text-sm">{ props.Err }</div>
+	</fieldset>
+}
