@@ -18,7 +18,7 @@ description: Check how forms keep unsent work - dirty detection that enables Sav
 - Model: `verification/web/FormDrafts.tla`, config `verification/web/FormDrafts.cfg`; 29 distinct states. One full-page form whose server re-render does not echo input (the invitation form).
 - Actions → forms.js: `YouType`/`YouClear` (input handler: `updateDirty`, `writeDraft(form, false)`), `YouSubmit` (submit handler: `writeDraft(form, true)`, then `submitting`), `EventWhileSubmitting` (an input/change on the old form during the request; `writeDraft` skips a submitting form), `ServerSaves`/`ServerRejects`/`YouComeBack` (page load: `applyDraft` → `draftAction`), `YouLeave` (`beforeunload`), `YouDiscard` (the Discard changes button).
 - Exhaustive tests (`internal/web/assets/forms.test.mjs`): `draftAction` over every stored/submitted/error combination, `isDirty` over every pair of two-field values, `refreshDecision`.
-- Browser checks (`scripts/ux-patterns.mjs`, lines tagged `form-drafts`): Save starts disabled and enables after a change, the invitation draft is restored and announced, Discard clears it, the warning fires only when dirty.
+- Browser checks (`scripts/ux-patterns.mjs` (retired), lines tagged `form-drafts`): Save starts disabled and enables after a change, the invitation draft is restored and announced, Discard clears it, the warning fires only when dirty.
 - Left out: several tabs (sessionStorage is per tab), text typed while a request is in flight (the response replaces the form), and the realtime refresh timing (only the decision is tested; `app.js` applies it on `focusout` and after each request).
 
 ## Coverage record
@@ -30,7 +30,7 @@ description: Check how forms keep unsent work - dirty detection that enables Sav
 
 1. `verification/tools/run-tlc.sh verification/web FormDrafts` → `Model checking completed. No error has been found.`
 2. `node --test internal/web/assets/forms.test.mjs` → `fail 0`.
-3. `make ux-smoke` → `N UX checks passed` (needs Chrome and `npm ci`).
+3. `make browser-smoke` → `TestFormUXPatterns` passes (needs Chrome and `npm ci`).
 4. Read a counterexample, or redraw `docs/statecharts/form-drafts/chart/chart.mmd`, with the `/statechart` skill on the model and `docs/statecharts/form-drafts/view.js`.
 
 ## Read a failure
@@ -42,5 +42,5 @@ description: Check how forms keep unsent work - dirty detection that enables Sav
 ## Proof the check catches a break
 
 Measured on scratch changes, then reverted:
-- `writeDraft` without the submitting guard: `make ux-smoke` fails (`the box is empty after a save`); the model variant where `EventWhileSubmitting` writes the draft fails `NoStaleDraft`. This guard came from a real bug the browser run found.
+- `writeDraft` without the submitting guard: `make browser-smoke` fails (`the box is empty after a save`); the model variant where `EventWhileSubmitting` writes the draft fails `NoStaleDraft`. This guard came from a real bug the browser run found.
 - `draftAction` never returning "discard": `forms.test.mjs` fails; the model variant fails `NoStaleDraft`.

@@ -3,18 +3,13 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "test:journeys": "playwright test",
-    "test:unit": "node --test internal/web/assets/*.test.mjs scripts/ui-measurement-network.test.mjs",
+    "test:unit": "node --test internal/web/assets/*.test.mjs",
     "check:js": "for f in internal/web/assets/*.js; do node --check \"$f\"; done",
-    "build:css": "tailwindcss -i internal/web/tailwind.css -o internal/web/assets/components.css --minify",
-    "test:ux": "node scripts/ux-patterns.mjs"
+    "build:css": "tailwindcss -i internal/web/tailwind.css -o internal/web/assets/components.css --minify"
   },
   "devDependencies": {
-    "@playwright/test": "1.65.1",
     "@tailwindcss/cli": "4.3.5",
-    "axe-core": "4.14.0",
     "daisyui": "5.8.1",
-    "selenium-webdriver": "4.52.0",
     "tailwindcss": "4.3.5"
   }
 }

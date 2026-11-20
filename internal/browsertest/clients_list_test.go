@@ -327,7 +327,8 @@ func TestClientsListQueryOpenDoesNotBlockRealtime(t *testing.T) {
 
 	peer := newPeer(t, tab)
 	navigate(t, peer, here+"?filter_field=displayName")
-	click(t, peer, "#client-create > details.client-create > summary")
+	// Open the create menu only if it is closed: a click on an open summary would close it.
+	eval[any](t, peer, `(() => { const menu = document.querySelector("#client-create > details.client-create"); if (!menu.open) menu.querySelector("summary").click(); })()`)
 	name := fmt.Sprintf("Query disclosure refresh trigger %d", time.Now().UnixMilli())
 	fillByLabel(t, peer, "Display name", name)
 	clickByText(t, peer, "Add client")

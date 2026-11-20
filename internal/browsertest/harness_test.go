@@ -91,7 +91,7 @@ func startFixtures() (func(), error) {
 	binaries := map[string]string{
 		"server":          "./cmd/server",
 		"bootstrap-admin": "./cmd/bootstrap-admin",
-		"seed-member":     "./scripts/playwright/seed-member",
+		"seed-member":     "./internal/browsertest/seedmember",
 	}
 	oidcBuild := exec.Command("go", "build", "-tags", "oidcfixture", "-o", filepath.Join(dir, "oidc-fixture"), "./internal/web/testdata/oidcfixture")
 	oidcBuild.Dir = repoRoot

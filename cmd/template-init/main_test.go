@@ -203,8 +203,7 @@ func TestGenerateWithoutFilesPrunesFilesTemplAndBuilds(t *testing.T) {
 		t.Fatalf("run() error = %v", err)
 	}
 	for _, path := range []string{
-		"internal/web/files.templ", "internal/web/files_templ.go", "internal/web/templates/files.html", "docs/files-417-evidence.md", "scripts/playwright/files.spec.mjs",
-		"scripts/playwright/files.spec.mjs-snapshots/files-desktop-light.png",
+		"internal/web/files.templ", "internal/web/files_templ.go", "internal/web/templates/files.html", "docs/files-417-evidence.md", "internal/browsertest/files_test.go",
 	} {
 		if _, err := os.Stat(filepath.Join(output, path)); !os.IsNotExist(err) {
 			t.Errorf("generated application without Files still has %s: %v", path, err)

@@ -19,7 +19,7 @@ description: Check feedback for work that finishes later - busy buttons while a 
 
 - Model: `verification/web/ItemDelete.tla`, config `verification/web/ItemDelete.cfg`; 18 distinct states. Actions → code: `YouPressDelete`/`YouCancel`/`YouConfirm` (forms.js capture click handler, `window.confirm`, `data-optimistic="hidden"`), `ServerAnswers` and `OtherUserDeletes` (`changeItem`), `AnswerArrives` (htmx swap, or `htmx:finally:request` → `optimisticOutcome`).
 - `optimisticOutcome` is tested for every status 100–599 and missing answers in `forms.test.mjs`.
-- Browser checks (`scripts/ux-patterns.mjs`, tagged `async-feedback`): busy Add button, add toast, autosave keeps the status, delete hides the row before the answer, lazy audit table, Escape closes the account menu; `cmd/browsersmoke/accessibility.go` checks the skip link is the first Tab stop.
+- Browser checks (`scripts/ux-patterns.mjs` (retired), tagged `async-feedback`): busy Add button, add toast, autosave keeps the status, delete hides the row before the answer, lazy audit table, Escape closes the account menu; `cmd/browsersmoke/accessibility.go` checks the skip link is the first Tab stop.
 - Left out: toast timing, the network-failure toast in a browser (covered by `optimisticOutcome` and the model), realtime refresh (see `form-drafts`).
 
 ## Coverage record
@@ -32,7 +32,7 @@ description: Check feedback for work that finishes later - busy buttons while a 
 
 1. `verification/tools/run-tlc.sh verification/web ItemDelete` → `Model checking completed. No error has been found.`
 2. `node --test internal/web/assets/forms.test.mjs` and `go test ./internal/web/ -count=1` → pass.
-3. `make ux-smoke` and `make accessibility-smoke` → pass.
+3. `make browser-smoke` and `make accessibility-smoke` → pass.
 4. Read a counterexample or redraw `docs/statecharts/item-delete/chart/chart.mmd` with the `/statechart` skill and `docs/statecharts/item-delete/view.js`.
 
 ## Read a failure

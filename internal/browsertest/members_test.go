@@ -166,9 +166,14 @@ func TestMembersActionsAndPermissions(t *testing.T) {
 	}
 	eventually(t, owner, rowExists("removed@example.com"), "removed member row missing")
 	eventually(t, owner, rowExists("transferred@example.com"), "transferred member row missing")
-	expectCount(t, owner, `form[data-webmcp-actions="member-role-update"][data-webmcp-id]`, 6)
-	expectCount(t, owner, `form[data-webmcp-actions="member-remove"][data-webmcp-id]`, 6)
-	expectCount(t, owner, `form[data-webmcp-actions="ownership-transfer"][data-webmcp-id]`, 6)
+	// Each non-owner member renders each action form twice (table and cards). The count follows the rows, since other tests share the database.
+	rows := eval[int](t, owner, `document.querySelectorAll(".list-view-table tbody tr").length`)
+	if rows < 2 {
+		t.Fatalf("members table has %d rows", rows)
+	}
+	for _, action := range []string{"member-role-update", "member-remove", "ownership-transfer"} {
+		expectCount(t, owner, fmt.Sprintf(`form[data-webmcp-actions="%s"][data-webmcp-id]`, action), 2*(rows-1))
+	}
 
 	run(t, owner, chromedp.EmulateViewport(390, 844))
 	waitVisible(t, owner, ".list-view-cards")

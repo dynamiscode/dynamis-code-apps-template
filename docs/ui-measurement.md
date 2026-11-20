@@ -10,7 +10,7 @@ report changes to the environment or fixture with the results.
 
 ## Isolated fixture and browser conditions
 
-The existing `scripts/playwright-smoke.sh` creates a fresh temporary SQLite
+The existing `scripts/playwright-smoke.sh` (retired) creates a fresh temporary SQLite
 database, bootstraps one synthetic owner and one workspace, builds the server,
 binds it to loopback, and removes the database, local file storage and server on
 exit. Bootstrap and server run with empty inherited environments and explicit
@@ -173,15 +173,15 @@ capture exists. Do not infer zero cost or absence from those cells.
 
 | Screen or interaction | Existing behavior evidence / owner | Performance and state coverage |
 |---|---|---|
-| Workspace home | `scripts/playwright/ui.spec.mjs`; #439 | Cold/warm navigation measured below; empty fixture only. Populated, pending, error, permission and no-JS states unmeasured. |
-| Items list, create, edit | `scripts/playwright/ui.spec.mjs`; #413–#416 | Empty list cold/warm navigation, one create and edit, plus empty-title browser-validation timing measured below. Fragment/SSE bytes, populated, server validation/error, permission and no-JS performance states unmeasured. |
-| Clients list and detail | `scripts/playwright/clients-list.spec.mjs`; #415 | Empty list cold/warm navigation measured below. SSE refresh and validation behavior tested; detail, populated, pending, failure, permission, and no-JS performance measures absent. |
-| Files list and upload | `scripts/playwright/files.spec.mjs`; #417 | Empty list cold/warm navigation and one synthetic 256 KiB upload body size, response bytes, and success feedback measured below. Download wire bytes and upload progress duration, failure, permission and no-JS performance states remain unmeasured. |
-| Members and invitations | `scripts/playwright/members.spec.mjs`; #419, #420 | Cold/warm navigation and one synthetic invitation creation measured below. Member changes, acceptance, pending, validation, failure, permission and no-JS performance measures absent. |
+| Workspace home | `internal/browsertest/ui_test.go`; #439 | Cold/warm navigation measured below; empty fixture only. Populated, pending, error, permission and no-JS states unmeasured. |
+| Items list, create, edit | `internal/browsertest/ui_test.go`; #413–#416 | Empty list cold/warm navigation, one create and edit, plus empty-title browser-validation timing measured below. Fragment/SSE bytes, populated, server validation/error, permission and no-JS performance states unmeasured. |
+| Clients list and detail | `internal/browsertest/clients_list_test.go`; #415 | Empty list cold/warm navigation measured below. SSE refresh and validation behavior tested; detail, populated, pending, failure, permission, and no-JS performance measures absent. |
+| Files list and upload | `internal/browsertest/files_test.go`; #417 | Empty list cold/warm navigation and one synthetic 256 KiB upload body size, response bytes, and success feedback measured below. Download wire bytes and upload progress duration, failure, permission and no-JS performance states remain unmeasured. |
+| Members and invitations | `internal/browsertest/members_test.go`; #419, #420 | Cold/warm navigation and one synthetic invitation creation measured below. Member changes, acceptance, pending, validation, failure, permission and no-JS performance measures absent. |
 | General/email settings, tokens/SCIM, webhooks/deliveries, audit, import/export | [Administration evidence](ui-measurement-admin.md); #422, #423, #424, #425, #426 | Cold/warm navigation and selected audit, import-preview and export interactions measured. Detailed states and limits are in linked evidence. |
-| Account, security, sessions, notifications | `scripts/playwright/settings.spec.mjs`, `notifications.spec.mjs`; #427, #429 | Cold/warm navigation measured. Notification SSE connection state measured; delivery, replay, reconnect, mutation timings and other states remain unmeasured. See [identity evidence](ui-measurement-identity.md). |
-| Setup, login, MFA, recovery | `scripts/playwright/ui.spec.mjs`, `password-reset.spec.mjs`; #430 | Cold/warm navigation and invalid-login/password-recovery feedback measured. Valid login, MFA, setup submission, validation, other failures, pending and no-JS timings remain unmeasured. See [identity evidence](ui-measurement-identity.md). |
-| Public share and consent | `scripts/playwright/ui.spec.mjs`; #431 | Cold/warm unavailable-share navigation measured. Valid/expired/revoked share and consent navigation/interactions remain unmeasured. See [identity evidence](ui-measurement-identity.md). |
+| Account, security, sessions, notifications | `internal/browsertest/settings_test.go`, `notifications.spec.mjs`; #427, #429 | Cold/warm navigation measured. Notification SSE connection state measured; delivery, replay, reconnect, mutation timings and other states remain unmeasured. See [identity evidence](ui-measurement-identity.md). |
+| Setup, login, MFA, recovery | `internal/browsertest/ui_test.go`, `password-reset.spec.mjs`; #430 | Cold/warm navigation and invalid-login/password-recovery feedback measured. Valid login, MFA, setup submission, validation, other failures, pending and no-JS timings remain unmeasured. See [identity evidence](ui-measurement-identity.md). |
+| Public share and consent | `internal/browsertest/ui_test.go`; #431 | Cold/warm unavailable-share navigation measured. Valid/expired/revoked share and consent navigation/interactions remain unmeasured. See [identity evidence](ui-measurement-identity.md). |
 | Loading, empty, pending, validation, error, permission, no-JS across routes | Route-specific tests above | Selected admin state observations exist; other states and cross-screen loading feedback durations are unmeasured. |
 
 No per-screen performance budgets or fixes are proposed. Asset raw/gzip sizes

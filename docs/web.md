@@ -97,7 +97,7 @@ Baseline browser surfaces:
   for owners/admins, and ownership transfer for owners only. The page exposes
   non-secret WebMCP form markers while leaving submission to the user.
   Browser screenshots, no-JavaScript filtering, permissions, confirmations, and
-  locale coverage live in [the members Playwright suite](../scripts/playwright/members.spec.mjs).
+  locale coverage live in [the members Playwright suite](../internal/browsertest/members_test.go).
 - `/workspaces/{workspaceId}/settings/invitations` creates, resends, revokes, and shows
   copyable links. `/invitations/{secret}` registers an invitee or starts existing-account
   sign-in through a CSRF-protected form. The server keeps only hashed, browser-bound
@@ -106,7 +106,7 @@ Baseline browser surfaces:
   Acceptance rechecks invitation status, matches the signed-in email, and consumes the
   handoff atomically with membership creation. Invitation pages use `private, no-store`,
   `no-referrer`, and `noindex` headers; forms work without JavaScript. Existing-account
-  acceptance without JavaScript is covered in [the invitation Playwright suite](../scripts/playwright/invitations.spec.mjs).
+  acceptance without JavaScript is covered in [the invitation Playwright suite](../internal/web/no_javascript_journeys_test.go).
 - `/workspaces/{workspaceId}/settings/email` lets owners/admins save the workspace invitation sender, either SMTP, Resend, or Postmark. Saving runs a provider check first (an SMTP login test, a read-only Resend domain check, or a read-only Postmark server and domain check) and stores nothing on failure. The Resend and Postmark pages show setup steps and the sender domain status from the last save. The password or API key is never shown again, and a blank value keeps the stored one for the same provider. Members cannot view or change it.
 - `/workspaces/{workspaceId}/settings/tokens` manages current-user scoped tokens with
   CSRF-protected create and revoke forms. Creation shows its secret once; the
@@ -148,7 +148,7 @@ Baseline browser surfaces:
   the browser to sign-in on its next request. The page shows a localized empty
   state and retains the ordinary form fallback. The browser test covers expired
   session rejection and status, plus active-session revocation:
-  `scripts/playwright/account.spec.mjs`. `/security` uses `security.templ` and
+  `internal/browsertest/account_test.go`. `/security` uses `security.templ` and
   `security_templ.go` with the shared account layout to manage MFA factors,
   recovery codes, passkey removal, and reauthenticated OIDC linking. Factor removal
   uses progressive confirmation; one-time enrollment secrets appear only in their active states.
@@ -157,7 +157,7 @@ Baseline browser surfaces:
   and an explicit confirmation checkbox. The server rejects deletion without
   confirmation and retains the owner-transfer restriction. `/settings/language`
   persists the account language. `/password-reset` provides localized generic
-  request and single-use completion pages. `scripts/playwright/account.spec.mjs`
+  request and single-use completion pages. `internal/browsertest/account_test.go`
   covers account, language, security, and sessions across locales, themes, and
   viewport sizes, plus profile save, session revoke, and no-JavaScript deletion
   confirmation.
@@ -203,7 +203,7 @@ Baseline browser surfaces:
   components. Errors report safe categories and bounded row diagnostics without
   echoing file contents. Ordinary-form browser coverage for preview, no-write
   behavior, confirmation, and export is in
-  [the workspace administration Playwright suite](../scripts/playwright/workspace-admin-data.spec.mjs).
+  [the workspace administration Playwright suite](../internal/browsertest/admin_test.go).
 - `/workspaces/{workspaceId}/settings/audit` presents the authorized,
   read-only latest-100 audit history with redacted fields. Its permissions,
   empty/success states, and browser accessibility are covered by
@@ -311,7 +311,7 @@ journey and screenshot assertions.
 
 The rules behind these behaviors, and how to check them, are in the
 `item-create-submission`, `form-drafts`, `form-field-input`, `form-wizard`,
-`async-feedback`, `form-markup`, and `file-upload-form` skills under `.agents/skills/`. `make ux-smoke`
+`async-feedback`, `form-markup`, and `file-upload-form` skills under `.agents/skills/`. `make browser-smoke`
 drives them in headless Chrome against a fresh server; `docs/statecharts/` charts
 the item create, item delete, draft, and setup flows.
 
@@ -397,7 +397,7 @@ accessibility results and remaining limits are recorded in
 Corresponding route and handler tests cover server-rendered behavior, including
 public-share projection and unavailable states, consent approval and denial,
 and generic OAuth errors.
-`make ux-smoke` and `make accessibility-smoke` cover the browser paths they
+`make browser-smoke` and `make accessibility-smoke` cover the browser paths they
 enumerate; [the accessibility evidence](accessibility.md) records that
 automated coverage. Issue #432 ran the `ui` and `components` Playwright suites;
 these cover representative route rendering and reusable responsive components,
@@ -448,18 +448,18 @@ not include these Playwright specs or source tests.
 
 | Route family and named states | Automated evidence in the template | Screenshot baselines | Remaining unverified states |
 |---|---|---|---|
-| `/setup`, `/login`, OIDC provider and callback; setup validation, login failure, OIDC callback failure/success and denied workspace | `scripts/playwright/ui.spec.mjs`; `internal/web/auth_journeys_test.go`; `internal/web/oidc_test.go` | None committed for auth routes | No browser screenshot comparison for setup, login, or OIDC. MFA, email verification, and password-reset token success are not exercised as complete browser journeys. |
-| `/`, `/workspaces/{workspaceId}`; workspace selection, creation, home, unavailable/setup-required | `scripts/playwright/ui.spec.mjs`; `internal/web/workspace_mode_test.go` | `scripts/playwright/ui.spec.mjs-snapshots/workspace-{selection,home}-{desktop,mobile}-{light,dark}.png` | Unavailable-workspace and setup-required error views have route coverage, not screenshot baselines. |
-| `/workspaces/{workspaceId}/items`; empty/results, filters, sorting, paging, create/edit/delete, validation, sharing, denied writes, refresh and query history | `scripts/playwright/ui.spec.mjs`; `internal/web/items_list_test.go`; `internal/web/item_create_model_test.go` | `scripts/playwright/ui.spec.mjs-snapshots/items-{desktop,mobile}-{light,dark}.png` | Dedicated browser screenshots cover the representative list state; every mutation and permission state is not captured. |
-| Workspace clients and custom fields; list, validation, CRUD, custom-field lifecycle, refresh and draft preservation | `scripts/playwright/clients-list.spec.mjs`; focused client route tests under `internal/web/` | `scripts/playwright/clients-list.spec.mjs-snapshots/clients-{light,dark}-{desktop,mobile}.png` | Client detail and custom-field pages have behavior tests but no screenshot baseline. |
-| Workspace members; list, role change, removal, ownership transfer, denied actions | `scripts/playwright/members.spec.mjs`; `internal/web/members_list_test.go`; `internal/web/members_role_test.go` | `scripts/playwright/members.spec.mjs-snapshots/members-{desktop,mobile}-{light,dark}[-linux].png` | Full confirmation and denial state coverage is behavioral; screenshots represent the list. |
+| `/setup`, `/login`, OIDC provider and callback; setup validation, login failure, OIDC callback failure/success and denied workspace | `internal/browsertest/ui_test.go`; `internal/web/auth_journeys_test.go`; `internal/web/oidc_test.go` | None committed for auth routes | No browser screenshot comparison for setup, login, or OIDC. MFA, email verification, and password-reset token success are not exercised as complete browser journeys. |
+| `/`, `/workspaces/{workspaceId}`; workspace selection, creation, home, unavailable/setup-required | `internal/browsertest/ui_test.go`; `internal/web/workspace_mode_test.go` | `internal/browsertest/ui_test.go` | Unavailable-workspace and setup-required error views have route coverage, not screenshot baselines. |
+| `/workspaces/{workspaceId}/items`; empty/results, filters, sorting, paging, create/edit/delete, validation, sharing, denied writes, refresh and query history | `internal/browsertest/ui_test.go`; `internal/web/items_list_test.go`; `internal/web/item_create_model_test.go` | `internal/browsertest/ui_test.go` | Dedicated browser screenshots cover the representative list state; every mutation and permission state is not captured. |
+| Workspace clients and custom fields; list, validation, CRUD, custom-field lifecycle, refresh and draft preservation | `internal/browsertest/clients_list_test.go`; focused client route tests under `internal/web/` | `internal/browsertest/clients_list_test.go` | Client detail and custom-field pages have behavior tests but no screenshot baseline. |
+| Workspace members; list, role change, removal, ownership transfer, denied actions | `internal/browsertest/members_test.go`; `internal/web/members_list_test.go`; `internal/web/members_role_test.go` | `internal/browsertest/members_test.go` | Full confirmation and denial state coverage is behavioral; screenshots represent the list. |
 | Invitations and acceptance; create/resend/revoke, existing-account sign-in, invalid/unavailable guidance | `internal/web/no_javascript_journeys_test.go`; `internal/web/invitation_guidance_test.go`; `internal/web/management_test.go` | None committed | Browser journey covers acceptance without JavaScript; management and invalid/expired states have route tests, not screenshots. |
 | `/workspaces/{workspaceId}/settings/audit`; scoped history, lazy fragment, empty, permission denial and expired session | `cmd/browsersmoke/accessibility.go`; `internal/web/handler_test.go` | None committed | Audit table fragment and denial states have route checks; no browser screenshot baseline. |
 | `/sessions`; current/active/expired/revoked and revoke actions | `cmd/browsersmoke/accessibility.go`; `internal/web/handler_test.go` | None committed | No dedicated Playwright session lifecycle journey or screenshot baseline. |
-| Workspace files; list/filter/sort, upload progress/success/validation/failure/retry, viewer download and no-JavaScript fallback | `scripts/playwright/files.spec.mjs`; `internal/web/files_test.go` | `scripts/playwright/files.spec.mjs-snapshots/files-{desktop,mobile}-{light,dark}.png` | Upload states are exercised behaviorally, not captured as separate screenshots. |
-| General and email settings; save, validation, provider verification failure, read-only permission | `scripts/playwright/settings.spec.mjs`; `internal/web/email_settings_test.go` | `scripts/playwright/settings.spec.mjs-snapshots/{general,email}-settings-{desktop,mobile}-{light,dark}.png` (email mobile also has Linux baselines) | Failure and permission variants are behavior checks, not screenshot baselines. |
-| Account, language, security, tokens, webhooks, SCIM; validation, one-time secret, integration failure and permissions | `scripts/playwright/settings.spec.mjs`; `cmd/browsersmoke/accessibility.go`; `internal/web/webhooks_test.go`; `internal/web/handler_test.go` | Token and provisioning settings have desktop/mobile light/dark snapshots; no baselines for account, language, security, or webhooks | One-time-secret and integration failure states have no screenshot comparisons. |
-| `/notifications`, `/notifications/events`; empty/list, mark-read, reconnect/replay, Spanish no-JavaScript navigation | `scripts/playwright/notifications.spec.mjs`; `internal/web/notifications_test.go` | `scripts/playwright/notifications.spec.mjs-snapshots/notifications-empty-{desktop,mobile}-{light,dark}.png` | Populated list and replay states have behavior checks, not screenshot baselines. |
+| Workspace files; list/filter/sort, upload progress/success/validation/failure/retry, viewer download and no-JavaScript fallback | `internal/browsertest/files_test.go`; `internal/web/files_test.go` | `internal/browsertest/files_test.go` | Upload states are exercised behaviorally, not captured as separate screenshots. |
+| General and email settings; save, validation, provider verification failure, read-only permission | `internal/browsertest/settings_test.go`; `internal/web/email_settings_test.go` | `internal/browsertest/settings_test.go` (email mobile also has Linux baselines) | Failure and permission variants are behavior checks, not screenshot baselines. |
+| Account, language, security, tokens, webhooks, SCIM; validation, one-time secret, integration failure and permissions | `internal/browsertest/settings_test.go`; `cmd/browsersmoke/accessibility.go`; `internal/web/webhooks_test.go`; `internal/web/handler_test.go` | Token and provisioning settings have desktop/mobile light/dark snapshots; no baselines for account, language, security, or webhooks | One-time-secret and integration failure states have no screenshot comparisons. |
+| `/notifications`, `/notifications/events`; empty/list, mark-read, reconnect/replay, Spanish no-JavaScript navigation | `internal/browsertest/admin_test.go`; `internal/web/notifications_test.go` | `internal/browsertest/admin_test.go` | Populated list and replay states have behavior checks, not screenshot baselines. |
 | Export and import; authorized download, preview, invalid input, confirmation and atomic result | `cmd/browsersmoke/accessibility.go`; `internal/web/management_test.go` | None committed | Browser accessibility smoke checks import page and preview. Export download and import failure/result states rely on route and application tests; no Playwright journey or screenshots. |
 | Public share, OAuth consent, not-found and request errors | `cmd/browsersmoke/accessibility.go`; `internal/web/handler_test.go`; `internal/web/mcp_consent_test.go` | None committed | Public share and consent are axe-scanned; no screenshot baselines. Generic request errors have route checks only. These routes use `public_pages.templ`; authentication route names also dispatch to templ views through the shared renderer. |
 
