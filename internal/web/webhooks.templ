@@ -1,12 +1,16 @@
 package web
 
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import "example.com/dynamis-code/apps-template/internal/web/components"
+import "example.com/dynamis-code/apps-template/internal/web/layouts"
+
 import (
 	"fmt"
 	"time"
 )
 
-templ webhooksPage(data pageData) {
-	@dashboardShell(data, dashboardHeader(data), dashboardSettingsNavigation(data)) {
+templ webhooksPage(data viewmodel.PageData) {
+	@layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.DashboardSettingsNavigation(data)) {
 		<p class="eyebrow">{ data.T("navigation.settings_access") }</p>
 		if data.SelectedWebhook.ID != 0 {
 			<p><a href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks" }>← { data.T("webhooks.back_to_webhooks") }</a></p>
@@ -17,8 +21,8 @@ templ webhooksPage(data pageData) {
 					<thead><tr>
 						<th scope="col">{ data.T("webhooks.event") }</th>
 						<th scope="col">{ data.T("webhooks.status") }</th>
-						<th scope="col">{ data.T("webhooks.attempts") }</th>
-						<th scope="col">{ data.T("webhooks.http_status") }</th>
+						<th scope="col" class="num">{ data.T("webhooks.attempts") }</th>
+						<th scope="col" class="num">{ data.T("webhooks.http_status") }</th>
 						<th scope="col">{ data.T("webhooks.created") }</th>
 						<th scope="col">{ data.T("webhooks.delivered") }</th>
 						<th scope="col">{ data.T("webhooks.error") }</th>
@@ -28,8 +32,8 @@ templ webhooksPage(data pageData) {
 							<tr>
 								<td><code>{ delivery.EventType }</code></td>
 								<td>{ data.T("webhooks.status_" + string(delivery.Status)) }</td>
-								<td>{ fmt.Sprint(delivery.AttemptCount) }</td>
-								<td>{ webhookStatusCode(delivery.LastStatusCode) }</td>
+								<td class="num">{ fmt.Sprint(delivery.AttemptCount) }</td>
+								<td class="num">{ webhookStatusCode(delivery.LastStatusCode) }</td>
 								<td>{ data.DateTime(delivery.CreatedAt) }</td>
 								<td>{ webhookDeliveredAt(data, delivery.DeliveredAt) }</td>
 								<td>{ webhookLastError(delivery.LastError) }</td>
@@ -38,18 +42,18 @@ templ webhooksPage(data pageData) {
 					</tbody>
 				</table></div>
 			} else {
-				@emptyState(data.T("webhooks.no_deliveries"))
+				@components.EmptyState(data.T("webhooks.no_deliveries"))
 			}
 		} else {
-			@pageHeading(data.T("webhooks.webhooks"), data.T("navigation.settings_access"))
+			@components.PageHeading(data.T("webhooks.webhooks"), data.T("navigation.settings_access"))
 			<p class="settings-intro">{ data.T("webhooks.description") }</p>
 			if data.ErrorKey != "" {
-				@errorAlert(data.T(data.ErrorKey))
+				@components.ErrorAlert(data.T(data.ErrorKey))
 			} else if data.Error != "" {
-				@errorAlert(data.Error)
+				@components.ErrorAlert(data.Error)
 			}
 			if data.WebhookReadbackFailed {
-				@errorAlert(data.T("webhooks.readback_warning"))
+				@components.ErrorAlert(data.T("webhooks.readback_warning"))
 			}
 			if data.CanManage && !data.WebhookSecretKeyConfigured {
 				<div id="webhook-secret-key-warning" class="warning alert alert-warning" role="alert">
@@ -64,8 +68,8 @@ templ webhooksPage(data pageData) {
 					<h2 id="new-webhook-heading">{ data.T("webhooks.new") }</h2>
 					<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks" } method="post" data-persist="webhook-create" data-unsaved-warning>
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						@textField("webhook-name", data.T("webhooks.name"), templ.Attributes{"name": "name", "required": true, "maxlength": "100", "data-trim": true})
-						@textField("webhook-url", data.T("webhooks.endpoint"), templ.Attributes{"name": "url", "type": "url", "required": true, "maxlength": "2048", "aria-describedby": "webhook-url-help", "data-trim": true})
+						@components.TextField("webhook-name", data.T("webhooks.name"), templ.Attributes{"name": "name", "required": true, "maxlength": "100", "data-trim": true})
+						@components.TextField("webhook-url", data.T("webhooks.endpoint"), templ.Attributes{"name": "url", "type": "url", "required": true, "maxlength": "2048", "aria-describedby": "webhook-url-help", "data-trim": true})
 						<p id="webhook-url-help">{ data.T("webhooks.endpoint_help") }</p>
 						<fieldset aria-describedby="webhook-events-help"><legend>{ data.T("webhooks.events") }</legend><p id="webhook-events-help">{ data.T("webhooks.events_help") }</p>
 							<label><input type="checkbox" name="events" value="item.created"/> <code>item.created</code></label>
@@ -115,7 +119,7 @@ templ webhooksPage(data pageData) {
 					</ul>
 				</section>
 			} else if !data.WebhookReadbackFailed {
-				@emptyState(data.T("webhooks.none"))
+				@components.EmptyState(data.T("webhooks.none"))
 			}
 		}
 	}
@@ -129,7 +133,7 @@ func webhookStatusCode(code int) string {
 	return fmt.Sprint(code)
 }
 
-func webhookDeliveredAt(data pageData, deliveredAt *time.Time) string {
+func webhookDeliveredAt(data viewmodel.PageData, deliveredAt *time.Time) string {
 	if deliveredAt == nil {
 		return "—"
 	}

@@ -13,6 +13,9 @@ if(list&&window.EventSource){
 	const refresh=()=>{
 		const node=current();
 		if(!node)return;
+		// A lazy list is still loading its results, which are fresh when they arrive, so a refresh now would only
+		// replace the skeleton with a second full load.
+		if(node.querySelector?.(".list-results-loading"))return;
 		if(window.dynamisForms?.refreshDecision(window.dynamisForms.isEditing(node))==="defer"){waiting=true;showStatus();return}
 		waiting=false;showStatus();
 		if(refreshing){pending=true;return}

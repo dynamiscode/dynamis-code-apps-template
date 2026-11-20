@@ -100,7 +100,7 @@
 ::selection { background: var(--accent-surface); color: var(--ink); }
 body { margin: 0; background: var(--canvas); color: var(--ink); }
 header { background: var(--surface); border-bottom: 1px solid var(--border); }
-.topbar { display: flex; align-items: center; gap: 1rem; min-height: 4.25rem; padding: .75rem max(1rem, calc((100% - 80rem) / 2)); }
+.topbar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 1rem; min-height: 4.25rem; padding: .75rem 1rem; }
 .topbar-context { display: flex; align-items: center; gap: .5rem; min-width: 0; color: var(--muted); }
 .topbar-context > a { display: inline-flex; align-items: center; min-height: 2.75rem; }
 .subnav a { display: inline-flex; align-items: center; min-height: 2.75rem; padding: .45rem .65rem; border-radius: .25rem; text-decoration: none; }
@@ -121,13 +121,35 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); }
 .workspace-switcher-panel a[aria-current="page"], .account-menu-panel a[aria-current="page"] { color: var(--ink); font-weight: 700; text-decoration: none; background: var(--accent-surface); }
 .workspace-switcher-panel a span { margin-left: .75rem; color: var(--muted); font-size: .875rem; }
 .account-menu-panel form { margin: 0; }
-.app-shell { display: grid; grid-template-columns: 15rem minmax(0, 1fr); width: min(80rem, 100%); min-height: calc(100vh - 4.25rem); margin: auto; }
+.app-shell { display: grid; grid-template-columns: 15rem minmax(0, 1fr); width: 100%; min-height: calc(100vh - 4.25rem); margin: auto; }
 @media (min-width: 38.001rem) {
   .dashboard-workspace { display: grid; grid-template-columns: 15rem minmax(0, 1fr); grid-template-rows: auto 1fr; min-height: 100vh; }
   .dashboard-workspace > .topbar { grid-column: 2; grid-row: 1; padding-inline: 1.5rem; }
   .dashboard-workspace > .app-shell { display: contents; }
-  .dashboard-workspace .sidebar { grid-column: 1; grid-row: 1 / 3; }
+  .dashboard-workspace .sidebar { grid-column: 1; grid-row: 1 / 3; position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto; }
   .dashboard-workspace .workspace-main { grid-column: 2; grid-row: 2; }
+  /* List screens: the heading carries the actions, the toolbar sits close to the table, and live search needs no button. */
+  .dashboard-workspace:has(#list-results) .workspace-heading { margin-bottom: .5rem; }
+  .dashboard-workspace:has(#list-results) .list-toolbar { margin: 0 0 .5rem; position: relative; }
+  .dashboard-workspace:has(#list-results) .list-toolbar .client-bulk { position: absolute; top: 0; right: 0; bottom: 0; z-index: 4; padding-inline: .5rem; background: var(--surface); }
+  .dashboard-workspace:has(#list-results) .list-footer .list-pager { margin: 0; }
+  .dashboard-workspace:has(#list-results) .workspace-main, .dashboard-workspace:has(#list-results) .workspace-main > * { padding-top: 0; margin-top: 0; }
+  .dashboard-workspace:has(#list-results) .workspace-main { padding-top: .75rem; }
+  .dashboard-workspace:has(#list-results) .list-toolbar .list-search input { width: 14rem; }
+  .dashboard-workspace:has(#list-results) #realtime-status { margin: 0; white-space: nowrap; font-size: .8125rem; }
+  .dashboard-workspace:has(#list-results) .list-create { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .5rem; }
+  .js-enhanced .dashboard-workspace:has(#list-results) .list-search > button[type="submit"] { display: none; }
+  /* List screens: the window is the height, and only the table scrolls. The toolbar and footer keep their size. */
+  .dashboard-workspace:has(#list-results) { height: 100vh; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
+  .dashboard-workspace:has(#list-results) .workspace-main { min-height: 0; display: flex; flex-direction: column; }
+  /* Every wrapper between the page and the results region passes the height down; the siblings keep their size. */
+  .dashboard-workspace:has(#list-results) .workspace-main *:has(#list-results) { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+  .dashboard-workspace:has(#list-results) .workspace-main *:has(#list-results) > *:not(:has(#list-results)):not(#list-results) { flex: none; }
+  .dashboard-workspace:has(#list-results) #list-results { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .dashboard-workspace:has(#list-results) #list-results > * { flex: none; }
+  .dashboard-workspace:has(#list-results) #list-results > .list-view-table { flex: 1 1 auto; min-height: 0; }
+  .dashboard-workspace:has(#list-results) #list-results > .item-list-view { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .dashboard-workspace:has(#list-results) #list-results > .item-list-view > .list-view-table { flex: 1 1 auto; min-height: 0; }
 }
 .sidebar { display: flex; flex-direction: column; padding: 1.5rem 1rem; border-right: 1px solid var(--border); background: var(--sidebar-surface); }
 .sidebar-back { display: inline-flex; align-items: center; min-height: 2.75rem; }
@@ -142,6 +164,48 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); }
 .client-controls summary { display: flex; align-items: center; min-height: 2.75rem; padding: .45rem .65rem; border: 1px solid var(--border); border-radius: .25rem; background: var(--surface); color: var(--ink); font-weight: 700; cursor: pointer; }
 .client-controls summary:hover { background: var(--canvas); }
 .client-controls[open] summary { margin-bottom: .75rem; }
+.list-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 1rem 0 .75rem; }
+.list-toolbar .menu { position: relative; margin: 0; }
+.list-toolbar > details { position: relative; margin: 0; }
+.list-page-size { display: flex; align-items: center; gap: .5rem; margin-left: .5rem; font-size: .875rem; }
+.workspace-main .list-page-size .select { width: auto; min-width: 5rem; min-height: 2.25rem; padding: .3rem .5rem; appearance: auto; }
+.list-toolbar > details > summary { min-height: 2.25rem; padding: .35rem .8rem; border-radius: .375rem; background: var(--surface); font-size: .875rem; font-weight: 600; list-style: none; }
+.list-toolbar > details > summary::-webkit-details-marker { display: none; }
+.list-toolbar > details > summary::after { content: "▾"; margin-left: .45rem; font-size: .75em; color: var(--muted); }
+.list-toolbar > details[open] > summary { margin-bottom: 0; }
+.list-toolbar > details[open] > .list-menu-panel, .list-add-menu[open] > .list-menu-panel, .list-create-menu[open] > .list-menu-panel, .list-row-menu[open] > .list-menu-panel, .list-settings[open] > .list-menu-panel { position: absolute; z-index: 20; top: calc(100% + .35rem); left: 0; width: min(26rem, 90vw); padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: .5rem; box-shadow: 0 12px 32px rgb(0 0 0 / .14); }
+.list-view-table tbody td:first-child { font-weight: 700; }
+.list-row { cursor: pointer; }
+.list-row:hover { background: var(--accent-surface); }
+.list-row-link { color: var(--accent); font-weight: 700; text-decoration: underline; text-underline-offset: .2em; }
+.list-row-link:hover { color: var(--accent-hover); }
+.list-view-table thead th > a { display: inline-flex; align-items: center; gap: .3rem; color: inherit; text-decoration: none; }
+.list-view-table thead th > a::after { content: "↕"; opacity: .6; font-size: .9em; }
+.list-view-table thead th[aria-sort="ascending"] > a::after { content: "↑"; opacity: 1; }
+.list-view-table thead th[aria-sort="descending"] > a::after { content: "↓"; opacity: 1; }
+.list-column-switches { display: grid; gap: .4rem; margin: 0; padding: 0; list-style: none; min-width: 16rem; }
+.list-column-switch { display: flex; align-items: center; gap: .6rem; }
+.list-column-switch form { margin: 0; }
+.list-column-name { display: flex; align-items: center; gap: .4rem; }
+.list-column-note { color: var(--muted); font-size: .75rem; }
+.list-column-count { margin: .6rem 0 .4rem; color: var(--muted); font-size: .8125rem; }
+.list-switch { position: relative; width: 2.25rem; height: 1.5rem; padding: 0; border: 0; background: none; cursor: pointer; }
+.list-switch:disabled { cursor: not-allowed; opacity: .6; }
+.list-switch-track { position: absolute; left: 0; right: 0; top: 50%; height: 1.25rem; transform: translateY(-50%); border-radius: 999px; background: var(--border-strong); transition: background .15s; }
+.list-switch[aria-checked="true"] .list-switch-track { background: var(--accent); }
+.list-switch-thumb { position: absolute; top: .125rem; left: .125rem; width: 1rem; height: 1rem; border-radius: 999px; background: var(--surface); transition: transform .15s; }
+.list-switch[aria-checked="true"] .list-switch-thumb { transform: translateX(1rem); }
+.list-settings > summary { width: 2rem; height: 2rem; display: inline-grid; place-items: center; border-radius: 999px; list-style: none; cursor: pointer; }
+.list-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; margin-top: .75rem; color: var(--muted); font-size: .875rem; }
+.list-footer .list-page-size { margin-left: 0; }
+.list-identity { display: inline-flex; align-items: center; gap: .5rem; }
+.list-initials { display: inline-grid; place-items: center; flex: none; width: 1.9rem; height: 1.9rem; border-radius: 999px; background: var(--accent-surface); color: var(--accent); font-size: .7rem; font-weight: 800; }
+.list-badge { display: inline-flex; align-items: center; padding: .15rem .55rem; border-radius: 999px; font-size: .75rem; font-weight: 700; background: var(--surface-muted, var(--canvas)); color: var(--ink); border: 1px solid var(--border); }
+.list-badge-owner, .list-badge-admin { background: var(--accent-surface); color: var(--accent); border-color: transparent; }
+.list-badge-member { background: var(--success-surface); color: var(--success); border-color: transparent; }
+.list-badge-viewer { background: var(--warning-surface); color: var(--warning); border-color: transparent; }
+.list-badge-active { background: var(--success-surface); color: var(--success); border-color: transparent; }
+.list-badge-complete { background: var(--canvas); color: var(--muted); }
 .nav-label { margin: .75rem .65rem .15rem; color: var(--muted); font-size: .75rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .sidebar-nav .nav-label:first-child { margin-top: 0; }
 main { width: min(64rem, 100%); margin: 0 auto; padding: 2rem clamp(1rem, 3vw, 2rem); }
@@ -216,7 +280,7 @@ main form:not(.inline) > button.reveal { display: block; margin-top: .35rem; min
 .consent-workspaces input[type="radio"] { width: 1.25rem; height: 1.25rem; min-height: 1.25rem; padding: 0; }
 .consent-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.25rem; }
 .consent-actions button { margin: 0; }
-.workspace-main { background: var(--canvas); }
+.workspace-main { background: var(--canvas); width: 100%; max-width: none; margin: 0; }
 .items-page-heading { margin: 0 0 1.5rem; }
 .items-page-heading h1 { margin: 0; font-size: 2rem; line-height: 1.2; letter-spacing: -.02em; }
 .items-page-heading p { max-width: 45rem; margin: .45rem 0 0; color: var(--muted); }
@@ -231,6 +295,9 @@ main form:not(.inline) > button.reveal { display: block; margin-top: .35rem; min
 .workspace-cards strong { font-size: 1.05rem; }
 .workspace-main .btn { flex: none; min-height: 2.75rem; padding: .45rem .75rem; border: 1px solid var(--accent); border-radius: var(--brand-radius); background: var(--accent); color: var(--on-accent); font-weight: 700; text-decoration: none; }
 .workspace-main .btn:hover { border-color: var(--accent-hover); background: var(--accent-hover); color: var(--on-accent); }
+.workspace-main .btn-ghost { border-color: transparent; background: transparent; color: var(--accent); }
+.workspace-main .btn-ghost:hover { border-color: var(--border); background: var(--canvas); color: var(--accent-hover); }
+.workspace-main .btn-xs { min-height: 2rem; padding: .2rem .6rem; font-size: .8125rem; }
 /* Account pages keep their danger and disabled button states inside the dashboard shell. */
 main:has(> .account-page) { width: min(72rem, 100%); padding: 0; }
 .account-page .btn:is(.btn-error, .danger) { border-color: var(--danger); background: var(--danger); color: var(--on-accent); }
@@ -273,7 +340,29 @@ table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nu
 .table :where(thead, tfoot) { color: var(--ink); }
 th, td { padding: .65rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
 th { background: var(--surface); }
-.list-view-table { overflow-x: auto; }
+.list-view-table { overflow: auto; }
+.list-view-table thead th { position: sticky; top: 0; z-index: 2; background: var(--surface); }
+.list-view-table .table-scroll { overflow: visible; }
+.list-view-table > table { width: 100%; min-width: max-content; }
+.list-view-table th, .list-view-table td { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.list-view-table td { max-width: 20rem; overflow: hidden; text-overflow: ellipsis; }
+.list-view-table td.num, .list-view-table th.num { text-align: right; }
+#realtime-status { margin: .5rem 0 0; color: var(--muted); font-size: .8125rem; }
+.list-create { position: relative; margin-left: auto; }
+.list-create-menu { position: relative; }
+.list-create-menu > summary { list-style: none; cursor: pointer; }
+.list-create-menu[open] > .list-menu-panel { left: auto; right: 0; max-width: calc(100vw - 2rem); }
+[data-submit-button][hidden] { display: none !important; }
+.list-create-menu > summary::-webkit-details-marker { display: none; }
+.list-add-label { display: inline-flex; align-items: center; min-height: 2.25rem; padding: .35rem .8rem; border: 1px solid var(--border); border-radius: .375rem; color: var(--ink); font-size: .875rem; font-weight: 600; list-style: none; cursor: pointer; }
+.list-add-label::-webkit-details-marker { display: none; }
+.list-add-menu > summary.list-add-label { display: inline-flex; align-items: center; gap: .35rem; width: auto; height: auto; border: 1px solid var(--border); background: var(--surface); font-size: .875rem; }
+/* Toolbar controls share one look with the Views button: same height, border and radius, and the text centred. */
+.list-toolbar .list-tool { display: inline-flex; align-items: center; gap: .35rem; box-sizing: border-box; width: auto; height: auto; min-height: 2.25rem; padding: .35rem .8rem; border: 1px solid var(--border); border-radius: .375rem; background: var(--surface); color: var(--ink); font-size: .875rem; font-weight: 600; line-height: 1.2; list-style: none; cursor: pointer; }
+.list-toolbar .list-tool::-webkit-details-marker { display: none; }
+.list-toolbar .list-tool::after { content: none; }
+.list-toolbar > .list-view-columns > summary.list-tool { display: inline-flex; align-items: center; gap: .35rem; width: auto; height: auto; min-height: 2.25rem; padding: .35rem .8rem; border: 1px solid var(--border); border-radius: .375rem; background: var(--surface); }
+.list-toolbar > .list-view-columns > summary.list-tool:hover { background: var(--accent-surface); }
 .list-view-cards { display: none; list-style: none; padding: 0; gap: 1rem; }
 .list-view-cards > li { padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: .4rem; }
 .list-view-cards dl { display: grid; grid-template-columns: minmax(7rem, auto) minmax(0, 1fr); gap: .35rem .75rem; margin: 0 0 .75rem; }
@@ -290,7 +379,7 @@ th { background: var(--surface); }
 .upload-progress { display: block; width: min(32rem, 100%); height: .75rem; margin-block: .75rem; accent-color: var(--accent); }
 .upload-progress[hidden] { display: none; }
 .list-filter-chips { display: flex; flex-wrap: wrap; gap: .5rem; padding: 0; list-style: none; }
-.list-filter-chips li { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; padding: .35rem .55rem; background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; }
+.list-filter-chips > li { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; padding: .35rem .55rem; background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; }
 code { overflow-wrap: anywhere; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 @media (max-width: 38rem) {
@@ -306,6 +395,7 @@ code { overflow-wrap: anywhere; }
   .item-list-view td { display: grid; grid-template-columns: minmax(7rem, auto) minmax(0, 1fr); gap: .35rem .75rem; border: 0; }
   .item-list-view td[data-label]::before { content: attr(data-label); font-weight: 700; }
   .item-list-view td:last-child { display: block; }
+  .item-list-view > .list-view-table { display: block; }
   .topbar { flex-wrap: wrap; }
   .topbar-context { order: 2; flex-basis: 100%; position: relative; }
   .workspace-switcher { position: static; }
@@ -405,3 +495,156 @@ li[data-optimistic="hidden"], tr[data-optimistic="hidden"] { display: none; }
   .settings-panel-wide { grid-column: auto; }
   .narrow.account-page { width: min(40rem, calc(100% - 1rem)); margin: .5rem auto; }
 }
+.list-settings { position: relative; display: inline-block; }
+.list-settings[open] > .list-menu-panel { left: auto; right: 0; top: calc(100% + .35rem); }
+.list-settings > summary::after { content: none; }
+.list-switch { display: inline-block; flex: none; }
+.list-switch-track { display: block; }
+.list-switch-thumb { display: block; }
+.list-column-switches .list-switch { min-height: 0; width: 2.25rem; height: 1.5rem; padding: 0; margin: 0; border: 0; border-radius: 999px; background: transparent; box-shadow: none; }
+.list-column-switches .list-switch:hover { background: transparent; }
+/* Table layout: the name stays in view while the table scrolls sideways, and the settings column stays at the right edge. */
+.list-view-table { scrollbar-width: thin; }
+.list-view-table thead th, .list-view-table tbody td { vertical-align: middle; }
+.list-view-table thead th:first-child { position: sticky; top: 0; left: 0; z-index: 2; background: var(--surface); }
+.list-view-table tbody td:first-child { position: sticky; left: 0; z-index: 1; background: var(--canvas); }
+.list-row:hover > td:first-child { background: var(--accent-surface); }
+.list-settings-cell { position: sticky; right: 0; z-index: 1; width: 3rem; padding: .25rem; text-align: center; background: var(--canvas); }
+thead .list-settings-cell { z-index: 2; background: var(--surface); }
+.list-settings-cell > .list-settings > summary { width: 2rem; height: 2rem; margin: 0 auto; }
+.list-view-table thead th { height: auto; padding-top: .5rem; padding-bottom: .5rem; }
+/* Toolbar: one baseline and one control height. */
+.list-toolbar { align-items: center; }
+.list-toolbar .btn, .list-toolbar .select, .list-toolbar .input, .list-toolbar .list-add-label, .list-footer .select { min-height: 2.25rem; }
+/* Action row above the toolbar: primary actions aligned right, one control height. */
+.list-action-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .5rem; margin: 1rem 0 0; }
+.list-action-row .btn { min-height: 2.25rem; }
+.list-action-row + .list-toolbar { margin-top: .75rem; }
+/* Row actions: a sticky last column with the "⋯" menu, so it stays in view while the table scrolls sideways. */
+.client-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .5rem 0; }
+.list-pager { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin-top: .75rem; }
+.list-pager-gap, .list-pager-status { color: var(--muted); font-size: .875rem; }
+.topbar-title { margin: 0 0 0 .5rem; font-size: 1.05rem; font-weight: 700; }
+.list-filter-icon { flex: none; margin-right: .35rem; vertical-align: middle; }
+.list-filter-strip { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 0 0 .5rem; }
+.client-bulk { visibility: hidden; }
+.client-bulk.is-selecting { visibility: visible; }
+.client-bulk .btn.client-bulk-danger { background: var(--danger); border-color: var(--danger); color: var(--surface); }
+.client-bulk .btn.client-bulk-danger:hover { background: var(--danger); filter: brightness(.92); }
+.client-bulk .btn .list-action-icon { color: inherit; }
+.list-select { display: inline-flex; align-items: center; gap: .35rem; }
+.client-bulk-count { color: var(--muted); font-size: .875rem; }
+.list-select-cell { width: 2.25rem; text-align: center; }
+.list-actions-cell { position: sticky; right: 0; z-index: 1; width: 3.5rem; text-align: center; background: var(--surface); box-shadow: -1px 0 0 var(--border); }
+.list-view-table tbody .list-row:hover > .list-actions-cell { background: var(--canvas); }
+.list-action-items { list-style: none; margin: 0; padding: 0; display: grid; gap: .25rem; min-width: 10rem; }
+.list-action-items a, .list-action-items button { display: flex; width: 100%; min-height: 2.25rem; align-items: center; padding: .4rem .6rem; border-radius: .25rem; color: var(--ink); text-decoration: none; text-align: left; }
+.list-action-items a:hover, .list-action-items button:hover { background: var(--accent-surface); }
+/* A confirm action inside the menu reads as a menu item, not as a page button. */
+.list-action-items .btn { display: flex; width: 100%; min-height: 2.25rem; justify-content: flex-start; padding: .4rem .6rem; border: 0; border-radius: .25rem; background: transparent; box-shadow: none; color: var(--error, var(--ink)); font-weight: 600; text-align: left; }
+.list-action-items .btn:hover { background: var(--accent-surface); }
+/* The short ID sits under the name, in the monospace face, so it reads as an identifier. */
+.list-name { display: flex; flex-direction: column; min-width: 0; }
+.list-short-id { display: block; margin-top: .1rem; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .7rem; line-height: 1.3; opacity: .8; }
+/* The column control sits at the toolbar's right with the other controls. */
+.list-toolbar > .list-view-columns { margin-left: 0; }
+.list-view-columns > summary { display: inline-grid; place-items: center; padding: 0; margin: 0; box-sizing: border-box; width: 2.25rem; height: 2.25rem; border: 1px solid var(--border); border-radius: .375rem; background: var(--surface); cursor: pointer; list-style: none; }
+.list-view-columns > summary::-webkit-details-marker { display: none; }
+/* The toolbar's summary padding would push the icon off centre, so the button clears it. */
+.list-toolbar > .list-view-columns > summary { padding: 0; min-height: 0; }
+.list-view-columns > summary:hover { background: var(--accent-surface); }
+.list-columns-icon { display: block; }
+.list-view-columns { position: relative; }
+.list-view-columns > summary::after, .list-view-columns > summary::before { content: none !important; display: none !important; }
+/* The popover opens leftwards from the button at the toolbar's right, so it stays inside the window. */
+.list-toolbar > .list-view-columns[open] > .list-menu-panel { left: auto; right: 0; width: min(20rem, calc(100vw - 2rem)); max-width: calc(100vw - 2rem); }
+/* Search matches in list cells: a tinted mark that keeps the cell's text colour in both themes. */
+/* Search matches in list cells: a flat tint of the accent, with no padding, so the text keeps its rhythm. */
+.workspace-main mark { padding: 0; border-radius: 0; background: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--ink); text-decoration: inherit; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.workspace-main .list-row-link mark { color: inherit; }
+/* Lazy list results: skeleton rows in the table's column shape while the results load. */
+.list-skeleton { display: grid; gap: 0; margin: .5rem 0 1rem; }
+.list-skeleton-row { display: flex; gap: 1rem; padding: .85rem .75rem; border-bottom: 1px solid var(--border); }
+.list-skeleton-cell { flex: 1 1 0; min-width: 0; display: block; height: .9rem; border-radius: .25rem; background: linear-gradient(90deg, var(--accent-surface) 25%, var(--canvas) 50%, var(--accent-surface) 75%) 0 0 / 200% 100%; animation: list-shimmer 1.2s linear infinite; }
+@keyframes list-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .list-skeleton-cell { animation: none; } }
+.js-enhanced .list-results-fallback { display: none; }
+.list-search { flex-wrap: nowrap; }
+.list-search .input { flex: 0 1 22rem; width: auto; min-width: 0; }
+.list-footer .btn { min-height: 2.25rem; }
+.list-add-menu > summary.list-add-label, .list-add-label { border: 1px solid var(--border); background: var(--surface); }
+.list-view-table .list-settings > summary { min-height: 0; height: 2rem; width: 2rem; padding: 0; display: inline-grid; place-items: center; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); }
+.list-view-table thead .list-settings-cell { height: auto; }
+.list-view-table thead th { height: 2.75rem; box-sizing: border-box; overflow: visible; }
+.list-settings:not([open]) > .list-menu-panel { display: none; }
+.list-settings-cell > .list-settings { display: block; width: 2rem; margin: 0 auto; vertical-align: middle; }
+.js-enhanced [data-submit-button] { display: none !important; }
+.list-filter-chips { margin-bottom: 1rem; }
+/* Column order: each switch row has a drag handle on its left. The first (name) row has no handle. */
+.list-column-switch { display: flex; align-items: center; gap: .5rem; }
+.list-column-handle { display: inline-grid; place-items: center; width: 1rem; color: var(--muted); }
+.list-column-switch[draggable="true"] { cursor: grab; }
+.list-column-switch[draggable="true"]:active { cursor: grabbing; }
+.list-column-order { display: none; }
+/* A row whose menu is open rises above the cells of the rows around it, so the menu is never covered. */
+.list-actions-cell:has(> .list-row-menu[open]) { z-index: 40; }
+/* Row action menu: an icon and a label per item; the destructive action sits below a divider and is coloured. */
+.list-action-items { gap: .125rem; }
+.list-action-items a, .list-action-items .list-action-button { gap: .6rem; font-size: .9375rem; font-weight: 500; }
+.list-action-icon { flex: none; color: var(--muted); }
+.list-action-items a:hover .list-action-icon, .list-action-items .list-action-button:hover .list-action-icon { color: var(--ink); }
+.list-action-divider { height: 1px; margin: .25rem 0; background: var(--border); }
+.list-action-items .is-danger { color: var(--danger); }
+.list-action-items .is-danger .list-action-icon { color: var(--danger); }
+/* The menu's form buttons read as menu items, whatever the page's button style is. */
+.list-row-menu .list-action-items .list-action-button { background: transparent; border: 0; box-shadow: none; color: var(--ink); }
+.list-row-menu .list-action-items .list-action-button:hover { background: var(--accent-surface); }
+.list-row-menu .list-action-items .is-danger { color: var(--danger); }
+/* A column switch changes in place while its request runs: no busy spinner, so the row does not shift. */
+.list-switch::before, .list-switch::after { content: none !important; display: none !important; }
+.list-column-switch form[aria-busy="true"] { cursor: progress; }
+/* Card actions: the vertical dots sit at the card's top right, out of the way of the fields. */
+.list-view-cards > li { position: relative; }
+.list-card-actions { position: absolute; top: .5rem; right: .5rem; }
+.list-card-actions > summary { display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: 999px; cursor: pointer; list-style: none; font-size: 1.1rem; font-weight: 800; }
+.list-card-actions > summary::-webkit-details-marker { display: none; }
+.list-card-actions > summary:hover { background: var(--accent-surface); }
+/* Keep card text clear of the vertical-dots menu, and let long names wrap instead of running into it. */
+.list-view-cards > li > dl { padding-right: 2.25rem; }
+.list-view-cards .list-row-link { overflow-wrap: anywhere; }
+/* The footer's way to the archived clients, and back: a quiet link, so it is easy to find but does not compete. */
+.client-scope-link { font-size: .875rem; font-weight: 600; color: var(--accent); }
+/* The saved-views menu is a labelled button, not the round icon the column menu uses. */
+/* Saved views: a labelled menu. Applying, managing and saving are separate groups, and the applied view is marked. */
+.list-view-switcher > summary { width: auto; height: auto; display: inline-flex; align-items: center; gap: .4rem; padding: .4rem .8rem; border: 1px solid var(--border); border-radius: .375rem; background: var(--surface); color: var(--ink); font-size: .875rem; font-weight: 600; white-space: nowrap; cursor: pointer; list-style: none; }
+.list-view-switcher > summary::-webkit-details-marker { display: none; }
+.list-view-switcher > summary:hover { background: var(--accent-surface); }
+.list-view-summary-current { padding: .05rem .45rem; border-radius: 999px; background: var(--accent-surface); color: var(--accent); font-size: .8rem; }
+.list-views-panel { min-width: 19rem; max-width: min(24rem, 90vw); }
+.list-views-intro { margin: 0 0 .6rem; color: var(--muted); font-size: .85rem; }
+.list-views-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border-muted); }
+.list-view-row { border-bottom: 1px solid var(--border-muted); padding: .25rem 0; }
+.list-view-apply { margin: 0; }
+.list-view-option { display: flex; align-items: center; gap: .5rem; width: 100%; margin: 0; padding: .45rem .5rem; border: 0; border-radius: .375rem; background: none; color: var(--ink); font: inherit; font-size: .9rem; text-align: left; text-decoration: none; cursor: pointer; }
+.list-view-option:hover { background: var(--accent-surface); }
+.list-view-option.is-applied { background: var(--accent-surface); color: var(--accent); font-weight: 600; }
+.list-view-name { min-width: 0; overflow-wrap: anywhere; }
+.list-view-badge { margin-left: auto; padding: .05rem .4rem; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); font-size: .72rem; font-weight: 600; white-space: nowrap; }
+.list-view-option.is-applied .list-view-badge { border-color: var(--accent); color: var(--accent); }
+.list-view-manage > summary { margin: 0 0 0 .5rem; padding: .1rem 0; color: var(--muted); font-size: .8rem; cursor: pointer; list-style: none; }
+.list-view-manage > summary:hover { color: var(--accent); text-decoration: underline; }
+.list-view-manage > summary::-webkit-details-marker { display: none; }
+.list-view-manage-body { display: grid; gap: .6rem; padding: .5rem .5rem .25rem; }
+.list-view-action { display: grid; gap: .35rem; margin: 0; }
+.list-view-hint { margin: 0; color: var(--muted); font-size: .8rem; }
+.list-views-save { margin-top: .75rem; padding-top: .6rem; border-top: 1px solid var(--border-muted); }
+.list-views-save > summary { color: var(--ink); font-size: .9rem; font-weight: 600; cursor: pointer; list-style: none; }
+.list-views-save > summary::-webkit-details-marker { display: none; }
+.list-views-save > form, .list-views-save > .list-view-note { margin-top: .6rem; }
+.list-view-field { display: grid; gap: .25rem; font-size: .85rem; }
+.list-view-field input[type="text"] { padding: .35rem .5rem; border: 1px solid var(--border); border-radius: .375rem; background: var(--surface); color: var(--ink); }
+.list-view-check { display: flex; align-items: center; gap: .4rem; font-size: .875rem; }
+.list-view-note { margin: 0; color: var(--muted); font-size: .875rem; }
+/* The disclosure headings are plain text, not the boxed summary the app uses elsewhere. */
+.list-view-manage > summary, .list-views-save > summary { display: inline-block; width: auto; height: auto; margin: 0; padding: .1rem 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.list-view-action .btn { justify-self: start; }

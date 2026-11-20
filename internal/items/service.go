@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -21,7 +20,6 @@ import (
 
 var (
 	ErrIdempotencyConflict = errors.New("idempotency key was used for another request")
-	ErrInvalidCursor       = errors.New("cursor is invalid")
 	ErrInvalidInput        = errors.New("item input is invalid")
 	ErrNotFound            = errors.New("item not found")
 	ErrPreconditionFailed  = errors.New("item version does not match")
@@ -67,14 +65,18 @@ type ImportItem struct {
 type ListInput struct {
 	Status Status
 	Search string
-	Sort   string
-	Limit  int
-	Cursor string
+	// Match is "all" (default) or "any": how the status and search conditions combine.
+	Match string
+	Sort  string
+	Limit int
+	// Page is 1-based; zero means the first page.
+	Page int
 }
 
 type Page struct {
-	Items      []Item `json:"items"`
-	NextCursor string `json:"nextCursor,omitempty"`
+	Items []Item `json:"items"`
+	Total int    `json:"total"`
+	Page  int    `json:"page"`
 }
 
 type Service struct {
@@ -350,14 +352,16 @@ func (s *Service) List(
 		return Page{}, ErrInvalidInput
 	}
 	input.Search = search
-	if input.Limit < 1 || input.Limit > 100 ||
+	if input.Limit < 1 || input.Limit > 100 || (input.Match != "" && input.Match != "all" && input.Match != "any") ||
 		(input.Status != "" && input.Status != Active && input.Status != Complete) ||
 		(input.Sort != "created_at" && input.Sort != "-created_at") {
 		return Page{}, ErrInvalidInput
 	}
-	position, err := decodeCursor(input.Cursor, input)
-	if err != nil {
-		return Page{}, err
+	if input.Page < 0 || input.Page > 1000000 {
+		return Page{}, ErrInvalidInput
+	}
+	if input.Page == 0 {
+		input.Page = 1
 	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: true})
 	if err != nil {
@@ -369,41 +373,35 @@ func (s *Service) List(
 	); err != nil {
 		return Page{}, identity.ErrForbidden
 	}
-	query := `
-		SELECT id, workspace_id, created_by_user_id, title, status,
-			version, created_at, updated_at
-		FROM items WHERE workspace_id = ?
-	`
+	where := "workspace_id = ?"
 	args := []any{workspaceID}
+	// The search always combines with AND. The match mode applies to the list's filter conditions only.
 	if input.Status != "" {
-		query += " AND status = ?"
+		where += " AND status = ?"
 		args = append(args, input.Status)
 	}
 	if input.Search != "" {
-		query += " AND LOWER(title) LIKE LOWER(?) ESCAPE '\\'"
+		where += " AND LOWER(title) LIKE LOWER(?) ESCAPE '\\'"
 		args = append(args, searchPattern(input.Search))
 	}
-	comparison := ">"
+	// The total counts every row the filters match, before the page is cut.
+	var total int
+	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, "SELECT COUNT(*) FROM items WHERE "+where), args...).Scan(&total); err != nil {
+		return Page{}, err
+	}
+	query := "SELECT id, workspace_id, created_by_user_id, title, status, version, created_at, updated_at FROM items WHERE " + where
 	direction := "ASC"
 	if input.Sort == "-created_at" {
-		comparison = "<"
 		direction = "DESC"
 	}
-	if position != nil {
-		query += fmt.Sprintf(
-			" AND (created_at %s ? OR (created_at = ? AND id %s ?))",
-			comparison, comparison,
-		)
-		args = append(args, position.CreatedAt, position.CreatedAt, position.ID)
-	}
-	query += " ORDER BY created_at " + direction + ", id " + direction + " LIMIT ?"
-	args = append(args, input.Limit+1)
+	query += " ORDER BY created_at " + direction + ", id " + direction + " LIMIT ? OFFSET ?"
+	args = append(args, input.Limit, (input.Page-1)*input.Limit)
 	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, query), args...)
 	if err != nil {
 		return Page{}, err
 	}
 	defer rows.Close()
-	items := make([]Item, 0, input.Limit+1)
+	items := make([]Item, 0, input.Limit)
 	for rows.Next() {
 		item, err := scanItem(rows)
 		if err != nil {
@@ -417,19 +415,10 @@ func (s *Service) List(
 	if err := rows.Close(); err != nil {
 		return Page{}, err
 	}
-	page := Page{Items: items}
-	if len(items) > input.Limit {
-		last := items[input.Limit-1]
-		page.Items = items[:input.Limit]
-		page.NextCursor, err = encodeCursor(input, last)
-		if err != nil {
-			return Page{}, err
-		}
-	}
 	if err := tx.Commit(); err != nil {
 		return Page{}, err
 	}
-	return page, nil
+	return Page{Items: items, Total: total, Page: input.Page}, nil
 }
 
 func (s *Service) Update(
@@ -649,45 +638,6 @@ func scanItem(row scanner) (Item, error) {
 	return item, err
 }
 
-type cursor struct {
-	Status    Status `json:"status"`
-	Search    string `json:"search"`
-	Sort      string `json:"sort"`
-	CreatedAt string `json:"createdAt"`
-	ID        ItemID `json:"id"`
-}
-
-func encodeCursor(input ListInput, item Item) (string, error) {
-	encoded, err := json.Marshal(cursor{
-		Status: input.Status, Search: input.Search, Sort: input.Sort,
-		CreatedAt: formatTime(item.CreatedAt), ID: item.ID,
-	})
-	if err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(encoded), nil
-}
-
-func decodeCursor(encoded string, input ListInput) (*cursor, error) {
-	if encoded == "" {
-		return nil, nil
-	}
-	raw, err := base64.RawURLEncoding.Strict().DecodeString(encoded)
-	if err != nil || len(raw) > 512 {
-		return nil, ErrInvalidCursor
-	}
-	var value cursor
-	if err := json.Unmarshal(raw, &value); err != nil ||
-		value.Status != input.Status || value.Search != input.Search ||
-		value.Sort != input.Sort || value.ID == 0 {
-		return nil, ErrInvalidCursor
-	}
-	if _, err := parseTime(value.CreatedAt); err != nil {
-		return nil, ErrInvalidCursor
-	}
-	return &value, nil
-}
-
 func validateTitle(value string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" || !utf8.ValidString(value) || utf8.RuneCountInString(value) > 200 {
@@ -777,4 +727,12 @@ func (s *Service) queryRow(
 	args ...any,
 ) *sql.Row {
 	return queryer.QueryRowContext(ctx, database.Rebind(s.driver, query), args...)
+}
+
+// normalizeItemMatch returns the effective match mode: "all" when none is set.
+func normalizeItemMatch(match string) string {
+	if match == "" {
+		return "all"
+	}
+	return match
 }

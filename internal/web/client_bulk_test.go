@@ -1,0 +1,70 @@
+package web
+
+import (
+	"net/http"
+	"net/url"
+	"regexp"
+	"strings"
+	"testing"
+)
+
+var bulkClientIDPattern = regexp.MustCompile(`name="client_id" value="([^"]+)"`)
+
+// TestClientBulkBarAndEndpoint checks that the bulk bar shows only to users who can act on clients, that the
+// endpoint archives the selected clients and returns to the list, and that a viewer cannot use it.
+func TestClientBulkBarAndEndpoint(t *testing.T) {
+	env := newClientsTestEnv(t)
+	for _, name := range []string{"Ada", "Bea"} {
+		created := request(env.routes, http.MethodPost, env.listPath(), url.Values{
+			"csrf": {env.csrf}, "display_name": {name}, "email": {strings.ToLower(name) + "@example.test"},
+		}, env.cookies, nil)
+		if created.Code != http.StatusSeeOther {
+			t.Fatalf("create %s = %d", name, created.Code)
+		}
+	}
+	owner := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil)
+	if owner.Code != http.StatusOK || !strings.Contains(owner.Body.String(), `id="client-bulk"`) {
+		t.Fatalf("owner list = %d, want the bulk bar", owner.Code)
+	}
+	// Each client renders a table checkbox and a card checkbox with the same ID, so keep one per ID.
+	var ids [][]string
+	seen := map[string]bool{}
+	for _, match := range bulkClientIDPattern.FindAllStringSubmatch(owner.Body.String(), -1) {
+		if !seen[match[1]] {
+			seen[match[1]] = true
+			ids = append(ids, match)
+		}
+	}
+	if len(ids) != 2 {
+		t.Fatalf("owner list has %d selectable clients, want 2", len(ids))
+	}
+	viewer := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.viewerCookies, nil)
+	if strings.Contains(viewer.Body.String(), `id="client-bulk"`) {
+		t.Fatal("viewer list shows the bulk bar")
+	}
+
+	selected := url.Values{"csrf": {env.csrf}, "return": {env.listPath()}, "action": {"archive"}}
+	for _, match := range ids {
+		selected.Add("client_id", match[1])
+	}
+	denied := request(env.routes, http.MethodPost, env.listPath()+"/bulk", url.Values{
+		"csrf": {env.viewerCSRF}, "return": {env.listPath()}, "action": {"archive"}, "client_id": {ids[0][1]},
+	}, env.viewerCookies, nil)
+	if denied.Code == http.StatusSeeOther {
+		t.Fatalf("viewer bulk archive = %d, want a refusal", denied.Code)
+	}
+	archived := request(env.routes, http.MethodPost, env.listPath()+"/bulk", selected, env.cookies, nil)
+	if archived.Code != http.StatusSeeOther || archived.Header().Get("Location") != env.listPath() {
+		t.Fatalf("bulk archive = %d to %q, want 303 back to the list", archived.Code, archived.Header().Get("Location"))
+	}
+	active := request(env.routes, http.MethodGet, env.listPath(), nil, env.cookies, nil)
+	if strings.Contains(active.Body.String(), `name="client_id"`) {
+		t.Fatal("archived clients still listed as active")
+	}
+	bad := request(env.routes, http.MethodPost, env.listPath()+"/bulk", url.Values{
+		"csrf": {env.csrf}, "action": {"unarchive"}, "client_id": {ids[0][1]},
+	}, env.cookies, nil)
+	if bad.Code != http.StatusBadRequest {
+		t.Fatalf("unknown bulk action = %d, want 400", bad.Code)
+	}
+}

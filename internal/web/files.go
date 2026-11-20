@@ -1,19 +1,20 @@
 package web
 
 import (
+	"context"
 	"errors"
+	appfiles "example.com/dynamis-code/apps-template/internal/files"
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/listprefs"
+	"example.com/dynamis-code/apps-template/internal/listviews"
+	"example.com/dynamis-code/apps-template/internal/platform/config"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"io"
 	"mime"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
-
-	appfiles "example.com/dynamis-code/apps-template/internal/files"
-	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/listprefs"
-	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
 
 const (
@@ -26,61 +27,19 @@ const (
 	uploadFramingBytes = 1 << 20
 )
 
-func fileListColumns() []clientListColumn {
-	return []clientListColumn{
-		{Key: "original_name", LabelKey: "files.name", ValueType: "text", DefaultVisible: true},
-		{Key: "detected_mime", LabelKey: "files.type", ValueType: "text", DefaultVisible: true},
-		{Key: "size", LabelKey: "files.size", ValueType: "number"},
-		{Key: "created_at", LabelKey: "clients.created_at", ValueType: "timestamp"},
+func fileListColumns() []viewmodel.ListColumn {
+	return []viewmodel.ListColumn{
+		{Key: "original_name", LabelKey: "files.name", DefaultVisible: true},
+		{Key: "id", LabelKey: "ui.id"},
+		{Key: "detected_mime", LabelKey: "files.type", DefaultVisible: true},
+		{Key: "size", LabelKey: "files.size"},
+		{Key: "created_at", LabelKey: "clients.created_at"},
 	}
-}
-
-func parseFileListQuery(values url.Values, defaultLimit int) (fileListQuery, bool) {
-	query := fileListQuery{Search: strings.TrimSpace(values.Get("search")), MIME: strings.TrimSpace(values.Get("mime")), Sort: values.Get("sort"), Limit: defaultLimit, Cursor: values.Get("cursor")}
-	for key, entries := range values {
-		if len(entries) != 1 {
-			return query, false
-		}
-		switch key {
-		case "search", "mime", "sort", "cursor":
-		case "min_size", "max_size":
-			if entries[0] == "" {
-				continue
-			}
-			size, err := strconv.ParseInt(entries[0], 10, 64)
-			if err != nil || size < 0 {
-				return query, false
-			}
-			if key == "min_size" {
-				query.MinSize, query.HasMinSize = size, true
-			} else {
-				query.MaxSize, query.HasMaxSize = size, true
-			}
-		case "limit":
-			limit, err := strconv.Atoi(entries[0])
-			if err != nil || limit < 1 || limit > 100 {
-				return query, false
-			}
-			query.Limit = limit
-		default:
-			return query, false
-		}
-	}
-	if len(query.Search) > 200 || len(query.MIME) > 128 || len(query.Cursor) > 64 || query.HasMaxSize && query.HasMinSize && query.MinSize > query.MaxSize {
-		return query, false
-	}
-	if query.Sort == "" {
-		query.Sort = "-created_at"
-	}
-	if query.Sort != "original_name" && query.Sort != "-original_name" && query.Sort != "size" && query.Sort != "-size" && query.Sort != "created_at" && query.Sort != "-created_at" {
-		return query, false
-	}
-	return query, true
 }
 
 func fileSortHref(path string, values url.Values, sort string) string {
 	copy := cloneClientQuery(values)
-	copy.Del("cursor")
+	copy.Del("page")
 	if values.Get("sort") == sort {
 		copy.Set("sort", "-"+sort)
 	} else if values.Get("sort") == "-"+sort {
@@ -91,15 +50,16 @@ func fileSortHref(path string, values url.Values, sort string) string {
 	return path + "?" + copy.Encode()
 }
 
-func fileListRows(files []appfiles.File) []clientListRow {
-	rows := make([]clientListRow, 0, len(files))
+func fileListRows(files []appfiles.File) []viewmodel.ListRow {
+	rows := make([]viewmodel.ListRow, 0, len(files))
 	for index, file := range files {
 		mimeType := ""
 		if file.DetectedMIME != nil {
 			mimeType = *file.DetectedMIME
 		}
-		rows = append(rows, clientListRow{ID: file.ID.String(), ActionContext: file.OriginalName, ActionPosition: index + 1, Values: map[string]string{
-			"original_name": file.OriginalName, "detected_mime": mimeType, "size": strconv.FormatInt(file.Size, 10), "created_at": file.CreatedAt.Format(time.RFC3339),
+		rows = append(rows, viewmodel.ListRow{ID: file.ID.String(), ActionContext: file.OriginalName, ActionPosition: index + 1, Cells: map[string]viewmodel.ListCell{
+			"original_name": viewmodel.TextCell(file.OriginalName), "detected_mime": viewmodel.TextCell(mimeType),
+			"size": viewmodel.TextCell(strconv.FormatInt(file.Size, 10)), "created_at": viewmodel.TimeCell(file.CreatedAt),
 		}})
 	}
 	return rows
@@ -110,6 +70,9 @@ func fileQuerySuffix(values url.Values) string { return clientQuerySuffix(values
 func (h *Handler) EnableFilesPreferences(preferences *listprefs.Service) {
 	h.listPreferences = preferences
 	h.filesEnabled = h.files != nil
+	h.registerListColumns(listviews.ListFiles, func(context.Context, identity.Principal, identity.WorkspaceID) ([]viewmodel.ListColumn, error) {
+		return fileListColumns(), nil
+	})
 }
 
 func (h *Handler) setFileColumn(writer http.ResponseWriter, request *http.Request) {
@@ -149,7 +112,7 @@ func (h *Handler) updateFileColumns(writer http.ResponseWriter, request *http.Re
 		h.renderError(writer, http.StatusBadRequest)
 		return
 	}
-	h.redirect(writer, request, h.filesPath(workspaceID)+fileQuerySuffix(request.URL.Query()))
+	h.afterListChange(writer, request, h.filesPath(workspaceID)+fileQuerySuffix(request.URL.Query()), h.rerenderFiles)
 }
 
 func (h *Handler) filesPath(workspaceID identity.WorkspaceID) string {
@@ -171,7 +134,13 @@ func (h *Handler) renderFilesPage(writer http.ResponseWriter, request *http.Requ
 		h.renderError(writer, http.StatusBadRequest)
 		return
 	}
-	page, err := h.files.ListPage(request.Context(), principal, workspaceID, query.listInput())
+	// A lazy page sends the skeleton and loads the files in the results fragment.
+	lazy := listLazyRequest(request)
+	var page appfiles.Page
+	var err error
+	if !lazy {
+		page, err = h.files.ListPage(request.Context(), principal, workspaceID, query.ListInput())
+	}
 	if err != nil {
 		if errors.Is(err, appfiles.ErrInvalidInput) {
 			h.renderError(writer, http.StatusBadRequest)
@@ -181,6 +150,12 @@ func (h *Handler) renderFilesPage(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 	columns := fileListColumns()
+	var orderErr error
+	columns, orderErr = h.orderListColumns(request, principal, workspaceID, listprefs.ListFiles, columns)
+	if orderErr != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	}
 	defaults := make(map[string]bool, len(columns))
 	for _, column := range columns {
 		defaults[column.Key] = column.DefaultVisible
@@ -208,13 +183,25 @@ func (h *Handler) renderFilesPage(writer http.ResponseWriter, request *http.Requ
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	data := pageData{
-		Title: "Files", NavPage: "files", NavSection: "workspace", CSRF: csrf, ErrorKey: errorKey,
+	filterView := buildListFilterView(request.URL.Path, request.URL.Query(), fileFilterFields, query.Filter)
+	var resultsSrc, fullHref string
+	if lazy {
+		resultsSrc, fullHref = listResultsURLs(h.filesPath(workspaceID), request.URL.Query())
+	}
+	if h.openDefaultListView(writer, request, listviews.ListFiles, principal, workspaceID) {
+		return
+	}
+	view := h.listViewState(request, principal, workspaceID, listviews.ListFiles, false)
+	data := viewmodel.PageData{
+		Title: "Files", TopbarTitleKey: "files.files", NavPage: "files", NavSection: "workspace", CSRF: csrf, ErrorKey: errorKey,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-		Files: page.Files, CurrentPath: h.filesPath(workspaceID), NextCursor: page.NextCursor,
-		NextPath:          fileNextPath(request.URL.Path, request.URL.Query(), page.NextCursor),
-		ClientListColumns: columns, ClientListRows: fileListRows(page.Files), IsFilesList: true,
-		ClientQuerySuffix: fileQuerySuffix(request.URL.Query()), FileListQuery: query,
+		Files: page.Files, CurrentPath: h.filesPath(workspaceID),
+		ListPager:   newListPager(request.URL.Path, request.URL.Query(), query.Page, query.Limit, page.Total),
+		ListColumns: columns, ListRows: fileListRows(page.Files), ListTotal: page.Total, ListStart: listStart(query.Page, query.Limit), IsFilesList: true,
+		ClientQuerySuffix: fileQuerySuffix(request.URL.Query()), FileListQuery: query, ListSearch: query.Search,
+		ListPreservedQuery: filterView.Preserved,
+		Filter:             filterView,
+		ListLazy:           lazy, ListResultsSrc: resultsSrc, ListFullHref: fullHref, ListLive: true, ListFragment: listResultsFragment(request), ListViews: view.Views, ListViewQuery: view.Query, ListViewBase: view.Base, ListViewRoute: view.Route, ListViewCanShare: view.CanShare, ListViewSaveReason: view.SaveReason,
 		FileMinSize: request.URL.Query().Get("min_size"), FileMaxSize: request.URL.Query().Get("max_size"),
 		HasVisibleClientColumns: hasVisibleClientColumns(visible), HasClientFilters: query.Search != "" || query.MIME != "" || query.HasMinSize || query.HasMaxSize,
 		ClearClientFiltersPath: fileClearFiltersPath(request.URL.Path, request.URL.Query()),
@@ -222,7 +209,7 @@ func (h *Handler) renderFilesPage(writer http.ResponseWriter, request *http.Requ
 	h.renderFilesTempl(writer, request, status, data, principal.Permissions[identity.ResourcesWrite])
 }
 
-func (h *Handler) renderFilesTempl(writer http.ResponseWriter, request *http.Request, status int, data pageData, canUpload bool) {
+func (h *Handler) renderFilesTempl(writer http.ResponseWriter, request *http.Request, status int, data viewmodel.PageData, canUpload bool) {
 	data.FilesEnabled = h.filesEnabled
 	data.ClientsEnabled = h.clients != nil
 	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
@@ -231,38 +218,22 @@ func (h *Handler) renderFilesTempl(writer http.ResponseWriter, request *http.Req
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)
-	_ = filesPage(data, canUpload).Render(request.Context(), writer)
-}
-
-func fileNextPath(path string, query url.Values, cursor string) string {
-	if cursor == "" {
-		return ""
+	if listResultsFragment(request) {
+		_ = fileResults(data).Render(request.Context(), writer)
+		return
 	}
-	values := cloneClientQuery(query)
-	values.Set("cursor", cursor)
-	return path + "?" + values.Encode()
+	_ = filesPage(data, canUpload).Render(request.Context(), writer)
 }
 
 func fileClearFiltersPath(path string, query url.Values) string {
 	values := cloneClientQuery(query)
-	for _, key := range []string{"search", "mime", "min_size", "max_size", "cursor"} {
+	for _, key := range []string{"search", "mime", "min_size", "max_size", "page"} {
 		values.Del(key)
 	}
 	if encoded := values.Encode(); encoded != "" {
 		return path + "?" + encoded
 	}
 	return path
-}
-
-func (query fileListQuery) listInput() appfiles.ListInput {
-	input := appfiles.ListInput{Limit: query.Limit, Cursor: query.Cursor, Search: query.Search, MIME: query.MIME, Sort: strings.TrimPrefix(query.Sort, "-"), Descending: strings.HasPrefix(query.Sort, "-")}
-	if query.HasMinSize {
-		input.MinSize = &query.MinSize
-	}
-	if query.HasMaxSize {
-		input.MaxSize = &query.MaxSize
-	}
-	return input
 }
 
 // filesUpload accepts the one browser upload request: an ordinary multipart

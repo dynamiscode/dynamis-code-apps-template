@@ -68,7 +68,7 @@ func TestStableV1ItemConsumerSurface(t *testing.T) {
 
 	list := document.Paths["/api/v1/workspaces/{workspaceId}/items"]["get"]
 	for _, ref := range []string{
-		"#/components/parameters/PageLimit", "#/components/parameters/PageCursor",
+		"#/components/parameters/PageLimit", "#/components/parameters/PageNumber",
 	} {
 		if !hasParameterRef(list.Parameters, ref) {
 			t.Fatalf("listItems missing %s", ref)

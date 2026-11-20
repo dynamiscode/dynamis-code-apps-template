@@ -1,18 +1,22 @@
 package web
 
-templ publicSharePage(data pageData) {
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import "example.com/dynamis-code/apps-template/internal/web/components"
+import "example.com/dynamis-code/apps-template/internal/web/layouts"
+
+templ publicSharePage(data viewmodel.PageData) {
 	<!doctype html>
 	<html lang={ data.Locale } data-theme={ data.Theme }>
 		<head>
-			@pageHead(data, data.T(publicShareTitleKey(data)))
+			@layouts.PageHead(data, data.T(publicShareTitleKey(data)))
 		</head>
 		<body>
-			@skipLink(data)
+			@layouts.SkipLink(data)
 			<main class="narrow public-share-card card bg-base-100 shadow" id="main">
 				<p class="eyebrow">{ data.T("common.product_name") }</p>
 				<h1>{ data.T(publicShareTitleKey(data)) }</h1>
 				if data.Error != "" {
-					@errorAlert(data.T("sharing.unavailable_detail"))
+					@components.ErrorAlert(data.T("sharing.unavailable_detail"))
 				} else {
 					<p class="status">{ data.T("sharing.scope_public") }</p>
 					<dl class="public-share-details">
@@ -28,7 +32,7 @@ templ publicSharePage(data pageData) {
 	</html>
 }
 
-templ mcpConsentPage(data pageData) {
+templ mcpConsentPage(data viewmodel.PageData) {
 	@authLayout(data, data.T("oauth.consent_title")) {
 		<h1>{ data.T("oauth.consent_title") }</h1>
 		if consent := data.MCPConsent; consent != nil {
@@ -70,15 +74,15 @@ templ mcpConsentPage(data pageData) {
 	}
 }
 
-templ errorPage(data pageData) {
+templ errorPage(data viewmodel.PageData) {
 	@authLayout(data, data.Title) {
 		<h1>{ data.Title }</h1>
-		@errorAlert(data.Error)
+		@components.ErrorAlert(data.Error)
 		<p><a href="/">{ data.T("navigation.home") }</a></p>
 	}
 }
 
-func publicShareTitleKey(data pageData) string {
+func publicShareTitleKey(data viewmodel.PageData) string {
 	if data.Error != "" {
 		return "sharing.unavailable"
 	}

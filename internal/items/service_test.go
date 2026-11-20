@@ -56,11 +56,11 @@ func TestItemLifecycleContracts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	page, err := service.List(ctx, principal, owner.WorkspaceID, ListInput{Sort: "created_at", Limit: 1})
-	if err != nil || len(page.Items) != 1 || page.NextCursor == "" {
+	page, err := service.List(ctx, principal, owner.WorkspaceID, ListInput{Page: 1, Sort: "created_at", Limit: 1})
+	if err != nil || len(page.Items) != 1 || page.Total != 2 {
 		t.Fatalf("first page = %+v, %v", page, err)
 	}
-	next, err := service.List(ctx, principal, owner.WorkspaceID, ListInput{Sort: "created_at", Limit: 1, Cursor: page.NextCursor})
+	next, err := service.List(ctx, principal, owner.WorkspaceID, ListInput{Page: 2, Sort: "created_at", Limit: 1})
 	if err != nil || len(next.Items) != 1 || next.Items[0].ID == page.Items[0].ID {
 		t.Fatalf("next page = %+v, %v", next, err)
 	}
@@ -84,19 +84,8 @@ func TestItemLifecycleContracts(t *testing.T) {
 	}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("oversized search error = %v", err)
 	}
-	activePage, err := service.List(ctx, principal, owner.WorkspaceID, ListInput{
-		Status: Active, Sort: "created_at", Limit: 1,
-	})
-	if err != nil || activePage.NextCursor == "" {
-		t.Fatalf("active page = %+v, %v", activePage, err)
-	}
-	if _, err := service.List(ctx, principal, owner.WorkspaceID, ListInput{
-		Status: Complete, Sort: "created_at", Limit: 1, Cursor: activePage.NextCursor,
-	}); !errors.Is(err, ErrInvalidCursor) {
-		t.Fatalf("cross-query cursor error = %v", err)
-	}
-	if _, err := service.List(ctx, principal, owner.WorkspaceID, ListInput{Sort: "created_at", Limit: 1, Cursor: "bad"}); !errors.Is(err, ErrInvalidCursor) {
-		t.Fatalf("invalid cursor error = %v", err)
+	if _, err := service.List(ctx, principal, owner.WorkspaceID, ListInput{Page: -1, Sort: "created_at", Limit: 1}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("negative page error = %v", err)
 	}
 	newTitle := "Done"
 	complete := Complete

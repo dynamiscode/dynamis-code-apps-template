@@ -125,14 +125,9 @@ func TestArchivedFilterSelectsTheListStates(t *testing.T) {
 		t.Fatalf("unknown archived value error = %v, want ErrInvalidInput", err)
 	}
 
-	page, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{Limit: 1, Archived: ArchivedAll})
-	if err != nil || page.NextCursor == "" {
-		t.Fatalf("first page = %+v, %v; want a next cursor", page, err)
-	}
-	if _, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{
-		Limit: 1, Archived: ArchivedActive, Cursor: page.NextCursor,
-	}); !errors.Is(err, ErrInvalidCursor) {
-		t.Fatalf("cursor from another archived selector error = %v, want ErrInvalidCursor", err)
+	page, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{Page: 1, Limit: 1, Archived: ArchivedAll})
+	if err != nil || len(page.Clients) != 1 || page.Total < 2 {
+		t.Fatalf("first page = %+v, %v; want one row of a counted total", page, err)
 	}
 }
 

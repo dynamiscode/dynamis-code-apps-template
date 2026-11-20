@@ -3,8 +3,6 @@ package clients
 import (
 	"context"
 	"database/sql"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -69,7 +67,7 @@ const (
 )
 
 // target is a resolved sort or filter field. value is the SQL expression for
-// the stored text, which is NULL when unset. Keys match the cursor binding.
+// the stored text, which is NULL when unset.
 type target struct {
 	key        string
 	kind       string
@@ -229,17 +227,6 @@ func (s *Service) orderExpr(t target) string {
 		return choiceRankExpr(t.value, t.choiceRanks)
 	}
 	return database.TextOrderExpr(s.driver, t.value)
-}
-
-// paramExpr is orderExpr for a bound parameter, used by the keyset predicate.
-func (s *Service) paramExpr(t target) string {
-	switch t.kind {
-	case kindNumber:
-		return database.NumericExpr(s.driver, "?")
-	case kindChoice:
-		return choiceRankExpr("?", t.choiceRanks)
-	}
-	return database.TextOrderExpr(s.driver, "?")
 }
 
 // filterPredicate returns one filter's SQL and its arguments. Values are
@@ -413,12 +400,14 @@ func asciiLower(value string) string {
 
 // listQuery is one list request's SQL, its arguments, and its sort binding.
 type listQuery struct {
-	sql      string
-	args     []any
-	sortKey  string
-	desc     bool
-	sorted   bool
-	archived string
+	sql       string
+	args      []any
+	countSQL  string
+	countArgs []any
+	sortKey   string
+	desc      bool
+	sorted    bool
+	archived  string
 }
 
 // archivedScope maps the archived selector to one of its values. An empty
@@ -431,15 +420,13 @@ func archivedScope(value string) string {
 }
 
 // buildListQuery turns a request into SQL. The archived selector picks active,
-// archived, or all clients. Filters AND together. A sorted request pages by
-// keyset on the sort value and then the ID, and a cursor must come from this
-// same sort, filters, and archived selector.
+// archived, or all clients. Filters AND together. A sorted request orders by the
+// sort value and then the ID; pages are numbered from the page's offset.
 func (s *Service) buildListQuery(
 	ctx context.Context,
 	tx *sql.Tx,
 	workspaceID identity.WorkspaceID,
 	input ListInput,
-	cursor *listCursor,
 ) (listQuery, error) {
 	query := listQuery{desc: input.Sort.Descending, sorted: input.Sort.Field != ""}
 	if input.Sort.Descending && !query.sorted {
@@ -456,6 +443,11 @@ func (s *Service) buildListQuery(
 		return listQuery{}, ErrInvalidQuery
 	}
 	args := []any{workspaceID}
+	joiner, err := matchJoiner(input.Match)
+	if err != nil {
+		return listQuery{}, err
+	}
+	predicates := make([]string, 0, len(input.Filters))
 	for _, filter := range input.Filters {
 		t, err := s.resolveField(ctx, tx, workspaceID, filter.Field)
 		if err != nil {
@@ -465,9 +457,24 @@ func (s *Service) buildListQuery(
 		if err != nil {
 			return listQuery{}, err
 		}
-		where = append(where, "("+predicate+")")
+		predicates = append(predicates, "("+predicate+")")
 		args = append(args, predicateArgs...)
 	}
+	if len(predicates) > 0 {
+		where = append(where, "("+strings.Join(predicates, joiner)+")")
+	}
+	// The search always combines with AND, whatever the match mode.
+	if input.Search != "" {
+		predicate, searchArgs, err := s.searchPredicate(ctx, tx, workspaceID, input.Search)
+		if err != nil {
+			return listQuery{}, err
+		}
+		where = append(where, predicate)
+		args = append(args, searchArgs...)
+	}
+	// The total counts every row the filters match, before the page is cut.
+	query.countSQL = "SELECT COUNT(*) FROM clients WHERE " + strings.Join(where, " AND ")
+	query.countArgs = append([]any(nil), args...)
 	sortExpr := "NULL"
 	order := "id DESC"
 	if query.sorted {
@@ -476,103 +483,45 @@ func (s *Service) buildListQuery(
 			return listQuery{}, err
 		}
 		query.sortKey = t.key
-		if err := checkCursorBinding(cursor, query, input); err != nil {
-			return listQuery{}, err
-		}
 		sortExpr = t.value
-		dir, cmp := "ASC", ">"
+		dir := "ASC"
 		if query.desc {
-			dir, cmp = "DESC", "<"
+			dir = "DESC"
 		}
 		order = fmt.Sprintf("(%s) IS NULL, %s %s, id %s", t.value, s.orderExpr(t), dir, dir)
-		if cursor != nil {
-			if cursor.Value == nil {
-				where = append(where, "("+t.value+" IS NULL AND id "+cmp+" ?)")
-				args = append(args, cursor.ID)
-			} else {
-				order := s.orderExpr(t)
-				param := s.paramExpr(t)
-				where = append(where, fmt.Sprintf("(%s IS NULL OR %s %s %s OR (%s = %s AND id %s ?))",
-					t.value, order, cmp, param, order, param, cmp))
-				args = append(args, *cursor.Value, *cursor.Value, cursor.ID)
-			}
-		}
-	} else {
-		if err := checkCursorBinding(cursor, query, input); err != nil {
-			return listQuery{}, err
-		}
-		if cursor != nil {
-			where = append(where, "id < ?")
-			args = append(args, cursor.ID)
-		}
 	}
 	query.sql = "SELECT id, workspace_id, created_by_user_id, display_name, email, phone, notes, " +
 		"version, created_at, updated_at, archived_at, " + sortExpr + " AS sort_value " +
-		"FROM clients WHERE " + strings.Join(where, " AND ") + " ORDER BY " + order + " LIMIT ?"
+		"FROM clients WHERE " + strings.Join(where, " AND ") + " ORDER BY " + order + " LIMIT ? OFFSET ?"
 	query.args = args
 	return query, nil
 }
 
-// listCursor is the position after a page. It binds the sort and the filters,
-// so a cursor from another request is refused. Value is the last row's sort
-// value, or nil when that value was empty. ID is the last row's client ID.
-type listCursor struct {
-	Sort       string        `json:"sort"`
-	Descending bool          `json:"descending"`
-	Filters    []FilterInput `json:"filters"`
-	Archived   string        `json:"archived"`
-	Value      *string       `json:"value"`
-	ID         int64         `json:"id"`
+// Match modes for combining filters. MatchAll is the default and joins filters
+// with AND. MatchAny joins them with OR.
+const (
+	MatchAll = "all"
+	MatchAny = "any"
+)
+
+// normalizeMatch returns the effective match mode, so an empty mode means MatchAll.
+func normalizeMatch(match string) string {
+	if match == "" {
+		return MatchAll
+	}
+	return match
 }
 
-// checkCursorBinding refuses a cursor from another sort, filter set, or archived
-// selector. A cursor with no selector came from the default list.
-func checkCursorBinding(cursor *listCursor, query listQuery, input ListInput) error {
-	if cursor == nil {
-		return nil
+// matchJoiner returns the SQL operator that joins the filter predicates.
+func matchJoiner(match string) (string, error) {
+	switch normalizeMatch(match) {
+	case MatchAll:
+		return " AND ", nil
+	case MatchAny:
+		return " OR ", nil
+	default:
+		return "", ErrInvalidQuery
 	}
-	if cursor.Sort != query.sortKey || cursor.Descending != query.desc ||
-		archivedScope(cursor.Archived) != query.archived ||
-		!slices.Equal(cursor.Filters, input.Filters) {
-		return ErrInvalidCursor
-	}
-	return nil
-}
-
-// maxCursorBytes bounds a decoded cursor. Filter values make cursors larger
-// than an ID, but a request cannot send more than a URL allows anyway.
-const maxCursorBytes = 8192
-
-// encodeListCursor names the last row of a page. The cursor is base64url JSON.
-func encodeListCursor(query listQuery, input ListInput, sortValue sql.NullString, id ClientID) (string, error) {
-	cursor := listCursor{
-		Sort: query.sortKey, Descending: query.desc, Filters: input.Filters,
-		Archived: query.archived, ID: int64(id),
-	}
-	if sortValue.Valid {
-		cursor.Value = &sortValue.String
-	}
-	raw, err := json.Marshal(cursor)
-	if err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(raw), nil
-}
-
-// decodeListCursor returns nil for an empty cursor, which means the first page.
-func decodeListCursor(encoded string) (*listCursor, error) {
-	if encoded == "" {
-		return nil, nil
-	}
-	raw, err := base64.RawURLEncoding.Strict().DecodeString(encoded)
-	if err != nil || len(raw) > maxCursorBytes {
-		return nil, ErrInvalidCursor
-	}
-	var cursor listCursor
-	if err := json.Unmarshal(raw, &cursor); err != nil || cursor.ID < 1 {
-		return nil, ErrInvalidCursor
-	}
-	return &cursor, nil
 }
 
 // listRow scans the extra sort_value column after a client row.

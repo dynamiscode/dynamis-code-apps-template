@@ -3,11 +3,10 @@ package web
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
-	"net/http"
-
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"fmt"
+	"net/http"
 )
 
 // clientEvents streams client list refreshes for one workspace. It shares the

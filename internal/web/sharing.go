@@ -2,12 +2,11 @@ package web
 
 import (
 	"errors"
-	"net/http"
-	"time"
-
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/sharing"
+	"net/http"
+	"time"
 )
 
 func (h *Handler) shareMutation(writer http.ResponseWriter, request *http.Request) {

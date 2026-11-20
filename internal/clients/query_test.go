@@ -142,29 +142,15 @@ func exerciseClientQueries(t *testing.T, f fixture) {
 	// Pages follow the sort exactly, one row at a time across the tie at 10.
 	full := []string{"Eve", "Ada", "Bea", "Fay", "Dan", "Cy"}
 	var paged []string
-	cursor := ""
-	for range full {
-		page, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{Limit: 1, Cursor: cursor, Sort: SortInput{Field: score.ID.String()}})
+	for number := 1; number <= len(full); number++ {
+		page, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{Page: number, Limit: 1, Sort: SortInput{Field: score.ID.String()}})
 		if err != nil || len(page.Clients) != 1 {
 			t.Fatalf("paged List() = %+v, %v", page, err)
 		}
 		paged = append(paged, page.Clients[0].DisplayName)
-		cursor = page.NextCursor
 	}
-	if !slices.Equal(paged, full) || cursor != "" {
-		t.Fatalf("paged number sort = %v with cursor %q, want %v and no cursor", paged, cursor, full)
-	}
-
-	// A cursor belongs to the sort that issued it.
-	first, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{Limit: 1, Sort: SortInput{Field: score.ID.String()}})
-	if err != nil || first.NextCursor == "" {
-		t.Fatalf("first sorted page = %+v, %v", first, err)
-	}
-	if _, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{Limit: 1, Cursor: first.NextCursor, Sort: SortInput{Field: joined.ID.String()}}); !errors.Is(err, ErrInvalidCursor) {
-		t.Fatalf("cursor from another sort error = %v, want ErrInvalidCursor", err)
-	}
-	if _, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{Limit: 1, Cursor: first.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
-		t.Fatalf("sorted cursor on the default order error = %v, want ErrInvalidCursor", err)
+	if !slices.Equal(paged, full) {
+		t.Fatalf("paged number sort = %v, want %v", paged, full)
 	}
 
 	// Bad sort or filter input is ErrInvalidInput on every path.
@@ -292,22 +278,13 @@ func TestListCursorBindsSortAndFilters(t *testing.T) {
 	page, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{
 		Limit: 1, Sort: SortInput{Field: score.ID.String()}, Filters: []FilterInput{flt(vip.ID.String(), OpEquals, "true")},
 	})
-	if err != nil || page.NextCursor == "" {
+	if err != nil || len(page.Clients) != 1 || page.Total < 2 {
 		t.Fatalf("first page = %+v, %v", page, err)
 	}
-	for name, input := range map[string]ListInput{
-		"other filters": {Limit: 1, Sort: SortInput{Field: score.ID.String()}},
-		"other sort":    {Limit: 1, Sort: SortInput{Field: score.ID.String(), Descending: true}, Filters: []FilterInput{flt(vip.ID.String(), OpEquals, "true")}},
-	} {
-		input.Cursor = page.NextCursor
-		if _, err := f.service.List(f.ctx, f.viewer, f.workspaceID, input); !errors.Is(err, ErrInvalidCursor) {
-			t.Fatalf("%s: List() error = %v, want ErrInvalidCursor", name, err)
-		}
-	}
 	next, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{
-		Limit: 1, Cursor: page.NextCursor, Sort: SortInput{Field: score.ID.String()}, Filters: []FilterInput{flt(vip.ID.String(), OpEquals, "true")},
+		Page: 2, Limit: 1, Sort: SortInput{Field: score.ID.String()}, Filters: []FilterInput{flt(vip.ID.String(), OpEquals, "true")},
 	})
-	if err != nil || len(next.Clients) != 1 {
-		t.Fatalf("same query next page = %+v, %v", next, err)
+	if err != nil || len(next.Clients) != 1 || next.Clients[0].ID == page.Clients[0].ID {
+		t.Fatalf("same query second page = %+v, %v", next, err)
 	}
 }

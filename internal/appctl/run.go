@@ -32,12 +32,12 @@ var collections = map[string]string{
 // commandFlags names the flags each "resource command" accepts, beyond the
 // connection flags that every command takes.
 var commandFlags = map[string][]string{
-	"items list":        {"status", "search", "cursor", "sort", "limit"},
+	"items list":        {"status", "search", "page", "sort", "limit"},
 	"items get":         {"item"},
 	"items create":      {"title", "idempotency-key"},
 	"items update":      {"item", "version", "set-title", "set-status"},
 	"items delete":      {"item", "version"},
-	"clients list":      {"archived", "filter", "sort", "cursor", "limit"},
+	"clients list":      {"archived", "filter", "sort", "page", "limit"},
 	"clients show":      {"client"},
 	"clients create":    {"display-name", "email", "phone", "notes"},
 	"clients edit":      {"client", "version", "set-display-name", "set-email", "set-phone", "set-notes"},
@@ -108,7 +108,7 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 	title := flags.String("title", "", "item title")
 	status := flags.String("status", "", "item status")
 	search := flags.String("search", "", "case-insensitive title substring")
-	cursor := flags.String("cursor", "", "page cursor")
+	page := flags.String("page", "", "1-based page number")
 	defaultSort := ""
 	if resource == "items" {
 		defaultSort = "-created_at"
@@ -176,8 +176,8 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 		if *search != "" {
 			query.Set("search", *search)
 		}
-		if *cursor != "" {
-			query.Set("cursor", *cursor)
+		if *page != "" {
+			query.Set("page", *page)
 		}
 		path += "?" + query.Encode()
 	case "items get":
@@ -225,8 +225,8 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 		if *archived != "" {
 			query.Set("archived", *archived)
 		}
-		if *cursor != "" {
-			query.Set("cursor", *cursor)
+		if *page != "" {
+			query.Set("page", *page)
 		}
 		for _, filter := range filters {
 			query.Add("filter", filter)

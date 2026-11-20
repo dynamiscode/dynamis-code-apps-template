@@ -12,6 +12,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"example.com/dynamis-code/apps-template/internal/i18n"
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/items"
+	"example.com/dynamis-code/apps-template/internal/listprefs"
+	"example.com/dynamis-code/apps-template/internal/platform/config"
+	"example.com/dynamis-code/apps-template/internal/platform/database"
+	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
+	"example.com/dynamis-code/apps-template/internal/portability"
+	"example.com/dynamis-code/apps-template/internal/sharing"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -26,16 +36,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"example.com/dynamis-code/apps-template/internal/i18n"
-	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
-	"example.com/dynamis-code/apps-template/internal/listprefs"
-	"example.com/dynamis-code/apps-template/internal/platform/config"
-	"example.com/dynamis-code/apps-template/internal/platform/database"
-	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
-	"example.com/dynamis-code/apps-template/internal/portability"
-	"example.com/dynamis-code/apps-template/internal/sharing"
 )
 
 func TestRenderCallSitesUseTemplSwitchCases(t *testing.T) {
@@ -138,7 +138,7 @@ func TestMFAOptionsRenderAsJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	var body bytes.Buffer
-	data := pageData{
+	data := viewmodel.PageData{
 		Locale: "en", Catalog: catalog,
 		MFAOptions: json.RawMessage(`{"publicKey":{"challenge":"abc"},"label":"</script><script>alert(1)</script>"}`),
 	}
@@ -340,7 +340,7 @@ func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
 		t.Fatalf("home status = %d; workspace missing", home.Code)
 	}
 	path := "/workspaces/" + workspaceID.String() + "/items"
-	page := request(handler, http.MethodGet, path, nil, cookies, nil)
+	page := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil)
 	assertAccessiblePage(t, page.Body.String(), "New item title")
 	if !strings.Contains(page.Body.String(), `hx-target="#item-list"`) {
 		t.Fatal("item page lacks targeted HTMX enhancement")
@@ -653,7 +653,7 @@ func TestAccountSecurityPagesUseSharedBrandAndRequireDeletionConfirmation(t *tes
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 
 	for _, path := range []string{"/account", "/settings/language", "/sessions", "/security"} {
-		response := request(handler, http.MethodGet, path, nil, cookies, nil)
+		response := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil)
 		body := response.Body.String()
 		if response.Code != http.StatusOK || !hasHTMLRootLang(body, "es") || !strings.Contains(body, `data-theme="dark"`) {
 			t.Errorf("%s = %d with Spanish/dark preferences: %s", path, response.Code, body)
@@ -810,7 +810,7 @@ func TestSessionsPageExpiredAndSpanishEmptyStates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data := pageData{Locale: "es", Theme: "dark", Catalog: catalog, Title: "Sessions"}
+	data := viewmodel.PageData{Locale: "es", Theme: "dark", Catalog: catalog, Title: "Sessions"}
 	data.Sessions = []identity.Session{{
 		ID: "expired-session", AuthMethod: "local",
 		CreatedAt: time.Now().Add(-2 * time.Hour), ExpiresAt: time.Now().Add(-time.Hour),
@@ -1061,7 +1061,7 @@ func TestBrowserPagesRenderSpanishDocuments(t *testing.T) {
 		"/workspaces/" + workspaceID.String() + "/settings/import", "/settings/language", "/sessions", "/security",
 	}
 	for _, path := range paths {
-		response := requestFrom(handler, http.MethodGet, path, nil, cookies, map[string]string{"Accept-Language": "en"}, "example.com", "192.0.2.1:1234")
+		response := requestFrom(handler, http.MethodGet, path+"?all=1", nil, cookies, map[string]string{"Accept-Language": "en"}, "example.com", "192.0.2.1:1234")
 		body := response.Body.String()
 		if response.Code != http.StatusOK || response.Header().Get("Content-Language") != "es" || !hasHTMLRootLang(body, "es") || strings.Contains(body, "common.") {
 			t.Errorf("%s = %d language=%q body=%s", path, response.Code, response.Header().Get("Content-Language"), body)
@@ -1502,7 +1502,7 @@ func TestAuditHistoryUsesProfileLocaleAndThemes(t *testing.T) {
 		}, identity.AuditContext{}); err != nil {
 			t.Fatal(err)
 		}
-		response := request(handler, http.MethodGet, path, nil, cookies, nil)
+		response := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil)
 		body := response.Body.String()
 		spanish := hasHTMLRootLang(body, "es")
 		localized := response.Header().Get("Content-Language") == "es"
@@ -1520,7 +1520,7 @@ func TestAuditTableRendersEmptyStateInBothLocales(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, locale := range []string{"en", "es"} {
-		data := pageData{Locale: locale, Catalog: catalog}
+		data := viewmodel.PageData{Locale: locale, Catalog: catalog}
 		var output strings.Builder
 		if err := auditTable(data).Render(context.Background(), &output); err != nil {
 			t.Fatalf("render empty audit table for locale %q: %v", locale, err)
@@ -1566,7 +1566,7 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	path := "/workspaces/" + workspaceID.String() + "/settings/provisioning"
 
-	page := request(handler, http.MethodGet, path, nil, cookies, nil)
+	page := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil)
 	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" ||
 		!strings.Contains(page.Body.String(), "http://example.com/scim/v2/"+workspaceID.String()) ||
 		strings.Contains(page.Body.String(), "/assets/app.js") || strings.Contains(page.Body.String(), "data-webmcp-page") {
@@ -1610,7 +1610,7 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	adminCookies := []*http.Cookie{{Name: "session", Value: adminSession.Secret}, {Name: "csrf", Value: adminSession.CSRFSecret}}
-	if adminPage := request(handler, http.MethodGet, path, nil, adminCookies, nil); adminPage.Code != http.StatusForbidden {
+	if adminPage := request(handler, http.MethodGet, path+"?all=1", nil, adminCookies, nil); adminPage.Code != http.StatusForbidden {
 		t.Fatalf("SCIM member page = %d", adminPage.Code)
 	}
 	ownerPrincipal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.MembersManage)
@@ -1633,7 +1633,7 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 	if err := auth.ChangeMemberRole(context.Background(), ownerPrincipal, memberID, identity.Admin, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
-	if adminPage := request(handler, http.MethodGet, path, nil, adminCookies, nil); adminPage.Code != http.StatusOK {
+	if adminPage := request(handler, http.MethodGet, path+"?all=1", nil, adminCookies, nil); adminPage.Code != http.StatusOK {
 		t.Fatalf("SCIM admin page = %d", adminPage.Code)
 	}
 	adminCreated := request(handler, http.MethodPost, path, url.Values{
@@ -1659,7 +1659,7 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 		t.Fatalf("admin-revoked SCIM credential = %v", err)
 	}
 
-	page = request(handler, http.MethodGet, path, nil, cookies, nil)
+	page = request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil)
 	if strings.Contains(page.Body.String(), secret) || strings.Contains(page.Body.String(), adminSecret) || strings.Contains(page.Body.String(), "SCIMTokenSecret") {
 		t.Fatal("SCIM GET exposed a one-time secret")
 	}
@@ -1823,7 +1823,7 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 			t.Errorf("%s lacks primary navigation or current-page state", page.path)
 		}
 	}
-	itemsBody := request(handler, http.MethodGet, workspaceRoot+"/items", nil, cookies, nil).Body.String()
+	itemsBody := request(handler, http.MethodGet, workspaceRoot+"/items"+"?all=1", nil, cookies, nil).Body.String()
 	if strings.Contains(itemsBody, `Members &amp; invitations`) || strings.Contains(itemsBody, `API tokens`) || strings.Contains(itemsBody, `>Export<`) || !strings.Contains(itemsBody, `<a class="sidebar-back" href="/">← Workspaces</a>`) {
 		t.Error("items context has incorrect navigation")
 	}
@@ -1857,7 +1857,7 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 	if _, err := itemService.Create(context.Background(), principal, workspaceID, "Navigation item", "navigation-key", identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
-	body := request(handler, http.MethodGet, workspaceRoot+"/items", nil, cookies, nil).Body.String()
+	body := request(handler, http.MethodGet, workspaceRoot+"/items"+"?all=1", nil, cookies, nil).Body.String()
 	for _, required := range []string{
 		`aria-label="Save Navigation item"`,
 		`data-confirm="Permanently delete this item? This action cannot be undone."`,
@@ -2680,7 +2680,7 @@ func TestSingleModeHidesWorkspaceListNavigation(t *testing.T) {
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
 	workspaceRoot := "/workspaces/" + workspaceID.String()
 	for _, path := range []string{workspaceRoot + "/items", workspaceRoot + "/settings/members", workspaceRoot + "/settings/tokens", workspaceRoot + "/settings/provisioning", workspaceRoot + "/settings/import"} {
-		response := request(handler, http.MethodGet, path, nil, cookies, nil)
+		response := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil)
 		if response.Code != http.StatusOK {
 			t.Errorf("%s = %d in single mode; want 200", path, response.Code)
 		}
@@ -2690,13 +2690,13 @@ func TestSingleModeHidesWorkspaceListNavigation(t *testing.T) {
 		}
 	}
 	for _, path := range []string{workspaceRoot + "/items", workspaceRoot + "/settings/members"} {
-		body := request(handler, http.MethodGet, path, nil, cookies, nil).Body.String()
+		body := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil).Body.String()
 		if !strings.Contains(body, `<span class="workspace-name">`) {
 			t.Errorf("%s lacks plain-text workspace name in single mode", path)
 		}
 	}
 	for _, path := range []string{"/account", workspaceRoot + "/settings/audit", workspaceRoot + "/settings/export"} {
-		body := request(handler, http.MethodGet, path, nil, cookies, nil).Body.String()
+		body := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil).Body.String()
 		if !strings.Contains(body, `<a href="`+workspaceRoot+`">Workspaces</a>`) {
 			t.Errorf("%s crumb does not point to the default workspace home in single mode", path)
 		}
@@ -2708,7 +2708,7 @@ func TestMultiModeKeepsWorkspaceListNavigation(t *testing.T) {
 		h.SetWorkspaceMode(config.WorkspaceModeMulti)
 	})
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
-	body := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/items", nil, cookies, nil).Body.String()
+	body := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/items"+"?all=1", nil, cookies, nil).Body.String()
 	if !strings.Contains(body, `class="workspace-switcher"`) || !strings.Contains(body, `<a class="sidebar-back" href="/">← Workspaces</a>`) {
 		t.Error("multi-mode items page lost workspace list navigation")
 	}

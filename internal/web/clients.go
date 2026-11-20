@@ -1,29 +1,23 @@
 package web
 
 import (
+	"context"
 	"errors"
-	"net/http"
-	"net/url"
-	"slices"
-	"strconv"
-	"strings"
-	"time"
-	"unicode/utf8"
-
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
+	"example.com/dynamis-code/apps-template/internal/listviews"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"github.com/a-h/templ"
+	"net/http"
+	"net/url"
+	"strconv"
 )
 
 type clientFilterOperator struct {
 	Key      string
 	LabelKey string
-}
-
-type clientFilterField struct {
-	Key, Label, LabelKey string
 }
 
 // EnableClients mounts the Clients pages. Handlers built without it have no
@@ -32,6 +26,12 @@ func (h *Handler) EnableClients(service *clients.Service, preferences *listprefs
 	h.clients = service
 	h.clientsEnabled = service != nil
 	h.listPreferences = preferences
+	if service != nil {
+		h.registerListColumns(listviews.ListClients, func(ctx context.Context, principal identity.Principal, workspaceID identity.WorkspaceID) ([]viewmodel.ListColumn, error) {
+			fields, err := service.ListFields(ctx, principal, workspaceID, clients.ListFieldsInput{})
+			return clientColumns(fields), err
+		})
+	}
 }
 
 func (h *Handler) clientsPath(workspaceID identity.WorkspaceID) string {
@@ -78,7 +78,7 @@ func (h *Handler) setClientColumn(writer http.ResponseWriter, request *http.Requ
 		h.clientError(writer, request, err)
 		return
 	}
-	h.redirect(writer, request, h.clientsPath(workspaceID)+clientQuerySuffix(request.URL.Query()))
+	h.afterListChange(writer, request, h.clientsPath(workspaceID)+clientQuerySuffix(request.URL.Query()), h.rerenderClients)
 }
 
 func (h *Handler) resetClientColumns(writer http.ResponseWriter, request *http.Request) {
@@ -95,7 +95,7 @@ func (h *Handler) resetClientColumns(writer http.ResponseWriter, request *http.R
 		h.clientError(writer, request, err)
 		return
 	}
-	h.redirect(writer, request, h.clientsPath(workspaceID)+clientQuerySuffix(request.URL.Query()))
+	h.afterListChange(writer, request, h.clientsPath(workspaceID)+clientQuerySuffix(request.URL.Query()), h.rerenderClients)
 }
 
 func (h *Handler) renderClientList(
@@ -120,7 +120,12 @@ func (h *Handler) renderClientList(
 		h.clientError(writer, request, err)
 		return
 	}
-	form, valid := clientQueryFromValues(query, fields)
+	choices, err := h.clientFilterChoices(request, principal, workspaceID, fields)
+	if err != nil {
+		h.clientError(writer, request, err)
+		return
+	}
+	form, valid := clientQueryFromValues(query, fields, choices)
 	if !valid {
 		status, errorKey = http.StatusBadRequest, "clients.query_invalid"
 	}
@@ -128,17 +133,30 @@ func (h *Handler) renderClientList(
 	if form.Limit > 0 {
 		limit = form.Limit
 	}
-	page, err := h.clients.List(request.Context(), principal, workspaceID,
-		form.listInput(limit, query.Get("cursor")))
-	if errors.Is(err, clients.ErrInvalidQuery) {
+	lazy := listLazyRequest(request)
+	if lazy && !clients.ValidArchivedSelector(query.Get("archived")) {
+		// A lazy page does not read the rows, so it checks the selector here, where the service would refuse it.
+		status, errorKey = http.StatusBadRequest, "clients.query_invalid"
+	}
+	pageNumber := listPageNumber(query)
+	var page clients.Page
+	if !lazy {
+		page, err = h.clients.List(request.Context(), principal, workspaceID,
+			form.ListInput(limit, pageNumber))
+	}
+	if errors.Is(err, clients.ErrInvalidQuery) || errors.Is(err, clients.ErrInvalidInput) {
 		status, errorKey, page = http.StatusBadRequest, "clients.query_invalid", clients.Page{}
-	} else if errors.Is(err, clients.ErrInvalidCursor) {
-		status, errorKey, page = http.StatusBadRequest, "clients.cursor_invalid", clients.Page{}
 	} else if err != nil {
 		h.clientError(writer, request, err)
 		return
 	}
 	columns := clientColumns(fields)
+	var orderErr error
+	columns, orderErr = h.orderListColumns(request, principal, workspaceID, listprefs.ListClients, columns)
+	if orderErr != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	}
 	defaults := make(map[string]bool, len(columns))
 	for _, column := range columns {
 		defaults[column.Key] = column.DefaultVisible
@@ -161,19 +179,15 @@ func (h *Handler) renderClientList(
 			}
 		}
 	}
-	rows, err := h.clientListRows(request, principal, workspaceID, page.Clients, fields, visible)
-	if err != nil {
-		h.clientError(writer, request, err)
-		return
+	var rows []viewmodel.ListRow
+	if !lazy {
+		rows, err = h.clientListRows(request, principal, workspaceID, page.Clients, fields, visible)
+		if err != nil {
+			h.clientError(writer, request, err)
+			return
+		}
 	}
-	filterChips := clientFilterChips(form.Filters, fields, visible, query, h.clientsPath(workspaceID))
-	filtersToPreserve := form.Filters
-	if form.FilterField != "" {
-		filtersToPreserve = slices.DeleteFunc(slices.Clone(form.Filters), func(filter clients.FilterInput) bool {
-			return filter.Field == form.FilterField
-		})
-	}
-	filterOperators := clientFilterOperators(form.FilterField, fields)
+	filterView := buildListFilterView(h.clientsPath(workspaceID), query, clientListFilterFields(fields, choices), form.Filter)
 	hiddenSort := ""
 	hiddenSortLabelKey := ""
 	for _, column := range columns {
@@ -182,20 +196,7 @@ func (h *Handler) renderClientList(
 			hiddenSortLabelKey = column.LabelKey
 		}
 	}
-	filterOptions, err := h.choiceOptionsFor(request, principal, workspaceID, fields, form.FilterField)
-	if err != nil {
-		h.clientError(writer, request, err)
-		return
-	}
-	nextPath := ""
-	if page.NextCursor != "" {
-		next := url.Values{}
-		for key, values := range query {
-			next[key] = values
-		}
-		next.Set("cursor", page.NextCursor)
-		nextPath = request.URL.Path + "?" + next.Encode()
-	}
+	pager := newListPager(request.URL.Path, query, pageNumber, limit, page.Total)
 	clearFilters := clientClearFiltersPath(h.clientsPath(workspaceID), query)
 	querySuffix := clientQuerySuffix(query)
 	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
@@ -204,33 +205,51 @@ func (h *Handler) renderClientList(
 		return
 	}
 	component := clientsPage
-	if request.Header.Get("HX-Request") == "true" {
+	switch {
+	case listResultsFragment(request):
+		component = clientResults
+	case request.Header.Get("HX-Request") == "true":
 		// A realtime refresh swaps only the list section, as the Items list does.
 		component = clientList
 	}
-	h.renderClientPage(writer, request, status, component, pageData{
-		Title: "Clients", ErrorKey: errorKey, CSRF: csrf,
+	var resultsSrc, fullHref string
+	if lazy {
+		resultsSrc, fullHref = listResultsURLs(h.clientsPath(workspaceID), query)
+	}
+	if h.openDefaultListView(writer, request, listviews.ListClients, principal, workspaceID) {
+		return
+	}
+	archivedCount, err := h.clients.CountArchived(request.Context(), principal, workspaceID)
+	if err != nil {
+		h.clientError(writer, request, err)
+		return
+	}
+	archived := query.Get("archived") != "" && query.Get("archived") != clients.ArchivedActive
+	view := h.listViewState(request, principal, workspaceID, listviews.ListClients, archived)
+	h.renderClientPage(writer, request, status, component, viewmodel.PageData{
+		Title: "Clients", TopbarTitleKey: "clients.title", ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		NavPage: "clients", NavSection: "clients",
 		CurrentPath: h.clientsPath(workspaceID),
-		Clients:     page.Clients, NextCursor: page.NextCursor, NextPath: nextPath,
-		ClientQuery: form, ClientQueryFields: fields, ClientFilterOptions: filterOptions,
-		ClientFilterFields:    clientFilterFields(fields, form.Filters),
-		ClientFilterValueType: clientFilterValueType(form.FilterField, fields),
-		ClientListColumns:     columns, ClientListRows: rows, ClientFilterChips: filterChips,
-		HasVisibleClientColumns: hasVisibleClientColumns(visible), HasClientFilters: len(form.Filters) > 0,
-		ClientFiltersToPreserve: filtersToPreserve, ClientFilterOperators: filterOperators,
-		ClientCanAddFilter: len(form.Filters) < 20, HiddenClientSort: hiddenSort,
+		Clients:     page.Clients, ListPager: pager,
 		HiddenClientSortLabelKey: hiddenSortLabelKey,
-		ClearClientFiltersPath:   clearFilters, ClientQuerySuffix: querySuffix,
-		CanEditClients:  principal.Permissions[identity.ResourcesWrite],
-		ClientDraft:     draft,
-		FieldsPath:      h.clientFieldsPath(workspaceID),
-		CanManageFields: principal.Permissions[identity.WorkspaceUpdate],
+		ClientQuery:              form, ClientQueryFields: fields,
+		ListColumns: columns, ListRows: rows, ListTotal: page.Total, ListStart: listStart(pageNumber, limit), Filter: filterView,
+		ClientPreservedQuery: clientPreservedQuery(query), ListPreservedQuery: filterView.Preserved,
+		ListLazy: lazy, ListResultsSrc: resultsSrc, ListFullHref: fullHref, ListLive: true, ListSearch: form.Search, ListFragment: listResultsFragment(request), ListViews: view.Views, ListViewQuery: view.Query, ListViewBase: view.Base, ListViewRoute: view.Route, ListViewCanShare: view.CanShare, ListViewSaveReason: view.SaveReason, ArchivedClientCount: archivedCount,
+		HasVisibleClientColumns: hasVisibleClientColumns(visible), HasClientFilters: len(form.Filters) > 0,
+		HiddenClientSort:       hiddenSort,
+		ClearClientFiltersPath: clearFilters, ClientQuerySuffix: querySuffix,
+		CanEditClients:   principal.Permissions[identity.ResourcesWrite],
+		ListSelectable:   principal.Permissions[identity.ResourcesWrite],
+		CanDeleteClients: principal.Permissions[identity.WorkspaceUpdate],
+		ClientDraft:      draft,
+		FieldsPath:       h.clientFieldsPath(workspaceID),
+		CanManageFields:  principal.Permissions[identity.WorkspaceUpdate],
 	})
 }
 
-func (h *Handler) renderClientPage(writer http.ResponseWriter, request *http.Request, status int, component func(pageData) templ.Component, data pageData) {
+func (h *Handler) renderClientPage(writer http.ResponseWriter, request *http.Request, status int, component func(viewmodel.PageData) templ.Component, data viewmodel.PageData) {
 	data.FilesEnabled = h.filesEnabled
 	data.ClientsEnabled = h.clientsEnabled
 	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
@@ -246,7 +265,7 @@ func clientDraftHasInput(draft clients.Input) bool {
 	return draft.DisplayName != "" || draft.Email != "" || draft.Phone != "" || draft.Notes != ""
 }
 
-func clientValueDisplay(data pageData, value clientValueRow) string {
+func clientValueDisplay(data viewmodel.PageData, value viewmodel.ClientValueRow) string {
 	if value.Value == nil {
 		return data.T("clients.value_none")
 	}
@@ -342,7 +361,7 @@ func (h *Handler) renderClientDetail(
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.renderClientPage(writer, request, status, clientDetailPage, pageData{
+	h.renderClientPage(writer, request, status, clientDetailPage, viewmodel.PageData{
 		Title: client.DisplayName, ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		NavPage: "clients", NavSection: "clients",
@@ -477,114 +496,18 @@ func (h *Handler) clientError(writer http.ResponseWriter, _ *http.Request, err e
 	}
 }
 
-// clientQueryForm holds the list's GET form values. The web list maps them to
-// one sort and at most one filter. A filter with no value is not applied, so
-// choosing a field shows its options before any value is set. A between filter
-// takes FilterValue and FilterValueTo.
-type clientQueryForm struct {
-	Sort          string
-	Order         string
-	Limit         int
-	FilterField   string
-	FilterOp      string
-	FilterValue   string
-	FilterValueTo string
-	FilterValues  []string
-	Archived      string
-	Filters       []clients.FilterInput
-}
-
-func clientQueryFromValues(query url.Values, fields []clients.Field) (clientQueryForm, bool) {
-	form := clientQueryForm{
-		Sort: query.Get("sort"), Order: query.Get("order"),
-		FilterField: query.Get("filter_field"), FilterOp: query.Get("filter_op"),
-		FilterValue: query.Get("filter_value"), FilterValueTo: query.Get("filter_value_to"),
-		FilterValues: query["filter_value"],
-		Archived:     query.Get("archived"),
-	}
-	for _, key := range []string{"sort", "order", "archived", "limit", "cursor", "filter_field", "filter_op", "filter_value_to"} {
-		if len(query[key]) > 1 {
-			return form, false
-		}
-	}
-	for key := range query {
-		switch key {
-		case "sort", "order", "archived", "limit", "cursor", "filter_field", "filter_op", "filter_value", "filter_value_to", "filter", "filter_error":
-		default:
-			return form, false
-		}
-	}
-	if form.Order != "" && form.Order != "asc" && form.Order != "desc" || form.Order == "desc" && form.Sort == "" {
-		return form, false
-	}
-	if raw := query.Get("limit"); raw != "" {
-		limit, err := strconv.Atoi(raw)
-		if err != nil || limit < 1 || limit > 100 {
-			return form, false
-		}
-		form.Limit = limit
-	}
-	seen := map[string]bool{}
-	for _, raw := range query["filter"] {
-		parts := strings.SplitN(raw, ":", 3)
-		if len(parts) != 3 || parts[0] == "" || utf8.RuneCountInString(raw) > 1024 || seen[parts[0]] {
-			return form, false
-		}
-		seen[parts[0]] = true
-		form.Filters = append(form.Filters, clients.FilterInput{Field: parts[0], Op: parts[1], Value: parts[2]})
-	}
-	if len(form.Filters) > 20 {
-		return form, false
-	}
-	if form.FilterField != "" {
-		if seen[form.FilterField] || len(form.Filters) == 20 {
-			return form, false
-		}
-		op := form.FilterOp
-		if op == "" {
-			op = clients.OpEquals
-		}
-		value := form.FilterValue
-		if len(form.FilterValues) > 1 {
-			if !clientChoiceField(form.FilterField, fields) {
-				return form, false
-			}
-			value = strings.Join(form.FilterValues, ",")
-		}
-		if op == clients.OpBetween {
-			value += "," + form.FilterValueTo
-		}
-		if utf8.RuneCountInString(form.FilterField+":"+op+":"+value) > 1024 {
-			return form, false
-		}
-		if op == clients.OpIsEmpty || value != "" {
-			form.Filters = append(form.Filters, clients.FilterInput{Field: form.FilterField, Op: op, Value: value})
-			form.FilterField, form.FilterOp, form.FilterValue, form.FilterValueTo = "", "", "", ""
-		}
-	}
-	return form, true
-}
-
-func (form clientQueryForm) listInput(limit int, cursor string) clients.ListInput {
-	input := clients.ListInput{Limit: limit, Cursor: cursor, Archived: form.Archived}
-	if form.Sort != "" {
-		input.Sort = clients.SortInput{Field: form.Sort, Descending: form.Order == "desc"}
-	}
-	input.Filters = form.Filters
-	return input
-}
-
-func clientColumns(fields []clients.Field) []clientListColumn {
-	columns := []clientListColumn{
-		{Key: clients.FieldDisplayName, LabelKey: "clients.display_name", ValueType: clients.FieldTypeText, DefaultVisible: true},
-		{Key: clients.FieldEmail, LabelKey: "common.email", ValueType: clients.FieldTypeText, DefaultVisible: true},
-		{Key: clients.FieldPhone, LabelKey: "clients.phone", ValueType: clients.FieldTypeText},
-		{Key: clients.FieldNotes, LabelKey: "clients.notes", ValueType: clients.FieldTypeText},
-		{Key: clients.FieldCreatedAt, LabelKey: "clients.created_at", ValueType: "timestamp"},
-		{Key: clients.FieldUpdatedAt, LabelKey: "clients.updated_at", ValueType: "timestamp"},
+func clientColumns(fields []clients.Field) []viewmodel.ListColumn {
+	columns := []viewmodel.ListColumn{
+		{Key: clients.FieldDisplayName, LabelKey: "clients.display_name", DefaultVisible: true},
+		{Key: "id", LabelKey: "ui.id"},
+		{Key: clients.FieldEmail, LabelKey: "common.email", DefaultVisible: true},
+		{Key: clients.FieldPhone, LabelKey: "clients.phone"},
+		{Key: clients.FieldNotes, LabelKey: "clients.notes"},
+		{Key: clients.FieldCreatedAt, LabelKey: "clients.created_at"},
+		{Key: clients.FieldUpdatedAt, LabelKey: "clients.updated_at"},
 	}
 	for _, field := range fields {
-		columns = append(columns, clientListColumn{Key: field.ID.String(), Label: field.Label, ValueType: field.Type})
+		columns = append(columns, viewmodel.ListColumn{Key: field.ID.String(), Label: field.Label})
 	}
 	return columns
 }
@@ -596,7 +519,7 @@ func (h *Handler) clientListRows(
 	clientsPage []clients.Client,
 	fields []clients.Field,
 	visible map[string]bool,
-) ([]clientListRow, error) {
+) ([]viewmodel.ListRow, error) {
 	clientIDs := make([]clients.ClientID, len(clientsPage))
 	for i, client := range clientsPage {
 		clientIDs[i] = client.ID
@@ -623,34 +546,46 @@ func (h *Handler) clientListRows(
 			choiceLabels[field.ID.String()][option.ID.String()] = option.Label
 		}
 	}
-	rows := make([]clientListRow, 0, len(clientsPage))
+	rows := make([]viewmodel.ListRow, 0, len(clientsPage))
 	for i, client := range clientsPage {
-		values := map[string]string{
-			clients.FieldDisplayName: client.DisplayName,
-			clients.FieldEmail:       blankDash(client.Email),
-			clients.FieldPhone:       blankDash(client.Phone),
-			clients.FieldNotes:       blankDash(client.Notes),
-			clients.FieldCreatedAt:   client.CreatedAt.Format(time.RFC3339),
-			clients.FieldUpdatedAt:   client.UpdatedAt.Format(time.RFC3339),
-		}
-		for fieldID, value := range customValues[client.ID] {
-			if label := choiceLabels[fieldID][value]; label != "" {
-				value = label
-			}
-			values[fieldID] = blankDash(value)
+		cells := map[string]viewmodel.ListCell{
+			clients.FieldDisplayName: viewmodel.TextCell(client.DisplayName),
+			clients.FieldEmail:       viewmodel.TextCell(blankDash(client.Email)),
+			clients.FieldPhone:       viewmodel.TextCell(blankDash(client.Phone)),
+			clients.FieldNotes:       viewmodel.TextCell(blankDash(client.Notes)),
+			clients.FieldCreatedAt:   viewmodel.TimeCell(client.CreatedAt),
+			clients.FieldUpdatedAt:   viewmodel.TimeCell(client.UpdatedAt),
 		}
 		for _, field := range fields {
-			if values[field.ID.String()] == "" {
-				values[field.ID.String()] = "—"
+			if !visible[field.ID.String()] {
+				continue
 			}
+			value := customValues[client.ID][field.ID.String()]
+			if label := choiceLabels[field.ID.String()][value]; label != "" {
+				value = label
+			}
+			cells[field.ID.String()] = clientFieldCell(field.Type, value)
 		}
-		row := clientListRow{ID: client.ID.String(), Values: values, ActionPosition: i + 1}
+		row := viewmodel.ListRow{ID: client.ID.String(), Cells: cells, ActionPosition: i + 1, Archived: client.ArchivedAt != nil}
 		if visible[clients.FieldDisplayName] {
 			row.ActionContext = client.DisplayName
 		}
 		rows = append(rows, row)
 	}
 	return rows, nil
+}
+
+// clientFieldCell types a custom field's stored value. A yes/no field shows yes or no; an empty value shows a dash.
+func clientFieldCell(fieldType, value string) viewmodel.ListCell {
+	if fieldType == clients.FieldTypeYesNo {
+		switch value {
+		case "true":
+			return viewmodel.YesNoCell(true)
+		case "false":
+			return viewmodel.YesNoCell(false)
+		}
+	}
+	return viewmodel.TextCell(blankDash(value))
 }
 
 func hasVisibleCustomColumn(fields []clients.Field, visible map[string]bool) bool {
@@ -671,7 +606,7 @@ func blankDash(value string) string {
 
 func clientClearFiltersPath(path string, query url.Values) string {
 	copy := cloneClientQuery(query)
-	for _, key := range []string{"filter", "filter_field", "filter_op", "filter_value", "filter_value_to", "cursor"} {
+	for _, key := range []string{"filter", "filter_field", "filter_op", "filter_value", "filter_value_to", "page"} {
 		copy.Del(key)
 	}
 	if encoded := copy.Encode(); encoded != "" {
@@ -680,9 +615,9 @@ func clientClearFiltersPath(path string, query url.Values) string {
 	return path
 }
 
-func clientSortHref(path string, query url.Values, field string, form clientQueryForm) string {
+func clientSortHref(path string, query url.Values, field string, form viewmodel.ClientQueryForm) string {
 	copy := cloneClientQuery(query)
-	copy.Del("cursor")
+	copy.Del("page")
 	copy.Del("sort")
 	copy.Del("order")
 	switch {
@@ -699,68 +634,7 @@ func clientSortHref(path string, query url.Values, field string, form clientQuer
 	return path
 }
 
-func clientFilterChips(filters []clients.FilterInput, fields []clients.Field, visible map[string]bool, query url.Values, path string) []clientFilterChip {
-	labels := make(map[string]string, len(fields))
-	for _, field := range fields {
-		labels[field.ID.String()] = field.Label
-	}
-	chips := make([]clientFilterChip, 0, len(filters))
-	for index, filter := range filters {
-		label, labelKey := labels[filter.Field], ""
-		if label == "" {
-			labelKey = map[string]string{
-				clients.FieldDisplayName: "clients.display_name", clients.FieldEmail: "common.email",
-				clients.FieldPhone: "clients.phone", clients.FieldNotes: "clients.notes",
-				clients.FieldCreatedAt: "clients.created_at", clients.FieldUpdatedAt: "clients.updated_at",
-			}[filter.Field]
-		}
-		copy := cloneClientQuery(query)
-		remaining := make([]string, 0, len(filters)-1)
-		for i, other := range filters {
-			if i == index {
-				continue
-			}
-			remaining = append(remaining, other.Field+":"+other.Op+":"+other.Value)
-		}
-		copy.Del("filter")
-		copy.Del("filter_field")
-		copy.Del("filter_op")
-		copy.Del("filter_value")
-		copy.Del("filter_value_to")
-		copy.Del("cursor")
-		if len(remaining) > 0 {
-			copy["filter"] = remaining
-		}
-		href := path
-		if encoded := copy.Encode(); encoded != "" {
-			href += "?" + encoded
-		}
-		chips = append(chips, clientFilterChip{FieldLabel: label, FieldLabelKey: labelKey,
-			OperatorLabelKey: clientOperatorLabelKey(filter.Op), Value: filter.Value,
-			RemoveHref: href, Hidden: !visible[filter.Field]})
-	}
-	return chips
-}
-
-func clientColumnVisibilityValue(visible bool) string {
-	return strconv.FormatBool(!visible)
-}
-
-func clientColumnLabelText(data pageData, column clientListColumn) string {
-	if column.LabelKey != "" {
-		return data.T(column.LabelKey)
-	}
-	return column.Label
-}
-
-func clientFilterFieldLabelText(data pageData, label, key string) string {
-	if key != "" {
-		return data.T(key)
-	}
-	return label
-}
-
-func clientListOpenLabel(data pageData, row clientListRow) string {
+func clientListOpenLabel(data viewmodel.PageData, row viewmodel.ListRow) string {
 	label := data.T("clients.open")
 	if row.ActionContext != "" {
 		return label + " " + row.ActionContext
@@ -768,12 +642,12 @@ func clientListOpenLabel(data pageData, row clientListRow) string {
 	return label + " " + data.T("clients.row_number") + " " + strconv.Itoa(row.ActionPosition)
 }
 
-func clientOperatorLabelKey(operator string) string {
-	return map[string]string{
-		clients.OpEquals: "clients.op_equals", clients.OpContains: "clients.op_contains",
-		clients.OpBefore: "clients.op_before", clients.OpAfter: "clients.op_after",
-		clients.OpBetween: "clients.op_between", clients.OpIsEmpty: "clients.op_is_empty",
-	}[operator]
+// clientPageLimit is the effective page size: the default of 50 when none is set.
+func clientPageLimit(limit int) int {
+	if limit == 0 {
+		return 50
+	}
+	return limit
 }
 
 func clientFilterOperators(field string, fields []clients.Field) []clientFilterOperator {
@@ -795,71 +669,4 @@ func clientFilterOperators(field string, fields []clients.Field) []clientFilterO
 		operators = append(operators, clientFilterOperator{Key: clients.OpContains, LabelKey: "clients.op_contains"})
 	}
 	return append(operators, clientFilterOperator{Key: clients.OpIsEmpty, LabelKey: "clients.op_is_empty"})
-}
-
-func clientFilterFields(fields []clients.Field, filters []clients.FilterInput) []clientFilterField {
-	used := make(map[string]bool, len(filters))
-	for _, filter := range filters {
-		used[filter.Field] = true
-	}
-	all := []clientFilterField{
-		{Key: clients.FieldDisplayName, LabelKey: "clients.display_name"},
-		{Key: clients.FieldEmail, LabelKey: "common.email"},
-		{Key: clients.FieldPhone, LabelKey: "clients.phone"},
-		{Key: clients.FieldNotes, LabelKey: "clients.notes"},
-		{Key: clients.FieldCreatedAt, LabelKey: "clients.created_at"},
-		{Key: clients.FieldUpdatedAt, LabelKey: "clients.updated_at"},
-	}
-	for _, field := range fields {
-		all = append(all, clientFilterField{Key: field.ID.String(), Label: field.Label})
-	}
-	available := make([]clientFilterField, 0, len(all))
-	for _, field := range all {
-		if !used[field.Key] {
-			available = append(available, field)
-		}
-	}
-	return available
-}
-
-func clientChoiceField(field string, fields []clients.Field) bool {
-	for _, custom := range fields {
-		if custom.ID.String() == field {
-			return custom.Type == clients.FieldTypeSingleChoice
-		}
-	}
-	return false
-}
-
-func clientFilterValueType(field string, fields []clients.Field) string {
-	for _, custom := range fields {
-		if custom.ID.String() == field {
-			switch custom.Type {
-			case clients.FieldTypeNumber:
-				return "number"
-			case clients.FieldTypeDate:
-				return "date"
-			case clients.FieldTypeYesNo:
-				return "boolean"
-			}
-		}
-	}
-	return "text"
-}
-
-// choiceOptionsFor returns the options of the filtered field when it is a
-// single-choice field, so the form can offer them. Other fields return none.
-func (h *Handler) choiceOptionsFor(
-	request *http.Request,
-	principal identity.Principal,
-	workspaceID identity.WorkspaceID,
-	fields []clients.Field,
-	filterField string,
-) ([]clients.Option, error) {
-	for _, field := range fields {
-		if field.ID.String() == filterField && field.Type == clients.FieldTypeSingleChoice {
-			return h.clients.ListOptions(request.Context(), principal, workspaceID, field.ID)
-		}
-	}
-	return nil, nil
 }
