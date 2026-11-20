@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/chromedp/cdproto/cdp"
@@ -108,9 +109,18 @@ func chromeExecPath() string {
 
 // do runs actions under actionTimeout so a missing element fails instead of hanging.
 func (b *browser) do(steps ...chromedp.Action[chromedp.Void]) error {
-	ctx, cancel := context.WithTimeout(b.ctx, actionTimeout)
-	defer cancel()
-	return chromedp.Do(ctx, steps...)
+	deadline := time.Now().Add(actionTimeout)
+	for {
+		ctx, cancel := context.WithTimeout(b.ctx, actionTimeout)
+		err := chromedp.Do(ctx, steps...)
+		cancel()
+		// A realtime refresh can replace the nodes an action resolved; resolve them again.
+		if err != nil && strings.Contains(err.Error(), "Could not find node") && time.Now().Before(deadline) {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		return err
+	}
 }
 
 // cdpCall runs one DevTools protocol command on the page.

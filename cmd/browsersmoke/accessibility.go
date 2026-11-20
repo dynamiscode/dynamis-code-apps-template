@@ -622,7 +622,8 @@ func (s *a11yRun) workspacePages(wsBase string) error {
 	if err := s.typeText("#client-display-name", "Accessibility client "+s.locale); err != nil {
 		return err
 	}
-	if err := s.click("form.create button[type=submit]"); err != nil {
+	// Submit the form itself: a realtime list refresh can re-render the open menu and strand a button click.
+	if _, err := eval[any](s.browser, `document.querySelector(".client-create form.create").requestSubmit()`); err != nil {
 		return err
 	}
 	if err := s.waitFor("#client-detail"); err != nil {
