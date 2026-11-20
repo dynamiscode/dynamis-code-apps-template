@@ -19,10 +19,6 @@
 .list-filter-chip-remove { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 999px; color: var(--muted); font-size: 1.1rem; line-height: 1; text-decoration: none; }
 .list-filter-chip-remove:hover, .list-filter-chip-remove:focus-visible { background: var(--accent-surface); color: var(--ink); }
 .list-filter-chips .list-filter-add { padding: 0; border: 0; background: none; }
-.list-add-menu { position: relative; }
-.list-add-menu > summary { display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--ink); font-size: 1.25rem; font-weight: 600; line-height: 1; cursor: pointer; list-style: none; }
-.list-add-menu > summary::-webkit-details-marker { display: none; }
-.list-add-menu > summary:hover { background: var(--accent-surface); }
 .list-filter-connector { color: var(--muted); font-size: .75rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .client-field-choices { margin: 0 0 .75rem; padding: 0; list-style: none; border-top: 1px solid var(--border); }
 .client-field-choices li { margin: 0; padding: 0; border: 0; border-bottom: 1px solid var(--border); background: none; }
@@ -69,7 +65,3 @@
 }
 .list-search { display: flex; flex-wrap: nowrap; align-items: center; gap: .5rem; }
 .list-search .input { width: min(22rem, 100%); min-height: 2.25rem; }
-.list-row-menu > summary { display: inline-grid; place-items: center; min-width: 2rem; height: 2rem; border-radius: 999px; list-style: none; cursor: pointer; font-weight: 800; }
-.list-row-menu > summary::-webkit-details-marker { display: none; }
-.list-row-menu > summary:hover { background: var(--accent-surface); }
-.list-row-menu .list-menu-panel { min-width: 12rem; }
