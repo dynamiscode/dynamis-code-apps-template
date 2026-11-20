@@ -237,10 +237,20 @@ func setTheme(t *testing.T, tab context.Context, theme string) {
 // run performs browser actions under actionWait so a missing element fails the test.
 func run(t *testing.T, tab context.Context, steps ...chromedp.Action[chromedp.Void]) {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(tab, actionWait)
-	defer cancel()
-	if err := chromedp.Do(ctx, steps...); err != nil {
-		t.Fatalf("browser action: %v", err)
+	deadline := time.Now().Add(actionWait)
+	for {
+		ctx, cancel := context.WithTimeout(tab, actionWait)
+		err := chromedp.Do(ctx, steps...)
+		cancel()
+		if err == nil {
+			return
+		}
+		// A realtime refresh can replace the nodes an action resolved; resolve them again.
+		if strings.Contains(err.Error(), "Could not find node") && time.Now().Before(deadline) {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		t.Fatalf("browser action: %v%s", err, pageSummary(tab))
 	}
 }
 
@@ -282,7 +292,7 @@ func eventually(t *testing.T, tab context.Context, expr, message string) {
 			return
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("%s (predicate %s, last error %v)", message, expr, err)
+			t.Fatalf("%s (predicate %s, last error %v)%s", message, expr, err, pageSummary(tab))
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -378,4 +388,31 @@ func expectAxeClean(t *testing.T, tab context.Context) {
 func jsString(s string) string {
 	data, _ := json.Marshal(s)
 	return string(data)
+}
+
+// pageSummary describes the current page for a failure message.
+func pageSummary(tab context.Context) string {
+	ctx, cancel := context.WithTimeout(tab, 2*time.Second)
+	defer cancel()
+	location, _ := chromedp.Run(ctx, chromedp.Location())
+	text, _ := chromedp.Run(ctx, chromedp.Evaluate[string](`document.body ? document.body.innerText.slice(0, 600) : ""`))
+	return fmt.Sprintf("\n  page: %s\n  text: %q", location, text)
+}
+
+// settle waits for a page navigation that a click started. A navigation replaces the
+// document, which drops the marker set before the click; with no navigation the marker
+// stays, and the call returns after the grace period.
+func settle(t *testing.T, tab context.Context) {
+	t.Helper()
+	deadline := time.Now().Add(1500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		ctx, cancel := context.WithTimeout(tab, time.Second)
+		marker, err := chromedp.Run(ctx, chromedp.Evaluate[bool](`window.__bt === 1`))
+		cancel()
+		if err != nil || !marker {
+			eventually(t, tab, `document.readyState === "complete"`, "navigation did not finish loading")
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
 }
