@@ -16,18 +16,21 @@ concurrency:
 jobs:
   go:
     if: always()
-    needs: [go-verify, go-race]
+    needs: [go-lint, go-test, go-build, go-checks, go-race]
     runs-on: ubuntu-24.04
     steps:
       - name: Require go-race on merge queue and main
         run: |
-          test '${{ needs.go-verify.result }}' = success
+          test '${{ needs.go-lint.result }}' = success
+          test '${{ needs.go-test.result }}' = success
+          test '${{ needs.go-build.result }}' = success
+          test '${{ needs.go-checks.result }}' = success
           case '${{ github.event_name }}' in
             pull_request) test '${{ needs.go-race.result }}' = success || test '${{ needs.go-race.result }}' = skipped ;;
             *) test '${{ needs.go-race.result }}' = success ;;
           esac
 
-  go-verify:
+  go-lint:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -41,9 +44,81 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.gocache.outputs.dir }}
-          key: gobuild-${{ runner.os }}-go-verify-${{ hashFiles('go.sum') }}
+          key: gobuild-${{ runner.os }}-go-lint-${{ hashFiles('go.sum') }}
           restore-keys: |
-            gobuild-${{ runner.os }}-go-verify-
+            gobuild-${{ runner.os }}-go-lint-
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: make lint
+
+  go-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Resolve Go build cache
+        id: gocache
+        run: echo "dir=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.gocache.outputs.dir }}
+          key: gobuild-${{ runner.os }}-go-test-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            gobuild-${{ runner.os }}-go-test-
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: make test
+
+  go-build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Resolve Go build cache
+        id: gocache
+        run: echo "dir=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.gocache.outputs.dir }}
+          key: gobuild-${{ runner.os }}-go-build-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            gobuild-${{ runner.os }}-go-build-
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: make build
+
+  go-checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Resolve Go build cache
+        id: gocache
+        run: echo "dir=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.gocache.outputs.dir }}
+          key: gobuild-${{ runner.os }}-go-checks-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            gobuild-${{ runner.os }}-go-checks-
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
@@ -58,7 +133,7 @@ jobs:
           # template-smoke runs in its own path-filtered job.
           remaining=$(make -n lint test deps-check workflow-check generate-check templ-check css-check build; make -n template-smoke)
           diff -u <(printf '%s\n' "$verify" | sed '/^go test -race \.\/\.\.\.$/d') <(printf '%s\n' "$remaining")
-      - run: make lint test deps-check workflow-check generate-check templ-check css-check build
+      - run: make deps-check workflow-check generate-check templ-check css-check
 
   template-changes:
     runs-on: ubuntu-24.04
