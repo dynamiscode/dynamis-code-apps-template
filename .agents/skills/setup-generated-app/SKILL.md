@@ -109,7 +109,7 @@ Decision records and `CHANGELOG.md` are history. Do not rewrite them.
 | Export | `internal/portability/`, `WorkspaceExport` in `api/openapi.json` | Update the export format |
 | Short IDs | `internal/platform/id/short.go` (`TypeItem`, `TypeItemEvent`) | Keep registered codes while stored IDs exist. See [ADR 0009](../../../docs/decisions/0009-short-id-codec.md) |
 | Agent surfaces | `internal/mcpserver/`, `internal/appctl/`, `internal/bootstrap/agent_smoke_test.go` | Update tools, commands, and smoke tests (Agent only) |
-| Smoke checks | `scripts/accessibility.mjs`, `scripts/webmcp.mjs`, `scripts/docker-smoke.sh` | Point at the replacement page and endpoint |
+| Smoke checks | `cmd/browsersmoke/accessibility.go`, `cmd/browsersmoke/webmcp.go`, `scripts/docker-smoke.sh` | Point at the replacement page and endpoint |
 | Strings | `internal/i18n/locales/en.json`, `es.json` | Replace item strings |
 | Behavior docs | `docs/api.md`, `web.md`, `mcp.md`, `cli.md`, `data-lifecycle.md`, `capabilities.md`, `GLOSSARY.md` ("Item") | Match the code. Never describe behavior the code lacks |
 | Demo seed | `cmd/demo/` | Delete or repoint (step 5) |

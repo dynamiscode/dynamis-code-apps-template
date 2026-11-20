@@ -296,7 +296,10 @@ if (fileUploadForm) {
 			element.dispatchEvent(new Event("input", {bubbles: true}));
 		}
 		const target = button ? form.querySelector(`button[value="${button}"]`) : control(form, Object.keys(fields || {})[0]);
-		(target || form.querySelector("button"))?.focus();
+		const focusTarget = target || form.querySelector("button");
+		// Row actions can sit in a closed row menu. Open the menus around the prepared control so it can take focus.
+		for (let menu = focusTarget?.closest("details"); menu; menu = menu.parentElement?.closest("details")) menu.open = true;
+		focusTarget?.focus();
 		return result(tool, "ready-for-user-submission");
 	};
 	const execute = (name, input) => {

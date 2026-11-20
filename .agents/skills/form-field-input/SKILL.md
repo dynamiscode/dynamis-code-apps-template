@@ -20,14 +20,14 @@ These are functions of one input, not orderings of events, so the check runs the
 ## Coverage record
 
 - Covered code: `internal/web/assets/forms.js` (`passwordStrength`, `maskDigits`, `maskUpper`, `validateField`, `validateFields`, `showSummary`, `checkMatch`, `enhancePassword`, the input/focusout/submit handlers, the `data-default` timezone), `internal/identity/mfa.go` (`normalizeTOTPCode`, `normalizeRecoveryCode`, `validTOTP`, `CompleteRecoveryLogin`), `internal/web/handler.go` (`DefaultTokenExpiry`, login email echo), and the templates using these attributes (setup, login, account, password-reset, invitation, mfa, security, tokens, webhooks, invitations, item-list).
-- Checks: `internal/web/assets/forms.test.mjs`, `internal/identity/mfa_normalize_test.go` (`TestMFACodeForgivingFormat`), `scripts/ux-patterns.mjs` (lines tagged `form-field-input`).
+- Checks: `internal/web/assets/forms.test.mjs`, `internal/identity/mfa_normalize_test.go` (`TestMFACodeForgivingFormat`), `scripts/ux-patterns.mjs` (retired) (lines tagged `form-field-input`).
 - Sync commit: the commit that last changed this file (`git log -1 --format=%H -- .agents/skills/form-field-input/SKILL.md`). Diff the covered files against it before trusting a pass, then update this file.
 
 ## Run the check
 
 1. `node --test internal/web/assets/forms.test.mjs` → `fail 0`.
 2. `go test ./internal/identity/ -run TestMFACodeForgivingFormat -count=1` → `ok`.
-3. `make ux-smoke` → `N UX checks passed`.
+3. `make browser-smoke` → `TestFormUXPatterns` passes.
 
 ## Read a failure
 

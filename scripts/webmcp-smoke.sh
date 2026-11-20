@@ -18,6 +18,7 @@ BOOTSTRAP_ADMIN_PASSWORD=webmcp-password-123 DATABASE_DRIVER=sqlite SQLITE_PATH=
   go run ./cmd/bootstrap-admin -email webmcp@example.com -workspace WebMCP >/dev/null
 # Build first so $pid is the server itself; killing `go run` leaves its child running.
 go build -o "$work/server" ./cmd/server
+go build -o "$work/browsersmoke" ./cmd/browsersmoke
 MULTI_WORKSPACE_ENABLED=true DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" HTTP_ADDRESS="127.0.0.1:$port" \
   "$work/server" >"$work/server.log" 2>&1 &
 pid=$!
@@ -33,4 +34,4 @@ until curl --fail --silent "http://127.0.0.1:$port/health/ready" >/dev/null; do
 done
 
 WEBMCP_BASE_URL="http://127.0.0.1:$port" WEBMCP_EMAIL=webmcp@example.com \
-  WEBMCP_PASSWORD=webmcp-password-123 npm run test:webmcp
+  WEBMCP_PASSWORD=webmcp-password-123 "$work/browsersmoke" -mode webmcp

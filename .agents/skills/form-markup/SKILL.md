@@ -14,7 +14,7 @@ description: Check every templ form for the form markup rules - persistent label
 
 ## Enforcement
 
-No automated source scan. `TestFormMarkupRules` read the legacy `templates/*.html` files, which were removed when the renderer moved to templ. Its regexes do not understand templ syntax (`required/>`, dynamic `id={ ... }`, caller-supplied labels in components), so a replacement needs its own design. Until then, review these rules by hand on every form change and run the browser checks (`make ux-smoke`, `make accessibility-smoke`).
+No automated source scan. `TestFormMarkupRules` read the legacy `templates/*.html` files, which were removed when the renderer moved to templ. Its regexes do not understand templ syntax (`required/>`, dynamic `id={ ... }`, caller-supplied labels in components), so a replacement needs its own design. Until then, review these rules by hand on every form change and run the browser checks (`make browser-smoke`, `make accessibility-smoke`).
 
 ## Coverage record
 

@@ -6,16 +6,16 @@ Owner: template maintainer
 
 ## Result
 
-The repeatable runner is `npm run test:a11y` against a bootstrapped local
-server; `make accessibility-smoke` runs it once per locale. It fails on
+The repeatable runner is `cmd/browsersmoke` (`-mode accessibility`) against a
+bootstrapped local server; `make accessibility-smoke` runs it once per locale. It fails on
 critical or serious axe violations, keyboard order, missing focus visibility,
 horizontal overflow at 320 CSS pixels, reduced-motion mismatch, or missing
 accessible names in Chrome's accessibility tree.
 
-Install the locked development dependencies with `npm ci`, start a local
-bootstrapped server, then provide `A11Y_BASE_URL`, `A11Y_EMAIL`, and
-`A11Y_PASSWORD` to `npm run test:a11y`; set `A11Y_LOCALE=en` or `es`. The runner
-never prints the password.
+Start a local bootstrapped server, then provide `A11Y_BASE_URL`, `A11Y_EMAIL`, and
+`A11Y_PASSWORD` to `go run ./cmd/browsersmoke -mode accessibility`; set
+`A11Y_LOCALE=en` or `es`. Set `CHROME_PATH` when Chrome is not in a standard
+install location. The runner never prints the password.
 
 ### Audit history finding — 2026-11-16
 
@@ -35,8 +35,7 @@ accessibility audit.
 
 ### Authentication route browser evidence — 2026-11-17
 
-`scripts/playwright-smoke.sh scripts/playwright/email-verification.spec.mjs
-scripts/playwright/password-reset.spec.mjs` passed 20/20 checks in Chrome. The
+`internal/browsertest/email_verification_test.go` passed 20/20 checks in Chrome. The
 email verification failure route passed axe, focused-alert, and keyboard checks
 across English and Spanish, desktop and mobile, and light, dark, and system
 themes. No horizontal overflow appeared at the tested viewport widths. The
@@ -49,17 +48,17 @@ the files page, recipient notification center, public share, and MCP OAuth
 consent. The public share and consent routes run with the multi-workspace and
 OAuth settings enabled on the disposable smoke server. The files check audits
 both locales, verifies the named upload progress control, and checks 320
-CSS-pixel reflow. `make ux-smoke` creates a client, defines a choice field, and
+CSS-pixel reflow. `make browser-smoke` creates a client, defines a choice field, and
 enters a value.
 
 ### Account and public journeys — 2026-11-17
 
-`scripts/playwright/account.spec.mjs` checks account, language, security, and
+`internal/browsertest/account_test.go` checks account, language, security, and
 session pages in English and Spanish, desktop and mobile, and light and dark
 themes with reduced motion. It verifies mobile reflow, profile preference
 persistence, session revocation feedback, and account deletion's required
 confirmation with JavaScript disabled. Password recovery and invitation
-acceptance have separate Playwright suites. The repeatable `test:a11y` runner
+acceptance have separate Playwright suites. The repeatable `cmd/browsersmoke` accessibility runner
 covers setup, sign-in, MFA, verification, recovery, account, language, security,
 sessions, public share, and MCP consent. Account screenshot baselines cover
 desktop/mobile and light/dark themes. The browser suite expires an isolated
@@ -129,7 +128,7 @@ and import reflow at 320 CSS pixels. Settings Playwright coverage checks both
 locales, light and dark themes, desktop and mobile screenshots, keyboard access,
 and no-JavaScript form validation.
 
-The full `scripts/playwright/workspace-admin-data.spec.mjs` journey passed with
+The full `internal/browsertest/admin_test.go` journey passed with
 JavaScript disabled for export, invalid-import diagnostics, read-only preview,
 explicit file reselection and confirmation, and successful import. It also
 checks that token secrets disappear on a later GET, audit history has no forms,

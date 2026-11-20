@@ -294,8 +294,7 @@ func filesPath(relative string) bool {
 		relative == "internal/httpapi/files.go" || relative == "internal/httpapi/files_test.go" || relative == "internal/web/files.go" || relative == "internal/web/files_test.go" ||
 		relative == "internal/web/files.templ" || relative == "internal/web/files_templ.go" ||
 		relative == "internal/web/viewmodel/files.go" || relative == "internal/web/files_actions.go" || relative == "internal/web/files_order.go" || relative == "docs/files-417-evidence.md" ||
-		relative == "scripts/playwright/files.spec.mjs" ||
-		relative == "scripts/playwright/files.spec.mjs-snapshots" || strings.HasPrefix(relative, "scripts/playwright/files.spec.mjs-snapshots/") ||
+		relative == "internal/web/files_no_javascript_test.go" || relative == "internal/browsertest/files_test.go" ||
 		relative == "internal/platform/database/migrations/000014_files.sql" ||
 		relative == "internal/platform/database/migrations/000020_file_short_ids.sql" ||
 		relative == "internal/platform/database/migrate_files_test.go" ||
@@ -313,6 +312,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/web/clients_filters.go" ||
 		relative == "internal/web/viewmodel/clients_filters.go" || relative == "internal/web/viewmodel/clients.go" ||
 		relative == "internal/web/viewmodel/client_options.go" || relative == "internal/web/list_lazy_test.go" || relative == "internal/web/list_views_test.go" || relative == "internal/web/clients_actions.go" || relative == "internal/web/clients_order.go" ||
+		relative == "internal/web/clients_no_javascript_test.go" ||
 		relative == "internal/web/clients.templ" || relative == "internal/web/clients_templ.go" ||
 		relative == "internal/web/clients_list.templ" || relative == "internal/web/clients_list_templ.go" ||
 		relative == "internal/web/clients_bulk.templ" || relative == "internal/web/clients_bulk_templ.go" ||

@@ -7,7 +7,7 @@ bounded screen and state measurements for this issue. They do not establish
 budgets or claim performance fixes.
 
 The separate `sh scripts/ui-measurement-admin.sh` command creates a temporary
-SQLite fixture and runs `scripts/ui-measurement-admin.mjs`. Install dependencies
+SQLite fixture and runs `scripts/ui-measurement-admin.mjs` (retired). Install dependencies
 with `npm ci` and use the Chrome prerequisites in the common method first.
 The current harness builds the binaries, then starts bootstrap and server with
 an allowlisted environment through `scripts/ui-measurement-admin-env.sh`: a
