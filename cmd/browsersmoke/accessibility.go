@@ -715,12 +715,27 @@ func (s *a11yRun) workspacePages(wsBase string) error {
 	if err := s.setViewport(1280, 900); err != nil {
 		return err
 	}
+	// Find the row's input by index so no page value is embedded in the script text.
+	values, err := eval[[]string](s.browser, `[...document.querySelectorAll("input")].map((i) => i.value)`)
+	if err != nil {
+		return err
+	}
+	index := -1
+	for i, value := range values {
+		if value == spacingTitle {
+			index = i
+			break
+		}
+	}
+	if index < 0 {
+		return fmt.Errorf("no input holds %q", spacingTitle)
+	}
 	if _, err := eval[bool](s.browser, fmt.Sprintf(`(() => {
-		const input = [...document.querySelectorAll("input")].find((i) => i.value === %s);
+		const input = document.querySelectorAll("input")[%d];
 		const button = input.closest("tr").querySelector('form.share button[value="create"]');
 		button.focus();
 		return true;
-	})()`, jsString(spacingTitle))); err != nil {
+	})()`, index)); err != nil {
 		return err
 	}
 	if err := s.press("\r"); err != nil {
