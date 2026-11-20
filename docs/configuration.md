@@ -49,8 +49,8 @@ begins. Changes require restart.
 | `HTTP_MAX_BODY_BYTES` | bytes, 1024-16777216 | `1048576` | No | No |
 | `HTTP_DEFAULT_PAGE_SIZE` | integer, within max | `50` | No | No |
 | `HTTP_MAX_PAGE_SIZE` | integer 1-100 | `100` | No | No |
-| `HTTP_REQUESTS_PER_MINUTE` | integer 1-10000 | `120` | No | No |
-| `HTTP_AUTH_REQUESTS_PER_MINUTE` | integer, within ordinary limit | `10` | No | No |
+| `HTTP_REQUESTS_PER_MINUTE` | integer 1-10000 | `300` | No | No |
+| `HTTP_AUTH_REQUESTS_PER_MINUTE` | integer, within ordinary limit | `30` | No | No |
 | `HTTP_SSE_POLL_INTERVAL` | duration, 100ms-30s | `1s` | No | No |
 | `HTTP_SSE_HEARTBEAT_INTERVAL` | duration, 1s-1m | `15s` | No | No |
 | `HTTP_SSE_MAX_LIFETIME` | duration, 1m-1h | `5m` | No | No |
