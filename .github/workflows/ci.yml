@@ -81,8 +81,40 @@ jobs:
       - run: command -v pg_dump && command -v pg_restore
       - run: go test -race ./...
 
-  accessibility:
+  changes:
     runs-on: ubuntu-24.04
+    outputs:
+      web: ${{ steps.detect.outputs.web }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" != pull_request ]; then
+            echo "web=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed="$(git diff --name-only "$BASE_SHA" HEAD)"
+          if grep -Eq '^(internal/web/|internal/identity/|cmd/|scripts/|Makefile$|package(-lock)?\.json$|go\.(mod|sum)$|\.github/workflows/ci\.yml$)' <<<"$changed"; then
+            echo "web=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "web=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  browser-smoke:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -95,11 +127,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chrome
-      - run: make browser-smoke
+      - run: make browser-smoke BROWSER_SMOKE_ARGS=--shard=${{ matrix.shard }}/2
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: browser-smoke-screenshot-diffs
+          name: browser-smoke-screenshot-diffs-${{ matrix.shard }}
           path: |
             test-results/**/*members-mobile-*-actual.png
             test-results/**/*members-mobile-*-diff.png
@@ -112,6 +144,22 @@ jobs:
             test-results/**/*webhooks-*-actual.png
             test-results/**/*webhooks-*-diff.png
           if-no-files-found: ignore
+
+  accessibility:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
       - run: make accessibility-smoke
       - run: make webmcp-smoke
 

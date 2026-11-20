@@ -116,7 +116,7 @@ accessibility-smoke:
 	./scripts/accessibility-smoke.sh
 
 browser-smoke:
-	./scripts/playwright-smoke.sh
+	./scripts/playwright-smoke.sh $(BROWSER_SMOKE_ARGS)
 
 ux-smoke:
 	./scripts/ux-smoke.sh
