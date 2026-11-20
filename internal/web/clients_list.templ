@@ -109,6 +109,7 @@ templ clientCreateMenu(data viewmodel.PageData) {
 				<a class="btn btn-ghost btn-xs" href={ data.FieldsPath }>{ data.T("clients.fields_link") }</a>
 			}
 		if data.CanEditClients {
+			<div id="client-create">
 			@components.ListCreateMenu(data.T("clients.new_client"), data.ErrorKey != "") {
 				<form class="create" action={ data.CurrentPath } method="post" data-dirty-track data-dirty-on-load?={ clientDraftHasInput(data.ClientDraft) }>
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
@@ -119,6 +120,7 @@ templ clientCreateMenu(data viewmodel.PageData) {
 					<div class="actions"><button class="btn btn-primary" type="submit">{ data.T("clients.add") }</button></div>
 				</form>
 			}
+			</div>
 		} else {
 			<p class="status">{ data.T("clients.read_only") }</p>
 		}
