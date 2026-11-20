@@ -313,7 +313,9 @@ func fill(t *testing.T, tab context.Context, selector, value string) {
 
 func click(t *testing.T, tab context.Context, selector string) {
 	t.Helper()
+	eval[any](t, tab, `window.__bt = 1`)
 	run(t, tab, chromedp.Click(selector))
+	settle(t, tab)
 }
 
 func press(t *testing.T, tab context.Context, key string) {
@@ -404,7 +406,7 @@ func pageSummary(tab context.Context) string {
 // stays, and the call returns after the grace period.
 func settle(t *testing.T, tab context.Context) {
 	t.Helper()
-	deadline := time.Now().Add(1500 * time.Millisecond)
+	deadline := time.Now().Add(600 * time.Millisecond)
 	for time.Now().Before(deadline) {
 		ctx, cancel := context.WithTimeout(tab, time.Second)
 		marker, err := chromedp.Run(ctx, chromedp.Evaluate[bool](`window.__bt === 1`))
