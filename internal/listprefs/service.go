@@ -82,6 +82,37 @@ func (s *Service) Set(
 	if err := validInput(listKey, columnKey, defaults); err != nil {
 		return err
 	}
+	return s.apply(ctx, actor, workspaceID, listKey, map[string]bool{columnKey: visible}, nil, false, defaults)
+}
+
+// ApplyView writes a saved view's column visibility and, when order is non-nil, its column order, in one
+// transaction. A column the list no longer has is skipped, so one stale column does not refuse the view.
+func (s *Service) ApplyView(
+	ctx context.Context,
+	actor identity.Principal,
+	workspaceID identity.WorkspaceID,
+	listKey string,
+	visible map[string]bool,
+	order []string,
+	defaults map[string]bool,
+) error {
+	if err := validInput(listKey, "", defaults); err != nil {
+		return err
+	}
+	return s.apply(ctx, actor, workspaceID, listKey, visible, order, order != nil, defaults)
+}
+
+// apply writes visibility overrides and, when saveOrder is set, the column order, all in one transaction.
+func (s *Service) apply(
+	ctx context.Context,
+	actor identity.Principal,
+	workspaceID identity.WorkspaceID,
+	listKey string,
+	visible map[string]bool,
+	order []string,
+	saveOrder bool,
+	defaults map[string]bool,
+) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -90,18 +121,32 @@ func (s *Service) Set(
 	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesRead); err != nil {
 		return identity.ErrForbidden
 	}
-	query := `DELETE FROM list_column_preferences WHERE workspace_id = ? AND user_id = ? AND list_key = ? AND column_key = ?`
-	args := []any{workspaceID, actor.UserID, listKey, columnKey}
-	if visible != defaults[columnKey] {
-		query = `INSERT INTO list_column_preferences (workspace_id, user_id, list_key, column_key, visible)
-			VALUES (?, ?, ?, ?, ?) ON CONFLICT (workspace_id, user_id, list_key, column_key)
-			DO UPDATE SET visible = excluded.visible`
-		args = []any{workspaceID, actor.UserID, listKey, columnKey, visible}
+	for columnKey, value := range visible {
+		if _, known := defaults[columnKey]; !known {
+			continue
+		}
+		if err := writeVisibleInTx(ctx, tx, s.driver, workspaceID, actor.UserID, listKey, columnKey, value, defaults[columnKey]); err != nil {
+			return err
+		}
 	}
-	if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, query), args...); err != nil {
-		return err
+	if saveOrder {
+		if err := writeOrderInTx(ctx, tx, s.driver, workspaceID, actor.UserID, listKey, order, defaults); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
+}
+
+// writeVisibleInTx stores one column's visibility, or removes the override when it matches the default.
+func writeVisibleInTx(ctx context.Context, tx *sql.Tx, driver config.DatabaseDriver, workspaceID identity.WorkspaceID, userID identity.UserID, listKey, columnKey string, visible, defaultVisible bool) error {
+	if visible == defaultVisible {
+		_, err := tx.ExecContext(ctx, database.Rebind(driver, `DELETE FROM list_column_preferences WHERE workspace_id = ? AND user_id = ? AND list_key = ? AND column_key = ?`), workspaceID, userID, listKey, columnKey)
+		return err
+	}
+	_, err := tx.ExecContext(ctx, database.Rebind(driver, `INSERT INTO list_column_preferences (workspace_id, user_id, list_key, column_key, visible)
+		VALUES (?, ?, ?, ?, ?) ON CONFLICT (workspace_id, user_id, list_key, column_key)
+		DO UPDATE SET visible = excluded.visible`), workspaceID, userID, listKey, columnKey, visible)
+	return err
 }
 
 // Reset atomically removes this user's overrides for one list in one workspace.
@@ -125,6 +170,9 @@ func (s *Service) Reset(
 	if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, `
 		DELETE FROM list_column_preferences WHERE workspace_id = ? AND user_id = ? AND list_key = ?
 	`), workspaceID, actor.UserID, listKey); err != nil {
+		return err
+	}
+	if err := resetOrderInTx(ctx, tx, s.driver, workspaceID, actor.UserID, listKey); err != nil {
 		return err
 	}
 	return tx.Commit()

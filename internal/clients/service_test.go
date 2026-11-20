@@ -156,7 +156,7 @@ func TestEmailIsOptionalButMustBeABareAddress(t *testing.T) {
 	}
 }
 
-func TestListPagesNewestFirstAndRefusesBadCursors(t *testing.T) {
+func TestListPagesNewestFirstAndRefusesBadPages(t *testing.T) {
 	f := newFixture(t)
 	var ids []ClientID
 	for _, name := range []string{"First", "Second", "Third"} {
@@ -166,16 +166,16 @@ func TestListPagesNewestFirstAndRefusesBadCursors(t *testing.T) {
 		}
 		ids = append(ids, created.ID)
 	}
-	first, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{Limit: 2})
-	if err != nil || len(first.Clients) != 2 || first.Clients[0].ID != ids[2] || first.NextCursor == "" {
+	first, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{Page: 1, Limit: 2})
+	if err != nil || len(first.Clients) != 2 || first.Clients[0].ID != ids[2] || first.Total != 3 {
 		t.Fatalf("first page = %+v, %v", first, err)
 	}
-	next, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{Limit: 2, Cursor: first.NextCursor})
-	if err != nil || len(next.Clients) != 1 || next.Clients[0].ID != ids[0] || next.NextCursor != "" {
+	next, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{Page: 2, Limit: 2})
+	if err != nil || len(next.Clients) != 1 || next.Clients[0].ID != ids[0] || next.Total != 3 {
 		t.Fatalf("next page = %+v, %v", next, err)
 	}
-	if _, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{Limit: 2, Cursor: "bad"}); !errors.Is(err, ErrInvalidCursor) {
-		t.Fatalf("bad cursor error = %v, want ErrInvalidCursor", err)
+	if _, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{Page: -1, Limit: 2}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("negative page error = %v, want ErrInvalidInput", err)
 	}
 	if _, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{Limit: 0}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("zero limit error = %v, want ErrInvalidInput", err)

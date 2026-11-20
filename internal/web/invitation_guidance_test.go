@@ -2,13 +2,12 @@ package web
 
 import (
 	"context"
+	"example.com/dynamis-code/apps-template/internal/identity"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
-
-	"example.com/dynamis-code/apps-template/internal/identity"
 )
 
 func TestInvitationPageExplainsAccountAndRoleRequirements(t *testing.T) {

@@ -1,14 +1,16 @@
 package web
 
-import "example.com/dynamis-code/apps-template/internal/identity"
-import "strconv"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import "example.com/dynamis-code/apps-template/internal/web/components"
+import "example.com/dynamis-code/apps-template/internal/web/layouts"
 
-templ membersPage(data pageData) {
-	@dashboardShell(data, dashboardHeader(data), memberSettingsNavigation(data)) {
-		@pageHeading(data.Workspace.Name, data.T("members.members"))
-		@peopleTabs(data)
+import "example.com/dynamis-code/apps-template/internal/identity"
+
+templ membersPage(data viewmodel.PageData) {
+	@layouts.DashboardShell(data, layouts.DashboardHeader(data), memberSettingsNavigation(data)) {
+		@layouts.PeopleTabs(data)
 		if data.Error != "" {
-			@errorAlert(data.Error)
+			@components.ErrorAlert(data.Error)
 		}
 		<p class="status">{ data.T("members.role_help") }</p>
 		if data.CanTransfer {
@@ -24,121 +26,70 @@ templ membersPage(data pageData) {
 				}
 			</p>
 			@memberListView(data)
-			@nextPage(data.NextPath, data.T("items.next_page"))
-			<details class="client-controls client-filters" open?={ data.MemberListQuery.Email != "" || data.MemberListQuery.Role != "" || data.MemberListQuery.Sort != "email" || data.MemberListQuery.Limit > 0 }>
-				<summary>{ data.T("members.list_options") }</summary>
-				<form class="client-query" method="get" action={ data.CurrentPath }>
-					@textField("member-email", data.T("members.email_filter")+" "+data.T("ui.optional"), templ.Attributes{"name": "email", "type": "search", "value": data.MemberListQuery.Email})
-					@selectField("member-role-filter", data.T("members.role"), templ.Attributes{"name": "role"}) {
-						<option value="">{ data.T("clients.filter_none") }</option>
-						<option value="owner" selected?={ data.MemberListQuery.Role == "owner" }>{ data.T("members.owner") }</option>
-						<option value="admin" selected?={ data.MemberListQuery.Role == "admin" }>{ data.T("members.admin") }</option>
-						<option value="member" selected?={ data.MemberListQuery.Role == "member" }>{ data.T("members.member") }</option>
-						<option value="viewer" selected?={ data.MemberListQuery.Role == "viewer" }>{ data.T("members.viewer") }</option>
-					}
-					@selectField("member-sort", data.T("items.sort"), templ.Attributes{"name": "sort"}) {
-						<option value="email" selected?={ data.MemberListQuery.Sort == "email" }>{ data.T("common.email") }</option>
-						<option value="-email" selected?={ data.MemberListQuery.Sort == "-email" }>{ data.T("common.email") } ↓</option>
-						<option value="role" selected?={ data.MemberListQuery.Sort == "role" }>{ data.T("members.role") }</option>
-						<option value="-role" selected?={ data.MemberListQuery.Sort == "-role" }>{ data.T("members.role") } ↓</option>
-						<option value="created_at" selected?={ data.MemberListQuery.Sort == "created_at" }>{ data.T("clients.created_at") }</option>
-						<option value="-created_at" selected?={ data.MemberListQuery.Sort == "-created_at" }>{ data.T("clients.created_at") } ↓</option>
-					}
-					@selectField("member-limit", data.T("clients.page_size"), templ.Attributes{"name": "limit"}) {
-						<option value="" selected?={ data.MemberListQuery.Limit == 0 }>{ data.T("members.all_members") }</option>
-						<option value="25" selected?={ data.MemberListQuery.Limit == 25 }>25</option>
-						<option value="50" selected?={ data.MemberListQuery.Limit == 50 }>50</option>
-						<option value="100" selected?={ data.MemberListQuery.Limit == 100 }>100</option>
-					}
-					<div class="actions"><button class="btn btn-primary" type="submit">{ data.T("clients.apply") }</button> <a href={ data.ClearClientFiltersPath }>{ data.T("clients.clear_filters") }</a></div>
-				</form>
-			</details>
-		</section>
-		<script defer src="/assets/app.js"></script>
+								</section>
+		<script defer src="/assets/htmx.min.js"></script>
+			<script defer src="/assets/app.js"></script>
 	}
 }
 
-templ memberSettingsNavigation(data pageData) {
-	<aside class="sidebar"><a class="sidebar-back" href={ "/workspaces/"+data.Workspace.ID.String() }>{ "← " }{ data.T("workspace.back_to_home") }</a>@workspaceNav(data)</aside>
+templ memberSettingsNavigation(data viewmodel.PageData) {
+	<aside class="sidebar"><a class="sidebar-back" href={ "/workspaces/"+data.Workspace.ID.String() }>{ "← " }{ data.T("workspace.back_to_home") }</a>@layouts.WorkspaceNav(data)</aside>
 }
 
-templ memberListView(data pageData) {
-	<details class="client-controls list-view-columns"><summary>{ data.T("clients.columns") }</summary><div aria-label={ data.T("clients.columns") }>
-		for _, column := range data.ClientListColumns {
-			<form class="list-view-column" method="post" action={ data.CurrentPath+"/preferences/columns/"+column.Key+data.ClientQuerySuffix }>
-				<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="visible" value={ strconv.FormatBool(!column.Visible) }/>
-				if column.Visible {
-					<button class="btn btn-secondary" type="submit">{ data.T("clients.column_hide") } { data.T(column.LabelKey) }</button>
-				} else {
-					<button class="btn btn-secondary" type="submit">{ data.T("clients.column_show") } { data.T(column.LabelKey) }</button>
-				}
-			</form>
-		}
-		<form method="post" action={ data.CurrentPath+"/preferences/columns/reset"+data.ClientQuerySuffix }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-secondary" type="submit">{ data.T("clients.columns_reset") }</button></form>
-	</div></details>
-	if data.ClientFilterChips != nil {
-		<ul class="list-filter-chips" aria-label={ data.T("clients.active_filters") }>
-			for _, chip := range data.ClientFilterChips {
-				<li><span>{ data.T(chip.FieldLabelKey) } { data.T(chip.OperatorLabelKey) } { chip.Value }</span> <a href={ chip.RemoveHref } aria-label={ data.T("clients.filter_remove")+": "+data.T(chip.FieldLabelKey) }>{ data.T("clients.filter_remove") }</a></li>
-			}
-		</ul>
-	}
+templ memberListView(data viewmodel.PageData) {
+	@components.ListScreen(data, "members.search", memberListTools(data), memberResults(data))
+}
+
+// memberListTools are the member list's own controls on the toolbar: the columns.
+templ memberListTools(data viewmodel.PageData) {
+	@components.ListColumnsMenu(data, data.ClientQuerySuffix)
+}
+
+// memberResults is the Members results region: the table or cards and the empty state. A live search also
+// refreshes the filter bar out of band.
+templ memberResults(data viewmodel.PageData) {
+	@components.ListResults(data, data.MemberListQuery.Limit, listPageSizeOptions(data.MemberListQuery.Limit, memberPageSizes), data.ClientQuerySuffix, memberRows(data), templ.NopComponent)
+}
+
+templ memberRows(data viewmodel.PageData) {
 	if data.HasVisibleClientColumns {
-		@listTable(data.T("members.members"), true) {
-			<thead><tr>
-				for _, column := range data.ClientListColumns {
-					if column.Visible {
-						if column.SortDirection != "" {
-							<th scope="col" data-column={ column.Key } aria-sort={ column.SortDirection }><a href={ column.SortHref }>{ data.T(column.LabelKey) }</a></th>
-						} else {
-							<th scope="col" data-column={ column.Key }><a href={ column.SortHref }>{ data.T(column.LabelKey) }</a></th>
-						}
-					}
-				}
-				<th scope="col">{ data.T("clients.actions") }</th>
-			</tr></thead>
+		@components.ListTable(data.T("members.members"), true) {
+			@components.ListHeader(data, data.T("clients.actions"))
 			<tbody>
-				for _, row := range data.ClientListRows {
-					<tr>
-						for _, column := range data.ClientListColumns {
-							if column.Visible {
-								<td data-column={ column.Key } data-label={ data.T(column.LabelKey) }>{ data.ClientListCellValue(column, row) }</td>
-							}
-						}
-						<td>@memberActions(data, row.Member, "table")</td>
-					</tr>
+				for _, row := range data.ListRows {
+					@components.ListRow("") {
+						@components.ListCells(data, row, "")
+						<td class="list-actions-cell">@components.ListRowMenu(data) {
+							@memberActions(data, row.Member, "table")
+						}</td>
+					}
 				}
 			</tbody>
 		}
-		@listCards() {
-			for _, row := range data.ClientListRows {
-				@listCard() {
-					<dl>
-						for _, column := range data.ClientListColumns {
-							if column.Visible {
-								<dt>{ data.T(column.LabelKey) }</dt><dd data-column={ column.Key }>{ data.ClientListCellValue(column, row) }</dd>
-							}
-						}
-					</dl>
-					@memberActions(data, row.Member, "card")
+		@components.ListCards() {
+			for _, row := range data.ListRows {
+				@components.ListCardItem(data, row, "") {
+					@components.ListRowMenuCard(data) {
+						@memberActions(data, row.Member, "card")
+					}
 				}
 			}
 		}
 	} else {
-		@statusLine(data.T("clients.columns_choose"), nil)
+		@components.StatusLine(data.T("clients.columns_choose"), nil)
 	}
 	if data.MemberTotal == 0 {
 		<p id="member-results" role="status">{ data.T("members.none") } <a href={ data.ClearClientFiltersPath }>{ data.T("clients.clear_filters") }</a></p>
 	}
 }
 
-templ memberActions(data pageData, member identity.MemberSummary, suffix string) {
+templ memberActions(data viewmodel.PageData, member identity.MemberSummary, suffix string) {
 	if data.CanManage && member.Role != identity.Owner {
 		<div class="member-actions">
 			<p class="visually-hidden">{ member.Email }</p>
 			<form data-webmcp-actions="member-role-update" data-webmcp-id={ member.ID.String() } action={ "/workspaces/"+data.Workspace.ID.String()+"/settings/members" } method="post">
 				<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="member_id" value={ member.ID.String() }/>
-				@selectField("role-"+member.ID.String()+"-"+suffix, data.T("members.role"), templ.Attributes{"name": "role"}) {
+				@components.SelectField("role-"+member.ID.String()+"-"+suffix, data.T("members.role"), templ.Attributes{"name": "role"}) {
 				<option value="admin" selected?={ member.Role == identity.Admin }>{ data.T("members.admin") }</option>
 				<option value="member" selected?={ member.Role == identity.Member }>{ data.T("members.member") }</option>
 				<option value="viewer" selected?={ member.Role == identity.Viewer }>{ data.T("members.viewer") }</option>
@@ -153,7 +104,7 @@ templ memberActions(data pageData, member identity.MemberSummary, suffix string)
 			if data.CanTransfer {
 				<form data-webmcp-actions="ownership-transfer" data-webmcp-id={ member.ID.String() } action={ "/workspaces/"+data.Workspace.ID.String()+"/settings/members" } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="member_id" value={ member.ID.String() }/>
-					<fieldset><legend>{ data.T("members.transfer_consequence") }</legend>@confirmationField("confirm-transfer-"+member.ID.String()+"-"+suffix, "confirm_transfer", data.T("members.transfer_confirm"))<button class="btn btn-error danger" name="action" value="transfer">{ data.T("members.transfer") }</button></fieldset>
+					<fieldset><legend>{ data.T("members.transfer_consequence") }</legend>@components.ConfirmationField("confirm-transfer-"+member.ID.String()+"-"+suffix, "confirm_transfer", data.T("members.transfer_confirm"))<button class="btn btn-error danger" name="action" value="transfer">{ data.T("members.transfer") }</button></fieldset>
 				</form>
 			}
 		</div>

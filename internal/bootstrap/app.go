@@ -17,6 +17,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
+	"example.com/dynamis-code/apps-template/internal/listviews"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
@@ -188,6 +189,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	webHandler.EnableItemsPreferences(listPreferences)
 	webHandler.EnableClients(clientService, listPreferences)
 	webHandler.EnableFilesPreferences(listPreferences)
+	webHandler.EnableListViews(listviews.NewService(db, cfg.Database.Driver, identityService))
 	jobQueue.Start(ctx)
 	mux := http.NewServeMux()
 	mux.Handle("/api/", handler)

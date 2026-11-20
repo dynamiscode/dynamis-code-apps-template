@@ -3,15 +3,14 @@ package web
 import (
 	"context"
 	"errors"
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
 	"testing"
-
-	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
 
 func validCallbackParams() OIDCCallbackParams {

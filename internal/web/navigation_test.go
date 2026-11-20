@@ -3,13 +3,13 @@ package web
 import (
 	"bytes"
 	"context"
-	"strings"
-	"testing"
-
-	"github.com/a-h/templ"
-
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/web/layouts"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
+	"github.com/a-h/templ"
+	"strings"
+	"testing"
 )
 
 func TestNavigationComponentsEscapeInput(t *testing.T) {
@@ -18,12 +18,12 @@ func TestNavigationComponentsEscapeInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	components := map[string]func(pageData) templ.Component{
-		"ui-head": uiHead, "skip-link": skipLink, "workspace-context": workspaceContext,
-		"workspace-list-crumb": workspaceListCrumb, "default-home-crumb": defaultHomeCrumb,
-		"account-menu": accountMenu, "workspace-nav": workspaceNav, "people-tabs": peopleTabs,
+	components := map[string]func(viewmodel.PageData) templ.Component{
+		"ui-head": layouts.UiHead, "skip-link": layouts.SkipLink, "workspace-context": layouts.WorkspaceContext,
+		"workspace-list-crumb": layouts.WorkspaceListCrumb, "default-home-crumb": layouts.DefaultHomeCrumb,
+		"account-menu": layouts.AccountMenu, "workspace-nav": layouts.WorkspaceNav, "people-tabs": layouts.PeopleTabs,
 	}
-	data := pageData{
+	data := viewmodel.PageData{
 		Catalog: catalog, Locale: "es", NavSection: "settings", NavPage: "invitations",
 		Workspace: identity.WorkspaceSummary{ID: workspaceID, Name: "<script>", Role: identity.Viewer},
 		CSRF:      `"><script>`,

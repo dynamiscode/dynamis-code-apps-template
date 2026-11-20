@@ -3,19 +3,20 @@ package web
 import (
 	"context"
 	"database/sql"
-	"net/http"
-	"net/url"
-	"strings"
-	"testing"
-	"time"
-
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
+	"example.com/dynamis-code/apps-template/internal/listviews"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/portability"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
 )
 
 type clientsTestEnv struct {
@@ -69,6 +70,7 @@ func newClientsTestEnv(t *testing.T) clientsTestEnv {
 	}
 	handler.EnableClients(clients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace),
 		listprefs.NewService(db, cfg.Database.Driver, auth))
+	handler.EnableListViews(listviews.NewService(db, cfg.Database.Driver, auth))
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -102,27 +104,108 @@ func (env clientsTestEnv) listPath() string {
 	return "/workspaces/" + env.workspaceID.String() + "/clients"
 }
 
+// TestClientsListMatchAnyJoinsFilters checks that match=any returns the union of two filters
+// on different fields, and match=all returns their intersection.
+func TestClientsListMatchAnyJoinsFilters(t *testing.T) {
+	env := newClientsTestEnv(t)
+	for _, client := range []struct{ name, email string }{
+		{"Ada", "ada@example.test"}, {"Bea", "bea@example.test"}, {"Cy", "cy@example.test"},
+	} {
+		created := request(env.routes, http.MethodPost, env.listPath(), url.Values{
+			"csrf": {env.csrf}, "display_name": {client.name}, "email": {client.email},
+		}, env.cookies, nil)
+		if created.Code != http.StatusSeeOther {
+			t.Fatalf("create %s = %d", client.name, created.Code)
+		}
+	}
+	list := func(t *testing.T, query string) (int, string) {
+		t.Helper()
+		response := request(env.routes, http.MethodGet, env.listPath()+withAll(query), nil, env.viewerCookies, nil)
+		return response.Code, response.Body.String()
+	}
+	// Ada matches the name filter, Cy matches the email filter, and nobody matches both.
+	code, body := list(t, "?filter=displayName:contains:Ada&filter=email:contains:cy@&match=any")
+	if code != http.StatusOK || !strings.Contains(body, ">Ada<") || !strings.Contains(body, ">Cy<") || strings.Contains(body, ">Bea<") {
+		t.Fatalf("match=any = %d, want Ada and Cy: %s", code, body)
+	}
+	code, body = list(t, "?filter=displayName:contains:Ada&filter=email:contains:cy@&match=all")
+	if code != http.StatusOK || strings.Contains(body, ">Ada<") || strings.Contains(body, ">Cy<") {
+		t.Fatalf("match=all = %d, want no clients: %s", code, body)
+	}
+	code, _ = list(t, "?filter=displayName:contains:Ada&match=sometimes")
+	if code != http.StatusBadRequest {
+		t.Fatalf("invalid match = %d, want 400", code)
+	}
+	// The rows-per-page dropdown sits on the toolbar, offers 10, 30, 50, and 100, and keeps the match mode.
+	code, body = list(t, "?filter=displayName:contains:Ada&filter=email:contains:cy@&match=any")
+	if code != http.StatusOK || !strings.Contains(body, `id="list-page-size"`) ||
+		!strings.Contains(body, `<option value="10">`) || !strings.Contains(body, `<option value="30">`) ||
+		!strings.Contains(body, `<option value="100">`) || !strings.Contains(body, `name="match" value="any"`) {
+		t.Fatalf("rows-per-page dropdown missing or match not kept: %d %s", code, body)
+	}
+}
+
+// TestClientsAddFilterStepsChooseFieldThenCondition checks the two-step add-filter menu: the first
+// step links each field, and the second step shows that field's conditions as radio buttons.
+func TestClientsAddFilterStepsChooseFieldThenCondition(t *testing.T) {
+	env := newClientsTestEnv(t)
+	list := func(t *testing.T, query string) (int, string) {
+		t.Helper()
+		response := request(env.routes, http.MethodGet, env.listPath()+withAll(query), nil, env.viewerCookies, nil)
+		return response.Code, response.Body.String()
+	}
+	code, body := list(t, "?sort=displayName")
+	if code != http.StatusOK || !strings.Contains(body, `class="client-field-choices"`) ||
+		!strings.Contains(body, `filter_field=displayName`) || !strings.Contains(body, `sort=displayName`) {
+		t.Fatalf("step one lacks field links that keep the sort: %d %s", code, body)
+	}
+	code, body = list(t, "?filter_field=displayName")
+	if code != http.StatusOK || strings.Contains(body, `class="client-field-choices"`) ||
+		!strings.Contains(body, `type="radio" name="filter_op"`) || !strings.Contains(body, `name="filter_field" value="displayName"`) {
+		t.Fatalf("step two lacks the condition radios: %d %s", code, body)
+	}
+	// Only fields with a range operator get the "to" value: text has none, a date has one.
+	if _, body = list(t, "?filter_field=displayName"); strings.Contains(body, `filter_value_to`) {
+		t.Fatalf("text field shows the range value: %s", body)
+	}
+	if _, body = list(t, "?filter_field=createdAt"); !strings.Contains(body, `filter_value_to`) {
+		t.Fatalf("date field lacks the range value: %s", body)
+	}
+}
+
 func TestClientsListShowsCreateFormOnlyToWriters(t *testing.T) {
 	env := newClientsTestEnv(t)
-	owner := request(env.routes, http.MethodGet, env.listPath(), nil, env.cookies, nil)
+	owner := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil)
 	if owner.Code != http.StatusOK || !strings.Contains(owner.Body.String(), `name="display_name"`) ||
 		!strings.Contains(owner.Body.String(), `class="create" action="`+env.listPath()+`"`) {
 		t.Fatalf("owner list = %d, want the create form: %s", owner.Code, owner.Body.String())
 	}
 	body := owner.Body.String()
 	results := strings.Index(body, `id="client-results"`)
-	createControls := strings.Index(body, `<details class="client-controls client-create">`)
-	filterControls := strings.Index(body, `<details class="client-controls client-filters">`)
-	if results < 0 || createControls <= results || filterControls <= createControls {
-		t.Fatalf("client results must precede collapsed create/filter controls: %s", body)
+	createControls := strings.Index(body, `list-create-menu client-controls client-create">`)
+	filterControls := strings.Index(body, `<details class="list-add-menu">`)
+	listResults := strings.Index(body, `id="list-results"`)
+	if results < 0 || listResults <= results || createControls <= results || createControls >= listResults ||
+		filterControls <= results || filterControls >= listResults {
+		t.Fatalf("create control and filter menu must sit in the toolbar, before the list results: %s", body)
 	}
-	viewer := request(env.routes, http.MethodGet, env.listPath(), nil, env.viewerCookies, nil)
+	viewer := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.viewerCookies, nil)
 	body = viewer.Body.String()
 	if viewer.Code != http.StatusOK || strings.Contains(body, `name="display_name"`) ||
 		strings.Contains(body, `class="create" action="`+env.listPath()+`"`) ||
-		!strings.Contains(body, `<details class="client-controls client-filters">`) {
+		!strings.Contains(body, `<details class="list-add-menu">`) {
 		t.Fatalf("viewer list = %d, want read-only without create controls: %s", viewer.Code, body)
 	}
+}
+
+// pageSizeIsLive reports whether the page-size form swaps the results region in place.
+func pageSizeIsLive(body string) bool {
+	start := strings.Index(body, `class="list-page-size"`)
+	if start < 0 {
+		return false
+	}
+	end := strings.Index(body[start:], ">")
+	return end >= 0 && strings.Contains(body[start:start+end], "hx-get=")
 }
 
 func TestClientsListTemplShellLoadsRealtimeAssetsAndKeepsNativeForms(t *testing.T) {
@@ -130,18 +213,18 @@ func TestClientsListTemplShellLoadsRealtimeAssetsAndKeepsNativeForms(t *testing.
 	if err := env.auth.UpdateWorkspaceLocale(context.Background(), mustOwnerPrincipal(t, env), "es", identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
-	page := request(env.routes, http.MethodGet, env.listPath(), nil, env.cookies, nil)
+	page := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil)
 	body := page.Body.String()
 	htmx := strings.Index(body, `<script defer src="/assets/htmx.min.js">`)
 	app := strings.Index(body, `<script defer src="/assets/app.js">`)
 	if page.Code != http.StatusOK || page.Header().Get("Content-Language") != "es" ||
 		!strings.Contains(body, `href="/assets/clients.css"`) || htmx < 0 || app <= htmx ||
 		!strings.Contains(body, `data-dirty-track`) || !strings.Contains(body, `method="get"`) ||
-		!strings.Contains(body, `method="post"`) || strings.Contains(body, `hx-get=`) || strings.Contains(body, `hx-post=`) {
+		!strings.Contains(body, `method="post"`) || !pageSizeIsLive(body) || hxPostOutsideColumns(body) {
 		t.Fatalf("Clients page contract: status=%d locale=%q css=%t htmx=%d app=%d dirty=%t get=%t post=%t hxGet=%t hxPost=%t",
 			page.Code, page.Header().Get("Content-Language"), strings.Contains(body, `href="/assets/clients.css"`), htmx, app,
 			strings.Contains(body, `data-dirty-track`), strings.Contains(body, `method="get"`), strings.Contains(body, `method="post"`),
-			strings.Contains(body, `hx-get=`), strings.Contains(body, `hx-post=`))
+			strings.Contains(body, `hx-get=`), hxPostOutsideColumns(body))
 	}
 }
 
@@ -193,7 +276,7 @@ func TestClientCreateRefusesBlankNameWithMessageAndRefusesViewer(t *testing.T) {
 	if blank.Code != http.StatusUnprocessableEntity || !strings.Contains(blank.Body.String(), "The display name is required.") {
 		t.Fatalf("blank create = %d: %s", blank.Code, blank.Body.String())
 	}
-	if !strings.Contains(blank.Body.String(), `<details class="client-controls client-create" open>`) {
+	if !strings.Contains(blank.Body.String(), `list-create-menu client-controls client-create" open>`) {
 		t.Fatalf("blank create must keep the form disclosure open: %s", blank.Body.String())
 	}
 	badEmail := request(env.routes, http.MethodPost, env.listPath(), url.Values{
@@ -254,7 +337,7 @@ func TestClientLabelsFollowWorkspaceLocale(t *testing.T) {
 	if err := env.auth.UpdateWorkspaceLocale(context.Background(), mustOwnerPrincipal(t, env), "es", identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
-	response := request(env.routes, http.MethodGet, env.listPath(), nil, env.cookies, nil)
+	response := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil)
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "<title>Clientes ·") ||
 		!strings.Contains(response.Body.String(), "Nombre para mostrar") {
 		t.Fatalf("Spanish list = %d, want Spanish labels: %s", response.Code, response.Body.String())
@@ -284,31 +367,32 @@ func TestClientsListFilterAndSortFromTheForm(t *testing.T) {
 	}
 	list := func(t *testing.T, query string) (int, string) {
 		t.Helper()
-		response := request(env.routes, http.MethodGet, env.listPath()+query, nil, env.viewerCookies, nil)
+		response := request(env.routes, http.MethodGet, env.listPath()+withAll(query), nil, env.viewerCookies, nil)
 		return response.Code, response.Body.String()
 	}
 	code, body := list(t, "?sort=displayName&order=desc")
 	if code != http.StatusOK || strings.Index(body, ">Cy<") > strings.Index(body, ">Bea<") ||
 		strings.Index(body, ">Bea<") > strings.Index(body, ">Ada<") ||
-		!strings.Contains(body, `<details class="client-controls client-filters" open>`) {
+		!strings.Contains(body, `<details class="list-add-menu">`) {
 		t.Fatalf("sorted list = %d: %s", code, body)
 	}
 	code, body = list(t, "?filter_field=displayName&filter_op=contains&filter_value=A")
 	if code != http.StatusOK || !strings.Contains(body, ">Ada<") || !strings.Contains(body, ">Bea<") ||
-		strings.Contains(body, ">Cy<") || !strings.Contains(body, `<details class="client-controls client-filters" open>`) {
+		strings.Contains(body, ">Cy<") || !strings.Contains(body, `<details class="list-add-menu">`) {
 		t.Fatalf("filtered list = %d: %s", code, body)
 	}
-	if !strings.Contains(body, `name="filter_op"`) || !strings.Contains(body, `name="sort"`) {
-		t.Fatalf("list lacks the query form: %s", body)
+	// After a filter is applied the menu starts again at the field list, with the archive selector.
+	if !strings.Contains(body, `class="client-field-choices"`) || !strings.Contains(body, "Show archived clients") {
+		t.Fatalf("list lacks the field choices: %s", body)
 	}
 	code, body = list(t, "?filter_field=displayName&filter_op=before&filter_value=x")
 	if code != http.StatusBadRequest || !strings.Contains(body, "Choose a valid sort or filter.") {
 		t.Fatalf("invalid filter = %d: %s", code, body)
 	}
-	// A malformed cursor is a bad request on the list, as REST answers it.
-	code, body = list(t, "?cursor=not-a-cursor")
-	if code != http.StatusBadRequest || !strings.Contains(body, "The page link is no longer valid.") {
-		t.Fatalf("invalid cursor = %d: %s", code, body)
+	// A page that is not a number shows the first page, so an old bookmark still opens.
+	code, body = list(t, "?page=not-a-number")
+	if code != http.StatusOK {
+		t.Fatalf("invalid page = %d: %s", code, body)
 	}
 
 	// A choice field's form offers its options, and filtering by one works.
@@ -325,7 +409,7 @@ func TestClientsListFilterAndSortFromTheForm(t *testing.T) {
 	}
 	code, body = list(t, "?filter_field="+tier.ID.String()+"&filter_op=equals")
 	if code != http.StatusOK || !strings.Contains(body, `value="`+gold.ID.String()+`"`) ||
-		!strings.Contains(body, "Gold") || !strings.Contains(body, `<details class="client-controls client-filters" open>`) {
+		!strings.Contains(body, "Gold") || !strings.Contains(body, `<details class="list-add-menu" open>`) {
 		t.Fatalf("choice form = %d: %s", code, body)
 	}
 }
@@ -338,7 +422,7 @@ func TestClientsListUsesResponsiveTableAndSavedColumns(t *testing.T) {
 	if created.Code != http.StatusSeeOther {
 		t.Fatalf("create client = %d", created.Code)
 	}
-	response := request(env.routes, http.MethodGet, env.listPath(), nil, env.viewerCookies, nil)
+	response := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.viewerCookies, nil)
 	body := response.Body.String()
 	if response.Code != http.StatusOK || !strings.Contains(body, `class="list-view-table"`) ||
 		!strings.Contains(body, `class="list-view-cards"`) ||
@@ -370,7 +454,7 @@ func TestClientsListUsesResponsiveTableAndSavedColumns(t *testing.T) {
 	if showCustom.Code != http.StatusSeeOther {
 		t.Fatalf("show custom column = %d %s", showCustom.Code, showCustom.Body.String())
 	}
-	response = request(env.routes, http.MethodGet, env.listPath(), nil, env.viewerCookies, nil)
+	response = request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.viewerCookies, nil)
 	if !strings.Contains(response.Body.String(), `data-column="`+field.ID.String()+`">A-17`) {
 		t.Fatalf("visible custom field value missing from table: %s", response.Body.String())
 	}
@@ -380,13 +464,13 @@ func TestClientsListUsesResponsiveTableAndSavedColumns(t *testing.T) {
 	if hideName.Code != http.StatusSeeOther {
 		t.Fatalf("hide default column = %d %s", hideName.Code, hideName.Body.String())
 	}
-	response = request(env.routes, http.MethodGet, env.listPath(), nil, env.viewerCookies, nil)
+	response = request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.viewerCookies, nil)
 	if response.Code != http.StatusOK || strings.Contains(response.Body.String(), `data-column="displayName"`) ||
-		!strings.Contains(response.Body.String(), `aria-label="Open client row 1"`) ||
-		strings.Contains(response.Body.String(), `aria-label="Open client Ada Lovelace"`) {
+		!strings.Contains(response.Body.String(), `class="list-row-link"`) ||
+		strings.Contains(response.Body.String(), `>Ada Lovelace<`) {
 		t.Fatalf("hidden column remains visible: %d %s", response.Code, response.Body.String())
 	}
-	ownerList := request(env.routes, http.MethodGet, env.listPath(), nil, env.cookies, nil)
+	ownerList := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil)
 	if !strings.Contains(ownerList.Body.String(), `data-column="displayName"`) {
 		t.Fatalf("viewer column choice leaked to workspace owner: %s", ownerList.Body.String())
 	}
@@ -396,7 +480,7 @@ func TestClientsListUsesResponsiveTableAndSavedColumns(t *testing.T) {
 	if reset.Code != http.StatusSeeOther {
 		t.Fatalf("reset columns = %d %s", reset.Code, reset.Body.String())
 	}
-	response = request(env.routes, http.MethodGet, env.listPath(), nil, env.viewerCookies, nil)
+	response = request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.viewerCookies, nil)
 	if !strings.Contains(response.Body.String(), `data-column="displayName"`) {
 		t.Fatalf("reset did not restore the default columns: %s", response.Body.String())
 	}
@@ -413,17 +497,17 @@ func TestClientsListCombinesFiltersAndPreservesPageQuery(t *testing.T) {
 		}
 	}
 	response := request(env.routes, http.MethodGet,
-		env.listPath()+"?filter=phone:is_empty:&filter=displayName:contains:a&sort=displayName&order=asc&limit=1",
+		env.listPath()+"?all=1&filter=phone:is_empty:&filter=displayName:contains:a&sort=displayName&order=asc&limit=1",
 		nil, env.viewerCookies, nil)
 	body := response.Body.String()
 	if response.Code != http.StatusOK || !strings.Contains(body, `>Ada<`) ||
-		!strings.Contains(body, "Hidden column") ||
+
 		!strings.Contains(body, `filter=phone%3Ais_empty%3A`) {
 		t.Fatalf("combined filtered page = %d: %s", response.Code, body)
 	}
-	cursorAt := strings.Index(body, "cursor=")
+	cursorAt := strings.Index(body, "page=2")
 	if cursorAt < 0 {
-		t.Fatalf("filtered page lacks a next-page link: %s", body)
+		t.Fatalf("filtered page lacks a link to page 2: %s", body)
 	}
 	hrefStart := strings.LastIndex(body[:cursorAt], `href="`)
 	hrefEnd := strings.Index(body[cursorAt:], `"`)
@@ -431,13 +515,59 @@ func TestClientsListCombinesFiltersAndPreservesPageQuery(t *testing.T) {
 		t.Fatalf("filtered page lacks a next-page link: %s", body)
 	}
 	link := body[hrefStart+len(`href="`) : cursorAt+hrefEnd]
-	if !strings.Contains(link, "cursor=") || !strings.Contains(link, "filter=") ||
+	if !strings.Contains(link, "page=2") || !strings.Contains(link, "filter=") ||
 		!strings.Contains(link, "sort=displayName") || !strings.Contains(link, "limit=1") {
 		t.Fatalf("next link lost query state: %s", link)
 	}
+	// A field can carry more than one condition, so a repeated field is a valid query.
 	if response := request(env.routes, http.MethodGet,
-		env.listPath()+"?filter=displayName:contains:a&filter=displayName:contains:b", nil, env.viewerCookies, nil); response.Code != http.StatusBadRequest {
-		t.Fatalf("duplicate UI filter field = %d, want 400", response.Code)
+		env.listPath()+"?all=1&filter=displayName:contains:a&filter=displayName:contains:b", nil, env.viewerCookies, nil); response.Code != http.StatusOK {
+		t.Fatalf("repeated filter field = %d, want 200", response.Code)
+	}
+}
+
+// TestClientsListSameFieldConditionsAndConnectors checks two conditions on one field under both
+// modes, the connector text between chips, the edit link, and the 20-filter limit.
+func TestClientsListSameFieldConditionsAndConnectors(t *testing.T) {
+	env := newClientsTestEnv(t)
+	for _, name := range []string{"Ada", "Bea", "Cy"} {
+		created := request(env.routes, http.MethodPost, env.listPath(), url.Values{
+			"csrf": {env.csrf}, "display_name": {name},
+		}, env.cookies, nil)
+		if created.Code != http.StatusSeeOther {
+			t.Fatalf("create %s = %d", name, created.Code)
+		}
+	}
+	list := func(t *testing.T, query string) (int, string) {
+		t.Helper()
+		response := request(env.routes, http.MethodGet, env.listPath()+withAll(query), nil, env.viewerCookies, nil)
+		return response.Code, response.Body.String()
+	}
+	// Names containing "a" and "d": only Ada. Containing "a" or "d": Ada and Bea.
+	code, body := list(t, "?filter=displayName:contains:a&filter=displayName:contains:d&match=all")
+	if code != http.StatusOK || !strings.Contains(body, ">Ada<") || strings.Contains(body, ">Bea<") {
+		t.Fatalf("same-field all = %d, want only Ada: %s", code, body)
+	}
+	code, body = list(t, "?filter=displayName:contains:a&filter=displayName:contains:d&match=any")
+	if code != http.StatusOK || !strings.Contains(body, ">Ada<") || !strings.Contains(body, ">Bea<") || strings.Contains(body, ">Cy<") {
+		t.Fatalf("same-field any = %d, want Ada and Bea: %s", code, body)
+	}
+	if !strings.Contains(body, `class="list-filter-connector"`) || !strings.Contains(body, "or") {
+		t.Fatalf("any mode lacks the or connector: %s", body)
+	}
+	// The edit link takes the condition out of the list and reopens its field, operator, and value.
+	if !strings.Contains(body, `filter_field=displayName`) || !strings.Contains(body, `filter_value=d`) {
+		t.Fatalf("edit link does not reopen the condition: %s", body)
+	}
+	// Twenty conditions reach the limit: the add menu shows the notice and no field list.
+	var query strings.Builder
+	query.WriteString("?")
+	for i := 0; i < 20; i++ {
+		query.WriteString("filter=displayName:contains:x" + strconv.Itoa(i) + "&")
+	}
+	code, body = list(t, query.String())
+	if code != http.StatusOK || !strings.Contains(body, "up to 20 filters") || strings.Contains(body, `class="client-field-choices"`) {
+		t.Fatalf("limit notice missing at 20 filters = %d: %s", code, body)
 	}
 }
 

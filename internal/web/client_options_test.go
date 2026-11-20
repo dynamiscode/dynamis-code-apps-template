@@ -1,12 +1,11 @@
 package web
 
 import (
+	"example.com/dynamis-code/apps-template/internal/clients"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
-
-	"example.com/dynamis-code/apps-template/internal/clients"
 )
 
 // TestClientChoiceOptionsManagedThroughForms covers the option manager on the

@@ -1,4 +1,4 @@
-package web
+package layouts
 
 func currentPage(active bool) string {
 	if active {

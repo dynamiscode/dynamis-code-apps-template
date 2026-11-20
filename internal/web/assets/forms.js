@@ -74,6 +74,11 @@
 		return response.ok && !response.redirected && new URL(response.url, baseURL).pathname === new URL(baseURL).pathname && firstElementID === "audit-table";
 	}
 
+	// A lazy section places a fragment with the same id as its placeholder, from the same path.
+	function isLazyFragment(response, baseURL, firstElementID, expectedID) {
+		return response.ok && !response.redirected && new URL(response.url, baseURL).pathname === new URL(baseURL).pathname && firstElementID === expectedID;
+	}
+
 	const core = {
 		MIN_PASSWORD, passwordStrength, maskDigits, maskUpper, draftAction, isDirty, wizardMove,
 		refreshDecision, optimisticOutcome, isAuditFragment,
@@ -408,12 +413,33 @@
 			}
 			const doc = new DOMParser().parseFromString(await response.text(), "text/html");
 			const fresh = doc.body.firstElementChild;
-			if (!isAuditFragment(response, location.href, fresh?.id)) throw new Error("invalid fragment");
-			box.replaceWith(document.importNode(fresh, true));
+			if (!isAuditFragment(response, location.href, fresh?.id) && !isLazyFragment(response, location.href, fresh?.id, box.id)) throw new Error("invalid fragment");
+			// htmx only binds attributes it swaps itself, so the fragment is processed here, or its sort links stay plain.
+			const node = document.importNode(fresh, true);
+			box.replaceWith(node);
+			window.htmx?.process(node);
+			document.dispatchEvent(new CustomEvent("list:results-changed"));
 		} catch (_) {
+			// The results are already shown when the failure came after the swap, so there is nothing to retry.
+			if (!box.isConnected) return;
+			// A failed section shows its message and a retry control, not the loading state.
+			delete box.dataset.loading;
 			box.removeAttribute("aria-busy");
+			box.querySelector(".loading")?.classList.remove("loading");
 			const status = box.querySelector('[role="status"]');
 			if (status) status.textContent = msg("load-failed");
+			if (box.querySelector(".lazy-retry")) return;
+			const retry = document.createElement("button");
+			retry.type = "button";
+			retry.className = "btn btn-ghost btn-xs lazy-retry";
+			retry.textContent = msg("retry");
+			retry.addEventListener("click", () => {
+				retry.remove();
+				box.setAttribute("aria-busy", "true");
+				if (status) status.textContent = msg("loading");
+				loadLazy(box);
+			});
+			box.append(retry);
 		}
 	}
 

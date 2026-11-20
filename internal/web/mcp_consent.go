@@ -3,36 +3,13 @@ package web
 import (
 	"context"
 	"errors"
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
-
-	"example.com/dynamis-code/apps-template/internal/identity"
 )
-
-// mcpConsentView is the data for the MCP consent page. Every value here is
-// re-validated on submission; hidden fields are never trusted on their own.
-type mcpConsentView struct {
-	ClientName string
-	Scopes     []string
-	Workspaces []mcpWorkspaceChoice
-	Params     mcpAuthorizeParams
-}
-
-type mcpWorkspaceChoice struct {
-	ID   string
-	Name string
-}
-
-type mcpAuthorizeParams struct {
-	ClientID      string
-	RedirectURI   string
-	CodeChallenge string
-	Resource      string
-	Scope         string
-	State         string
-}
 
 // EnableMCPOAuth turns on the browser consent page for the built-in MCP
 // authorization server. It must be called before Routes.
@@ -56,9 +33,9 @@ func (h *Handler) mcpAuthorizePage(writer http.ResponseWriter, request *http.Req
 		h.renderError(writer, http.StatusForbidden)
 		return
 	}
-	h.render(writer, http.StatusOK, "mcp-consent.html", pageData{
+	h.render(writer, http.StatusOK, "mcp-consent.html", viewmodel.PageData{
 		Title: "Authorize MCP client", CSRF: csrf,
-		MCPConsent: &mcpConsentView{ClientName: client.Name, Scopes: scopeNames(scopes), Workspaces: choices, Params: params},
+		MCPConsent: &viewmodel.McpConsentView{ClientName: client.Name, Scopes: scopeNames(scopes), Workspaces: choices, Params: params},
 	})
 }
 
@@ -112,21 +89,21 @@ func (h *Handler) mcpAuthorize(writer http.ResponseWriter, request *http.Request
 func (h *Handler) validateMCPAuthorize(
 	ctx context.Context,
 	values url.Values,
-) (mcpAuthorizeParams, identity.OAuthClient, []identity.Permission, error) {
+) (viewmodel.McpAuthorizeParams, identity.OAuthClient, []identity.Permission, error) {
 	if h.mcpResource == "" || values.Get("response_type") != "code" ||
 		values.Get("code_challenge_method") != "S256" || values.Get("code_challenge") == "" ||
 		values.Get("resource") != h.mcpResource || len(values.Get("state")) > 512 {
-		return mcpAuthorizeParams{}, identity.OAuthClient{}, nil, identity.ErrOAuthInvalidRequest
+		return viewmodel.McpAuthorizeParams{}, identity.OAuthClient{}, nil, identity.ErrOAuthInvalidRequest
 	}
 	client, err := h.identity.OAuthClientByID(ctx, values.Get("client_id"))
 	if err != nil || !slices.Contains(client.RedirectURIs, values.Get("redirect_uri")) {
-		return mcpAuthorizeParams{}, identity.OAuthClient{}, nil, identity.ErrOAuthInvalidRequest
+		return viewmodel.McpAuthorizeParams{}, identity.OAuthClient{}, nil, identity.ErrOAuthInvalidRequest
 	}
 	scopes, err := parseMCPScopes(values.Get("scope"))
 	if err != nil {
-		return mcpAuthorizeParams{}, identity.OAuthClient{}, nil, identity.ErrOAuthInvalidRequest
+		return viewmodel.McpAuthorizeParams{}, identity.OAuthClient{}, nil, identity.ErrOAuthInvalidRequest
 	}
-	params := mcpAuthorizeParams{
+	params := viewmodel.McpAuthorizeParams{
 		ClientID: client.ClientID, RedirectURI: values.Get("redirect_uri"),
 		CodeChallenge: values.Get("code_challenge"), Resource: values.Get("resource"),
 		Scope: strings.Join(scopeNames(scopes), " "), State: values.Get("state"),
@@ -174,12 +151,12 @@ func (h *Handler) consentSession(request *http.Request) (identity.Session, strin
 }
 
 // consentWorkspaces lists workspaces where the user holds every requested scope.
-func (h *Handler) consentWorkspaces(ctx context.Context, userID identity.UserID, scopes []identity.Permission) []mcpWorkspaceChoice {
+func (h *Handler) consentWorkspaces(ctx context.Context, userID identity.UserID, scopes []identity.Permission) []viewmodel.McpWorkspaceChoice {
 	workspaces, err := h.identity.ListWorkspaces(ctx, userID)
 	if err != nil {
 		return nil
 	}
-	var choices []mcpWorkspaceChoice
+	var choices []viewmodel.McpWorkspaceChoice
 	for _, workspace := range workspaces {
 		allowed := true
 		for _, scope := range scopes {
@@ -189,7 +166,7 @@ func (h *Handler) consentWorkspaces(ctx context.Context, userID identity.UserID,
 			}
 		}
 		if allowed {
-			choices = append(choices, mcpWorkspaceChoice{ID: workspace.ID.String(), Name: workspace.Name})
+			choices = append(choices, viewmodel.McpWorkspaceChoice{ID: workspace.ID.String(), Name: workspace.Name})
 		}
 	}
 	return choices

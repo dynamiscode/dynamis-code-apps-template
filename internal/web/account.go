@@ -2,15 +2,15 @@ package web
 
 import (
 	"errors"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
-
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
 )
 
 func (h *Handler) accountPage(writer http.ResponseWriter, request *http.Request) {
@@ -28,16 +28,16 @@ func (h *Handler) accountPage(writer http.ResponseWriter, request *http.Request)
 	h.render(writer, http.StatusOK, "account-page", data)
 }
 
-func (h *Handler) accountData(request *http.Request, userID identity.UserID, csrf string) (pageData, bool) {
+func (h *Handler) accountData(request *http.Request, userID identity.UserID, csrf string) (viewmodel.PageData, bool) {
 	profile, err := h.identity.GetUserProfile(request.Context(), userID)
 	if err != nil {
-		return pageData{}, false
+		return viewmodel.PageData{}, false
 	}
 	preferences, err := h.identity.GetNotificationPreferences(request.Context(), userID, 0)
 	if err != nil {
-		return pageData{}, false
+		return viewmodel.PageData{}, false
 	}
-	return pageData{
+	return viewmodel.PageData{
 		Title: "Account", NavPage: "account", CSRF: csrf, Profile: profile,
 		NotificationPreferences: preferences,
 		DefaultWorkspaceHref:    h.defaultHomeHref(request.Context(), userID),
@@ -238,7 +238,7 @@ func (h *Handler) emailVerificationMutation(writer http.ResponseWriter, request 
 
 func (h *Handler) emailVerification(writer http.ResponseWriter, request *http.Request) {
 	err := h.identity.VerifyEmail(request.Context(), request.PathValue("secret"), auditContext(request))
-	data := pageData{Title: "Email verification"}
+	data := viewmodel.PageData{Title: "Email verification"}
 	if err != nil {
 		data.Error = "The email verification link is invalid or expired."
 		h.render(writer, http.StatusUnprocessableEntity, "verification.html", data)
@@ -255,12 +255,12 @@ func (h *Handler) passwordResetPage(writer http.ResponseWriter, request *http.Re
 		return
 	}
 	h.setCookie(writer, "reset_csrf", token, time.Now().Add(10*time.Minute), true)
-	h.render(writer, http.StatusOK, "password-reset.html", pageData{Title: "Reset password", CSRF: token})
+	h.render(writer, http.StatusOK, "password-reset.html", viewmodel.PageData{Title: "Reset password", CSRF: token})
 }
 
 func (h *Handler) passwordResetRequest(writer http.ResponseWriter, request *http.Request) {
 	if err := request.ParseForm(); err != nil || !validResetCSRF(request) {
-		h.render(writer, http.StatusForbidden, "password-reset.html", pageData{Title: "Reset password", ErrorKey: "account.password_reset_form_expired"})
+		h.render(writer, http.StatusForbidden, "password-reset.html", viewmodel.PageData{Title: "Reset password", ErrorKey: "account.password_reset_form_expired"})
 		return
 	}
 	reset, err := h.identity.BeginPasswordReset(request.Context(), request.FormValue("email"), auditContext(request))
@@ -270,13 +270,13 @@ func (h *Handler) passwordResetRequest(writer http.ResponseWriter, request *http
 	}
 	if reset.Secret != "" && appmail.Enabled(h.mailer) {
 		link := accountURL(h.publicURL, "/password-reset/", reset.Secret)
-		locale := h.pageLocale(writer, pageData{})
+		locale := h.pageLocale(writer, viewmodel.PageData{})
 		_ = h.mailer.Send(request.Context(), reset.Email,
 			h.catalog.Translate(locale, "email.password_reset_subject", nil),
 			h.catalog.Translate(locale, "email.password_reset_body", map[string]any{"link": link}))
 	}
 	h.clearCookie(writer, "reset_csrf")
-	h.render(writer, http.StatusOK, "password-reset.html", pageData{Title: "Reset password", Saved: true})
+	h.render(writer, http.StatusOK, "password-reset.html", viewmodel.PageData{Title: "Reset password", Saved: true})
 }
 
 func (h *Handler) passwordResetTokenPage(writer http.ResponseWriter, request *http.Request) {
@@ -286,18 +286,18 @@ func (h *Handler) passwordResetTokenPage(writer http.ResponseWriter, request *ht
 		return
 	}
 	h.setCookie(writer, "reset_csrf", token, time.Now().Add(10*time.Minute), true)
-	h.render(writer, http.StatusOK, "password-reset.html", pageData{
+	h.render(writer, http.StatusOK, "password-reset.html", viewmodel.PageData{
 		Title: "Choose a new password", CSRF: token, PasswordResetSecret: request.PathValue("secret"),
 	})
 }
 
 func (h *Handler) passwordResetComplete(writer http.ResponseWriter, request *http.Request) {
 	if err := request.ParseForm(); err != nil || !validResetCSRF(request) {
-		h.render(writer, http.StatusForbidden, "password-reset.html", pageData{Title: "Choose a new password", ErrorKey: "account.password_reset_form_expired"})
+		h.render(writer, http.StatusForbidden, "password-reset.html", viewmodel.PageData{Title: "Choose a new password", ErrorKey: "account.password_reset_form_expired"})
 		return
 	}
 	if request.FormValue("password") != request.FormValue("password_confirmation") {
-		h.render(writer, http.StatusUnprocessableEntity, "password-reset.html", pageData{
+		h.render(writer, http.StatusUnprocessableEntity, "password-reset.html", viewmodel.PageData{
 			Title: "Choose a new password", ErrorKey: "account.password_reset_mismatch",
 			CSRF: request.FormValue("csrf"), PasswordResetSecret: request.PathValue("secret"),
 		})
@@ -310,7 +310,7 @@ func (h *Handler) passwordResetComplete(writer http.ResponseWriter, request *htt
 			return
 		}
 		h.setCookie(writer, "reset_csrf", csrf, time.Now().Add(10*time.Minute), true)
-		h.render(writer, http.StatusUnprocessableEntity, "password-reset.html", pageData{
+		h.render(writer, http.StatusUnprocessableEntity, "password-reset.html", viewmodel.PageData{
 			Title: "Reset password", ErrorKey: "account.password_reset_invalid", CSRF: csrf,
 		})
 		return
@@ -318,7 +318,7 @@ func (h *Handler) passwordResetComplete(writer http.ResponseWriter, request *htt
 	h.clearCookie(writer, "reset_csrf")
 	h.clearCookie(writer, "session")
 	h.clearCookie(writer, "csrf")
-	h.render(writer, http.StatusOK, "password-reset.html", pageData{Title: "Password reset", Saved: true, PasswordResetCompleted: true})
+	h.render(writer, http.StatusOK, "password-reset.html", viewmodel.PageData{Title: "Password reset", Saved: true, PasswordResetCompleted: true})
 }
 
 func (h *Handler) validCSRFSessionWithCSRF(writer http.ResponseWriter, request *http.Request) (identity.Session, string, bool) {

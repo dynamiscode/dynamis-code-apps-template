@@ -4,6 +4,8 @@
   include: button, input, select, textarea, alert, table, card, list, badge;
 }
 @source "./workspace.templ";
-@source "./components.templ";
+@source "./components";
+@source "./layouts";
+@source "./clients.templ";
 @source "./notifications.templ";
 @source "./webhooks.templ";

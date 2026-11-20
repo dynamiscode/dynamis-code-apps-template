@@ -78,8 +78,8 @@ func TestMCPListAppliesPublishedDefaults(t *testing.T) {
 	page := decodeOutput[items.Page](t, callTool(t, session, "items_list_v1", map[string]any{
 		"workspaceId": state.workspaceID,
 	}))
-	if len(page.Items) != 50 || page.NextCursor == "" {
-		t.Fatalf("default page = %d items, cursor %q", len(page.Items), page.NextCursor)
+	if len(page.Items) != 50 || page.Total <= 50 || page.Page != 1 {
+		t.Fatalf("default page = %d items, total %d, page %d", len(page.Items), page.Total, page.Page)
 	}
 }
 

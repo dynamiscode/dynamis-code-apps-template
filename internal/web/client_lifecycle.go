@@ -1,10 +1,9 @@
 package web
 
 import (
-	"net/http"
-
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"net/http"
 )
 
 func (h *Handler) archiveClient(writer http.ResponseWriter, request *http.Request) {

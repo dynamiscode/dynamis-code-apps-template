@@ -39,20 +39,19 @@ curl --silent --show-error "$BASE_URL/health/live"
 curl --silent --show-error "$BASE_URL/api/openapi.json"
 ```
 
-List items. `nextCursor` is present only when another page exists:
+List items. Pages are numbered from 1; `total` counts every item the filters match:
 
 ```sh
 curl --silent --show-error --include \
   -H "Authorization: Bearer $TOKEN" \
   "$BASE_URL/api/v1/workspaces/$WORKSPACE_ID/items?limit=2&sort=-created_at"
 
-# Copy nextCursor exactly; keep every other query parameter unchanged.
-export NEXT_CURSOR='<nextCursor from the previous response>'
+# The second page keeps every other query parameter unchanged.
 curl --silent --show-error --include --get \
   -H "Authorization: Bearer $TOKEN" \
   --data-urlencode 'limit=2' \
   --data-urlencode 'sort=-created_at' \
-  --data-urlencode "cursor=$NEXT_CURSOR" \
+  --data-urlencode 'page=2' \
   "$BASE_URL/api/v1/workspaces/$WORKSPACE_ID/items"
 ```
 
@@ -114,7 +113,7 @@ Errors use RFC 9457 Problem Details with content type
 - Missing create key: `400`, code `idempotency-key-required`.
 - Missing `If-Match`: `428`, code `precondition-required`; stale `If-Match`:
   `412`, code `precondition-failed`.
-- Invalid parameters or cursor: `400`, code `invalid-request`; missing item:
+- Invalid parameters or page: `400`, code `invalid-request`; missing item:
   `404`, code `not-found`.
 - Workspace path: a malformed, unknown, or foreign `workspaceId` returns `404`,
   code `not-found`, with the same body as a missing workspace. Workspace IDs are
@@ -164,9 +163,9 @@ documented in [authentication](authentication.md).
   item records from that JSON export format or strict `title,status` CSV.
   It requires `workspace:update`; source IDs, timestamps, memberships, audit
   events, and credentials are ignored.
-- Members: `GET /members` returns all members unless `limit` or `cursor` is
-  supplied; with either parameter it returns an optional `nextCursor` for the
-  next page. Also `PATCH /members/{memberId}`, `DELETE /members/{memberId}`,
+- Members: `GET /members` returns all members unless `limit` or `page` is
+  supplied; with either parameter it returns `total`, the number of members,
+  and the `page` returned. Also `PATCH /members/{memberId}`, `DELETE /members/{memberId}`,
   and `POST /ownership` with body `{"memberId": "<short ID>"}`.
 - Invitations: `GET/POST /invitations`, `POST /invitations/{invitationId}/resend`,
   and `DELETE /invitations/{invitationId}`.
@@ -240,7 +239,7 @@ session values, invitation values, connection strings, and signed URLs.
   the client with its ETag. `DELETE .../clients/{clientId}` permanently deletes a
   client and its custom values in one transaction. It needs owner or admin
   rights and returns `204`. Viewers and members get `forbidden` (403).
-  The list pages newest first by default with a cursor, takes the `sort` and
+  The list pages newest first by default, numbered from `page`, takes the `sort` and
   `filter` parameters below, and has no free-text search in v1.
   Client IDs are short IDs. Malformed, integer, unknown, and foreign IDs return
   the same `not-found` problem. Viewers read; members and above write.
@@ -272,10 +271,9 @@ session values, invitation values, connection strings, and signed URLs.
     matches any listed option.
   `archived=<value>` selects which clients the list shows. `active` (the default)
   excludes archived clients, `archived` shows only archived clients, and `all`
-  shows both. Any other value returns `invalid-request` (400). A cursor is valid
-  only with the sort, filters, and archived value that issued it. A sort or filter
-  that is unknown, archived, or malformed also returns `invalid-request` (400).
-  Clients have no free-text search in v1.
+  shows both. Any other value returns `invalid-request` (400). A sort or filter
+  that is unknown, archived, or malformed returns `invalid-request` (400).
+  A client list always includes `total`, the number of clients the filters and archived value match across all pages. Clients have no free-text search in v1.
 - Client custom fields: `GET` and `POST /api/v1/workspaces/{workspaceId}/client-fields`
   list fields (archived ones only with `includeArchived=true`) and define a text,
   number, date, or yes/no field (`type`: `text`, `number`, `date`, or `yes_no`).
@@ -312,13 +310,12 @@ Common error codes are `invalid-request`, `not-found`, `precondition-required`,
 stable `code`, not on human-readable `title` or `detail`.
 
 Collections use one query shape: optional resource filters, `search`, `sort`,
-`limit`, and opaque `cursor`. The item reference accepts `status=active|complete`
+`limit`, and `page`. The item reference accepts `status=active|complete`
 and `search`, which is a trimmed, case-insensitive literal substring match on
 `title`; `%`, `_`, and `\\` have no wildcard meaning. Search is limited to 100
 Unicode characters. `sort` is `created_at` or `-created_at`; ties use `id` in
 the same direction. `limit` defaults to 50 and is bounded to 1-100. A response
-contains `nextCursor` only when another page exists. Cursors bind the complete
-filter/search/sort query and must be sent unchanged. Unsupported, repeated,
+always includes `total`, the number of items the filters match across all pages, and the `page` returned. A page past the end is empty. Unsupported, repeated,
 empty, or malformed parameters fail with Problem Details `400`.
 
 Item reads return strong version ETags in the form `"vN"`. `If-None-Match` can

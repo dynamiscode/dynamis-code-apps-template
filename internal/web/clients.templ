@@ -1,26 +1,20 @@
 package web
 
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import "example.com/dynamis-code/apps-template/internal/web/components"
+import "example.com/dynamis-code/apps-template/internal/web/layouts"
+
 import "strconv"
 
-templ clientsPage(data pageData) {
-	@dashboardShell(data, dashboardHeader(data), dashboardHomeNavigation(data)) {
-		@pageHeading(data.T("clients.title"), data.T("common.workspace")) {
-			<div class="actions client-page-actions">
-				if data.CanEditClients {
-					<a class="btn btn-primary" href="#client-create">{ data.T("clients.new_client") }</a>
-				}
-				if data.CanManageFields {
-					<a class="btn btn-ghost" href={ data.FieldsPath }>{ data.T("clients.fields_link") }</a>
-				}
-			</div>
-		}
+templ clientsPage(data viewmodel.PageData) {
+	@layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.DashboardHomeNavigation(data)) {
 		@clientList(data)
 	}
 }
 
-templ clientDetailPage(data pageData) {
-	@dashboardShell(data, dashboardHeader(data), dashboardHomeNavigation(data)) {
-		@pageHeading(data.Client.DisplayName, data.T("clients.title")) {
+templ clientDetailPage(data viewmodel.PageData) {
+	@layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.DashboardHomeNavigation(data)) {
+		@components.PageHeading(data.Client.DisplayName, data.T("clients.title")) {
 			<div class="actions client-page-actions">
 				<a class="btn btn-ghost" href={ data.CurrentPath }>{ data.T("clients.back") }</a>
 				if data.CanManageFields {
@@ -32,27 +26,27 @@ templ clientDetailPage(data pageData) {
 	}
 }
 
-templ clientDetail(data pageData) {
+templ clientDetail(data viewmodel.PageData) {
 	<section id="client-detail" class="client-panel" aria-labelledby="client-heading">
 		<h2 id="client-heading" class="visually-hidden">{ data.T("clients.client") }</h2>
 		if data.ErrorKey != "" {
-			@errorAlert(data.T(data.ErrorKey))
+			@components.ErrorAlert(data.T(data.ErrorKey))
 		}
 		if data.CanEditClients {
 			<form action={ data.CurrentPath + "/" + data.Client.ID.String() } method="post">
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
 				<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
-				@textField("client-display-name", data.T("clients.display_name"), templ.Attributes{
+				@components.TextField("client-display-name", data.T("clients.display_name"), templ.Attributes{
 					"name": "display_name", "required": true, "maxlength": "200",
 					"value": data.Client.DisplayName, "data-trim": "",
 				})
-				@textField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{
+				@components.TextField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{
 					"name": "email", "type": "email", "maxlength": "254", "value": data.Client.Email,
 				})
-				@textField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{
+				@components.TextField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{
 					"name": "phone", "maxlength": "50", "value": data.Client.Phone,
 				})
-				@textareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.Client.Notes, templ.Attributes{
+				@components.TextareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.Client.Notes, templ.Attributes{
 					"name": "notes", "maxlength": "5000",
 				})
 				<div class="actions">
@@ -69,7 +63,7 @@ templ clientDetail(data pageData) {
 			</dl>
 		}
 		if data.Client.ArchivedAt != nil {
-			@statusLine(data.T("clients.archived_status"), nil)
+			@components.StatusLine(data.T("clients.archived_status"), nil)
 		}
 		if data.CanEditClients {
 			<div class="client-lifecycle">
@@ -101,7 +95,7 @@ templ clientDetail(data pageData) {
 	</section>
 }
 
-templ clientValues(data pageData) {
+templ clientValues(data viewmodel.PageData) {
 	<section id="client-values" class="client-panel client-values" aria-labelledby="client-values-heading">
 		<h2 id="client-values-heading">{ data.T("clients.values_heading") }</h2>
 		if len(data.ClientValues) > 0 {
@@ -155,251 +149,3 @@ templ clientValues(data pageData) {
 	</section>
 }
 
-templ clientList(data pageData) {
-	<section id="client-list" data-events={ data.CurrentPath + "/events" }
-		data-live-connecting={ data.T("clients.live_connecting") }
-		data-live-connected={ data.T("clients.live_connected") }
-		data-live-unavailable={ data.T("clients.live_unavailable") }
-		data-live-reconnecting={ data.T("clients.live_reconnecting") }
-		data-live-waiting={ data.T("ui.updates_waiting") }
-		aria-labelledby="clients-heading">
-		<h2 id="clients-heading" class="visually-hidden">{ data.T("clients.title") }</h2>
-		if data.ErrorKey != "" {
-			@errorAlert(data.T(data.ErrorKey))
-		}
-		<div class="client-results" id="client-results">
-			@clientListView(data)
-			@nextPage(data.NextPath, data.T("items.next_page"))
-			@statusLine(data.T("clients.live_fallback"), templ.Attributes{"aria-live": "polite", "id": "realtime-status"})
-		</div>
-		<div id="client-create">
-			if data.CanEditClients {
-				<details class="client-controls client-create" open?={ data.ErrorKey != "" }>
-					<summary>{ data.T("clients.new_client") }</summary>
-					<form class="create" action={ data.CurrentPath } method="post" data-dirty-track data-dirty-on-load?={ clientDraftHasInput(data.ClientDraft) }>
-						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						@textField("client-display-name", data.T("clients.display_name"), templ.Attributes{"name": "display_name", "required": true, "maxlength": "200", "value": data.ClientDraft.DisplayName, "data-trim": ""})
-						@textField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{"name": "email", "type": "email", "maxlength": "254", "value": data.ClientDraft.Email})
-						@textField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{"name": "phone", "maxlength": "50", "value": data.ClientDraft.Phone})
-						@textareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.ClientDraft.Notes, templ.Attributes{"name": "notes", "maxlength": "5000"})
-						<div class="actions"><button class="btn btn-primary" type="submit">{ data.T("clients.add") }</button></div>
-					</form>
-				</details>
-			} else {
-				<p class="status">{ data.T("clients.read_only") }</p>
-			}
-			<details class="client-controls client-filters" open?={ data.ClientQuery.Sort != "" || data.ClientQuery.Order == "desc" || data.HasClientFilters || data.ClientQuery.FilterField != "" || data.ClientQuery.Archived == "archived" || data.ClientQuery.Archived == "all" }>
-				<summary>{ data.T("clients.list_options") }</summary>
-				@clientQuery(data)
-			</details>
-		</div>
-	</section>
-}
-
-templ clientListView(data pageData) {
-	<details class="client-controls list-view-columns">
-		<summary>{ data.T("clients.columns") }</summary>
-		<div aria-label={ data.T("clients.columns") }>
-			for _, column := range data.ClientListColumns {
-				<form class="list-view-column" method="post" action={ data.CurrentPath + "/preferences/columns/" + column.Key + data.ClientQuerySuffix }>
-					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					<input type="hidden" name="visible" value={ clientColumnVisibilityValue(column.Visible) }/>
-					<button class="btn btn-ghost" type="submit">{ data.T(columnVisibilityKey(column.Visible)) }{ " " }@clientColumnLabel(data, column)</button>
-				</form>
-			}
-			<form method="post" action={ data.CurrentPath + "/preferences/columns/reset" + data.ClientQuerySuffix }>
-				<input type="hidden" name="csrf" value={ data.CSRF }/>
-				<button class="btn btn-ghost" type="submit">{ data.T("clients.columns_reset") }</button>
-			</form>
-		</div>
-	</details>
-	if data.HiddenClientSort != "" {
-		<p class="status">{ data.T("clients.hidden_sort") }{ " " }
-			if data.HiddenClientSortLabelKey != "" {
-				{ data.T(data.HiddenClientSortLabelKey) }
-			} else {
-				{ data.HiddenClientSort }
-			}
-		</p>
-	}
-	if len(data.ClientFilterChips) > 0 {
-		<ul class="list-filter-chips" aria-label={ data.T("clients.active_filters") }>
-			for _, chip := range data.ClientFilterChips {
-				<li>
-					<span>@clientFilterFieldLabel(data, chip.FieldLabel, chip.FieldLabelKey){ " " }{ data.T(chip.OperatorLabelKey) }{ " " }{ chip.Value }</span>
-					if chip.Hidden {
-						<span class="status">{ data.T("clients.hidden_column") }</span>
-					}
-					<a href={ chip.RemoveHref } aria-label={ data.T("clients.filter_remove") + ": " + clientFilterFieldLabelText(data, chip.FieldLabel, chip.FieldLabelKey) }>{ data.T("clients.filter_remove") }</a>
-				</li>
-			}
-		</ul>
-	}
-	if data.HasVisibleClientColumns {
-		@listTable(data.T("clients.title"), true) {
-			<thead><tr>
-				for _, column := range data.ClientListColumns {
-					if column.Visible {
-						@clientColumnHeading(data, column)
-					}
-				}
-				<th scope="col">{ data.T("clients.actions") }</th>
-			</tr></thead>
-			<tbody>
-				for _, row := range data.ClientListRows {
-					<tr>
-						for _, column := range data.ClientListColumns {
-							if column.Visible {
-								<td data-column={ column.Key } data-label={ clientColumnLabelText(data, column) }>{ data.ClientListCellValue(column, row) }</td>
-							}
-						}
-						<td><a href={ data.CurrentPath + "/" + row.ID } aria-label={ clientListOpenLabel(data, row) }>{ data.T("clients.open") }</a></td>
-					</tr>
-				}
-			</tbody>
-		}
-		@listCards() {
-			for _, row := range data.ClientListRows {
-				@listCard() {
-					<dl>
-						for _, column := range data.ClientListColumns {
-							if column.Visible {
-								<dt>@clientColumnLabel(data, column)</dt>
-								<dd data-column={ column.Key }>{ data.ClientListCellValue(column, row) }</dd>
-							}
-						}
-					</dl>
-					<a href={ data.CurrentPath + "/" + row.ID } aria-label={ clientListOpenLabel(data, row) }>{ data.T("clients.open") }</a>
-				}
-			}
-		}
-	} else {
-		@statusLine(data.T("clients.columns_choose"), nil)
-	}
-	if len(data.ClientListRows) == 0 {
-		<p id="client-empty-state">
-			if data.HasClientFilters {
-				{ data.T("clients.no_matches") }{ " " }<a href={ data.ClearClientFiltersPath }>{ data.T("clients.clear_filters") }</a>
-			} else {
-				{ data.T("clients.none") }
-			}
-		</p>
-	}
-}
-
-templ clientQuery(data pageData) {
-	<form class="client-query" method="get" action={ data.CurrentPath } data-dirty-track>
-		for _, filter := range data.ClientFiltersToPreserve {
-			<input type="hidden" name="filter" value={ filter.Field + ":" + filter.Op + ":" + filter.Value }/>
-		}
-		<fieldset>
-			<legend>{ data.T("clients.sort_legend") }</legend>
-			@selectField("client-sort", data.T("clients.sort_label"), templ.Attributes{"name": "sort"}) {
-				<option value="" selected?={ data.ClientQuery.Sort == "" }>{ data.T("clients.sort_none") }</option>
-				<option value="displayName" selected?={ data.ClientQuery.Sort == "displayName" }>{ data.T("clients.display_name") }</option>
-				<option value="email" selected?={ data.ClientQuery.Sort == "email" }>{ data.T("common.email") }</option>
-				<option value="phone" selected?={ data.ClientQuery.Sort == "phone" }>{ data.T("clients.phone") }</option>
-				<option value="notes" selected?={ data.ClientQuery.Sort == "notes" }>{ data.T("clients.notes") }</option>
-				<option value="createdAt" selected?={ data.ClientQuery.Sort == "createdAt" }>{ data.T("clients.created_at") }</option>
-				<option value="updatedAt" selected?={ data.ClientQuery.Sort == "updatedAt" }>{ data.T("clients.updated_at") }</option>
-				for _, field := range data.ClientQueryFields {
-					<option value={ field.ID.String() } selected?={ data.ClientQuery.Sort == field.ID.String() }>{ field.Label }</option>
-				}
-			}
-			@selectField("client-order", data.T("clients.order_label"), templ.Attributes{"name": "order"}) {
-				<option value="asc" selected?={ data.ClientQuery.Order != "desc" }>{ data.T("clients.order_asc") }</option>
-				<option value="desc" selected?={ data.ClientQuery.Order == "desc" }>{ data.T("clients.order_desc") }</option>
-			}
-			@selectField("client-limit", data.T("clients.page_size"), templ.Attributes{"name": "limit"}) {
-				<option value="25" selected?={ data.ClientQuery.Limit == 25 }>25</option>
-				<option value="50" selected?={ data.ClientQuery.Limit == 0 || data.ClientQuery.Limit == 50 }>50</option>
-				<option value="100" selected?={ data.ClientQuery.Limit == 100 }>100</option>
-			}
-		</fieldset>
-		<fieldset>
-			<legend>{ data.T("clients.filter_legend") }</legend>
-			@selectField("client-filter-field", data.T("clients.filter_field"), templ.Attributes{"name": "filter_field"}) {
-				<option value="" selected?={ data.ClientQuery.FilterField == "" }>{ data.T("clients.filter_none") }</option>
-				for _, field := range data.ClientFilterFields {
-					<option value={ field.Key } selected?={ field.Key == data.ClientQuery.FilterField }>@clientFilterFieldLabel(data, field.Label, field.LabelKey)</option>
-				}
-			}
-			@selectField("client-filter-op", data.T("clients.filter_op"), templ.Attributes{"name": "filter_op"}) {
-				for _, operator := range data.ClientFilterOperators {
-					<option value={ operator.Key } selected?={ operator.Key == data.ClientQuery.FilterOp }>{ data.T(operator.LabelKey) }</option>
-				}
-			}
-			if len(data.ClientFilterOptions) > 0 {
-				<label for="client-filter-option">{ data.T("clients.option_value") }</label>
-				<select class="select" id="client-filter-option" name="filter_value" multiple>
-					for _, option := range data.ClientFilterOptions {
-						<option value={ option.ID.String() }>{ option.Label }</option>
-					}
-				</select>
-			} else if data.ClientFilterValueType == "boolean" {
-				@selectField("client-filter-value", data.T("clients.filter_value"), templ.Attributes{"name": "filter_value"}) {
-					<option value="true">{ data.T("clients.yes") }</option>
-					<option value="false">{ data.T("clients.no") }</option>
-				}
-			} else {
-				@textField("client-filter-value", data.T("clients.filter_value")+" "+data.T("ui.optional"), templ.Attributes{"name": "filter_value", "type": data.ClientFilterValueType, "value": data.ClientQuery.FilterValue})
-				@textField("client-filter-value-to", data.T("clients.filter_value_to")+" "+data.T("ui.optional"), templ.Attributes{"name": "filter_value_to", "type": data.ClientFilterValueType, "value": data.ClientQuery.FilterValueTo})
-			}
-		</fieldset>
-		<fieldset>
-			<legend>{ data.T("clients.archived_legend") }</legend>
-			@selectField("client-archived", data.T("clients.archived_label"), templ.Attributes{"name": "archived"}) {
-				<option value="active" selected?={ data.ClientQuery.Archived == "" || data.ClientQuery.Archived == "active" }>{ data.T("clients.archived_active") }</option>
-				<option value="archived" selected?={ data.ClientQuery.Archived == "archived" }>{ data.T("clients.archived_only") }</option>
-				<option value="all" selected?={ data.ClientQuery.Archived == "all" }>{ data.T("clients.archived_all") }</option>
-			}
-		</fieldset>
-		<div class="actions">
-			<button class="btn btn-primary" type="submit" disabled?={ !data.ClientCanAddFilter && data.ClientQuery.FilterField == "" }>{ data.T("clients.apply") }</button>
-			<a class="btn btn-ghost" href={ data.ClearClientFiltersPath }>{ data.T("clients.clear_filters") }</a>
-		</div>
-	</form>
-}
-
-templ clientColumnLabel(data pageData, column clientListColumn) {
-	if column.LabelKey != "" {
-		{ data.T(column.LabelKey) }
-	} else {
-		{ column.Label }
-	}
-}
-
-templ clientColumnHeading(data pageData, column clientListColumn) {
-	if column.SortDirection != "" {
-		<th scope="col" data-column={ column.Key } aria-sort={ column.SortDirection }>
-			if column.SortHref != "" {
-				<a href={ column.SortHref }>@clientColumnLabel(data, column)</a>
-			} else {
-				@clientColumnLabel(data, column)
-			}
-		</th>
-	} else {
-		<th scope="col" data-column={ column.Key }>
-			if column.SortHref != "" {
-				<a href={ column.SortHref }>@clientColumnLabel(data, column)</a>
-			} else {
-				@clientColumnLabel(data, column)
-			}
-		</th>
-	}
-}
-
-templ clientFilterFieldLabel(data pageData, label, key string) {
-	if key != "" {
-		{ data.T(key) }
-	} else {
-		{ label }
-	}
-}
-
-func columnVisibilityKey(visible bool) string {
-	if visible {
-		return "clients.column_hide"
-	}
-	return "clients.column_show"
-}

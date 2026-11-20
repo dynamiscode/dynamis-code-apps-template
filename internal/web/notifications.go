@@ -3,12 +3,12 @@ package web
 import (
 	"encoding/json"
 	"errors"
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"fmt"
 	"net/http"
 	"time"
-
-	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 )
 
 func (h *Handler) notificationsPage(writer http.ResponseWriter, request *http.Request) {
@@ -26,7 +26,7 @@ func (h *Handler) notificationsPage(writer http.ResponseWriter, request *http.Re
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	data := pageData{
+	data := viewmodel.PageData{
 		Title: "Notifications", NavPage: "notifications", CSRF: csrf,
 		Notifications: notifications, UnreadNotifications: unread,
 		NotificationCursor: notificationCursor(notifications),

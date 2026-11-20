@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"sync"
 	"testing"
@@ -221,18 +220,19 @@ func TestIdentityRESTContracts(t *testing.T) {
 		t.Fatalf("default members response omitted a workspace member: %s", members.Body.String())
 	}
 	var firstPage struct {
-		Members    []memberResponse `json:"members"`
-		NextCursor string           `json:"nextCursor"`
+		Members []memberResponse `json:"members"`
+		Total   int              `json:"total"`
+		Page    int              `json:"page"`
 	}
 	paged := serveAuthorized(handler, http.MethodGet, base+"/members?limit=1", "", token, nil)
-	if paged.Code != http.StatusOK || json.Unmarshal(paged.Body.Bytes(), &firstPage) != nil || len(firstPage.Members) != 1 || firstPage.NextCursor == "" {
+	if paged.Code != http.StatusOK || json.Unmarshal(paged.Body.Bytes(), &firstPage) != nil || len(firstPage.Members) != 1 || firstPage.Total < 2 || firstPage.Page != 1 {
 		t.Fatalf("first members page = %d, %+v: %s", paged.Code, firstPage, paged.Body.String())
 	}
-	secondPage := serveAuthorized(handler, http.MethodGet, base+"/members?cursor="+url.QueryEscape(firstPage.NextCursor), "", token, nil)
+	secondPage := serveAuthorized(handler, http.MethodGet, base+"/members?limit=1&page=2", "", token, nil)
 	if secondPage.Code != http.StatusOK || !strings.Contains(secondPage.Body.String(), "zmember@example.com") {
 		t.Fatalf("second members page = %d: %s", secondPage.Code, secondPage.Body.String())
 	}
-	for _, query := range []string{"?cursor=bad", "?limit=0", "?limit=1&limit=2"} {
+	for _, query := range []string{"?page=bad", "?page=0", "?limit=0", "?limit=1&limit=2"} {
 		assertProblem(t, serveAuthorized(handler, http.MethodGet, base+"/members"+query, "", token, nil), http.StatusBadRequest, "invalid-request")
 	}
 	invitation := serveAuthorized(handler, http.MethodPost, base+"/invitations", `{"email":"invitee@example.com","role":"member","lifetimeSeconds":3600}`, token, nil)

@@ -2,14 +2,6 @@ package web
 
 import (
 	"context"
-	"html"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"strings"
-	"testing"
-	"time"
-
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
@@ -17,6 +9,13 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/portability"
+	"html"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"testing"
+	"time"
 )
 
 type filesTestEnv struct {
@@ -114,7 +113,7 @@ func TestFileDownloadMissingReturnsNotFound(t *testing.T) {
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("missing file response = %d, want %d", response.Code, http.StatusNotFound)
 	}
-	page := request(env.routes, http.MethodGet, env.filesPath(), nil, env.cookies, nil)
+	page := request(env.routes, http.MethodGet, env.filesPath()+"?all=1", nil, env.cookies, nil)
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `data-file-upload`) {
 		t.Fatalf("local files page does not retain ordinary upload fallback: %d, %s", page.Code, page.Body.String())
 	}
@@ -125,7 +124,7 @@ func TestFileDownloadMissingReturnsNotFound(t *testing.T) {
 
 func TestFilesPageRendersOrdinaryMultipartUploadForm(t *testing.T) {
 	env := newFilesTestEnv(t, 16<<20, 1<<30)
-	page := request(env.routes, http.MethodGet, env.filesPath(), nil, env.cookies, nil)
+	page := request(env.routes, http.MethodGet, env.filesPath()+"?all=1", nil, env.cookies, nil)
 	body := page.Body.String()
 	if page.Code != http.StatusOK || !strings.Contains(body, `action="`+env.filesPath()+`"`) ||
 		!strings.Contains(body, `method="post"`) || !strings.Contains(body, `enctype="multipart/form-data"`) ||
@@ -143,19 +142,19 @@ func TestFilesPageHidesUploadForReadOnlyViewer(t *testing.T) {
 	if upload.Code != http.StatusSeeOther {
 		t.Fatalf("owner upload = %d: %s", upload.Code, upload.Body.String())
 	}
-	page := request(env.routes, http.MethodGet, env.filesPath(), nil, env.viewerCookies, nil)
+	page := request(env.routes, http.MethodGet, env.filesPath()+"?all=1", nil, env.viewerCookies, nil)
 	body := page.Body.String()
 	if page.Code != http.StatusOK || !strings.Contains(body, "read-only.txt") || !strings.Contains(body, "/content") {
 		t.Fatalf("viewer Files list = %d: %s", page.Code, body)
 	}
-	if strings.Contains(body, "data-file-upload") || strings.Contains(body, `type="file"`) || strings.Contains(body, "/assets/app.js") {
+	if strings.Contains(body, "data-file-upload") || strings.Contains(body, `type="file"`) {
 		t.Fatalf("read-only viewer sees file upload controls: %s", body)
 	}
 }
 
 func TestFilesPageRendersTemplShellAndAccessibleEmptyState(t *testing.T) {
 	env := newFilesTestEnv(t, 16<<20, 1<<30)
-	page := request(env.routes, http.MethodGet, env.filesPath(), nil, env.cookies, nil)
+	page := request(env.routes, http.MethodGet, env.filesPath()+"?all=1", nil, env.cookies, nil)
 	body := page.Body.String()
 	for _, want := range []string{
 		`<html lang="en" data-theme=`,
@@ -166,7 +165,7 @@ func TestFilesPageRendersTemplShellAndAccessibleEmptyState(t *testing.T) {
 		`class="list-view-cards"`,
 		`class="file-empty-state card" role="status"`,
 		`No files yet.`,
-		`Sort and filter files`,
+		`Filter`,
 		`src="/assets/app.js"`,
 	} {
 		if !strings.Contains(body, want) {
@@ -176,7 +175,7 @@ func TestFilesPageRendersTemplShellAndAccessibleEmptyState(t *testing.T) {
 	if page.Header().Get("Cache-Control") != "no-store" || page.Header().Get("Content-Language") != "en" {
 		t.Errorf("Files response headers = cache %q, language %q", page.Header().Get("Cache-Control"), page.Header().Get("Content-Language"))
 	}
-	if strings.Contains(body, "Back to home") || strings.Contains(body, "hx-") {
+	if strings.Contains(body, "Back to home") || hxPostOutsideColumns(body) {
 		t.Errorf("Files page has obsolete back-home navigation or an unapproved HTMX enhancement: %s", body)
 	}
 	for _, secretMarker := range []string{"X-Amz-Signature", "X-Amz-Credential", "Signature="} {
@@ -189,8 +188,8 @@ func TestFilesPageRendersTemplShellAndAccessibleEmptyState(t *testing.T) {
 func TestFilesUploadFeedbackUsesSelectedLocale(t *testing.T) {
 	env := newFilesTestEnv(t, 16<<20, 1<<30)
 	cookies := append(append([]*http.Cookie(nil), env.cookies...), &http.Cookie{Name: "locale", Value: "es"})
-	page := request(env.routes, http.MethodGet, env.filesPath(), nil, cookies, nil)
-	for _, want := range []string{`data-status-uploading="Subiendo archivo…"`, `data-status-success="Carga completada."`, `data-status-choose-file="Elige un archivo para cargar."`, `data-upload-progress`, `aria-label="Progreso de carga"`, `Ordenar y filtrar archivos`} {
+	page := request(env.routes, http.MethodGet, env.filesPath()+"?all=1", nil, cookies, nil)
+	for _, want := range []string{`data-status-uploading="Subiendo archivo…"`, `data-status-success="Carga completada."`, `data-status-choose-file="Elige un archivo para cargar."`, `data-upload-progress`, `aria-label="Progreso de carga"`, `Filtrar`} {
 		if !strings.Contains(page.Body.String(), want) {
 			t.Errorf("Spanish files page missing %q: %s", want, page.Body.String())
 		}
@@ -210,15 +209,15 @@ func TestFilesListUsesSharedPresentationAndSavedColumns(t *testing.T) {
 			t.Fatalf("upload %s = %d: %s", name, response.Code, response.Body.String())
 		}
 	}
-	body := request(env.routes, http.MethodGet, path+"?limit=1", nil, env.cookies, nil).Body.String()
-	for _, required := range []string{`class="list-view-table"`, `class="list-view-cards"`, `data-column="original_name"`, `preferences/columns/size`, `name="search"`, `name="min_size"`, `name="sort"`, `cursor=`, `/content`} {
+	body := request(env.routes, http.MethodGet, path+"?all=1&limit=1", nil, env.cookies, nil).Body.String()
+	for _, required := range []string{`class="list-view-table"`, `class="list-view-cards"`, `data-column="original_name"`, `preferences/columns/size`, `class="client-field-choices"`, `page=2`, `/content`} {
 		if !strings.Contains(body, required) {
 			t.Errorf("Files list missing %q: %s", required, body)
 		}
 	}
-	cursorAt := strings.Index(body, "cursor=")
+	cursorAt := strings.Index(body, "page=2")
 	if cursorAt < 0 {
-		t.Fatalf("Files page has no next-page cursor: %s", body)
+		t.Fatalf("Files page has no link to page 2: %s", body)
 	}
 	linkStart := strings.LastIndex(body[:cursorAt], `href="`)
 	linkEnd := strings.Index(body[cursorAt:], `"`)
@@ -238,8 +237,8 @@ func TestFilesListUsesSharedPresentationAndSavedColumns(t *testing.T) {
 	if preference.Code != http.StatusSeeOther || !strings.Contains(preference.Header().Get("Location"), "search=alpha") || !strings.Contains(preference.Header().Get("Location"), "sort=size") {
 		t.Fatalf("hide file size = %d: %s", preference.Code, preference.Body.String())
 	}
-	hidden := request(env.routes, http.MethodGet, path+"?search=alpha&sort=size&limit=1", nil, env.cookies, nil)
-	if hidden.Code != http.StatusOK || strings.Contains(hidden.Body.String(), `data-column="size"`) || !strings.Contains(hidden.Body.String(), "alpha.txt") || strings.Contains(hidden.Body.String(), "bravo.txt") {
+	hidden := request(env.routes, http.MethodGet, path+"?all=1&search=alpha&sort=size&limit=1", nil, env.cookies, nil)
+	if hidden.Code != http.StatusOK || strings.Contains(hidden.Body.String(), `data-column="size"`) || !strings.Contains(hidden.Body.String(), `<mark>alpha</mark>.txt`) || strings.Contains(hidden.Body.String(), "bravo.txt") {
 		t.Fatalf("filtered Files list with saved column = %d: %s", hidden.Code, hidden.Body.String())
 	}
 	invalid := request(env.routes, http.MethodGet, path+"?min_size=large", nil, env.cookies, nil)
@@ -254,7 +253,7 @@ func TestFilesMultipartUploadStoresFileAndRedirects(t *testing.T) {
 	if upload.Code != http.StatusSeeOther || upload.Header().Get("Location") != env.filesPath() {
 		t.Fatalf("multipart upload = %d location %q, want %d to files list", upload.Code, upload.Header().Get("Location"), http.StatusSeeOther)
 	}
-	page := request(env.routes, http.MethodGet, env.filesPath(), nil, env.cookies, nil)
+	page := request(env.routes, http.MethodGet, env.filesPath()+"?all=1", nil, env.cookies, nil)
 	if !strings.Contains(page.Body.String(), "notes.txt") {
 		t.Fatalf("uploaded file missing from list: %s", page.Body.String())
 	}
@@ -265,7 +264,7 @@ func TestFilesDownloadRequiresWorkspaceSessionAndServesMemberFile(t *testing.T) 
 	if response := multipartRequest(t, env.routes, env.filesPath(), url.Values{"csrf": {env.csrf}}, "notes.txt", "private contents", env.cookies, nil); response.Code != http.StatusSeeOther {
 		t.Fatalf("upload = %d: %s", response.Code, response.Body.String())
 	}
-	page := request(env.routes, http.MethodGet, env.filesPath(), nil, env.cookies, nil)
+	page := request(env.routes, http.MethodGet, env.filesPath()+"?all=1", nil, env.cookies, nil)
 	body := page.Body.String()
 	contentAt := strings.Index(body, "/content")
 	if page.Code != http.StatusOK || contentAt < 0 {
@@ -292,7 +291,7 @@ func TestFilesMultipartUploadDeniesViewer(t *testing.T) {
 	if upload.Code != http.StatusForbidden {
 		t.Fatalf("viewer upload = %d, want %d: %s", upload.Code, http.StatusForbidden, upload.Body.String())
 	}
-	page := request(env.routes, http.MethodGet, env.filesPath(), nil, env.cookies, nil)
+	page := request(env.routes, http.MethodGet, env.filesPath()+"?all=1", nil, env.cookies, nil)
 	if strings.Contains(page.Body.String(), "notes.txt") {
 		t.Fatalf("denied viewer upload was stored: %s", page.Body.String())
 	}

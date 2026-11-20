@@ -872,7 +872,7 @@
       "openWorldHint": false,
       "readOnlyHint": true
     },
-    "description": "List one workspace's clients with filter, sort, archived selector, and bounded cursor pagination.",
+    "description": "List one workspace's clients with filter, sort, archived selector, and bounded page pagination.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -882,10 +882,6 @@
             "archived",
             "all"
           ],
-          "type": "string"
-        },
-        "cursor": {
-          "maxLength": 512,
           "type": "string"
         },
         "filters": {
@@ -924,6 +920,12 @@
         "limit": {
           "default": 50,
           "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "page": {
+          "description": "1-based page number. The first page is 1.",
+          "maximum": 1000000,
           "minimum": 1,
           "type": "integer"
         },
@@ -1012,13 +1014,17 @@
           "maxItems": 100,
           "type": "array"
         },
-        "nextCursor": {
-          "maxLength": 700,
-          "type": "string"
+        "page": {
+          "type": "integer"
+        },
+        "total": {
+          "type": "integer"
         }
       },
       "required": [
-        "clients"
+        "clients",
+        "total",
+        "page"
       ],
       "type": "object"
     }
