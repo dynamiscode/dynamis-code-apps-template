@@ -89,7 +89,33 @@ jobs:
       - run: command -v pg_dump && command -v pg_restore
       - run: go test -race ./...
 
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      web: ${{ steps.paths.outputs.web }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: paths
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          web=true
+          if [ '${{ github.event_name }}' = pull_request ]; then
+            web=false
+            if git diff --name-only "origin/$BASE_REF...HEAD" | grep -Eq '^(internal/web/|internal/identity/|internal/browsertest/|cmd/browsersmoke/|scripts/accessibility-smoke\.sh$|scripts/webmcp-smoke\.sh$|package[^/]*\.json$)'; then
+              web=true
+            fi
+          fi
+          echo "web=$web" >> "$GITHUB_OUTPUT"
+
   accessibility:
+    needs: changes
+    if: needs.changes.outputs.web == 'true' || github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
