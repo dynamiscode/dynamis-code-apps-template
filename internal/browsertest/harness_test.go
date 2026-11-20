@@ -107,6 +107,9 @@ func startFixtures() (func(), error) {
 	}
 
 	appDB := filepath.Join(dir, "app.db")
+	// membersDB is a copy of the seeded database, so the unkeyed server starts from the same data.
+	membersDB := filepath.Join(dir, "members.db")
+	membersDBFile = membersDB
 	base := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + dir, "TMPDIR=" + dir,
 		"DATABASE_DRIVER=sqlite", "SQLITE_PATH=" + appDB, "STORAGE_DRIVER=local",
 		"STORAGE_LOCAL_PATH=" + filepath.Join(dir, "files"), "BOOTSTRAP_ADMIN_PASSWORD=" + fixturePassword}
@@ -117,6 +120,12 @@ func startFixtures() (func(), error) {
 		"PLAYWRIGHT_EMAIL="+fixtureOwnerEmail, "PLAYWRIGHT_MEMBER_EMAIL="+fixtureMemberEmail,
 		"PLAYWRIGHT_MEMBER_PASSWORD="+fixtureMemberPass, "PLAYWRIGHT_SQLITE_PATH="+appDB)
 	if err := runTool(dir, seedEnv, "seed-member"); err != nil {
+		return fail(err)
+	}
+
+	if data, err := os.ReadFile(appDB); err != nil {
+		return fail(err)
+	} else if err := os.WriteFile(membersDB, data, 0o600); err != nil {
 		return fail(err)
 	}
 
@@ -143,6 +152,31 @@ func startFixtures() (func(), error) {
 	})
 	baseURL = fmt.Sprintf("http://127.0.0.1:%d", port)
 	if err := waitReady(baseURL + "/health/ready"); err != nil {
+		return fail(err)
+	}
+
+	// The unkeyed server has no webhook encryption key, the state the admin pages explain.
+	unkeyedPort, err := freePort()
+	if err != nil {
+		return fail(err)
+	}
+	unkeyedEnv := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + dir, "TMPDIR=" + dir,
+		"MULTI_WORKSPACE_ENABLED=true", "HTTP_REQUESTS_PER_MINUTE=10000", "HTTP_AUTH_REQUESTS_PER_MINUTE=1000",
+		"DATABASE_DRIVER=sqlite", "SQLITE_PATH=" + membersDB, "STORAGE_DRIVER=local",
+		"STORAGE_LOCAL_PATH=" + filepath.Join(dir, "members-files"), "HTTP_SSE_POLL_INTERVAL=1s",
+		"HTTP_SSE_MAX_LIFETIME=1m", fmt.Sprintf("HTTP_ADDRESS=127.0.0.1:%d", unkeyedPort)}
+	unkeyed := exec.Command(filepath.Join(dir, "server"))
+	unkeyed.Env = unkeyedEnv
+	unkeyed.Stdout, unkeyed.Stderr = &bytes.Buffer{}, &bytes.Buffer{}
+	if err := unkeyed.Start(); err != nil {
+		return fail(err)
+	}
+	cleanups = append(cleanups, func() {
+		_ = unkeyed.Process.Kill()
+		_, _ = unkeyed.Process.Wait()
+	})
+	membersURL = fmt.Sprintf("http://127.0.0.1:%d", unkeyedPort)
+	if err := waitReady(membersURL + "/health/ready"); err != nil {
 		return fail(err)
 	}
 
@@ -485,3 +519,9 @@ var oidcURL, setupURL string
 
 // serverLog collects the main server's output, printed when a run fails.
 var serverLog *bytes.Buffer
+
+// membersURL is the server without webhook encryption configured.
+var membersURL string
+
+// membersDBFile is the unkeyed server's database, for fixtures that write to it directly.
+var membersDBFile string
