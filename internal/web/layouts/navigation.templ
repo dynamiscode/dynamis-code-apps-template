@@ -10,15 +10,18 @@ func homeCrumbItems(data viewmodel.PageData) []atoms.BreadcrumbsProp {
 		return nil
 	}
 	href := "/"
-	if data.SingleWorkspace {
+	if data.DefaultWorkspaceHref != "" {
 		href = data.DefaultWorkspaceHref
 	}
 	return []atoms.BreadcrumbsProp{{Label: data.T("workspace.workspaces"), Href: href}}
 }
+
 templ UiHead(data viewmodel.PageData) {
+	<meta name="csrf-token" content={ data.CSRF }/>
 	<script defer src="/assets/forms.js"
 		data-msg-saving={ data.T("ui.saving") } data-msg-loading={ data.T("ui.loading") }
-		data-msg-load-failed={ data.T("ui.load_failed") } data-msg-retry={ data.T("ui.retry") } data-msg-error-summary={ data.T("ui.error_summary") }
+		data-msg-load-failed={ data.T("ui.load_failed") } data-msg-retry={ data.T("ui.retry") }
+		data-msg-error-summary={ data.T("ui.error_summary") }
 		data-msg-unsaved={ data.T("ui.unsaved") } data-msg-updates-waiting={ data.T("ui.updates_waiting") }
 		data-msg-show-password={ data.T("ui.show_password") } data-msg-hide-password={ data.T("ui.hide_password") }
 		data-msg-strength={ data.T("ui.strength") } data-msg-strength-0={ data.T("ui.strength_0") }
@@ -35,17 +38,32 @@ templ SkipLink(data viewmodel.PageData) {
 	<a class="skip-link" href="#main">{ data.T("ui.skip_to_content") }</a>
 }
 
+// workspaceSwitcherItem is a daisyUI menu entry with the workspace name and role.
+templ workspaceSwitcherItem(href, name, role string, current bool) {
+	<a href={ href } aria-current={ currentPage(current) }><strong>{ name }</strong><span class="text-sm">{ role }</span></a>
+}
+
+// logoutItem is the POST logout form as a daisyUI menu entry.
+templ logoutItem(data viewmodel.PageData) {
+	<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button type="submit">{ data.T("navigation.sign_out") }</button></form>
+}
+
+// workspaceSwitcherItems builds the dropdown items for the workspace switcher menu.
+func workspaceSwitcherItems(data viewmodel.PageData) []atoms.DropdownItem {
+	items := make([]atoms.DropdownItem, 0, len(data.Workspaces)+2)
+	items = append(items, atoms.DropdownItem{Title: data.T("navigation.home")})
+	for _, workspace := range data.Workspaces {
+		items = append(items, atoms.DropdownItem{Item: workspaceSwitcherItem("/workspaces/"+workspace.ID.String(), workspace.Name, data.Role(workspace.Role), workspace.ID == data.Workspace.ID)})
+	}
+	items = append(items, atoms.DropdownItem{Label: data.T("workspace.workspaces"), Attrs: templ.Attributes{"href": "/"}})
+	return items
+}
+
 templ WorkspaceContext(data viewmodel.PageData) {
 	if data.SingleWorkspace {
-		<span class="workspace-name">{ data.Workspace.Name }</span>
+		<span class="truncate font-bold">{ data.Workspace.Name }</span>
 	} else {
-		<details class="workspace-switcher"><summary>{ data.Workspace.Name }</summary><div class="workspace-switcher-panel">
-			<span class="nav-label">{ data.T("navigation.home") }</span>
-			for _, workspace := range data.Workspaces {
-				<a href={ "/workspaces/" + workspace.ID.String() } aria-current={ currentPage(workspace.ID == data.Workspace.ID) }><strong>{ workspace.Name }</strong><span>{ data.Role(workspace.Role) }</span></a>
-			}
-			<a href="/">{ data.T("workspace.workspaces") }</a>
-		</div></details>
+		@atoms.Dropdown(atoms.DropdownProps{Label: data.Workspace.Name, ListClass: "w-56 max-w-[90vw] bg-base-100 rounded-box shadow-lg", Items: workspaceSwitcherItems(data)})
 	}
 }
 
@@ -59,61 +77,90 @@ templ DefaultHomeCrumb(data viewmodel.PageData) {
 	@atoms.Breadcrumbs(atoms.BreadcrumbsProps{Items: homeCrumbItems(data)})
 }
 
-templ NavLink(data viewmodel.PageData, href, key string, active, subitem bool) {
-	<a class={ templ.KV("sidebar-subitem", subitem), templ.KV("active", active) } aria-current={ currentPage(active) } href={ href }>{ data.T(key) }</a>
+// NavLink is a plain anchor carrying aria-current; menu-active styling lives
+// on the wrapping li (navLi, or a DropdownItem Class).
+templ NavLink(data viewmodel.PageData, href, key string, active bool) {
+	<a aria-current={ currentPage(active) } href={ href }>{ data.T(key) }</a>
+}
+
+templ navLi(data viewmodel.PageData, href, key string, active bool) {
+	<li class={ templ.KV("menu-active", active) }>@NavLink(data, href, key, active)</li>
+}
+
+templ navTitle(text string) {
+	<li class="menu-title text-base-content/80">{ text }</li>
 }
 
 templ WorkspaceNav(data viewmodel.PageData) {
 	if data.NavSection == "settings" {
-		<nav class="sidebar-nav workspace-settings-nav" aria-label={ data.T("navigation.workspace_settings") }>
-			<span class="nav-label">{ data.T("navigation.settings") }</span><span class="nav-label">{ data.T("navigation.settings_setup") }</span>
-			@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/general", "navigation.general", data.NavPage == "general", true)
-			if data.Workspace.Role == "owner" || data.Workspace.Role == "admin" {
-				@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/email", "navigation.email", data.NavPage == "email", true)
-			}
-			<span class="nav-label">{ data.T("navigation.settings_access") }</span>
-			@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/members", "navigation.members", data.NavPage == "members" || data.NavPage == "invitations", true)
-			@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/tokens", "navigation.tokens", data.NavPage == "tokens", true)
-			@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks", "navigation.webhooks", data.NavPage == "webhooks", true)
-			if data.Workspace.Role == "owner" || data.Workspace.Role == "admin" {
-				@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/provisioning", "navigation.provisioning", data.NavPage == "provisioning", true)
-			}
-			<span class="nav-label">{ data.T("navigation.settings_activity") }</span>
-			@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/export", "navigation.export", data.NavPage == "export", true)
-			if data.Workspace.Role == "owner" || data.Workspace.Role == "admin" {
-				@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/import", "navigation.import", data.NavPage == "import", true)
-				@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/audit", "navigation.audit_history", data.NavPage == "audit", true)
-			}
+		<nav aria-label={ data.T("navigation.workspace_settings") }>
+			<ul class="menu w-full">
+				@navTitle(data.T("navigation.settings_setup"))
+				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/general", "navigation.general", data.NavPage == "general")
+				if data.Workspace.Role == "owner" || data.Workspace.Role == "admin" {
+					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/email", "navigation.email", data.NavPage == "email")
+				}
+				@navTitle(data.T("navigation.settings_access"))
+				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/members", "navigation.members", data.NavPage == "members" || data.NavPage == "invitations")
+				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/tokens", "navigation.tokens", data.NavPage == "tokens")
+				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/webhooks", "navigation.webhooks", data.NavPage == "webhooks")
+				if data.Workspace.Role == "owner" || data.Workspace.Role == "admin" {
+					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/provisioning", "navigation.provisioning", data.NavPage == "provisioning")
+				}
+				@navTitle(data.T("navigation.settings_activity"))
+				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/export", "navigation.export", data.NavPage == "export")
+				if data.Workspace.Role == "owner" || data.Workspace.Role == "admin" {
+					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/import", "navigation.import", data.NavPage == "import")
+					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/audit", "navigation.audit_history", data.NavPage == "audit")
+				}
+			</ul>
 		</nav>
 	} else {
-		<nav class="sidebar-nav" aria-label={ data.T("navigation.workspace_navigation") }><span class="nav-label">{ data.T("common.workspace") }</span>
-			@NavLink(data, "/workspaces/" + data.Workspace.ID.String(), "navigation.home", data.NavPage == "workspace", false)
-			@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/items", "navigation.items", data.NavPage == "items", false)
-			if data.ClientsEnabled {
-				@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/clients", "clients.title", data.NavPage == "clients" || data.NavPage == "client-detail" || data.NavPage == "client-fields", false)
-			}
-			if data.FilesEnabled {
-				@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/files", "files.files", data.NavPage == "files", false)
-			}
-			<div class="sidebar-settings"><span class="nav-label">{ data.T("navigation.settings") }</span><a href={ "/workspaces/" + data.Workspace.ID.String() + "/settings" }>{ data.T("navigation.settings") }</a></div>
+		<nav aria-label={ data.T("navigation.workspace_navigation") }>
+			<ul class="menu w-full">
+				@navTitle(data.T("common.workspace"))
+				@navLi(data, "/workspaces/"+data.Workspace.ID.String(), "navigation.home", data.NavPage == "workspace")
+				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/items", "navigation.items", data.NavPage == "items")
+				if data.ClientsEnabled {
+					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/clients", "clients.title", data.NavPage == "clients" || data.NavPage == "client-detail" || data.NavPage == "client-fields")
+				}
+				if data.FilesEnabled {
+					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/files", "files.files", data.NavPage == "files")
+				}
+				@navTitle(data.T("navigation.settings"))
+				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings", "navigation.settings", data.NavPage == "settings")
+			</ul>
 		</nav>
 	}
 }
 
 templ PeopleTabs(data viewmodel.PageData) {
-	<nav class="subnav" aria-label={ data.T("accessibility.members_invitations") }>
-		@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/members", "members.members", data.NavPage == "members", false)
-		@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/invitations", "invitations.invitations", data.NavPage == "invitations", false)
+	<nav aria-label={ data.T("accessibility.members_invitations") }>
+		<ul class="menu menu-horizontal w-full">
+			@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/members", "members.members", data.NavPage == "members")
+			@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/invitations", "invitations.invitations", data.NavPage == "invitations")
+		</ul>
 	</nav>
 }
 
+// accountMenuItems builds the account dropdown items, marking the current page active.
+func accountMenuItems(data viewmodel.PageData) []atoms.DropdownItem {
+	active := func(page string) string {
+		if data.NavPage == page {
+			return "menu-active"
+		}
+		return ""
+	}
+	return []atoms.DropdownItem{
+		{Class: active("account"), Item: NavLink(data, "/account", "account.account", data.NavPage == "account")},
+		{Class: active("notifications"), Item: NavLink(data, "/notifications", "notifications.notifications", data.NavPage == "notifications")},
+		{Class: active("language"), Item: NavLink(data, "/settings/language", "account.language_settings", data.NavPage == "language")},
+		{Class: active("security"), Item: NavLink(data, "/security", "navigation.security", data.NavPage == "security")},
+		{Class: active("sessions"), Item: NavLink(data, "/sessions", "navigation.sessions", data.NavPage == "sessions")},
+		{Item: logoutItem(data)},
+	}
+}
+
 templ AccountMenu(data viewmodel.PageData) {
-	<details class="account-menu"><summary>{ data.T("common.account") }</summary><div class="account-menu-panel">
-		@NavLink(data, "/account", "account.account", data.NavPage == "account", false)
-		@NavLink(data, "/notifications", "notifications.notifications", data.NavPage == "notifications", false)
-		@NavLink(data, "/settings/language", "account.language_settings", data.NavPage == "language", false)
-		@NavLink(data, "/security", "navigation.security", data.NavPage == "security", false)
-		@NavLink(data, "/sessions", "navigation.sessions", data.NavPage == "sessions", false)
-		<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button class="secondary" type="submit">{ data.T("navigation.sign_out") }</button></form>
-	</div></details>
+	@atoms.Dropdown(atoms.DropdownProps{Class: "dropdown-end", Label: data.T("common.account"), ListClass: "w-52 max-w-[90vw] bg-base-100 rounded-box shadow-lg", Items: accountMenuItems(data)})
 }

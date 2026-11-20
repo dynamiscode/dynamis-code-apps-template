@@ -322,7 +322,7 @@ func TestClientsListQueryOpenDoesNotBlockRealtime(t *testing.T) {
 	openClients(t, tab)
 	here := eval[string](t, tab, "location.pathname")
 	navigate(t, tab, here+"?filter_field=displayName")
-	eventually(t, tab, `Boolean(document.querySelector(".list-add-menu[open]"))`, "add-filter disclosure is not open for a query")
+	eventually(t, tab, `Boolean(document.querySelector(".list-menu[open]"))`, "add-filter disclosure is not open for a query")
 	expectRealtime(t, tab, "connected|connecting")
 
 	peer := newPeer(t, tab)

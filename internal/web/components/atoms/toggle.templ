@@ -72,3 +72,18 @@ templ Toggle(props ToggleProps) {
 		}
 	</div>
 }
+
+// ToggleInput is a bare checkbox styled as a daisyUI toggle, for use inside a
+// form where the caller provides the label and the submit behavior (for
+// example a column visibility switch that posts on change).
+type ToggleInputProps struct {
+	Name     string
+	Value    string
+	Checked  bool
+	Disabled bool
+	Attrs    templ.Attributes
+}
+
+templ ToggleInput(props ToggleInputProps) {
+	<input type="checkbox" class="toggle" name={ props.Name } value={ props.Value } checked?={ props.Checked } disabled?={ props.Disabled } { props.Attrs... }/>
+}

@@ -205,7 +205,7 @@ templ importSettingsView(data viewmodel.PageData) {
 					if len(data.ImportPreview.Sample) > 0 {
 						<h3>{ data.T("import.preview_sample") }</h3>
 						@components.DataTable(data.T("import.preview_sample"), true) {
-							<thead><tr><th scope="col">{ data.T("items.title") }</th><th scope="col">{ data.T("items.status") }</th></tr></thead>
+							<thead><tr><th scope="col">@atoms.HeaderText(data.T("items.title"), nil)</th><th scope="col">@atoms.HeaderText(data.T("items.status"), nil)</th></tr></thead>
 							<tbody>
 								for _, sample := range data.ImportPreview.Sample {
 									<tr><td>{ sample.Title }</td><td>

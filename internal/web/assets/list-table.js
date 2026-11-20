@@ -106,10 +106,10 @@
 	// Menus that open a panel from a button: row actions, columns, add-filter steps, and new-record forms. Only one
 	// is open at a time. An open panel is fixed to the window, so the table's scroll area cannot hide it, and it is
 	// placed inside the window: below its button, or above it when there is no room below.
-	const menuSelector = "details.list-row-menu, details.list-view-columns, details.list-add-menu, details.list-create-menu";
+	const menuSelector = "details.list-menu";
 	const margin = 8;
 	const placeMenu = (menu) => {
-		const panel = menu.querySelector(":scope > .list-menu-panel");
+		const panel = menu.querySelector(":scope > .dropdown-content");
 		const summary = menu.querySelector(":scope > summary");
 		if (!panel || !summary) return;
 		panel.style.position = "fixed";
@@ -149,7 +149,7 @@
 	// Column order: the columns menu lists the columns in table order. The move buttons and dragging change the order,
 	// and the new order is saved from the menu's hidden order field. The first column, the name, stays first.
 	const saveColumnOrder = (list) => {
-		const form = list.closest(".list-view-columns")?.querySelector("form.list-column-order");
+		const form = list.closest(".list-menu")?.querySelector("form.list-column-order");
 		if (!form) return;
 		form.querySelector('input[name="order"]').value = [...list.querySelectorAll(":scope > li[data-column-key]")].map((row) => row.dataset.columnKey).join(",");
 		form.requestSubmit();

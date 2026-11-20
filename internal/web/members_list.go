@@ -179,7 +179,7 @@ func (h *Handler) memberColumnPreference(writer http.ResponseWriter, request *ht
 		for _, column := range memberListColumns() {
 			defaults[column.Key] = column.DefaultVisible
 		}
-		visible, parseErr := strconv.ParseBool(request.FormValue("visible"))
+		visible, parseErr := strconv.ParseBool(listVisibleParam(request))
 		if parseErr != nil {
 			h.renderError(writer, http.StatusBadRequest)
 			return

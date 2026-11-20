@@ -1,5 +1,6 @@
 package components
 
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 // ListActionsCell is a row's last cell: a sticky "⋯" menu of the row's actions. It stays on the right while the
@@ -15,52 +16,67 @@ templ ListActionsCell(data viewmodel.PageData, actions []ListAction) {
 // horizontal ones. A row with no actions shows nothing.
 templ ListActionsMenu(data viewmodel.PageData, actions []ListAction, vertical bool) {
 	if len(actions) > 0 {
-		<details class={ "list-row-menu", templ.KV("list-card-actions", vertical) }>
-			<summary aria-label={ data.T("ui.row_actions") } title={ data.T("ui.row_actions") }>
-				if vertical {
-					&#8942;
-				} else {
-					&#8943;
-				}
-			</summary>
-			<div class="list-menu-panel">
-				<ul class="list-action-items">
-					for _, action := range actions {
-						if action.Danger {
-							<li class="list-action-divider" role="presentation"></li>
-						}
-						<li>
-							if action.PostPath != "" {
-								<form method="post" action={ action.PostPath }>
-									<input type="hidden" name="csrf" value={ data.CSRF }/>
-									<button class={ "list-action-button", templ.KV("is-danger", action.Danger) } type="submit" { ListActionConfirm(action)... }>
-										@ListActionIcon(action.Icon)
-										<span>{ action.Label }</span>
-									</button>
-								</form>
-							} else {
-								<a class={ "list-action-link", templ.KV("is-danger", action.Danger) } href={ templ.SafeURL(action.Href) }>
-									@ListActionIcon(action.Icon)
-									<span>{ action.Label }</span>
-								</a>
-							}
-						</li>
-					}
-				</ul>
-			</div>
-		</details>
+		@atoms.Dropdown(atoms.DropdownProps{
+			Class:        "list-menu",
+			SummaryClass: "btn btn-ghost btn-xs",
+			SummaryAttrs: templ.Attributes{"aria-label": data.T("ui.row_actions"), "title": data.T("ui.row_actions")},
+			Summary:      rowMenuGlyph(vertical),
+			ListClass:    "list-action-items bg-base-100 rounded-box shadow-lg",
+			Items:        listActionItems(data, actions),
+		})
 	}
+}
+
+// listActionItems builds one menu entry per action, with a divider before each danger action.
+func listActionItems(data viewmodel.PageData, actions []ListAction) []atoms.DropdownItem {
+	items := make([]atoms.DropdownItem, 0, len(actions)*2)
+	for _, action := range actions {
+		if action.Danger {
+			items = append(items, atoms.DropdownItem{Divider: true})
+		}
+		if action.PostPath != "" {
+			items = append(items, atoms.DropdownItem{Item: listActionForm(data, action)})
+		} else {
+			items = append(items, atoms.DropdownItem{Item: listActionLink(action)})
+		}
+	}
+	return items
+}
+
+// listActionForm is a POST action with its CSRF token.
+templ listActionForm(data viewmodel.PageData, action ListAction) {
+	<form method="post" action={ action.PostPath }>
+		<input type="hidden" name="csrf" value={ data.CSRF }/>
+		<button class={ templ.KV("text-error", action.Danger) } type="submit" { ListActionConfirm(action)... }>
+			@ListActionIcon(action.Icon)
+			<span>{ action.Label }</span>
+		</button>
+	</form>
+}
+
+// listActionLink is a GET action.
+templ listActionLink(action ListAction) {
+	<a class={ templ.KV("text-error", action.Danger) } href={ templ.SafeURL(action.Href) }>
+		@ListActionIcon(action.Icon)
+		<span>{ action.Label }</span>
+	</a>
 }
 
 // ListRowMenuCard is a card's menu for the Members rows, whose actions are written in the page. It uses the vertical
 // dots.
 templ ListRowMenuCard(data viewmodel.PageData) {
-	<details class="list-row-menu list-card-actions">
-		<summary aria-label={ data.T("ui.row_actions") } title={ data.T("ui.row_actions") }>&#8942;</summary>
-		<div class="list-menu-panel">
+	@atoms.Dropdown(atoms.DropdownProps{
+		Class:          "list-menu",
+		SummaryClass:   "btn btn-ghost btn-xs",
+		SummaryAttrs:   templ.Attributes{"aria-label": data.T("ui.row_actions"), "title": data.T("ui.row_actions")},
+		Summary:        rowMenuGlyph(true),
+		PanelClass:     "list-action-items bg-base-100 rounded-box shadow-lg",
+		PanelChildren:  true,
+	}) {
+		<ul class="list-action-items">
 			{ children... }
-		</div>
-	</details>
+		</ul>
+	}
 }
 
 // ListActionIcon is the glyph of a row action. It is decorative: the label names the action.

@@ -69,7 +69,7 @@ func (h *Handler) setClientColumn(writer http.ResponseWriter, request *http.Requ
 	for _, column := range clientColumns(fields) {
 		defaults[column.Key] = column.DefaultVisible
 	}
-	visible, err := strconv.ParseBool(request.FormValue("visible"))
+	visible, err := strconv.ParseBool(listVisibleParam(request))
 	if err != nil {
 		h.renderError(writer, http.StatusBadRequest)
 		return

@@ -28,13 +28,13 @@ templ auditTable(data viewmodel.PageData) {
 		if len(data.AuditHistory) > 0 {
 			@components.AuditDataTable(data.T("audit.history"), data.T("audit.history")) {
 				<thead><tr>
-					<th scope="col">{ data.T("audit.time") }</th>
-					<th scope="col">{ data.T("audit.event") }</th>
-					<th scope="col">{ data.T("audit.actor") }</th>
-					<th scope="col">{ data.T("audit.auth_method") }</th>
-					<th scope="col">{ data.T("audit.action") }</th>
-					<th scope="col">{ data.T("audit.outcome") }</th>
-					<th scope="col">{ data.T("audit.target") }</th>
+					<th scope="col">@atoms.HeaderText(data.T("audit.time"), nil)</th>
+					<th scope="col">@atoms.HeaderText(data.T("audit.event"), nil)</th>
+					<th scope="col">@atoms.HeaderText(data.T("audit.actor"), nil)</th>
+					<th scope="col">@atoms.HeaderText(data.T("audit.auth_method"), nil)</th>
+					<th scope="col">@atoms.HeaderText(data.T("audit.action"), nil)</th>
+					<th scope="col">@atoms.HeaderText(data.T("audit.outcome"), nil)</th>
+					<th scope="col">@atoms.HeaderText(data.T("audit.target"), nil)</th>
 				</tr></thead>
 				<tbody>
 					for _, event := range data.AuditHistory {

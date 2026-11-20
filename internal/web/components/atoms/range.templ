@@ -1,6 +1,6 @@
 // data_input
 // https://daisyui.com/components/range
-// shortcut: value label interaction requires Alpine.js served at /static/js/alpine.js; drop the x-* attrs for a plain range
+// shortcut: value label interaction requires Alpine.js served at /assets/js/alpine.min.js; drop the x-* attrs for a plain range
 package atoms
 
 import "fmt"
@@ -19,7 +19,7 @@ type RangeProps struct {
 
 // Note: usage requires alpine.js
 templ Range(props RangeProps) {
-	<script src="/static/js/alpine.js" defer></script>
+	<script src="/assets/js/alpine.min.js" defer></script>
 	<label
 		class="label space-x-1"
 		x-data={ fmt.Sprintf("{ value: %d }", props.Value) }

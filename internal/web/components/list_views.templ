@@ -10,14 +10,27 @@ import (
 // rename, delete), and save the current filters, sort and columns as a new view. Every action posts to the list's
 // view routes, which redirect back to the list.
 templ ListViewSwitcher(data viewmodel.PageData) {
-	<details class="client-controls list-view-switcher list-settings">
-		<summary aria-label={ data.T("views.title") } title={ data.T("views.title") }>
-			<span>{ data.T("views.title") }</span>
-			if applied := listViewAppliedName(data); applied != "" {
-				<span class="list-view-summary-current">{ applied }</span>
-			}
-		</summary>
-		<div class="list-menu-panel list-views-panel">
+	@atoms.Dropdown(atoms.DropdownProps{
+		Class:        "list-menu",
+		SummaryClass: "btn btn-ghost btn-xs",
+		SummaryAttrs: templ.Attributes{"aria-label": data.T("views.title"), "title": data.T("views.title")},
+		Summary:      listViewSummary(data),
+		Panel:        listViewPanel(data),
+		PanelClass:   "list-views-panel bg-base-100 rounded-box shadow-lg border border-base-200 p-3 w-96 max-w-[90vw]",
+	})
+}
+
+// listViewSummary is the view menu's button face: the title and the applied view's name.
+templ listViewSummary(data viewmodel.PageData) {
+	<span>{ data.T("views.title") }</span>
+	if applied := listViewAppliedName(data); applied != "" {
+		<span class="list-view-summary-current">{ applied }</span>
+	}
+}
+
+// listViewPanel is the view menu's content: the saved views, their manage forms, and the save form.
+templ listViewPanel(data viewmodel.PageData) {
+	<div>
 			<p class="list-views-intro">{ data.T("views.intro") }</p>
 			<ul class="list-views-list">
 				<li class="list-view-row">
@@ -94,8 +107,7 @@ templ ListViewSwitcher(data viewmodel.PageData) {
 					</form>
 				}
 			</details>
-		</div>
-	</details>
+	</div>
 }
 
 // listViewAppliedName is the name of the view on screen, or empty when no saved view is applied.

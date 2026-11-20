@@ -5,7 +5,7 @@
 
 // https://daisyui.com/components/range
 
-// shortcut: value label interaction requires Alpine.js served at /static/js/alpine.js; drop the x-* attrs for a plain range
+// shortcut: value label interaction requires Alpine.js served at /assets/js/alpine.min.js; drop the x-* attrs for a plain range
 
 package atoms
 
@@ -50,7 +50,7 @@ func Range(props RangeProps) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<script src=\"/static/js/alpine.js\" defer></script><label class=\"label space-x-1\" x-data=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<script src=\"/assets/js/alpine.min.js\" defer></script><label class=\"label space-x-1\" x-data=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -137,37 +137,54 @@ templ ListPageSize(data viewmodel.PageData, limit int, sizes []int) {
 
 // ListCreateMenu is the list's primary action. Its form opens in a popover from the toolbar.
 templ ListCreateMenu(label string, open bool) {
-	<details class="list-create-menu client-controls client-create" open?={ open }>
-		<summary class="btn btn-primary">{ label }</summary>
-		<div class="list-menu-panel">
-			{ children... }
-		</div>
-	</details>
+	@atoms.Dropdown(atoms.DropdownProps{
+		Class:          "list-menu client-create",
+		Label:          label,
+		SummaryClass:   "btn btn-primary",
+		Open:           open,
+		PanelClass:     "bg-base-100 rounded-box shadow-lg border border-base-200 p-3 w-80 max-w-[90vw]",
+		PanelChildren:  true,
+	}) {
+		{ children... }
+	}
 }
 
 // ListAddMenu is the "+" control after the last filter chip. It opens the add-filter steps. Without
 // chips, labelled shows the label as text, so the control is never a lone symbol.
 templ ListAddMenu(label string, open bool, labelled bool) {
-	<details class="list-add-menu" open?={ open }>
-		if labelled {
-			<summary class="list-add-label list-tool" aria-label={ label }>@ListFilterIcon()<span>{ label }</span></summary>
-		} else {
-			<summary aria-label={ label } title={ label }>@ListFilterIcon()</summary>
-		}
-		<div class="list-menu-panel">
-			{ children... }
-		</div>
-	</details>
+	@atoms.Dropdown(atoms.DropdownProps{
+		Class:          "list-menu",
+		SummaryClass:   "btn btn-ghost btn-xs",
+		SummaryAttrs:   templ.Attributes{"aria-label": label, "title": label},
+		Summary:        listAddSummary(label, labelled),
+		Open:           open,
+		PanelClass:     "bg-base-100 rounded-box shadow-lg border border-base-200 p-3 w-96 max-w-[90vw]",
+		PanelChildren:  true,
+	}) {
+		{ children... }
+	}
+}
+
+// listAddSummary is the add-filter control's glyph, with its label when the toolbar shows text.
+templ listAddSummary(label string, labelled bool) {
+	@ListFilterIcon()
+	if labelled {
+		<span>{ label }</span>
+	}
 }
 
 // ListFilterMenu wraps one page's sort and filter form in the shared menu.
 templ ListFilterMenu(label string, open bool) {
-	<details class="client-controls client-filters" open?={ open }>
-		<summary>{ label }</summary>
-		<div class="list-menu-panel">
-			{ children... }
-		</div>
-	</details>
+	@atoms.Dropdown(atoms.DropdownProps{
+		Class:          "list-menu",
+		Label:          label,
+		SummaryClass:   "btn btn-ghost btn-sm",
+		Open:           open,
+		PanelClass:     "bg-base-100 rounded-box shadow-lg border border-base-200 p-3 w-96 max-w-[90vw]",
+		PanelChildren:  true,
+	}) {
+		{ children... }
+	}
 }
 
 templ ClientColumnLabel(data viewmodel.PageData, column viewmodel.ListColumn) {
@@ -182,17 +199,17 @@ templ ClientColumnHeading(data viewmodel.PageData, column viewmodel.ListColumn) 
 	if column.SortDirection != "" {
 		<th scope="col" data-column={ column.Key } aria-sort={ column.SortDirection }>
 			if column.SortHref != "" {
-				<a href={ column.SortHref } { ListLiveLinkAttributes(data, column.SortHref)... }>@ClientColumnLabel(data, column)</a>
+				<a href={ column.SortHref } { ListLiveLinkAttributes(data, column.SortHref)... }>@atoms.HeaderText(ClientColumnLabelText(data, column), nil)</a>
 			} else {
-				@ClientColumnLabel(data, column)
+				@atoms.HeaderText(ClientColumnLabelText(data, column), nil)
 			}
 		</th>
 	} else {
 		<th scope="col" data-column={ column.Key }>
 			if column.SortHref != "" {
-				<a href={ column.SortHref } { ListLiveLinkAttributes(data, column.SortHref)... }>@ClientColumnLabel(data, column)</a>
+				<a href={ column.SortHref } { ListLiveLinkAttributes(data, column.SortHref)... }>@atoms.HeaderText(ClientColumnLabelText(data, column), nil)</a>
 			} else {
-				@ClientColumnLabel(data, column)
+				@atoms.HeaderText(ClientColumnLabelText(data, column), nil)
 			}
 		</th>
 	}
@@ -235,12 +252,25 @@ templ ListSearch(data viewmodel.PageData, placeholderKey string, value string) {
 
 // ListRowMenu holds a row's actions behind a "⋯" button. Only rows with actions use it.
 templ ListRowMenu(data viewmodel.PageData) {
-	<details class="list-row-menu">
-		<summary aria-label={ data.T("ui.row_actions") } title={ data.T("ui.row_actions") }>&#8943;</summary>
-		<div class="list-menu-panel">
-			{ children... }
-		</div>
-	</details>
+	@atoms.Dropdown(atoms.DropdownProps{
+		Class:          "list-menu",
+		SummaryClass:   "btn btn-ghost btn-xs",
+		SummaryAttrs:   templ.Attributes{"aria-label": data.T("ui.row_actions"), "title": data.T("ui.row_actions")},
+		Summary:        rowMenuGlyph(false),
+		PanelClass:     "bg-base-100 rounded-box shadow-lg border border-base-200 p-3 w-72 max-w-[90vw]",
+		PanelChildren:  true,
+	}) {
+		{ children... }
+	}
+}
+
+// rowMenuGlyph is the three-dot button face; vertical dots for card rows.
+templ rowMenuGlyph(vertical bool) {
+	if vertical {
+		&#8942;
+	} else {
+		&#8943;
+	}
 }
 
 // ListDragHandleIcon is the six-dot grip that marks a column row as draggable. It is decorative.
@@ -256,16 +286,29 @@ templ ListDragHandleIcon() {
 // handles, and the reset. suffix keeps the list query on the preference routes. A change updates the list's results
 // in place, and the switches refresh out of band, so the menu stays open.
 templ ListColumnsMenu(data viewmodel.PageData, suffix string) {
-	<details class="client-controls list-view-columns list-settings">
-		<summary class="list-tool" aria-label={ data.T("clients.columns") } title={ data.T("clients.columns") }>@ListColumnsIcon()<span>{ data.T("clients.columns") }</span></summary>
-		<div class="list-menu-panel" aria-label={ data.T("clients.columns") }>
-			@ListColumnsBody(data, suffix, false)
-			<form method="post" action={ data.CurrentPath + "/preferences/columns/reset" + suffix } hx-post={ ListResultsURL(data.CurrentPath+"/preferences/columns/reset", suffix) } hx-target="#list-results" hx-swap="outerHTML">
-				<input type="hidden" name="csrf" value={ data.CSRF }/>
-				<button class="btn btn-ghost btn-xs" type="submit">{ data.T("clients.columns_reset") }</button>
-			</form>
-		</div>
-	</details>
+	@atoms.Dropdown(atoms.DropdownProps{
+		Class:        "list-menu",
+		SummaryClass: "btn btn-ghost btn-xs",
+		SummaryAttrs: templ.Attributes{"aria-label": data.T("clients.columns"), "title": data.T("clients.columns")},
+		Summary:      listColumnsSummary(data),
+		Panel:        listColumnsPanel(data, suffix),
+		PanelClass:   "list-columns-panel bg-base-100 rounded-box shadow-lg border border-base-200 p-3 w-80 max-w-[90vw]",
+		PanelAttrs:   templ.Attributes{"aria-label": data.T("clients.columns")},
+	})
+}
+
+// listColumnsSummary is the columns button face.
+templ listColumnsSummary(data viewmodel.PageData) {
+	@ListColumnsIcon()<span>{ data.T("clients.columns") }</span>
+}
+
+// listColumnsPanel holds the switches, the drag order, and the reset form.
+templ listColumnsPanel(data viewmodel.PageData, suffix string) {
+	@ListColumnsBody(data, suffix, false)
+	<form method="post" action={ data.CurrentPath + "/preferences/columns/reset" + suffix } hx-post={ ListResultsURL(data.CurrentPath+"/preferences/columns/reset", suffix) } hx-target="#list-results" hx-swap="outerHTML">
+		<input type="hidden" name="csrf" value={ data.CSRF }/>
+		<button class="btn btn-ghost btn-xs" type="submit">{ data.T("clients.columns_reset") }</button>
+	</form>
 }
 
 // ListColumnsBody is the switch list, the drag order form and the count. As an out-of-band swap it refreshes those
@@ -281,10 +324,13 @@ templ ListColumnsBody(data viewmodel.PageData, suffix string, oob bool) {
 				}
 				<form method="post" action={ data.CurrentPath + "/preferences/columns/" + column.Key + suffix } hx-post={ ListResultsURL(data.CurrentPath+"/preferences/columns/"+column.Key, suffix) } hx-target="#list-results" hx-swap="outerHTML">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					<input type="hidden" name="visible" value={ ClientColumnVisibilityValue(column.Visible) }/>
-					<button class="list-switch" type="submit" role="switch" aria-checked={ strconv.FormatBool(column.Visible) } disabled?={ i == 0 } aria-label={ ClientColumnLabelText(data, column) }>
-						<span class="list-switch-track"><span class="list-switch-thumb"></span></span>
-					</button>
+					@atoms.ToggleInput(atoms.ToggleInputProps{
+						Name:     "visible",
+						Value:    "1",
+						Checked:  column.Visible,
+						Disabled: i == 0,
+						Attrs:    templ.Attributes{"data-autosubmit": "true", "aria-label": ClientColumnLabelText(data, column)},
+					})
 				</form>
 				<span class="list-column-name">
 					@ClientColumnLabel(data, column)

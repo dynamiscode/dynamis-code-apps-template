@@ -101,7 +101,7 @@ func (h *Handler) updateFileColumns(writer http.ResponseWriter, request *http.Re
 	if reset {
 		err = h.listPreferences.Reset(request.Context(), principal, workspaceID, listprefs.ListFiles)
 	} else {
-		visible, parseErr := strconv.ParseBool(request.FormValue("visible"))
+		visible, parseErr := strconv.ParseBool(listVisibleParam(request))
 		if parseErr != nil {
 			h.renderError(writer, http.StatusBadRequest)
 			return

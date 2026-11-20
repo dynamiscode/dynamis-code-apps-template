@@ -161,9 +161,9 @@ func TestFormUXPatterns(t *testing.T) {
 	// form-field-input: smart default token expiry; keyboard: Escape closes a menu.
 	run(t, tab, chromedp.Navigate(base+workspace+"/settings/tokens"))
 	check(js(`/^\d{4}-\d{2}-\d{2}$/.test(document.querySelector("#token-expiry").value)`), "form-field-input: token expiry has a default")
-	click(".account-menu summary")
+	click("header .dropdown-end summary")
 	run(t, tab, chromedp.KeyEvent("\x1b"))
-	check(js(`!document.querySelector(".account-menu").open`), "async-feedback: Escape closes the account menu")
+	check(js(`!document.querySelector("header .dropdown-end").open`), "async-feedback: Escape closes the account menu")
 
 	// clients: a blank name is stopped with a summary; a client is created; a choice field gets an option.
 	run(t, tab, chromedp.Navigate(base+workspace+"/clients"))

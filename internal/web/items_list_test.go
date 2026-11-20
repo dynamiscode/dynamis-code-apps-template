@@ -30,7 +30,7 @@ func TestItemsListPresentationAndPreferences(t *testing.T) {
 	}
 	body := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil).Body.String()
 	for _, required := range []string{
-		"list-view-columns", "item-list-view", `data-column="title"`,
+		"list-columns-panel", "item-list-view", `data-column="title"`,
 		`data-column="status"`, `name="title"`, `name="status"`,
 	} {
 		if !strings.Contains(body, required) {

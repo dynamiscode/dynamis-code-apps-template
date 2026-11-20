@@ -23,13 +23,13 @@ templ webhooksPage(data viewmodel.PageData) {
 					Attrs:     templ.Attributes{"role": "region", "tabindex": "0", "aria-label": data.T("webhooks.delivery_history")},
 				}) {
 					<thead><tr>
-						<th scope="col">{ data.T("webhooks.event") }</th>
-						<th scope="col">{ data.T("webhooks.status") }</th>
-						<th scope="col" class="num">{ data.T("webhooks.attempts") }</th>
-						<th scope="col" class="num">{ data.T("webhooks.http_status") }</th>
-						<th scope="col">{ data.T("webhooks.created") }</th>
-						<th scope="col">{ data.T("webhooks.delivered") }</th>
-						<th scope="col">{ data.T("webhooks.error") }</th>
+						<th scope="col">@atoms.HeaderText(data.T("webhooks.event"), nil)</th>
+						<th scope="col">@atoms.HeaderText(data.T("webhooks.status"), nil)</th>
+						<th scope="col">@atoms.HeaderText(data.T("webhooks.attempts"), templ.Attributes{"class": "num"})</th>
+						<th scope="col">@atoms.HeaderText(data.T("webhooks.http_status"), templ.Attributes{"class": "num"})</th>
+						<th scope="col">@atoms.HeaderText(data.T("webhooks.created"), nil)</th>
+						<th scope="col">@atoms.HeaderText(data.T("webhooks.delivered"), nil)</th>
+						<th scope="col">@atoms.HeaderText(data.T("webhooks.error"), nil)</th>
 					</tr></thead>
 					<tbody>
 						for _, delivery := range data.WebhookDeliveries {

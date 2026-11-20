@@ -3,38 +3,71 @@
 package atoms
 
 type DropdownProps struct {
-	Label       string
-	Class       string
+	Label        string
+	Class        string
 	SummaryClass string
-	ListClass   string
-	Items       []DropdownItem
+	SummaryAttrs templ.Attributes
+	// Summary, when set, renders after the label inside the summary button
+	// (icons, glyphs, badges).
+	Summary templ.Component
+	ListClass    string
+	Items        []DropdownItem
+	// Open renders the details element already open (server-side error state).
+	Open bool
+	// Panel, when set, replaces the item list with a plain content panel
+	// (forms, toolbars). Rendered inside a dropdown-content div.
+	Panel      templ.Component
+	PanelClass string
+	PanelAttrs templ.Attributes
+	// PanelChildren renders the caller's children into the panel div instead
+	// of the summary, for wrappers that forward their own children.
+	PanelChildren bool
 }
 
 type DropdownItem struct {
+	Class   string
 	Label   string
 	Attrs   templ.Attributes
 	Danger  bool
 	Divider bool
+	// Title renders a non-interactive menu heading (daisyUI menu-title).
+	Title string
 	// Item, when set, renders instead of the default anchor,
 	// so forms and buttons (with CSRF) can live in the menu.
 	Item templ.Component
 }
 
 templ Dropdown(props DropdownProps) {
-	<details class={ "dropdown", props.Class }>
-		<summary class={ "btn m-1", props.SummaryClass }>{ props.Label }{ children... }</summary>
-		<ul class={ "menu dropdown-content", props.ListClass }>
-			for _, di := range props.Items {
-				if di.Divider {
-					<li class="my-1 border-t border-base-content/10"></li>
-				} else if di.Item != nil {
-					<li>@di.Item</li>
-				} else {
-					<li>
-						<a { di.Attrs... } class={ templ.KV("text-error", di.Danger) }>{ di.Label }</a>
-					</li>
-				}
+	<details class={ "dropdown", props.Class } open?={ props.Open }>
+		<summary class={ "btn m-1", props.SummaryClass } { props.SummaryAttrs... }>
+			{ props.Label }
+			if props.Summary != nil {
+				@props.Summary
 			}
-		</ul>
+			if !props.PanelChildren {
+				{ children... }
+			}
+		</summary>
+		if props.Panel != nil {
+			<div class={ "dropdown-content", props.PanelClass } { props.PanelAttrs... }>@props.Panel</div>
+		} else if props.PanelChildren {
+			<div class={ "dropdown-content", props.PanelClass } { props.PanelAttrs... }>{ children... }</div>
+		} else {
+			<ul class={ "menu dropdown-content", props.ListClass }>
+				for _, di := range props.Items {
+					if di.Title != "" {
+						<li class="menu-title">{ di.Title }</li>
+					} else if di.Divider {
+						<li class="my-1 border-t border-base-content/10"></li>
+					} else if di.Item != nil {
+						<li class={ di.Class }>@di.Item</li>
+					} else {
+						<li>
+							<a { di.Attrs... } class={ templ.KV("text-error", di.Danger) }>{ di.Label }</a>
+						</li>
+					}
+				}
+			</ul>
+		}
 	</details>
 }

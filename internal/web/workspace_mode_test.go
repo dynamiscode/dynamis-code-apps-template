@@ -104,7 +104,7 @@ func TestWorkspaceHomeGuidesUserToFirstTask(t *testing.T) {
 	if !strings.Contains(page.Body.String(), `href="/workspaces/`+workspaces[0].ID.String()+`/items"`) {
 		t.Fatalf("first-task link does not open workspace items: %s", page.Body.String())
 	}
-	if !strings.Contains(page.Body.String(), `class="workspace-switcher"`) ||
+	if !strings.Contains(page.Body.String(), `<details class="dropdown ">`) ||
 		!strings.Contains(page.Body.String(), `href="/"`) {
 		t.Fatalf("workspace home lacks native workspace-switching navigation: %s", page.Body.String())
 	}

@@ -1795,7 +1795,7 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	workspaceRoot := "/workspaces/" + workspaceID.String()
 	workspaceHome := request(handler, http.MethodGet, workspaceRoot, nil, cookies, nil)
-	if workspaceHome.Code != http.StatusOK || !strings.Contains(workspaceHome.Body.String(), `data-workspace-home`) || !strings.Contains(workspaceHome.Body.String(), `class="active" aria-current="page" href="`+workspaceRoot+`">Home</a>`) || !strings.Contains(workspaceHome.Body.String(), `href="`+workspaceRoot+`/items"`) || !strings.Contains(workspaceHome.Body.String(), `href="`+workspaceRoot+`/settings"`) {
+	if workspaceHome.Code != http.StatusOK || !strings.Contains(workspaceHome.Body.String(), `data-workspace-home`) || !strings.Contains(workspaceHome.Body.String(), `<li class="menu-active"><a aria-current="page" href="`+workspaceRoot+`">Home</a>`) || !strings.Contains(workspaceHome.Body.String(), `href="`+workspaceRoot+`/items"`) || !strings.Contains(workspaceHome.Body.String(), `href="`+workspaceRoot+`/settings"`) {
 		t.Fatalf("workspace home = %d, %s", workspaceHome.Code, workspaceHome.Body.String())
 	}
 	for _, page := range []struct {
@@ -1803,23 +1803,19 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 		active      string
 		sidebarName string
 	}{
-		{workspaceRoot + "/items", `class="active" aria-current="page" href="` + workspaceRoot + "/items" + `"`, "Workspace navigation"},
-		{workspaceRoot + "/settings/members", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/members" + `"`, "Workspace settings"},
-		{workspaceRoot + "/settings/invitations", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/members" + `"`, "Workspace settings"},
-		{workspaceRoot + "/settings/tokens", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/tokens" + `"`, "Workspace settings"},
-		{workspaceRoot + "/settings/provisioning", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/provisioning" + `"`, "Workspace settings"},
-		{workspaceRoot + "/settings/export", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/export" + `"`, "Workspace settings"},
-		{workspaceRoot + "/settings/audit", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/audit" + `"`, "Workspace settings"},
+		{workspaceRoot + "/items", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/items" + `">`, "Workspace navigation"},
+		{workspaceRoot + "/settings/members", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/settings/members" + `"`, "Workspace settings"},
+		{workspaceRoot + "/settings/invitations", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/settings/members" + `"`, "Workspace settings"},
+		{workspaceRoot + "/settings/tokens", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/settings/tokens" + `"`, "Workspace settings"},
+		{workspaceRoot + "/settings/provisioning", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/settings/provisioning" + `"`, "Workspace settings"},
+		{workspaceRoot + "/settings/export", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/settings/export" + `"`, "Workspace settings"},
+		{workspaceRoot + "/settings/audit", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/settings/audit" + `"`, "Workspace settings"},
 	} {
 		body := request(handler, http.MethodGet, page.path, nil, cookies, nil).Body.String()
-		navClass := "sidebar-nav"
-		if page.sidebarName == "Workspace settings" {
-			navClass += " workspace-settings-nav"
-		}
-		if !strings.Contains(body, `<nav class="`+navClass+`" aria-label="`+page.sidebarName+`">`) ||
+		if !strings.Contains(body, `<nav aria-label="`+page.sidebarName+`">`) ||
 			!strings.Contains(body, page.active) ||
-			!strings.Contains(body, `class="workspace-switcher"`) ||
-			!strings.Contains(body, `class="account-menu"`) {
+			!strings.Contains(body, `<details class="dropdown ">`) ||
+			!strings.Contains(body, `<details class="dropdown dropdown-end">`) {
 			t.Errorf("%s lacks primary navigation or current-page state", page.path)
 		}
 	}
@@ -1834,20 +1830,20 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 	for _, page := range []string{workspaceRoot + "/settings/members", workspaceRoot + "/settings/invitations", workspaceRoot + "/settings/tokens", workspaceRoot + "/settings/provisioning", workspaceRoot + "/settings/export", workspaceRoot + "/settings/import", workspaceRoot + "/settings/audit"} {
 		body := request(handler, http.MethodGet, page, nil, cookies, nil).Body.String()
 		backLink := `<a class="sidebar-back" href="` + workspaceRoot + `">`
-		if strings.Contains(body, `>Items<`) || strings.Contains(body, `href="`+workspaceRoot+`/settings">Settings`) || strings.Contains(body, `<nav class="sidebar-nav" aria-label="Workspace navigation">`) || !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `API tokens`) || !strings.Contains(body, `>Export<`) || !strings.Contains(body, backLink) || !strings.Contains(body, "Back to home") {
+		if strings.Contains(body, `>Items<`) || strings.Contains(body, `href="`+workspaceRoot+`/settings">Settings`) || strings.Contains(body, `<nav aria-label="Workspace navigation">`) || !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `API tokens`) || !strings.Contains(body, `>Export<`) || !strings.Contains(body, backLink) || !strings.Contains(body, "Back to home") {
 			t.Errorf("%s lacks expanded settings navigation", page)
 		}
 	}
 	settingsBody := request(handler, http.MethodGet, workspaceRoot+"/settings/members", nil, cookies, nil).Body.String()
 	for _, group := range []string{`Workspace setup`, `Access &amp; integrations`, `Data &amp; activity`} {
-		if !strings.Contains(settingsBody, `class="nav-label">`+group+`</span>`) {
+		if !strings.Contains(settingsBody, `<li class="menu-title text-base-content/80">`+group+`</li>`) {
 			t.Errorf("settings navigation lacks the %q group", group)
 		}
 	}
-	if body := request(handler, http.MethodGet, workspaceRoot+"/settings/members", nil, cookies, nil).Body.String(); !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `<nav class="subnav" aria-label="Members and invitations">`) {
+	if body := request(handler, http.MethodGet, workspaceRoot+"/settings/members", nil, cookies, nil).Body.String(); !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `<nav aria-label="Members and invitations">`) {
 		t.Error("members page lacks combined settings entry or local tabs")
 	}
-	if body := request(handler, http.MethodGet, workspaceRoot+"/settings/invitations", nil, cookies, nil).Body.String(); !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `class="active" aria-current="page" href="`+workspaceRoot+`/settings/invitations"`) {
+	if body := request(handler, http.MethodGet, workspaceRoot+"/settings/invitations", nil, cookies, nil).Body.String(); !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `<li class="menu-active"><a aria-current="page" href="`+workspaceRoot+`/settings/invitations"`) {
 		t.Error("invitations page lacks combined settings entry or current tab")
 	}
 	principal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.ResourcesWrite)
@@ -1932,7 +1928,7 @@ func TestWebImportIsAuthorizedExplicitAndAtomic(t *testing.T) {
 	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" ||
 		!strings.Contains(page.Body.String(), `enctype="multipart/form-data"`) ||
 		!strings.Contains(page.Body.String(), `name="file"`) || !strings.Contains(page.Body.String(), `name="action" value="preview"`) ||
-		!strings.Contains(page.Body.String(), `class="sidebar-subitem active" aria-current="page" href="`+root+`"`) ||
+		!strings.Contains(page.Body.String(), `<li class="menu-active"><a aria-current="page" href="`+root+`"`) ||
 		strings.Contains(page.Body.String(), "/assets/app.js") {
 		t.Fatalf("import page = %d, %s", page.Code, page.Body.String())
 	}
@@ -2687,13 +2683,13 @@ func TestSingleModeHidesWorkspaceListNavigation(t *testing.T) {
 			t.Errorf("%s = %d in single mode; want 200", path, response.Code)
 		}
 		body := response.Body.String()
-		if strings.Contains(body, `class="workspace-switcher"`) || strings.Contains(body, `>Workspaces</a>`) || strings.Contains(body, `href="/">← Workspaces</a>`) {
+		if strings.Contains(body, `<li class="menu-title">Home</li>`) || strings.Contains(body, `href="/">← Workspaces</a>`) {
 			t.Errorf("%s shows a workspace list link in single mode", path)
 		}
 	}
 	for _, path := range []string{workspaceRoot + "/items", workspaceRoot + "/settings/members"} {
 		body := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil).Body.String()
-		if !strings.Contains(body, `<span class="workspace-name">`) {
+		if !strings.Contains(body, `<span class="truncate font-bold">`) {
 			t.Errorf("%s lacks plain-text workspace name in single mode", path)
 		}
 	}
@@ -2711,7 +2707,7 @@ func TestMultiModeKeepsWorkspaceListNavigation(t *testing.T) {
 	})
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
 	body := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/items"+"?all=1", nil, cookies, nil).Body.String()
-	if !strings.Contains(body, `class="workspace-switcher"`) || !strings.Contains(body, `<a class="sidebar-back" href="/">← Workspaces</a>`) {
+	if !strings.Contains(body, `<details class="dropdown ">`) || !strings.Contains(body, `<a class="sidebar-back" href="/">← Workspaces</a>`) {
 		t.Error("multi-mode items page lost workspace list navigation")
 	}
 }

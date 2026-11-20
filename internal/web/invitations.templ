@@ -65,7 +65,7 @@ templ invitationManagementView(data viewmodel.PageData) {
 					@components.EmptyState(data.T("invitations.empty"))
 				} else {
 					@components.ListTable(data.T("invitations.invitations"), true) {
-						<thead><tr><th scope="col">{ data.T("common.email") }</th><th scope="col">{ data.T("members.role") }</th><th scope="col">{ data.T("invitations.status") }</th><th scope="col">{ data.T("invitations.expires") }</th><th scope="col">{ data.T("clients.actions") }</th></tr></thead>
+						<thead><tr><th scope="col">@atoms.HeaderText(data.T("common.email"), nil)</th><th scope="col">@atoms.HeaderText(data.T("members.role"), nil)</th><th scope="col">@atoms.HeaderText(data.T("invitations.status"), nil)</th><th scope="col">@atoms.HeaderText(data.T("invitations.expires"), nil)</th><th scope="col">@atoms.HeaderText(data.T("clients.actions"), nil)</th></tr></thead>
 						<tbody>
 							for _, invitation := range data.Invitations {
 								<tr>

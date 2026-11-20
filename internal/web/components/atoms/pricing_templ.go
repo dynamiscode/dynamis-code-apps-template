@@ -39,7 +39,7 @@ type PriceButtonProps struct {
 	Attrs templ.Attributes
 }
 
-// shortcut: requires Alpine.js served at /static/js/alpine.js; replace with htmx + a server-rendered swap if Alpine is not accepted in the app
+// shortcut: requires Alpine.js served at /assets/js/alpine.min.js; replace with htmx + a server-rendered swap if Alpine is not accepted in the app
 // shortcut: monthly/annual labels must be set by the caller (MonthlyLabel, AnnualLabel)
 func Pricing(props PricingProps) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -62,7 +62,7 @@ func Pricing(props PricingProps) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<script src=\"/static/js/alpine.js\" defer></script><div x-data=\"{ yearly: true }\" class=\"w-full mx-auto max-w-7xl\"><div class=\"max-w-xs mx-auto my-6\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<script src=\"/assets/js/alpine.min.js\" defer></script><div x-data=\"{ yearly: true }\" class=\"w-full mx-auto max-w-7xl\"><div class=\"max-w-xs mx-auto my-6\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

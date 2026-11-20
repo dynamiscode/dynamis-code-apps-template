@@ -182,8 +182,8 @@ func TestClientsListShowsCreateFormOnlyToWriters(t *testing.T) {
 	}
 	body := owner.Body.String()
 	results := strings.Index(body, `id="client-results"`)
-	createControls := strings.Index(body, `list-create-menu client-controls client-create">`)
-	filterControls := strings.Index(body, `<details class="list-add-menu">`)
+	createControls := strings.Index(body, `<summary class="btn m-1 btn btn-primary">New client`)
+	filterControls := strings.Index(body, `aria-label="Filter"`)
 	listResults := strings.Index(body, `id="list-results"`)
 	if results < 0 || listResults <= results || createControls <= results || createControls >= listResults ||
 		filterControls <= results || filterControls >= listResults {
@@ -193,7 +193,7 @@ func TestClientsListShowsCreateFormOnlyToWriters(t *testing.T) {
 	body = viewer.Body.String()
 	if viewer.Code != http.StatusOK || strings.Contains(body, `name="display_name"`) ||
 		strings.Contains(body, `class="create" action="`+env.listPath()+`"`) ||
-		!strings.Contains(body, `<details class="list-add-menu">`) {
+		!strings.Contains(body, `aria-label="Filter"`) {
 		t.Fatalf("viewer list = %d, want read-only without create controls: %s", viewer.Code, body)
 	}
 }
@@ -277,7 +277,7 @@ func TestClientCreateRefusesBlankNameWithMessageAndRefusesViewer(t *testing.T) {
 	if blank.Code != http.StatusUnprocessableEntity || !strings.Contains(blank.Body.String(), "The display name is required.") {
 		t.Fatalf("blank create = %d: %s", blank.Code, blank.Body.String())
 	}
-	if !strings.Contains(blank.Body.String(), `list-create-menu client-controls client-create" open>`) {
+	if !strings.Contains(blank.Body.String(), `<details class="dropdown list-menu client-create" open>`) {
 		t.Fatalf("blank create must keep the form disclosure open: %s", blank.Body.String())
 	}
 	badEmail := request(env.routes, http.MethodPost, env.listPath(), url.Values{
@@ -374,12 +374,12 @@ func TestClientsListFilterAndSortFromTheForm(t *testing.T) {
 	code, body := list(t, "?sort=displayName&order=desc")
 	if code != http.StatusOK || strings.Index(body, ">Cy<") > strings.Index(body, ">Bea<") ||
 		strings.Index(body, ">Bea<") > strings.Index(body, ">Ada<") ||
-		!strings.Contains(body, `<details class="list-add-menu">`) {
+		!strings.Contains(body, `aria-label="Filter"`) {
 		t.Fatalf("sorted list = %d: %s", code, body)
 	}
 	code, body = list(t, "?filter_field=displayName&filter_op=contains&filter_value=A")
 	if code != http.StatusOK || !strings.Contains(body, ">Ada<") || !strings.Contains(body, ">Bea<") ||
-		strings.Contains(body, ">Cy<") || !strings.Contains(body, `<details class="list-add-menu">`) {
+		strings.Contains(body, ">Cy<") || !strings.Contains(body, `aria-label="Filter"`) {
 		t.Fatalf("filtered list = %d: %s", code, body)
 	}
 	// After a filter is applied the menu starts again at the field list, with the archive selector.
@@ -410,7 +410,7 @@ func TestClientsListFilterAndSortFromTheForm(t *testing.T) {
 	}
 	code, body = list(t, "?filter_field="+tier.ID.String()+"&filter_op=equals")
 	if code != http.StatusOK || !strings.Contains(body, `value="`+gold.ID.String()+`"`) ||
-		!strings.Contains(body, "Gold") || !strings.Contains(body, `<details class="list-add-menu" open>`) {
+		!strings.Contains(body, "Gold") || !strings.Contains(body, `<details class="dropdown list-menu" open>`) {
 		t.Fatalf("choice form = %d: %s", code, body)
 	}
 }
@@ -428,7 +428,7 @@ func TestClientsListUsesResponsiveTableAndSavedColumns(t *testing.T) {
 	if response.Code != http.StatusOK || !strings.Contains(body, `class="list-view-table"`) ||
 		!strings.Contains(body, `class="list-view-cards"`) ||
 		!strings.Contains(body, `aria-label="Columns"`) ||
-		!strings.Contains(body, `name="visible" value="false"`) {
+		!strings.Contains(body, `name="visible" value="1"`) {
 		t.Fatalf("Clients list should render the responsive table and default column controls: %d %s", response.Code, body)
 	}
 	service := clients.NewService(env.db, config.SQLite, env.auth, 50)
