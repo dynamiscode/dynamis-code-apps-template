@@ -17,7 +17,7 @@ description: Check multi-step forms and progressive disclosure - the two-step fi
 
 - Model: `verification/web/SetupWizard.tla`, config `verification/web/SetupWizard.cfg`; 13 distinct states. Actions: fill or break each step, Next, Back, Create owner, and the server refusing setup (the page re-renders at step 1 with the error focused).
 - `wizardMove` is tested over every step, total up to 6, direction and validity in `internal/web/assets/forms.test.mjs`.
-- Browser checks (`scripts/ux-patterns.mjs`, tagged `form-wizard`): step 2 and the submit start hidden, Next is blocked on an invalid step, focus moves to the new step's legend, setup completes from the last step, and the email provider switch swaps sections.
+- Browser checks (`scripts/ux-patterns.mjs` (retired), tagged `form-wizard`): step 2 and the submit start hidden, Next is blocked on an invalid step, focus moves to the new step's legend, setup completes from the last step, and the email provider switch swaps sections.
 - Left out: the setup token field's server check and the server's own validation rules.
 
 ## Coverage record
@@ -29,7 +29,7 @@ description: Check multi-step forms and progressive disclosure - the two-step fi
 
 1. `verification/tools/run-tlc.sh verification/web SetupWizard` → `Model checking completed. No error has been found.`
 2. `node --test internal/web/assets/forms.test.mjs` → `fail 0`.
-3. `make ux-smoke` → `N UX checks passed` (it starts from an empty database, so it walks setup).
+3. `make browser-smoke` → `TestFormUXPatterns` passes (it starts from an empty database, so it walks setup).
 4. Read a counterexample or redraw `docs/statecharts/setup-wizard/chart/chart.mmd` with the `/statechart` skill and `docs/statecharts/setup-wizard/view.js`.
 
 ## Read a failure

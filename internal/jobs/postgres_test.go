@@ -45,7 +45,9 @@ func TestPostgresQueueClaimAndFinish(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := queue.EnqueueTx(ctx, tx, workspaceID, kind, 1, `{"ok":true}`, time.Now()); err != nil {
+	// The database is shared with other packages' tests, which can leave due jobs behind. Process claims the
+	// oldest available job first, so this job gets the oldest availability and is claimed before them.
+	if err := queue.EnqueueTx(ctx, tx, workspaceID, kind, 1, `{"ok":true}`, time.Unix(0, 0)); err != nil {
 		t.Fatal(err)
 	}
 	if err := tx.Commit(); err != nil {

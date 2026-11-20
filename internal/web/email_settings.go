@@ -3,12 +3,12 @@ package web
 import (
 	"context"
 	"errors"
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
+	"example.com/dynamis-code/apps-template/internal/workspaceemail"
 	"net/http"
 	"strconv"
 	"strings"
-
-	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/workspaceemail"
 )
 
 // workspaceEmailManager is the workspace SMTP service. At runtime the handler's
@@ -120,7 +120,7 @@ func (h *Handler) renderEmailSettings(
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.renderSettingsPage(writer, request, status, pageData{
+	h.renderSettingsPage(writer, request, status, viewmodel.PageData{
 		Title: "Email", NavPage: "email", NavSection: "settings", Error: message, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		EmailSettings: settings, EmailSaved: saved, EmailLoginReason: loginReason,

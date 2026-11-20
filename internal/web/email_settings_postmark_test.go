@@ -1,6 +1,7 @@
 package web
 
 import (
+	"example.com/dynamis-code/apps-template/internal/identity"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -8,8 +9,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"example.com/dynamis-code/apps-template/internal/identity"
 )
 
 func TestPostmarkFirstSaveWithoutAccountTokenExplainsWhatIsMissing(t *testing.T) {

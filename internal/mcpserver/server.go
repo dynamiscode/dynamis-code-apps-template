@@ -60,8 +60,7 @@ type (
 	searchText       string
 	sortOrder        string
 	pageLimit        int
-	cursorToken      string
-	nextCursor       string
+	pageNumber       int
 	itemVersion      int64
 )
 
@@ -84,8 +83,10 @@ var contractTypes = map[reflect.Type]*jsonschema.Schema{
 	reflect.TypeFor[pageLimit](): {
 		Type: "integer", Minimum: new(1.0), Maximum: new(100.0), Default: json.RawMessage("50"),
 	},
-	reflect.TypeFor[cursorToken](): {Type: "string", MaxLength: new(512)},
-	reflect.TypeFor[nextCursor]():  {Type: "string", MaxLength: new(700)},
+	reflect.TypeFor[pageNumber](): {
+		Type: "integer", Minimum: new(1.0), Maximum: new(1000000.0),
+		Description: "1-based page number. The first page is 1.",
+	},
 	reflect.TypeFor[itemVersion](): {Type: "integer", Minimum: new(1.0)},
 	reflect.TypeFor[time.Time]():   {Type: "string", Format: "date-time"},
 }
@@ -96,7 +97,7 @@ type listInput struct {
 	Search      searchText       `json:"search,omitempty"`
 	Sort        sortOrder        `json:"sort,omitempty"`
 	Limit       pageLimit        `json:"limit,omitempty"`
-	Cursor      cursorToken      `json:"cursor,omitempty"`
+	Page        pageNumber       `json:"page,omitempty"`
 }
 
 type itemInput struct {
@@ -136,8 +137,9 @@ type itemOutput struct {
 }
 
 type pageOutput struct {
-	Items      []itemOutput `json:"items"`
-	NextCursor nextCursor   `json:"nextCursor,omitempty"`
+	Items []itemOutput `json:"items"`
+	Total int          `json:"total"`
+	Page  int          `json:"page"`
 }
 
 type deleteOutput struct {
@@ -345,7 +347,7 @@ func (h *handler) addTools(server *mcp.Server) {
 		IdempotentHint: true, OpenWorldHint: &falseValue,
 	}
 	addTool(server, h, &mcp.Tool{
-		Name: "items_list_v1", Description: "List one workspace's items with bounded cursor pagination.",
+		Name: "items_list_v1", Description: "List one workspace's items with bounded page pagination.",
 		Annotations: read,
 	}, pageBounds, h.listItems)
 	addTool(server, h, &mcp.Tool{
@@ -380,7 +382,7 @@ func titleOrStatus(input, _ *jsonschema.Schema) {
 func (h *handler) listItems(ctx context.Context, request *mcp.CallToolRequest, input listInput) (pageOutput, toolRun) {
 	page, err := h.items.List(ctx, principal(request), identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), items.ListInput{
 		Status: input.Status, Search: string(input.Search), Sort: string(input.Sort),
-		Limit: int(input.Limit), Cursor: string(input.Cursor),
+		Limit: int(input.Limit), Page: int(input.Page),
 	})
 	return toPageOutput(page), toolRun{workspaceID: identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), err: publicError(err)}
 }
@@ -454,7 +456,7 @@ func optionalUserShortID(userID *identity.UserID) *userShortID {
 }
 
 func toPageOutput(page items.Page) pageOutput {
-	output := pageOutput{Items: make([]itemOutput, 0, len(page.Items)), NextCursor: nextCursor(page.NextCursor)}
+	output := pageOutput{Items: make([]itemOutput, 0, len(page.Items)), Total: page.Total, Page: page.Page}
 	for _, item := range page.Items {
 		output.Items = append(output.Items, toItemOutput(item))
 	}
@@ -693,8 +695,6 @@ func publicError(err error) error {
 		return &toolError{category: "forbidden", message: "access is denied"}
 	case errors.Is(err, items.ErrNotFound):
 		return &toolError{category: "not_found", message: "item not found"}
-	case errors.Is(err, items.ErrInvalidCursor):
-		return &toolError{category: "invalid_parameters", message: "cursor is invalid"}
 	case errors.Is(err, items.ErrInvalidInput):
 		return invalidParameters()
 	case errors.Is(err, items.ErrIdempotencyConflict):

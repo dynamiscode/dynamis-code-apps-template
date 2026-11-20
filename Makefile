@@ -2,7 +2,7 @@ GOVULNCHECK_VERSION ?= v1.7.0
 ACTIONLINT_VERSION ?= v1.7.12
 GITLEAKS_VERSION ?= v8.30.1
 
-.PHONY: setup setup-hooks fmt-check lint test ci-local vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check templ-generate templ-check test-templ-check css-build css-check build image docker-smoke accessibility-smoke browser-smoke webmcp-smoke ux-smoke template-smoke verify js-check test-unit test-postgres logger-injection commit-msg-hook
+.PHONY: setup setup-hooks fmt-check lint test ci-local vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check templ-generate templ-check test-templ-check css-build css-check build image docker-smoke accessibility-smoke browser-smoke webmcp-smoke template-smoke verify js-check test-unit test-postgres logger-injection commit-msg-hook
 
 setup: setup-hooks
 	test -f .env || cp .env.example .env
@@ -26,7 +26,7 @@ web-conformance:
 	./scripts/check-web-conformance.sh
 
 test-unit:
-	node --test internal/web/assets/*.test.mjs scripts/ui-measurement-network.test.mjs
+	node --test internal/web/assets/*.test.mjs
 
 test-postgres:
 	set -e; \
@@ -116,10 +116,7 @@ accessibility-smoke:
 	./scripts/accessibility-smoke.sh
 
 browser-smoke:
-	./scripts/playwright-smoke.sh
-
-ux-smoke:
-	./scripts/ux-smoke.sh
+	go test -tags browser -count=1 ./internal/browsertest/...
 
 template-smoke:
 	set -eu; work="$$(mktemp -d /tmp/dynamis-code-template-smoke.XXXXXX)"; \

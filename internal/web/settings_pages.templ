@@ -1,35 +1,32 @@
 package web
 
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import "example.com/dynamis-code/apps-template/internal/web/components"
+import "example.com/dynamis-code/apps-template/internal/web/layouts"
+
 import "strconv"
 
-templ settingsSidebar(data pageData) {
-	<aside class="sidebar">
-		<a class="sidebar-back" href={ "/workspaces/" + data.Workspace.ID.String() }><span aria-hidden="true">←</span> { data.T("workspace.back_to_home") }</a>
-		@workspaceNav(data)
-	</aside>
-}
-
-templ generalSettingsView(data pageData) {
-	@dashboardShell(data, dashboardHeader(data), settingsSidebar(data)) {
+templ generalSettingsView(data viewmodel.PageData) {
+	@layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.SettingsSidebar(data)) {
 		<div class="settings-page">
-			@pageHeading(data.T("workspace.general_settings"), data.T("navigation.settings_setup"))
+			@components.PageHeading(data.T("workspace.general_settings"), data.T("navigation.settings_setup"))
 			if data.Saved {
-				@successAlert(data.T("workspace.settings_saved"))
+				@components.SuccessAlert(data.T("workspace.settings_saved"))
 			}
 			if data.Error != "" {
-				@errorAlert(data.Error)
+				@components.ErrorAlert(data.Error)
 			}
 			<section class="settings-panel" aria-labelledby="workspace-locale-title">
 				<h2 id="workspace-locale-title">{ data.T("workspace.language_fallback") }</h2>
 				<p class="settings-intro" id="workspace-locale-help">{ data.T("workspace.language_fallback_description") }</p>
 				<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/general" } method="post" data-dirty-track data-unsaved-warning>
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@selectField("workspace-locale", data.T("common.language"), templ.Attributes{"name": "locale", "aria-describedby": "workspace-locale-help", "disabled": !data.CanManage}) {
+					@components.SelectField("workspace-locale", data.T("common.language"), templ.Attributes{"name": "locale", "aria-describedby": "workspace-locale-help", "disabled": !data.CanManage}) {
 						<option value="en" selected?={ data.Workspace.Locale == "en" }>{ data.T("common.english") }</option>
 						<option value="es" selected?={ data.Workspace.Locale == "es" }>{ data.T("common.spanish") }</option>
 					}
 					if data.CanManage {
-						@submitButton(data.T("common.save"), templ.Attributes{"data-requires-change": true})
+						@components.SubmitButton(data.T("common.save"), templ.Attributes{"data-requires-change": true})
 					}
 				</form>
 			</section>
@@ -48,39 +45,39 @@ templ generalSettingsView(data pageData) {
 						}
 					</ul>
 				} else {
-					@emptyState(data.T("workspace.notifications_empty"))
+					@components.EmptyState(data.T("workspace.notifications_empty"))
 				}
 				<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/notifications" } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@selectField("workspace-notification-type", data.T("account.notification_type"), templ.Attributes{"name": "notification_type"}) {
+					@components.SelectField("workspace-notification-type", data.T("account.notification_type"), templ.Attributes{"name": "notification_type"}) {
 						<option value="security">{ data.T("workspace.notification_security") }</option>
 						<option value="workspace">{ data.T("workspace.notification_workspace") }</option>
 						<option value="system">{ data.T("workspace.notification_system") }</option>
 					}
-					@selectField("workspace-notification-enabled", data.T("account.notification_delivery"), templ.Attributes{"name": "enabled"}) {
+					@components.SelectField("workspace-notification-enabled", data.T("account.notification_delivery"), templ.Attributes{"name": "enabled"}) {
 						<option value="true">{ data.T("account.enabled") }</option>
 						<option value="false">{ data.T("account.disabled") }</option>
 					}
-					@submitButton(data.T("common.save"), nil)
+					@components.SubmitButton(data.T("common.save"), nil)
 				</form>
 			</section>
 		</div>
 	}
 }
 
-templ emailSettingsView(data pageData) {
-	@dashboardShell(data, dashboardHeader(data), settingsSidebar(data)) {
+templ emailSettingsView(data viewmodel.PageData) {
+	@layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.SettingsSidebar(data)) {
 		<div class="settings-page">
-			@pageHeading(data.T("email.title"), data.T("navigation.settings_setup"))
+			@components.PageHeading(data.T("email.title"), data.T("navigation.settings_setup"))
 			<p class="settings-intro">{ data.T("email.intro") }</p>
 			if data.Error != "" {
-				@errorAlert(data.Error)
+				@components.ErrorAlert(data.Error)
 			}
 			if data.EmailLoginReason != "" {
 				<p><code>{ data.EmailLoginReason }</code></p>
 			}
 			if data.EmailSaved {
-				@successAlert(data.T("email.saved"))
+				@components.SuccessAlert(data.T("email.saved"))
 			}
 			if data.EmailSettings.Configured {
 				<p>{ data.T("email.configured") }</p>
@@ -99,19 +96,19 @@ templ emailSettingsView(data pageData) {
 			<section class="settings-panel" aria-label={ data.T("email.title") }>
 				<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/email" } method="post" data-dirty-track data-unsaved-warning>
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@selectField("email-provider", data.T("email.provider"), templ.Attributes{"name": "provider"}) {
+					@components.SelectField("email-provider", data.T("email.provider"), templ.Attributes{"name": "provider"}) {
 						<option value="smtp" selected?={ data.EmailSettings.UsesSMTP() }>{ data.T("email.provider_smtp") }</option>
 						<option value="resend" selected?={ data.EmailSettings.Provider == "resend" }>{ data.T("email.provider_resend") }</option>
 						<option value="postmark" selected?={ data.EmailSettings.Provider == "postmark" }>{ data.T("email.provider_postmark") }</option>
 					}
-					@textField("email-sender-name", data.T("email.sender_name")+" "+data.T("ui.optional"), templ.Attributes{"name": "sender_name", "maxlength": "100", "value": data.EmailSettings.SenderName})
-					@textField("email-sender-address", data.T("email.sender_address"), templ.Attributes{"name": "sender_address", "type": "email", "required": true, "maxlength": "254", "value": data.EmailSettings.SenderAddress})
+					@components.TextField("email-sender-name", data.T("email.sender_name")+" "+data.T("ui.optional"), templ.Attributes{"name": "sender_name", "maxlength": "100", "value": data.EmailSettings.SenderName})
+					@components.TextField("email-sender-address", data.T("email.sender_address"), templ.Attributes{"name": "sender_address", "type": "email", "required": true, "maxlength": "254", "value": data.EmailSettings.SenderAddress})
 					<fieldset data-show-when="email-provider=smtp">
 						<legend>{ data.T("email.smtp_section") }</legend>
 						<p id="email-smtp-required">{ data.T("email.required_for_smtp") }</p>
-						@textField("email-host", data.T("email.host"), templ.Attributes{"name": "host", "maxlength": "253", "aria-describedby": "email-smtp-required", "data-trim": true, "value": emailSMTPValue(data.EmailSettings, data.EmailSettings.Host)})
-						@textField("email-port", data.T("email.port"), templ.Attributes{"name": "port", "type": "number", "min": "1", "max": "65535", "value": emailPortValue(data.EmailSettings)})
-						@textField("email-username", data.T("email.username")+" "+data.T("ui.optional"), templ.Attributes{"name": "username", "maxlength": "254", "autocomplete": "off", "value": emailSMTPValue(data.EmailSettings, data.EmailSettings.Username)})
+						@components.TextField("email-host", data.T("email.host"), templ.Attributes{"name": "host", "maxlength": "253", "aria-describedby": "email-smtp-required", "data-trim": true, "value": emailSMTPValue(data.EmailSettings, data.EmailSettings.Host)})
+						@components.TextField("email-port", data.T("email.port"), templ.Attributes{"name": "port", "type": "number", "min": "1", "max": "65535", "value": emailPortValue(data.EmailSettings)})
+						@components.TextField("email-username", data.T("email.username")+" "+data.T("ui.optional"), templ.Attributes{"name": "username", "maxlength": "254", "autocomplete": "off", "value": emailSMTPValue(data.EmailSettings, data.EmailSettings.Username)})
 						<label for="email-password">{ data.T("email.password") }</label>
 						<p id="email-password-help">{ data.T("email.password_help") }</p>
 						<input class="input" id="email-password" name="password" type="password" autocomplete="new-password" maxlength="1024" aria-describedby="email-password-help"/>
@@ -140,28 +137,28 @@ templ emailSettingsView(data pageData) {
 						}
 						<input class="input" id="email-account-token" name="account_token" type="password" autocomplete="new-password" maxlength="1024" aria-describedby="email-account-token-help"/>
 					</fieldset>
-					@submitButton(data.T("email.save"), nil)
+					@components.SubmitButton(data.T("email.save"), nil)
 				</form>
 			</section>
 		</div>
 	}
 }
 
-templ exportSettingsHeader(data pageData) {
+templ exportSettingsHeader(data viewmodel.PageData) {
 	<header class="topbar">
 		<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
 		<div class="topbar-context">
-			@defaultHomeCrumb(data)
-			@workspaceContext(data)
+			@layouts.DefaultHomeCrumb(data)
+			@layouts.WorkspaceContext(data)
 		</div>
-		@accountMenu(data)
+		@layouts.AccountMenu(data)
 	</header>
 }
 
-templ exportSettingsView(data pageData) {
-	@dashboardShell(data, exportSettingsHeader(data), settingsSidebar(data)) {
+templ exportSettingsView(data viewmodel.PageData) {
+	@layouts.DashboardShell(data, exportSettingsHeader(data), layouts.SettingsSidebar(data)) {
 		<div class="settings-page">
-			@pageHeading(data.Workspace.Name+" "+data.T("navigation.export"), data.T("navigation.settings_activity"))
+			@components.PageHeading(data.Workspace.Name+" "+data.T("navigation.export"), data.T("navigation.settings_activity"))
 			<p class="settings-intro">{ data.T("export.description") }</p>
 			<section class="settings-panel" aria-label={ data.T("navigation.export") }>
 				<a class="btn btn-primary" data-webmcp-export href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/export/download" }>{ data.T("export.download") }</a>
@@ -170,18 +167,18 @@ templ exportSettingsView(data pageData) {
 	}
 }
 
-templ importSettingsView(data pageData) {
-	@dashboardShell(data, dashboardHeader(data), settingsSidebar(data)) {
+templ importSettingsView(data viewmodel.PageData) {
+	@layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.SettingsSidebar(data)) {
 		<div class="settings-page">
-			@pageHeading(data.Workspace.Name+" "+data.T("navigation.import"), data.T("navigation.settings_activity"))
+			@components.PageHeading(data.Workspace.Name+" "+data.T("navigation.import"), data.T("navigation.settings_activity"))
 			<p class="settings-intro">{ data.T("import.description") }</p>
 			if data.ImportCompleted {
-				@successAlert(data.T("import.success")) {
+				@components.SuccessAlert(data.T("import.success")) {
 					{ data.T("import.items_imported") }{ " " }<strong>{ data.Imported }</strong>
 				}
 			}
 			if data.Error != "" {
-				@errorAlert(data.Error)
+				@components.ErrorAlert(data.Error)
 			}
 			<form class="settings-panel import-preview-form" action={ data.CurrentPath } method="post" enctype="multipart/form-data">
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
@@ -189,7 +186,7 @@ templ importSettingsView(data pageData) {
 				<label for="import-file">{ data.T("import.file") }</label>
 				<input class="file-input" id="import-file" name="file" type="file" accept=".json,.csv,application/json,text/csv" required aria-describedby="import-file-help"/>
 				<p id="import-file-help">{ data.T("import.file_help") }</p>
-				@submitButton(data.T("import.preview_button"), nil)
+				@components.SubmitButton(data.T("import.preview_button"), nil)
 			</form>
 			if data.ImportPreview != nil {
 				<section class="settings-panel import-preview" aria-labelledby="import-preview-heading">
@@ -198,7 +195,7 @@ templ importSettingsView(data pageData) {
 					<p>{ data.T("import.no_writes_yet") }</p>
 					if len(data.ImportPreview.Sample) > 0 {
 						<h3>{ data.T("import.preview_sample") }</h3>
-						@dataTable(data.T("import.preview_sample"), true) {
+						@components.DataTable(data.T("import.preview_sample"), true) {
 							<thead><tr><th scope="col">{ data.T("items.title") }</th><th scope="col">{ data.T("items.status") }</th></tr></thead>
 							<tbody>
 								for _, sample := range data.ImportPreview.Sample {
@@ -214,7 +211,7 @@ templ importSettingsView(data pageData) {
 						}
 					}
 					if data.ImportPreview.IssueCount > 0 {
-						@errorAlert(data.T("import.invalid_rows") + " " + strconv.Itoa(data.ImportPreview.IssueCount))
+						@components.ErrorAlert(data.T("import.invalid_rows") + " " + strconv.Itoa(data.ImportPreview.IssueCount))
 						<ul class="import-preview-errors">
 							for _, issue := range data.ImportPreview.Issues {
 								<li>{ data.T("import.record") }{ " " }{ issue.Record }: { data.T(issue.MessageKey) }</li>
@@ -234,8 +231,8 @@ templ importSettingsView(data pageData) {
 							<label for="import-confirm-file">{ data.T("import.file") }</label>
 							<input class="file-input" id="import-confirm-file" name="file" type="file" accept=".json,.csv,application/json,text/csv" required aria-describedby="import-confirm-file-help"/>
 							<p id="import-confirm-file-help">{ data.T("import.confirm_file_help") }</p>
-							@confirmationField("import-confirm", "confirm", data.T("import.confirm"))
-							@submitButton(data.T("import.confirm_button"), nil)
+							@components.ConfirmationField("import-confirm", "confirm", data.T("import.confirm"))
+							@components.SubmitButton(data.T("import.confirm_button"), nil)
 						</form>
 					}
 				</section>

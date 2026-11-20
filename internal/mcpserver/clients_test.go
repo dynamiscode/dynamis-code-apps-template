@@ -354,11 +354,11 @@ func TestMCPClientListFiltersSortsAndPages(t *testing.T) {
 		"workspaceId": state.workspaceID, "limit": 1, "sort": "displayName",
 		"filters": []map[string]any{{"field": "displayName", "op": "contains", "value": "corp"}},
 	}))
-	if len(page.Clients) != 1 || page.Clients[0].DisplayName != "Alpha Corp" || page.NextCursor == "" {
+	if len(page.Clients) != 1 || page.Clients[0].DisplayName != "Alpha Corp" || page.Total != 2 || page.Page != 1 {
 		t.Fatalf("first page = %+v", page)
 	}
 	next := decodeOutput[clientPageOutput](t, callTool(t, session, "clients_list_v1", map[string]any{
-		"workspaceId": state.workspaceID, "limit": 1, "sort": "displayName", "cursor": string(page.NextCursor),
+		"workspaceId": state.workspaceID, "limit": 1, "sort": "displayName", "page": 2,
 		"filters": []map[string]any{{"field": "displayName", "op": "contains", "value": "corp"}},
 	}))
 	if len(next.Clients) != 1 || next.Clients[0].DisplayName != "Beta Corp" {

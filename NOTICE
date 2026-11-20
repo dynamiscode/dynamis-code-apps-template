@@ -18,6 +18,8 @@ upstream LICENSE and NOTICE files remain authoritative:
 - golang.org/x/crypto v0.55.0 — BSD-3-Clause
 - golang.org/x/oauth2 v0.36.0 — BSD-3-Clause
 - golang.org/x/text v0.41.0 — BSD-3-Clause
+- github.com/chromedp/chromedp v0.24.0 and github.com/chromedp/cdproto v0.160.1 — MIT; browser smoke tooling (cmd/browsersmoke)
+- github.com/go-json-experiment/json — BSD-3-Clause; transitive via cdproto
 - modernc.org/sqlite v1.57.0 — BSD-3-Clause; SQLite public-domain notice and
   sqlite_vec MIT notice
 

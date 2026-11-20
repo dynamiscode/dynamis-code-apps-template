@@ -283,7 +283,7 @@ Browser execution, byte completeness and progress events remain unverified.
 
 On 2026-11-16, after the user provided an exclusive window, the following ran
 sequentially against commit `008de93` with the pending reconnect observation
-change in `scripts/ui-measurement-gaps.mjs`:
+change in `scripts/ui-measurement-gaps.mjs` (retired):
 
 ```sh
 UI_MEASURE=gaps PLAYWRIGHT_PORT=58147 ./scripts/playwright-smoke.sh

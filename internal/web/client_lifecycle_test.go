@@ -2,14 +2,13 @@ package web
 
 import (
 	"context"
+	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/identity"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
-
-	"example.com/dynamis-code/apps-template/internal/clients"
-	"example.com/dynamis-code/apps-template/internal/identity"
 )
 
 // addMemberSession invites a user with role to the env workspace and signs
@@ -88,12 +87,12 @@ func TestClientArchiveUnarchiveAndDeleteThroughForms(t *testing.T) {
 		t.Fatalf("archived_at after archive = %v, %v; want set", archivedAt, err)
 	}
 
-	defaultList := request(env.routes, http.MethodGet, env.listPath(), nil, env.cookies, nil).Body.String()
+	defaultList := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil).Body.String()
 	if strings.Contains(defaultList, `href="`+detailPath+`"`) {
 		t.Fatalf("default list shows an archived client: %s", defaultList)
 	}
-	archivedList := request(env.routes, http.MethodGet, env.listPath()+"?archived=archived", nil, env.cookies, nil).Body.String()
-	if !strings.Contains(archivedList, `href="`+detailPath+`"`) || !strings.Contains(archivedList, `name="archived"`) {
+	archivedList := request(env.routes, http.MethodGet, env.listPath()+"?all=1&archived=archived", nil, env.cookies, nil).Body.String()
+	if !strings.Contains(archivedList, `href="`+detailPath+`"`) || !strings.Contains(archivedList, "Back to active clients") {
 		t.Fatalf("archived selector list lacks the client or the selector: %s", archivedList)
 	}
 	if bad := request(env.routes, http.MethodGet, env.listPath()+"?archived=nope", nil, env.cookies, nil); bad.Code != http.StatusBadRequest {
@@ -104,7 +103,7 @@ func TestClientArchiveUnarchiveAndDeleteThroughForms(t *testing.T) {
 	if unarchived.Code != http.StatusSeeOther {
 		t.Fatalf("unarchive = %d: %s", unarchived.Code, unarchived.Body.String())
 	}
-	if relisted := request(env.routes, http.MethodGet, env.listPath(), nil, env.cookies, nil).Body.String(); !strings.Contains(relisted, `href="`+detailPath+`"`) {
+	if relisted := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil).Body.String(); !strings.Contains(relisted, `href="`+detailPath+`"`) {
 		t.Fatalf("list after unarchive lacks the client: %s", relisted)
 	}
 

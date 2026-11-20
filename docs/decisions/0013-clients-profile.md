@@ -122,7 +122,7 @@ the decision recorded for spec [#294](https://github.com/dynamiscode/dynamis-cod
 ## Addendum: v1 slice scope and omissions (2026-11-13)
 
 - **Search:** v1 clients have no free-text search. The client list pages newest
-  first with an opaque cursor. Filtering and sorting arrive with custom fields
+  first, in numbered pages. Filtering and sorting arrive with custom fields
   (see Querying above). Search across common fields remains deferred.
 - **WebMCP:** the Clients pages omit WebMCP in v1. They are ordinary
   server-rendered forms. No WebMCP tool contract (non-secret schemas or control
@@ -188,9 +188,9 @@ the decision recorded for spec [#294](https://github.com/dynamiscode/dynamis-cod
   `translate()` to match, so non-ASCII text compares as typed on both.
 - **Text order:** PostgreSQL sorts text with the `"C"` collation, which is byte
   order and matches SQLite. Its default locale collation would order differently.
-- **Sort and cursor:** a sort is one field, with empty values last and ties by
-  client ID in the sort direction. Every page cursor binds its sort, direction,
-  filters, last sort value, and last ID. A cursor from another query is refused.
+- **Sort and paging:** a sort is one field, with empty values last and ties by
+  client ID in the sort direction. A page is a number from 1; `total` counts
+  every client the filters and archived selector match.
 - **Surfaces:** REST takes `sort` and repeated `filter` parameters. The web list
   has one sort and one filter in a GET form, and a next-page link keeps them.
   MCP (`clients_list_v1`) and `appctl` (`clients list`) take the same sort,
@@ -259,7 +259,7 @@ the decision recorded for spec [#294](https://github.com/dynamiscode/dynamis-cod
   `client.changed`. The realtime stream sends every feed entry, so open client
   lists refresh for each action.
 - **Archived selector:** `archived=active` (default), `archived` (archived
-  clients only), or `all`. The cursor binds it with the sort and filters. The
+  clients only), or `all`. The page applies to the same selection. The
   web list form has the matching select.
 - **Omissions:** webhook events `client.archived` and `client.deleted` arrive in
   #307, and client export in #306. MCP and `appctl` archive and delete arrive

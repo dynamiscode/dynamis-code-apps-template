@@ -1,0 +1,112 @@
+package layouts
+
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+templ UiHead(data viewmodel.PageData) {
+	<script defer src="/assets/forms.js"
+		data-msg-saving={ data.T("ui.saving") } data-msg-loading={ data.T("ui.loading") }
+		data-msg-load-failed={ data.T("ui.load_failed") } data-msg-retry={ data.T("ui.retry") } data-msg-error-summary={ data.T("ui.error_summary") }
+		data-msg-unsaved={ data.T("ui.unsaved") } data-msg-updates-waiting={ data.T("ui.updates_waiting") }
+		data-msg-show-password={ data.T("ui.show_password") } data-msg-hide-password={ data.T("ui.hide_password") }
+		data-msg-strength={ data.T("ui.strength") } data-msg-strength-0={ data.T("ui.strength_0") }
+		data-msg-strength-1={ data.T("ui.strength_1") } data-msg-strength-2={ data.T("ui.strength_2") }
+		data-msg-strength-3={ data.T("ui.strength_3") } data-msg-strength-4={ data.T("ui.strength_4") }
+		data-msg-mismatch={ data.T("ui.mismatch") } data-msg-next={ data.T("ui.next") }
+		data-msg-back={ data.T("ui.back") } data-msg-draft-restored={ data.T("ui.draft_restored") }
+		data-msg-discard-draft={ data.T("ui.discard_draft") } data-msg-dismiss={ data.T("ui.dismiss") }
+		data-msg-request-failed={ data.T("ui.request_failed") }
+		data-msg-step-of={ data.T("ui.step_of", map[string]any{"step": "{step}", "total": "{total}"}) }></script>
+}
+
+templ SkipLink(data viewmodel.PageData) {
+	<a class="skip-link" href="#main">{ data.T("ui.skip_to_content") }</a>
+}
+
+templ WorkspaceContext(data viewmodel.PageData) {
+	if data.SingleWorkspace {
+		<span class="workspace-name">{ data.Workspace.Name }</span>
+	} else {
+		<details class="workspace-switcher"><summary>{ data.Workspace.Name }</summary><div class="workspace-switcher-panel">
+			<span class="nav-label">{ data.T("navigation.home") }</span>
+			for _, workspace := range data.Workspaces {
+				<a href={ "/workspaces/" + workspace.ID.String() } aria-current={ currentPage(workspace.ID == data.Workspace.ID) }><strong>{ workspace.Name }</strong><span>{ data.Role(workspace.Role) }</span></a>
+			}
+			<a href="/">{ data.T("workspace.workspaces") }</a>
+		</div></details>
+	}
+}
+
+templ WorkspaceListCrumb(data viewmodel.PageData) {
+	if !data.SingleWorkspace {
+		<a href="/">{ data.T("workspace.workspaces") }</a><span aria-hidden="true">/</span>
+	}
+}
+
+templ DefaultHomeCrumb(data viewmodel.PageData) {
+	if data.SingleWorkspace {
+		if data.DefaultWorkspaceHref != "" {
+			<a href={ data.DefaultWorkspaceHref }>{ data.T("workspace.workspaces") }</a><span aria-hidden="true">/</span>
+		}
+	} else {
+		<a href="/">{ data.T("workspace.workspaces") }</a><span aria-hidden="true">/</span>
+	}
+}
+
+templ NavLink(data viewmodel.PageData, href, key string, active, subitem bool) {
+	<a class={ templ.KV("sidebar-subitem", subitem), templ.KV("active", active) } aria-current={ currentPage(active) } href={ href }>{ data.T(key) }</a>
+}
+
+templ WorkspaceNav(data viewmodel.PageData) {
+	if data.NavSection == "settings" {
+		<nav class="sidebar-nav workspace-settings-nav" aria-label={ data.T("navigation.workspace_settings") }>
+			<span class="nav-label">{ data.T("navigation.settings") }</span><span class="nav-label">{ data.T("navigation.settings_setup") }</span>
+			@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/general", "navigation.general", data.NavPage == "general", true)
+			if data.Workspace.Role == "owner" || data.Workspace.Role == "admin" {
+				@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/email", "navigation.email", data.NavPage == "email", true)
+			}
+			<span class="nav-label">{ data.T("navigation.settings_access") }</span>
+			@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/members", "navigation.members", data.NavPage == "members" || data.NavPage == "invitations", true)
+			@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/tokens", "navigation.tokens", data.NavPage == "tokens", true)
+			@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks", "navigation.webhooks", data.NavPage == "webhooks", true)
+			if data.Workspace.Role == "owner" || data.Workspace.Role == "admin" {
+				@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/provisioning", "navigation.provisioning", data.NavPage == "provisioning", true)
+			}
+			<span class="nav-label">{ data.T("navigation.settings_activity") }</span>
+			@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/export", "navigation.export", data.NavPage == "export", true)
+			if data.Workspace.Role == "owner" || data.Workspace.Role == "admin" {
+				@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/import", "navigation.import", data.NavPage == "import", true)
+				@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/audit", "navigation.audit_history", data.NavPage == "audit", true)
+			}
+		</nav>
+	} else {
+		<nav class="sidebar-nav" aria-label={ data.T("navigation.workspace_navigation") }><span class="nav-label">{ data.T("common.workspace") }</span>
+			@NavLink(data, "/workspaces/" + data.Workspace.ID.String(), "navigation.home", data.NavPage == "workspace", false)
+			@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/items", "navigation.items", data.NavPage == "items", false)
+			if data.ClientsEnabled {
+				@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/clients", "clients.title", data.NavPage == "clients" || data.NavPage == "client-detail" || data.NavPage == "client-fields", false)
+			}
+			if data.FilesEnabled {
+				@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/files", "files.files", data.NavPage == "files", false)
+			}
+			<div class="sidebar-settings"><span class="nav-label">{ data.T("navigation.settings") }</span><a href={ "/workspaces/" + data.Workspace.ID.String() + "/settings" }>{ data.T("navigation.settings") }</a></div>
+		</nav>
+	}
+}
+
+templ PeopleTabs(data viewmodel.PageData) {
+	<nav class="subnav" aria-label={ data.T("accessibility.members_invitations") }>
+		@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/members", "members.members", data.NavPage == "members", false)
+		@NavLink(data, "/workspaces/" + data.Workspace.ID.String() + "/settings/invitations", "invitations.invitations", data.NavPage == "invitations", false)
+	</nav>
+}
+
+templ AccountMenu(data viewmodel.PageData) {
+	<details class="account-menu"><summary>{ data.T("common.account") }</summary><div class="account-menu-panel">
+		@NavLink(data, "/account", "account.account", data.NavPage == "account", false)
+		@NavLink(data, "/notifications", "notifications.notifications", data.NavPage == "notifications", false)
+		@NavLink(data, "/settings/language", "account.language_settings", data.NavPage == "language", false)
+		@NavLink(data, "/security", "navigation.security", data.NavPage == "security", false)
+		@NavLink(data, "/sessions", "navigation.sessions", data.NavPage == "sessions", false)
+		<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button class="secondary" type="submit">{ data.T("navigation.sign_out") }</button></form>
+	</div></details>
+}

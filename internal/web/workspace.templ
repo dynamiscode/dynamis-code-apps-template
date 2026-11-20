@@ -1,123 +1,57 @@
 package web
 
-templ dashboardShell(data pageData, header, navigation templ.Component) {
-	<!doctype html>
-	<html lang={ data.Locale } data-theme={ data.Theme }>
-		<head>
-			@pageHead(data, data.Title)
-			if data.NavPage == "clients" {
-				<link rel="stylesheet" href="/assets/clients.css"/>
-			}
-		</head>
-		<body class={ templ.KV("dashboard-workspace", navigation != nil) } data-workspace-home?={ data.NavPage == "workspace" } if data.NavPage != "import" && data.NavPage != "client-detail" && data.NavPage != "client-fields" && data.NavPage != "webhooks" && data.NavPage != "provisioning" { data-webmcp-page={ data.NavPage } }>
-			@skipLink(data)
-			@header
-			<div class={ templ.KV("app-shell", navigation != nil) }>
-				if navigation != nil {
-					@navigation
-				}
-				<main id="main" class="workspace-main">
-					{ children... }
-				</main>
-			</div>
-			if data.NavPage == "home" || data.NavPage == "export" || data.NavPage == "tokens" {
-				<script defer src="/assets/app.js"></script>
-			}
-			if data.NavPage == "clients" {
-				<script defer src="/assets/htmx.min.js"></script>
-				<script defer src="/assets/app.js"></script>
-			}
-			if data.NavPage == "notifications" {
-				<script defer src="/assets/notifications.js"></script>
-			}
-		</body>
-	</html>
-}
-
-templ dashboardHeader(data pageData) {
-	<header class="topbar">
-		<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
-		<div class="topbar-context">
-			if data.NavPage == "home" {
-				<span>{ data.T("workspace.workspaces") }</span>
-			} else {
-				if data.NavPage == "audit" {
-					@defaultHomeCrumb(data)
-				} else {
-					@workspaceListCrumb(data)
-				}
-				@workspaceContext(data)
-			}
-		</div>
-		@accountMenu(data)
-	</header>
-}
-
-templ dashboardHomeNavigation(data pageData) {
-	<aside class="sidebar">
-		if !data.SingleWorkspace {
-			<a class="sidebar-back" href="/">← { data.T("workspace.back_to_workspaces") }</a>
-		}
-		@workspaceNav(data)
-	</aside>
-}
-
-templ dashboardSettingsNavigation(data pageData) {
-	<aside class="sidebar">
-		<a class="sidebar-back" href={ "/workspaces/" + data.Workspace.ID.String() }>← { data.T("workspace.back_to_home") }</a>
-		@workspaceNav(data)
-	</aside>
-}
-
-templ workspaceSelection(data pageData) {
-	@dashboardShell(data, dashboardHeader(data), nil) {
-		@pageHeading(data.T("workspace.workspaces"), "")
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import "example.com/dynamis-code/apps-template/internal/web/components"
+import "example.com/dynamis-code/apps-template/internal/web/layouts"
+templ workspaceSelection(data viewmodel.PageData) {
+	@layouts.DashboardShell(data, layouts.DashboardHeader(data), nil) {
+		@components.PageHeading(data.T("workspace.workspaces"), "")
 		if data.Error != "" {
-			@errorAlert(data.Error)
+			@components.ErrorAlert(data.Error)
 		}
 		if len(data.Workspaces) > 0 {
 			<ul class="cards">
 				for _, workspace := range data.Workspaces {
-					@linkedCard("/workspaces/" + workspace.ID.String(), workspace.Name, data.Role(workspace.Role))
+					@components.LinkedCard("/workspaces/" + workspace.ID.String(), workspace.Name, data.Role(workspace.Role))
 				}
 			</ul>
 		} else {
-			@emptyState(data.T("workspace.no_memberships"))
+			@components.EmptyState(data.T("workspace.no_memberships"))
 		}
 		if data.CanCreateWorkspace {
 			<section>
 				<h2>{ data.T("workspace.create") }</h2>
 				<form data-webmcp-actions="workspace-create" action="/workspaces" method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@textField("workspace-name", data.T("workspace.name"), templ.Attributes{"name": "name", "required": true, "maxlength": "120"})
-					@selectField("workspace-locale", data.T("workspace.language_fallback"), templ.Attributes{"name": "locale"}) {
+					@components.TextField("workspace-name", data.T("workspace.name"), templ.Attributes{"name": "name", "required": true, "maxlength": "120"})
+					@components.SelectField("workspace-locale", data.T("workspace.language_fallback"), templ.Attributes{"name": "locale"}) {
 						<option value="en" selected?={ data.Locale == "en" }>{ data.T("common.english") }</option>
 						<option value="es" selected?={ data.Locale == "es" }>{ data.T("common.spanish") }</option>
 					}
-					@submitButton(data.T("workspace.create"), nil)
+					@components.SubmitButton(data.T("workspace.create"), nil)
 				</form>
 			</section>
 		}
 	}
 }
-templ workspaceHome(data pageData) {
-	@dashboardShell(data, dashboardHeader(data), dashboardHomeNavigation(data)) {
-					@pageHeading(data.Workspace.Name, data.T("workspace.home"))
+templ workspaceHome(data viewmodel.PageData) {
+	@layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.DashboardHomeNavigation(data)) {
+					@components.PageHeading(data.Workspace.Name, data.T("workspace.home"))
 					<section class="first-task" aria-labelledby="first-task-title">
 						<div><p class="eyebrow">{ data.T("workspace.get_started") }</p><h2 id="first-task-title">{ data.T("workspace.first_task_title") }</h2><p>{ data.T("workspace.first_task_description") }</p></div>
-						@linkButton("/workspaces/" + data.Workspace.ID.String() + "/items", data.T("items.items"))
+						@components.LinkButton("/workspaces/" + data.Workspace.ID.String() + "/items", data.T("items.items"))
 					</section>
 					<section aria-labelledby="workspace-tools-title">
 						<h2 id="workspace-tools-title">{ data.T("workspace.tools_title") }</h2>
 						<ul class="cards workspace-cards">
-							@linkedCard("/workspaces/" + data.Workspace.ID.String() + "/items", data.T("items.items"), data.T("workspace.items_description"))
+							@components.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/items", data.T("items.items"), data.T("workspace.items_description"))
 							if data.ClientsEnabled {
-								@linkedCard("/workspaces/" + data.Workspace.ID.String() + "/clients", data.T("clients.title"), data.T("workspace.clients_description"))
+								@components.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/clients", data.T("clients.title"), data.T("workspace.clients_description"))
 							}
 							if data.FilesEnabled {
-								@linkedCard("/workspaces/" + data.Workspace.ID.String() + "/files", data.T("files.files"), data.T("files.description"))
+								@components.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/files", data.T("files.files"), data.T("files.description"))
 							}
-							@linkedCard("/workspaces/" + data.Workspace.ID.String() + "/settings", data.T("navigation.settings"), data.T("workspace.settings_description"))
+							@components.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/settings", data.T("navigation.settings"), data.T("workspace.settings_description"))
 						</ul>
 					</section>
 	}

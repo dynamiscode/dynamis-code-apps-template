@@ -281,21 +281,25 @@ func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceI
 }
 
 type ListInput struct {
-	Limit              int
-	Cursor             string
+	Limit int
+	// Page is 1-based; zero means the first page.
+	Page               int
 	Search, MIME, Sort string
-	MinSize, MaxSize   *int64
-	Descending         bool
+	// Match is "all" (default) or "any": how the name, type, and size conditions combine.
+	Match            string
+	MinSize, MaxSize *int64
+	Descending       bool
 }
 
 type Page struct {
-	Files      []File
-	NextCursor string
+	Files []File
+	Total int
+	Page  int
 }
 
-// ListPage returns a workspace-authorized, ready-file page using stable keyset pagination.
+// ListPage returns a workspace-authorized page of ready files, numbered from 1, in a stable order.
 func (s *Service) ListPage(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, input ListInput) (Page, error) {
-	if input.Limit < 1 || input.Limit > 100 || input.Sort != "original_name" && input.Sort != "size" && input.Sort != "created_at" || len(input.Search) > 200 || len(input.MIME) > 128 || len(input.Cursor) > 64 || input.MinSize != nil && *input.MinSize < 0 || input.MaxSize != nil && *input.MaxSize < 0 || input.MinSize != nil && input.MaxSize != nil && *input.MinSize > *input.MaxSize {
+	if input.Limit < 1 || input.Limit > 100 || input.Match != "" && input.Match != "all" && input.Match != "any" || input.Sort != "original_name" && input.Sort != "size" && input.Sort != "created_at" || len(input.Search) > 200 || len(input.MIME) > 128 || input.Page < 0 || input.Page > 1000000 || input.MinSize != nil && *input.MinSize < 0 || input.MaxSize != nil && *input.MaxSize < 0 || input.MinSize != nil && input.MaxSize != nil && *input.MinSize > *input.MaxSize {
 		return Page{}, ErrInvalidInput
 	}
 	if workspaceID == 0 {
@@ -309,54 +313,63 @@ func (s *Service) ListPage(ctx context.Context, actor identity.Principal, worksp
 	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesRead); err != nil {
 		return Page{}, identity.ErrForbidden
 	}
+	if input.Page == 0 {
+		input.Page = 1
+	}
 	columns := map[string]string{"original_name": "LOWER(original_name)", "size": "size", "created_at": "created_at"}
 	order := " ASC"
-	compare := ">"
 	if input.Descending {
-		order, compare = " DESC", "<"
+		order = " DESC"
 	}
 	column := columns[input.Sort]
 	where := "workspace_id = ? AND status = ?"
 	args := []any{workspaceID, Ready}
+	// The name search always combines with AND. The type and size conditions are the filter conditions:
+	// each is one clause, the size bounds are one condition together, and match any joins them with OR.
 	if input.Search != "" {
 		where += " AND LOWER(original_name) LIKE ? ESCAPE '!'"
 		search := strings.NewReplacer("!", "!!", "%", "!%", "_", "!_").Replace(strings.ToLower(input.Search))
 		args = append(args, "%"+search+"%")
 	}
+	var clauses []string
+	var clauseArgs []any
 	if input.MIME != "" {
-		where += " AND detected_mime = ?"
-		args = append(args, input.MIME)
+		clauses = append(clauses, "detected_mime = ?")
+		clauseArgs = append(clauseArgs, input.MIME)
 	}
-	if input.MinSize != nil {
-		where += " AND size >= ?"
-		args = append(args, *input.MinSize)
-	}
-	if input.MaxSize != nil {
-		where += " AND size <= ?"
-		args = append(args, *input.MaxSize)
-	}
-	if input.Cursor != "" {
-		cursorID, parseErr := ParseFileID(input.Cursor)
-		if parseErr != nil {
-			return Page{}, ErrInvalidInput
+	if input.MinSize != nil || input.MaxSize != nil {
+		var bounds []string
+		if input.MinSize != nil {
+			bounds = append(bounds, "size >= ?")
+			clauseArgs = append(clauseArgs, *input.MinSize)
 		}
-		var cursorValue any
-		if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT `+column+` FROM files WHERE id = ? AND workspace_id = ? AND status = ?`), cursorID, workspaceID, Ready).Scan(&cursorValue); errors.Is(err, sql.ErrNoRows) {
-			return Page{}, ErrInvalidInput
-		} else if err != nil {
-			return Page{}, err
+		if input.MaxSize != nil {
+			bounds = append(bounds, "size <= ?")
+			clauseArgs = append(clauseArgs, *input.MaxSize)
 		}
-		where += " AND (" + column + " " + compare + " ? OR (" + column + " = ? AND id " + compare + " ?))"
-		args = append(args, cursorValue, cursorValue, cursorID)
+		clauses = append(clauses, "("+strings.Join(bounds, " AND ")+")")
 	}
-	args = append(args, input.Limit+1)
-	query := `SELECT id, workspace_id, owner_user_id, object_key, original_name, detected_mime, size, sha256, status, created_at, updated_at FROM files WHERE ` + where + ` ORDER BY ` + column + order + `, id` + order + ` LIMIT ?`
+	if len(clauses) > 0 {
+		joiner := " AND "
+		if input.Match == "any" {
+			joiner = " OR "
+		}
+		where += " AND (" + strings.Join(clauses, joiner) + ")"
+		args = append(args, clauseArgs...)
+	}
+	// The total counts every ready file the filters match, before the page is cut.
+	var total int
+	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, "SELECT COUNT(*) FROM files WHERE "+where), args...).Scan(&total); err != nil {
+		return Page{}, err
+	}
+	args = append(args, input.Limit, (input.Page-1)*input.Limit)
+	query := `SELECT id, workspace_id, owner_user_id, object_key, original_name, detected_mime, size, sha256, status, created_at, updated_at FROM files WHERE ` + where + ` ORDER BY ` + column + order + `, id` + order + ` LIMIT ? OFFSET ?`
 	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, query), args...)
 	if err != nil {
 		return Page{}, err
 	}
 	defer rows.Close()
-	page := Page{Files: make([]File, 0, input.Limit)}
+	page := Page{Files: make([]File, 0, input.Limit), Total: total, Page: input.Page}
 	for rows.Next() {
 		file, err := scan(rows)
 		if err != nil {
@@ -366,10 +379,6 @@ func (s *Service) ListPage(ctx context.Context, actor identity.Principal, worksp
 	}
 	if err := rows.Err(); err != nil {
 		return Page{}, err
-	}
-	if len(page.Files) > input.Limit {
-		page.Files = page.Files[:input.Limit]
-		page.NextCursor = page.Files[len(page.Files)-1].ID.String()
 	}
 	return page, nil
 }

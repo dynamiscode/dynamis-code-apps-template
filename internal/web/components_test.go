@@ -3,12 +3,13 @@ package web
 import (
 	"bytes"
 	"context"
+	"example.com/dynamis-code/apps-template/internal/web/components"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
+	"github.com/a-h/templ"
 	"io"
 	"os"
 	"strings"
 	"testing"
-
-	"github.com/a-h/templ"
 )
 
 func TestSharedComponentsRenderAccessibleNativeControls(t *testing.T) {
@@ -30,24 +31,26 @@ func TestSharedComponentsRenderAccessibleNativeControls(t *testing.T) {
 		children  templ.Component
 		want      []string
 	}{
-		{"heading", pageHeading("Items <all>", "Workspace"), nil, []string{`<h1>Items &lt;all&gt;</h1>`, `class="eyebrow"`}},
-		{"field", textField("title", "Title", templ.Attributes{"name": "title", "required": true, "aria-describedby": "title-error", "aria-invalid": "true"}), nil, []string{`<label for="title">Title</label>`, `id="title"`, `name="title"`, `required`, `aria-describedby="title-error"`, `aria-invalid="true"`}},
-		{"select", selectField("locale", "Language", templ.Attributes{"name": "locale"}), option, []string{`<label for="locale">Language</label>`, `id="locale"`, `name="locale"`, `value="en" selected`}},
-		{"textarea", textareaField("notes", "Notes", "<notes>", templ.Attributes{"name": "notes"}), nil, []string{`<label for="notes">Notes</label>`, `id="notes"`, `name="notes"`, `&lt;notes&gt;`}},
-		{"field error", fieldError("title-error", "Required"), nil, []string{`id="title-error"`, `>Required</p>`}},
-		{"button", submitButton("Save", templ.Attributes{"name": "action", "value": "save"}), nil, []string{`type="submit"`, `name="action"`, `value="save"`, `>Save</button>`}},
-		{"link button", linkButton("/items", "Items"), nil, []string{`href="/items"`, `>Items</a>`}},
-		{"confirmation", confirmationField("confirm", "confirm", "I understand"), nil, []string{`for="confirm"`, `type="checkbox"`, `name="confirm"`, `required`, `I understand`}},
-		{"destructive action", confirmButton("Delete", "Delete this item?", templ.Attributes{"name": "action", "value": "delete"}), nil, []string{`type="submit"`, `data-confirm="Delete this item?"`, `value="delete"`}},
-		{"error", errorAlert("Invalid <title>"), nil, []string{`role="alert"`, `tabindex="-1"`, `Invalid &lt;title&gt;`}},
-		{"status", statusLine("Ready <now>", templ.Attributes{"aria-live": "polite", "id": "realtime-status"}), nil, []string{`<p class="status" role="status" aria-live="polite" id="realtime-status">Ready &lt;now&gt;</p>`}},
-		{"success", successAlert("Saved"), link, []string{`role="status"`, `Saved <a href="/items">Open</a>`}},
-		{"table", dataTable("Items", true), child, []string{`<table`, `class="visually-hidden"`, `>Items</caption>`, `scope="col"`, `>Example</td>`}},
-		{"card", linkedCard("/items", "Item <one>", "Open"), nil, []string{`href="/items"`, `Item &lt;one&gt;`, `>Open</span>`}},
-		{"responsive cards", listCards(), link, []string{`<ul class="list-view-cards">`, `<a href="/items">Open</a>`}},
-		{"responsive card", listCard(), link, []string{`<li><a href="/items">Open</a></li>`}},
-		{"empty", emptyState("No items"), link, []string{`<p>No items <a href="/items">Open</a>`}},
-		{"pagination", nextPage("/items?cursor=a&sort=title", "Next"), nil, []string{`href="/items?cursor=a&amp;sort=title"`, `>Next</a>`}},
+		{"heading", components.PageHeading("Items <all>", "Workspace"), nil, []string{`<h1>Items &lt;all&gt;</h1>`, `class="eyebrow"`}},
+		{"field", components.TextField("title", "Title", templ.Attributes{"name": "title", "required": true, "aria-describedby": "title-error", "aria-invalid": "true"}), nil, []string{`<label for="title">Title</label>`, `id="title"`, `name="title"`, `required`, `aria-describedby="title-error"`, `aria-invalid="true"`}},
+		{"select", components.SelectField("locale", "Language", templ.Attributes{"name": "locale"}), option, []string{`<label for="locale">Language</label>`, `id="locale"`, `name="locale"`, `value="en" selected`}},
+		{"textarea", components.TextareaField("notes", "Notes", "<notes>", templ.Attributes{"name": "notes"}), nil, []string{`<label for="notes">Notes</label>`, `id="notes"`, `name="notes"`, `&lt;notes&gt;`}},
+		{"field error", components.FieldError("title-error", "Required"), nil, []string{`id="title-error"`, `>Required</p>`}},
+		{"button", components.SubmitButton("Save", templ.Attributes{"name": "action", "value": "save"}), nil, []string{`type="submit"`, `name="action"`, `value="save"`, `>Save</button>`}},
+		{"link button", components.LinkButton("/items", "Items"), nil, []string{`href="/items"`, `>Items</a>`}},
+		{"confirmation", components.ConfirmationField("confirm", "confirm", "I understand"), nil, []string{`for="confirm"`, `type="checkbox"`, `name="confirm"`, `required`, `I understand`}},
+		{"destructive action", components.ConfirmButton("Delete", "Delete this item?", templ.Attributes{"name": "action", "value": "delete"}), nil, []string{`type="submit"`, `data-confirm="Delete this item?"`, `value="delete"`}},
+		{"error", components.ErrorAlert("Invalid <title>"), nil, []string{`role="alert"`, `tabindex="-1"`, `Invalid &lt;title&gt;`}},
+		{"status", components.StatusLine("Ready <now>", templ.Attributes{"aria-live": "polite", "id": "realtime-status"}), nil, []string{`<p class="status" role="status" aria-live="polite" id="realtime-status">Ready &lt;now&gt;</p>`}},
+		{"success", components.SuccessAlert("Saved"), link, []string{`role="status"`, `Saved <a href="/items">Open</a>`}},
+		{"table", components.DataTable("Items", true), child, []string{`<table`, `class="visually-hidden"`, `>Items</caption>`, `scope="col"`, `>Example</td>`}},
+		{"card", components.LinkedCard("/items", "Item <one>", "Open"), nil, []string{`href="/items"`, `Item &lt;one&gt;`, `>Open</span>`}},
+		{"responsive cards", components.ListCards(), link, []string{`<ul class="list-view-cards">`, `<a href="/items">Open</a>`}},
+		{"empty", components.EmptyState("No items"), link, []string{`<p>No items <a href="/items">Open</a>`}},
+		{"pagination", components.ListPager(viewmodel.PageData{ListPager: viewmodel.ListPager{
+			Page: 2, PageCount: 3, Prev: "/items?page=1", Next: "/items?page=3",
+			Links: []viewmodel.ListPageLink{{Number: 1, Href: "/items?page=1"}, {Number: 2, Href: "/items?page=2", Current: true}, {Number: 3, Href: "/items?page=3"}},
+		}}), nil, []string{`href="/items?page=3"`, `aria-current="page"`, `rel="next"`}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -67,8 +70,8 @@ func TestSharedComponentsRenderAccessibleNativeControls(t *testing.T) {
 		})
 	}
 	var out bytes.Buffer
-	if err := nextPage("", "Next").Render(context.Background(), &out); err != nil || out.Len() != 0 {
-		t.Fatalf("empty next page = %q, %v", out.String(), err)
+	if err := components.ListPager(viewmodel.PageData{ListPager: viewmodel.ListPager{Page: 1, PageCount: 1}}).Render(context.Background(), &out); err != nil || out.Len() != 0 {
+		t.Fatalf("single-page pager = %q, %v", out.String(), err)
 	}
 }
 
@@ -95,9 +98,9 @@ func TestResponsiveListBrowserFixture(t *testing.T) {
 		component templ.Component
 		children  templ.Component
 	}{
-		{listTable("Items", true), tableRows},
-		{listCards(), cardRows},
-		{dataTable("History", false), standaloneRows},
+		{components.ListTable("Items", true), tableRows},
+		{components.ListCards(), cardRows},
+		{components.DataTable("History", false), standaloneRows},
 	} {
 		if err := fixture.component.Render(templ.WithChildren(context.Background(), fixture.children), &out); err != nil {
 			t.Fatal(err)

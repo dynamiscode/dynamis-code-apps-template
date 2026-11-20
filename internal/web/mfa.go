@@ -1,10 +1,10 @@
 package web
 
 import (
-	"net/http"
-
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
+	"net/http"
 )
 
 func (h *Handler) mfaPage(writer http.ResponseWriter, request *http.Request) {
@@ -25,7 +25,7 @@ func (h *Handler) mfaPage(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	h.setCookie(writer, "mfa_csrf", csrf, options.ExpiresAt, true)
-	h.render(writer, http.StatusOK, "mfa.html", pageData{Title: "Multi-factor authentication", CSRF: csrf, MFAChallenge: challenge, MFAOptions: options.PasskeyJSON})
+	h.render(writer, http.StatusOK, "mfa.html", viewmodel.PageData{Title: "Multi-factor authentication", CSRF: csrf, MFAChallenge: challenge, MFAOptions: options.PasskeyJSON})
 }
 
 func (h *Handler) mfaTOTP(writer http.ResponseWriter, request *http.Request) {
@@ -106,7 +106,7 @@ func (h *Handler) completeMFASession(writer http.ResponseWriter, request *http.R
 
 func (h *Handler) mfaPageError(writer http.ResponseWriter, request *http.Request, message string) {
 	options, _ := h.identity.MFALoginOptions(request.Context(), cookieValue(request, "mfa_challenge"))
-	h.render(writer, http.StatusUnauthorized, "mfa.html", pageData{Title: "Multi-factor authentication", CSRF: cookieValue(request, "mfa_csrf"), MFAChallenge: cookieValue(request, "mfa_challenge"), MFAOptions: options.PasskeyJSON, MFAError: message})
+	h.render(writer, http.StatusUnauthorized, "mfa.html", viewmodel.PageData{Title: "Multi-factor authentication", CSRF: cookieValue(request, "mfa_csrf"), MFAChallenge: cookieValue(request, "mfa_challenge"), MFAOptions: options.PasskeyJSON, MFAError: message})
 }
 
 func (h *Handler) validMFACSRF(request *http.Request) bool {
@@ -129,7 +129,7 @@ func (h *Handler) securityTOTPStart(writer http.ResponseWriter, request *http.Re
 	}
 	status, _ := h.identity.MFAStatus(request.Context(), session.UserID)
 	passkeys, _ := h.identity.ListPasskeys(request.Context(), session.UserID)
-	h.render(writer, http.StatusOK, "security-page", pageData{Title: "Security", NavPage: "security", CSRF: csrf, OIDCProviders: h.providers(), TOTPEnrollment: &enrollment, Passkeys: passkeys, MFAStatus: status})
+	h.render(writer, http.StatusOK, "security-page", viewmodel.PageData{Title: "Security", NavPage: "security", CSRF: csrf, OIDCProviders: h.providers(), TOTPEnrollment: &enrollment, Passkeys: passkeys, MFAStatus: status})
 }
 
 func (h *Handler) securityTOTPComplete(writer http.ResponseWriter, request *http.Request) {
@@ -148,7 +148,7 @@ func (h *Handler) securityTOTPComplete(writer http.ResponseWriter, request *http
 	}
 	status, _ := h.identity.MFAStatus(request.Context(), session.UserID)
 	passkeys, _ := h.identity.ListPasskeys(request.Context(), session.UserID)
-	h.render(writer, http.StatusOK, "security-page", pageData{Title: "Security", NavPage: "security", CSRF: csrf, OIDCProviders: h.providers(), MFARecoveryCodes: codes, Passkeys: passkeys, MFAStatus: status})
+	h.render(writer, http.StatusOK, "security-page", viewmodel.PageData{Title: "Security", NavPage: "security", CSRF: csrf, OIDCProviders: h.providers(), MFARecoveryCodes: codes, Passkeys: passkeys, MFAStatus: status})
 }
 
 func (h *Handler) securityTOTPRemove(writer http.ResponseWriter, request *http.Request) {
@@ -184,5 +184,5 @@ func (h *Handler) securityPasskeyRemove(writer http.ResponseWriter, request *htt
 }
 
 func (h *Handler) securityError(writer http.ResponseWriter, request *http.Request, csrf, message string) {
-	h.render(writer, http.StatusUnauthorized, "security-page", pageData{Title: "Security", NavPage: "security", CSRF: csrf, OIDCProviders: h.providers(), MFAError: message})
+	h.render(writer, http.StatusUnauthorized, "security-page", viewmodel.PageData{Title: "Security", NavPage: "security", CSRF: csrf, OIDCProviders: h.providers(), MFAError: message})
 }

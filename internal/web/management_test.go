@@ -3,19 +3,18 @@ package web
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/url"
-	"strings"
-	"testing"
-	"time"
-
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/portability"
 	"example.com/dynamis-code/apps-template/internal/sharing"
+	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
+	"testing"
+	"time"
 )
 
 func testMultiInstanceWeb(t *testing.T) (http.Handler, http.Handler, *identity.Service, identity.WorkspaceID, identity.BootstrapResult) {

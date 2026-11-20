@@ -2,33 +2,11 @@ package web
 
 import (
 	"errors"
-	"net/http"
-
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
+	"net/http"
 )
-
-// clientFieldRow is a custom field with its choice options. Options are set only
-// for single-choice fields.
-type clientFieldRow struct {
-	clients.Field
-	Options []clients.Option
-}
-
-// clientValueRow is a field's value with the choices a form offers. ValueLabel is
-// the selected choice's label, for read-only pages.
-type clientValueRow struct {
-	clients.FieldValue
-	Choices    []choiceView
-	ValueLabel string
-}
-
-// choiceView is one choice in a select.
-type choiceView struct {
-	ID       string
-	Label    string
-	Selected bool
-}
 
 // clientFieldRows attaches each single-choice field's options. The list is read
 // with the caller's principal, so it stays inside the caller's workspace.
@@ -37,10 +15,10 @@ func (h *Handler) clientFieldRows(
 	principal identity.Principal,
 	workspaceID identity.WorkspaceID,
 	fields []clients.Field,
-) ([]clientFieldRow, error) {
-	rows := make([]clientFieldRow, 0, len(fields))
+) ([]viewmodel.ClientFieldRow, error) {
+	rows := make([]viewmodel.ClientFieldRow, 0, len(fields))
 	for _, field := range fields {
-		row := clientFieldRow{Field: field}
+		row := viewmodel.ClientFieldRow{Field: field}
 		if field.Type == clients.FieldTypeSingleChoice {
 			options, err := h.clients.ListOptions(request.Context(), principal, workspaceID, field.ID)
 			if err != nil {
@@ -59,10 +37,10 @@ func (h *Handler) clientValueRows(
 	principal identity.Principal,
 	workspaceID identity.WorkspaceID,
 	values []clients.FieldValue,
-) ([]clientValueRow, error) {
-	rows := make([]clientValueRow, 0, len(values))
+) ([]viewmodel.ClientValueRow, error) {
+	rows := make([]viewmodel.ClientValueRow, 0, len(values))
 	for _, value := range values {
-		row := clientValueRow{FieldValue: value}
+		row := viewmodel.ClientValueRow{FieldValue: value}
 		if value.Type == clients.FieldTypeSingleChoice {
 			options, err := h.clients.ListOptions(request.Context(), principal, workspaceID, value.FieldID)
 			if err != nil {
@@ -70,7 +48,7 @@ func (h *Handler) clientValueRows(
 			}
 			for _, option := range options {
 				selected := value.Value != nil && *value.Value == option.ID.String()
-				row.Choices = append(row.Choices, choiceView{ID: option.ID.String(), Label: option.Label, Selected: selected})
+				row.Choices = append(row.Choices, viewmodel.ChoiceView{ID: option.ID.String(), Label: option.Label, Selected: selected})
 				if selected {
 					row.ValueLabel = option.Label
 				}

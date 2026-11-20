@@ -2,14 +2,13 @@ package web
 
 import (
 	"context"
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
-
-	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
 
 func TestSingleWorkspaceModeHidesCreationAndReturnsNotFound(t *testing.T) {
