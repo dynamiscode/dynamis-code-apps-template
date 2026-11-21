@@ -25,12 +25,17 @@ sidebar whose contents follow the current workspace context. Every mutation vali
 the session-bound CSRF token
 and rechecks current workspace permission.
 
-The web code is split into four packages under `internal/web`:
+The web code is split into five packages under `internal/web`:
 
 - `viewmodel`: the `PageData` view model and the list, form, and filter row types templates read.
-- `components`: shared templ components (page headings, form fields, alerts, tables, list tables, list filters).
-- `layouts`: the document head, the dashboard shell (`DashboardShell`), headers, navigation, and sidebars.
-- `web` (the root): handlers, routes, and feature pages, which import the three packages above.
+- `components/atoms`: one-element controls (inputs, selects, buttons, alerts, badges, dropdowns, tables, progress).
+- `components/molecules`: composed controls (submit/confirm/link buttons, labelled text fields, search, headings, empty states).
+- `components/organisms` and `components/templates`: feature regions (headers, navigation, list screens, filters) and the document shells (`UiHead`, the drawer workspace shell).
+- `web` (the root): handlers, routes, and feature pages, which import the packages above.
+
+Component conventions are recorded in the repository skills
+(`templ-components`, `daisyui-tailwind`, `alpinejs-app`,
+`htmx-patterns`).
 
 The templ dashboard shell accepts header and sidebar components. Workspace home
 and Files compose the shared shell and navigation directly; adapters preserve
