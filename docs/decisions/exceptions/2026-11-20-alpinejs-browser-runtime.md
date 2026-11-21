@@ -22,6 +22,19 @@ usable instead of dead markup. Server-rendered HTML + htmx + SSE remain the
 architecture; Alpine is a progressive-enhancement layer, not a SPA runtime in
 practice, but it is a new browser runtime and therefore recorded here.
 
+## Scope note (close of the adoption pass)
+
+Alpine ended up adopted as the per-element interaction layer (atoms
+`pricing.templ`, `range.templ`, and any new interaction atoms), not as a
+rewrite of the application scripts. `mfa.js` is WebAuthn credential
+orchestration, `notifications.js` and the realtime part of `app.js` are
+EventSource streams, and `forms.js`, `items.js`, and `list-table.js` are
+htmx swap orchestration with exhaustive node, Go replay, and browser
+coverage; converting them to `x-data` directives would trade verified
+accessibility and idempotency contracts for indirection. The runtime remains
+vendored and served; removing it later means dropping the two script tags
+and the `x-*` attributes.
+
 ## User, security, compatibility, and operational risk
 
 - User: markup behavior changes must keep ids, names, `data-*` hooks, aria,
