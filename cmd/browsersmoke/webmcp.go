@@ -92,7 +92,7 @@ func runWebMCPChrome(label, base, email, password string) error {
 	}](b, `(() => ({
 		form: Boolean(document.querySelector('form[data-webmcp-actions="item-create"]')),
 		marker: Boolean(document.querySelector('[data-webmcp-page="items"]')),
-		script: [...document.scripts].some((script) => script.src.endsWith("/assets/app.js")),
+		script: [...document.scripts].some((script) => script.src.endsWith("/assets/alpine-components.js")),
 	}))()`)
 	if err != nil {
 		return err
