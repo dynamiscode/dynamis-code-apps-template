@@ -274,7 +274,7 @@ error pages never replace the list. The exact upstream license is served from
 
 ## Form enhancements
 
-Every page loads `internal/web/assets/forms.js` through the shared `uiHead` component in `layouts/navigation.templ`. Pages work without it: forms post, the server validates, and
+Every page runs the form enhancement from `internal/web/assets/alpine-components.js` (registered Alpine components on the `@alpinejs/csp` build) through the `pageBehaviors` mount on each shell body. Pages work without it: forms post, the server validates, and
 errors render as `role="alert"`. With scripting, forms gain these behaviors,
 each driven by a template attribute:
 

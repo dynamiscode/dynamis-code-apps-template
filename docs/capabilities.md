@@ -1306,7 +1306,7 @@ English or Spanish locale. File filters, sorting, pagination, responsive table
 and card views, and workspace-authorized download routes remain in use.
 
 - Passed: `go test ./internal/web -count=1` (160 tests), `make test-unit` (25
-  tests), `make lint`, `node --check internal/web/assets/app.js`, and
+  tests), `make lint`, `node --check internal/web/assets/alpine-components.js`, and
   `node --check scripts/accessibility.mjs`.
 - Passed: `make accessibility-smoke` in English and Spanish (zero axe
   violations; files page, named progress control, keyboard/focus, and 320px

@@ -24,16 +24,13 @@ practice, but it is a new browser runtime and therefore recorded here.
 
 ## Scope note (close of the adoption pass)
 
-Alpine ended up adopted as the per-element interaction layer (atoms
-`pricing.templ`, `range.templ`, and any new interaction atoms), not as a
-rewrite of the application scripts. `mfa.js` is WebAuthn credential
-orchestration, `notifications.js` and the realtime part of `app.js` are
-EventSource streams, and `forms.js`, `items.js`, and `list-table.js` are
-htmx swap orchestration with exhaustive node, Go replay, and browser
-coverage; converting them to `x-data` directives would trade verified
-accessibility and idempotency contracts for indirection. The runtime remains
-vendored and served; removing it later means dropping the two script tags
-and the `x-*` attributes.
+Alpine is the browser runtime for the whole application. Every former
+app script (forms.js, app.js, list-table.js, items.js, mfa.js,
+notifications.js) now lives in `assets/alpine-components.js` as
+registered `Alpine.data()` components mounted from markup, running on
+the CSP build; the logic moved as-is, so the exhaustive node, Go replay,
+and browser coverage still applies. Removing Alpine later means moving
+those wire functions back into plain deferred scripts.
 
 ## User, security, compatibility, and operational risk
 
