@@ -1,0 +1,29 @@
+// layout
+// https://daisyui.com/components/drawer
+package atoms
+
+type DrawerProps struct {
+	ID      string // unique per page; the checkbox toggle target
+	Class   string
+	Toggle  templ.Component
+	ToggleClass string
+	Sidebar templ.Component
+}
+
+templ Drawer(props DrawerProps) {
+	<div class={ "drawer", props.Class }>
+		<input id={ props.ID } type="checkbox" class="drawer-toggle"/>
+		<div class="drawer-content">
+			<label for={ props.ID } class={ "btn drawer-button", props.ToggleClass }>
+				@props.Toggle
+			</label>
+			{ children... }
+		</div>
+		<div class="drawer-side">
+			<label for={ props.ID } aria-label="close sidebar" class="drawer-overlay"></label>
+			<ul class="menu bg-base-200 text-base-content min-h-full w-80 p-4">
+				@props.Sidebar
+			</ul>
+		</div>
+	</div>
+}

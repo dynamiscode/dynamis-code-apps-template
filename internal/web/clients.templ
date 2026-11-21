@@ -1,20 +1,23 @@
 package web
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import "strconv"
 
 templ clientsPage(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.DashboardHomeNavigation(data)) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
 		@clientList(data)
 	}
 }
 
 templ clientDetailPage(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.DashboardHomeNavigation(data)) {
-		@components.PageHeading(data.Client.DisplayName, data.T("clients.title")) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+		@molecules.PageHeading(data.Client.DisplayName, data.T("clients.title")) {
 			<div class="actions client-page-actions">
 				<a class="btn btn-ghost" href={ data.CurrentPath }>{ data.T("clients.back") }</a>
 				if data.CanManageFields {
@@ -27,30 +30,30 @@ templ clientDetailPage(data viewmodel.PageData) {
 }
 
 templ clientDetail(data viewmodel.PageData) {
-	<section id="client-detail" class="client-panel" aria-labelledby="client-heading">
-		<h2 id="client-heading" class="visually-hidden">{ data.T("clients.client") }</h2>
+	<section id="client-detail" class="client-panel card my-4 p-6" aria-labelledby="client-heading">
+		<h2 id="client-heading" class="sr-only">{ data.T("clients.client") }</h2>
 		if data.ErrorKey != "" {
-			@components.ErrorAlert(data.T(data.ErrorKey))
+			@molecules.ErrorAlert(data.T(data.ErrorKey))
 		}
 		if data.CanEditClients {
 			<form action={ data.CurrentPath + "/" + data.Client.ID.String() } method="post">
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
 				<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
-				@components.TextField("client-display-name", data.T("clients.display_name"), templ.Attributes{
+				@molecules.TextField("client-display-name", data.T("clients.display_name"), templ.Attributes{
 					"name": "display_name", "required": true, "maxlength": "200",
 					"value": data.Client.DisplayName, "data-trim": "",
 				})
-				@components.TextField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{
+				@molecules.TextField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{
 					"name": "email", "type": "email", "maxlength": "254", "value": data.Client.Email,
 				})
-				@components.TextField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{
+				@molecules.TextField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{
 					"name": "phone", "maxlength": "50", "value": data.Client.Phone,
 				})
-				@components.TextareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.Client.Notes, templ.Attributes{
+				@molecules.TextareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.Client.Notes, templ.Attributes{
 					"name": "notes", "maxlength": "5000",
 				})
 				<div class="actions">
-					<button class="btn btn-primary" type="submit">{ data.T("clients.save") }</button>
+					@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.save"), Attrs: templ.Attributes{"type": "submit"}})
 				</div>
 			</form>
 		} else {
@@ -63,29 +66,27 @@ templ clientDetail(data viewmodel.PageData) {
 			</dl>
 		}
 		if data.Client.ArchivedAt != nil {
-			@components.StatusLine(data.T("clients.archived_status"), nil)
+			@molecules.StatusLine(data.T("clients.archived_status"), nil)
 		}
 		if data.CanEditClients {
 			<div class="client-lifecycle">
 				if data.Client.ArchivedAt != nil {
 					<form method="post" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/unarchive" }>
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						<button class="btn btn-secondary" type="submit">{ data.T("clients.unarchive") }</button>
+						@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("clients.unarchive"), Attrs: templ.Attributes{"type": "submit"}})
 					</form>
 				} else {
 					<form method="post" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/archive" }>
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						<button class="btn btn-secondary" type="submit">{ data.T("clients.archive") }</button>
+						@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("clients.archive"), Attrs: templ.Attributes{"type": "submit"}})
 					</form>
 				}
 				if data.CanDeleteClients {
 					<div class="client-delete">
-						<p class="warning">{ data.T("clients.delete_client_confirm") }</p>
+						<p class="warning alert alert-warning py-2">{ data.T("clients.delete_client_confirm") }</p>
 						<form method="post" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/delete" }>
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							<button class="btn btn-error" type="submit" data-confirm={ data.T("clients.delete_client_confirm") }>
-								{ data.T("clients.delete_client") }
-							</button>
+							@atoms.Button(atoms.ButtonProps{Class: "btn-error", Label: data.T("clients.delete_client"), Attrs: templ.Attributes{"type": "submit", "data-confirm": data.T("clients.delete_client_confirm")}})
 						</form>
 					</div>
 				}
@@ -96,44 +97,35 @@ templ clientDetail(data viewmodel.PageData) {
 }
 
 templ clientValues(data viewmodel.PageData) {
-	<section id="client-values" class="client-panel client-values" aria-labelledby="client-values-heading">
+	<section id="client-values" class="client-panel card my-4 p-6 client-values" aria-labelledby="client-values-heading">
 		<h2 id="client-values-heading">{ data.T("clients.values_heading") }</h2>
 		if len(data.ClientValues) > 0 {
 			for _, value := range data.ClientValues {
 				if data.CanEditClients {
-					<form class="client-value" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() } method="post">
+					<form class="client-value card card-compact p-4 bg-base-200" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() } method="post">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
 						<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
-						<label for={ "value-" + value.FieldID.String() }>{ value.Label } { data.T("ui.optional") }</label>
+						@atoms.Label(atoms.LabelProps{For: "value-" + value.FieldID.String(), Text: value.Label + " " + data.T("ui.optional")})
 						if value.Type == "number" {
-							<input id={ "value-" + value.FieldID.String() } name="value" type="number" step="any" value={ clientValueDisplayValue(value.Value) }/>
+							@atoms.Input(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", Type: "number", Step: "any", Value: clientValueDisplayValue(value.Value)})
 						} else if value.Type == "date" {
-							<input id={ "value-" + value.FieldID.String() } name="value" type="date" value={ clientValueDisplayValue(value.Value) }/>
+							@atoms.Input(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", Type: "date", Value: clientValueDisplayValue(value.Value)})
 						} else if value.Type == "yes_no" {
-							<select id={ "value-" + value.FieldID.String() } name="value">
-								<option value="" disabled selected?={ value.Value == nil }>{ data.T("clients.value_choose") }</option>
-								<option value="true" selected?={ clientValueDisplayValue(value.Value) == "true" }>{ data.T("clients.yes") }</option>
-								<option value="false" selected?={ clientValueDisplayValue(value.Value) == "false" }>{ data.T("clients.no") }</option>
-							</select>
+							@atoms.Select(atoms.SelectProps{ID: "value-" + value.FieldID.String(), Name: "value", Options: clientValueYesNoOptions(data, value)})
 						} else if value.Type == "single_choice" {
-							<select id={ "value-" + value.FieldID.String() } name="value">
-								<option value="" disabled selected?={ value.Value == nil }>{ data.T("clients.value_choose") }</option>
-								for _, choice := range value.Choices {
-									<option value={ choice.ID } selected?={ choice.Selected }>{ choice.Label }</option>
-								}
-							</select>
+							@atoms.Select(atoms.SelectProps{ID: "value-" + value.FieldID.String(), Name: "value", Options: clientValueChoiceOptions(data, value)})
 						} else {
-							<input id={ "value-" + value.FieldID.String() } name="value" maxlength="500" value={ clientValueDisplayValue(value.Value) }/>
+							@atoms.Input(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", MaxLength: "500", Value: clientValueDisplayValue(value.Value)})
 						}
 						<div class="actions">
-							<button class="btn btn-primary" type="submit">{ data.T("clients.value_save") }</button>
+							@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.value_save"), Attrs: templ.Attributes{"type": "submit"}})
 						</div>
 					</form>
 					if value.Value != nil {
-						<form class="client-value-clear" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() + "/clear" } method="post">
+						<form class="client-value-clear card card-compact mt-2 p-4 bg-base-200" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() + "/clear" } method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
-							<button class="btn btn-ghost" type="submit">{ data.T("clients.value_clear") }</button>
+							@atoms.Button(atoms.ButtonProps{Class: "btn-ghost", Label: data.T("clients.value_clear"), Attrs: templ.Attributes{"type": "submit"}})
 						</form>
 					}
 				} else {

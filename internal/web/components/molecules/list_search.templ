@@ -1,0 +1,21 @@
+package molecules
+
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+
+// ListSearch is the search box at the start of a list's toolbar. It sends q and always combines with the
+// filters, whatever their match mode. placeholderKey names what the list searches.
+templ ListSearch(data viewmodel.PageData, placeholderKey string, value string) {
+	<form class="list-search flex flex-nowrap items-center gap-2" role="search" method="get" action={ data.CurrentPath } { ListSearchLive(data)... }>
+		for _, field := range data.ListPreservedQuery {
+			if field.Name != "q" && field.Name != "search" {
+				<input type="hidden" name={ field.Name } value={ field.Value }/>
+			}
+		}
+		<label class="sr-only" for="list-search">{ data.T(placeholderKey) }</label>
+		<input class="input flex-[0_1_22rem] w-auto min-w-0" id="list-search" type="search" name="q" value={ value } maxlength="200" placeholder={ data.T(placeholderKey) }/>
+		<button class="btn btn-ghost btn-xs" type="submit">{ data.T("ui.search") }</button>
+		<p class="list-search-status" role="status" aria-live="polite" data-error-text={ data.T("ui.search_failed") } hidden></p>
+		<p class="sr-only" role="status" aria-live="polite" data-list-announce></p>
+	</form>
+}

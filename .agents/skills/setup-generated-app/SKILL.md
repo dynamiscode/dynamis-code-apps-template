@@ -101,7 +101,7 @@ Decision records and `CHANGELOG.md` are history. Do not rewrite them.
 |---|---|---|
 | Use cases | `internal/items/` | Replace with your resource, or delete |
 | Wiring | `internal/bootstrap/app.go`, `internal/bootstrap/agent.go` | Remove or replace the service and its arguments |
-| Web | `internal/web/templates/items.html`, `item-list.html`, `internal/web/handler.go`, `internal/web/assets/app.js`, `app.css` | Replace routes, templates, and script |
+| Web | `internal/web/items.templ`, `internal/web/items_rows.templ`, `internal/web/handler.go`, `internal/web/assets/alpine-components.js`, `app.css`, `tokens.css` | Replace routes, templates, and script |
 | REST | `internal/httpapi/` (for example `item_path_test.go`), `api/openapi.json` | Update routes and schemas, then `go generate ./api` |
 | Schema | `internal/platform/database/migrations/000003_items_http.sql`, `000004_item_events.sql`, `000009_nullable_item_creator.sql` | Do not edit applied migrations. Add a forward migration |
 | Public sharing | `000011_public_sharing.sql` (`public_links.item_id` references `items`), `internal/sharing/`, `internal/web/sharing.go` | Retarget sharing to your resource, or remove it with the items |

@@ -39,7 +39,7 @@ func TestFormUXPatterns(t *testing.T) {
 	run(t, tab, chromedp.Navigate(base+"/setup"))
 	check(js(`document.querySelectorAll("fieldset[data-step]")[1].hidden`), "form-wizard: step two starts hidden")
 	check(js(`document.querySelector('form[data-wizard] button[type="submit"]').hidden`), "form-wizard: submit hidden before the last step")
-	click(".wizard-nav button:not(.secondary)")
+	click(".wizard-nav button:not(.btn-ghost)")
 	check(js(`document.querySelectorAll("fieldset[data-step]")[1].hidden`), "form-wizard: Next is blocked while step one is invalid")
 	check(js(`document.querySelector("#email").getAttribute("aria-invalid") === "true"`), "form-field-input: the invalid field is marked")
 	typeInto("#email", "  "+email+"  ")
@@ -51,10 +51,10 @@ func TestFormUXPatterns(t *testing.T) {
 	check(js(`document.querySelector("#password").type === "text"`), "form-field-input: reveal shows the password")
 	click("#password + .reveal")
 	typeInto("#password-confirmation", "different-password-1")
-	click(".wizard-nav button:not(.secondary)")
+	click(".wizard-nav button:not(.btn-ghost)")
 	check(js(`document.querySelector("#password-confirmation").getAttribute("aria-invalid") === "true"`), "form-field-input: mismatched confirmation is invalid")
 	typeInto("#password-confirmation", password)
-	click(".wizard-nav button:not(.secondary)")
+	click(".wizard-nav button:not(.btn-ghost)")
 	check(js(`!document.querySelectorAll("fieldset[data-step]")[1].hidden`), "form-wizard: Next moves to step two once step one is valid")
 	check(js(`document.activeElement?.tagName === "LEGEND"`), "form-wizard: focus moves to the new step")
 	check(js(`document.querySelector("#email").value === "ux@example.com"`), "form-field-input: the email was trimmed")
@@ -161,9 +161,9 @@ func TestFormUXPatterns(t *testing.T) {
 	// form-field-input: smart default token expiry; keyboard: Escape closes a menu.
 	run(t, tab, chromedp.Navigate(base+workspace+"/settings/tokens"))
 	check(js(`/^\d{4}-\d{2}-\d{2}$/.test(document.querySelector("#token-expiry").value)`), "form-field-input: token expiry has a default")
-	click(".account-menu summary")
+	click("header .dropdown-end summary")
 	run(t, tab, chromedp.KeyEvent("\x1b"))
-	check(js(`!document.querySelector(".account-menu").open`), "async-feedback: Escape closes the account menu")
+	check(js(`!document.querySelector("header .dropdown-end").open`), "async-feedback: Escape closes the account menu")
 
 	// clients: a blank name is stopped with a summary; a client is created; a choice field gets an option.
 	run(t, tab, chromedp.Navigate(base+workspace+"/clients"))

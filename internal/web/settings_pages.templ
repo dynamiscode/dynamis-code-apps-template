@@ -1,41 +1,48 @@
 package web
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 
 import "strconv"
 
 templ generalSettingsView(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.SettingsSidebar(data)) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
 		<div class="settings-page">
-			@components.PageHeading(data.T("workspace.general_settings"), data.T("navigation.settings_setup"))
+			@molecules.PageHeading(data.T("workspace.general_settings"), data.T("navigation.settings_setup"))
 			if data.Saved {
-				@components.SuccessAlert(data.T("workspace.settings_saved"))
+				@molecules.SuccessAlert(data.T("workspace.settings_saved"))
 			}
 			if data.Error != "" {
-				@components.ErrorAlert(data.Error)
+				@molecules.ErrorAlert(data.Error)
 			}
-			<section class="settings-panel" aria-labelledby="workspace-locale-title">
+			<section class="settings-panel card min-w-0 p-5" aria-labelledby="workspace-locale-title">
 				<h2 id="workspace-locale-title">{ data.T("workspace.language_fallback") }</h2>
 				<p class="settings-intro" id="workspace-locale-help">{ data.T("workspace.language_fallback_description") }</p>
 				<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/general" } method="post" data-dirty-track data-unsaved-warning>
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@components.SelectField("workspace-locale", data.T("common.language"), templ.Attributes{"name": "locale", "aria-describedby": "workspace-locale-help", "disabled": !data.CanManage}) {
-						<option value="en" selected?={ data.Workspace.Locale == "en" }>{ data.T("common.english") }</option>
-						<option value="es" selected?={ data.Workspace.Locale == "es" }>{ data.T("common.spanish") }</option>
-					}
+					@atoms.Select(atoms.SelectProps{
+						ID: "workspace-locale", Name: "locale", Label: data.T("common.language"),
+						Attrs: templ.Attributes{"aria-describedby": "workspace-locale-help", "disabled": !data.CanManage},
+						Options: []atoms.SelectOption{
+							{Label: data.T("common.english"), Value: "en", Selected: data.Workspace.Locale == "en"},
+							{Label: data.T("common.spanish"), Value: "es", Selected: data.Workspace.Locale == "es"},
+						},
+					})
 					if data.CanManage {
-						@components.SubmitButton(data.T("common.save"), templ.Attributes{"data-requires-change": true})
+						@molecules.SubmitButton(data.T("common.save"), templ.Attributes{"data-requires-change": true})
 					}
 				</form>
 			</section>
-			<section class="settings-panel" aria-labelledby="workspace-notifications-title">
+			<section class="settings-panel card min-w-0 p-5" aria-labelledby="workspace-notifications-title">
 				<h2 id="workspace-notifications-title">{ data.T("account.notifications") }</h2>
 				if len(data.WorkspaceNotificationPreferences) > 0 {
-					<ul class="settings-records">
+					<ul class="settings-records grid list-none gap-4 p-0">
 						for _, preference := range data.WorkspaceNotificationPreferences {
-							<li class="settings-record"><span>{ workspaceNotificationLabel(data, preference.NotificationType) }</span><span>
+							<li class="settings-record card card-compact flex flex-wrap items-center justify-between gap-4 bg-base-200 px-4 py-3"><span>{ workspaceNotificationLabel(data, preference.NotificationType) }</span><span>
 								if preference.Enabled {
 									{ data.T("account.enabled") }
 								} else {
@@ -45,20 +52,26 @@ templ generalSettingsView(data viewmodel.PageData) {
 						}
 					</ul>
 				} else {
-					@components.EmptyState(data.T("workspace.notifications_empty"))
+					@molecules.EmptyState(data.T("workspace.notifications_empty"))
 				}
 				<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/notifications" } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@components.SelectField("workspace-notification-type", data.T("account.notification_type"), templ.Attributes{"name": "notification_type"}) {
-						<option value="security">{ data.T("workspace.notification_security") }</option>
-						<option value="workspace">{ data.T("workspace.notification_workspace") }</option>
-						<option value="system">{ data.T("workspace.notification_system") }</option>
-					}
-					@components.SelectField("workspace-notification-enabled", data.T("account.notification_delivery"), templ.Attributes{"name": "enabled"}) {
-						<option value="true">{ data.T("account.enabled") }</option>
-						<option value="false">{ data.T("account.disabled") }</option>
-					}
-					@components.SubmitButton(data.T("common.save"), nil)
+					@atoms.Select(atoms.SelectProps{
+						ID: "workspace-notification-type", Name: "notification_type", Label: data.T("account.notification_type"),
+						Options: []atoms.SelectOption{
+							{Label: data.T("workspace.notification_security"), Value: "security"},
+							{Label: data.T("workspace.notification_workspace"), Value: "workspace"},
+							{Label: data.T("workspace.notification_system"), Value: "system"},
+						},
+					})
+					@atoms.Select(atoms.SelectProps{
+						ID: "workspace-notification-enabled", Name: "enabled", Label: data.T("account.notification_delivery"),
+						Options: []atoms.SelectOption{
+							{Label: data.T("account.enabled"), Value: "true"},
+							{Label: data.T("account.disabled"), Value: "false"},
+						},
+					})
+					@molecules.SubmitButton(data.T("common.save"), nil)
 				</form>
 			</section>
 		</div>
@@ -66,18 +79,18 @@ templ generalSettingsView(data viewmodel.PageData) {
 }
 
 templ emailSettingsView(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.SettingsSidebar(data)) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
 		<div class="settings-page">
-			@components.PageHeading(data.T("email.title"), data.T("navigation.settings_setup"))
+			@molecules.PageHeading(data.T("email.title"), data.T("navigation.settings_setup"))
 			<p class="settings-intro">{ data.T("email.intro") }</p>
 			if data.Error != "" {
-				@components.ErrorAlert(data.Error)
+				@molecules.ErrorAlert(data.Error)
 			}
 			if data.EmailLoginReason != "" {
 				<p><code>{ data.EmailLoginReason }</code></p>
 			}
 			if data.EmailSaved {
-				@components.SuccessAlert(data.T("email.saved"))
+				@molecules.SuccessAlert(data.T("email.saved"))
 			}
 			if data.EmailSettings.Configured {
 				<p>{ data.T("email.configured") }</p>
@@ -93,51 +106,50 @@ templ emailSettingsView(data viewmodel.PageData) {
 					}
 				</code></p>
 			}
-			<section class="settings-panel" aria-label={ data.T("email.title") }>
+			<section class="settings-panel card min-w-0 p-5" aria-label={ data.T("email.title") }>
 				<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/email" } method="post" data-dirty-track data-unsaved-warning>
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@components.SelectField("email-provider", data.T("email.provider"), templ.Attributes{"name": "provider"}) {
-						<option value="smtp" selected?={ data.EmailSettings.UsesSMTP() }>{ data.T("email.provider_smtp") }</option>
-						<option value="resend" selected?={ data.EmailSettings.Provider == "resend" }>{ data.T("email.provider_resend") }</option>
-						<option value="postmark" selected?={ data.EmailSettings.Provider == "postmark" }>{ data.T("email.provider_postmark") }</option>
-					}
-					@components.TextField("email-sender-name", data.T("email.sender_name")+" "+data.T("ui.optional"), templ.Attributes{"name": "sender_name", "maxlength": "100", "value": data.EmailSettings.SenderName})
-					@components.TextField("email-sender-address", data.T("email.sender_address"), templ.Attributes{"name": "sender_address", "type": "email", "required": true, "maxlength": "254", "value": data.EmailSettings.SenderAddress})
+					@atoms.Select(atoms.SelectProps{
+						ID: "email-provider", Name: "provider", Label: data.T("email.provider"),
+						Options: []atoms.SelectOption{
+							{Label: data.T("email.provider_smtp"), Value: "smtp", Selected: data.EmailSettings.UsesSMTP()},
+							{Label: data.T("email.provider_resend"), Value: "resend", Selected: data.EmailSettings.Provider == "resend"},
+							{Label: data.T("email.provider_postmark"), Value: "postmark", Selected: data.EmailSettings.Provider == "postmark"},
+						},
+					})
+					@molecules.TextField("email-sender-name", data.T("email.sender_name")+" "+data.T("ui.optional"), templ.Attributes{"name": "sender_name", "maxlength": "100", "value": data.EmailSettings.SenderName})
+					@molecules.TextField("email-sender-address", data.T("email.sender_address"), templ.Attributes{"name": "sender_address", "type": "email", "required": true, "maxlength": "254", "value": data.EmailSettings.SenderAddress})
 					<fieldset data-show-when="email-provider=smtp">
 						<legend>{ data.T("email.smtp_section") }</legend>
 						<p id="email-smtp-required">{ data.T("email.required_for_smtp") }</p>
-						@components.TextField("email-host", data.T("email.host"), templ.Attributes{"name": "host", "maxlength": "253", "aria-describedby": "email-smtp-required", "data-trim": true, "value": emailSMTPValue(data.EmailSettings, data.EmailSettings.Host)})
-						@components.TextField("email-port", data.T("email.port"), templ.Attributes{"name": "port", "type": "number", "min": "1", "max": "65535", "value": emailPortValue(data.EmailSettings)})
-						@components.TextField("email-username", data.T("email.username")+" "+data.T("ui.optional"), templ.Attributes{"name": "username", "maxlength": "254", "autocomplete": "off", "value": emailSMTPValue(data.EmailSettings, data.EmailSettings.Username)})
-						<label for="email-password">{ data.T("email.password") }</label>
+						@molecules.TextField("email-host", data.T("email.host"), templ.Attributes{"name": "host", "maxlength": "253", "aria-describedby": "email-smtp-required", "data-trim": true, "value": emailSMTPValue(data.EmailSettings, data.EmailSettings.Host)})
+						@molecules.TextField("email-port", data.T("email.port"), templ.Attributes{"name": "port", "type": "number", "min": "1", "max": "65535", "value": emailPortValue(data.EmailSettings)})
+						@molecules.TextField("email-username", data.T("email.username")+" "+data.T("ui.optional"), templ.Attributes{"name": "username", "maxlength": "254", "autocomplete": "off", "value": emailSMTPValue(data.EmailSettings, data.EmailSettings.Username)})
 						<p id="email-password-help">{ data.T("email.password_help") }</p>
-						<input class="input" id="email-password" name="password" type="password" autocomplete="new-password" maxlength="1024" aria-describedby="email-password-help"/>
+						@atoms.Input(atoms.InputProps{ID: "email-password", Name: "password", Type: "password", Label: data.T("email.password"), MaxLength: "1024", Attrs: templ.Attributes{"autocomplete": "new-password", "aria-describedby": "email-password-help"}})
 					</fieldset>
 					<fieldset data-show-when="email-provider=resend">
 						<legend>{ data.T("email.resend_section") }</legend>
 						<ol>
 							<li>{ data.T("email.resend_step_1") }</li><li>{ data.T("email.resend_step_2") }</li><li>{ data.T("email.resend_step_3") }</li><li>{ data.T("email.resend_step_4") }</li>
 						</ol>
-						<label for="email-api-key">{ data.T("email.api_key") }</label>
 						<p id="email-api-key-help">{ data.T("email.api_key_help") }</p>
-						<input class="input" id="email-api-key" name="api_key" type="password" autocomplete="new-password" maxlength="1024" aria-describedby="email-api-key-help"/>
+						@atoms.Input(atoms.InputProps{ID: "email-api-key", Name: "api_key", Type: "password", Label: data.T("email.api_key"), MaxLength: "1024", Attrs: templ.Attributes{"autocomplete": "new-password", "aria-describedby": "email-api-key-help"}})
 					</fieldset>
 					<fieldset data-show-when="email-provider=postmark">
 						<legend>{ data.T("email.postmark_section") }</legend>
 						<ol>
 							<li>{ data.T("email.postmark_step_1") }</li><li>{ data.T("email.postmark_step_2") }</li><li>{ data.T("email.postmark_step_3") }</li><li>{ data.T("email.postmark_step_4") }</li>
 						</ol>
-						<label for="email-server-token">{ data.T("email.server_token") }</label>
 						<p id="email-server-token-help">{ data.T("email.server_token_help") }</p>
-						<input class="input" id="email-server-token" name="server_token" type="password" autocomplete="new-password" maxlength="1024" aria-describedby="email-server-token-help"/>
-						<label for="email-account-token">{ data.T("email.account_token") }</label>
+						@atoms.Input(atoms.InputProps{ID: "email-server-token", Name: "server_token", Type: "password", Label: data.T("email.server_token"), MaxLength: "1024", Attrs: templ.Attributes{"autocomplete": "new-password", "aria-describedby": "email-server-token-help"}})
 						<p id="email-account-token-help">{ data.T("email.account_token_help") }</p>
 						if data.EmailSettings.AccountTokenSet {
 							<p>{ data.T("email.account_token_set") }</p>
 						}
-						<input class="input" id="email-account-token" name="account_token" type="password" autocomplete="new-password" maxlength="1024" aria-describedby="email-account-token-help"/>
+						@atoms.Input(atoms.InputProps{ID: "email-account-token", Name: "account_token", Type: "password", Label: data.T("email.account_token"), MaxLength: "1024", Attrs: templ.Attributes{"autocomplete": "new-password", "aria-describedby": "email-account-token-help"}})
 					</fieldset>
-					@components.SubmitButton(data.T("email.save"), nil)
+					@molecules.SubmitButton(data.T("email.save"), nil)
 				</form>
 			</section>
 		</div>
@@ -145,58 +157,50 @@ templ emailSettingsView(data viewmodel.PageData) {
 }
 
 templ exportSettingsHeader(data viewmodel.PageData) {
-	<header class="topbar">
-		<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
-		<div class="topbar-context">
-			@layouts.DefaultHomeCrumb(data)
-			@layouts.WorkspaceContext(data)
-		</div>
-		@layouts.AccountMenu(data)
-	</header>
+	@organisms.AccountHeader(data)
 }
 
 templ exportSettingsView(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, exportSettingsHeader(data), layouts.SettingsSidebar(data)) {
+	@templates.DashboardShell(data, exportSettingsHeader(data), organisms.SettingsSidebar(data)) {
 		<div class="settings-page">
-			@components.PageHeading(data.Workspace.Name+" "+data.T("navigation.export"), data.T("navigation.settings_activity"))
+			@molecules.PageHeading(data.Workspace.Name+" "+data.T("navigation.export"), data.T("navigation.settings_activity"))
 			<p class="settings-intro">{ data.T("export.description") }</p>
-			<section class="settings-panel" aria-label={ data.T("navigation.export") }>
-				<a class="btn btn-primary" data-webmcp-export href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/export/download" }>{ data.T("export.download") }</a>
+			<section class="settings-panel card min-w-0 p-5" aria-label={ data.T("navigation.export") }>
+				@atoms.Anchor(atoms.AnchorProps{Href: "/workspaces/" + data.Workspace.ID.String() + "/settings/export/download", Label: data.T("export.download"), Class: "btn btn-primary", Attrs: templ.Attributes{"data-webmcp-export": true}})
 			</section>
 		</div>
 	}
 }
 
 templ importSettingsView(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.SettingsSidebar(data)) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
 		<div class="settings-page">
-			@components.PageHeading(data.Workspace.Name+" "+data.T("navigation.import"), data.T("navigation.settings_activity"))
+			@molecules.PageHeading(data.Workspace.Name+" "+data.T("navigation.import"), data.T("navigation.settings_activity"))
 			<p class="settings-intro">{ data.T("import.description") }</p>
 			if data.ImportCompleted {
-				@components.SuccessAlert(data.T("import.success")) {
+				@molecules.SuccessAlert(data.T("import.success")) {
 					{ data.T("import.items_imported") }{ " " }<strong>{ data.Imported }</strong>
 				}
 			}
 			if data.Error != "" {
-				@components.ErrorAlert(data.Error)
+				@molecules.ErrorAlert(data.Error)
 			}
-			<form class="settings-panel import-preview-form" action={ data.CurrentPath } method="post" enctype="multipart/form-data">
+			<form class="settings-panel card min-w-0 p-5 import-preview-form" action={ data.CurrentPath } method="post" enctype="multipart/form-data">
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
 				<input type="hidden" name="action" value="preview"/>
-				<label for="import-file">{ data.T("import.file") }</label>
-				<input class="file-input" id="import-file" name="file" type="file" accept=".json,.csv,application/json,text/csv" required aria-describedby="import-file-help"/>
 				<p id="import-file-help">{ data.T("import.file_help") }</p>
-				@components.SubmitButton(data.T("import.preview_button"), nil)
+				@atoms.FileInput(atoms.FileInputProps{ID: "import-file", Name: "file", Label: data.T("import.file"), Required: true, Attrs: templ.Attributes{"accept": ".json,.csv,application/json,text/csv", "aria-describedby": "import-file-help"}})
+				@molecules.SubmitButton(data.T("import.preview_button"), nil)
 			</form>
 			if data.ImportPreview != nil {
-				<section class="settings-panel import-preview" aria-labelledby="import-preview-heading">
+				<section class="settings-panel card min-w-0 p-5 import-preview" aria-labelledby="import-preview-heading">
 					<h2 id="import-preview-heading">{ data.T("import.preview_heading") }</h2>
 					<p>{ data.T("import.preview_records") }: <strong>{ data.ImportPreview.RecordCount }</strong></p>
 					<p>{ data.T("import.no_writes_yet") }</p>
 					if len(data.ImportPreview.Sample) > 0 {
 						<h3>{ data.T("import.preview_sample") }</h3>
-						@components.DataTable(data.T("import.preview_sample"), true) {
-							<thead><tr><th scope="col">{ data.T("items.title") }</th><th scope="col">{ data.T("items.status") }</th></tr></thead>
+						@organisms.DataTable(data.T("import.preview_sample"), true) {
+							<thead><tr><th scope="col">@atoms.HeaderText(data.T("items.title"), nil)</th><th scope="col">@atoms.HeaderText(data.T("items.status"), nil)</th></tr></thead>
 							<tbody>
 								for _, sample := range data.ImportPreview.Sample {
 									<tr><td>{ sample.Title }</td><td>
@@ -211,7 +215,7 @@ templ importSettingsView(data viewmodel.PageData) {
 						}
 					}
 					if data.ImportPreview.IssueCount > 0 {
-						@components.ErrorAlert(data.T("import.invalid_rows") + " " + strconv.Itoa(data.ImportPreview.IssueCount))
+						@molecules.ErrorAlert(data.T("import.invalid_rows") + " " + strconv.Itoa(data.ImportPreview.IssueCount))
 						<ul class="import-preview-errors">
 							for _, issue := range data.ImportPreview.Issues {
 								<li>{ data.T("import.record") }{ " " }{ issue.Record }: { data.T(issue.MessageKey) }</li>
@@ -228,11 +232,10 @@ templ importSettingsView(data viewmodel.PageData) {
 							<input type="hidden" name="action" value="confirm"/>
 							<input type="hidden" name="preview_digest" value={ data.ImportPreview.Digest }/>
 							<input type="hidden" name="preview_format" value={ data.ImportPreview.Format }/>
-							<label for="import-confirm-file">{ data.T("import.file") }</label>
-							<input class="file-input" id="import-confirm-file" name="file" type="file" accept=".json,.csv,application/json,text/csv" required aria-describedby="import-confirm-file-help"/>
 							<p id="import-confirm-file-help">{ data.T("import.confirm_file_help") }</p>
-							@components.ConfirmationField("import-confirm", "confirm", data.T("import.confirm"))
-							@components.SubmitButton(data.T("import.confirm_button"), nil)
+							@atoms.FileInput(atoms.FileInputProps{ID: "import-confirm-file", Name: "file", Label: data.T("import.file"), Required: true, Attrs: templ.Attributes{"accept": ".json,.csv,application/json,text/csv", "aria-describedby": "import-confirm-file-help"}})
+							@molecules.ConfirmationField("import-confirm", "confirm", data.T("import.confirm"))
+							@molecules.SubmitButton(data.T("import.confirm_button"), nil)
 						</form>
 					}
 				</section>

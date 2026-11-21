@@ -1,0 +1,155 @@
+package organisms
+
+import (
+	atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+	molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
+)
+
+// ListFilterBar is the shared filter strip of a list: the applied conditions as chips, and the match switch once
+// there are two or more. It sits under the toolbar and takes no height when no condition is applied.
+templ ListFilterBar(data viewmodel.PageData) {
+	<div id="list-filter-bar">
+		@ListFilterStrip(data)
+	</div>
+}
+
+
+// ListAddFilter is the add-filter control on a list's toolbar row.
+templ ListAddFilter(data viewmodel.PageData) {
+	<div id="list-filter-add">
+		@molecules.ListAddMenu(data.T("clients.add_filter"), data.Filter.AddOpen, true) {
+			@ListFilterAddPanel(data)
+		}
+	</div>
+}
+
+// ListFilterBarOOB refreshes the strip and the add-filter control out of band. A live search sends both with its
+// results, so their field links and the match switch carry the current search.
+templ ListFilterBarOOB(data viewmodel.PageData) {
+	<div id="list-filter-bar" hx-swap-oob="true">
+		@ListFilterStrip(data)
+	</div>
+	<div id="list-filter-add" hx-swap-oob="true">
+		@molecules.ListAddMenu(data.T("clients.add_filter"), data.Filter.AddOpen, true) {
+			@ListFilterAddPanel(data)
+		}
+	</div>
+}
+
+templ ListFilterStrip(data viewmodel.PageData) {
+	if len(data.Filter.Chips) > 0 {
+		<div class="list-filter-strip">
+			<ul class="list-filter-chips badge" aria-label={ data.T("clients.active_filters") }>
+				for i, chip := range data.Filter.Chips {
+					if i > 0 {
+						<li class="list-filter-connector">
+							if data.Filter.Match == viewmodel.ListMatchAny {
+								{ data.T("clients.connector_or") }
+							} else {
+								{ data.T("clients.connector_and") }
+							}
+						</li>
+					}
+					<li class="list-filter-chip badge gap-1 py-1 pl-3">
+						<a class="list-filter-chip-edit link" href={ templ.SafeURL(chip.EditHref) } aria-label={ data.T("clients.filter_edit") + ": " + ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }>
+							<span>
+								{ ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }&#32;{ data.T(chip.OpLabelKey) }&#32;
+								if chip.ValueKey != "" {
+									{ ListChipValue(data, chip) }
+								} else {
+									{ ListChipValue(data, chip) }
+								}
+							</span>
+						</a>
+						<a class="list-filter-chip-remove btn btn-ghost btn-xs" href={ templ.SafeURL(chip.RemoveHref) } aria-label={ data.T("clients.filter_remove") + ": " + ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }>&times;</a>
+					</li>
+				}
+			</ul>
+			if data.Filter.ShowMatch {
+				<form class="client-match" method="get" action={ data.Filter.Path }>
+					for _, field := range data.Filter.Preserved {
+						if field.Name != "match" {
+							<input type="hidden" name={ field.Name } value={ field.Value }/>
+						}
+					}
+					@atoms.Select(atoms.SelectProps{
+						ID:    "list-match",
+						Label: data.T("clients.match_label"),
+						Name:  "match",
+						Options: []atoms.SelectOption{
+							{Label: data.T("clients.match_all"), Value: viewmodel.ListMatchAll, Selected: data.Filter.Match == viewmodel.ListMatchAll},
+							{Label: data.T("clients.match_any"), Value: viewmodel.ListMatchAny, Selected: data.Filter.Match == viewmodel.ListMatchAny},
+						},
+						Attrs: templ.Attributes{"data-autosubmit": "true"},
+					})
+					<button class="btn btn-ghost btn-xs" type="submit" data-submit-button="true">{ data.T("clients.apply") }</button>
+				</form>
+			}
+		</div>
+	}
+}
+
+// ListFilterAddPanel is the add menu's two steps. The first picks a field; the second picks its
+// condition and value.
+templ ListFilterAddPanel(data viewmodel.PageData) {
+	if data.Filter.Step == nil {
+		if !data.Filter.CanAdd {
+			<p class="status">{ data.T("clients.filter_limit") }</p>
+		} else {
+			<p id="list-field-heading" class="client-field-prompt">{ data.T("clients.choose_field") }</p>
+			<ul class="client-field-choices" aria-labelledby="list-field-heading">
+				for _, field := range data.Filter.Fields {
+					<li><a href={ templ.SafeURL(field.Href) }>{ ListLabel(data, field.LabelKey, field.Label) }</a></li>
+				}
+			</ul>
+		}
+		<div class="actions">
+			<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(data.Filter.ClearHref) }>{ data.T("clients.clear_filters") }</a>
+		</div>
+	} else {
+		<form class="client-query client-add-step" method="get" action={ data.Filter.Path } data-dirty-track>
+			for _, field := range data.Filter.Preserved {
+				<input type="hidden" name={ field.Name } value={ field.Value }/>
+			}
+			<input type="hidden" name="filter_field" value={ data.Filter.Step.FieldKey }/>
+			<p class="client-step-field">{ ListLabel(data, data.Filter.Step.FieldLabelKey, data.Filter.Step.FieldLabel) }</p>
+			<div class="client-step-section" role="radiogroup" aria-labelledby="list-condition-heading">
+				<p id="list-condition-heading" class="client-field-prompt">{ data.T("clients.filter_op") }</p>
+				{{
+					opOptions := make([]atoms.RadioOption, 0, len(data.Filter.Step.Ops))
+					for _, op := range data.Filter.Step.Ops {
+						opOptions = append(opOptions, atoms.RadioOption{Label: data.T(op.LabelKey), Value: op.Key, Checked: op.Checked})
+					}
+				}}
+				@atoms.Radio(atoms.RadioProps{Name: "filter_op", Options: opOptions})
+			</div>
+			<div class="client-step-section" data-hide-for-operator="is_empty">
+				if data.Filter.Step.IsChoice {
+					{{
+						options := make([]atoms.SelectOption, 0, len(data.Filter.Step.Choices))
+						for _, choice := range data.Filter.Step.Choices {
+							options = append(options, atoms.SelectOption{
+								Label:    ListLabel(data, choice.LabelKey, choice.Label),
+								Value:    choice.Value,
+								Selected: choice.Selected,
+							})
+						}
+					}}
+					@atoms.Select(atoms.SelectProps{ID: "list-filter-value", Label: data.T("clients.filter_value"), Name: "filter_value", Options: options})
+				} else {
+					@atoms.Input(atoms.InputProps{ID: "list-filter-value", Label: data.T("clients.filter_value"), Name: "filter_value", Type: ListInputType(data.Filter.Step.InputType), Value: data.Filter.Step.Value, MaxLength: "1024"})
+				}
+			</div>
+			if data.Filter.Step.Range {
+				<div class="client-step-section" data-show-for-operator="between">
+					@atoms.Input(atoms.InputProps{ID: "list-filter-value-to", Label: data.T("clients.filter_value_to"), Name: "filter_value_to", Type: ListInputType(data.Filter.Step.InputType), Value: data.Filter.Step.ValueTo, MaxLength: "1024"})
+				</div>
+			}
+			<div class="client-step-actions">
+				<a class="btn btn-ghost" href={ templ.SafeURL(data.Filter.BackHref) }>&lsaquo; { data.T("clients.back_to_fields") }</a>
+				<button class="btn btn-primary" type="submit">{ data.T("clients.filter_add") }</button>
+			</div>
+		</form>
+	}
+}

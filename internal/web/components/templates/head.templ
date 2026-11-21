@@ -1,0 +1,33 @@
+package templates
+
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+// PageHead is the shared document head: charset, viewport, title, stylesheets and form scripts.
+templ PageHead(data viewmodel.PageData, title string) {
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1"/>
+	<title>{ title } · { data.T("common.product_name") }</title>
+	<link rel="stylesheet" href="/assets/tokens.css"/>
+	<link rel="stylesheet" href="/assets/components.css"/>
+	<link rel="stylesheet" href="/assets/app.css"/>
+	@UiHead(data)
+}
+
+templ UiHead(data viewmodel.PageData) {
+	<meta name="csrf-token" content={ data.CSRF }/>
+	<script
+		data-messages
+		data-msg-saving={ data.T("ui.saving") } data-msg-loading={ data.T("ui.loading") }
+		data-msg-load-failed={ data.T("ui.load_failed") } data-msg-retry={ data.T("ui.retry") }
+		data-msg-error-summary={ data.T("ui.error_summary") }
+		data-msg-unsaved={ data.T("ui.unsaved") } data-msg-updates-waiting={ data.T("ui.updates_waiting") }
+		data-msg-show-password={ data.T("ui.show_password") } data-msg-hide-password={ data.T("ui.hide_password") }
+		data-msg-strength={ data.T("ui.strength") } data-msg-strength-0={ data.T("ui.strength_0") }
+		data-msg-strength-1={ data.T("ui.strength_1") } data-msg-strength-2={ data.T("ui.strength_2") }
+		data-msg-strength-3={ data.T("ui.strength_3") } data-msg-strength-4={ data.T("ui.strength_4") }
+		data-msg-mismatch={ data.T("ui.mismatch") } data-msg-next={ data.T("ui.next") }
+		data-msg-back={ data.T("ui.back") } data-msg-draft-restored={ data.T("ui.draft_restored") }
+		data-msg-discard-draft={ data.T("ui.discard_draft") } data-msg-dismiss={ data.T("ui.dismiss") }
+		data-msg-request-failed={ data.T("ui.request_failed") }
+		data-msg-step-of={ data.T("ui.step_of", map[string]any{"step": "{step}", "total": "{total}"}) }></script>
+}

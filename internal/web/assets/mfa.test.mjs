@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const mfaJsCode = fs.readFileSync(path.join(__dirname, "mfa.js"), "utf8");
+const componentsCode = fs.readFileSync(path.join(__dirname, "alpine-components.js"), "utf8");
 
 const element = (props = {}) => ({
   disabled: false,
@@ -81,6 +81,7 @@ function load({ login = false, enroll = false, credentialsGet, credentialsCreate
     querySelector: sel => (sel === "p.error[role=alert]" ? notice.current : null),
     querySelectorAll: sel => (sel === "button, input[type=submit]" && login ? [loginButton, loginSubmit] : []),
     createElement: () => { notice.current = element(); return notice.current; },
+    addEventListener() {},
     body: element()
   };
   const window = {
@@ -90,7 +91,12 @@ function load({ login = false, enroll = false, credentialsGet, credentialsCreate
   const navigator = { credentials: { get: credentialsGet, create: credentialsCreate } };
   const fetch = fetchImpl || (async () => { throw new TypeError("no fetch stub"); });
   const atob = value => Buffer.from(value, "base64").toString("binary");
-  new Function("window", "document", "navigator", "fetch", "atob", mfaJsCode)(window, document, navigator, fetch, atob);
+  const exportStyle = { module: true, exports: {} };
+  new Function("module", "window", "document", "navigator", "fetch", "atob", componentsCode)(
+    exportStyle, window, document, navigator, fetch, atob
+  );
+  exportStyle.exports.passkeyLogin().init();
+  exportStyle.exports.passkeyEnroll().init();
   return { window, loginButton, loginSubmit, enrollForm, enrollButtons, enrollParent, notice, output, values };
 }
 

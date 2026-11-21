@@ -1,23 +1,26 @@
 package web
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import "example.com/dynamis-code/apps-template/internal/identity"
 
 templ membersPage(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, layouts.DashboardHeader(data), memberSettingsNavigation(data)) {
-		@layouts.PeopleTabs(data)
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), memberSettingsNavigation(data)) {
+		@organisms.PeopleTabs(data)
 		if data.Error != "" {
-			@components.ErrorAlert(data.Error)
+			@molecules.ErrorAlert(data.Error)
 		}
 		<p class="status">{ data.T("members.role_help") }</p>
 		if data.CanTransfer {
 			<p class="status">{ data.T("members.transfer_consequence") }</p>
 		}
 		<section id="member-list" aria-labelledby="members-heading">
-			<h2 id="members-heading" class="visually-hidden">{ data.T("members.members") }</h2>
+			<h2 id="members-heading" class="sr-only">{ data.T("members.members") }</h2>
 			<p class="status" role="status">
 				if data.MemberTotal == 1 {
 					{ data.T("members.count_one") }
@@ -28,83 +31,91 @@ templ membersPage(data viewmodel.PageData) {
 			@memberListView(data)
 								</section>
 		<script defer src="/assets/htmx.min.js"></script>
-			<script defer src="/assets/app.js"></script>
-	}
+		}
 }
 
 templ memberSettingsNavigation(data viewmodel.PageData) {
-	<aside class="sidebar"><a class="sidebar-back" href={ "/workspaces/"+data.Workspace.ID.String() }>{ "← " }{ data.T("workspace.back_to_home") }</a>@layouts.WorkspaceNav(data)</aside>
+	<aside class="flex flex-col gap-4"><a class="btn btn-ghost btn-sm w-full justify-start font-normal" href={ "/workspaces/"+data.Workspace.ID.String() }>{ "← " }{ data.T("workspace.back_to_home") }</a>@organisms.WorkspaceNav(data)</aside>
 }
 
 templ memberListView(data viewmodel.PageData) {
-	@components.ListScreen(data, "members.search", memberListTools(data), memberResults(data))
+	@organisms.ListScreen(data, "members.search", memberListTools(data), memberResults(data))
 }
 
 // memberListTools are the member list's own controls on the toolbar: the columns.
 templ memberListTools(data viewmodel.PageData) {
-	@components.ListColumnsMenu(data, data.ClientQuerySuffix)
+	@molecules.ListColumnsMenu(data, data.ClientQuerySuffix)
 }
 
 // memberResults is the Members results region: the table or cards and the empty state. A live search also
 // refreshes the filter bar out of band.
 templ memberResults(data viewmodel.PageData) {
-	@components.ListResults(data, data.MemberListQuery.Limit, listPageSizeOptions(data.MemberListQuery.Limit, memberPageSizes), data.ClientQuerySuffix, memberRows(data), templ.NopComponent)
+	@organisms.ListResults(data, data.MemberListQuery.Limit, listPageSizeOptions(data.MemberListQuery.Limit, memberPageSizes), data.ClientQuerySuffix, memberRows(data), templ.NopComponent)
 }
 
 templ memberRows(data viewmodel.PageData) {
 	if data.HasVisibleClientColumns {
-		@components.ListTable(data.T("members.members"), true) {
-			@components.ListHeader(data, data.T("clients.actions"))
+		@organisms.ListTable(data.T("members.members"), true) {
+			@organisms.ListHeader(data, data.T("clients.actions"))
 			<tbody>
 				for _, row := range data.ListRows {
-					@components.ListRow("") {
-						@components.ListCells(data, row, "")
-						<td class="list-actions-cell">@components.ListRowMenu(data) {
+					@organisms.ListRow("") {
+						@organisms.ListCells(data, row, "")
+						<td class="list-actions-cell">@molecules.ListRowMenu(data) {
 							@memberActions(data, row.Member, "table")
 						}</td>
 					}
 				}
 			</tbody>
 		}
-		@components.ListCards() {
+		@molecules.ListCards() {
 			for _, row := range data.ListRows {
-				@components.ListCardItem(data, row, "") {
-					@components.ListRowMenuCard(data) {
+				@organisms.ListCardItem(data, row, "") {
+					@organisms.ListRowMenuCard(data) {
 						@memberActions(data, row.Member, "card")
 					}
 				}
 			}
 		}
 	} else {
-		@components.StatusLine(data.T("clients.columns_choose"), nil)
+		@molecules.StatusLine(data.T("clients.columns_choose"), nil)
 	}
 	if data.MemberTotal == 0 {
-		<p id="member-results" role="status">{ data.T("members.none") } <a href={ data.ClearClientFiltersPath }>{ data.T("clients.clear_filters") }</a></p>
+		<p id="member-results" role="status">{ data.T("members.none") } @atoms.Link(atoms.LinkProps{Href: data.ClearClientFiltersPath, Text: data.T("clients.clear_filters")})</p>
 	}
 }
 
 templ memberActions(data viewmodel.PageData, member identity.MemberSummary, suffix string) {
 	if data.CanManage && member.Role != identity.Owner {
 		<div class="member-actions">
-			<p class="visually-hidden">{ member.Email }</p>
+			<p class="sr-only">{ member.Email }</p>
 			<form data-webmcp-actions="member-role-update" data-webmcp-id={ member.ID.String() } action={ "/workspaces/"+data.Workspace.ID.String()+"/settings/members" } method="post">
 				<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="member_id" value={ member.ID.String() }/>
-				@components.SelectField("role-"+member.ID.String()+"-"+suffix, data.T("members.role"), templ.Attributes{"name": "role"}) {
-				<option value="admin" selected?={ member.Role == identity.Admin }>{ data.T("members.admin") }</option>
-				<option value="member" selected?={ member.Role == identity.Member }>{ data.T("members.member") }</option>
-				<option value="viewer" selected?={ member.Role == identity.Viewer }>{ data.T("members.viewer") }</option>
-				}
-				<button class="btn btn-primary" name="action" value="role">{ data.T("members.change_role") }</button>
+				@atoms.Select(atoms.SelectProps{
+					ID: "role-"+member.ID.String()+"-"+suffix, Name: "role", Label: data.T("members.role"),
+					Options: []atoms.SelectOption{
+						{Label: data.T("members.admin"), Value: "admin", Selected: member.Role == identity.Admin},
+						{Label: data.T("members.member"), Value: "member", Selected: member.Role == identity.Member},
+						{Label: data.T("members.viewer"), Value: "viewer", Selected: member.Role == identity.Viewer},
+					},
+				})
+				@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("members.change_role"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "role"}})
 			</form>
 			<form data-webmcp-actions="member-remove" data-webmcp-id={ member.ID.String() } action={ "/workspaces/"+data.Workspace.ID.String()+"/settings/members" } method="post">
 				<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="member_id" value={ member.ID.String() }/>
 				<p id={ "remove-consequence-"+member.ID.String()+"-"+suffix } class="status">{ data.T("members.remove_consequence") }</p>
-				<fieldset><legend>{ data.T("members.remove_confirm") }</legend><label class="confirmation" for={ "confirm-remove-"+member.ID.String()+"-"+suffix }><input id={ "confirm-remove-"+member.ID.String()+"-"+suffix } name="confirm_remove" type="checkbox" value="yes" required aria-describedby={ "remove-consequence-"+member.ID.String()+"-"+suffix }/> <span>{ data.T("members.remove_confirm") }</span></label><button class="btn btn-error danger" name="action" value="remove">{ data.T("members.remove") }</button></fieldset>
+				<fieldset><legend>{ data.T("members.remove_confirm") }</legend>@atoms.Checkbox(atoms.CheckboxProps{
+					ID:         "confirm-remove-" + member.ID.String() + "-" + suffix,
+					Name:       "confirm_remove",
+					LabelClass: "confirmation",
+					After:      data.T("members.remove_confirm"),
+					Attrs:      templ.Attributes{"value": "yes", "required": true, "aria-describedby": "remove-consequence-" + member.ID.String() + "-" + suffix},
+				})@atoms.Button(atoms.ButtonProps{Class: "btn-error danger", Label: data.T("members.remove"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "remove"}})</fieldset>
 			</form>
 			if data.CanTransfer {
 				<form data-webmcp-actions="ownership-transfer" data-webmcp-id={ member.ID.String() } action={ "/workspaces/"+data.Workspace.ID.String()+"/settings/members" } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="member_id" value={ member.ID.String() }/>
-					<fieldset><legend>{ data.T("members.transfer_consequence") }</legend>@components.ConfirmationField("confirm-transfer-"+member.ID.String()+"-"+suffix, "confirm_transfer", data.T("members.transfer_confirm"))<button class="btn btn-error danger" name="action" value="transfer">{ data.T("members.transfer") }</button></fieldset>
+					<fieldset><legend>{ data.T("members.transfer_consequence") }</legend>@molecules.ConfirmationField("confirm-transfer-"+member.ID.String()+"-"+suffix, "confirm_transfer", data.T("members.transfer_confirm"))@atoms.Button(atoms.ButtonProps{Class: "btn-error danger", Label: data.T("members.transfer"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "transfer"}})</fieldset>
 				</form>
 			}
 		</div>

@@ -112,7 +112,7 @@ func TestClientChoiceValuesUseASelectAndViewersReadLabels(t *testing.T) {
 	valuePath := detail + "/values/" + fieldShort
 
 	owner := request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
-	if !strings.Contains(owner, `<select id="value-`+fieldShort+`"`) || !strings.Contains(owner, `<option value="`+optionShort+`"`) {
+	if !strings.Contains(owner, `id="value-`+fieldShort+`"`) || !strings.Contains(owner, `<option value="`+optionShort+`"`) {
 		t.Fatalf("owner detail has no select of the field's options: %s", owner)
 	}
 
@@ -165,7 +165,7 @@ func TestClientOptionDeleteAsksBeforeClearingValues(t *testing.T) {
 	if !strings.Contains(page, want) {
 		t.Fatalf("option delete has no confirmation: %s", page)
 	}
-	if !strings.Contains(page, `<p class="warning">Delete this option? Clients that chose it lose that value. This cannot be undone.</p>`) {
+	if !strings.Contains(page, `<p class="warning alert alert-warning py-2">Delete this option? Clients that chose it lose that value. This cannot be undone.</p>`) {
 		t.Fatalf("option delete does not explain the effect without JavaScript: %s", page)
 	}
 }

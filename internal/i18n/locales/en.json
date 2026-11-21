@@ -714,6 +714,7 @@
   "ui.move_column_down": "Move {{.name}} down",
   "ui.columns_shown": "{{.shown}} of {{.total}} shown",
   "ui.skip_to_content": "Skip to content",
+  "ui.open_navigation": "Open navigation",
   "ui.item_saved": "Item saved.",
   "ui.item_added": "Item added.",
   "ui.item_deleted": "Item deleted.",

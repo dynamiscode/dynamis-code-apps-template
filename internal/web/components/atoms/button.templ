@@ -1,0 +1,13 @@
+// actions
+// https://daisyui.com/components/button
+package atoms
+
+type ButtonProps struct {
+	Class string
+	Label string
+	Attrs templ.Attributes
+}
+
+templ Button(props ButtonProps) {
+	<button class={ "btn", props.Class } { props.Attrs... }>{ props.Label }{ children... }</button>
+}

@@ -1,0 +1,12 @@
+// data_input
+// https://daisyui.com/components/validator
+// pair with Input/Select/Textarea by passing class "validator" on the field
+package atoms
+
+type ValidatorHintProps struct {
+	Class string
+}
+
+templ ValidatorHint(props ValidatorHintProps) {
+	<p class={ "validator-hint", props.Class }>{ children... }</p>
+}

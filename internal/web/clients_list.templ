@@ -1,7 +1,10 @@
 package web
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import "strconv"
 
@@ -13,9 +16,9 @@ templ clientList(data viewmodel.PageData) {
 		data-live-reconnecting={ data.T("clients.live_reconnecting") }
 		data-live-waiting={ data.T("ui.updates_waiting") }
 		aria-labelledby="clients-heading">
-		<h2 id="clients-heading" class="visually-hidden">{ data.T("clients.title") }</h2>
+		<h2 id="clients-heading" class="sr-only">{ data.T("clients.title") }</h2>
 		if data.ErrorKey != "" {
-			@components.ErrorAlert(data.T(data.ErrorKey))
+			@molecules.ErrorAlert(data.T(data.ErrorKey))
 		}
 		<div class="client-results" id="client-results">
 			@clientListView(data)
@@ -24,18 +27,18 @@ templ clientList(data viewmodel.PageData) {
 }
 
 templ clientListView(data viewmodel.PageData) {
-	@components.ListScreen(data, "clients.search", clientListTools(data), clientResults(data))
+	@organisms.ListScreen(data, "clients.search", clientListTools(data), clientResults(data))
 }
 
 // clientListTools are the client list's own controls on the toolbar: the columns, the bulk actions, the create
 // menu, and the live status.
 templ clientListTools(data viewmodel.PageData) {
-	@components.ListColumnsMenu(data, data.ClientQuerySuffix)
+	@molecules.ListColumnsMenu(data, data.ClientQuerySuffix)
 	if data.ListSelectable {
 		@clientBulkBar(data)
 	}
 	@clientCreateMenu(data)
-	@components.StatusLine(data.T("clients.live_fallback"), templ.Attributes{"aria-live": "polite", "id": "realtime-status"})
+	@molecules.StatusLine(data.T("clients.live_fallback"), templ.Attributes{"aria-live": "polite", "id": "realtime-status"})
 }
 
 // clientNotice tells the user when the sort is hidden by the columns.
@@ -54,47 +57,47 @@ templ clientNotice(data viewmodel.PageData) {
 // clientResults is the results region: the table or cards, the empty state, and the footer. A sort, filter, or
 // search swaps this region alone.
 templ clientResults(data viewmodel.PageData) {
-	@components.ListResults(data, clientPageLimit(data.ClientQuery.Limit), listPageSizeOptions(clientPageLimit(data.ClientQuery.Limit), listPageSizes), data.ClientQuerySuffix, clientBody(data), clientScopeLink(data))
+	@organisms.ListResults(data, clientPageLimit(data.ClientQuery.Limit), listPageSizeOptions(clientPageLimit(data.ClientQuery.Limit), listPageSizes), data.ClientQuerySuffix, clientBody(data), clientScopeLink(data))
 }
 
 // clientBody is the client list's rows: the table or cards, and the empty state.
 templ clientBody(data viewmodel.PageData) {
 	@clientNotice(data)
 	if data.ClientQuery.Archived == "archived" {
-		@components.StatusLine(data.T("clients.viewing_archived"), nil)
+		@molecules.StatusLine(data.T("clients.viewing_archived"), nil)
 	}
 	if data.HasVisibleClientColumns {
-		@components.ListTable(data.T("clients.title"), true) {
-			@components.ListHeader(data, data.T("clients.actions"))
+		@organisms.ListTable(data.T("clients.title"), true) {
+			@organisms.ListHeader(data, data.T("clients.actions"))
 			<tbody>
 				for _, row := range data.ListRows {
-					@components.ListRow(data.CurrentPath + "/" + row.ID) {
+					@organisms.ListRow(data.CurrentPath + "/" + row.ID) {
 						if data.ListSelectable {
 							@clientRowSelect(data, row)
 						}
-						@components.ListCells(data, row, data.CurrentPath + "/" + row.ID)
-						@components.ListActionsCell(data, clientRowActions(data, row))
+						@organisms.ListCells(data, row, data.CurrentPath + "/" + row.ID)
+						@organisms.ListActionsCell(data, clientRowActions(data, row))
 					}
 				}
 			</tbody>
 		}
-		@components.ListCards() {
+		@molecules.ListCards() {
 			for _, row := range data.ListRows {
-				@components.ListCardItem(data, row, data.CurrentPath + "/" + row.ID) {
+				@organisms.ListCardItem(data, row, data.CurrentPath + "/" + row.ID) {
 					if data.ListSelectable {
 						@clientCardSelect(data, row)
 					}
-					@components.ListActionsMenu(data, clientRowActions(data, row), true)
+					@organisms.ListActionsMenu(data, clientRowActions(data, row), true)
 				}
 			}
 		}
 	} else {
-		@components.StatusLine(data.T("clients.columns_choose"), nil)
+		@molecules.StatusLine(data.T("clients.columns_choose"), nil)
 	}
 	if len(data.ListRows) == 0 {
 		<p id="client-empty-state">
 			if data.HasClientFilters {
-				{ data.T("clients.no_matches") }{ " " }<a href={ data.ClearClientFiltersPath }>{ data.T("clients.clear_filters") }</a>
+				{ data.T("clients.no_matches") }{ " " }@atoms.Link(atoms.LinkProps{Href: data.ClearClientFiltersPath, Text: data.T("clients.clear_filters")})
 			} else {
 				{ data.T("clients.none") }
 			}
@@ -110,14 +113,14 @@ templ clientCreateMenu(data viewmodel.PageData) {
 			}
 		if data.CanEditClients {
 			<div id="client-create">
-			@components.ListCreateMenu(data.T("clients.new_client"), data.ErrorKey != "") {
+			@molecules.ListCreateMenu(data.T("clients.new_client"), data.ErrorKey != "") {
 				<form class="create" action={ data.CurrentPath } method="post" data-dirty-track data-dirty-on-load?={ clientDraftHasInput(data.ClientDraft) }>
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@components.TextField("client-display-name", data.T("clients.display_name"), templ.Attributes{"name": "display_name", "required": true, "maxlength": "200", "value": data.ClientDraft.DisplayName, "data-trim": ""})
-					@components.TextField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{"name": "email", "type": "email", "maxlength": "254", "value": data.ClientDraft.Email})
-					@components.TextField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{"name": "phone", "maxlength": "50", "value": data.ClientDraft.Phone})
-					@components.TextareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.ClientDraft.Notes, templ.Attributes{"name": "notes", "maxlength": "5000"})
-					<div class="actions"><button class="btn btn-primary" type="submit">{ data.T("clients.add") }</button></div>
+					@molecules.TextField("client-display-name", data.T("clients.display_name"), templ.Attributes{"name": "display_name", "required": true, "maxlength": "200", "value": data.ClientDraft.DisplayName, "data-trim": ""})
+					@molecules.TextField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{"name": "email", "type": "email", "maxlength": "254", "value": data.ClientDraft.Email})
+					@molecules.TextField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{"name": "phone", "maxlength": "50", "value": data.ClientDraft.Phone})
+					@molecules.TextareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.ClientDraft.Notes, templ.Attributes{"name": "notes", "maxlength": "5000"})
+					<div class="actions">@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.add"), Attrs: templ.Attributes{"type": "submit"}})</div>
 				</form>
 			}
 			</div>

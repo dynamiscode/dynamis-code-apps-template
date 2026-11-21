@@ -131,7 +131,7 @@ func TestClientCardsCarryTheRowActions(t *testing.T) {
 	}
 	body := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil).Body.String()
 	cards := body[strings.Index(body, `<ul class="list-view-cards">`):]
-	if !strings.Contains(cards, `<details class="list-row-menu list-card-actions">`) || !strings.Contains(cards, "&#8942;") {
+	if !strings.Contains(cards, `aria-label="Row actions"`) || !strings.Contains(cards, "&#8942;") {
 		t.Fatalf("mobile cards lack the vertical-dots actions menu")
 	}
 }

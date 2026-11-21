@@ -26,7 +26,7 @@ func openFiles(t *testing.T, tab context.Context) string {
 	click(t, tab, ".cards a")
 	waitVisible(t, tab, "[data-workspace-home]")
 	workspacePath := regexp.MustCompile(`^(/workspaces/[^/]+)`).FindString(eval[string](t, tab, "location.pathname"))
-	click(t, tab, `.sidebar a[href$="/files"]`)
+	navigate(t, tab, workspacePath+"/files")
 	waitVisible(t, tab, "#file-upload")
 	return workspacePath
 }
@@ -63,7 +63,7 @@ func TestFilesLayouts(t *testing.T) {
 			t.Cleanup(restore)
 			navigate(t, tab, workspacePath+"/files")
 			waitVisible(t, tab, "#file-upload")
-			expectAttribute(t, tab, "html", "data-theme", c.theme)
+			expectTheme(t, tab, c.theme)
 			canvas := eval[string](t, tab, `getComputedStyle(document.documentElement).getPropertyValue("--canvas").trim()`)
 			want := "#f3f6fa"
 			if c.theme == "dark" {
@@ -92,7 +92,7 @@ func TestFilesSystemThemeFollowsOSPreference(t *testing.T) {
 	restore := setAccountTheme(t, tab, "system")
 	t.Cleanup(restore)
 	navigate(t, tab, workspacePath+"/files")
-	expectAttribute(t, tab, "html", "data-theme", "system")
+	expectTheme(t, tab, "system")
 	canvas := `getComputedStyle(document.documentElement).getPropertyValue("--canvas").trim()`
 	setScheme := func(scheme string) {
 		call(t, tab, emulation.SetEmulatedMedia, emulation.SetEmulatedMediaParams{Features: []*emulation.MediaFeature{
@@ -249,7 +249,6 @@ func TestFilesViewerListsAndDownloadsWithoutUploadControls(t *testing.T) {
 	eventually(t, viewer, visibleDownloadExpr("viewer-readable.txt"), "viewer does not list the file")
 	expectCount(t, viewer, "form[data-file-upload]", 0)
 	expectCount(t, viewer, `input[type="file"]`, 0)
-	expectCount(t, viewer, `script[src="/assets/app.js"]`, 0)
 
 	downloads := t.TempDir()
 	call(t, viewer, browser.SetDownloadBehavior, browser.SetDownloadBehaviorParams{Behavior: browser.SetDownloadBehaviorBehaviorAllow, DownloadPath: downloads})

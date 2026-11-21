@@ -1,0 +1,100 @@
+package organisms
+
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+// ListActionsCell is a row's last cell: a sticky "⋯" menu of the row's actions. It stays on the right while the
+// table scrolls sideways. A row with no actions still gets the cell, so the columns line up. The menu's open panel
+// is raised above the other rows' cells, so a row's menu is never covered by the row below it.
+templ ListActionsCell(data viewmodel.PageData, actions []ListAction) {
+	<td class="list-actions-cell">
+		@ListActionsMenu(data, actions, false)
+	</td>
+}
+
+// ListActionsMenu is a row's actions behind a three-dot button. A card uses the vertical dots, a table row the
+// horizontal ones. A row with no actions shows nothing.
+templ ListActionsMenu(data viewmodel.PageData, actions []ListAction, vertical bool) {
+	if len(actions) > 0 {
+		@atoms.Dropdown(atoms.DropdownProps{
+			Class:        "list-menu",
+			SummaryClass: "btn btn-ghost btn-xs",
+			SummaryAttrs: templ.Attributes{"aria-label": data.T("ui.row_actions"), "title": data.T("ui.row_actions")},
+			Summary:      molecules.RowMenuGlyph(vertical),
+			ListClass:    "list-action-items bg-base-100 rounded-box shadow-lg",
+			Items:        listActionItems(data, actions),
+		})
+	}
+}
+
+// listActionItems builds one menu entry per action, with a divider before each danger action.
+func listActionItems(data viewmodel.PageData, actions []ListAction) []atoms.DropdownItem {
+	items := make([]atoms.DropdownItem, 0, len(actions)*2)
+	for _, action := range actions {
+		if action.Danger {
+			items = append(items, atoms.DropdownItem{Divider: true})
+		}
+		if action.PostPath != "" {
+			items = append(items, atoms.DropdownItem{Item: listActionForm(data, action)})
+		} else {
+			items = append(items, atoms.DropdownItem{Item: listActionLink(action)})
+		}
+	}
+	return items
+}
+
+// listActionForm is a POST action with its CSRF token.
+templ listActionForm(data viewmodel.PageData, action ListAction) {
+	<form method="post" action={ action.PostPath }>
+		<input type="hidden" name="csrf" value={ data.CSRF }/>
+		<button class={ templ.KV("text-error", action.Danger) } type="submit" { ListActionConfirm(action)... }>
+			@ListActionIcon(action.Icon)
+			<span>{ action.Label }</span>
+		</button>
+	</form>
+}
+
+// listActionLink is a GET action.
+templ listActionLink(action ListAction) {
+	<a class={ templ.KV("text-error", action.Danger) } href={ templ.SafeURL(action.Href) }>
+		@ListActionIcon(action.Icon)
+		<span>{ action.Label }</span>
+	</a>
+}
+
+// ListRowMenuCard is a card's menu for the Members rows, whose actions are written in the page. It uses the vertical
+// dots.
+templ ListRowMenuCard(data viewmodel.PageData) {
+	@atoms.Dropdown(atoms.DropdownProps{
+		Class:          "list-menu",
+		SummaryClass:   "btn btn-ghost btn-xs",
+		SummaryAttrs:   templ.Attributes{"aria-label": data.T("ui.row_actions"), "title": data.T("ui.row_actions")},
+		Summary:        molecules.RowMenuGlyph(true),
+		PanelClass:     "list-action-items bg-base-100 rounded-box shadow-lg",
+		PanelChildren:  true,
+	}) {
+		<ul class="list-action-items">
+			{ children... }
+		</ul>
+	}
+}
+
+// ListActionIcon is the glyph of a row action. It is decorative: the label names the action.
+templ ListActionIcon(name string) {
+	<svg class="list-action-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+		if name == "open" {
+			<path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>
+		} else if name == "edit" {
+			<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+		} else if name == "archive" {
+			<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/><path d="M10 13h4"/>
+		} else if name == "unarchive" {
+			<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/><path d="M12 17v-5"/><path d="M9.5 14.5 12 12l2.5 2.5"/>
+		} else if name == "delete" {
+			<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/>
+		} else if name == "download" {
+			<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>
+		}
+	</svg>
+}

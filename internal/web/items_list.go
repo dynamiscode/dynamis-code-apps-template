@@ -71,7 +71,7 @@ func (h *Handler) setItemColumn(writer http.ResponseWriter, request *http.Reques
 	for _, column := range itemListColumns() {
 		defaults[column.Key] = column.DefaultVisible
 	}
-	visible, err := strconv.ParseBool(request.FormValue("visible"))
+	visible, err := strconv.ParseBool(listVisibleParam(request))
 	if err != nil {
 		h.renderError(writer, http.StatusBadRequest)
 		return

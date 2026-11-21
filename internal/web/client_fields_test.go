@@ -19,7 +19,8 @@ func TestClientFieldsDefineArchiveAndRestoreThroughForms(t *testing.T) {
 	env := newClientsTestEnv(t)
 	page := request(env.routes, http.MethodGet, env.fieldsPath(), nil, env.cookies, nil)
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `name="label"`) ||
-		!strings.Contains(page.Body.String(), `class="input" id="client-field-label"`) ||
+		!strings.Contains(page.Body.String(), `id="client-field-label"`) ||
+		!strings.Contains(page.Body.String(), `class="input w-full"`) ||
 		!strings.Contains(page.Body.String(), `class="btn btn-primary" type="submit"`) {
 		t.Fatalf("owner fields page rendering is incorrect (%d): %s", page.Code, page.Body.String())
 	}
@@ -121,7 +122,7 @@ func TestClientFieldRefusalKeepsTheChosenType(t *testing.T) {
 	if refused.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("blank label = %d: %s", refused.Code, refused.Body.String())
 	}
-	if !strings.Contains(refused.Body.String(), `<option value="number" selected>`) {
+	if !strings.Contains(refused.Body.String(), `<option selected value="number">`) {
 		t.Fatalf("refused form lost the chosen type: %s", refused.Body.String())
 	}
 }

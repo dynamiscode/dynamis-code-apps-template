@@ -1,0 +1,59 @@
+package organisms
+
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+
+// ListToolbar groups a list's Columns and sort/filter menus above its table.
+templ ListToolbar() {
+	<div class="list-toolbar">
+		{ children... }
+	</div>
+}
+
+
+// ListActionRow is the row above a list's toolbar, right-aligned. It holds the primary actions, such as
+// creating a record and managing fields, so the toolbar keeps only search, filters and view settings.
+templ ListActionRow() {
+	<div class="list-action-row">
+		{ children... }
+	</div>
+}
+
+
+// ListFooter sits under each list: the row count, and the rows-per-page dropdown on the right.
+templ ListFooter(data viewmodel.PageData, limit int, sizes []int) {
+	<div class="list-footer">
+		<p class="list-footer-count">{ ListFooterCount(data) }</p>
+		{ children... }
+		@molecules.ListPageSize(data, limit, sizes)
+	</div>
+}
+
+templ ListScreen(data viewmodel.PageData, searchKey string, tools templ.Component, results templ.Component) {
+	@ListToolbar() {
+		@molecules.ListSearch(data, searchKey, data.ListSearch)
+		@ListViewSwitcher(data)
+		@ListAddFilter(data)
+		@tools
+	}
+	@ListFilterBar(data)
+	@results
+}
+
+// ListResults is the shared results region of a list: the list body with its footer. The footer carries the page
+// numbers and the list's extras. A live search or a sort asks for this region alone, so it also refreshes the
+// filter strip and the column menu out of band.
+templ ListResults(data viewmodel.PageData, limit int, sizes []int, columnsSuffix string, body templ.Component, extras templ.Component) {
+	<div id="list-results">
+		@body
+		@ListFooter(data, limit, sizes) {
+			@molecules.ListPager(data)
+			@extras
+		}
+	</div>
+	if data.ListFragment {
+		@ListFilterBarOOB(data)
+		@molecules.ListColumnsBody(data, columnsSuffix, true)
+	}
+}

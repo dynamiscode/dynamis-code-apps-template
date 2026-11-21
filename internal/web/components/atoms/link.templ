@@ -1,0 +1,25 @@
+// data_display
+// https://daisyui.com/components/link
+package atoms
+
+type LinkProps struct {
+	Class  string
+	Href   string
+	Text   string
+	NewTab bool
+	Attrs  templ.Attributes
+}
+
+templ Link(props LinkProps) {
+	<a
+		href={ props.Href }
+		class={ "link", props.Class }
+		{ props.Attrs... }
+		if props.NewTab {
+			target="_blank"
+			rel="noopener"
+		}
+	>
+		{ props.Text }{ children... }
+	</a>
+}

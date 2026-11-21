@@ -1,6 +1,6 @@
 ---
 name: form-field-input
-description: Check field-level input help - inline validation with an error summary that takes focus, forgiving format (trimmed text, authenticator and recovery codes typed with spaces, dashes or lower case), input masks that agree with the server, the password strength meter and reveal toggle, matching confirmations, and smart defaults - with exhaustive tests, a Go test, and browser checks. Use when a change touches data-trim, data-mask, data-strength, data-match or data-default in internal/web/templates/, validation, summary, mask or password code in internal/web/assets/forms.js, normalizeTOTPCode, normalizeRecoveryCode or validTOTP in internal/identity/mfa.go, validateNewPassword, or DefaultTokenExpiry in internal/web/handler.go.
+description: Check field-level input help - inline validation with an error summary that takes focus, forgiving format (trimmed text, authenticator and recovery codes typed with spaces, dashes or lower case), input masks that agree with the server, the password strength meter and reveal toggle, matching confirmations, and smart defaults - with exhaustive tests, a Go test, and browser checks. Use when a change touches data-trim, data-mask, data-strength, data-match or data-default in internal/web/*.templ, validation, summary, mask or password code in the wireForms section of internal/web/assets/alpine-components.js, normalizeTOTPCode, normalizeRecoveryCode or validTOTP in internal/identity/mfa.go, validateNewPassword, or DefaultTokenExpiry in internal/web/handler.go.
 ---
 
 # Form field input
@@ -19,7 +19,7 @@ These are functions of one input, not orderings of events, so the check runs the
 
 ## Coverage record
 
-- Covered code: `internal/web/assets/forms.js` (`passwordStrength`, `maskDigits`, `maskUpper`, `validateField`, `validateFields`, `showSummary`, `checkMatch`, `enhancePassword`, the input/focusout/submit handlers, the `data-default` timezone), `internal/identity/mfa.go` (`normalizeTOTPCode`, `normalizeRecoveryCode`, `validTOTP`, `CompleteRecoveryLogin`), `internal/web/handler.go` (`DefaultTokenExpiry`, login email echo), and the templates using these attributes (setup, login, account, password-reset, invitation, mfa, security, tokens, webhooks, invitations, item-list).
+- Covered code: `internal/web/assets/alpine-components.js`, wireForms (`passwordStrength`, `maskDigits`, `maskUpper`, `validateField`, `validateFields`, `showSummary`, `checkMatch`, `enhancePassword`, the input/focusout/submit handlers, the `data-default` timezone), `internal/identity/mfa.go` (`normalizeTOTPCode`, `normalizeRecoveryCode`, `validTOTP`, `CompleteRecoveryLogin`), `internal/web/handler.go` (`DefaultTokenExpiry`, login email echo), and the templates using these attributes (setup, login, account, password-reset, invitation, mfa, security, tokens, webhooks, invitations, item-list).
 - Checks: `internal/web/assets/forms.test.mjs`, `internal/identity/mfa_normalize_test.go` (`TestMFACodeForgivingFormat`), `scripts/ux-patterns.mjs` (retired) (lines tagged `form-field-input`).
 - Sync commit: the commit that last changed this file (`git log -1 --format=%H -- .agents/skills/form-field-input/SKILL.md`). Diff the covered files against it before trusting a pass, then update this file.
 

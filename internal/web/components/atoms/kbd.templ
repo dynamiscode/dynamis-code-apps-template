@@ -1,0 +1,12 @@
+// data_display
+// https://daisyui.com/components/kbd
+package atoms
+
+type KbdProps struct {
+	Class string
+	Key   string
+}
+
+templ Kbd(props KbdProps) {
+	<kbd class={ "kbd", props.Class }>{ props.Key }{ children... }</kbd>
+}

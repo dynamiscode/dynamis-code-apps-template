@@ -1,0 +1,37 @@
+// navigation
+// https://daisyui.com/components/dock
+package atoms
+
+type DockItem struct {
+	Icon  templ.Component
+	Label string
+	Active bool
+	Attrs  templ.Attributes
+}
+
+type DockProps struct {
+	// Size: "xs", "sm", "md", "lg", "xl" ("" = default)
+	Size  string
+	Class string
+	Items []DockItem
+}
+
+templ Dock(props DockProps) {
+	<div
+		class={
+			"dock",
+			templ.KV("dock-"+props.Size, props.Size != ""),
+			props.Class,
+		}
+	>
+		for _, item := range props.Items {
+			<button class={ templ.KV("dock-active", item.Active) } { item.Attrs... }>
+				if item.Icon != nil {
+					@item.Icon
+				}
+				<span class="dock-label">{ item.Label }</span>
+			</button>
+		}
+		{ children... }
+	</div>
+}

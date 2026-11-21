@@ -220,7 +220,7 @@ func TestAPITokenSettingsTemplLifecycle(t *testing.T) {
 	page := request(handler, http.MethodGet, path, nil, cookies, nil)
 	body := page.Body.String()
 	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" ||
-		!strings.Contains(body, `data-webmcp-page="tokens"`) || !strings.Contains(body, "/assets/app.js") ||
+		!strings.Contains(body, `data-webmcp-page="tokens"`) || !strings.Contains(body, "/assets/alpine-components.js") ||
 		!strings.Contains(body, "/assets/components.css") || !strings.Contains(body, "No API tokens yet.") {
 		t.Fatalf("API token settings page = %d, cache-control=%q, required view markers present=%v", page.Code, page.Header().Get("Cache-Control"), strings.Contains(body, "No API tokens yet."))
 	}

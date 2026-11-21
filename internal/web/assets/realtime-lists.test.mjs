@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const appJsCode = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
+const componentsCode = fs.readFileSync(path.join(__dirname, "alpine-components.js"), "utf8");
 
 // loadRealtimeList runs app.js against one live list element and records the
 // EventSource listeners and the htmx refreshes the list triggers.
@@ -55,9 +55,11 @@ function loadRealtimeList(listID, events) {
     dynamisForms: { isEditing: () => editing, refreshDecision: (value) => value ? "defer" : "refresh" }
   };
   const location = { pathname: events.replace(/\/events$/, ""), search: "?search=Alpha&status=active" };
-  new Function("window", "document", "htmx", "EventSource", "location", appJsCode)(
-    window, document, htmx, FakeEventSource, location
+  const exportStyle = { module: true, exports: {} };
+  new Function("module", "window", "document", "htmx", "EventSource", "location", componentsCode)(
+    exportStyle, window, document, htmx, FakeEventSource, location
   );
+  exportStyle.exports.wireRealtime();
   return {
     sources, ajaxCalls, location, requests,
     documentListeners,

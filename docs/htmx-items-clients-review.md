@@ -81,7 +81,7 @@ Source: [item template](../internal/web/items.templ),
 [client list template](https://github.com/dynamiscode/dynamis-code-apps-template/blob/81c496187ec060f359a38e844859c23c5e265931/internal/web/templates/clients.html),
 [client handler](https://github.com/dynamiscode/dynamis-code-apps-template/blob/81c496187ec060f359a38e844859c23c5e265931/internal/web/clients.go), [client lifecycle](https://github.com/dynamiscode/dynamis-code-apps-template/blob/81c496187ec060f359a38e844859c23c5e265931/internal/web/client_lifecycle.go),
 [field lifecycle](https://github.com/dynamiscode/dynamis-code-apps-template/blob/81c496187ec060f359a38e844859c23c5e265931/internal/web/client_fields.go), [field options](https://github.com/dynamiscode/dynamis-code-apps-template/blob/81c496187ec060f359a38e844859c23c5e265931/internal/web/client_options.go),
-[realtime client](../internal/web/assets/app.js), [form handling](../internal/web/assets/forms.js),
+[realtime client and form handling](../internal/web/assets/alpine-components.js),
 and [client stream](https://github.com/dynamiscode/dynamis-code-apps-template/blob/81c496187ec060f359a38e844859c23c5e265931/internal/web/clients_events.go). Existing handler and
 browser tests are evidence of their assertions, not proof of every matrix cell.
 

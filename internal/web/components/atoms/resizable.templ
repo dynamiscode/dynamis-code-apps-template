@@ -1,0 +1,71 @@
+// layout
+// DaisyUI has no resizable class; a range input drives the split, so
+// keyboard (arrows) and touch resizing work natively
+// shortcut: vertical range uses writing-mode (modern browsers); polyfill if older browser support is needed
+package atoms
+
+import "fmt"
+
+type ResizableProps struct {
+	ID     string // unique per page
+	Class  string
+	Start  int // initial first pane width, percent
+	Min    int // default 20
+	Max    int // default 80
+	First  templ.Component
+	Second templ.Component
+}
+
+func (props ResizableProps) start() int {
+	if props.Start == 0 {
+		return 50
+	}
+	return props.Start
+}
+
+func (props ResizableProps) min() int {
+	if props.Min == 0 {
+		return 20
+	}
+	return props.Min
+}
+
+func (props ResizableProps) max() int {
+	if props.Max == 0 {
+		return 80
+	}
+	return props.Max
+}
+
+templ Resizable(props ResizableProps) {
+	<div class={ "flex", props.Class }>
+		<div
+			id={ props.ID + "-first" }
+			style={ templ.SafeCSS(fmt.Sprintf("flex: 0 0 %d%%", props.start())) }
+			class="min-w-0 overflow-auto"
+		>
+			@props.First
+		</div>
+		<input
+			type="range"
+			min={ props.min() }
+			max={ props.max() }
+			value={ props.start() }
+			data-pane={ props.ID + "-first" }
+			aria-label="Resize panes"
+			class="range range-xs w-1 h-24 self-center mx-0.5"
+			style="writing-mode:vertical-lr; direction:rtl"
+		/>
+		<script>
+			((input) => {
+				const pane = document.getElementById(input.dataset.pane)
+				input.addEventListener("input", () => {
+					pane.style.flex = `0 0 ${input.value}%`
+				})
+			})(document.currentScript.parentElement.querySelector("input[type=range]"))
+		</script>
+		<div class="flex-1 min-w-0 overflow-auto">
+			@props.Second
+		</div>
+	</div>
+}

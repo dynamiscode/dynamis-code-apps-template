@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/chromedp/cdproto/cdp"
@@ -43,9 +44,15 @@ func expectMinimumTarget(t *testing.T, tab context.Context, selector string) {
 func expectNoCriticalOrSeriousAxe(t *testing.T, tab context.Context) {
 	t.Helper()
 	eval[any](t, tab, axeSource)
+	type node struct {
+		Target []string `json:"target"`
+		HTML   string   `json:"html"`
+	}
 	type violation struct {
 		ID     string `json:"id"`
 		Impact string `json:"impact"`
+		Help   string `json:"help"`
+		Nodes  []node `json:"nodes"`
 	}
 	res := eval[struct {
 		Error      string      `json:"error"`
@@ -58,13 +65,18 @@ func expectNoCriticalOrSeriousAxe(t *testing.T, tab context.Context) {
 		t.Fatalf("axe: %s", res.Error)
 	}
 	var ids []string
+	var details strings.Builder
 	for _, item := range res.Violations {
 		if item.Impact == "critical" || item.Impact == "serious" {
 			ids = append(ids, item.ID)
+			fmt.Fprintf(&details, "\n%s (%s): %s", item.ID, item.Impact, item.Help)
+			for _, n := range item.Nodes {
+				fmt.Fprintf(&details, "\n  %s %s", strings.Join(n.Target, ", "), n.HTML)
+			}
 		}
 	}
 	if len(ids) != 0 {
-		t.Fatalf("critical or serious axe violations: %v", ids)
+		t.Fatalf("critical or serious axe violations:%s", details.String())
 	}
 }
 
@@ -121,7 +133,7 @@ func TestOIDCLoginAndCallbackFailure(t *testing.T) {
 					oidcNavigate(t, tab, "/language?locale="+locale+"&return_to=%2Flogin")
 					oidcNavigate(t, tab, "/login")
 					expectAttribute(t, tab, "html", "lang", locale)
-					expectAttribute(t, tab, "html", "data-theme", theme)
+					expectTheme(t, tab, theme)
 					eval[any](t, tab, `(() => { const style = document.createElement("style"); style.textContent = "html { font-size: 12px; }"; document.head.append(style); })()`)
 					expectMinimumTarget(t, tab, `a[href$="password-reset"]`)
 					providerName := "Sign in with Company SSO"
@@ -143,7 +155,7 @@ func TestOIDCLoginAndCallbackFailure(t *testing.T) {
 
 					oidcNavigate(t, tab, "/auth/oidc/company/callback?error=access_denied")
 					expectAttribute(t, tab, "html", "lang", locale)
-					expectAttribute(t, tab, "html", "data-theme", theme)
+					expectTheme(t, tab, theme)
 					pattern := regexp.MustCompile(`(?i)could not be completed`)
 					if locale == "es" {
 						pattern = regexp.MustCompile(`(?i)no se pudo completar`)
@@ -226,7 +238,7 @@ func TestSetupAccessibleAcrossLayouts(t *testing.T) {
 					run(t, tab, chromedp.Navigate(setupURL+"/language?locale="+locale+"&return_to=%2Fsetup"))
 					run(t, tab, chromedp.Navigate(setupURL+"/setup"))
 					expectAttribute(t, tab, "html", "lang", locale)
-					expectAttribute(t, tab, "html", "data-theme", theme)
+					expectTheme(t, tab, theme)
 					waitVisible(t, tab, `form[action="/setup"]`)
 					expectNoCriticalOrSeriousAxe(t, tab)
 					expectNoOverflow(t, tab, width)
@@ -262,7 +274,7 @@ func TestLoginSystemThemeFollowsPreference(t *testing.T) {
 		t.Run(scheme, func(t *testing.T) {
 			tab := newTab(t, 1280, 900, scheme)
 			navigate(t, tab, "/login")
-			expectAttribute(t, tab, "html", "data-theme", "system")
+			expectTheme(t, tab, "system")
 			want := "#f3f6fa"
 			if scheme == "dark" {
 				want = "#111826"
@@ -305,7 +317,7 @@ func TestLoginPageAccessibleAcrossLayouts(t *testing.T) {
 					navigate(t, tab, "/language?locale="+locale+"&return_to=%2Flogin")
 					navigate(t, tab, "/login")
 					expectAttribute(t, tab, "html", "lang", locale)
-					expectAttribute(t, tab, "html", "data-theme", theme)
+					expectTheme(t, tab, theme)
 					waitVisible(t, tab, `form[action="/login"]`)
 					press(t, tab, "\t")
 					expectFocused(t, tab, ".skip-link")

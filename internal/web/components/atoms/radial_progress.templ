@@ -1,0 +1,24 @@
+// feedback
+// https://daisyui.com/components/radial-progress
+package atoms
+
+import "fmt"
+
+type RadialProgressProps struct {
+	Percent int
+	Class   string
+	Content string
+}
+
+templ RadialProgress(props RadialProgressProps) {
+	<div
+		class={ "radial-progress", props.Class }
+		style={ templ.SafeCSS(fmt.Sprintf("--value:%d", props.Percent)) }
+		role="progressbar"
+		aria-valuemin="0"
+		aria-valuemax="100"
+		aria-valuenow={ props.Percent }
+	>
+		{ props.Content }{ children... }
+	</div>
+}

@@ -8,7 +8,8 @@ import (
 	"testing"
 )
 
-var bulkClientIDPattern = regexp.MustCompile(`name="client_id" value="([^"]+)"`)
+var bulkClientInput = regexp.MustCompile(`<input[^>]*\bname="client_id"[^>]*>`)
+var bulkClientValue = regexp.MustCompile(`\bvalue="([^"]+)"`)
 
 // TestClientBulkBarAndEndpoint checks that the bulk bar shows only to users who can act on clients, that the
 // endpoint archives the selected clients and returns to the list, and that a viewer cannot use it.
@@ -27,12 +28,16 @@ func TestClientBulkBarAndEndpoint(t *testing.T) {
 		t.Fatalf("owner list = %d, want the bulk bar", owner.Code)
 	}
 	// Each client renders a table checkbox and a card checkbox with the same ID, so keep one per ID.
-	var ids [][]string
+	var ids []string
 	seen := map[string]bool{}
-	for _, match := range bulkClientIDPattern.FindAllStringSubmatch(owner.Body.String(), -1) {
+	for _, input := range bulkClientInput.FindAllString(owner.Body.String(), -1) {
+		match := bulkClientValue.FindStringSubmatch(input)
+		if match == nil {
+			continue
+		}
 		if !seen[match[1]] {
 			seen[match[1]] = true
-			ids = append(ids, match)
+			ids = append(ids, match[1])
 		}
 	}
 	if len(ids) != 2 {
@@ -44,11 +49,11 @@ func TestClientBulkBarAndEndpoint(t *testing.T) {
 	}
 
 	selected := url.Values{"csrf": {env.csrf}, "return": {env.listPath()}, "action": {"archive"}}
-	for _, match := range ids {
-		selected.Add("client_id", match[1])
+	for _, id := range ids {
+		selected.Add("client_id", id)
 	}
 	denied := request(env.routes, http.MethodPost, env.listPath()+"/bulk", url.Values{
-		"csrf": {env.viewerCSRF}, "return": {env.listPath()}, "action": {"archive"}, "client_id": {ids[0][1]},
+		"csrf": {env.viewerCSRF}, "return": {env.listPath()}, "action": {"archive"}, "client_id": {ids[0]},
 	}, env.viewerCookies, nil)
 	if denied.Code == http.StatusSeeOther {
 		t.Fatalf("viewer bulk archive = %d, want a refusal", denied.Code)
@@ -62,7 +67,7 @@ func TestClientBulkBarAndEndpoint(t *testing.T) {
 		t.Fatal("archived clients still listed as active")
 	}
 	bad := request(env.routes, http.MethodPost, env.listPath()+"/bulk", url.Values{
-		"csrf": {env.csrf}, "action": {"unarchive"}, "client_id": {ids[0][1]},
+		"csrf": {env.csrf}, "action": {"unarchive"}, "client_id": {ids[0]},
 	}, env.cookies, nil)
 	if bad.Code != http.StatusBadRequest {
 		t.Fatalf("unknown bulk action = %d, want 400", bad.Code)

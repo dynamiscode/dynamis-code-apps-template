@@ -1,0 +1,31 @@
+// data_display
+package atoms
+
+import "fmt"
+
+templ InfiniteScrollTable(headers, rows []templ.Component, spinnerID string) {
+	@Table(TableProps{Headers: headers, Rows: rows})
+	<div class="flex justify-center"><span id={ spinnerID } class="htmx-indicator loading loading-spinner"></span></div>
+}
+
+templ InfiniteScrollRows(rows []templ.Component) {
+	for _, r := range rows {
+		@r
+	}
+}
+
+templ InfiniteScrollRow(cells []string, loadURL string, page int, hasMore bool, spinnerID string) {
+	<tr
+		if hasMore {
+			hx-get={ fmt.Sprintf("%s?page=%d", loadURL, page+1) }
+			hx-target="this"
+			hx-trigger="intersect once"
+			hx-swap="afterend"
+			hx-indicator={ "#" + spinnerID }
+		}
+	>
+		for _, c := range cells {
+			<td>{ c }</td>
+		}
+	</tr>
+}

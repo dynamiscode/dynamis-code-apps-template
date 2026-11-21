@@ -1,19 +1,24 @@
 package web
 
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 
 templ notificationsPage(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, layouts.AccountHeader(data), nil) {
-		<div class="notification-center" data-notification-cursor={ data.NotificationCursor }>
+	@templates.DashboardShell(data, organisms.AccountHeader(data), nil) {
+		<div class="notification-center" x-data="notificationsLive" data-notification-cursor={ data.NotificationCursor }>
 				<div class="workspace-heading"><div>
 					<p class="eyebrow">{ data.T("common.account") }</p>
 					<h1>{ data.T("notifications.notifications") }</h1>
 					<p class="notification-description">{ data.T("notifications.description") }</p>
 				</div></div>
-				<p class="notification-summary" role="status" aria-live="polite">
+				<p class="notification-summary alert py-2 px-3 w-fit mb-2 gap-3" role="status" aria-live="polite">
 					<span>{ data.T("notifications.unread") }</span>
-					<span class="badge badge-primary"><strong data-unread-count>{ data.UnreadNotifications }</strong></span>
+					@atoms.Badge(atoms.BadgeProps{Class: "badge-primary"}) {
+						<strong data-unread-count>{ data.UnreadNotifications }</strong>
+					}
 				</p>
 				<p class="notification-live" role="status" aria-live="polite"
 					data-notification-live
@@ -21,16 +26,16 @@ templ notificationsPage(data viewmodel.PageData) {
 					data-disconnected={ data.T("notifications.live_disconnected") }></p>
 				<p><a href="/notifications">{ data.T("notifications.refresh") }</a> · <a href="/account">{ data.T("notifications.manage_preferences") }</a></p>
 				if len(data.Notifications) > 0 {
-					<ul class="list notification-list">
+					@atoms.List(atoms.ListProps{Class: "notification-list"}) {
 						for _, notification := range data.Notifications {
-							<li class="list-row notification-card">
+							@atoms.ListRow("notification-card card grid grid-cols-[1fr_auto] items-start gap-4 p-5 max-md:grid-cols-1") {
 								<div>
 									<div class="notification-card-heading">
 										<h2>{ notification.Title }</h2>
 										if notification.ReadAt != nil {
-											<span class="badge notification-read">{ data.T("notifications.read") }</span>
+											@atoms.Badge(atoms.BadgeProps{Class: "badge badge-ghost badge-sm", Label: data.T("notifications.read")})
 										} else {
-											<span class="badge badge-primary notification-unread">{ data.T("notifications.unread_status") }</span>
+											@atoms.Badge(atoms.BadgeProps{Class: "badge-primary", Label: data.T("notifications.unread_status")})
 										}
 									</div>
 									<p>{ notification.Body }</p>
@@ -39,14 +44,14 @@ templ notificationsPage(data viewmodel.PageData) {
 								if notification.ReadAt == nil {
 									<form class="inline" action={ "/notifications/" + notification.ID.String() } method="post">
 										<input type="hidden" name="csrf" value={ data.CSRF }/>
-										<button class="btn btn-secondary" type="submit">{ data.T("notifications.mark_read") }</button>
+										@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("notifications.mark_read"), Attrs: templ.Attributes{"type": "submit"}})
 									</form>
 								}
-							</li>
-						}
-					</ul>
+								}
+							}
+					}
 				} else {
-					<section class="notification-empty" aria-labelledby="notification-empty-title">
+					<section class="notification-empty card mt-6 gap-2 border-l-4 border-primary p-5" aria-labelledby="notification-empty-title">
 						<h2 id="notification-empty-title">{ data.T("notifications.none") }</h2>
 						<p>{ data.T("notifications.empty_description") }</p>
 						<a href="/account">{ data.T("notifications.manage_preferences") }</a>

@@ -1,0 +1,26 @@
+// layout
+// https://daisyui.com/components/join
+package atoms
+
+type JoinProps struct {
+	Class    string
+	Vertical bool
+}
+
+// Children must carry the join-item class; see JoinItem.
+templ Join(props JoinProps) {
+	<div
+		class={
+			"join",
+			templ.KV("join-vertical", props.Vertical),
+			templ.KV("join-horizontal", !props.Vertical),
+			props.Class,
+		}
+	>
+		{ children... }
+	</div>
+}
+
+templ JoinItem(class string) {
+	<div class={ "join-item", class }>{ children... }</div>
+}

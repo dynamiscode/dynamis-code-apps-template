@@ -682,7 +682,7 @@ func (s *a11yRun) workspacePages(wsBase string) error {
 	if err := s.expectNoExtraButtonMargin(".actions button", "item action group"); err != nil {
 		return err
 	}
-	if err := s.expectNoExtraButtonMargin(".account-menu-panel button", "account menu"); err != nil {
+	if err := s.expectNoExtraButtonMargin("header .dropdown-end button", "account menu"); err != nil {
 		return err
 	}
 	if err := s.setViewport(320, 800); err != nil {

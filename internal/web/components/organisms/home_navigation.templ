@@ -1,0 +1,20 @@
+package organisms
+
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+templ DashboardHomeNavigation(data viewmodel.PageData) {
+	<aside class="flex flex-col gap-4">
+		if !data.SingleWorkspace {
+			<a class="btn btn-ghost btn-sm w-full justify-start font-normal" href="/">← { data.T("workspace.back_to_workspaces") }</a>
+		}
+		@WorkspaceNav(data)
+	</aside>
+}
+
+
+templ DashboardSettingsNavigation(data viewmodel.PageData) {
+	<aside class="flex flex-col gap-4">
+		<a class="btn btn-ghost btn-sm w-full justify-start font-normal" href={ "/workspaces/" + data.Workspace.ID.String() }>← { data.T("workspace.back_to_home") }</a>
+		@WorkspaceNav(data)
+	</aside>
+}

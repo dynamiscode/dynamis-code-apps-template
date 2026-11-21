@@ -1,18 +1,21 @@
 package web
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
 
 // itemList is the item rows: the table or cards, and the empty state. Each row keeps its edit and share forms.
 templ itemList(data viewmodel.PageData) {
 	if data.HasVisibleClientColumns {
 		<div class="item-list-view">
-		@components.ListTable(data.T("items.items"), true) {
-			@components.ListHeader(data, data.T("clients.actions"))
+		@organisms.ListTable(data.T("items.items"), true) {
+			@organisms.ListHeader(data, data.T("clients.actions"))
 			<tbody>
 				for _, row := range data.ListRows {
-					@components.ListRowWith("", templ.Attributes{"data-item-row": row.ID}) {
-						@components.ListCells(data, row, "")
+					@organisms.ListRowWith("", templ.Attributes{"data-item-row": row.ID}) {
+						@organisms.ListCells(data, row, "")
 						<td class="list-actions-cell">@itemRowActions(data, row)</td>
 					}
 				}
@@ -20,12 +23,12 @@ templ itemList(data viewmodel.PageData) {
 		}
 		</div>
 	} else {
-		@components.StatusLine(data.T("clients.columns_choose"), nil)
+		@molecules.StatusLine(data.T("clients.columns_choose"), nil)
 	}
 	if len(data.Items) == 0 {
 		<p id="item-results" role="status">
 			if data.HasClientFilters {
-				{ data.T("items.none") }{ " " }<a href={ data.ClearClientFiltersPath }>{ data.T("clients.clear_filters") }</a>
+				{ data.T("items.none") }{ " " }@atoms.Anchor(atoms.AnchorProps{Href: data.ClearClientFiltersPath, Label: data.T("clients.clear_filters")})
 			} else {
 				{ data.T("items.none") }
 			}
@@ -38,26 +41,33 @@ templ itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) {
 		<form id={ "item-edit-" + row.ID } class="item-edit-form" data-item-edit data-webmcp-actions="item-update item-delete" data-webmcp-id={ row.ID } data-dirty-track action={ data.CurrentPath + "/" + row.ID + data.ItemQuerySuffix } method="post" hx-post={ data.CurrentPath + "/" + row.ID + data.ItemQuerySuffix } hx-target="#item-list" hx-swap="outerHTML" hx-sync="this:drop">
 			<input type="hidden" name="csrf" value={ data.CSRF }/>
 			<input type="hidden" name="version" value={ row.Item.Version }/>
-			@components.TextField("item-title-"+row.ID, data.T("items.title"), templ.Attributes{"name": "title", "value": row.Item.Title, "required": true, "maxlength": "200", "data-trim": true})
-			@components.SelectField("item-status-"+row.ID, data.T("items.status"), templ.Attributes{"name": "status", "data-autosave": "update"}) {
-				<option value="active" selected?={ string(row.Item.Status) == "active" }>{ data.T("items.active") }</option>
-				<option value="complete" selected?={ string(row.Item.Status) == "complete" }>{ data.T("items.complete") }</option>
-			}
+			@molecules.TextField("item-title-"+row.ID, data.T("items.title"), templ.Attributes{"name": "title", "value": row.Item.Title, "required": true, "maxlength": "200", "data-trim": true})
+			@atoms.Select(atoms.SelectProps{
+				ID: "item-status-"+row.ID, Name: "status", Label: data.T("items.status"),
+				Attrs: templ.Attributes{"data-autosave": "update"},
+				Options: []atoms.SelectOption{
+					{Label: data.T("items.active"), Value: "active", Selected: string(row.Item.Status) == "active"},
+					{Label: data.T("items.complete"), Value: "complete", Selected: string(row.Item.Status) == "complete"},
+				},
+			})
 			<div class="actions">
-				<button class="btn btn-primary" type="submit" name="action" value="update" data-requires-change aria-label={ data.T("items.save") + " " + row.Item.Title }>{ data.T("items.save") }</button>
-				@components.ConfirmButton(data.T("items.delete_permanently"), data.T("items.delete_confirm_full"), templ.Attributes{"name": "action", "value": "delete", "aria-label": data.T("items.delete_permanently") + " " + row.Item.Title, "data-optimistic": "remove"})
+				@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("items.save"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "update", "data-requires-change": true, "aria-label": data.T("items.save") + " " + row.Item.Title}})
+				@molecules.ConfirmButton(data.T("items.delete_permanently"), data.T("items.delete_confirm_full"), templ.Attributes{"name": "action", "value": "delete", "aria-label": data.T("items.delete_permanently") + " " + row.Item.Title, "data-optimistic": "remove"})
 			</div>
 		</form>
 	}
 	if data.CanShare {
 		<form class="share" data-dirty-track action={ data.CurrentPath + "/" + row.ID + "/share" + data.ItemQuerySuffix } method="post" hx-post={ data.CurrentPath + "/" + row.ID + "/share" + data.ItemQuerySuffix } hx-target="#item-list" hx-swap="outerHTML" hx-history="false">
 			<input type="hidden" name="csrf" value={ data.CSRF }/>
-			@components.SelectField("share-lifetime-"+row.ID, data.T("sharing.expiration"), templ.Attributes{"name": "lifetime"}) {
-				<option value="7">{ data.T("sharing.seven_days") }</option>
-				<option value="30">{ data.T("sharing.thirty_days") }</option>
-			}
+			@atoms.Select(atoms.SelectProps{
+				ID: "share-lifetime-"+row.ID, Name: "lifetime", Label: data.T("sharing.expiration"),
+				Options: []atoms.SelectOption{
+					{Label: data.T("sharing.seven_days"), Value: "7"},
+					{Label: data.T("sharing.thirty_days"), Value: "30"},
+				},
+			})
 			<p class="status share-scope">{ data.T("sharing.scope_public") }</p>
-			<div class="row">@components.SubmitButton(data.T("sharing.create"), templ.Attributes{"name": "action", "value": "create"})</div>
+			<div class="row">@molecules.SubmitButton(data.T("sharing.create"), templ.Attributes{"name": "action", "value": "create"})</div>
 		</form>
 		for _, link := range data.ShareLinks {
 			if link.ItemID == row.Item.ID {
@@ -66,13 +76,13 @@ templ itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) {
 					<form class="inline" data-dirty-track action={ data.CurrentPath + "/" + row.ID + "/share" + data.ItemQuerySuffix } method="post" hx-history="false">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
 						<input type="hidden" name="link_id" value={ link.ID }/>
-						@components.ConfirmButton(data.T("sharing.revoke"), data.T("sharing.revoke_confirm"), templ.Attributes{"name": "action", "value": "revoke"})
+						@molecules.ConfirmButton(data.T("sharing.revoke"), data.T("sharing.revoke_confirm"), templ.Attributes{"name": "action", "value": "revoke"})
 					</form>
 				</div>
 			}
 		}
 		if data.PublicShareItemID == row.Item.ID {
-			<p class="success" role="status">{ data.T("sharing.created") }{ " " }<a href={ data.PublicShareURL }>{ data.PublicShareURL }</a></p>
+			<p class="success alert alert-success py-2" role="status">{ data.T("sharing.created") }{ " " }<a href={ data.PublicShareURL }>{ data.PublicShareURL }</a></p>
 		}
 	}
 }

@@ -1,0 +1,14 @@
+// data_display
+// https://daisyui.com/components/badge
+// rendered as a span so it nests validly inside paragraphs and headings
+package atoms
+
+type BadgeProps struct {
+	Class string
+	Label string
+	Attrs templ.Attributes
+}
+
+templ Badge(props BadgeProps) {
+	<span class={ "badge", props.Class } { props.Attrs... }>{ props.Label }{ children... }</span>
+}

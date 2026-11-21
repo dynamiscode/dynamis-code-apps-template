@@ -8,6 +8,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/listviews"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
+	atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"github.com/a-h/templ"
 	"net/http"
@@ -68,7 +69,7 @@ func (h *Handler) setClientColumn(writer http.ResponseWriter, request *http.Requ
 	for _, column := range clientColumns(fields) {
 		defaults[column.Key] = column.DefaultVisible
 	}
-	visible, err := strconv.ParseBool(request.FormValue("visible"))
+	visible, err := strconv.ParseBool(listVisibleParam(request))
 	if err != nil {
 		h.renderError(writer, http.StatusBadRequest)
 		return
@@ -272,6 +273,24 @@ func clientValueDisplayValue(value *string) string {
 		return ""
 	}
 	return *value
+}
+
+func clientValueYesNoOptions(data viewmodel.PageData, value viewmodel.ClientValueRow) []atoms.SelectOption {
+	current := clientValueDisplayValue(value.Value)
+	return []atoms.SelectOption{
+		{Label: data.T("clients.value_choose"), Disabled: true, Selected: value.Value == nil},
+		{Label: data.T("clients.yes"), Value: "true", Selected: current == "true"},
+		{Label: data.T("clients.no"), Value: "false", Selected: current == "false"},
+	}
+}
+
+func clientValueChoiceOptions(data viewmodel.PageData, value viewmodel.ClientValueRow) []atoms.SelectOption {
+	options := make([]atoms.SelectOption, 0, len(value.Choices)+1)
+	options = append(options, atoms.SelectOption{Label: data.T("clients.value_choose"), Disabled: true, Selected: value.Value == nil})
+	for _, choice := range value.Choices {
+		options = append(options, atoms.SelectOption{Label: choice.Label, Value: choice.ID, Selected: choice.Selected})
+	}
+	return options
 }
 
 func (h *Handler) createClient(writer http.ResponseWriter, request *http.Request) {

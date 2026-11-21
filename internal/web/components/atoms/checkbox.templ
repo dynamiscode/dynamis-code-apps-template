@@ -1,0 +1,64 @@
+// data_input
+// https://daisyui.com/components/checkbox
+package atoms
+
+type CheckboxProps struct {
+	ID         string
+	Before     string
+	After      string
+	Name       string
+	Checked    bool
+	Class      string
+	LabelClass string
+	Attrs      templ.Attributes
+	Size       string
+	// Content is a rich-HTML label rendered after the input
+	// (e.g. a <code> event name); ignored when nil.
+	Content templ.Component
+}
+
+templ Checkbox(props CheckboxProps) {
+	<label class={ "label justify-center cursor-pointer", props.LabelClass }>
+		if props.Before != "" {
+			<span
+				class={
+					templ.KV("text-xs", props.Size == "xs"),
+					templ.KV("text-sm", props.Size == "sm"),
+					templ.KV("text-lg", props.Size == "lg"),
+					templ.KV("text-xl", props.Size == "xl"),
+					"mr-2",
+				}
+			>
+				{ props.Before }
+			</span>
+		}
+		<input
+			{ props.Attrs... }
+			if props.ID != "" {
+				id={ props.ID }
+			}
+			type="checkbox"
+			name={ props.Name }
+			if props.Checked {
+				checked="checked"
+			}
+			class={
+				"checkbox", props.Class,
+				templ.KV("checkbox-xs", props.Size == "xs"),
+				templ.KV("checkbox-sm", props.Size == "sm"),
+				templ.KV("checkbox-lg", props.Size == "lg"),
+				templ.KV("checkbox-xl", props.Size == "xl"),
+			}
+		/>
+		if props.After != "" {
+			<span class="ml-2">
+				{ props.After }
+			</span>
+		}
+		if props.Content != nil {
+			<span class="ml-2">
+				@props.Content
+			</span>
+		}
+	</label>
+}

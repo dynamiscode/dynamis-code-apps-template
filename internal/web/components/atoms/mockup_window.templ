@@ -1,0 +1,13 @@
+// layout
+// https://daisyui.com/components/mockup-window
+package atoms
+
+type MockupWindowProps struct {
+	Class string
+}
+
+templ MockupWindow(props MockupWindowProps) {
+	<div class={ "mockup-window", props.Class }>
+		<div>{ children... }</div>
+	</div>
+}

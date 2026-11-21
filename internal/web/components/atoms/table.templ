@@ -1,0 +1,73 @@
+// data_display
+// https://daisyui.com/components/table
+package atoms
+
+type TableProps struct {
+	Class   string
+	Caption string // rendered as a visually hidden <caption>
+	Attrs   templ.Attributes
+	Headers []templ.Component
+	Rows    []templ.Component
+}
+
+templ Table(props TableProps) {
+	<div class={ "overflow-x-auto" }>
+		<table { props.Attrs... } class={ "table", props.Class }>
+			if props.Caption != "" {
+				<caption class="sr-only">{ props.Caption }</caption>
+			}
+			<thead>
+				<tr>
+					for _, header := range props.Headers {
+						<th scope="col">
+							@header
+						</th>
+					}
+				</tr>
+			</thead>
+			<tbody>
+				for _, trow := range props.Rows {
+					@trow
+				}
+			</tbody>
+		</table>
+	</div>
+}
+
+// HeaderText is a header cell with attributes (aria-sort, class, abbr).
+templ HeaderText(text string, attrs templ.Attributes) {
+	<span { attrs... }>{ text }</span>
+}
+
+// TableWrap renders the table shell (scroll container, table element, caption);
+// children provide the thead/tbody. Use Table when headers and rows are plain data.
+type TableWrapProps struct {
+	WrapClass     string
+	TableClass    string
+	Caption       string
+	CaptionHidden bool // sr-only caption
+	Attrs         templ.Attributes // on the wrapper div (role=region, tabindex, aria-label)
+}
+
+templ TableWrap(props TableWrapProps) {
+	<div class={ props.WrapClass } { props.Attrs... }>
+		<table
+			if props.TableClass != "" {
+				class={ "table", props.TableClass }
+			} else {
+				class="table"
+			}
+		>
+			if props.Caption != "" {
+				<caption class={ templ.KV("sr-only", props.CaptionHidden) }>{ props.Caption }</caption>
+			}
+			{ children... }
+		</table>
+	</div>
+}
+
+// Component to use as plain text when
+// templ.Component is used as argument
+templ PlainText(content string) {
+	{ content }
+}

@@ -25,12 +25,17 @@ sidebar whose contents follow the current workspace context. Every mutation vali
 the session-bound CSRF token
 and rechecks current workspace permission.
 
-The web code is split into four packages under `internal/web`:
+The web code is split into five packages under `internal/web`:
 
 - `viewmodel`: the `PageData` view model and the list, form, and filter row types templates read.
-- `components`: shared templ components (page headings, form fields, alerts, tables, list tables, list filters).
-- `layouts`: the document head, the dashboard shell (`DashboardShell`), headers, navigation, and sidebars.
-- `web` (the root): handlers, routes, and feature pages, which import the three packages above.
+- `components/atoms`: one-element controls (inputs, selects, buttons, alerts, badges, dropdowns, tables, progress).
+- `components/molecules`: composed controls (submit/confirm/link buttons, labelled text fields, search, headings, empty states).
+- `components/organisms` and `components/templates`: feature regions (headers, navigation, list screens, filters) and the document shells (`UiHead`, the drawer workspace shell).
+- `web` (the root): handlers, routes, and feature pages, which import the packages above.
+
+Component conventions are recorded in the repository skills
+(`templ-components`, `daisyui-tailwind`, `alpinejs-app`,
+`htmx-patterns`).
 
 The templ dashboard shell accepts header and sidebar components. Workspace home
 and Files compose the shared shell and navigation directly; adapters preserve
@@ -267,20 +272,20 @@ explicitly permanent and asks for confirmation when the browser script is
 available; ordinary form submission remains available without it.
 
 Forms work with ordinary navigation. Vendored HTMX 4.0.1 enhances Items item
-forms and the Clients realtime list refresh; it contains no business rules. `app.js` keeps
+forms and the Clients realtime list refresh; it contains no business rules. The realtime wiring keeps
 HTMX 2.x non-swap behavior for `204`, `304`, `4xx`, and `5xx` responses so
 error pages never replace the list. The exact upstream license is served from
 `internal/web/assets/HTMX-LICENSE`.
 
 ## Form enhancements
 
-Every page loads `internal/web/assets/forms.js` through the shared `uiHead` component in `layouts/navigation.templ`. Pages work without it: forms post, the server validates, and
+Every page runs the form enhancement from `internal/web/assets/alpine-components.js` (registered Alpine components on the `@alpinejs/csp` build) through the `pageBehaviors` mount on each shell body. Pages work without it: forms post, the server validates, and
 errors render as `role="alert"`. With scripting, forms gain these behaviors,
 each driven by a template attribute:
 
 | Pattern | Attribute or place | Behavior |
 |---|---|---|
-| Busy state and double-submit prevention | every form | A submit marks the form `aria-busy`, disables its buttons with "Saving…", and cancels a second submit. The file upload form keeps its own state machine. |
+| Busy state and double-submit prevention | every form | A submit marks the form `aria-busy`, disables its buttons with "Saving…" plus a daisyUI `loading` spinner, and cancels a second submit. The file upload form keeps its own state machine. |
 | Inline validation and error summary | every form | Fields are checked when left and on submit; invalid fields get a message and `aria-invalid`, and a focused summary links to each one. A full-page server error takes focus on load. |
 | Forgiving format | `data-trim`, MFA codes | Text is trimmed. The server accepts authenticator codes with spaces or dashes and recovery codes in any case. |
 | Input masks | `data-mask="digits"`, `data-mask="upper"` | Authenticator codes keep digits only; recovery codes become upper case. |
@@ -354,7 +359,7 @@ The legacy HTML files, the `html/template` fallback and the navigation bridge
 were removed. See [issue #401 migration evidence](capabilities.md#setup-and-authentication-templ-migration-401) and
 [issue #432 verification evidence](capabilities.md#rendering-assets-and-generated-app-verification-432).
 
-Shared navigation uses `layouts/navigation.templ` directly. The workspace shell
+Shared navigation uses `components/organisms/navigation.templ` directly. The workspace shell
 composes those components without a bridge.
 
 | Navigation surface | Decision and evidence | Route owner |
@@ -372,27 +377,27 @@ accessibility results and remaining limits are recorded in
 
 | Route family | Views and shared templates | Major states covered |
 |---|---|---|
-| `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `workspace_templ.go`, `layouts/navigation.templ`, `components/components.templ` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors; native workspace switcher and shared templ navigation; CSRF-protected creation and ordinary-form fallback |
-| `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `mfa.js`, `public_pages.templ` | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge/retry/expired redirect, verification success/invalid-or-expired, OAuth approval/denial; all setup/auth states dispatch through templ |
-| `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/items.js` | Empty/results states, filters, sorting and paging, shareable query state, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
-| Workspace clients and custom fields | `clients.templ` (list and detail), `client_fields.templ`, `components/components.templ`, `workspace.templ`, `layouts/navigation.templ` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field and option lifecycle, realtime refresh; no client-family `html/template` views remain |
+| `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `workspace_templ.go`, `components/organisms/navigation.templ`, `components/molecules/` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors; native workspace switcher and shared templ navigation; CSRF-protected creation and ordinary-form fallback |
+| `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `assets/alpine-components.js`, `public_pages.templ` | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge/retry/expired redirect, verification success/invalid-or-expired, OAuth approval/denial; all setup/auth states dispatch through templ |
+| `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/alpine-components.js` | Empty/results states, filters, sorting and paging, shareable query state, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
+| Workspace clients and custom fields | `clients.templ` (list and detail), `client_fields.templ`, `components/molecules/`, `workspace.templ`, `components/organisms/navigation.templ` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field and option lifecycle, realtime refresh; no client-family `html/template` views remain |
 | Workspace members | `members.templ`, generated `members_templ.go`, shared navigation/components | Role changes, removal and ownership transfer; responsive table/cards, filters, sorting, paging, validation, permission denial, and ordinary-form confirmations |
-| `/workspaces/{workspaceId}/settings/invitations`, `/invitations/{secret}`, `/invitations/{secret}/sign-in`, `/invitations/continue` | `invitations.templ`, `invitations_templ.go`, `workspace.templ`, `layouts/navigation.templ`, `components/components.templ` | Create/resend/revoke with explicit revoke confirmation; registration, account-matched acceptance, sign-in return through MFA/OIDC, invalid/expired/unavailable states; ordinary form fallback |
-| `/workspaces/{workspaceId}/settings/audit` | `audit.templ`, `audit_templ.go`, `components/components.templ`, `components_templ.go` | Scoped redacted history, lazy table fragment, empty state, ordinary `?all=1` fallback, permission denial and expired-session redirect |
+| `/workspaces/{workspaceId}/settings/invitations`, `/invitations/{secret}`, `/invitations/{secret}/sign-in`, `/invitations/continue` | `invitations.templ`, `invitations_templ.go`, `workspace.templ`, `components/organisms/navigation.templ`, `components/molecules/` | Create/resend/revoke with explicit revoke confirmation; registration, account-matched acceptance, sign-in return through MFA/OIDC, invalid/expired/unavailable states; ordinary form fallback |
+| `/workspaces/{workspaceId}/settings/audit` | `audit.templ`, `audit_templ.go`, `components/molecules/` | Scoped redacted history, lazy table fragment, empty state, ordinary `?all=1` fallback, permission denial and expired-session redirect |
 | `/sessions` | `sessions.templ`, `sessions_templ.go` | Current, active, expired and revoked status; revoke current or other active sessions; feedback and empty state |
 | `/security` | `security.templ`, `security_templ.go`, shared account shell and form components | MFA enrollment/removal, recovery codes, passkey removal, linked identity with reauthentication, validation and failure feedback |
-| `/account`, `/settings/language` | `account.templ`, `account_templ.go`, `layouts/account_header.templ`, `components/components.templ` | Profile, theme, language, notifications, email verification, password change, reauthenticated account deletion, saved/validation/delivery failure; ordinary CSRF-protected forms and password exclusion from drafts |
-| Workspace files | `files.templ`, `workspace.templ`, `layouts/navigation.templ`, `components/components.templ` | Empty/results, filters, sort, saved columns and paging; read-only viewer list/download; write-authorized multipart upload progress/success/validation/failure with no-JavaScript fallback; authorized downloads |
-| `/workspaces/{workspaceId}/settings/general` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `layouts/navigation.templ`, `components/components.templ` | Workspace locale and notification preferences, empty and saved states, invalid input and permission handling |
-| `/workspaces/{workspaceId}/settings/email` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `layouts/navigation.templ`, `components/components.templ` | Unconfigured/configured provider, saved state, validation, provider verification failure, redacted credentials and permission handling |
+| `/account`, `/settings/language` | `account.templ`, `account_templ.go`, `components/organisms/account_header.templ`, `components/molecules/` | Profile, theme, language, notifications, email verification, password change, reauthenticated account deletion, saved/validation/delivery failure; ordinary CSRF-protected forms and password exclusion from drafts |
+| Workspace files | `files.templ`, `workspace.templ`, `components/organisms/navigation.templ`, `components/molecules/` | Empty/results, filters, sort, saved columns and paging; read-only viewer list/download; write-authorized multipart upload progress/success/validation/failure with no-JavaScript fallback; authorized downloads |
+| `/workspaces/{workspaceId}/settings/general` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `components/organisms/navigation.templ`, `components/molecules/` | Workspace locale and notification preferences, empty and saved states, invalid input and permission handling |
+| `/workspaces/{workspaceId}/settings/email` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `components/organisms/navigation.templ`, `components/molecules/` | Unconfigured/configured provider, saved state, validation, provider verification failure, redacted credentials and permission handling |
 | `/notifications`, `/notifications/events` | `notifications.templ`, `notifications_templ.go` | Recipient-scoped list and unread count, empty state, CSRF-protected mark-read, initial cursor and SSE replay after reconnect; verified for #407 |
-| `/security` | `security.templ`, `security_templ.go`, `components/components.templ`, `layouts/navigation.templ` | Factor enrollment, removal and recovery, provider linking, no-provider state, validation/failure alerts, one-time secret display; ordinary form fallback |
-| `/workspaces/{workspaceId}/settings/webhooks` and `/workspaces/{workspaceId}/settings/webhooks/{webhookId}/deliveries` | `webhooks.templ`, `webhooks_templ.go`, `components/components.templ`, `layouts/navigation.templ` | Permission-denied and unavailable states, one-time secret creation/rotation, required localized delete confirmation, no-store redacted delivery history, keyboard/accessibility, mobile light/dark themes, no-JS confirmation and ordinary form fallback |
-| `/account`, `/settings/language` | `account.templ`, `account_templ.go`, `components/components.templ`, `layouts/navigation.templ` | Profile, theme, language, notifications, email verification, password change, reauthenticated account deletion, saved/validation/delivery failure; ordinary CSRF-protected forms and password exclusion from drafts; verified for #407 |
-| Workspace access and integration settings | `credential_settings.templ`, `credential_settings_templ.go`, `security.templ`, `security_templ.go`, `layouts/navigation.templ` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |
-| `/workspaces/{workspaceId}/settings/export`, `/workspaces/{workspaceId}/settings/export/download`, `/workspaces/{workspaceId}/settings/import` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `layouts/navigation.templ`, `components/components.templ` | authorized no-store export page and JSON download; import file selection, bounded preview, safe validation feedback, explicit multipart confirmation, and atomic create-only result; ordinary form fallback |
-| `/share/{token}` | `public_pages.templ`, `public_pages_templ.go`, `components/components.templ` | Localized title/status-only share projection, invalid/expired/revoked unavailable state, no-store and referrer/robots headers |
-| `/oauth/authorize` and generic errors | `public_pages.templ`, `public_pages_templ.go`, `auth.templ`, `components/components.templ` | Localized OAuth consent and generic errors; ordinary CSRF-protected approve/deny forms; invalid request and unavailable permission errors; no-store and preload/history-cache exclusion. `mcp_consent.go` and generic error dispatch call generated templ views; no `html/template` view remains for these routes |
+| `/security` | `security.templ`, `security_templ.go`, `components/molecules/`, `components/organisms/navigation.templ` | Factor enrollment, removal and recovery, provider linking, no-provider state, validation/failure alerts, one-time secret display; ordinary form fallback |
+| `/workspaces/{workspaceId}/settings/webhooks` and `/workspaces/{workspaceId}/settings/webhooks/{webhookId}/deliveries` | `webhooks.templ`, `webhooks_templ.go`, `components/molecules/`, `components/organisms/navigation.templ` | Permission-denied and unavailable states, one-time secret creation/rotation, required localized delete confirmation, no-store redacted delivery history, keyboard/accessibility, mobile light/dark themes, no-JS confirmation and ordinary form fallback |
+| `/account`, `/settings/language` | `account.templ`, `account_templ.go`, `components/molecules/`, `components/organisms/navigation.templ` | Profile, theme, language, notifications, email verification, password change, reauthenticated account deletion, saved/validation/delivery failure; ordinary CSRF-protected forms and password exclusion from drafts; verified for #407 |
+| Workspace access and integration settings | `credential_settings.templ`, `credential_settings_templ.go`, `security.templ`, `security_templ.go`, `components/organisms/navigation.templ` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |
+| `/workspaces/{workspaceId}/settings/export`, `/workspaces/{workspaceId}/settings/export/download`, `/workspaces/{workspaceId}/settings/import` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `components/organisms/navigation.templ`, `components/molecules/` | authorized no-store export page and JSON download; import file selection, bounded preview, safe validation feedback, explicit multipart confirmation, and atomic create-only result; ordinary form fallback |
+| `/share/{token}` | `public_pages.templ`, `public_pages_templ.go`, `components/molecules/` | Localized title/status-only share projection, invalid/expired/revoked unavailable state, no-store and referrer/robots headers |
+| `/oauth/authorize` and generic errors | `public_pages.templ`, `public_pages_templ.go`, `auth.templ`, `components/molecules/` | Localized OAuth consent and generic errors; ordinary CSRF-protected approve/deny forms; invalid request and unavailable permission errors; no-store and preload/history-cache exclusion. `mcp_consent.go` and generic error dispatch call generated templ views; no `html/template` view remains for these routes |
 
 Corresponding route and handler tests cover server-rendered behavior, including
 public-share projection and unavailable states, consent approval and denial,
@@ -494,7 +499,7 @@ Audit history is intentionally not an eligible WebMCP page: it has no
 WebMCP marker or script and exposes no audit tool. The ordinary server-rendered
 page remains the only browser surface.
 
-Eligible pages load the local `app.js` and mark visible controls. The current
+Eligible pages load the WebMCP registration and mark visible controls. The current
 tool contract is:
 
 | Tool | Input schema | Page preparation |
@@ -552,7 +557,7 @@ generated product name and brand tokens. Header actions link to client creation
 and custom-field management; results remain first, followed by create and list
 options.
 
-The Clients list page loads local HTMX and `app.js`. Its `client.changed` and
+The Clients list page loads local HTMX. Its `client.changed` and
 `resync` stream events refresh the list fragment while preserving current URL
 state. Refresh waits while a list form is dirty, submitting, or focused. The
 stream and list require `ResourcesRead`; without JavaScript, links and ordinary
@@ -615,7 +620,7 @@ version. It carries no client fields. A missing, malformed, unknown, or expired
 cursor receives `resync`. Viewers receive events, and a user outside the
 workspace gets not found. The latest 1,000 client events per workspace are
 retained, and older events fall under the same replay window as Items.
-The client page loads the local HTMX and `app.js` assets to start browser refresh;
+The client page loads the local HTMX asset to start browser refresh;
 the listener preserves URL state and defers replacement while forms are focused,
 dirty, or submitting. The list fragment and stream both require
 `identity.ResourcesRead`.

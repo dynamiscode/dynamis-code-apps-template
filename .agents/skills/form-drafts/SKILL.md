@@ -1,6 +1,6 @@
 ---
 name: form-drafts
-description: Check how forms keep unsent work - dirty detection that enables Save only after a change, the unsaved-changes warning, sessionStorage drafts restored after a rejected submit or a return visit, and realtime list refreshes that wait while you edit - with a TLA+ model, exhaustive evaluator tests, and browser checks. Use when a change touches data-persist, data-dirty-track, data-requires-change or data-unsaved-warning in internal/web/templates/, the draft, dirty, beforeunload or isEditing code in internal/web/assets/forms.js, or the realtime refresh in internal/web/assets/app.js.
+description: Check how forms keep unsent work - dirty detection that enables Save only after a change, the unsaved-changes warning, sessionStorage drafts restored after a rejected submit or a return visit, and realtime list refreshes that wait while you edit - with a TLA+ model, exhaustive evaluator tests, and browser checks. Use when a change touches data-persist, data-dirty-track, data-requires-change or data-unsaved-warning in internal/web/*.templ, the draft, dirty, beforeunload or isEditing code in the wireForms section of internal/web/assets/alpine-components.js, or the realtime refresh in the wireRealtime section of internal/web/assets/alpine-components.js.
 ---
 
 # Form drafts
@@ -23,7 +23,7 @@ description: Check how forms keep unsent work - dirty detection that enables Sav
 
 ## Coverage record
 
-- Covered code: `internal/web/assets/forms.js` (`draftAction`, `isDirty`, `refreshDecision`, `writeDraft`, `readDraft`, `applyDraft`, `updateDirty`, the input/change/submit/beforeunload handlers, `isEditing`), `internal/web/assets/app.js` (the deferred `refresh`), and the templates using `data-persist` (item-list create form, invitations, webhooks), `data-dirty-track` (item rows, account profile, general settings, email settings), `data-unsaved-warning`.
+- Covered code: `internal/web/assets/alpine-components.js`, wireForms (`draftAction`, `isDirty`, `refreshDecision`, `writeDraft`, `readDraft`, `applyDraft`, `updateDirty`, the input/change/submit/beforeunload handlers, `isEditing`), `internal/web/assets/app.js` (the deferred `refresh`), and the templates using `data-persist` (item-list create form, invitations, webhooks), `data-dirty-track` (item rows, account profile, general settings, email settings), `data-unsaved-warning`.
 - Sync commit: the commit that last changed this file (`git log -1 --format=%H -- .agents/skills/form-drafts/SKILL.md`). Diff the covered files against it first; if they changed, confirm the model still matches before trusting a pass, then update this file.
 
 ## Run the check

@@ -1,0 +1,104 @@
+/* Design tokens: the color, surface, and radius variables the app theme is
+   built from, plus the daisyUI semantic mappings. Loaded before every other
+   stylesheet. The daisyUI theme config in tailwind.css is the second token
+   source. */
+:root {
+  color-scheme: light;
+  /* Customize generated app identity here; keep colors in light and dark token blocks. */
+  --brand-accent: #154ea3;
+  --brand-font-family: system-ui, sans-serif;
+  --brand-radius: .5rem;
+  --brand-space: 1rem;
+  --ink: #172033;
+  --muted: #536174;
+  --surface: #fff;
+  --canvas: #f3f6fa;
+  --sidebar-surface: #edf1f7;
+  --accent: var(--brand-accent);
+  --accent-hover: #103d80;
+  --accent-surface: #e8effa;
+  --on-accent: #fff;
+  --danger: #a51d2d;
+  --danger-surface: #fff0f1;
+  --warning: #8a5a00;
+  --warning-surface: #fff8db;
+  --warning-border: #d6b656;
+  --success: #176b3a;
+  --success-surface: #edf8f0;
+  --border: #ccd3dd;
+  --border-strong: #657287;
+  --border-muted: #aeb7c5;
+  --disabled-surface: #e2e6ec;
+  --shadow: #17203326;
+  --focus-outline: #fff;
+  --focus-halo: #111827;
+  font: 100%/1.5 var(--brand-font-family);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --brand-accent: #8ab4f8;
+  --ink: #e6ebf2;
+  --muted: #a4afbf;
+  --surface: #1a2231;
+  --canvas: #111826;
+  --sidebar-surface: #151d2a;
+  --accent: var(--brand-accent);
+  --accent-hover: #aecbfa;
+  --accent-surface: #1f2d47;
+  --on-accent: #0b1220;
+  --danger: #ff8a8a;
+  --danger-surface: #3a1a1f;
+  --warning: #f0c36b;
+  --warning-surface: #3a2f10;
+  --warning-border: #7a6226;
+  --success: #7fd69a;
+  --success-surface: #15301f;
+  --border: #34405a;
+  --border-strong: #7d8aa0;
+  --border-muted: #4a5670;
+  --disabled-surface: #2a3344;
+  --shadow: #00000080;
+  --focus-outline: #e6ebf2;
+  --focus-halo: #0b1220;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --brand-accent: #8ab4f8;
+    --ink: #e6ebf2;
+    --muted: #a4afbf;
+    --surface: #1a2231;
+    --canvas: #111826;
+    --sidebar-surface: #151d2a;
+    --accent: var(--brand-accent);
+    --accent-hover: #aecbfa;
+    --accent-surface: #1f2d47;
+    --on-accent: #0b1220;
+    --danger: #ff8a8a;
+    --danger-surface: #3a1a1f;
+    --warning: #f0c36b;
+    --warning-surface: #3a2f10;
+    --warning-border: #7a6226;
+    --success: #7fd69a;
+    --success-surface: #15301f;
+    --border: #34405a;
+    --border-strong: #7d8aa0;
+    --border-muted: #4a5670;
+    --disabled-surface: #2a3344;
+    --shadow: #00000080;
+    --focus-outline: #e6ebf2;
+    --focus-halo: #0b1220;
+  }
+}
+:root, :root[data-theme] {
+  --color-primary: var(--accent);
+  --color-primary-content: var(--on-accent);
+  --color-base-100: var(--surface);
+  --color-base-content: var(--ink);
+  --color-error: var(--danger);
+  --color-error-content: var(--danger-surface);
+  --color-success: var(--success);
+  --color-success-content: var(--success-surface);
+}
+* { box-sizing: border-box; scrollbar-color: var(--border-strong) var(--canvas); }
+::selection { background: var(--accent-surface); color: var(--ink); }

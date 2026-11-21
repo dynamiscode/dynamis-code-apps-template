@@ -1,0 +1,47 @@
+// data_display
+// https://daisyui.com/components/collapse
+package atoms
+
+type CollapseDetailsProps struct {
+	Class        string
+	Open         bool // open on render (e.g. open-on-error forms)
+	Title        string
+	TitleClass   string
+	ContentClass string
+	Attrs        templ.Attributes
+}
+
+templ CollapseDetails(props CollapseDetailsProps) {
+	<details
+		class={ "collapse", props.Class }
+		{ props.Attrs... }
+		if props.Open {
+			open
+		}
+	>
+		<summary class={ "collapse-title", props.TitleClass }>{ props.Title }</summary>
+		<div class={ "collapse-content", props.ContentClass }>{ children... }</div>
+	</details>
+}
+
+type CollapseProps struct {
+	Class        string
+	Title        string
+	TitleClass   string
+	ContentClass string
+}
+
+templ Collapse(props CollapseProps) {
+	<div
+		tabindex="0"
+		class={ "collapse", props.Class }
+	>
+		<input type="checkbox"/>
+		<div class={ "collapse-title", props.TitleClass }>
+			{ props.Title }
+		</div>
+		<div class={ "collapse-content", props.ContentClass }>
+			{ children... }
+		</div>
+	</div>
+}

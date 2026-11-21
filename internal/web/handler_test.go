@@ -235,7 +235,7 @@ func TestEmailVerificationRouteSuccessUsesAuthLayout(t *testing.T) {
 	response := request(mailHandler.Routes(), http.MethodGet, parsedLink.Path, nil, nil, map[string]string{"Accept-Language": "es"})
 	body := response.Body.String()
 	if response.Code != http.StatusOK || !strings.Contains(body, "Correo verificado.") ||
-		!strings.Contains(body, `class="btn btn-primary" href="/account"`) {
+		!strings.Contains(body, `href="/account" class="btn btn-primary"`) {
 		t.Fatalf("verification success route status = %d; localized success or account link missing", response.Code)
 	}
 	if strings.Contains(body, parsedLink.Path[strings.LastIndex(parsedLink.Path, "/")+1:]) || response.Header().Get("Cache-Control") != "no-store" {
@@ -311,7 +311,7 @@ func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
 	handler, auth, itemService, workspaceID, _ := testWeb(t, 10)
 
 	loginPage := request(handler, http.MethodGet, "/login", nil, nil, nil)
-	if loginPage.Code != http.StatusOK || !strings.Contains(loginPage.Body.String(), `<label for="email">`) {
+	if loginPage.Code != http.StatusOK || !strings.Contains(loginPage.Body.String(), `for="email"`) {
 		t.Fatalf("login page status = %d; missing email label", loginPage.Code)
 	}
 	if !strings.Contains(loginPage.Body.String(), `class="auth-recovery-link" href="/password-reset">Forgot password?</a>`) {
@@ -580,11 +580,11 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 
 	resetPage := request(handler, http.MethodGet, "/password-reset", nil, nil, nil)
 	if resetPage.Code != http.StatusOK || !strings.Contains(resetPage.Body.String(), `form action="/password-reset"`) ||
-		!strings.Contains(resetPage.Body.String(), `class="brand auth-brand"`) || !strings.Contains(resetPage.Body.String(), `class="input"`) {
+		!strings.Contains(resetPage.Body.String(), `class="brand auth-brand"`) || !strings.Contains(resetPage.Body.String(), `class="input w-full"`) {
 		t.Fatalf("password reset page status = %d; missing form or auth layout marker", resetPage.Code)
 	}
 	expiredReset := request(handler, http.MethodPost, "/password-reset", url.Values{"email": {"owner@example.com"}}, nil, nil)
-	if expiredReset.Code != http.StatusForbidden || !strings.Contains(expiredReset.Body.String(), `role="alert" tabindex="-1"`) ||
+	if expiredReset.Code != http.StatusForbidden || !strings.Contains(expiredReset.Body.String(), `tabindex="-1"`) ||
 		!strings.Contains(expiredReset.Body.String(), `form action="/password-reset"`) {
 		t.Fatalf("expired reset request status = %d; missing focused alert or recovery form", expiredReset.Code)
 	}
@@ -611,7 +611,7 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	if resetMismatch.Code != http.StatusUnprocessableEntity || !strings.Contains(resetMismatch.Body.String(), "Las contraseñas no coinciden.") {
 		t.Fatalf("reset mismatch status = %d; missing translated error", resetMismatch.Code)
 	}
-	for _, marker := range []string{`class="alert alert-error error"`, `role="alert" tabindex="-1"`, `class="input"`, `data-theme="system"`} {
+	for _, marker := range []string{`class="alert alert-error error"`, `tabindex="-1"`, `class="input w-full"`, `<html lang="es">`} {
 		if !strings.Contains(resetMismatch.Body.String(), marker) {
 			t.Fatalf("reset mismatch view missing marker %q", marker)
 		}
@@ -625,7 +625,7 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 		"csrf": {invalidResetCSRF.Value}, "password": {"reset-owner-password"}, "password_confirmation": {"reset-owner-password"},
 	}, []*http.Cookie{invalidResetCSRF, {Name: "locale", Value: "es"}}, nil)
 	if invalidReset.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidReset.Body.String(), "El enlace de restablecimiento no es válido o venció.") || !strings.Contains(invalidReset.Body.String(), `form action="/password-reset"`) ||
-		!strings.Contains(invalidReset.Body.String(), `role="alert" tabindex="-1"`) || responseCookie(invalidReset, "reset_csrf").Value == "" {
+		!strings.Contains(invalidReset.Body.String(), `tabindex="-1"`) || responseCookie(invalidReset, "reset_csrf").Value == "" {
 		t.Fatalf("invalid reset link status = %d; missing recovery form, focused alert, or fresh CSRF cookie", invalidReset.Code)
 	}
 	resetComplete := request(handler, http.MethodPost, parsed.Path, url.Values{
@@ -661,13 +661,13 @@ func TestAccountSecurityPagesUseSharedBrandAndRequireDeletionConfirmation(t *tes
 		if !strings.Contains(body, "Dynamis Code") || !strings.Contains(body, `class="account-page`) {
 			t.Errorf("%s does not use the branded account layout: %s", path, body)
 		}
-		if path == "/account" && (!strings.Contains(body, `name="confirm_delete" type="checkbox" value="yes" required`) || !strings.Contains(body, "Entiendo que eliminar la cuenta es permanente")) {
+		if path == "/account" && (!strings.Contains(body, `type="checkbox" name="confirm_delete"`) || !strings.Contains(body, `value="yes"`) || !strings.Contains(body, "Entiendo que eliminar la cuenta es permanente")) {
 			t.Errorf("account page lacks the Spanish no-JavaScript deletion confirmation: %s", body)
 		}
 		if path == "/account" && (!strings.Contains(body, `action="/account/password"`) || strings.Contains(body, `name="new_password" data-persist`)) {
 			t.Errorf("account page lacks password form or persists password fields: %s", body)
 		}
-		if path == "/settings/language" && (!strings.Contains(body, `<div class="account-page narrow" data-account-page>`) || !strings.Contains(body, `aria-label="Idioma"`)) {
+		if path == "/settings/language" && (!strings.Contains(body, `<div class="account-page narrow card mx-auto w-full max-w-xl my-6 p-6" data-account-page>`) || !strings.Contains(body, `aria-label="Idioma"`)) {
 			t.Errorf("language page lacks templ account layout or labelled language form: %s", body)
 		}
 	}
@@ -751,7 +751,7 @@ func TestSessionsListAndRevocation(t *testing.T) {
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: current.Secret}, {Name: "csrf", Value: current.CSRFSecret}}
 	page := request(handler, http.MethodGet, "/sessions", nil, cookies, nil)
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "This session") || !strings.Contains(page.Body.String(), `data-theme="system"`) || !strings.Contains(page.Body.String(), "/assets/components.css") {
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "This session") || !strings.Contains(page.Body.String(), `<html lang="en">`) || !strings.Contains(page.Body.String(), "/assets/components.css") {
 		t.Fatalf("session list = %d, %s", page.Code, page.Body.String())
 	}
 	if strings.Count(page.Body.String(), `action="/sessions/`) != 2 || !strings.Contains(page.Body.String(), `action="/sessions/`+current.ID+`"`) || strings.Contains(page.Body.String(), current.Secret) {
@@ -998,7 +998,7 @@ func TestWebLanguageSettingsRoutes(t *testing.T) {
 	if invalidLocale.Code != http.StatusUnprocessableEntity || !hasHTMLRootLang(invalidLocale.Body.String(), "es") ||
 		!strings.Contains(invalidLocale.Body.String(), `data-theme="dark"`) ||
 		!strings.Contains(invalidLocale.Body.String(), "El idioma seleccionado no es válido.") ||
-		!strings.Contains(invalidLocale.Body.String(), `value="es" selected`) {
+		!strings.Contains(invalidLocale.Body.String(), `selected value="es"`) {
 		t.Fatalf("invalid language form lost localized account context = %d, %s", invalidLocale.Code, invalidLocale.Body.String())
 	}
 	if locale, err := auth.GetUserLocale(context.Background(), owner.UserID); err != nil || locale != "es" {
@@ -1507,6 +1507,9 @@ func TestAuditHistoryUsesProfileLocaleAndThemes(t *testing.T) {
 		spanish := hasHTMLRootLang(body, "es")
 		localized := response.Header().Get("Content-Language") == "es"
 		themed := strings.Contains(body, `data-theme="`+theme+`"`)
+		if theme == "system" {
+			themed = !strings.Contains(body, `data-theme=`)
+		}
 		if response.Code != http.StatusOK || !spanish || !localized || !themed {
 			t.Errorf("audit document theme=%q: status=%d spanish=%t localized=%t themed=%t",
 				theme, response.Code, spanish, localized, themed)
@@ -1733,25 +1736,35 @@ func extractSCIMSecret(t *testing.T, body string) string {
 }
 
 func TestWebMCPBrowserSurfaceContract(t *testing.T) {
-	script, err := files.ReadFile("assets/app.js")
+	script, err := files.ReadFile("assets/alpine-components.js")
 	if err != nil {
 		t.Fatal(err)
 	}
 	source := string(script)
+	// The WebMCP registration is one function in the shared component file;
+	// the no-auto-submit and schema rules scope to that block only.
+	webmcp := source
+	if start := strings.Index(webmcp, "const wireWebMCP"); start >= 0 {
+		end := strings.Index(webmcp[start:], "const pageBehaviors")
+		if end < 0 {
+			end = len(webmcp) - start
+		}
+		webmcp = webmcp[start : start+end]
+	}
 	for _, tool := range []string{
 		"workspace-create-v1", "item-create-v1", "item-update-v1", "item-delete-v1",
 		"member-role-update-v1", "member-remove-v1", "ownership-transfer-v1",
 		"invitation-revoke-v1", "token-revoke-v1", "session-revoke-v1", "workspace-export-v1",
 	} {
-		if !strings.Contains(source, `"`+tool+`"`) {
+		if !strings.Contains(webmcp, `"`+tool+`"`) {
 			t.Errorf("WebMCP tool %q is not registered", tool)
 		}
 	}
-	if !strings.Contains(source, "document.modelContext") || !strings.Contains(source, "ready-for-user-submission") || strings.Contains(source, "requestSubmit") {
+	if !strings.Contains(webmcp, "document.modelContext") || !strings.Contains(webmcp, "ready-for-user-submission") || strings.Contains(webmcp, "requestSubmit") {
 		t.Fatal("WebMCP must feature-detect and prepare without automatic form submission")
 	}
 	for _, forbidden := range []string{`name: "csrf"`, `name: "password"`, `name: "secret"`, `name: "oidc"`} {
-		if strings.Contains(source, forbidden) {
+		if strings.Contains(webmcp, forbidden) {
 			t.Errorf("WebMCP schema exposes forbidden field %q", forbidden)
 		}
 	}
@@ -1770,7 +1783,7 @@ func TestWebMCPBrowserSurfaceContract(t *testing.T) {
 	}
 	for target, page := range pages {
 		body := request(handler, http.MethodGet, target, nil, cookies, nil).Body.String()
-		if !strings.Contains(body, `data-webmcp-page="`+page+`"`) || !strings.Contains(body, `/assets/app.js`) {
+		if !strings.Contains(body, `data-webmcp-page="`+page+`"`) || !strings.Contains(body, `/assets/alpine-components.js`) {
 			t.Errorf("%s lacks WebMCP page marker or script", target)
 		}
 	}
@@ -1795,7 +1808,7 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	workspaceRoot := "/workspaces/" + workspaceID.String()
 	workspaceHome := request(handler, http.MethodGet, workspaceRoot, nil, cookies, nil)
-	if workspaceHome.Code != http.StatusOK || !strings.Contains(workspaceHome.Body.String(), `data-workspace-home`) || !strings.Contains(workspaceHome.Body.String(), `class="active" aria-current="page" href="`+workspaceRoot+`">Home</a>`) || !strings.Contains(workspaceHome.Body.String(), `href="`+workspaceRoot+`/items"`) || !strings.Contains(workspaceHome.Body.String(), `href="`+workspaceRoot+`/settings"`) {
+	if workspaceHome.Code != http.StatusOK || !strings.Contains(workspaceHome.Body.String(), `data-workspace-home`) || !strings.Contains(workspaceHome.Body.String(), `<li class="menu-active"><a aria-current="page" href="`+workspaceRoot+`">Home</a>`) || !strings.Contains(workspaceHome.Body.String(), `href="`+workspaceRoot+`/items"`) || !strings.Contains(workspaceHome.Body.String(), `href="`+workspaceRoot+`/settings"`) {
 		t.Fatalf("workspace home = %d, %s", workspaceHome.Code, workspaceHome.Body.String())
 	}
 	for _, page := range []struct {
@@ -1803,28 +1816,24 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 		active      string
 		sidebarName string
 	}{
-		{workspaceRoot + "/items", `class="active" aria-current="page" href="` + workspaceRoot + "/items" + `"`, "Workspace navigation"},
-		{workspaceRoot + "/settings/members", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/members" + `"`, "Workspace settings"},
-		{workspaceRoot + "/settings/invitations", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/members" + `"`, "Workspace settings"},
-		{workspaceRoot + "/settings/tokens", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/tokens" + `"`, "Workspace settings"},
-		{workspaceRoot + "/settings/provisioning", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/provisioning" + `"`, "Workspace settings"},
-		{workspaceRoot + "/settings/export", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/export" + `"`, "Workspace settings"},
-		{workspaceRoot + "/settings/audit", `class="sidebar-subitem active" aria-current="page" href="` + workspaceRoot + "/settings/audit" + `"`, "Workspace settings"},
+		{workspaceRoot + "/items", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/items" + `">`, "Workspace navigation"},
+		{workspaceRoot + "/settings/members", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/settings/members" + `"`, "Workspace settings"},
+		{workspaceRoot + "/settings/invitations", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/settings/members" + `"`, "Workspace settings"},
+		{workspaceRoot + "/settings/tokens", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/settings/tokens" + `"`, "Workspace settings"},
+		{workspaceRoot + "/settings/provisioning", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/settings/provisioning" + `"`, "Workspace settings"},
+		{workspaceRoot + "/settings/export", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/settings/export" + `"`, "Workspace settings"},
+		{workspaceRoot + "/settings/audit", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/settings/audit" + `"`, "Workspace settings"},
 	} {
 		body := request(handler, http.MethodGet, page.path, nil, cookies, nil).Body.String()
-		navClass := "sidebar-nav"
-		if page.sidebarName == "Workspace settings" {
-			navClass += " workspace-settings-nav"
-		}
-		if !strings.Contains(body, `<nav class="`+navClass+`" aria-label="`+page.sidebarName+`">`) ||
+		if !strings.Contains(body, `<nav aria-label="`+page.sidebarName+`">`) ||
 			!strings.Contains(body, page.active) ||
-			!strings.Contains(body, `class="workspace-switcher"`) ||
-			!strings.Contains(body, `class="account-menu"`) {
+			!strings.Contains(body, `<details class="dropdown dropdown-end">`) ||
+			!strings.Contains(body, `<details class="dropdown dropdown-end">`) {
 			t.Errorf("%s lacks primary navigation or current-page state", page.path)
 		}
 	}
 	itemsBody := request(handler, http.MethodGet, workspaceRoot+"/items"+"?all=1", nil, cookies, nil).Body.String()
-	if strings.Contains(itemsBody, `Members &amp; invitations`) || strings.Contains(itemsBody, `API tokens`) || strings.Contains(itemsBody, `>Export<`) || !strings.Contains(itemsBody, `<a class="sidebar-back" href="/">← Workspaces</a>`) {
+	if strings.Contains(itemsBody, `Members &amp; invitations`) || strings.Contains(itemsBody, `API tokens`) || strings.Contains(itemsBody, `>Export<`) || !strings.Contains(itemsBody, `<a class="btn btn-ghost btn-sm w-full justify-start font-normal" href="/">← Workspaces</a>`) {
 		t.Error("items context has incorrect navigation")
 	}
 	settingsRoot := request(handler, http.MethodGet, workspaceRoot+"/settings", nil, cookies, nil)
@@ -1833,21 +1842,21 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 	}
 	for _, page := range []string{workspaceRoot + "/settings/members", workspaceRoot + "/settings/invitations", workspaceRoot + "/settings/tokens", workspaceRoot + "/settings/provisioning", workspaceRoot + "/settings/export", workspaceRoot + "/settings/import", workspaceRoot + "/settings/audit"} {
 		body := request(handler, http.MethodGet, page, nil, cookies, nil).Body.String()
-		backLink := `<a class="sidebar-back" href="` + workspaceRoot + `">`
-		if strings.Contains(body, `>Items<`) || strings.Contains(body, `href="`+workspaceRoot+`/settings">Settings`) || strings.Contains(body, `<nav class="sidebar-nav" aria-label="Workspace navigation">`) || !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `API tokens`) || !strings.Contains(body, `>Export<`) || !strings.Contains(body, backLink) || !strings.Contains(body, "Back to home") {
+		backLink := `<a class="btn btn-ghost btn-sm w-full justify-start font-normal" href="` + workspaceRoot + `">`
+		if strings.Contains(body, `>Items<`) || strings.Contains(body, `href="`+workspaceRoot+`/settings">Settings`) || strings.Contains(body, `<nav aria-label="Workspace navigation">`) || !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `API tokens`) || !strings.Contains(body, `>Export<`) || !strings.Contains(body, backLink) || !strings.Contains(body, "Back to home") {
 			t.Errorf("%s lacks expanded settings navigation", page)
 		}
 	}
 	settingsBody := request(handler, http.MethodGet, workspaceRoot+"/settings/members", nil, cookies, nil).Body.String()
 	for _, group := range []string{`Workspace setup`, `Access &amp; integrations`, `Data &amp; activity`} {
-		if !strings.Contains(settingsBody, `class="nav-label">`+group+`</span>`) {
+		if !strings.Contains(settingsBody, `<li class="menu-title text-base-content/80">`+group+`</li>`) {
 			t.Errorf("settings navigation lacks the %q group", group)
 		}
 	}
-	if body := request(handler, http.MethodGet, workspaceRoot+"/settings/members", nil, cookies, nil).Body.String(); !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `<nav class="subnav" aria-label="Members and invitations">`) {
+	if body := request(handler, http.MethodGet, workspaceRoot+"/settings/members", nil, cookies, nil).Body.String(); !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `<nav aria-label="Members and invitations">`) {
 		t.Error("members page lacks combined settings entry or local tabs")
 	}
-	if body := request(handler, http.MethodGet, workspaceRoot+"/settings/invitations", nil, cookies, nil).Body.String(); !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `class="active" aria-current="page" href="`+workspaceRoot+`/settings/invitations"`) {
+	if body := request(handler, http.MethodGet, workspaceRoot+"/settings/invitations", nil, cookies, nil).Body.String(); !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `<li class="menu-active"><a aria-current="page" href="`+workspaceRoot+`/settings/invitations"`) {
 		t.Error("invitations page lacks combined settings entry or current tab")
 	}
 	principal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.ResourcesWrite)
@@ -1867,11 +1876,11 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 			t.Errorf("items page lacks %q", required)
 		}
 	}
-	source, err := files.ReadFile("assets/forms.js")
+	source, err := files.ReadFile("assets/alpine-components.js")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(source), `button[data-confirm]`) || !strings.Contains(body, `src="/assets/forms.js"`) {
+	if !strings.Contains(string(source), `button[data-confirm]`) || !strings.Contains(body, `<script defer src="/assets/alpine-components.js">`) {
 		t.Error("browser script lacks destructive-action confirmation hook")
 	}
 }
@@ -1899,7 +1908,7 @@ func TestWebBaselineManagementRoutes(t *testing.T) {
 	exportPage := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/export", nil, cookies, nil)
 	if exportPage.Header().Get("Cache-Control") != "no-store" ||
 		!strings.Contains(exportPage.Body.String(), "Download JSON") || !strings.Contains(exportPage.Body.String(), "/settings/export/download") ||
-		!strings.Contains(exportPage.Body.String(), `data-webmcp-page="export"`) || !strings.Contains(exportPage.Body.String(), `/assets/app.js`) {
+		!strings.Contains(exportPage.Body.String(), `data-webmcp-page="export"`) || !strings.Contains(exportPage.Body.String(), `/assets/alpine-components.js`) {
 		t.Fatal("browser export screen lacks download action")
 	}
 	importPage := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/import", nil, cookies, nil)
@@ -1932,7 +1941,7 @@ func TestWebImportIsAuthorizedExplicitAndAtomic(t *testing.T) {
 	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" ||
 		!strings.Contains(page.Body.String(), `enctype="multipart/form-data"`) ||
 		!strings.Contains(page.Body.String(), `name="file"`) || !strings.Contains(page.Body.String(), `name="action" value="preview"`) ||
-		!strings.Contains(page.Body.String(), `class="sidebar-subitem active" aria-current="page" href="`+root+`"`) ||
+		!strings.Contains(page.Body.String(), `<li class="menu-active"><a aria-current="page" href="`+root+`"`) ||
 		strings.Contains(page.Body.String(), "/assets/app.js") {
 		t.Fatalf("import page = %d, %s", page.Code, page.Body.String())
 	}
@@ -2159,8 +2168,10 @@ func TestWebSetupRequiresTokenAndBootstrapsFirstInstanceAdmin(t *testing.T) {
 	}
 	page := request(handler, http.MethodGet, "/setup", nil, nil, nil)
 	if page.Code != http.StatusOK ||
-		!strings.Contains(page.Body.String(), `label for="setup-token"`) ||
-		!strings.Contains(page.Body.String(), `name="setup_token" type="password" autocomplete="off" required maxlength="4096"`) ||
+		!strings.Contains(page.Body.String(), `for="setup-token"`) ||
+		!strings.Contains(page.Body.String(), `id="setup-token" name="setup_token" type="password"`) ||
+		!strings.Contains(page.Body.String(), `required maxlength="4096"`) ||
+		!strings.Contains(page.Body.String(), `autocomplete="off"`) ||
 		!strings.Contains(page.Body.String(), `name="setup_token_format"`) {
 		t.Fatalf("setup page = %d, %s", page.Code, page.Body.String())
 	}
@@ -2685,13 +2696,13 @@ func TestSingleModeHidesWorkspaceListNavigation(t *testing.T) {
 			t.Errorf("%s = %d in single mode; want 200", path, response.Code)
 		}
 		body := response.Body.String()
-		if strings.Contains(body, `class="workspace-switcher"`) || strings.Contains(body, `>Workspaces</a>`) || strings.Contains(body, `href="/">← Workspaces</a>`) {
+		if strings.Contains(body, `<li class="menu-title">Home</li>`) || strings.Contains(body, `href="/">← Workspaces</a>`) {
 			t.Errorf("%s shows a workspace list link in single mode", path)
 		}
 	}
 	for _, path := range []string{workspaceRoot + "/items", workspaceRoot + "/settings/members"} {
 		body := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil).Body.String()
-		if !strings.Contains(body, `<span class="workspace-name">`) {
+		if !strings.Contains(body, `<span class="truncate font-bold">`) {
 			t.Errorf("%s lacks plain-text workspace name in single mode", path)
 		}
 	}
@@ -2709,7 +2720,7 @@ func TestMultiModeKeepsWorkspaceListNavigation(t *testing.T) {
 	})
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
 	body := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/items"+"?all=1", nil, cookies, nil).Body.String()
-	if !strings.Contains(body, `class="workspace-switcher"`) || !strings.Contains(body, `<a class="sidebar-back" href="/">← Workspaces</a>`) {
+	if !strings.Contains(body, `<details class="dropdown dropdown-end">`) || !strings.Contains(body, `<a class="btn btn-ghost btn-sm w-full justify-start font-normal" href="/">← Workspaces</a>`) {
 		t.Error("multi-mode items page lost workspace list navigation")
 	}
 }

@@ -1,6 +1,6 @@
 ---
 name: form-markup
-description: Check every templ form for the form markup rules - persistent labels, focusable error alerts for htmx swaps, confirmation on destructive buttons, and explicit optional marking. Use when a change adds or edits a form, input, select, textarea, role="alert" element, or a delete, remove, revoke or transfer button in internal/web/*.templ, or changes the data-confirm or htmx:after:swap focus handlers in internal/web/assets/forms.js.
+description: Check every templ form for the form markup rules - persistent labels, focusable error alerts for htmx swaps, confirmation on destructive buttons, and explicit optional marking. Use when a change adds or edits a form, input, select, textarea, role="alert" element, or a delete, remove, revoke or transfer button in internal/web/*.templ, or changes the data-confirm or htmx:after:swap focus handlers in the wireForms section of internal/web/assets/alpine-components.js.
 ---
 
 # Form markup
@@ -18,7 +18,7 @@ No automated source scan. `TestFormMarkupRules` read the legacy `templates/*.htm
 
 ## Coverage record
 
-- Covered by review: all `internal/web/*.templ` forms; the `data-confirm` click handler and the `htmx:after:swap` focus handler in `internal/web/assets/forms.js`.
+- Covered by review: all `internal/web/*.templ` forms; the `data-confirm` click handler and the `htmx:after:swap` focus handler in the wireForms section of `internal/web/assets/alpine-components.js`.
 - Sync commit: the commit that last changed this file (`git log -1 --format=%H -- .agents/skills/form-markup/SKILL.md`). If `forms.js` changed how confirm or focus works since then, update the rules here before trusting a pass.
 
 ## Proof a break is caught by hand

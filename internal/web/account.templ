@@ -1,94 +1,122 @@
 package web
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 templ accountPageView(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, layouts.AccountHeader(data), nil) {
+	@templates.DashboardShell(data, organisms.AccountHeader(data), nil) {
 		<div class="account-page" data-account-page>
-				<header class="account-heading">
+				<header class="account-heading bg-base-100 border-b border-base-200">
 					<p class="eyebrow">{ data.T("common.account") }</p>
 					<h1>{ data.T("account.account") }</h1>
 					<p class="account-intro">{ data.T("account.page_description") }</p>
 					<nav class="account-shortcuts" aria-label={ data.T("account.security_navigation") }>
-						<a class="account-shortcut" href="/security">{ data.T("navigation.security") }</a>
-						<a class="account-shortcut" href="/sessions">{ data.T("navigation.sessions") }</a>
-						<a class="account-shortcut" href="/settings/language">{ data.T("account.language_settings") }</a>
+						<a class="account-shortcut btn btn-ghost btn-sm" href="/security">{ data.T("navigation.security") }</a>
+						<a class="account-shortcut btn btn-ghost btn-sm" href="/sessions">{ data.T("navigation.sessions") }</a>
+						<a class="account-shortcut btn btn-ghost btn-sm" href="/settings/language">{ data.T("account.language_settings") }</a>
 					</nav>
 				</header>
 				if data.Saved {
-					@components.SuccessAlert(data.T("account.saved"))
+					@molecules.SuccessAlert(data.T("account.saved"))
 				}
 				if data.ErrorKey != "" {
-					@components.ErrorAlert(data.T(data.ErrorKey))
+					@molecules.ErrorAlert(data.T(data.ErrorKey))
 				}
 				if data.Error != "" {
-					@components.ErrorAlert(data.Error)
+					@molecules.ErrorAlert(data.Error)
 				}
 				if data.DeliveryWarning != "" {
-					@components.ErrorAlert(data.DeliveryWarning)
+					@molecules.ErrorAlert(data.DeliveryWarning)
 				}
 				<div class="account-section-grid">
-					<section class="settings-panel settings-panel-wide">
+					<section class="settings-panel card min-w-0 p-5 settings-panel-wide">
 						<h2>{ data.T("account.profile") }</h2>
 						<p>{ data.T("account.profile_description") }</p>
 						<form action="/account/profile" method="post" data-dirty-track data-unsaved-warning>
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							<label for="display-name">{ data.T("account.display_name") }{ " " }{ data.T("ui.optional") }</label>
-							<input class="input" id="display-name" name="display_name" value={ data.Profile.DisplayName } maxlength="120" data-trim/>
-							<label for="account-email">{ data.T("common.email") }</label>
-							<input class="input" id="account-email" value={ data.Profile.Email } readonly/>
-							<label for="account-timezone">{ data.T("account.timezone") }</label>
-							<input class="input" id="account-timezone" name="timezone" value={ data.Profile.Timezone } required maxlength="128" data-default="timezone" data-trim/>
-							@components.SelectField("account-theme", data.T("account.theme"), templ.Attributes{"name": "theme"}) {
-								<option value="system" selected?={ data.Profile.Theme == "system" }>{ data.T("account.theme_system") }</option>
-								<option value="light" selected?={ data.Profile.Theme == "light" }>{ data.T("account.theme_light") }</option>
-								<option value="dark" selected?={ data.Profile.Theme == "dark" }>{ data.T("account.theme_dark") }</option>
-							}
-							@components.SelectField("account-locale", data.T("common.language"), templ.Attributes{"name": "locale"}) {
-								<option value="" selected?={ data.Profile.Locale == "" }>{ data.T("common.automatic") }</option>
-								<option value="en" selected?={ data.Profile.Locale == "en" }>{ data.T("common.english") }</option>
-								<option value="es" selected?={ data.Profile.Locale == "es" }>{ data.T("common.spanish") }</option>
-							}
-							@components.SubmitButton(data.T("common.save"), templ.Attributes{"data-requires-change": true})
+							@atoms.Input(atoms.InputProps{
+								ID:        "display-name",
+								Name:      "display_name",
+								Label:     data.T("account.display_name") + " " + data.T("ui.optional"),
+								Value:     data.Profile.DisplayName,
+								MaxLength: "120",
+								Attrs:     templ.Attributes{"data-trim": true},
+							})
+							@atoms.Input(atoms.InputProps{
+									ID:    "account-email",
+								Label: data.T("common.email"),
+								Value: data.Profile.Email,
+								Attrs: templ.Attributes{"readonly": true},
+							})
+							@atoms.Input(atoms.InputProps{
+									ID:        "account-timezone",
+								Name:      "timezone",
+								Label:     data.T("account.timezone"),
+								Value:     data.Profile.Timezone,
+								Required:  true,
+								MaxLength: "128",
+								Attrs:     templ.Attributes{"data-default": "timezone", "data-trim": true},
+							})
+							@atoms.Select(atoms.SelectProps{
+											ID: "account-theme", Name: "theme", Label: data.T("account.theme"),
+											Attrs: templ.Attributes{"name": "theme"},
+											Options: []atoms.SelectOption{
+												{Label: data.T("account.theme_system"), Value: "system", Selected: data.Profile.Theme == "system"},
+												{Label: data.T("account.theme_light"), Value: "light", Selected: data.Profile.Theme == "light"},
+												{Label: data.T("account.theme_dark"), Value: "dark", Selected: data.Profile.Theme == "dark"},
+											},
+							})
+							@atoms.Select(atoms.SelectProps{
+											ID: "account-locale", Name: "locale", Label: data.T("common.language"),
+											Attrs: templ.Attributes{"name": "locale"},
+											Options: []atoms.SelectOption{
+												{Label: data.T("common.automatic"), Value: "", Selected: data.Profile.Locale == ""},
+												{Label: data.T("common.english"), Value: "en", Selected: data.Profile.Locale == "en"},
+												{Label: data.T("common.spanish"), Value: "es", Selected: data.Profile.Locale == "es"},
+											},
+							})
+							@molecules.SubmitButton(data.T("common.save"), templ.Attributes{"data-requires-change": true})
 						</form>
 					</section>
-					<section class="settings-panel">
+					<section class="settings-panel card min-w-0 p-5">
 						<h2>{ data.T("account.email_verification") }</h2>
 						<p>{ data.T("account.email_verification_description") }</p>
 						if data.Profile.EmailVerifiedAt != nil {
-							@components.SuccessAlert(data.T("account.email_verified"))
+							@molecules.SuccessAlert(data.T("account.email_verified"))
 						} else {
 							<p>{ data.T("account.email_unverified") }</p>
 							<form action="/account/verify-email" method="post">
 								<input type="hidden" name="csrf" value={ data.CSRF }/>
-								@components.SubmitButton(data.T("account.send_verification"), nil)
+								@molecules.SubmitButton(data.T("account.send_verification"), nil)
 							</form>
 						}
 					</section>
 					if data.CurrentAuthMethod == "local" {
-						<section class="settings-panel">
+						<section class="settings-panel card min-w-0 p-5">
 							<h2>{ data.T("account.change_password") }</h2>
 							<p>{ data.T("account.password_description") }</p>
 							<form action="/account/password" method="post">
 								<input type="hidden" name="csrf" value={ data.CSRF }/>
-								@components.TextField("current-password", data.T("account.current_password"), templ.Attributes{"name": "current_password", "type": "password", "autocomplete": "current-password", "required": true})
-								@components.TextField("new-password", data.T("account.new_password"), templ.Attributes{"name": "new_password", "type": "password", "autocomplete": "new-password", "minlength": "12", "maxlength": "1024", "required": true, "data-strength": true})
-								@components.TextField("password-confirmation", data.T("account.confirm_password"), templ.Attributes{"name": "password_confirmation", "type": "password", "autocomplete": "new-password", "minlength": "12", "maxlength": "1024", "required": true, "data-match": "new-password"})
-								@components.SubmitButton(data.T("account.change_password"), nil)
+								@molecules.TextField("current-password", data.T("account.current_password"), templ.Attributes{"name": "current_password", "type": "password", "autocomplete": "current-password", "required": true})
+								@molecules.TextField("new-password", data.T("account.new_password"), templ.Attributes{"name": "new_password", "type": "password", "autocomplete": "new-password", "minlength": "12", "maxlength": "1024", "required": true, "data-strength": true})
+								@molecules.TextField("password-confirmation", data.T("account.confirm_password"), templ.Attributes{"name": "password_confirmation", "type": "password", "autocomplete": "new-password", "minlength": "12", "maxlength": "1024", "required": true, "data-match": "new-password"})
+								@molecules.SubmitButton(data.T("account.change_password"), nil)
 							</form>
 						</section>
 					}
-					<section class="settings-panel">
+					<section class="settings-panel card min-w-0 p-5">
 						<h2>{ data.T("account.notifications") }</h2>
 						<p><a href="/notifications">{ data.T("account.view_notifications") }</a></p>
 						if len(data.NotificationPreferences) == 0 {
-							@components.EmptyState(data.T("workspace.notifications_empty"))
+							@molecules.EmptyState(data.T("workspace.notifications_empty"))
 						} else {
-							<ul class="settings-records">
+							<ul class="settings-records grid list-none gap-4 p-0">
 								for _, preference := range data.NotificationPreferences {
-									<li class="settings-record"><span>{ workspaceNotificationLabel(data, preference.NotificationType) }</span><span>
+									<li class="settings-record card card-compact flex flex-wrap items-center justify-between gap-4 bg-base-200 px-4 py-3"><span>{ workspaceNotificationLabel(data, preference.NotificationType) }</span><span>
 										if preference.Enabled {
 											{ data.T("account.enabled") }
 										} else {
@@ -100,26 +128,44 @@ templ accountPageView(data viewmodel.PageData) {
 						}
 						<form action="/account/notifications" method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							@components.SelectField("notification-type", data.T("account.notification_type"), templ.Attributes{"name": "notification_type"}) {
-								<option value="security">{ data.T("workspace.notification_security") }</option>
-								<option value="workspace">{ data.T("workspace.notification_workspace") }</option>
-								<option value="system">{ data.T("workspace.notification_system") }</option>
-							}
-							@components.SelectField("notification-enabled", data.T("account.notification_delivery"), templ.Attributes{"name": "enabled"}) {
-								<option value="true">{ data.T("account.enabled") }</option>
-								<option value="false">{ data.T("account.disabled") }</option>
-							}
-							@components.SubmitButton(data.T("common.save"), nil)
+							@atoms.Select(atoms.SelectProps{
+											ID: "notification-type", Name: "notification_type", Label: data.T("account.notification_type"),
+											Attrs: templ.Attributes{"name": "notification_type"},
+											Options: []atoms.SelectOption{
+												{Label: data.T("workspace.notification_security"), Value: "security"},
+												{Label: data.T("workspace.notification_workspace"), Value: "workspace"},
+												{Label: data.T("workspace.notification_system"), Value: "system"},
+											},
+							})
+							@atoms.Select(atoms.SelectProps{
+											ID: "notification-enabled", Name: "enabled", Label: data.T("account.notification_delivery"),
+											Attrs: templ.Attributes{"name": "enabled"},
+											Options: []atoms.SelectOption{
+												{Label: data.T("account.enabled"), Value: "true"},
+												{Label: data.T("account.disabled"), Value: "false"},
+											},
+							})
+							@molecules.SubmitButton(data.T("common.save"), nil)
 						</form>
 					</section>
-					<section class="settings-panel danger-panel settings-panel-wide">
+					<section class="settings-panel card min-w-0 p-5 danger-panel settings-panel-wide">
 						<h2>{ data.T("account.delete_account") }</h2>
 						<p id="delete-description">{ data.T("account.delete_description") }</p>
 						<form action="/account/delete" method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							@components.TextField("delete-password", data.T("account.current_password"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password", "required": true})
-							<label class="confirmation" for="delete-confirm"><input id="delete-confirm" name="confirm_delete" type="checkbox" value="yes" required aria-describedby="delete-description"/><span>{ data.T("account.delete_confirmation_label") }</span></label>
-							<button class="btn btn-error danger" type="submit">{ data.T("account.delete_account") }</button>
+							@molecules.TextField("delete-password", data.T("account.current_password"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password", "required": true})
+							@atoms.Checkbox(atoms.CheckboxProps{
+									ID:         "delete-confirm",
+									Name:       "confirm_delete",
+									After:      data.T("account.delete_confirmation_label"),
+									LabelClass: "confirmation",
+									Attrs:      templ.Attributes{"value": "yes", "required": true, "aria-describedby": "delete-description"},
+								})
+							@atoms.Button(atoms.ButtonProps{
+									Class: "btn-error danger",
+									Label: data.T("account.delete_account"),
+									Attrs: templ.Attributes{"type": "submit"},
+								})
 						</form>
 					</section>
 				</div>
@@ -128,26 +174,30 @@ templ accountPageView(data viewmodel.PageData) {
 }
 
 templ languageSettingsView(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, layouts.AccountHeader(data), nil) {
-		<div class="account-page narrow" data-account-page>
+	@templates.DashboardShell(data, organisms.AccountHeader(data), nil) {
+		<div class="account-page narrow card mx-auto w-full max-w-xl my-6 p-6" data-account-page>
 				<p class="eyebrow">{ data.T("common.account") }</p>
 				<h1>{ data.T("account.language_settings_title") }</h1>
 				<p class="account-intro">{ data.T("account.language_settings_description") }</p>
 				if data.Saved {
-					@components.SuccessAlert(data.T("account.language_saved"))
+					@molecules.SuccessAlert(data.T("account.language_saved"))
 				}
 				if data.Error != "" {
-					@components.ErrorAlert(data.Error)
+					@molecules.ErrorAlert(data.Error)
 				}
-				<section class="settings-panel">
+				<section class="settings-panel card min-w-0 p-5">
 					<form action="/settings/language" method="post">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						@components.SelectField("language", data.T("common.language"), templ.Attributes{"name": "locale", "aria-label": data.T("common.language")}) {
-							<option value="" selected?={ data.UserLocale == "" }>{ data.T("common.automatic") }</option>
-							<option value="en" selected?={ data.UserLocale == "en" }>{ data.T("common.english") }</option>
-							<option value="es" selected?={ data.UserLocale == "es" }>{ data.T("common.spanish") }</option>
-						}
-						@components.SubmitButton(data.T("common.save"), nil)
+						@atoms.Select(atoms.SelectProps{
+										ID: "language", Name: "locale", Label: data.T("common.language"),
+										Attrs: templ.Attributes{"aria-label": data.T("common.language")},
+										Options: []atoms.SelectOption{
+											{Label: data.T("common.automatic"), Value: "", Selected: data.UserLocale == ""},
+											{Label: data.T("common.english"), Value: "en", Selected: data.UserLocale == "en"},
+											{Label: data.T("common.spanish"), Value: "es", Selected: data.UserLocale == "es"},
+										},
+						})
+						@molecules.SubmitButton(data.T("common.save"), nil)
 					</form>
 				</section>
 		</div>

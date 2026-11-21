@@ -946,6 +946,15 @@ func (h *Handler) defaultHomeHref(ctx context.Context, userID identity.UserID) s
 	return "/workspaces/" + workspaceID.String()
 }
 
+// listVisibleParam reads a column visibility POST. A missing visible field
+// means the toggle was unchecked, so it reads as false.
+func listVisibleParam(request *http.Request) string {
+	if value := request.FormValue("visible"); value != "" {
+		return value
+	}
+	return "false"
+}
+
 func (h *Handler) render(writer http.ResponseWriter, status int, name string, data viewmodel.PageData) {
 	data.FilesEnabled = h.files != nil
 	data.ClientsEnabled = h.clients != nil

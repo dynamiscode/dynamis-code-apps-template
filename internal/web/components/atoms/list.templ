@@ -1,0 +1,15 @@
+// data_display
+// https://daisyui.com/components/list
+package atoms
+
+type ListProps struct {
+	Class string
+}
+
+templ List(props ListProps) {
+	<ul class={ "list", props.Class }>{ children... }</ul>
+}
+
+templ ListRow(class string) {
+	<li class={ "list-row", class }>{ children... }</li>
+}

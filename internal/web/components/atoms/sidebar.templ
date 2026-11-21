@@ -1,0 +1,18 @@
+// layout
+// persistent sidebar panel; for a toggleable sidebar use Drawer
+// https://daisyui.com/components/drawer
+package atoms
+
+type SidebarProps struct {
+	Class string
+	Title string
+}
+
+templ Sidebar(props SidebarProps) {
+	<aside class={ "bg-base-200 text-base-content min-h-full w-64 lg:w-80 p-4", props.Class }>
+		if props.Title != "" {
+			<h2 class="font-bold p-2">{ props.Title }</h2>
+		}
+		{ children... }
+	</aside>
+}

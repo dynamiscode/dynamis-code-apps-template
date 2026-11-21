@@ -39,7 +39,7 @@ home="$(curl --fail --silent --show-error -L -b "$cookies" -c "$cookies" \
   --data-urlencode "email=smoke@example.com" \
   --data-urlencode "password=smoke-password-123" \
   --data-urlencode "csrf=$login_csrf" "http://127.0.0.1:$port/login")"
-workspace_path="$(printf '%s' "$home" | grep -o '/workspaces/[^" ]*' | head -1)"
+workspace_path="$(printf '%s' "$home" | grep -o '/workspaces/[^"/ ]*' | head -1)"
 items_path="$workspace_path/items"
 csrf="$(awk '$6 == "csrf" { print $7 }' "$cookies")"
 curl --fail --silent --show-error -b "$cookies" -o /dev/null \

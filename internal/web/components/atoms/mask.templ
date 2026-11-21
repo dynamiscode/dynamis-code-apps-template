@@ -1,0 +1,28 @@
+// layout
+// https://daisyui.com/components/mask
+package atoms
+
+type MaskProps struct {
+	// Shape is required: squircle, heart, hexagon, hexagon-2, decagon,
+	// pentagon, diamond, circle, star, star-2, triangle, triangle-2,
+	// triangle-3, triangle-4
+	Shape string
+	Class string
+	Src   string
+	Alt   string
+	// Half: "" (full), "1", or "2" for half-shape masks
+	Half string
+}
+
+templ Mask(props MaskProps) {
+	<img
+		class={
+			"mask",
+			"mask-" + props.Shape,
+			templ.KV("mask-half-"+props.Half, props.Half != ""),
+			props.Class,
+		}
+		src={ props.Src }
+		alt={ props.Alt }
+	/>
+}

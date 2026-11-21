@@ -1,0 +1,30 @@
+// feedback
+// https://daisyui.com/components/progress
+package atoms
+
+type ProgressProps struct {
+	Value int
+	Max   int
+	Class string
+	Label string
+	Attrs templ.Attributes
+}
+
+func (props ProgressProps) max() int {
+	if props.Max == 0 {
+		return 100
+	}
+	return props.Max
+}
+
+templ Progress(props ProgressProps) {
+	<progress
+		class={ "progress", props.Class }
+		value={ props.Value }
+		max={ props.max() }
+		aria-label={ props.Label }
+		aria-valuemin="0"
+		aria-valuenow={ props.Value }
+		{ props.Attrs... }
+	></progress>
+}

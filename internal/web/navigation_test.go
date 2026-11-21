@@ -1,11 +1,14 @@
 package web
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import (
 	"bytes"
 	"context"
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/web/layouts"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"github.com/a-h/templ"
 	"strings"
@@ -19,9 +22,9 @@ func TestNavigationComponentsEscapeInput(t *testing.T) {
 		t.Fatal(err)
 	}
 	components := map[string]func(viewmodel.PageData) templ.Component{
-		"ui-head": layouts.UiHead, "skip-link": layouts.SkipLink, "workspace-context": layouts.WorkspaceContext,
-		"workspace-list-crumb": layouts.WorkspaceListCrumb, "default-home-crumb": layouts.DefaultHomeCrumb,
-		"account-menu": layouts.AccountMenu, "workspace-nav": layouts.WorkspaceNav, "people-tabs": layouts.PeopleTabs,
+		"ui-head": templates.UiHead, "skip-link": molecules.SkipLink, "workspace-context": organisms.WorkspaceContext,
+		"workspace-list-crumb": molecules.WorkspaceListCrumb, "default-home-crumb": molecules.DefaultHomeCrumb,
+		"account-menu": organisms.AccountMenu, "workspace-nav": organisms.WorkspaceNav, "people-tabs": organisms.PeopleTabs,
 	}
 	data := viewmodel.PageData{
 		Catalog: catalog, Locale: "es", NavSection: "settings", NavPage: "invitations",

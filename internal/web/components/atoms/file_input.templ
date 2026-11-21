@@ -1,0 +1,56 @@
+// data_input
+// https://daisyui.com/components/file-input
+package atoms
+
+type FileInputProps struct {
+	Name            string
+	ID              string // when set, the label binds with for=id
+	Label           string
+	Value           string
+	Description     string
+	Attrs           templ.Attributes
+	DisabledMessage string
+	Required        bool
+	Size            string
+}
+
+templ FileInput(props FileInputProps) {
+	<fieldset
+		class="fieldset tooltip tooltip-top w-full"
+		if props.DisabledMessage != "" {
+			data-tip={ props.DisabledMessage }
+		}
+	>
+		if props.Label != "" {
+			if props.ID != "" {
+				<label class="fieldset-legend" for={ props.ID }>{ props.Label }</label>
+			} else {
+				<legend class="fieldset-legend">{ props.Label }</legend>
+			}
+		}
+		<input
+			type="file"
+			class={
+				"file-input w-full",
+				templ.KV("file-input-xs", props.Size == "xs"),
+				templ.KV("file-input-sm", props.Size == "sm"),
+				templ.KV("file-input-lg", props.Size == "lg"),
+				templ.KV("file-input-xl", props.Size == "xl"),
+			}
+			name={ props.Name }
+			if props.ID != "" {
+				id={ props.ID }
+			}
+			if props.Required {
+				required
+			}
+			if props.DisabledMessage != "" {
+				disabled
+			}
+			{ props.Attrs... }
+		/>
+		if props.Description != "" {
+			<label class="fieldset-label">{ props.Description }</label>
+		}
+	</fieldset>
+}

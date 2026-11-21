@@ -128,7 +128,7 @@ func TestFilesPageRendersOrdinaryMultipartUploadForm(t *testing.T) {
 	body := page.Body.String()
 	if page.Code != http.StatusOK || !strings.Contains(body, `action="`+env.filesPath()+`"`) ||
 		!strings.Contains(body, `method="post"`) || !strings.Contains(body, `enctype="multipart/form-data"`) ||
-		!strings.Contains(body, `name="csrf"`) || !strings.Contains(body, `type="file" name="file"`) {
+		!strings.Contains(body, `name="csrf"`) || !strings.Contains(body, `type="file"`) || !strings.Contains(body, `name="file"`) {
 		t.Fatalf("files page is not an ordinary multipart upload form: %d, %s", page.Code, body)
 	}
 	if strings.Contains(body, "data-presigned") || strings.Contains(body, "data-initiate") {
@@ -157,7 +157,7 @@ func TestFilesPageRendersTemplShellAndAccessibleEmptyState(t *testing.T) {
 	page := request(env.routes, http.MethodGet, env.filesPath()+"?all=1", nil, env.cookies, nil)
 	body := page.Body.String()
 	for _, want := range []string{
-		`<html lang="en" data-theme=`,
+		`<html lang="en">`,
 		`href="/assets/components.css"`,
 		`href="/workspaces/` + env.workspaceID.String() + `">Home</a>`,
 		`aria-current="page" href="` + env.filesPath() + `">Files</a>`,
@@ -166,7 +166,7 @@ func TestFilesPageRendersTemplShellAndAccessibleEmptyState(t *testing.T) {
 		`class="file-empty-state card" role="status"`,
 		`No files yet.`,
 		`Filter`,
-		`src="/assets/app.js"`,
+		`src="/assets/alpine-components.js"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("Files page missing %q: %s", want, body)

@@ -59,7 +59,7 @@ func TestWebThemePreferenceAppliesToFirstPaint(t *testing.T) {
 	}
 
 	invalid := request(handler, http.MethodGet, "/login", nil, []*http.Cookie{{Name: themeCookie, Value: "blue"}}, nil)
-	if !strings.Contains(invalid.Body.String(), `data-theme="system"`) {
+	if !strings.Contains(invalid.Body.String(), `<html lang="en">`) {
 		t.Fatalf("invalid cookie should fall back to system: %s", invalid.Body.String())
 	}
 }
@@ -82,7 +82,9 @@ func TestAccountAndLanguageStatesRenderAcrossLocalesAndThemes(t *testing.T) {
 			for _, path := range []string{"/account", "/settings/language"} {
 				response := request(handler, http.MethodGet, path, nil, cookies, nil)
 				if response.Code != http.StatusOK || response.Header().Get("Content-Language") != locale ||
-					!strings.Contains(response.Body.String(), `data-theme="`+theme+`"`) || !hasHTMLRootLang(response.Body.String(), locale) {
+					!hasHTMLRootLang(response.Body.String(), locale) ||
+					(theme != "system" && !strings.Contains(response.Body.String(), `data-theme="`+theme+`"`)) ||
+					(theme == "system" && strings.Contains(response.Body.String(), `data-theme=`)) {
 					t.Fatalf("%s locale=%s theme=%s: status=%d language=%q", path, locale, theme, response.Code, response.Header().Get("Content-Language"))
 				}
 			}

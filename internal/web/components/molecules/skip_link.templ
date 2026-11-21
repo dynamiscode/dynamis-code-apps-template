@@ -1,0 +1,8 @@
+package molecules
+
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+
+templ SkipLink(data viewmodel.PageData) {
+	<a class="skip-link" href="#main">{ data.T("ui.skip_to_content") }</a>
+}

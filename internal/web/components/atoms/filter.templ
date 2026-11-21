@@ -1,0 +1,33 @@
+// data_input
+// https://daisyui.com/components/filter
+package atoms
+
+type FilterOption struct {
+	Label string
+	Value string
+}
+
+type FilterProps struct {
+	Name  string // unique per filter set; shared by all radio inputs
+	Class string
+	// ResetLabel overrides the "x" reset button glyph
+	ResetLabel string
+	Options    []FilterOption
+}
+
+func (props FilterProps) resetLabel() string {
+	if props.ResetLabel == "" {
+		return "×"
+	}
+	return props.ResetLabel
+}
+
+templ Filter(props FilterProps) {
+	<form class={ "filter", props.Class }>
+		<input class="btn btn-square" type="reset" value={ props.resetLabel() } aria-label="Reset filter"/>
+		for _, o := range props.Options {
+			<input class="btn" type="radio" name={ props.Name } value={ o.Value } aria-label={ o.Label }/>
+		}
+		{ children... }
+	</form>
+}

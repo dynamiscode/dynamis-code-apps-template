@@ -1,0 +1,37 @@
+package molecules
+
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+
+
+templ SubmitButton(label string, attrs templ.Attributes) {
+	{{
+		if attrs == nil {
+			attrs = templ.Attributes{}
+		}
+		attrs["type"] = "submit"
+	}}
+	@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: label, Attrs: attrs})
+}
+
+
+templ LinkButton(href, label string) {
+	@atoms.Anchor(atoms.AnchorProps{Href: href, Label: label, Class: "btn btn-primary"})
+}
+
+
+// ConfirmButton preserves the existing progressive enhancement for destructive actions.
+templ ConfirmButton(label, prompt string, attrs templ.Attributes) {
+	{{
+		if attrs == nil {
+			attrs = templ.Attributes{}
+		}
+		attrs["type"] = "submit"
+		attrs["data-confirm"] = prompt
+		class := "btn-error danger"
+		if extra, ok := attrs["class"].(string); ok {
+			delete(attrs, "class")
+			class += " " + extra
+		}
+	}}
+	@atoms.Button(atoms.ButtonProps{Class: class, Label: label, Attrs: attrs})
+}

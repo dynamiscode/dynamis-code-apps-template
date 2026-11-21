@@ -1,52 +1,59 @@
 package web
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import "time"
 
 templ sessionsPage(data viewmodel.PageData, currentSessionID string, now time.Time) {
-	@layouts.DashboardShell(data, layouts.AccountHeader(data), nil) {
+	@templates.DashboardShell(data, organisms.AccountHeader(data), nil) {
 		<section class="account-page" aria-labelledby="sessions-heading">
-			<header class="account-heading">
+			<header class="account-heading bg-base-100 border-b border-base-200">
 				<p class="eyebrow">{ data.T("navigation.security") }</p>
 				<h1 id="sessions-heading">{ data.T("sessions.sessions") }</h1>
 				<p class="account-intro">{ data.T("sessions.description") }</p>
 			</header>
 			if data.Saved {
-				@components.SuccessAlert(data.T("sessions.revoked_feedback"))
+				@molecules.SuccessAlert(data.T("sessions.revoked_feedback"))
 			}
 			if len(data.Sessions) == 0 {
-				@components.EmptyState(data.T("sessions.empty"))
+				@molecules.EmptyState(data.T("sessions.empty"))
 			} else {
 				<ul class="session-list">
 					for _, session := range data.Sessions {
-						<li class="session-card">
+						<li class="session-card card min-w-0 p-5">
 							<div class="session-card-heading">
 								<strong>{ data.AuthMethod(session.AuthMethod) }</strong>
 								if session.OIDCProviderID != "" {
 									<span class="session-provider">{ session.OIDCProviderID }</span>
 								}
 								if session.ID == currentSessionID {
-									<span class="session-status">{ data.T("sessions.current") }</span>
+									@atoms.Badge(atoms.BadgeProps{Class: "session-status badge badge-info", Label: data.T("sessions.current")})
 								}
 								if session.RevokedAt != nil {
-									<span class="session-status session-status-revoked">{ data.T("sessions.revoked") }</span>
+									@atoms.Badge(atoms.BadgeProps{Class: "session-status badge badge-warning", Label: data.T("sessions.revoked")})
 								} else if !now.Before(session.ExpiresAt) {
-									<span class="session-status session-status-revoked">{ data.T("sessions.expired") }</span>
+									@atoms.Badge(atoms.BadgeProps{Class: "session-status badge badge-warning", Label: data.T("sessions.expired")})
 								} else {
-									<span class="session-status session-status-active">{ data.T("sessions.active") }</span>
+									@atoms.Badge(atoms.BadgeProps{Class: "session-status badge badge-success", Label: data.T("sessions.active")})
 								}
 							</div>
-							<dl class="session-details">
+							<dl class="session-details grid grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))] gap-3 my-4">
 								<div><dt>{ data.T("sessions.created") }</dt><dd><time datetime={ session.CreatedAt.Format(time.RFC3339) }>{ data.DateTime(session.CreatedAt) }</time></dd></div>
 								<div><dt>{ data.T("sessions.expires") }</dt><dd><time datetime={ session.ExpiresAt.Format(time.RFC3339) }>{ data.DateTime(session.ExpiresAt) }</time></dd></div>
 							</dl>
 							if session.RevokedAt == nil && now.Before(session.ExpiresAt) {
 								<form class="inline" data-webmcp-actions="session-revoke" data-webmcp-id={ session.ID } action={ "/sessions/" + session.ID } method="post">
 									<input type="hidden" name="csrf" value={ data.CSRF }/>
-									<button class="btn btn-secondary secondary" type="submit">{ data.T("sessions.revoke") }</button>
+									@atoms.Button(atoms.ButtonProps{
+										Class: "btn-secondary secondary",
+										Label: data.T("sessions.revoke"),
+										Attrs: templ.Attributes{"type": "submit"},
+									})
 								</form>
 							}
 						</li>
@@ -54,6 +61,5 @@ templ sessionsPage(data viewmodel.PageData, currentSessionID string, now time.Ti
 				</ul>
 			}
 		</section>
-		<script defer src="/assets/app.js"></script>
 	}
 }

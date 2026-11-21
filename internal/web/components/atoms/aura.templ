@@ -1,0 +1,12 @@
+// effects
+// https://daisyui.com/components/aura
+// shortcut: one aura per page per daisyUI guidance; more is visually noisy
+package atoms
+
+type AuraProps struct {
+	Class string
+}
+
+templ Aura(props AuraProps) {
+	<div class={ "aura", props.Class }>{ children... }</div>
+}
