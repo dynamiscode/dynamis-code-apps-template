@@ -1,5 +1,4 @@
 body { margin: 0; background: var(--canvas); color: var(--ink); }
-header { background: var(--surface); border-bottom: 1px solid var(--border); }
 .workspace-name { display: inline-flex; align-items: center; min-height: 2.75rem; max-width: 20rem; padding: .45rem .65rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (min-width: 38.001rem) {
   /* List screens: the heading carries the actions, the toolbar sits close to the table, and live search needs no button. */

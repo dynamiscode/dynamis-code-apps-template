@@ -10,7 +10,7 @@ import atoms "example.com/dynamis-code/apps-template/internal/web/components/ato
 templ accountPageView(data viewmodel.PageData) {
 	@templates.DashboardShell(data, organisms.AccountHeader(data), nil) {
 		<div class="account-page" data-account-page>
-				<header class="account-heading">
+				<header class="account-heading bg-base-100 border-b border-base-200">
 					<p class="eyebrow">{ data.T("common.account") }</p>
 					<h1>{ data.T("account.account") }</h1>
 					<p class="account-intro">{ data.T("account.page_description") }</p>

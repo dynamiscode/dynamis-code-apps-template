@@ -157,14 +157,7 @@ templ emailSettingsView(data viewmodel.PageData) {
 }
 
 templ exportSettingsHeader(data viewmodel.PageData) {
-	<header class="topbar">
-		<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
-		<div class="topbar-context">
-			@molecules.DefaultHomeCrumb(data)
-			@organisms.WorkspaceContext(data)
-		</div>
-		@organisms.AccountMenu(data)
-	</header>
+	@organisms.AccountHeader(data)
 }
 
 templ exportSettingsView(data viewmodel.PageData) {

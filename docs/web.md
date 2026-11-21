@@ -280,7 +280,7 @@ each driven by a template attribute:
 
 | Pattern | Attribute or place | Behavior |
 |---|---|---|
-| Busy state and double-submit prevention | every form | A submit marks the form `aria-busy`, disables its buttons with "Saving…", and cancels a second submit. The file upload form keeps its own state machine. |
+| Busy state and double-submit prevention | every form | A submit marks the form `aria-busy`, disables its buttons with "Saving…" plus a daisyUI `loading` spinner, and cancels a second submit. The file upload form keeps its own state machine. |
 | Inline validation and error summary | every form | Fields are checked when left and on submit; invalid fields get a message and `aria-invalid`, and a focused summary links to each one. A full-page server error takes focus on load. |
 | Forgiving format | `data-trim`, MFA codes | Text is trimmed. The server accepts authenticator codes with spaces or dashes and recovery codes in any case. |
 | Input masks | `data-mask="digits"`, `data-mask="upper"` | Authenticator codes keep digits only; recovery codes become upper case. |

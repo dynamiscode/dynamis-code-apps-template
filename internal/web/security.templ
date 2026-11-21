@@ -10,7 +10,7 @@ import atoms "example.com/dynamis-code/apps-template/internal/web/components/ato
 templ securityPage(data viewmodel.PageData) {
 	@templates.DashboardShell(data, organisms.AccountHeader(data), nil) {
 		<div class="account-page" data-account-page aria-labelledby="security-heading">
-			<header class="account-heading">
+			<header class="account-heading bg-base-100 border-b border-base-200">
 				<p class="eyebrow">{ data.T("common.account") }</p>
 				<h1 id="security-heading">{ data.T("security.security") }</h1>
 				<p class="account-intro">{ data.T("security.description") }</p>

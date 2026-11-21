@@ -10,7 +10,7 @@ description: Check the item create form's submit lifecycle (busy button while se
 1. **OneItemPerKey.** One Add press never makes two items, even when resent. Harm: duplicate items from double clicks or retries.
 2. **NoSilentLoss.** Every Add with a real title is stored, or the page says it was not. Harm: the user thinks an item was saved when it was dropped.
 3. **InputKeptOnReject.** After the server rejects a title (blank, item limit, reused form key), the box still shows it. Harm: retyping after one mistake.
-4. **BusyWhileSending.** While an Add is on its way, the button is disabled and shows "Saving". Harm: no feedback, so users press again.
+4. **BusyWhileSending.** While an Add is on its way, the button is disabled and shows "Saving" with a daisyUI `loading` spinner. Harm: no feedback, so users press again.
 5. **OneRequestInFlight.** At most one Add is in flight from the form.
 
 ## What is modeled

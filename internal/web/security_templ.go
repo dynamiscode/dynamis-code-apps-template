@@ -45,7 +45,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"account-page\" data-account-page aria-labelledby=\"security-heading\"><header class=\"account-heading\"><p class=\"eyebrow\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"account-page\" data-account-page aria-labelledby=\"security-heading\"><header class=\"account-heading bg-base-100 border-b border-base-200\"><p class=\"eyebrow\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

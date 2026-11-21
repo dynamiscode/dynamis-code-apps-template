@@ -12,7 +12,7 @@ import "time"
 templ sessionsPage(data viewmodel.PageData, currentSessionID string, now time.Time) {
 	@templates.DashboardShell(data, organisms.AccountHeader(data), nil) {
 		<section class="account-page" aria-labelledby="sessions-heading">
-			<header class="account-heading">
+			<header class="account-heading bg-base-100 border-b border-base-200">
 				<p class="eyebrow">{ data.T("navigation.security") }</p>
 				<h1 id="sessions-heading">{ data.T("sessions.sessions") }</h1>
 				<p class="account-intro">{ data.T("sessions.description") }</p>
