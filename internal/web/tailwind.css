@@ -3,8 +3,10 @@
   themes: light --default, dark --prefersdark;
 }
 @source "./workspace.templ";
-@source "./components";
-@source "./layouts";
+@source "./components/atoms";
+@source "./components/molecules";
+@source "./components/organisms";
+@source "./components/templates";
 @source "./clients.templ";
 @source "./notifications.templ";
 @source "./webhooks.templ";

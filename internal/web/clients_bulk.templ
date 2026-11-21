@@ -1,7 +1,8 @@
 package web
 
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 // clientBulkBar is the bulk form for the rows on this page. Its checkboxes and buttons name the form by id, so the
 // table needs no form of its own. Archive and delete read the selected client IDs and return to this list.
@@ -11,12 +12,12 @@ templ clientBulkBar(data viewmodel.PageData) {
 		<input type="hidden" name="return" value={ data.CurrentPath + data.ClientQuerySuffix }/>
 				<span class="client-bulk-count" aria-live="polite" data-count-template={ data.T("clients.bulk_selected", map[string]any{"count": "COUNT"}) }>{ data.T("clients.bulk_selected", map[string]any{"count": 0}) }</span>
 		@atoms.Button(atoms.ButtonProps{Class: "btn-ghost btn-xs", Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "archive", "data-bulk-action": true}}) {
-			@components.ListActionIcon("archive")
+			@organisms.ListActionIcon("archive")
 			{ data.T("clients.bulk_archive") }
 		}
 		if data.CanDeleteClients {
 			@atoms.Button(atoms.ButtonProps{Class: "btn-xs client-bulk-danger", Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "delete", "data-bulk-action": true, "data-confirm": data.T("clients.bulk_delete_confirm")}}) {
-				@components.ListActionIcon("delete")
+				@organisms.ListActionIcon("delete")
 				{ data.T("clients.bulk_delete") }
 			}
 		}

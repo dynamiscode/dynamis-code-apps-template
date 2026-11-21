@@ -9,10 +9,12 @@ package web
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 
 func filesPage(data viewmodel.PageData, canUpload bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -48,7 +50,7 @@ func filesPage(data viewmodel.PageData, canUpload bool) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.ErrorKey != "" {
-				templ_7745c5c3_Err = components.ErrorAlert(data.T(data.ErrorKey)).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.T(data.ErrorKey)).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -61,7 +63,7 @@ func filesPage(data viewmodel.PageData, canUpload bool) templ.Component {
 				var templ_7745c5c3_Var3 string
 				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("files.upload"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 16, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 18, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 				if templ_7745c5c3_Err != nil {
@@ -74,7 +76,7 @@ func filesPage(data viewmodel.PageData, canUpload bool) templ.Component {
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("files.status_uploading")).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 18, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 20, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 				if templ_7745c5c3_Err != nil {
@@ -87,7 +89,7 @@ func filesPage(data viewmodel.PageData, canUpload bool) templ.Component {
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("files.status_success")).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 19, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 21, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 				if templ_7745c5c3_Err != nil {
@@ -100,7 +102,7 @@ func filesPage(data viewmodel.PageData, canUpload bool) templ.Component {
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("files.status_error")).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 20, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 22, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 				if templ_7745c5c3_Err != nil {
@@ -113,7 +115,7 @@ func filesPage(data viewmodel.PageData, canUpload bool) templ.Component {
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("files.status_choose_file")).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 21, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 23, Col: 66}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 				if templ_7745c5c3_Err != nil {
@@ -126,7 +128,7 @@ func filesPage(data viewmodel.PageData, canUpload bool) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CurrentPath).ResolveURL(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 22, Col: 31}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 24, Col: 31}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 				if templ_7745c5c3_Err != nil {
@@ -139,7 +141,7 @@ func filesPage(data viewmodel.PageData, canUpload bool) templ.Component {
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 23, Col: 56}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 25, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 				if templ_7745c5c3_Err != nil {
@@ -153,7 +155,7 @@ func filesPage(data viewmodel.PageData, canUpload bool) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = components.SubmitButton(data.T("files.upload"), nil).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.SubmitButton(data.T("files.upload"), nil).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -177,7 +179,7 @@ func filesPage(data viewmodel.PageData, canUpload bool) templ.Component {
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("files.recent"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 34, Col: 80}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 36, Col: 80}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -187,7 +189,7 @@ func filesPage(data viewmodel.PageData, canUpload bool) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.ListScreen(data, "files.search", fileListTools(data), fileResults(data)).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = organisms.ListScreen(data, "files.search", fileListTools(data), fileResults(data)).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -199,7 +201,7 @@ func filesPage(data viewmodel.PageData, canUpload bool) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.DashboardHomeNavigation(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -225,7 +227,7 @@ func fileListTools(data viewmodel.PageData) templ.Component {
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = components.ListColumnsMenu(data, data.ClientQuerySuffix).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = molecules.ListColumnsMenu(data, data.ClientQuerySuffix).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -251,7 +253,7 @@ func fileResults(data viewmodel.PageData) templ.Component {
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = components.ListResults(data, data.FileListQuery.Limit, listPageSizeOptions(data.FileListQuery.Limit, listPageSizes), data.ClientQuerySuffix, fileList(data), templ.NopComponent).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = organisms.ListResults(data, data.FileListQuery.Limit, listPageSizeOptions(data.FileListQuery.Limit, listPageSizes), data.ClientQuerySuffix, fileList(data), templ.NopComponent).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -289,7 +291,7 @@ func fileList(data viewmodel.PageData) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = components.ListHeader(data, data.T("clients.actions")).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = organisms.ListHeader(data, data.T("clients.actions")).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -310,17 +312,17 @@ func fileList(data viewmodel.PageData) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = components.ListCells(data, row, data.CurrentPath+"/"+row.ID+"/content").Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = organisms.ListCells(data, row, data.CurrentPath+"/"+row.ID+"/content").Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = components.ListActionsCell(data, fileRowActions(data, row)).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = organisms.ListActionsCell(data, fileRowActions(data, row)).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = components.ListRow(data.CurrentPath+"/"+row.ID+"/content").Render(templ.WithChildren(ctx, templ_7745c5c3_Var15), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = organisms.ListRow(data.CurrentPath+"/"+row.ID+"/content").Render(templ.WithChildren(ctx, templ_7745c5c3_Var15), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -331,7 +333,7 @@ func fileList(data viewmodel.PageData) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = components.ListTable(data.T("files.files"), true).Render(templ.WithChildren(ctx, templ_7745c5c3_Var14), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = organisms.ListTable(data.T("files.files"), true).Render(templ.WithChildren(ctx, templ_7745c5c3_Var14), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -360,25 +362,25 @@ func fileList(data viewmodel.PageData) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = components.ListActionsMenu(data, fileRowActions(data, row), true).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = organisms.ListActionsMenu(data, fileRowActions(data, row), true).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = components.ListCardItem(data, row, data.CurrentPath+"/"+row.ID+"/content").Render(templ.WithChildren(ctx, templ_7745c5c3_Var17), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = organisms.ListCardItem(data, row, data.CurrentPath+"/"+row.ID+"/content").Render(templ.WithChildren(ctx, templ_7745c5c3_Var17), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = components.ListCards().Render(templ.WithChildren(ctx, templ_7745c5c3_Var16), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.ListCards().Render(templ.WithChildren(ctx, templ_7745c5c3_Var16), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = components.StatusLine(data.T("clients.columns_choose"), nil).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.StatusLine(data.T("clients.columns_choose"), nil).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -388,7 +390,7 @@ func fileList(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.EmptyState(data.T("files.none")).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.EmptyState(data.T("files.none")).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -400,7 +402,7 @@ func fileList(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var18 string
 				templ_7745c5c3_Var18, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.ClearClientFiltersPath).ResolveURL(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 81, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 83, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 				if templ_7745c5c3_Err != nil {
@@ -413,7 +415,7 @@ func fileList(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var19 string
 				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.clear_filters"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 81, Col: 77}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 83, Col: 77}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 				if templ_7745c5c3_Err != nil {

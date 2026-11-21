@@ -1,0 +1,18 @@
+package molecules
+
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+
+
+templ ErrorAlert(message string) {
+	@atoms.Alert(atoms.AlertProps{Class: "alert-error error", Attrs: templ.Attributes{"tabindex": "-1"}}) {
+		{ message }
+	}
+}
+
+
+templ SuccessAlert(message string) {
+	@atoms.Alert(atoms.AlertProps{Class: "alert-success success", Attrs: templ.Attributes{"role": "status"}}) {
+		{ message }{ " " }
+		{ children... }
+	}
+}

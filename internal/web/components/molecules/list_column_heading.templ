@@ -1,0 +1,34 @@
+package molecules
+
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+
+templ ClientColumnLabel(data viewmodel.PageData, column viewmodel.ListColumn) {
+	if column.LabelKey != "" {
+		{ data.T(column.LabelKey) }
+	} else {
+		{ column.Label }
+	}
+}
+
+
+templ ClientColumnHeading(data viewmodel.PageData, column viewmodel.ListColumn) {
+	if column.SortDirection != "" {
+		<th scope="col" data-column={ column.Key } aria-sort={ column.SortDirection }>
+			if column.SortHref != "" {
+				<a href={ column.SortHref } { ListLiveLinkAttributes(data, column.SortHref)... }>@atoms.HeaderText(ClientColumnLabelText(data, column), nil)</a>
+			} else {
+				@atoms.HeaderText(ClientColumnLabelText(data, column), nil)
+			}
+		</th>
+	} else {
+		<th scope="col" data-column={ column.Key }>
+			if column.SortHref != "" {
+				<a href={ column.SortHref } { ListLiveLinkAttributes(data, column.SortHref)... }>@atoms.HeaderText(ClientColumnLabelText(data, column), nil)</a>
+			} else {
+				@atoms.HeaderText(ClientColumnLabelText(data, column), nil)
+			}
+		</th>
+	}
+}

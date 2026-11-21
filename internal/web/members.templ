@@ -1,17 +1,19 @@
 package web
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import "example.com/dynamis-code/apps-template/internal/identity"
 
 templ membersPage(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, layouts.DashboardHeader(data), memberSettingsNavigation(data)) {
-		@layouts.PeopleTabs(data)
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), memberSettingsNavigation(data)) {
+		@organisms.PeopleTabs(data)
 		if data.Error != "" {
-			@components.ErrorAlert(data.Error)
+			@molecules.ErrorAlert(data.Error)
 		}
 		<p class="status">{ data.T("members.role_help") }</p>
 		if data.CanTransfer {
@@ -33,50 +35,50 @@ templ membersPage(data viewmodel.PageData) {
 }
 
 templ memberSettingsNavigation(data viewmodel.PageData) {
-	<aside class="sidebar"><a class="sidebar-back" href={ "/workspaces/"+data.Workspace.ID.String() }>{ "← " }{ data.T("workspace.back_to_home") }</a>@layouts.WorkspaceNav(data)</aside>
+	<aside class="sidebar"><a class="sidebar-back" href={ "/workspaces/"+data.Workspace.ID.String() }>{ "← " }{ data.T("workspace.back_to_home") }</a>@organisms.WorkspaceNav(data)</aside>
 }
 
 templ memberListView(data viewmodel.PageData) {
-	@components.ListScreen(data, "members.search", memberListTools(data), memberResults(data))
+	@organisms.ListScreen(data, "members.search", memberListTools(data), memberResults(data))
 }
 
 // memberListTools are the member list's own controls on the toolbar: the columns.
 templ memberListTools(data viewmodel.PageData) {
-	@components.ListColumnsMenu(data, data.ClientQuerySuffix)
+	@molecules.ListColumnsMenu(data, data.ClientQuerySuffix)
 }
 
 // memberResults is the Members results region: the table or cards and the empty state. A live search also
 // refreshes the filter bar out of band.
 templ memberResults(data viewmodel.PageData) {
-	@components.ListResults(data, data.MemberListQuery.Limit, listPageSizeOptions(data.MemberListQuery.Limit, memberPageSizes), data.ClientQuerySuffix, memberRows(data), templ.NopComponent)
+	@organisms.ListResults(data, data.MemberListQuery.Limit, listPageSizeOptions(data.MemberListQuery.Limit, memberPageSizes), data.ClientQuerySuffix, memberRows(data), templ.NopComponent)
 }
 
 templ memberRows(data viewmodel.PageData) {
 	if data.HasVisibleClientColumns {
-		@components.ListTable(data.T("members.members"), true) {
-			@components.ListHeader(data, data.T("clients.actions"))
+		@organisms.ListTable(data.T("members.members"), true) {
+			@organisms.ListHeader(data, data.T("clients.actions"))
 			<tbody>
 				for _, row := range data.ListRows {
-					@components.ListRow("") {
-						@components.ListCells(data, row, "")
-						<td class="list-actions-cell">@components.ListRowMenu(data) {
+					@organisms.ListRow("") {
+						@organisms.ListCells(data, row, "")
+						<td class="list-actions-cell">@molecules.ListRowMenu(data) {
 							@memberActions(data, row.Member, "table")
 						}</td>
 					}
 				}
 			</tbody>
 		}
-		@components.ListCards() {
+		@molecules.ListCards() {
 			for _, row := range data.ListRows {
-				@components.ListCardItem(data, row, "") {
-					@components.ListRowMenuCard(data) {
+				@organisms.ListCardItem(data, row, "") {
+					@organisms.ListRowMenuCard(data) {
 						@memberActions(data, row.Member, "card")
 					}
 				}
 			}
 		}
 	} else {
-		@components.StatusLine(data.T("clients.columns_choose"), nil)
+		@molecules.StatusLine(data.T("clients.columns_choose"), nil)
 	}
 	if data.MemberTotal == 0 {
 		<p id="member-results" role="status">{ data.T("members.none") } @atoms.Link(atoms.LinkProps{Href: data.ClearClientFiltersPath, Text: data.T("clients.clear_filters")})</p>
@@ -113,7 +115,7 @@ templ memberActions(data viewmodel.PageData, member identity.MemberSummary, suff
 			if data.CanTransfer {
 				<form data-webmcp-actions="ownership-transfer" data-webmcp-id={ member.ID.String() } action={ "/workspaces/"+data.Workspace.ID.String()+"/settings/members" } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="member_id" value={ member.ID.String() }/>
-					<fieldset><legend>{ data.T("members.transfer_consequence") }</legend>@components.ConfirmationField("confirm-transfer-"+member.ID.String()+"-"+suffix, "confirm_transfer", data.T("members.transfer_confirm"))@atoms.Button(atoms.ButtonProps{Class: "btn-error danger", Label: data.T("members.transfer"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "transfer"}})</fieldset>
+					<fieldset><legend>{ data.T("members.transfer_consequence") }</legend>@molecules.ConfirmationField("confirm-transfer-"+member.ID.String()+"-"+suffix, "confirm_transfer", data.T("members.transfer_confirm"))@atoms.Button(atoms.ButtonProps{Class: "btn-error danger", Label: data.T("members.transfer"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "transfer"}})</fieldset>
 				</form>
 			}
 		</div>

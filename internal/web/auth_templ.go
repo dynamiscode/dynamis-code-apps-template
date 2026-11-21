@@ -9,9 +9,10 @@ package web
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 func authLayout(data viewmodel.PageData, heading string) templ.Component {
@@ -39,7 +40,7 @@ func authLayout(data viewmodel.PageData, heading string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.Locale).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 10, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 11, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -52,7 +53,7 @@ func authLayout(data viewmodel.PageData, heading string) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.Theme).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 10, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 11, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -62,7 +63,7 @@ func authLayout(data viewmodel.PageData, heading string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = layouts.PageHead(data, heading).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templates.PageHead(data, heading).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -70,7 +71,7 @@ func authLayout(data viewmodel.PageData, heading string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = layouts.SkipLink(data).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = molecules.SkipLink(data).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -81,7 +82,7 @@ func authLayout(data viewmodel.PageData, heading string) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("common.product_name"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 17, Col: 116}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 18, Col: 116}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -139,7 +140,7 @@ func authLogin(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.sign_in"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 28, Col: 33}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 29, Col: 33}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -152,7 +153,7 @@ func authLogin(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.sign_in_description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 29, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 30, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
@@ -163,7 +164,7 @@ func authLogin(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.Error != "" {
-				templ_7745c5c3_Err = components.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -175,7 +176,7 @@ func authLogin(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 34, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 35, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 			if templ_7745c5c3_Err != nil {
@@ -188,7 +189,7 @@ func authLogin(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.ReturnTo).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 35, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 36, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 			if templ_7745c5c3_Err != nil {
@@ -223,7 +224,7 @@ func authLogin(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.SubmitButton(data.T("account.sign_in"), nil).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButton(data.T("account.sign_in"), nil).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -234,7 +235,7 @@ func authLogin(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.forgot_password"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 57, Col: 93}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 58, Col: 93}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -252,7 +253,7 @@ func authLogin(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.other_sign_in_methods"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 60, Col: 76}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 61, Col: 76}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
@@ -270,7 +271,7 @@ func authLogin(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var13 string
 					templ_7745c5c3_Var13, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/auth/oidc/" + provider.ID).ResolveURL(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 63, Col: 55}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 64, Col: 55}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 					if templ_7745c5c3_Err != nil {
@@ -283,7 +284,7 @@ func authLogin(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var14 string
 					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.sign_in_with", map[string]any{"provider": provider.Name}))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 63, Col: 133}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 64, Col: 133}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 					if templ_7745c5c3_Err != nil {
@@ -345,7 +346,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("setup.title"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 73, Col: 29}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 74, Col: 29}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
@@ -358,7 +359,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("setup.description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 74, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 75, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {
@@ -371,7 +372,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("setup.optional_later"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 75, Col: 75}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 76, Col: 75}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 			if templ_7745c5c3_Err != nil {
@@ -382,7 +383,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.Error != "" {
-				templ_7745c5c3_Err = components.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -394,7 +395,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 80, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 81, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 			if templ_7745c5c3_Err != nil {
@@ -407,7 +408,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var21 string
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("setup.step_account"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 82, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 83, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 			if templ_7745c5c3_Err != nil {
@@ -486,7 +487,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("setup.step_workspace"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 132, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 133, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 			if templ_7745c5c3_Err != nil {
@@ -522,7 +523,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.SubmitButton(data.T("setup.create_owner"), nil).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButton(data.T("setup.create_owner"), nil).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -576,7 +577,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var25 string
 			templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(data.T(authPasswordResetTitle(data)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 157, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 158, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 			if templ_7745c5c3_Err != nil {
@@ -587,7 +588,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.Saved {
-				templ_7745c5c3_Err = components.SuccessAlert(data.T(authPasswordResetSuccess(data))).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.SuccessAlert(data.T(authPasswordResetSuccess(data))).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -595,7 +596,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = components.LinkButton("/login", data.T("account.sign_in")).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.LinkButton("/login", data.T("account.sign_in")).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -605,7 +606,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 				}
 			} else {
 				if data.ErrorKey != "" {
-					templ_7745c5c3_Err = components.ErrorAlert(data.T(data.ErrorKey)).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.ErrorAlert(data.T(data.ErrorKey)).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -622,7 +623,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var26 string
 					templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.choose_password_description"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 166, Col: 73}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 167, Col: 73}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 					if templ_7745c5c3_Err != nil {
@@ -635,7 +636,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var27 string
 					templ_7745c5c3_Var27, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/password-reset/" + data.PasswordResetSecret).ResolveURL(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 167, Col: 64}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 168, Col: 64}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
 					if templ_7745c5c3_Err != nil {
@@ -648,7 +649,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var28 string
 					templ_7745c5c3_Var28, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 168, Col: 55}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 169, Col: 55}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 					if templ_7745c5c3_Err != nil {
@@ -684,7 +685,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = components.SubmitButton(data.T("account.reset_password"), nil).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.SubmitButton(data.T("account.reset_password"), nil).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -700,7 +701,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var29 string
 					templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.password_reset_description"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 192, Col: 72}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 193, Col: 72}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 					if templ_7745c5c3_Err != nil {
@@ -713,7 +714,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var30 string
 					templ_7745c5c3_Var30, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 194, Col: 55}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 195, Col: 55}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 					if templ_7745c5c3_Err != nil {
@@ -735,7 +736,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = components.SubmitButton(data.T("account.send_reset"), nil).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.SubmitButton(data.T("account.send_reset"), nil).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -791,7 +792,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var33 string
 			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_title"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 213, Col: 36}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 214, Col: 36}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 			if templ_7745c5c3_Err != nil {
@@ -804,7 +805,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var34 string
 			templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_verify_prompt"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 214, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 215, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 			if templ_7745c5c3_Err != nil {
@@ -815,7 +816,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.MFAError != "" {
-				templ_7745c5c3_Err = components.ErrorAlert(data.MFAError).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.MFAError).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -832,7 +833,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_use_passkey"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 220, Col: 65}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 221, Col: 65}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 				if templ_7745c5c3_Err != nil {
@@ -866,7 +867,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var36 string
 			templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_authenticator"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 230, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 231, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 			if templ_7745c5c3_Err != nil {
@@ -879,7 +880,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var37 string
 			templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_authenticator_description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 231, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 232, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 			if templ_7745c5c3_Err != nil {
@@ -892,7 +893,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var38 string
 			templ_7745c5c3_Var38, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 233, Col: 54}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 234, Col: 54}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
 			if templ_7745c5c3_Err != nil {
@@ -914,7 +915,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.SubmitButton(data.T("security.mfa_verify_code"), nil).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButton(data.T("security.mfa_verify_code"), nil).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -925,7 +926,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var39 string
 			templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_recovery_title"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 247, Col: 68}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 248, Col: 68}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 			if templ_7745c5c3_Err != nil {
@@ -938,7 +939,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var40 string
 			templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_recovery_description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 248, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 249, Col: 51}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 			if templ_7745c5c3_Err != nil {
@@ -951,7 +952,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var41 string
 			templ_7745c5c3_Var41, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 250, Col: 54}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 251, Col: 54}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var41)
 			if templ_7745c5c3_Err != nil {
@@ -971,7 +972,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.SubmitButton(data.T("security.mfa_use_recovery"), nil).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButton(data.T("security.mfa_use_recovery"), nil).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1025,7 +1026,7 @@ func authEmailVerification(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var44 string
 			templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.email_verification"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 266, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 267, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 			if templ_7745c5c3_Err != nil {
@@ -1036,7 +1037,7 @@ func authEmailVerification(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.Saved {
-				templ_7745c5c3_Err = components.SuccessAlert(data.T("account.email_verified")).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.SuccessAlert(data.T("account.email_verified")).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1044,7 +1045,7 @@ func authEmailVerification(data viewmodel.PageData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = components.LinkButton("/account", data.T("account.return_account")).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.LinkButton("/account", data.T("account.return_account")).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1053,7 +1054,7 @@ func authEmailVerification(data viewmodel.PageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = components.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1061,7 +1062,7 @@ func authEmailVerification(data viewmodel.PageData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = components.LinkButton("/login", data.T("account.sign_in")).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.LinkButton("/login", data.T("account.sign_in")).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

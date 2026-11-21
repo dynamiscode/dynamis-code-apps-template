@@ -1,8 +1,10 @@
 package web
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import (
@@ -12,12 +14,12 @@ import (
 )
 
 templ invitationManagementView(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.DashboardSettingsNavigation(data)) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardSettingsNavigation(data)) {
 		<div class="settings-page">
-			@components.PageHeading(data.Workspace.Name + " · " + data.T("invitations.invitations"), data.T("navigation.settings"))
-			@layouts.PeopleTabs(data)
+			@molecules.PageHeading(data.Workspace.Name + " · " + data.T("invitations.invitations"), data.T("navigation.settings"))
+			@organisms.PeopleTabs(data)
 			if data.DeliveryWarning != "" {
-				@components.ErrorAlert(data.DeliveryWarning)
+				@molecules.ErrorAlert(data.DeliveryWarning)
 			}
 			if data.InvitationURL != "" {
 				<p role="status">{ data.T("invitations.copy_link") }</p>
@@ -56,15 +58,15 @@ templ invitationManagementView(data viewmodel.PageData) {
 						Max:   "43200",
 						Value: "10080",
 					})
-					@components.SubmitButton(data.T("invitations.create"), templ.Attributes{"name": "action", "value": "create"})
+					@molecules.SubmitButton(data.T("invitations.create"), templ.Attributes{"name": "action", "value": "create"})
 				</form>
 			</section>
 			<section class="settings-panel" aria-labelledby="invitation-list-title">
 				<h2 id="invitation-list-title">{ data.T("invitations.invitations") }</h2>
 				if len(data.Invitations) == 0 {
-					@components.EmptyState(data.T("invitations.empty"))
+					@molecules.EmptyState(data.T("invitations.empty"))
 				} else {
-					@components.ListTable(data.T("invitations.invitations"), true) {
+					@organisms.ListTable(data.T("invitations.invitations"), true) {
 						<thead><tr><th scope="col">@atoms.HeaderText(data.T("common.email"), nil)</th><th scope="col">@atoms.HeaderText(data.T("members.role"), nil)</th><th scope="col">@atoms.HeaderText(data.T("invitations.status"), nil)</th><th scope="col">@atoms.HeaderText(data.T("invitations.expires"), nil)</th><th scope="col">@atoms.HeaderText(data.T("clients.actions"), nil)</th></tr></thead>
 						<tbody>
 							for _, invitation := range data.Invitations {
@@ -83,8 +85,8 @@ templ invitationManagementView(data viewmodel.PageData) {
 										if invitation.Status(time.Now()) == identity.InvitationPending {
 											<form class="inline" data-webmcp-actions="invitation-revoke" data-webmcp-id={ invitation.ID.String() } action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/invitations" } method="post">
 												<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="invitation_id" value={ invitation.ID.String() }/>
-												@components.ConfirmationField("revoke-" + invitation.ID.String(), "confirm_revoke", data.T("invitations.revoke_confirm"))
-												@components.SubmitButton(data.T("invitations.revoke"), templ.Attributes{"name": "action", "value": "revoke"})
+												@molecules.ConfirmationField("revoke-" + invitation.ID.String(), "confirm_revoke", data.T("invitations.revoke_confirm"))
+												@molecules.SubmitButton(data.T("invitations.revoke"), templ.Attributes{"name": "action", "value": "revoke"})
 											</form>
 										}
 									</td>
@@ -103,7 +105,7 @@ templ invitationView(data viewmodel.PageData) {
 		<p class="eyebrow">{ data.T("invitations.workspace_invitation") }</p>
 		<h1>{ data.T("invitations.workspace_invitation") }</h1>
 		if data.ErrorKey != "" {
-			@components.ErrorAlert(data.T(data.ErrorKey))
+			@molecules.ErrorAlert(data.T(data.ErrorKey))
 		}
 		if data.Invitation.Email != "" {
 			<p>{ data.T("invitations.invited_as", map[string]any{"role": data.Role(data.Invitation.Role), "workspace": data.Invitation.WorkspaceID.String()}) }</p>
@@ -112,12 +114,12 @@ templ invitationView(data viewmodel.PageData) {
 			if data.InvitationAuthenticated {
 				<form action={ "/invitations/" + data.InvitationSecret } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@components.SubmitButton(data.T("invitations.accept"), templ.Attributes{"name": "action", "value": "accept"})
+					@molecules.SubmitButton(data.T("invitations.accept"), templ.Attributes{"name": "action", "value": "accept"})
 				</form>
 				<p>{ data.T("invitations.already_account") }</p>
 				<form action={ "/invitations/" + data.InvitationSecret + "/sign-in" } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@components.SubmitButton(data.T("invitations.sign_in_accept"), nil)
+					@molecules.SubmitButton(data.T("invitations.sign_in_accept"), nil)
 				</form>
 				<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn" type="submit">{ data.T("navigation.sign_out") }</button></form>
 			} else {
@@ -136,13 +138,13 @@ templ invitationView(data viewmodel.PageData) {
 							MaxLength: "1024",
 							Attrs:     templ.Attributes{"autocomplete": "new-password", "data-strength": true},
 						})
-						@components.SubmitButton(data.T("invitations.create_account"), templ.Attributes{"name": "action", "value": "register"})
+						@molecules.SubmitButton(data.T("invitations.create_account"), templ.Attributes{"name": "action", "value": "register"})
 					</form>
 				</section>
 				<p>{ data.T("invitations.already_account") }</p>
 				<form action={ "/invitations/" + data.InvitationSecret + "/sign-in" } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@components.SubmitButton(data.T("invitations.sign_in_accept"), nil)
+					@molecules.SubmitButton(data.T("invitations.sign_in_accept"), nil)
 				</form>
 			}
 		} else {
@@ -158,7 +160,7 @@ templ invitationContinueView(data viewmodel.PageData) {
 	@authLayout(data, data.T("invitations.workspace_invitation")) {
 		<h1>{ data.T("invitations.workspace_invitation") }</h1>
 		if data.ErrorKey != "" {
-			@components.ErrorAlert(data.T(data.ErrorKey))
+			@molecules.ErrorAlert(data.T(data.ErrorKey))
 		}
 		if data.Invitation.Email != "" {
 			<p>{ data.T("invitations.invited_as", map[string]any{"role": data.Role(data.Invitation.Role), "workspace": data.Invitation.WorkspaceID.String()}) }</p>
@@ -166,7 +168,7 @@ templ invitationContinueView(data viewmodel.PageData) {
 			<p class="status">{ data.T("invitations.account_match_help") }</p>
 			<form action="/invitations/continue" method="post">
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
-				@components.SubmitButton(data.T("invitations.accept"), nil)
+				@molecules.SubmitButton(data.T("invitations.accept"), nil)
 			</form>
 			<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn" type="submit">{ data.T("navigation.sign_out") }</button></form>
 		} else {

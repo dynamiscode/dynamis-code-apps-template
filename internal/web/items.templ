@@ -1,12 +1,14 @@
 package web
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 
 templ itemsPage(data viewmodel.PageData) {
-	@layouts.DashboardShell(itemPageData(data), layouts.DashboardHeader(data), layouts.DashboardHomeNavigation(data)) {
+	@templates.DashboardShell(itemPageData(data), organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
 		@itemsList(data)
 		<script defer src="/assets/htmx.min.js"></script>
 	}
@@ -22,7 +24,7 @@ templ itemsList(data viewmodel.PageData) {
 		aria-labelledby="items-heading">
 		<h2 id="items-heading" class="visually-hidden">{ data.T("items.items") }</h2>
 		if data.Error != "" {
-			@components.ErrorAlert(data.Error)
+			@molecules.ErrorAlert(data.Error)
 		}
 		if data.CanEditItems {
 			<form class="create" data-webmcp-actions="item-create" data-persist="item-create" data-dirty-track
@@ -33,22 +35,22 @@ templ itemsList(data viewmodel.PageData) {
 				<input type="hidden" name="idempotency_key" value={ data.CreateKey }/>
 				<div class="row">
 					@atoms.Input(atoms.InputProps{ID: "new-title", Name: "title", Label: data.T("items.new_title"), Value: data.NewTitle, Required: true, MaxLength: "200", Attrs: templ.Attributes{"data-trim": true}})
-					@components.SubmitButton(data.T("items.add"), nil)
+					@molecules.SubmitButton(data.T("items.add"), nil)
 				</div>
 			</form>
 		}
-		@components.ListScreen(data, "items.search", itemListTools(data), itemResults(data))
+		@organisms.ListScreen(data, "items.search", itemListTools(data), itemResults(data))
 	</section>
 }
 
 // itemListTools are the item list's own controls on the toolbar: the columns, and the live status.
 templ itemListTools(data viewmodel.PageData) {
-	@components.ListColumnsMenu(data, data.ItemQuerySuffix)
-	@components.StatusLine(data.T("items.live_fallback"), templ.Attributes{"aria-live": "polite", "id": "realtime-status"})
+	@molecules.ListColumnsMenu(data, data.ItemQuerySuffix)
+	@molecules.StatusLine(data.T("items.live_fallback"), templ.Attributes{"aria-live": "polite", "id": "realtime-status"})
 }
 
 // itemResults is the item list's results region, shared with every list.
 templ itemResults(data viewmodel.PageData) {
-	@components.ListResults(data, data.ItemListQuery.Limit, listPageSizeOptions(data.ItemListQuery.Limit, listPageSizes), data.ItemQuerySuffix, itemList(data), templ.NopComponent)
+	@organisms.ListResults(data, data.ItemListQuery.Limit, listPageSizeOptions(data.ItemListQuery.Limit, listPageSizes), data.ItemQuerySuffix, itemList(data), templ.NopComponent)
 }
 

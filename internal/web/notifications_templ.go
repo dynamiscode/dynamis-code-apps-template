@@ -9,9 +9,11 @@ package web
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 
 func notificationsPage(data viewmodel.PageData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -49,7 +51,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.NotificationCursor).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 9, Col: 112}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 11, Col: 112}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
@@ -62,7 +64,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("common.account"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 11, Col: 50}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 13, Col: 50}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -75,7 +77,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("notifications.notifications"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 12, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 14, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -88,7 +90,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("notifications.description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 13, Col: 78}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 15, Col: 78}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -101,7 +103,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("notifications.unread"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 16, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 18, Col: 43}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -130,7 +132,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(data.UnreadNotifications)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 18, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 20, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -153,7 +155,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("notifications.live_updated")).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 23, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 25, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 			if templ_7745c5c3_Err != nil {
@@ -166,7 +168,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("notifications.live_disconnected")).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 24, Col: 66}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 26, Col: 66}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 			if templ_7745c5c3_Err != nil {
@@ -179,7 +181,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("notifications.refresh"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 25, Col: 65}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 27, Col: 65}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
@@ -192,7 +194,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("notifications.manage_preferences"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 25, Col: 138}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 27, Col: 138}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
@@ -235,7 +237,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var16 string
 							templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(notification.Title)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 32, Col: 34}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 34, Col: 34}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 							if templ_7745c5c3_Err != nil {
@@ -263,7 +265,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var17 string
 							templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(notification.Body)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 39, Col: 31}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 41, Col: 31}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 							if templ_7745c5c3_Err != nil {
@@ -276,7 +278,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var18 string
 							templ_7745c5c3_Var18, templ_7745c5c3_Err = templruntime.NewAttributeExpression(notification.CreatedAt.Format("2006-01-02T15:04:05Z07:00")).Resolve(ctx)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 40, Col: 84}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 42, Col: 84}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 							if templ_7745c5c3_Err != nil {
@@ -289,7 +291,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var19 string
 							templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(data.DateTime(notification.CreatedAt))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 40, Col: 126}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 42, Col: 126}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 							if templ_7745c5c3_Err != nil {
@@ -307,7 +309,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 								var templ_7745c5c3_Var20 string
 								templ_7745c5c3_Var20, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/notifications/" + notification.ID.String()).ResolveURL(ctx)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 43, Col: 83}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 45, Col: 83}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 								if templ_7745c5c3_Err != nil {
@@ -320,7 +322,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 								var templ_7745c5c3_Var21 string
 								templ_7745c5c3_Var21, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 44, Col: 60}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 46, Col: 60}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 								if templ_7745c5c3_Err != nil {
@@ -360,7 +362,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var22 string
 				templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("notifications.none"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 53, Col: 70}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 55, Col: 70}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 				if templ_7745c5c3_Err != nil {
@@ -373,7 +375,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var23 string
 				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("notifications.empty_description"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 54, Col: 52}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 56, Col: 52}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 				if templ_7745c5c3_Err != nil {
@@ -386,7 +388,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var24 string
 				templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("notifications.manage_preferences"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 55, Col: 69}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 57, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 				if templ_7745c5c3_Err != nil {
@@ -403,7 +405,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = layouts.DashboardShell(data, layouts.AccountHeader(data), nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templates.DashboardShell(data, organisms.AccountHeader(data), nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

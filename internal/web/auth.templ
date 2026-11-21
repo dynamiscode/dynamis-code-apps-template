@@ -1,18 +1,19 @@
 package web
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 templ authLayout(data viewmodel.PageData, heading string) {
 	<!doctype html>
 	<html lang={ data.Locale } data-theme={ data.Theme }>
 		<head>
-			@layouts.PageHead(data, heading)
+			@templates.PageHead(data, heading)
 		</head>
 		<body x-data="pageBehaviors">
-			@layouts.SkipLink(data)
+			@molecules.SkipLink(data)
 			<main class="narrow auth-card" id="main">
 				<div class="brand auth-brand"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</div>
 				{ children... }
@@ -28,7 +29,7 @@ templ authLogin(data viewmodel.PageData) {
 		<h1>{ data.T("account.sign_in") }</h1>
 		<p class="auth-intro">{ data.T("account.sign_in_description") }</p>
 		if data.Error != "" {
-			@components.ErrorAlert(data.Error)
+			@molecules.ErrorAlert(data.Error)
 		}
 		<form action="/login" method="post">
 			<input type="hidden" name="csrf" value={ data.CSRF }/>
@@ -52,7 +53,7 @@ templ authLogin(data viewmodel.PageData) {
 				MaxLength: "1024",
 				Attrs:     templ.Attributes{"autocomplete": "current-password"},
 			})
-			@components.SubmitButton(data.T("account.sign_in"), nil)
+			@molecules.SubmitButton(data.T("account.sign_in"), nil)
 		</form>
 		<p><a class="auth-recovery-link" href="/password-reset">{ data.T("account.forgot_password") }</a></p>
 		if len(data.OIDCProviders) > 0 {
@@ -74,7 +75,7 @@ templ authSetup(data viewmodel.PageData) {
 		<p class="auth-intro">{ data.T("setup.description") }</p>
 		<p class="auth-note" data-setup-optional>{ data.T("setup.optional_later") }</p>
 		if data.Error != "" {
-			@components.ErrorAlert(data.Error)
+			@molecules.ErrorAlert(data.Error)
 		}
 		<form action="/setup" method="post" data-wizard>
 			<input type="hidden" name="csrf" value={ data.CSRF }/>
@@ -147,7 +148,7 @@ templ authSetup(data viewmodel.PageData) {
 					Options: workspaceLocaleOptions(data),
 				})
 			</fieldset>
-			@components.SubmitButton(data.T("setup.create_owner"), nil)
+			@molecules.SubmitButton(data.T("setup.create_owner"), nil)
 		</form>
 	}
 }
@@ -156,11 +157,11 @@ templ authPasswordReset(data viewmodel.PageData) {
 	@authLayout(data, data.T(authPasswordResetTitle(data))) {
 		<h1>{ data.T(authPasswordResetTitle(data)) }</h1>
 		if data.Saved {
-			@components.SuccessAlert(data.T(authPasswordResetSuccess(data)))
-			<p>@components.LinkButton("/login", data.T("account.sign_in"))</p>
+			@molecules.SuccessAlert(data.T(authPasswordResetSuccess(data)))
+			<p>@molecules.LinkButton("/login", data.T("account.sign_in"))</p>
 		} else {
 			if data.ErrorKey != "" {
-				@components.ErrorAlert(data.T(data.ErrorKey))
+				@molecules.ErrorAlert(data.T(data.ErrorKey))
 			}
 			if data.PasswordResetSecret != "" {
 				<p class="auth-intro">{ data.T("account.choose_password_description") }</p>
@@ -186,7 +187,7 @@ templ authPasswordReset(data viewmodel.PageData) {
 						MaxLength: "1024",
 						Attrs:     templ.Attributes{"autocomplete": "new-password", "data-match": "reset-password"},
 					})
-					@components.SubmitButton(data.T("account.reset_password"), nil)
+					@molecules.SubmitButton(data.T("account.reset_password"), nil)
 				</form>
 			} else {
 				<p class="auth-intro">{ data.T("account.password_reset_description") }</p>
@@ -201,7 +202,7 @@ templ authPasswordReset(data viewmodel.PageData) {
 						MaxLength: "320",
 						Attrs:     templ.Attributes{"autocomplete": "username"},
 					})
-					@components.SubmitButton(data.T("account.send_reset"), nil)
+					@molecules.SubmitButton(data.T("account.send_reset"), nil)
 				</form>
 			}
 		}
@@ -213,7 +214,7 @@ templ authMFA(data viewmodel.PageData) {
 		<h1>{ data.T("security.mfa_title") }</h1>
 		<p class="auth-intro">{ data.T("security.mfa_verify_prompt") }</p>
 		if data.MFAError != "" {
-			@components.ErrorAlert(data.MFAError)
+			@molecules.ErrorAlert(data.MFAError)
 		}
 		if len(data.MFAOptions) > 0 {
 			<section class="auth-method" x-data="passkeyLogin" aria-labelledby="passkey-heading">
@@ -240,7 +241,7 @@ templ authMFA(data viewmodel.PageData) {
 					MaxLength: "9",
 					Attrs:     templ.Attributes{"inputmode": "numeric", "autocomplete": "one-time-code", "data-mask": "digits", "data-mask-length": "6"},
 				})
-				@components.SubmitButton(data.T("security.mfa_verify_code"), nil)
+				@molecules.SubmitButton(data.T("security.mfa_verify_code"), nil)
 			</form>
 		</section>
 		<section class="auth-method" aria-labelledby="recovery-heading">
@@ -255,7 +256,7 @@ templ authMFA(data viewmodel.PageData) {
 					Required:  true,
 					Attrs:     templ.Attributes{"autocomplete": "one-time-code", "autocapitalize": "characters", "spellcheck": "false", "data-mask": "upper"},
 				})
-				@components.SubmitButton(data.T("security.mfa_use_recovery"), nil)
+				@molecules.SubmitButton(data.T("security.mfa_use_recovery"), nil)
 			</form>
 		</section>
 	}
@@ -265,11 +266,11 @@ templ authEmailVerification(data viewmodel.PageData) {
 	@authLayout(data, data.T("account.email_verification")) {
 		<h1>{ data.T("account.email_verification") }</h1>
 		if data.Saved {
-			@components.SuccessAlert(data.T("account.email_verified"))
-			<p>@components.LinkButton("/account", data.T("account.return_account"))</p>
+			@molecules.SuccessAlert(data.T("account.email_verified"))
+			<p>@molecules.LinkButton("/account", data.T("account.return_account"))</p>
 		} else {
-			@components.ErrorAlert(data.Error)
-			<p>@components.LinkButton("/login", data.T("account.sign_in"))</p>
+			@molecules.ErrorAlert(data.Error)
+			<p>@molecules.LinkButton("/login", data.T("account.sign_in"))</p>
 		}
 	}
 }

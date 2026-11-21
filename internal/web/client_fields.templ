@@ -1,14 +1,16 @@
 package web
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import "example.com/dynamis-code/apps-template/internal/clients"
 templ clientFieldsPage(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.DashboardHomeNavigation(data)) {
-		@components.PageHeading(data.T("clients.fields_title"), data.T("clients.title")) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+		@molecules.PageHeading(data.T("clients.fields_title"), data.T("clients.title")) {
 			<a class="btn btn-ghost" href={ clientFieldsBackPath(data.FieldsPath) }>{ data.T("clients.back") }</a>
 		}
 		@clientFieldList(data)
@@ -24,7 +26,7 @@ templ clientFieldList(data viewmodel.PageData) {
 		<h2 id="client-fields-heading" class="visually-hidden">{ data.T("clients.fields_title") }</h2>
 		<p class="client-intro">{ data.T("clients.fields_intro") }</p>
 		if data.ErrorKey != "" {
-			@components.ErrorAlert(data.T(data.ErrorKey))
+			@molecules.ErrorAlert(data.T(data.ErrorKey))
 		}
 		if data.CanManageFields {
 			@atoms.CollapseDetails(atoms.CollapseDetailsProps{
@@ -34,7 +36,7 @@ templ clientFieldList(data viewmodel.PageData) {
 			}) {
 				<form action={ data.FieldsPath } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@components.TextField("client-field-label", data.T("clients.field_label"), templ.Attributes{"name": "label", "required": true, "maxlength": "100", "value": data.FieldDraft.Label, "data-trim": ""})
+					@molecules.TextField("client-field-label", data.T("clients.field_label"), templ.Attributes{"name": "label", "required": true, "maxlength": "100", "value": data.FieldDraft.Label, "data-trim": ""})
 					@atoms.Select(atoms.SelectProps{
 									ID: "client-field-type", Name: "type", Label: data.T("clients.field_type"),
 																		Options: []atoms.SelectOption{
@@ -45,7 +47,7 @@ templ clientFieldList(data viewmodel.PageData) {
 										{Label: data.T("clients.field_type_single_choice"), Value: "single_choice", Selected: data.FieldDraft.Type == "single_choice"},
 									},
 					})
-					<div class="actions">@components.SubmitButton(data.T("clients.add_field"), nil)</div>
+					<div class="actions">@molecules.SubmitButton(data.T("clients.add_field"), nil)</div>
 				</form>
 			}
 		} else {
@@ -64,7 +66,7 @@ templ clientFieldList(data viewmodel.PageData) {
 							<div class="client-field-actions">
 								if field.ArchivedAt != nil {
 									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/restore" }><input type="hidden" name="csrf" value={ data.CSRF }/>@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("clients.restore_field"), Attrs: templ.Attributes{"type": "submit"}})</form>
-									<div class="client-delete"><p class="warning">{ data.T("clients.delete_field_confirm") }</p><form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/delete" }><input type="hidden" name="csrf" value={ data.CSRF }/>@components.ConfirmButton(data.T("clients.delete_field"), data.T("clients.delete_field_confirm"), nil)</form></div>
+									<div class="client-delete"><p class="warning">{ data.T("clients.delete_field_confirm") }</p><form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/delete" }><input type="hidden" name="csrf" value={ data.CSRF }/>@molecules.ConfirmButton(data.T("clients.delete_field"), data.T("clients.delete_field_confirm"), nil)</form></div>
 								} else {
 									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/archive" }><input type="hidden" name="csrf" value={ data.CSRF }/>@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("clients.archive_field"), Attrs: templ.Attributes{"type": "submit"}})</form>
 								}
@@ -82,7 +84,7 @@ templ clientFieldList(data viewmodel.PageData) {
 									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/options/" + option.ID.String() + "/delete" }>
 										<input type="hidden" name="csrf" value={ data.CSRF }/>
 										<p class="warning">{ data.T("clients.option_delete_confirm") }</p>
-										@components.ConfirmButton(data.T("clients.option_delete"), data.T("clients.option_delete_confirm"), nil)
+										@molecules.ConfirmButton(data.T("clients.option_delete"), data.T("clients.option_delete_confirm"), nil)
 									</form>
 								}
 							</li>
@@ -92,7 +94,7 @@ templ clientFieldList(data viewmodel.PageData) {
 									<p>{ data.T("clients.option_none") }</p>
 								}
 								if data.CanManageFields && field.ArchivedAt == nil {
-									<form class="option-create" action={ data.FieldsPath + "/" + field.ID.String() + "/options" } method="post"><input type="hidden" name="csrf" value={ data.CSRF }/>@components.TextField("option-label-"+field.ID.String(), data.T("clients.option_label"), templ.Attributes{"name": "label", "required": true, "maxlength": "100", "data-trim": ""})@components.SubmitButton(data.T("clients.option_add"), nil)</form>
+									<form class="option-create" action={ data.FieldsPath + "/" + field.ID.String() + "/options" } method="post"><input type="hidden" name="csrf" value={ data.CSRF }/>@molecules.TextField("option-label-"+field.ID.String(), data.T("clients.option_label"), templ.Attributes{"name": "label", "required": true, "maxlength": "100", "data-trim": ""})@molecules.SubmitButton(data.T("clients.option_add"), nil)</form>
 								}
 							</div>
 						}

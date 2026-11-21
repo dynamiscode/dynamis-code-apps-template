@@ -1,11 +1,13 @@
 package web
 
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 
 templ notificationsPage(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, layouts.AccountHeader(data), nil) {
+	@templates.DashboardShell(data, organisms.AccountHeader(data), nil) {
 		<div class="notification-center" x-data="notificationsLive" data-notification-cursor={ data.NotificationCursor }>
 				<div class="workspace-heading"><div>
 					<p class="eyebrow">{ data.T("common.account") }</p>

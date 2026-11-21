@@ -1,0 +1,114 @@
+package organisms
+
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+
+// ListHeader renders one heading per visible column with its sort link and aria-sort state. The last
+// heading holds the column settings, and actionsLabel adds an actions heading before it when set.
+templ ListHeader(data viewmodel.PageData, actionsLabel string) {
+	<thead><tr>
+			if data.ListSelectable {
+				<th scope="col" class="list-select-cell"><input type="checkbox" data-bulk-all aria-label={ data.T("clients.bulk_select_all") }/></th>
+			}
+		for _, column := range data.ListColumns {
+			if column.Visible {
+				@molecules.ClientColumnHeading(data, column)
+			}
+		}
+		if actionsLabel != "" {
+			<th scope="col" class="list-actions-cell"><span class="visually-hidden">{ actionsLabel }</span></th>
+		}
+	</tr></thead>
+}
+
+
+// ListRow is one table row. A non-empty href makes a tap or click on the row open that href.
+templ ListRow(href string) {
+	<tr class="list-row" data-row-href={ href }>
+		{ children... }
+	</tr>
+}
+
+
+// ListRowWith is a table row with extra attributes, for lists whose scripts find a row by an attribute.
+templ ListRowWith(href string, attrs templ.Attributes) {
+	<tr class="list-row" data-row-href={ href } { attrs... }>
+		{ children... }
+	</tr>
+}
+
+
+// ListCells renders the visible cells. The first visible cell links to href when href is set.
+templ ListCells(data viewmodel.PageData, row viewmodel.ListRow, href string) {
+	for _, column := range data.ListColumns {
+		if column.Visible {
+			<td data-column={ column.Key } data-label={ molecules.ClientColumnLabelText(data, column) } title={ data.ClientListCellValue(column, row) }>
+				@ListCellValue(data, row, column, href)
+			</td>
+		}
+	}
+}
+
+
+// ListCellValue writes one cell. The first visible column is the row link with the row's initials; role
+// and status columns are colored badges.
+templ ListCellValue(data viewmodel.PageData, row viewmodel.ListRow, column viewmodel.ListColumn, href string) {
+	if href != "" && column.Key == data.ClientListLinkKey() {
+		<span class="list-identity">
+			<span class="list-initials" aria-hidden="true">{ molecules.ListInitials(data.ClientListCellValue(column, row)) }</span>
+			<span class="list-name"><a class="list-row-link" href={ href }>@molecules.ListHighlight(data.ClientListCellValue(column, row), data.ListSearch)</a></span>
+		</span>
+	} else if molecules.ListBadgeColumn(column.Key) {
+		<span class={ "list-badge list-badge-" + row.CellText(column.Key) }>{ data.ClientListCellValue(column, row) }</span>
+	} else {
+		@molecules.ListHighlight(data.ClientListCellValue(column, row), data.ListSearch)
+	}
+}
+
+
+// ListCardItem is one mobile card. Children render after the fields, for example row actions.
+templ ListCardItem(data viewmodel.PageData, row viewmodel.ListRow, href string) {
+	<li class="list-row" data-row-href={ href }>
+		<dl>
+			for _, column := range data.ListColumns {
+				if column.Visible {
+					<dt>@molecules.ClientColumnLabel(data, column)</dt>
+					<dd data-column={ column.Key }>
+						@ListCellValue(data, row, column, href)
+					</dd>
+				}
+			}
+		</dl>
+		{ children... }
+	</li>
+}
+
+templ DataTable(caption string, hiddenCaption bool) {
+	@atoms.TableWrap(atoms.TableWrapProps{WrapClass: "table-scroll", Caption: caption, CaptionHidden: hiddenCaption}) {
+		{ children... }
+	}
+}
+
+templ AuditDataTable(caption, label string) {
+	@atoms.TableWrap(atoms.TableWrapProps{
+		WrapClass:     "table-wrap",
+		Caption:        caption,
+		CaptionHidden:  true,
+		Attrs:          templ.Attributes{"tabindex": "0", "role": "region", "aria-label": label},
+	}) {
+		{ children... }
+	}
+}
+
+templ ListTable(caption string, hiddenCaption bool) {
+	@atoms.TableWrap(atoms.TableWrapProps{
+		WrapClass:  "list-view-table",
+		TableClass: "table-md table-pin-rows",
+		Caption:     caption,
+		CaptionHidden: hiddenCaption,
+	}) {
+		{ children... }
+	}
+}

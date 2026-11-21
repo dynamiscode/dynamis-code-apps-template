@@ -1,0 +1,20 @@
+package organisms
+
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+templ DashboardHomeNavigation(data viewmodel.PageData) {
+	<aside class="sidebar">
+		if !data.SingleWorkspace {
+			<a class="sidebar-back" href="/">← { data.T("workspace.back_to_workspaces") }</a>
+		}
+		@WorkspaceNav(data)
+	</aside>
+}
+
+
+templ DashboardSettingsNavigation(data viewmodel.PageData) {
+	<aside class="sidebar">
+		<a class="sidebar-back" href={ "/workspaces/" + data.Workspace.ID.String() }>← { data.T("workspace.back_to_home") }</a>
+		@WorkspaceNav(data)
+	</aside>
+}

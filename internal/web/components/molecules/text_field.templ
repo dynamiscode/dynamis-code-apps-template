@@ -1,0 +1,36 @@
+package molecules
+
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+
+
+// TextField renders a labeled text control. name/type/value/placeholder move to the atom's
+// own attributes: leaving them in Attrs would duplicate them and the atom's empty value would win.
+templ TextField(id, label string, attrs templ.Attributes) {
+	{{
+		name, _ := attrs["name"].(string)
+		inputType, _ := attrs["type"].(string)
+		value, _ := attrs["value"].(string)
+		placeholder, _ := attrs["placeholder"].(string)
+		delete(attrs, "name")
+		delete(attrs, "type")
+		delete(attrs, "value")
+		delete(attrs, "placeholder")
+	}}
+	@atoms.Input(atoms.InputProps{ID: id, Label: label, Name: name, Type: inputType, Value: value, Placeholder: placeholder, Attrs: attrs})
+}
+
+
+templ TextareaField(id, label, value string, attrs templ.Attributes) {
+	{{ name, _ := attrs["name"].(string); delete(attrs, "name") }}
+	@atoms.Textarea(atoms.TextareaProps{ID: id, Label: label, Name: name, Value: value, Attrs: attrs})
+}
+
+
+templ FieldError(id, message string) {
+	<p id={ id } class="error">{ message }</p>
+}
+
+
+templ ConfirmationField(id, name, label string) {
+	<label class="confirmation" for={ id }><input id={ id } name={ name } type="checkbox" value="yes" required/> <span>{ label }</span></label>
+}

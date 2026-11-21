@@ -9,9 +9,10 @@ package web
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 func publicSharePage(data viewmodel.PageData) templ.Component {
@@ -38,7 +39,7 @@ func publicSharePage(data viewmodel.PageData) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.Locale).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 10, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 11, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -51,7 +52,7 @@ func publicSharePage(data viewmodel.PageData) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.Theme).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 10, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 11, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -61,7 +62,7 @@ func publicSharePage(data viewmodel.PageData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = layouts.PageHead(data, data.T(publicShareTitleKey(data))).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templates.PageHead(data, data.T(publicShareTitleKey(data))).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -69,7 +70,7 @@ func publicSharePage(data viewmodel.PageData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = layouts.SkipLink(data).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = molecules.SkipLink(data).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -80,7 +81,7 @@ func publicSharePage(data viewmodel.PageData) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("common.product_name"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 17, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 18, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -93,7 +94,7 @@ func publicSharePage(data viewmodel.PageData) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.T(publicShareTitleKey(data)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 18, Col: 43}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 19, Col: 43}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -104,7 +105,7 @@ func publicSharePage(data viewmodel.PageData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.Error != "" {
-			templ_7745c5c3_Err = components.ErrorAlert(data.T("sharing.unavailable_detail")).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.ErrorAlert(data.T("sharing.unavailable_detail")).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -116,7 +117,7 @@ func publicSharePage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("sharing.scope_public"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 22, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 23, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -129,7 +130,7 @@ func publicSharePage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("sharing.title"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 24, Col: 40}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 25, Col: 40}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -142,7 +143,7 @@ func publicSharePage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(data.PublicItem.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 24, Col: 74}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 25, Col: 74}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
@@ -155,7 +156,7 @@ func publicSharePage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("sharing.status"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 26, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 27, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
@@ -168,7 +169,7 @@ func publicSharePage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(data.T(publicShareStatusKey(data.PublicItem.Status)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 27, Col: 65}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 28, Col: 65}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -223,7 +224,7 @@ func mcpConsentPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("oauth.consent_title"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 40, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 41, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
@@ -241,7 +242,7 @@ func mcpConsentPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var14 string
 				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("oauth.consent_intro"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 42, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 43, Col: 37}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 				if templ_7745c5c3_Err != nil {
@@ -254,7 +255,7 @@ func mcpConsentPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var15 string
 				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("oauth.client_label"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 44, Col: 43}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 45, Col: 43}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 				if templ_7745c5c3_Err != nil {
@@ -267,7 +268,7 @@ func mcpConsentPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(consent.ClientName)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 44, Col: 74}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 45, Col: 74}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -280,7 +281,7 @@ func mcpConsentPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var17 string
 				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("oauth.scopes_label"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 46, Col: 39}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 47, Col: 39}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 				if templ_7745c5c3_Err != nil {
@@ -298,7 +299,7 @@ func mcpConsentPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var18 string
 					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(data.T(mcpScopeKey(scope)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 49, Col: 39}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 50, Col: 39}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 					if templ_7745c5c3_Err != nil {
@@ -316,7 +317,7 @@ func mcpConsentPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var19 string
 				templ_7745c5c3_Var19, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 55, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 56, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 				if templ_7745c5c3_Err != nil {
@@ -329,7 +330,7 @@ func mcpConsentPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var20 string
 				templ_7745c5c3_Var20, templ_7745c5c3_Err = templruntime.NewAttributeExpression(consent.Params.ClientID).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 57, Col: 73}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 58, Col: 73}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 				if templ_7745c5c3_Err != nil {
@@ -342,7 +343,7 @@ func mcpConsentPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var21 string
 				templ_7745c5c3_Var21, templ_7745c5c3_Err = templruntime.NewAttributeExpression(consent.Params.RedirectURI).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 58, Col: 79}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 59, Col: 79}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 				if templ_7745c5c3_Err != nil {
@@ -355,7 +356,7 @@ func mcpConsentPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var22 string
 				templ_7745c5c3_Var22, templ_7745c5c3_Err = templruntime.NewAttributeExpression(consent.Params.CodeChallenge).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 59, Col: 83}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 60, Col: 83}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 				if templ_7745c5c3_Err != nil {
@@ -368,7 +369,7 @@ func mcpConsentPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var23 string
 				templ_7745c5c3_Var23, templ_7745c5c3_Err = templruntime.NewAttributeExpression(consent.Params.Resource).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 61, Col: 72}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 62, Col: 72}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 				if templ_7745c5c3_Err != nil {
@@ -381,7 +382,7 @@ func mcpConsentPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var24 string
 				templ_7745c5c3_Var24, templ_7745c5c3_Err = templruntime.NewAttributeExpression(consent.Params.Scope).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 62, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 63, Col: 66}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 				if templ_7745c5c3_Err != nil {
@@ -394,7 +395,7 @@ func mcpConsentPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var25 string
 				templ_7745c5c3_Var25, templ_7745c5c3_Err = templruntime.NewAttributeExpression(consent.Params.State).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 63, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 64, Col: 66}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 				if templ_7745c5c3_Err != nil {
@@ -407,7 +408,7 @@ func mcpConsentPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var26 string
 				templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("common.workspace"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 65, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 66, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 				if templ_7745c5c3_Err != nil {
@@ -432,7 +433,7 @@ func mcpConsentPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("oauth.consent_help"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 72, Col: 52}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 73, Col: 52}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 				if templ_7745c5c3_Err != nil {
@@ -445,7 +446,7 @@ func mcpConsentPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var28 string
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("oauth.consent_scope_note"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 72, Col: 91}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 73, Col: 91}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 				if templ_7745c5c3_Err != nil {
@@ -521,7 +522,7 @@ func errorPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var31 string
 			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(data.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 91, Col: 18}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 92, Col: 18}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 			if templ_7745c5c3_Err != nil {
@@ -531,7 +532,7 @@ func errorPage(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -542,7 +543,7 @@ func errorPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var32 string
 			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("navigation.home"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 93, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 94, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 			if templ_7745c5c3_Err != nil {

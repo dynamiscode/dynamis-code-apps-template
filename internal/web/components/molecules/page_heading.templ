@@ -1,0 +1,13 @@
+package molecules
+
+
+
+// PageHeading matches the workspace and resource page heading pattern.
+templ PageHeading(title, eyebrow string) {
+	<div class="workspace-heading"><div>
+		if eyebrow != "" {
+			<p class="eyebrow">{ eyebrow }</p>
+		}
+		<h1>{ title }</h1>
+	</div>{ children... }</div>
+}

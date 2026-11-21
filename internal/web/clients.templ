@@ -1,21 +1,23 @@
 package web
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import "strconv"
 
 templ clientsPage(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.DashboardHomeNavigation(data)) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
 		@clientList(data)
 	}
 }
 
 templ clientDetailPage(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.DashboardHomeNavigation(data)) {
-		@components.PageHeading(data.Client.DisplayName, data.T("clients.title")) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+		@molecules.PageHeading(data.Client.DisplayName, data.T("clients.title")) {
 			<div class="actions client-page-actions">
 				<a class="btn btn-ghost" href={ data.CurrentPath }>{ data.T("clients.back") }</a>
 				if data.CanManageFields {
@@ -31,23 +33,23 @@ templ clientDetail(data viewmodel.PageData) {
 	<section id="client-detail" class="client-panel" aria-labelledby="client-heading">
 		<h2 id="client-heading" class="visually-hidden">{ data.T("clients.client") }</h2>
 		if data.ErrorKey != "" {
-			@components.ErrorAlert(data.T(data.ErrorKey))
+			@molecules.ErrorAlert(data.T(data.ErrorKey))
 		}
 		if data.CanEditClients {
 			<form action={ data.CurrentPath + "/" + data.Client.ID.String() } method="post">
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
 				<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
-				@components.TextField("client-display-name", data.T("clients.display_name"), templ.Attributes{
+				@molecules.TextField("client-display-name", data.T("clients.display_name"), templ.Attributes{
 					"name": "display_name", "required": true, "maxlength": "200",
 					"value": data.Client.DisplayName, "data-trim": "",
 				})
-				@components.TextField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{
+				@molecules.TextField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{
 					"name": "email", "type": "email", "maxlength": "254", "value": data.Client.Email,
 				})
-				@components.TextField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{
+				@molecules.TextField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{
 					"name": "phone", "maxlength": "50", "value": data.Client.Phone,
 				})
-				@components.TextareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.Client.Notes, templ.Attributes{
+				@molecules.TextareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.Client.Notes, templ.Attributes{
 					"name": "notes", "maxlength": "5000",
 				})
 				<div class="actions">
@@ -64,7 +66,7 @@ templ clientDetail(data viewmodel.PageData) {
 			</dl>
 		}
 		if data.Client.ArchivedAt != nil {
-			@components.StatusLine(data.T("clients.archived_status"), nil)
+			@molecules.StatusLine(data.T("clients.archived_status"), nil)
 		}
 		if data.CanEditClients {
 			<div class="client-lifecycle">

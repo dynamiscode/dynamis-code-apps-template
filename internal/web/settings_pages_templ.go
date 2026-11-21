@@ -9,10 +9,12 @@ package web
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 
 import "strconv"
 
@@ -49,18 +51,18 @@ func generalSettingsView(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.PageHeading(data.T("workspace.general_settings"), data.T("navigation.settings_setup")).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.PageHeading(data.T("workspace.general_settings"), data.T("navigation.settings_setup")).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if data.Saved {
-				templ_7745c5c3_Err = components.SuccessAlert(data.T("workspace.settings_saved")).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.SuccessAlert(data.T("workspace.settings_saved")).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			if data.Error != "" {
-				templ_7745c5c3_Err = components.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -72,7 +74,7 @@ func generalSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("workspace.language_fallback"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 21, Col: 75}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 23, Col: 75}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -85,7 +87,7 @@ func generalSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("workspace.language_fallback_description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 22, Col: 108}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 24, Col: 108}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -98,7 +100,7 @@ func generalSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/workspaces/" + data.Workspace.ID.String() + "/settings/general").ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 23, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 25, Col: 84}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
@@ -111,7 +113,7 @@ func generalSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 24, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 26, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 			if templ_7745c5c3_Err != nil {
@@ -133,7 +135,7 @@ func generalSettingsView(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.CanManage {
-				templ_7745c5c3_Err = components.SubmitButton(data.T("common.save"), templ.Attributes{"data-requires-change": true}).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.SubmitButton(data.T("common.save"), templ.Attributes{"data-requires-change": true}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -145,7 +147,7 @@ func generalSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.notifications"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 39, Col: 76}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 41, Col: 76}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -168,7 +170,7 @@ func generalSettingsView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var8 string
 					templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(workspaceNotificationLabel(data, preference.NotificationType))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 43, Col: 104}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 45, Col: 104}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 					if templ_7745c5c3_Err != nil {
@@ -182,7 +184,7 @@ func generalSettingsView(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var9 string
 						templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.enabled"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 45, Col: 36}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 47, Col: 36}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 						if templ_7745c5c3_Err != nil {
@@ -192,7 +194,7 @@ func generalSettingsView(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var10 string
 						templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.disabled"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 47, Col: 37}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 49, Col: 37}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 						if templ_7745c5c3_Err != nil {
@@ -209,7 +211,7 @@ func generalSettingsView(data viewmodel.PageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = components.EmptyState(data.T("workspace.notifications_empty")).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.EmptyState(data.T("workspace.notifications_empty")).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -221,7 +223,7 @@ func generalSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/workspaces/" + data.Workspace.ID.String() + "/settings/notifications").ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 55, Col: 90}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 57, Col: 90}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 			if templ_7745c5c3_Err != nil {
@@ -234,7 +236,7 @@ func generalSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 56, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 58, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 			if templ_7745c5c3_Err != nil {
@@ -265,7 +267,7 @@ func generalSettingsView(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.SubmitButton(data.T("common.save"), nil).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButton(data.T("common.save"), nil).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -275,7 +277,7 @@ func generalSettingsView(data viewmodel.PageData) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.SettingsSidebar(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -316,7 +318,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.PageHeading(data.T("email.title"), data.T("navigation.settings_setup")).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.PageHeading(data.T("email.title"), data.T("navigation.settings_setup")).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -327,7 +329,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.intro"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 83, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 85, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -338,7 +340,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.Error != "" {
-				templ_7745c5c3_Err = components.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -351,7 +353,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(data.EmailLoginReason)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 88, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 90, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -363,7 +365,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 				}
 			}
 			if data.EmailSaved {
-				templ_7745c5c3_Err = components.SuccessAlert(data.T("email.saved")).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.SuccessAlert(data.T("email.saved")).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -376,7 +378,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var17 string
 				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.configured"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 94, Col: 35}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 96, Col: 35}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 				if templ_7745c5c3_Err != nil {
@@ -394,7 +396,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var18 string
 				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.not_configured"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 96, Col: 39}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 98, Col: 39}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 				if templ_7745c5c3_Err != nil {
@@ -413,7 +415,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var19 string
 				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.domain_status"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 99, Col: 38}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 101, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 				if templ_7745c5c3_Err != nil {
@@ -427,7 +429,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var20 string
 					templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(data.EmailSettings.DomainStatus)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 101, Col: 39}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 103, Col: 39}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 					if templ_7745c5c3_Err != nil {
@@ -437,7 +439,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var21 string
 					templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.domain_status_none"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 103, Col: 42}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 105, Col: 42}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 					if templ_7745c5c3_Err != nil {
@@ -456,7 +458,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("email.title")).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 107, Col: 69}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 109, Col: 69}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 			if templ_7745c5c3_Err != nil {
@@ -469,7 +471,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var23 string
 			templ_7745c5c3_Var23, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/workspaces/" + data.Workspace.ID.String() + "/settings/email").ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 108, Col: 82}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 110, Col: 82}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 			if templ_7745c5c3_Err != nil {
@@ -482,7 +484,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var24 string
 			templ_7745c5c3_Var24, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 109, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 111, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 			if templ_7745c5c3_Err != nil {
@@ -503,11 +505,11 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.TextField("email-sender-name", data.T("email.sender_name")+" "+data.T("ui.optional"), templ.Attributes{"name": "sender_name", "maxlength": "100", "value": data.EmailSettings.SenderName}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.TextField("email-sender-name", data.T("email.sender_name")+" "+data.T("ui.optional"), templ.Attributes{"name": "sender_name", "maxlength": "100", "value": data.EmailSettings.SenderName}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.TextField("email-sender-address", data.T("email.sender_address"), templ.Attributes{"name": "sender_address", "type": "email", "required": true, "maxlength": "254", "value": data.EmailSettings.SenderAddress}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.TextField("email-sender-address", data.T("email.sender_address"), templ.Attributes{"name": "sender_address", "type": "email", "required": true, "maxlength": "254", "value": data.EmailSettings.SenderAddress}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -518,7 +520,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var25 string
 			templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.smtp_section"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 121, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 123, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 			if templ_7745c5c3_Err != nil {
@@ -531,7 +533,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var26 string
 			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.required_for_smtp"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 122, Col: 69}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 124, Col: 69}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 			if templ_7745c5c3_Err != nil {
@@ -541,15 +543,15 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.TextField("email-host", data.T("email.host"), templ.Attributes{"name": "host", "maxlength": "253", "aria-describedby": "email-smtp-required", "data-trim": true, "value": emailSMTPValue(data.EmailSettings, data.EmailSettings.Host)}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.TextField("email-host", data.T("email.host"), templ.Attributes{"name": "host", "maxlength": "253", "aria-describedby": "email-smtp-required", "data-trim": true, "value": emailSMTPValue(data.EmailSettings, data.EmailSettings.Host)}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.TextField("email-port", data.T("email.port"), templ.Attributes{"name": "port", "type": "number", "min": "1", "max": "65535", "value": emailPortValue(data.EmailSettings)}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.TextField("email-port", data.T("email.port"), templ.Attributes{"name": "port", "type": "number", "min": "1", "max": "65535", "value": emailPortValue(data.EmailSettings)}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.TextField("email-username", data.T("email.username")+" "+data.T("ui.optional"), templ.Attributes{"name": "username", "maxlength": "254", "autocomplete": "off", "value": emailSMTPValue(data.EmailSettings, data.EmailSettings.Username)}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.TextField("email-username", data.T("email.username")+" "+data.T("ui.optional"), templ.Attributes{"name": "username", "maxlength": "254", "autocomplete": "off", "value": emailSMTPValue(data.EmailSettings, data.EmailSettings.Username)}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -560,7 +562,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var27 string
 			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.password_help"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 126, Col: 65}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 128, Col: 65}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 			if templ_7745c5c3_Err != nil {
@@ -581,7 +583,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var28 string
 			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.resend_section"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 130, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 132, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 			if templ_7745c5c3_Err != nil {
@@ -594,7 +596,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var29 string
 			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.resend_step_1"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 132, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 134, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 			if templ_7745c5c3_Err != nil {
@@ -607,7 +609,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var30 string
 			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.resend_step_2"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 132, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 134, Col: 84}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 			if templ_7745c5c3_Err != nil {
@@ -620,7 +622,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var31 string
 			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.resend_step_3"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 132, Col: 126}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 134, Col: 126}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 			if templ_7745c5c3_Err != nil {
@@ -633,7 +635,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var32 string
 			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.resend_step_4"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 132, Col: 168}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 134, Col: 168}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 			if templ_7745c5c3_Err != nil {
@@ -646,7 +648,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var33 string
 			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.api_key_help"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 134, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 136, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 			if templ_7745c5c3_Err != nil {
@@ -667,7 +669,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var34 string
 			templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.postmark_section"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 138, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 140, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 			if templ_7745c5c3_Err != nil {
@@ -680,7 +682,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var35 string
 			templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.postmark_step_1"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 140, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 142, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 			if templ_7745c5c3_Err != nil {
@@ -693,7 +695,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var36 string
 			templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.postmark_step_2"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 140, Col: 88}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 142, Col: 88}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 			if templ_7745c5c3_Err != nil {
@@ -706,7 +708,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var37 string
 			templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.postmark_step_3"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 140, Col: 132}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 142, Col: 132}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 			if templ_7745c5c3_Err != nil {
@@ -719,7 +721,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var38 string
 			templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.postmark_step_4"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 140, Col: 176}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 142, Col: 176}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 			if templ_7745c5c3_Err != nil {
@@ -732,7 +734,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var39 string
 			templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.server_token_help"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 142, Col: 73}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 144, Col: 73}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 			if templ_7745c5c3_Err != nil {
@@ -753,7 +755,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var40 string
 			templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.account_token_help"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 144, Col: 75}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 146, Col: 75}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 			if templ_7745c5c3_Err != nil {
@@ -771,7 +773,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var41 string
 				templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("email.account_token_set"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 146, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 148, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 				if templ_7745c5c3_Err != nil {
@@ -790,7 +792,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.SubmitButton(data.T("email.save"), nil).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButton(data.T("email.save"), nil).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -800,7 +802,7 @@ func emailSettingsView(data viewmodel.PageData) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.SettingsSidebar(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var14), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var14), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -832,7 +834,7 @@ func exportSettingsHeader(data viewmodel.PageData) templ.Component {
 		var templ_7745c5c3_Var43 string
 		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("common.product_name"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 159, Col: 110}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 161, Col: 110}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 		if templ_7745c5c3_Err != nil {
@@ -842,11 +844,11 @@ func exportSettingsHeader(data viewmodel.PageData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = layouts.DefaultHomeCrumb(data).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = molecules.DefaultHomeCrumb(data).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = layouts.WorkspaceContext(data).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = organisms.WorkspaceContext(data).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -854,7 +856,7 @@ func exportSettingsHeader(data viewmodel.PageData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = layouts.AccountMenu(data).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = organisms.AccountMenu(data).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -899,7 +901,7 @@ func exportSettingsView(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.PageHeading(data.Workspace.Name+" "+data.T("navigation.export"), data.T("navigation.settings_activity")).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.PageHeading(data.Workspace.Name+" "+data.T("navigation.export"), data.T("navigation.settings_activity")).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -910,7 +912,7 @@ func exportSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var46 string
 			templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("export.description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 172, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 174, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 			if templ_7745c5c3_Err != nil {
@@ -923,7 +925,7 @@ func exportSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var47 string
 			templ_7745c5c3_Var47, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("navigation.export")).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 173, Col: 75}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 175, Col: 75}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var47)
 			if templ_7745c5c3_Err != nil {
@@ -943,7 +945,7 @@ func exportSettingsView(data viewmodel.PageData) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = layouts.DashboardShell(data, exportSettingsHeader(data), layouts.SettingsSidebar(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var45), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templates.DashboardShell(data, exportSettingsHeader(data), organisms.SettingsSidebar(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var45), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -984,7 +986,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.PageHeading(data.Workspace.Name+" "+data.T("navigation.import"), data.T("navigation.settings_activity")).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.PageHeading(data.Workspace.Name+" "+data.T("navigation.import"), data.T("navigation.settings_activity")).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -995,7 +997,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var50 string
 			templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("import.description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 184, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 186, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 			if templ_7745c5c3_Err != nil {
@@ -1021,7 +1023,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var52 string
 					templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("import.items_imported"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 187, Col: 38}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 189, Col: 38}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 					if templ_7745c5c3_Err != nil {
@@ -1030,7 +1032,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var53 string
 					templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 187, Col: 45}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 189, Col: 45}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 					if templ_7745c5c3_Err != nil {
@@ -1043,7 +1045,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var54 string
 					templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(data.Imported)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 187, Col: 70}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 189, Col: 70}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 					if templ_7745c5c3_Err != nil {
@@ -1055,13 +1057,13 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = components.SuccessAlert(data.T("import.success")).Render(templ.WithChildren(ctx, templ_7745c5c3_Var51), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.SuccessAlert(data.T("import.success")).Render(templ.WithChildren(ctx, templ_7745c5c3_Var51), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			if data.Error != "" {
-				templ_7745c5c3_Err = components.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1073,7 +1075,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var55 string
 			templ_7745c5c3_Var55, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CurrentPath).ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 193, Col: 77}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 195, Col: 77}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var55)
 			if templ_7745c5c3_Err != nil {
@@ -1086,7 +1088,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var56 string
 			templ_7745c5c3_Var56, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 194, Col: 54}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 196, Col: 54}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var56)
 			if templ_7745c5c3_Err != nil {
@@ -1099,7 +1101,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var57 string
 			templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("import.file_help"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 196, Col: 57}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 198, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 			if templ_7745c5c3_Err != nil {
@@ -1113,7 +1115,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.SubmitButton(data.T("import.preview_button"), nil).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButton(data.T("import.preview_button"), nil).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1129,7 +1131,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var58 string
 				templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("import.preview_heading"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 202, Col: 71}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 204, Col: 71}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
 				if templ_7745c5c3_Err != nil {
@@ -1142,7 +1144,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var59 string
 				templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("import.preview_records"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 203, Col: 42}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 205, Col: 42}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
 				if templ_7745c5c3_Err != nil {
@@ -1155,7 +1157,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var60 string
 				templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(data.ImportPreview.RecordCount)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 203, Col: 86}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 205, Col: 86}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 				if templ_7745c5c3_Err != nil {
@@ -1168,7 +1170,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var61 string
 				templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("import.no_writes_yet"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 204, Col: 40}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 206, Col: 40}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var61))
 				if templ_7745c5c3_Err != nil {
@@ -1186,7 +1188,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var62 string
 					templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("import.preview_sample"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 206, Col: 43}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 208, Col: 43}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 					if templ_7745c5c3_Err != nil {
@@ -1236,7 +1238,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var64 string
 							templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.JoinStringErrs(sample.Title)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 211, Col: 31}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 213, Col: 31}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var64))
 							if templ_7745c5c3_Err != nil {
@@ -1250,7 +1252,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 								var templ_7745c5c3_Var65 string
 								templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinStringErrs(data.T(sample.StatusKey))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 213, Col: 37}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 215, Col: 37}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 								if templ_7745c5c3_Err != nil {
@@ -1260,7 +1262,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 								var templ_7745c5c3_Var66 string
 								templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(sample.Status)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 215, Col: 26}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 217, Col: 26}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 								if templ_7745c5c3_Err != nil {
@@ -1278,13 +1280,13 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = components.DataTable(data.T("import.preview_sample"), true).Render(templ.WithChildren(ctx, templ_7745c5c3_Var63), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = organisms.DataTable(data.T("import.preview_sample"), true).Render(templ.WithChildren(ctx, templ_7745c5c3_Var63), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				if data.ImportPreview.IssueCount > 0 {
-					templ_7745c5c3_Err = components.ErrorAlert(data.T("import.invalid_rows")+" "+strconv.Itoa(data.ImportPreview.IssueCount)).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.ErrorAlert(data.T("import.invalid_rows")+" "+strconv.Itoa(data.ImportPreview.IssueCount)).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1300,7 +1302,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var67 string
 						templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("import.record"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 226, Col: 37}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 228, Col: 37}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var67))
 						if templ_7745c5c3_Err != nil {
@@ -1309,7 +1311,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var68 string
 						templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 226, Col: 44}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 228, Col: 44}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var68))
 						if templ_7745c5c3_Err != nil {
@@ -1318,7 +1320,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var69 string
 						templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.JoinStringErrs(issue.Record)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 226, Col: 60}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 228, Col: 60}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var69))
 						if templ_7745c5c3_Err != nil {
@@ -1331,7 +1333,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var70 string
 						templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.JoinStringErrs(data.T(issue.MessageKey))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 226, Col: 90}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 228, Col: 90}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var70))
 						if templ_7745c5c3_Err != nil {
@@ -1350,7 +1352,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var71 string
 						templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("import.more_invalid_rows"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 229, Col: 48}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 231, Col: 48}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var71))
 						if templ_7745c5c3_Err != nil {
@@ -1359,7 +1361,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var72 string
 						templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 229, Col: 55}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 231, Col: 55}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var72))
 						if templ_7745c5c3_Err != nil {
@@ -1368,7 +1370,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var73 string
 						templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.JoinStringErrs(data.ImportPreview.MoreIssues)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 229, Col: 88}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 231, Col: 88}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var73))
 						if templ_7745c5c3_Err != nil {
@@ -1391,7 +1393,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var74 string
 					templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("import.confirm_heading"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 233, Col: 44}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 235, Col: 44}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var74))
 					if templ_7745c5c3_Err != nil {
@@ -1404,7 +1406,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var75 string
 					templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("import.confirm_reselect"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 234, Col: 44}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 236, Col: 44}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var75))
 					if templ_7745c5c3_Err != nil {
@@ -1417,7 +1419,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var76 string
 					templ_7745c5c3_Var76, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CurrentPath).ResolveURL(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 235, Col: 65}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 237, Col: 65}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var76)
 					if templ_7745c5c3_Err != nil {
@@ -1430,7 +1432,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var77 string
 					templ_7745c5c3_Var77, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 236, Col: 57}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 238, Col: 57}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var77)
 					if templ_7745c5c3_Err != nil {
@@ -1443,7 +1445,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var78 string
 					templ_7745c5c3_Var78, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.ImportPreview.Digest).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 238, Col: 83}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 240, Col: 83}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var78)
 					if templ_7745c5c3_Err != nil {
@@ -1456,7 +1458,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var79 string
 					templ_7745c5c3_Var79, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.ImportPreview.Format).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 239, Col: 83}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 241, Col: 83}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var79)
 					if templ_7745c5c3_Err != nil {
@@ -1469,7 +1471,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var80 string
 					templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("import.confirm_file_help"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 240, Col: 76}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `settings_pages.templ`, Line: 242, Col: 76}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var80))
 					if templ_7745c5c3_Err != nil {
@@ -1483,11 +1485,11 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = components.ConfirmationField("import-confirm", "confirm", data.T("import.confirm")).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.ConfirmationField("import-confirm", "confirm", data.T("import.confirm")).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = components.SubmitButton(data.T("import.confirm_button"), nil).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.SubmitButton(data.T("import.confirm_button"), nil).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1507,7 +1509,7 @@ func importSettingsView(data viewmodel.PageData) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.SettingsSidebar(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var49), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var49), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

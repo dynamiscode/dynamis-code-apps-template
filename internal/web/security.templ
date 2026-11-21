@@ -1,12 +1,14 @@
 package web
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 templ securityPage(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, layouts.AccountHeader(data), nil) {
+	@templates.DashboardShell(data, organisms.AccountHeader(data), nil) {
 		<div class="account-page" data-account-page aria-labelledby="security-heading">
 			<header class="account-heading">
 				<p class="eyebrow">{ data.T("common.account") }</p>
@@ -14,10 +16,10 @@ templ securityPage(data viewmodel.PageData) {
 				<p class="account-intro">{ data.T("security.description") }</p>
 			</header>
 			if data.Error != "" {
-				@components.ErrorAlert(data.Error)
+				@molecules.ErrorAlert(data.Error)
 			}
 			if data.MFAError != "" {
-				@components.ErrorAlert(data.MFAError)
+				@molecules.ErrorAlert(data.MFAError)
 			}
 			<section class="settings-panel" aria-labelledby="security-mfa-heading">
 				<h2 id="security-mfa-heading">{ data.T("security.mfa_title") }</h2>
@@ -32,28 +34,28 @@ templ securityPage(data viewmodel.PageData) {
 					{ " · " }{ data.T("security.mfa_recovery_remaining") }{ ": " }{ data.MFAStatus.RecoveryRemain }</p>
 					<form id="passkey-enroll" x-data="passkeyEnroll" action="/api/v1/auth/mfa/passkeys/register/options" method="post">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						@components.TextField("passkey-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
-						@components.SubmitButton(data.T("security.mfa_add_passkey"), nil)
+						@molecules.TextField("passkey-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
+						@molecules.SubmitButton(data.T("security.mfa_add_passkey"), nil)
 					</form>
 					if !data.MFAStatus.TOTPEnabled {
 						<form action="/security/totp/start" method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							@components.TextField("totp-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
-							@components.SubmitButton(data.T("security.mfa_setup_authenticator"), nil)
+							@molecules.TextField("totp-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
+							@molecules.SubmitButton(data.T("security.mfa_setup_authenticator"), nil)
 						</form>
 					} else {
 						<form action="/security/totp/remove" method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							@components.TextField("remove-totp-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
-							@components.ConfirmButton(data.T("security.mfa_remove_authenticator"), data.T("security.mfa_remove_authenticator"), templ.Attributes{"class": "btn btn-error danger"})
+							@molecules.TextField("remove-totp-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
+							@molecules.ConfirmButton(data.T("security.mfa_remove_authenticator"), data.T("security.mfa_remove_authenticator"), templ.Attributes{"class": "btn btn-error danger"})
 						</form>
 					}
 					for _, passkey := range data.Passkeys {
 						if passkey.RevokedAt == nil {
 							<form action={ "/security/passkey/" + passkey.ID } method="post">
 								<input type="hidden" name="csrf" value={ data.CSRF }/>
-								@components.TextField("remove-"+passkey.ID, data.T("security.mfa_password_optional")+" — "+passkey.Name, templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
-								@components.ConfirmButton(data.T("security.mfa_remove_passkey"), data.T("security.mfa_remove_passkey"), templ.Attributes{"class": "btn btn-error danger"})
+								@molecules.TextField("remove-"+passkey.ID, data.T("security.mfa_password_optional")+" — "+passkey.Name, templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
+								@molecules.ConfirmButton(data.T("security.mfa_remove_passkey"), data.T("security.mfa_remove_passkey"), templ.Attributes{"class": "btn btn-error danger"})
 							</form>
 						}
 					}
@@ -62,8 +64,8 @@ templ securityPage(data viewmodel.PageData) {
 						<form action="/security/totp/complete" method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="challenge" value={ data.TOTPEnrollment.Challenge }/>
-							@components.TextField("totp-enrollment-code", data.T("security.mfa_authenticator_code"), templ.Attributes{"name": "code", "inputmode": "numeric", "autocomplete": "one-time-code", "minlength": "6", "maxlength": "9", "required": true, "data-mask": "digits", "data-mask-length": "6"})
-							@components.SubmitButton(data.T("security.mfa_confirm_authenticator"), nil)
+							@molecules.TextField("totp-enrollment-code", data.T("security.mfa_authenticator_code"), templ.Attributes{"name": "code", "inputmode": "numeric", "autocomplete": "one-time-code", "minlength": "6", "maxlength": "9", "required": true, "data-mask": "digits", "data-mask-length": "6"})
+							@molecules.SubmitButton(data.T("security.mfa_confirm_authenticator"), nil)
 						</form>
 					}
 					if len(data.MFARecoveryCodes) > 0 {
@@ -89,8 +91,8 @@ templ securityPage(data viewmodel.PageData) {
 							providerOptions = append(providerOptions, atoms.SelectOption{Label: provider.Name, Value: provider.ID})
 						} }}
 						@atoms.Select(atoms.SelectProps{ID: "provider", Name: "provider", Label: data.T("security.provider"), Options: providerOptions})
-						@components.TextField("reauth-password", data.T("security.password"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password", "required": true})
-						@components.SubmitButton(data.T("security.link"), nil)
+						@molecules.TextField("reauth-password", data.T("security.password"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password", "required": true})
+						@molecules.SubmitButton(data.T("security.link"), nil)
 					</form>
 				} else {
 					<p>{ data.T("errors.no_oidc") }</p>

@@ -1,9 +1,11 @@
 package web
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 
 import (
 	"fmt"
@@ -11,7 +13,7 @@ import (
 )
 
 templ webhooksPage(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.DashboardSettingsNavigation(data)) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardSettingsNavigation(data)) {
 		<p class="eyebrow">{ data.T("navigation.settings_access") }</p>
 		if data.SelectedWebhook.ID != 0 {
 			<p><a href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks" }>← { data.T("webhooks.back_to_webhooks") }</a></p>
@@ -46,18 +48,18 @@ templ webhooksPage(data viewmodel.PageData) {
 					</tbody>
 				}
 			} else {
-				@components.EmptyState(data.T("webhooks.no_deliveries"))
+				@molecules.EmptyState(data.T("webhooks.no_deliveries"))
 			}
 		} else {
-			@components.PageHeading(data.T("webhooks.webhooks"), data.T("navigation.settings_access"))
+			@molecules.PageHeading(data.T("webhooks.webhooks"), data.T("navigation.settings_access"))
 			<p class="settings-intro">{ data.T("webhooks.description") }</p>
 			if data.ErrorKey != "" {
-				@components.ErrorAlert(data.T(data.ErrorKey))
+				@molecules.ErrorAlert(data.T(data.ErrorKey))
 			} else if data.Error != "" {
-				@components.ErrorAlert(data.Error)
+				@molecules.ErrorAlert(data.Error)
 			}
 			if data.WebhookReadbackFailed {
-				@components.ErrorAlert(data.T("webhooks.readback_warning"))
+				@molecules.ErrorAlert(data.T("webhooks.readback_warning"))
 			}
 			if data.CanManage && !data.WebhookSecretKeyConfigured {
 				@atoms.Alert(atoms.AlertProps{Class: "warning alert-warning", Attrs: templ.Attributes{"id": "webhook-secret-key-warning"}}) {
@@ -74,8 +76,8 @@ templ webhooksPage(data viewmodel.PageData) {
 					<h2 id="new-webhook-heading">{ data.T("webhooks.new") }</h2>
 					<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks" } method="post" data-persist="webhook-create" data-unsaved-warning>
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						@components.TextField("webhook-name", data.T("webhooks.name"), templ.Attributes{"name": "name", "required": true, "maxlength": "100", "data-trim": true})
-						@components.TextField("webhook-url", data.T("webhooks.endpoint"), templ.Attributes{"name": "url", "type": "url", "required": true, "maxlength": "2048", "aria-describedby": "webhook-url-help", "data-trim": true})
+						@molecules.TextField("webhook-name", data.T("webhooks.name"), templ.Attributes{"name": "name", "required": true, "maxlength": "100", "data-trim": true})
+						@molecules.TextField("webhook-url", data.T("webhooks.endpoint"), templ.Attributes{"name": "url", "type": "url", "required": true, "maxlength": "2048", "aria-describedby": "webhook-url-help", "data-trim": true})
 						<p id="webhook-url-help">{ data.T("webhooks.endpoint_help") }</p>
 						<fieldset aria-describedby="webhook-events-help"><legend>{ data.T("webhooks.events") }</legend><p id="webhook-events-help">{ data.T("webhooks.events_help") }</p>
 						@webhookEventCheckbox("item.created")
@@ -127,7 +129,7 @@ templ webhooksPage(data viewmodel.PageData) {
 					</ul>
 				</section>
 			} else if !data.WebhookReadbackFailed {
-				@components.EmptyState(data.T("webhooks.none"))
+				@molecules.EmptyState(data.T("webhooks.none"))
 			}
 		}
 	}

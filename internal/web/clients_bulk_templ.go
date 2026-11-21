@@ -9,8 +9,9 @@ package web
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 // clientBulkBar is the bulk form for the rows on this page. Its checkboxes and buttons name the form by id, so the
@@ -39,7 +40,7 @@ func clientBulkBar(data viewmodel.PageData) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CurrentPath + "/bulk").ResolveURL(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_bulk.templ`, Line: 9, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_bulk.templ`, Line: 10, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -52,7 +53,7 @@ func clientBulkBar(data viewmodel.PageData) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_bulk.templ`, Line: 10, Col: 52}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_bulk.templ`, Line: 11, Col: 52}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -65,7 +66,7 @@ func clientBulkBar(data viewmodel.PageData) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CurrentPath + data.ClientQuerySuffix).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_bulk.templ`, Line: 11, Col: 86}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_bulk.templ`, Line: 12, Col: 86}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -78,7 +79,7 @@ func clientBulkBar(data viewmodel.PageData) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("clients.bulk_selected", map[string]any{"count": "COUNT"})).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_bulk.templ`, Line: 12, Col: 142}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_bulk.templ`, Line: 13, Col: 142}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
@@ -91,7 +92,7 @@ func clientBulkBar(data viewmodel.PageData) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.bulk_selected", map[string]any{"count": 0}))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_bulk.templ`, Line: 12, Col: 206}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_bulk.templ`, Line: 13, Col: 206}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -113,7 +114,7 @@ func clientBulkBar(data viewmodel.PageData) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = components.ListActionIcon("archive").Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = organisms.ListActionIcon("archive").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -124,7 +125,7 @@ func clientBulkBar(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.bulk_archive"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_bulk.templ`, Line: 15, Col: 35}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_bulk.templ`, Line: 16, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
@@ -149,7 +150,7 @@ func clientBulkBar(data viewmodel.PageData) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = components.ListActionIcon("delete").Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = organisms.ListActionIcon("delete").Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -160,7 +161,7 @@ func clientBulkBar(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.bulk_delete"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_bulk.templ`, Line: 20, Col: 35}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_bulk.templ`, Line: 21, Col: 35}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {

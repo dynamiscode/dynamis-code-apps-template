@@ -9,9 +9,11 @@ package web
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import (
@@ -53,16 +55,16 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.PageHeading(data.Workspace.Name+" · "+data.T("invitations.invitations"), data.T("navigation.settings")).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.PageHeading(data.Workspace.Name+" · "+data.T("invitations.invitations"), data.T("navigation.settings")).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = layouts.PeopleTabs(data).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = organisms.PeopleTabs(data).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if data.DeliveryWarning != "" {
-				templ_7745c5c3_Err = components.ErrorAlert(data.DeliveryWarning).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.DeliveryWarning).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -75,7 +77,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var3 string
 				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.copy_link"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 23, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 25, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 				if templ_7745c5c3_Err != nil {
@@ -97,7 +99,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.create"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 27, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 29, Col: 67}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -110,7 +112,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/workspaces/" + data.Workspace.ID.String() + "/settings/invitations").ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 28, Col: 88}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 30, Col: 88}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
@@ -123,7 +125,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 29, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 31, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 			if templ_7745c5c3_Err != nil {
@@ -165,7 +167,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("members.role_help"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 49, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 51, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -187,7 +189,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.SubmitButton(data.T("invitations.create"), templ.Attributes{"name": "action", "value": "create"}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButton(data.T("invitations.create"), templ.Attributes{"name": "action", "value": "create"}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -198,7 +200,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.invitations"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 63, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 65, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
@@ -209,7 +211,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if len(data.Invitations) == 0 {
-				templ_7745c5c3_Err = components.EmptyState(data.T("invitations.empty")).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.EmptyState(data.T("invitations.empty")).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -278,7 +280,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var10 string
 						templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(invitation.Email)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 72, Col: 43}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 74, Col: 43}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 						if templ_7745c5c3_Err != nil {
@@ -291,7 +293,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var11 string
 						templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(data.Role(invitation.Role))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 73, Col: 41}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 75, Col: 41}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 						if templ_7745c5c3_Err != nil {
@@ -304,7 +306,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var12 string
 						templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(data.T(invitationStatusKey(invitation, time.Now())))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 74, Col: 66}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 76, Col: 66}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 						if templ_7745c5c3_Err != nil {
@@ -317,7 +319,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var13 string
 						templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(data.DateTime(invitation.ExpiresAt))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 75, Col: 50}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 77, Col: 50}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 						if templ_7745c5c3_Err != nil {
@@ -335,7 +337,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var14 string
 							templ_7745c5c3_Var14, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/workspaces/" + data.Workspace.ID.String() + "/settings/invitations").ResolveURL(ctx)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 78, Col: 110}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 80, Col: 110}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 							if templ_7745c5c3_Err != nil {
@@ -348,7 +350,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var15 string
 							templ_7745c5c3_Var15, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 79, Col: 62}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 81, Col: 62}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 							if templ_7745c5c3_Err != nil {
@@ -361,7 +363,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var16 string
 							templ_7745c5c3_Var16, templ_7745c5c3_Err = templruntime.NewAttributeExpression(invitation.ID.String()).Resolve(ctx)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 79, Col: 138}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 81, Col: 138}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 							if templ_7745c5c3_Err != nil {
@@ -388,7 +390,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var17 string
 							templ_7745c5c3_Var17, templ_7745c5c3_Err = templruntime.NewAttributeExpression(invitation.ID.String()).Resolve(ctx)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 84, Col: 111}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 86, Col: 111}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 							if templ_7745c5c3_Err != nil {
@@ -401,7 +403,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var18 string
 							templ_7745c5c3_Var18, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/workspaces/" + data.Workspace.ID.String() + "/settings/invitations").ResolveURL(ctx)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 84, Col: 192}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 86, Col: 192}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 							if templ_7745c5c3_Err != nil {
@@ -414,7 +416,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var19 string
 							templ_7745c5c3_Var19, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 85, Col: 62}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 87, Col: 62}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 							if templ_7745c5c3_Err != nil {
@@ -427,7 +429,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var20 string
 							templ_7745c5c3_Var20, templ_7745c5c3_Err = templruntime.NewAttributeExpression(invitation.ID.String()).Resolve(ctx)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 85, Col: 138}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 87, Col: 138}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 							if templ_7745c5c3_Err != nil {
@@ -437,11 +439,11 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = components.ConfirmationField("revoke-"+invitation.ID.String(), "confirm_revoke", data.T("invitations.revoke_confirm")).Render(ctx, templ_7745c5c3_Buffer)
+							templ_7745c5c3_Err = molecules.ConfirmationField("revoke-"+invitation.ID.String(), "confirm_revoke", data.T("invitations.revoke_confirm")).Render(ctx, templ_7745c5c3_Buffer)
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = components.SubmitButton(data.T("invitations.revoke"), templ.Attributes{"name": "action", "value": "revoke"}).Render(ctx, templ_7745c5c3_Buffer)
+							templ_7745c5c3_Err = molecules.SubmitButton(data.T("invitations.revoke"), templ.Attributes{"name": "action", "value": "revoke"}).Render(ctx, templ_7745c5c3_Buffer)
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -461,7 +463,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = components.ListTable(data.T("invitations.invitations"), true).Render(templ.WithChildren(ctx, templ_7745c5c3_Var9), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = organisms.ListTable(data.T("invitations.invitations"), true).Render(templ.WithChildren(ctx, templ_7745c5c3_Var9), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -472,7 +474,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.DashboardSettingsNavigation(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardSettingsNavigation(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -516,7 +518,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var23 string
 			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.workspace_invitation"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 103, Col: 65}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 105, Col: 65}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 			if templ_7745c5c3_Err != nil {
@@ -529,7 +531,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var24 string
 			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.workspace_invitation"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 104, Col: 50}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 106, Col: 50}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 			if templ_7745c5c3_Err != nil {
@@ -540,7 +542,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.ErrorKey != "" {
-				templ_7745c5c3_Err = components.ErrorAlert(data.T(data.ErrorKey)).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.T(data.ErrorKey)).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -557,7 +559,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var25 string
 				templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.invited_as", map[string]any{"role": data.Role(data.Invitation.Role), "workspace": data.Invitation.WorkspaceID.String()}))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 109, Col: 148}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 111, Col: 148}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 				if templ_7745c5c3_Err != nil {
@@ -570,7 +572,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var26 string
 				templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.email"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 110, Col: 35}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 112, Col: 35}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 				if templ_7745c5c3_Err != nil {
@@ -583,7 +585,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(data.Invitation.Email)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 110, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 112, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 				if templ_7745c5c3_Err != nil {
@@ -596,7 +598,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var28 string
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.account_match_help"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 111, Col: 63}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 113, Col: 63}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 				if templ_7745c5c3_Err != nil {
@@ -614,7 +616,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var29 string
 					templ_7745c5c3_Var29, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/invitations/" + data.InvitationSecret).ResolveURL(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 113, Col: 58}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 115, Col: 58}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 					if templ_7745c5c3_Err != nil {
@@ -627,7 +629,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var30 string
 					templ_7745c5c3_Var30, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 114, Col: 55}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 116, Col: 55}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 					if templ_7745c5c3_Err != nil {
@@ -637,7 +639,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = components.SubmitButton(data.T("invitations.accept"), templ.Attributes{"name": "action", "value": "accept"}).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.SubmitButton(data.T("invitations.accept"), templ.Attributes{"name": "action", "value": "accept"}).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -648,7 +650,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var31 string
 					templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.already_account"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 117, Col: 46}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 119, Col: 46}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 					if templ_7745c5c3_Err != nil {
@@ -661,7 +663,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var32 string
 					templ_7745c5c3_Var32, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/invitations/" + data.InvitationSecret + "/sign-in").ResolveURL(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 118, Col: 71}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 120, Col: 71}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var32)
 					if templ_7745c5c3_Err != nil {
@@ -674,7 +676,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var33 string
 					templ_7745c5c3_Var33, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 119, Col: 55}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 121, Col: 55}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 					if templ_7745c5c3_Err != nil {
@@ -684,7 +686,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = components.SubmitButton(data.T("invitations.sign_in_accept"), nil).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.SubmitButton(data.T("invitations.sign_in_accept"), nil).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -695,7 +697,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var34 string
 					templ_7745c5c3_Var34, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 122, Col: 91}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 124, Col: 91}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 					if templ_7745c5c3_Err != nil {
@@ -708,7 +710,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var35 string
 					templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("navigation.sign_out"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 122, Col: 160}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 124, Col: 160}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 					if templ_7745c5c3_Err != nil {
@@ -726,7 +728,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var36 string
 					templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.new_account"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 125, Col: 70}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 127, Col: 70}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 					if templ_7745c5c3_Err != nil {
@@ -739,7 +741,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var37 string
 					templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.existing_account_help"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 126, Col: 53}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 128, Col: 53}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 					if templ_7745c5c3_Err != nil {
@@ -752,7 +754,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var38 string
 					templ_7745c5c3_Var38, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/invitations/" + data.InvitationSecret).ResolveURL(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 127, Col: 59}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 129, Col: 59}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
 					if templ_7745c5c3_Err != nil {
@@ -765,7 +767,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var39 string
 					templ_7745c5c3_Var39, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 128, Col: 56}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 130, Col: 56}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var39)
 					if templ_7745c5c3_Err != nil {
@@ -788,7 +790,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = components.SubmitButton(data.T("invitations.create_account"), templ.Attributes{"name": "action", "value": "register"}).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.SubmitButton(data.T("invitations.create_account"), templ.Attributes{"name": "action", "value": "register"}).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -799,7 +801,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var40 string
 					templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.already_account"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 142, Col: 46}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 144, Col: 46}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 					if templ_7745c5c3_Err != nil {
@@ -812,7 +814,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var41 string
 					templ_7745c5c3_Var41, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/invitations/" + data.InvitationSecret + "/sign-in").ResolveURL(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 143, Col: 71}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 145, Col: 71}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var41)
 					if templ_7745c5c3_Err != nil {
@@ -825,7 +827,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var42 string
 					templ_7745c5c3_Var42, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 144, Col: 55}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 146, Col: 55}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
 					if templ_7745c5c3_Err != nil {
@@ -835,7 +837,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = components.SubmitButton(data.T("invitations.sign_in_accept"), nil).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.SubmitButton(data.T("invitations.sign_in_accept"), nil).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -853,7 +855,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var43 string
 					templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.unavailable_help"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 150, Col: 47}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 152, Col: 47}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 					if templ_7745c5c3_Err != nil {
@@ -871,7 +873,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var44 string
 				templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("navigation.home"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 152, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 154, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 				if templ_7745c5c3_Err != nil {
@@ -928,7 +930,7 @@ func invitationContinueView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var47 string
 			templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.workspace_invitation"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 159, Col: 50}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 161, Col: 50}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 			if templ_7745c5c3_Err != nil {
@@ -939,7 +941,7 @@ func invitationContinueView(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.ErrorKey != "" {
-				templ_7745c5c3_Err = components.ErrorAlert(data.T(data.ErrorKey)).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.T(data.ErrorKey)).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -956,7 +958,7 @@ func invitationContinueView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var48 string
 				templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.invited_as", map[string]any{"role": data.Role(data.Invitation.Role), "workspace": data.Invitation.WorkspaceID.String()}))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 164, Col: 148}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 166, Col: 148}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 				if templ_7745c5c3_Err != nil {
@@ -969,7 +971,7 @@ func invitationContinueView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var49 string
 				templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.email"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 165, Col: 35}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 167, Col: 35}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 				if templ_7745c5c3_Err != nil {
@@ -982,7 +984,7 @@ func invitationContinueView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var50 string
 				templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(data.Invitation.Email)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 165, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 167, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 				if templ_7745c5c3_Err != nil {
@@ -995,7 +997,7 @@ func invitationContinueView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var51 string
 				templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.account_match_help"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 166, Col: 63}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 168, Col: 63}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 				if templ_7745c5c3_Err != nil {
@@ -1008,7 +1010,7 @@ func invitationContinueView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var52 string
 				templ_7745c5c3_Var52, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 168, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 170, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var52)
 				if templ_7745c5c3_Err != nil {
@@ -1018,7 +1020,7 @@ func invitationContinueView(data viewmodel.PageData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = components.SubmitButton(data.T("invitations.accept"), nil).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.SubmitButton(data.T("invitations.accept"), nil).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1029,7 +1031,7 @@ func invitationContinueView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var53 string
 				templ_7745c5c3_Var53, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 171, Col: 90}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 173, Col: 90}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var53)
 				if templ_7745c5c3_Err != nil {
@@ -1042,7 +1044,7 @@ func invitationContinueView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var54 string
 				templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("navigation.sign_out"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 171, Col: 159}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 173, Col: 159}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 				if templ_7745c5c3_Err != nil {
@@ -1060,7 +1062,7 @@ func invitationContinueView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var55 string
 				templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.unavailable_help"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 173, Col: 46}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 175, Col: 46}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 				if templ_7745c5c3_Err != nil {
@@ -1073,7 +1075,7 @@ func invitationContinueView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var56 string
 				templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("navigation.home"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 174, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `invitations.templ`, Line: 176, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 				if templ_7745c5c3_Err != nil {

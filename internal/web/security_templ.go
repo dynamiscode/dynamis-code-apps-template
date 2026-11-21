@@ -9,9 +9,11 @@ package web
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 func securityPage(data viewmodel.PageData) templ.Component {
@@ -50,7 +52,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("common.account"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 12, Col: 49}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 14, Col: 49}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -63,7 +65,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.security"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 13, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 15, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -76,7 +78,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 14, Col: 61}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 16, Col: 61}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -87,13 +89,13 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.Error != "" {
-				templ_7745c5c3_Err = components.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			if data.MFAError != "" {
-				templ_7745c5c3_Err = components.ErrorAlert(data.MFAError).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.MFAError).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -105,7 +107,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_title"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 23, Col: 64}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 25, Col: 64}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -118,7 +120,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 24, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 26, Col: 43}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -136,7 +138,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_passkeys"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 26, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 28, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -145,7 +147,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(": ")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 26, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 28, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -154,7 +156,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(data.MFAStatus.PasskeyCount)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 26, Col: 80}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 28, Col: 80}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
@@ -163,7 +165,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(" · ")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 26, Col: 90}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 28, Col: 90}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
@@ -172,7 +174,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_authenticator"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 26, Col: 130}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 28, Col: 130}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
@@ -181,7 +183,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var13 string
 				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(": ")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 26, Col: 138}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 28, Col: 138}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 				if templ_7745c5c3_Err != nil {
@@ -195,7 +197,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var14 string
 					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_enabled"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 28, Col: 38}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 30, Col: 38}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 					if templ_7745c5c3_Err != nil {
@@ -209,7 +211,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var15 string
 					templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_not_enabled"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 30, Col: 42}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 32, Col: 42}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 					if templ_7745c5c3_Err != nil {
@@ -223,7 +225,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(" · ")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 32, Col: 13}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 34, Col: 13}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -232,7 +234,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var17 string
 				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_recovery_remaining"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 32, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 34, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 				if templ_7745c5c3_Err != nil {
@@ -241,7 +243,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var18 string
 				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(": ")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 32, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 34, Col: 66}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 				if templ_7745c5c3_Err != nil {
@@ -250,7 +252,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var19 string
 				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(data.MFAStatus.RecoveryRemain)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 32, Col: 99}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 34, Col: 99}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 				if templ_7745c5c3_Err != nil {
@@ -263,7 +265,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var20 string
 				templ_7745c5c3_Var20, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 34, Col: 56}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 36, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 				if templ_7745c5c3_Err != nil {
@@ -273,11 +275,11 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = components.TextField("passkey-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"}).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.TextField("passkey-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = components.SubmitButton(data.T("security.mfa_add_passkey"), nil).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.SubmitButton(data.T("security.mfa_add_passkey"), nil).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -293,7 +295,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var21 string
 					templ_7745c5c3_Var21, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 40, Col: 57}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 42, Col: 57}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 					if templ_7745c5c3_Err != nil {
@@ -303,11 +305,11 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = components.TextField("totp-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"}).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.TextField("totp-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"}).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = components.SubmitButton(data.T("security.mfa_setup_authenticator"), nil).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.SubmitButton(data.T("security.mfa_setup_authenticator"), nil).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -323,7 +325,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var22 string
 					templ_7745c5c3_Var22, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 46, Col: 57}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 48, Col: 57}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 					if templ_7745c5c3_Err != nil {
@@ -333,11 +335,11 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = components.TextField("remove-totp-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"}).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.TextField("remove-totp-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"}).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = components.ConfirmButton(data.T("security.mfa_remove_authenticator"), data.T("security.mfa_remove_authenticator"), templ.Attributes{"class": "btn btn-error danger"}).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.ConfirmButton(data.T("security.mfa_remove_authenticator"), data.T("security.mfa_remove_authenticator"), templ.Attributes{"class": "btn btn-error danger"}).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -355,7 +357,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var23 string
 						templ_7745c5c3_Var23, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/security/passkey/" + passkey.ID).ResolveURL(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 53, Col: 55}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 55, Col: 55}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 						if templ_7745c5c3_Err != nil {
@@ -368,7 +370,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var24 string
 						templ_7745c5c3_Var24, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 54, Col: 58}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 56, Col: 58}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 						if templ_7745c5c3_Err != nil {
@@ -378,11 +380,11 @@ func securityPage(data viewmodel.PageData) templ.Component {
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = components.TextField("remove-"+passkey.ID, data.T("security.mfa_password_optional")+" — "+passkey.Name, templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"}).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = molecules.TextField("remove-"+passkey.ID, data.T("security.mfa_password_optional")+" — "+passkey.Name, templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"}).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = components.ConfirmButton(data.T("security.mfa_remove_passkey"), data.T("security.mfa_remove_passkey"), templ.Attributes{"class": "btn btn-error danger"}).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = molecules.ConfirmButton(data.T("security.mfa_remove_passkey"), data.T("security.mfa_remove_passkey"), templ.Attributes{"class": "btn btn-error danger"}).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -404,7 +406,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var25 string
 					templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_setup_value"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 61, Col: 45}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 63, Col: 45}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 					if templ_7745c5c3_Err != nil {
@@ -413,7 +415,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var26 string
 					templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(": ")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 61, Col: 53}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 63, Col: 53}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 					if templ_7745c5c3_Err != nil {
@@ -426,7 +428,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var27 string
 					templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(data.TOTPEnrollment.Secret)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 61, Col: 89}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 63, Col: 89}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 					if templ_7745c5c3_Err != nil {
@@ -439,7 +441,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var28 string
 					templ_7745c5c3_Var28, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 63, Col: 57}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 65, Col: 57}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 					if templ_7745c5c3_Err != nil {
@@ -452,7 +454,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var29 string
 					templ_7745c5c3_Var29, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.TOTPEnrollment.Challenge).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 64, Col: 82}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 66, Col: 82}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 					if templ_7745c5c3_Err != nil {
@@ -462,11 +464,11 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = components.TextField("totp-enrollment-code", data.T("security.mfa_authenticator_code"), templ.Attributes{"name": "code", "inputmode": "numeric", "autocomplete": "one-time-code", "minlength": "6", "maxlength": "9", "required": true, "data-mask": "digits", "data-mask-length": "6"}).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.TextField("totp-enrollment-code", data.T("security.mfa_authenticator_code"), templ.Attributes{"name": "code", "inputmode": "numeric", "autocomplete": "one-time-code", "minlength": "6", "maxlength": "9", "required": true, "data-mask": "digits", "data-mask-length": "6"}).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = components.SubmitButton(data.T("security.mfa_confirm_authenticator"), nil).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.SubmitButton(data.T("security.mfa_confirm_authenticator"), nil).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -487,7 +489,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var30 string
 					templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_recovery_codes"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 70, Col: 49}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 72, Col: 49}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 					if templ_7745c5c3_Err != nil {
@@ -500,7 +502,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var31 string
 					templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_store_recovery"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 71, Col: 48}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 73, Col: 48}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 					if templ_7745c5c3_Err != nil {
@@ -509,7 +511,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var32 string
 					templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 71, Col: 55}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 73, Col: 55}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 					if templ_7745c5c3_Err != nil {
@@ -518,7 +520,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var33 string
 					templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_each_recovery_once"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 71, Col: 100}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 73, Col: 100}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 					if templ_7745c5c3_Err != nil {
@@ -540,7 +542,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var34 string
 				templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_recovery_codes"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 75, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 77, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 				if templ_7745c5c3_Err != nil {
@@ -553,7 +555,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_store_recovery"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 76, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 78, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 				if templ_7745c5c3_Err != nil {
@@ -562,7 +564,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var36 string
 				templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 76, Col: 55}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 78, Col: 55}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 				if templ_7745c5c3_Err != nil {
@@ -571,7 +573,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var37 string
 				templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.mfa_each_recovery_once"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 76, Col: 100}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 78, Col: 100}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 				if templ_7745c5c3_Err != nil {
@@ -589,7 +591,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var38 string
 			templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.linked_identity_title"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 82, Col: 88}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 84, Col: 88}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 			if templ_7745c5c3_Err != nil {
@@ -602,7 +604,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var39 string
 			templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("security.linked_identity_description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 83, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 85, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 			if templ_7745c5c3_Err != nil {
@@ -620,7 +622,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var40 string
 				templ_7745c5c3_Var40, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 86, Col: 56}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 88, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var40)
 				if templ_7745c5c3_Err != nil {
@@ -638,11 +640,11 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = components.TextField("reauth-password", data.T("security.password"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password", "required": true}).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.TextField("reauth-password", data.T("security.password"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password", "required": true}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = components.SubmitButton(data.T("security.link"), nil).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.SubmitButton(data.T("security.link"), nil).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -658,7 +660,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var41 string
 				templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("errors.no_oidc"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 96, Col: 34}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `security.templ`, Line: 98, Col: 34}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 				if templ_7745c5c3_Err != nil {
@@ -675,7 +677,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = layouts.DashboardShell(data, layouts.AccountHeader(data), nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templates.DashboardShell(data, organisms.AccountHeader(data), nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -9,10 +9,12 @@ package web
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 
 func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -47,7 +49,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.PageHeading(data.T("tokens.tokens"), data.T("navigation.settings_access")).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.PageHeading(data.T("tokens.tokens"), data.T("navigation.settings_access")).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -58,7 +60,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("tokens.description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 12, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 14, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -88,7 +90,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var5 string
 					templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.TokenSecret)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 15, Col: 48}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 17, Col: 48}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 					if templ_7745c5c3_Err != nil {
@@ -100,13 +102,13 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = components.SuccessAlert(data.T("tokens.secret_warning")).Render(templ.WithChildren(ctx, templ_7745c5c3_Var4), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.SuccessAlert(data.T("tokens.secret_warning")).Render(templ.WithChildren(ctx, templ_7745c5c3_Var4), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			if data.Error != "" {
-				templ_7745c5c3_Err = components.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -118,7 +120,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("tokens.create"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 22, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 24, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -131,7 +133,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/workspaces/" + data.Workspace.ID.String() + "/settings/tokens").ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 23, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 25, Col: 84}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 			if templ_7745c5c3_Err != nil {
@@ -144,7 +146,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 24, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 26, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 			if templ_7745c5c3_Err != nil {
@@ -154,7 +156,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.TextField("token-name", data.T("tokens.name"), templ.Attributes{"name": "name", "required": true, "maxlength": "100", "data-trim": true}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.TextField("token-name", data.T("tokens.name"), templ.Attributes{"name": "name", "required": true, "maxlength": "100", "data-trim": true}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -165,7 +167,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("tokens.scopes"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 27, Col: 40}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 29, Col: 40}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
@@ -199,11 +201,11 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.TextField("token-expiry", data.T("tokens.expiration")+" "+data.T("ui.optional"), templ.Attributes{"name": "expires_at", "type": "date", "value": data.DefaultTokenExpiry()}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.TextField("token-expiry", data.T("tokens.expiration")+" "+data.T("ui.optional"), templ.Attributes{"name": "expires_at", "type": "date", "value": data.DefaultTokenExpiry()}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.SubmitButton(data.T("tokens.create"), templ.Attributes{"name": "action", "value": "create"}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButton(data.T("tokens.create"), templ.Attributes{"name": "action", "value": "create"}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -214,7 +216,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("tokens.tokens"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 39, Col: 58}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 41, Col: 58}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -237,7 +239,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var11 string
 					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(token.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 44, Col: 34}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 46, Col: 34}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 					if templ_7745c5c3_Err != nil {
@@ -250,7 +252,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var12 string
 					templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(data.ScopeList(token.Scopes))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 44, Col: 78}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 46, Col: 78}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 					if templ_7745c5c3_Err != nil {
@@ -263,7 +265,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var13 string
 					templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("sessions.created"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 44, Col: 115}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 46, Col: 115}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 					if templ_7745c5c3_Err != nil {
@@ -276,7 +278,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var14 string
 					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(data.DateTime(token.CreatedAt))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 44, Col: 150}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 46, Col: 150}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 					if templ_7745c5c3_Err != nil {
@@ -290,7 +292,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var15 string
 						templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(" — ")
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 46, Col: 20}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 48, Col: 20}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 						if templ_7745c5c3_Err != nil {
@@ -299,7 +301,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var16 string
 						templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("invitations.revoked"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 46, Col: 53}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 48, Col: 53}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 						if templ_7745c5c3_Err != nil {
@@ -318,7 +320,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var17 string
 						templ_7745c5c3_Var17, templ_7745c5c3_Err = templruntime.NewAttributeExpression(token.ID.String()).Resolve(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 50, Col: 100}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 52, Col: 100}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 						if templ_7745c5c3_Err != nil {
@@ -331,7 +333,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var18 string
 						templ_7745c5c3_Var18, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/workspaces/" + data.Workspace.ID.String() + "/settings/tokens/" + token.ID.String()).ResolveURL(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 50, Col: 197}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 52, Col: 197}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 						if templ_7745c5c3_Err != nil {
@@ -344,7 +346,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var19 string
 						templ_7745c5c3_Var19, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 51, Col: 61}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 53, Col: 61}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 						if templ_7745c5c3_Err != nil {
@@ -354,7 +356,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = components.ConfirmButton(data.T("tokens.revoke"), data.T("tokens.revoke_confirm"), templ.Attributes{"name": "action", "value": "revoke"}).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = molecules.ConfirmButton(data.T("tokens.revoke"), data.T("tokens.revoke_confirm"), templ.Attributes{"name": "action", "value": "revoke"}).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -373,7 +375,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = components.EmptyState(data.T("tokens.none")).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.EmptyState(data.T("tokens.none")).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -384,7 +386,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.SettingsSidebar(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -425,7 +427,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.PageHeading(data.T("scim.title"), data.T("navigation.settings_access")).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.PageHeading(data.T("scim.title"), data.T("navigation.settings_access")).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -436,7 +438,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scim.description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 70, Col: 58}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 72, Col: 58}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 			if templ_7745c5c3_Err != nil {
@@ -447,7 +449,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.Error != "" {
-				templ_7745c5c3_Err = components.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -459,7 +461,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var23 string
 			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scim.endpoint"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 75, Col: 61}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 77, Col: 61}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 			if templ_7745c5c3_Err != nil {
@@ -472,7 +474,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var24 string
 			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scim.endpoint_description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 76, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 78, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 			if templ_7745c5c3_Err != nil {
@@ -485,7 +487,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var25 string
 			templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(data.SCIMEndpoint)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 77, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 79, Col: 51}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 			if templ_7745c5c3_Err != nil {
@@ -498,7 +500,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var26 string
 			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scim.credential"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 80, Col: 65}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 82, Col: 65}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 			if templ_7745c5c3_Err != nil {
@@ -511,7 +513,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var27 string
 			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scim.credential_description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 81, Col: 47}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 83, Col: 47}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 			if templ_7745c5c3_Err != nil {
@@ -541,7 +543,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var29 string
 					templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(data.SCIMTokenSecret)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 84, Col: 53}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 86, Col: 53}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 					if templ_7745c5c3_Err != nil {
@@ -553,7 +555,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = components.SuccessAlert(data.T("scim.secret_warning")).Render(templ.WithChildren(ctx, templ_7745c5c3_Var28), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.SuccessAlert(data.T("scim.secret_warning")).Render(templ.WithChildren(ctx, templ_7745c5c3_Var28), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -565,7 +567,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var30 string
 			templ_7745c5c3_Var30, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/workspaces/" + data.Workspace.ID.String() + "/settings/provisioning").ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 87, Col: 90}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 89, Col: 90}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 			if templ_7745c5c3_Err != nil {
@@ -578,7 +580,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var31 string
 			templ_7745c5c3_Var31, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 88, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 90, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
 			if templ_7745c5c3_Err != nil {
@@ -588,7 +590,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.SubmitButton(data.T("scim.create"), templ.Attributes{"name": "action", "value": "create"}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButton(data.T("scim.create"), templ.Attributes{"name": "action", "value": "create"}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -599,7 +601,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var32 string
 			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scim.revoke_title"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 93, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 95, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 			if templ_7745c5c3_Err != nil {
@@ -612,7 +614,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var33 string
 			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scim.revoke_description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 94, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 96, Col: 43}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 			if templ_7745c5c3_Err != nil {
@@ -625,7 +627,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var34 string
 			templ_7745c5c3_Var34, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/workspaces/" + data.Workspace.ID.String() + "/settings/provisioning").ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 95, Col: 90}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 97, Col: 90}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 			if templ_7745c5c3_Err != nil {
@@ -638,7 +640,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var35 string
 			templ_7745c5c3_Var35, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 96, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `credential_settings.templ`, Line: 98, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 			if templ_7745c5c3_Err != nil {
@@ -648,7 +650,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.ConfirmButton(data.T("scim.revoke"), data.T("scim.revoke_confirm"), templ.Attributes{"name": "action", "value": "revoke"}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.ConfirmButton(data.T("scim.revoke"), data.T("scim.revoke_confirm"), templ.Attributes{"name": "action", "value": "revoke"}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -658,7 +660,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.SettingsSidebar(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var21), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var21), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -1,16 +1,18 @@
 package web
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import "strconv"
 
 templ auditHistory(data viewmodel.PageData) {
-	@layouts.DashboardShell(data, layouts.DashboardHeader(data), layouts.DashboardSettingsNavigation(data)) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardSettingsNavigation(data)) {
 		<p class="eyebrow">{ data.T("navigation.settings_activity") }</p>
-		@components.PageHeading(data.T("audit.history"), "")
+		@molecules.PageHeading(data.T("audit.history"), "")
 		<p class="settings-intro">{ data.T("audit.description") }</p>
 		if data.AuditLazy {
 			<div id="audit-table" data-lazy-src={ data.CurrentPath + "?part=table" } aria-busy="true">
@@ -26,7 +28,7 @@ templ auditHistory(data viewmodel.PageData) {
 templ auditTable(data viewmodel.PageData) {
 	<div id="audit-table">
 		if len(data.AuditHistory) > 0 {
-			@components.AuditDataTable(data.T("audit.history"), data.T("audit.history")) {
+			@organisms.AuditDataTable(data.T("audit.history"), data.T("audit.history")) {
 				<thead><tr>
 					<th scope="col">@atoms.HeaderText(data.T("audit.time"), nil)</th>
 					<th scope="col">@atoms.HeaderText(data.T("audit.event"), nil)</th>

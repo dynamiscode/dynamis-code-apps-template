@@ -1,0 +1,38 @@
+package molecules
+
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+
+
+// ListFilterIcon is the funnel glyph of the filter control.
+// ListFilterIcon is the funnel that marks the filter controls. It is decorative: the control's label names it.
+templ ListFilterIcon() {
+	<svg class="list-filter-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+		<path d="M3 5h18l-7 8v6l-4 2v-8z"/>
+	</svg>
+}
+
+
+// ListAddMenu is the "+" control after the last filter chip. It opens the add-filter steps. Without
+// chips, labelled shows the label as text, so the control is never a lone symbol.
+templ ListAddMenu(label string, open bool, labelled bool) {
+	@atoms.Dropdown(atoms.DropdownProps{
+		Class:          "list-menu",
+		SummaryClass:   "btn btn-ghost btn-xs",
+		SummaryAttrs:   templ.Attributes{"aria-label": label, "title": label},
+		Summary:        listAddSummary(label, labelled),
+		Open:           open,
+		PanelClass:     "bg-base-100 rounded-box shadow-lg border border-base-200 p-3 w-96 max-w-[90vw]",
+		PanelChildren:  true,
+	}) {
+		{ children... }
+	}
+}
+
+
+// listAddSummary is the add-filter control's glyph, with its label when the toolbar shows text.
+templ listAddSummary(label string, labelled bool) {
+	@ListFilterIcon()
+	if labelled {
+		<span>{ label }</span>
+	}
+}

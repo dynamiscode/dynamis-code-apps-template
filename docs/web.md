@@ -267,7 +267,7 @@ explicitly permanent and asks for confirmation when the browser script is
 available; ordinary form submission remains available without it.
 
 Forms work with ordinary navigation. Vendored HTMX 4.0.1 enhances Items item
-forms and the Clients realtime list refresh; it contains no business rules. `app.js` keeps
+forms and the Clients realtime list refresh; it contains no business rules. The realtime wiring keeps
 HTMX 2.x non-swap behavior for `204`, `304`, `4xx`, and `5xx` responses so
 error pages never replace the list. The exact upstream license is served from
 `internal/web/assets/HTMX-LICENSE`.
@@ -494,7 +494,7 @@ Audit history is intentionally not an eligible WebMCP page: it has no
 WebMCP marker or script and exposes no audit tool. The ordinary server-rendered
 page remains the only browser surface.
 
-Eligible pages load the local `app.js` and mark visible controls. The current
+Eligible pages load the WebMCP registration and mark visible controls. The current
 tool contract is:
 
 | Tool | Input schema | Page preparation |
@@ -552,7 +552,7 @@ generated product name and brand tokens. Header actions link to client creation
 and custom-field management; results remain first, followed by create and list
 options.
 
-The Clients list page loads local HTMX and `app.js`. Its `client.changed` and
+The Clients list page loads local HTMX. Its `client.changed` and
 `resync` stream events refresh the list fragment while preserving current URL
 state. Refresh waits while a list form is dirty, submitting, or focused. The
 stream and list require `ResourcesRead`; without JavaScript, links and ordinary
@@ -615,7 +615,7 @@ version. It carries no client fields. A missing, malformed, unknown, or expired
 cursor receives `resync`. Viewers receive events, and a user outside the
 workspace gets not found. The latest 1,000 client events per workspace are
 retained, and older events fall under the same replay window as Items.
-The client page loads the local HTMX and `app.js` assets to start browser refresh;
+The client page loads the local HTMX asset to start browser refresh;
 the listener preserves URL state and defers replacement while forms are focused,
 dirty, or submitting. The list fragment and stream both require
 `identity.ResourcesRead`.

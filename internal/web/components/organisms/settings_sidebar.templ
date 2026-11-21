@@ -1,0 +1,11 @@
+package organisms
+
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+templ SettingsSidebar(data viewmodel.PageData) {
+	<aside class="sidebar">
+		<a class="sidebar-back" href={ "/workspaces/" + data.Workspace.ID.String() }><span aria-hidden="true">←</span> { data.T("workspace.back_to_home") }</a>
+		@WorkspaceNav(data)
+	</aside>
+}
+

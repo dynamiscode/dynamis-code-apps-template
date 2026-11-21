@@ -1,23 +1,24 @@
 package web
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 templ publicSharePage(data viewmodel.PageData) {
 	<!doctype html>
 	<html lang={ data.Locale } data-theme={ data.Theme }>
 		<head>
-			@layouts.PageHead(data, data.T(publicShareTitleKey(data)))
+			@templates.PageHead(data, data.T(publicShareTitleKey(data)))
 		</head>
 		<body x-data="pageBehaviors">
-			@layouts.SkipLink(data)
+			@molecules.SkipLink(data)
 			<main class="narrow public-share-card card bg-base-100 shadow" id="main">
 				<p class="eyebrow">{ data.T("common.product_name") }</p>
 				<h1>{ data.T(publicShareTitleKey(data)) }</h1>
 				if data.Error != "" {
-					@components.ErrorAlert(data.T("sharing.unavailable_detail"))
+					@molecules.ErrorAlert(data.T("sharing.unavailable_detail"))
 				} else {
 					<p class="status">{ data.T("sharing.scope_public") }</p>
 					<dl class="public-share-details">
@@ -89,7 +90,7 @@ templ mcpConsentPage(data viewmodel.PageData) {
 templ errorPage(data viewmodel.PageData) {
 	@authLayout(data, data.Title) {
 		<h1>{ data.Title }</h1>
-		@components.ErrorAlert(data.Error)
+		@molecules.ErrorAlert(data.Error)
 		<p><a href="/">{ data.T("navigation.home") }</a></p>
 	}
 }

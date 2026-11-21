@@ -9,9 +9,11 @@ package web
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
-import "example.com/dynamis-code/apps-template/internal/web/layouts"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 func accountPageView(data viewmodel.PageData) templ.Component {
@@ -50,7 +52,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("common.account"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 12, Col: 50}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 14, Col: 50}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -63,7 +65,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.account"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 13, Col: 36}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 15, Col: 36}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -76,7 +78,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.page_description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 14, Col: 66}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 16, Col: 66}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -89,7 +91,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("account.security_navigation")).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 15, Col: 86}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 17, Col: 86}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 			if templ_7745c5c3_Err != nil {
@@ -102,7 +104,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("navigation.security"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 16, Col: 82}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 18, Col: 82}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -115,7 +117,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("navigation.sessions"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 17, Col: 82}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 19, Col: 82}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
@@ -128,7 +130,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.language_settings"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 18, Col: 97}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 20, Col: 97}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
@@ -139,25 +141,25 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.Saved {
-				templ_7745c5c3_Err = components.SuccessAlert(data.T("account.saved")).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.SuccessAlert(data.T("account.saved")).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			if data.ErrorKey != "" {
-				templ_7745c5c3_Err = components.ErrorAlert(data.T(data.ErrorKey)).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.T(data.ErrorKey)).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			if data.Error != "" {
-				templ_7745c5c3_Err = components.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			if data.DeliveryWarning != "" {
-				templ_7745c5c3_Err = components.ErrorAlert(data.DeliveryWarning).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.DeliveryWarning).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -169,7 +171,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.profile"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 35, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 37, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -182,7 +184,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.profile_description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 36, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 38, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -195,7 +197,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 38, Col: 57}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 40, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 			if templ_7745c5c3_Err != nil {
@@ -261,7 +263,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.SubmitButton(data.T("common.save"), templ.Attributes{"data-requires-change": true}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButton(data.T("common.save"), templ.Attributes{"data-requires-change": true}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -272,7 +274,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.email_verification"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 84, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 86, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
@@ -285,7 +287,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.email_verification_description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 85, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 87, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 			if templ_7745c5c3_Err != nil {
@@ -296,7 +298,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.Profile.EmailVerifiedAt != nil {
-				templ_7745c5c3_Err = components.SuccessAlert(data.T("account.email_verified")).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.SuccessAlert(data.T("account.email_verified")).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -308,7 +310,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var15 string
 				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.email_unverified"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 89, Col: 46}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 91, Col: 46}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 				if templ_7745c5c3_Err != nil {
@@ -321,7 +323,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 91, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 93, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 				if templ_7745c5c3_Err != nil {
@@ -331,7 +333,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = components.SubmitButton(data.T("account.send_verification"), nil).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.SubmitButton(data.T("account.send_verification"), nil).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -352,7 +354,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var17 string
 				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.change_password"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 98, Col: 46}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 100, Col: 46}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 				if templ_7745c5c3_Err != nil {
@@ -365,7 +367,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var18 string
 				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.password_description"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 99, Col: 50}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 101, Col: 50}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 				if templ_7745c5c3_Err != nil {
@@ -378,7 +380,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var19 string
 				templ_7745c5c3_Var19, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 101, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 103, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 				if templ_7745c5c3_Err != nil {
@@ -388,19 +390,19 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = components.TextField("current-password", data.T("account.current_password"), templ.Attributes{"name": "current_password", "type": "password", "autocomplete": "current-password", "required": true}).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.TextField("current-password", data.T("account.current_password"), templ.Attributes{"name": "current_password", "type": "password", "autocomplete": "current-password", "required": true}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = components.TextField("new-password", data.T("account.new_password"), templ.Attributes{"name": "new_password", "type": "password", "autocomplete": "new-password", "minlength": "12", "maxlength": "1024", "required": true, "data-strength": true}).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.TextField("new-password", data.T("account.new_password"), templ.Attributes{"name": "new_password", "type": "password", "autocomplete": "new-password", "minlength": "12", "maxlength": "1024", "required": true, "data-strength": true}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = components.TextField("password-confirmation", data.T("account.confirm_password"), templ.Attributes{"name": "password_confirmation", "type": "password", "autocomplete": "new-password", "minlength": "12", "maxlength": "1024", "required": true, "data-match": "new-password"}).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.TextField("password-confirmation", data.T("account.confirm_password"), templ.Attributes{"name": "password_confirmation", "type": "password", "autocomplete": "new-password", "minlength": "12", "maxlength": "1024", "required": true, "data-match": "new-password"}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = components.SubmitButton(data.T("account.change_password"), nil).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.SubmitButton(data.T("account.change_password"), nil).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -416,7 +418,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.notifications"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 110, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 112, Col: 43}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 			if templ_7745c5c3_Err != nil {
@@ -429,7 +431,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var21 string
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.view_notifications"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 111, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 113, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 			if templ_7745c5c3_Err != nil {
@@ -440,7 +442,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if len(data.NotificationPreferences) == 0 {
-				templ_7745c5c3_Err = components.EmptyState(data.T("workspace.notifications_empty")).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.EmptyState(data.T("workspace.notifications_empty")).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -457,7 +459,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var22 string
 					templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(workspaceNotificationLabel(data, preference.NotificationType))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 117, Col: 106}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 119, Col: 106}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 					if templ_7745c5c3_Err != nil {
@@ -471,7 +473,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var23 string
 						templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.enabled"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 119, Col: 38}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 121, Col: 38}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 						if templ_7745c5c3_Err != nil {
@@ -481,7 +483,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var24 string
 						templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.disabled"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 121, Col: 38}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 123, Col: 38}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 						if templ_7745c5c3_Err != nil {
@@ -505,7 +507,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var25 string
 			templ_7745c5c3_Var25, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 128, Col: 57}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 130, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 			if templ_7745c5c3_Err != nil {
@@ -538,7 +540,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.SubmitButton(data.T("common.save"), nil).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButton(data.T("common.save"), nil).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -549,7 +551,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var26 string
 			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.delete_account"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 150, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 152, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 			if templ_7745c5c3_Err != nil {
@@ -562,7 +564,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var27 string
 			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.delete_description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 151, Col: 71}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 153, Col: 71}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 			if templ_7745c5c3_Err != nil {
@@ -575,7 +577,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var28 string
 			templ_7745c5c3_Var28, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 153, Col: 57}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 155, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 			if templ_7745c5c3_Err != nil {
@@ -585,7 +587,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.TextField("delete-password", data.T("account.current_password"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password", "required": true}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.TextField("delete-password", data.T("account.current_password"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password", "required": true}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -613,7 +615,7 @@ func accountPageView(data viewmodel.PageData) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = layouts.DashboardShell(data, layouts.AccountHeader(data), nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templates.DashboardShell(data, organisms.AccountHeader(data), nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -657,7 +659,7 @@ func languageSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var31 string
 			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("common.account"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 177, Col: 49}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 179, Col: 49}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 			if templ_7745c5c3_Err != nil {
@@ -670,7 +672,7 @@ func languageSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var32 string
 			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.language_settings_title"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 178, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 180, Col: 51}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 			if templ_7745c5c3_Err != nil {
@@ -683,7 +685,7 @@ func languageSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var33 string
 			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.language_settings_description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 179, Col: 78}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 181, Col: 78}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 			if templ_7745c5c3_Err != nil {
@@ -694,13 +696,13 @@ func languageSettingsView(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.Saved {
-				templ_7745c5c3_Err = components.SuccessAlert(data.T("account.language_saved")).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.SuccessAlert(data.T("account.language_saved")).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			if data.Error != "" {
-				templ_7745c5c3_Err = components.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.ErrorAlert(data.Error).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -712,7 +714,7 @@ func languageSettingsView(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var34 string
 			templ_7745c5c3_Var34, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 188, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `account.templ`, Line: 190, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 			if templ_7745c5c3_Err != nil {
@@ -734,7 +736,7 @@ func languageSettingsView(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.SubmitButton(data.T("common.save"), nil).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButton(data.T("common.save"), nil).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -744,7 +746,7 @@ func languageSettingsView(data viewmodel.PageData) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = layouts.DashboardShell(data, layouts.AccountHeader(data), nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var30), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templates.DashboardShell(data, organisms.AccountHeader(data), nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var30), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

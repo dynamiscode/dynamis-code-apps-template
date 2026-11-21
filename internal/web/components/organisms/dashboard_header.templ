@@ -1,0 +1,29 @@
+package organisms
+
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+templ DashboardHeader(data viewmodel.PageData) {
+	<header class="topbar">
+		<a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
+		if data.TopbarTitleKey != "" {
+			<h1 class="topbar-title">{ data.T(data.TopbarTitleKey) }</h1>
+		}
+		<div class="topbar-context">
+			if data.NavPage == "home" {
+				@atoms.Breadcrumbs(atoms.BreadcrumbsProps{
+					Items: []atoms.BreadcrumbsProp{{Label: data.T("workspace.workspaces")}},
+				})
+			} else {
+				if data.NavPage == "audit" {
+					@molecules.DefaultHomeCrumb(data)
+				} else {
+					@molecules.WorkspaceListCrumb(data)
+				}
+				@WorkspaceContext(data)
+			}
+		</div>
+		@AccountMenu(data)
+	</header>
+}

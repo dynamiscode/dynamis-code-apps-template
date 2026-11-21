@@ -1,0 +1,13 @@
+package molecules
+
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+
+
+templ LinkedCard(href, title, description string) {
+	@atoms.ListCard(atoms.ListCardProps{Href: href, Title: title, Description: description})
+}
+
+
+templ ListCards() {
+	<ul class="list-view-cards">{ children... }</ul>
+}

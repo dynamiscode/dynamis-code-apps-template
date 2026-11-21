@@ -9,9 +9,11 @@ package web
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import "example.com/dynamis-code/apps-template/internal/web/components"
 
 // itemList is the item rows: the table or cards, and the empty state. Each row keeps its edit and share forms.
 func itemList(data viewmodel.PageData) templ.Component {
@@ -48,7 +50,7 @@ func itemList(data viewmodel.PageData) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = components.ListHeader(data, data.T("clients.actions")).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = organisms.ListHeader(data, data.T("clients.actions")).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -69,7 +71,7 @@ func itemList(data viewmodel.PageData) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = components.ListCells(data, row, "").Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = organisms.ListCells(data, row, "").Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -87,7 +89,7 @@ func itemList(data viewmodel.PageData) templ.Component {
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = components.ListRowWith("", templ.Attributes{"data-item-row": row.ID}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = organisms.ListRowWith("", templ.Attributes{"data-item-row": row.ID}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -98,7 +100,7 @@ func itemList(data viewmodel.PageData) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = components.ListTable(data.T("items.items"), true).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = organisms.ListTable(data.T("items.items"), true).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -107,7 +109,7 @@ func itemList(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = components.StatusLine(data.T("clients.columns_choose"), nil).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.StatusLine(data.T("clients.columns_choose"), nil).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -121,7 +123,7 @@ func itemList(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("items.none"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 29, Col: 26}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 31, Col: 26}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -130,7 +132,7 @@ func itemList(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 29, Col: 33}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 31, Col: 33}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -144,7 +146,7 @@ func itemList(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("items.none"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 31, Col: 26}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 33, Col: 26}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -185,7 +187,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templruntime.NewAttributeExpression("item-edit-" + row.ID).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 39, Col: 34}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 41, Col: 34}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 			if templ_7745c5c3_Err != nil {
@@ -198,7 +200,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templruntime.NewAttributeExpression(row.ID).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 39, Col: 144}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 41, Col: 144}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 			if templ_7745c5c3_Err != nil {
@@ -211,7 +213,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CurrentPath + "/" + row.ID + data.ItemQuerySuffix).ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 39, Col: 227}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 41, Col: 227}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 			if templ_7745c5c3_Err != nil {
@@ -224,7 +226,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CurrentPath + "/" + row.ID + data.ItemQuerySuffix).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 39, Col: 308}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 41, Col: 308}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 			if templ_7745c5c3_Err != nil {
@@ -237,7 +239,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 40, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 42, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 			if templ_7745c5c3_Err != nil {
@@ -250,7 +252,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templruntime.NewAttributeExpression(row.Item.Version).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 41, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 43, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 			if templ_7745c5c3_Err != nil {
@@ -260,7 +262,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.TextField("item-title-"+row.ID, data.T("items.title"), templ.Attributes{"name": "title", "value": row.Item.Title, "required": true, "maxlength": "200", "data-trim": true}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.TextField("item-title-"+row.ID, data.T("items.title"), templ.Attributes{"name": "title", "value": row.Item.Title, "required": true, "maxlength": "200", "data-trim": true}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -283,7 +285,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.ConfirmButton(data.T("items.delete_permanently"), data.T("items.delete_confirm_full"), templ.Attributes{"name": "action", "value": "delete", "aria-label": data.T("items.delete_permanently") + " " + row.Item.Title, "data-optimistic": "remove"}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.ConfirmButton(data.T("items.delete_permanently"), data.T("items.delete_confirm_full"), templ.Attributes{"name": "action", "value": "delete", "aria-label": data.T("items.delete_permanently") + " " + row.Item.Title, "data-optimistic": "remove"}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -300,7 +302,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CurrentPath + "/" + row.ID + "/share" + data.ItemQuerySuffix).ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 58, Col: 113}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 60, Col: 113}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 			if templ_7745c5c3_Err != nil {
@@ -313,7 +315,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CurrentPath + "/" + row.ID + "/share" + data.ItemQuerySuffix).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 58, Col: 205}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 60, Col: 205}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 			if templ_7745c5c3_Err != nil {
@@ -326,7 +328,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 			var templ_7745c5c3_Var16 string
 			templ_7745c5c3_Var16, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 59, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 61, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 			if templ_7745c5c3_Err != nil {
@@ -353,7 +355,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("sharing.scope_public"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 67, Col: 65}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 69, Col: 65}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
@@ -363,7 +365,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.SubmitButton(data.T("sharing.create"), templ.Attributes{"name": "action", "value": "create"}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButton(data.T("sharing.create"), templ.Attributes{"name": "action", "value": "create"}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -380,7 +382,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 					var templ_7745c5c3_Var18 string
 					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("sharing.active_until"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 72, Col: 69}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 74, Col: 69}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 					if templ_7745c5c3_Err != nil {
@@ -389,7 +391,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 					var templ_7745c5c3_Var19 string
 					templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 72, Col: 76}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 74, Col: 76}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 					if templ_7745c5c3_Err != nil {
@@ -398,7 +400,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 					var templ_7745c5c3_Var20 string
 					templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(data.DateTime(link.ExpiresAt))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 72, Col: 109}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 74, Col: 109}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 					if templ_7745c5c3_Err != nil {
@@ -411,7 +413,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 					var templ_7745c5c3_Var21 string
 					templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("sharing.revoke_consequence"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 73, Col: 79}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 75, Col: 79}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 					if templ_7745c5c3_Err != nil {
@@ -424,7 +426,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 					var templ_7745c5c3_Var22 string
 					templ_7745c5c3_Var22, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CurrentPath + "/" + row.ID + "/share" + data.ItemQuerySuffix).ResolveURL(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 74, Col: 117}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 76, Col: 117}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 					if templ_7745c5c3_Err != nil {
@@ -437,7 +439,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 					var templ_7745c5c3_Var23 string
 					templ_7745c5c3_Var23, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 75, Col: 56}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 77, Col: 56}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 					if templ_7745c5c3_Err != nil {
@@ -450,7 +452,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 					var templ_7745c5c3_Var24 string
 					templ_7745c5c3_Var24, templ_7745c5c3_Err = templruntime.NewAttributeExpression(link.ID).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 76, Col: 57}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 78, Col: 57}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 					if templ_7745c5c3_Err != nil {
@@ -460,7 +462,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = components.ConfirmButton(data.T("sharing.revoke"), data.T("sharing.revoke_confirm"), templ.Attributes{"name": "action", "value": "revoke"}).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.ConfirmButton(data.T("sharing.revoke"), data.T("sharing.revoke_confirm"), templ.Attributes{"name": "action", "value": "revoke"}).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -482,7 +484,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 				var templ_7745c5c3_Var25 string
 				templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("sharing.created"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 83, Col: 63}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 85, Col: 63}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 				if templ_7745c5c3_Err != nil {
@@ -491,7 +493,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 				var templ_7745c5c3_Var26 string
 				templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 83, Col: 70}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 85, Col: 70}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 				if templ_7745c5c3_Err != nil {
@@ -504,7 +506,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.PublicShareURL).ResolveURL(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 83, Col: 101}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 85, Col: 101}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
 				if templ_7745c5c3_Err != nil {
@@ -517,7 +519,7 @@ func itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) templ.Compon
 				var templ_7745c5c3_Var28 string
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(data.PublicShareURL)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 83, Col: 125}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `items_rows.templ`, Line: 85, Col: 125}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 				if templ_7745c5c3_Err != nil {
