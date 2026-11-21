@@ -96,7 +96,8 @@ a11y state, JS-hook state, pseudo-content, or structural layout.
 | a | kept: global link color/tie to brand tokens |
 | main form:not(.inline) > :is(fieldset, input:not([type="hidden"]), select, textarea, .reveal, .strength, .wizard-nav) + button | kept: JS-created (utilities added in JS) |
 | main form .btn | kept: 44px touch height contract (a11y smoke asserts it) |
-| main form:not(.inline) > button.reveal | kept: JS reveal-toggle layout |
+| .auth-card .input | kept: iOS zoom guard - 1rem font so Safari does not zoom on focus (auth forms only; rest of app pending measurement) | - 1rem font so Safari does not zoom on focus (auth forms only; rest of app pending measurement) |
+| main form:not(.inline) > button.reveal | kept: JS reveal-toggle layout (width: fit-content so the eye button does not stretch full-width) |
 | :focus-visible | kept: global a11y focus ring |
 | .items | kept: item list container (JS + tests rely) |
 | #item-list .items form | kept: item list structural block (create form grid, edit form grid areas, share rows) |

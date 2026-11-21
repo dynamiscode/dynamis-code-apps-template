@@ -591,9 +591,15 @@
 	const isLazyFragment = (response, baseURL, firstElementID, expectedID) =>
 		response.ok && !response.redirected && new URL(response.url, baseURL).pathname === new URL(baseURL).pathname && firstElementID === expectedID;
 
+	// Inner SVG paths for the password reveal eye. `shown` picks the crossed-out
+	// eye; the button's aria-label carries the meaning, so the glyph is decorative.
+	const revealIconPaths = (shown) => shown
+		? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+		: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+
 	const core = {
 		MIN_PASSWORD, passwordStrength, maskDigits, maskUpper, draftAction, isDirty, wizardMove,
-		refreshDecision, optimisticOutcome, isAuditFragment,
+		refreshDecision, optimisticOutcome, isAuditFragment, revealIconPaths,
 	};
 
 	// ---- File uploader (app.js) ----
@@ -1022,12 +1028,27 @@
 			toggle.className = "btn btn-ghost btn-xs reveal";
 			toggle.setAttribute("aria-controls", idFor(el, "password"));
 			toggle.setAttribute("aria-pressed", "false");
-			toggle.textContent = msg("show-password");
+			toggle.setAttribute("aria-label", msg("show-password"));
+			const eye = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+			eye.setAttribute("class", "reveal-eye");
+			eye.setAttribute("width", "16");
+			eye.setAttribute("height", "16");
+			eye.setAttribute("viewBox", "0 0 24 24");
+			eye.setAttribute("fill", "none");
+			eye.setAttribute("stroke", "currentColor");
+			eye.setAttribute("stroke-width", "1.75");
+			eye.setAttribute("stroke-linecap", "round");
+			eye.setAttribute("stroke-linejoin", "round");
+			eye.setAttribute("aria-hidden", "true");
+			eye.setAttribute("focusable", "false");
+			eye.innerHTML = revealIconPaths(false);
+			toggle.append(eye);
 			toggle.addEventListener("click", () => {
 				const show = el.type === "password";
 				el.type = show ? "text" : "password";
 				toggle.setAttribute("aria-pressed", String(show));
-				toggle.textContent = msg(show ? "hide-password" : "show-password");
+				toggle.setAttribute("aria-label", msg(show ? "hide-password" : "show-password"));
+				eye.innerHTML = revealIconPaths(show);
 				el.focus();
 			});
 			el.insertAdjacentElement("afterend", toggle);

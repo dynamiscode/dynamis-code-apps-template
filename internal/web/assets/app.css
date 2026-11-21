@@ -60,6 +60,7 @@ main h2:not(.sr-only) { margin: 1.5rem 0 .75rem; font-size: 1.375rem; line-heigh
 .narrow { width: min(32rem, 100%); margin: 1.5rem auto; }
 .auth-brand { margin-bottom: 1.5rem; }
 .auth-card h1 { margin: 0 0 .75rem; }
+.auth-card .input { --font-size: 1rem; }
 .auth-intro { color: var(--muted); line-height: 1.5; }
 .auth-recovery-link { display: inline-flex; align-items: center; min-height: max(24px, 1.5rem); }
 .auth-note { padding: .75rem 1rem; border-inline-start: .2rem solid var(--accent); background: var(--canvas); }
@@ -75,7 +76,7 @@ a { color: var(--accent); text-underline-offset: .15em; text-decoration-thicknes
 main form:not(.inline) > :is(fieldset, input:not([type="hidden"]), select, textarea, .reveal, .strength, .wizard-nav) + button { margin-top: .75rem; }
 /* Form actions keep the 44px touch height the accessibility smoke requires. */
 main form .btn { min-height: 2.75rem; }
-main form:not(.inline) > button.reveal { display: block; margin-top: .35rem; min-height: 2.75rem; }
+main form:not(.inline) > button.reveal { display: block; width: fit-content; margin-top: .35rem; min-height: 2.75rem; }
 :focus-visible { outline: .2rem solid var(--focus-outline); outline-offset: 0; box-shadow: 0 0 0 .4rem var(--focus-halo); }
 .items { list-style: none; padding: 0; display: grid; gap: 1rem; }
 #item-list .items form { display: grid; gap: .5rem; padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: .4rem; }

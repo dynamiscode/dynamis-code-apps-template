@@ -118,3 +118,14 @@ test("lazy audit response must stay on the audit route", () => {
 	assert.equal(forms.isAuditFragment({ ok: true, redirected: false, url: `${base}?part=table` }, base, "HTML"), false);
 	assert.equal(forms.isAuditFragment({ ok: true, redirected: false, url: `${base}?part=table` }, base, "audit-table"), true);
 });
+
+test("password reveal glyph: crossed eye only when shown", () => {
+	const closed = forms.revealIconPaths(false);
+	const shown = forms.revealIconPaths(true);
+	assert.ok(closed.includes('<circle cx="12" cy="12" r="3"/>'));
+	assert.ok(!closed.includes('<line x1="1" y1="1" x2="23" y2="23"/>'));
+	assert.ok(shown.includes('<line x1="1" y1="1" x2="23" y2="23"/>'));
+	assert.ok(!shown.includes("<circle"));
+	assert.equal(forms.revealIconPaths(false), closed);
+	assert.equal(forms.revealIconPaths(true), shown);
+});
