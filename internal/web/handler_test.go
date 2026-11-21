@@ -1733,25 +1733,35 @@ func extractSCIMSecret(t *testing.T, body string) string {
 }
 
 func TestWebMCPBrowserSurfaceContract(t *testing.T) {
-	script, err := files.ReadFile("assets/app.js")
+	script, err := files.ReadFile("assets/alpine-components.js")
 	if err != nil {
 		t.Fatal(err)
 	}
 	source := string(script)
+	// The WebMCP registration is one function in the shared component file;
+	// the no-auto-submit and schema rules scope to that block only.
+	webmcp := source
+	if start := strings.Index(webmcp, "const wireWebMCP"); start >= 0 {
+		end := strings.Index(webmcp[start:], "const pageBehaviors")
+		if end < 0 {
+			end = len(webmcp) - start
+		}
+		webmcp = webmcp[start : start+end]
+	}
 	for _, tool := range []string{
 		"workspace-create-v1", "item-create-v1", "item-update-v1", "item-delete-v1",
 		"member-role-update-v1", "member-remove-v1", "ownership-transfer-v1",
 		"invitation-revoke-v1", "token-revoke-v1", "session-revoke-v1", "workspace-export-v1",
 	} {
-		if !strings.Contains(source, `"`+tool+`"`) {
+		if !strings.Contains(webmcp, `"`+tool+`"`) {
 			t.Errorf("WebMCP tool %q is not registered", tool)
 		}
 	}
-	if !strings.Contains(source, "document.modelContext") || !strings.Contains(source, "ready-for-user-submission") || strings.Contains(source, "requestSubmit") {
+	if !strings.Contains(webmcp, "document.modelContext") || !strings.Contains(webmcp, "ready-for-user-submission") || strings.Contains(webmcp, "requestSubmit") {
 		t.Fatal("WebMCP must feature-detect and prepare without automatic form submission")
 	}
 	for _, forbidden := range []string{`name: "csrf"`, `name: "password"`, `name: "secret"`, `name: "oidc"`} {
-		if strings.Contains(source, forbidden) {
+		if strings.Contains(webmcp, forbidden) {
 			t.Errorf("WebMCP schema exposes forbidden field %q", forbidden)
 		}
 	}
@@ -1770,7 +1780,7 @@ func TestWebMCPBrowserSurfaceContract(t *testing.T) {
 	}
 	for target, page := range pages {
 		body := request(handler, http.MethodGet, target, nil, cookies, nil).Body.String()
-		if !strings.Contains(body, `data-webmcp-page="`+page+`"`) || !strings.Contains(body, `/assets/app.js`) {
+		if !strings.Contains(body, `data-webmcp-page="`+page+`"`) || !strings.Contains(body, `/assets/alpine-components.js`) {
 			t.Errorf("%s lacks WebMCP page marker or script", target)
 		}
 	}
@@ -1863,11 +1873,11 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 			t.Errorf("items page lacks %q", required)
 		}
 	}
-	source, err := files.ReadFile("assets/forms.js")
+	source, err := files.ReadFile("assets/alpine-components.js")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(source), `button[data-confirm]`) || !strings.Contains(body, `src="/assets/forms.js"`) {
+	if !strings.Contains(string(source), `button[data-confirm]`) || !strings.Contains(body, `<script defer src="/assets/alpine-components.js">`) {
 		t.Error("browser script lacks destructive-action confirmation hook")
 	}
 }
@@ -1895,7 +1905,7 @@ func TestWebBaselineManagementRoutes(t *testing.T) {
 	exportPage := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/export", nil, cookies, nil)
 	if exportPage.Header().Get("Cache-Control") != "no-store" ||
 		!strings.Contains(exportPage.Body.String(), "Download JSON") || !strings.Contains(exportPage.Body.String(), "/settings/export/download") ||
-		!strings.Contains(exportPage.Body.String(), `data-webmcp-page="export"`) || !strings.Contains(exportPage.Body.String(), `/assets/app.js`) {
+		!strings.Contains(exportPage.Body.String(), `data-webmcp-page="export"`) || !strings.Contains(exportPage.Body.String(), `/assets/alpine-components.js`) {
 		t.Fatal("browser export screen lacks download action")
 	}
 	importPage := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/import", nil, cookies, nil)

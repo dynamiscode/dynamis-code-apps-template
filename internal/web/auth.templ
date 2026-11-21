@@ -11,12 +11,14 @@ templ authLayout(data viewmodel.PageData, heading string) {
 		<head>
 			@layouts.PageHead(data, heading)
 		</head>
-		<body>
+		<body x-data="pageBehaviors">
 			@layouts.SkipLink(data)
 			<main class="narrow auth-card" id="main">
 				<div class="brand auth-brand"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</div>
 				{ children... }
 			</main>
+		<script defer src="/assets/alpine-components.js"></script>
+		<script defer src="/assets/js/alpine.min.js"></script>
 		</body>
 	</html>
 }
@@ -256,8 +258,6 @@ templ authMFA(data viewmodel.PageData) {
 				@components.SubmitButton(data.T("security.mfa_use_recovery"), nil)
 			</form>
 		</section>
-		<script defer src="/assets/alpine-components.js"></script>
-		<script defer src="/assets/js/alpine.min.js"></script>
 	}
 }
 

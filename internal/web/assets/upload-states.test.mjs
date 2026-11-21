@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const code = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "app.js"), "utf8");
+const code = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "alpine-components.js"), "utf8");
 
 function load(onSend) {
   const window = { location: { assigned: [], assign(url) { this.assigned.push(url); } } };

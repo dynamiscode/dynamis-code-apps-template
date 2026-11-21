@@ -249,7 +249,6 @@ func TestFilesViewerListsAndDownloadsWithoutUploadControls(t *testing.T) {
 	eventually(t, viewer, visibleDownloadExpr("viewer-readable.txt"), "viewer does not list the file")
 	expectCount(t, viewer, "form[data-file-upload]", 0)
 	expectCount(t, viewer, `input[type="file"]`, 0)
-	expectCount(t, viewer, `script[src="/assets/app.js"]`, 0)
 
 	downloads := t.TempDir()
 	call(t, viewer, browser.SetDownloadBehavior, browser.SetDownloadBehaviorParams{Behavior: browser.SetDownloadBehaviorBehaviorAllow, DownloadPath: downloads})

@@ -18,7 +18,8 @@ func homeCrumbItems(data viewmodel.PageData) []atoms.BreadcrumbsProp {
 
 templ UiHead(data viewmodel.PageData) {
 	<meta name="csrf-token" content={ data.CSRF }/>
-	<script defer src="/assets/forms.js"
+	<script
+		data-messages
 		data-msg-saving={ data.T("ui.saving") } data-msg-loading={ data.T("ui.loading") }
 		data-msg-load-failed={ data.T("ui.load_failed") } data-msg-retry={ data.T("ui.retry") }
 		data-msg-error-summary={ data.T("ui.error_summary") }

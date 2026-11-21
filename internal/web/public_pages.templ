@@ -11,7 +11,7 @@ templ publicSharePage(data viewmodel.PageData) {
 		<head>
 			@layouts.PageHead(data, data.T(publicShareTitleKey(data)))
 		</head>
-		<body>
+		<body x-data="pageBehaviors">
 			@layouts.SkipLink(data)
 			<main class="narrow public-share-card card bg-base-100 shadow" id="main">
 				<p class="eyebrow">{ data.T("common.product_name") }</p>
@@ -29,6 +29,8 @@ templ publicSharePage(data viewmodel.PageData) {
 					</dl>
 				}
 			</main>
+		<script defer src="/assets/alpine-components.js"></script>
+		<script defer src="/assets/js/alpine.min.js"></script>
 		</body>
 	</html>
 }

@@ -166,7 +166,7 @@ func TestFilesPageRendersTemplShellAndAccessibleEmptyState(t *testing.T) {
 		`class="file-empty-state card" role="status"`,
 		`No files yet.`,
 		`Filter`,
-		`src="/assets/app.js"`,
+		`src="/assets/alpine-components.js"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("Files page missing %q: %s", want, body)

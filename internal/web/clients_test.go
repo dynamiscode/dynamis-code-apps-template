@@ -216,9 +216,9 @@ func TestClientsListTemplShellLoadsRealtimeAssetsAndKeepsNativeForms(t *testing.
 	page := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil)
 	body := page.Body.String()
 	htmx := strings.Index(body, `<script defer src="/assets/htmx.min.js">`)
-	app := strings.Index(body, `<script defer src="/assets/app.js">`)
+	app := strings.Index(body, `<script defer src="/assets/alpine-components.js">`)
 	if page.Code != http.StatusOK || page.Header().Get("Content-Language") != "es" ||
-		!strings.Contains(body, `href="/assets/clients.css"`) || htmx < 0 || app <= htmx ||
+		!strings.Contains(body, `href="/assets/clients.css"`) || htmx < 0 || app < 0 ||
 		!strings.Contains(body, `data-dirty-track`) || !strings.Contains(body, `method="get"`) ||
 		!strings.Contains(body, `method="post"`) || !pageSizeIsLive(body) || hxPostOutsideColumns(body) {
 		t.Fatalf("Clients page contract: status=%d locale=%q css=%t htmx=%d app=%d dirty=%t get=%t post=%t hxGet=%t hxPost=%t",

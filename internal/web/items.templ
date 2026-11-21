@@ -9,7 +9,6 @@ templ itemsPage(data viewmodel.PageData) {
 	@layouts.DashboardShell(itemPageData(data), layouts.DashboardHeader(data), layouts.DashboardHomeNavigation(data)) {
 		@itemsList(data)
 		<script defer src="/assets/htmx.min.js"></script>
-		<script defer src="/assets/app.js"></script>
 	}
 }
 

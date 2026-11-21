@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const forms = require("./forms.js");
+const forms = require("./alpine-components.js").core;
 
 // Every string over `alphabet` up to `max` characters.
 function* strings(alphabet, max) {
