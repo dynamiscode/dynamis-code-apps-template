@@ -306,3 +306,4 @@ a11y state, JS-hook state, pseudo-content, or structural layout.
 | .client-field-option-list button | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |
 | .client-controls > form | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |
 | .workspace-main .client-page-actions | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |
+| .label | kept: daisyUI label muted color raised from 60% to 70% ink; axe color-contrast fails at 60% (4.21:1 on the light canvas #f3f6fa), 70% passes (5.82:1) while keeping the muted look |

@@ -8,7 +8,7 @@ templ AccountHeader(data viewmodel.PageData) {
 	<header class="navbar sticky top-0 z-30 flex-wrap gap-4 border-b border-base-200 bg-base-100 px-4">
 		<div class="navbar-start min-w-0 gap-3">
 			<a class="brand inline-flex items-center gap-2 text-lg font-extrabold no-underline" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
-			<div class="hidden min-w-0 items-center gap-2 text-base-content/60 sm:flex">
+			<div class="hidden min-w-0 items-center gap-2 text-base-content/70 sm:flex">
 			@atoms.Breadcrumbs(atoms.BreadcrumbsProps{
 				Items: append(molecules.HomeCrumbItems(data), atoms.BreadcrumbsProp{Label: data.T("common.account")}),
 			})

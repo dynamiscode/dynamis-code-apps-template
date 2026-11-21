@@ -11,7 +11,7 @@ templ DashboardHeader(data viewmodel.PageData) {
 			if data.TopbarTitleKey != "" {
 				<h1 class="m-0 ml-2 text-lg font-bold">{ data.T(data.TopbarTitleKey) }</h1>
 			}
-			<div class="hidden min-w-0 items-center gap-2 text-base-content/60 sm:flex">
+			<div class="hidden min-w-0 items-center gap-2 text-base-content/70 sm:flex">
 				if data.NavPage == "home" {
 					@atoms.Breadcrumbs(atoms.BreadcrumbsProps{
 						Items: []atoms.BreadcrumbsProp{{Label: data.T("workspace.workspaces")}},

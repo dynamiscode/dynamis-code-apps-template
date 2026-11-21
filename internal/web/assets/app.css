@@ -113,6 +113,8 @@ main form:not(.inline) > button.reveal { display: block; margin-top: .35rem; min
 .workspace-heading h1 { margin: 0; }
 .eyebrow { margin: 0 0 .35rem; color: var(--muted); font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 /* Account pages keep their danger and disabled button states inside the dashboard shell. */
+/* daisyUI mutes .label to 60% ink; 4.2:1 on the light canvas fails WCAG AA, so 70% keeps the muted look above 4.5:1. */
+.label { color: color-mix(in oklab, currentcolor 70%, transparent); }
 main:has(> .account-page) { width: min(72rem, 100%); padding: 0; }
 .notification-center { width: min(56rem, 100%); }
 .notification-center .workspace-heading { margin-bottom: 1.5rem; }
