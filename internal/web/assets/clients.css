@@ -38,8 +38,6 @@
 .client-field-option-list { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
 .client-field-option-list button { min-height: 2.5rem; }
 .client-controls > form { padding: 0 1rem 1rem; }
-.client-query fieldset { min-width: 0; margin: 1rem 0; padding: 1rem; border: 1px solid var(--border); border-radius: var(--brand-radius); }
-.client-query legend { padding: 0 .35rem; font-weight: 700; }
 .workspace-main .client-page-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 @media (max-width: 38rem) {
 	.client-lifecycle { display: grid; }
@@ -47,5 +45,3 @@
 	.client-field-actions { display: grid; }
 	.client-field-option-list > li { align-items: flex-start; }
 }
-.list-search { display: flex; flex-wrap: nowrap; align-items: center; gap: .5rem; }
-.list-search .input { width: min(22rem, 100%); min-height: 2.25rem; }

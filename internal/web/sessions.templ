@@ -42,7 +42,7 @@ templ sessionsPage(data viewmodel.PageData, currentSessionID string, now time.Ti
 									@atoms.Badge(atoms.BadgeProps{Class: "session-status badge badge-success", Label: data.T("sessions.active")})
 								}
 							</div>
-							<dl class="session-details">
+							<dl class="session-details grid grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))] gap-3 my-4">
 								<div><dt>{ data.T("sessions.created") }</dt><dd><time datetime={ session.CreatedAt.Format(time.RFC3339) }>{ data.DateTime(session.CreatedAt) }</time></dd></div>
 								<div><dt>{ data.T("sessions.expires") }</dt><dd><time datetime={ session.ExpiresAt.Format(time.RFC3339) }>{ data.DateTime(session.ExpiresAt) }</time></dd></div>
 							</dl>

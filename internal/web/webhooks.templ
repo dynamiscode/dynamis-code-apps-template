@@ -68,7 +68,7 @@ templ webhooksPage(data viewmodel.PageData) {
 			}
 			if data.WebhookSecret != "" {
 				@atoms.Alert(atoms.AlertProps{Class: "warning alert-warning", Attrs: templ.Attributes{"tabindex": "-1"}}) {
-					{ data.T("webhooks.secret_warning") } <code class="webhook-secret">{ data.WebhookSecret }</code>
+					{ data.T("webhooks.secret_warning") } <code class="webhook-secret break-words">{ data.WebhookSecret }</code>
 				}
 			}
 			if data.CanManage {
@@ -99,17 +99,17 @@ templ webhooksPage(data viewmodel.PageData) {
 			if len(data.Webhooks) > 0 {
 				<section aria-labelledby="registered-webhooks-heading">
 					<h2 id="registered-webhooks-heading">{ data.T("webhooks.registered") }</h2>
-					<ul class="webhook-list">
+					<ul class="webhook-list grid list-none p-0 gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
 						for _, webhook := range data.Webhooks {
 							<li class="card webhook-card">
 								<h3>{ webhook.Name }</h3>
-								<p><strong>{ data.T("webhooks.endpoint") }:</strong> <code class="webhook-endpoint">{ webhook.URL }</code></p>
+								<p><strong>{ data.T("webhooks.endpoint") }:</strong> <code class="webhook-endpoint break-words">{ webhook.URL }</code></p>
 								<p><strong>{ data.T("webhooks.events") }:</strong></p><ul>
 									for _, event := range webhook.Events {
 										<li><code>{ event }</code></li>
 									}
 								</ul>
-								<p><a class="webhook-history-link" href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks/" + webhook.ID.String() + "/deliveries" }>{ data.T("webhooks.view_deliveries") }</a></p>
+								<p><a class="webhook-history-link inline-block min-h-11 content-center" href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks/" + webhook.ID.String() + "/deliveries" }>{ data.T("webhooks.view_deliveries") }</a></p>
 								if data.CanManage {
 									<div class="actions">
 										<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks/" + webhook.ID.String() } method="post"><input type="hidden" name="csrf" value={ data.CSRF }/>

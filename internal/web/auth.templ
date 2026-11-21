@@ -14,7 +14,7 @@ templ authLayout(data viewmodel.PageData, heading string) {
 		</head>
 		<body x-data="pageBehaviors">
 			@molecules.SkipLink(data)
-			<main class="narrow auth-card" id="main">
+			<main class="narrow auth-card card mx-auto w-full max-w-xl my-6 p-6 shadow-xl" id="main">
 				<div class="brand auth-brand"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</div>
 				{ children... }
 			</main>

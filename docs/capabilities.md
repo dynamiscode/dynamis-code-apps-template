@@ -119,8 +119,8 @@ bridge remains used by legacy templates and is not removable yet. The
 [route inventory](web.md#rendering-migration-inventory) identifies this updated
 boundary.
 
-Measured checked-in browser asset sizes (`wc -c`, bytes): app.css 28,811;
-alpine-components.js 70,677; clients.css 4,262; components.css 194,843;
+Measured checked-in browser asset sizes (`wc -c`, bytes): app.css 26,089;
+alpine-components.js 70,677; clients.css 3,905; components.css 194,843;
 htmx.min.js 37,448; tokens.css 3,048; vendored
 @alpinejs/csp runtime (js/alpine.min.js) 45,328. Total assets directory,
 including test files and license: 421,866 bytes (import.css was deleted; its

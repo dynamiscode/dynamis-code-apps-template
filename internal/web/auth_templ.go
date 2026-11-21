@@ -85,7 +85,7 @@ func authLayout(data viewmodel.PageData, heading string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<main class=\"narrow auth-card\" id=\"main\"><div class=\"brand auth-brand\"><span class=\"brand-mark\" aria-hidden=\"true\"></span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<main class=\"narrow auth-card card mx-auto w-full max-w-xl my-6 p-6 shadow-xl\" id=\"main\"><div class=\"brand auth-brand\"><span class=\"brand-mark\" aria-hidden=\"true\"></span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

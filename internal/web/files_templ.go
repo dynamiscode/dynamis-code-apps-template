@@ -163,7 +163,7 @@ func filesPage(data viewmodel.PageData, canUpload bool) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = atoms.Progress(atoms.ProgressProps{Class: "upload-progress", Value: 0, Max: 100, Label: data.T("files.progress"), Attrs: templ.Attributes{"data-upload-progress": true, "hidden": true}}).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = atoms.Progress(atoms.ProgressProps{Class: "upload-progress progress-primary w-full max-w-lg my-3 h-3", Value: 0, Max: 100, Label: data.T("files.progress"), Attrs: templ.Attributes{"data-upload-progress": true, "hidden": true}}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

@@ -96,7 +96,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</p></div></div><p class=\"notification-summary\" role=\"status\" aria-live=\"polite\"><span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</p></div></div><p class=\"notification-summary alert py-2 px-3 w-fit mb-2 gap-3\" role=\"status\" aria-live=\"polite\"><span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -158,7 +158,7 @@ func generalSettingsView(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if len(data.WorkspaceNotificationPreferences) > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<ul class=\"settings-record card card-compact flex flex-wrap items-center justify-between gap-4 bg-base-200 px-4 py-3s\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<ul class=\"settings-records grid list-none gap-4 p-0\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

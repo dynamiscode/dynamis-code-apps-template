@@ -14,7 +14,7 @@ templ notificationsPage(data viewmodel.PageData) {
 					<h1>{ data.T("notifications.notifications") }</h1>
 					<p class="notification-description">{ data.T("notifications.description") }</p>
 				</div></div>
-				<p class="notification-summary" role="status" aria-live="polite">
+				<p class="notification-summary alert py-2 px-3 w-fit mb-2 gap-3" role="status" aria-live="polite">
 					<span>{ data.T("notifications.unread") }</span>
 					@atoms.Badge(atoms.BadgeProps{Class: "badge-primary"}) {
 						<strong data-unread-count>{ data.UnreadNotifications }</strong>

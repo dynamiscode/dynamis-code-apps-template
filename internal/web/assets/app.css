@@ -47,7 +47,6 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); }
 .list-view-table thead th[aria-sort="ascending"] > a::after { content: "↑"; opacity: 1; }
 .list-view-table thead th[aria-sort="descending"] > a::after { content: "↓"; opacity: 1; }
 .list-column-switches { display: grid; gap: .4rem; margin: 0; padding: 0; list-style: none; min-width: 16rem; }
-.list-column-switch { display: flex; align-items: center; gap: .6rem; }
 .list-column-switch form { margin: 0; }
 .list-column-name { display: flex; align-items: center; gap: .4rem; }
 .list-column-note { color: var(--muted); font-size: .75rem; }
@@ -59,8 +58,7 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); }
 main { width: min(64rem, 100%); margin: 0 auto; padding: 2rem clamp(1rem, 3vw, 2rem); }
 main > h1 { margin: 0 0 1.25rem; font-size: 2rem; line-height: 1.2; letter-spacing: -.02em; }
 main h2:not(.sr-only) { margin: 1.5rem 0 .75rem; font-size: 1.375rem; line-height: 1.3; }
-.narrow { width: min(32rem, 100%); margin: 1.5rem auto; background: var(--surface); border: 1px solid var(--border); border-radius: .4rem; }
-.auth-card { padding: clamp(1.25rem, 5vw, 2.25rem); box-shadow: 0 1rem 2.5rem rgb(0 0 0 / .08); }
+.narrow { width: min(32rem, 100%); margin: 1.5rem auto; }
 .auth-brand { margin-bottom: 1.5rem; }
 .auth-card h1 { margin: 0 0 .75rem; }
 .auth-intro { color: var(--muted); line-height: 1.5; }
@@ -69,14 +67,11 @@ main h2:not(.sr-only) { margin: 1.5rem 0 .75rem; font-size: 1.375rem; line-heigh
 .auth-method { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 .auth-method h2 { font-size: 1.1rem; }
 .auth-provider-list { display: grid; gap: .75rem; }
-.auth-provider-list .button { text-align: center; }
 .breakable { overflow-wrap: anywhere; }
 .brand { display: inline-flex; align-items: center; gap: .55rem; font-weight: 800; text-decoration: none; }
 .brand:not(:has(.brand-mark))::before { width: 1.5rem; height: 1.5rem; flex: none; border-radius: var(--brand-radius); content: ""; background: radial-gradient(circle, transparent 26%, var(--on-accent) 28% 36%, transparent 38%), linear-gradient(135deg, var(--accent), var(--accent-hover)); }
 .brand-mark { position: relative; width: 1.5rem; height: 1.5rem; flex: none; border-radius: var(--brand-radius); background: linear-gradient(135deg, var(--accent), var(--accent-hover)); }
 .brand-mark::after { position: absolute; inset: .38rem; content: ""; border: 2px solid var(--on-accent); border-radius: 50%; }
-.button { display: inline-flex; align-items: center; min-height: 2.75rem; padding: .45rem .65rem; border-radius: .25rem; background: var(--accent); color: var(--on-accent); font-weight: 700; text-decoration: none; }
-.button:hover { background: var(--accent-hover); color: var(--on-accent); }
 a { color: var(--accent); text-underline-offset: .15em; text-decoration-thickness: .08em; }
 main form:not(.inline) > :is(fieldset, input:not([type="hidden"]), select, textarea, .reveal, .strength, .wizard-nav) + button { margin-top: .75rem; }
 /* Form actions keep the 44px touch height the accessibility smoke requires. */
@@ -123,7 +118,6 @@ main:has(> .account-page) { width: min(72rem, 100%); padding: 0; }
 .notification-center { width: min(56rem, 100%); }
 .notification-center .workspace-heading { margin-bottom: 1.5rem; }
 .notification-description { max-width: 48rem; color: var(--muted); }
-.notification-summary { display: flex; align-items: center; gap: .75rem; width: fit-content; margin: 0 0 .5rem; padding: .6rem .85rem; border: 1px solid var(--border); border-radius: var(--brand-radius); background: var(--accent-surface); }
 .notification-summary strong { display: grid; place-items: center; min-width: 2rem; min-height: 2rem; padding: 0 .4rem; border-radius: 50%; background: var(--accent); color: var(--on-accent); }
 .notification-live { min-height: 1.5em; margin: 0; color: var(--muted); }
 .notification-card-heading { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
@@ -133,18 +127,14 @@ main:has(> .account-page) { width: min(72rem, 100%); padding: 0; }
 .notification-card .inline { margin: 0; }
 .row, .actions { display: flex; gap: .75rem; align-items: end; }
 .row input { flex: 1; }
-.webhook-list { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 1rem; }
-.webhook-history-link { display: inline-block; min-height: 2.75rem; align-content: center; }
-.webhook-endpoint, .webhook-secret { overflow-wrap: anywhere; }
 .table-scroll { overflow-x: auto; }
-.confirmation { display: flex; gap: .5rem; align-items: flex-start; min-height: 2.75rem; }
-.confirmation { white-space: normal; }
+.confirmation { display: flex; gap: .5rem; align-items: flex-start; min-height: 2.75rem; white-space: normal; }
 .confirmation input { margin-top: .35rem; }
 fieldset label:has(> input[type="checkbox"]), fieldset label:has(> input[type="radio"]) { display: flex; align-items: center; gap: .5rem; min-height: 2.75rem; margin-top: 0; }
 .table-wrap { overflow-x: auto; }
 .table :where(thead, tfoot) { color: var(--ink); }
 .list-view-table { overflow: auto; }
-.list-view-table thead th { position: sticky; top: 0; z-index: 2; background: var(--surface); }
+.list-view-table thead th { position: sticky; top: 0; left: 0; z-index: 2; height: 2.75rem; box-sizing: border-box; overflow: visible; padding-block: .5rem; background: var(--surface); }
 .list-view-table .table-scroll { overflow: visible; }
 .list-view-table > table { width: 100%; min-width: max-content; }
 .list-view-table th, .list-view-table td { white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -160,9 +150,8 @@ fieldset label:has(> input[type="checkbox"]), fieldset label:has(> input[type="r
 .file-upload-controls { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; }
 .file-upload-controls input { min-width: 0; max-width: 100%; }
 .file-upload-controls button { margin: 0; }
-.upload-progress { display: block; width: min(32rem, 100%); height: .75rem; margin-block: .75rem; accent-color: var(--accent); }
 .upload-progress[hidden] { display: none; }
-.list-filter-chips { display: flex; flex-wrap: wrap; gap: .5rem; padding: 0; list-style: none; }
+.list-filter-chips { display: flex; flex-wrap: wrap; gap: .5rem; padding: 0; list-style: none; margin-bottom: 1rem; }
 .list-filter-chips > li { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; padding: .35rem .55rem; background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; }
 code { overflow-wrap: anywhere; }
 @media (max-width: 38rem) {
@@ -186,7 +175,6 @@ code { overflow-wrap: anywhere; }
   #item-list .item-edit-form > .actions { grid-column: 1; grid-row: auto; }
   .workspace-main { padding-bottom: 2rem; }
   main { padding-top: 1rem; }
-  .narrow { margin: 1rem auto; }
   .row, .actions { align-items: stretch; flex-direction: column; }
   .row button, .actions button { width: 100%; }
   .file-upload-controls { align-items: stretch; flex-direction: column; }
@@ -212,38 +200,26 @@ li[data-optimistic="hidden"], tr[data-optimistic="hidden"] { display: none; }
 .settings-page > h1 { margin-bottom: .5rem; }
 .settings-page > .settings-intro { max-width: 60ch; color: var(--muted); }
 .settings-page > section > h2:first-child { margin-top: 0; }
-.settings-records { display: grid; gap: .75rem; padding: 0; list-style: none; }
 .account-page { width: min(72rem, 100%); margin: 0 auto; padding: 2rem clamp(1rem, 3vw, 2rem); }
 .account-heading { margin-bottom: 1.5rem; }
 .account-heading h1 { margin: 0; font-size: 2rem; line-height: 1.2; letter-spacing: -.02em; }
 .account-intro { max-width: 54rem; margin: .5rem 0 0; color: var(--muted); }
 .account-shortcuts { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
-.account-shortcut { display: inline-flex; align-items: center; min-height: 2.75rem; padding: .4rem .7rem; border: 1px solid var(--border); border-radius: var(--brand-radius); background: var(--surface); text-decoration: none; }
-.account-shortcut:hover { background: var(--accent-surface); }
 .account-section-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .settings-panel-wide { grid-column: 1 / -1; }
 .session-list { display: grid; gap: 1rem; padding: 0; list-style: none; }
 .session-card-heading { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 .session-provider { color: var(--muted); overflow-wrap: anywhere; }
-.session-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .75rem; margin: 1rem 0; }
-.session-details dt { color: var(--muted); font-size: .875rem; }
-.session-details dd { margin: .15rem 0 0; overflow-wrap: anywhere; }
-.narrow.account-page { width: min(40rem, calc(100% - 2rem)); margin: 1.5rem auto; padding: clamp(1.25rem, 3vw, 2rem); border: 1px solid var(--border); border-radius: var(--brand-radius); background: var(--surface); }
 @media (max-width: 38rem) {
   .account-page { padding: 1.25rem 1rem; }
   .account-section-grid { grid-template-columns: minmax(0, 1fr); }
   .settings-panel-wide { grid-column: auto; }
-  .narrow.account-page { width: min(40rem, calc(100% - 1rem)); margin: .5rem auto; }
 }
 /* Table layout: the name stays in view while the table scrolls sideways, and the settings column stays at the right edge. */
 .list-view-table { scrollbar-width: thin; }
 .list-view-table thead th, .list-view-table tbody td { vertical-align: middle; }
-.list-view-table thead th:first-child { position: sticky; top: 0; left: 0; z-index: 2; background: var(--surface); }
 .list-view-table tbody td:first-child { position: sticky; left: 0; z-index: 1; background: var(--canvas); }
 .list-row:hover > td:first-child { background: var(--accent-surface); }
-.list-view-table thead th { height: auto; padding-top: .5rem; padding-bottom: .5rem; }
-/* Toolbar: one baseline and one control height. */
-.list-toolbar { align-items: center; }
 /* Action row above the toolbar: primary actions aligned right, one control height. */
 .list-action-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .5rem; margin: 1rem 0 0; }
 .list-action-row .btn { min-height: 2.25rem; }
@@ -262,7 +238,7 @@ li[data-optimistic="hidden"], tr[data-optimistic="hidden"] { display: none; }
 .list-select-cell { width: 2.25rem; text-align: center; }
 .list-actions-cell { position: sticky; right: 0; z-index: 1; width: 3.5rem; text-align: center; background: var(--surface); box-shadow: -1px 0 0 var(--border); }
 .list-view-table tbody .list-row:hover > .list-actions-cell { background: var(--canvas); }
-.list-action-items { list-style: none; margin: 0; padding: 0; display: grid; gap: .25rem; min-width: 10rem; }
+.list-action-items { list-style: none; margin: 0; padding: 0; display: grid; gap: .125rem; min-width: 10rem; }
 .list-action-items a, .list-action-items button { display: flex; width: 100%; min-height: 2.25rem; align-items: center; padding: .4rem .6rem; border-radius: .25rem; color: var(--ink); text-decoration: none; text-align: left; }
 .list-action-items a:hover, .list-action-items button:hover { background: var(--accent-surface); }
 /* A confirm action inside the menu reads as a menu item, not as a page button. */
@@ -275,12 +251,8 @@ li[data-optimistic="hidden"], tr[data-optimistic="hidden"] { display: none; }
 /* Search matches in list cells: a flat tint of the accent, with no padding, so the text keeps its rhythm. */
 .workspace-main mark { padding: 0; border-radius: 0; background: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--ink); text-decoration: inherit; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 .workspace-main .list-row-link mark { color: inherit; }
-.list-search { flex-wrap: nowrap; }
-.list-search .input { flex: 0 1 22rem; width: auto; min-width: 0; }
 .list-footer .btn { min-height: 2.25rem; }
-.list-view-table thead th { height: 2.75rem; box-sizing: border-box; overflow: visible; }
 .js-enhanced [data-submit-button] { display: none !important; }
-.list-filter-chips { margin-bottom: 1rem; }
 /* Column order: each switch row has a drag handle on its left. The first (name) row has no handle. */
 .list-column-switch { display: flex; align-items: center; gap: .5rem; }
 .list-column-handle { display: inline-grid; place-items: center; width: 1rem; color: var(--muted); }
@@ -288,7 +260,6 @@ li[data-optimistic="hidden"], tr[data-optimistic="hidden"] { display: none; }
 .list-column-switch[draggable="true"]:active { cursor: grabbing; }
 .list-column-order { display: none; }
 /* Row action menu: an icon and a label per item; the destructive action sits below a divider and is coloured. */
-.list-action-items { gap: .125rem; }
 .list-action-icon { flex: none; color: var(--muted); }
 .list-column-switch form[aria-busy="true"] { cursor: progress; }
 /* Card actions: the vertical dots sit at the card's top right, out of the way of the fields. */

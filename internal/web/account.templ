@@ -15,9 +15,9 @@ templ accountPageView(data viewmodel.PageData) {
 					<h1>{ data.T("account.account") }</h1>
 					<p class="account-intro">{ data.T("account.page_description") }</p>
 					<nav class="account-shortcuts" aria-label={ data.T("account.security_navigation") }>
-						<a class="account-shortcut" href="/security">{ data.T("navigation.security") }</a>
-						<a class="account-shortcut" href="/sessions">{ data.T("navigation.sessions") }</a>
-						<a class="account-shortcut" href="/settings/language">{ data.T("account.language_settings") }</a>
+						<a class="account-shortcut btn btn-ghost btn-sm" href="/security">{ data.T("navigation.security") }</a>
+						<a class="account-shortcut btn btn-ghost btn-sm" href="/sessions">{ data.T("navigation.sessions") }</a>
+						<a class="account-shortcut btn btn-ghost btn-sm" href="/settings/language">{ data.T("account.language_settings") }</a>
 					</nav>
 				</header>
 				if data.Saved {
@@ -114,7 +114,7 @@ templ accountPageView(data viewmodel.PageData) {
 						if len(data.NotificationPreferences) == 0 {
 							@molecules.EmptyState(data.T("workspace.notifications_empty"))
 						} else {
-							<ul class="settings-record card card-compact flex flex-wrap items-center justify-between gap-4 bg-base-200 px-4 py-3s">
+							<ul class="settings-records grid list-none gap-4 p-0">
 								for _, preference := range data.NotificationPreferences {
 									<li class="settings-record card card-compact flex flex-wrap items-center justify-between gap-4 bg-base-200 px-4 py-3"><span>{ workspaceNotificationLabel(data, preference.NotificationType) }</span><span>
 										if preference.Enabled {
@@ -175,7 +175,7 @@ templ accountPageView(data viewmodel.PageData) {
 
 templ languageSettingsView(data viewmodel.PageData) {
 	@templates.DashboardShell(data, organisms.AccountHeader(data), nil) {
-		<div class="account-page narrow" data-account-page>
+		<div class="account-page narrow card mx-auto w-full max-w-xl my-6 p-6" data-account-page>
 				<p class="eyebrow">{ data.T("common.account") }</p>
 				<h1>{ data.T("account.language_settings_title") }</h1>
 				<p class="account-intro">{ data.T("account.language_settings_description") }</p>

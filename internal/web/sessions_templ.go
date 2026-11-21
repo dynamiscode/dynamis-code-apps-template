@@ -165,7 +165,7 @@ func sessionsPage(data viewmodel.PageData, currentSessionID string, now time.Tim
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div><dl class=\"session-details\"><div><dt>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div><dl class=\"session-details grid grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))] gap-3 my-4\"><div><dt>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
