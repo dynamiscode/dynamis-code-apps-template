@@ -1,6 +1,6 @@
 ---
 name: form-wizard
-description: Check multi-step forms and progressive disclosure - the two-step first-run setup wizard (Next only from a valid step, submit only from the last step with every field valid) and sections shown only for the chosen option (email provider) - with a TLA+ model, exhaustive tests of wizardMove, and browser checks. Use when a change touches data-wizard, data-step or data-show-when in internal/web/templates/ (setup.html, email-settings.html), enhanceWizard, wizardMove, revealStep or enhanceDisclosure in internal/web/assets/forms.js, or the setup handlers in internal/web/handler.go.
+description: Check multi-step forms and progressive disclosure - the two-step first-run setup wizard (Next only from a valid step, submit only from the last step with every field valid) and sections shown only for the chosen option (email provider) - with a TLA+ model, exhaustive tests of wizardMove, and browser checks. Use when a change touches data-wizard, data-step or data-show-when in internal/web/auth.templ and internal/web/settings_pages.templ, enhanceWizard, wizardMove, revealStep or enhanceDisclosure in the wireForms section of internal/web/assets/alpine-components.js, or the setup handlers in internal/web/handler.go.
 ---
 
 # Form wizard and progressive disclosure
@@ -22,7 +22,7 @@ description: Check multi-step forms and progressive disclosure - the two-step fi
 
 ## Coverage record
 
-- Covered code: `internal/web/templates/setup.html`, `internal/web/templates/email-settings.html`, `internal/web/assets/forms.js` (`wizardMove`, `enhanceWizard`, `revealStep`, `enhanceDisclosure`, the submit handler's wizard branch, `validateFields` skipping hidden fields).
+- Covered code: `internal/web/auth.templ` (setup wizard), `internal/web/settings_pages.templ` (email provider disclosure), `internal/web/assets/alpine-components.js`, wireForms (`wizardMove`, `enhanceWizard`, `revealStep`, `enhanceDisclosure`, the submit handler's wizard branch, `validateFields` skipping hidden fields).
 - Sync commit: the commit that last changed this file (`git log -1 --format=%H -- .agents/skills/form-wizard/SKILL.md`). Diff the covered files against it before trusting a pass, then update this file.
 
 ## Run the check

@@ -1,6 +1,6 @@
 ---
 name: item-create-submission
-description: Check the item create form's submit lifecycle (busy button while sending, one item per press, rejected titles kept, no silently lost press) with a TLA+ model and a Go replay test. Use when a change touches the create form in internal/web/templates/item-list.html (idempotency_key, hx-post, hx-sync, the new-title value), createItem, renderItems, itemError, itemToastKey or afterMutation in internal/web/handler.go, Create or create in internal/items/service.go, the submit/busy code in internal/web/assets/forms.js, htmx.config in app.js, or the vendored htmx.min.js.
+description: Check the item create form's submit lifecycle (busy button while sending, one item per press, rejected titles kept, no silently lost press) with a TLA+ model and a Go replay test. Use when a change touches the create form in internal/web/items.templ (idempotency_key, hx-post, hx-sync, the new-title value), createItem, renderItems, itemError, itemToastKey or afterMutation in internal/web/handler.go, Create or create in internal/items/service.go, the submit/busy code in the wireForms section of internal/web/assets/alpine-components.js, htmx.config in the wireRealtime section of internal/web/assets/alpine-components.js, or the vendored htmx.min.js.
 ---
 
 # Item create submission
@@ -21,7 +21,7 @@ description: Check the item create form's submit lifecycle (busy button while se
 
 ## Coverage record
 
-- Covered code: `internal/web/templates/item-list.html` (create form), `internal/web/handler.go` (`createItem`, `afterMutation`, `renderItems`, `itemError`, `itemToastKey`, `render` HX-Trigger), `internal/items/service.go` (`Create`, `create`, `validateTitle`), `internal/web/assets/forms.js` (submit handler, `setBusy`, `htmx:finally:request`), `internal/web/assets/app.js` (`htmx.config.noSwap`), `internal/web/assets/htmx.min.js` (`hx-sync` drop).
+- Covered code: `internal/web/items.templ` (create form), `internal/web/handler.go` (`createItem`, `afterMutation`, `renderItems`, `itemError`, `itemToastKey`, `render` HX-Trigger), `internal/items/service.go` (`Create`, `create`, `validateTitle`), `internal/web/assets/alpine-components.js`, wireForms (submit handler, `setBusy`, `htmx:finally:request`) and wireRealtime (`htmx.config.noSwap`), `internal/web/assets/htmx.min.js` (`hx-sync` drop).
 - Checks: the model; `internal/web/item_create_model_test.go` (`TestItemCreateModelSteps`, one subtest per server or page fact); the item lines in `scripts/ux-patterns.mjs` (retired) (busy button, one item per double press, empty box after save).
 - Sync commit: the commit that last changed this file (`git log -1 --format=%H -- .agents/skills/item-create-submission/SKILL.md`). Run `git diff <sync> -- <covered files>`; if covered code changed, confirm the model still matches before trusting a pass. Update this file (and so the sync commit) only after that.
 

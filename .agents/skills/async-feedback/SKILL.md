@@ -1,6 +1,6 @@
 ---
 name: async-feedback
-description: Check feedback for work that finishes later - busy buttons while a form submits, optimistic delete that hides a row at once and brings it back on failure, toasts for saves and failures, autosave of an item's status, the lazily loaded audit table, and keyboard focus after swaps (skip link, Escape, focus restore) - with a TLA+ model, exhaustive tests, and browser checks. Use when a change touches setBusy, optimisticOutcome, toast, loadLazy, the htmx event handlers or the keyboard handler in internal/web/assets/forms.js, data-optimistic, data-autosave or data-lazy-src in internal/web/templates/, itemToastKey or asciiJSON in internal/web/handler.go, or auditHistoryPage in internal/web/management.go.
+description: Check feedback for work that finishes later - busy buttons while a form submits, optimistic delete that hides a row at once and brings it back on failure, toasts for saves and failures, autosave of an item's status, the lazily loaded audit table, and keyboard focus after swaps (skip link, Escape, focus restore) - with a TLA+ model, exhaustive tests, and browser checks. Use when a change touches setBusy, optimisticOutcome, toast, loadLazy, the htmx event handlers or the keyboard handler in the wireForms section of internal/web/assets/alpine-components.js, data-optimistic, data-autosave or data-lazy-src in internal/web/*.templ,, itemToastKey or asciiJSON in internal/web/handler.go, or auditHistoryPage in internal/web/management.go.
 ---
 
 # Async feedback
@@ -17,14 +17,14 @@ description: Check feedback for work that finishes later - busy buttons while a 
 
 ## What is modeled
 
-- Model: `verification/web/ItemDelete.tla`, config `verification/web/ItemDelete.cfg`; 18 distinct states. Actions → code: `YouPressDelete`/`YouCancel`/`YouConfirm` (forms.js capture click handler, `window.confirm`, `data-optimistic="hidden"`), `ServerAnswers` and `OtherUserDeletes` (`changeItem`), `AnswerArrives` (htmx swap, or `htmx:finally:request` → `optimisticOutcome`).
+- Model: `verification/web/ItemDelete.tla`, config `verification/web/ItemDelete.cfg`; 18 distinct states. Actions → code: `YouPressDelete`/`YouCancel`/`YouConfirm` (alpine-components.js wireForms capture click handler, `window.confirm`, `data-optimistic="hidden"`), `ServerAnswers` and `OtherUserDeletes` (`changeItem`), `AnswerArrives` (htmx swap, or `htmx:finally:request` → `optimisticOutcome`).
 - `optimisticOutcome` is tested for every status 100–599 and missing answers in `forms.test.mjs`.
 - Browser checks (`scripts/ux-patterns.mjs` (retired), tagged `async-feedback`): busy Add button, add toast, autosave keeps the status, delete hides the row before the answer, lazy audit table, Escape closes the account menu; `cmd/browsersmoke/accessibility.go` checks the skip link is the first Tab stop.
 - Left out: toast timing, the network-failure toast in a browser (covered by `optimisticOutcome` and the model), realtime refresh (see `form-drafts`).
 
 ## Coverage record
 
-- Covered code: `internal/web/assets/forms.js` (`setBusy`, `optimisticOutcome`, `toast`, `loadLazy`, click/keydown/pageshow handlers, `htmx:before:request`, `htmx:finally:request`, `htmx:after:swap`, `app:toast`), `internal/web/templates/item-list.html` (delete and status controls), `internal/web/templates/audit-history.html` (`audit-table`), `internal/web/handler.go` (`itemToastKey`, `asciiJSON`, `render` HX-Trigger), `internal/web/management.go` (`auditHistoryPage` lazy and fragment paths), `internal/web/templates/navigation.html` (`ui-head`, `skip-link`).
+- Covered code: `internal/web/assets/alpine-components.js`, wireForms (`setBusy`, `optimisticOutcome`, `toast`, `loadLazy`, click/keydown/pageshow handlers, `htmx:before:request`, `htmx:finally:request`, `htmx:after:swap`, `app:toast`), `internal/web/items_rows.templ` (delete and status controls), `internal/web/audit.templ` (`audit-table`), `internal/web/handler.go` (`itemToastKey`, `asciiJSON`, `render` HX-Trigger), `internal/web/management.go` (`auditHistoryPage` lazy and fragment paths), `internal/web/components/templates/head.templ` (`UiHead`), `internal/web/components/molecules/skip_link.templ` (`SkipLink`).
 - Go check: `TestWebAuditHistoryIsScopedRedactedAndNotWebMCP` covers the lazy shell, the fragment, and the no-JavaScript `?all=1` page.
 - Sync commit: the commit that last changed this file (`git log -1 --format=%H -- .agents/skills/async-feedback/SKILL.md`). Diff the covered files against it before trusting a pass, then update this file.
 

@@ -1,6 +1,6 @@
 ---
 name: file-upload-form
-description: Check the browser side of the file upload form (FileUploader in internal/web/assets/app.js) - controls disabled by state, accessible byte progress, localized phase messages, double-submit prevention, error recovery and retry - by running the real class through every outcome of its one multipart request, with and without an extra press. Use when a change touches FileUploader, its phases or messages, the data-file-upload form in internal/web/templates/files.html, the forms.js early return for that form, or the multipart upload route it posts to.
+description: Check the browser side of the file upload form (FileUploader in internal/web/assets/alpine-components.js) - controls disabled by state, accessible byte progress, localized phase messages, double-submit prevention, error recovery and retry - by running the real class through every outcome of its one multipart request, with and without an extra press. Use when a change touches FileUploader, its phases or messages, the data-file-upload form in internal/web/files.templ, the wireForms early return for that form, or the multipart upload route it posts to.
 ---
 
 # File upload form
@@ -19,13 +19,13 @@ Checked after every step of every run:
 
 The real class runs under Node with a fake `XMLHttpRequest` that the test releases on demand, so it checks the code itself. The space is small: the one POST ends {ok, HTTP error, network error}, with or without an extra press while it is in flight (6 runs), plus the no-file press.
 
-forms.js returns early for `form[data-file-upload]`, before its own busy state, so `FileUploader` is the only owner of these controls. If that early return goes, forms.js keeps the form marked submitting after an upload error and blocks rule 5.
+wireForms returns early for `form[data-file-upload]`, before its own busy state, so `FileUploader` is the only owner of these controls. If that early return goes, wireForms keeps the form marked submitting after an upload error and blocks rule 5.
 
 ## Coverage record
 
-- Covered code: `internal/web/assets/app.js` (`FileUploader`: `isInFlight`, `transition`, `reportProgress`, `handleSubmit`, `extractErrorMessage`), the `data-file-upload` early return in the forms.js submit handler.
+- Covered code: `internal/web/assets/alpine-components.js` (`FileUploader`: `isInFlight`, `transition`, `reportProgress`, `handleSubmit`, `extractErrorMessage`), the `data-file-upload` early return in the wireForms submit handler.
 - Check: `internal/web/assets/upload-states.test.mjs`.
-- Sync commit: the commit that last changed this file (`git log -1 --format=%H -- .agents/skills/file-upload-form/SKILL.md`). If `app.js` changed since, read the diff and confirm the outcome list and rules still describe it before trusting a pass, then update this file.
+- Sync commit: the commit that last changed this file (`git log -1 --format=%H -- .agents/skills/file-upload-form/SKILL.md`). If `alpine-components.js` changed since, read the diff and confirm the outcome list and rules still describe it before trusting a pass, then update this file.
 
 ## Run the check
 
