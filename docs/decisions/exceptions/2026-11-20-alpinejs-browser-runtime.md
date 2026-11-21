@@ -45,6 +45,11 @@ and the `x-*` attributes.
 - Compatibility: 45 KB vendored `alpine.min.js`, no CDN dependency, served
   from the existing embedded `/assets/` file server.
 - Operational: one extra deferred script tag on pages that use Alpine.
+- Security: the app CSP is `script-src 'self'` without `unsafe-eval`, so the
+  vendored runtime is the official `@alpinejs/csp` build (same version), which
+  parses restricted expressions instead of using the Function constructor.
+  All app logic lives in registered `Alpine.data()` components, never in
+  inline attribute expressions.
 
 ## Compensating controls
 

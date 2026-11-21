@@ -825,7 +825,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if len(data.MFAOptions) > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<section class=\"auth-method\" aria-labelledby=\"passkey-heading\"><h2 id=\"passkey-heading\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<section class=\"auth-method\" x-data=\"passkeyLogin\" aria-labelledby=\"passkey-heading\"><h2 id=\"passkey-heading\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -975,7 +975,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "</form></section><script src=\"/assets/mfa.js\" defer></script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "</form></section><script defer src=\"/assets/alpine-components.js\"></script> <script defer src=\"/assets/js/alpine.min.js\"></script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1025,7 +1025,7 @@ func authEmailVerification(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var44 string
 			templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.email_verification"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 265, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 266, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 			if templ_7745c5c3_Err != nil {

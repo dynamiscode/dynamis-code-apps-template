@@ -214,7 +214,7 @@ templ authMFA(data viewmodel.PageData) {
 			@components.ErrorAlert(data.MFAError)
 		}
 		if len(data.MFAOptions) > 0 {
-			<section class="auth-method" aria-labelledby="passkey-heading">
+			<section class="auth-method" x-data="passkeyLogin" aria-labelledby="passkey-heading">
 				<h2 id="passkey-heading">{ data.T("security.mfa_use_passkey") }</h2>
 				@atoms.Button(atoms.ButtonProps{
 					Class: "btn-primary",
@@ -256,7 +256,8 @@ templ authMFA(data viewmodel.PageData) {
 				@components.SubmitButton(data.T("security.mfa_use_recovery"), nil)
 			</form>
 		</section>
-		<script src="/assets/mfa.js" defer></script>
+		<script defer src="/assets/alpine-components.js"></script>
+		<script defer src="/assets/js/alpine.min.js"></script>
 	}
 }
 

@@ -6,7 +6,7 @@ import "example.com/dynamis-code/apps-template/internal/web/layouts"
 
 templ notificationsPage(data viewmodel.PageData) {
 	@layouts.DashboardShell(data, layouts.AccountHeader(data), nil) {
-		<div class="notification-center" data-notification-cursor={ data.NotificationCursor }>
+		<div class="notification-center" x-data="notificationsLive" data-notification-cursor={ data.NotificationCursor }>
 				<div class="workspace-heading"><div>
 					<p class="eyebrow">{ data.T("common.account") }</p>
 					<h1>{ data.T("notifications.notifications") }</h1>

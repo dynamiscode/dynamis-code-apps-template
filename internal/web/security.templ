@@ -30,7 +30,7 @@ templ securityPage(data viewmodel.PageData) {
 						{ data.T("security.mfa_not_enabled") }
 					}
 					{ " · " }{ data.T("security.mfa_recovery_remaining") }{ ": " }{ data.MFAStatus.RecoveryRemain }</p>
-					<form id="passkey-enroll" action="/api/v1/auth/mfa/passkeys/register/options" method="post">
+					<form id="passkey-enroll" x-data="passkeyEnroll" action="/api/v1/auth/mfa/passkeys/register/options" method="post">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
 						@components.TextField("passkey-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
 						@components.SubmitButton(data.T("security.mfa_add_passkey"), nil)
@@ -96,7 +96,8 @@ templ securityPage(data viewmodel.PageData) {
 					<p>{ data.T("errors.no_oidc") }</p>
 				}
 			</section>
-			<script src="/assets/mfa.js" defer></script>
+			<script defer src="/assets/alpine-components.js"></script>
+			<script defer src="/assets/js/alpine.min.js"></script>
 		</div>
 	}
 }
