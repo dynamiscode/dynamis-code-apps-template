@@ -29,6 +29,16 @@ constructor injection (no DI):
 Downward imports only: pages -> templates -> organisms -> molecules ->
 atoms. An atom never imports a molecule.
 
+The `atoms` package also vendors a wider daisyUI catalog beyond the
+app-live list above (status, stat, chat, timeline, mockup, and similar
+atoms). Catalog atoms unused by app pages are deliberate template
+material, not dead code; before any page adopts one it must obey the
+same rules as app-live markup: CSP-safe (no inline handlers, no inline
+`<script>` blocks, no `x-data` object expressions - register an
+`Alpine.data()` component in `alpine-components.js` instead), and a
+marker class added at adoption time. If an unused atom cannot be made
+CSP-safe, delete it rather than vendoring its broken script.
+
 ## Props conventions
 
 - Every component takes a props struct with `Class string` appended to

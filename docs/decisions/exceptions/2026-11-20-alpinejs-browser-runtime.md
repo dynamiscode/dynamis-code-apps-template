@@ -18,7 +18,13 @@ The user explicitly approved replacing the app's hand-written browser JS
 `notifications.js`, `upload-states.js`) with Alpine.js as part of the DaisyUI
 adoption on branch `daisyui-templates`. Two atoms (`pricing.templ`,
 `range.templ`) already reference Alpine; serving one vendored file makes them
-usable instead of dead markup. Server-rendered HTML + htmx + SSE remain the
+usable instead of dead markup.
+
+2026-11-21 accuracy note: `pricing.templ` and `range.templ` were later
+deleted - both carried CSP-incompatible markup (inline `x-data` expressions,
+an inline script, a dead `datastar.js` reference) and had no app call sites.
+The vendored Alpine runtime remains justified by the whole-app port recorded
+below, not by those two atoms. Server-rendered HTML + htmx + SSE remain the
 architecture; Alpine is a progressive-enhancement layer, not a SPA runtime in
 practice, but it is a new browser runtime and therefore recorded here.
 
