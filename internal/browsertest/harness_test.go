@@ -498,24 +498,34 @@ func expectNoOverflow(t *testing.T, tab context.Context, width int64) {
 func expectAxeClean(t *testing.T, tab context.Context) {
 	t.Helper()
 	eval[any](t, tab, axeSource)
-	type result struct {
-		Error      string `json:"error"`
-		Violations []struct {
-			ID string `json:"id"`
-		} `json:"violations"`
+	type node struct {
+		Target []string `json:"target"`
+		HTML   string   `json:"html"`
 	}
-	res := eval[result](t, tab, `new Promise((done) => {
+	type violation struct {
+		ID     string `json:"id"`
+		Impact string `json:"impact"`
+		Help   string `json:"help"`
+		Nodes  []node `json:"nodes"`
+	}
+	res := eval[struct {
+		Error      string      `json:"error"`
+		Violations []violation `json:"violations"`
+	}](t, tab, `new Promise((done) => {
 		axe.run(document).then(done).catch((error) => done({ error: error.message }));
 	})`, awaitPromise)
 	if res.Error != "" {
 		t.Fatalf("axe: %s", res.Error)
 	}
 	if len(res.Violations) != 0 {
-		ids := make([]string, 0, len(res.Violations))
-		for _, violation := range res.Violations {
-			ids = append(ids, violation.ID)
+		var details strings.Builder
+		for _, v := range res.Violations {
+			fmt.Fprintf(&details, "\n%s (%s): %s", v.ID, v.Impact, v.Help)
+			for _, n := range v.Nodes {
+				fmt.Fprintf(&details, "\n  %s %s", strings.Join(n.Target, ", "), n.HTML)
+			}
 		}
-		t.Fatalf("axe violations: %s", strings.Join(ids, ", "))
+		t.Fatalf("axe violations:%s", details.String())
 	}
 }
 

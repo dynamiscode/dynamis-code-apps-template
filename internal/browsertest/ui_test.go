@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/chromedp/cdproto/cdp"
@@ -43,9 +44,15 @@ func expectMinimumTarget(t *testing.T, tab context.Context, selector string) {
 func expectNoCriticalOrSeriousAxe(t *testing.T, tab context.Context) {
 	t.Helper()
 	eval[any](t, tab, axeSource)
+	type node struct {
+		Target []string `json:"target"`
+		HTML   string   `json:"html"`
+	}
 	type violation struct {
 		ID     string `json:"id"`
 		Impact string `json:"impact"`
+		Help   string `json:"help"`
+		Nodes  []node `json:"nodes"`
 	}
 	res := eval[struct {
 		Error      string      `json:"error"`
@@ -58,13 +65,18 @@ func expectNoCriticalOrSeriousAxe(t *testing.T, tab context.Context) {
 		t.Fatalf("axe: %s", res.Error)
 	}
 	var ids []string
+	var details strings.Builder
 	for _, item := range res.Violations {
 		if item.Impact == "critical" || item.Impact == "serious" {
 			ids = append(ids, item.ID)
+			fmt.Fprintf(&details, "\n%s (%s): %s", item.ID, item.Impact, item.Help)
+			for _, n := range item.Nodes {
+				fmt.Fprintf(&details, "\n  %s %s", strings.Join(n.Target, ", "), n.HTML)
+			}
 		}
 	}
 	if len(ids) != 0 {
-		t.Fatalf("critical or serious axe violations: %v", ids)
+		t.Fatalf("critical or serious axe violations:%s", details.String())
 	}
 }
 
