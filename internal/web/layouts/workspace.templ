@@ -8,10 +8,11 @@ templ DashboardShell(data viewmodel.PageData, header, navigation templ.Component
 	<html lang={ data.Locale } data-theme={ data.Theme }>
 		<head>
 			@PageHead(data, data.Title)
-				<script defer src="/assets/list-table.js"></script>
+				<script defer src="/assets/alpine-components.js"></script>
+			<script defer src="/assets/js/alpine.min.js"></script>
 			<link rel="stylesheet" href="/assets/clients.css"/>
 		</head>
-		<body class={ templ.KV("dashboard-workspace", navigation != nil) } data-workspace-home?={ data.NavPage == "workspace" } if data.NavPage != "import" && data.NavPage != "client-detail" && data.NavPage != "client-fields" && data.NavPage != "webhooks" && data.NavPage != "provisioning" { data-webmcp-page={ data.NavPage } }>
+		<body x-data="listScreen" class={ templ.KV("dashboard-workspace", navigation != nil) } data-workspace-home?={ data.NavPage == "workspace" } if data.NavPage != "import" && data.NavPage != "client-detail" && data.NavPage != "client-fields" && data.NavPage != "webhooks" && data.NavPage != "provisioning" { data-webmcp-page={ data.NavPage } }>
 			@SkipLink(data)
 			@header
 			<div class={ templ.KV("app-shell", navigation != nil) }>
@@ -28,10 +29,6 @@ templ DashboardShell(data viewmodel.PageData, header, navigation templ.Component
 			if data.NavPage == "clients" {
 				<script defer src="/assets/htmx.min.js"></script>
 				<script defer src="/assets/app.js"></script>
-			}
-			if data.NavPage == "notifications" {
-				<script defer src="/assets/alpine-components.js"></script>
-				<script defer src="/assets/js/alpine.min.js"></script>
 			}
 		</body>
 	</html>

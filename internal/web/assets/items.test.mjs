@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import items from "./items.js";
+import items from "./alpine-components.js";
 
 const row = () => ({ row: true });
 const form = (container, dirty = false, submitting = false) => ({
