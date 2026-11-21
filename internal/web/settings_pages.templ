@@ -194,7 +194,7 @@ templ importSettingsView(data viewmodel.PageData) {
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
 				<input type="hidden" name="action" value="preview"/>
 				<p id="import-file-help">{ data.T("import.file_help") }</p>
-				@atoms.FileInput(atoms.FileInputProps{Name: "file", Label: data.T("import.file"), Required: true, Attrs: templ.Attributes{"id": "import-file", "accept": ".json,.csv,application/json,text/csv", "aria-describedby": "import-file-help"}})
+				@atoms.FileInput(atoms.FileInputProps{ID: "import-file", Name: "file", Label: data.T("import.file"), Required: true, Attrs: templ.Attributes{"accept": ".json,.csv,application/json,text/csv", "aria-describedby": "import-file-help"}})
 				@components.SubmitButton(data.T("import.preview_button"), nil)
 			</form>
 			if data.ImportPreview != nil {
@@ -238,7 +238,7 @@ templ importSettingsView(data viewmodel.PageData) {
 							<input type="hidden" name="preview_digest" value={ data.ImportPreview.Digest }/>
 							<input type="hidden" name="preview_format" value={ data.ImportPreview.Format }/>
 							<p id="import-confirm-file-help">{ data.T("import.confirm_file_help") }</p>
-							@atoms.FileInput(atoms.FileInputProps{Name: "file", Label: data.T("import.file"), Required: true, Attrs: templ.Attributes{"id": "import-confirm-file", "accept": ".json,.csv,application/json,text/csv", "aria-describedby": "import-confirm-file-help"}})
+							@atoms.FileInput(atoms.FileInputProps{ID: "import-confirm-file", Name: "file", Label: data.T("import.file"), Required: true, Attrs: templ.Attributes{"accept": ".json,.csv,application/json,text/csv", "aria-describedby": "import-confirm-file-help"}})
 							@components.ConfirmationField("import-confirm", "confirm", data.T("import.confirm"))
 							@components.SubmitButton(data.T("import.confirm_button"), nil)
 						</form>

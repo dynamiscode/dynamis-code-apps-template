@@ -22,7 +22,7 @@ templ filesPage(data viewmodel.PageData, canUpload bool) {
 						action={ data.CurrentPath } method="post" enctype="multipart/form-data">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
 						<div class="file-upload-controls">
-							@atoms.FileInput(atoms.FileInputProps{Name: "file", Label: data.T("files.choose"), Required: true, Attrs: templ.Attributes{"id": "file-upload"}})
+							@atoms.FileInput(atoms.FileInputProps{ID: "file-upload", Name: "file", Label: data.T("files.choose"), Required: true})
 							@components.SubmitButton(data.T("files.upload"), nil)
 						</div>
 						@atoms.Progress(atoms.ProgressProps{Class: "upload-progress", Value: 0, Max: 100, Label: data.T("files.progress"), Attrs: templ.Attributes{"data-upload-progress": true, "hidden": true}})

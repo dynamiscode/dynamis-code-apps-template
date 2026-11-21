@@ -682,7 +682,7 @@ func (s *a11yRun) workspacePages(wsBase string) error {
 	if err := s.expectNoExtraButtonMargin(".actions button", "item action group"); err != nil {
 		return err
 	}
-	if err := s.expectNoExtraButtonMargin(".account-menu-panel button", "account menu"); err != nil {
+	if err := s.expectNoExtraButtonMargin("header .dropdown-end button", "account menu"); err != nil {
 		return err
 	}
 	if err := s.setViewport(320, 800); err != nil {
@@ -738,13 +738,17 @@ func (s *a11yRun) workspacePages(wsBase string) error {
 	})()`, index)); err != nil {
 		return err
 	}
+	// Record the link as it appears: a realtime refresh can replace the list right after the create response.
+	if _, err := eval[any](s.browser, `(() => { window.__shareHref = ""; new MutationObserver(() => { const link = document.querySelector('#item-list a[href*="/share/"]'); if (link && !window.__shareHref) window.__shareHref = link.href; }).observe(document.body, { subtree: true, childList: true }); })()`); err != nil {
+		return err
+	}
 	if err := s.press("\r"); err != nil {
 		return err
 	}
-	if err := s.waitFor(`#item-list .success a[href*="/share/"]`); err != nil {
-		return err
+	if err := s.waitUntil(`window.__shareHref !== ""`); err != nil {
+		return fmt.Errorf("share link not created: %w", err)
 	}
-	shareHref, err := eval[string](s.browser, `document.querySelector('#item-list .success a[href*="/share/"]').href`)
+	shareHref, err := eval[string](s.browser, `window.__shareHref`)
 	if err != nil {
 		return err
 	}

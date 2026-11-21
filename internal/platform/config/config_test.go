@@ -483,7 +483,7 @@ func TestLoadFromRejectsInvalidHTTPLimits(t *testing.T) {
 		"HTTP_MAX_BODY_BYTES":           "100",
 		"HTTP_MAX_PAGE_SIZE":            "101",
 		"HTTP_DEFAULT_PAGE_SIZE":        "101",
-		"HTTP_AUTH_REQUESTS_PER_MINUTE": "121",
+		"HTTP_AUTH_REQUESTS_PER_MINUTE": "301",
 	} {
 		t.Run(key, func(t *testing.T) {
 			t.Parallel()

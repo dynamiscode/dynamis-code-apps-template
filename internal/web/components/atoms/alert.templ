@@ -8,8 +8,28 @@ type AlertProps struct {
 	Attrs templ.Attributes
 }
 
+// alertRole lets Attrs override the default alert role (e.g. role=status);
+// templ attribute spreads do not replace a static role.
+func alertRole(attrs templ.Attributes) string {
+	if role, ok := attrs["role"].(string); ok && role != "" {
+		return role
+	}
+	return "alert"
+}
+
+// alertAttrs strips the role key so it is not written twice.
+func alertAttrs(attrs templ.Attributes) templ.Attributes {
+	out := make(templ.Attributes, len(attrs))
+	for key, value := range attrs {
+		if key != "role" {
+			out[key] = value
+		}
+	}
+	return out
+}
+
 templ Alert(props AlertProps) {
-	<div role="alert" class={ "alert", props.Class } { props.Attrs... }>
+	<div role={ alertRole(props.Attrs) } class={ "alert", props.Class } { alertAttrs(props.Attrs)... }>
 		{ children... }
 	</div>
 }

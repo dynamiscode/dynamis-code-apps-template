@@ -196,7 +196,7 @@ input, select, textarea { width: 100%; caret-color: var(--accent); }
 input[type="checkbox"], input[type="radio"] { width: 1.25rem; height: 1.25rem; min-height: 1.25rem; padding: 0; flex: none; accent-color: var(--accent); }
 button { border-color: var(--accent); background: var(--accent); color: var(--on-accent); font-weight: 700; cursor: pointer; }
 button:disabled { border-color: var(--border-muted); background: var(--disabled-surface); color: var(--muted); cursor: not-allowed; }
-main form:not(.inline) > :is(input:not([type="hidden"]), select, textarea, .reveal, .strength, .wizard-nav) + button { margin-top: .75rem; }
+main form:not(.inline) > :is(fieldset, input:not([type="hidden"]), select, textarea, .reveal, .strength, .wizard-nav) + button { margin-top: .75rem; }
 main form:not(.inline) > button.reveal { display: block; margin-top: .35rem; min-height: 2.75rem; }
 .secondary { background: var(--surface); color: var(--accent); }
 .danger { background: var(--danger); border-color: var(--danger); }
@@ -285,6 +285,7 @@ main:has(> .account-page) { width: min(72rem, 100%); padding: 0; }
 .table-scroll { overflow-x: auto; }
 .success { border: 1px solid var(--success); background: var(--success-surface); color: var(--success); padding: .75rem; font-weight: 700; }
 .confirmation { display: flex; gap: .5rem; align-items: flex-start; min-height: 2.75rem; }
+.confirmation { white-space: normal; }
 .confirmation input { margin-top: .35rem; }
 fieldset label:has(> input[type="checkbox"]), fieldset label:has(> input[type="radio"]) { display: flex; align-items: center; gap: .5rem; min-height: 2.75rem; margin-top: 0; }
 .table-wrap { overflow-x: auto; }
@@ -299,7 +300,7 @@ th { background: var(--surface); }
 .list-view-table th, .list-view-table td { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .list-view-table td { max-width: 20rem; overflow: hidden; text-overflow: ellipsis; }
 .list-view-table td.num, .list-view-table th.num { text-align: right; }
-#realtime-status { margin: .5rem 0 0; color: var(--muted); font-size: .8125rem; }
+#realtime-status { margin: .5rem 0 0; color: var(--muted); font-size: .8125rem; flex-basis: 100%; }
 .list-create { position: relative; margin-left: auto; }
 [data-submit-button][hidden] { display: none !important; }
 .list-view-cards { display: none; list-style: none; padding: 0; gap: 1rem; }
@@ -520,3 +521,9 @@ li[data-optimistic="hidden"], tr[data-optimistic="hidden"] { display: none; }
 /* The disclosure headings are plain text, not the boxed summary the app uses elsewhere. */
 .list-view-manage > summary, .list-views-save > summary { display: inline-block; width: auto; height: auto; margin: 0; padding: .1rem 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
 .list-view-action .btn { justify-self: start; }
+/* Inline validation notes appear on blur and must not reflow the form: a
+   click's mousedown can trigger the note, and the layout shift between
+   mousedown and mouseup can push the intended target out from under the
+   pointer. Fieldsets reserve the note space and the note sits in it. */
+.fieldset { position: relative; padding-bottom: 1.25rem; }
+.fieldset .field-error { position: absolute; left: .25rem; bottom: .125rem; margin: 0; }

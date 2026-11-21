@@ -4,6 +4,7 @@ package atoms
 
 type FileInputProps struct {
 	Name            string
+	ID              string // when set, the label binds with for=id
 	Label           string
 	Value           string
 	Description     string
@@ -21,7 +22,11 @@ templ FileInput(props FileInputProps) {
 		}
 	>
 		if props.Label != "" {
-			<legend class="fieldset-legend">{ props.Label }</legend>
+			if props.ID != "" {
+				<label class="fieldset-legend" for={ props.ID }>{ props.Label }</label>
+			} else {
+				<legend class="fieldset-legend">{ props.Label }</legend>
+			}
 		}
 		<input
 			type="file"
@@ -33,6 +38,12 @@ templ FileInput(props FileInputProps) {
 				templ.KV("file-input-xl", props.Size == "xl"),
 			}
 			name={ props.Name }
+			if props.ID != "" {
+				id={ props.ID }
+			}
+			if props.Required {
+				required
+			}
 			if props.DisabledMessage != "" {
 				disabled
 			}
