@@ -25,7 +25,7 @@ templ invitationManagementView(data viewmodel.PageData) {
 				<p role="status">{ data.T("invitations.copy_link") }</p>
 				@atoms.Input(atoms.InputProps{Value: data.InvitationURL, Attrs: templ.Attributes{"readonly": true, "aria-label": data.T("invitations.copy_link")}})
 			}
-			<section class="settings-panel" aria-labelledby="invitation-create-title">
+			<section class="settings-panel card min-w-0 p-5" aria-labelledby="invitation-create-title">
 				<h2 id="invitation-create-title">{ data.T("invitations.create") }</h2>
 				<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/invitations" } method="post" data-persist="invitation-create">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
@@ -61,7 +61,7 @@ templ invitationManagementView(data viewmodel.PageData) {
 					@molecules.SubmitButton(data.T("invitations.create"), templ.Attributes{"name": "action", "value": "create"})
 				</form>
 			</section>
-			<section class="settings-panel" aria-labelledby="invitation-list-title">
+			<section class="settings-panel card min-w-0 p-5" aria-labelledby="invitation-list-title">
 				<h2 id="invitation-list-title">{ data.T("invitations.invitations") }</h2>
 				if len(data.Invitations) == 0 {
 					@molecules.EmptyState(data.T("invitations.empty"))

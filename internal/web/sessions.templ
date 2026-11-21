@@ -25,21 +25,21 @@ templ sessionsPage(data viewmodel.PageData, currentSessionID string, now time.Ti
 			} else {
 				<ul class="session-list">
 					for _, session := range data.Sessions {
-						<li class="session-card">
+						<li class="session-card card min-w-0 p-5">
 							<div class="session-card-heading">
 								<strong>{ data.AuthMethod(session.AuthMethod) }</strong>
 								if session.OIDCProviderID != "" {
 									<span class="session-provider">{ session.OIDCProviderID }</span>
 								}
 								if session.ID == currentSessionID {
-									@atoms.Badge(atoms.BadgeProps{Class: "session-status", Label: data.T("sessions.current")})
+									@atoms.Badge(atoms.BadgeProps{Class: "session-status badge badge-info", Label: data.T("sessions.current")})
 								}
 								if session.RevokedAt != nil {
-									@atoms.Badge(atoms.BadgeProps{Class: "session-status session-status-revoked", Label: data.T("sessions.revoked")})
+									@atoms.Badge(atoms.BadgeProps{Class: "session-status badge badge-warning", Label: data.T("sessions.revoked")})
 								} else if !now.Before(session.ExpiresAt) {
-									@atoms.Badge(atoms.BadgeProps{Class: "session-status session-status-revoked", Label: data.T("sessions.expired")})
+									@atoms.Badge(atoms.BadgeProps{Class: "session-status badge badge-warning", Label: data.T("sessions.expired")})
 								} else {
-									@atoms.Badge(atoms.BadgeProps{Class: "session-status session-status-active", Label: data.T("sessions.active")})
+									@atoms.Badge(atoms.BadgeProps{Class: "session-status badge badge-success", Label: data.T("sessions.active")})
 								}
 							</div>
 							<dl class="session-details">

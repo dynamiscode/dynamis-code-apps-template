@@ -13,7 +13,7 @@ templ workspaceSelection(data viewmodel.PageData) {
 			@molecules.ErrorAlert(data.Error)
 		}
 		if len(data.Workspaces) > 0 {
-			<ul class="cards">
+			<ul class="cards grid list-none gap-4 p-0">
 				for _, workspace := range data.Workspaces {
 					@molecules.LinkedCard("/workspaces/" + workspace.ID.String(), workspace.Name, data.Role(workspace.Role))
 				}
@@ -43,13 +43,13 @@ templ workspaceSelection(data viewmodel.PageData) {
 templ workspaceHome(data viewmodel.PageData) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
 					@molecules.PageHeading(data.Workspace.Name, data.T("workspace.home"))
-					<section class="first-task" aria-labelledby="first-task-title">
+					<section class="first-task card flex flex-wrap items-center justify-between gap-6 border-l-4 border-primary p-6 max-md:flex-col max-md:items-start" aria-labelledby="first-task-title">
 						<div><p class="eyebrow">{ data.T("workspace.get_started") }</p><h2 id="first-task-title">{ data.T("workspace.first_task_title") }</h2><p>{ data.T("workspace.first_task_description") }</p></div>
 						@molecules.LinkButton("/workspaces/" + data.Workspace.ID.String() + "/items", data.T("items.items"))
 					</section>
 					<section aria-labelledby="workspace-tools-title">
 						<h2 id="workspace-tools-title">{ data.T("workspace.tools_title") }</h2>
-						<ul class="cards workspace-cards">
+						<ul class="cards workspace-cards grid list-none gap-4 p-0 grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
 							@molecules.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/items", data.T("items.items"), data.T("workspace.items_description"))
 							if data.ClientsEnabled {
 								@molecules.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/clients", data.T("clients.title"), data.T("workspace.clients_description"))

@@ -73,7 +73,7 @@ func TestAuthenticationPagesUseBrandAndOrdinaryFormPaths(t *testing.T) {
 				t.Fatalf("%s missing ordinary form marker", path)
 			}
 			if strings.Contains(path, "password-reset") {
-				for _, marker := range []string{`class="brand auth-brand"`, `class="input w-full"`, `class="btn btn-primary"`, `id="main"`, `data-theme="system"`} {
+				for _, marker := range []string{`class="brand auth-brand"`, `class="input w-full"`, `class="btn btn-primary"`, `id="main"`, `<html lang="en">`} {
 					if !strings.Contains(body, marker) {
 						t.Fatalf("%s missing auth layout marker %q", path, marker)
 					}
@@ -178,7 +178,7 @@ func TestSecurityPageUsesTemplAndPreservesFactorForms(t *testing.T) {
 		t.Fatalf("security page status = %d", page.Code)
 	}
 	for _, marker := range []string{
-		`class="settings-panel"`, `class="input w-full"`, `class="btn btn-primary"`,
+		`class="settings-panel card min-w-0 p-5"`, `class="input w-full"`, `class="btn btn-primary"`,
 		`action="/api/v1/auth/mfa/passkeys/register/options" method="post"`,
 		`action="/security/totp/start" method="post"`, `id="security-linked-identity-heading"`,
 		`name="csrf"`, `aria-labelledby="security-mfa-heading"`, `aria-labelledby="security-linked-identity-heading"`,

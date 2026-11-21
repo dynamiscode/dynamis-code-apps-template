@@ -458,6 +458,20 @@ func expectAttribute(t *testing.T, tab context.Context, selector, name, want str
 	}
 }
 
+// expectTheme checks the root data-theme. The "system" preference renders no
+// data-theme attribute, so daisyUI follows prefers-color-scheme.
+func expectTheme(t *testing.T, tab context.Context, theme string) {
+	t.Helper()
+	if theme == "system" {
+		got := eval[string](t, tab, `document.querySelector("html")?.getAttribute("data-theme") ?? ""`)
+		if got != "" {
+			t.Fatalf("html data-theme = %q, want absent for system", got)
+		}
+		return
+	}
+	expectAttribute(t, tab, "html", "data-theme", theme)
+}
+
 func expectFocused(t *testing.T, tab context.Context, selector string) {
 	t.Helper()
 	eventually(t, tab, fmt.Sprintf("document.activeElement === document.querySelector(%s)", jsString(selector)),

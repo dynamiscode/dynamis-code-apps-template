@@ -21,7 +21,7 @@ templ securityPage(data viewmodel.PageData) {
 			if data.MFAError != "" {
 				@molecules.ErrorAlert(data.MFAError)
 			}
-			<section class="settings-panel" aria-labelledby="security-mfa-heading">
+			<section class="settings-panel card min-w-0 p-5" aria-labelledby="security-mfa-heading">
 				<h2 id="security-mfa-heading">{ data.T("security.mfa_title") }</h2>
 				<p>{ data.T("security.mfa_description") }</p>
 				if data.MFAStatus.Enabled {
@@ -80,7 +80,7 @@ templ securityPage(data viewmodel.PageData) {
 					</div>
 				}
 			</section>
-			<section class="settings-panel" aria-labelledby="security-linked-identity-heading">
+			<section class="settings-panel card min-w-0 p-5" aria-labelledby="security-linked-identity-heading">
 				<h2 id="security-linked-identity-heading">{ data.T("security.linked_identity_title") }</h2>
 				<p>{ data.T("security.linked_identity_description") }</p>
 				if len(data.OIDCProviders) > 0 {

@@ -36,7 +36,7 @@ func TestPasswordRecoveryStates(t *testing.T) {
 			setTheme(t, tab, layout.theme)
 			navigate(t, tab, fmt.Sprintf("/language?locale=%s&return_to=%%2Fpassword-reset", layout.locale))
 			navigate(t, tab, "/password-reset")
-			expectAttribute(t, tab, "html", "data-theme", layout.theme)
+			expectTheme(t, tab, layout.theme)
 			expectAttribute(t, tab, "html", "lang", layout.locale)
 			waitVisible(t, tab, `form[action="/password-reset"]`)
 

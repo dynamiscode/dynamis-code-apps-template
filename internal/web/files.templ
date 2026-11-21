@@ -14,7 +14,7 @@ templ filesPage(data viewmodel.PageData, canUpload bool) {
 				@molecules.ErrorAlert(data.T(data.ErrorKey))
 			}
 			if canUpload {
-				<section class="file-upload-panel card" aria-labelledby="file-upload-heading">
+				<section class="file-upload-panel card my-4 mb-8 gap-2 p-4" aria-labelledby="file-upload-heading">
 					<h2 id="file-upload-heading">{ data.T("files.upload") }</h2>
 					<form class="file-upload-form" data-file-upload
 						data-status-uploading={ data.T("files.status_uploading") }
@@ -33,7 +33,7 @@ templ filesPage(data viewmodel.PageData, canUpload bool) {
 				</section>
 			}
 			<section aria-labelledby="files-list-heading">
-				<h2 id="files-list-heading" class="visually-hidden">{ data.T("files.recent") }</h2>
+				<h2 id="files-list-heading" class="sr-only">{ data.T("files.recent") }</h2>
 				@organisms.ListScreen(data, "files.search", fileListTools(data), fileResults(data))
 			</section>
 		</div>

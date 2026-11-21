@@ -45,7 +45,7 @@
 		let notice = document.querySelector("p.error[role=alert]");
 		if (!notice) {
 			notice = document.createElement("p");
-			notice.className = "error";
+			notice.className = "error alert alert-error font-bold";
 			notice.setAttribute("role", "alert");
 			const parent = container || document.getElementById("main") || document.querySelector("main") || document.body;
 			const heading = parent.querySelector("h1, h2");
@@ -824,17 +824,17 @@
 			let region = document.querySelector(".toasts");
 			if (!region) {
 				region = document.createElement("div");
-				region.className = "toasts";
+				region.className = "toasts toast toast-bottom toast-end z-50";
 				region.setAttribute("role", "status");
 				region.setAttribute("aria-live", "polite");
 				document.body.appendChild(region);
 			}
 			const item = document.createElement("p");
-			item.className = `toast${kind === "error" ? " error" : ""}`;
+			item.className = `toast alert py-2 ${kind === "error" ? "alert-error" : "alert-success"}`;
 			item.textContent = text;
 			const close = document.createElement("button");
 			close.type = "button";
-			close.className = "secondary";
+			close.className = "btn btn-ghost btn-xs";
 			close.textContent = msg("dismiss");
 			close.addEventListener("click", () => item.remove());
 			item.appendChild(close);
@@ -856,7 +856,7 @@
 				if (!note) {
 					note = document.createElement("p");
 					note.id = errorId;
-					note.className = "field-error";
+					note.className = "field-error font-bold text-error";
 					el.insertAdjacentElement("afterend", note);
 				}
 				note.textContent = message;
@@ -927,10 +927,14 @@
 					if (!button.hasAttribute("aria-label")) {
 						button.dataset.label = button.textContent;
 						button.textContent = msg("saving");
+						const spinner = document.createElement("span");
+						spinner.className = "loading loading-spinner";
+						button.prepend(spinner);
 					}
 				} else if (button.dataset.wasDisabled !== undefined) {
 					button.disabled = button.dataset.wasDisabled === "true";
 					if (button.dataset.label !== undefined) button.textContent = button.dataset.label;
+					button.querySelector(".loading")?.remove();
 					delete button.dataset.wasDisabled;
 					delete button.dataset.label;
 				}
@@ -986,12 +990,12 @@
 			writeDraft(form, false);
 			if (!announce) return;
 			const note = document.createElement("p");
-			note.className = "draft-notice";
+			note.className = "draft-notice alert alert-info py-2 text-sm";
 			note.setAttribute("role", "status");
 			note.textContent = `${msg("draft-restored")} `;
 			const discard = document.createElement("button");
 			discard.type = "button";
-			discard.className = "secondary";
+			discard.className = "btn btn-ghost btn-xs";
 			discard.textContent = msg("discard-draft");
 			discard.addEventListener("click", () => {
 				storage?.removeItem(draftKey(form));
@@ -1015,7 +1019,7 @@
 			el.dataset.enhanced = "true";
 			const toggle = document.createElement("button");
 			toggle.type = "button";
-			toggle.className = "secondary reveal";
+			toggle.className = "btn btn-ghost btn-xs reveal";
 			toggle.setAttribute("aria-controls", idFor(el, "password"));
 			toggle.setAttribute("aria-pressed", "false");
 			toggle.textContent = msg("show-password");
@@ -1059,11 +1063,11 @@
 			if (steps.length < 2 || form._wizard) return;
 			const submit = form.querySelector('button[type="submit"]');
 			const nav = document.createElement("div");
-			nav.className = "wizard-nav";
+			nav.className = "wizard-nav mt-4 flex gap-2";
 			const status = document.createElement("p");
-			status.className = "wizard-status";
+			status.className = "wizard-status text-base-content/60 font-bold";
 			status.setAttribute("aria-live", "polite");
-			const back = Object.assign(document.createElement("button"), { type: "button", className: "secondary", textContent: msg("back") });
+			const back = Object.assign(document.createElement("button"), { type: "button", className: "btn btn-ghost btn-sm", textContent: msg("back") });
 			const next = Object.assign(document.createElement("button"), { type: "button", textContent: msg("next") });
 			nav.append(back, next);
 			form.insertBefore(status, steps[0]);
@@ -1519,6 +1523,10 @@
 			wireRealtime();
 			wireFileUploader();
 			wireWebMCP();
+		},
+		toggleDrawer() {
+			const box = document.getElementById("app-drawer");
+			if (box) box.checked = !box.checked;
 		},
 	});
 

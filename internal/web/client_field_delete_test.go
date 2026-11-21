@@ -47,7 +47,7 @@ func TestArchivedFieldIsPermanentlyDeletedThroughForms(t *testing.T) {
 	if !strings.Contains(page, `action="`+deletePath+`"`) || !strings.Contains(page, "data-confirm=") {
 		t.Fatalf("archived field lacks a confirmed delete control: %s", page)
 	}
-	if !strings.Contains(page, `<p class="warning">Permanently delete this field? Its value is removed from every client and its choices are deleted. This cannot be undone.</p>`) {
+	if !strings.Contains(page, `<p class="warning alert alert-warning py-2">Permanently delete this field? Its value is removed from every client and its choices are deleted. This cannot be undone.</p>`) {
 		t.Fatalf("archived field does not explain the deletion effects without JavaScript: %s", page)
 	}
 

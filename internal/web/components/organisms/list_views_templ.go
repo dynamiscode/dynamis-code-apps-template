@@ -86,14 +86,14 @@ func listViewSummary(data viewmodel.PageData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if applied := listViewAppliedName(data); applied != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<span class=\"list-view-summary-current\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<span class=\"badge badge-primary badge-sm\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(applied)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_views.templ`, Line: 27, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_views.templ`, Line: 27, Col: 54}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -210,7 +210,7 @@ func listViewPanel(data viewmodel.PageData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if listViewNoneApplied(data) {
-			templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "list-view-badge", Label: data.T("views.applied")}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "badge badge-ghost badge-sm", Label: data.T("views.applied")}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -317,19 +317,19 @@ func listViewPanel(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if view.Current {
-				templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "list-view-badge", Label: data.T("views.applied")}).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "badge badge-ghost badge-sm", Label: data.T("views.applied")}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			if view.Default {
-				templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "list-view-badge", Label: data.T("views.default")}).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "badge badge-ghost badge-sm", Label: data.T("views.default")}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			if view.Shared {
-				templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "list-view-badge", Label: data.T("views.shared_badge")}).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "badge badge-ghost badge-sm", Label: data.T("views.shared_badge")}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

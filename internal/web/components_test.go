@@ -42,7 +42,7 @@ func TestSharedComponentsRenderAccessibleNativeControls(t *testing.T) {
 		{"error", molecules.ErrorAlert("Invalid <title>"), nil, []string{`role="alert"`, `tabindex="-1"`, `Invalid &lt;title&gt;`}},
 		{"status", molecules.StatusLine("Ready <now>", templ.Attributes{"aria-live": "polite", "id": "realtime-status"}), nil, []string{`<p class="status" role="status" aria-live="polite" id="realtime-status">Ready &lt;now&gt;</p>`}},
 		{"success", molecules.SuccessAlert("Saved"), link, []string{`role="status"`, `Saved <a href="/items">Open</a>`}},
-		{"table", organisms.DataTable("Items", true), child, []string{`<table`, `class="visually-hidden"`, `>Items</caption>`, `scope="col"`, `>Example</td>`}},
+		{"table", organisms.DataTable("Items", true), child, []string{`<table`, `class="sr-only"`, `>Items</caption>`, `scope="col"`, `>Example</td>`}},
 		{"card", molecules.LinkedCard("/items", "Item <one>", "Open"), nil, []string{`href="/items"`, `Item &lt;one&gt;`, `>Open</span>`}},
 		{"responsive cards", molecules.ListCards(), link, []string{`<ul class="list-view-cards">`, `<a href="/items">Open</a>`}},
 		{"empty", molecules.EmptyState("No items"), link, []string{`<p>No items <a href="/items">Open</a>`}},

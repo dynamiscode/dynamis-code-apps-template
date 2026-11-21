@@ -40,7 +40,7 @@ templ ListFilterBarOOB(data viewmodel.PageData) {
 templ ListFilterStrip(data viewmodel.PageData) {
 	if len(data.Filter.Chips) > 0 {
 		<div class="list-filter-strip">
-			<ul class="list-filter-chips" aria-label={ data.T("clients.active_filters") }>
+			<ul class="list-filter-chips badge" aria-label={ data.T("clients.active_filters") }>
 				for i, chip := range data.Filter.Chips {
 					if i > 0 {
 						<li class="list-filter-connector">
@@ -51,8 +51,8 @@ templ ListFilterStrip(data viewmodel.PageData) {
 							}
 						</li>
 					}
-					<li class="list-filter-chip">
-						<a class="list-filter-chip-edit" href={ templ.SafeURL(chip.EditHref) } aria-label={ data.T("clients.filter_edit") + ": " + ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }>
+					<li class="list-filter-chip badge gap-1 py-1 pl-3">
+						<a class="list-filter-chip-edit link" href={ templ.SafeURL(chip.EditHref) } aria-label={ data.T("clients.filter_edit") + ": " + ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }>
 							<span>
 								{ ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }&#32;{ data.T(chip.OpLabelKey) }&#32;
 								if chip.ValueKey != "" {
@@ -62,7 +62,7 @@ templ ListFilterStrip(data viewmodel.PageData) {
 								}
 							</span>
 						</a>
-						<a class="list-filter-chip-remove" href={ templ.SafeURL(chip.RemoveHref) } aria-label={ data.T("clients.filter_remove") + ": " + ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }>&times;</a>
+						<a class="list-filter-chip-remove btn btn-ghost btn-xs" href={ templ.SafeURL(chip.RemoveHref) } aria-label={ data.T("clients.filter_remove") + ": " + ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }>&times;</a>
 					</li>
 				}
 			</ul>

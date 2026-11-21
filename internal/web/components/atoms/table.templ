@@ -59,7 +59,7 @@ templ TableWrap(props TableWrapProps) {
 			}
 		>
 			if props.Caption != "" {
-				<caption class={ templ.KV("visually-hidden", props.CaptionHidden) }>{ props.Caption }</caption>
+				<caption class={ templ.KV("sr-only", props.CaptionHidden) }>{ props.Caption }</caption>
 			}
 			{ children... }
 		</table>

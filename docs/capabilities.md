@@ -119,11 +119,12 @@ bridge remains used by legacy templates and is not removable yet. The
 [route inventory](web.md#rendering-migration-inventory) identifies this updated
 boundary.
 
-Measured checked-in browser asset sizes (`wc -c`, bytes): app.css 39,749;
-alpine-components.js 70,138; clients.css 5,478; components.css 191,785;
-htmx.min.js 37,448; import.css 579; tokens.css 3,048; vendored
+Measured checked-in browser asset sizes (`wc -c`, bytes): app.css 28,811;
+alpine-components.js 70,677; clients.css 4,262; components.css 194,843;
+htmx.min.js 37,448; tokens.css 3,048; vendored
 @alpinejs/csp runtime (js/alpine.min.js) 45,328. Total assets directory,
-including test files and license: 431,002 bytes. No asset-size budget exists,
+including test files and license: 421,866 bytes (import.css was deleted; its
+rules were dead, never linked). No asset-size budget exists,
 so these are measurements, not a budget-conformance claim.
 
 `make template-smoke` passed: template-init generated Core+Identity+Agent app,

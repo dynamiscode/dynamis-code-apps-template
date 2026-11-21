@@ -18,7 +18,7 @@ templ ListHeader(data viewmodel.PageData, actionsLabel string) {
 			}
 		}
 		if actionsLabel != "" {
-			<th scope="col" class="list-actions-cell"><span class="visually-hidden">{ actionsLabel }</span></th>
+			<th scope="col" class="list-actions-cell"><span class="sr-only">{ actionsLabel }</span></th>
 		}
 	</tr></thead>
 }
@@ -61,7 +61,7 @@ templ ListCellValue(data viewmodel.PageData, row viewmodel.ListRow, column viewm
 			<span class="list-name"><a class="list-row-link" href={ href }>@molecules.ListHighlight(data.ClientListCellValue(column, row), data.ListSearch)</a></span>
 		</span>
 	} else if molecules.ListBadgeColumn(column.Key) {
-		<span class={ "list-badge list-badge-" + row.CellText(column.Key) }>{ data.ClientListCellValue(column, row) }</span>
+		<span class={ "badge badge-sm list-badge list-badge-" + row.CellText(column.Key) }>{ data.ClientListCellValue(column, row) }</span>
 	} else {
 		@molecules.ListHighlight(data.ClientListCellValue(column, row), data.ListSearch)
 	}
@@ -70,7 +70,7 @@ templ ListCellValue(data viewmodel.PageData, row viewmodel.ListRow, column viewm
 
 // ListCardItem is one mobile card. Children render after the fields, for example row actions.
 templ ListCardItem(data viewmodel.PageData, row viewmodel.ListRow, href string) {
-	<li class="list-row" data-row-href={ href }>
+	<li class="list-row card relative p-4" data-row-href={ href }>
 		<dl>
 			for _, column := range data.ListColumns {
 				if column.Visible {

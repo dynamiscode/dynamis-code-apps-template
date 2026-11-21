@@ -611,7 +611,7 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	if resetMismatch.Code != http.StatusUnprocessableEntity || !strings.Contains(resetMismatch.Body.String(), "Las contraseñas no coinciden.") {
 		t.Fatalf("reset mismatch status = %d; missing translated error", resetMismatch.Code)
 	}
-	for _, marker := range []string{`class="alert alert-error error"`, `tabindex="-1"`, `class="input w-full"`, `data-theme="system"`} {
+	for _, marker := range []string{`class="alert alert-error error"`, `tabindex="-1"`, `class="input w-full"`, `<html lang="es">`} {
 		if !strings.Contains(resetMismatch.Body.String(), marker) {
 			t.Fatalf("reset mismatch view missing marker %q", marker)
 		}
@@ -751,7 +751,7 @@ func TestSessionsListAndRevocation(t *testing.T) {
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: current.Secret}, {Name: "csrf", Value: current.CSRFSecret}}
 	page := request(handler, http.MethodGet, "/sessions", nil, cookies, nil)
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "This session") || !strings.Contains(page.Body.String(), `data-theme="system"`) || !strings.Contains(page.Body.String(), "/assets/components.css") {
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "This session") || !strings.Contains(page.Body.String(), `<html lang="en">`) || !strings.Contains(page.Body.String(), "/assets/components.css") {
 		t.Fatalf("session list = %d, %s", page.Code, page.Body.String())
 	}
 	if strings.Count(page.Body.String(), `action="/sessions/`) != 2 || !strings.Contains(page.Body.String(), `action="/sessions/`+current.ID+`"`) || strings.Contains(page.Body.String(), current.Secret) {
@@ -1507,6 +1507,9 @@ func TestAuditHistoryUsesProfileLocaleAndThemes(t *testing.T) {
 		spanish := hasHTMLRootLang(body, "es")
 		localized := response.Header().Get("Content-Language") == "es"
 		themed := strings.Contains(body, `data-theme="`+theme+`"`)
+		if theme == "system" {
+			themed = !strings.Contains(body, `data-theme=`)
+		}
 		if response.Code != http.StatusOK || !spanish || !localized || !themed {
 			t.Errorf("audit document theme=%q: status=%d spanish=%t localized=%t themed=%t",
 				theme, response.Code, spanish, localized, themed)
@@ -1824,13 +1827,13 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 		body := request(handler, http.MethodGet, page.path, nil, cookies, nil).Body.String()
 		if !strings.Contains(body, `<nav aria-label="`+page.sidebarName+`">`) ||
 			!strings.Contains(body, page.active) ||
-			!strings.Contains(body, `<details class="dropdown ">`) ||
+			!strings.Contains(body, `<details class="dropdown dropdown-end">`) ||
 			!strings.Contains(body, `<details class="dropdown dropdown-end">`) {
 			t.Errorf("%s lacks primary navigation or current-page state", page.path)
 		}
 	}
 	itemsBody := request(handler, http.MethodGet, workspaceRoot+"/items"+"?all=1", nil, cookies, nil).Body.String()
-	if strings.Contains(itemsBody, `Members &amp; invitations`) || strings.Contains(itemsBody, `API tokens`) || strings.Contains(itemsBody, `>Export<`) || !strings.Contains(itemsBody, `<a class="sidebar-back" href="/">← Workspaces</a>`) {
+	if strings.Contains(itemsBody, `Members &amp; invitations`) || strings.Contains(itemsBody, `API tokens`) || strings.Contains(itemsBody, `>Export<`) || !strings.Contains(itemsBody, `<a class="btn btn-ghost btn-sm w-full justify-start font-normal" href="/">← Workspaces</a>`) {
 		t.Error("items context has incorrect navigation")
 	}
 	settingsRoot := request(handler, http.MethodGet, workspaceRoot+"/settings", nil, cookies, nil)
@@ -1839,7 +1842,7 @@ func TestWebNavigationAndActionFeedback(t *testing.T) {
 	}
 	for _, page := range []string{workspaceRoot + "/settings/members", workspaceRoot + "/settings/invitations", workspaceRoot + "/settings/tokens", workspaceRoot + "/settings/provisioning", workspaceRoot + "/settings/export", workspaceRoot + "/settings/import", workspaceRoot + "/settings/audit"} {
 		body := request(handler, http.MethodGet, page, nil, cookies, nil).Body.String()
-		backLink := `<a class="sidebar-back" href="` + workspaceRoot + `">`
+		backLink := `<a class="btn btn-ghost btn-sm w-full justify-start font-normal" href="` + workspaceRoot + `">`
 		if strings.Contains(body, `>Items<`) || strings.Contains(body, `href="`+workspaceRoot+`/settings">Settings`) || strings.Contains(body, `<nav aria-label="Workspace navigation">`) || !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `API tokens`) || !strings.Contains(body, `>Export<`) || !strings.Contains(body, backLink) || !strings.Contains(body, "Back to home") {
 			t.Errorf("%s lacks expanded settings navigation", page)
 		}
@@ -2717,7 +2720,7 @@ func TestMultiModeKeepsWorkspaceListNavigation(t *testing.T) {
 	})
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
 	body := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/items"+"?all=1", nil, cookies, nil).Body.String()
-	if !strings.Contains(body, `<details class="dropdown ">`) || !strings.Contains(body, `<a class="sidebar-back" href="/">← Workspaces</a>`) {
+	if !strings.Contains(body, `<details class="dropdown dropdown-end">`) || !strings.Contains(body, `<a class="btn btn-ghost btn-sm w-full justify-start font-normal" href="/">← Workspaces</a>`) {
 		t.Error("multi-mode items page lost workspace list navigation")
 	}
 }

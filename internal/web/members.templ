@@ -20,7 +20,7 @@ templ membersPage(data viewmodel.PageData) {
 			<p class="status">{ data.T("members.transfer_consequence") }</p>
 		}
 		<section id="member-list" aria-labelledby="members-heading">
-			<h2 id="members-heading" class="visually-hidden">{ data.T("members.members") }</h2>
+			<h2 id="members-heading" class="sr-only">{ data.T("members.members") }</h2>
 			<p class="status" role="status">
 				if data.MemberTotal == 1 {
 					{ data.T("members.count_one") }
@@ -35,7 +35,7 @@ templ membersPage(data viewmodel.PageData) {
 }
 
 templ memberSettingsNavigation(data viewmodel.PageData) {
-	<aside class="sidebar"><a class="sidebar-back" href={ "/workspaces/"+data.Workspace.ID.String() }>{ "← " }{ data.T("workspace.back_to_home") }</a>@organisms.WorkspaceNav(data)</aside>
+	<aside class="flex flex-col gap-4"><a class="btn btn-ghost btn-sm w-full justify-start font-normal" href={ "/workspaces/"+data.Workspace.ID.String() }>{ "← " }{ data.T("workspace.back_to_home") }</a>@organisms.WorkspaceNav(data)</aside>
 }
 
 templ memberListView(data viewmodel.PageData) {
@@ -88,7 +88,7 @@ templ memberRows(data viewmodel.PageData) {
 templ memberActions(data viewmodel.PageData, member identity.MemberSummary, suffix string) {
 	if data.CanManage && member.Role != identity.Owner {
 		<div class="member-actions">
-			<p class="visually-hidden">{ member.Email }</p>
+			<p class="sr-only">{ member.Email }</p>
 			<form data-webmcp-actions="member-role-update" data-webmcp-id={ member.ID.String() } action={ "/workspaces/"+data.Workspace.ID.String()+"/settings/members" } method="post">
 				<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="member_id" value={ member.ID.String() }/>
 				@atoms.Select(atoms.SelectProps{

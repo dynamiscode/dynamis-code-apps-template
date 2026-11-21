@@ -32,7 +32,7 @@ func TestWebhooksBrowserLifecycleAndRedaction(t *testing.T) {
 		t.Fatalf("webhooks page = %d, headers=%v, body=%s", page.Code, page.Header(), page.Body.String())
 	}
 	assertAccessiblePage(t, page.Body.String(), "HTTPS endpoint")
-	if !strings.Contains(page.Body.String(), `data-theme="system"`) || !strings.Contains(page.Body.String(), `class="card"`) || !strings.Contains(page.Body.String(), `name="csrf"`) {
+	if !strings.Contains(page.Body.String(), `<html lang="en">`) || !strings.Contains(page.Body.String(), `class="card"`) || !strings.Contains(page.Body.String(), `name="csrf"`) {
 		t.Fatalf("webhooks page missing theme, card, or ordinary CSRF form: %s", page.Body.String())
 	}
 	if !strings.Contains(page.Body.String(), `for="webhook-name"`) || !strings.Contains(page.Body.String(), `id="webhook-name"`) || !strings.Contains(page.Body.String(), `class="input`) || !strings.Contains(page.Body.String(), `for="webhook-url"`) || !strings.Contains(page.Body.String(), `id="webhook-url"`) {
@@ -115,7 +115,7 @@ func TestWebhooksBrowserLifecycleAndRedaction(t *testing.T) {
 	if history.Code != http.StatusOK || history.Header().Get("Cache-Control") != "no-store" || !strings.Contains(history.Body.String(), "network-error") || !strings.Contains(history.Body.String(), "500") || strings.Contains(history.Body.String(), "must not render") {
 		t.Fatalf("delivery history redaction = %d, %s", history.Code, history.Body.String())
 	}
-	if strings.Contains(history.Body.String(), `data-theme="system"`) == false || !strings.Contains(history.Body.String(), `<table class="table">`) {
+	if strings.Contains(history.Body.String(), `<html lang="en">`) == false || !strings.Contains(history.Body.String(), `<table class="table">`) {
 		t.Fatalf("delivery history missing themed table: %s", history.Body.String())
 	}
 

@@ -30,8 +30,8 @@ templ clientDetailPage(data viewmodel.PageData) {
 }
 
 templ clientDetail(data viewmodel.PageData) {
-	<section id="client-detail" class="client-panel" aria-labelledby="client-heading">
-		<h2 id="client-heading" class="visually-hidden">{ data.T("clients.client") }</h2>
+	<section id="client-detail" class="client-panel card my-4 p-6" aria-labelledby="client-heading">
+		<h2 id="client-heading" class="sr-only">{ data.T("clients.client") }</h2>
 		if data.ErrorKey != "" {
 			@molecules.ErrorAlert(data.T(data.ErrorKey))
 		}
@@ -83,7 +83,7 @@ templ clientDetail(data viewmodel.PageData) {
 				}
 				if data.CanDeleteClients {
 					<div class="client-delete">
-						<p class="warning">{ data.T("clients.delete_client_confirm") }</p>
+						<p class="warning alert alert-warning py-2">{ data.T("clients.delete_client_confirm") }</p>
 						<form method="post" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/delete" }>
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							@atoms.Button(atoms.ButtonProps{Class: "btn-error", Label: data.T("clients.delete_client"), Attrs: templ.Attributes{"type": "submit", "data-confirm": data.T("clients.delete_client_confirm")}})
@@ -97,12 +97,12 @@ templ clientDetail(data viewmodel.PageData) {
 }
 
 templ clientValues(data viewmodel.PageData) {
-	<section id="client-values" class="client-panel client-values" aria-labelledby="client-values-heading">
+	<section id="client-values" class="client-panel card my-4 p-6 client-values" aria-labelledby="client-values-heading">
 		<h2 id="client-values-heading">{ data.T("clients.values_heading") }</h2>
 		if len(data.ClientValues) > 0 {
 			for _, value := range data.ClientValues {
 				if data.CanEditClients {
-					<form class="client-value" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() } method="post">
+					<form class="client-value card card-compact p-4 bg-base-200" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() } method="post">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
 						<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
 						@atoms.Label(atoms.LabelProps{For: "value-" + value.FieldID.String(), Text: value.Label + " " + data.T("ui.optional")})
@@ -122,7 +122,7 @@ templ clientValues(data viewmodel.PageData) {
 						</div>
 					</form>
 					if value.Value != nil {
-						<form class="client-value-clear" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() + "/clear" } method="post">
+						<form class="client-value-clear card card-compact mt-2 p-4 bg-base-200" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() + "/clear" } method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
 							@atoms.Button(atoms.ButtonProps{Class: "btn-ghost", Label: data.T("clients.value_clear"), Attrs: templ.Attributes{"type": "submit"}})

@@ -124,7 +124,7 @@ func Combobox(props ComboboxProps) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		for _, opt := range props.Options {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<li><label class=\"label cursor-pointer space-x-2\"><span class=\"label-text\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<li><label class=\"label cursor-pointer space-x-2\"><span class=\"label-text text-base-content\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

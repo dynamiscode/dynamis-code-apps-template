@@ -100,7 +100,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<section class=\"settings-panel\" aria-labelledby=\"security-mfa-heading\"><h2 id=\"security-mfa-heading\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<section class=\"settings-panel card min-w-0 p-5\" aria-labelledby=\"security-mfa-heading\"><h2 id=\"security-mfa-heading\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -584,7 +584,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</section><section class=\"settings-panel\" aria-labelledby=\"security-linked-identity-heading\"><h2 id=\"security-linked-identity-heading\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</section><section class=\"settings-panel card min-w-0 p-5\" aria-labelledby=\"security-linked-identity-heading\"><h2 id=\"security-linked-identity-heading\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

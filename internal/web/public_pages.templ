@@ -8,7 +8,7 @@ import atoms "example.com/dynamis-code/apps-template/internal/web/components/ato
 
 templ publicSharePage(data viewmodel.PageData) {
 	<!doctype html>
-	<html lang={ data.Locale } data-theme={ data.Theme }>
+	<html lang={ data.Locale } if data.Theme != "system" { data-theme={ data.Theme } }>
 		<head>
 			@templates.PageHead(data, data.T(publicShareTitleKey(data)))
 		</head>

@@ -33,7 +33,7 @@ templ accountPageView(data viewmodel.PageData) {
 					@molecules.ErrorAlert(data.DeliveryWarning)
 				}
 				<div class="account-section-grid">
-					<section class="settings-panel settings-panel-wide">
+					<section class="settings-panel card min-w-0 p-5 settings-panel-wide">
 						<h2>{ data.T("account.profile") }</h2>
 						<p>{ data.T("account.profile_description") }</p>
 						<form action="/account/profile" method="post" data-dirty-track data-unsaved-warning>
@@ -82,7 +82,7 @@ templ accountPageView(data viewmodel.PageData) {
 							@molecules.SubmitButton(data.T("common.save"), templ.Attributes{"data-requires-change": true})
 						</form>
 					</section>
-					<section class="settings-panel">
+					<section class="settings-panel card min-w-0 p-5">
 						<h2>{ data.T("account.email_verification") }</h2>
 						<p>{ data.T("account.email_verification_description") }</p>
 						if data.Profile.EmailVerifiedAt != nil {
@@ -96,7 +96,7 @@ templ accountPageView(data viewmodel.PageData) {
 						}
 					</section>
 					if data.CurrentAuthMethod == "local" {
-						<section class="settings-panel">
+						<section class="settings-panel card min-w-0 p-5">
 							<h2>{ data.T("account.change_password") }</h2>
 							<p>{ data.T("account.password_description") }</p>
 							<form action="/account/password" method="post">
@@ -108,15 +108,15 @@ templ accountPageView(data viewmodel.PageData) {
 							</form>
 						</section>
 					}
-					<section class="settings-panel">
+					<section class="settings-panel card min-w-0 p-5">
 						<h2>{ data.T("account.notifications") }</h2>
 						<p><a href="/notifications">{ data.T("account.view_notifications") }</a></p>
 						if len(data.NotificationPreferences) == 0 {
 							@molecules.EmptyState(data.T("workspace.notifications_empty"))
 						} else {
-							<ul class="settings-records">
+							<ul class="settings-record card card-compact flex flex-wrap items-center justify-between gap-4 bg-base-200 px-4 py-3s">
 								for _, preference := range data.NotificationPreferences {
-									<li class="settings-record"><span>{ workspaceNotificationLabel(data, preference.NotificationType) }</span><span>
+									<li class="settings-record card card-compact flex flex-wrap items-center justify-between gap-4 bg-base-200 px-4 py-3"><span>{ workspaceNotificationLabel(data, preference.NotificationType) }</span><span>
 										if preference.Enabled {
 											{ data.T("account.enabled") }
 										} else {
@@ -148,7 +148,7 @@ templ accountPageView(data viewmodel.PageData) {
 							@molecules.SubmitButton(data.T("common.save"), nil)
 						</form>
 					</section>
-					<section class="settings-panel danger-panel settings-panel-wide">
+					<section class="settings-panel card min-w-0 p-5 danger-panel settings-panel-wide">
 						<h2>{ data.T("account.delete_account") }</h2>
 						<p id="delete-description">{ data.T("account.delete_description") }</p>
 						<form action="/account/delete" method="post">
@@ -185,7 +185,7 @@ templ languageSettingsView(data viewmodel.PageData) {
 				if data.Error != "" {
 					@molecules.ErrorAlert(data.Error)
 				}
-				<section class="settings-panel">
+				<section class="settings-panel card min-w-0 p-5">
 					<form action="/settings/language" method="post">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
 						@atoms.Select(atoms.SelectProps{

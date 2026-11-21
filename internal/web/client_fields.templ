@@ -22,8 +22,8 @@ func clientFieldsBackPath(fieldsPath string) string {
 }
 
 templ clientFieldList(data viewmodel.PageData) {
-	<section id="client-field-list" class="client-panel" aria-labelledby="client-fields-heading">
-		<h2 id="client-fields-heading" class="visually-hidden">{ data.T("clients.fields_title") }</h2>
+	<section id="client-field-list" class="client-panel card my-4 p-6" aria-labelledby="client-fields-heading">
+		<h2 id="client-fields-heading" class="sr-only">{ data.T("clients.fields_title") }</h2>
 		<p class="client-intro">{ data.T("clients.fields_intro") }</p>
 		if data.ErrorKey != "" {
 			@molecules.ErrorAlert(data.T(data.ErrorKey))
@@ -56,7 +56,7 @@ templ clientFieldList(data viewmodel.PageData) {
 		if len(data.ClientFields) > 0 {
 			<ul class="client-fields">
 				for _, field := range data.ClientFields {
-					<li class="client-field-card">
+					<li class="client-field-card card min-w-0 p-4">
 						<div class="client-field-heading">
 							<strong>{ field.Label }</strong>
 							<span>{ data.T("clients.field_type_" + field.Type) }</span>
@@ -66,7 +66,7 @@ templ clientFieldList(data viewmodel.PageData) {
 							<div class="client-field-actions">
 								if field.ArchivedAt != nil {
 									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/restore" }><input type="hidden" name="csrf" value={ data.CSRF }/>@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("clients.restore_field"), Attrs: templ.Attributes{"type": "submit"}})</form>
-									<div class="client-delete"><p class="warning">{ data.T("clients.delete_field_confirm") }</p><form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/delete" }><input type="hidden" name="csrf" value={ data.CSRF }/>@molecules.ConfirmButton(data.T("clients.delete_field"), data.T("clients.delete_field_confirm"), nil)</form></div>
+									<div class="client-delete"><p class="warning alert alert-warning py-2">{ data.T("clients.delete_field_confirm") }</p><form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/delete" }><input type="hidden" name="csrf" value={ data.CSRF }/>@molecules.ConfirmButton(data.T("clients.delete_field"), data.T("clients.delete_field_confirm"), nil)</form></div>
 								} else {
 									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/archive" }><input type="hidden" name="csrf" value={ data.CSRF }/>@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("clients.archive_field"), Attrs: templ.Attributes{"type": "submit"}})</form>
 								}
@@ -78,12 +78,12 @@ templ clientFieldList(data viewmodel.PageData) {
 								if len(field.Options) > 0 {
 									<ul class="client-field-option-list">
 						for _, option := range field.Options {
-							<li>
+							<li class="flex flex-wrap items-center justify-between gap-2 border border-base-200 rounded-box px-3 py-2">
 								<span>{ option.Label }</span>
 								if data.CanManageFields {
 									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/options/" + option.ID.String() + "/delete" }>
 										<input type="hidden" name="csrf" value={ data.CSRF }/>
-										<p class="warning">{ data.T("clients.option_delete_confirm") }</p>
+										<p class="warning alert alert-warning py-2">{ data.T("clients.option_delete_confirm") }</p>
 										@molecules.ConfirmButton(data.T("clients.option_delete"), data.T("clients.option_delete_confirm"), nil)
 									</form>
 								}

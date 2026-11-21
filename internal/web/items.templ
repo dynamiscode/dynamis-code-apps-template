@@ -22,7 +22,7 @@ templ itemsList(data viewmodel.PageData) {
 		data-live-reconnecting={ data.T("items.live_reconnecting") }
 		data-live-waiting={ data.T("ui.updates_waiting") }
 		aria-labelledby="items-heading">
-		<h2 id="items-heading" class="visually-hidden">{ data.T("items.items") }</h2>
+		<h2 id="items-heading" class="sr-only">{ data.T("items.items") }</h2>
 		if data.Error != "" {
 			@molecules.ErrorAlert(data.Error)
 		}

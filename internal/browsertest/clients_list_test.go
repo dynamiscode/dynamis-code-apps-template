@@ -177,7 +177,7 @@ func TestClientsListAdaptsAcrossViewports(t *testing.T) {
 			t.Cleanup(restore)
 			navigate(t, tab, clientsPath)
 			waitVisible(t, tab, "#client-list")
-			expectAttribute(t, tab, "html", "data-theme", colorScheme)
+			expectTheme(t, tab, colorScheme)
 			transition := eval[string](t, tab, `(() => {
 				const wrapper = document.createElement("div");
 				wrapper.className = "cards";

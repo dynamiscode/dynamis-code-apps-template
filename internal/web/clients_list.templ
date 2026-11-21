@@ -16,7 +16,7 @@ templ clientList(data viewmodel.PageData) {
 		data-live-reconnecting={ data.T("clients.live_reconnecting") }
 		data-live-waiting={ data.T("ui.updates_waiting") }
 		aria-labelledby="clients-heading">
-		<h2 id="clients-heading" class="visually-hidden">{ data.T("clients.title") }</h2>
+		<h2 id="clients-heading" class="sr-only">{ data.T("clients.title") }</h2>
 		if data.ErrorKey != "" {
 			@molecules.ErrorAlert(data.T(data.ErrorKey))
 		}

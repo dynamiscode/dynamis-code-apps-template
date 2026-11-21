@@ -28,14 +28,14 @@ templ notificationsPage(data viewmodel.PageData) {
 				if len(data.Notifications) > 0 {
 					@atoms.List(atoms.ListProps{Class: "notification-list"}) {
 						for _, notification := range data.Notifications {
-							@atoms.ListRow("notification-card") {
+							@atoms.ListRow("notification-card card grid grid-cols-[1fr_auto] items-start gap-4 p-5 max-md:grid-cols-1") {
 								<div>
 									<div class="notification-card-heading">
 										<h2>{ notification.Title }</h2>
 										if notification.ReadAt != nil {
-											@atoms.Badge(atoms.BadgeProps{Class: "notification-read", Label: data.T("notifications.read")})
+											@atoms.Badge(atoms.BadgeProps{Class: "badge badge-ghost badge-sm", Label: data.T("notifications.read")})
 										} else {
-											@atoms.Badge(atoms.BadgeProps{Class: "badge-primary notification-unread", Label: data.T("notifications.unread_status")})
+											@atoms.Badge(atoms.BadgeProps{Class: "badge-primary", Label: data.T("notifications.unread_status")})
 										}
 									</div>
 									<p>{ notification.Body }</p>
@@ -51,7 +51,7 @@ templ notificationsPage(data viewmodel.PageData) {
 							}
 					}
 				} else {
-					<section class="notification-empty" aria-labelledby="notification-empty-title">
+					<section class="notification-empty card mt-6 gap-2 border-l-4 border-primary p-5" aria-labelledby="notification-empty-title">
 						<h2 id="notification-empty-title">{ data.T("notifications.none") }</h2>
 						<p>{ data.T("notifications.empty_description") }</p>
 						<a href="/account">{ data.T("notifications.manage_preferences") }</a>

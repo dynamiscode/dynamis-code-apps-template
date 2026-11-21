@@ -119,7 +119,7 @@ func TestItemsHonorsExplicitAndSystemTheme(t *testing.T) {
 		t.Cleanup(restore)
 		call(t, tab, emulation.SetEmulatedMedia, emulation.SetEmulatedMediaParams{Features: []*emulation.MediaFeature{{Name: "prefers-color-scheme", Value: c.scheme}, {Name: "prefers-reduced-motion", Value: "reduce"}}})
 		navigate(t, tab, path)
-		expectAttribute(t, tab, "html", "data-theme", c.theme)
+		expectTheme(t, tab, c.theme)
 		if got := eval[string](t, tab, `getComputedStyle(document.documentElement).getPropertyValue("--canvas").trim()`); got != c.canvas {
 			t.Fatalf("%s/%s canvas %q, want %q", c.theme, c.scheme, got, c.canvas)
 		}

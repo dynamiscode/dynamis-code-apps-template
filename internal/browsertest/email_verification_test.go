@@ -42,7 +42,7 @@ func TestEmailVerificationFailure(t *testing.T) {
 						t.Fatalf("status = %v, want 422", response)
 					}
 					expectAttribute(t, tab, "html", "lang", locale)
-					expectAttribute(t, tab, "html", "data-theme", theme)
+					expectTheme(t, tab, theme)
 					if got := eval[string](t, tab, `document.querySelector("h1")?.textContent.trim() ?? ""`); got != copies[locale].heading {
 						t.Fatalf("heading = %q, want %q", got, copies[locale].heading)
 					}

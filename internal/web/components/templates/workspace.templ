@@ -5,7 +5,7 @@ import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 templ DashboardShell(data viewmodel.PageData, header, navigation templ.Component) {
 	<!doctype html>
-	<html lang={ data.Locale } data-theme={ data.Theme }>
+	<html lang={ data.Locale } if data.Theme != "system" { data-theme={ data.Theme } }>
 		<head>
 			@PageHead(data, data.Title)
 				<script defer src="/assets/alpine-components.js"></script>
@@ -17,15 +17,31 @@ templ DashboardShell(data viewmodel.PageData, header, navigation templ.Component
 		</head>
 		<body x-data="pageBehaviors" class={ templ.KV("dashboard-workspace", navigation != nil) } data-workspace-home?={ data.NavPage == "workspace" } if data.NavPage != "import" && data.NavPage != "client-detail" && data.NavPage != "client-fields" && data.NavPage != "webhooks" && data.NavPage != "provisioning" { data-webmcp-page={ data.NavPage } }>
 			@molecules.SkipLink(data)
-			@header
-			<div class={ templ.KV("app-shell", navigation != nil) }>
-				if navigation != nil {
-					@navigation
-				}
+			if navigation != nil {
+				<div class="drawer lg:drawer-open">
+					<input id="app-drawer" type="checkbox" class="drawer-toggle" aria-hidden="true" tabindex="-1"/>
+					<div class="drawer-content flex min-h-screen flex-col">
+						<nav class="border-b border-base-200 bg-base-100 py-1 pl-2 lg:hidden" aria-label={ data.T("ui.open_navigation") }>
+							<button type="button" class="btn btn-ghost btn-square drawer-button" aria-label={ data.T("ui.open_navigation") } @click="toggleDrawer">&#9776;</button>
+						</nav>
+						@header
+						<main id="main" class="workspace-main flex-1">
+							{ children... }
+						</main>
+					</div>
+					<div class="drawer-side z-40">
+						<button type="button" class="drawer-overlay" tabindex="-1" aria-hidden="true" @click="toggleDrawer"></button>
+						<div class="min-h-full w-64 border-r border-base-200 bg-base-100 p-4">
+							@navigation
+						</div>
+					</div>
+				</div>
+			} else {
+				@header
 				<main id="main" class="workspace-main">
 					{ children... }
 				</main>
-			</div>
+			}
 		</body>
 	</html>
 }

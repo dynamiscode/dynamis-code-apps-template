@@ -19,7 +19,7 @@ templ generalSettingsView(data viewmodel.PageData) {
 			if data.Error != "" {
 				@molecules.ErrorAlert(data.Error)
 			}
-			<section class="settings-panel" aria-labelledby="workspace-locale-title">
+			<section class="settings-panel card min-w-0 p-5" aria-labelledby="workspace-locale-title">
 				<h2 id="workspace-locale-title">{ data.T("workspace.language_fallback") }</h2>
 				<p class="settings-intro" id="workspace-locale-help">{ data.T("workspace.language_fallback_description") }</p>
 				<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/general" } method="post" data-dirty-track data-unsaved-warning>
@@ -37,12 +37,12 @@ templ generalSettingsView(data viewmodel.PageData) {
 					}
 				</form>
 			</section>
-			<section class="settings-panel" aria-labelledby="workspace-notifications-title">
+			<section class="settings-panel card min-w-0 p-5" aria-labelledby="workspace-notifications-title">
 				<h2 id="workspace-notifications-title">{ data.T("account.notifications") }</h2>
 				if len(data.WorkspaceNotificationPreferences) > 0 {
-					<ul class="settings-records">
+					<ul class="settings-record card card-compact flex flex-wrap items-center justify-between gap-4 bg-base-200 px-4 py-3s">
 						for _, preference := range data.WorkspaceNotificationPreferences {
-							<li class="settings-record"><span>{ workspaceNotificationLabel(data, preference.NotificationType) }</span><span>
+							<li class="settings-record card card-compact flex flex-wrap items-center justify-between gap-4 bg-base-200 px-4 py-3"><span>{ workspaceNotificationLabel(data, preference.NotificationType) }</span><span>
 								if preference.Enabled {
 									{ data.T("account.enabled") }
 								} else {
@@ -106,7 +106,7 @@ templ emailSettingsView(data viewmodel.PageData) {
 					}
 				</code></p>
 			}
-			<section class="settings-panel" aria-label={ data.T("email.title") }>
+			<section class="settings-panel card min-w-0 p-5" aria-label={ data.T("email.title") }>
 				<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/email" } method="post" data-dirty-track data-unsaved-warning>
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
 					@atoms.Select(atoms.SelectProps{
@@ -172,7 +172,7 @@ templ exportSettingsView(data viewmodel.PageData) {
 		<div class="settings-page">
 			@molecules.PageHeading(data.Workspace.Name+" "+data.T("navigation.export"), data.T("navigation.settings_activity"))
 			<p class="settings-intro">{ data.T("export.description") }</p>
-			<section class="settings-panel" aria-label={ data.T("navigation.export") }>
+			<section class="settings-panel card min-w-0 p-5" aria-label={ data.T("navigation.export") }>
 				@atoms.Anchor(atoms.AnchorProps{Href: "/workspaces/" + data.Workspace.ID.String() + "/settings/export/download", Label: data.T("export.download"), Class: "btn btn-primary", Attrs: templ.Attributes{"data-webmcp-export": true}})
 			</section>
 		</div>
@@ -192,7 +192,7 @@ templ importSettingsView(data viewmodel.PageData) {
 			if data.Error != "" {
 				@molecules.ErrorAlert(data.Error)
 			}
-			<form class="settings-panel import-preview-form" action={ data.CurrentPath } method="post" enctype="multipart/form-data">
+			<form class="settings-panel card min-w-0 p-5 import-preview-form" action={ data.CurrentPath } method="post" enctype="multipart/form-data">
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
 				<input type="hidden" name="action" value="preview"/>
 				<p id="import-file-help">{ data.T("import.file_help") }</p>
@@ -200,7 +200,7 @@ templ importSettingsView(data viewmodel.PageData) {
 				@molecules.SubmitButton(data.T("import.preview_button"), nil)
 			</form>
 			if data.ImportPreview != nil {
-				<section class="settings-panel import-preview" aria-labelledby="import-preview-heading">
+				<section class="settings-panel card min-w-0 p-5 import-preview" aria-labelledby="import-preview-heading">
 					<h2 id="import-preview-heading">{ data.T("import.preview_heading") }</h2>
 					<p>{ data.T("import.preview_records") }: <strong>{ data.ImportPreview.RecordCount }</strong></p>
 					<p>{ data.T("import.no_writes_yet") }</p>

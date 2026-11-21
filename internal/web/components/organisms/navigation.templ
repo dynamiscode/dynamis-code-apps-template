@@ -12,7 +12,7 @@ templ workspaceSwitcherItem(href, name, role string, current bool) {
 
 // logoutItem is the POST logout form as a daisyUI menu entry.
 templ logoutItem(data viewmodel.PageData) {
-	<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button type="submit">{ data.T("navigation.sign_out") }</button></form>
+	<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button type="submit" class="btn btn-ghost btn-sm w-full justify-start font-normal">{ data.T("navigation.sign_out") }</button></form>
 }
 
 
@@ -32,7 +32,7 @@ templ WorkspaceContext(data viewmodel.PageData) {
 	if data.SingleWorkspace {
 		<span class="truncate font-bold">{ data.Workspace.Name }</span>
 	} else {
-		@atoms.Dropdown(atoms.DropdownProps{Label: data.Workspace.Name, ListClass: "w-56 max-w-[90vw] bg-base-100 rounded-box shadow-lg", Items: workspaceSwitcherItems(data)})
+		@atoms.Dropdown(atoms.DropdownProps{Class: "dropdown-end", Label: data.Workspace.Name, ListClass: "w-56 max-w-[90vw] bg-base-100 rounded-box shadow-lg", Items: workspaceSwitcherItems(data)})
 	}
 }
 

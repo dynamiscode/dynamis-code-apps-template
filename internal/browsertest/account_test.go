@@ -37,7 +37,7 @@ func TestAccountAndSecurityPagesRender(t *testing.T) {
 				navigate(t, tab, "/language?locale="+page.locale+"&return_to="+urlQuery(page.path))
 				navigate(t, tab, page.path)
 				expectAttribute(t, tab, "html", "lang", page.locale)
-				expectAttribute(t, tab, "html", "data-theme", layout.theme)
+				expectTheme(t, tab, layout.theme)
 				eventually(t, tab, fmt.Sprintf(`[...document.querySelectorAll("h1")].some((h) => h.textContent.includes(%s))`, jsString(page.heading)), "heading "+page.heading+" missing")
 				if layout.width < 608 {
 					expectNoOverflow(t, tab, layout.width)

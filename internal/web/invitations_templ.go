@@ -92,7 +92,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<section class=\"settings-panel\" aria-labelledby=\"invitation-create-title\"><h2 id=\"invitation-create-title\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<section class=\"settings-panel card min-w-0 p-5\" aria-labelledby=\"invitation-create-title\"><h2 id=\"invitation-create-title\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -193,7 +193,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</form></section><section class=\"settings-panel\" aria-labelledby=\"invitation-list-title\"><h2 id=\"invitation-list-title\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</form></section><section class=\"settings-panel card min-w-0 p-5\" aria-labelledby=\"invitation-list-title\"><h2 id=\"invitation-list-title\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

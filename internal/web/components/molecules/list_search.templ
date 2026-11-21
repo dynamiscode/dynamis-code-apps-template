@@ -12,10 +12,10 @@ templ ListSearch(data viewmodel.PageData, placeholderKey string, value string) {
 				<input type="hidden" name={ field.Name } value={ field.Value }/>
 			}
 		}
-		<label class="visually-hidden" for="list-search">{ data.T(placeholderKey) }</label>
+		<label class="sr-only" for="list-search">{ data.T(placeholderKey) }</label>
 		<input class="input" id="list-search" type="search" name="q" value={ value } maxlength="200" placeholder={ data.T(placeholderKey) }/>
 		<button class="btn btn-ghost btn-xs" type="submit">{ data.T("ui.search") }</button>
 		<p class="list-search-status" role="status" aria-live="polite" data-error-text={ data.T("ui.search_failed") } hidden></p>
-		<p class="visually-hidden" role="status" aria-live="polite" data-list-announce></p>
+		<p class="sr-only" role="status" aria-live="polite" data-list-announce></p>
 	</form>
 }

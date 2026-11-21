@@ -56,7 +56,7 @@ func filesPage(data viewmodel.PageData, canUpload bool) templ.Component {
 				}
 			}
 			if canUpload {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<section class=\"file-upload-panel card\" aria-labelledby=\"file-upload-heading\"><h2 id=\"file-upload-heading\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<section class=\"file-upload-panel card my-4 mb-8 gap-2 p-4\" aria-labelledby=\"file-upload-heading\"><h2 id=\"file-upload-heading\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -172,14 +172,14 @@ func filesPage(data viewmodel.PageData, canUpload bool) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<section aria-labelledby=\"files-list-heading\"><h2 id=\"files-list-heading\" class=\"visually-hidden\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<section aria-labelledby=\"files-list-heading\"><h2 id=\"files-list-heading\" class=\"sr-only\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("files.recent"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 36, Col: 80}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 36, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {

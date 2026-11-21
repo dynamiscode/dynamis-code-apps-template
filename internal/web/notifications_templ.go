@@ -248,12 +248,12 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 								return templ_7745c5c3_Err
 							}
 							if notification.ReadAt != nil {
-								templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "notification-read", Label: data.T("notifications.read")}).Render(ctx, templ_7745c5c3_Buffer)
+								templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "badge badge-ghost badge-sm", Label: data.T("notifications.read")}).Render(ctx, templ_7745c5c3_Buffer)
 								if templ_7745c5c3_Err != nil {
 									return templ_7745c5c3_Err
 								}
 							} else {
-								templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "badge-primary notification-unread", Label: data.T("notifications.unread_status")}).Render(ctx, templ_7745c5c3_Buffer)
+								templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "badge-primary", Label: data.T("notifications.unread_status")}).Render(ctx, templ_7745c5c3_Buffer)
 								if templ_7745c5c3_Err != nil {
 									return templ_7745c5c3_Err
 								}
@@ -343,7 +343,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 							}
 							return nil
 						})
-						templ_7745c5c3_Err = atoms.ListRow("notification-card").Render(templ.WithChildren(ctx, templ_7745c5c3_Var15), templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = atoms.ListRow("notification-card card grid grid-cols-[1fr_auto] items-start gap-4 p-5 max-md:grid-cols-1").Render(templ.WithChildren(ctx, templ_7745c5c3_Var15), templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -355,7 +355,7 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<section class=\"notification-empty\" aria-labelledby=\"notification-empty-title\"><h2 id=\"notification-empty-title\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<section class=\"notification-empty card mt-6 gap-2 border-l-4 border-primary p-5\" aria-labelledby=\"notification-empty-title\"><h2 id=\"notification-empty-title\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

@@ -137,7 +137,7 @@ func TestMembersLayouts(t *testing.T) {
 			} else {
 				waitVisible(t, tab, ".list-view-table")
 			}
-			expectAttribute(t, tab, "html", "data-theme", "system")
+			expectTheme(t, tab, "system")
 			if scheme := eval[string](t, tab, `getComputedStyle(document.documentElement).colorScheme`); scheme != c.theme {
 				t.Fatalf("color-scheme %q, want %q", scheme, c.theme)
 			}

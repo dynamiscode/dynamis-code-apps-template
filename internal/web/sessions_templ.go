@@ -107,7 +107,7 @@ func sessionsPage(data viewmodel.PageData, currentSessionID string, now time.Tim
 					return templ_7745c5c3_Err
 				}
 				for _, session := range data.Sessions {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<li class=\"session-card\"><div class=\"session-card-heading\"><strong>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<li class=\"session-card card min-w-0 p-5\"><div class=\"session-card-heading\"><strong>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -144,23 +144,23 @@ func sessionsPage(data viewmodel.PageData, currentSessionID string, now time.Tim
 						}
 					}
 					if session.ID == currentSessionID {
-						templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "session-status", Label: data.T("sessions.current")}).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "session-status badge badge-info", Label: data.T("sessions.current")}).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
 					if session.RevokedAt != nil {
-						templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "session-status session-status-revoked", Label: data.T("sessions.revoked")}).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "session-status badge badge-warning", Label: data.T("sessions.revoked")}).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					} else if !now.Before(session.ExpiresAt) {
-						templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "session-status session-status-revoked", Label: data.T("sessions.expired")}).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "session-status badge badge-warning", Label: data.T("sessions.expired")}).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					} else {
-						templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "session-status session-status-active", Label: data.T("sessions.active")}).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = atoms.Badge(atoms.BadgeProps{Class: "session-status badge badge-success", Label: data.T("sessions.active")}).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}

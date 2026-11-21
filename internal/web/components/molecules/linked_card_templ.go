@@ -28,7 +28,7 @@ func LinkedCard(href, title, description string) templ.Component {
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = atoms.ListCard(atoms.ListCardProps{Href: href, Title: title, Description: description}).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = atoms.ListCard(atoms.ListCardProps{Href: href, Title: title, Description: description, Class: "gap-2 p-4 transition-colors hover:border-base-300 hover:bg-base-200"}).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

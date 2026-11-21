@@ -157,7 +157,7 @@ func TestFilesPageRendersTemplShellAndAccessibleEmptyState(t *testing.T) {
 	page := request(env.routes, http.MethodGet, env.filesPath()+"?all=1", nil, env.cookies, nil)
 	body := page.Body.String()
 	for _, want := range []string{
-		`<html lang="en" data-theme=`,
+		`<html lang="en">`,
 		`href="/assets/components.css"`,
 		`href="/workspaces/` + env.workspaceID.String() + `">Home</a>`,
 		`aria-current="page" href="` + env.filesPath() + `">Files</a>`,

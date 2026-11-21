@@ -82,7 +82,7 @@ templ itemRowActions(data viewmodel.PageData, row viewmodel.ListRow) {
 			}
 		}
 		if data.PublicShareItemID == row.Item.ID {
-			<p class="success" role="status">{ data.T("sharing.created") }{ " " }<a href={ data.PublicShareURL }>{ data.PublicShareURL }</a></p>
+			<p class="success alert alert-success py-2" role="status">{ data.T("sharing.created") }{ " " }<a href={ data.PublicShareURL }>{ data.PublicShareURL }</a></p>
 		}
 	}
 }
