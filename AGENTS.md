@@ -12,15 +12,11 @@ maintainable, and evidenced.
 4. Repository-local skills define recurring procedures; they do not override
    the sources above.
 
-When sources conflict, stop and resolve the contract or decision first.
-
 ## Before changing anything
 
 1. Inspect `git status` and preserve unrelated work.
 2. Read the task route in `docs/README.md` and the files to change and call.
 3. Reuse existing use cases, policies, middleware, and adapters.
-4. Load one matching repository-local skill for a recurring workflow.
-5. State the bounded outcome and verification before editing.
 6. Use path-bounded or symbol-scoped searches (`git grep <pat> <dir>`, LSP symbol queries) rather than unbounded root keyword scans to keep context compact.
 7. In a git worktree, do not run `git checkout main`; `main` may be checked out in another worktree. Use `git switch --detach origin/main`, and see [Worktree and branch lifecycle](docs/development.md#worktree-and-branch-lifecycle).
 
@@ -49,14 +45,9 @@ When sources conflict, stop and resolve the contract or decision first.
 
 ## Change obligations
 
-- Make one reviewable change per PR; no drive-by refactors. A large change is a sequence of reviewable PRs, each one change. The reason is that small, single-purpose changes are faster to review and to roll back.
-- Update implementation, canonical contract, smallest regression test,
-  capability evidence, changelog, and behavior docs together when applicable.
 - When working in parallel agent worktrees or swarms, do not edit CHANGELOG.md
   directly on feature branches; changelog updates are aggregated at release or
   PR merge time.
-- Follow the feature-surface checklist in [docs/development.md](docs/development.md)
-  and record intentional omissions.
 - In grilling or design-interview sessions, edit files only after the user writes
   an explicit go; answers to the questions are not a go.
 - Never claim planned behavior is implemented.
@@ -67,22 +58,6 @@ When sources conflict, stop and resolve the contract or decision first.
 - Write approval text in an exception record only when the user tells you to
   approve it in the current conversation. Never edit an existing approval line
   on your own.
-
-## Verification ladder
-
-Run applicable commands in order:
-
-1. Focused package tests (e.g. `go test ./internal/<pkg>/...` during iteration).
-2. `node --check internal/web/assets/*.js` and `make test-unit` for browser script changes.
-3. `make test` (runs `test-unit` and `go test ./...`)
-4. make lint (runs fmt-check and go vet)
-5. `go test -race ./...` for concurrent code or release readiness.
-6. `go generate ./api` and confirm no generated drift.
-7. SQLite and isolated PostgreSQL compatibility checks for data changes (`POSTGRES_TEST_URL` or `make test-postgres`; see [development](docs/development.md)).
-8. `make docker-smoke` for runtime or delivery changes.
-9. `make verify` before release.
-
-Report passed, failed, blocked, and not-applicable checks separately.
 
 Keep this root contract short. Add nested `AGENTS.md` files only when a subtree
 has genuinely different rules.
