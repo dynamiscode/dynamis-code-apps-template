@@ -611,9 +611,9 @@
     "/api/v1/workspaces/{workspaceId}/clients/{clientId}/timeline": {
       "get": {
         "operationId": "listClientTimeline",
-        "description": "Lists manual entries in ascending date order. Requires client read permission.",
+        "description": "Lists a page of manual entries in ascending date order. Requires client read permission. Continue until a page contains fewer entries than the limit.",
         "security": [{"bearerAuth": []}],
-        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/ClientId"}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/ClientId"}, {"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50}}, {"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 1000000, "default": 1}}],
         "responses": {
           "200": {"description": "Timeline entries", "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/ClientTimelineEntry"}}}}},
           "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}, "429": {"$ref": "#/components/responses/RateLimited"}

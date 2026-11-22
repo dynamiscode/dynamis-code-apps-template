@@ -398,7 +398,15 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	if draft != nil {
 		client.DisplayName, client.Email, client.Phone, client.Notes = draft.DisplayName, draft.Email, draft.Phone, draft.Notes
 	}
-	entries, err := h.clients.ListTimelineEntries(request.Context(), principal, workspaceID, clientID)
+	page := 1
+	if raw := request.URL.Query().Get("timeline_page"); raw != "" {
+		page, err = strconv.Atoi(raw)
+		if err != nil || page < 1 || page > 1000000 {
+			h.renderError(writer, http.StatusBadRequest)
+			return
+		}
+	}
+	entries, err := h.clients.ListTimelineEntriesPage(request.Context(), principal, workspaceID, clientID, 50, page)
 	if err != nil {
 		h.clientError(writer, request, err)
 		return
@@ -425,7 +433,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		CurrentPath:     h.clientsPath(workspaceID),
 		FieldsPath:      h.clientFieldsPath(workspaceID),
 		CanManageFields: principal.Permissions[identity.WorkspaceUpdate],
-		Client:          client, ClientValues: rows, ClientTimeline: entries, TimelineDraft: timelineDraft, CanEditClients: principal.Permissions[identity.ResourcesWrite],
+		Client:          client, ClientValues: rows, ClientTimeline: entries, TimelinePage: page, TimelineDraft: timelineDraft, CanEditClients: principal.Permissions[identity.ResourcesWrite],
 		CanDeleteClients: principal.Permissions[identity.WorkspaceUpdate],
 	})
 }

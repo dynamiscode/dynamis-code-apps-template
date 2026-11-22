@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"net/http"
+	"strconv"
 
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/identity"
@@ -14,7 +15,21 @@ func (h *handler) listClientTimeline(writer http.ResponseWriter, request *http.R
 	}
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	clientID := clients.ParseClientIDOrZero(request.PathValue("clientId"))
-	if len(request.URL.Query()) != 0 {
+	query := request.URL.Query()
+	for key, values := range query {
+		if (key != "limit" && key != "page") || len(values) != 1 || values[0] == "" {
+			h.invalidRequest(writer, request, "The request parameters are invalid.")
+			return
+		}
+	}
+	page, valid := parsePage(query)
+	limit := 50
+	if raw := query.Get("limit"); raw != "" {
+		var err error
+		limit, err = strconv.Atoi(raw)
+		valid = valid && err == nil && limit >= 1 && limit <= 100
+	}
+	if !valid {
 		h.invalidRequest(writer, request, "The request parameters are invalid.")
 		return
 	}
@@ -22,7 +37,7 @@ func (h *handler) listClientTimeline(writer http.ResponseWriter, request *http.R
 	if !ok {
 		return
 	}
-	entries, err := h.clients.ListTimelineEntries(request.Context(), principal, workspaceID, clientID)
+	entries, err := h.clients.ListTimelineEntriesPage(request.Context(), principal, workspaceID, clientID, limit, page)
 	if err != nil {
 		h.clientError(writer, request, err)
 		return

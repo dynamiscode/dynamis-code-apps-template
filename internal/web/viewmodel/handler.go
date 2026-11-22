@@ -35,6 +35,7 @@ type PageData struct {
 	Client               clients.Client
 	ClientValues         []ClientValueRow
 	ClientTimeline       []clients.TimelineEntry
+	TimelinePage         int
 	TimelineDraft        TimelineDraft
 	ClientDraft          clients.Input
 	ClientFields         []ClientFieldRow

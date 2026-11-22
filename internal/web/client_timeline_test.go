@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -20,6 +21,13 @@ func TestClientTimelineForms(t *testing.T) {
 		t.Fatalf("add = %d: %s", first.Code, first.Body.String())
 	}
 	page := request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
+	if strings.Contains(page, `maxlength="2000"`) {
+		t.Fatal("UTF-16 maxlength rejects valid supplementary characters")
+	}
+	unicode := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "type": {"note"}, "text": {strings.Repeat("😀", 2000)}}, env.cookies, nil)
+	if unicode.Code != http.StatusSeeOther {
+		t.Fatalf("valid Unicode entry = %d", unicode.Code)
+	}
 	if !strings.Contains(page, "First contact") || !strings.Contains(page, "Phone") || !strings.Contains(page, env.ownerID.String()) {
 		t.Fatalf("missing entry details: %s", page)
 	}
@@ -52,7 +60,7 @@ func TestClientTimelineForms(t *testing.T) {
 		t.Fatal("invalid correction not rejected with draft")
 	}
 	viewer := request(env.routes, http.MethodGet, detail, nil, env.viewerCookies, nil)
-	if !strings.Contains(viewer.Body.String(), "First contact") || strings.Contains(viewer.Body.String(), `action="`+path+`"`) {
+	if !strings.Contains(viewer.Body.String(), "First contact") || strings.Contains(viewer.Body.String(), `action="`+path+`?`) {
 		t.Fatal("viewer timeline or permissions incorrect")
 	}
 	denied := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.viewerCSRF}, "type": {"note"}, "text": {"blocked"}}, env.viewerCookies, nil)
@@ -68,5 +76,25 @@ func TestClientTimelineForms(t *testing.T) {
 	}
 	if unknown.Code != http.StatusNotFound || foreign.Code != http.StatusNotFound {
 		t.Fatal("unreadable client did not return 404")
+	}
+}
+
+func TestClientTimelinePagination(t *testing.T) {
+	env := newClientsTestEnv(t)
+	created := request(env.routes, http.MethodPost, env.listPath(), url.Values{"csrf": {env.csrf}, "display_name": {"Paged"}}, env.cookies, nil)
+	detail := created.Header().Get("Location")
+	for i := 0; i < 51; i++ {
+		response := request(env.routes, http.MethodPost, detail+"/timeline", url.Values{"csrf": {env.csrf}, "type": {"note"}, "text": {fmt.Sprintf("entry-%02d", i)}}, env.cookies, nil)
+		if response.Code != http.StatusSeeOther {
+			t.Fatalf("entry %d: %d", i, response.Code)
+		}
+	}
+	first := request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
+	second := request(env.routes, http.MethodGet, detail+"?timeline_page=2", nil, env.viewerCookies, nil).Body.String()
+	if !strings.Contains(first, "entry-00") || strings.Contains(first, "entry-50") || !strings.Contains(first, "timeline_page=2") {
+		t.Fatal("first page or next link incorrect")
+	}
+	if !strings.Contains(second, "entry-50") || strings.Contains(second, "entry-00") || !strings.Contains(second, "timeline_page=1") {
+		t.Fatal("second page or previous link incorrect")
 	}
 }

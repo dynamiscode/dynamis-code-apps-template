@@ -34,6 +34,13 @@ func TestSeedLeadSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	field, err := svc.DefineField(ctx, actor, workspaceID, clients.FieldInput{Label: "Lead source", Type: clients.FieldTypeSingleChoice}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.AddOption(ctx, actor, workspaceID, field.ID, "Social media", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
 	cfg := config.Config{Database: config.Database{Driver: config.SQLite}}
 	cfg.Data.ClientFieldsMaxPerWorkspace = 50
 	for i := 0; i < 2; i++ {

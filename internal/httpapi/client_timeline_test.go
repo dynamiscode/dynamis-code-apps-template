@@ -58,6 +58,23 @@ func TestClientTimelineREST(t *testing.T) {
 	if err := json.Unmarshal(list.Body.Bytes(), &entries); list.Code != http.StatusOK || err != nil || len(entries) != 2 || entries[0].ID != entry.ID || entries[1].Type != "call" || entries[1].Channel != "phone" || entries[1].Text != "second" || entries[1].CorrectsID == nil || *entries[1].CorrectsID != entry.ID {
 		t.Fatalf("list: %d %s", list.Code, list.Body.String())
 	}
+	page := serveAuthorized(h, http.MethodGet, path+"?limit=1&page=2", "", token, nil)
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `"text":"second"`) || strings.Contains(page.Body.String(), `"text":"first"`) {
+		t.Fatalf("second page: %d %s", page.Code, page.Body.String())
+	}
+	for i := 0; i < 49; i++ {
+		if r := serveAuthorized(h, http.MethodPost, path, `{"type":"note","text":"extra"}`, token, nil); r.Code != http.StatusCreated {
+			t.Fatalf("extra entry: %d %s", r.Code, r.Body.String())
+		}
+	}
+	var defaultPage []json.RawMessage
+	response := serveAuthorized(h, http.MethodGet, path, "", token, nil)
+	if err := json.Unmarshal(response.Body.Bytes(), &defaultPage); err != nil || len(defaultPage) != 50 {
+		t.Fatalf("default page: %d entries, %v", len(defaultPage), err)
+	}
+	for _, query := range []string{"?limit=101", "?page=0", "?limit=1&limit=2", "?unknown=1"} {
+		assertProblem(t, serveAuthorized(h, http.MethodGet, path+query, "", token, nil), http.StatusBadRequest, "invalid-request")
+	}
 	for _, body := range []string{`{"type":"bad","text":"x"}`, `{"type":"note","channel":"bad","text":"x"}`, `{"type":"note","text":" "}`, `{"type":"note","text":"x","correctsId":"bad"}`, `{"type":"note","text":"x","correctsId":"` + clients.TimelineEntryID(999999).String() + `"}`} {
 		assertProblem(t, serveAuthorized(h, http.MethodPost, path, body, token, nil), http.StatusBadRequest, "invalid-request")
 	}

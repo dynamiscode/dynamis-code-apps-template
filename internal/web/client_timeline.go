@@ -23,6 +23,15 @@ func timelineOptions(data viewmodel.PageData, kind, selected string, values []st
 	return options
 }
 
+func timelineContains(entries []clients.TimelineEntry, id clients.TimelineEntryID) bool {
+	for _, entry := range entries {
+		if entry.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 func (h *Handler) addClientTimelineEntry(w http.ResponseWriter, r *http.Request) {
 	if h.clients == nil {
 		h.renderError(w, http.StatusNotFound)

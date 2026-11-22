@@ -22,18 +22,32 @@ func seedLeadSource(ctx context.Context, service *clients.Service, actor identit
 	if err != nil {
 		return err
 	}
-	for _, field := range fields {
-		if field.Label == "Lead source" {
-			return nil
+	var field clients.Field
+	for _, existing := range fields {
+		if existing.Label == "Lead source" {
+			field = existing
+			break
 		}
 	}
-	field, err := service.DefineField(ctx, actor, workspaceID, clients.FieldInput{Label: "Lead source", Type: clients.FieldTypeSingleChoice}, identity.AuditContext{})
+	if field.ID == 0 {
+		field, err = service.DefineField(ctx, actor, workspaceID, clients.FieldInput{Label: "Lead source", Type: clients.FieldTypeSingleChoice}, identity.AuditContext{})
+		if err != nil {
+			return err
+		}
+	}
+	options, err := service.ListOptions(ctx, actor, workspaceID, field.ID)
 	if err != nil {
 		return err
 	}
 	for _, label := range []string{"Social media", "Referral", "Walk-in", "Phone", "Website"} {
-		if _, err := service.AddOption(ctx, actor, workspaceID, field.ID, label, identity.AuditContext{}); err != nil {
-			return err
+		found := false
+		for _, option := range options {
+			found = found || option.Label == label
+		}
+		if !found {
+			if _, err := service.AddOption(ctx, actor, workspaceID, field.ID, label, identity.AuditContext{}); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
