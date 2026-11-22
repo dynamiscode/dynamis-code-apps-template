@@ -36,7 +36,7 @@ Constraints:
 - Clearing values is synchronous, in the request's transaction. There is no
   client-count cap in v1.
 - Filter and sort queries are written for both dialects and checked on both
-  (verification ladder step 7).
+  (see [development checks](../development.md#checks)).
 
 ## Consequences
 

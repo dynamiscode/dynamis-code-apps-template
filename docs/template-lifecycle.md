@@ -48,8 +48,7 @@ first feature change:
 
 1. Run the `setup-matt-pocock-skills` procedure, or copy `docs/agents/` and the
    `## Agent skills` block from this template by hand.
-2. Change the tracker repository in `AGENTS.md` and `docs/agents/issue-tracker.md`
-   from `dynamiscode/dynamis-code-apps-template` to the generated repository.
+2. Update `docs/agents/issue-tracker.md` for the generated repository.
 3. Create the triage labels in the generated repository (`gh label create`).
 4. Add the application's product terms to the application-owned section of
    `GLOSSARY.md`. Keep the template terms unchanged.

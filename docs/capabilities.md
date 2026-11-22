@@ -448,7 +448,7 @@ endpoint dialing, bounded retry/failure status, redacted delivery history,
 retention pruning, REST/OpenAPI behavior, and the CSRF-protected browser
 management surface pass the focused webhook, item, browser, HTTP, configuration,
 maintenance, and migration tests. PostgreSQL execution and Docker smoke remain
-part of the final verification ladder.
+part of the final verification checks.
 
 ## Workspace email evidence
 
