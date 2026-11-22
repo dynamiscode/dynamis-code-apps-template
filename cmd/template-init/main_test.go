@@ -412,6 +412,10 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 			t.Fatalf("generated %s retains Clients documentation %q: error = %v", path, retained, err)
 		}
 	}
+	capabilities, err := os.ReadFile(filepath.Join(output, "docs/capabilities.md"))
+	if err != nil || strings.Contains(string(capabilities), "Client timeline") {
+		t.Fatalf("generated capabilities retain Client timeline documentation: error = %v", err)
+	}
 	if err := runCommand(output, "go", "build", "./..."); err != nil {
 		t.Fatalf("generated application without Clients does not build: %v", err)
 	}
