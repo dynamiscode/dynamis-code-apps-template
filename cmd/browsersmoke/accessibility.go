@@ -585,7 +585,11 @@ func (s *a11yRun) workspacePages(wsBase string) error {
 	if overflow, err := eval[bool](s.browser, documentOverflowExpr); err != nil {
 		return err
 	} else if overflow {
-		return errors.New("client fields page has horizontal overflow at 320 CSS pixels")
+		details, err := eval[string](s.browser, `JSON.stringify(Array.from(document.querySelectorAll("body *")).filter(el => el.getBoundingClientRect().right > document.documentElement.clientWidth + 1).map(el => ({tag: el.tagName, class: el.className, width: Math.round(el.getBoundingClientRect().width), right: Math.round(el.getBoundingClientRect().right)})).slice(0, 20))`)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("client fields page has horizontal overflow at 320 CSS pixels: %s", details)
 	}
 	if _, err := cdpCall(s.browser, emulation.SetEmulatedMedia, emulation.SetEmulatedMediaParams{
 		Features: []*emulation.MediaFeature{{Name: "prefers-reduced-motion", Value: "reduce"}},
