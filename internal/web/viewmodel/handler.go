@@ -10,6 +10,10 @@ import (
 	"example.com/dynamis-code/apps-template/internal/workspaceemail"
 )
 
+type TimelineDraft struct {
+	Type, Channel, Text, Corrects string
+}
+
 type PageData struct {
 	EmailSettings        workspaceemail.Settings
 	EmailSaved           bool
@@ -30,6 +34,8 @@ type PageData struct {
 	Clients              []clients.Client
 	Client               clients.Client
 	ClientValues         []ClientValueRow
+	ClientTimeline       []clients.TimelineEntry
+	TimelineDraft        TimelineDraft
 	ClientDraft          clients.Input
 	ClientFields         []ClientFieldRow
 	FieldDraft           clients.FieldInput

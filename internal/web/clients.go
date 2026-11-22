@@ -376,6 +376,10 @@ func (h *Handler) renderClientDetail(
 	errorKey string,
 	draft *clients.Input,
 ) {
+	h.renderClientDetailWithTimeline(writer, request, status, errorKey, draft, viewmodel.TimelineDraft{})
+}
+
+func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, request *http.Request, status int, errorKey string, draft *clients.Input, timelineDraft viewmodel.TimelineDraft) {
 	if h.clients == nil {
 		h.renderError(writer, http.StatusNotFound)
 		return
@@ -393,6 +397,11 @@ func (h *Handler) renderClientDetail(
 	}
 	if draft != nil {
 		client.DisplayName, client.Email, client.Phone, client.Notes = draft.DisplayName, draft.Email, draft.Phone, draft.Notes
+	}
+	entries, err := h.clients.ListTimelineEntries(request.Context(), principal, workspaceID, clientID)
+	if err != nil {
+		h.clientError(writer, request, err)
+		return
 	}
 	values, err := h.clients.ListValues(request.Context(), principal, workspaceID, clientID)
 	if err != nil {
@@ -416,7 +425,7 @@ func (h *Handler) renderClientDetail(
 		CurrentPath:     h.clientsPath(workspaceID),
 		FieldsPath:      h.clientFieldsPath(workspaceID),
 		CanManageFields: principal.Permissions[identity.WorkspaceUpdate],
-		Client:          client, ClientValues: rows, CanEditClients: principal.Permissions[identity.ResourcesWrite],
+		Client:          client, ClientValues: rows, ClientTimeline: entries, TimelineDraft: timelineDraft, CanEditClients: principal.Permissions[identity.ResourcesWrite],
 		CanDeleteClients: principal.Permissions[identity.WorkspaceUpdate],
 	})
 }

@@ -315,6 +315,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/httpapi/clients.go" || relative == "internal/httpapi/clients_test.go" ||
 		relative == "internal/httpapi/client_timeline.go" || relative == "internal/httpapi/client_timeline_test.go" ||
 		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" ||
+		relative == "internal/web/client_timeline.go" || relative == "internal/web/client_timeline_test.go" ||
 		relative == "internal/web/clients_filters.go" ||
 		relative == "internal/web/viewmodel/clients_filters.go" || relative == "internal/web/viewmodel/clients.go" ||
 		relative == "internal/web/viewmodel/client_options.go" || relative == "internal/web/list_lazy_test.go" || relative == "internal/web/list_views_test.go" || relative == "internal/web/clients_actions.go" || relative == "internal/web/clients_order.go" ||
@@ -402,6 +403,9 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.Replace(value, "handler, db, workspaceID, token := testHandler(t)", "handler, db, _, _ := testHandler(t)", 1)
 		value = strings.Replace(value, "\n\t\tclients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace, webhookService))", ")", 1)
 	case "internal/web/viewmodel/handler.go":
+		value = removeBlockIncludingEnd(value, "type TimelineDraft struct {", "}\n")
+		value = removeLinesContaining(value, "TimelineDraft        TimelineDraft")
+		value = removeLinesContaining(value, "clients.TimelineEntry")
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, "clients.FilterInput")
 		value = removeLinesContaining(value, "clients.Client")
@@ -449,6 +453,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLineStarting(value, "| Clients |")
 		value = removeLineStarting(value, "| Clients shared list view |")
 		value = removeLineStarting(value, "| Client timeline service |")
+		value = removeText(value, "\n## Client timeline REST (#575)", "\n## Route and navigation journey verification")
 		value = strings.ReplaceAll(value, "; [CLI tests](../internal/appctl/run_test.go)", "")
 		value = strings.ReplaceAll(value, "[live surface smoke](../internal/bootstrap/agent_smoke_test.go)", "[composition test](../internal/bootstrap/app_test.go)")
 	case "docs/api.md":

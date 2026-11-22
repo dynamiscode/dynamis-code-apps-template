@@ -357,6 +357,7 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 	}
 	for _, path := range []string{
 		"internal/clients", "internal/httpapi/clients.go", "internal/httpapi/client_timeline.go", "internal/httpapi/client_timeline_test.go", "internal/web/clients.go",
+		"internal/web/client_timeline.go", "internal/web/client_timeline_test.go",
 		"internal/web/clients.templ", "internal/web/clients_templ.go",
 		"internal/web/client_details.templ", "internal/web/client_details_templ.go",
 		"internal/web/client_fields.templ", "internal/web/client_fields_templ.go",
