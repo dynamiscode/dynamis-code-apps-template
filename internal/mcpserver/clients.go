@@ -57,25 +57,36 @@ type (
 	filterValue      string
 	filterOperator   string
 	archivedSelector string
+	timelineType     string
+	timelineChannel  string
+	timelineText     string
+	timelineShortID  string
 )
 
 var clientContractTypes = withContractTypes(contractTypes, map[reflect.Type]*jsonschema.Schema{
-	reflect.TypeFor[clientShortID]():    {Type: "string", Pattern: shortIDPattern},
-	reflect.TypeFor[fieldShortID]():     {Type: "string", Pattern: shortIDPattern},
-	reflect.TypeFor[optionShortID]():    {Type: "string", Pattern: shortIDPattern},
-	reflect.TypeFor[displayNameText]():  {Type: "string", MinLength: new(1), MaxLength: new(200)},
-	reflect.TypeFor[emailText]():        {Type: "string", MaxLength: new(254)},
-	reflect.TypeFor[phoneText]():        {Type: "string", MaxLength: new(50)},
-	reflect.TypeFor[notesText]():        {Type: "string", MaxLength: new(5000)},
-	reflect.TypeFor[labelText]():        {Type: "string", MinLength: new(1), MaxLength: new(100)},
-	reflect.TypeFor[valueText]():        {Type: "string", MaxLength: new(500)},
-	reflect.TypeFor[sortKey]():          {Type: "string", MaxLength: new(80)},
-	reflect.TypeFor[filterField]():      {Type: "string", MaxLength: new(80)},
-	reflect.TypeFor[filterValue]():      {Type: "string", MaxLength: new(1000)},
-	reflect.TypeFor[filterOperator]():   {Type: "string", Enum: []any{"equals", "contains", "before", "after", "between"}},
-	reflect.TypeFor[archivedSelector](): {Type: "string", Enum: []any{"active", "archived", "all"}},
-	reflect.TypeFor[clientFieldType]():  {Type: "string", Enum: []any{"text", "number", "date", "yes_no", "single_choice"}},
-	reflect.TypeFor[recordVersion]():    {Type: "integer", Minimum: new(1.0)},
+	reflect.TypeFor[clients.TimelineEntryID](): {Type: "string", Pattern: shortIDPattern},
+	reflect.TypeFor[clients.ClientID]():        {Type: "string", Pattern: shortIDPattern},
+	reflect.TypeFor[identity.UserID]():         {Type: "string", Pattern: shortIDPattern},
+	reflect.TypeFor[timelineShortID]():         {Type: "string", Pattern: shortIDPattern},
+	reflect.TypeFor[timelineType]():            {Type: "string", Enum: []any{"note", "call", "visit", "document", "update", "change", "delay"}},
+	reflect.TypeFor[timelineChannel]():         {Type: "string", Enum: []any{"phone", "whatsapp", "email", "in_person", "other"}},
+	reflect.TypeFor[timelineText]():            {Type: "string", MinLength: new(1), MaxLength: new(2000)},
+	reflect.TypeFor[clientShortID]():           {Type: "string", Pattern: shortIDPattern},
+	reflect.TypeFor[fieldShortID]():            {Type: "string", Pattern: shortIDPattern},
+	reflect.TypeFor[optionShortID]():           {Type: "string", Pattern: shortIDPattern},
+	reflect.TypeFor[displayNameText]():         {Type: "string", MinLength: new(1), MaxLength: new(200)},
+	reflect.TypeFor[emailText]():               {Type: "string", MaxLength: new(254)},
+	reflect.TypeFor[phoneText]():               {Type: "string", MaxLength: new(50)},
+	reflect.TypeFor[notesText]():               {Type: "string", MaxLength: new(5000)},
+	reflect.TypeFor[labelText]():               {Type: "string", MinLength: new(1), MaxLength: new(100)},
+	reflect.TypeFor[valueText]():               {Type: "string", MaxLength: new(500)},
+	reflect.TypeFor[sortKey]():                 {Type: "string", MaxLength: new(80)},
+	reflect.TypeFor[filterField]():             {Type: "string", MaxLength: new(80)},
+	reflect.TypeFor[filterValue]():             {Type: "string", MaxLength: new(1000)},
+	reflect.TypeFor[filterOperator]():          {Type: "string", Enum: []any{"equals", "contains", "before", "after", "between"}},
+	reflect.TypeFor[archivedSelector]():        {Type: "string", Enum: []any{"active", "archived", "all"}},
+	reflect.TypeFor[clientFieldType]():         {Type: "string", Enum: []any{"text", "number", "date", "yes_no", "single_choice"}},
+	reflect.TypeFor[recordVersion]():           {Type: "integer", Minimum: new(1.0)},
 })
 
 // withContractTypes returns base with extra added. The base map is not changed.
@@ -86,6 +97,20 @@ func withContractTypes(base, extra map[reflect.Type]*jsonschema.Schema) map[refl
 }
 
 type (
+	timelineListInput struct {
+		WorkspaceID workspaceShortID `json:"workspaceId"`
+		ClientID    clientShortID    `json:"clientId"`
+		Limit       pageLimit        `json:"limit,omitempty"`
+		Page        pageNumber       `json:"page,omitempty"`
+	}
+	timelineAddInput struct {
+		WorkspaceID workspaceShortID `json:"workspaceId"`
+		ClientID    clientShortID    `json:"clientId"`
+		Type        timelineType     `json:"type"`
+		Channel     timelineChannel  `json:"channel,omitempty"`
+		Text        timelineText     `json:"text"`
+		CorrectsID  *timelineShortID `json:"correctsId,omitempty"`
+	}
 	clientRefInput struct {
 		WorkspaceID workspaceShortID `json:"workspaceId"`
 		ClientID    clientShortID    `json:"clientId"`
@@ -159,6 +184,8 @@ type (
 )
 
 func (c clientTools) register(h *handler, server *mcp.Server) {
+	addToolWithTypes(server, h, &mcp.Tool{Name: "clients_timeline_list_v1", Description: "List a page of client timeline entries in date order.", Annotations: clientRead}, clientContractTypes, func(_, output *jsonschema.Schema) { boundArray(output, "entries", 100) }, c.listTimeline)
+	addToolWithTypes(server, h, &mcp.Tool{Name: "clients_timeline_add_v1", Description: "Add an append-only client timeline entry.", Annotations: &mcp.ToolAnnotations{DestructiveHint: &falseValue, OpenWorldHint: &falseValue}}, clientContractTypes, nil, c.addTimeline)
 	addToolWithTypes(server, h, &mcp.Tool{
 		Name: "clients_list_v1", Description: "List one workspace's clients with filter, sort, archived selector, and bounded page pagination.",
 		Annotations: clientRead,
@@ -524,6 +551,8 @@ func publicClientError(err error) error {
 		return &toolError{category: "resource_limit", message: "choice option limit reached"}
 	case errors.Is(err, clients.ErrPreconditionFailed):
 		return &toolError{category: "precondition_failed", message: "client version is stale"}
+	case errors.Is(err, clients.ErrTimelineTextRequired), errors.Is(err, clients.ErrTimelineTextTooLong), errors.Is(err, clients.ErrTimelineType), errors.Is(err, clients.ErrTimelineChannel), errors.Is(err, clients.ErrTimelineCorrection):
+		return &toolError{category: "invalid_parameters", message: strings.TrimPrefix(err.Error(), clients.ErrInvalidInput.Error()+": ")}
 	case errors.Is(err, clients.ErrInvalidInput):
 		return invalidParameters()
 	default:
@@ -625,3 +654,37 @@ type (
 		Deleted bool `json:"deleted"`
 	}
 )
+
+type timelineOutput struct {
+	Entries []clients.TimelineEntry `json:"entries"`
+	Page    int                     `json:"page"`
+}
+
+func (c clientTools) listTimeline(ctx context.Context, request *mcp.CallToolRequest, input timelineListInput) (timelineOutput, toolRun) {
+	workspaceID := c.workspace(input.WorkspaceID)
+	clientID := clients.ParseClientIDOrZero(string(input.ClientID))
+	page := int(input.Page)
+	if page == 0 {
+		page = 1
+	}
+	limit := int(input.Limit)
+	if limit == 0 {
+		limit = 50
+	}
+	entries, err := c.service.ListTimelineEntriesPage(ctx, principal(request), workspaceID, clientID, limit, page)
+	return timelineOutput{Entries: entries, Page: page}, toolRun{workspaceID: workspaceID, err: clientRefusal(request, workspaceID, err, clients.ErrNotFound)}.onClient(clientID)
+}
+func (c clientTools) addTimeline(ctx context.Context, request *mcp.CallToolRequest, input timelineAddInput) (clients.TimelineEntry, toolRun) {
+	workspaceID := c.workspace(input.WorkspaceID)
+	clientID := clients.ParseClientIDOrZero(string(input.ClientID))
+	var corrects *clients.TimelineEntryID
+	if input.CorrectsID != nil {
+		id, err := clients.ParseTimelineEntryID(string(*input.CorrectsID))
+		if err != nil {
+			return clients.TimelineEntry{}, toolRun{workspaceID: workspaceID, err: &toolError{category: "invalid_parameters", message: "correction must reference an entry of this client"}}.onClient(clientID)
+		}
+		corrects = &id
+	}
+	entry, err := c.service.AddTimelineEntry(ctx, principal(request), workspaceID, clientID, clients.TimelineInput{Type: string(input.Type), Channel: string(input.Channel), Text: string(input.Text), CorrectsID: corrects}, auditContext(request))
+	return entry, toolRun{workspaceID: workspaceID, err: clientRefusal(request, workspaceID, err, clients.ErrNotFound)}.onClient(clientID)
+}

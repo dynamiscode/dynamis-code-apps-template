@@ -135,6 +135,7 @@ session values, invitation values, connection strings, and signed URLs.
   `filter` parameters below, and has no free-text search in v1.
   Client IDs are short IDs. Malformed, integer, unknown, and foreign IDs return
   the same `not-found` problem. Viewers read; members and above write.
+- Client timeline: `GET .../clients/{clientId}/timeline` returns manual entries in ascending date order, 50 per page by default; `limit` accepts 1–100 and `page` is 1-based (maximum 1,000,000). Continue until a page contains fewer entries than the limit. `POST` appends an entry with `type`, `text`, optional `channel`, and optional `correctsId` (an entry of the same client). Types are `note`, `call`, `visit`, `document`, `update`, `change`, and `delay`; channels are `phone`, `whatsapp`, `email`, `in_person`, and `other`. Text is required and limited to 2,000 characters after trimming. Entries include author, creation time, and correction reference; they cannot be edited or deleted. Reads require client read permission; writes require client write permission.
 - Client custom values: `GET .../clients/{clientId}/values` lists the active
   fields with each value (`null` when unset). `PUT .../clients/{clientId}/values/{fieldId}`
   stores a text value (`{"value": "..."}`, 1 to 500 characters after trimming) and

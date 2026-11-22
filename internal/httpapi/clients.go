@@ -260,6 +260,16 @@ func (h *handler) clientError(writer http.ResponseWriter, request *http.Request,
 		h.invalidRequest(writer, request, "The custom field is not a single-choice field.")
 	case errors.Is(err, clients.ErrInvalidOption):
 		h.invalidRequest(writer, request, "The value must be an option of this field.")
+	case errors.Is(err, clients.ErrTimelineTextTooLong):
+		h.invalidRequest(writer, request, "Timeline text must not exceed 2000 characters.")
+	case errors.Is(err, clients.ErrTimelineTextRequired):
+		h.invalidRequest(writer, request, "Timeline text is required.")
+	case errors.Is(err, clients.ErrTimelineType):
+		h.invalidRequest(writer, request, "The timeline type is invalid.")
+	case errors.Is(err, clients.ErrTimelineChannel):
+		h.invalidRequest(writer, request, "The timeline channel is invalid.")
+	case errors.Is(err, clients.ErrTimelineCorrection):
+		h.invalidRequest(writer, request, "The correction must reference an entry of this client.")
 	case errors.Is(err, clients.ErrInvalidQuery):
 		h.invalidRequest(writer, request, "The sort or filter is invalid.")
 	case errors.Is(err, clients.ErrInvalidInput):

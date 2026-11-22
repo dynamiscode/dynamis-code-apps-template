@@ -100,6 +100,9 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		len(result.AuditEvents) == 0 || len(result.Excluded) == 0 {
 		t.Fatalf("export = %+v", result)
 	}
+	if !strings.Contains(string(encoded), `"clientTimelineEntries"`) {
+		t.Fatal("export must disclose excluded client timeline entries")
+	}
 	if strings.Contains(string(encoded), token.Secret) || strings.Contains(string(encoded), "secret_hash") {
 		t.Fatal("export contains credential material")
 	}

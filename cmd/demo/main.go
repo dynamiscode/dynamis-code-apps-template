@@ -54,8 +54,11 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	workspaceID, _, err := demoOwner(ctx, auth, email, password, workspaceName)
+	workspaceID, userID, err := demoOwner(ctx, auth, email, password, workspaceName)
 	if err != nil {
+		return err
+	}
+	if err := seedClients(ctx, db, cfg, auth, workspaceID, userID); err != nil {
 		return err
 	}
 	return json.NewEncoder(os.Stdout).Encode(result{WorkspaceID: workspaceID})

@@ -488,6 +488,10 @@ refused client edit or field definition keeps what was typed. Labels come from t
 and follow the workspace locale. The Clients navigation link appears only when
 the Clients profile is composed. WebMCP is omitted for Clients in v1 (see
 [ADR 0013](decisions/0013-clients-profile.md)).
+The client page shows its manual timeline in chronological order, including author,
+channel, and correction references. Writers can add entries through a localized,
+CSRF-protected ordinary form; viewers see the timeline without the form. Rejected
+entries retain the draft. Timeline displays 50 entries per page; select a page to correct an entry on that page. Timeline reads and writes use client permissions.
 The client page shows a value for each active custom field. Members and above
 get one save form per field and a separate clear control; viewers see the values
 read-only. Value writes are CSRF-protected POST forms that redirect to the client

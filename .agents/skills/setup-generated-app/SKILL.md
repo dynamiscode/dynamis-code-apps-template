@@ -52,7 +52,7 @@ applicable`, the same statuses that
    runs `go run ./cmd/template-init`. The generator excludes `cmd/template-init`,
    so that step cannot run in a generated app. Remove `template-smoke` from the
    `verify:` line and from the `.PHONY:` line in `Makefile`.
-5. **Review the demo seed (recommended).** `cmd/demo/` creates a demo workspace and owner. Remove it unless needed.
+5. **Review the demo seed (recommended).** `cmd/demo/` creates a demo workspace and owner. With Clients selected, it also creates a `Lead source` single-choice field with `Social media`, `Referral`, `Walk-in`, `Phone`, and `Website` options. Set up the same field in your workspace if useful; adjust options for your business. Remove the demo unless needed.
 6. **Remove files for unselected profiles (recommended).** The generator drops
    code for unselected profiles but still copies their docs and models.
    1. Without Agent: delete `docs/mcp.md` and `docs/cli.md`, then remove their

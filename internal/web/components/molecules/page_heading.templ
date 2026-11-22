@@ -4,7 +4,7 @@ package molecules
 
 // PageHeading matches the workspace and resource page heading pattern.
 templ PageHeading(title, eyebrow string) {
-	<div class="workspace-heading"><div>
+	<div class="workspace-heading flex-wrap gap-2"><div>
 		if eyebrow != "" {
 			<p class="eyebrow">{ eyebrow }</p>
 		}

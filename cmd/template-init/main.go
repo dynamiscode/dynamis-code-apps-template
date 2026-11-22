@@ -307,12 +307,15 @@ func filesPath(relative string) bool {
 func clientsPath(relative string) bool {
 	relative = filepath.ToSlash(relative)
 	return relative == "internal/clients" || strings.HasPrefix(relative, "internal/clients/") ||
+		relative == "cmd/demo/clients.go" || relative == "cmd/demo/clients_test.go" ||
 		relative == "cmd/appctl" || strings.HasPrefix(relative, "cmd/appctl/") ||
 		relative == "internal/appctl" || strings.HasPrefix(relative, "internal/appctl/") ||
 		relative == "internal/bootstrap/agent_smoke_test.go" ||
 		relative == "internal/mcpserver/approval_test.go" || relative == "internal/mcpserver/schema_contract_test.go" ||
 		relative == "internal/httpapi/clients.go" || relative == "internal/httpapi/clients_test.go" ||
+		relative == "internal/httpapi/client_timeline.go" || relative == "internal/httpapi/client_timeline_test.go" ||
 		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" ||
+		relative == "internal/web/client_timeline.go" || relative == "internal/web/client_timeline_test.go" ||
 		relative == "internal/web/clients_filters.go" ||
 		relative == "internal/web/viewmodel/clients_filters.go" || relative == "internal/web/viewmodel/clients.go" ||
 		relative == "internal/web/viewmodel/client_options.go" || relative == "internal/web/list_lazy_test.go" || relative == "internal/web/list_views_test.go" || relative == "internal/web/clients_actions.go" || relative == "internal/web/clients_order.go" ||
@@ -326,6 +329,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/platform/database/migrations/000022_clients.sql" ||
 		relative == "internal/platform/database/migrations/000023_client_fields.sql" ||
 		relative == "internal/platform/database/migrations/000024_client_events.sql" ||
+		relative == "internal/platform/database/migrations/000031_client_timeline.sql" ||
 		relative == "internal/web/clients_events.go" || relative == "internal/web/clients_events_test.go" ||
 		relative == "internal/web/client_bulk.go" || relative == "internal/web/client_bulk_test.go" ||
 		relative == "internal/platform/database/client_slot_indexes_test.go" ||
@@ -353,6 +357,9 @@ func clientsPath(relative string) bool {
 func disableClientsSource(relative string, raw []byte) []byte {
 	value := string(raw)
 	switch relative {
+	case "cmd/demo/main.go":
+		value = strings.Replace(value, "workspaceID, userID, err := demoOwner(", "workspaceID, _, err := demoOwner(", 1)
+		value = removeBlockIncludingEnd(value, "\tif err := seedClients(", "\t}\n")
 	case "internal/bootstrap/app.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLineStarting(value, "\tclientService := clients.NewService(")
@@ -367,6 +374,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.ReplaceAll(value, ", clientServices...)", ")")
 		value = removeLinesContaining(value, `"listClients": h.listClients`)
 		value = removeLinesContaining(value, `"getClient": h.getClient`)
+		value = removeLinesContaining(value, `"listClientTimeline": h.listClientTimeline`)
 		value = removeLinesContaining(value, `"listClientFields": h.listClientFields`)
 		value = removeLinesContaining(value, `"archiveClientField": h.archiveClientField`)
 		value = removeLinesContaining(value, `"listClientValues": h.listClientValues`)
@@ -395,6 +403,9 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.Replace(value, "handler, db, workspaceID, token := testHandler(t)", "handler, db, _, _ := testHandler(t)", 1)
 		value = strings.Replace(value, "\n\t\tclients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace, webhookService))", ")", 1)
 	case "internal/web/viewmodel/handler.go":
+		value = removeBlockIncludingEnd(value, "type TimelineDraft struct {", "}\n")
+		value = removeLinesContaining(value, "TimelineDraft        TimelineDraft")
+		value = removeLinesContaining(value, "clients.TimelineEntry")
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, "clients.FilterInput")
 		value = removeLinesContaining(value, "clients.Client")
@@ -434,11 +445,15 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeText(value, "\tvar clientEventOldID int64\n", "\tvar notificationOldID int64\n")
 		value = strings.ReplaceAll(value, ` "client_events": clientEventOldID,`, "")
 		value = strings.ReplaceAll(value, "result.ClientRealtimeReplay < 1 || ", "")
+	case "docs/data-lifecycle.md":
+		value = removeLineStarting(value, "| clients / `client_timeline_entries` |")
 	case "docs/mcp.md":
 		value = removeText(value, "\n## Clients tools (Clients profile)", "\n## Prompts\n")
 	case "docs/capabilities.md":
 		value = removeLineStarting(value, "| Clients |")
 		value = removeLineStarting(value, "| Clients shared list view |")
+		value = removeLineStarting(value, "| Client timeline service |")
+		value = removeText(value, "\n## Client timeline REST (#575)", "\n## Route and navigation journey verification")
 		value = strings.ReplaceAll(value, "; [CLI tests](../internal/appctl/run_test.go)", "")
 		value = strings.ReplaceAll(value, "[live surface smoke](../internal/bootstrap/agent_smoke_test.go)", "[composition test](../internal/bootstrap/app_test.go)")
 	case "docs/api.md":

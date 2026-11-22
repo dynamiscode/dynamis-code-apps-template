@@ -110,6 +110,68 @@ templ clientDetail(data viewmodel.PageData) {
 			</div>
 		}
 		@clientValues(data)
+		@clientTimeline(data)
+	</section>
+}
+
+templ clientTimeline(data viewmodel.PageData) {
+	<section class="client-timeline card my-4 p-6" aria-labelledby="client-timeline-heading">
+		<h2 id="client-timeline-heading">{ data.T("clients.timeline_heading") }</h2>
+		if len(data.ClientTimeline) == 0 {
+			<p>{ data.T("clients.timeline_empty") }</p>
+		}
+		<ol>
+			for _, entry := range data.ClientTimeline {
+				<li id={ "timeline-" + entry.ID.String() }>
+					<strong>{ data.T("clients.timeline_type_" + entry.Type) }</strong>
+					if entry.Channel != "" {
+						<span> — { data.T("clients.timeline_channel_" + entry.Channel) }</span>
+					}
+					<p>{ data.T("clients.timeline_author") }:
+						if entry.AuthorID != nil {
+							{ entry.AuthorID.String() }
+						} else {
+							{ data.T("clients.timeline_deleted_author") }
+						}
+					</p>
+					<time datetime={ entry.CreatedAt.Format("2006-01-02T15:04:05Z07:00") }>{ entry.CreatedAt.Format("2006-01-02 15:04:05 UTC") }</time>
+					<p>{ entry.Text }</p>
+					if entry.CorrectsID != nil {
+						<p>{ data.T("clients.timeline_corrects") }:
+							if timelineContains(data.ClientTimeline, *entry.CorrectsID) {
+								<a href={ "#timeline-" + entry.CorrectsID.String() }>{ entry.CorrectsID.String() }</a>
+							} else {
+								{ entry.CorrectsID.String() }
+							}
+						</p>
+					}
+				</li>
+			}
+		</ol>
+		<nav aria-label={ data.T("clients.timeline_heading") }>
+			if data.TimelinePage > 1 {
+				<a href={ "?timeline_page=" + strconv.Itoa(data.TimelinePage-1) + "#client-timeline-heading" }>{ data.T("ui.previous_page") }</a>
+			}
+			if len(data.ClientTimeline) == 50 && data.TimelinePage < 1000000 {
+				<a href={ "?timeline_page=" + strconv.Itoa(data.TimelinePage+1) + "#client-timeline-heading" }>{ data.T("items.next_page") }</a>
+			}
+		</nav>
+		if data.CanEditClients {
+			<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/timeline?timeline_page=" + strconv.Itoa(data.TimelinePage) } method="post">
+				<input type="hidden" name="csrf" value={ data.CSRF }/>
+				@atoms.Select(atoms.SelectProps{ID:"timeline-type", Name:"type", Label:data.T("clients.timeline_type"), Options:timelineOptions(data, "type", data.TimelineDraft.Type, []string{"note", "call", "visit", "document", "update", "change", "delay"})})
+				@atoms.Select(atoms.SelectProps{ID:"timeline-channel", Name:"channel", Label:data.T("clients.timeline_channel") + " " + data.T("ui.optional"), Options:timelineOptions(data, "channel", data.TimelineDraft.Channel, []string{"", "phone", "whatsapp", "email", "in_person", "other"})})
+				@molecules.TextareaField("timeline-text", data.T("clients.timeline_text"), data.TimelineDraft.Text, templ.Attributes{"name":"text", "required":true})
+				<label for="timeline-corrects">{ data.T("clients.timeline_corrects") } { data.T("ui.optional") }</label>
+				<select id="timeline-corrects" name="corrects" class="select w-full">
+					<option value="">{ data.T("clients.timeline_none") }</option>
+					for _, entry := range data.ClientTimeline {
+						<option value={ entry.ID.String() } selected?={ data.TimelineDraft.Corrects == entry.ID.String() }>{ entry.ID.String() } — { entry.Text }</option>
+					}
+				</select>
+				@atoms.Button(atoms.ButtonProps{Class:"btn-primary", Label:data.T("clients.timeline_add"), Attrs:templ.Attributes{"type":"submit"}})
+			</form>
+		}
 	</section>
 }
 

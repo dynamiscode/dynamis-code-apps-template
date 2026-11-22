@@ -356,13 +356,15 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		t.Fatalf("run() error = %v", err)
 	}
 	for _, path := range []string{
-		"internal/clients", "internal/httpapi/clients.go", "internal/web/clients.go",
+		"internal/clients", "internal/httpapi/clients.go", "internal/httpapi/client_timeline.go", "internal/httpapi/client_timeline_test.go", "internal/web/clients.go",
+		"internal/web/client_timeline.go", "internal/web/client_timeline_test.go",
 		"internal/web/clients.templ", "internal/web/clients_templ.go",
 		"internal/web/client_details.templ", "internal/web/client_details_templ.go",
 		"internal/web/client_fields.templ", "internal/web/client_fields_templ.go",
 		"internal/web/templates/clients.html", "internal/web/templates/client.html",
 		"internal/platform/database/migrations/000022_clients.sql",
 		"internal/platform/database/migrations/000024_client_events.sql",
+		"internal/platform/database/migrations/000031_client_timeline.sql",
 		"internal/web/clients_events.go", "internal/web/clients_no_javascript_test.go",
 		"internal/mcpserver/clients.go", "internal/mcpserver/clients_test.go",
 		"internal/appctl/clients_test.go",
@@ -381,8 +383,10 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if strings.Contains(string(content), "client_events") {
-			t.Errorf("generated application without Clients keeps client_events in %s", filepath.Base(migration))
+		for _, table := range []string{"client_events", "client_timeline_entries"} {
+			if strings.Contains(string(content), table) {
+				t.Errorf("generated application without Clients keeps %s in %s", table, filepath.Base(migration))
+			}
 		}
 	}
 	// No CLI commands remain without the Clients profile.
@@ -407,6 +411,10 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		if err != nil || strings.Contains(string(content), retained) {
 			t.Fatalf("generated %s retains Clients documentation %q: error = %v", path, retained, err)
 		}
+	}
+	capabilities, err := os.ReadFile(filepath.Join(output, "docs/capabilities.md"))
+	if err != nil || strings.Contains(string(capabilities), "Client timeline") {
+		t.Fatalf("generated capabilities retain Client timeline documentation: error = %v", err)
 	}
 	if err := runCommand(output, "go", "build", "./..."); err != nil {
 		t.Fatalf("generated application without Clients does not build: %v", err)

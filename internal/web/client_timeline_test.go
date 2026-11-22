@@ -1,0 +1,100 @@
+package web
+
+import (
+	"fmt"
+	"net/http"
+	"net/url"
+
+	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"strings"
+	"testing"
+)
+
+func TestClientTimelineForms(t *testing.T) {
+	env := newClientsTestEnv(t)
+	created := request(env.routes, http.MethodPost, env.listPath(), url.Values{"csrf": {env.csrf}, "display_name": {"Ada"}}, env.cookies, nil)
+	detail := created.Header().Get("Location")
+	path := detail + "/timeline"
+	first := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "type": {"call"}, "channel": {"phone"}, "text": {"First contact"}}, env.cookies, nil)
+	if first.Code != http.StatusSeeOther {
+		t.Fatalf("add = %d: %s", first.Code, first.Body.String())
+	}
+	page := request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
+	if strings.Contains(page, `maxlength="2000"`) {
+		t.Fatal("UTF-16 maxlength rejects valid supplementary characters")
+	}
+	unicode := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "type": {"note"}, "text": {strings.Repeat("😀", 2000)}}, env.cookies, nil)
+	if unicode.Code != http.StatusSeeOther {
+		t.Fatalf("valid Unicode entry = %d", unicode.Code)
+	}
+	if !strings.Contains(page, "First contact") || !strings.Contains(page, "Phone") || !strings.Contains(page, env.ownerID.String()) {
+		t.Fatalf("missing entry details: %s", page)
+	}
+	var key int64
+	if err := env.db.QueryRow("SELECT id FROM client_timeline_entries LIMIT 1").Scan(&key); err != nil {
+		t.Fatal(err)
+	}
+	entryID := clients.TimelineEntryID(key).String()
+	corrected := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "type": {"note"}, "text": {"Correction"}, "corrects": {entryID}}, env.cookies, nil)
+	if corrected.Code != http.StatusSeeOther {
+		t.Fatalf("correction = %d", corrected.Code)
+	}
+	page = request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
+	if !strings.Contains(page, "#timeline-"+entryID) || strings.Index(page, "First contact") > strings.Index(page, "Correction") {
+		t.Fatal("correction reference or ordering missing")
+	}
+	for _, tc := range []struct{ typ, text, message string }{{"note", "", "Text is required"}, {"note", strings.Repeat("a", 2001), "2,000"}, {"invalid", "draft text", "entry type"}} {
+		response := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "type": {tc.typ}, "text": {tc.text}}, env.cookies, nil)
+		if response.Code != http.StatusUnprocessableEntity || !strings.Contains(response.Body.String(), tc.message) || !strings.Contains(response.Body.String(), tc.text) {
+			t.Fatalf("invalid input = %d, want %q and draft", response.Code, tc.message)
+		}
+	}
+	spanishCookies := append(append([]*http.Cookie(nil), env.cookies...), &http.Cookie{Name: "locale", Value: "es"})
+	spanish := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "type": {"note"}, "text": {""}}, spanishCookies, nil)
+	if spanish.Code != http.StatusUnprocessableEntity || !strings.Contains(spanish.Body.String(), "El texto es obligatorio") {
+		t.Fatal("Spanish validation missing")
+	}
+	invalidCorrection := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "type": {"note"}, "text": {"Draft correction"}, "corrects": {clients.TimelineEntryID(999999).String()}}, env.cookies, nil)
+	if invalidCorrection.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidCorrection.Body.String(), "Draft correction") {
+		t.Fatal("invalid correction not rejected with draft")
+	}
+	viewer := request(env.routes, http.MethodGet, detail, nil, env.viewerCookies, nil)
+	if !strings.Contains(viewer.Body.String(), "First contact") || strings.Contains(viewer.Body.String(), `action="`+path+`?`) {
+		t.Fatal("viewer timeline or permissions incorrect")
+	}
+	denied := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.viewerCSRF}, "type": {"note"}, "text": {"blocked"}}, env.viewerCookies, nil)
+	if denied.Code != http.StatusForbidden {
+		t.Fatalf("viewer write = %d", denied.Code)
+	}
+	unknown := request(env.routes, http.MethodGet, env.listPath()+"/"+clients.ClientID(999999).String(), nil, env.viewerCookies, nil)
+	foreign := request(env.routes, http.MethodGet, "/workspaces/"+identity.WorkspaceID(999999).String()+"/clients/"+clients.ClientID(1).String(), nil, env.viewerCookies, nil)
+	for _, response := range []string{unknown.Body.String(), foreign.Body.String()} {
+		if strings.Contains(response, "Timeline") || strings.Contains(response, "First contact") {
+			t.Fatal("unreadable client leaks timeline")
+		}
+	}
+	if unknown.Code != http.StatusNotFound || foreign.Code != http.StatusNotFound {
+		t.Fatal("unreadable client did not return 404")
+	}
+}
+
+func TestClientTimelinePagination(t *testing.T) {
+	env := newClientsTestEnv(t)
+	created := request(env.routes, http.MethodPost, env.listPath(), url.Values{"csrf": {env.csrf}, "display_name": {"Paged"}}, env.cookies, nil)
+	detail := created.Header().Get("Location")
+	for i := 0; i < 51; i++ {
+		response := request(env.routes, http.MethodPost, detail+"/timeline", url.Values{"csrf": {env.csrf}, "type": {"note"}, "text": {fmt.Sprintf("entry-%02d", i)}}, env.cookies, nil)
+		if response.Code != http.StatusSeeOther {
+			t.Fatalf("entry %d: %d", i, response.Code)
+		}
+	}
+	first := request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
+	second := request(env.routes, http.MethodGet, detail+"?timeline_page=2", nil, env.viewerCookies, nil).Body.String()
+	if !strings.Contains(first, "entry-00") || strings.Contains(first, "entry-50") || !strings.Contains(first, "timeline_page=2") {
+		t.Fatal("first page or next link incorrect")
+	}
+	if !strings.Contains(second, "entry-50") || strings.Contains(second, "entry-00") || !strings.Contains(second, "timeline_page=1") {
+		t.Fatal("second page or previous link incorrect")
+	}
+}

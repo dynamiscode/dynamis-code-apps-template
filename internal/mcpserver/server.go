@@ -215,6 +215,7 @@ func scopeMiddleware(next http.Handler, challenge string) http.Handler {
 // are listed here by name only; they register from clients.go.
 var writeTools = map[string]bool{
 
+	"clients_timeline_add_v1":        true,
 	"clients_create_v1":              true,
 	"clients_update_v1":              true,
 	"clients_archive_v1":             true,

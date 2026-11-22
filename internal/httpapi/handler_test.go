@@ -298,11 +298,15 @@ func testHandler(t *testing.T) (http.Handler, *sql.DB, string, string) {
 // testHandlerWithStorage adjusts the storage configuration before the file
 // service starts, for tests that need a different object store driver.
 func testHandlerWithStorage(t *testing.T, storage func(*config.Storage)) (http.Handler, *sql.DB, string, string) {
+	return testHandlerWithBodyLimit(t, storage, "1024")
+}
+
+func testHandlerWithBodyLimit(t *testing.T, storage func(*config.Storage), bodyLimit string) (http.Handler, *sql.DB, string, string) {
 	t.Helper()
 	ctx := context.Background()
 	cfg, err := config.LoadFrom(func(key string) (string, bool) {
 		if key == "HTTP_MAX_BODY_BYTES" {
-			return "1024", true
+			return bodyLimit, true
 		}
 		return "", false
 	})
