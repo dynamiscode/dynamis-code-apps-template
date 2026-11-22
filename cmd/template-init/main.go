@@ -307,6 +307,7 @@ func filesPath(relative string) bool {
 func clientsPath(relative string) bool {
 	relative = filepath.ToSlash(relative)
 	return relative == "internal/clients" || strings.HasPrefix(relative, "internal/clients/") ||
+		relative == "cmd/demo/clients.go" || relative == "cmd/demo/clients_test.go" ||
 		relative == "cmd/appctl" || strings.HasPrefix(relative, "cmd/appctl/") ||
 		relative == "internal/appctl" || strings.HasPrefix(relative, "internal/appctl/") ||
 		relative == "internal/bootstrap/agent_smoke_test.go" ||
@@ -354,6 +355,9 @@ func clientsPath(relative string) bool {
 func disableClientsSource(relative string, raw []byte) []byte {
 	value := string(raw)
 	switch relative {
+	case "cmd/demo/main.go":
+		value = strings.Replace(value, "workspaceID, userID, err := demoOwner(", "workspaceID, _, err := demoOwner(", 1)
+		value = removeBlockIncludingEnd(value, "\tif err := seedClients(", "\t}\n")
 	case "internal/bootstrap/app.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLineStarting(value, "\tclientService := clients.NewService(")
