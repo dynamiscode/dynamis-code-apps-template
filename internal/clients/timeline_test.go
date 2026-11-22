@@ -43,6 +43,13 @@ func exerciseTimeline(t *testing.T, f fixture) {
 	if err != nil || len(entries) != 2 || entries[0].ID != first.ID || entries[1].ID != second.ID {
 		t.Fatalf("list = %+v, %v", entries, err)
 	}
+	page, err := f.service.ListTimelineEntriesPage(ctx, f.viewer, ws, client.ID, 1, 2)
+	if err != nil || len(page) != 1 || page[0].ID != second.ID {
+		t.Fatalf("page = %+v, %v", page, err)
+	}
+	if _, err := f.service.ListTimelineEntriesPage(ctx, f.viewer, ws, client.ID, 101, 1); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("invalid page: %v", err)
+	}
 	for _, tc := range []struct {
 		input TimelineInput
 		want  error

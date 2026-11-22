@@ -111,6 +111,18 @@ func (s *Service) AddTimelineEntry(ctx context.Context, actor identity.Principal
 }
 
 func (s *Service) ListTimelineEntries(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, clientID ClientID) ([]TimelineEntry, error) {
+	return s.listTimelineEntries(ctx, actor, workspaceID, clientID, 0, 0)
+}
+
+// ListTimelineEntriesPage returns a bounded, 1-based page in timeline order.
+func (s *Service) ListTimelineEntriesPage(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, clientID ClientID, limit, page int) ([]TimelineEntry, error) {
+	if limit < 1 || limit > 100 || page < 1 || page > 1000000 {
+		return nil, ErrInvalidInput
+	}
+	return s.listTimelineEntries(ctx, actor, workspaceID, clientID, limit, (page-1)*limit)
+}
+
+func (s *Service) listTimelineEntries(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, clientID ClientID, limit, offset int) ([]TimelineEntry, error) {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: true})
 	if err != nil {
 		return nil, err
@@ -122,7 +134,13 @@ func (s *Service) ListTimelineEntries(ctx context.Context, actor identity.Princi
 	if _, err = s.get(ctx, tx, workspaceID, clientID); err != nil {
 		return nil, err
 	}
-	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT id, author_id, entry_type, channel, text, corrects_id, created_at FROM client_timeline_entries WHERE workspace_id = ? AND client_id = ? ORDER BY created_at, id`), workspaceID, clientID)
+	query := `SELECT id, author_id, entry_type, channel, text, corrects_id, created_at FROM client_timeline_entries WHERE workspace_id = ? AND client_id = ? ORDER BY created_at, id`
+	args := []any{workspaceID, clientID}
+	if limit > 0 {
+		query += ` LIMIT ? OFFSET ?`
+		args = append(args, limit, offset)
+	}
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, query), args...)
 	if err != nil {
 		return nil, err
 	}

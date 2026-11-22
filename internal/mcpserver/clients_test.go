@@ -23,7 +23,7 @@ var clientToolNames = []string{
 	"client_fields_archive_v1", "client_fields_define_v1", "client_fields_delete_v1",
 	"client_fields_list_v1", "client_fields_restore_v1",
 	"clients_archive_v1", "clients_create_v1", "clients_delete_v1", "clients_get_v1", "clients_list_v1",
-	"clients_unarchive_v1", "clients_update_v1", "clients_value_clear_v1", "clients_value_set_v1",
+	"clients_timeline_add_v1", "clients_timeline_list_v1", "clients_unarchive_v1", "clients_update_v1", "clients_value_clear_v1", "clients_value_set_v1",
 	"clients_values_list_v1",
 }
 
@@ -491,5 +491,42 @@ func TestMCPClientWriteToolsNeedResourcesWriteScope(t *testing.T) {
 	state.handler.ServeHTTP(response, request)
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+}
+
+func TestMCPClientTimeline(t *testing.T) {
+	state := newTestStateWith(t, config.MCP{}, true)
+	owner := connectClient(t, state.handler, state.token.Secret, true)
+	client := createClientTool(t, owner, state.workspaceID, "Timeline")
+	args := map[string]any{"workspaceId": state.workspaceID, "clientId": string(client.ID), "type": "note", "text": "First"}
+	first := callTool(t, owner, "clients_timeline_add_v1", args)
+	if first.IsError {
+		t.Fatalf("add: %s", contentText(first))
+	}
+	entry := decodeOutput[map[string]any](t, first)
+	args["type"], args["channel"], args["text"], args["correctsId"] = "call", "phone", "Second", entry["id"]
+	if result := callTool(t, owner, "clients_timeline_add_v1", args); result.IsError {
+		t.Fatalf("correction: %s", contentText(result))
+	}
+	viewer := connectClient(t, state.handler, tokenWithScopes(t, state, identity.Viewer, identity.ResourcesRead), true)
+	page := decodeOutput[struct {
+		Entries []map[string]any `json:"entries"`
+	}](t, callTool(t, viewer, "clients_timeline_list_v1", map[string]any{"workspaceId": state.workspaceID, "clientId": string(client.ID), "limit": 1, "page": 2}))
+	if len(page.Entries) != 1 || page.Entries[0]["text"] != "Second" || page.Entries[0]["correctsId"] != entry["id"] {
+		t.Fatalf("page = %+v", page)
+	}
+	for _, bad := range []map[string]any{{"type": "bad", "text": "x"}, {"type": "note", "channel": "bad", "text": "x"}, {"type": "note", "text": strings.Repeat("é", 2001)}, {"type": "note", "text": " "}} {
+		bad["workspaceId"], bad["clientId"] = state.workspaceID, string(client.ID)
+		if result := callTool(t, owner, "clients_timeline_add_v1", bad); !result.IsError {
+			t.Fatalf("accepted invalid input: %+v", bad)
+		}
+	}
+	missing := callTool(t, viewer, "clients_timeline_list_v1", map[string]any{"workspaceId": state.workspaceID, "clientId": "2222"})
+	if !missing.IsError || contentText(missing) != "client not found" {
+		t.Fatalf("missing: %+v", missing)
+	}
+	result, err := viewer.CallTool(context.Background(), &mcp.CallToolParams{Name: "clients_timeline_add_v1", Arguments: args})
+	if err == nil && !result.IsError {
+		t.Fatal("viewer write accepted")
 	}
 }
