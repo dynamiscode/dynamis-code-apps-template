@@ -326,6 +326,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/platform/database/migrations/000022_clients.sql" ||
 		relative == "internal/platform/database/migrations/000023_client_fields.sql" ||
 		relative == "internal/platform/database/migrations/000024_client_events.sql" ||
+		relative == "internal/platform/database/migrations/000031_client_timeline.sql" ||
 		relative == "internal/web/clients_events.go" || relative == "internal/web/clients_events_test.go" ||
 		relative == "internal/web/client_bulk.go" || relative == "internal/web/client_bulk_test.go" ||
 		relative == "internal/platform/database/client_slot_indexes_test.go" ||
@@ -434,11 +435,14 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeText(value, "\tvar clientEventOldID int64\n", "\tvar notificationOldID int64\n")
 		value = strings.ReplaceAll(value, ` "client_events": clientEventOldID,`, "")
 		value = strings.ReplaceAll(value, "result.ClientRealtimeReplay < 1 || ", "")
+	case "docs/data-lifecycle.md":
+		value = removeLineStarting(value, "| clients / `client_timeline_entries` |")
 	case "docs/mcp.md":
 		value = removeText(value, "\n## Clients tools (Clients profile)", "\n## Prompts\n")
 	case "docs/capabilities.md":
 		value = removeLineStarting(value, "| Clients |")
 		value = removeLineStarting(value, "| Clients shared list view |")
+		value = removeLineStarting(value, "| Client timeline service |")
 		value = strings.ReplaceAll(value, "; [CLI tests](../internal/appctl/run_test.go)", "")
 		value = strings.ReplaceAll(value, "[live surface smoke](../internal/bootstrap/agent_smoke_test.go)", "[composition test](../internal/bootstrap/app_test.go)")
 	case "docs/api.md":

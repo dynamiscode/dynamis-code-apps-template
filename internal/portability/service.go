@@ -166,7 +166,7 @@ func (s *Service) Export(
 		Excluded: []string{
 			"credentials", "sessions", "apiTokens", "externalIdentities",
 			"invitations", "oidcTransactions", "idempotencyRecords", "realtimeReplay",
-			"notifications", "notificationPreferences",
+			"notifications", "notificationPreferences", "clientTimelineEntries",
 			"webhooks", "webhookDeliveries", "backgroundJobs",
 		},
 	}
