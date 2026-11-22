@@ -10,18 +10,18 @@ import atoms "example.com/dynamis-code/apps-template/internal/web/components/ato
 import "example.com/dynamis-code/apps-template/internal/identity"
 
 templ membersPage(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), memberSettingsNavigation(data)) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
 		@organisms.PeopleTabs(data)
 		if data.Error != "" {
 			@molecules.ErrorAlert(data.Error)
 		}
-		<p class="status">{ data.T("members.role_help") }</p>
+		<p class="status-line">{ data.T("members.role_help") }</p>
 		if data.CanTransfer {
-			<p class="status">{ data.T("members.transfer_consequence") }</p>
+			<p class="status-line">{ data.T("members.transfer_consequence") }</p>
 		}
 		<section id="member-list" aria-labelledby="members-heading">
 			<h2 id="members-heading" class="sr-only">{ data.T("members.members") }</h2>
-			<p class="status" role="status">
+			<p class="status-line" role="status">
 				if data.MemberTotal == 1 {
 					{ data.T("members.count_one") }
 				} else {
@@ -34,17 +34,15 @@ templ membersPage(data viewmodel.PageData) {
 		}
 }
 
-templ memberSettingsNavigation(data viewmodel.PageData) {
-	<aside class="flex flex-col gap-4"><a class="btn btn-ghost btn-sm w-full justify-start font-normal" href={ "/workspaces/"+data.Workspace.ID.String() }>{ "← " }{ data.T("workspace.back_to_home") }</a>@organisms.WorkspaceNav(data)</aside>
-}
-
 templ memberListView(data viewmodel.PageData) {
 	@organisms.ListScreen(data, "members.search", memberListTools(data), memberResults(data))
 }
 
 // memberListTools are the member list's own controls on the toolbar: the columns.
 templ memberListTools(data viewmodel.PageData) {
-	@molecules.ListColumnsMenu(data, data.ClientQuerySuffix)
+	if data.ListHasContent() {
+		@molecules.ListColumnsMenu(data, data.ClientQuerySuffix)
+	}
 }
 
 // memberResults is the Members results region: the table or cards and the empty state. A live search also
@@ -54,7 +52,9 @@ templ memberResults(data viewmodel.PageData) {
 }
 
 templ memberRows(data viewmodel.PageData) {
-	if data.HasVisibleClientColumns {
+	// An empty list renders no table at all: the header row alone reads as a
+	// stray bar where the table "would be".
+	if len(data.ListRows) > 0 && data.HasVisibleClientColumns {
 		@organisms.ListTable(data.T("members.members"), true) {
 			@organisms.ListHeader(data, data.T("clients.actions"))
 			<tbody>
@@ -77,11 +77,11 @@ templ memberRows(data viewmodel.PageData) {
 				}
 			}
 		}
-	} else {
+	} else if len(data.ListRows) > 0 {
 		@molecules.StatusLine(data.T("clients.columns_choose"), nil)
 	}
 	if data.MemberTotal == 0 {
-		<p id="member-results" role="status">{ data.T("members.none") } @atoms.Link(atoms.LinkProps{Href: data.ClearClientFiltersPath, Text: data.T("clients.clear_filters")})</p>
+		@molecules.NoMatchesAlert("member-results", data.T("members.none"), data.ClearClientFiltersPath, data.T("clients.clear_filters"))
 	}
 }
 
@@ -103,7 +103,7 @@ templ memberActions(data viewmodel.PageData, member identity.MemberSummary, suff
 			</form>
 			<form data-webmcp-actions="member-remove" data-webmcp-id={ member.ID.String() } action={ "/workspaces/"+data.Workspace.ID.String()+"/settings/members" } method="post">
 				<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="member_id" value={ member.ID.String() }/>
-				<p id={ "remove-consequence-"+member.ID.String()+"-"+suffix } class="status">{ data.T("members.remove_consequence") }</p>
+				<p id={ "remove-consequence-"+member.ID.String()+"-"+suffix } class="status-line">{ data.T("members.remove_consequence") }</p>
 				<fieldset><legend>{ data.T("members.remove_confirm") }</legend>@atoms.Checkbox(atoms.CheckboxProps{
 					ID:         "confirm-remove-" + member.ID.String() + "-" + suffix,
 					Name:       "confirm_remove",

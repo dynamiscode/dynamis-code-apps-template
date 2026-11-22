@@ -1,6 +1,7 @@
 package templates
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 templ DashboardShell(data viewmodel.PageData, header, navigation templ.Component) {
@@ -21,9 +22,6 @@ templ DashboardShell(data viewmodel.PageData, header, navigation templ.Component
 				<div class="drawer lg:drawer-open">
 					<input id="app-drawer" type="checkbox" class="drawer-toggle" aria-hidden="true" tabindex="-1"/>
 					<div class="drawer-content flex min-h-screen flex-col">
-						<nav class="border-b border-base-200 bg-base-100 py-1 pl-2 lg:hidden" aria-label={ data.T("ui.open_navigation") }>
-							<button type="button" class="btn btn-ghost btn-square drawer-button" aria-label={ data.T("ui.open_navigation") } @click="toggleDrawer">&#9776;</button>
-						</nav>
 						@header
 						<main id="main" class="workspace-main flex-1">
 							{ children... }
@@ -32,6 +30,9 @@ templ DashboardShell(data viewmodel.PageData, header, navigation templ.Component
 					<div class="drawer-side z-40">
 						<button type="button" class="drawer-overlay" tabindex="-1" aria-hidden="true" @click="toggleDrawer"></button>
 						<div class="min-h-full w-64 border-r border-base-200 bg-base-100 p-4">
+							<div class="mb-3 border-b border-base-200 pb-3">
+								@organisms.WorkspaceContext(data)
+							</div>
 							@navigation
 						</div>
 					</div>

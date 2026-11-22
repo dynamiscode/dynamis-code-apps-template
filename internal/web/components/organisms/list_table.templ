@@ -10,7 +10,9 @@ import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 templ ListHeader(data viewmodel.PageData, actionsLabel string) {
 	<thead><tr>
 			if data.ListSelectable {
-				<th scope="col" class="list-select-cell"><input type="checkbox" data-bulk-all aria-label={ data.T("clients.bulk_select_all") }/></th>
+				<th scope="col" class="list-select-cell">@atoms.Checkbox(atoms.CheckboxProps{
+					Attrs: templ.Attributes{"data-bulk-all": true, "aria-label": data.T("clients.bulk_select_all")},
+				})</th>
 			}
 		for _, column := range data.ListColumns {
 			if column.Visible {

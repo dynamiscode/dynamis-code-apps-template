@@ -13,7 +13,7 @@ import (
 
 func TestSingleWorkspaceModeHidesCreationAndReturnsNotFound(t *testing.T) {
 	ctx := context.Background()
-	handler, auth, _, _, owner := testWebConfigured(t, 10, false, func(h *Handler) {
+	handler, auth, _, owner := testWebConfigured(t, 10, false, func(h *Handler) {
 		h.SetWorkspaceMode(config.WorkspaceModeSingle)
 	})
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
@@ -44,7 +44,7 @@ func TestSingleWorkspaceModeHidesCreationAndReturnsNotFound(t *testing.T) {
 
 func TestMultiWorkspaceModeKeepsCreation(t *testing.T) {
 	ctx := context.Background()
-	handler, auth, _, _, owner := testWebConfigured(t, 10, false, func(h *Handler) {
+	handler, auth, _, owner := testWebConfigured(t, 10, false, func(h *Handler) {
 		h.SetWorkspaceMode(config.WorkspaceModeMulti)
 	})
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
@@ -53,6 +53,11 @@ func TestMultiWorkspaceModeKeepsCreation(t *testing.T) {
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 
+	// A single membership now lands in its workspace, so the picker needs two.
+	second := request(handler, http.MethodPost, "/workspaces", url.Values{"csrf": {session.CSRFSecret}, "name": {"Second"}}, cookies, nil)
+	if second.Code != http.StatusSeeOther {
+		t.Fatalf("seed second workspace = %d", second.Code)
+	}
 	home := request(handler, http.MethodGet, "/", nil, cookies, nil)
 	if home.Code != http.StatusOK || !strings.Contains(home.Body.String(), `action="/workspaces"`) {
 		t.Fatalf("multi mode home = %d, create form missing", home.Code)
@@ -80,13 +85,14 @@ func TestMultiWorkspaceModeKeepsCreation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(workspaces) != 2 {
-		t.Fatalf("multi mode workspaces = %d, want 2", len(workspaces))
+	// The seeded second workspace plus this one and the default make three.
+	if len(workspaces) != 3 {
+		t.Fatalf("multi mode workspaces = %d, want 3", len(workspaces))
 	}
 }
 
 func TestWorkspaceHomeGuidesUserToFirstTask(t *testing.T) {
-	handler, auth, _, _, owner := testWeb(t, 10, nil)
+	handler, auth, _, owner := testWeb(t, 10, nil)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)

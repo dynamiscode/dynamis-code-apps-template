@@ -14,7 +14,7 @@ import (
 )
 
 templ invitationManagementView(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardSettingsNavigation(data)) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
 		<div class="settings-page">
 			@molecules.PageHeading(data.Workspace.Name + " · " + data.T("invitations.invitations"), data.T("navigation.settings"))
 			@organisms.PeopleTabs(data)
@@ -48,7 +48,7 @@ templ invitationManagementView(data viewmodel.PageData) {
 							{Label: data.T("members.viewer"), Value: "viewer"},
 						},
 					})
-					<p class="status">{ data.T("members.role_help") }</p>
+					<p class="status-line">{ data.T("members.role_help") }</p>
 					@atoms.Input(atoms.InputProps{
 						ID:    "invite-life",
 						Label: data.T("invitations.lifetime") + " " + data.T("ui.optional"),
@@ -103,14 +103,14 @@ templ invitationManagementView(data viewmodel.PageData) {
 templ invitationView(data viewmodel.PageData) {
 	@authLayout(data, data.T("invitations.workspace_invitation")) {
 		<p class="eyebrow">{ data.T("invitations.workspace_invitation") }</p>
-		<h1>{ data.T("invitations.workspace_invitation") }</h1>
+		<h2>{ data.T("invitations.workspace_invitation") }</h2>
 		if data.ErrorKey != "" {
 			@molecules.ErrorAlert(data.T(data.ErrorKey))
 		}
 		if data.Invitation.Email != "" {
 			<p>{ data.T("invitations.invited_as", map[string]any{"role": data.Role(data.Invitation.Role), "workspace": data.Invitation.WorkspaceID.String()}) }</p>
 			<p>{ data.T("invitations.email") }: { data.Invitation.Email }</p>
-			<p class="status">{ data.T("invitations.account_match_help") }</p>
+			<p class="status-line">{ data.T("invitations.account_match_help") }</p>
 			if data.InvitationAuthenticated {
 				<form action={ "/invitations/" + data.InvitationSecret } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
@@ -158,14 +158,14 @@ templ invitationView(data viewmodel.PageData) {
 
 templ invitationContinueView(data viewmodel.PageData) {
 	@authLayout(data, data.T("invitations.workspace_invitation")) {
-		<h1>{ data.T("invitations.workspace_invitation") }</h1>
+		<h2>{ data.T("invitations.workspace_invitation") }</h2>
 		if data.ErrorKey != "" {
 			@molecules.ErrorAlert(data.T(data.ErrorKey))
 		}
 		if data.Invitation.Email != "" {
 			<p>{ data.T("invitations.invited_as", map[string]any{"role": data.Role(data.Invitation.Role), "workspace": data.Invitation.WorkspaceID.String()}) }</p>
 			<p>{ data.T("invitations.email") }: { data.Invitation.Email }</p>
-			<p class="status">{ data.T("invitations.account_match_help") }</p>
+			<p class="status-line">{ data.T("invitations.account_match_help") }</p>
 			<form action="/invitations/continue" method="post">
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
 				@molecules.SubmitButton(data.T("invitations.accept"), nil)

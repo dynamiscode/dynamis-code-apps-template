@@ -89,6 +89,13 @@ func TestClientColumnOrderIsSavedAndRendered(t *testing.T) {
 			t.Fatalf("show %s = %d", column, show.Code)
 		}
 	}
+	// Column order only renders with rows on the page.
+	seeded := request(env.routes, http.MethodPost, env.listPath(), url.Values{
+		"csrf": {env.csrf}, "display_name": {"Contoso"},
+	}, env.cookies, nil)
+	if seeded.Code != http.StatusSeeOther {
+		t.Fatalf("seed client = %d", seeded.Code)
+	}
 	body := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil).Body.String()
 	at := func(column string) int { return strings.Index(body, `<th scope="col" data-column="`+column+`"`) }
 	if !(at("displayName") < at("updatedAt") && at("updatedAt") < at("phone") && at("phone") < at("email")) {

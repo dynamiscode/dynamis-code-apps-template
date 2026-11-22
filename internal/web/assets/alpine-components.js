@@ -417,7 +417,9 @@
 			// Menus that open a panel from a button: row actions, columns, add-filter steps, and new-record forms. Only one
 			// is open at a time. An open panel is fixed to the window, so the table's scroll area cannot hide it, and it is
 			// placed inside the window: below its button, or above it when there is no room below.
-			const menuSelector = "details.list-menu";
+			// Every dropdown behaves the same way: one open at a time, closed by a tap outside or Escape,
+			// and its panel placed inside the window instead of hanging off the edge.
+			const menuSelector = "details.dropdown";
 			const margin = 8;
 			const placeMenu = (menu) => {
 				const panel = menu.querySelector(":scope > .dropdown-content");
@@ -636,7 +638,7 @@
 				this.statusElement = document.createElement("p");
 				this.statusElement.setAttribute("role", "status");
 				this.statusElement.setAttribute("aria-live", "polite");
-				this.statusElement.className = "status";
+				this.statusElement.className = "status-line";
 				this.statusElement.setAttribute("data-upload-status", "");
 				this.form.appendChild(this.statusElement);
 			}
@@ -691,10 +693,10 @@
 				}
 				if (isError) {
 					statusEl.classList.add("error");
-					statusEl.classList.remove("status");
+					statusEl.classList.remove("status-line");
 				} else {
 					statusEl.classList.remove("error");
-					statusEl.classList.add("status");
+					statusEl.classList.add("status-line");
 				}
 			}
 		}
@@ -1051,7 +1053,11 @@
 				eye.innerHTML = revealIconPaths(show);
 				el.focus();
 			});
-			el.insertAdjacentElement("afterend", toggle);
+			// shortcut: every password input in the templ trees is a bare .input, never an icon label wrap
+			const box = document.createElement("span");
+			box.className = "reveal-box";
+			el.replaceWith(box);
+			box.append(el, toggle);
 			if (el.dataset.strength === undefined) return;
 			const wrap = document.createElement("p");
 			wrap.className = "strength";
@@ -1061,7 +1067,7 @@
 			const text = document.createElement("span");
 			text.setAttribute("aria-live", "polite");
 			wrap.append(meter, text);
-			toggle.insertAdjacentElement("afterend", wrap);
+			box.insertAdjacentElement("afterend", wrap);
 			const update = () => {
 				const score = passwordStrength(el.value);
 				meter.value = score;

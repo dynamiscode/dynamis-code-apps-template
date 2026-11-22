@@ -12,6 +12,7 @@ var clientViewApplyLink = regexp.MustCompile(`/lists/clients/views/(\d+)/apply`)
 
 func TestSavedClientViewOpensAsTheDefaultAndCanBeDeleted(t *testing.T) {
 	env := newClientsTestEnv(t)
+	env.seedClient(t, "Acme Corp")
 	viewsPath := "/workspaces/" + env.workspaceID.String() + "/lists/clients/views"
 
 	created := request(env.routes, http.MethodPost, viewsPath, url.Values{
@@ -54,7 +55,9 @@ func TestSavedClientViewOpensAsTheDefaultAndCanBeDeleted(t *testing.T) {
 
 func TestArchivedClientsDoNotOfferToSaveAView(t *testing.T) {
 	env := newClientsTestEnv(t)
-	body := request(env.routes, http.MethodGet, env.listPath()+"?archived=archived&all=1", nil, env.cookies, nil).Body.String()
+	// An archived scope with a filter still counts as content, so the views
+	// switcher renders and can explain why saving is unavailable.
+	body := request(env.routes, http.MethodGet, env.listPath()+"?archived=archived&all=1&filter=displayName:contains:Acme", nil, env.cookies, nil).Body.String()
 	if !strings.Contains(body, "Views are for active clients.") {
 		t.Fatalf("archived list does not explain why views cannot be saved: %s", body)
 	}

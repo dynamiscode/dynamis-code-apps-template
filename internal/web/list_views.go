@@ -27,13 +27,10 @@ type listViewState struct {
 	SaveReason string
 }
 
-// EnableListViews attaches the saved views store. Items and Members register their columns here; Clients and Files
+// EnableListViews attaches the saved views store. Members register their columns here; Clients and Files
 // register theirs when they are enabled.
 func (h *Handler) EnableListViews(views *listviews.Service) {
 	h.listViews = views
-	h.registerListColumns(listviews.ListItems, func(context.Context, identity.Principal, identity.WorkspaceID) ([]viewmodel.ListColumn, error) {
-		return itemListColumns(), nil
-	})
 	h.registerListColumns(listviews.ListMembers, func(context.Context, identity.Principal, identity.WorkspaceID) ([]viewmodel.ListColumn, error) {
 		return memberListColumns(), nil
 	})
@@ -53,8 +50,6 @@ func (h *Handler) listViewBase(workspaceID identity.WorkspaceID, listKey string)
 	switch listKey {
 	case listviews.ListClients:
 		segment = "clients"
-	case listviews.ListItems:
-		segment = "items"
 	case listviews.ListFiles:
 		segment = "files"
 	}

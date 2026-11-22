@@ -8,7 +8,6 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/portability"
-	"example.com/dynamis-code/apps-template/internal/sharing"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -45,15 +44,13 @@ func testMultiInstanceWeb(t *testing.T) (http.Handler, http.Handler, *identity.S
 	if err != nil {
 		t.Fatal(err)
 	}
-	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace)
-	sharingService := sharing.NewService(db, cfg.Database.Driver, auth)
-	portabilityService := portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes, cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService, nil)
+	portabilityService := portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes, nil)
 
-	instance1, err := NewHandlerWithServices(auth, itemService, sharingService, portabilityService, nil, cfg.HTTP, "", "", nil)
+	instance1, err := NewHandlerWithServices(auth, portabilityService, nil, cfg.HTTP, "", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	instance2, err := NewHandlerWithServices(auth, itemService, sharingService, portabilityService, nil, cfg.HTTP, "", "", nil)
+	instance2, err := NewHandlerWithServices(auth, portabilityService, nil, cfg.HTTP, "", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +134,7 @@ func TestMultiInstanceImportFlashStateless(t *testing.T) {
 }
 
 func TestImportPageQueryParamHandling(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)

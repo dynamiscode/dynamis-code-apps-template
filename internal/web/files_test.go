@@ -4,11 +4,9 @@ import (
 	"context"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
-	"example.com/dynamis-code/apps-template/internal/portability"
 	"html"
 	"net/http"
 	"net/http/httptest"
@@ -59,16 +57,13 @@ func newFilesTestEnv(t *testing.T, maxObjectBytes, maxWorkspaceBytes int64) file
 	if err != nil {
 		t.Fatal(err)
 	}
-	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace)
 	store, err := appfiles.NewStore(ctx, cfg.Storage)
 	if err != nil {
 		t.Fatal(err)
 	}
 	fileService := appfiles.NewService(db, cfg.Database.Driver, auth, store,
 		maxObjectBytes, maxWorkspaceBytes, cfg.Storage.SignedURLTTL, cfg.Storage.S3Prefix)
-	handler, err := NewHandlerWithServicesAndFiles(auth, itemService,
-		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes, cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService, nil),
-		nil, cfg.HTTP, fileService, "", "", nil)
+	handler, err := NewHandlerWithServicesAndFiles(auth, nil, nil, cfg.HTTP, fileService, "", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,11 +156,11 @@ func TestFilesPageRendersTemplShellAndAccessibleEmptyState(t *testing.T) {
 		`href="/assets/components.css"`,
 		`href="/workspaces/` + env.workspaceID.String() + `">Home</a>`,
 		`aria-current="page" href="` + env.filesPath() + `">Files</a>`,
-		`class="list-view-table"`,
-		`class="list-view-cards"`,
-		`class="file-empty-state card" role="status"`,
-		`No files yet.`,
-		`Filter`,
+		`Upload your first file`,
+		`id="file-empty-state"`,
+		`id="file-empty-state"`,
+		`Upload your first file`,
+		`class="list-toolbar"`,
 		`src="/assets/alpine-components.js"`,
 	} {
 		if !strings.Contains(body, want) {
@@ -189,7 +184,7 @@ func TestFilesUploadFeedbackUsesSelectedLocale(t *testing.T) {
 	env := newFilesTestEnv(t, 16<<20, 1<<30)
 	cookies := append(append([]*http.Cookie(nil), env.cookies...), &http.Cookie{Name: "locale", Value: "es"})
 	page := request(env.routes, http.MethodGet, env.filesPath()+"?all=1", nil, cookies, nil)
-	for _, want := range []string{`data-status-uploading="Subiendo archivo…"`, `data-status-success="Carga completada."`, `data-status-choose-file="Elige un archivo para cargar."`, `data-upload-progress`, `aria-label="Progreso de carga"`, `Filtrar`} {
+	for _, want := range []string{`data-status-uploading="Subiendo archivo…"`, `data-status-success="Carga completada."`, `data-status-choose-file="Elige un archivo para cargar."`, `data-upload-progress`, `aria-label="Progreso de carga"`, `Sube tu primer archivo`} {
 		if !strings.Contains(page.Body.String(), want) {
 			t.Errorf("Spanish files page missing %q: %s", want, page.Body.String())
 		}

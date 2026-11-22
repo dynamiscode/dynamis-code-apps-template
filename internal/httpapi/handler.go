@@ -18,7 +18,6 @@ import (
 	"example.com/dynamis-code/apps-template/internal/clients"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
@@ -29,7 +28,6 @@ import (
 type handler struct {
 	db          *sql.DB
 	identity    *identity.Service
-	items       *items.Service
 	oidc        *identity.OIDCRegistry
 	cfg         config.HTTP
 	logger      *slog.Logger
@@ -44,14 +42,13 @@ type handler struct {
 func NewHandler(
 	db *sql.DB,
 	identityService *identity.Service,
-	itemService *items.Service,
 	portabilityService *portability.Service,
 	oidcRegistry *identity.OIDCRegistry,
 	cfg config.HTTP,
 	logger *slog.Logger,
 ) (http.Handler, error) {
 	return NewHandlerWithWebhooks(
-		db, identityService, itemService, portabilityService, oidcRegistry,
+		db, identityService, portabilityService, oidcRegistry,
 		cfg, logger, nil, "", nil,
 	)
 }
@@ -59,7 +56,6 @@ func NewHandler(
 func NewHandlerWithWebhooksAndFiles(
 	db *sql.DB,
 	identityService *identity.Service,
-	itemService *items.Service,
 	portabilityService *portability.Service,
 	oidcRegistry *identity.OIDCRegistry,
 	cfg config.HTTP,
@@ -70,13 +66,12 @@ func NewHandlerWithWebhooksAndFiles(
 	mailer appmail.Sender,
 	clientServices ...*clients.Service,
 ) (http.Handler, error) {
-	return newHandler(db, identityService, itemService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, clientServices...)
+	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, clientServices...)
 }
 
 func NewHandlerWithMail(
 	db *sql.DB,
 	identityService *identity.Service,
-	itemService *items.Service,
 	portabilityService *portability.Service,
 	oidcRegistry *identity.OIDCRegistry,
 	cfg config.HTTP,
@@ -85,7 +80,7 @@ func NewHandlerWithMail(
 	mailer appmail.Sender,
 ) (http.Handler, error) {
 	return NewHandlerWithWebhooks(
-		db, identityService, itemService, portabilityService, oidcRegistry,
+		db, identityService, portabilityService, oidcRegistry,
 		cfg, logger, nil, publicURL, mailer,
 	)
 }
@@ -93,7 +88,6 @@ func NewHandlerWithMail(
 func NewHandlerWithWebhooks(
 	db *sql.DB,
 	identityService *identity.Service,
-	itemService *items.Service,
 	portabilityService *portability.Service,
 	oidcRegistry *identity.OIDCRegistry,
 	cfg config.HTTP,
@@ -103,13 +97,12 @@ func NewHandlerWithWebhooks(
 	mailer appmail.Sender,
 	clientServices ...*clients.Service,
 ) (http.Handler, error) {
-	return newHandler(db, identityService, itemService, portabilityService, oidcRegistry, cfg, logger, webhookService, nil, publicURL, mailer, clientServices...)
+	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, nil, publicURL, mailer, clientServices...)
 }
 
 func newHandler(
 	db *sql.DB,
 	identityService *identity.Service,
-	itemService *items.Service,
 	portabilityService *portability.Service,
 	oidcRegistry *identity.OIDCRegistry,
 	cfg config.HTTP,
@@ -124,7 +117,7 @@ func newHandler(
 		logger = slog.Default()
 	}
 	h := &handler{
-		db: db, identity: identityService, items: itemService,
+		db: db, identity: identityService,
 		oidc: oidcRegistry, cfg: cfg, logger: logger, portability: portabilityService,
 		publicURL: publicURL, mailer: mailer, webhooks: webhookService, files: fileService,
 		clients: firstClient(clientServices),
@@ -132,16 +125,14 @@ func newHandler(
 	handlers := map[string]http.HandlerFunc{
 		"getLiveness": h.liveness, "getReadiness": h.readiness,
 		"getOpenAPI": h.openAPI, "loginLocal": h.login,
-		"logoutLocal": h.logout, "listItems": h.listItems,
+		"logoutLocal":  h.logout,
 		"mfaLoginTOTP": h.mfaLoginTOTP, "mfaLoginRecovery": h.mfaLoginRecovery,
 		"mfaLoginPasskey": h.mfaLoginPasskey, "mfaStatus": h.mfaStatus,
 		"mfaTotpEnroll": h.mfaTotpEnroll, "mfaTotpComplete": h.mfaTotpComplete,
 		"mfaPasskeyOptions": h.mfaPasskeyOptions, "mfaPasskeyComplete": h.mfaPasskeyComplete,
 		"mfaPasskeyRemove": h.mfaPasskeyRemove, "mfaTotpRemove": h.mfaTotpRemove,
-		"createItem": h.createItem, "getItem": h.getItem,
-		"updateItem": h.updateItem, "deleteItem": h.deleteItem,
-		"exportWorkspace": h.exportWorkspace, "importWorkspace": h.importWorkspace,
-		"listMembers": h.listMembers, "changeMemberRole": h.changeMemberRole,
+		"exportWorkspace": h.exportWorkspace,
+		"listMembers":     h.listMembers, "changeMemberRole": h.changeMemberRole,
 		"removeMember": h.removeMember, "transferOwnership": h.transferOwnership,
 		"listInvitations": h.listInvitations, "createInvitation": h.createInvitation,
 		"resendInvitation": h.resendInvitation, "revokeInvitation": h.revokeInvitation,
@@ -233,40 +224,6 @@ func (h *handler) exportWorkspace(writer http.ResponseWriter, request *http.Requ
 	writer.Header().Set("Content-Disposition", `attachment; filename="workspace-export.json"`)
 	writer.WriteHeader(http.StatusOK)
 	_, _ = writer.Write(encoded)
-}
-
-func (h *handler) importWorkspace(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	if len(request.URL.Query()) != 0 {
-		h.invalidRequest(writer, request, "The import parameters are invalid.")
-		return
-	}
-	principal, ok := h.workspaceBearer(writer, request, workspaceID, identity.WorkspaceUpdate)
-	if !ok {
-		return
-	}
-	mediaType, _, err := mime.ParseMediaType(request.Header.Get("Content-Type"))
-	if err != nil || (mediaType != "application/json" && mediaType != "text/csv") {
-		h.invalidRequest(writer, request, "The import content type is unsupported.")
-		return
-	}
-	result, err := h.portability.Import(
-		request.Context(), principal, workspaceID,
-		portability.ImportInput{Format: mediaType, Reader: request.Body},
-		h.auditContext(request),
-	)
-	switch {
-	case errors.Is(err, identity.ErrForbidden):
-		writeProblem(writer, request, http.StatusForbidden, "forbidden", "Access is denied.")
-	case errors.Is(err, portability.ErrImportLimit), errors.Is(err, items.ErrLimit):
-		writeProblem(writer, request, http.StatusConflict, "import-limit", "The workspace import limit was reached.")
-	case errors.Is(err, portability.ErrInvalidImport), errors.Is(err, items.ErrInvalidInput):
-		writeProblem(writer, request, http.StatusBadRequest, "invalid-import", "The import file is invalid.")
-	case err != nil:
-		h.internal(writer, request)
-	default:
-		writeJSON(writer, http.StatusOK, result)
-	}
 }
 
 func Wrap(next http.Handler, cfg config.HTTP, logger *slog.Logger) http.Handler {
@@ -415,212 +372,6 @@ func (h *handler) logout(writer http.ResponseWriter, request *http.Request) {
 	writer.WriteHeader(http.StatusNoContent)
 }
 
-func (h *handler) listItems(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	if !onlyQuery(
-		request, "status", "search", "sort", "limit", "page",
-	) {
-		h.invalidRequest(writer, request, "The collection parameters are invalid.")
-		return
-	}
-	query := request.URL.Query()
-	search := query.Get("search")
-	if _, specified := query["search"]; specified && strings.TrimSpace(search) == "" {
-		h.invalidRequest(writer, request, "The search parameter is invalid.")
-		return
-	}
-	principal, ok := h.workspaceBearer(
-		writer, request, workspaceID, identity.ResourcesRead,
-	)
-	if !ok {
-		return
-	}
-	limit := h.cfg.DefaultPageSize
-	if raw := query.Get("limit"); raw != "" {
-		value, err := strconv.Atoi(raw)
-		if err != nil || value < 1 || value > h.cfg.MaxPageSize {
-			h.invalidRequest(writer, request, "The page limit is invalid.")
-			return
-		}
-		limit = value
-	}
-	sort := query.Get("sort")
-	if sort == "" {
-		sort = "-created_at"
-	}
-	pageNumber, ok := parsePage(query)
-	if !ok {
-		h.invalidRequest(writer, request, "The page is invalid.")
-		return
-	}
-	page, err := h.items.List(request.Context(), principal, workspaceID, items.ListInput{
-		Status: items.Status(query.Get("status")), Search: search, Sort: sort,
-		Limit: limit, Page: pageNumber,
-	})
-	if err != nil {
-		h.itemError(writer, request, err)
-		return
-	}
-	writeJSON(writer, http.StatusOK, page)
-}
-
-func (h *handler) createItem(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	if len(request.URL.Query()) != 0 {
-		h.invalidRequest(writer, request, "The request parameters are invalid.")
-		return
-	}
-	idempotencyKey := request.Header.Get("Idempotency-Key")
-	if idempotencyKey == "" {
-		writeProblem(
-			writer, request, http.StatusBadRequest, "idempotency-key-required",
-			"Idempotency-Key is required for item creation.",
-		)
-		return
-	}
-	principal, ok := h.workspaceBearer(
-		writer, request, workspaceID, identity.ResourcesWrite,
-	)
-	if !ok {
-		return
-	}
-	var input struct {
-		Title string `json:"title"`
-	}
-	if err := decodeJSON(request, &input); err != nil {
-		h.badJSON(writer, request, err)
-		return
-	}
-	result, err := h.items.Create(
-		request.Context(), principal, workspaceID, input.Title,
-		idempotencyKey, h.auditContext(request),
-	)
-	if err != nil {
-		h.itemError(writer, request, err)
-		return
-	}
-	writer.Header().Set("ETag", etag(result.Item.Version))
-	writer.Header().Set(
-		"Location", "/api/v1/workspaces/"+workspaceID.String()+"/items/"+result.Item.ID.String(),
-	)
-	if result.Replay {
-		writer.Header().Set("Idempotency-Replayed", "true")
-	}
-	writeJSON(writer, http.StatusCreated, result.Item)
-}
-
-func (h *handler) getItem(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	itemID := items.ParseItemIDOrZero(request.PathValue("itemId"))
-	if len(request.URL.Query()) != 0 {
-		h.invalidRequest(writer, request, "The request parameters are invalid.")
-		return
-	}
-	principal, ok := h.workspaceBearer(
-		writer, request, workspaceID, identity.ResourcesRead,
-	)
-	if !ok {
-		return
-	}
-	item, err := h.items.Get(request.Context(), principal, workspaceID, itemID)
-	if err != nil {
-		h.itemError(writer, request, err)
-		return
-	}
-	itemETag := etag(item.Version)
-	writer.Header().Set("ETag", itemETag)
-	writer.Header().Set("Cache-Control", "private, no-cache")
-	if request.Header.Get("If-None-Match") == itemETag {
-		writer.WriteHeader(http.StatusNotModified)
-		return
-	}
-	writeJSON(writer, http.StatusOK, item)
-}
-
-func (h *handler) updateItem(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	itemID := items.ParseItemIDOrZero(request.PathValue("itemId"))
-	if len(request.URL.Query()) != 0 {
-		h.invalidRequest(writer, request, "The request parameters are invalid.")
-		return
-	}
-	ifMatch := request.Header.Get("If-Match")
-	if ifMatch == "" {
-		writeProblem(
-			writer, request, http.StatusPreconditionRequired,
-			"precondition-required", "If-Match is required.",
-		)
-		return
-	}
-	version, ok := parseETag(ifMatch)
-	if !ok {
-		writeProblem(
-			writer, request, http.StatusPreconditionFailed,
-			"precondition-failed", "The entity tag is invalid or stale.",
-		)
-		return
-	}
-	principal, ok := h.workspaceBearer(
-		writer, request, workspaceID, identity.ResourcesWrite,
-	)
-	if !ok {
-		return
-	}
-	var input struct {
-		Title  *string       `json:"title"`
-		Status *items.Status `json:"status"`
-	}
-	if err := decodeJSON(request, &input); err != nil {
-		h.badJSON(writer, request, err)
-		return
-	}
-	item, err := h.items.Update(
-		request.Context(), principal, workspaceID, itemID, version,
-		items.UpdateInput{Title: input.Title, Status: input.Status},
-		h.auditContext(request),
-	)
-	if err != nil {
-		h.itemError(writer, request, err)
-		return
-	}
-	writer.Header().Set("ETag", etag(item.Version))
-	writeJSON(writer, http.StatusOK, item)
-}
-
-func (h *handler) deleteItem(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	itemID := items.ParseItemIDOrZero(request.PathValue("itemId"))
-	if len(request.URL.Query()) != 0 {
-		h.invalidRequest(writer, request, "The request parameters are invalid.")
-		return
-	}
-	version, ok := parseETag(request.Header.Get("If-Match"))
-	if !ok {
-		status := http.StatusPreconditionFailed
-		code := "precondition-failed"
-		detail := "The entity tag is invalid or stale."
-		if request.Header.Get("If-Match") == "" {
-			status = http.StatusPreconditionRequired
-			code = "precondition-required"
-			detail = "If-Match is required."
-		}
-		writeProblem(writer, request, status, code, detail)
-		return
-	}
-	principal, ok := h.workspaceBearer(writer, request, workspaceID, identity.ResourcesWrite)
-	if !ok {
-		return
-	}
-	if err := h.items.Delete(
-		request.Context(), principal, workspaceID, itemID, version,
-		h.auditContext(request),
-	); err != nil {
-		h.itemError(writer, request, err)
-		return
-	}
-	writer.WriteHeader(http.StatusNoContent)
-}
-
 func (h *handler) bearerPrincipal(
 	writer http.ResponseWriter,
 	request *http.Request,
@@ -646,38 +397,6 @@ func (h *handler) bearerPrincipal(
 		return identity.Principal{}, false
 	}
 	return principal, true
-}
-
-func (h *handler) itemError(
-	writer http.ResponseWriter,
-	request *http.Request,
-	err error,
-) {
-	switch {
-	case errors.Is(err, identity.ErrForbidden):
-		writeProblem(writer, request, http.StatusForbidden, "forbidden", "Access is denied.")
-	case errors.Is(err, items.ErrNotFound):
-		notFoundProblem(writer, request)
-	case errors.Is(err, items.ErrInvalidInput):
-		h.invalidRequest(writer, request, "The item input is invalid.")
-	case errors.Is(err, items.ErrIdempotencyConflict):
-		writeProblem(
-			writer, request, http.StatusConflict, "idempotency-conflict",
-			"The idempotency key was already used for another request.",
-		)
-	case errors.Is(err, items.ErrLimit):
-		writeProblem(
-			writer, request, http.StatusConflict, "resource-limit",
-			"The workspace item limit was reached. Delete an item before retrying.",
-		)
-	case errors.Is(err, items.ErrPreconditionFailed):
-		writeProblem(
-			writer, request, http.StatusPreconditionFailed,
-			"precondition-failed", "The entity tag is invalid or stale.",
-		)
-	default:
-		h.internal(writer, request)
-	}
 }
 
 func (h *handler) badJSON(

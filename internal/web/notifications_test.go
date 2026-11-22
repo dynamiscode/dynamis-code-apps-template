@@ -13,7 +13,7 @@ import (
 )
 
 func TestNotificationSSELifetimeReconnectReplaysAfterLastEvent(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWebConfigured(t, 4, false, func(handler *Handler) {
+	handler, auth, workspaceID, owner := testWebConfigured(t, 4, false, func(handler *Handler) {
 		handler.cfg.SSEPollInterval = 5 * time.Millisecond
 		handler.cfg.SSEMaxLifetime = 80 * time.Millisecond
 	})
@@ -96,7 +96,7 @@ func TestNotificationSSELifetimeReconnectReplaysAfterLastEvent(t *testing.T) {
 }
 
 func TestNotificationSSELifetimeReconnectReplaysWithoutPriorEvent(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWebConfigured(t, 4, false, func(handler *Handler) {
+	handler, auth, workspaceID, owner := testWebConfigured(t, 4, false, func(handler *Handler) {
 		handler.cfg.SSEPollInterval = 5 * time.Millisecond
 		handler.cfg.SSEMaxLifetime = 80 * time.Millisecond
 	})

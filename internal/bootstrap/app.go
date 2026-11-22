@@ -14,7 +14,6 @@ import (
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/httpapi"
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/listviews"
@@ -24,7 +23,6 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 	"example.com/dynamis-code/apps-template/internal/portability"
-	"example.com/dynamis-code/apps-template/internal/sharing"
 	"example.com/dynamis-code/apps-template/internal/web"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
 	"example.com/dynamis-code/apps-template/internal/workspaceemail"
@@ -34,8 +32,6 @@ type App struct {
 	DB          *sql.DB
 	Identity    *identity.Service
 	OIDC        *identity.OIDCRegistry
-	Items       *items.Service
-	Sharing     *sharing.Service
 	Portability *portability.Service
 	Webhooks    *webhooks.Service
 	Files       *appfiles.Service
@@ -144,15 +140,10 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("register exhausted webhook job handler: %w", err)
 	}
-	itemService := items.NewService(
-		db, cfg.Database.Driver, identityService, cfg.Data.ItemsMaxPerWorkspace, webhookService,
-	)
 	clientService := clients.NewService(db, cfg.Database.Driver, identityService, cfg.Data.ClientFieldsMaxPerWorkspace, webhookService)
-	sharingService := sharing.NewService(db, cfg.Database.Driver, identityService)
 	portabilityService := portability.NewService(
 		db, cfg.Database.Driver, identityService,
 		cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,
-		cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService,
 		clientService,
 	)
 	instanceMailer, err := appmail.NewSender(cfg.Mail, cfg.Cloudflare)
@@ -167,7 +158,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		secretbox.New(cfg.Encryption.Keys, cfg.Encryption.Primary), instanceMailer,
 	)
 	handler, err := httpapi.NewHandlerWithWebhooksAndFiles(
-		db, identityService, itemService, portabilityService, oidcRegistry, cfg.HTTP, slog.Default(),
+		db, identityService, portabilityService, oidcRegistry, cfg.HTTP, slog.Default(),
 		webhookService, fileService, cfg.PublicURL, mailer, clientService,
 	)
 	if err != nil {
@@ -176,7 +167,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, fmt.Errorf("initialize HTTP handler: %w", err)
 	}
 	webHandler, err := web.NewHandlerWithServicesAndFilesAndSharing(
-		identityService, itemService, sharingService, portabilityService, oidcRegistry, cfg.HTTP,
+		identityService, portabilityService, oidcRegistry, cfg.HTTP,
 		fileService, cfg.Bootstrap.SetupToken, cfg.PublicURL, mailer, webhookService,
 	)
 	if err != nil {
@@ -186,7 +177,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	}
 	webHandler.SetWorkspaceMode(cfg.WorkspaceMode)
 	listPreferences := listprefs.NewService(db, cfg.Database.Driver, identityService)
-	webHandler.EnableItemsPreferences(listPreferences)
+	webHandler.EnableListPreferences(listPreferences)
 	webHandler.EnableClients(clientService, listPreferences)
 	webHandler.EnableFilesPreferences(listPreferences)
 	webHandler.EnableListViews(listviews.NewService(db, cfg.Database.Driver, identityService))
@@ -194,7 +185,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	mux := http.NewServeMux()
 	mux.Handle("/api/", handler)
 	mux.Handle("/health/", handler)
-	registerAgent(mux, identityService, itemService, clientService, cfg)
+	registerAgent(mux, identityService, clientService, cfg)
 	if cfg.MCP.OAuthBuiltIn {
 		webHandler.EnableMCPOAuth(cfg.MCP.OAuthResourceURL)
 	}
@@ -202,7 +193,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 
 	return &App{
 		DB: db, Identity: identityService, OIDC: oidcRegistry,
-		Items: itemService, Sharing: sharingService, Portability: portabilityService, Webhooks: webhookService,
+		Portability: portabilityService, Webhooks: webhookService,
 		Files: fileService, Jobs: jobQueue,
 		Handler: telemetry.HTTPHandler(mux), Telemetry: telemetryProvider,
 	}, nil

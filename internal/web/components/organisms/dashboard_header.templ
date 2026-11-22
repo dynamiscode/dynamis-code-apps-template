@@ -4,27 +4,27 @@ import atoms "example.com/dynamis-code/apps-template/internal/web/components/ato
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
+// DashboardHeader is the top bar of workspace pages: the drawer toggle and the
+// workspace context as the lead, so the drawer opens from the same row as the
+// account avatar, and the workspace name works as the switcher title.
 templ DashboardHeader(data viewmodel.PageData) {
-	<header class="navbar sticky top-0 z-30 flex-wrap gap-4 border-b border-base-200 bg-base-100 px-4">
+	<header class="navbar sticky top-0 z-30 flex-nowrap gap-4 border-b border-base-200 bg-base-100 px-4">
 		<div class="navbar-start min-w-0 gap-3">
-			<a class="brand inline-flex items-center gap-2 text-lg font-extrabold no-underline" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
-			if data.TopbarTitleKey != "" {
-				<h1 class="m-0 ml-2 text-lg font-bold">{ data.T(data.TopbarTitleKey) }</h1>
+			if data.Workspace.ID != 0 {
+				<button type="button" class="btn btn-ghost btn-square drawer-button lg:hidden" aria-label={ data.T("ui.open_navigation") } @click="toggleDrawer">&#9776;</button>
+			} else {
+				<a class="brand inline-flex items-center gap-2 text-lg font-extrabold no-underline" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
+				<div class="hidden min-w-0 items-center gap-2 text-base-content/70 sm:flex">
+					@atoms.Breadcrumbs(atoms.BreadcrumbsProps{Items: molecules.HomeCrumbItems(data)})
+				</div>
 			}
-			<div class="hidden min-w-0 items-center gap-2 text-base-content/70 sm:flex">
-				if data.NavPage == "home" {
-					@atoms.Breadcrumbs(atoms.BreadcrumbsProps{
-						Items: []atoms.BreadcrumbsProp{{Label: data.T("workspace.workspaces")}},
-					})
-				} else {
-					if data.NavPage == "audit" {
-						@molecules.DefaultHomeCrumb(data)
-					} else {
-						@molecules.WorkspaceListCrumb(data)
-					}
-					@WorkspaceContext(data)
-				}
-			</div>
+			if data.TopbarTitleKey != "" {
+				<h1 class="m-0 min-w-0 flex-1 truncate text-lg font-bold">{ data.T(data.TopbarTitleKey) }</h1>
+			} else if data.Title != "" {
+				// Settings and account pages have no localized key for the bar; the page title is what the
+				// document title already shows, so the bar never renders empty.
+				<h1 class="m-0 min-w-0 flex-1 truncate text-lg font-bold">{ data.Title }</h1>
+			}
 		</div>
 		<div class="navbar-end">
 			@AccountMenu(data)

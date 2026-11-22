@@ -31,7 +31,7 @@ templ ListDragHandleIcon() {
 templ ListColumnsMenu(data viewmodel.PageData, suffix string) {
 	@atoms.Dropdown(atoms.DropdownProps{
 		Class:        "list-menu",
-		SummaryClass: "btn btn-ghost btn-xs",
+		SummaryClass: "btn btn-ghost btn-sm",
 		SummaryAttrs: templ.Attributes{"aria-label": data.T("clients.columns"), "title": data.T("clients.columns")},
 		Summary:      listColumnsSummary(data),
 		Panel:        listColumnsPanel(data, suffix),

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
@@ -223,7 +222,7 @@ func TestWebhookSecretKeyErrorIsActionable(t *testing.T) {
 	if response.Code != http.StatusUnprocessableEntity || !strings.Contains(response.Body.String(), "ENCRYPTION_KEY") {
 		t.Fatalf("webhook secret key error = %d, %s", response.Code, response.Body.String())
 	}
-	if strings.Contains(response.Body.String(), "<h1>Request failed</h1>") || !strings.Contains(response.Body.String(), "<h1>Webhooks</h1>") {
+	if strings.Contains(response.Body.String(), "<h2>Request failed</h2>") || !strings.Contains(response.Body.String(), "<h2>Webhooks</h2>") {
 		t.Fatalf("webhook secret key error left the settings page: %s", response.Body.String())
 	}
 }
@@ -293,10 +292,7 @@ func webhookWebTest(t *testing.T) (http.Handler, *sql.DB, *identity.Service, *we
 		t.Fatal(err)
 	}
 	service := webhooks.NewService(db, cfg.Database.Driver, auth, secretbox.New(map[int][]byte{config.GeneralKeyVersion: []byte("01234567890123456789012345678901")}, config.GeneralKeyVersion), nil)
-	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace)
-	handler, err := NewHandlerWithServices(
-		auth, itemService, nil, nil, nil, cfg.HTTP, "", "", nil, service,
-	)
+	handler, err := NewHandlerWithServices(auth, nil, nil, cfg.HTTP, "", "", nil, service)
 	if err != nil {
 		t.Fatal(err)
 	}

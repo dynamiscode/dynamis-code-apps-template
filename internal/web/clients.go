@@ -310,13 +310,57 @@ func (h *Handler) createClient(writer http.ResponseWriter, request *http.Request
 	client, err := h.clients.Create(request.Context(), principal, workspaceID, draft, auditContext(request))
 	if err != nil {
 		if errors.Is(err, clients.ErrInvalidInput) {
-			h.renderClientList(writer, request, http.StatusUnprocessableEntity, clientErrorKey(err), draft)
+			// A refused create always returns the create form with the draft, even
+			// when the post came from the list: the list carries no form of its own.
+			h.renderClientNew(writer, request, http.StatusUnprocessableEntity, clientErrorKey(err), &draft)
 			return
 		}
 		h.clientError(writer, request, err)
 		return
 	}
 	h.redirect(writer, request, h.clientsPath(workspaceID)+"/"+client.ID.String())
+}
+
+func (h *Handler) clientNew(writer http.ResponseWriter, request *http.Request) {
+	h.renderClientNew(writer, request, http.StatusOK, "", nil)
+}
+
+// renderClientNew is the client create page: one full page for the form, so the
+// list keeps search, views, and filters instead of an inline form or a modal.
+func (h *Handler) renderClientNew(
+	writer http.ResponseWriter,
+	request *http.Request,
+	status int,
+	errorKey string,
+	draft *clients.Input,
+) {
+	if h.clients == nil {
+		h.renderError(writer, http.StatusNotFound)
+		return
+	}
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.ResourcesWrite)
+	if !ok {
+		return
+	}
+	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
+	if err != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	}
+	data := viewmodel.PageData{
+		Title: "clients.new_client", ErrorKey: errorKey, CSRF: csrf,
+		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
+		NavPage: "clients", NavSection: "clients",
+		CurrentPath:     h.clientsPath(workspaceID),
+		FieldsPath:      h.clientFieldsPath(workspaceID),
+		CanManageFields: principal.Permissions[identity.WorkspaceUpdate],
+		CanEditClients:  true,
+	}
+	if draft != nil {
+		data.ClientDraft = *draft
+	}
+	h.renderClientPage(writer, request, status, clientNewPage, data)
 }
 
 func (h *Handler) clientDetail(writer http.ResponseWriter, request *http.Request) {

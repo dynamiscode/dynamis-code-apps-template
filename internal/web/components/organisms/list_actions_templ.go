@@ -71,7 +71,7 @@ func ListActionsMenu(data viewmodel.PageData, actions []ListAction, vertical boo
 		if len(actions) > 0 {
 			templ_7745c5c3_Err = atoms.Dropdown(atoms.DropdownProps{
 				Class:        "list-menu",
-				SummaryClass: "btn btn-ghost btn-xs",
+				SummaryClass: "btn btn-ghost btn-sm list-row-menu-button",
 				SummaryAttrs: templ.Attributes{"aria-label": data.T("ui.row_actions"), "title": data.T("ui.row_actions")},
 				Summary:      molecules.RowMenuGlyph(vertical),
 				ListClass:    "list-action-items bg-base-100 rounded-box shadow-lg",
@@ -101,7 +101,17 @@ func listActionItems(data viewmodel.PageData, actions []ListAction) []atoms.Drop
 	return items
 }
 
-// listActionForm is a POST action with its CSRF token.
+// listActionItemClass is the one class every menu entry wears, whichever element carries the action. A link and a
+// POST button then share the same box, padding, glyph gap, and alignment instead of each drifting.
+func listActionItemClass(action ListAction) string {
+	if action.Danger {
+		return "list-action-item is-danger"
+	}
+	return "list-action-item"
+}
+
+// listActionForm is a POST action with its CSRF token. The form is a layout pass-through, so the button sits
+// exactly where a link would.
 func listActionForm(data viewmodel.PageData, action ListAction) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -119,14 +129,14 @@ func listActionForm(data viewmodel.PageData, action ListAction) templ.Component 
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<form method=\"post\" action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<form class=\"list-action-form\" method=\"post\" action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templruntime.NewAttributeExpression(action.PostPath).ResolveURL(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_actions.templ`, Line: 49, Col: 45}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_actions.templ`, Line: 59, Col: 70}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -139,7 +149,7 @@ func listActionForm(data viewmodel.PageData, action ListAction) templ.Component 
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_actions.templ`, Line: 50, Col: 52}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_actions.templ`, Line: 60, Col: 52}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
@@ -157,7 +167,7 @@ func listActionForm(data viewmodel.PageData, action ListAction) templ.Component 
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var6 = []any{templ.KV("text-error", action.Danger)}
+			var templ_7745c5c3_Var6 = []any{listActionItemClass(action)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_ElementWriter, templ_7745c5c3_Var6...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -204,7 +214,7 @@ func listActionForm(data viewmodel.PageData, action ListAction) templ.Component 
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(action.Label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_actions.templ`, Line: 53, Col: 23}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_actions.templ`, Line: 63, Col: 23}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -244,7 +254,7 @@ func listActionLink(action ListAction) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var10 = []any{templ.KV("text-error", action.Danger)}
+			var templ_7745c5c3_Var10 = []any{listActionItemClass(action)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_ElementWriter, templ_7745c5c3_Var10...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -265,7 +275,7 @@ func listActionLink(action ListAction) templ.Component {
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL(action.Href)).ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_actions.templ`, Line: 60, Col: 85}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_actions.templ`, Line: 70, Col: 75}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 			if templ_7745c5c3_Err != nil {
@@ -300,7 +310,7 @@ func listActionLink(action ListAction) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(action.Label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_actions.templ`, Line: 62, Col: 22}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_actions.templ`, Line: 72, Col: 22}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -362,7 +372,7 @@ func ListRowMenuCard(data viewmodel.PageData) templ.Component {
 		})
 		templ_7745c5c3_Err = atoms.Dropdown(atoms.DropdownProps{
 			Class:         "list-menu",
-			SummaryClass:  "btn btn-ghost btn-xs",
+			SummaryClass:  "btn btn-ghost btn-sm list-row-menu-button",
 			SummaryAttrs:  templ.Attributes{"aria-label": data.T("ui.row_actions"), "title": data.T("ui.row_actions")},
 			Summary:       molecules.RowMenuGlyph(true),
 			PanelClass:    "list-action-items bg-base-100 rounded-box shadow-lg",

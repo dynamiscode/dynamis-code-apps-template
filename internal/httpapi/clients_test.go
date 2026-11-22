@@ -88,10 +88,10 @@ func TestClientCreateAndUpdateUseShortIDsAndValidation(t *testing.T) {
 	assertProblem(t, serveAuthorized(handler, http.MethodPost, base, `{"displayName":"Ada","email":"Ada <ada@example.com>"}`, token, nil), http.StatusBadRequest, "invalid-request")
 	assertProblem(t, serveAuthorized(handler, http.MethodPost, base, `{"displayName":"Ada","id":7}`, token, nil), http.StatusBadRequest, "invalid-request")
 
-	itemPath := base + "/" + client.ID
-	assertProblem(t, serveAuthorized(handler, http.MethodPatch, itemPath, `{"phone":"1"}`, token, nil), http.StatusPreconditionRequired, "precondition-required")
-	assertProblem(t, serveAuthorized(handler, http.MethodPatch, itemPath, `{"phone":"1"}`, token, map[string]string{"If-Match": `"v9"`}), http.StatusPreconditionFailed, "precondition-failed")
-	updated := serveAuthorized(handler, http.MethodPatch, itemPath, `{"phone":"+1 555 0100"}`, token, map[string]string{"If-Match": `"v1"`})
+	clientPath := base + "/" + client.ID
+	assertProblem(t, serveAuthorized(handler, http.MethodPatch, clientPath, `{"phone":"1"}`, token, nil), http.StatusPreconditionRequired, "precondition-required")
+	assertProblem(t, serveAuthorized(handler, http.MethodPatch, clientPath, `{"phone":"1"}`, token, map[string]string{"If-Match": `"v9"`}), http.StatusPreconditionFailed, "precondition-failed")
+	updated := serveAuthorized(handler, http.MethodPatch, clientPath, `{"phone":"+1 555 0100"}`, token, map[string]string{"If-Match": `"v1"`})
 	if updated.Code != http.StatusOK || updated.Header().Get("ETag") != `"v2"` {
 		t.Fatalf("update = %d %s", updated.Code, updated.Body.String())
 	}
@@ -139,7 +139,7 @@ func TestClientWritesNeedWriteScope(t *testing.T) {
 }
 
 // Sort and filter are query parameters on the list. Descending sorts take a
-// leading minus, as items do. Repeated filters combine with AND.
+// Repeated filters combine with AND.
 func TestClientListSortAndFilterParameters(t *testing.T) {
 	handler, _, workspaceID, token := testHandler(t)
 	base := "/api/v1/workspaces/" + workspaceID + "/clients"

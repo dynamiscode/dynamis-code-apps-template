@@ -272,24 +272,6 @@
         "responses": {"200": {"description": "Bounded webhook delivery history", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WebhookDeliveryPage"}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}}
       }
     },
-    "/api/v1/workspaces/{workspaceId}/import": {
-      "post": {
-        "operationId": "importWorkspace",
-        "description": "Atomically imports bounded item records from a workspace export JSON document or title,status CSV. Source IDs, timestamps, memberships, audit events, and credentials are ignored.",
-        "security": [{"bearerAuth": []}],
-        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
-        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WorkspaceExport"}}, "text/csv": {"schema": {"type": "string"}}}},
-        "responses": {
-          "200": {"description": "Imported item count", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WorkspaceImportResult"}}}},
-          "400": {"$ref": "#/components/responses/Problem"},
-          "401": {"$ref": "#/components/responses/Problem"},
-          "403": {"$ref": "#/components/responses/Problem"},
-          "409": {"$ref": "#/components/responses/Problem"},
-          "413": {"$ref": "#/components/responses/Problem"},
-          "429": {"$ref": "#/components/responses/RateLimited"}
-        }
-      }
-    },
     "/api/v1/workspaces/{workspaceId}/clients": {
         "get": {
           "operationId": "listClients",

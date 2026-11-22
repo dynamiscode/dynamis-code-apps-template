@@ -15,8 +15,25 @@ templ clientsPage(data viewmodel.PageData) {
 	}
 }
 
-templ clientDetailPage(data viewmodel.PageData) {
+// clientNewPage is the create page. The form is the whole page, so the list
+// never loads four fields it does not need and a phone gets a full-width form.
+templ clientNewPage(data viewmodel.PageData) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+		@molecules.PageHeading(data.T("clients.new_client"), data.T("clients.title")) {
+			<div class="actions client-page-actions">
+				<a class="btn btn-ghost" href={ data.CurrentPath }>{ data.T("clients.back") }</a>
+			</div>
+		}
+		<div class="card p-5 mt-4" id="client-new-page">
+			if data.ErrorKey != "" {
+				@molecules.ErrorAlert(data.T(data.ErrorKey))
+			}
+			@clientCreateForm(data, data.CurrentPath+"/new")
+		</div>
+	}
+}
+
+templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
 		@molecules.PageHeading(data.Client.DisplayName, data.T("clients.title")) {
 			<div class="actions client-page-actions">
 				<a class="btn btn-ghost" href={ data.CurrentPath }>{ data.T("clients.back") }</a>
@@ -57,7 +74,7 @@ templ clientDetail(data viewmodel.PageData) {
 				</div>
 			</form>
 		} else {
-			<p class="status">{ data.T("clients.read_only") }</p>
+			<p class="status-line">{ data.T("clients.read_only") }</p>
 			<dl>
 				<dt>{ data.T("clients.display_name") }</dt><dd>{ data.Client.DisplayName }</dd>
 				<dt>{ data.T("common.email") }</dt><dd>{ data.Client.Email }</dd>
@@ -136,7 +153,7 @@ templ clientValues(data viewmodel.PageData) {
 				}
 			}
 		} else {
-			<p class="status">{ data.T("clients.values_none") }</p>
+			<p class="status-line">{ data.T("clients.values_none") }</p>
 		}
 	</section>
 }

@@ -19,7 +19,7 @@ templ ListActionsMenu(data viewmodel.PageData, actions []ListAction, vertical bo
 	if len(actions) > 0 {
 		@atoms.Dropdown(atoms.DropdownProps{
 			Class:        "list-menu",
-			SummaryClass: "btn btn-ghost btn-xs",
+			SummaryClass: "btn btn-ghost btn-sm list-row-menu-button",
 			SummaryAttrs: templ.Attributes{"aria-label": data.T("ui.row_actions"), "title": data.T("ui.row_actions")},
 			Summary:      molecules.RowMenuGlyph(vertical),
 			ListClass:    "list-action-items bg-base-100 rounded-box shadow-lg",
@@ -44,11 +44,21 @@ func listActionItems(data viewmodel.PageData, actions []ListAction) []atoms.Drop
 	return items
 }
 
-// listActionForm is a POST action with its CSRF token.
+// listActionItemClass is the one class every menu entry wears, whichever element carries the action. A link and a
+// POST button then share the same box, padding, glyph gap, and alignment instead of each drifting.
+func listActionItemClass(action ListAction) string {
+	if action.Danger {
+		return "list-action-item is-danger"
+	}
+	return "list-action-item"
+}
+
+// listActionForm is a POST action with its CSRF token. The form is a layout pass-through, so the button sits
+// exactly where a link would.
 templ listActionForm(data viewmodel.PageData, action ListAction) {
-	<form method="post" action={ action.PostPath }>
+	<form class="list-action-form" method="post" action={ action.PostPath }>
 		<input type="hidden" name="csrf" value={ data.CSRF }/>
-		<button class={ templ.KV("text-error", action.Danger) } type="submit" { ListActionConfirm(action)... }>
+		<button class={ listActionItemClass(action) } type="submit" { ListActionConfirm(action)... }>
 			@ListActionIcon(action.Icon)
 			<span>{ action.Label }</span>
 		</button>
@@ -57,7 +67,7 @@ templ listActionForm(data viewmodel.PageData, action ListAction) {
 
 // listActionLink is a GET action.
 templ listActionLink(action ListAction) {
-	<a class={ templ.KV("text-error", action.Danger) } href={ templ.SafeURL(action.Href) }>
+	<a class={ listActionItemClass(action) } href={ templ.SafeURL(action.Href) }>
 		@ListActionIcon(action.Icon)
 		<span>{ action.Label }</span>
 	</a>
@@ -68,7 +78,7 @@ templ listActionLink(action ListAction) {
 templ ListRowMenuCard(data viewmodel.PageData) {
 	@atoms.Dropdown(atoms.DropdownProps{
 		Class:          "list-menu",
-		SummaryClass:   "btn btn-ghost btn-xs",
+		SummaryClass:   "btn btn-ghost btn-sm list-row-menu-button",
 		SummaryAttrs:   templ.Attributes{"aria-label": data.T("ui.row_actions"), "title": data.T("ui.row_actions")},
 		Summary:        molecules.RowMenuGlyph(true),
 		PanelClass:     "list-action-items bg-base-100 rounded-box shadow-lg",

@@ -11,7 +11,7 @@ import (
 )
 
 func TestInvitationPageExplainsAccountAndRoleRequirements(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	principal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.InvitationsManage)
 	if err != nil {
 		t.Fatal(err)
@@ -59,7 +59,7 @@ func TestInvitationPageExplainsAccountAndRoleRequirements(t *testing.T) {
 }
 
 func TestInvitationSignInUsesBoundOpaqueReturnAndPreservesWrongAccountRecovery(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	principal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.InvitationsManage)
 	if err != nil {
 		t.Fatal(err)
@@ -144,7 +144,7 @@ func TestInvitationSignInUsesBoundOpaqueReturnAndPreservesWrongAccountRecovery(t
 }
 
 func TestInvitationContinueRejectsInvalidOpaqueState(t *testing.T) {
-	handler, _, _, _, _ := testWeb(t, 10)
+	handler, _, _, _ := testWeb(t, 10)
 	response := request(handler, http.MethodGet, invitationContinuePath, nil, []*http.Cookie{
 		{Name: "invitation_handoff", Value: "invalid-state"},
 		{Name: "invitation_handoff_binding", Value: "invalid-binding"},
@@ -156,7 +156,7 @@ func TestInvitationContinueRejectsInvalidOpaqueState(t *testing.T) {
 }
 
 func TestInvitationReturnSurvivesMFAWithoutSecretReturnTarget(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWebWithMFA(t, 10, true)
+	handler, auth, workspaceID, owner := testWebWithMFA(t, 10, true)
 	ctx := context.Background()
 	principal, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.InvitationsManage)
 	if err != nil {
@@ -199,7 +199,7 @@ func TestInvitationReturnSurvivesMFAWithoutSecretReturnTarget(t *testing.T) {
 }
 
 func TestInvitationFailureExplainsWrongAccountAndRecovery(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	principal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.InvitationsManage)
 	if err != nil {
 		t.Fatal(err)
@@ -240,7 +240,7 @@ func TestInvitationFailureExplainsWrongAccountAndRecovery(t *testing.T) {
 }
 
 func TestUnavailableInvitationExplainsHowToRecover(t *testing.T) {
-	handler, _, _, _, _ := testWeb(t, 10)
+	handler, _, _, _ := testWeb(t, 10)
 	response := request(handler, http.MethodGet, "/invitations/unavailable-token", nil, nil, nil)
 	if response.Code != http.StatusNotFound ||
 		!strings.Contains(response.Body.String(), "This invitation link is unavailable.") ||

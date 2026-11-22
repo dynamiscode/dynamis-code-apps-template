@@ -35,7 +35,7 @@ function load(onSend) {
 
 function form() {
   const status = {
-    textContent: "", classes: new Set(["status"]), attributes: { hidden: "" },
+    textContent: "", classes: new Set(["status-line"]), attributes: { hidden: "" },
     classList: { add(c) { status.classes.add(c); }, remove(c) { status.classes.delete(c); } },
     setAttribute(k, v) { this.attributes[k] = v; }, removeAttribute(k) { delete this.attributes[k]; },
   };

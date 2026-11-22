@@ -365,8 +365,8 @@ func TestOIDCCallbackHandler_ValidationFailures(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, auth, itemService, _, _ := testWeb(t, 0)
-	handler, err := NewHandlerWithServices(auth, itemService, nil, nil, oidcRegistry, config.HTTP{}, "", "", nil)
+	_, auth, _, _ := testWeb(t, 0)
+	handler, err := NewHandlerWithServices(auth, nil, oidcRegistry, config.HTTP{}, "", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

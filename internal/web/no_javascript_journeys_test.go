@@ -47,7 +47,7 @@ func snippetAround(body, marker string, width int) string {
 }
 
 func TestNoJavaScriptAccountProfileAndDeletionConfirmation(t *testing.T) {
-	handler, auth, _, _, owner := testWeb(t, 10)
+	handler, auth, _, owner := testWeb(t, 10)
 	cookies, csrf := noJSSession(t, auth, owner.UserID)
 
 	page := request(handler, http.MethodGet, "/account", nil, cookies, nil)
@@ -70,7 +70,7 @@ func TestNoJavaScriptAccountProfileAndDeletionConfirmation(t *testing.T) {
 }
 
 func TestNoJavaScriptWorkspaceExportAndImportPreview(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	cookies, csrf := noJSSession(t, auth, owner.UserID)
 	root := "/workspaces/" + workspaceID.String() + "/settings/import"
 
@@ -99,7 +99,7 @@ func TestNoJavaScriptWorkspaceExportAndImportPreview(t *testing.T) {
 }
 
 func TestNoJavaScriptInvitationSignInAcceptsForExistingAccount(t *testing.T) {
-	handler, auth, _, firstWorkspace, owner := testWeb(t, 10)
+	handler, auth, firstWorkspace, owner := testWeb(t, 10)
 	ctx := context.Background()
 	ownerPrincipal, err := auth.Authorize(ctx, owner.UserID, firstWorkspace, identity.InvitationsManage)
 	if err != nil {
@@ -160,7 +160,7 @@ func TestNoJavaScriptInvitationSignInAcceptsForExistingAccount(t *testing.T) {
 }
 
 func TestNoJavaScriptWorkspaceSelectionValidationAndCreate(t *testing.T) {
-	handler, auth, _, _, owner := testWeb(t, 10)
+	handler, auth, _, owner := testWeb(t, 10)
 	cookies, csrf := noJSSession(t, auth, owner.UserID)
 	spanish := append(append([]*http.Cookie(nil), cookies...), &http.Cookie{Name: "locale", Value: "es"})
 
@@ -179,7 +179,7 @@ func TestNoJavaScriptWorkspaceSelectionValidationAndCreate(t *testing.T) {
 }
 
 func TestNoJavaScriptItemCreateAndEditUseOrdinaryForms(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	cookies, csrf := noJSSession(t, auth, owner.UserID)
 	path := "/workspaces/" + workspaceID.String() + "/items"
 
@@ -290,7 +290,7 @@ func TestNoJavaScriptWebhookDeleteNeedsNativeConfirmation(t *testing.T) {
 }
 
 func TestNoJavaScriptNotificationsEmptyStateAndMarkRead(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	cookies, csrf := noJSSession(t, auth, owner.UserID)
 	spanish := append(append([]*http.Cookie(nil), cookies...), &http.Cookie{Name: "locale", Value: "es"})
 
@@ -316,7 +316,7 @@ func TestNoJavaScriptNotificationsEmptyStateAndMarkRead(t *testing.T) {
 }
 
 func TestNoJavaScriptMembersEmptyAndFilterStates(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	cookies, _ := noJSSession(t, auth, owner.UserID)
 	path := "/workspaces/" + workspaceID.String() + "/settings/members"
 
@@ -324,7 +324,12 @@ func TestNoJavaScriptMembersEmptyAndFilterStates(t *testing.T) {
 	if filtered.Code != http.StatusOK || !strings.Contains(filtered.Body.String(), "No members match these filters.") {
 		t.Fatalf("members filter with no matches = %d: %s", filtered.Code, filtered.Body.String())
 	}
-	if strings.Contains(filtered.Body.String(), "owner@example.com") {
-		t.Fatalf("members filter leaked unrelated owner row: %s", filtered.Body.String())
+	body := filtered.Body.String()
+	results := body
+	if start := strings.Index(body, `id="list-results"`); start >= 0 {
+		results = body[start:]
+	}
+	if strings.Contains(results, "owner@example.com") {
+		t.Fatalf("members filter leaked unrelated owner row: %s", body)
 	}
 }

@@ -12,7 +12,7 @@ import (
 
 func TestWebThemePreferenceAppliesToFirstPaint(t *testing.T) {
 	mailer := &recordingMailer{}
-	handler, auth, _, _, owner := testWeb(t, 10, mailer)
+	handler, auth, _, owner := testWeb(t, 10, mailer)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +65,7 @@ func TestWebThemePreferenceAppliesToFirstPaint(t *testing.T) {
 }
 
 func TestAccountAndLanguageStatesRenderAcrossLocalesAndThemes(t *testing.T) {
-	handler, auth, _, _, owner := testWeb(t, 10)
+	handler, auth, _, owner := testWeb(t, 10)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)

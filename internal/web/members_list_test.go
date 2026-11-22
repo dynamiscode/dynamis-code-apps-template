@@ -3,11 +3,11 @@ package web
 import (
 	"context"
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -51,12 +51,11 @@ func newMembersListTestEnv(t *testing.T) membersListTestEnv {
 	if err != nil {
 		t.Fatal(err)
 	}
-	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace)
-	handler, err := NewHandlerWithServices(auth, itemService, nil, nil, nil, cfg.HTTP, "", "", nil)
+	handler, err := NewHandlerWithServices(auth, nil, nil, cfg.HTTP, "", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler.EnableItemsPreferences(listprefs.NewService(db, cfg.Database.Driver, auth))
+	handler.EnableListPreferences(listprefs.NewService(db, cfg.Database.Driver, auth))
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -85,7 +84,7 @@ func TestMembersListUsesSharedPresentationAndOptInPagination(t *testing.T) {
 	if all.Code != http.StatusOK || !strings.Contains(all.Body.String(), `class="list-view-table"`) ||
 		!strings.Contains(all.Body.String(), `class="list-view-cards"`) ||
 		!strings.Contains(all.Body.String(), `data-column="email"`) ||
-		!strings.Contains(all.Body.String(), `<option selected value="0">All</option>`) {
+		!strings.Contains(all.Body.String(), `aria-current="true"`) {
 		t.Fatalf("default members list = %d, want shared unpaginated view: %s", all.Code, all.Body.String())
 	}
 	if !strings.Contains(all.Body.String(), `name="action" type="submit" value="remove"`) ||
@@ -107,7 +106,7 @@ func TestMembersListUsesSharedPresentationAndOptInPagination(t *testing.T) {
 		t.Fatalf("member sort state = %d, want aria-sort only on active column: %s", roleSorted.Code, roleSorted.Body.String())
 	}
 	page := request(env.routes, http.MethodGet, path+"?all=1&limit=1&sort=email", nil, env.cookies, nil)
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `name="limit"`) ||
+	if page.Code != http.StatusOK ||
 		!strings.Contains(page.Body.String(), `limit=1`) || !strings.Contains(page.Body.String(), `page=2`) {
 		t.Fatalf("opt-in member page = %d, want a link to page 2 and query controls: %s", page.Code, page.Body.String())
 	}
@@ -122,14 +121,21 @@ func TestMembersListUsesSharedPresentationAndOptInPagination(t *testing.T) {
 	if len(members) < 2 {
 		t.Fatalf("members fixture has %d members, want at least 2 for a second page", len(members))
 	}
+	listBody := func(response *httptest.ResponseRecorder) string {
+		body := response.Body.String()
+		if start := strings.Index(body, `<div id="list-results">`); start >= 0 {
+			return body[start:]
+		}
+		return body
+	}
 	secondPage := request(env.routes, http.MethodGet, path+"?all=1&limit=1&sort=email&page=2", nil, env.cookies, nil)
-	if secondPage.Code != http.StatusOK || !strings.Contains(secondPage.Body.String(), "viewer@example.com") ||
-		strings.Contains(secondPage.Body.String(), "owner@example.com") {
+	if secondPage.Code != http.StatusOK || !strings.Contains(listBody(secondPage), "viewer@example.com") ||
+		strings.Contains(listBody(secondPage), "owner@example.com") {
 		t.Fatalf("second members page = %d: %s", secondPage.Code, secondPage.Body.String())
 	}
 	filtered := request(env.routes, http.MethodGet, path+"?all=1&role=viewer", nil, env.cookies, nil)
-	if filtered.Code != http.StatusOK || !strings.Contains(filtered.Body.String(), "viewer@example.com") ||
-		strings.Contains(filtered.Body.String(), "owner@example.com") {
+	if filtered.Code != http.StatusOK || !strings.Contains(listBody(filtered), "viewer@example.com") ||
+		strings.Contains(listBody(filtered), "owner@example.com") {
 		t.Fatalf("role-filtered members = %d: %s", filtered.Code, filtered.Body.String())
 	}
 	preference := request(env.routes, http.MethodPost, path+"/preferences/columns/email", url.Values{

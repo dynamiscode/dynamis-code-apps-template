@@ -14,13 +14,11 @@ import (
 	"errors"
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/portability"
-	"example.com/dynamis-code/apps-template/internal/sharing"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"fmt"
 	"go/ast"
@@ -197,7 +195,7 @@ func TestEmailVerificationRouteSuccessUsesAuthLayout(t *testing.T) {
 	if _, err := db.ExecContext(ctx, "UPDATE users SET email_verified_at = NULL WHERE id = ?", owner.UserID); err != nil {
 		t.Fatal(err)
 	}
-	handler, err := NewHandlerWithServices(auth, nil, nil, nil, nil, cfg.HTTP, "", "", nil)
+	handler, err := NewHandlerWithServices(auth, nil, nil, cfg.HTTP, "", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +208,7 @@ func TestEmailVerificationRouteSuccessUsesAuthLayout(t *testing.T) {
 	if unconfigured.Code != http.StatusServiceUnavailable || !strings.Contains(unconfigured.Body.String(), "Email delivery is not configured.") || strings.Contains(unconfigured.Body.String(), "verify-email/") {
 		t.Fatalf("unconfigured verification delivery = %d, %s", unconfigured.Code, unconfigured.Body.String())
 	}
-	failedMailerHandler, err := NewHandlerWithServices(auth, nil, nil, nil, nil, cfg.HTTP, "", "", failingMailer{})
+	failedMailerHandler, err := NewHandlerWithServices(auth, nil, nil, cfg.HTTP, "", "", failingMailer{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,7 +217,7 @@ func TestEmailVerificationRouteSuccessUsesAuthLayout(t *testing.T) {
 		t.Fatalf("failed verification delivery = %d, %s", failedDelivery.Code, failedDelivery.Body.String())
 	}
 	mailer := &recordingMailer{}
-	mailHandler, err := NewHandlerWithServices(auth, nil, nil, nil, nil, cfg.HTTP, "", "", mailer)
+	mailHandler, err := NewHandlerWithServices(auth, nil, nil, cfg.HTTP, "", "", mailer)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,7 +262,7 @@ func TestCompleteMFASessionPreservesReturnTo(t *testing.T) {
 }
 
 func TestMFAPolicyRedirectStartsBrowserChallenge(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWebWithMFA(t, 10, true)
+	handler, auth, workspaceID, owner := testWebWithMFA(t, 10, true)
 	ctx := context.Background()
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
@@ -307,202 +305,9 @@ func webTOTPCode(secret string, now time.Time) string {
 	return fmt.Sprintf("%06d", value%1000000)
 }
 
-func TestWebLoginItemsHTMXAndCSRF(t *testing.T) {
-	handler, auth, itemService, workspaceID, _ := testWeb(t, 10)
-
-	loginPage := request(handler, http.MethodGet, "/login", nil, nil, nil)
-	if loginPage.Code != http.StatusOK || !strings.Contains(loginPage.Body.String(), `for="email"`) {
-		t.Fatalf("login page status = %d; missing email label", loginPage.Code)
-	}
-	if !strings.Contains(loginPage.Body.String(), `class="auth-recovery-link" href="/password-reset">Forgot password?</a>`) {
-		t.Fatal("English login page lacks the password reset link")
-	}
-	spanishLogin := request(handler, http.MethodGet, "/login", nil, nil, map[string]string{"Accept-Language": "es"})
-	if spanishLogin.Code != http.StatusOK || !strings.Contains(spanishLogin.Body.String(), `class="auth-recovery-link" href="/password-reset">¿Olvidaste tu contraseña?</a>`) {
-		t.Fatalf("Spanish login page status = %d; missing translated password reset link", spanishLogin.Code)
-	}
-	loginCSRF := responseCookie(loginPage, "login_csrf")
-	invalidLogin := request(handler, http.MethodPost, "/login", url.Values{
-		"email": {"owner@example.com"}, "password": {"long-enough-password"}, "csrf": {"wrong"},
-	}, nil, nil)
-	if invalidLogin.Code != http.StatusForbidden {
-		t.Fatalf("invalid login CSRF = %d", invalidLogin.Code)
-	}
-	loggedIn := request(handler, http.MethodPost, "/login", url.Values{
-		"email": {"owner@example.com"}, "password": {"long-enough-password"}, "csrf": {loginCSRF.Value},
-	}, []*http.Cookie{loginCSRF}, nil)
-	if loggedIn.Code != http.StatusSeeOther || loggedIn.Header().Get("Location") != "/" {
-		t.Fatalf("login status = %d; unexpected redirect", loggedIn.Code)
-	}
-	cookies := []*http.Cookie{responseCookie(loggedIn, "session"), responseCookie(loggedIn, "csrf")}
-	home := request(handler, http.MethodGet, "/", nil, cookies, nil)
-	if home.Code != http.StatusOK || !strings.Contains(home.Body.String(), workspaceID.String()) {
-		t.Fatalf("home status = %d; workspace missing", home.Code)
-	}
-	path := "/workspaces/" + workspaceID.String() + "/items"
-	page := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil)
-	assertAccessiblePage(t, page.Body.String(), "New item title")
-	if !strings.Contains(page.Body.String(), `hx-target="#item-list"`) {
-		t.Fatal("item page lacks targeted HTMX enhancement")
-	}
-	withoutCSRF := request(handler, http.MethodPost, path, url.Values{
-		"title": {"Blocked"}, "idempotency_key": {"blocked-key"},
-	}, cookies, nil)
-	if withoutCSRF.Code != http.StatusForbidden {
-		t.Fatalf("missing CSRF = %d", withoutCSRF.Code)
-	}
-	csrf := cookies[1].Value
-	ordinaryInvalid := request(handler, http.MethodPost, path, url.Values{
-		"title": {""}, "idempotency_key": {"ordinary-invalid-key"}, "csrf": {csrf},
-	}, cookies, nil)
-	if ordinaryInvalid.Code != http.StatusUnprocessableEntity {
-		t.Fatalf("ordinary validation response = %d", ordinaryInvalid.Code)
-	}
-	invalid := request(handler, http.MethodPost, path, url.Values{
-		"title": {""}, "idempotency_key": {"invalid-key"}, "csrf": {csrf},
-	}, cookies, map[string]string{"HX-Request": "true"})
-	if invalid.Code != http.StatusOK || invalid.Header().Get("HX-Trigger") != "form-error" || !strings.Contains(invalid.Body.String(), `role="alert"`) {
-		t.Fatalf("validation response status = %d; missing form-error header or alert", invalid.Code)
-	}
-	created := request(handler, http.MethodPost, path, url.Values{
-		"title": {"<script>alert(1)</script>"}, "idempotency_key": {"create-key"}, "csrf": {csrf},
-	}, cookies, map[string]string{"HX-Request": "true"})
-	if created.Code != http.StatusOK || strings.Contains(created.Body.String(), "<script>alert") || strings.Contains(created.Body.String(), "<!doctype") {
-		t.Fatalf("HTMX create status = %d; response escaped or page-fragment contract failed", created.Code)
-	}
-	session, err := auth.AuthenticateSession(context.Background(), cookies[0].Value)
-	if err != nil {
-		t.Fatal(err)
-	}
-	principal, err := auth.Authorize(context.Background(), session.UserID, workspaceID, identity.ResourcesWrite)
-	if err != nil {
-		t.Fatal(err)
-	}
-	itemsPage, err := itemService.List(context.Background(), principal, workspaceID, items.ListInput{Sort: "-created_at", Limit: 10})
-	if err != nil || len(itemsPage.Items) != 1 {
-		t.Fatalf("items = %+v, %v", itemsPage, err)
-	}
-	item := itemsPage.Items[0]
-	deleted := request(handler, http.MethodPost, path+"/"+item.ID.String(), url.Values{
-		"action": {"delete"}, "version": {"1"}, "csrf": {csrf},
-	}, cookies, map[string]string{"HX-Request": "true"})
-	if deleted.Code != http.StatusOK || strings.Contains(deleted.Body.String(), item.Title) {
-		t.Fatalf("delete = %d, %s", deleted.Code, deleted.Body.String())
-	}
-}
-
-func TestWebPublicSharingProjectionAndRevocation(t *testing.T) {
-	handler, auth, itemService, workspaceID, owner := testWeb(t, 10)
-	principal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.ResourcesWrite)
-	if err != nil {
-		t.Fatal(err)
-	}
-	principal.AuthMethod = "test"
-	created, err := itemService.Create(context.Background(), principal, workspaceID, "Public title", "public-web-item", identity.AuditContext{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}, {Name: "locale", Value: "es"}}
-	path := "/workspaces/" + workspaceID.String() + "/items/" + created.Item.ID.String() + "/share"
-	invalidLifetime := request(handler, http.MethodPost, path, url.Values{
-		"action": {"create"}, "lifetime": {"90"}, "csrf": {session.CSRFSecret},
-	}, cookies, nil)
-	if invalidLifetime.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidLifetime.Body.String(), "El vencimiento del enlace público no es válido.") {
-		t.Fatalf("invalid public link lifetime = %d, %s", invalidLifetime.Code, invalidLifetime.Body.String())
-	}
-	response := request(handler, http.MethodPost, path, url.Values{
-		"action": {"create"}, "lifetime": {"7"}, "csrf": {session.CSRFSecret},
-	}, cookies, nil)
-	if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" {
-		t.Fatalf("create public link = %d, headers=%+v body=%s", response.Code, response.Header(), response.Body.String())
-	}
-	body := response.Body.String()
-	if !strings.Contains(body, "<section id=\"item-list\"") || !strings.Contains(body, "Cualquiera con este enlace") ||
-		!strings.Contains(body, "Al revocar este enlace") || !strings.Contains(body, "7 días") || !strings.Contains(body, "30 días") {
-		t.Fatalf("public link missing: %s", body)
-	}
-	fragment := request(handler, http.MethodPost, path, url.Values{
-		"action": {"create"}, "lifetime": {"30"}, "csrf": {session.CSRFSecret},
-	}, cookies, map[string]string{"HX-Request": "true"})
-	if fragment.Code != http.StatusOK || fragment.Header().Get("Cache-Control") != "no-store" ||
-		!strings.HasPrefix(strings.TrimSpace(fragment.Body.String()), "<section id=\"item-list\"") ||
-		strings.Contains(fragment.Body.String(), "<html") {
-		t.Fatalf("HTMX share create = %d, headers=%+v body=%s", fragment.Code, fragment.Header(), fragment.Body.String())
-	}
-	start := strings.Index(body, "/share/")
-	if start < 0 {
-		t.Fatalf("public URL missing: %s", body)
-	}
-	remainder := body[start:]
-	end := strings.Index(remainder, "\"")
-	if end < 0 {
-		t.Fatalf("public link not quoted: %s", body)
-	}
-	publicPath := remainder[:end]
-	public := request(handler, http.MethodGet, publicPath, nil, []*http.Cookie{{Name: "locale", Value: "es"}}, nil)
-	publicBody := public.Body.String()
-	if public.Code != http.StatusOK || public.Header().Get("Content-Language") != "es" ||
-		!hasHTMLRootLang(publicBody, "es") || !strings.Contains(publicBody, "<main") ||
-		!strings.Contains(publicBody, "<h1>Elemento compartido</h1>") ||
-		!strings.Contains(publicBody, "Public title") || !strings.Contains(publicBody, "Activo") ||
-		!strings.Contains(publicBody, "Dynamis Code") || !strings.Contains(publicBody, "Cualquiera con este enlace") {
-		t.Fatalf("public page = %d, %s", public.Code, publicBody)
-	}
-	for _, forbidden := range []string{"Example", "owner@example.com", created.Item.ID.String(), workspaceID.String()} {
-		if strings.Contains(publicBody, forbidden) {
-			t.Fatalf("public page leaked %q: %s", forbidden, publicBody)
-		}
-	}
-	if public.Header().Get("Cache-Control") != "private, no-store" || public.Header().Get("Referrer-Policy") != "no-referrer" || public.Header().Get("X-Robots-Tag") != "noindex, nofollow, noarchive" {
-		t.Fatalf("public headers = %+v", public.Header())
-	}
-	linkMarker := `name="link_id" value="`
-	linkStart := strings.Index(body, linkMarker)
-	if linkStart < 0 {
-		t.Fatalf("link id missing: %s", body)
-	}
-	linkStart += len(linkMarker)
-	linkEnd := strings.Index(body[linkStart:], "\"")
-	linkID := body[linkStart : linkStart+linkEnd]
-	revoked := request(handler, http.MethodPost, path, url.Values{
-		"action": {"revoke"}, "link_id": {linkID}, "csrf": {session.CSRFSecret},
-	}, cookies, map[string]string{"HX-Request": "true"})
-	if revoked.Code != http.StatusSeeOther {
-		t.Fatalf("HTMX revoke should retain ordinary redirect fallback = %d, %s", revoked.Code, revoked.Body.String())
-	}
-	for _, unavailablePath := range []string{publicPath, "/share/invalid-token"} {
-		unavailable := request(handler, http.MethodGet, unavailablePath, nil, []*http.Cookie{{Name: "locale", Value: "es"}}, nil)
-		body := unavailable.Body.String()
-		if unavailable.Code != http.StatusNotFound || !strings.Contains(body, "no está disponible") ||
-			!hasHTMLRootLang(body, "es") || !strings.Contains(body, "<main") ||
-			!strings.Contains(body, "<h1>Elemento compartido no disponible</h1>") ||
-			strings.Contains(body, "Public title") || strings.Contains(body, unavailablePath) ||
-			!strings.Contains(body, `role="alert"`) ||
-			unavailable.Header().Get("Cache-Control") != "private, no-store" ||
-			unavailable.Header().Get("Referrer-Policy") != "no-referrer" ||
-			unavailable.Header().Get("X-Robots-Tag") != "noindex, nofollow, noarchive" {
-			t.Fatalf("unavailable public page %q = %d %s headers=%+v", unavailablePath, unavailable.Code, body, unavailable.Header())
-		}
-	}
-}
-
-func TestWebSharingUnavailableWithoutService(t *testing.T) {
-	handler, _ := testUnbootstrappedWeb(t, "")
-	response := request(handler, http.MethodPost, "/workspaces/workspace/items/item/share", url.Values{
-		"action": {"create"}, "lifetime": {"7"},
-	}, nil, nil)
-	if response.Code != http.StatusNotFound {
-		t.Fatalf("sharing without service = %d, %s", response.Code, response.Body.String())
-	}
-}
-
 func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 	mailer := &recordingMailer{}
-	handler, auth, _, workspaceID, owner := testWeb(t, 10, mailer)
+	handler, auth, workspaceID, owner := testWeb(t, 10, mailer)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -640,7 +445,7 @@ func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
 }
 
 func TestAccountSecurityPagesUseSharedBrandAndRequireDeletionConfirmation(t *testing.T) {
-	handler, auth, _, _, owner := testWeb(t, 10)
+	handler, auth, _, owner := testWeb(t, 10)
 	if err := auth.UpdateUserProfile(context.Background(), owner.UserID, identity.ProfileUpdateInput{
 		Locale: "es", Timezone: "America/Bogota", Theme: "dark",
 	}, identity.AuditContext{}); err != nil {
@@ -740,7 +545,7 @@ func TestAccountSecurityPagesUseSharedBrandAndRequireDeletionConfirmation(t *tes
 }
 
 func TestSessionsListAndRevocation(t *testing.T) {
-	handler, auth, _, _, owner := testWeb(t, 10)
+	handler, auth, _, owner := testWeb(t, 10)
 	current, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -850,7 +655,7 @@ func TestSessionsPageExpiredAndSpanishEmptyStates(t *testing.T) {
 }
 
 func TestSecurityPageUsesTemplAndRetainsCredentialBoundaries(t *testing.T) {
-	handler, auth, _, _, owner := testWebWithMFA(t, 10, true)
+	handler, auth, _, owner := testWebWithMFA(t, 10, true)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -886,13 +691,19 @@ func PrincipalSystem() identity.Principal {
 }
 
 func TestWebLocalePrecedenceAndWorkspaceFallback(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 
+	// The picker (no workspace context) resolves the Accept-Language request;
+	// a single membership redirects now, so this test seeds a second one.
+	second := request(handler, http.MethodPost, "/workspaces", url.Values{"csrf": {session.CSRFSecret}, "name": {"Second"}}, cookies, nil)
+	if second.Code != http.StatusSeeOther {
+		t.Fatalf("seed second workspace = %d", second.Code)
+	}
 	spanish := requestFrom(handler, http.MethodGet, "/", nil, cookies, map[string]string{"Accept-Language": "es-MX,es;q=0.9"}, "example.com", "192.0.2.1:1234")
 	if spanish.Header().Get("Content-Language") != "es" || !hasHTMLRootLang(spanish.Body.String(), "es") || !strings.Contains(spanish.Body.String(), "Espacios de trabajo") {
 		t.Fatalf("Spanish home = %d, %s", spanish.Code, spanish.Body.String())
@@ -938,7 +749,7 @@ func (m *recordingMailer) Send(_ context.Context, _ string, subject, body string
 
 func TestInvitationEmailUsesWorkspaceLocale(t *testing.T) {
 	mailer := &recordingMailer{}
-	handler, auth, _, workspaceID, owner := testWeb(t, 10, mailer)
+	handler, auth, workspaceID, owner := testWeb(t, 10, mailer)
 	ownerPrincipal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.InvitationsManage)
 	if err != nil {
 		t.Fatal(err)
@@ -959,7 +770,7 @@ func TestInvitationEmailUsesWorkspaceLocale(t *testing.T) {
 }
 
 func TestWebLanguageSettingsRoutes(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -1039,7 +850,7 @@ func TestWebRedirectRejectsExternalTarget(t *testing.T) {
 }
 
 func TestBrowserPagesRenderSpanishDocuments(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	ownerPrincipal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.WorkspaceUpdate)
 	if err != nil {
 		t.Fatal(err)
@@ -1053,7 +864,7 @@ func TestBrowserPagesRenderSpanishDocuments(t *testing.T) {
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}, {Name: "locale", Value: "es"}}
 	paths := []string{
-		"/", "/workspaces/" + workspaceID.String(), "/workspaces/" + workspaceID.String() + "/items",
+		"/workspaces/" + workspaceID.String(), "/workspaces/" + workspaceID.String() + "/items",
 		"/workspaces/" + workspaceID.String() + "/settings/general", "/workspaces/" + workspaceID.String() + "/settings/members",
 		"/workspaces/" + workspaceID.String() + "/settings/invitations", "/workspaces/" + workspaceID.String() + "/settings/tokens",
 		"/workspaces/" + workspaceID.String() + "/settings/provisioning", "/workspaces/" + workspaceID.String() + "/settings/export",
@@ -1077,210 +888,8 @@ func TestBrowserPagesRenderSpanishDocuments(t *testing.T) {
 	}
 }
 
-func TestSSEScopeReconnectHeartbeatAndLimits(t *testing.T) {
-	handler, auth, itemService, workspaceID, owner := testWeb(t, 1)
-	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	server := httptest.NewServer(handler)
-	t.Cleanup(server.Close)
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	streamRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/workspaces/"+workspaceID.String()+"/items/events", nil)
-	addCookies(streamRequest, cookies)
-	response, err := server.Client().Do(streamRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer response.Body.Close()
-	reader := bufio.NewReader(response.Body)
-	initial := readUntil(t, reader, "event: resync")
-	if !strings.Contains(initial, "id: cayx") {
-		t.Fatalf("initial resync = %q", initial)
-	}
-	secondRequest, _ := http.NewRequest(http.MethodGet, server.URL+"/workspaces/"+workspaceID.String()+"/items/events", nil)
-	addCookies(secondRequest, cookies)
-	second, err := server.Client().Do(secondRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	second.Body.Close()
-	if second.StatusCode != http.StatusTooManyRequests || second.Header.Get("Retry-After") == "" {
-		t.Fatalf("second stream = %d", second.StatusCode)
-	}
-	if heartbeat := readUntil(t, reader, ": heartbeat"); !strings.Contains(heartbeat, ": heartbeat") {
-		t.Fatalf("heartbeat = %q", heartbeat)
-	}
-	principal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.ResourcesWrite)
-	if err != nil {
-		t.Fatal(err)
-	}
-	principal.AuthMethod = "test"
-	created, err := itemService.Create(context.Background(), principal, workspaceID, "Secret title", "sse-create-key", identity.AuditContext{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	event := readUntil(t, reader, "event: item.changed") + readUntil(t, reader, "\n\n")
-	if !strings.Contains(event, created.Item.ID.String()) || strings.Contains(event, "Secret title") || !strings.Contains(event, `"schemaVersion":1`) {
-		t.Fatalf("change event = %q", event)
-	}
-	eventID := sseID(event)
-	if eventID == "" {
-		t.Fatal("change event ID missing")
-	}
-	cancel()
-	response.Body.Close()
-	time.Sleep(30 * time.Millisecond)
-	complete := items.Complete
-	if _, err := itemService.Update(
-		context.Background(), principal, workspaceID, created.Item.ID, 1,
-		items.UpdateInput{Status: &complete}, identity.AuditContext{},
-	); err != nil {
-		t.Fatal(err)
-	}
-	reconnectCtx, reconnectCancel := context.WithTimeout(context.Background(), time.Second)
-	defer reconnectCancel()
-	reconnect, _ := http.NewRequestWithContext(
-		reconnectCtx, http.MethodGet,
-		server.URL+"/workspaces/"+workspaceID.String()+"/items/events", nil,
-	)
-	reconnect.Header.Set("Last-Event-ID", eventID)
-	addCookies(reconnect, cookies)
-	reconnected, err := server.Client().Do(reconnect)
-	if err != nil {
-		t.Fatal(err)
-	}
-	reconnectReader := bufio.NewReader(reconnected.Body)
-	replayed := readUntil(t, reconnectReader, "event: item.changed") + readUntil(t, reconnectReader, "\n\n")
-	if !strings.Contains(replayed, `"action":"updated"`) {
-		t.Fatalf("reconnect replay = %q", replayed)
-	}
-	reconnected.Body.Close()
-	reconnectCancel()
-	time.Sleep(30 * time.Millisecond)
-	// The previous stream's slot is released asynchronously, so retry on 429.
-	var malformedResponse *http.Response
-	for attempt := 0; attempt < 100; attempt++ {
-		malformedCtx, malformedCancel := context.WithTimeout(context.Background(), time.Second)
-		malformed, _ := http.NewRequestWithContext(
-			malformedCtx, http.MethodGet,
-			server.URL+"/workspaces/"+workspaceID.String()+"/items/events", nil,
-		)
-		malformed.Header.Set("Last-Event-ID", "0123456789abcdef0123456789abcdef")
-		addCookies(malformed, cookies)
-		malformedResponse, err = server.Client().Do(malformed)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if malformedResponse.StatusCode == http.StatusOK {
-			defer malformedCancel()
-			break
-		}
-		malformedResponse.Body.Close()
-		malformedCancel()
-		time.Sleep(10 * time.Millisecond)
-	}
-	resync := readUntil(t, bufio.NewReader(malformedResponse.Body), "event: resync")
-	malformedResponse.Body.Close()
-	if !strings.Contains(resync, "event: resync") {
-		t.Fatalf("malformed cursor = %q", resync)
-	}
-
-	wrong := request(handler, http.MethodGet, "/workspaces/00000000000000000000000000000000/items/events", nil, cookies, nil)
-	if wrong.Code != http.StatusNotFound {
-		t.Fatalf("wrong-workspace stream = %d", wrong.Code)
-	}
-}
-
-func TestItemEvents(t *testing.T) {
-	webHandler, auth, itemService, workspaceID, owner := testWebRaw(t, 2)
-	ctx := context.Background()
-
-	principal, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.ResourcesWrite)
-	if err != nil {
-		t.Fatal(err)
-	}
-	principal.AuthMethod = "test"
-
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "/workspaces/"+workspaceID.String()+"/items/events", nil)
-
-	rec := httptest.NewRecorder()
-	nextCursor, ok := webHandler.sendChanges(rec, req, principal, workspaceID, "")
-	if !ok {
-		t.Fatal("expected sendChanges with empty cursor to succeed")
-	}
-	if nextCursor != "cayx" {
-		t.Fatalf("expected nextCursor 'cayx', got %q", nextCursor)
-	}
-	body := rec.Body.String()
-	if !strings.Contains(body, "id: cayx\n") || !strings.Contains(body, "event: resync\n") || !strings.Contains(body, "data: {\"reason\":\"cursor\"}\n\n") {
-		t.Fatalf("unexpected resync event body: %q", body)
-	}
-
-	rec = httptest.NewRecorder()
-	nextCursor, ok = webHandler.sendChanges(rec, req, principal, workspaceID, nextCursor)
-	if !ok {
-		t.Fatal("expected sendChanges with no changes to succeed")
-	}
-	if nextCursor != "cayx" {
-		t.Fatalf("expected nextCursor 'cayx', got %q", nextCursor)
-	}
-	if rec.Body.Len() != 0 {
-		t.Fatalf("expected no output when no changes, got %q", rec.Body.String())
-	}
-
-	created1, err := itemService.Create(ctx, principal, workspaceID, "Item 1", "key-1", identity.AuditContext{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	created2, err := itemService.Create(ctx, principal, workspaceID, "Item 2", "key-2", identity.AuditContext{})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	rec = httptest.NewRecorder()
-	nextCursor, ok = webHandler.sendChanges(rec, req, principal, workspaceID, nextCursor)
-	if !ok {
-		t.Fatal("expected sendChanges with new items to succeed")
-	}
-	body = rec.Body.String()
-	if !strings.Contains(body, "event: item.changed\n") || !strings.Contains(body, created1.Item.ID.String()) || !strings.Contains(body, created2.Item.ID.String()) {
-		t.Fatalf("expected change events for both items, got %q", body)
-	}
-	if nextCursor == "" || nextCursor == "cayx" {
-		t.Fatalf("expected nextCursor to advance beyond 'cayx', got %q", nextCursor)
-	}
-
-	rec = httptest.NewRecorder()
-	advancedCursor, ok := webHandler.sendChanges(rec, req, principal, workspaceID, nextCursor)
-	if !ok {
-		t.Fatal("expected sendChanges with up-to-date cursor to succeed")
-	}
-	if advancedCursor != nextCursor {
-		t.Fatalf("expected nextCursor %q, got %q", nextCursor, advancedCursor)
-	}
-	if rec.Body.Len() != 0 {
-		t.Fatalf("expected no output when up to date, got %q", rec.Body.String())
-	}
-
-	rec = httptest.NewRecorder()
-	resyncCursor, ok := webHandler.sendChanges(rec, req, principal, workspaceID, "non-existent-cursor")
-	if !ok {
-		t.Fatal("expected sendChanges with stale cursor to succeed with resync")
-	}
-	body = rec.Body.String()
-	if !strings.Contains(body, "event: resync\n") || !strings.Contains(body, "data: {\"reason\":\"cursor\"}\n\n") {
-		t.Fatalf("expected resync event for stale cursor, got %q", body)
-	}
-	if resyncCursor != nextCursor {
-		t.Fatalf("expected resync nextCursor %q, got %q", nextCursor, resyncCursor)
-	}
-}
-
 func TestNotificationSSEIsScopedAndRedactedToRecipient(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 1)
+	handler, auth, workspaceID, owner := testWeb(t, 1)
 	_, err := auth.CreateNotification(context.Background(), PrincipalSystem(), identity.NotificationInput{
 		RecipientUserID: owner.UserID, WorkspaceID: workspaceID, NotificationType: "workspace", Title: "Existing", Body: "Existing body",
 	}, identity.AuditContext{})
@@ -1352,13 +961,13 @@ func sseID(event string) string {
 }
 
 func TestCriticalPagesAccessibilityContract(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	for _, target := range []string{"/", "/workspaces/" + workspaceID.String(), "/workspaces/" + workspaceID.String() + "/items", "/workspaces/" + workspaceID.String() + "/settings/audit"} {
+	for _, target := range []string{"/workspaces/" + workspaceID.String(), "/workspaces/" + workspaceID.String() + "/items", "/workspaces/" + workspaceID.String() + "/settings/audit"} {
 		response := request(handler, http.MethodGet, target, nil, cookies, nil)
 		assertAccessiblePage(t, response.Body.String(), "")
 	}
@@ -1367,7 +976,7 @@ func TestCriticalPagesAccessibilityContract(t *testing.T) {
 }
 
 func TestWebAuditHistoryIsScopedRedactedAndNotWebMCP(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	ctx := context.Background()
 	if err := auth.RecordAudit(ctx, identity.AuditEvent{
 		EventType:     "test.audit.visible",
@@ -1489,7 +1098,7 @@ func TestWebAuditHistoryIsScopedRedactedAndNotWebMCP(t *testing.T) {
 }
 
 func TestAuditHistoryUsesProfileLocaleAndThemes(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -1538,7 +1147,7 @@ func TestAuditTableRendersEmptyStateInBothLocales(t *testing.T) {
 }
 
 func TestTokensPageLabelsWorkspaceUpdateScope(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	principal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.WorkspaceUpdate)
 	if err != nil {
 		t.Fatal(err)
@@ -1561,7 +1170,7 @@ func TestTokensPageLabelsWorkspaceUpdateScope(t *testing.T) {
 }
 
 func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -1768,14 +1377,15 @@ func TestWebMCPBrowserSurfaceContract(t *testing.T) {
 			t.Errorf("WebMCP schema exposes forbidden field %q", forbidden)
 		}
 	}
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	pages := map[string]string{
-		"/": "home", "/workspaces/" + workspaceID.String() + "/items": "items",
+		"/workspaces/" + workspaceID.String():                           "workspace",
+		"/workspaces/" + workspaceID.String() + "/items":                "items",
 		"/workspaces/" + workspaceID.String() + "/settings/members":     "members",
 		"/workspaces/" + workspaceID.String() + "/settings/invitations": "invitations",
 		"/workspaces/" + workspaceID.String() + "/settings/tokens":      "tokens",
@@ -1799,94 +1409,8 @@ func TestWebMCPBrowserSurfaceContract(t *testing.T) {
 	}
 }
 
-func TestWebNavigationAndActionFeedback(t *testing.T) {
-	handler, auth, itemService, workspaceID, owner := testWeb(t, 10)
-	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	workspaceRoot := "/workspaces/" + workspaceID.String()
-	workspaceHome := request(handler, http.MethodGet, workspaceRoot, nil, cookies, nil)
-	if workspaceHome.Code != http.StatusOK || !strings.Contains(workspaceHome.Body.String(), `data-workspace-home`) || !strings.Contains(workspaceHome.Body.String(), `<li class="menu-active"><a aria-current="page" href="`+workspaceRoot+`">Home</a>`) || !strings.Contains(workspaceHome.Body.String(), `href="`+workspaceRoot+`/items"`) || !strings.Contains(workspaceHome.Body.String(), `href="`+workspaceRoot+`/settings"`) {
-		t.Fatalf("workspace home = %d, %s", workspaceHome.Code, workspaceHome.Body.String())
-	}
-	for _, page := range []struct {
-		path        string
-		active      string
-		sidebarName string
-	}{
-		{workspaceRoot + "/items", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/items" + `">`, "Workspace navigation"},
-		{workspaceRoot + "/settings/members", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/settings/members" + `"`, "Workspace settings"},
-		{workspaceRoot + "/settings/invitations", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/settings/members" + `"`, "Workspace settings"},
-		{workspaceRoot + "/settings/tokens", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/settings/tokens" + `"`, "Workspace settings"},
-		{workspaceRoot + "/settings/provisioning", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/settings/provisioning" + `"`, "Workspace settings"},
-		{workspaceRoot + "/settings/export", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/settings/export" + `"`, "Workspace settings"},
-		{workspaceRoot + "/settings/audit", `<li class="menu-active"><a aria-current="page" href="` + workspaceRoot + "/settings/audit" + `"`, "Workspace settings"},
-	} {
-		body := request(handler, http.MethodGet, page.path, nil, cookies, nil).Body.String()
-		if !strings.Contains(body, `<nav aria-label="`+page.sidebarName+`">`) ||
-			!strings.Contains(body, page.active) ||
-			!strings.Contains(body, `<details class="dropdown dropdown-end">`) ||
-			!strings.Contains(body, `<details class="dropdown dropdown-end">`) {
-			t.Errorf("%s lacks primary navigation or current-page state", page.path)
-		}
-	}
-	itemsBody := request(handler, http.MethodGet, workspaceRoot+"/items"+"?all=1", nil, cookies, nil).Body.String()
-	if strings.Contains(itemsBody, `Members &amp; invitations`) || strings.Contains(itemsBody, `API tokens`) || strings.Contains(itemsBody, `>Export<`) || !strings.Contains(itemsBody, `<a class="btn btn-ghost btn-sm w-full justify-start font-normal" href="/">← Workspaces</a>`) {
-		t.Error("items context has incorrect navigation")
-	}
-	settingsRoot := request(handler, http.MethodGet, workspaceRoot+"/settings", nil, cookies, nil)
-	if settingsRoot.Code != http.StatusSeeOther || settingsRoot.Header().Get("Location") != workspaceRoot+"/settings/members" {
-		t.Fatalf("settings root = %d, %s", settingsRoot.Code, settingsRoot.Header().Get("Location"))
-	}
-	for _, page := range []string{workspaceRoot + "/settings/members", workspaceRoot + "/settings/invitations", workspaceRoot + "/settings/tokens", workspaceRoot + "/settings/provisioning", workspaceRoot + "/settings/export", workspaceRoot + "/settings/import", workspaceRoot + "/settings/audit"} {
-		body := request(handler, http.MethodGet, page, nil, cookies, nil).Body.String()
-		backLink := `<a class="btn btn-ghost btn-sm w-full justify-start font-normal" href="` + workspaceRoot + `">`
-		if strings.Contains(body, `>Items<`) || strings.Contains(body, `href="`+workspaceRoot+`/settings">Settings`) || strings.Contains(body, `<nav aria-label="Workspace navigation">`) || !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `API tokens`) || !strings.Contains(body, `>Export<`) || !strings.Contains(body, backLink) || !strings.Contains(body, "Back to home") {
-			t.Errorf("%s lacks expanded settings navigation", page)
-		}
-	}
-	settingsBody := request(handler, http.MethodGet, workspaceRoot+"/settings/members", nil, cookies, nil).Body.String()
-	for _, group := range []string{`Workspace setup`, `Access &amp; integrations`, `Data &amp; activity`} {
-		if !strings.Contains(settingsBody, `<li class="menu-title text-base-content/80">`+group+`</li>`) {
-			t.Errorf("settings navigation lacks the %q group", group)
-		}
-	}
-	if body := request(handler, http.MethodGet, workspaceRoot+"/settings/members", nil, cookies, nil).Body.String(); !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `<nav aria-label="Members and invitations">`) {
-		t.Error("members page lacks combined settings entry or local tabs")
-	}
-	if body := request(handler, http.MethodGet, workspaceRoot+"/settings/invitations", nil, cookies, nil).Body.String(); !strings.Contains(body, `Members &amp; invitations`) || !strings.Contains(body, `<li class="menu-active"><a aria-current="page" href="`+workspaceRoot+`/settings/invitations"`) {
-		t.Error("invitations page lacks combined settings entry or current tab")
-	}
-	principal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.ResourcesWrite)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := itemService.Create(context.Background(), principal, workspaceID, "Navigation item", "navigation-key", identity.AuditContext{}); err != nil {
-		t.Fatal(err)
-	}
-	body := request(handler, http.MethodGet, workspaceRoot+"/items"+"?all=1", nil, cookies, nil).Body.String()
-	for _, required := range []string{
-		`aria-label="Save Navigation item"`,
-		`data-confirm="Permanently delete this item? This action cannot be undone."`,
-		`role="status" aria-live="polite" id="realtime-status">Live updates connect when supported; refresh otherwise.`,
-	} {
-		if !strings.Contains(body, required) {
-			t.Errorf("items page lacks %q", required)
-		}
-	}
-	source, err := files.ReadFile("assets/alpine-components.js")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(source), `button[data-confirm]`) || !strings.Contains(body, `<script defer src="/assets/alpine-components.js">`) {
-		t.Error("browser script lacks destructive-action confirmation hook")
-	}
-}
-
 func TestWebBaselineManagementRoutes(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -1925,197 +1449,6 @@ func TestWebBaselineManagementRoutes(t *testing.T) {
 	}, cookies, nil)
 	if created.Code != http.StatusSeeOther || created.Header().Get("Location") != "/" {
 		t.Fatalf("browser workspace creation = %d, %s", created.Code, created.Body.String())
-	}
-}
-
-func TestWebImportIsAuthorizedExplicitAndAtomic(t *testing.T) {
-	handler, auth, itemService, workspaceID, owner := testWeb(t, 10)
-	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	root := "/workspaces/" + workspaceID.String() + "/settings/import"
-
-	page := request(handler, http.MethodGet, root, nil, cookies, nil)
-	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" ||
-		!strings.Contains(page.Body.String(), `enctype="multipart/form-data"`) ||
-		!strings.Contains(page.Body.String(), `name="file"`) || !strings.Contains(page.Body.String(), `name="action" value="preview"`) ||
-		!strings.Contains(page.Body.String(), `<li class="menu-active"><a aria-current="page" href="`+root+`"`) ||
-		strings.Contains(page.Body.String(), "/assets/app.js") {
-		t.Fatalf("import page = %d, %s", page.Code, page.Body.String())
-	}
-	assertAccessiblePage(t, page.Body.String(), "Import file")
-
-	withoutCSRF := multipartRequest(t, handler, root, url.Values{"action": {"preview"}}, "items.csv", "title,status\nBlocked,active\n", cookies, nil)
-	if withoutCSRF.Code != http.StatusForbidden {
-		t.Fatalf("import without CSRF = %d, %s", withoutCSRF.Code, withoutCSRF.Body.String())
-	}
-	withoutConfirmation := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "action": {"confirm"}}, "items.csv", "title,status\nBlocked,active\n", cookies, nil)
-	if withoutConfirmation.Code != http.StatusUnprocessableEntity || !strings.Contains(withoutConfirmation.Body.String(), "Confirm") {
-		t.Fatalf("import without confirmation = %d, %s", withoutConfirmation.Code, withoutConfirmation.Body.String())
-	}
-	queryConfirmation := multipartRequest(t, handler, root+"?confirm=yes", url.Values{"csrf": {session.CSRFSecret}, "action": {"confirm"}}, "items.csv", "title,status\nBlocked,active\n", cookies, nil)
-	if queryConfirmation.Code != http.StatusUnprocessableEntity || !strings.Contains(queryConfirmation.Body.String(), "Confirm") {
-		t.Fatalf("query confirmation bypass = %d, %s", queryConfirmation.Code, queryConfirmation.Body.String())
-	}
-	nonMultipart := request(handler, http.MethodPost, root, url.Values{"csrf": {session.CSRFSecret}, "action": {"preview"}}, cookies, nil)
-	if nonMultipart.Code != http.StatusUnprocessableEntity || !strings.Contains(nonMultipart.Body.String(), "Choose") {
-		t.Fatalf("non-multipart import = %d, %s", nonMultipart.Code, nonMultipart.Body.String())
-	}
-	invalid := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "action": {"preview"}}, "items.csv", "title,status\nValid,active\n,active\nThird,unknown\n", cookies, nil)
-	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "Record 2") ||
-		!strings.Contains(invalid.Body.String(), "Record 3") || !strings.Contains(invalid.Body.String(), "Valid") ||
-		strings.Contains(invalid.Body.String(), `name="preview_digest"`) {
-		t.Fatalf("invalid import = %d, %s", invalid.Code, invalid.Body.String())
-	}
-	unsupported := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "action": {"preview"}}, "items.txt", "title,status\nUnsupported,active\n", cookies, nil)
-	if unsupported.Code != http.StatusUnprocessableEntity || !strings.Contains(unsupported.Body.String(), "Choose") {
-		t.Fatalf("unsupported import format = %d, %s", unsupported.Code, unsupported.Body.String())
-	}
-	oversized := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "action": {"preview"}}, "items.csv", strings.Repeat("x", 2*1024*1024), cookies, nil)
-	if oversized.Code != http.StatusUnprocessableEntity || !strings.Contains(oversized.Body.String(), "exceeds") {
-		t.Fatalf("oversized import = %d, %s", oversized.Code, oversized.Body.String())
-	}
-
-	content := "title,status\nImported one,active\nImported two,complete\n"
-	preview := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "action": {"preview"}}, "items.csv", content, cookies, nil)
-	if preview.Code != http.StatusOK || !strings.Contains(preview.Body.String(), "Records found") {
-		t.Fatalf("valid import preview = %d, %s", preview.Code, preview.Body.String())
-	}
-	valid := multipartRequest(t, handler, root, url.Values{
-		"csrf": {session.CSRFSecret}, "action": {"confirm"}, "confirm": {"yes"},
-		"preview_digest": {importDigest(content)}, "preview_format": {"text/csv"},
-	}, "items.csv", content, cookies, nil)
-	expectedRedirect := root + "?imported=" + url.QueryEscape(fmt.Sprintf("%d", 2))
-	if valid.Code != http.StatusSeeOther || valid.Header().Get("Location") != expectedRedirect {
-		t.Fatalf("valid import = %d, location %q, %s", valid.Code, valid.Header().Get("Location"), valid.Body.String())
-	}
-	completed := request(handler, http.MethodGet, valid.Header().Get("Location"), nil, cookies, nil)
-	if completed.Code != http.StatusOK || !strings.Contains(completed.Body.String(), "Items imported:") || !strings.Contains(completed.Body.String(), "2") ||
-		strings.Contains(completed.Body.String(), "Imported one") || strings.Contains(completed.Body.String(), "Imported two") {
-		t.Fatalf("completed import page = %d, %s", completed.Code, completed.Body.String())
-	}
-	clean := request(handler, http.MethodGet, root, nil, cookies, nil)
-	if strings.Contains(clean.Body.String(), "Items imported:") {
-		t.Fatalf("import success was displayed on clean root: %s", clean.Body.String())
-	}
-	statelessParam := request(handler, http.MethodGet, root+"?imported=999", nil, cookies, nil)
-	if !strings.Contains(statelessParam.Body.String(), "Items imported:") || !strings.Contains(statelessParam.Body.String(), "999") {
-		t.Fatalf("stateless import success was not displayed: %s", statelessParam.Body.String())
-	}
-	invalidParam := request(handler, http.MethodGet, root+"?imported=invalid", nil, cookies, nil)
-	if strings.Contains(invalidParam.Body.String(), "Items imported:") {
-		t.Fatalf("invalid import param displayed success: %s", invalidParam.Body.String())
-	}
-	principal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.ResourcesRead)
-	if err != nil {
-		t.Fatal(err)
-	}
-	itemsPage, err := itemService.List(context.Background(), principal, workspaceID, items.ListInput{Sort: "created_at", Limit: 10})
-	if err != nil || len(itemsPage.Items) != 2 {
-		t.Fatalf("imported items = %+v, %v", itemsPage, err)
-	}
-	jsonImport, err := json.Marshal(portability.Export{
-		FormatVersion: portability.FormatVersion,
-		Items:         []items.Item{{ID: 1, Title: "Imported JSON", Status: items.Active}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	jsonContent := string(jsonImport)
-	jsonPreview := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "action": {"preview"}}, "items.json", jsonContent, cookies, nil)
-	if jsonPreview.Code != http.StatusOK || !strings.Contains(jsonPreview.Body.String(), "Imported JSON") {
-		t.Fatalf("valid JSON preview = %d, %s", jsonPreview.Code, jsonPreview.Body.String())
-	}
-	validJSON := multipartRequest(t, handler, root, url.Values{
-		"csrf": {session.CSRFSecret}, "action": {"confirm"}, "confirm": {"yes"},
-		"preview_digest": {importDigest(jsonContent)}, "preview_format": {"application/json"},
-	}, "items.json", jsonContent, cookies, nil)
-	expectedJSONRedirect := root + "?imported=" + url.QueryEscape(fmt.Sprintf("%d", 1))
-	if validJSON.Code != http.StatusSeeOther || validJSON.Header().Get("Location") != expectedJSONRedirect {
-		t.Fatalf("valid JSON import = %d, location %q, %s", validJSON.Code, validJSON.Header().Get("Location"), validJSON.Body.String())
-	}
-	ownerUpdate, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.WorkspaceUpdate)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := auth.UpdateWorkspaceLocale(context.Background(), ownerUpdate, "es", identity.AuditContext{}); err != nil {
-		t.Fatal(err)
-	}
-	spanishInvalid := multipartRequest(t, handler, root, url.Values{"csrf": {session.CSRFSecret}, "action": {"preview"}}, "items.csv", "title,status\n,active\n", cookies, nil)
-	if spanishInvalid.Code != http.StatusUnprocessableEntity || spanishInvalid.Header().Get("Content-Language") != "es" || !strings.Contains(spanishInvalid.Body.String(), "Corrige estos registros") {
-		t.Fatalf("Spanish invalid import = %d, language %q, %s", spanishInvalid.Code, spanishInvalid.Header().Get("Content-Language"), spanishInvalid.Body.String())
-	}
-
-	ownerManage, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.InvitationsManage)
-	if err != nil {
-		t.Fatal(err)
-	}
-	invitation, err := auth.CreateInvitation(context.Background(), ownerManage, "viewer@example.com", identity.Viewer, time.Hour, identity.AuditContext{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	viewerID, _, err := auth.CreateInvitedLocalUser(context.Background(), invitation.Secret, "viewer-password", identity.AuditContext{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	viewerSession, err := auth.CreateSession(context.Background(), viewerID, "local", "", time.Hour, identity.AuditContext{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	viewerPage := request(handler, http.MethodGet, root, nil, []*http.Cookie{{Name: "session", Value: viewerSession.Secret}, {Name: "csrf", Value: viewerSession.CSRFSecret}}, nil)
-	if viewerPage.Code != http.StatusForbidden {
-		t.Fatalf("viewer import page = %d, %s", viewerPage.Code, viewerPage.Body.String())
-	}
-}
-
-func TestImportPreviewIsReadOnlyAndConfirmationMatchesPreview(t *testing.T) {
-	handler, auth, itemService, workspaceID, owner := testWeb(t, 10)
-	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	root := "/workspaces/" + workspaceID.String() + "/settings/import"
-	content := "title,status\nDuplicate,active\nDuplicate,complete\n"
-	digest := sha256.Sum256([]byte(content))
-	digestValue := hex.EncodeToString(digest[:])
-
-	preview := multipartRequest(t, handler, root, url.Values{
-		"csrf": {session.CSRFSecret}, "action": {"preview"},
-	}, "items.csv", content, cookies, nil)
-	if preview.Code != http.StatusOK || !strings.Contains(preview.Body.String(), "Preview") ||
-		!strings.Contains(preview.Body.String(), "Duplicate") || !strings.Contains(preview.Body.String(), `name="preview_digest" value="`+digestValue+`"`) ||
-		!strings.Contains(preview.Body.String(), `name="action" value="confirm"`) {
-		t.Fatalf("valid preview = %d, %s", preview.Code, preview.Body.String())
-	}
-	assertAccessiblePage(t, preview.Body.String(), "Preview")
-	principal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.ResourcesRead)
-	if err != nil {
-		t.Fatal(err)
-	}
-	itemsPage, err := itemService.List(context.Background(), principal, workspaceID, items.ListInput{Sort: "created_at", Limit: 10})
-	if err != nil || len(itemsPage.Items) != 0 {
-		t.Fatalf("preview created items: %+v, %v", itemsPage, err)
-	}
-	changed := multipartRequest(t, handler, root, url.Values{
-		"csrf": {session.CSRFSecret}, "action": {"confirm"}, "preview_digest": {"wrong"},
-		"preview_format": {"text/csv"}, "confirm": {"yes"},
-	}, "items.csv", content, cookies, nil)
-	if changed.Code != http.StatusUnprocessableEntity || !strings.Contains(changed.Body.String(), "differs from the preview") {
-		t.Fatalf("confirmation without matching preview = %d, %s", changed.Code, changed.Body.String())
-	}
-	valid := multipartRequest(t, handler, root, url.Values{
-		"csrf": {session.CSRFSecret}, "action": {"confirm"}, "preview_digest": {digestValue},
-		"preview_format": {"text/csv"}, "confirm": {"yes"},
-	}, "items.csv", content, cookies, nil)
-	if valid.Code != http.StatusSeeOther || !strings.Contains(valid.Header().Get("Location"), "imported=2") {
-		t.Fatalf("confirmed import = %d, %q, %s", valid.Code, valid.Header().Get("Location"), valid.Body.String())
-	}
-	itemsPage, err = itemService.List(context.Background(), principal, workspaceID, items.ListInput{Sort: "created_at", Limit: 10})
-	if err != nil || len(itemsPage.Items) != 2 || itemsPage.Items[0].Title != "Duplicate" || itemsPage.Items[1].Title != "Duplicate" {
-		t.Fatalf("duplicate-title items = %+v, %v", itemsPage, err)
 	}
 }
 
@@ -2399,30 +1732,30 @@ func TestWebSetupRejectsCSRFAndPasswordMismatch(t *testing.T) {
 	}
 }
 
-func testWeb(t *testing.T, maximumStreams int, mailers ...appmail.Sender) (http.Handler, *identity.Service, *items.Service, identity.WorkspaceID, identity.BootstrapResult) {
+func testWeb(t *testing.T, maximumStreams int, mailers ...appmail.Sender) (http.Handler, *identity.Service, identity.WorkspaceID, identity.BootstrapResult) {
 	return testWebWithMFA(t, maximumStreams, false, mailers...)
 }
 
-func testWebRaw(t *testing.T, maximumStreams int, mailers ...appmail.Sender) (*Handler, *identity.Service, *items.Service, identity.WorkspaceID, identity.BootstrapResult) {
+func testWebRaw(t *testing.T, maximumStreams int, mailers ...appmail.Sender) (*Handler, *identity.Service, identity.WorkspaceID, identity.BootstrapResult) {
 	t.Helper()
 	return testWebWithMFARaw(t, maximumStreams, false, mailers...)
 }
 
-func testWebWithMFA(t *testing.T, maximumStreams int, mfaEnabled bool, mailers ...appmail.Sender) (http.Handler, *identity.Service, *items.Service, identity.WorkspaceID, identity.BootstrapResult) {
+func testWebWithMFA(t *testing.T, maximumStreams int, mfaEnabled bool, mailers ...appmail.Sender) (http.Handler, *identity.Service, identity.WorkspaceID, identity.BootstrapResult) {
 	t.Helper()
 	return testWebConfigured(t, maximumStreams, mfaEnabled, nil, mailers...)
 }
 
-func testWebConfigured(t *testing.T, maximumStreams int, mfaEnabled bool, configure func(*Handler), mailers ...appmail.Sender) (http.Handler, *identity.Service, *items.Service, identity.WorkspaceID, identity.BootstrapResult) {
+func testWebConfigured(t *testing.T, maximumStreams int, mfaEnabled bool, configure func(*Handler), mailers ...appmail.Sender) (http.Handler, *identity.Service, identity.WorkspaceID, identity.BootstrapResult) {
 	t.Helper()
-	webHandler, auth, itemService, workspaceID, owner := testWebWithMFARaw(t, maximumStreams, mfaEnabled, mailers...)
+	webHandler, auth, workspaceID, owner := testWebWithMFARaw(t, maximumStreams, mfaEnabled, mailers...)
 	if configure != nil {
 		configure(webHandler)
 	}
-	return webHandler.Routes(), auth, itemService, workspaceID, owner
+	return webHandler.Routes(), auth, workspaceID, owner
 }
 
-func testWebWithMFARaw(t *testing.T, maximumStreams int, mfaEnabled bool, mailers ...appmail.Sender) (*Handler, *identity.Service, *items.Service, identity.WorkspaceID, identity.BootstrapResult) {
+func testWebWithMFARaw(t *testing.T, maximumStreams int, mfaEnabled bool, mailers ...appmail.Sender) (*Handler, *identity.Service, identity.WorkspaceID, identity.BootstrapResult) {
 	t.Helper()
 	ctx := context.Background()
 	cfg, err := config.LoadFrom(func(string) (string, bool) { return "", false })
@@ -2459,20 +1792,18 @@ func testWebWithMFARaw(t *testing.T, maximumStreams int, mfaEnabled bool, mailer
 	if err != nil {
 		t.Fatal(err)
 	}
-	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace)
 	var mailer appmail.Sender
 	if len(mailers) > 0 {
 		mailer = mailers[0]
 	}
-	webHandler, err := NewHandlerWithServices(auth, itemService,
-		sharing.NewService(db, cfg.Database.Driver, auth),
-		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes, cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService, nil),
+	webHandler, err := NewHandlerWithServices(auth,
+		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes, nil),
 		nil, cfg.HTTP, "", "", mailer)
 	if err != nil {
 		t.Fatal(err)
 	}
-	webHandler.EnableItemsPreferences(listprefs.NewService(db, cfg.Database.Driver, auth))
-	return webHandler, auth, itemService, owner.WorkspaceID, owner
+	webHandler.EnableListPreferences(listprefs.NewService(db, cfg.Database.Driver, auth))
+	return webHandler, auth, owner.WorkspaceID, owner
 }
 
 func testUnbootstrappedWeb(t *testing.T, setupToken string) (http.Handler, *identity.Service) {
@@ -2497,8 +1828,7 @@ func testUnbootstrappedWeb(t *testing.T, setupToken string) (http.Handler, *iden
 	if err != nil {
 		t.Fatal(err)
 	}
-	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace)
-	webHandler, err := NewHandler(auth, itemService, cfg.HTTP, setupToken)
+	webHandler, err := NewHandler(auth, cfg.HTTP, setupToken)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2540,7 +1870,7 @@ func addCookies(request *http.Request, cookies []*http.Cookie) {
 }
 
 func TestMFAPageInvalidChallengeClearsAllChallengeCookies(t *testing.T) {
-	handler, _, _, _, _ := testWebWithMFA(t, 10, true)
+	handler, _, _, _ := testWebWithMFA(t, 10, true)
 	request := httptest.NewRequest(http.MethodGet, "/mfa", nil)
 	request.AddCookie(&http.Cookie{Name: "mfa_challenge", Value: "invalid"})
 	request.AddCookie(&http.Cookie{Name: "mfa_return_to", Value: "/invitations/example"})
@@ -2610,7 +1940,7 @@ func loginWorkspaceUser(t *testing.T, handler http.Handler, email, password stri
 }
 
 func TestWebRootLandsInOldestWorkspaceInSingleMode(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWebConfigured(t, 10, false, func(h *Handler) {
+	handler, auth, workspaceID, owner := testWebConfigured(t, 10, false, func(h *Handler) {
 		h.SetWorkspaceMode(config.WorkspaceModeSingle)
 	})
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
@@ -2627,7 +1957,7 @@ func TestWebRootLandsInOldestWorkspaceInSingleMode(t *testing.T) {
 }
 
 func TestWebRootShowsNoMembershipsInSingleMode(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWebConfigured(t, 10, false, func(h *Handler) {
+	handler, auth, workspaceID, owner := testWebConfigured(t, 10, false, func(h *Handler) {
 		h.SetWorkspaceMode(config.WorkspaceModeSingle)
 	})
 	ctx := context.Background()
@@ -2674,10 +2004,15 @@ func TestWebRootShowsNoMembershipsInSingleMode(t *testing.T) {
 }
 
 func TestWebRootListsWorkspacesInMultiMode(t *testing.T) {
-	handler, _, _, workspaceID, _ := testWebConfigured(t, 10, false, func(h *Handler) {
+	handler, _, workspaceID, _ := testWebConfigured(t, 10, false, func(h *Handler) {
 		h.SetWorkspaceMode(config.WorkspaceModeMulti)
 	})
-	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
+	cookies, csrf := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
+	// A single membership lands in its workspace; the picker needs two to show.
+	second := request(handler, http.MethodPost, "/workspaces", url.Values{"csrf": {csrf}, "name": {"Second"}}, cookies, nil)
+	if second.Code != http.StatusSeeOther {
+		t.Fatalf("seed second workspace = %d", second.Code)
+	}
 	root := request(handler, http.MethodGet, "/", nil, cookies, nil)
 	if root.Code != http.StatusOK || !strings.Contains(root.Body.String(), workspaceID.String()) {
 		t.Fatalf("multi-mode root = %d, %s; want workspace list", root.Code, root.Body.String())
@@ -2685,7 +2020,7 @@ func TestWebRootListsWorkspacesInMultiMode(t *testing.T) {
 }
 
 func TestSingleModeHidesWorkspaceListNavigation(t *testing.T) {
-	handler, _, _, workspaceID, _ := testWebConfigured(t, 10, false, func(h *Handler) {
+	handler, _, workspaceID, _ := testWebConfigured(t, 10, false, func(h *Handler) {
 		h.SetWorkspaceMode(config.WorkspaceModeSingle)
 	})
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
@@ -2708,14 +2043,14 @@ func TestSingleModeHidesWorkspaceListNavigation(t *testing.T) {
 	}
 	for _, path := range []string{"/account", workspaceRoot + "/settings/audit", workspaceRoot + "/settings/export"} {
 		body := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil).Body.String()
-		if !strings.Contains(body, `<a href="`+workspaceRoot+`">Workspaces</a>`) {
-			t.Errorf("%s crumb does not point to the default workspace home in single mode", path)
+		if !strings.Contains(body, `href="`+workspaceRoot+`"`) {
+			t.Errorf("%s no longer links back to the default workspace home in single mode", path)
 		}
 	}
 }
 
 func TestMultiModeKeepsWorkspaceListNavigation(t *testing.T) {
-	handler, _, _, workspaceID, _ := testWebConfigured(t, 10, false, func(h *Handler) {
+	handler, _, workspaceID, _ := testWebConfigured(t, 10, false, func(h *Handler) {
 		h.SetWorkspaceMode(config.WorkspaceModeMulti)
 	})
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")

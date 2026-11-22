@@ -94,10 +94,11 @@ a11y state, JS-hook state, pseudo-content, or structural layout.
 | .brand-mark | kept: gradient logo pseudo-content |
 | .brand-mark::after | kept: gradient logo pseudo-content |
 | a | kept: global link color/tie to brand tokens |
-| main form:not(.inline) > :is(fieldset, input:not([type="hidden"]), select, textarea, .reveal, .strength, .wizard-nav) + button | kept: JS-created (utilities added in JS) |
+| main form:not(.inline) > :is(fieldset, input:not([type="hidden"]), select, textarea, .reveal-box, .strength, .wizard-nav) + button | kept: JS-created (utilities added in JS) |
 | main form .btn | kept: 44px touch height contract (a11y smoke asserts it) |
-| .auth-card .input | kept: iOS zoom guard - 1rem font so Safari does not zoom on focus (auth forms only; rest of app pending measurement) | - 1rem font so Safari does not zoom on focus (auth forms only; rest of app pending measurement) |
-| main form:not(.inline) > button.reveal | kept: JS reveal-toggle layout (width: fit-content so the eye button does not stretch full-width) |
+| .auth-card .input | kept: iOS zoom guard - 1rem font so Safari does not zoom on focus (auth forms only; rest of app pending measurement) |
+| html | kept: root background so the browser chrome (iOS Safari URL bar) tints with --canvas, not system white |
+| .reveal-box, .reveal-box .input, .reveal-box .reveal | kept: JS reveal-toggle overlay - eye inside the password field, absolute at inline-start, height = input height (36px, WCAG 2.5.8 AA pass; raise --size for 44px if a11y smoke demands) |
 | :focus-visible | kept: global a11y focus ring |
 | .items | kept: item list container (JS + tests rely) |
 | #item-list .items form | kept: item list structural block (create form grid, edit form grid areas, share rows) |
@@ -308,3 +309,9 @@ a11y state, JS-hook state, pseudo-content, or structural layout.
 | .client-controls > form | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |
 | .workspace-main .client-page-actions | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |
 | .label | kept: daisyUI label muted color raised from 60% to 70% ink; axe color-contrast fails at 60% (4.21:1 on the light canvas #f3f6fa), 70% passes (5.82:1) while keeping the muted look |
+| a:not(.btn) | kept: global link color tied to accent; anchors that are daisyUI buttons keep their component color (unlayered CSS beats @layer, so the old plain-a rule painted btn text invisible on primary fills) |
+| .status-line | kept: app status paragraphs; renamed from .status because daisyUI ships that name as an indicator-dot component |
+| details.dropdown:not([open]) > .dropdown-content | kept: WebKit closed-panel guard (::details-content unsupported there paints closed menus) |
+| tokens.css `--border` → `--border-color` | renamed: the app token was a color, daisyUI's `--border` is a border *width*. Same `:root` name meant `border: var(--border) solid …` resolved to `border: #ccd3dd solid`, which is invalid, so every daisyUI control lost its outline (0px). Checkbox, radio, toggle, and any control drawn from that variable were invisible. |
+| `.input, .select, .textarea, .checkbox, .radio, .toggle { --input-color: var(--border-color) }` | kept: daisyUI defaults each control's `--input-color` to base-content at 20%, a different grey from the app border. One declaration gives fields, selects, textareas, and selector controls the same outline in both themes. |
+| `.checkbox:checked, .checkbox:indeterminate, .radio:checked` | kept: daisyUI fills `:checked` from `--input-color` and leaves it unset, so a checked box was an unfilled outline with a base-content tick. Accent fill plus on-accent glyph, one rule for every selector control. |

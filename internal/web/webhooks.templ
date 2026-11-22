@@ -13,11 +13,11 @@ import (
 )
 
 templ webhooksPage(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardSettingsNavigation(data)) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
 		<p class="eyebrow">{ data.T("navigation.settings_access") }</p>
 		if data.SelectedWebhook.ID != 0 {
 			<p><a href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks" }>← { data.T("webhooks.back_to_webhooks") }</a></p>
-			<h1>{ data.SelectedWebhook.Name } { data.T("webhooks.delivery_history") }</h1>
+			<h2>{ data.SelectedWebhook.Name } { data.T("webhooks.delivery_history") }</h2>
 			if len(data.WebhookDeliveries) > 0 {
 				@atoms.TableWrap(atoms.TableWrapProps{
 					WrapClass: "table-scroll",

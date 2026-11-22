@@ -7,13 +7,13 @@
 .list-filter-chip-remove:hover, .list-filter-chip-remove:focus-visible { background: var(--accent-surface); color: var(--ink); }
 .list-filter-chips .list-filter-add { padding: 0; border: 0; background: none; }
 .list-filter-connector { color: var(--muted); font-size: .75rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-.client-field-choices { margin: 0 0 .75rem; padding: 0; list-style: none; border-top: 1px solid var(--border); }
-.client-field-choices li { margin: 0; padding: 0; border: 0; border-bottom: 1px solid var(--border); background: none; }
+.client-field-choices { margin: 0 0 .75rem; padding: 0; list-style: none; border-top: 1px solid var(--border-color); }
+.client-field-choices li { margin: 0; padding: 0; border: 0; border-bottom: 1px solid var(--border-color); background: none; }
 .client-field-choices a { display: flex; align-items: center; justify-content: space-between; min-height: 2.5rem; padding: .5rem .25rem; color: var(--ink); text-decoration: none; }
 .client-field-choices a::after { content: "\203a"; color: var(--muted); font-size: 1.1rem; }
 .client-field-choices a:hover { background: var(--accent-surface); }
 .client-field-choices a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.client-step-section { display: grid; gap: .35rem; margin: 0 0 .75rem; padding-top: .75rem; border-top: 1px solid var(--border); }
+.client-step-section { display: grid; gap: .35rem; margin: 0 0 .75rem; padding-top: .75rem; border-top: 1px solid var(--border-color); }
 .client-step-field { margin: 0 0 .25rem; color: var(--ink); font-size: 1rem; font-weight: 700; }
 .client-add-step .select { appearance: auto; }
 .client-step-section:first-of-type { border-top: 0; padding-top: 0; }
@@ -33,7 +33,7 @@
 .client-field-heading > strong { font-size: 1.1rem; }
 .client-field-heading > span { color: var(--muted); }
 .client-field-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: .75rem; margin-top: .75rem; }
-.client-field-options { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+.client-field-options { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color); }
 .client-field-options h3 { margin: 0 0 .5rem; font-size: 1rem; }
 .client-field-option-list { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
 .client-field-option-list button { min-height: 2.5rem; }

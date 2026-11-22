@@ -18,6 +18,8 @@ type localeState struct {
 	acceptLanguage string
 	userTheme      string
 	cookieTheme    string
+	userName       string
+	userEmail      string
 }
 
 type localeWriter struct {
@@ -33,16 +35,18 @@ func (w *localeWriter) Flush() {
 
 func (h *Handler) localeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		userLocale, userTheme := "", ""
+		userLocale, userTheme, userName, userEmail := "", "", "", ""
 		if session, err := h.identity.AuthenticateSession(request.Context(), cookieValue(request, "session")); err == nil {
 			if profile, err := h.identity.GetUserProfile(request.Context(), session.UserID); err == nil {
 				userLocale, userTheme = profile.Locale, profile.Theme
+				userName, userEmail = profile.DisplayName, profile.Email
 			}
 		}
 		request = request.WithContext(context.WithValue(request.Context(), localeContextKey{}, localeState{
 			userLocale: userLocale, cookieLocale: cookieValue(request, "locale"),
 			acceptLanguage: request.Header.Get("Accept-Language"),
 			userTheme:      userTheme, cookieTheme: cookieValue(request, themeCookie),
+			userName: userName, userEmail: userEmail,
 		}))
 		next.ServeHTTP(&localeWriter{ResponseWriter: writer, context: request.Context()}, request)
 	})

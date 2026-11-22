@@ -85,7 +85,7 @@ func authLayout(data viewmodel.PageData, heading string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<main class=\"narrow auth-card card mx-auto w-full max-w-xl my-6 p-6 shadow-xl\" id=\"main\"><div class=\"brand auth-brand\"><span class=\"brand-mark\" aria-hidden=\"true\"></span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<main class=\"narrow auth-card card mx-auto w-[calc(100%-2rem)] max-w-xl my-6 p-6 shadow-xl\" id=\"main\"><div class=\"brand auth-brand\"><span class=\"brand-mark\" aria-hidden=\"true\"></span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -234,7 +234,7 @@ func authLogin(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = molecules.SubmitButton(data.T("account.sign_in"), nil).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButton(data.T("account.sign_in"), templ.Attributes{"class": "w-full"}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -533,7 +533,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = molecules.SubmitButton(data.T("setup.create_owner"), nil).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButton(data.T("setup.create_owner"), templ.Attributes{"class": "w-full"}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -695,7 +695,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = molecules.SubmitButton(data.T("account.reset_password"), nil).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.SubmitButton(data.T("account.reset_password"), templ.Attributes{"class": "w-full"}).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -746,7 +746,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = molecules.SubmitButton(data.T("account.send_reset"), nil).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.SubmitButton(data.T("account.send_reset"), templ.Attributes{"class": "w-full"}).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -925,7 +925,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = molecules.SubmitButton(data.T("security.mfa_verify_code"), nil).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButton(data.T("security.mfa_verify_code"), templ.Attributes{"class": "w-full"}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -982,7 +982,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = molecules.SubmitButton(data.T("security.mfa_use_recovery"), nil).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButton(data.T("security.mfa_use_recovery"), templ.Attributes{"class": "w-full"}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

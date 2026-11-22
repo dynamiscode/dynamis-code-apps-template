@@ -25,7 +25,10 @@
   --warning-border: #d6b656;
   --success: #176b3a;
   --success-surface: #edf8f0;
-  --border: #ccd3dd;
+  --border-color: #ccd3dd;
+  /* daisyUI draws every form control from --input-color. Point it at the app border so inputs,
+     selects, checkboxes, and radios share one outline instead of daisyUI's own faint base-content. */
+  --input-color: var(--border-color);
   --border-strong: #657287;
   --border-muted: #aeb7c5;
   --disabled-surface: #e2e6ec;
@@ -53,7 +56,10 @@
   --warning-border: #7a6226;
   --success: #7fd69a;
   --success-surface: #15301f;
-  --border: #34405a;
+  --border-color: #34405a;
+  /* daisyUI draws every form control from --input-color. Point it at the app border so inputs,
+     selects, checkboxes, and radios share one outline instead of daisyUI's own faint base-content. */
+  --input-color: var(--border-color);
   --border-strong: #7d8aa0;
   --border-muted: #4a5670;
   --disabled-surface: #2a3344;
@@ -81,7 +87,10 @@
     --warning-border: #7a6226;
     --success: #7fd69a;
     --success-surface: #15301f;
-    --border: #34405a;
+    --border-color: #34405a;
+  /* daisyUI draws every form control from --input-color. Point it at the app border so inputs,
+     selects, checkboxes, and radios share one outline instead of daisyUI's own faint base-content. */
+  --input-color: var(--border-color);
     --border-strong: #7d8aa0;
     --border-muted: #4a5670;
     --disabled-surface: #2a3344;

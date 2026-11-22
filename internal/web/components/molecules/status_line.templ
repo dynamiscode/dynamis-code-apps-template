@@ -4,5 +4,5 @@ package molecules
 
 // StatusLine is a polite or plain status message; attrs adds live-region ids.
 templ StatusLine(text string, attrs templ.Attributes) {
-	<p class="status" role="status" { attrs... }>{ text }</p>
+	<p class="status-line" role="status" { attrs... }>{ text }</p>
 }

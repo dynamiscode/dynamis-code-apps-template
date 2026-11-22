@@ -1,40 +1,9 @@
 package web
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
-
-templ publicSharePage(data viewmodel.PageData) {
-	<!doctype html>
-	<html lang={ data.Locale } if data.Theme != "system" { data-theme={ data.Theme } }>
-		<head>
-			@templates.PageHead(data, data.T(publicShareTitleKey(data)))
-		</head>
-		<body x-data="pageBehaviors">
-			@molecules.SkipLink(data)
-			<main class="narrow public-share-card card bg-base-100 shadow" id="main">
-				<p class="eyebrow">{ data.T("common.product_name") }</p>
-				<h1>{ data.T(publicShareTitleKey(data)) }</h1>
-				if data.Error != "" {
-					@molecules.ErrorAlert(data.T("sharing.unavailable_detail"))
-				} else {
-					<p class="status">{ data.T("sharing.scope_public") }</p>
-					<dl class="public-share-details">
-						<div><dt>{ data.T("sharing.title") }</dt><dd>{ data.PublicItem.Title }</dd></div>
-						<div>
-							<dt>{ data.T("sharing.status") }</dt>
-							<dd>{ data.T(publicShareStatusKey(data.PublicItem.Status)) }</dd>
-						</div>
-					</dl>
-				}
-			</main>
-		<script defer src="/assets/alpine-components.js"></script>
-		<script defer src="/assets/js/alpine.min.js"></script>
-		</body>
-	</html>
-}
 
 templ mcpConsentPage(data viewmodel.PageData) {
 	@authLayout(data, data.T("oauth.consent_title")) {
@@ -70,7 +39,7 @@ templ mcpConsentPage(data viewmodel.PageData) {
 						Options:  consentWorkspaceOptions(consent.Workspaces),
 					})
 				</fieldset>
-				<p class="status">{ data.T("oauth.consent_help") } { data.T("oauth.consent_scope_note") }</p>
+				<p class="status-line">{ data.T("oauth.consent_help") } { data.T("oauth.consent_scope_note") }</p>
 				<div class="consent-actions">
 					@atoms.Button(atoms.ButtonProps{
 						Class: "btn-primary",
@@ -93,20 +62,6 @@ templ errorPage(data viewmodel.PageData) {
 		@molecules.ErrorAlert(data.Error)
 		<p><a href="/">{ data.T("navigation.home") }</a></p>
 	}
-}
-
-func publicShareTitleKey(data viewmodel.PageData) string {
-	if data.Error != "" {
-		return "sharing.unavailable"
-	}
-	return "sharing.shared_item"
-}
-
-func publicShareStatusKey(status string) string {
-	if status == "complete" {
-		return "items.complete"
-	}
-	return "items.active"
 }
 
 func mcpScopeKey(scope string) string {

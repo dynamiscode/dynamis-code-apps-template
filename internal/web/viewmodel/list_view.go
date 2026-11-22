@@ -39,6 +39,13 @@ const (
 	CellStatus
 )
 
+// ListHasContent reports whether a list shows rows or carries an active
+// query; empty-state chrome (search, views, filters, pagination) hides until
+// it does, so an empty list teaches instead of offering controls for nothing.
+func (p PageData) ListHasContent() bool {
+	return p.ListTotal > 0 || p.HasClientFilters || p.ListSearch != ""
+}
+
 // ListCell is one cell. Text is the stored value and the badge class suffix. At and On hold the typed value for
 // time and yes/no cells.
 type ListCell struct {
