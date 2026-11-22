@@ -51,16 +51,19 @@ count-dependent product message requires it.
 ## Feature completeness
 
 For every feature, record its shared application behavior, authorization
-boundary, and applicable surfaces before implementation:
+boundary, and applicable surfaces before implementation. Implement eligible
+REST, CLI, MCP, and WebMCP actions by default; record a concrete reason for
+each omission. Respect profile boundaries and existing security exclusions.
 
 - browser: routes, templates, CSRF, accessible controls, and ordinary-form
   fallback;
-- browser-agent (WebMCP): decide whether assistance helps, define one-purpose
-  bounded schemas, exclude secrets and hidden security fields, preserve
-  ordinary-form fallback, and test supported and unsupported browsers;
+- browser-agent (WebMCP): for eligible page actions, follow the
+  [WebMCP contract](web.md#webmcp-progressive-enhancement), including its
+  security exclusions, visible controls, ordinary-form fallback, and tests;
 - REST/OpenAPI: bearer authorization, generated contract, limits, errors, and
   response redaction;
-- CLI/MCP: only when automation needs the capability, using shared use cases;
+- CLI/MCP: expose eligible actions in the Agent profile; CLI calls REST and
+  MCP calls shared application use cases;
 - realtime: only when clients need change delivery, with scope and reconnect
   semantics;
 - operations/data: persistence, migrations, export, retention, deletion, and
