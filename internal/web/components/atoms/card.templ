@@ -37,6 +37,9 @@ type ListCardProps struct {
 
 templ ListCard(props ListCardProps) {
 	<li class={ "card", props.Class }>
-		<a href={ templ.SafeURL(props.Href) } class="grid content-start gap-2"><strong>{ props.Title }</strong><span>{ props.Description }</span></a>
+		<a href={ templ.SafeURL(props.Href) } class="flex items-start justify-between gap-3">
+			<span class="grid content-start gap-2"><strong>{ props.Title }</strong><span>{ props.Description }</span></span>
+			<span class="text-2xl leading-none text-base-content/40 select-none" aria-hidden="true">›</span>
+		</a>
 	</li>
 }

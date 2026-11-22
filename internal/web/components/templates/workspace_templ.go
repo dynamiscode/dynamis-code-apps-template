@@ -10,6 +10,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 func DashboardShell(data viewmodel.PageData, header, navigation templ.Component) templ.Component {
@@ -37,7 +38,7 @@ func DashboardShell(data viewmodel.PageData, header, navigation templ.Component)
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.Locale).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/templates/workspace.templ`, Line: 8, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/templates/workspace.templ`, Line: 9, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -55,7 +56,7 @@ func DashboardShell(data viewmodel.PageData, header, navigation templ.Component)
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.Theme).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/templates/workspace.templ`, Line: 8, Col: 79}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/templates/workspace.templ`, Line: 9, Col: 79}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
@@ -128,7 +129,7 @@ func DashboardShell(data viewmodel.PageData, header, navigation templ.Component)
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.NavPage).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/templates/workspace.templ`, Line: 18, Col: 340}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/templates/workspace.templ`, Line: 19, Col: 340}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 				if templ_7745c5c3_Err != nil {
@@ -158,33 +159,7 @@ func DashboardShell(data viewmodel.PageData, header, navigation templ.Component)
 			return templ_7745c5c3_Err
 		}
 		if navigation != nil {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<div class=\"drawer lg:drawer-open\"><input id=\"app-drawer\" type=\"checkbox\" class=\"drawer-toggle\" aria-hidden=\"true\" tabindex=\"-1\"><div class=\"drawer-content flex min-h-screen flex-col\"><nav class=\"border-b border-base-200 bg-base-100 py-1 pl-2 lg:hidden\" aria-label=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var7 string
-			templ_7745c5c3_Var7, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("ui.open_navigation")).Resolve(ctx)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/templates/workspace.templ`, Line: 24, Col: 117}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "\"><button type=\"button\" class=\"btn btn-ghost btn-square drawer-button\" aria-label=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var8 string
-			templ_7745c5c3_Var8, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("ui.open_navigation")).Resolve(ctx)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/templates/workspace.templ`, Line: 25, Col: 117}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\" @click=\"toggleDrawer\">&#9776;</button></nav>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<div class=\"drawer lg:drawer-open\"><input id=\"app-drawer\" type=\"checkbox\" class=\"drawer-toggle\" aria-hidden=\"true\" tabindex=\"-1\"><div class=\"drawer-content flex min-h-screen flex-col\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -192,7 +167,7 @@ func DashboardShell(data viewmodel.PageData, header, navigation templ.Component)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<main id=\"main\" class=\"workspace-main flex-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<main id=\"main\" class=\"workspace-main flex-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -200,7 +175,15 @@ func DashboardShell(data viewmodel.PageData, header, navigation templ.Component)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</main></div><div class=\"drawer-side z-40\"><button type=\"button\" class=\"drawer-overlay\" tabindex=\"-1\" aria-hidden=\"true\" @click=\"toggleDrawer\"></button><div class=\"min-h-full w-64 border-r border-base-200 bg-base-100 p-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</main></div><div class=\"drawer-side z-40\"><button type=\"button\" class=\"drawer-overlay\" tabindex=\"-1\" aria-hidden=\"true\" @click=\"toggleDrawer\"></button><div class=\"min-h-full w-64 border-r border-base-200 bg-base-100 p-4\"><div class=\"mb-3 border-b border-base-200 pb-3\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = organisms.WorkspaceContext(data).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -208,7 +191,7 @@ func DashboardShell(data viewmodel.PageData, header, navigation templ.Component)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</div></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</div></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -217,7 +200,7 @@ func DashboardShell(data viewmodel.PageData, header, navigation templ.Component)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<main id=\"main\" class=\"workspace-main\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<main id=\"main\" class=\"workspace-main\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -225,12 +208,12 @@ func DashboardShell(data viewmodel.PageData, header, navigation templ.Component)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</main>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</main>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

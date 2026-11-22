@@ -65,11 +65,6 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		t.Fatal(err)
 	}
 	exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", workspaceID, userKey, "owner", old)
-	var itemOld int64
-	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO items (workspace_id, created_by_user_id, title, status, version, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`), workspaceID, userKey, "Old", "active", 1, old, old).Scan(&itemOld); err != nil {
-		t.Fatal(err)
-	}
 	exec(`INSERT INTO sessions (id, user_id, secret_hash, csrf_hash, auth_method, created_at, expires_at, revoked_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "session-old", userKey, "session-secret", "csrf", "local", old, future, old)
 	// Invitation and token keys are integers assigned by the database.
@@ -81,7 +76,7 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	exec(`INSERT INTO invitation_return_handoffs (token_hash, binding_hash, invitation_id, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?)`, "handoff-token-hash", "handoff-binding-hash", invitationID, old, old)
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO api_tokens (user_id, workspace_id, name, secret_hash, scopes, created_at, revoked_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`), userKey, workspaceID, "old", "token-secret", "items:read", old, old).Scan(&tokenID); err != nil {
+		VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`), userKey, workspaceID, "old", "token-secret", "clients:read", old, old).Scan(&tokenID); err != nil {
 		t.Fatal(err)
 	}
 	var scimOldID int64
@@ -100,11 +95,6 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		VALUES (?, ?, ?, ?, ?)`, "reset-old", userKey, "reset-secret", old, old)
 	exec(`INSERT INTO idempotency_records (key_hash, principal_kind, principal_key, workspace_id, operation, request_hash, result_json, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, "key-old", "user", int64(userKey), workspaceID, "create", "request", "{}", old, old)
-	var eventOldID int64
-	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO item_events (workspace_id, item_id, event_type, item_version, occurred_at)
-		VALUES (?, ?, ?, ?, ?) RETURNING id`), workspaceID, itemOld, "deleted", 1, old).Scan(&eventOldID); err != nil {
-		t.Fatal(err)
-	}
 	var clientEventOldID int64
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO client_events (workspace_id, client_id, event_type, client_version, occurred_at)
 		VALUES (?, ?, ?, ?, ?) RETURNING id`), workspaceID, 1, "created", 1, old).Scan(&clientEventOldID); err != nil {
@@ -117,25 +107,19 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}
 	var webhookID, eventKey, deliveryID int64
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO webhooks (workspace_id, name, url, secret_ciphertext, events, created_at)
-		VALUES (?, ?, ?, ?, ?, ?) RETURNING id`), workspaceID, "old", "https://example.com/hook", "ciphertext", "[\"item.created\"]", old).Scan(&webhookID); err != nil {
+		VALUES (?, ?, ?, ?, ?, ?) RETURNING id`), workspaceID, "old", "https://example.com/hook", "ciphertext", "[\"client.created\"]", old).Scan(&webhookID); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO webhook_events (workspace_id, event_type, created_at)
-		VALUES (?, ?, ?) RETURNING id`), workspaceID, "item.created", old).Scan(&eventKey); err != nil {
+		VALUES (?, ?, ?) RETURNING id`), workspaceID, "client.created", old).Scan(&eventKey); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO webhook_deliveries (webhook_id, event_id, event_type, payload, attempt_count, status, next_attempt_at, created_at, delivered_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`), webhookID, eventKey, "item.created", "{}", 1, "delivered", nil, old, old).Scan(&deliveryID); err != nil {
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`), webhookID, eventKey, "client.created", "{}", 1, "delivered", nil, old, old).Scan(&deliveryID); err != nil {
 		t.Fatal(err)
 	}
 	exec(`INSERT INTO background_jobs (workspace_id, kind, deduplication_key, payload, status, attempt_count, available_at, completed_at, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, workspaceID, "webhook.delivery", strconv.FormatInt(deliveryID, 10), "{}", "succeeded", 1, old, old, old)
-	var publicLinkOldID int64
-	if err := db.QueryRowContext(ctx, database.Rebind(driver, `INSERT INTO public_links (workspace_id, item_id, token_hash, created_at, expires_at, revoked_at)
-		VALUES (?, ?, ?, ?, ?, ?)
-		RETURNING id`), workspaceID, itemOld, "public-hash", old, old, old).Scan(&publicLinkOldID); err != nil {
-		t.Fatal(err)
-	}
 	exec(`INSERT INTO audit_events (event_type, auth_method, target_type, action, outcome, metadata, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`, "old", "system", "instance", "test", "success", "{}", old)
 
@@ -146,7 +130,7 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if result.Sessions < 1 || result.Invitations < 1 || result.APITokens < 1 || result.SCIMTokens < 1 || result.EmailVerifications < 1 || result.PasswordResets < 1 || result.InvitationHandoffs < 1 || result.Notifications < 1 ||
 		result.MFAChallenges < 1 ||
 		result.OIDCTransactions < 1 || result.Idempotency < 1 ||
-		result.RealtimeReplay < 1 || result.ClientRealtimeReplay < 1 || result.WebhookDeliveries < 1 || result.BackgroundJobs < 1 || result.PublicLinks < 1 || result.AuditEvents < 1 {
+		result.ClientRealtimeReplay < 1 || result.WebhookDeliveries < 1 || result.BackgroundJobs < 1 || result.AuditEvents < 1 {
 		t.Fatalf("Run() result = %+v", result)
 	}
 	for table, key := range map[string]any{
@@ -154,10 +138,9 @@ func testRetention(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		"invitation_return_handoffs": "handoff-token-hash",
 		"api_tokens":                 tokenID, "scim_tokens": scimOldID, "oidc_transactions": "state-old",
 		"mfa_challenges":      "mfa-challenge-old",
-		"idempotency_records": "key-old", "item_events": eventOldID, "client_events": clientEventOldID,
+		"idempotency_records": "key-old", "client_events": clientEventOldID,
 		"notifications":       notificationOldID,
 		"email_verifications": "verification-old", "password_resets": "reset-old",
-		"public_links": publicLinkOldID,
 	} {
 		var count int
 		column := "id"

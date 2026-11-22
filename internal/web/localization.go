@@ -18,6 +18,8 @@ type localeState struct {
 	acceptLanguage string
 	userTheme      string
 	cookieTheme    string
+	userName       string
+	userEmail      string
 }
 
 type localeWriter struct {
@@ -33,16 +35,18 @@ func (w *localeWriter) Flush() {
 
 func (h *Handler) localeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		userLocale, userTheme := "", ""
+		userLocale, userTheme, userName, userEmail := "", "", "", ""
 		if session, err := h.identity.AuthenticateSession(request.Context(), cookieValue(request, "session")); err == nil {
 			if profile, err := h.identity.GetUserProfile(request.Context(), session.UserID); err == nil {
 				userLocale, userTheme = profile.Locale, profile.Theme
+				userName, userEmail = profile.DisplayName, profile.Email
 			}
 		}
 		request = request.WithContext(context.WithValue(request.Context(), localeContextKey{}, localeState{
 			userLocale: userLocale, cookieLocale: cookieValue(request, "locale"),
 			acceptLanguage: request.Header.Get("Accept-Language"),
 			userTheme:      userTheme, cookieTheme: cookieValue(request, themeCookie),
+			userName: userName, userEmail: userEmail,
 		}))
 		next.ServeHTTP(&localeWriter{ResponseWriter: writer, context: request.Context()}, request)
 	})
@@ -85,38 +89,21 @@ func localizedLegacy(catalog *i18n.Catalog, locale i18n.Locale, value string) st
 		"Workspaces":     "workspace.workspaces",
 		"Workspace home": "workspace.home", "Members": "members.members",
 		"Invitations": "invitations.invitations", "API tokens": "tokens.tokens",
-		"Sessions": "sessions.sessions", "Security": "security.security", "Multi-factor authentication": "security.mfa_title", "Export": "navigation.export", "Import": "navigation.import", "Audit history": "audit.history",
+		"Sessions": "sessions.sessions", "Security": "security.security", "Multi-factor authentication": "security.mfa_title", "Export": "navigation.export", "Audit history": "audit.history",
 		"Account": "account.account", "Notifications": "notifications.notifications",
 		"Reset password": "account.reset_password", "Choose a new password": "account.new_password",
 		"Password reset": "account.reset_password", "Email verification": "account.email_verification",
 		"Language settings": "account.language_settings_title", "General workspace settings": "workspace.general_settings", "SCIM provisioning": "scim.title",
 		"Workspace invitation": "invitations.workspace_invitation",
-		"Shared item":          "sharing.shared_item", "Shared item unavailable": "sharing.unavailable",
-		"This shared item is unavailable.":                      "sharing.unavailable_detail",
-		"The public link expiration is invalid.":                "sharing.error_expiration",
-		"The public link could not be created.":                 "sharing.error_create",
-		"The public link could not be revoked.":                 "sharing.error_revoke",
-		"The public link action is invalid.":                    "sharing.error_action",
 		"The identity provider sign-in could not be completed.": "errors.oidc_signin",
 		"Invitation unavailable":                                "errors.invalid_invitation", "Request failed": "errors.request_failed",
-		"The request could not be completed.":                                   "errors.generic",
-		"The import file is invalid.":                                           "errors.import_file",
-		"The import file exceeds the configured limit or workspace item quota.": "errors.import_limit",
-		"The import file exceeds the configured limit.":                         "errors.import_size",
-		"Confirm that you understand this bulk import.":                         "errors.import_confirmation",
-		"Choose a .json or .csv import file.":                                   "errors.import_format",
-		"The import action is invalid.":                                         "errors.invalid_import_action",
-		"The selected file differs from the preview. Preview it again.":         "errors.import_preview_mismatch",
-		"The sign-in form expired. Reload and try again.":                       "errors.signin_expired",
-		"The setup form expired. Reload and try again.":                         "errors.setup_expired",
-		"The setup token is invalid.":                                           "errors.setup_token", "The passwords do not match.": "errors.password_mismatch",
-		"Enter a valid email, workspace name, and password.":         "errors.invalid_bootstrap",
-		"The email or password is invalid.":                          "errors.invalid_credentials",
-		"The item version is invalid. Reload and try again.":         "errors.invalid_item_version",
-		"The requested item action is invalid.":                      "errors.invalid_item_action",
-		"This item changed. Review the current value and try again.": "errors.item_changed",
-		"The item values are invalid.":                               "errors.invalid_item", "The workspace item limit was reached. Delete an item before retrying.": "errors.item_limit",
-		"The member role is invalid.": "errors.invalid_role", "The member action could not be completed.": "errors.member_action",
+		"The request could not be completed.":             "errors.generic",
+		"The sign-in form expired. Reload and try again.": "errors.signin_expired",
+		"The setup form expired. Reload and try again.":   "errors.setup_expired",
+		"The setup token is invalid.":                     "errors.setup_token", "The passwords do not match.": "errors.password_mismatch",
+		"Enter a valid email, workspace name, and password.": "errors.invalid_bootstrap",
+		"The email or password is invalid.":                  "errors.invalid_credentials",
+		"The member role is invalid.":                        "errors.invalid_role", "The member action could not be completed.": "errors.member_action",
 		"The final owner cannot be changed.": "errors.final_owner", "The invitation lifetime is invalid.": "errors.invalid_lifetime",
 		"The invitation could not be created.": "errors.invitation_create", "The invitation could not be resent.": "errors.invitation_resend",
 		"The invitation could not be revoked.": "errors.invitation_revoke", "The invitation could not be found.": "errors.invitation_not_found",
@@ -149,7 +136,6 @@ func localizedLegacy(catalog *i18n.Catalog, locale i18n.Locale, value string) st
 		"Verification email could not be delivered. Try again later.": "errors.verification_delivery",
 		"The notification preference is invalid.":                     "errors.notification_preference",
 		"The password reset form expired. Reload and try again.":      "errors.password_reset_expired",
-		"Enter a title between 1 and 200 characters.":                 "items.invalid_title",
 		"Not Found": "errors.not_found", "Unauthorized": "errors.unauthorized",
 		"Forbidden": "errors.forbidden", "Too Many Requests": "errors.too_many_requests",
 		"The invitation is invalid or the password could not be accepted.":                         "errors.invitation_password",

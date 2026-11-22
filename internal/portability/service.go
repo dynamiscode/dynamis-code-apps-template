@@ -1,43 +1,30 @@
 package portability
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
-	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"strings"
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 var (
-	ErrLimit         = errors.New("workspace export limit reached")
-	ErrImportLimit   = errors.New("workspace import limit reached")
-	ErrInvalidImport = errors.New("workspace import is invalid")
+	ErrLimit = errors.New("workspace export limit reached")
 )
 
 const FormatVersion = "dynamis-code.workspace/v1"
 
-const (
-	importPreviewSampleLimit = 5
-	importPreviewIssueLimit  = 10
-)
-
 type Export struct {
-	FormatVersion string       `json:"formatVersion"`
-	ExportedAt    time.Time    `json:"exportedAt"`
-	Workspace     Workspace    `json:"workspace"`
-	Members       []Member     `json:"members"`
-	Items         []items.Item `json:"items"`
+	FormatVersion string    `json:"formatVersion"`
+	ExportedAt    time.Time `json:"exportedAt"`
+	Workspace     Workspace `json:"workspace"`
+	Members       []Member  `json:"members"`
 	// ClientExport adds the additive client keys. It is nil, and the keys are
 	// absent, unless a ClientSource is wired (the Clients profile).
 	*ClientExport
@@ -131,16 +118,13 @@ type AuditEvent struct {
 }
 
 type Service struct {
-	db               *sql.DB
-	driver           config.DatabaseDriver
-	identity         *identity.Service
-	items            *items.Service
-	clients          ClientSource
-	maxRecords       int
-	maxBytes         int
-	maxImportRecords int
-	maxImportBytes   int
-	now              func() time.Time
+	db         *sql.DB
+	driver     config.DatabaseDriver
+	identity   *identity.Service
+	clients    ClientSource
+	maxRecords int
+	maxBytes   int
+	now        func() time.Time
 }
 
 // NewService takes clients as the client section source for exports. Apps
@@ -151,247 +135,13 @@ func NewService(
 	identityService *identity.Service,
 	maxRecords int,
 	maxBytes int,
-	maxImportRecords int,
-	maxImportBytes int,
-	itemService *items.Service,
 	clients ClientSource,
 ) *Service {
 	return &Service{
-		db: db, driver: driver, identity: identityService, items: itemService,
+		db: db, driver: driver, identity: identityService,
 		maxRecords: maxRecords, maxBytes: maxBytes,
-		maxImportRecords: maxImportRecords, maxImportBytes: maxImportBytes,
 		clients: clients, now: time.Now,
 	}
-}
-
-type ImportInput struct {
-	Format string
-	Reader io.Reader
-}
-
-type ImportResult struct {
-	Imported int `json:"imported"`
-}
-
-type ImportIssue struct {
-	Record int
-	Field  string
-}
-
-type ImportPreview struct {
-	RecordCount int
-	Sample      []items.ImportItem
-	Issues      []ImportIssue
-	IssueCount  int
-}
-
-func (s *Service) Preview(
-	ctx context.Context,
-	actor identity.Principal,
-	workspaceID identity.WorkspaceID,
-	input ImportInput,
-) (ImportPreview, error) {
-	if _, err := s.identity.AuthorizePrincipal(ctx, actor, workspaceID, identity.WorkspaceUpdate); err != nil {
-		return ImportPreview{}, identity.ErrForbidden
-	}
-	records, issues, err := s.parseImportPreview(input)
-	if err != nil {
-		return ImportPreview{}, err
-	}
-	preview := ImportPreview{RecordCount: len(records), IssueCount: len(issues)}
-	preview.Sample = records[:min(len(records), importPreviewSampleLimit)]
-	preview.Issues = issues[:min(len(issues), importPreviewIssueLimit)]
-	return preview, nil
-}
-
-func (s *Service) Import(
-	ctx context.Context,
-	actor identity.Principal,
-	workspaceID identity.WorkspaceID,
-	input ImportInput,
-	audit identity.AuditContext,
-) (ImportResult, error) {
-	records, err := s.parseImport(input)
-	if err != nil {
-		s.recordImportFailure(ctx, actor, workspaceID, input.Format, audit)
-		return ImportResult{}, err
-	}
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
-	if err != nil {
-		return ImportResult{}, err
-	}
-	defer tx.Rollback()
-	if _, err := s.identity.AuthorizePrincipalInTx(
-		ctx, tx, actor, workspaceID, identity.WorkspaceUpdate,
-	); err != nil {
-		return ImportResult{}, identity.ErrForbidden
-	}
-	created, err := s.items.ImportInTx(ctx, tx, actor, workspaceID, records, s.now())
-	if err != nil {
-		if errors.Is(err, items.ErrLimit) && s.recordImportAudit(
-			ctx, tx, actor, workspaceID, "failure", input.Format, len(records), audit,
-		) == nil {
-			_ = tx.Commit()
-		}
-		return ImportResult{}, err
-	}
-	if err := s.recordImportAudit(
-		ctx, tx, actor, workspaceID, "success", input.Format, len(created), audit,
-	); err != nil {
-		return ImportResult{}, err
-	}
-	if err := tx.Commit(); err != nil {
-		return ImportResult{}, err
-	}
-	return ImportResult{Imported: len(created)}, nil
-}
-
-func (s *Service) parseImport(input ImportInput) ([]items.ImportItem, error) {
-	records, issues, err := s.parseImportPreview(input)
-	if err != nil {
-		return nil, err
-	}
-	if len(issues) > 0 {
-		return nil, ErrInvalidImport
-	}
-	return records, nil
-}
-
-func (s *Service) parseImportPreview(input ImportInput) ([]items.ImportItem, []ImportIssue, error) {
-	if input.Reader == nil || (input.Format != "application/json" && input.Format != "text/csv") {
-		return nil, nil, ErrInvalidImport
-	}
-	encoded, err := io.ReadAll(io.LimitReader(input.Reader, int64(s.maxImportBytes)+1))
-	if err != nil {
-		return nil, nil, ErrInvalidImport
-	}
-	if len(encoded) > s.maxImportBytes {
-		return nil, nil, ErrImportLimit
-	}
-	var records []items.ImportItem
-	switch input.Format {
-	case "application/json":
-		var document Export
-		decoder := json.NewDecoder(bytes.NewReader(encoded))
-		decoder.DisallowUnknownFields()
-		if err := decoder.Decode(&document); err != nil || document.FormatVersion != FormatVersion {
-			return nil, nil, ErrInvalidImport
-		}
-		if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-			return nil, nil, ErrInvalidImport
-		}
-		records = make([]items.ImportItem, 0, len(document.Items))
-		for _, item := range document.Items {
-			records = append(records, items.ImportItem{Title: item.Title, Status: item.Status})
-		}
-	case "text/csv":
-		var issues []ImportIssue
-		records, issues, err = parseCSVPreview(encoded)
-		if err != nil {
-			return nil, nil, err
-		}
-		return s.normalizeImportPreview(records, issues)
-	}
-	if len(records) == 0 || len(records) > s.maxImportRecords {
-		return nil, nil, ErrImportLimit
-	}
-	return s.normalizeImportPreview(records, nil)
-}
-
-func (s *Service) normalizeImportPreview(records []items.ImportItem, issues []ImportIssue) ([]items.ImportItem, []ImportIssue, error) {
-	if len(records) == 0 || len(records) > s.maxImportRecords {
-		return nil, nil, ErrImportLimit
-	}
-	invalidRows := make(map[int]struct{}, len(issues))
-	for _, issue := range issues {
-		invalidRows[issue.Record] = struct{}{}
-	}
-	for i, record := range records {
-		if _, invalid := invalidRows[i+1]; invalid {
-			continue
-		}
-		normalized, err := items.NormalizeImportItem(record)
-		if err == nil {
-			records[i] = normalized
-			continue
-		}
-		field := "status"
-		if _, titleErr := items.NormalizeImportItem(items.ImportItem{Title: record.Title, Status: items.Active}); titleErr != nil {
-			field = "title"
-		}
-		issues = append(issues, ImportIssue{Record: i + 1, Field: field})
-	}
-	return records, issues, nil
-}
-
-func parseCSVPreview(encoded []byte) ([]items.ImportItem, []ImportIssue, error) {
-	reader := csv.NewReader(bytes.NewReader(encoded))
-	reader.FieldsPerRecord = -1
-	header, err := reader.Read()
-	if err != nil || len(header) != 2 || header[0] != "title" || header[1] != "status" {
-		return nil, nil, ErrInvalidImport
-	}
-	result := make([]items.ImportItem, 0)
-	issues := make([]ImportIssue, 0)
-	for {
-		row, err := reader.Read()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return nil, nil, ErrInvalidImport
-		}
-		if len(row) != 2 {
-			result = append(result, items.ImportItem{})
-			issues = append(issues, ImportIssue{Record: len(result), Field: "row"})
-			continue
-		}
-		result = append(result, items.ImportItem{
-			Title: row[0], Status: items.Status(strings.TrimSpace(row[1])),
-		})
-	}
-	return result, issues, nil
-}
-
-func (s *Service) recordImportFailure(
-	ctx context.Context,
-	actor identity.Principal,
-	workspaceID identity.WorkspaceID, format string,
-	audit identity.AuditContext,
-) {
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
-	if err != nil {
-		return
-	}
-	defer tx.Rollback()
-	if _, err := s.identity.AuthorizePrincipalInTx(
-		ctx, tx, actor, workspaceID, identity.WorkspaceUpdate,
-	); err != nil {
-		return
-	}
-	if err := s.recordImportAudit(
-		ctx, tx, actor, workspaceID, "failure", format, 0, audit,
-	); err == nil {
-		_ = tx.Commit()
-	}
-}
-
-func (s *Service) recordImportAudit(
-	ctx context.Context,
-	tx *sql.Tx,
-	actor identity.Principal,
-	workspaceID identity.WorkspaceID, outcome, format string,
-	records int,
-	audit identity.AuditContext,
-) error {
-	return s.identity.RecordAuditInTx(ctx, tx, identity.AuditEvent{
-		EventType: "workspace.imported", ActorUserID: actor.UserID,
-		AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID,
-		TargetType: "workspace", TargetKey: int64(workspaceID), Action: "workspace.import",
-		Outcome: outcome, RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
-		Metadata:  fmt.Sprintf(`{"format":%q,"records":%d}`, format, records),
-		CreatedAt: s.now().UTC(),
-	})
 }
 
 func (s *Service) Export(
@@ -412,7 +162,7 @@ func (s *Service) Export(
 	}
 	result := Export{
 		FormatVersion: FormatVersion, ExportedAt: s.now().UTC(),
-		Members: []Member{}, Items: []items.Item{}, AuditEvents: []AuditEvent{},
+		Members: []Member{}, AuditEvents: []AuditEvent{},
 		Excluded: []string{
 			"credentials", "sessions", "apiTokens", "externalIdentities",
 			"invitations", "oidcTransactions", "idempotencyRecords", "realtimeReplay",
@@ -435,9 +185,6 @@ func (s *Service) Export(
 	if result.Members, err = s.members(ctx, tx, workspaceID); err != nil {
 		return nil, err
 	}
-	if result.Items, err = s.itemRecords(ctx, tx, workspaceID); err != nil {
-		return nil, err
-	}
 	if s.clients != nil {
 		section, err := s.clients.ExportClients(ctx, tx, workspaceID, s.maxRecords+1)
 		if err != nil {
@@ -448,7 +195,7 @@ func (s *Service) Export(
 	if result.AuditEvents, err = s.auditEvents(ctx, tx, workspaceID); err != nil {
 		return nil, err
 	}
-	records := 1 + len(result.Members) + len(result.Items) + len(result.AuditEvents)
+	records := 1 + len(result.Members) + len(result.AuditEvents)
 	if result.ClientExport != nil {
 		records += len(result.Clients) + len(result.ClientFields) + len(result.ClientFieldOptions)
 	}
@@ -492,44 +239,6 @@ func (s *Service) members(ctx context.Context, tx *sql.Tx, workspaceID identity.
 			return nil, err
 		}
 		value.CreatedAt, err = parseTime(createdAt)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, value)
-	}
-	return result, rows.Err()
-}
-
-func (s *Service) itemRecords(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID) ([]items.Item, error) {
-	rows, err := tx.QueryContext(ctx, s.bind(`
-		SELECT id, workspace_id, created_by_user_id, title, status,
-			version, created_at, updated_at
-		FROM items WHERE workspace_id = ? ORDER BY created_at, id LIMIT ?
-	`), workspaceID, s.maxRecords+1)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	result := make([]items.Item, 0)
-	for rows.Next() {
-		var value items.Item
-		var createdByUserID sql.NullInt64
-		var createdAt, updatedAt string
-		if err := rows.Scan(
-			&value.ID, &value.WorkspaceID, &createdByUserID, &value.Title,
-			&value.Status, &value.Version, &createdAt, &updatedAt,
-		); err != nil {
-			return nil, err
-		}
-		if createdByUserID.Valid {
-			creator := identity.UserID(createdByUserID.Int64)
-			value.CreatedByUserID = &creator
-		}
-		value.CreatedAt, err = parseTime(createdAt)
-		if err != nil {
-			return nil, err
-		}
-		value.UpdatedAt, err = parseTime(updatedAt)
 		if err != nil {
 			return nil, err
 		}

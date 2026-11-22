@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -15,7 +14,6 @@ type nativeWebMCP struct {
 	Error     string   `json:"error"`
 	Names     []string `json:"names"`
 	Redacted  bool     `json:"redacted"`
-	Schema    bool     `json:"schema"`
 }
 
 type exportNativeResult struct {
@@ -26,7 +24,7 @@ type exportNativeResult struct {
 }
 
 // runWebMCP is the Go port of scripts/webmcp.mjs: it checks the ordinary
-// browser fallback on the items and export pages, then the native WebMCP tools
+// browser fallback on the export page, then the native WebMCP tools
 // when the browser exposes document.modelContext.
 func runWebMCP() error {
 	base := os.Getenv("WEBMCP_BASE_URL")
@@ -69,7 +67,10 @@ func runWebMCPChrome(label, base, email, password string) error {
 	if err := b.click(`button[type="submit"]`); err != nil {
 		return err
 	}
-	if err := b.waitURL(base + "/"); err != nil {
+	if err := b.waitUntil(`location.pathname === "/" || /^\/workspaces\/[^/]+$/.test(location.pathname)`); err != nil {
+		return err
+	}
+	if err := b.goTo(base + "/"); err != nil {
 		return err
 	}
 	if err := b.click(".cards a"); err != nil {
@@ -78,98 +79,39 @@ func runWebMCPChrome(label, base, email, password string) error {
 	if err := b.waitFor("[data-workspace-home]"); err != nil {
 		return err
 	}
-	if err := b.click(`a[href$="/items"]`); err != nil {
-		return err
-	}
-	if err := b.waitFor("#item-list"); err != nil {
-		return err
-	}
-
-	fallback, err := eval[struct {
-		Form   bool `json:"form"`
-		Marker bool `json:"marker"`
-		Script bool `json:"script"`
-	}](b, `(() => ({
-		form: Boolean(document.querySelector('form[data-webmcp-actions="item-create"]')),
-		marker: Boolean(document.querySelector('[data-webmcp-page="items"]')),
-		script: [...document.scripts].some((script) => script.src.endsWith("/assets/alpine-components.js")),
-	}))()`)
+	current, err := b.location()
 	if err != nil {
 		return err
 	}
-	if !fallback.Form || !fallback.Marker || !fallback.Script {
-		return errors.New("ordinary browser fallback is incomplete")
+	if err := b.goTo(strings.TrimSuffix(current, "/") + "/settings/export"); err != nil {
+		return err
 	}
-
+	if err := b.waitFor("a[data-webmcp-export]"); err != nil {
+		return err
+	}
 	native, err := eval[nativeWebMCP](b, `new Promise((done) => {
 		const context = document.modelContext;
 		if (!context) return done({ supported: false });
 		if (typeof context.getTools !== "function") return done({ supported: true, error: "getTools unavailable" });
 		Promise.resolve(context.getTools()).then((tools) => {
 			const summaries = tools.map(({ name, inputSchema, description, annotations }) => ({ name, inputSchema, description, annotations }));
-			const createTool = tools.find((tool) => tool.name === "item-create-v1");
-			done({
-				supported: true,
-				names: summaries.map((tool) => tool.name),
-				redacted: !JSON.stringify(summaries).match(/csrf|password|invitationsecret|tokensecret|oidc/i),
-				schema: Boolean(createTool) && JSON.stringify(createTool.inputSchema) === JSON.stringify({ type: "object", properties: { title: { type: "string", minLength: 1, maxLength: 200 } }, required: ["title"], additionalProperties: false }),
-			});
+			done({ supported: true, names: summaries.map((tool) => tool.name), redacted: !JSON.stringify(summaries).match(/csrf|password|invitationsecret|tokensecret|oidc/i) });
 		}).catch((error) => done({ supported: true, error: error.message }));
 	})`, chromedp.EvalAwaitPromise)
 	if err != nil {
 		return err
 	}
 	if !native.Supported {
-		fmt.Printf("%s: fallback passed; WebMCP unavailable\n", label)
+		fmt.Printf("%s: export fallback passed; WebMCP unavailable\n", label)
 		return nil
 	}
-	if native.Error != "" {
-		return fmt.Errorf("native WebMCP check failed: %s", native.Error)
+	if native.Error != "" || !native.Redacted || !contains(native.Names, "workspace-export-v1") {
+		return fmt.Errorf("native WebMCP check failed: %+v", native)
 	}
-	for _, name := range []string{"item-create-v1", "workspace-export-v1"} {
-		if !contains(native.Names, name) {
-			return fmt.Errorf("missing native tool %s", name)
+	for _, name := range native.Names {
+		if strings.HasPrefix(name, "item-") {
+			return fmt.Errorf("removed item tool remains: %s", name)
 		}
-	}
-	if !native.Redacted {
-		return errors.New("native tools expose a forbidden secret field")
-	}
-	if !native.Schema {
-		return errors.New("native item-create schema changed")
-	}
-
-	prepared, err := eval[struct {
-		Error     string `json:"error"`
-		Value     string `json:"value"`
-		Focused   string `json:"focused"`
-		Submitted bool   `json:"submitted"`
-	}](b, `new Promise((done) => {
-		const context = document.modelContext;
-		const form = document.querySelector('form[data-webmcp-actions="item-create"]');
-		let submitted = false;
-		form.addEventListener("submit", () => { submitted = true; }, { once: true });
-		Promise.resolve(context.getTools()).then((tools) => tools.find((tool) => tool.name === "item-create-v1")).then((tool) =>
-			context.executeTool(tool, JSON.stringify({ title: "WebMCP smoke" }))).then(() => done({
-				value: document.querySelector("#new-title")?.value, focused: document.activeElement?.id, submitted,
-			})).catch((error) => done({ error: error.message }));
-	})`, chromedp.EvalAwaitPromise)
-	if err != nil {
-		return err
-	}
-	if prepared.Error != "" || prepared.Submitted || prepared.Value != "WebMCP smoke" || prepared.Focused != "new-title" {
-		return fmt.Errorf("native preparation failed: %+v", prepared)
-	}
-
-	current, err := b.location()
-	if err != nil {
-		return err
-	}
-	workspaceRoot := strings.TrimSuffix(current, "/items")
-	if err := b.goTo(workspaceRoot + "/settings/export"); err != nil {
-		return err
-	}
-	if err := b.waitFor("a[data-webmcp-export]"); err != nil {
-		return err
 	}
 	exported, err := eval[exportNativeResult](b, `new Promise((done) => {
 		const context = document.modelContext;

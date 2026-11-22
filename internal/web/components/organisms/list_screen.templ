@@ -22,28 +22,38 @@ templ ListActionRow() {
 
 
 // ListFooter sits under each list: the row count, and the rows-per-page dropdown on the right.
+// An empty list without filters carries no count or page size; its extras (such as the
+// archived scope link) still render, and the results swap brings the footer back.
 templ ListFooter(data viewmodel.PageData, limit int, sizes []int) {
-	<div class="list-footer">
-		<p class="list-footer-count">{ ListFooterCount(data) }</p>
+	if data.ListHasContent() {
+		<div class="list-footer">
+			<p class="list-footer-count">{ ListFooterCount(data) }</p>
+			{ children... }
+			@molecules.ListPageSize(data, limit, sizes)
+		</div>
+	} else {
 		{ children... }
-		@molecules.ListPageSize(data, limit, sizes)
-	</div>
+	}
 }
 
 templ ListScreen(data viewmodel.PageData, searchKey string, tools templ.Component, results templ.Component) {
-	@ListToolbar() {
-		@molecules.ListSearch(data, searchKey, data.ListSearch)
-		@ListViewSwitcher(data)
-		@ListAddFilter(data)
+	<div class="list-toolbar">
+		// A pristine empty list has nothing to search, view, or filter, so the
+		// toolbar keeps only the actions that can produce content.
+		if data.ListHasContent() {
+			@molecules.ListSearch(data, searchKey, data.ListSearch)
+		}
+		if data.ListHasContent() || len(data.ListViews) > 0 {
+			@ListViewSwitcher(data)
+		}
+		if data.ListHasContent() {
+			@ListAddFilter(data)
+		}
 		@tools
-	}
+	</div>
 	@ListFilterBar(data)
 	@results
 }
-
-// ListResults is the shared results region of a list: the list body with its footer. The footer carries the page
-// numbers and the list's extras. A live search or a sort asks for this region alone, so it also refreshes the
-// filter strip and the column menu out of band.
 templ ListResults(data viewmodel.PageData, limit int, sizes []int, columnsSuffix string, body templ.Component, extras templ.Component) {
 	<div id="list-results">
 		@body

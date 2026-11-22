@@ -11,14 +11,12 @@ import (
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/listviews"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
-	"example.com/dynamis-code/apps-template/internal/sharing"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
 	"fmt"
@@ -26,7 +24,6 @@ import (
 	"log/slog"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -39,7 +36,6 @@ var files embed.FS
 type Handler struct {
 	logger          *slog.Logger
 	identity        *identity.Service
-	items           *items.Service
 	clients         *clients.Service
 	clientsEnabled  bool
 	listPreferences *listprefs.Service
@@ -47,10 +43,8 @@ type Handler struct {
 	listColumns     map[string]listColumnsFunc
 	files           *appfiles.Service
 	filesEnabled    bool
-	sharing         *sharing.Service
 	webhooks        webhookManager
 	exporter        exporter
-	importer        importer
 	oidc            *identity.OIDCRegistry
 	publicURL       string
 	mailer          appmail.Sender
@@ -68,18 +62,16 @@ func (h *Handler) workspaceCreationEnabled() bool {
 
 func NewHandler(
 	identityService *identity.Service,
-	itemService *items.Service,
 	cfg config.HTTP,
 	setupToken string,
 ) (*Handler, error) {
 	return NewHandlerWithServices(
-		identityService, itemService, nil, nil, nil, cfg, setupToken, "", nil,
+		identityService, nil, nil, cfg, setupToken, "", nil,
 	)
 }
 
 func NewHandlerWithServicesAndFiles(
 	identityService *identity.Service,
-	itemService *items.Service,
 	exporterService exporter,
 	oidcRegistry *identity.OIDCRegistry,
 	cfg config.HTTP,
@@ -88,13 +80,11 @@ func NewHandlerWithServicesAndFiles(
 	publicURL string,
 	mailer appmail.Sender,
 ) (*Handler, error) {
-	return newHandler(identityService, itemService, nil, exporterService, oidcRegistry, cfg, fileService, setupToken, publicURL, mailer, nil)
+	return newHandler(identityService, exporterService, oidcRegistry, cfg, fileService, setupToken, publicURL, mailer, nil)
 }
 
 func NewHandlerWithServicesAndFilesAndSharing(
 	identityService *identity.Service,
-	itemService *items.Service,
-	sharingService *sharing.Service,
 	exporterService exporter,
 	oidcRegistry *identity.OIDCRegistry,
 	cfg config.HTTP,
@@ -104,13 +94,11 @@ func NewHandlerWithServicesAndFilesAndSharing(
 	mailer appmail.Sender,
 	webhookServices ...*webhooks.Service,
 ) (*Handler, error) {
-	return newHandler(identityService, itemService, sharingService, exporterService, oidcRegistry, cfg, fileService, setupToken, publicURL, mailer, firstWebhook(webhookServices))
+	return newHandler(identityService, exporterService, oidcRegistry, cfg, fileService, setupToken, publicURL, mailer, firstWebhook(webhookServices))
 }
 
 func NewHandlerWithServices(
 	identityService *identity.Service,
-	itemService *items.Service,
-	sharingService *sharing.Service,
 	exporterService exporter,
 	oidcRegistry *identity.OIDCRegistry,
 	cfg config.HTTP,
@@ -119,13 +107,11 @@ func NewHandlerWithServices(
 	mailer appmail.Sender,
 	webhookServices ...*webhooks.Service,
 ) (*Handler, error) {
-	return newHandler(identityService, itemService, sharingService, exporterService, oidcRegistry, cfg, nil, setupToken, publicURL, mailer, firstWebhook(webhookServices))
+	return newHandler(identityService, exporterService, oidcRegistry, cfg, nil, setupToken, publicURL, mailer, firstWebhook(webhookServices))
 }
 
 func newHandler(
 	identityService *identity.Service,
-	itemService *items.Service,
-	sharingService *sharing.Service,
 	exporterService exporter,
 	oidcRegistry *identity.OIDCRegistry,
 	cfg config.HTTP,
@@ -145,9 +131,8 @@ func newHandler(
 	}
 	return &Handler{
 		logger:   slog.Default(),
-		identity: identityService, items: itemService, files: fileService, sharing: sharingService, exporter: exporterService,
+		identity: identityService, files: fileService, exporter: exporterService,
 		webhooks: webhookService,
-		importer: importerFor(exporterService),
 		oidc:     oidcRegistry, publicURL: publicURL, mailer: mailer, cfg: cfg,
 		setupTokenHash: setupTokenHash,
 		streams:        newStreamLimit(cfg.SSEMaxConnections, cfg.SSEMaxPerUser),
@@ -171,7 +156,14 @@ func (h *Handler) SetWorkspaceMode(mode config.WorkspaceMode) {
 func (h *Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
 	assets, _ := fs.Sub(files, "assets")
-	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServerFS(assets)))
+	// Embedded assets carry zero modification time, so responses send no
+	// Last-Modified or ETag; without an explicit policy browsers fall back to
+	// heuristic caching and keep serving stale CSS between deploys.
+	assetsHandler := http.StripPrefix("/assets/", http.FileServerFS(assets))
+	mux.Handle("GET /assets/", http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Cache-Control", "no-cache")
+		assetsHandler.ServeHTTP(writer, request)
+	}))
 	mux.HandleFunc("GET /language", h.language)
 	mux.HandleFunc("GET /login", h.loginPage)
 	mux.HandleFunc("POST /login", h.login)
@@ -196,7 +188,6 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /password-reset", h.passwordResetPage)
 	mux.HandleFunc("POST /password-reset", h.passwordResetRequest)
 	mux.HandleFunc("GET /password-reset/{secret}", h.passwordResetTokenPage)
-	mux.HandleFunc("GET /share/{token}", h.publicShare)
 	mux.HandleFunc("POST /password-reset/{secret}", h.passwordResetComplete)
 	mux.HandleFunc("GET /notifications", h.notificationsPage)
 	mux.HandleFunc("POST /notifications/{notificationId}", h.notificationMutation)
@@ -208,20 +199,14 @@ func (h *Handler) Routes() http.Handler {
 		mux.HandleFunc("POST /workspaces", h.createWorkspace)
 	}
 	mux.HandleFunc("GET /workspaces/{workspaceId}", h.workspaceHome)
-	mux.HandleFunc("GET /workspaces/{workspaceId}/items", h.itemList)
-	mux.HandleFunc("POST /workspaces/{workspaceId}/items", h.createItem)
-	mux.HandleFunc("POST /workspaces/{workspaceId}/items/preferences/columns/{column}", h.setItemColumn)
-	mux.HandleFunc("POST /workspaces/{workspaceId}/items/preferences/columns/reset", h.resetItemColumns)
-	mux.HandleFunc("POST /workspaces/{workspaceId}/items/preferences/columns/order", h.setItemColumnOrder)
-	mux.HandleFunc("POST /workspaces/{workspaceId}/items/{itemId}", h.changeItem)
-	mux.HandleFunc("POST /workspaces/{workspaceId}/items/{itemId}/share", h.shareMutation)
-	mux.HandleFunc("GET /workspaces/{workspaceId}/items/events", h.itemEvents)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients", h.clientList)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/preferences/columns/{column}", h.setClientColumn)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/preferences/columns/reset", h.resetClientColumns)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/preferences/columns/order", h.setClientColumnOrder)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients/events", h.clientEvents)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients", h.createClient)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/clients/new", h.clientNew)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/new", h.createClient)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients/{clientId}", h.clientDetail)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}", h.changeClient)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/bulk", h.bulkClients)
@@ -272,8 +257,6 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/provisioning", h.provisioningMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/export", h.exportPage)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/export/download", h.exportWorkspace)
-	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/import", h.importPage)
-	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/import", h.importMutation)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/audit", h.auditHistoryPage)
 	mux.HandleFunc("GET /sessions", h.sessionsPage)
 	mux.HandleFunc("POST /sessions/{sessionId}", h.sessionMutation)
@@ -547,241 +530,12 @@ func (h *Handler) workspaceHome(writer http.ResponseWriter, request *http.Reques
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	h.render(writer, http.StatusOK, "workspace-home", viewmodel.PageData{
-		Title: "Workspace home", NavPage: "workspace", NavSection: "workspace",
-		CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
-	})
-}
-
-func (h *Handler) itemList(writer http.ResponseWriter, request *http.Request) {
-	h.renderItems(writer, request, http.StatusOK, "")
-}
-
-func (h *Handler) createItem(writer http.ResponseWriter, request *http.Request) {
-	principal, ok := h.mutationPrincipal(writer, request)
-	if !ok {
-		return
-	}
-	_, err := h.items.Create(
-		request.Context(), principal, identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")),
-		request.FormValue("title"), request.FormValue("idempotency_key"),
-		auditContext(request),
-	)
-	if err != nil {
-		if errors.Is(err, items.ErrInvalidInput) {
-			h.renderItems(writer, request, http.StatusUnprocessableEntity, "Enter a title between 1 and 200 characters.")
-			return
-		}
-		h.itemError(writer, request, err)
-		return
-	}
-	h.afterMutation(writer, request)
-}
-
-func (h *Handler) changeItem(writer http.ResponseWriter, request *http.Request) {
-	principal, ok := h.mutationPrincipal(writer, request)
-	if !ok {
-		return
-	}
-	version, err := strconv.ParseInt(request.FormValue("version"), 10, 64)
-	if err != nil || version < 1 {
-		h.renderItems(writer, request, http.StatusBadRequest, "The item version is invalid. Reload and try again.")
-		return
-	}
-	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	itemID := items.ParseItemIDOrZero(request.PathValue("itemId"))
-	switch request.FormValue("action") {
-	case "delete":
-		err = h.items.Delete(
-			request.Context(), principal, workspaceID, itemID, version, auditContext(request),
-		)
-	case "update":
-		title := request.FormValue("title")
-		status := items.Status(request.FormValue("status"))
-		_, err = h.items.Update(
-			request.Context(), principal, workspaceID, itemID, version,
-			items.UpdateInput{Title: &title, Status: &status}, auditContext(request),
-		)
-	default:
-		h.renderItems(writer, request, http.StatusBadRequest, "The requested item action is invalid.")
-		return
-	}
-	if err != nil {
-		h.itemError(writer, request, err)
-		return
-	}
-	h.afterMutation(writer, request)
-}
-
-func (h *Handler) afterMutation(writer http.ResponseWriter, request *http.Request) {
-	if request.Header.Get("HX-Request") == "true" {
-		h.renderItems(writer, request, http.StatusOK, "")
-		return
-	}
-	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	h.redirect(writer, request, h.itemsPath(workspaceID)+clientQuerySuffix(request.URL.Query()))
-}
-
-func (h *Handler) renderItems(
-	writer http.ResponseWriter,
-	request *http.Request,
-	status int,
-	message string,
-	shareURL ...string,
-) {
-	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	principal, session, csrf, ok := h.workspaceSession(
-		writer, request, workspaceID, identity.ResourcesRead,
-	)
-	if !ok {
-		return
-	}
-	query := request.URL.Query()
-	form, valid := parseItemListQuery(query, h.cfg.DefaultPageSize)
-	if !valid {
-		status, message = http.StatusBadRequest, "The Items list query is invalid."
-	}
-	var page items.Page
-	var err error
-	if valid {
-		page, err = h.items.List(request.Context(), principal, workspaceID, items.ListInput{
-			Status: items.Status(form.Status), Search: form.Search, Match: form.Match, Sort: form.Sort,
-			Limit: form.Limit, Page: listPageNumber(query),
-		})
-	}
-	if errors.Is(err, items.ErrInvalidInput) {
-		// A list query that cannot be served, such as a page past the bound, is a bad request, not a rejected item.
-		h.renderError(writer, http.StatusBadRequest)
-		return
-	}
-	if err != nil {
-		h.itemError(writer, request, err)
-		return
-	}
-	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
-	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
-	}
-	workspace := workspaceByID(workspaces, workspaceID)
-	createKey, err := id.New()
-	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
-	}
-	columns := itemListColumns()
-	var orderErr error
-	columns, orderErr = h.orderListColumns(request, principal, workspaceID, listprefs.ListItems, columns)
-	if orderErr != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
-	}
-	defaults := make(map[string]bool, len(columns))
-	for _, column := range columns {
-		defaults[column.Key] = column.DefaultVisible
-	}
-	visible := defaults
-	if h.listPreferences != nil {
-		visible, err = h.listPreferences.Get(request.Context(), principal, workspaceID, listprefs.ListItems, defaults)
-		if err != nil {
-			h.renderError(writer, http.StatusInternalServerError)
-			return
-		}
-	}
-	hiddenSort := ""
-	for i := range columns {
-		columns[i].Visible = visible[columns[i].Key]
-		if columns[i].Key == "created_at" {
-			columns[i].SortHref = itemSortHref(h.itemsPath(workspaceID), query, "created_at")
-			columns[i].SortDirection = itemSortDirection(form.Sort)
-			if !columns[i].Visible {
-				hiddenSort = columns[i].LabelKey
-			}
-		}
-	}
-	pager := newListPager(h.itemsPath(workspaceID), query, listPageNumber(query), form.Limit, page.Total)
-	querySuffix := clientQuerySuffix(query)
-	filterView := buildListFilterView(h.itemsPath(workspaceID), query, itemFilterFields, form.Filter)
-	if h.openDefaultListView(writer, request, listviews.ListItems, principal, workspaceID) {
-		return
-	}
-	view := h.listViewState(request, principal, workspaceID, listviews.ListItems, false)
 	data := viewmodel.PageData{
-		Title: workspace.Name + " items", TopbarTitleKey: "items.items", Error: message, CSRF: csrf,
-		Workspace: workspace, Items: page.Items, ListPager: pager,
-		Workspaces: workspaces, NavPage: "items", NavSection: "items", CreateKey: createKey,
-		CurrentPath: h.itemsPath(workspaceID), CanShare: h.sharing != nil && principal.Permissions[identity.ResourcesWrite],
-		CanEditItems: principal.Permissions[identity.ResourcesWrite],
-		IsItemList:   true, ItemListQuery: form, ListSearch: form.Search, ItemQuerySuffix: querySuffix, ListPreservedQuery: filterView.Preserved,
-		ListLive: true, ListFragment: listResultsFragment(request), ListViews: view.Views, ListViewQuery: view.Query, ListViewBase: view.Base, ListViewRoute: view.Route, ListViewCanShare: view.CanShare, ListViewSaveReason: view.SaveReason,
-		ListColumns: columns, ListRows: itemListRows(page.Items), ListTotal: page.Total, ListStart: listStart(listPageNumber(query), form.Limit),
-		HasVisibleClientColumns: true,
-		Filter:                  filterView,
-		HasClientFilters:        form.Search != "" || form.Status != "",
-		ClearClientFiltersPath:  itemClearFiltersPath(h.itemsPath(workspaceID), query),
-		ClientQuerySuffix:       querySuffix, HiddenClientSortLabelKey: hiddenSort,
+		// The top bar names the workspace, so the page heading is the workspace rather than a second title.
+		Title: workspaceByID(workspaces, workspaceID).Name, NavPage: "workspace", NavSection: "workspace",
+		CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 	}
-	if h.sharing != nil && data.CanShare {
-		data.ShareLinks, err = h.sharing.List(request.Context(), principal, workspaceID)
-		if err != nil {
-			h.renderError(writer, http.StatusInternalServerError)
-			return
-		}
-	}
-	if status == http.StatusOK && message == "" && request.Method == http.MethodPost {
-		data.ToastKey = itemToastKey(request)
-	}
-	// A rejected create keeps what the user typed in the new-title box.
-	if status >= http.StatusBadRequest && request.Method == http.MethodPost && request.PathValue("itemId") == "" {
-		data.NewTitle = request.FormValue("title")
-	}
-	if len(shareURL) > 0 {
-		data.PublicShareURL = shareURL[0]
-		data.PublicShareItemID = items.ParseItemIDOrZero(request.PathValue("itemId"))
-	}
-	if request.Header.Get("HX-Request") == "true" {
-		if status >= http.StatusBadRequest {
-			writer.Header().Set("HX-Trigger", "form-error")
-			status = http.StatusOK
-		}
-		if listResultsFragment(request) {
-			h.render(writer, status, "items-results", data)
-			return
-		}
-		h.render(writer, status, "items-fragment", data)
-		return
-	}
-	h.render(writer, status, "items-page", data)
-}
-
-// asciiJSON escapes non-ASCII runes as \uXXXX so a JSON value is safe in an
-// HTTP header, which browsers decode as Latin-1.
-func asciiJSON(raw []byte) string {
-	var out strings.Builder
-	for _, r := range string(raw) {
-		if r < 0x80 {
-			out.WriteRune(r)
-			continue
-		}
-		for _, unit := range utf16.Encode([]rune{r}) {
-			fmt.Fprintf(&out, "\\u%04x", unit)
-		}
-	}
-	return out.String()
-}
-
-// itemToastKey names the confirmation toast for a successful item mutation.
-func itemToastKey(request *http.Request) string {
-	switch {
-	case strings.HasSuffix(request.URL.Path, "/share"):
-		return ""
-	case request.PathValue("itemId") == "":
-		return "ui.item_added"
-	case request.FormValue("action") == "delete":
-		return "ui.item_deleted"
-	default:
-		return "ui.item_saved"
-	}
+	h.render(writer, http.StatusOK, "workspace-home", data)
 }
 
 func (h *Handler) mutationPrincipal(
@@ -803,25 +557,6 @@ func (h *Handler) mutationPrincipal(
 		return identity.Principal{}, false
 	}
 	return principal, true
-}
-
-func (h *Handler) itemError(writer http.ResponseWriter, request *http.Request, err error) {
-	switch {
-	case errors.Is(err, identity.ErrForbidden):
-		h.renderError(writer, http.StatusForbidden)
-	case errors.Is(err, items.ErrNotFound):
-		h.renderError(writer, http.StatusNotFound)
-	case errors.Is(err, items.ErrPreconditionFailed):
-		h.renderItems(writer, request, http.StatusPreconditionFailed, "This item changed. Review the current value and try again.")
-	case errors.Is(err, items.ErrInvalidInput):
-		h.renderItems(writer, request, http.StatusUnprocessableEntity, "The item values are invalid.")
-	case errors.Is(err, items.ErrLimit):
-		h.renderItems(writer, request, http.StatusConflict, "The workspace item limit was reached. Delete an item before retrying.")
-	case errors.Is(err, items.ErrIdempotencyConflict):
-		h.renderItems(writer, request, http.StatusConflict, "This form was already used for another title. Check the list, then press Add again.")
-	default:
-		h.renderError(writer, http.StatusInternalServerError)
-	}
 }
 
 func (h *Handler) workspaceSession(
@@ -956,6 +691,11 @@ func listVisibleParam(request *http.Request) string {
 }
 
 func (h *Handler) render(writer http.ResponseWriter, status int, name string, data viewmodel.PageData) {
+	if lw, ok := writer.(*localeWriter); ok && len(data.Profile.Email) == 0 {
+		if state, found := lw.context.Value(localeContextKey{}).(localeState); found && state.userEmail != "" {
+			data.Profile = identity.UserProfile{DisplayName: state.userName, Email: state.userEmail}
+		}
+	}
 	data.FilesEnabled = h.files != nil
 	data.ClientsEnabled = h.clients != nil
 	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
@@ -972,12 +712,6 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 	switch name {
 	case "workspace-home":
 		_ = workspaceHome(data).Render(context.Background(), writer)
-	case "items-page":
-		_ = itemsPage(data).Render(context.Background(), writer)
-	case "items-results":
-		_ = itemResults(data).Render(context.Background(), writer)
-	case "items-fragment":
-		_ = itemsList(data).Render(context.Background(), writer)
 	case "webhooks.html":
 		_ = webhooksPage(data).Render(context.Background(), writer)
 	case "home.html":
@@ -1024,31 +758,20 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 	}
 }
 
-func (h *Handler) publicShare(writer http.ResponseWriter, request *http.Request) {
-	if h.sharing == nil {
-		h.renderPublicError(writer)
-		return
+// asciiJSON escapes non-ASCII runes as \uXXXX so a JSON value is safe in an
+// HTTP header, which browsers decode as Latin-1.
+func asciiJSON(raw []byte) string {
+	var out strings.Builder
+	for _, r := range string(raw) {
+		if r < 0x80 {
+			out.WriteRune(r)
+			continue
+		}
+		for _, unit := range utf16.Encode([]rune{r}) {
+			fmt.Fprintf(&out, "\\u%04x", unit)
+		}
 	}
-	item, err := h.sharing.Resolve(request.Context(), request.PathValue("token"), auditContext(request))
-	if err != nil {
-		h.renderPublicError(writer)
-		return
-	}
-	h.renderPublic(writer, http.StatusOK, viewmodel.PageData{Title: "Shared item", PublicItem: item})
-}
-
-func (h *Handler) renderPublic(writer http.ResponseWriter, status int, data viewmodel.PageData) {
-	h.localizePage(writer, &data)
-	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	writer.Header().Set("Cache-Control", "private, no-store")
-	writer.Header().Set("Referrer-Policy", "no-referrer")
-	writer.Header().Set("X-Robots-Tag", "noindex, nofollow, noarchive")
-	writer.WriteHeader(status)
-	_ = publicSharePage(data).Render(context.Background(), writer)
-}
-
-func (h *Handler) renderPublicError(writer http.ResponseWriter) {
-	h.renderPublic(writer, http.StatusNotFound, viewmodel.PageData{Title: "Shared item unavailable", Error: "This shared item is unavailable."})
+	return out.String()
 }
 
 func (h *Handler) renderError(writer http.ResponseWriter, status int) {
@@ -1111,19 +834,6 @@ func (limit *streamLimit) release(userID identity.UserID) {
 	if limit.users[userID] == 0 {
 		delete(limit.users, userID)
 	}
-}
-
-func (h *Handler) itemEvents(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	principal, _, _, ok := h.workspaceSession(
-		writer, request, workspaceID, identity.ResourcesRead,
-	)
-	if !ok {
-		return
-	}
-	h.serveChangeStream(writer, request, principal.UserID, func(cursor string) (string, bool) {
-		return h.sendChanges(writer, request, principal, workspaceID, cursor)
-	})
 }
 
 // serveChangeStream holds one workspace realtime connection: the per-user limit,
@@ -1190,45 +900,6 @@ func (h *Handler) serveChangeStream(
 			flusher.Flush()
 		}
 	}
-}
-
-func (h *Handler) sendChanges(
-	writer http.ResponseWriter,
-	request *http.Request,
-	principal identity.Principal,
-	workspaceID identity.WorkspaceID,
-	cursor string,
-) (nextCursor string, ok bool) {
-	page, err := h.items.Changes(
-		request.Context(), principal, workspaceID, cursor, 100,
-	)
-	if errors.Is(err, items.ErrInvalidChangeID) {
-		// A malformed cursor, such as one stored before short IDs, is unknown: resync.
-		page, err = h.items.Changes(request.Context(), principal, workspaceID, "", 100)
-	}
-	if err != nil {
-		return cursor, false
-	}
-	if page.Resync {
-		if page.Next != "" {
-			_, _ = fmt.Fprintf(writer, "id: %s\n", page.Next)
-		}
-		_, _ = fmt.Fprint(writer, "event: resync\ndata: {\"reason\":\"cursor\"}\n\n")
-		return page.Next, true
-	}
-	nextCursor = cursor
-	for _, change := range page.Changes {
-		encoded, err := json.Marshal(change)
-		if err != nil {
-			return nextCursor, false
-		}
-		_, _ = fmt.Fprintf(
-			writer, "id: %s\nevent: item.changed\ndata: %s\n\n",
-			change.ID, encoded,
-		)
-		nextCursor = change.ID.String()
-	}
-	return nextCursor, true
 }
 
 // workspaceDenialStatus answers a denied workspace request. A user who is not a

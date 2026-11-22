@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 )
 
 type ListColumn struct {
@@ -17,7 +16,6 @@ type ListColumn struct {
 type ListRow struct {
 	ID             string
 	Cells          map[string]ListCell
-	Item           items.Item
 	Member         identity.MemberSummary
 	ActionContext  string
 	ActionPosition int
@@ -36,8 +34,14 @@ const (
 	CellTime
 	CellYesNo
 	CellRole
-	CellStatus
 )
+
+// ListHasContent reports whether a list shows rows or carries an active
+// query; empty-state chrome (search, views, filters, pagination) hides until
+// it does, so an empty list teaches instead of offering controls for nothing.
+func (p PageData) ListHasContent() bool {
+	return p.ListTotal > 0 || p.HasClientFilters || p.ListSearch != ""
+}
 
 // ListCell is one cell. Text is the stored value and the badge class suffix. At and On hold the typed value for
 // time and yes/no cells.
@@ -52,9 +56,6 @@ func TextCell(text string) ListCell        { return ListCell{Kind: CellText, Tex
 func TimeCell(at time.Time) ListCell       { return ListCell{Kind: CellTime, At: at} }
 func YesNoCell(on bool) ListCell           { return ListCell{Kind: CellYesNo, On: on} }
 func RoleCell(role identity.Role) ListCell { return ListCell{Kind: CellRole, Text: string(role)} }
-func StatusCell(status items.Status) ListCell {
-	return ListCell{Kind: CellStatus, Text: string(status)}
-}
 
 // ClientListLinkKey names the first visible column, which carries the row's open link.
 func (p PageData) ClientListLinkKey() string {
@@ -86,13 +87,6 @@ func (p PageData) ClientListCellValue(column ListColumn, row ListRow) string {
 		return p.T("clients.no")
 	case CellRole:
 		return p.Role(identity.Role(cell.Text))
-	case CellStatus:
-		switch items.Status(cell.Text) {
-		case items.Active:
-			return p.T("items.active")
-		case items.Complete:
-			return p.T("items.complete")
-		}
 	}
 	return cell.Text
 }

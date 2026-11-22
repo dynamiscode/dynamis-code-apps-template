@@ -28,13 +28,13 @@ templ filesPage(data viewmodel.PageData, canUpload bool) {
 							@molecules.SubmitButton(data.T("files.upload"), nil)
 						</div>
 						@atoms.Progress(atoms.ProgressProps{Class: "upload-progress progress-primary w-full max-w-lg my-3 h-3", Value: 0, Max: 100, Label: data.T("files.progress"), Attrs: templ.Attributes{"data-upload-progress": true, "hidden": true}})
-						<p class="status" role="status" aria-live="polite" data-upload-status hidden></p>
+						<p class="status-line" role="status" aria-live="polite" data-upload-status hidden></p>
 					</form>
 				</section>
 			}
 			<section aria-labelledby="files-list-heading">
 				<h2 id="files-list-heading" class="sr-only">{ data.T("files.recent") }</h2>
-				@organisms.ListScreen(data, "files.search", fileListTools(data), fileResults(data))
+				@organisms.ListScreen(data, "files.search", fileListTools(data), fileResults(data, canUpload))
 			</section>
 		</div>
 		<script defer src="/assets/htmx.min.js"></script>
@@ -45,16 +45,20 @@ templ filesPage(data viewmodel.PageData, canUpload bool) {
 
 // fileListTools are the file list's own controls on the toolbar: the columns.
 templ fileListTools(data viewmodel.PageData) {
-	@molecules.ListColumnsMenu(data, data.ClientQuerySuffix)
+	if data.ListHasContent() {
+		@molecules.ListColumnsMenu(data, data.ClientQuerySuffix)
+	}
 }
 
 // fileResults is the Files results region, shared with every list: the table or cards and the footer.
-templ fileResults(data viewmodel.PageData) {
-	@organisms.ListResults(data, data.FileListQuery.Limit, listPageSizeOptions(data.FileListQuery.Limit, listPageSizes), data.ClientQuerySuffix, fileList(data), templ.NopComponent)
+templ fileResults(data viewmodel.PageData, canUpload bool) {
+	@organisms.ListResults(data, data.FileListQuery.Limit, listPageSizeOptions(data.FileListQuery.Limit, listPageSizes), data.ClientQuerySuffix, fileList(data, canUpload), templ.NopComponent)
 }
 
-templ fileList(data viewmodel.PageData) {
-	if data.HasVisibleClientColumns {
+templ fileList(data viewmodel.PageData, canUpload bool) {
+	// An empty list renders no table at all: the header row alone reads as a
+	// stray bar where the table "would be".
+	if len(data.ListRows) > 0 && data.HasVisibleClientColumns {
 		@organisms.ListTable(data.T("files.files"), true) {
 			@organisms.ListHeader(data, data.T("clients.actions"))
 			<tbody>
@@ -73,15 +77,21 @@ templ fileList(data viewmodel.PageData) {
 				}
 			}
 		}
-	} else {
+	} else if len(data.ListRows) > 0 {
 		@molecules.StatusLine(data.T("clients.columns_choose"), nil)
 	}
 	if len(data.Files) == 0 {
-		<div class="file-empty-state card" role="status">
-			@molecules.EmptyState(data.T("files.none"))
-			if data.HasClientFilters {
-				<a href={ data.ClearClientFiltersPath }>{ data.T("clients.clear_filters") }</a>
-			}
-		</div>
+		if data.HasClientFilters || data.ListSearch != "" {
+			@molecules.NoMatchesAlert(molecules.NoMatchesAlertProps{ID: "file-empty-state", Message: data.T("files.none"), Href: data.ClearClientFiltersPath, Label: data.T("clients.clear_filters")})
+		} else if canUpload {
+			@molecules.EmptyStateCard(molecules.EmptyStateCardProps{ID: "file-empty-state", Title: data.T("files.empty_title"), Description: data.T("files.empty_description"), CTA: filesEmptyCTA(data)})
+		} else {
+			@molecules.EmptyStateCard(molecules.EmptyStateCardProps{ID: "file-empty-state", Title: data.T("files.empty_title"), Description: data.T("files.empty_description")})
+		}
 	}
+}
+
+// filesEmptyCTA anchors the empty state to the upload panel above it.
+templ filesEmptyCTA(data viewmodel.PageData) {
+	<a class="btn btn-primary btn-sm" href="#file-upload-heading">{ data.T("files.upload") }</a>
 }

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -15,14 +16,33 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 )
 
-func TestItemEventsAreSignedEncryptedAndDeliveredOnce(t *testing.T) {
+func publishTestEvent(t *testing.T, db *sql.DB, service *Service, workspaceID identity.WorkspaceID, name string) {
+	t.Helper()
+	ctx := context.Background()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	payload, err := json.Marshal(map[string]string{"displayName": name})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.PublishInTx(ctx, tx, workspaceID, "client.created", payload, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEventsAreSignedEncryptedAndDeliveredOnce(t *testing.T) {
 	ctx := context.Background()
 	db, auth, owner := webhookTestDB(t)
 	type capturedRequest struct {
@@ -47,7 +67,7 @@ func TestItemEventsAreSignedEncryptedAndDeliveredOnce(t *testing.T) {
 	}
 	service.client = server.Client()
 	created, err := service.Create(ctx, owner, owner.WorkspaceID, CreateInput{
-		Name: "items", URL: server.URL + "/hook", Events: []string{"item.created"},
+		Name: "items", URL: server.URL + "/hook", Events: []string{"client.created"},
 	}, identity.AuditContext{RequestID: "webhook-create"})
 	if err != nil {
 		t.Fatal(err)
@@ -67,10 +87,7 @@ func TestItemEventsAreSignedEncryptedAndDeliveredOnce(t *testing.T) {
 		t.Fatalf("secret key version = %d, err = %v", version, err)
 	}
 
-	itemService := items.NewService(db, config.SQLite, auth, 100, service)
-	if _, err := itemService.Create(ctx, owner, owner.WorkspaceID, "Sensitive title", "webhook-item-key", identity.AuditContext{}); err != nil {
-		t.Fatal(err)
-	}
+	publishTestEvent(t, db, service, owner.WorkspaceID, "Sensitive title")
 	var pendingJobs int
 	if err := db.QueryRow("SELECT COUNT(*) FROM background_jobs WHERE kind = ? AND status = 'pending'", JobKind).Scan(&pendingJobs); err != nil || pendingJobs != 1 {
 		t.Fatalf("pending background jobs = %d, err = %v", pendingJobs, err)
@@ -91,9 +108,6 @@ func TestItemEventsAreSignedEncryptedAndDeliveredOnce(t *testing.T) {
 	deliveries, err := service.ListDeliveries(ctx, owner, owner.WorkspaceID, created.ID)
 	if err != nil || len(deliveries) != 1 || deliveries[0].Status != "delivered" || deliveries[0].AttemptCount != 1 {
 		t.Fatalf("deliveries = %+v, err = %v", deliveries, err)
-	}
-	if _, err := itemService.Create(ctx, owner, owner.WorkspaceID, "Sensitive title", "webhook-item-key", identity.AuditContext{}); err != nil {
-		t.Fatal(err)
 	}
 	var count int
 	if err := db.QueryRow("SELECT COUNT(*) FROM webhook_deliveries WHERE webhook_id = ?", created.ID).Scan(&count); err != nil || count != 1 {
@@ -118,15 +132,12 @@ func TestDeliveryRetriesAreBoundedAndRedacted(t *testing.T) {
 	}
 	service.client = server.Client()
 	created, err := service.Create(ctx, owner, owner.WorkspaceID, CreateInput{
-		Name: "failing", URL: server.URL, Events: []string{"item.created"},
+		Name: "failing", URL: server.URL, Events: []string{"client.created"},
 	}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	itemService := items.NewService(db, config.SQLite, auth, 100, service)
-	if _, err := itemService.Create(ctx, owner, owner.WorkspaceID, "retry", "retry-key", identity.AuditContext{}); err != nil {
-		t.Fatal(err)
-	}
+	publishTestEvent(t, db, service, owner.WorkspaceID, "retry")
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		if _, err := db.Exec("UPDATE webhook_deliveries SET next_attempt_at = ? WHERE webhook_id = ?", time.Now().UTC().Add(-time.Second).Format(time.RFC3339Nano), created.ID); err != nil {
 			t.Fatal(err)
@@ -176,15 +187,12 @@ func TestExhaustedWebhookJobSettlesDelivery(t *testing.T) {
 	}
 	service.client = server.Client()
 	created, err := service.Create(ctx, owner, owner.WorkspaceID, CreateInput{
-		Name: "exhausted", URL: server.URL, Events: []string{"item.created"},
+		Name: "exhausted", URL: server.URL, Events: []string{"client.created"},
 	}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	itemService := items.NewService(db, config.SQLite, auth, 100, service)
-	if _, err := itemService.Create(ctx, owner, owner.WorkspaceID, "retry", "exhausted-key", identity.AuditContext{}); err != nil {
-		t.Fatal(err)
-	}
+	publishTestEvent(t, db, service, owner.WorkspaceID, "retry")
 	if _, err := db.Exec(`
 		UPDATE background_jobs SET status = 'running', attempt_count = ?,
 			lease_token = ?, leased_until = ?, started_at = ?
@@ -375,7 +383,7 @@ func TestLegacyWebhookSecretsDeliverAfterGeneralKeyIsAdded(t *testing.T) {
 	before := NewService(db, config.SQLite, auth, secretbox.New(map[int][]byte{config.WebhookKeyVersion: legacyKey}, config.WebhookKeyVersion), queue)
 	before.client = server.Client()
 	created, err := before.Create(ctx, owner, owner.WorkspaceID, CreateInput{
-		Name: "items", URL: server.URL + "/hook", Events: []string{"item.created"},
+		Name: "items", URL: server.URL + "/hook", Events: []string{"client.created"},
 	}, identity.AuditContext{RequestID: "webhook-create"})
 	if err != nil {
 		t.Fatal(err)
@@ -391,10 +399,7 @@ func TestLegacyWebhookSecretsDeliverAfterGeneralKeyIsAdded(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	itemService := items.NewService(db, config.SQLite, auth, 100, before)
-	if _, err := itemService.Create(ctx, owner, owner.WorkspaceID, "Legacy title", "legacy-item-key", identity.AuditContext{}); err != nil {
-		t.Fatal(err)
-	}
+	publishTestEvent(t, db, before, owner.WorkspaceID, "Legacy title")
 	if _, err := after.DeliverPending(ctx, 1); err != nil {
 		t.Fatal(err)
 	}
@@ -416,7 +421,7 @@ func TestLegacyWebhookSecretsDeliverAfterGeneralKeyIsAdded(t *testing.T) {
 func TestCreateRefusesWithoutKeyAndRotateRecordsGeneralVersion(t *testing.T) {
 	ctx := context.Background()
 	db, auth, owner := webhookTestDB(t)
-	input := CreateInput{Name: "items", URL: "https://hooks.example.com/items", Events: []string{"item.created"}}
+	input := CreateInput{Name: "items", URL: "https://hooks.example.com/items", Events: []string{"client.created"}}
 	queue := jobs.NewQueue(db, config.SQLite, nil)
 
 	unconfigured := NewService(db, config.SQLite, auth, secretbox.New(nil, 0), queue)

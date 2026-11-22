@@ -12,9 +12,4 @@ templ DashboardHomeNavigation(data viewmodel.PageData) {
 }
 
 
-templ DashboardSettingsNavigation(data viewmodel.PageData) {
-	<aside class="flex flex-col gap-4">
-		<a class="btn btn-ghost btn-sm w-full justify-start font-normal" href={ "/workspaces/" + data.Workspace.ID.String() }>← { data.T("workspace.back_to_home") }</a>
-		@WorkspaceNav(data)
-	</aside>
-}
+

@@ -1,4 +1,6 @@
-# Accessibility Evidence
+# Accessibility
+
+Historical results below include Items, public sharing, and import, which have since been retired. Those observations do not establish current coverage. Evidence
 
 Standard: WCAG 2.2 Level AA  
 Review date: 2026-11-17

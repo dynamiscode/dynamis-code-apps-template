@@ -32,7 +32,7 @@ func consentQuery(clientID string) url.Values {
 
 func TestMCPConsentRequiresSessionAndApprovesOnce(t *testing.T) {
 	ctx := context.Background()
-	handler, auth, _, workspaceID, _ := testWebConfigured(t, 10, false, func(h *Handler) {
+	handler, auth, workspaceID, _ := testWebConfigured(t, 10, false, func(h *Handler) {
 		h.EnableMCPOAuth(consentResource)
 	})
 	client, err := auth.RegisterOAuthClient(ctx, "<script>alert(1)</script>Desk", []string{consentRedirect}, identity.AuditContext{})

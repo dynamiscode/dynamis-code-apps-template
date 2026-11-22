@@ -33,5 +33,7 @@ templ ConfirmButton(label, prompt string, attrs templ.Attributes) {
 			class += " " + extra
 		}
 	}}
-	@atoms.Button(atoms.ButtonProps{Class: class, Label: label, Attrs: attrs})
+	@atoms.Button(atoms.ButtonProps{Class: class, Label: label, Attrs: attrs}) {
+		{ children... }
+	}
 }

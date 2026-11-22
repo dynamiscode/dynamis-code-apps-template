@@ -11,7 +11,7 @@ import (
 )
 
 func TestMemberRoleSelectShowsCurrentRole(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	ctx := context.Background()
 	invitations, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.InvitationsManage)
 	if err != nil {
@@ -50,7 +50,7 @@ func TestMemberRoleSelectShowsCurrentRole(t *testing.T) {
 }
 
 func TestMemberRoleFormUpdatesIntendedMember(t *testing.T) {
-	handler, auth, _, workspaceID, owner := testWeb(t, 10)
+	handler, auth, workspaceID, owner := testWeb(t, 10)
 	ctx := context.Background()
 	invitations, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.InvitationsManage)
 	if err != nil {

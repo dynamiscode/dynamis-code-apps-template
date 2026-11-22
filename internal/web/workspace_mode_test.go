@@ -13,7 +13,7 @@ import (
 
 func TestSingleWorkspaceModeHidesCreationAndReturnsNotFound(t *testing.T) {
 	ctx := context.Background()
-	handler, auth, _, _, owner := testWebConfigured(t, 10, false, func(h *Handler) {
+	handler, auth, _, owner := testWebConfigured(t, 10, false, func(h *Handler) {
 		h.SetWorkspaceMode(config.WorkspaceModeSingle)
 	})
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
@@ -44,7 +44,7 @@ func TestSingleWorkspaceModeHidesCreationAndReturnsNotFound(t *testing.T) {
 
 func TestMultiWorkspaceModeKeepsCreation(t *testing.T) {
 	ctx := context.Background()
-	handler, auth, _, _, owner := testWebConfigured(t, 10, false, func(h *Handler) {
+	handler, auth, _, owner := testWebConfigured(t, 10, false, func(h *Handler) {
 		h.SetWorkspaceMode(config.WorkspaceModeMulti)
 	})
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
@@ -85,8 +85,8 @@ func TestMultiWorkspaceModeKeepsCreation(t *testing.T) {
 	}
 }
 
-func TestWorkspaceHomeGuidesUserToFirstTask(t *testing.T) {
-	handler, auth, _, _, owner := testWeb(t, 10, nil)
+func TestWorkspaceHomeOffersSettings(t *testing.T) {
+	handler, auth, _, owner := testWeb(t, 10, nil)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -98,11 +98,11 @@ func TestWorkspaceHomeGuidesUserToFirstTask(t *testing.T) {
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	page := request(handler, http.MethodGet, "/workspaces/"+workspaces[0].ID.String(), nil, cookies, nil)
 
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Start with your first item") {
-		t.Fatalf("workspace home does not guide the first task: %d, %s", page.Code, page.Body.String())
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `href="/workspaces/`+workspaces[0].ID.String()+`/settings"`) {
+		t.Fatalf("workspace home lacks settings link: %d, %s", page.Code, page.Body.String())
 	}
-	if !strings.Contains(page.Body.String(), `href="/workspaces/`+workspaces[0].ID.String()+`/items"`) {
-		t.Fatalf("first-task link does not open workspace items: %s", page.Body.String())
+	if strings.Contains(page.Body.String(), `href="/workspaces/`+workspaces[0].ID.String()+`/items"`) {
+		t.Fatal("workspace home links to removed Items feature")
 	}
 	if !strings.Contains(page.Body.String(), `<details class="dropdown dropdown-end">`) ||
 		!strings.Contains(page.Body.String(), `href="/"`) {

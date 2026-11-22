@@ -40,13 +40,8 @@ home="$(curl --fail --silent --show-error -L -b "$cookies" -c "$cookies" \
   --data-urlencode "password=smoke-password-123" \
   --data-urlencode "csrf=$login_csrf" "http://127.0.0.1:$port/login")"
 workspace_path="$(printf '%s' "$home" | grep -o '/workspaces/[^"/ ]*' | head -1)"
-items_path="$workspace_path/items"
-csrf="$(awk '$6 == "csrf" { print $7 }' "$cookies")"
-curl --fail --silent --show-error -b "$cookies" -o /dev/null \
-  --data-urlencode "title=container smoke item" \
-  --data-urlencode "idempotency_key=container-smoke" \
-  --data-urlencode "csrf=$csrf" "http://127.0.0.1:$port$items_path"
-curl --fail --silent --show-error -b "$cookies" "http://127.0.0.1:$port$items_path" | grep -q 'container smoke item'
+test -n "$workspace_path"
+curl --fail --silent --show-error -b "$cookies" "http://127.0.0.1:$port$workspace_path" | grep -q 'Smoke'
 
 APP_PORT="$requested_port" docker compose -p "$project" restart app >/dev/null
 if [ "$requested_port" = "0" ]; then
@@ -60,4 +55,4 @@ until curl --fail --silent --show-error "http://127.0.0.1:$port/health/ready" >/
   fi
   sleep 1
 done
-curl --fail --silent --show-error -b "$cookies" "http://127.0.0.1:$port$items_path" | grep -q 'container smoke item'
+curl --fail --silent --show-error -b "$cookies" "http://127.0.0.1:$port$workspace_path" | grep -q 'Smoke'

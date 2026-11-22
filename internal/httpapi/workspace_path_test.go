@@ -37,7 +37,7 @@ func TestWorkspacePathIsShortIDOnlyAndUniform(t *testing.T) {
 	}
 	var reference map[string]any
 	for name, probe := range probes {
-		response := serveAuthorized(handler, http.MethodGet, "/api/v1/workspaces/"+probe+"/items", "", token, nil)
+		response := serveAuthorized(handler, http.MethodGet, "/api/v1/workspaces/"+probe+"/clients", "", token, nil)
 		assertProblem(t, response, http.StatusNotFound, "not-found")
 		var body map[string]any
 		if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {

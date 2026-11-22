@@ -16,14 +16,13 @@ import (
 )
 
 func TestNavigationComponentsEscapeInput(t *testing.T) {
-	_, _, _, workspaceID, _ := testWeb(t, 10)
+	_, _, workspaceID, _ := testWeb(t, 10)
 	catalog, err := i18n.New()
 	if err != nil {
 		t.Fatal(err)
 	}
 	components := map[string]func(viewmodel.PageData) templ.Component{
 		"ui-head": templates.UiHead, "skip-link": molecules.SkipLink, "workspace-context": organisms.WorkspaceContext,
-		"workspace-list-crumb": molecules.WorkspaceListCrumb, "default-home-crumb": molecules.DefaultHomeCrumb,
 		"account-menu": organisms.AccountMenu, "workspace-nav": organisms.WorkspaceNav, "people-tabs": organisms.PeopleTabs,
 	}
 	data := viewmodel.PageData{

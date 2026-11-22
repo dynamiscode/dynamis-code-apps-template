@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
@@ -165,8 +164,7 @@ func emailWebTest(t *testing.T) (http.Handler, *sql.DB, *identity.Service, *work
 	}
 	keys := secretbox.New(map[int][]byte{config.GeneralKeyVersion: []byte("01234567890123456789012345678901")}, config.GeneralKeyVersion)
 	email := workspaceemail.NewService(db, cfg.Database.Driver, auth, keys, nil)
-	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace)
-	handler, err := NewHandlerWithServices(auth, itemService, nil, nil, nil, cfg.HTTP, "", "", email, nil)
+	handler, err := NewHandlerWithServices(auth, nil, nil, cfg.HTTP, "", "", email)
 	if err != nil {
 		t.Fatal(err)
 	}

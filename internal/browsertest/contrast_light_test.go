@@ -16,7 +16,7 @@ func TestFixedContrastSurfacesAxeCleanInLight(t *testing.T) {
 	workspacePath := openWorkspaceSettings(t, tab, "/settings/general")
 
 	navigate(t, tab, workspacePath+"/settings/general")
-	waitVisible(t, tab, "main h1")
+	waitVisible(t, tab, "main h2")
 	expectAxeClean(t, tab)
 
 	navigate(t, tab, workspacePath+"/settings/tokens")
@@ -24,6 +24,6 @@ func TestFixedContrastSurfacesAxeCleanInLight(t *testing.T) {
 	expectAxeClean(t, tab)
 
 	navigate(t, tab, workspacePath+"/settings/webhooks")
-	waitVisible(t, tab, "main h1")
+	waitVisible(t, tab, "main h2")
 	expectAxeClean(t, tab)
 }

@@ -41,7 +41,7 @@ func TestSettingsKeyboardReachableAndAxeClean(t *testing.T) {
 	expectFocused(t, tab, ".skip-link")
 	for _, section := range []string{"general", "email", "tokens", "provisioning"} {
 		navigate(t, tab, workspacePath+"/settings/"+section)
-		waitVisible(t, tab, "main h1")
+		waitVisible(t, tab, "h1")
 		expectAxeClean(t, tab)
 	}
 }
@@ -64,7 +64,7 @@ func TestSettingsRenderInSpanish(t *testing.T) {
 	for _, c := range cases {
 		navigate(t, tab, workspacePath+"/settings/"+c.section)
 		expectAttribute(t, tab, "html", "lang", "es")
-		eventually(t, tab, fmt.Sprintf(`[...document.querySelectorAll("h1")].some((h) => h.textContent.trim() === %s)`, jsString(c.heading)), "Spanish heading missing for "+c.section)
+		eventually(t, tab, fmt.Sprintf(`[...document.querySelectorAll("h1, h2")].some((h) => h.textContent.trim() === %s)`, jsString(c.heading)), "Spanish heading missing for "+c.section)
 		if got := eval[int](t, tab, fmt.Sprintf(`document.querySelectorAll('form[action$="/settings/%s"][method="post"] input[name="csrf"]').length`, c.section)); got < c.csrfForms {
 			t.Fatalf("%s csrf forms = %d, want at least %d", c.section, got, c.csrfForms)
 		}
@@ -85,7 +85,7 @@ func TestSettingsReflowAt320Pixels(t *testing.T) {
 	run(t, tab, chromedp.EmulateViewport(320, 800))
 	for _, section := range []string{"tokens", "provisioning"} {
 		navigate(t, tab, workspacePath+"/settings/"+section)
-		waitVisible(t, tab, "main h1")
+		waitVisible(t, tab, "main h2")
 		expectNoOverflow(t, tab, 320)
 	}
 }

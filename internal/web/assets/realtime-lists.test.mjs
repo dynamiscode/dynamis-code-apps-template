@@ -159,21 +159,6 @@ test("delayed realtime response defers at swap when list became focused or dirty
   assert.equal(live.ajaxCalls.length, 1, "cancelled response does not trigger a timer retry");
 });
 
-test("Items dirty-row handler runs after realtime guard and honors cancellation", () => {
-  const live = loadRealtimeList("item-list", "/workspaces/w1/items/events");
-  let rowHandlerCalls = 0;
-  live.documentListeners["htmx:before:swap"].push((event) => {
-    if (!event.defaultPrevented) rowHandlerCalls++;
-  });
-  live.setEditing(true);
-  const realtime = live.beforeSwap("get");
-  assert.equal(realtime.prevented, true);
-  assert.equal(rowHandlerCalls, 0, "Items row preservation sees realtime cancellation first");
-  const mutation = live.beforeSwap("post");
-  assert.equal(mutation.prevented, false);
-  assert.equal(rowHandlerCalls, 1, "Items row handler retains mutation POST ownership");
-});
-
 test("client refresh waits for focus and dirty input to clear", async () => {
   const live = loadRealtimeList("client-list", "/workspaces/w1/clients/events");
   const [source] = live.sources;
@@ -218,14 +203,4 @@ test("refreshes arriving during an in-flight response schedule one follow-up", (
   live.afterSwap(live.requests[1]);
   live.finallyRequest("get", live.requests[1]);
   assert.equal(live.ajaxCalls.length, 2);
-});
-
-test("item list still refreshes on item.changed and ignores client events", () => {
-  const { sources, ajaxCalls } = loadRealtimeList("item-list", "/workspaces/w1/items/events");
-  fire(sources[0], "client.changed");
-  assert.equal(ajaxCalls.length, 0, "a client event must not refresh the item list");
-
-  fire(sources[0], "item.changed");
-  assert.equal(ajaxCalls.length, 1);
-  assert.equal(ajaxCalls[0][2].target, "#item-list");
 });

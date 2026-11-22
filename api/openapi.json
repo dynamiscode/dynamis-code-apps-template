@@ -135,46 +135,6 @@
         }
       }
     },
-    "/api/v1/workspaces/{workspaceId}/items": {
-      "get": {
-        "operationId": "listItems",
-        "description": "Returns a deterministic numbered page. Search is a trimmed, case-insensitive literal substring of title. Total counts every item the filters match.",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {"$ref": "#/components/parameters/WorkspaceId"},
-          {"$ref": "#/components/parameters/ItemStatus"},
-          {"$ref": "#/components/parameters/ItemSearch"},
-          {"$ref": "#/components/parameters/ItemSort"},
-          {"$ref": "#/components/parameters/PageLimit"},
-          {"$ref": "#/components/parameters/PageNumber"}
-        ],
-        "responses": {
-          "200": {"description": "Numbered page", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ItemPage"}}}},
-          "400": {"$ref": "#/components/responses/Problem"},
-          "401": {"$ref": "#/components/responses/Problem"},
-          "403": {"$ref": "#/components/responses/Problem"},
-          "429": {"$ref": "#/components/responses/RateLimited"}
-        }
-      },
-      "post": {
-        "operationId": "createItem",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {"$ref": "#/components/parameters/WorkspaceId"},
-          {"$ref": "#/components/parameters/IdempotencyKey"}
-        ],
-        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateItemRequest"}}}},
-        "responses": {
-          "201": {"description": "Item created; identical replays return the original body", "headers": {"ETag": {"schema": {"type": "string"}}, "Location": {"schema": {"type": "string"}}, "Idempotency-Replayed": {"schema": {"type": "boolean"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Item"}}}},
-          "400": {"$ref": "#/components/responses/Problem"},
-          "401": {"$ref": "#/components/responses/Problem"},
-          "403": {"$ref": "#/components/responses/Problem"},
-          "409": {"$ref": "#/components/responses/Problem"},
-          "413": {"$ref": "#/components/responses/Problem"},
-          "429": {"$ref": "#/components/responses/RateLimited"}
-        }
-      }
-    },
     "/api/v1/workspaces/{workspaceId}/export": {
       "get": {
         "operationId": "exportWorkspace",
@@ -270,24 +230,6 @@
         "operationId": "listWebhookDeliveries", "security": [{"bearerAuth": []}],
         "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/WebhookId"}],
         "responses": {"200": {"description": "Bounded webhook delivery history", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WebhookDeliveryPage"}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}}
-      }
-    },
-    "/api/v1/workspaces/{workspaceId}/import": {
-      "post": {
-        "operationId": "importWorkspace",
-        "description": "Atomically imports bounded item records from a workspace export JSON document or title,status CSV. Source IDs, timestamps, memberships, audit events, and credentials are ignored.",
-        "security": [{"bearerAuth": []}],
-        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
-        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WorkspaceExport"}}, "text/csv": {"schema": {"type": "string"}}}},
-        "responses": {
-          "200": {"description": "Imported item count", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WorkspaceImportResult"}}}},
-          "400": {"$ref": "#/components/responses/Problem"},
-          "401": {"$ref": "#/components/responses/Problem"},
-          "403": {"$ref": "#/components/responses/Problem"},
-          "409": {"$ref": "#/components/responses/Problem"},
-          "413": {"$ref": "#/components/responses/Problem"},
-          "429": {"$ref": "#/components/responses/RateLimited"}
-        }
       }
     },
     "/api/v1/workspaces/{workspaceId}/clients": {
@@ -999,61 +941,6 @@
         "responses": {"204": {"description": "Session revoked"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}
       }
     },
-    "/api/v1/workspaces/{workspaceId}/items/{itemId}": {
-      "get": {
-        "operationId": "getItem",
-        "security": [{"bearerAuth": []}],
-        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/ItemId"}, {"name": "If-None-Match", "in": "header", "description": "Strong item ETag previously returned by this resource.", "schema": {"type": "string"}}],
-        "responses": {
-          "200": {"description": "Item", "headers": {"ETag": {"schema": {"type": "string"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Item"}}}},
-          "401": {"$ref": "#/components/responses/Problem"},
-          "403": {"$ref": "#/components/responses/Problem"},
-          "404": {"$ref": "#/components/responses/Problem"},
-          "304": {"description": "The current representation matches If-None-Match"},
-          "429": {"$ref": "#/components/responses/RateLimited"}
-        }
-      },
-      "patch": {
-        "operationId": "updateItem",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {"$ref": "#/components/parameters/WorkspaceId"},
-          {"$ref": "#/components/parameters/ItemId"},
-          {"name": "If-Match", "in": "header", "required": true, "description": "Strong item ETag previously returned by this resource.", "schema": {"type": "string"}}
-        ],
-        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UpdateItemRequest"}}}},
-        "responses": {
-          "200": {"description": "Updated item", "headers": {"ETag": {"schema": {"type": "string"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Item"}}}},
-          "400": {"$ref": "#/components/responses/Problem"},
-          "401": {"$ref": "#/components/responses/Problem"},
-          "403": {"$ref": "#/components/responses/Problem"},
-          "404": {"$ref": "#/components/responses/Problem"},
-          "412": {"$ref": "#/components/responses/Problem"},
-          "413": {"$ref": "#/components/responses/Problem"},
-          "428": {"$ref": "#/components/responses/Problem"},
-          "429": {"$ref": "#/components/responses/RateLimited"}
-        }
-      },
-      "delete": {
-        "operationId": "deleteItem",
-        "description": "Permanently deletes the item from live storage. Existing backups retain it until their documented expiry.",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {"$ref": "#/components/parameters/WorkspaceId"},
-          {"$ref": "#/components/parameters/ItemId"},
-          {"name": "If-Match", "in": "header", "required": true, "description": "Strong item ETag previously returned by this resource.", "schema": {"type": "string"}}
-        ],
-        "responses": {
-          "204": {"description": "Item permanently deleted from live storage"},
-          "401": {"$ref": "#/components/responses/Problem"},
-          "403": {"$ref": "#/components/responses/Problem"},
-          "404": {"$ref": "#/components/responses/Problem"},
-          "412": {"$ref": "#/components/responses/Problem"},
-          "428": {"$ref": "#/components/responses/Problem"},
-          "429": {"$ref": "#/components/responses/RateLimited"}
-        }
-      }
-    },
     "/api/v1/workspaces/{workspaceId}/scim-token": {
       "post": {"operationId": "createSCIMToken", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}], "responses": {"201": {"description": "SCIM bearer token; secret returned once", "headers": {"Cache-Control": {"schema": {"type": "string", "const": "no-store"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SCIMTokenResponse"}}}}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}},
       "delete": {"operationId": "revokeSCIMToken", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}], "responses": {"204": {"description": "SCIM bearer token revoked"}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}}
@@ -1085,22 +972,17 @@
       "ClientId": {"name": "clientId", "in": "path", "required": true, "description": "Client short ID. Malformed, unknown, foreign, and integer IDs return the same not-found problem.", "schema": {"type": "string"}},
       "FieldId": {"name": "fieldId", "in": "path", "required": true, "description": "Client field short ID. Malformed, unknown, foreign, and integer IDs return the same not-found problem.", "schema": {"type": "string"}},
       "OptionId": {"name": "optionId", "in": "path", "required": true, "description": "Client field option short ID. Malformed, unknown, foreign, and integer IDs return the same not-found problem.", "schema": {"type": "string"}},
-      "ItemId": {"name": "itemId", "in": "path", "required": true, "description": "Item short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "FileId": {"name": "fileId", "in": "path", "required": true, "description": "File short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "MemberId": {"name": "memberId", "in": "path", "required": true, "description": "Member short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "InvitationId": {"name": "invitationId", "in": "path", "required": true, "description": "Invitation short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "TokenId": {"name": "tokenId", "in": "path", "required": true, "description": "API token short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
       "SessionId": {"name": "sessionId", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[0-9a-f]{32}$"}},
       "WebhookId": {"name": "webhookId", "in": "path", "required": true, "description": "Webhook short ID. Malformed, unknown, and foreign IDs return the same not-found problem.", "schema": {"type": "string"}},
-      "ItemStatus": {"name": "status", "in": "query", "description": "Optional exact status filter.", "schema": {"type": "string", "enum": ["active", "complete"]}},
-      "ItemSearch": {"name": "search", "in": "query", "description": "Optional trimmed, case-insensitive literal substring of item title. Wildcards are not interpreted.", "schema": {"type": "string", "minLength": 1, "maxLength": 100}},
-      "ItemSort": {"name": "sort", "in": "query", "description": "Stable sort; ties use item id in the same direction.", "schema": {"type": "string", "enum": ["created_at", "-created_at"], "default": "-created_at"}},
       "PageLimit": {"name": "limit", "in": "query", "description": "Number of resources to return.", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50}},
       "PageNumber": {"name": "page", "in": "query", "description": "1-based page number. Omit it for the first page; a page past the end is empty.", "schema": {"type": "integer", "minimum": 1, "maximum": 1000000}},
       "ClientSort": {"name": "sort", "in": "query", "description": "Optional sort field: a common field (displayName, email, phone, notes, createdAt, updatedAt) or a custom field's short ID. A leading minus sorts descending. Number fields sort numerically. Text sorts by bytes. Empty values sort last.", "schema": {"type": "string", "minLength": 1, "maxLength": 64}},
       "ClientFilter": {"name": "filter", "in": "query", "description": "Optional condition as field:operator:value. May repeat; conditions combine with AND. A field may repeat in REST v1. is_empty takes an empty value and matches absent, null, or empty values. Common text fields (displayName, email, phone, notes) take equals or contains. Custom fields are named by short ID. Text takes equals or contains, case-insensitive for ASCII letters. Number and date take equals, before, after, or between (value from,to, inclusive). createdAt and updatedAt accept RFC3339 timestamp values with equals, before, after, or between. Before and after are strict. Yes/no takes equals with true or false. Single choice takes equals with one or more comma-separated option IDs. Equals on a number compares canonical decimal text, so 10.0 matches 10. Operators are documented in docs/api.md.", "schema": {"type": "string", "minLength": 1}},
       "ClientArchived": {"name": "archived", "in": "query", "description": "Which clients the list shows. active (the default) excludes archived clients, archived shows only archived clients, and all shows both. Pages keep this value.", "schema": {"type": "string", "enum": ["active", "archived", "all"]}},
-      "IdempotencyKey": {"name": "Idempotency-Key", "in": "header", "required": true, "description": "1-255 visible ASCII characters; scoped to credential, workspace, and operation; retained 24 hours", "schema": {"type": "string", "minLength": 1, "maxLength": 255}},
       "CSRFToken": {"name": "X-CSRF-Token", "in": "header", "required": true, "schema": {"type": "string"}},
       "SCIMUserId": {"name": "userId", "in": "path", "required": true, "description": "SCIM resource id: the user's short ID. The IdP externalId, malformed, unknown, and foreign IDs return the same SCIM not-found error.", "schema": {"type": "string", "maxLength": 256}},
       "SCIMGroupId": {"name": "groupId", "in": "path", "required": true, "schema": {"type": "string", "enum": ["admin", "member", "viewer"]}}
@@ -1117,9 +999,6 @@
       "LoginRequest": {"type": "object", "additionalProperties": false, "required": ["email", "password"], "properties": {"email": {"type": "string", "format": "email", "maxLength": 320}, "password": {"type": "string", "minLength": 1, "maxLength": 1024}}},
       "LoginResponse": {"type": "object", "required": ["csrfToken", "expiresAt"], "properties": {"csrfToken": {"type": "string"}, "expiresAt": {"type": "string", "format": "date-time"}}},
       "MFALoginResponse": {"type": "object", "required": ["mfaRequired", "challenge", "methods"], "properties": {"mfaRequired": {"const": true}, "challenge": {"type": "string", "minLength": 1}, "methods": {"type": "array", "minItems": 1, "items": {"type": "string", "enum": ["passkey", "totp", "recovery"]}}, "passkeyOptions": {"type": ["object", "null"]}}},
-      "CreateItemRequest": {"type": "object", "additionalProperties": false, "required": ["title"], "properties": {"title": {"type": "string", "minLength": 1, "maxLength": 200}}},
-      "UpdateItemRequest": {"type": "object", "additionalProperties": false, "minProperties": 1, "properties": {"title": {"type": "string", "minLength": 1, "maxLength": 200}, "status": {"type": "string", "enum": ["active", "complete"]}}},
-      "Item": {"type": "object", "required": ["id", "workspaceId", "createdByUserId", "title", "status", "version", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "createdByUserId": {"type": ["string", "null"]}, "title": {"type": "string"}, "status": {"type": "string", "enum": ["active", "complete"]}, "version": {"type": "integer", "minimum": 1}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}}},
       "Client": {"type": "object", "required": ["id", "workspaceId", "createdByUserId", "displayName", "email", "phone", "notes", "archivedAt", "version", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "createdByUserId": {"type": ["string", "null"]}, "version": {"type": "integer", "minimum": 1}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}, "displayName": {"type": "string", "minLength": 1, "maxLength": 200}, "email": {"type": "string", "maxLength": 254, "description": "Optional. A bare email address when present."}, "phone": {"type": "string", "maxLength": 50}, "notes": {"type": "string", "maxLength": 5000}, "archivedAt": {"type": ["string", "null"], "format": "date-time", "description": "Set while the client is archived. Null when active."}}},
       "ClientField": {"type": "object", "required": ["id", "workspaceId", "label", "type", "archivedAt", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "label": {"type": "string", "minLength": 1, "maxLength": 100, "description": "Workspace-entered text, shown as typed."}, "type": {"type": "string", "enum": ["text", "number", "date", "yes_no", "single_choice"]}, "archivedAt": {"type": ["string", "null"], "format": "date-time"}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}}},
       "ClientFieldList": {"type": "object", "required": ["fields"], "properties": {"fields": {"type": "array", "items": {"$ref": "#/components/schemas/ClientField"}}}},
@@ -1133,7 +1012,6 @@
       "ClientValue": {"type": "object", "required": ["fieldId", "label", "type", "value"], "properties": {"fieldId": {"type": "string"}, "label": {"type": "string", "description": "Workspace-entered text, shown as typed."}, "type": {"type": "string", "enum": ["text", "number", "date", "yes_no", "single_choice"]}, "value": {"type": ["string", "null"], "maxLength": 500, "description": "Null when the field has no value. Otherwise the stored text: a decimal for number, YYYY-MM-DD for date, true or false for yes_no, and the option's short ID for single_choice."}}},
       "ClientValueList": {"type": "object", "required": ["values"], "properties": {"values": {"type": "array", "items": {"$ref": "#/components/schemas/ClientValue"}}}},
       "SetClientValueRequest": {"type": "object", "additionalProperties": false, "required": ["value"], "properties": {"value": {"type": "string", "minLength": 1, "maxLength": 500, "description": "Text value, or the short ID of a choice option of a single-choice field. Blank values are refused; use DELETE to clear."}}},
-      "ItemPage": {"type": "object", "required": ["items"], "properties": {"items": {"type": "array", "items": {"$ref": "#/components/schemas/Item"}}, "total": {"type": "integer"}, "page": {"type": "integer"}}},
       "UploadFileRequest": {"type": "object", "required": ["file"], "properties": {"file": {"type": "string", "format": "binary"}}},
       "InitiateFileRequest": {"type": "object", "additionalProperties": false, "required": ["originalName", "size"], "properties": {"originalName": {"type": "string", "maxLength": 255}, "size": {"type": "integer", "minimum": 1}, "contentType": {"type": "string", "maxLength": 255}}},
       "File": {"type": "object", "required": ["id", "workspaceId", "ownerUserId", "originalName", "size", "status", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "ownerUserId": {"type": ["string", "null"]}, "originalName": {"type": "string"}, "detectedMime": {"type": "string"}, "size": {"type": "integer", "minimum": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "status": {"type": "string", "enum": ["pending", "ready", "failed"]}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}}},
@@ -1143,8 +1021,7 @@
       "ExportMember": {"type": "object", "required": ["userId", "email", "role", "createdAt"], "properties": {"userId": {"type": "string"}, "email": {"type": "string", "format": "email"}, "role": {"type": "string", "enum": ["owner", "admin", "member", "viewer"]}, "createdAt": {"type": "string", "format": "date-time"}}},
       "ExportAuditEvent": {"type": "object", "required": ["id", "eventType", "authMethod", "targetType", "action", "outcome", "metadata", "createdAt"], "properties": {"id": {"type": "string"}, "eventType": {"type": "string"}, "actorUserId": {"type": "string"}, "authMethod": {"type": "string"}, "workspaceId": {"type": "string"}, "targetType": {"type": "string"}, "targetId": {"type": "string"}, "action": {"type": "string"}, "outcome": {"type": "string"}, "requestId": {"type": "string"}, "sourceAddress": {"type": "string"}, "metadata": {}, "createdAt": {"type": "string", "format": "date-time"}}},
       "ExportClient": {"allOf": [{"$ref": "#/components/schemas/Client"}, {"type": "object", "required": ["customValues"], "properties": {"customValues": {"type": "object", "description": "Stored values keyed by client field short ID; unset fields are absent.", "additionalProperties": {"type": "string"}}}}]},
-      "WorkspaceExport": {"type": "object", "required": ["formatVersion", "exportedAt", "workspace", "members", "items", "auditEvents", "excluded"], "properties": {"formatVersion": {"const": "dynamis-code.workspace/v1"}, "exportedAt": {"type": "string", "format": "date-time"}, "workspace": {"$ref": "#/components/schemas/ExportWorkspace"}, "members": {"type": "array", "items": {"$ref": "#/components/schemas/ExportMember"}}, "items": {"type": "array", "items": {"$ref": "#/components/schemas/Item"}}, "clients": {"description": "Additive v1 key. Readers ignore unknown fields; this importer accepts it but does not import clients.", "type": "array", "items": {"$ref": "#/components/schemas/ExportClient"}}, "clientFields": {"description": "Additive v1 key. Includes archived fields.", "type": "array", "items": {"$ref": "#/components/schemas/ClientField"}}, "clientFieldOptions": {"description": "Additive v1 key. Choice options of single-choice fields.", "type": "array", "items": {"$ref": "#/components/schemas/ClientFieldOption"}}, "auditEvents": {"type": "array", "items": {"$ref": "#/components/schemas/ExportAuditEvent"}}, "excluded": {"type": "array", "items": {"type": "string"}}}},
-      "WorkspaceImportResult": {"type": "object", "required": ["imported"], "properties": {"imported": {"type": "integer", "minimum": 1}}},
+      "WorkspaceExport": {"type": "object", "required": ["formatVersion", "exportedAt", "workspace", "members", "auditEvents", "excluded"], "properties": {"formatVersion": {"const": "dynamis-code.workspace/v1"}, "exportedAt": {"type": "string", "format": "date-time"}, "workspace": {"$ref": "#/components/schemas/ExportWorkspace"}, "members": {"type": "array", "items": {"$ref": "#/components/schemas/ExportMember"}}, "clients": {"description": "Optional Clients profile export.", "type": "array", "items": {"$ref": "#/components/schemas/ExportClient"}}, "clientFields": {"description": "Additive v1 key. Includes archived fields.", "type": "array", "items": {"$ref": "#/components/schemas/ClientField"}}, "clientFieldOptions": {"description": "Additive v1 key. Choice options of single-choice fields.", "type": "array", "items": {"$ref": "#/components/schemas/ClientFieldOption"}}, "auditEvents": {"type": "array", "items": {"$ref": "#/components/schemas/ExportAuditEvent"}}, "excluded": {"type": "array", "items": {"type": "string"}}}},
       "Member": {"type": "object", "required": ["id", "email", "role", "createdAt"], "properties": {"id": {"type": "string"}, "email": {"type": "string", "format": "email"}, "role": {"type": "string", "enum": ["owner", "admin", "member", "viewer"]}, "createdAt": {"type": "string", "format": "date-time"}}},
       "MemberPage": {"type": "object", "required": ["members"], "properties": {"members": {"type": "array", "items": {"$ref": "#/components/schemas/Member"}}, "total": {"type": "integer", "description": "Every member, before paging."}, "page": {"type": "integer", "description": "The page returned; present when pagination is requested."}}},
       "MemberRoleRequest": {"type": "object", "additionalProperties": false, "required": ["role"], "properties": {"role": {"type": "string", "enum": ["admin", "member", "viewer"]}}},
@@ -1160,7 +1037,7 @@
       "TokenSecretResponse": {"type": "object", "required": ["token", "secret"], "properties": {"token": {"$ref": "#/components/schemas/Token"}, "secret": {"type": "string"}}},
       "Session": {"type": "object", "required": ["id", "userId", "authMethod", "authLevel", "createdAt", "expiresAt"], "properties": {"id": {"type": "string"}, "userId": {"type": "string"}, "authMethod": {"type": "string"}, "authLevel": {"type": "integer", "minimum": 1, "maximum": 2}, "oidcProviderId": {"type": "string"}, "createdAt": {"type": "string", "format": "date-time"}, "expiresAt": {"type": "string", "format": "date-time"}, "revokedAt": {"type": ["string", "null"], "format": "date-time"}}},
       "SessionPage": {"type": "object", "required": ["sessions"], "properties": {"sessions": {"type": "array", "items": {"$ref": "#/components/schemas/Session"}}}},
-      "CreateWebhookRequest": {"type": "object", "additionalProperties": false, "required": ["name", "url", "events"], "properties": {"name": {"type": "string", "minLength": 1, "maxLength": 100}, "url": {"type": "string", "format": "uri", "maxLength": 2048}, "events": {"type": "array", "minItems": 1, "maxItems": 7, "items": {"type": "string", "enum": ["item.created", "item.updated", "item.deleted", "client.created", "client.updated", "client.archived", "client.deleted"]}}}},
+      "CreateWebhookRequest": {"type": "object", "additionalProperties": false, "required": ["name", "url", "events"], "properties": {"name": {"type": "string", "minLength": 1, "maxLength": 100}, "url": {"type": "string", "format": "uri", "maxLength": 2048}, "events": {"type": "array", "minItems": 1, "maxItems": 4, "items": {"type": "string", "enum": ["client.created", "client.updated", "client.archived", "client.deleted"]}}}},
       "Webhook": {"type": "object", "required": ["id", "workspaceId", "name", "url", "events", "createdAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "name": {"type": "string"}, "url": {"type": "string", "format": "uri"}, "events": {"type": "array", "items": {"type": "string"}}, "createdAt": {"type": "string", "format": "date-time"}}},
       "WebhookPage": {"type": "object", "required": ["webhooks"], "properties": {"webhooks": {"type": "array", "items": {"$ref": "#/components/schemas/Webhook"}}}},
       "WebhookSecretResponse": {"type": "object", "required": ["id", "workspaceId", "name", "url", "events", "createdAt", "secret"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "name": {"type": "string"}, "url": {"type": "string", "format": "uri"}, "events": {"type": "array", "items": {"type": "string"}}, "createdAt": {"type": "string", "format": "date-time"}, "secret": {"type": "string"}}},

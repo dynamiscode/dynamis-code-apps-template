@@ -107,15 +107,6 @@ func (h *Handler) storeColumnOrder(
 	h.afterListChange(writer, request, redirect, rerender)
 }
 
-func (h *Handler) setItemColumnOrder(writer http.ResponseWriter, request *http.Request) {
-	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	h.storeColumnOrder(writer, request, listprefs.ListItems,
-		func(identity.Principal, identity.WorkspaceID) ([]viewmodel.ListColumn, error) {
-			return itemListColumns(), nil
-		},
-		h.itemsPath(workspaceID)+clientQuerySuffix(request.URL.Query()), h.rerenderItems)
-}
-
 func (h *Handler) setMemberColumnOrder(writer http.ResponseWriter, request *http.Request) {
 	h.storeColumnOrder(writer, request, listprefs.ListMembers,
 		func(identity.Principal, identity.WorkspaceID) ([]viewmodel.ListColumn, error) {
@@ -137,10 +128,6 @@ func (h *Handler) afterListChange(
 		return
 	}
 	h.redirect(writer, request, redirect)
-}
-
-func (h *Handler) rerenderItems(writer http.ResponseWriter, request *http.Request) {
-	h.renderItems(writer, request, http.StatusOK, "")
 }
 
 func (h *Handler) rerenderMembers(writer http.ResponseWriter, request *http.Request) {

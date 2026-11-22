@@ -30,7 +30,7 @@ func TestSharedComponentsRenderAccessibleNativeControls(t *testing.T) {
 		children  templ.Component
 		want      []string
 	}{
-		{"heading", molecules.PageHeading("Items <all>", "Workspace"), nil, []string{`<h1>Items &lt;all&gt;</h1>`, `class="eyebrow"`}},
+		{"heading", molecules.PageHeading("Items <all>", "Workspace"), nil, []string{`<h2>Items &lt;all&gt;</h2>`, `class="eyebrow"`}},
 		{"field", molecules.TextField("title", "Title", templ.Attributes{"name": "title", "required": true, "aria-describedby": "title-error", "aria-invalid": "true"}), nil, []string{`<label class="fieldset-legend" for="title">Title</label>`, `id="title"`, `name="title"`, `required`, `aria-describedby="title-error"`, `aria-invalid="true"`}},
 		{"select", atoms.Select(atoms.SelectProps{ID: "locale", Name: "locale", Label: "Language", Options: []atoms.SelectOption{{Label: "English", Value: "en", Selected: true}}}), nil, []string{`for="locale"`, `id="locale"`, `name="locale"`, `<option selected value="en">English</option>`}},
 		{"textarea", molecules.TextareaField("notes", "Notes", "<notes>", templ.Attributes{"name": "notes"}), nil, []string{`<label class="fieldset-legend" for="notes">Notes</label>`, `id="notes"`, `name="notes"`, `&lt;notes&gt;`}},
@@ -40,7 +40,7 @@ func TestSharedComponentsRenderAccessibleNativeControls(t *testing.T) {
 		{"confirmation", molecules.ConfirmationField("confirm", "confirm", "I understand"), nil, []string{`for="confirm"`, `type="checkbox"`, `name="confirm"`, `required`, `I understand`}},
 		{"destructive action", molecules.ConfirmButton("Delete", "Delete this item?", templ.Attributes{"name": "action", "value": "delete"}), nil, []string{`type="submit"`, `data-confirm="Delete this item?"`, `value="delete"`}},
 		{"error", molecules.ErrorAlert("Invalid <title>"), nil, []string{`role="alert"`, `tabindex="-1"`, `Invalid &lt;title&gt;`}},
-		{"status", molecules.StatusLine("Ready <now>", templ.Attributes{"aria-live": "polite", "id": "realtime-status"}), nil, []string{`<p class="status" role="status" aria-live="polite" id="realtime-status">Ready &lt;now&gt;</p>`}},
+		{"status", molecules.StatusLine("Ready <now>", templ.Attributes{"aria-live": "polite", "id": "realtime-status"}), nil, []string{`<p class="status-line" role="status" aria-live="polite" id="realtime-status">Ready &lt;now&gt;</p>`}},
 		{"success", molecules.SuccessAlert("Saved"), link, []string{`role="status"`, `Saved <a href="/items">Open</a>`}},
 		{"table", organisms.DataTable("Items", true), child, []string{`<table`, `class="sr-only"`, `>Items</caption>`, `scope="col"`, `>Example</td>`}},
 		{"card", molecules.LinkedCard("/items", "Item <one>", "Open"), nil, []string{`href="/items"`, `Item &lt;one&gt;`, `>Open</span>`}},

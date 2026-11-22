@@ -268,7 +268,7 @@ func isNotificationEventsPath(path string) bool {
 // streams are exempt from the request concurrency limit and the request deadline.
 func isChangeStreamPath(path string) bool {
 	return strings.HasPrefix(path, "/workspaces/") &&
-		(strings.HasSuffix(path, "/items/events") || strings.HasSuffix(path, "/clients/events"))
+		strings.HasSuffix(path, "/clients/events")
 }
 
 func isFileStreamingPath(path string) bool {

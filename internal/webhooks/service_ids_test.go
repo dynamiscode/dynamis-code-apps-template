@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
@@ -21,7 +20,7 @@ func TestWebhookResponsesExposeShortIDsOnly(t *testing.T) {
 	service := NewService(db, config.SQLite, auth, testKeyring(), queue)
 
 	created, err := service.Create(ctx, owner, owner.WorkspaceID, CreateInput{
-		Name: "ids", URL: "https://example.com/hook", Events: []string{"item.created"},
+		Name: "ids", URL: "https://example.com/hook", Events: []string{"client.created"},
 	}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -52,7 +51,7 @@ func TestMalformedAndIntegerWebhookIDsAreNotFound(t *testing.T) {
 	queue := jobs.NewQueue(db, config.SQLite, nil)
 	service := NewService(db, config.SQLite, auth, testKeyring(), queue)
 	created, err := service.Create(ctx, owner, owner.WorkspaceID, CreateInput{
-		Name: "missing", URL: "https://example.com/hook", Events: []string{"item.created"},
+		Name: "missing", URL: "https://example.com/hook", Events: []string{"client.created"},
 	}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -81,17 +80,14 @@ func TestDeliveriesCarryTypedShortIDsAndSharedEventID(t *testing.T) {
 	var webhookIDs []WebhookID
 	for _, name := range []string{"first", "second"} {
 		created, err := service.Create(ctx, owner, owner.WorkspaceID, CreateInput{
-			Name: name, URL: "https://example.com/" + name, Events: []string{"item.created"},
+			Name: name, URL: "https://example.com/" + name, Events: []string{"client.created"},
 		}, identity.AuditContext{})
 		if err != nil {
 			t.Fatal(err)
 		}
 		webhookIDs = append(webhookIDs, created.ID)
 	}
-	itemService := items.NewService(db, config.SQLite, auth, 100, service)
-	if _, err := itemService.Create(ctx, owner, owner.WorkspaceID, "Shared event", "typed-ids-key", identity.AuditContext{}); err != nil {
-		t.Fatal(err)
-	}
+	publishTestEvent(t, db, service, owner.WorkspaceID, "Shared event")
 
 	var eventIDs []string
 	for _, webhookID := range webhookIDs {

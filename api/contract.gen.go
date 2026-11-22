@@ -9,7 +9,7 @@ type Operation struct {
 }
 
 const OpenAPIVersion = "3.1.0"
-const OpenAPISHA256 = "1211a6be52938621a5e34f7fceae396d3954502925691de2c149aba22c8d81ee"
+const OpenAPISHA256 = "ceb08ef5908f94b7c04e471233d51baa95ea732c97b53af365f9b8fb143e491d"
 
 var Operations = []Operation{
 	{Method: "GET", Path: "/api/openapi.json", ID: "getOpenAPI"},
@@ -53,16 +53,10 @@ var Operations = []Operation{
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/files/{fileId}/complete", ID: "completeFileUpload"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/files/{fileId}/content", ID: "getFileContent"},
 	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/files/{fileId}/content", ID: "uploadFileContent"},
-	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/import", ID: "importWorkspace"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/invitations", ID: "listInvitations"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/invitations", ID: "createInvitation"},
 	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/invitations/{invitationId}", ID: "revokeInvitation"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/invitations/{invitationId}/resend", ID: "resendInvitation"},
-	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/items", ID: "listItems"},
-	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/items", ID: "createItem"},
-	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/items/{itemId}", ID: "deleteItem"},
-	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/items/{itemId}", ID: "getItem"},
-	{Method: "PATCH", Path: "/api/v1/workspaces/{workspaceId}/items/{itemId}", ID: "updateItem"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/members", ID: "listMembers"},
 	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/members/{memberId}", ID: "removeMember"},
 	{Method: "PATCH", Path: "/api/v1/workspaces/{workspaceId}/members/{memberId}", ID: "changeMemberRole"},

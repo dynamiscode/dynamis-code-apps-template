@@ -37,7 +37,7 @@ func ListViewSwitcher(data viewmodel.PageData) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = atoms.Dropdown(atoms.DropdownProps{
 			Class:        "list-menu",
-			SummaryClass: "btn btn-ghost btn-xs",
+			SummaryClass: "btn btn-ghost btn-sm",
 			SummaryAttrs: templ.Attributes{"aria-label": data.T("views.title"), "title": data.T("views.title")},
 			Summary:      listViewSummary(data),
 			Panel:        listViewPanel(data),

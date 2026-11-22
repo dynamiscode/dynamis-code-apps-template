@@ -31,7 +31,7 @@ func TestSetupPresentsRequiredDetailsBeforeDeferrableTasks(t *testing.T) {
 			if !strings.Contains(body, `data-setup-optional`) {
 				t.Fatal("setup page does not explain that optional tasks can wait")
 			}
-			for _, marker := range []string{`class="input w-full"`, `class="btn btn-primary"`, `action="/setup" method="post"`} {
+			for _, marker := range []string{`class="input w-full"`, `class="btn btn-primary w-full"`, `action="/setup" method="post"`} {
 				if !strings.Contains(body, marker) {
 					t.Fatalf("setup view missing marker %q", marker)
 				}
@@ -55,7 +55,7 @@ func TestSetupPresentsRequiredDetailsBeforeDeferrableTasks(t *testing.T) {
 }
 
 func TestAuthenticationPagesUseBrandAndOrdinaryFormPaths(t *testing.T) {
-	webHandler, _, _, _, _ := testWebRaw(t, 10)
+	webHandler, _, _, _ := testWebRaw(t, 10)
 	handler := webHandler.Routes()
 	brand := webHandler.catalog.Translate(i18n.English, "common.product_name", nil)
 	for _, path := range []string{"/login", "/password-reset", "/password-reset/unavailable", "/account/verify-email/unavailable"} {
@@ -73,7 +73,7 @@ func TestAuthenticationPagesUseBrandAndOrdinaryFormPaths(t *testing.T) {
 				t.Fatalf("%s missing ordinary form marker", path)
 			}
 			if strings.Contains(path, "password-reset") {
-				for _, marker := range []string{`class="brand auth-brand"`, `class="input w-full"`, `class="btn btn-primary"`, `id="main"`, `<html lang="en">`} {
+				for _, marker := range []string{`class="brand auth-brand"`, `class="input w-full"`, `class="btn btn-primary w-full"`, `id="main"`, `<html lang="en">`} {
 					if !strings.Contains(body, marker) {
 						t.Fatalf("%s missing auth layout marker %q", path, marker)
 					}
@@ -83,7 +83,7 @@ func TestAuthenticationPagesUseBrandAndOrdinaryFormPaths(t *testing.T) {
 				t.Fatal("invalid verification link missing focused error")
 			}
 			if path == "/login" {
-				for _, marker := range []string{`class="input w-full"`, `class="btn btn-primary"`, `action="/login" method="post"`, `name="csrf"`} {
+				for _, marker := range []string{`class="input w-full"`, `class="btn btn-primary w-full"`, `action="/login" method="post"`, `name="csrf"`} {
 					if !strings.Contains(body, marker) {
 						t.Fatalf("login missing marker %q", marker)
 					}
@@ -125,7 +125,7 @@ func mapValues(values ...string) url.Values {
 }
 
 func TestMFAPageKeepsFormFallbacksAvailable(t *testing.T) {
-	handler, auth, _, _, owner := testWebWithMFA(t, 10, true)
+	handler, auth, _, owner := testWebWithMFA(t, 10, true)
 	ctx := t.Context()
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
@@ -147,7 +147,7 @@ func TestMFAPageKeepsFormFallbacksAvailable(t *testing.T) {
 	if response.Code != http.StatusOK || !strings.Contains(body, `class="brand auth-brand"`) {
 		t.Fatalf("MFA page status = %d; missing auth brand", response.Code)
 	}
-	for _, marker := range []string{`action="/mfa/totp" method="post"`, `action="/mfa/recovery" method="post"`, `id="totp-code"`, `id="recovery-code"`, `class="btn btn-primary"`} {
+	for _, marker := range []string{`action="/mfa/totp" method="post"`, `action="/mfa/recovery" method="post"`, `id="totp-code"`, `id="recovery-code"`, `class="btn btn-primary w-full"`} {
 		if !strings.Contains(body, marker) {
 			t.Fatalf("MFA page missing marker %q", marker)
 		}
@@ -163,7 +163,7 @@ func TestMFAPageKeepsFormFallbacksAvailable(t *testing.T) {
 }
 
 func TestSecurityPageUsesTemplAndPreservesFactorForms(t *testing.T) {
-	handler, auth, _, _, owner := testWebWithMFA(t, 10, true)
+	handler, auth, _, owner := testWebWithMFA(t, 10, true)
 	ctx := t.Context()
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {

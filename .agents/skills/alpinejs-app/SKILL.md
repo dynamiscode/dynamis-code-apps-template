@@ -27,7 +27,7 @@ document.addEventListener("alpine:init", () => {
   (`templates/workspace.templ`, `auth.templ`, `public_pages.templ`) -
   wires `wireForms`, `wireRealtime`, `wireFileUploader`, `wireWebMCP`,
   and `toggleDrawer`.
-- `x-data="itemList"` on `#item-list`; `x-data="listScreen"` on list
+- `x-data="listScreen"` on list
   screens; `x-data="notificationsLive"` on `.notification-center`;
   `x-data="passkeyLogin"` / `passkeyEnroll` on auth/security sections.
 
@@ -38,7 +38,7 @@ expression.
 ## The rules
 
 1. **Components hold state and DOM; evaluators decide.** Business rules
-   go in exported pure functions (`core`, `itemSwapPlan`,
+   go in exported pure functions (`core`,
    `restoreFailedOptimisticRow`, the FileUploader state machine
    helpers): plain `(input) -> output` with no DOM access.
 2. **Every evaluator gets node tests.**
@@ -52,7 +52,7 @@ expression.
    (both files must stay valid JSON - a double comma broke the build
    once). Server-rendered text keeps using `data.T(...)`.
 4. **HTMX loads after Alpine** (document order). Code needing
-   `window.htmx` (itemList, wireRealtime) retries until it exists - keep
+   `window.htmx` (wireRealtime) retries until it exists - keep
    that guard when wiring new realtime behavior.
 5. **JS enhances, never gates.** The server path must work without
    JavaScript: forms POST, validation errors render, links navigate

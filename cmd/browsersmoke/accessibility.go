@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"path/filepath"
 
 	"github.com/chromedp/cdproto/accessibility"
 	"github.com/chromedp/cdproto/emulation"
@@ -90,15 +89,6 @@ const deletionFormExpr = `(() => ({
 	passwordRequired: document.querySelector('#delete-password[required]') !== null,
 }))()`
 
-const importContractExpr = `(() => ({
-	form: document.querySelector('form[enctype="multipart/form-data"]') !== null,
-	fileRequired: document.querySelector("#import-file[required]") !== null,
-	previewAction: document.querySelector('input[name="action"][value="preview"]') !== null,
-	confirmationAbsent: document.querySelector("#import-confirm") === null,
-	noScript: document.querySelector('script[src="/assets/app.js"]') === null,
-	noWebMCP: document.querySelector("[data-webmcp-page]") === null,
-}))()`
-
 const fileUploadContractExpr = `(() => {
 	const form = document.querySelector('form[data-file-upload][method="post"][enctype="multipart/form-data"]');
 	const progress = form?.querySelector("progress[data-upload-progress]");
@@ -111,47 +101,9 @@ const showUploadProgressExpr = `(() => {
 	progress.removeAttribute("hidden");
 })()`
 
-// importOverflowExpr returns the overflow report for the import page at 320px.
-const importOverflowExpr = `(() => {
-	const root = document.documentElement;
-	const viewport = root.clientWidth;
-	const round = (value) => Math.round(value * 10) / 10;
-	const offenders = Array.from(document.body.querySelectorAll("*"), (element) => {
-		const rect = element.getBoundingClientRect();
-		const style = getComputedStyle(element);
-		return {
-			tag: element.tagName.toLowerCase(),
-			id: element.id || undefined,
-			className: element.getAttribute("class") || undefined,
-			href: element instanceof HTMLAnchorElement && element.hasAttribute("href")
-				? new URL(element.href).pathname
-				: undefined,
-			left: round(rect.left),
-			right: round(rect.right),
-			width: round(rect.width),
-			clientWidth: element.clientWidth,
-			scrollWidth: element.scrollWidth,
-			minWidth: style.minWidth,
-			overflowX: style.overflowX,
-		};
-	}).filter((element) =>
-		element.width > 0 &&
-		(element.left < -1 || element.right > viewport + 1 || element.scrollWidth > element.clientWidth + 1)
-	).sort((left, right) => right.right - left.right).slice(0, 12);
-	return {
-		userAgent: navigator.userAgent,
-		innerWidth: window.innerWidth,
-		outerWidth: window.outerWidth,
-		clientWidth: root.clientWidth,
-		scrollWidth: root.scrollWidth,
-		bodyScrollWidth: document.body.scrollWidth,
-		offenders,
-	};
-})()`
-
 type a11yRun struct {
 	*browser
-	base, email, password, locale, importPath string
+	base, email, password, locale string
 }
 
 // runAccessibility is the Go port of scripts/accessibility.mjs. It audits the
@@ -172,17 +124,7 @@ func runAccessibility() error {
 	}
 	defer stop()
 
-	importDir, err := os.MkdirTemp("", "dynamis-import-preview-")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(importDir)
-	importPath := filepath.Join(importDir, "items.csv")
-	if err := os.WriteFile(importPath, []byte("title,status\nAccessibility preview,active\n"), 0o600); err != nil {
-		return err
-	}
-
-	run := &a11yRun{browser: b, base: base, email: email, password: password, locale: locale, importPath: importPath}
+	run := &a11yRun{browser: b, base: base, email: email, password: password, locale: locale}
 	if err := run.flow(); err != nil {
 		return err
 	}
@@ -216,7 +158,9 @@ func (s *a11yRun) flow() error {
 		return err
 	}
 	if err := s.expectFormActionSpacing("#workspace-locale", `form[action="/workspaces"] button[type="submit"]`, "workspace creation"); err != nil {
-		return err
+		current, _ := s.location()
+		body, _ := eval[string](s.browser, "document.body.innerText")
+		return fmt.Errorf("%w at %s: %s", err, current, body)
 	}
 	href, err := eval[string](s.browser, `document.querySelector(".cards a").getAttribute("href")`)
 	if err != nil {
@@ -262,7 +206,7 @@ func (s *a11yRun) flow() error {
 	if err := s.goTo(base + "/notifications"); err != nil {
 		return err
 	}
-	if err := s.waitFor("main h1"); err != nil {
+	if err := s.waitFor("h1"); err != nil {
 		return err
 	}
 	if err := s.audit("notifications"); err != nil {
@@ -288,7 +232,7 @@ func (s *a11yRun) flow() error {
 		if err := s.goTo(wsBase + "/settings/" + page.path); err != nil {
 			return err
 		}
-		if err := s.waitFor("main h1"); err != nil {
+		if err := s.waitFor("h1"); err != nil {
 			current, _ := s.location()
 			body, _ := eval[string](s.browser, "document.body.innerText")
 			fmt.Fprintf(os.Stderr, "failed URL: %s\n%s\n", current, body)
@@ -428,7 +372,7 @@ func (s *a11yRun) flow() error {
 	if err := s.click(`form[action="/login"] button[type="submit"]`); err != nil {
 		return err
 	}
-	if err := s.waitURL(base + "/"); err != nil {
+	if err := s.waitUntil(`location.pathname === "/" || /^\/workspaces\/[^/]+$/.test(location.pathname)`); err != nil {
 		current, _ := s.location()
 		body, _ := eval[string](s.browser, "document.body.innerText")
 		return fmt.Errorf("re-login after auth accessibility checks failed at %s: %s: %w", current, body, err)
@@ -448,7 +392,10 @@ func (s *a11yRun) signIn() error {
 	if err := s.click(`button[type="submit"]`); err != nil {
 		return err
 	}
-	return s.waitURL(s.base + "/")
+	if err := s.waitUntil(`location.pathname === "/" || /^\/workspaces\/[^/]+$/.test(location.pathname)`); err != nil {
+		return err
+	}
+	return s.goTo(s.base + "/")
 }
 
 // expectKeyboardOrder checks the login form's Tab order: skip link, email,
@@ -593,20 +540,10 @@ func (s *a11yRun) resetPasswordMatrix() error {
 	return nil
 }
 
-// workspacePages covers the signed-in items, clients, validation, reduced
-// motion, sharing, MCP consent, import and files pages.
+// workspacePages covers Clients, reduced motion, MCP consent, and Files.
 func (s *a11yRun) workspacePages(wsBase string) error {
 	base := s.base
 
-	if err := s.goTo(wsBase + "/items"); err != nil {
-		return err
-	}
-	if err := s.waitFor("#item-list"); err != nil {
-		return err
-	}
-	if err := s.audit("items"); err != nil {
-		return err
-	}
 	if err := s.goTo(wsBase + "/clients"); err != nil {
 		return err
 	}
@@ -616,14 +553,14 @@ func (s *a11yRun) workspacePages(wsBase string) error {
 	if err := s.audit("clients"); err != nil {
 		return err
 	}
-	if err := s.click(".client-create > summary"); err != nil {
+	if err := s.click(`a[href$="/clients/new"]`); err != nil {
 		return err
 	}
 	if err := s.typeText("#client-display-name", "Accessibility client "+s.locale); err != nil {
 		return err
 	}
 	// Submit the form itself: a realtime list refresh can re-render the open menu and strand a button click.
-	if _, err := eval[any](s.browser, `document.querySelector(".client-create form.create").requestSubmit()`); err != nil {
+	if _, err := eval[any](s.browser, `document.querySelector("form.create").requestSubmit()`); err != nil {
 		return err
 	}
 	if err := s.waitFor("#client-detail"); err != nil {
@@ -642,58 +579,14 @@ func (s *a11yRun) workspacePages(wsBase string) error {
 		return err
 	}
 
-	if err := s.goTo(wsBase + "/items"); err != nil {
-		return err
-	}
-	if err := s.waitFor("#item-list"); err != nil {
-		return err
-	}
-	if _, err := eval[any](s.browser, `(() => {
-		const input = document.querySelector("#new-title");
-		input.required = false;
-		input.value = "";
-		input.form.requestSubmit();
-	})()`); err != nil {
-		return err
-	}
-	if err := s.waitFor(`[role="alert"]`); err != nil {
-		return err
-	}
-	if err := s.audit("item-validation"); err != nil {
-		return err
-	}
-	if err := s.expectFocusRole("alert", "HTMX validation error did not receive focus"); err != nil {
-		return err
-	}
-
-	spacingTitle := "Spacing check " + s.locale
-	if err := s.typeText("#new-title", spacingTitle); err != nil {
-		return err
-	}
-	if err := s.click("form.create button[type=submit]"); err != nil {
-		return err
-	}
-	if err := s.waitFor(fmt.Sprintf(`#item-list .item-list-view input[value="%s"]`, spacingTitle)); err != nil {
-		return err
-	}
-	if err := s.expectNoExtraButtonMargin(".row button", "item row actions"); err != nil {
-		return err
-	}
-	if err := s.expectNoExtraButtonMargin(".actions button", "item action group"); err != nil {
-		return err
-	}
-	if err := s.expectNoExtraButtonMargin("header .dropdown-end button", "account menu"); err != nil {
-		return err
-	}
 	if err := s.setViewport(320, 800); err != nil {
 		return err
 	}
 	if overflow, err := eval[bool](s.browser, documentOverflowExpr); err != nil {
 		return err
 	} else if overflow {
-		return errors.New("items page has horizontal overflow at 320 CSS pixels")
+		return errors.New("client fields page has horizontal overflow at 320 CSS pixels")
 	}
-
 	if _, err := cdpCall(s.browser, emulation.SetEmulatedMedia, emulation.SetEmulatedMediaParams{
 		Features: []*emulation.MediaFeature{{Name: "prefers-reduced-motion", Value: "reduce"}},
 	}); err != nil {
@@ -704,61 +597,7 @@ func (s *a11yRun) workspacePages(wsBase string) error {
 	} else if !reduced {
 		return errors.New("reduced-motion preference was not honored")
 	}
-	itemNames := [][2]string{{"heading", "Items"}, {"textbox", "New item title"}, {"button", "Add item"}}
-	if s.locale == "es" {
-		itemNames = [][2]string{{"heading", "Elementos"}, {"textbox", "Título del nuevo elemento"}, {"button", "Añadir elemento"}}
-	}
-	if err := s.requireAXNodes("accessibility", itemNames); err != nil {
-		return err
-	}
-
 	if err := s.setViewport(1280, 900); err != nil {
-		return err
-	}
-	// Find the row's input by index so no page value is embedded in the script text.
-	values, err := eval[[]string](s.browser, `[...document.querySelectorAll("input")].map((i) => i.value)`)
-	if err != nil {
-		return err
-	}
-	index := -1
-	for i, value := range values {
-		if value == spacingTitle {
-			index = i
-			break
-		}
-	}
-	if index < 0 {
-		return fmt.Errorf("no input holds %q", spacingTitle)
-	}
-	if _, err := eval[bool](s.browser, fmt.Sprintf(`(() => {
-		const input = document.querySelectorAll("input")[%d];
-		const button = input.closest("tr").querySelector('form.share button[value="create"]');
-		button.focus();
-		return true;
-	})()`, index)); err != nil {
-		return err
-	}
-	// Record the link as it appears: a realtime refresh can replace the list right after the create response.
-	if _, err := eval[any](s.browser, `(() => { window.__shareHref = ""; new MutationObserver(() => { const link = document.querySelector('#item-list a[href*="/share/"]'); if (link && !window.__shareHref) window.__shareHref = link.href; }).observe(document.body, { subtree: true, childList: true }); })()`); err != nil {
-		return err
-	}
-	if err := s.press("\r"); err != nil {
-		return err
-	}
-	if err := s.waitUntil(`window.__shareHref !== ""`); err != nil {
-		return fmt.Errorf("share link not created: %w", err)
-	}
-	shareHref, err := eval[string](s.browser, `window.__shareHref`)
-	if err != nil {
-		return err
-	}
-	if err := s.goTo(shareHref); err != nil {
-		return err
-	}
-	if err := s.waitFor("main.public-share-card"); err != nil {
-		return err
-	}
-	if err := s.audit("public share"); err != nil {
 		return err
 	}
 
@@ -795,69 +634,6 @@ func (s *a11yRun) workspacePages(wsBase string) error {
 		return err
 	}
 	if err := s.audit("MCP consent"); err != nil {
-		return err
-	}
-
-	if err := s.goTo(wsBase + "/settings/import"); err != nil {
-		return err
-	}
-	if err := s.waitFor("#import-file"); err != nil {
-		return err
-	}
-	if err := s.audit("import"); err != nil {
-		return err
-	}
-	contract, err := eval[map[string]bool](s.browser, importContractExpr)
-	if err != nil {
-		return err
-	}
-	for key, ok := range contract {
-		if !ok {
-			return fmt.Errorf("import page ordinary-form contract failed: %s", key)
-		}
-	}
-	importNames := [][2]string{{"heading", "Accessibility Import"}, {"button", "Preview file"}}
-	previewNames := [][2]string{{"heading", "Import preview"}, {"checkbox", "I reviewed the preview and understand this imports the whole file as new items in this workspace."}, {"button", "Import previewed items"}}
-	if s.locale == "es" {
-		importNames = [][2]string{{"heading", "Accessibility Importar"}, {"button", "Previsualizar archivo"}}
-		previewNames = [][2]string{{"heading", "Vista previa de importación"}, {"checkbox", "Revisé la vista previa y entiendo que todo el archivo se importará como elementos nuevos en este espacio de trabajo."}, {"button", "Importar elementos previsualizados"}}
-	}
-	if err := s.requireAXNodes("import", importNames); err != nil {
-		return err
-	}
-	if err := s.setFiles("#import-file", s.importPath); err != nil {
-		return err
-	}
-	if err := s.click(`form.import-preview-form button[type="submit"]`); err != nil {
-		return err
-	}
-	if err := s.waitFor("#import-preview-heading"); err != nil {
-		return err
-	}
-	if err := s.audit("import preview"); err != nil {
-		return err
-	}
-	if err := s.requireAXNodes("import preview", previewNames); err != nil {
-		return err
-	}
-	if err := s.setViewport(320, 800); err != nil {
-		return err
-	}
-	overflowJSON, err := eval[json.RawMessage](s.browser, importOverflowExpr)
-	if err != nil {
-		return err
-	}
-	var overflow struct {
-		ScrollWidth int `json:"scrollWidth"`
-		ClientWidth int `json:"clientWidth"`
-	}
-	if err := json.Unmarshal(overflowJSON, &overflow); err != nil {
-		return err
-	}
-	if overflow.ScrollWidth > overflow.ClientWidth {
-		return fmt.Errorf("import page has horizontal overflow at 320 CSS pixels: %s", overflowJSON)
-	}
-	if err := s.setViewport(1280, 900); err != nil {
 		return err
 	}
 

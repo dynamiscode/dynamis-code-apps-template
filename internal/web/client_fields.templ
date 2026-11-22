@@ -51,7 +51,7 @@ templ clientFieldList(data viewmodel.PageData) {
 				</form>
 			}
 		} else {
-			<p class="status">{ data.T("clients.fields_read_only") }</p>
+			<p class="status-line">{ data.T("clients.fields_read_only") }</p>
 		}
 		if len(data.ClientFields) > 0 {
 			<ul class="client-fields">
@@ -60,7 +60,7 @@ templ clientFieldList(data viewmodel.PageData) {
 						<div class="client-field-heading">
 							<strong>{ field.Label }</strong>
 							<span>{ data.T("clients.field_type_" + field.Type) }</span>
-							<span class="status">{ data.T(clientFieldStatusKey(field.ArchivedAt != nil)) }</span>
+							<span class="status-line">{ data.T(clientFieldStatusKey(field.ArchivedAt != nil)) }</span>
 						</div>
 						if data.CanManageFields {
 							<div class="client-field-actions">
@@ -102,7 +102,7 @@ templ clientFieldList(data viewmodel.PageData) {
 				}
 			</ul>
 		} else {
-			<p class="status">{ data.T("clients.fields_none") }</p>
+			<p class="status-line">{ data.T("clients.fields_none") }</p>
 		}
 	</section>
 }

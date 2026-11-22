@@ -80,12 +80,9 @@ type MCP struct {
 }
 
 type Data struct {
-	ItemsMaxPerWorkspace        int
 	ClientFieldsMaxPerWorkspace int
 	ExportMaxRecords            int
 	ExportMaxBytes              int
-	ImportMaxRecords            int
-	ImportMaxBytes              int
 	AuditRetention              time.Duration
 }
 
@@ -644,10 +641,6 @@ func loadHTTP(lookup LookupEnv) (HTTP, error) {
 }
 
 func loadData(lookup LookupEnv) (Data, error) {
-	itemsLimit, err := rangedInt(lookup, "ITEMS_MAX_PER_WORKSPACE", 10000, 1, 1000000)
-	if err != nil {
-		return Data{}, err
-	}
 	clientFieldsLimit, err := rangedInt(lookup, "CLIENT_FIELDS_MAX_PER_WORKSPACE", 50, 1, 50)
 	if err != nil {
 		return Data{}, err
@@ -660,14 +653,6 @@ func loadData(lookup LookupEnv) (Data, error) {
 	if err != nil {
 		return Data{}, err
 	}
-	importRecords, err := rangedInt(lookup, "IMPORT_MAX_RECORDS", 1000, 1, 10000)
-	if err != nil {
-		return Data{}, err
-	}
-	importBytes, err := rangedInt(lookup, "IMPORT_MAX_BYTES", 4*1024*1024, 64*1024, 4*1024*1024)
-	if err != nil {
-		return Data{}, err
-	}
 	auditRetention, err := durationValue(
 		lookup, "AUDIT_RETENTION", 8760*time.Hour, 720*time.Hour, 87600*time.Hour,
 	)
@@ -675,10 +660,9 @@ func loadData(lookup LookupEnv) (Data, error) {
 		return Data{}, err
 	}
 	return Data{
-		ItemsMaxPerWorkspace: itemsLimit, ClientFieldsMaxPerWorkspace: clientFieldsLimit,
-		ExportMaxRecords: exportRecords,
-		ExportMaxBytes:   exportBytes, ImportMaxRecords: importRecords,
-		ImportMaxBytes: importBytes, AuditRetention: auditRetention,
+		ClientFieldsMaxPerWorkspace: clientFieldsLimit,
+		ExportMaxRecords:            exportRecords,
+		ExportMaxBytes:              exportBytes, AuditRetention: auditRetention,
 	}, nil
 }
 

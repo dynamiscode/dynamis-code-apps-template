@@ -7,16 +7,12 @@ permission gets `403`.
 The browser interface is server-rendered and reaches the same application use
 cases as REST. Sign in at `/login`, create or choose a workspace, then use the
 workspace home and sidebar. `/workspaces/{workspaceId}` is the workspace home;
-it highlights the first Item task and links to enabled workspace tools. Items is its resource surface and Settings is a nested route
-group for members, invitations, API tokens, webhooks, SCIM provisioning, export, import, and audit history.
-The Items page states its purpose, labels list controls as “Find and sort”, and
-shows readable status labels in compact editor rows. Filters, sorting, pagination,
-and ordinary form submissions remain shareable and usable without JavaScript.
+it links to enabled workspace tools. Settings groups members, invitations, API tokens, webhooks, SCIM provisioning, export, and audit history.
 
 Member and invitation pages explain role permissions, ownership transfer,
 invited-email matching, and safe recovery for unavailable links.
 Settings groups general and email setup, member access, API tokens, webhooks,
-SCIM, exports, imports, and audit history into role-aware sidebar sections.
+SCIM, exports, and audit history into role-aware sidebar sections.
 `/account`, `/notifications`, `/sessions`, and `/security` cover account and
 security settings. Account pages share responsive panels, generated branding,
 and the user's light, dark, or system theme. The authenticated shell uses
@@ -89,7 +85,7 @@ Baseline browser surfaces:
   oldest membership, or shows the no-memberships message when there is none;
   the create form is hidden and `POST /workspaces` returns 404. Workspace cards
   and the `/workspaces/{workspaceId}` route open the authenticated workspace
-  home, which links to Items and Settings.
+  home, which links to enabled workspace tools and Settings.
 - `/workspaces/{workspaceId}/settings/general` reads workspace settings and lets authorized owners/admins
   change the workspace language fallback with CSRF protection.
 - `/workspaces/{workspaceId}/settings/members` lists members in the shared
@@ -196,86 +192,26 @@ Baseline browser surfaces:
   screen with templ; its ordinary `Download JSON` link downloads the export
   from `/workspaces/{workspaceId}/settings/export/download`. The download is
   synchronous, bounded, workspace-authorized, and sent with `no-store`.
-- `/workspaces/{workspaceId}/settings/import` previews one bounded JSON export
-  or strict UTF-8 `title,status` CSV before import. Preview validates every
-  record, shows the count, up to five sample records, and up to ten actionable
-  row errors without writing items. A valid preview offers an ordinary
-  confirmation form; users select the same file again, and the server checks
-  its digest before importing. Confirmation rechecks session CSRF, workspace
-  permission, file limits, and item quota, then creates all rows atomically.
-  Duplicate titles remain separate new items. Both steps work without
-  JavaScript and render through templ with shared form, table, and alert
-  components. Errors report safe categories and bounded row diagnostics without
-  echoing file contents. Ordinary-form browser coverage for preview, no-write
-  behavior, confirmation, and export is in
-  [the workspace administration Playwright suite](../internal/browsertest/admin_test.go).
 - `/workspaces/{workspaceId}/settings/audit` presents the authorized,
   read-only latest-100 audit history with redacted fields. Its permissions,
   empty/success states, and browser accessibility are covered by
   [audit handler tests](../internal/web/handler_test.go) and
   [accessibility evidence](accessibility.md#workspace-administration-and-data-evidence-2026-11-17).
-- `/share/{token}` renders through `public_pages.templ` as a localized public
-  card with shared alert components. It presents a read-only Item projection containing only title
-  and localized status. Invalid, expired, and revoked links share the same
-  unavailable page. The Items page lets principals with `resources:write`
-  create seven- or 30-day links and revoke active links with CSRF-protected
-  forms. Create returns the targeted list fragment; revoke uses ordinary
-  redirect navigation. Share forms opt out of HTMX history snapshots so a
-  one-time URL is not cached. The controls state what link holders can see and
-  explain revocation consequences without JavaScript. Its shared list view
-  persists each member's title and status column visibility per workspace,
-  filters by title and status, sorts by creation time, and carries query state
-  through pagination and realtime refreshes. The
-  same rows adapt from a table to cards on narrow screens; inline title/status
-  editing and authorized row actions remain available when either data column
-  is hidden.
-
-Forms keep ordinary navigation as fallback. HTMX enhances Items item fragments
-and the Clients realtime list fragment.
+Forms keep ordinary navigation as fallback. HTMX enhances the Clients realtime list fragment.
 Secret-bearing responses use `no-store`; list pages never render session,
 CSRF, invitation, API-token, SCIM credential, or webhook secrets. Webhook delivery history excludes
 delivery payloads and shows only bounded status, attempt, HTTP status, timestamps,
 and redacted error categories.
 
-Public sharing uses `private, no-store`, `no-referrer`, and
-`X-Robots-Tag: noindex, nofollow, noarchive`. The existing per-source HTTP
-rate limit applies to public access. There is no public write, search, listing,
-REST, CLI, MCP, or WebMCP sharing surface.
-
 `/oauth/authorize` renders consent and generic errors through `public_pages.templ`.
-The consent page shows the client name, requested item permissions, and eligible
+The consent page shows the client name, requested resource permissions, and eligible
 workspace choices in the shared card layout. Approve and deny remain ordinary
 CSRF-protected form submissions; the page does not load WebMCP or submit
 automatically. Invalid requests and unavailable workspace permissions use the
 localized error page. These pages use `no-store` and are excluded from preload
 and history caching.
 
-The workspace sidebar exposes `Home` above `Items` in the workspace context.
-Home is active at `/workspaces/{workspaceId}`. Settings uses the nested
-`/workspaces/{workspaceId}/settings` route and groups `General` under Setup,
-`Members & invitations`, `API tokens`, and `Webhooks` under Access, and `Export`
-under Activity. Owners and admins also see `Email` under Setup, `Provisioning
-(SCIM)` under Access, and `Import` and `Audit history` under Activity. The
-Settings group is separated by flexible space and anchored at the bottom in
-the workspace context. The members screen and invitations screen retain local
-tabs behind the combined entry. In multi mode the Items page offers
-`Back to Workspaces`, returning to the workspace selector; each Settings page offers
-`Back to home`, returning to the current workspace home. The native workspace switcher and account menu use ordinary
-`details` controls, so they work without JavaScript. In single mode the Items and Members screens show the workspace name as plain text
-and omit the switcher list link and the top-bar `Workspaces` crumb; Items also omits `Back to Workspaces`. Tokens,
-Provisioning, and Import omit the switcher list link and the top-bar crumb. The Account, Audit history,
-and Export crumbs point to the default workspace home. On narrow screens the
-workspace and settings sidebars become compact two-column navigation regions.
-The workspace switcher panel stays within the viewport. Provisioning is
-shown only to owners and admins. Item deletion is
-explicitly permanent and asks for confirmation when the browser script is
-available; ordinary form submission remains available without it.
-
-Forms work with ordinary navigation. Vendored HTMX 4.0.1 enhances Items item
-forms and the Clients realtime list refresh; it contains no business rules. The realtime wiring keeps
-HTMX 2.x non-swap behavior for `204`, `304`, `4xx`, and `5xx` responses so
-error pages never replace the list. The exact upstream license is served from
-`internal/web/assets/HTMX-LICENSE`.
+The workspace sidebar links Home, enabled resource screens, and role-gated Settings. Navigation and forms retain ordinary HTML fallback. HTMX enhances the Clients realtime list refresh without business rules. The realtime wiring preserves non-swap behavior for `204`, `304`, `4xx`, and `5xx` responses.
 
 ## Form enhancements
 
@@ -296,29 +232,12 @@ each driven by a template attribute:
 | Draft persistence | `data-persist` | Unsent text is kept in `sessionStorage` (never passwords, hidden values, or files), restored after a rejected submit or a return visit, and discarded after a save. |
 | Wizard | `data-wizard`, `fieldset data-step` | First-run setup shows one step at a time; Next validates the current step. |
 | Progressive disclosure | `data-show-when="control=value"` | Email settings show only the chosen provider's section. |
-| Optimistic UI | `data-optimistic="remove"` | A confirmed item delete hides the row at once and restores it on failure. |
-| Autosave | `data-autosave` | Changing an item's status saves the row. |
-| Toasts | `HX-Trigger: {"app:toast": …}` | Item saves, additions, deletions, and request failures show in a polite live region. |
 | Lazy loading | `data-lazy-src` | The audit page renders first and fetches its table; without scripting, a link shows it. |
 | Keyboard | skip link, Escape | The first Tab reaches "Skip to content"; Escape closes an open menu or the newest toast; focus returns to the same field after an htmx swap. |
 
-A rejected item create keeps the typed title, and a reused create form answers
-`409` with a message instead of `500`. The realtime item list waits while a row
-is being edited and refreshes when focus leaves it.
-
 ## Browser journey and screenshot baselines
 
-`make browser-smoke` starts a disposable Go server and uses pinned Playwright
-with Chrome. It signs in, opens the workspace home, and creates the first Item.
-The committed workspace-home screenshots cover desktop (1280×900) and mobile
-(390×844) in light and dark system themes. CI installs Chrome and runs the same
-journey and screenshot assertions.
-
-The rules behind these behaviors, and how to check them, are in the
-`item-create-submission`, `form-drafts`, `form-field-input`, `form-wizard`,
-`async-feedback`, `form-markup`, and `file-upload-form` skills under `.agents/skills/`. `make browser-smoke`
-drives them in headless Chrome against a fresh server; `docs/statecharts/` charts
-the item create, item delete, draft, and setup flows.
+`make browser-smoke` runs real Chrome against a disposable server. The `form-drafts`, `form-field-input`, `form-wizard`, `async-feedback`, `form-markup`, and `file-upload-form` skills describe focused checks.
 
 ## Theme
 
@@ -366,7 +285,7 @@ composes those components without a bridge.
 |---|---|---|
 | Script messages and skip link | Shared on authenticated, auth, public, and error pages; `TestNavigationComponentsEscapeInput` checks escaping and message placeholders | #434; page migrations remain separate |
 | Workspace context and breadcrumbs | Single mode omits workspace selection; multi mode retains the native switcher and ordinary links; `TestSingleModeHidesWorkspaceListNavigation` and `TestMultiModeKeepsWorkspaceListNavigation` | #410 and #434 |
-| Workspace and settings navigation | Home, Items, Clients, Files and settings retain feature and role gates; `TestWebNavigationAndActionFeedback` checks current pages and settings | #434; resource routes remain separate |
+| Workspace and settings navigation | Home, Clients, Files and settings retain feature and role gates; `TestWebNavigationAndActionFeedback` checks current pages and settings | #434; resource routes remain separate |
 | Member and invitation tabs | Both retain ordinary links and current-page state; `TestWebNavigationAndActionFeedback` | #434; member and invitation pages remain separate |
 | Account menu | Native disclosure and CSRF-protected logout remain; `TestNavigationComponentsEscapeInput` checks escaping | #434; account pages use templ |
 
@@ -379,7 +298,6 @@ accessibility results and remaining limits are recorded in
 |---|---|---|
 | `/`, `/workspaces/{workspaceId}` | `workspace.templ`, `workspace_templ.go`, `components/organisms/navigation.templ`, `components/molecules/` | Membership selection and creation, workspace home, unavailable workspace, setup-required and validation errors; native workspace switcher and shared templ navigation; CSRF-protected creation and ordinary-form fallback |
 | `/setup`, `/login`, `/auth/oidc/{providerId}` and callback, `/password-reset[/{secret}]`, `/mfa`, `/account/verify-email/{secret}`, `/oauth/authorize` | `auth.templ`, `auth_templ.go`, `assets/alpine-components.js`, `public_pages.templ` | Setup completion and validation, sign-in and provider choice, OIDC callback success/failure and denied workspace access, reset request/completion/unavailable/validation, MFA challenge/retry/expired redirect, verification success/invalid-or-expired, OAuth approval/denial; all setup/auth states dispatch through templ |
-| `/workspaces/{workspaceId}/items` | `items.templ`, `items_templ.go`, `assets/alpine-components.js` | Empty/results states, filters, sorting and paging, shareable query state, column preferences, create/edit/delete, validation, sharing, read-only viewer and denied writes, realtime refresh with dirty-row and standalone form preservation, native query history; ordinary form fallback |
 | Workspace clients and custom fields | `clients.templ` (list and detail), `client_fields.templ`, `components/molecules/`, `workspace.templ`, `components/organisms/navigation.templ` | Empty/results states, filters and paging, create/edit/delete, validation, custom-field and option lifecycle, realtime refresh; no client-family `html/template` views remain |
 | Workspace members | `members.templ`, generated `members_templ.go`, shared navigation/components | Role changes, removal and ownership transfer; responsive table/cards, filters, sorting, paging, validation, permission denial, and ordinary-form confirmations |
 | `/workspaces/{workspaceId}/settings/invitations`, `/invitations/{secret}`, `/invitations/{secret}/sign-in`, `/invitations/continue` | `invitations.templ`, `invitations_templ.go`, `workspace.templ`, `components/organisms/navigation.templ`, `components/molecules/` | Create/resend/revoke with explicit revoke confirmation; registration, account-matched acceptance, sign-in return through MFA/OIDC, invalid/expired/unavailable states; ordinary form fallback |
@@ -395,12 +313,11 @@ accessibility results and remaining limits are recorded in
 | `/workspaces/{workspaceId}/settings/webhooks` and `/workspaces/{workspaceId}/settings/webhooks/{webhookId}/deliveries` | `webhooks.templ`, `webhooks_templ.go`, `components/molecules/`, `components/organisms/navigation.templ` | Permission-denied and unavailable states, one-time secret creation/rotation, required localized delete confirmation, no-store redacted delivery history, keyboard/accessibility, mobile light/dark themes, no-JS confirmation and ordinary form fallback |
 | `/account`, `/settings/language` | `account.templ`, `account_templ.go`, `components/molecules/`, `components/organisms/navigation.templ` | Profile, theme, language, notifications, email verification, password change, reauthenticated account deletion, saved/validation/delivery failure; ordinary CSRF-protected forms and password exclusion from drafts; verified for #407 |
 | Workspace access and integration settings | `credential_settings.templ`, `credential_settings_templ.go`, `security.templ`, `security_templ.go`, `components/organisms/navigation.templ` | Settings validation, secret one-time display, integration setup and failure, responsive navigation |
-| `/workspaces/{workspaceId}/settings/export`, `/workspaces/{workspaceId}/settings/export/download`, `/workspaces/{workspaceId}/settings/import` | `settings_pages.templ`, `settings_pages_templ.go`, `workspace.templ`, `components/organisms/navigation.templ`, `components/molecules/` | authorized no-store export page and JSON download; import file selection, bounded preview, safe validation feedback, explicit multipart confirmation, and atomic create-only result; ordinary form fallback |
-| `/share/{token}` | `public_pages.templ`, `public_pages_templ.go`, `components/molecules/` | Localized title/status-only share projection, invalid/expired/revoked unavailable state, no-store and referrer/robots headers |
+| `/workspaces/{workspaceId}/settings/export`, `/workspaces/{workspaceId}/settings/export/download` | `settings_pages.templ`, `components/molecules/` | Authorized no-store export page and JSON download; ordinary link fallback |
 | `/oauth/authorize` and generic errors | `public_pages.templ`, `public_pages_templ.go`, `auth.templ`, `components/molecules/` | Localized OAuth consent and generic errors; ordinary CSRF-protected approve/deny forms; invalid request and unavailable permission errors; no-store and preload/history-cache exclusion. `mcp_consent.go` and generic error dispatch call generated templ views; no `html/template` view remains for these routes |
 
 Corresponding route and handler tests cover server-rendered behavior, including
-public-share projection and unavailable states, consent approval and denial,
+consent approval and denial,
 and generic OAuth errors.
 `make browser-smoke` and `make accessibility-smoke` cover the browser paths they
 enumerate; [the accessibility evidence](accessibility.md) records that
@@ -425,6 +342,9 @@ automated evidence, committed screenshot samples, and remaining unverified
 states in the next section.
 
 ## Browser journey coverage reconciliation
+
+Historical evidence below describes routes available at the time. Items, Item sharing, and Item import were subsequently retired; these observations do not describe current coverage.
+
 
 Review date: 2026-11-18. Issue #431's route and navigation runs passed 113
 Playwright checks (2 notification tests skipped by spec conditions) across
@@ -455,7 +375,6 @@ not include these Playwright specs or source tests.
 |---|---|---|---|
 | `/setup`, `/login`, OIDC provider and callback; setup validation, login failure, OIDC callback failure/success and denied workspace | `internal/browsertest/ui_test.go`; `internal/web/auth_journeys_test.go`; `internal/web/oidc_test.go` | None committed for auth routes | No browser screenshot comparison for setup, login, or OIDC. MFA, email verification, and password-reset token success are not exercised as complete browser journeys. |
 | `/`, `/workspaces/{workspaceId}`; workspace selection, creation, home, unavailable/setup-required | `internal/browsertest/ui_test.go`; `internal/web/workspace_mode_test.go` | `internal/browsertest/ui_test.go` | Unavailable-workspace and setup-required error views have route coverage, not screenshot baselines. |
-| `/workspaces/{workspaceId}/items`; empty/results, filters, sorting, paging, create/edit/delete, validation, sharing, denied writes, refresh and query history | `internal/browsertest/ui_test.go`; `internal/web/items_list_test.go`; `internal/web/item_create_model_test.go` | `internal/browsertest/ui_test.go` | Dedicated browser screenshots cover the representative list state; every mutation and permission state is not captured. |
 | Workspace clients and custom fields; list, validation, CRUD, custom-field lifecycle, refresh and draft preservation | `internal/browsertest/clients_list_test.go`; focused client route tests under `internal/web/` | `internal/browsertest/clients_list_test.go` | Client detail and custom-field pages have behavior tests but no screenshot baseline. |
 | Workspace members; list, role change, removal, ownership transfer, denied actions | `internal/browsertest/members_test.go`; `internal/web/members_list_test.go`; `internal/web/members_role_test.go` | `internal/browsertest/members_test.go` | Full confirmation and denial state coverage is behavioral; screenshots represent the list. |
 | Invitations and acceptance; create/resend/revoke, existing-account sign-in, invalid/unavailable guidance | `internal/web/no_javascript_journeys_test.go`; `internal/web/invitation_guidance_test.go`; `internal/web/management_test.go` | None committed | Browser journey covers acceptance without JavaScript; management and invalid/expired states have route tests, not screenshots. |
@@ -505,9 +424,6 @@ tool contract is:
 | Tool | Input schema | Page preparation |
 |---|---|---|
 | `workspace-create-v1` | `{name}` | Fill workspace name and focus the control |
-| `item-create-v1` | `{title}` | Fill item title and focus the control |
-| `item-update-v1` | `{itemId,title,status}` | Fill visible title/status and focus Save |
-| `item-delete-v1` | `{itemId}` | Focus Delete permanently |
 | `member-role-update-v1` | `{memberId,role}` | Fill visible role and focus Change role |
 | `member-remove-v1` | `{memberId}` | Focus Remove |
 | `ownership-transfer-v1` | `{memberId}` | Focus Transfer ownership |
@@ -595,31 +511,13 @@ values using it will be cleared. All actions retain ordinary POST fallback.
 
 ## Realtime contract
 
-`GET /workspaces/{workspaceId}/items/events` is an authenticated SSE stream.
-It sends redacted resource references, not item titles or credentials.
-
-- `item.changed` carries a stable short event ID, schema version `1`, UTC occurrence
-  time, workspace and item IDs, action, and item version.
-- Events order by occurrence time then ID. Delivery is at least once; clients
-  must tolerate duplicates and refresh the normal item list.
-- Browsers reconnect with `Last-Event-ID`. Retained events after that ID replay
-  in order. A missing, malformed, unknown, or expired cursor receives `resync`, requiring
-  a normal list refresh before continuing.
-- The database retains the latest 1,000 item events per workspace. Database
-  polling makes delivery shared across instances once PostgreSQL is used.
-- Defaults: one-second poll, 15-second heartbeat, five-minute connection
-  lifetime, 100 connections per instance, and five per user per instance.
-  Limit rejection returns `429` plus `Retry-After`; lifetime closure emits a
-  `close` event and normal EventSource reconnection applies.
-
-`GET /workspaces/{workspaceId}/clients/events` is the client list's stream. It
-follows the same read permission, cursor, limit, heartbeat, and lifetime rules.
+`GET /workspaces/{workspaceId}/clients/events` is the client list's stream. It uses bounded read permission, cursor, connection, heartbeat, and lifetime rules.
 It sends `client.changed` with the client's short ID, schema version `1`, UTC
 occurrence time, workspace ID, action (`created` or `updated`), and client
 version. It carries no client fields. A missing, malformed, unknown, or expired
 cursor receives `resync`. Viewers receive events, and a user outside the
 workspace gets not found. The latest 1,000 client events per workspace are
-retained, and older events fall under the same replay window as Items.
+retained; maintenance removes events older than seven days.
 The client page loads the local HTMX asset to start browser refresh;
 the listener preserves URL state and defers replacement while forms are focused,
 dirty, or submitting. The list fragment and stream both require
@@ -635,8 +533,3 @@ and resumes after the recipient's last delivered notification. The lifetime
 event ID, or the original page cursor if no event arrived. An invalid cursor
 triggers `resync`. No notification secret or other user's record is exposed.
 The refresh link remains available.
-
-Permanent delete removes the live item and writes a redacted audit/change
-event. Existing backups may retain deleted content until the expiry defined in
-[data lifecycle](data-lifecycle.md); live deletion does not rewrite prior
-backups.

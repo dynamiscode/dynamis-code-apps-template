@@ -6,8 +6,6 @@ import (
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
-	"example.com/dynamis-code/apps-template/internal/sharing"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
 	"example.com/dynamis-code/apps-template/internal/workspaceemail"
 )
@@ -29,7 +27,6 @@ type PageData struct {
 	Workspaces           []identity.WorkspaceSummary
 	SingleWorkspace      bool
 	DefaultWorkspaceHref string
-	Items                []items.Item
 	Clients              []clients.Client
 	Client               clients.Client
 	ClientValues         []ClientValueRow
@@ -55,16 +52,13 @@ type PageData struct {
 	ListPager ListPager
 	// TopbarTitleKey names the page title shown in the top bar; empty shows none.
 	TopbarTitleKey       string
-	IsItemList           bool
 	IsMembersList        bool
 	IsFilesList          bool
 	MemberListQuery      MemberListQuery
 	MemberTotal          int
-	ItemListQuery        ItemListQuery
 	FileListQuery        FileListQuery
 	FileMinSize          string
 	FileMaxSize          string
-	ItemQuerySuffix      string
 	Filter               ListFilterView
 	ClientPreservedQuery []ClientHiddenField
 	ListPreservedQuery   []ClientHiddenField
@@ -126,9 +120,6 @@ type PageData struct {
 	InvitationAuthenticated          bool
 	InvitationURL                    string
 	TokenSecret                      string
-	ImportCompleted                  bool
-	Imported                         int
-	ImportPreview                    *ImportPreviewView
 	SCIMEndpoint                     string
 	SCIMTokenSecret                  string
 	DeliveryWarning                  string
@@ -136,11 +127,7 @@ type PageData struct {
 	CanCreateWorkspace               bool
 	CanTransfer                      bool
 	CanShare                         bool
-	CanEditItems                     bool
-	ShareLinks                       []sharing.Link
 	PublicShareURL                   string
-	PublicShareItemID                items.ItemID
-	PublicItem                       sharing.PublicItem
 	ReturnTo                         string
 	MFAChallenge                     string
 	MFAOptions                       json.RawMessage

@@ -18,7 +18,7 @@ func hasVisibleClientColumns(visible map[string]bool) bool {
 	return false
 }
 
-func (h *Handler) EnableItemsPreferences(preferences *listprefs.Service) {
+func (h *Handler) EnableListPreferences(preferences *listprefs.Service) {
 	h.listPreferences = preferences
 }
 

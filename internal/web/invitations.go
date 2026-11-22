@@ -144,5 +144,5 @@ func (h *Handler) invitationContinuePost(writer http.ResponseWriter, request *ht
 	}
 	h.clearCookie(writer, "invitation_handoff")
 	h.clearCookie(writer, "invitation_handoff_binding")
-	h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/items")
+	h.redirect(writer, request, "/workspaces/"+workspaceID.String())
 }

@@ -1,7 +1,6 @@
 package portability
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -11,7 +10,6 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 )
@@ -70,13 +68,7 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	itemService := items.NewService(db, driver, auth, 100)
-	created, err := itemService.Create(ctx, actor, workspaceID, "Portable item", "export-item-key",
-		identity.AuditContext{RequestID: "export-item", SourceAddress: "127.0.0.1"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	service := NewService(db, driver, auth, 100, 1024*1024, 100, 1024*1024, itemService, nil)
+	service := NewService(db, driver, auth, 100, 1024*1024, nil)
 	service.now = func() time.Time { return time.Date(2026, 8, 25, 20, 0, 0, 0, time.UTC) }
 	encoded, err := service.Export(ctx, actor, workspaceID,
 		identity.AuditContext{RequestID: "export-request", SourceAddress: "127.0.0.1"})
@@ -92,30 +84,21 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if err := json.Unmarshal(encoded, &keys); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"clients", "clientFields", "clientFieldOptions"} {
+	for _, key := range []string{"items", "clients", "clientFields", "clientFieldOptions"} {
 		if _, ok := keys[key]; ok {
 			t.Fatalf("export without a client source has key %q", key)
 		}
 	}
+	for _, key := range []string{"formatVersion", "exportedAt", "workspace", "members", "auditEvents", "excluded"} {
+		if _, ok := keys[key]; !ok {
+			t.Fatalf("export missing key %q", key)
+		}
+	}
 	if result.FormatVersion != FormatVersion || result.Workspace.ID != workspaceID.String() ||
 		result.Workspace.Locale != "es" ||
-		len(result.Members) != 2 || len(result.Items) != 1 || result.Items[0].ID != created.Item.ID ||
+		len(result.Members) != 2 ||
 		len(result.AuditEvents) == 0 || len(result.Excluded) == 0 {
 		t.Fatalf("export = %+v", result)
-	}
-	// The export derives each target short ID from its type and key; the item event must match.
-	sawItemTarget := false
-	for _, event := range result.AuditEvents {
-		if event.TargetType != "item" {
-			continue
-		}
-		sawItemTarget = true
-		if event.TargetID != result.Items[0].ID.String() || event.ActorUserID != userID.String() {
-			t.Fatalf("item audit target = %q/%q by %q; want item %q by %q", event.TargetType, event.TargetID, event.ActorUserID, result.Items[0].ID, userID.String())
-		}
-	}
-	if !sawItemTarget {
-		t.Fatal("export audit events lack an item target")
 	}
 	if strings.Contains(string(encoded), token.Secret) || strings.Contains(string(encoded), "secret_hash") {
 		t.Fatal("export contains credential material")
@@ -127,118 +110,13 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if _, err := service.Export(ctx, viewer, workspaceID, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("viewer export error = %v", err)
 	}
-	if _, err := service.Import(ctx, viewer, workspaceID, ImportInput{
-		Format: "text/csv", Reader: strings.NewReader("title,status\nBlocked,active\n"),
-	}, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
-		t.Fatalf("viewer import error = %v", err)
-	}
-	if _, err := service.Preview(ctx, viewer, workspaceID, ImportInput{
-		Format: "text/csv", Reader: strings.NewReader("title,status\nBlocked,active\n"),
-	}); !errors.Is(err, identity.ErrForbidden) {
-		t.Fatalf("viewer import preview error = %v", err)
-	}
-	preview, err := service.Preview(ctx, actor, workspaceID, ImportInput{
-		Format: "text/csv", Reader: strings.NewReader("title,status\nFirst,active\n,active\nThird,unknown\n"),
-	})
-	if err != nil || preview.RecordCount != 3 || preview.IssueCount != 2 || len(preview.Issues) != 2 ||
-		preview.Issues[0] != (ImportIssue{Record: 2, Field: "title"}) ||
-		preview.Issues[1] != (ImportIssue{Record: 3, Field: "status"}) || len(preview.Sample) != 3 {
-		t.Fatalf("invalid import preview = %+v, %v", preview, err)
-	}
-	var previewItemCount int
-	if err := db.QueryRowContext(ctx, database.Rebind(driver,
-		"SELECT COUNT(*) FROM items WHERE workspace_id = ?"), workspaceID).Scan(&previewItemCount); err != nil {
-		t.Fatal(err)
-	}
-	if previewItemCount != 1 {
-		t.Fatalf("preview created items: count = %d", previewItemCount)
-	}
-	validPreview, err := service.Preview(ctx, actor, workspaceID, ImportInput{
-		Format: "text/csv", Reader: strings.NewReader("title,status\nDuplicate,active\nDuplicate,complete\n"),
-	})
-	if err != nil || validPreview.RecordCount != 2 || validPreview.IssueCount != 0 || len(validPreview.Sample) != 2 {
-		t.Fatalf("valid duplicate-title preview = %+v, %v", validPreview, err)
-	}
-	boundedPreview, err := service.Preview(ctx, actor, workspaceID, ImportInput{
-		Format: "text/csv", Reader: strings.NewReader("title,status\n" + strings.Repeat(",invalid\n", 12)),
-	})
-	if err != nil || boundedPreview.RecordCount != 12 || boundedPreview.IssueCount != 12 ||
-		len(boundedPreview.Sample) != importPreviewSampleLimit || len(boundedPreview.Issues) != importPreviewIssueLimit {
-		t.Fatalf("bounded import preview = %+v, %v", boundedPreview, err)
-	}
-	importToken, err := auth.CreateAPIToken(ctx, actor, "workspace update import",
-		[]identity.Permission{identity.WorkspaceUpdate}, nil, identity.AuditContext{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	workspaceUpdater, err := auth.AuthenticateAPIToken(ctx, importToken.Secret, identity.WorkspaceUpdate, identity.AuditContext{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := service.Import(ctx, workspaceUpdater, workspaceID, ImportInput{
-		Format: "text/csv", Reader: strings.NewReader("title,status\nWorkspace scoped import,active\n"),
-	}, identity.AuditContext{}); err != nil {
-		t.Fatalf("workspace:update import error = %v", err)
-	}
 	wrongWorkspace := identity.WorkspaceID(workspaceID + 1000)
 	if _, err := service.Export(ctx, actor, wrongWorkspace, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("wrong-workspace export error = %v", err)
 	}
-	limited := NewService(db, driver, auth, 1, 1024*1024, 100, 1024*1024, itemService, nil)
+	limited := NewService(db, driver, auth, 1, 1024*1024, nil)
 	if _, err := limited.Export(ctx, actor, workspaceID, identity.AuditContext{}); !errors.Is(err, ErrLimit) {
 		t.Fatalf("limited export error = %v", err)
-	}
-	imported, err := service.Import(ctx, actor, workspaceID, ImportInput{
-		Format: "text/csv", Reader: strings.NewReader("title,status\nCSV item,active\nCSV done,complete\n"),
-	}, identity.AuditContext{RequestID: "import-csv"})
-	if err != nil || imported.Imported != 2 {
-		t.Fatalf("CSV import = %+v, %v", imported, err)
-	}
-	jsonImport, err := json.Marshal(Export{
-		FormatVersion: FormatVersion,
-		Items:         []items.Item{{ID: items.ItemID(7), WorkspaceID: identity.WorkspaceID(999), Title: "JSON item", Status: items.Active}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	imported, err = service.Import(ctx, actor, workspaceID, ImportInput{
-		Format: "application/json", Reader: bytes.NewReader(jsonImport),
-	}, identity.AuditContext{RequestID: "import-json"})
-	if err != nil || imported.Imported != 1 {
-		t.Fatalf("JSON import = %+v, %v", imported, err)
-	}
-	limitedImport := NewService(db, driver, auth, 100, 1024*1024, 1, 1024*1024, itemService, nil)
-	if _, err := limitedImport.Preview(ctx, actor, workspaceID, ImportInput{
-		Format: "text/csv", Reader: strings.NewReader("title,status\nOne,active\nTwo,active\n"),
-	}); !errors.Is(err, ErrImportLimit) {
-		t.Fatalf("limited preview error = %v", err)
-	}
-	if _, err := limitedImport.Import(ctx, actor, workspaceID, ImportInput{
-		Format: "text/csv", Reader: strings.NewReader("title,status\nOne,active\nTwo,active\n"),
-	}, identity.AuditContext{RequestID: "import-limit"}); !errors.Is(err, ErrImportLimit) {
-		t.Fatalf("limited import error = %v", err)
-	}
-	if _, err := service.Import(ctx, actor, workspaceID, ImportInput{
-		Format: "text/csv", Reader: strings.NewReader("title,status\nValid,active\n,active\n"),
-	}, identity.AuditContext{RequestID: "import-invalid"}); !errors.Is(err, ErrInvalidImport) {
-		t.Fatalf("invalid import error = %v", err)
-	}
-	var importedRows, failedImports int
-	if err := db.QueryRowContext(ctx, database.Rebind(driver,
-		"SELECT COUNT(*) FROM items WHERE workspace_id = ?"), workspaceID).Scan(&importedRows); err != nil {
-		t.Fatal(err)
-	}
-	if importedRows != 5 {
-		t.Fatalf("rolled-back import item count = %d", importedRows)
-	}
-	if err := db.QueryRowContext(ctx, database.Rebind(driver, `
-		SELECT COUNT(*) FROM audit_events
-		WHERE workspace_id = ? AND action = 'workspace.import' AND outcome = 'failure'
-	`), workspaceID).Scan(&failedImports); err != nil {
-		t.Fatal(err)
-	}
-	if failedImports != 2 {
-		t.Fatalf("import failure audits = %d", failedImports)
 	}
 	var success, failure int
 	if err := db.QueryRowContext(ctx, database.Rebind(driver, `
@@ -255,57 +133,5 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}
 	if success != 1 || failure != 1 {
 		t.Fatalf("export audits = success:%d failure:%d", success, failure)
-	}
-}
-
-func TestImportPreviewRechecksWorkspaceQuotaOnConfirmation(t *testing.T) {
-	ctx := context.Background()
-	db, err := database.Open(ctx, config.Database{
-		Driver: config.SQLite, SQLitePath: ":memory:", MaxOpenConns: 1, MaxIdleConns: 1,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { db.Close() })
-	if err := database.Migrate(ctx, db, config.SQLite); err != nil {
-		t.Fatal(err)
-	}
-	auth, err := identity.NewService(db, config.SQLite)
-	if err != nil {
-		t.Fatal(err)
-	}
-	owner, err := auth.BootstrapFirstOwner(ctx, identity.BootstrapInput{
-		Email: "preview-quota@example.com", Password: "long-enough-password", WorkspaceName: "Preview quota",
-	}, identity.AuditContext{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	actor, err := auth.Authorize(ctx, owner.UserID, owner.WorkspaceID, identity.WorkspaceUpdate)
-	if err != nil {
-		t.Fatal(err)
-	}
-	quotaItems := items.NewService(db, config.SQLite, auth, 1)
-	service := NewService(db, config.SQLite, auth, 100, 1024*1024, 100, 1024*1024, quotaItems, nil)
-	input := ImportInput{Format: "text/csv", Reader: strings.NewReader("title,status\nPreviewed,active\n")}
-	preview, err := service.Preview(ctx, actor, owner.WorkspaceID, input)
-	if err != nil || preview.RecordCount != 1 || preview.IssueCount != 0 {
-		t.Fatalf("initial quota preview = %+v, %v", preview, err)
-	}
-	writer := items.NewService(db, config.SQLite, auth, 2)
-	if _, err := writer.Create(ctx, actor, owner.WorkspaceID, "Created after preview", "after-preview", identity.AuditContext{}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := service.Import(ctx, actor, owner.WorkspaceID, ImportInput{
-		Format: "text/csv", Reader: strings.NewReader("title,status\nPreviewed,active\n"),
-	}, identity.AuditContext{}); !errors.Is(err, items.ErrLimit) {
-		t.Fatalf("confirmation quota error = %v", err)
-	}
-	principal, err := auth.Authorize(ctx, owner.UserID, owner.WorkspaceID, identity.ResourcesRead)
-	if err != nil {
-		t.Fatal(err)
-	}
-	page, err := writer.List(ctx, principal, owner.WorkspaceID, items.ListInput{Sort: "created_at", Limit: 10})
-	if err != nil || len(page.Items) != 1 || page.Items[0].Title != "Created after preview" {
-		t.Fatalf("quota-rejected import left partial items: %+v, %v", page, err)
 	}
 }

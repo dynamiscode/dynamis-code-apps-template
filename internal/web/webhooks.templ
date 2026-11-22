@@ -13,11 +13,11 @@ import (
 )
 
 templ webhooksPage(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardSettingsNavigation(data)) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
 		<p class="eyebrow">{ data.T("navigation.settings_access") }</p>
 		if data.SelectedWebhook.ID != 0 {
 			<p><a href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks" }>← { data.T("webhooks.back_to_webhooks") }</a></p>
-			<h1>{ data.SelectedWebhook.Name } { data.T("webhooks.delivery_history") }</h1>
+			<h2>{ data.SelectedWebhook.Name } { data.T("webhooks.delivery_history") }</h2>
 			if len(data.WebhookDeliveries) > 0 {
 				@atoms.TableWrap(atoms.TableWrapProps{
 					WrapClass: "table-scroll",
@@ -80,9 +80,6 @@ templ webhooksPage(data viewmodel.PageData) {
 						@molecules.TextField("webhook-url", data.T("webhooks.endpoint"), templ.Attributes{"name": "url", "type": "url", "required": true, "maxlength": "2048", "aria-describedby": "webhook-url-help", "data-trim": true})
 						<p id="webhook-url-help">{ data.T("webhooks.endpoint_help") }</p>
 						<fieldset aria-describedby="webhook-events-help"><legend>{ data.T("webhooks.events") }</legend><p id="webhook-events-help">{ data.T("webhooks.events_help") }</p>
-						@webhookEventCheckbox("item.created")
-						@webhookEventCheckbox("item.updated")
-						@webhookEventCheckbox("item.deleted")
 						@webhookEventCheckbox("client.created")
 						@webhookEventCheckbox("client.updated")
 						@webhookEventCheckbox("client.archived")

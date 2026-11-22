@@ -5,3 +5,33 @@ package molecules
 templ EmptyState(message string) {
 	<p>{ message }{ " " }{ children... }</p>
 }
+
+type EmptyStateCardProps struct {
+	ID, Title, Description, Class string
+	CTA templ.Component
+	Attrs templ.Attributes
+}
+
+// EmptyStateCard teaches a list's first action.
+templ EmptyStateCard(props EmptyStateCardProps) {
+	<div class={ "card border-l-4 border-primary p-5 mt-4", props.Class } id={ props.ID } { props.Attrs... }>
+		<h3 class="m-0">{ props.Title }</h3>
+		<p class="mb-4">{ props.Description }</p>
+		if props.CTA != nil {
+			@props.CTA
+		}
+	</div>
+}
+
+type NoMatchesAlertProps struct {
+	ID, Message, Href, Label, Class string
+	Attrs templ.Attributes
+}
+
+// NoMatchesAlert is the filtered-empty state.
+templ NoMatchesAlert(props NoMatchesAlertProps) {
+	<div id={ props.ID } role="status" class={ "alert mt-4 flex-wrap", props.Class } { props.Attrs... }>
+		<span>{ props.Message }</span>
+		<a class="btn btn-ghost btn-sm" href={ templ.SafeURL(props.Href) }>{ props.Label }</a>
+	</div>
+}

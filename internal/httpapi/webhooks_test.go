@@ -18,7 +18,7 @@ func TestWebhookRESTContracts(t *testing.T) {
 	defer server.Close()
 	base := "/api/v1/workspaces/" + workspaceID + "/webhooks"
 	created := serveAuthorized(handler, http.MethodPost, base,
-		`{"name":"items","url":"`+server.URL+`/hook","events":["item.created"]}`,
+		`{"name":"clients","url":"`+server.URL+`/hook","events":["client.created"]}`,
 		token, nil)
 	if created.Code != http.StatusCreated || !strings.Contains(created.Body.String(), `"secret"`) || created.Header().Get("Cache-Control") != "no-store" {
 		t.Fatalf("webhook create = %d, %s", created.Code, created.Body.String())
@@ -41,10 +41,10 @@ func TestWebhookRESTContracts(t *testing.T) {
 	if rotated.Code != http.StatusOK || rotated.Header().Get("Cache-Control") != "no-store" || strings.Contains(rotated.Body.String(), createdValue.Secret) {
 		t.Fatalf("webhook rotate = %d, %s", rotated.Code, rotated.Body.String())
 	}
-	item := serveAuthorized(handler, http.MethodPost, "/api/v1/workspaces/"+workspaceID+"/items",
-		`{"title":"Webhook item"}`, token, map[string]string{"Idempotency-Key": "webhook-rest-item"})
-	if item.Code != http.StatusCreated {
-		t.Fatalf("webhook item = %d, %s", item.Code, item.Body.String())
+	client := serveAuthorized(handler, http.MethodPost, "/api/v1/workspaces/"+workspaceID+"/clients",
+		`{"displayName":"Webhook client"}`, token, nil)
+	if client.Code != http.StatusCreated {
+		t.Fatalf("webhook client = %d, %s", client.Code, client.Body.String())
 	}
 	deliveries := serveAuthorized(handler, http.MethodGet, base+"/"+createdValue.ID+"/deliveries", "", token, nil)
 	if deliveries.Code != http.StatusOK || !strings.Contains(deliveries.Body.String(), `"status":"pending"`) {

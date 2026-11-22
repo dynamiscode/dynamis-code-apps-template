@@ -68,7 +68,7 @@ database). The password is required and is never printed:
 DEMO_OWNER_PASSWORD='use-a-local-password-12' go run ./cmd/demo
 ```
 
-The command creates or reuses `Demo Workspace` and three deterministic items;
+The command creates or reuses `Demo Workspace` and its owner;
 set `DEMO_OWNER_EMAIL` or `DEMO_WORKSPACE` to target another local setup.
 
 Health endpoints are `/health/live` and `/health/ready`; the live OpenAPI

@@ -209,7 +209,7 @@ func (h *Handler) renderFilesTempl(writer http.ResponseWriter, request *http.Req
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)
 	if listResultsFragment(request) {
-		_ = fileResults(data).Render(request.Context(), writer)
+		_ = fileResults(data, canUpload).Render(request.Context(), writer)
 		return
 	}
 	_ = filesPage(data, canUpload).Render(request.Context(), writer)

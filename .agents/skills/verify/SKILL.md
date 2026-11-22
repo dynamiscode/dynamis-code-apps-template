@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Drive the real Dynamis Code app and prove behavior - launch the Go server with a disposable SQLite database, exercise a feature the way a user does through real Chrome, and capture evidence. Use for any "verify this works", "prove it", or pre-handoff proof on this repo, and to reproduce a browser-suite failure outside the suite. Covers the shell (drawer/navbar), theme system, items lifecycle, clients list screens, and file upload; deeper mechanism skills (async-feedback, form-drafts, item-create-submission, file-upload-form, form-field-input, form-markup, form-wizard) extend it.
+description: Drive the real Dynamis Code app and prove behavior - launch the Go server with a disposable SQLite database, exercise a feature the way a user does through real Chrome, and capture evidence. Use for any "verify this works", "prove it", or pre-handoff proof on this repo, and to reproduce a browser-suite failure outside the suite. Covers the shell (drawer/navbar), theme system, clients list screens, and file upload; deeper mechanism skills (async-feedback, form-drafts, file-upload-form, form-field-input, form-markup, form-wizard) extend it.
 ---
 
 # Verify the app by driving it
@@ -82,8 +82,8 @@ curl -sf http://127.0.0.1:18080/health/live && echo LIVE
 
 Stable handles, in priority order: `data-*` attributes
 (`data-workspace-home`, `data-upload-progress`, `data-list-announce`),
-ARIA labels and roles, IDs (`#item-list`, `#file-upload`, `#new-title`),
-route paths (`/workspaces/<id>/items`). Never tab order or coordinates.
+ARIA labels and roles, IDs (`#file-upload`, `#client-display-name`),
+route paths (`/workspaces/<id>/clients`). Never tab order or coordinates.
 
 The suite selectors are the canon - reuse them instead of inventing
 selectors. Copy the exact `-run` names from the feature map

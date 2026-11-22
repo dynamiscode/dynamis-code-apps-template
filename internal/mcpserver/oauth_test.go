@@ -45,11 +45,11 @@ func TestProtectedResourceMetadataIsOffByDefault(t *testing.T) {
 		t.Fatal(err)
 	}
 	request := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(
-		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"items_create_v1","arguments":{}}}`))
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"clients_create_v1","arguments":{}}}`))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json, text/event-stream")
 	request.Header.Set("Authorization", "Bearer "+readToken.Secret)
-	request.Header.Set("Mcp-Name", "items_create_v1")
+	request.Header.Set("Mcp-Name", "clients_create_v1")
 	forbidden := httptest.NewRecorder()
 	state.handler.ServeHTTP(forbidden, request)
 	if forbidden.Code != http.StatusForbidden || forbidden.Header().Get("WWW-Authenticate") != "" {
@@ -154,11 +154,11 @@ func TestMCPInsufficientScopeChallengeAdvertisesProtectedResourceMetadata(t *tes
 		t.Fatal(err)
 	}
 	request := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(
-		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"items_create_v1","arguments":{}}}`))
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"clients_create_v1","arguments":{}}}`))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json, text/event-stream")
 	request.Header.Set("Authorization", "Bearer "+readToken.Secret)
-	request.Header.Set("Mcp-Name", "items_create_v1")
+	request.Header.Set("Mcp-Name", "clients_create_v1")
 	response := httptest.NewRecorder()
 	state.handler.ServeHTTP(response, request)
 	want := `Bearer error="insufficient_scope", resource_metadata="` + testOAuthMetadataURL + `"`

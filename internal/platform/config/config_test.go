@@ -34,7 +34,7 @@ func TestLoadFromDefaultsToSQLite(t *testing.T) {
 		cfg.HTTP.SSEMaxPerUser != 5 || cfg.HTTP.MaxConcurrent != 100 {
 		t.Fatalf("HTTP defaults = %+v", cfg.HTTP)
 	}
-	if cfg.Data.ItemsMaxPerWorkspace != 10000 || cfg.Data.ExportMaxRecords != 1000 ||
+	if cfg.Data.ExportMaxRecords != 1000 ||
 		cfg.Data.ExportMaxBytes != 4*1024*1024 || cfg.Data.AuditRetention != 8760*time.Hour {
 		t.Fatalf("Data defaults = %+v", cfg.Data)
 	}
@@ -127,21 +127,21 @@ func TestLoadFromValidatesTelemetryAndOperationalLimits(t *testing.T) {
 
 	cfg, err := LoadFrom(env(map[string]string{
 		"OTEL_EXPORTER_OTLP_ENDPOINT": "http://127.0.0.1:4318/",
-		"OTEL_SERVICE_NAME":           "example", "ITEMS_MAX_PER_WORKSPACE": "20",
-		"EXPORT_MAX_RECORDS": "10", "EXPORT_MAX_BYTES": "65536",
+		"OTEL_SERVICE_NAME":           "example",
+		"EXPORT_MAX_RECORDS":          "10", "EXPORT_MAX_BYTES": "65536",
 		"AUDIT_RETENTION": "720h", "HTTP_MAX_CONCURRENT_REQUESTS": "2",
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if cfg.Telemetry.Endpoint != "http://127.0.0.1:4318" ||
-		cfg.Data.ItemsMaxPerWorkspace != 20 || cfg.HTTP.MaxConcurrent != 2 {
+		cfg.HTTP.MaxConcurrent != 2 {
 		t.Fatalf("operational config = %+v %+v %+v", cfg.Telemetry, cfg.Data, cfg.HTTP)
 	}
 	for key, value := range map[string]string{
 		"OTEL_EXPORTER_OTLP_ENDPOINT": "http://169.254.169.254:4318",
-		"OTEL_SERVICE_NAME":           "", "ITEMS_MAX_PER_WORKSPACE": "0",
-		"EXPORT_MAX_BYTES": "65535", "AUDIT_RETENTION": "719h",
+		"OTEL_SERVICE_NAME":           "",
+		"EXPORT_MAX_BYTES":            "65535", "AUDIT_RETENTION": "719h",
 		"HTTP_MAX_CONCURRENT_REQUESTS": "0",
 	} {
 		if _, err := LoadFrom(env(map[string]string{key: value})); err == nil {

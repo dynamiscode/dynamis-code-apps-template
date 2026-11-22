@@ -194,13 +194,11 @@ When working in concurrent feature worktrees (e.g. through Herdr or `git worktre
    git worktree prune
    ```
 
-## Replace the sample feature
+## Add a product feature
 
-The item feature is the executable reference slice. Replace or remove it only
-as one reviewed vertical change after the replacement passes browser, REST,
-CLI, MCP, SSE, and WebMCP fallback smoke. Update routes, shared use cases,
-OpenAPI, migrations, tests, navigation, docs, and capability evidence
-together; do not leave a partially disconnected sample.
+Add product behavior as a reviewed vertical change. Update shared use cases,
+enabled surfaces, contracts, migrations, tests, navigation, documentation, and
+capability evidence together.
 
 Contribution and security-reporting rules live in
 [CONTRIBUTING.md](../CONTRIBUTING.md) and [SECURITY.md](../SECURITY.md).

@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/auth"
@@ -43,7 +42,6 @@ var (
 
 type handler struct {
 	identity *identity.Service
-	items    *items.Service
 	logger   *slog.Logger
 	tools    map[string]*mcp.Tool
 }
@@ -51,35 +49,15 @@ type handler struct {
 // Contract types. The SDK derives each tool schema from these Go types, so the
 // published constraints live on the types in contractTypes.
 type (
-	itemShortID      string
 	workspaceShortID string
 	userShortID      string
-	newTitle         string
-	itemTitle        string
-	idempotencyKey   string
-	searchText       string
-	sortOrder        string
 	pageLimit        int
 	pageNumber       int
-	itemVersion      int64
 )
 
-// contractTypes holds the keyword constraints that jsonschema-go cannot derive
-// from a Go type: patterns, bounds, enums, and defaults.
+// contractTypes holds shared keyword constraints that jsonschema-go cannot derive.
 var contractTypes = map[reflect.Type]*jsonschema.Schema{
-	reflect.TypeFor[itemShortID]():    {Type: "string", Pattern: "^[2-9a-hjkmnp-z]{4,}$"},
-	reflect.TypeFor[userShortID]():    {Type: "string", Pattern: "^[2-9a-hjkmnp-z]{4,}$"},
-	reflect.TypeFor[newTitle]():       {Type: "string", MinLength: new(1), MaxLength: new(200)},
-	reflect.TypeFor[itemTitle]():      {Type: "string", MaxLength: new(200)},
-	reflect.TypeFor[idempotencyKey](): {Type: "string", MinLength: new(1), MaxLength: new(255)},
-	reflect.TypeFor[searchText](): {
-		Type: "string", MinLength: new(1), MaxLength: new(100),
-		Description: "Case-insensitive literal substring of title.",
-	},
-	reflect.TypeFor[sortOrder](): {
-		Type: "string", Enum: []any{"created_at", "-created_at"}, Default: json.RawMessage(`"-created_at"`),
-	},
-	reflect.TypeFor[items.Status](): {Type: "string", Enum: []any{"active", "complete"}},
+	reflect.TypeFor[userShortID](): {Type: "string", Pattern: "^[2-9a-hjkmnp-z]{4,}$"},
 	reflect.TypeFor[pageLimit](): {
 		Type: "integer", Minimum: new(1.0), Maximum: new(100.0), Default: json.RawMessage("50"),
 	},
@@ -87,64 +65,7 @@ var contractTypes = map[reflect.Type]*jsonschema.Schema{
 		Type: "integer", Minimum: new(1.0), Maximum: new(1000000.0),
 		Description: "1-based page number. The first page is 1.",
 	},
-	reflect.TypeFor[itemVersion](): {Type: "integer", Minimum: new(1.0)},
-	reflect.TypeFor[time.Time]():   {Type: "string", Format: "date-time"},
-}
-
-type listInput struct {
-	WorkspaceID workspaceShortID `json:"workspaceId"`
-	Status      items.Status     `json:"status,omitempty"`
-	Search      searchText       `json:"search,omitempty"`
-	Sort        sortOrder        `json:"sort,omitempty"`
-	Limit       pageLimit        `json:"limit,omitempty"`
-	Page        pageNumber       `json:"page,omitempty"`
-}
-
-type itemInput struct {
-	WorkspaceID workspaceShortID `json:"workspaceId"`
-	ItemID      itemShortID      `json:"itemId"`
-}
-
-type createInput struct {
-	WorkspaceID    workspaceShortID `json:"workspaceId"`
-	Title          newTitle         `json:"title"`
-	IdempotencyKey idempotencyKey   `json:"idempotencyKey"`
-}
-
-type updateInput struct {
-	WorkspaceID workspaceShortID `json:"workspaceId"`
-	ItemID      itemShortID      `json:"itemId"`
-	Version     itemVersion      `json:"version"`
-	Title       newTitle         `json:"title,omitempty"`
-	Status      items.Status     `json:"status,omitempty"`
-}
-
-type deleteInput struct {
-	WorkspaceID workspaceShortID `json:"workspaceId"`
-	ItemID      itemShortID      `json:"itemId"`
-	Version     itemVersion      `json:"version"`
-}
-
-type itemOutput struct {
-	ID              itemShortID      `json:"id"`
-	WorkspaceID     workspaceShortID `json:"workspaceId"`
-	CreatedByUserID *userShortID     `json:"createdByUserId"`
-	Title           itemTitle        `json:"title"`
-	Status          items.Status     `json:"status"`
-	Version         itemVersion      `json:"version"`
-	CreatedAt       time.Time        `json:"createdAt"`
-	UpdatedAt       time.Time        `json:"updatedAt"`
-}
-
-type pageOutput struct {
-	Items []itemOutput `json:"items"`
-	Total int          `json:"total"`
-	Page  int          `json:"page"`
-}
-
-type deleteOutput struct {
-	Deleted bool        `json:"deleted"`
-	ItemID  itemShortID `json:"itemId"`
+	reflect.TypeFor[time.Time](): {Type: "string", Format: "date-time"},
 }
 
 type toolError struct {
@@ -157,8 +78,7 @@ func (e *toolError) Error() string { return e.message }
 type toolRun struct {
 	workspaceID identity.WorkspaceID
 	targetID    string
-	// targetType and targetKey name the audited object for non-item tools. Items
-	// leave them empty and keep the item short-ID path.
+	// targetType and targetKey name the audited object for tool calls.
 	targetType string
 	targetKey  int64
 	err        error
@@ -195,13 +115,11 @@ func recordFor(ctx context.Context) *callRecord {
 	return &callRecord{}
 }
 
-// Option adds tools for a composed profile. Options run after the Items tools
-// are registered, so a profile that is not composed adds nothing.
+// Option adds tools for a composed profile.
 type Option func(h *handler, server *mcp.Server)
 
 func NewHandler(
 	identityService *identity.Service,
-	itemService *items.Service,
 	cfg config.MCP,
 	logger *slog.Logger,
 	options ...Option,
@@ -209,11 +127,11 @@ func NewHandler(
 	if logger == nil {
 		logger = slog.Default()
 	}
-	h := &handler{identity: identityService, items: itemService, logger: logger, tools: map[string]*mcp.Tool{}}
+	h := &handler{identity: identityService, logger: logger, tools: map[string]*mcp.Tool{}}
 	server := mcp.NewServer(&mcp.Implementation{
 		Name: "dynamis-code-apps-template", Version: "0.1.0",
 	}, &mcp.ServerOptions{
-		Capabilities: &mcp.ServerCapabilities{}, PageSize: 100, CompletionHandler: h.complete,
+		Capabilities: &mcp.ServerCapabilities{}, PageSize: 100,
 		// The catalog is identical for every authenticated principal and holds no
 		// workspace data, so shared caches may keep it. This holds only while
 		// addTools registers tools without per-principal filtering; revisit "public"
@@ -225,14 +143,10 @@ func NewHandler(
 			}
 		},
 	})
-	h.addTools(server)
 	for _, option := range options {
 		option(h, server)
 	}
 	server.AddReceivingMiddleware(h.observe)
-	h.addPrompts(server)
-	h.addItemListPrompts(server)
-	h.addResources(server)
 	streamable := mcp.NewStreamableHTTPHandler(
 		func(*http.Request) *mcp.Server { return server },
 		&mcp.StreamableHTTPOptions{
@@ -300,9 +214,6 @@ func scopeMiddleware(next http.Handler, challenge string) http.Handler {
 // writeTools lists the mutation tools, which need resources:write. Client tools
 // are listed here by name only; they register from clients.go.
 var writeTools = map[string]bool{
-	"items_create_v1": true,
-	"items_update_v1": true,
-	"items_delete_v1": true,
 
 	"clients_create_v1":              true,
 	"clients_update_v1":              true,
@@ -331,136 +242,6 @@ func originMiddleware(next http.Handler, allowed []string) http.Handler {
 		}
 		next.ServeHTTP(writer, request)
 	})
-}
-
-func (h *handler) addTools(server *mcp.Server) {
-	read := &mcp.ToolAnnotations{
-		ReadOnlyHint: true, DestructiveHint: &falseValue,
-		IdempotentHint: true, OpenWorldHint: &falseValue,
-	}
-	write := &mcp.ToolAnnotations{
-		ReadOnlyHint: false, DestructiveHint: &falseValue,
-		IdempotentHint: true, OpenWorldHint: &falseValue,
-	}
-	destructive := &mcp.ToolAnnotations{
-		ReadOnlyHint: false, DestructiveHint: &trueValue,
-		IdempotentHint: true, OpenWorldHint: &falseValue,
-	}
-	addTool(server, h, &mcp.Tool{
-		Name: "items_list_v1", Description: "List one workspace's items with bounded page pagination.",
-		Annotations: read,
-	}, pageBounds, h.listItems)
-	addTool(server, h, &mcp.Tool{
-		Name: "items_get_v1", Description: "Get one item in an authorized workspace.", Annotations: read,
-	}, nil, h.getItem)
-	addTool(server, h, &mcp.Tool{
-		Name: "items_create_v1", Description: "Create an item using a caller-supplied idempotency key.",
-		Annotations: write,
-	}, nil, h.createItem)
-	addTool(server, h, &mcp.Tool{
-		Name: "items_update_v1", Description: "Update an item when its version matches.",
-		Annotations: destructive,
-	}, titleOrStatus, h.updateItem)
-	addTool(server, h, &mcp.Tool{
-		Name: "items_delete_v1", Description: "Permanently delete an item after client-side human approval.",
-		Annotations: destructive,
-	}, nil, h.deleteItem)
-}
-
-// pageBounds caps list results at 100 items. toPageOutput never returns null
-// for items, so the array is not nullable, which jsonschema-go derives for slices.
-func pageBounds(_, output *jsonschema.Schema) {
-	list := output.Properties["items"]
-	list.Type, list.Types, list.MaxItems = "array", nil, new(100)
-}
-
-// titleOrStatus requires at least one updatable field, matching the published schema.
-func titleOrStatus(input, _ *jsonschema.Schema) {
-	input.AnyOf = []*jsonschema.Schema{{Required: []string{"title"}}, {Required: []string{"status"}}}
-}
-
-func (h *handler) listItems(ctx context.Context, request *mcp.CallToolRequest, input listInput) (pageOutput, toolRun) {
-	page, err := h.items.List(ctx, principal(request), identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), items.ListInput{
-		Status: input.Status, Search: string(input.Search), Sort: string(input.Sort),
-		Limit: int(input.Limit), Page: int(input.Page),
-	})
-	return toPageOutput(page), toolRun{workspaceID: identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), err: publicError(err)}
-}
-
-func (h *handler) getItem(ctx context.Context, request *mcp.CallToolRequest, input itemInput) (itemOutput, toolRun) {
-	run := toolRun{workspaceID: identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), targetID: string(input.ItemID)}
-	item, err := h.items.Get(ctx, principal(request), identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), items.ParseItemIDOrZero(string(input.ItemID)))
-	run.err = publicError(err)
-	return toItemOutput(item), run
-}
-
-func (h *handler) createItem(ctx context.Context, request *mcp.CallToolRequest, input createInput) (itemOutput, toolRun) {
-	result, err := h.items.Create(ctx, principal(request), identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), string(input.Title),
-		string(input.IdempotencyKey), auditContext(request))
-	return toItemOutput(result.Item), toolRun{
-		workspaceID: identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), targetID: result.Item.ID.String(), err: publicError(err),
-	}
-}
-
-func (h *handler) updateItem(ctx context.Context, request *mcp.CallToolRequest, input updateInput) (itemOutput, toolRun) {
-	run := toolRun{workspaceID: identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), targetID: string(input.ItemID)}
-	if pending, err := approvalGate(request, "items_update_v1", input,
-		fmt.Sprintf("Confirm the update of item %s to version %d.", input.ItemID, input.Version)); pending != nil || err != nil {
-		run.pending, run.err = pending, err
-		return itemOutput{}, run
-	}
-	// Zero values mean "absent": the schema already rejects empty title and status.
-	var update items.UpdateInput
-	if input.Title != "" {
-		title := string(input.Title)
-		update.Title = &title
-	}
-	if input.Status != "" {
-		status := input.Status
-		update.Status = &status
-	}
-	item, err := h.items.Update(ctx, principal(request), identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), items.ParseItemIDOrZero(string(input.ItemID)),
-		int64(input.Version), update, auditContext(request))
-	run.err = publicError(err)
-	return toItemOutput(item), run
-}
-
-func (h *handler) deleteItem(ctx context.Context, request *mcp.CallToolRequest, input deleteInput) (deleteOutput, toolRun) {
-	run := toolRun{workspaceID: identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), targetID: string(input.ItemID)}
-	if pending, err := approvalGate(request, "items_delete_v1", input,
-		fmt.Sprintf("Confirm permanent deletion of item %s at version %d.", input.ItemID, input.Version)); pending != nil || err != nil {
-		run.pending, run.err = pending, err
-		return deleteOutput{}, run
-	}
-	err := h.items.Delete(ctx, principal(request), identity.ParseWorkspaceIDOrZero(string(input.WorkspaceID)), items.ParseItemIDOrZero(string(input.ItemID)),
-		int64(input.Version), auditContext(request))
-	run.err = publicError(err)
-	return deleteOutput{Deleted: err == nil, ItemID: input.ItemID}, run
-}
-
-func toItemOutput(item items.Item) itemOutput {
-	return itemOutput{
-		ID: itemShortID(item.ID.String()), WorkspaceID: workspaceShortID(item.WorkspaceID.String()),
-		CreatedByUserID: optionalUserShortID(item.CreatedByUserID), Title: itemTitle(item.Title), Status: item.Status,
-		Version: itemVersion(item.Version), CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt,
-	}
-}
-
-// optionalUserShortID renders an optional user key as its short ID; nil stays nil.
-func optionalUserShortID(userID *identity.UserID) *userShortID {
-	if userID == nil {
-		return nil
-	}
-	short := userShortID(userID.String())
-	return &short
-}
-
-func toPageOutput(page items.Page) pageOutput {
-	output := pageOutput{Items: make([]itemOutput, 0, len(page.Items)), Total: page.Total, Page: page.Page}
-	for _, item := range page.Items {
-		output.Items = append(output.Items, toItemOutput(item))
-	}
-	return output
 }
 
 // schemaFor derives a tool schema from a contract type. The SDK derives only
@@ -621,10 +402,7 @@ func (h *handler) audit(
 	}
 	eventType, action, targetType, targetKey := eventRequestCalled, method, "", int64(0)
 	if method == methodToolsCall {
-		eventType, targetType, targetKey = eventToolCalled, "item", auditTargetKey("item", record.targetID)
-		if record.targetType != "" {
-			targetType, targetKey = record.targetType, record.targetKey
-		}
+		eventType, targetType, targetKey = eventToolCalled, record.targetType, record.targetKey
 		if record.toolName != "" {
 			action = record.toolName
 		} // unregistered names are client input and are never logged
@@ -642,19 +420,6 @@ func (h *handler) audit(
 	})
 }
 
-// auditTargetKey decodes an item short ID to its key. Other target types, and
-// malformed item IDs, have no key.
-func auditTargetKey(targetType, shortID string) int64 {
-	if targetType != "item" {
-		return 0
-	}
-	itemID, err := items.ParseItemID(shortID)
-	if err != nil {
-		return 0
-	}
-	return int64(itemID)
-}
-
 func errorCategory(err error) string {
 	if value, ok := err.(*toolError); ok {
 		return value.category
@@ -664,6 +429,22 @@ func errorCategory(err error) string {
 
 func principal(request mcp.Request) identity.Principal {
 	return principalFromExtra(request.GetExtra())
+}
+
+func principalFromExtra(extra *mcp.RequestExtra) identity.Principal {
+	if extra == nil || extra.TokenInfo == nil {
+		return identity.Principal{}
+	}
+	value, _ := extra.TokenInfo.Extra["principal"].(identity.Principal)
+	return value
+}
+
+func optionalUserShortID(userID *identity.UserID) *userShortID {
+	if userID == nil {
+		return nil
+	}
+	short := userShortID(userID.String())
+	return &short
 }
 
 func requestID(request mcp.Request) string {
@@ -693,16 +474,6 @@ func publicError(err error) error {
 		return nil
 	case errors.Is(err, identity.ErrForbidden):
 		return &toolError{category: "forbidden", message: "access is denied"}
-	case errors.Is(err, items.ErrNotFound):
-		return &toolError{category: "not_found", message: "item not found"}
-	case errors.Is(err, items.ErrInvalidInput):
-		return invalidParameters()
-	case errors.Is(err, items.ErrIdempotencyConflict):
-		return &toolError{category: "conflict", message: "idempotency key conflicts with another request"}
-	case errors.Is(err, items.ErrPreconditionFailed):
-		return &toolError{category: "precondition_failed", message: "item version is stale"}
-	case errors.Is(err, items.ErrLimit):
-		return &toolError{category: "resource_limit", message: "workspace item limit reached"}
 	default:
 		return &toolError{category: "internal", message: "internal failure"}
 	}

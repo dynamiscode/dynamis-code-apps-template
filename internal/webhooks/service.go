@@ -43,7 +43,6 @@ var (
 )
 
 var SupportedEvents = []string{
-	"item.created", "item.updated", "item.deleted",
 	"client.created", "client.updated", "client.archived", "client.deleted",
 }
 

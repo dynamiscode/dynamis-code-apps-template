@@ -7,7 +7,6 @@ import templates "example.com/dynamis-code/apps-template/internal/web/components
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
-import "strconv"
 
 templ generalSettingsView(data viewmodel.PageData) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
@@ -156,90 +155,14 @@ templ emailSettingsView(data viewmodel.PageData) {
 	}
 }
 
-templ exportSettingsHeader(data viewmodel.PageData) {
-	@organisms.AccountHeader(data)
-}
-
 templ exportSettingsView(data viewmodel.PageData) {
-	@templates.DashboardShell(data, exportSettingsHeader(data), organisms.SettingsSidebar(data)) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
 		<div class="settings-page">
 			@molecules.PageHeading(data.Workspace.Name+" "+data.T("navigation.export"), data.T("navigation.settings_activity"))
 			<p class="settings-intro">{ data.T("export.description") }</p>
 			<section class="settings-panel card min-w-0 p-5" aria-label={ data.T("navigation.export") }>
 				@atoms.Anchor(atoms.AnchorProps{Href: "/workspaces/" + data.Workspace.ID.String() + "/settings/export/download", Label: data.T("export.download"), Class: "btn btn-primary", Attrs: templ.Attributes{"data-webmcp-export": true}})
 			</section>
-		</div>
-	}
-}
-
-templ importSettingsView(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
-		<div class="settings-page">
-			@molecules.PageHeading(data.Workspace.Name+" "+data.T("navigation.import"), data.T("navigation.settings_activity"))
-			<p class="settings-intro">{ data.T("import.description") }</p>
-			if data.ImportCompleted {
-				@molecules.SuccessAlert(data.T("import.success")) {
-					{ data.T("import.items_imported") }{ " " }<strong>{ data.Imported }</strong>
-				}
-			}
-			if data.Error != "" {
-				@molecules.ErrorAlert(data.Error)
-			}
-			<form class="settings-panel card min-w-0 p-5 import-preview-form" action={ data.CurrentPath } method="post" enctype="multipart/form-data">
-				<input type="hidden" name="csrf" value={ data.CSRF }/>
-				<input type="hidden" name="action" value="preview"/>
-				<p id="import-file-help">{ data.T("import.file_help") }</p>
-				@atoms.FileInput(atoms.FileInputProps{ID: "import-file", Name: "file", Label: data.T("import.file"), Required: true, Attrs: templ.Attributes{"accept": ".json,.csv,application/json,text/csv", "aria-describedby": "import-file-help"}})
-				@molecules.SubmitButton(data.T("import.preview_button"), nil)
-			</form>
-			if data.ImportPreview != nil {
-				<section class="settings-panel card min-w-0 p-5 import-preview" aria-labelledby="import-preview-heading">
-					<h2 id="import-preview-heading">{ data.T("import.preview_heading") }</h2>
-					<p>{ data.T("import.preview_records") }: <strong>{ data.ImportPreview.RecordCount }</strong></p>
-					<p>{ data.T("import.no_writes_yet") }</p>
-					if len(data.ImportPreview.Sample) > 0 {
-						<h3>{ data.T("import.preview_sample") }</h3>
-						@organisms.DataTable(data.T("import.preview_sample"), true) {
-							<thead><tr><th scope="col">@atoms.HeaderText(data.T("items.title"), nil)</th><th scope="col">@atoms.HeaderText(data.T("items.status"), nil)</th></tr></thead>
-							<tbody>
-								for _, sample := range data.ImportPreview.Sample {
-									<tr><td>{ sample.Title }</td><td>
-										if sample.StatusKey != "" {
-											{ data.T(sample.StatusKey) }
-										} else {
-											{ sample.Status }
-										}
-									</td></tr>
-								}
-							</tbody>
-						}
-					}
-					if data.ImportPreview.IssueCount > 0 {
-						@molecules.ErrorAlert(data.T("import.invalid_rows") + " " + strconv.Itoa(data.ImportPreview.IssueCount))
-						<ul class="import-preview-errors">
-							for _, issue := range data.ImportPreview.Issues {
-								<li>{ data.T("import.record") }{ " " }{ issue.Record }: { data.T(issue.MessageKey) }</li>
-							}
-							if data.ImportPreview.MoreIssues > 0 {
-								<li>{ data.T("import.more_invalid_rows") }{ " " }{ data.ImportPreview.MoreIssues }</li>
-							}
-						</ul>
-					} else {
-						<h3>{ data.T("import.confirm_heading") }</h3>
-						<p>{ data.T("import.confirm_reselect") }</p>
-						<form class="import-confirm-form" action={ data.CurrentPath } method="post" enctype="multipart/form-data">
-							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							<input type="hidden" name="action" value="confirm"/>
-							<input type="hidden" name="preview_digest" value={ data.ImportPreview.Digest }/>
-							<input type="hidden" name="preview_format" value={ data.ImportPreview.Format }/>
-							<p id="import-confirm-file-help">{ data.T("import.confirm_file_help") }</p>
-							@atoms.FileInput(atoms.FileInputProps{ID: "import-confirm-file", Name: "file", Label: data.T("import.file"), Required: true, Attrs: templ.Attributes{"accept": ".json,.csv,application/json,text/csv", "aria-describedby": "import-confirm-file-help"}})
-							@molecules.ConfirmationField("import-confirm", "confirm", data.T("import.confirm"))
-							@molecules.SubmitButton(data.T("import.confirm_button"), nil)
-						</form>
-					}
-				</section>
-			}
 		</div>
 	}
 }

@@ -9,7 +9,9 @@ import atoms "example.com/dynamis-code/apps-template/internal/web/components/ato
 import "strconv"
 
 templ clientList(data viewmodel.PageData) {
-	<section id="client-list" data-events={ data.CurrentPath + "/events" }
+	// The list behaviors (menu placement, exclusive open, tap-outside close,
+	// tap-to-open rows, bulk selection) mount here, as the items list does.
+	<section id="client-list" x-data="listScreen" data-events={ data.CurrentPath + "/events" }
 		data-live-connecting={ data.T("clients.live_connecting") }
 		data-live-connected={ data.T("clients.live_connected") }
 		data-live-unavailable={ data.T("clients.live_unavailable") }
@@ -33,9 +35,11 @@ templ clientListView(data viewmodel.PageData) {
 // clientListTools are the client list's own controls on the toolbar: the columns, the bulk actions, the create
 // menu, and the live status.
 templ clientListTools(data viewmodel.PageData) {
-	@molecules.ListColumnsMenu(data, data.ClientQuerySuffix)
-	if data.ListSelectable {
-		@clientBulkBar(data)
+	if data.ListHasContent() {
+		@molecules.ListColumnsMenu(data, data.ClientQuerySuffix)
+		if data.ListSelectable {
+			@clientBulkBar(data)
+		}
 	}
 	@clientCreateMenu(data)
 	@molecules.StatusLine(data.T("clients.live_fallback"), templ.Attributes{"aria-live": "polite", "id": "realtime-status"})
@@ -44,7 +48,7 @@ templ clientListTools(data viewmodel.PageData) {
 // clientNotice tells the user when the sort is hidden by the columns.
 templ clientNotice(data viewmodel.PageData) {
 	if data.HiddenClientSort != "" {
-		<p class="status">{ data.T("clients.hidden_sort") }{ " " }
+		<p class="status-line">{ data.T("clients.hidden_sort") }{ " " }
 			if data.HiddenClientSortLabelKey != "" {
 				{ data.T(data.HiddenClientSortLabelKey) }
 			} else {
@@ -66,7 +70,9 @@ templ clientBody(data viewmodel.PageData) {
 	if data.ClientQuery.Archived == "archived" {
 		@molecules.StatusLine(data.T("clients.viewing_archived"), nil)
 	}
-	if data.HasVisibleClientColumns {
+	// An empty list renders no table at all: the header row alone reads as a
+	// stray bar where the table "would be".
+	if len(data.ListRows) > 0 && data.HasVisibleClientColumns {
 		@organisms.ListTable(data.T("clients.title"), true) {
 			@organisms.ListHeader(data, data.T("clients.actions"))
 			<tbody>
@@ -91,41 +97,50 @@ templ clientBody(data viewmodel.PageData) {
 				}
 			}
 		}
-	} else {
-		@molecules.StatusLine(data.T("clients.columns_choose"), nil)
+	} else if len(data.ListRows) > 0 {
+	@molecules.StatusLine(data.T("clients.columns_choose"), nil)
 	}
 	if len(data.ListRows) == 0 {
-		<p id="client-empty-state">
-			if data.HasClientFilters {
-				{ data.T("clients.no_matches") }{ " " }@atoms.Link(atoms.LinkProps{Href: data.ClearClientFiltersPath, Text: data.T("clients.clear_filters")})
-			} else {
-				{ data.T("clients.none") }
-			}
-		</p>
+		if data.HasClientFilters || data.ListSearch != "" {
+			@molecules.NoMatchesAlert(molecules.NoMatchesAlertProps{ID: "client-empty-state", Message: data.T("clients.no_matches"), Href: data.ClearClientFiltersPath, Label: data.T("clients.clear_filters")})
+		} else {
+			@molecules.EmptyStateCard(molecules.EmptyStateCardProps{ID: "client-empty-state", Title: data.T("clients.empty_title"), Description: data.T("clients.empty_description"), CTA: clientEmptyCTA(data)})
+		}
 	}
 }
 
-// clientCreateMenu is the toolbar's "New client" action. Users who cannot write see a read-only note.
+// clientEmptyCTA gives a pristine list one way to create: it opens the create
+// page, so no form is loaded on a list that has nothing to show yet.
+templ clientEmptyCTA(data viewmodel.PageData) {
+	if data.CanEditClients {
+		<a class="btn btn-primary btn-sm" href={ templ.SafeURL(data.CurrentPath + "/new") }>{ data.T("clients.new_client") }</a>
+	}
+}
+
+// clientCreateForm is the client create form, rendered only by the create page.
+templ clientCreateForm(data viewmodel.PageData, action string) {
+	<form class="create" action={ templ.SafeURL(action) } method="post" data-dirty-track data-dirty-on-load?={ clientDraftHasInput(data.ClientDraft) }>
+		<input type="hidden" name="csrf" value={ data.CSRF }/>
+		@molecules.TextField("client-display-name", data.T("clients.display_name"), templ.Attributes{"name": "display_name", "required": true, "maxlength": "200", "value": data.ClientDraft.DisplayName, "data-trim": ""})
+		@molecules.TextField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{"name": "email", "type": "email", "maxlength": "254", "value": data.ClientDraft.Email})
+		@molecules.TextField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{"name": "phone", "maxlength": "50", "value": data.ClientDraft.Phone})
+		@molecules.TextareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.ClientDraft.Notes, templ.Attributes{"name": "notes", "maxlength": "5000"})
+		<div class="actions">@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.add"), Attrs: templ.Attributes{"type": "submit"}})</div>
+	</form>
+}
+
+// clientCreateMenu is the toolbar's "New client" action: a link to the create page.
+// Users who cannot write see a read-only note, and a pristine list renders no
+// second primary action because its empty-state card already offers this one.
 templ clientCreateMenu(data viewmodel.PageData) {
 	<div class="list-create">
 			if data.CanManageFields {
 				<a class="btn btn-ghost btn-xs" href={ data.FieldsPath }>{ data.T("clients.fields_link") }</a>
 			}
-		if data.CanEditClients {
-			<div id="client-create">
-			@molecules.ListCreateMenu(data.T("clients.new_client"), data.ErrorKey != "") {
-				<form class="create" action={ data.CurrentPath } method="post" data-dirty-track data-dirty-on-load?={ clientDraftHasInput(data.ClientDraft) }>
-					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@molecules.TextField("client-display-name", data.T("clients.display_name"), templ.Attributes{"name": "display_name", "required": true, "maxlength": "200", "value": data.ClientDraft.DisplayName, "data-trim": ""})
-					@molecules.TextField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{"name": "email", "type": "email", "maxlength": "254", "value": data.ClientDraft.Email})
-					@molecules.TextField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{"name": "phone", "maxlength": "50", "value": data.ClientDraft.Phone})
-					@molecules.TextareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.ClientDraft.Notes, templ.Attributes{"name": "notes", "maxlength": "5000"})
-					<div class="actions">@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.add"), Attrs: templ.Attributes{"type": "submit"}})</div>
-				</form>
-			}
-			</div>
-		} else {
-			<p class="status">{ data.T("clients.read_only") }</p>
+		if !data.CanEditClients {
+			<p class="status-line">{ data.T("clients.read_only") }</p>
+		} else if data.ListHasContent() {
+			<a class="btn btn-primary" href={ templ.SafeURL(data.CurrentPath + "/new") }>{ data.T("clients.new_client") }</a>
 		}
 	</div>
 }

@@ -1,7 +1,6 @@
 package clients
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/portability"
@@ -54,37 +52,30 @@ func TestSQLiteClientExportRecordLimitCountsClientRecords(t *testing.T) {
 	db := openExportDB(t, config.SQLite)
 	auth, actor, workspaceID := newExportWorkspace(t, db, config.SQLite)
 	seedExportFixture(t, db, config.SQLite, workspaceID, actor.UserID)
-	itemService := items.NewService(db, config.SQLite, auth, 100)
 	audit := identity.AuditContext{RequestID: "limit-export", SourceAddress: "127.0.0.1"}
-	_, err := itemService.Create(ctx, actor, workspaceID, "Limit item", "limit-item-key", audit)
-	exportCheck(t, err)
 	clientService := NewService(db, config.SQLite, auth, 50)
 
 	// Each export writes an audit row, so read the boundary from the tables right before each attempt.
 	count := exportRecordCount(t, db, workspaceID)
-	under := portability.NewService(db, config.SQLite, auth, count-1, 1<<20, 100, 1<<20, itemService, clientService)
+	under := portability.NewService(db, config.SQLite, auth, count-1, 1<<20, clientService)
 	if _, err := under.Export(ctx, actor, workspaceID, audit); !errors.Is(err, portability.ErrLimit) {
 		t.Fatalf("export one record over limit = %v; want ErrLimit", err)
 	}
 	count = exportRecordCount(t, db, workspaceID)
-	exact := portability.NewService(db, config.SQLite, auth, count, 1<<20, 100, 1<<20, itemService, clientService)
+	exact := portability.NewService(db, config.SQLite, auth, count, 1<<20, clientService)
 	if _, err := exact.Export(ctx, actor, workspaceID, audit); err != nil {
 		t.Fatalf("export at exact record limit = %v", err)
 	}
 }
 
-// runClientExportContract seeds clients and checks the export contents, then
-// checks that the same export imports through the current importer.
+// runClientExportContract seeds clients and checks the export contents.
 func runClientExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	t.Helper()
 	ctx := context.Background()
 	auth, actor, workspaceID := newExportWorkspace(t, db, driver)
 	fixture := seedExportFixture(t, db, driver, workspaceID, actor.UserID)
 	audit := identity.AuditContext{RequestID: "client-export", SourceAddress: "127.0.0.1"}
-	itemService := items.NewService(db, driver, auth, 100)
-	_, err := itemService.Create(ctx, actor, workspaceID, "Export item", "export-item-key", audit)
-	exportCheck(t, err)
-	service := portability.NewService(db, driver, auth, 100, 1<<20, 100, 1<<20, itemService, NewService(db, driver, auth, 50))
+	service := portability.NewService(db, driver, auth, 100, 1<<20, NewService(db, driver, auth, 50))
 
 	encoded, err := service.Export(ctx, actor, workspaceID, audit)
 	exportCheck(t, err)
@@ -92,12 +83,6 @@ func runClientExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDri
 	exportCheck(t, json.Unmarshal(encoded, &result))
 	assertExportContents(t, encoded, result, fixture)
 
-	imported, err := service.Import(ctx, actor, workspaceID, portability.ImportInput{
-		Format: "application/json", Reader: bytes.NewReader(encoded),
-	}, audit)
-	if err != nil || imported.Imported != 1 {
-		t.Fatalf("import of client export = %+v, %v; want one item", imported, err)
-	}
 }
 
 func seedExportFixture(
@@ -207,7 +192,7 @@ func exportRecordCount(t *testing.T, db *sql.DB, workspaceID identity.WorkspaceI
 	t.Helper()
 	total := 1
 	for _, table := range []string{
-		"workspace_members", "items", "clients", "client_fields", "client_field_options", "audit_events",
+		"workspace_members", "clients", "client_fields", "client_field_options", "audit_events",
 	} {
 		var count int
 		exportCheck(t, db.QueryRow("SELECT COUNT(*) FROM "+table+" WHERE workspace_id = ?", workspaceID).Scan(&count))

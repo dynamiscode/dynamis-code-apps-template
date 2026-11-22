@@ -10,7 +10,7 @@ import atoms "example.com/dynamis-code/apps-template/internal/web/components/ato
 import "strconv"
 
 templ auditHistory(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardSettingsNavigation(data)) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
 		<p class="eyebrow">{ data.T("navigation.settings_activity") }</p>
 		@molecules.PageHeading(data.T("audit.history"), "")
 		<p class="settings-intro">{ data.T("audit.description") }</p>

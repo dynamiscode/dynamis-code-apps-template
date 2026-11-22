@@ -60,12 +60,9 @@ begins. Changes require restart.
 | `MCP_ALLOWED_ORIGINS` | comma-separated exact HTTP origins | none | Browser MCP only | No |
 | `MCP_OAUTH_ENABLED` | boolean | `false` | Requires origin-only `APP_PUBLIC_URL`; conflicts with `MCP_OAUTH_AUTHORIZATION_SERVER` | No |
 | `MCP_OAUTH_AUTHORIZATION_SERVER` | HTTPS or loopback HTTP issuer URL without credentials, query, or fragment | none (discovery off) | Requires origin-only `APP_PUBLIC_URL` | No |
-| `ITEMS_MAX_PER_WORKSPACE` | integer 1-1000000 | `10000` | No | No |
 | `CLIENT_FIELDS_MAX_PER_WORKSPACE` | integer 1-50 (the slot count in ADR 0012) | `50` | Clients profile only; archived fields count | No |
 | `EXPORT_MAX_RECORDS` | integer 1-10000 | `1000` | No | No |
 | `EXPORT_MAX_BYTES` | bytes 65536-4194304 | `4194304` | No | No |
-| `IMPORT_MAX_RECORDS` | integer 1-10000 | `1000` | No | No |
-| `IMPORT_MAX_BYTES` | bytes 65536-4194304 | `4194304` | No | No |
 | `AUDIT_RETENTION` | duration 30 days-10 years | `8760h` | No | No |
 | `STORAGE_DRIVER` | `local` or `s3` | `local` | No | No |
 | `STORAGE_LOCAL_PATH` | non-empty path | `data/files` | Local only | No |

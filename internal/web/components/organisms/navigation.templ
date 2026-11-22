@@ -1,6 +1,9 @@
 package organisms
 
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+import "strings"
+
+import "example.com/dynamis-code/apps-template/internal/identity"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 
@@ -32,11 +35,22 @@ templ WorkspaceContext(data viewmodel.PageData) {
 	if data.SingleWorkspace {
 		<span class="truncate font-bold">{ data.Workspace.Name }</span>
 	} else {
-		@atoms.Dropdown(atoms.DropdownProps{Class: "dropdown-end", Label: data.Workspace.Name, ListClass: "w-56 max-w-[90vw] bg-base-100 rounded-box shadow-lg", Items: workspaceSwitcherItems(data)})
+		@atoms.Dropdown(atoms.DropdownProps{
+			Class:        "",
+			Label:        data.Workspace.Name,
+			SummaryClass: "btn-ghost h-auto min-h-0 px-1 text-lg font-bold normal-case border-0 shadow-none",
+			Summary:      workspaceChevron(),
+			ListClass:    "w-56 max-w-[90vw] bg-base-100 rounded-box shadow-lg",
+			Items:        workspaceSwitcherItems(data),
+		})
 	}
 }
 
-
+// workspaceChevron marks the workspace title as a switcher; the summary text
+// names it, so the glyph is decorative.
+templ workspaceChevron() {
+	<span class="text-base-content/50" aria-hidden="true">▾</span>
+}
 // NavLink is a plain anchor carrying aria-current; menu-active styling lives
 // on the wrapping li (navLi, or a DropdownItem Class).
 templ NavLink(data viewmodel.PageData, href, key string, active bool) {
@@ -73,7 +87,6 @@ templ WorkspaceNav(data viewmodel.PageData) {
 				@navTitle(data.T("navigation.settings_activity"))
 				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/export", "navigation.export", data.NavPage == "export")
 				if data.Workspace.Role == "owner" || data.Workspace.Role == "admin" {
-					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/import", "navigation.import", data.NavPage == "import")
 					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/audit", "navigation.audit_history", data.NavPage == "audit")
 				}
 			</ul>
@@ -83,7 +96,6 @@ templ WorkspaceNav(data viewmodel.PageData) {
 			<ul class="menu w-full">
 				@navTitle(data.T("common.workspace"))
 				@navLi(data, "/workspaces/"+data.Workspace.ID.String(), "navigation.home", data.NavPage == "workspace")
-				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/items", "navigation.items", data.NavPage == "items")
 				if data.ClientsEnabled {
 					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/clients", "clients.title", data.NavPage == "clients" || data.NavPage == "client-detail" || data.NavPage == "client-fields")
 				}
@@ -116,7 +128,7 @@ func accountMenuItems(data viewmodel.PageData) []atoms.DropdownItem {
 		}
 		return ""
 	}
-	return []atoms.DropdownItem{
+	items := []atoms.DropdownItem{
 		{Class: active("account"), Item: NavLink(data, "/account", "account.account", data.NavPage == "account")},
 		{Class: active("notifications"), Item: NavLink(data, "/notifications", "notifications.notifications", data.NavPage == "notifications")},
 		{Class: active("language"), Item: NavLink(data, "/settings/language", "account.language_settings", data.NavPage == "language")},
@@ -124,9 +136,56 @@ func accountMenuItems(data viewmodel.PageData) []atoms.DropdownItem {
 		{Class: active("sessions"), Item: NavLink(data, "/sessions", "navigation.sessions", data.NavPage == "sessions")},
 		{Item: logoutItem(data)},
 	}
+	if data.Profile.Email != "" {
+		who := data.Profile.DisplayName
+		if who == "" {
+			who = data.Profile.Email
+		}
+		items = append([]atoms.DropdownItem{{Title: who}}, items...)
+	}
+	return items
+}
+
+// avatarInitials derives up to two uppercase initials from the display name,
+// falling back to the email, then a question mark for anonymous pages.
+func avatarInitials(profile identity.UserProfile) string {
+	source := strings.TrimSpace(profile.DisplayName)
+	if source == "" {
+		source = strings.TrimSpace(profile.Email)
+	}
+	parts := strings.Fields(source)
+	initials := ""
+	for _, part := range parts {
+		if len(initials) >= 2 {
+			break
+		}
+		initials += strings.ToUpper(part[:1])
+	}
+	if initials == "" {
+		return "?"
+	}
+	return initials
 }
 
 
 templ AccountMenu(data viewmodel.PageData) {
-	@atoms.Dropdown(atoms.DropdownProps{Class: "dropdown-end", Label: data.T("common.account"), ListClass: "w-52 max-w-[90vw] bg-base-100 rounded-box shadow-lg", Items: accountMenuItems(data)})
+	@atoms.Dropdown(atoms.DropdownProps{
+		Class:        "dropdown-end",
+		Label:        "",
+		SummaryAttrs: templ.Attributes{"aria-label": data.T("common.account")},
+		SummaryClass: "btn btn-circle btn-ghost p-0",
+		Summary:      AccountAvatar(data),
+		ListClass:    "w-52 max-w-[90vw] bg-base-100 rounded-box shadow-lg",
+		Items:        accountMenuItems(data),
+	})
+}
+
+// AccountAvatar is the decorative initials circle; the dropdown summary's
+// aria-label carries the accessible name for the whole control.
+templ AccountAvatar(data viewmodel.PageData) {
+	<span class="avatar placeholder" aria-hidden="true">
+		<div class="grid w-8 place-items-center rounded-full bg-neutral text-neutral-content">
+			<span class="text-sm font-semibold">{ avatarInitials(data.Profile) }</span>
+		</div>
+	</span>
 }

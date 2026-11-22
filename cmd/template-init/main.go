@@ -307,6 +307,10 @@ func filesPath(relative string) bool {
 func clientsPath(relative string) bool {
 	relative = filepath.ToSlash(relative)
 	return relative == "internal/clients" || strings.HasPrefix(relative, "internal/clients/") ||
+		relative == "cmd/appctl" || strings.HasPrefix(relative, "cmd/appctl/") ||
+		relative == "internal/appctl" || strings.HasPrefix(relative, "internal/appctl/") ||
+		relative == "internal/bootstrap/agent_smoke_test.go" ||
+		relative == "internal/mcpserver/approval_test.go" || relative == "internal/mcpserver/schema_contract_test.go" ||
 		relative == "internal/httpapi/clients.go" || relative == "internal/httpapi/clients_test.go" ||
 		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" ||
 		relative == "internal/web/clients_filters.go" ||
@@ -356,34 +360,6 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.ReplaceAll(value, "\t\tclientService,\n", "\t\tnil,\n")
 		value = strings.ReplaceAll(value, " clientService,", "")
 		value = removeLineStarting(value, "\twebHandler.EnableClients(")
-	case "internal/appctl/run.go":
-		// The client and field commands call the Clients REST routes, which a
-		// Clients-off application does not serve. Each command's collection, its
-		// command table row, its flags, and its switch cases go; items stay.
-		// The switch cases go first: their header lines also match the command-table
-		// filter below.
-		value = removeText(value, "\tcase \"clients list\":", "\t}\n\treturn execute(")
-		value = strings.ReplaceAll(value, "<items|clients|fields>", "<items>")
-		value = removeLinesContaining(value, `"clients": "/clients",`)
-		value = removeLinesContaining(value, `"fields":  "/client-fields",`)
-		value = removeLinesContaining(value, `"clients `)
-		value = removeLinesContaining(value, `"fields `)
-		value = removeLinesContaining(value, "clientID := flags.String(")
-		value = removeLinesContaining(value, "fieldID := flags.String(")
-		value = removeLinesContaining(value, "displayName := flags.String(")
-		value = removeLinesContaining(value, "email := flags.String(")
-		value = removeLinesContaining(value, "phone := flags.String(")
-		value = removeLinesContaining(value, "notes := flags.String(")
-		value = removeLinesContaining(value, "archived := flags.String(")
-		value = removeLinesContaining(value, "var filters multiValue")
-		value = removeLinesContaining(value, "flags.Var(&filters,")
-		value = removeLinesContaining(value, "var setDisplayName, setEmail, setPhone, setNotes optionalString")
-		value = removeLinesContaining(value, "flags.Var(&setDisplayName,")
-		value = removeLinesContaining(value, "flags.Var(&setEmail,")
-		value = removeLinesContaining(value, "flags.Var(&setPhone,")
-		value = removeLinesContaining(value, "flags.Var(&setNotes,")
-		value = removeLinesContaining(value, "label := flags.String(")
-		value = removeLinesContaining(value, "fieldType := flags.String(")
 	case "internal/httpapi/handler.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, "*clients.Service")
@@ -406,10 +382,18 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.ReplaceAll(value, ", mcpserver.WithClients(clientService)", "")
 	case "internal/mcpserver/server_test.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
-		value = removeLinesContaining(value, "WithClients(clients.NewService(")
+		value = strings.ReplaceAll(value, "newTestStateWith(t, config.MCP{}, true)", "newTestState(t, config.MCP{})")
+		value = strings.ReplaceAll(value, "newTestStateWith(t, config.MCP{AllowedOrigins: []string{\"https://client.example\"}}, true)", "newTestState(t, config.MCP{AllowedOrigins: []string{\"https://client.example\"}})")
+		value = removeText(value, "\tserver := httptest.NewServer(state.handler)\n\tt.Cleanup(server.Close)\n\ttransport := &authTransport{token: readToken.Secret", "\n\tif err := state.auth.RevokeAPIToken")
+		value = removeBlockIncludingEnd(value, "\tif withClients {\n\t\t// Field, option", "\t}\n")
+		value = removeBlockIncludingEnd(value, "\tif withClients {\n\t\toptions = append(options, WithClients(", "\t}\n")
+	case "internal/httpapi/webhooks_test.go":
+		value = removeText(value, "\tclient := serveAuthorized(handler, http.MethodPost", "\n\tdeleted := serveAuthorized(handler, http.MethodDelete")
 	case "internal/httpapi/handler_test.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
-		value = strings.Replace(value, "\n\t\tclients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace))", ")", 1)
+		value = removeText(value, "\tcollection := \"/api/v1/workspaces/\" + workspaceID + \"/clients\"", "\n\tif err := db.Close();")
+		value = strings.Replace(value, "handler, db, workspaceID, token := testHandler(t)", "handler, db, _, _ := testHandler(t)", 1)
+		value = strings.Replace(value, "\n\t\tclients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace, webhookService))", ")", 1)
 	case "internal/web/viewmodel/handler.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, "clients.FilterInput")
@@ -443,6 +427,9 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		// Retention prunes client_events, which Clients-off apps do not have.
 		value = removeLinesContaining(value, "client_events")
 		value = removeLinesContaining(value, "ClientRealtimeReplay")
+	case "internal/platform/database/remove_items_test.go":
+		value = removeLinesContaining(value, "INSERT INTO clients")
+		value = strings.ReplaceAll(value, `"workspaces", "clients", "audit_events"`, `"workspaces", "audit_events"`)
 	case "internal/platform/maintenance/maintenance_test.go":
 		value = removeText(value, "\tvar clientEventOldID int64\n", "\tvar notificationOldID int64\n")
 		value = strings.ReplaceAll(value, ` "client_events": clientEventOldID,`, "")
@@ -452,6 +439,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 	case "docs/capabilities.md":
 		value = removeLineStarting(value, "| Clients |")
 		value = removeLineStarting(value, "| Clients shared list view |")
+		value = strings.ReplaceAll(value, "; [CLI tests](../internal/appctl/run_test.go)", "")
+		value = strings.ReplaceAll(value, "[live surface smoke](../internal/bootstrap/agent_smoke_test.go)", "[composition test](../internal/bootstrap/app_test.go)")
 	case "docs/api.md":
 		value = removeText(value, "\n- Clients (Clients profile):", "\n\n## Webhooks")
 	case "docs/web.md":
@@ -504,7 +493,7 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = removeImport(value, "appfiles")
 		value = removeLineStarting(value, "\twebHandler.EnableFilesPreferences(")
 		value = strings.Replace(value, "\tFiles       *appfiles.Service\n", "", 1)
-		value = removeText(value, "\tstorageConfig := cfg.Storage", "\titemService := items.NewService(")
+		value = removeText(value, "\tstorageConfig := cfg.Storage", "\tif err := jobQueue.Register(webhooks.JobKind")
 		value = strings.ReplaceAll(value, "httpapi.NewHandlerWithWebhooksAndFiles", "httpapi.NewHandlerWithWebhooks")
 		value = strings.ReplaceAll(value, "web.NewHandlerWithServicesAndFilesAndSharing", "web.NewHandlerWithServices")
 		value = strings.ReplaceAll(value, "web.NewHandlerWithServicesAndFiles", "web.NewHandlerWithServices")
@@ -542,10 +531,12 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = strings.ReplaceAll(value, "cfg, nil, setupToken, publicURL, mailer", "cfg, setupToken, publicURL, mailer")
 		value = strings.ReplaceAll(value, "cfg, fileService, setupToken, publicURL, mailer", "cfg, setupToken, publicURL, mailer")
 		value = strings.Replace(value, "\tfileService *appfiles.Service,\n", "", 1)
-		value = strings.Replace(value, "identity: identityService, items: itemService, files: fileService, sharing: sharingService, exporter: exporterService", "identity: identityService, items: itemService, sharing: sharingService, exporter: exporterService", 1)
-		value = strings.Replace(value, "identity: identityService, items: itemService, files: fileService, exporter: exporterService", "identity: identityService, items: itemService, exporter: exporterService", 1)
+		value = strings.Replace(value, "identity: identityService, files: fileService, exporter: exporterService", "identity: identityService, exporter: exporterService", 1)
 		value = removeBlockIncludingEnd(value, "\tif h.files != nil {", "\t}\n")
 		value = strings.Replace(value, "\t\tFilesEnabled: h.files != nil,\n", "", 1)
+	case "internal/identity/account_notification_test.go":
+		value = removeText(value, "func TestAccountDeletionRetainsOwnedFiles(", "func TestEmailVerificationAndPasswordResetAreSingleUse(")
+		value = removeLinesContaining(value, `"database/sql"`)
 	case "docs/capabilities.md":
 		value = removeLineStarting(value, "| Files |")
 		value = removeLineStarting(value, "| Files shared list view |")
@@ -645,15 +636,15 @@ const disabledAgent = `package bootstrap
 import (
 	"net/http"
 
+	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
 
 func registerAgent(
 	_ *http.ServeMux,
 	_ *identity.Service,
-	_ *items.Service,
+	_ *clients.Service,
 	_ config.Config,
 ) {}
 `
@@ -691,7 +682,7 @@ func templateIdentity(root string) (string, string, string, error) {
 func ignored(relative string) bool {
 	first, _, _ := strings.Cut(filepath.ToSlash(relative), "/")
 	if first == ".git" || first == ".env" || first == "data" || first == "dist" ||
-		first == "node_modules" || first == "template.lock" || relative == "cmd/template-init" ||
+		first == "node_modules" || first == "template.lock" || first == "PLAN.md" || relative == "cmd/template-init" ||
 		strings.HasPrefix(filepath.ToSlash(relative), "cmd/template-init/") {
 		return true
 	}
@@ -898,13 +889,11 @@ Release and artifact verification rules live in [release](docs/release.md).
 Do not publish tags, credentials, or production changes without the required
 authority.
 
-## Replace the sample feature
+## Add a product feature
 
-The item feature is the executable reference for a complete vertical slice.
-Replace or remove it as one reviewed change: update shared use cases, routes,
-authorization, OpenAPI, migrations, tests, navigation, and documentation
-together. Before removing it, pass the applicable browser, REST, CLI, MCP, SSE,
-and WebMCP fallback checks described in [development](docs/development.md#replace-the-sample-feature).
+Implement each product feature as a reviewed vertical change. Update shared use
+cases, routes, authorization, contracts, migrations, tests, navigation, and
+documentation together. See [development](docs/development.md#add-a-product-feature).
 
 ## Template provenance
 

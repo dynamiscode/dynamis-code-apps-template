@@ -23,7 +23,7 @@ constructor injection (no DI):
 - `templates` - document shells: `UiHead`, `Workspace` (drawer shell),
   and the page skeletons.
 - Feature pages stay at the `internal/web` root next to their handlers
-  (`items.templ`, `clients.templ`, `auth.templ`, ...), importing the four
+  (`clients.templ`, `auth.templ`, ...), importing the four
   packages. `viewmodel.PageData` is the single data carrier templates read.
 
 Downward imports only: pages -> templates -> organisms -> molecules ->

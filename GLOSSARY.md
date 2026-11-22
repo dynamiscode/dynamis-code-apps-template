@@ -24,9 +24,8 @@ the source wins and this file gets fixed.
 | Workspace | The tenant boundary. Workspace authority comes only from an active membership. | [Authentication](docs/authentication.md) |
 | Workspace short ID | The public form of a workspace's integer key: a Sqids string. The only form in paths, arguments, bodies, and responses. | [Architecture](docs/architecture.md#ids-time-and-transactions) |
 | File short ID | The public form of a file's integer key: a Sqids string with the `file` type code. The only form in file paths, bodies, and responses. | [Architecture](docs/architecture.md#ids-time-and-transactions) |
-| Item short ID | The public form of an item's integer key: a Sqids string under the item type code. The only form in item paths, arguments, bodies, and responses. | [Architecture](docs/architecture.md#ids-time-and-transactions) |
 | Short ID | The public form of an entity's integer key: a Sqids string from a per-type alphabet. Strictly decoded; the only form of an entity ID in paths, arguments, bodies, and responses. Credentials are not short IDs. | [Identity keys decision](docs/decisions/0011-identity-integer-keys.md), [Short-ID codec decision](docs/decisions/0009-short-id-codec.md) |
-| Type code | The registry name of an entity kind, such as `item` or `audit_event`. It seeds that kind's short-ID alphabet and is never placed in the encoded string. Audit `targetType` values use these codes, except key-less targets such as `session`. | [Identity keys decision](docs/decisions/0011-identity-integer-keys.md) |
+| Type code | The registry name of an entity kind, such as `client` or `audit_event`. It seeds that kind's short-ID alphabet and is never placed in the encoded string. Audit `targetType` values use these codes, except key-less targets such as `session`. | [Identity keys decision](docs/decisions/0011-identity-integer-keys.md) |
 | Integer key | An entity's internal primary key, stored in tables and references. Never accepted or returned by a public surface. | [Identity keys decision](docs/decisions/0011-identity-integer-keys.md) |
 | Workspace mode | The instance setting that selects `single` or `multi` workspace operation. | [Configuration](docs/configuration.md) |
 | Membership | A user's link to one workspace, carrying one role. | [Authentication](docs/authentication.md) |
@@ -36,19 +35,17 @@ the source wins and this file gets fixed.
 | Session | A browser authentication record. Stores only hashes of its secret and CSRF values; re-checks membership on protected operations. | [Authentication](docs/authentication.md) |
 | Theme preference | A user's profile appearance setting: `system` (follows the OS), `light`, or `dark`. Owned by the user, not the workspace. | [Authentication](docs/authentication.md) |
 | Token | A bearer credential for REST, MCP, or CLI access. Shown once; intersected with the user's current role on every use. | [Authentication](docs/authentication.md#workspace-permissions) |
-| Item | The sample workspace-scoped resource used by the item API and browser. | [API](docs/api.md) |
 | Clients profile | Optional profile for workspace clients and their custom fields. Requires Identity and Agent. | [Clients decision](docs/decisions/0013-clients-profile.md) |
 | Client | A workspace-scoped record of a party the workspace manages, such as a customer. Holds common fields and custom values. | [Clients decision](docs/decisions/0013-clients-profile.md) |
 | Common field | A fixed client field every workspace has: display name, email, phone, notes, and archived-at. Defined by the template. | [Clients decision](docs/decisions/0013-clients-profile.md) |
 | Custom field | A client field a workspace defines, typed as text, number, date, yes/no, or single choice. | [Clients decision](docs/decisions/0013-clients-profile.md) |
 | Choice option | A selectable value of a single-choice custom field. | [Clients decision](docs/decisions/0013-clients-profile.md) |
 | Archive | Hides a client or custom field from default views and keeps its data. Reversible. A client is archived by setting its archived-at date. | [Clients decision](docs/decisions/0013-clients-profile.md) |
-| Public item sharing | A bounded, browser-only public link to one Item. | [Public sharing decision](docs/decisions/0005-public-sharing.md) |
 | Audit event | An append-only identity record, shown read-only in Settings → Audit history. | [Audit decision](docs/decisions/0006-workspace-audit-history.md) |
 | Export | The authorized `dynamis-code.workspace/v1` workspace export. | [Data lifecycle](docs/data-lifecycle.md) |
 | Backup | A complete encrypted database backup. Not the same as an export. | [Data lifecycle](docs/data-lifecycle.md), [Operations](docs/operations.md) |
-| Webhook | A workspace-scoped HTTP delivery of item events, signed with HMAC-SHA256. | [Webhooks decision](docs/decisions/0004-webhooks.md) |
-| Outbox | Database rows written in the same transaction as an item change, delivered later by a `webhook.delivery` job. | [Background jobs decision](docs/decisions/0005-background-jobs.md), [Operations](docs/operations.md) |
+| Webhook | A workspace-scoped HTTP delivery of Client events, signed with HMAC-SHA256. | [Webhooks decision](docs/decisions/0004-webhooks.md) |
+| Outbox | Database rows written in the same transaction as a Client change, delivered later by a `webhook.delivery` job. | [Background jobs decision](docs/decisions/0005-background-jobs.md), [Operations](docs/operations.md) |
 | Background job | A durable database-queued job, claimed under a lease. | [Background jobs decision](docs/decisions/0005-background-jobs.md) |
 | Workspace email settings | A workspace's own email provider and sender identity. Unconfigured workspaces use the instance default. | [Workspace email settings decision](docs/decisions/0009-workspace-email-settings.md) |
 | Provider | The external service that delivers email. Configured per workspace, or by the instance default. | [Workspace email settings decision](docs/decisions/0009-workspace-email-settings.md) |
@@ -60,7 +57,7 @@ the source wins and this file gets fixed.
 | Realtime | One-way SSE delivery, such as recipient-scoped notification events. | [Web](docs/web.md#realtime-contract) |
 | MCP | Server-side Model Context Protocol tools. Never access SQL or run shell commands. | [MCP](docs/mcp.md) |
 | WebMCP | Optional browser-tab enhancement, separate from server MCP. Feature-detected; the ordinary form path always works. | [Web](docs/web.md#webmcp-progressive-enhancement) |
-| `appctl` | The REST-only remote CLI for item and client APIs. Has no database access. | [CLI](docs/cli.md) |
+| `appctl` | The REST-only remote CLI for the Client API. Has no database access. | [CLI](docs/cli.md) |
 | Capability | A standard or feature recorded in the conformance ledger with its status and evidence. | [Capabilities](docs/capabilities.md) |
 | Deferred trigger | The concrete condition that must be accepted before a deferred capability is added. | [Capabilities](docs/capabilities.md) |
 | Exception | An approved, time-limited deviation from a normative standard. Security exceptions need security-owner approval. Expired exceptions are non-conforming. | [Exceptions](docs/decisions/exceptions/README.md) |

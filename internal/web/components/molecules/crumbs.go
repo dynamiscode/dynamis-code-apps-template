@@ -3,8 +3,7 @@ package molecules
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
-
-// homeCrumbItems returns the leading workspace crumb, or nil when a single
+// HomeCrumbItems returns the leading workspace crumb, or nil when a single
 // workspace with no href renders no leading crumb at all.
 func HomeCrumbItems(data viewmodel.PageData) []atoms.BreadcrumbsProp {
 	if data.SingleWorkspace && data.DefaultWorkspaceHref == "" {
@@ -15,16 +14,4 @@ func HomeCrumbItems(data viewmodel.PageData) []atoms.BreadcrumbsProp {
 		href = data.DefaultWorkspaceHref
 	}
 	return []atoms.BreadcrumbsProp{{Label: data.T("workspace.workspaces"), Href: href}}
-}
-
-
-templ WorkspaceListCrumb(data viewmodel.PageData) {
-	if !data.SingleWorkspace {
-		<a href="/">{ data.T("workspace.workspaces") }</a><span aria-hidden="true">/</span>
-	}
-}
-
-
-templ DefaultHomeCrumb(data viewmodel.PageData) {
-	@atoms.Breadcrumbs(atoms.BreadcrumbsProps{Items: HomeCrumbItems(data)})
 }

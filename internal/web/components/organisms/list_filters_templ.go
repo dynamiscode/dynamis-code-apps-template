@@ -455,14 +455,14 @@ func ListFilterAddPanel(data viewmodel.PageData) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		if data.Filter.Step == nil {
 			if !data.Filter.CanAdd {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<p class=\"status\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<p class=\"status-line\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var23 string
 				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.filter_limit"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_filters.templ`, Line: 98, Col: 53}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_filters.templ`, Line: 98, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 				if templ_7745c5c3_Err != nil {

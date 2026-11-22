@@ -95,7 +95,7 @@ templ ListFilterStrip(data viewmodel.PageData) {
 templ ListFilterAddPanel(data viewmodel.PageData) {
 	if data.Filter.Step == nil {
 		if !data.Filter.CanAdd {
-			<p class="status">{ data.T("clients.filter_limit") }</p>
+			<p class="status-line">{ data.T("clients.filter_limit") }</p>
 		} else {
 			<p id="list-field-heading" class="client-field-prompt">{ data.T("clients.choose_field") }</p>
 			<ul class="client-field-choices" aria-labelledby="list-field-heading">

@@ -23,7 +23,7 @@ description: Check how forms keep unsent work - dirty detection that enables Sav
 
 ## Coverage record
 
-- Covered code: `internal/web/assets/alpine-components.js`, wireForms (`draftAction`, `isDirty`, `refreshDecision`, `writeDraft`, `readDraft`, `applyDraft`, `updateDirty`, the input/change/submit/beforeunload handlers, `isEditing`), `internal/web/assets/app.js` (the deferred `refresh`), and the templates using `data-persist` (item-list create form, invitations, webhooks), `data-dirty-track` (item rows, account profile, general settings, email settings), `data-unsaved-warning`.
+- Covered code: `internal/web/assets/alpine-components.js`, wireForms (`draftAction`, `isDirty`, `refreshDecision`, `writeDraft`, `readDraft`, `applyDraft`, `updateDirty`, the input/change/submit/beforeunload handlers, `isEditing`), `internal/web/assets/app.js` (the deferred `refresh`), and the templates using `data-persist` (invitations, webhooks), `data-dirty-track` (account profile, general settings, email settings), `data-unsaved-warning`.
 - Sync commit: the commit that last changed this file (`git log -1 --format=%H -- .agents/skills/form-drafts/SKILL.md`). Diff the covered files against it first; if they changed, confirm the model still matches before trusting a pass, then update this file.
 
 ## Run the check
@@ -37,7 +37,7 @@ description: Check how forms keep unsent work - dirty detection that enables Sav
 
 - **TLC:** the counterexample is a sequence of user and server steps. Replay it in a browser on the invitations page. If the page does the same, it is a bug; do not weaken the rule. If the code cannot take a step, fix the model.
 - **forms.test.mjs:** `draft decision` names the stored/error combination that picked the wrong action.
-- **ux smoke:** `not ok - form-drafts: ...` names the rule; `item-create-submission: the box is empty after a save` also means a stale draft was restored.
+- **ux smoke:** `not ok - form-drafts: ...` names the rule.
 
 ## Proof the check catches a break
 

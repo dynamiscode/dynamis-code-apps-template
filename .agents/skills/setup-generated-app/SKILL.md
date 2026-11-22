@@ -1,6 +1,6 @@
 ---
 name: setup-generated-app
-description: Set up a project generated from the Dynamis Code template. Maps the template code that must change (identity, the sample items feature, the demo seed, unselected profiles), the recommended changes, and the checks that prove the app still works. Use right after template-init generates an application, or when asked what to change in a generated app.
+description: Set up a project generated from the Dynamis Code template. Maps the template code that must change (identity, the product resources, the demo seed, unselected profiles), the recommended changes, and the checks that prove the app still works. Use right after template-init generates an application, or when asked what to change in a generated app.
 ---
 
 # Set Up a Generated Application
@@ -46,19 +46,13 @@ applicable`, the same statuses that
       `ready-for-agent`, `ready-for-human`, `wontfix`.
    3. Add your product terms to the app-owned part of `GLOSSARY.md`.
    4. Commit `AGENTS.md`, `docs/agents/`, and `GLOSSARY.md`.
-3. **Decide the sample items feature (must).** Replace it with your first real
-   resource, or remove it. Use the [sample map](#map-sample-items-feature). The
-   change must cover routes, use cases, OpenAPI, migrations, tests, navigation,
-   docs, and smoke checks together, as
-   [development](../../../docs/development.md#replace-the-sample-feature) requires.
+3. **Define your product resource (must).** Add your feature through the shared application services and update routes, contracts, tests, navigation, and documentation together.
+
 4. **Fix the verify gate (must).** `make verify` runs `template-smoke`, which
    runs `go run ./cmd/template-init`. The generator excludes `cmd/template-init`,
    so that step cannot run in a generated app. Remove `template-smoke` from the
    `verify:` line and from the `.PHONY:` line in `Makefile`.
-5. **Remove the demo seed (recommended).** `cmd/demo/` inserts a sample item
-   titled "Replace this sample item" and needs `DEMO_OWNER_PASSWORD`. Delete it
-   unless you want demo data. Then remove the "Local demo seed" section of
-   `docs/cli.md` and the demo paragraph in `README.md`.
+5. **Review the demo seed (recommended).** `cmd/demo/` creates a demo workspace and owner. Remove it unless needed.
 6. **Remove files for unselected profiles (recommended).** The generator drops
    code for unselected profiles but still copies their docs and models.
    1. Without Agent: delete `docs/mcp.md` and `docs/cli.md`, then remove their
@@ -79,40 +73,15 @@ applicable`, the same statuses that
    before defining a release process for the generated app.
 9. **Verify (must).** Run these in order and report each result:
    1. `make verify`, after step 4.
-   2. `npm ci && make accessibility-smoke`. It opens the items page, so it fails
-      until you replace or remove that page.
+   2. `npm ci && make accessibility-smoke`. It checks the routes currently supported.
    3. `make webmcp-smoke`.
-   4. `make docker-smoke`. It posts to the items endpoint.
+   4. `make docker-smoke`. It checks the workspace before and after restart.
    5. For data changes, set `POSTGRES_TEST_URL` and run `make test-postgres`.
    6. For OpenAPI changes, `make generate-check` must show no drift.
 
-## Map: sample items feature
+## Retired Items feature
 
-Items is the reference vertical slice. The file list drifts, so search for
-current references first:
-
-```sh
-git grep -l -E "items|Items|item_|Item" -- internal cmd api scripts docs README.md verification
-```
-
-Decision records and `CHANGELOG.md` are history. Do not rewrite them.
-
-| Area | Where | Action |
-|---|---|---|
-| Use cases | `internal/items/` | Replace with your resource, or delete |
-| Wiring | `internal/bootstrap/app.go`, `internal/bootstrap/agent.go` | Remove or replace the service and its arguments |
-| Web | `internal/web/items.templ`, `internal/web/items_rows.templ`, `internal/web/handler.go`, `internal/web/assets/alpine-components.js`, `app.css`, `tokens.css` | Replace routes, templates, and script |
-| REST | `internal/httpapi/` (for example `item_path_test.go`), `api/openapi.json` | Update routes and schemas, then `go generate ./api` |
-| Schema | `internal/platform/database/migrations/000003_items_http.sql`, `000004_item_events.sql`, `000009_nullable_item_creator.sql` | Do not edit applied migrations. Add a forward migration |
-| Public sharing | `000011_public_sharing.sql` (`public_links.item_id` references `items`), `internal/sharing/`, `internal/web/sharing.go` | Retarget sharing to your resource, or remove it with the items |
-| Webhooks | `item.created`, `item.updated`, `item.deleted` in `api/openapi.json` and `internal/webhooks/` tests | Rename to your events |
-| Export | `internal/portability/`, `WorkspaceExport` in `api/openapi.json` | Update the export format |
-| Short IDs | `internal/platform/id/short.go` (`TypeItem`, `TypeItemEvent`) | Keep registered codes while stored IDs exist. See [ADR 0009](../../../docs/decisions/0009-short-id-codec.md) |
-| Agent surfaces | `internal/mcpserver/`, `internal/appctl/`, `internal/bootstrap/agent_smoke_test.go` | Update tools, commands, and smoke tests (Agent only) |
-| Smoke checks | `cmd/browsersmoke/accessibility.go`, `cmd/browsersmoke/webmcp.go`, `scripts/docker-smoke.sh` | Point at the replacement page and endpoint |
-| Strings | `internal/i18n/locales/en.json`, `es.json` | Replace item strings |
-| Behavior docs | `docs/api.md`, `web.md`, `mcp.md`, `cli.md`, `data-lifecycle.md`, `capabilities.md`, `GLOSSARY.md` ("Item") | Match the code. Never describe behavior the code lacks |
-| Demo seed | `cmd/demo/` | Delete or repoint (step 5) |
+Items and public links were removed by migration 000030. Earlier migrations and decision records are historical; never edit applied migrations. Add new product resources with forward migrations.
 
 ## Map: demo, fakes, and examples
 

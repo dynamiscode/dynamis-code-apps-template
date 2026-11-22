@@ -34,14 +34,11 @@ means the complete encrypted database backup described in
 | identity / `notifications` | IDs, recipient, optional workspace, type, title, body, timestamps (personal) | In-app notification inbox and SSE delivery | One-year retention; read state is user-correctable; excluded from workspace export; account/workspace deletion cascades. |
 | identity / `audit_events` | IDs, types, actions, outcome, timestamps (internal); actor, workspace, request, source address, metadata (personal) | Security and administrative evidence | Append-only during normal operation; default 365-day retention; workspace events export and the redacted latest-100 browser projection are available to owners/admins; maintenance deletes expired events and records its own prune event. No product correction. |
 | identity / `bootstrap_state` | `id`, `completed_at` (internal) | Enforce one-time first-owner bootstrap | Installation lifetime; backup only; never reset by application behavior. |
-| items / `items` | IDs, status, version, timestamps (internal); nullable `created_by_user_id`, `title` (personal user content) | Sample feature | Until permanent deletion or future workspace deletion; all fields export; title/status correction uses conditional update; account deletion retains the item and clears its deleted creator reference. |
-| items / `idempotency_records` | hashes, IDs, operation, result, timestamps (internal; hashes treated as secret) | Safe create replay | Exact 24-hour expiry; pruned after expiry; excluded from export; no correction. |
-| items / `item_events` | IDs, type, version, time (internal) | SSE replay and resynchronization | Application keeps the newest 1,000 per workspace; maintenance also removes events older than 7 days; excluded from export; no correction. |
-| sharing / `public_links` | IDs, workspace/item references, timestamps, expiry, revocation (internal); `token_hash` (secret) | Bounded read-only Item sharing without membership | Until expiry or revocation; expired links are pruned by maintenance and revoked links after 365 days; excluded from export; item/workspace deletion cascades; no correction. |
+| platform / `idempotency_records` | hashes, IDs, operation, result, timestamps (internal; hashes treated as secret) | Retained legacy create replay records | Exact 24-hour expiry; pruned after expiry; excluded from export; no correction. |
 | webhooks / `webhooks` | IDs, workspace, name, endpoint URL, selected event names, timestamps (internal/configuration); encrypted secret (secret) and its key version (internal) | Workspace event delivery registration | Workspace lifetime or explicit deletion; excluded from export; secret rotates through authorized management and is never returned after creation. |
 | email / `workspace_email_settings` | workspace, provider, sender address and name, host, port, username, sender domain status (personal/configuration); encrypted password, Resend API key, or Postmark Server API token (secret) and Postmark Account API token (secret), each with its key version (internal) | Workspace-scoped invitation delivery through its own SMTP or Resend account | Workspace lifetime; replaced on save; never returned after save; excluded from export; cascades on workspace deletion. |
-| webhooks / `webhook_deliveries` | IDs, webhook/event references, event type, bounded payload, attempt/status/timestamps, HTTP status, redacted error category (internal; payload personal) | Durable at-least-once item delivery and bounded delivery history | Pending rows remain until delivery settles; delivered/failed rows retained 365 days and pruned by maintenance; excluded from export; cascade on webhook deletion. |
-| webhooks / `webhook_events` | Integer key (short ID for `eventId` and `Webhook-Id`), workspace, event type, creation time (internal) | Shared event identity for one item change across its deliveries | Removed by maintenance once no delivery references it (after the delivery history window); excluded from export; cascade on workspace deletion. |
+| webhooks / `webhook_deliveries` | IDs, webhook/event references, event type, bounded payload, attempt/status/timestamps, HTTP status, redacted error category (internal; payload personal) | Durable at-least-once Client event delivery and bounded delivery history | Pending rows remain until delivery settles; delivered/failed rows retained 365 days and pruned by maintenance; excluded from export; cascade on webhook deletion. |
+| webhooks / `webhook_events` | Integer key (short ID for `eventId` and `Webhook-Id`), workspace, event type, creation time (internal) | Shared event identity for one Client change across its deliveries | Removed by maintenance once no delivery references it (after the delivery history window); excluded from export; cascade on workspace deletion. |
 | files / `files` | Integer key (public as the file short ID), workspace/owner, object key, original name, detected MIME, size, SHA-256, status, timestamps (personal user content/internal) | Workspace-scoped private file metadata and object reconciliation | Workspace lifetime; metadata is included in backup but excluded from workspace export; owner deletion sets owner NULL; live object deletion/reconciliation is not exposed in this slice. Valid transitions are Pending -> Ready and Pending -> Failed; Pending and Failed rows remain quota-reserved until cleaned up by operator reconciliation or `CleanupStaleFiles`. |
 | platform / `background_jobs` | IDs, workspace, handler kind, deduplication key, bounded payload, status/attempt/lease/timestamps, redacted error category (internal; payload personal) | Durable retry and lease ownership for bounded asynchronous handlers | Pending and leased rows remain until settlement; settled rows retained 365 days and pruned by maintenance; excluded from export; workspace deletion cascades. |
 
@@ -68,86 +65,29 @@ trigger; this slice leaves bounded metadata hooks and adds no worker.
 
 ## Resource and identity deletion
 
-Items support `active` and `complete`; they do not support archive,
-soft-delete, or product restore. Authorized `DELETE` requires the current ETag,
-permanently removes the live row, emits a deletion event, and records an audit
-event. The identifier is not reused. Recovery from backup is an operator
-disaster-recovery action, not an item restore feature.
-
 Account deletion is available after local-password reauthentication and is
 refused for users who still own a workspace. Ownership transfer is required
 first; deletion then cascades account credentials, memberships, external
 identities, preferences, and notifications, and removes invitations created by
 the account. The deletion audit event retains the user ID and safe metadata but
-no credential or profile content. Items created by the account remain in their
-workspace with `createdByUserId: null`. Workspace deletion remains unavailable.
-
-Public links are not workspace memberships. A valid link returns only the Item
-title and status; workspace names, emails, creator details, audit history,
-internal IDs, and bearer tokens are excluded. Link creation and revocation
-require `resources:write`; access outcomes are audited without the bearer
-token. Links expire after seven days by default, at most 30 days, and never
-have an unlimited lifetime. Item deletion invalidates links through the
-foreign-key cascade.
+no credential or profile content. File metadata remains in its workspace with `ownerUserId: null`. Workspace deletion remains unavailable.
 
 ## Portability
 
-`GET /api/v1/workspaces/{workspaceId}/export` requires `workspace:export`,
-checks workspace membership, and returns one synchronous JSON attachment. The
-format includes version, export time, workspace (including its locale), members, items, audit events,
-and an explicit exclusion list. Defaults cap it at 1,000 records and 4 MiB;
-over-limit exports fail with `409 export-limit` and are audited. No server-side
+`GET /api/v1/workspaces/{workspaceId}/export` requires `workspace:export`
+and workspace membership. The synchronous JSON attachment uses
+`dynamis-code.workspace/v1` and includes export time, workspace, members,
+audit events, and an explicit exclusion list. When the Clients profile is
+enabled it also includes `clients`, `clientFields`, and
+`clientFieldOptions`; archived clients and fields are included. Custom values
+are keyed by field short ID. Defaults limit the export to 1,000 records and
+4 MiB. Over-limit exports fail with `409 export-limit`; no server-side
 download copy remains.
 
-The export also includes `clients`, `clientFields`, and `clientFieldOptions`.
-Archived clients and archived fields are included. Each client carries
-`customValues`, keyed by field short ID; internal slot numbers never appear,
-and unset fields are absent. Client, field, and option records count toward
-the record limit. These keys are additive to `dynamis-code.workspace/v1`, as
-the workspace locale was. The version is unchanged because the REST contract
-requires clients to ignore unknown response fields
-([API compatibility](api.md#compatibility)). The importer declares the keys and
-accepts them, but it imports items only. A build that predates these keys
-rejects an export that contains them, because its importer rejects unknown
-JSON fields.
-
-Import supports only item records through `POST /api/v1/workspaces/{workspaceId}/import`.
-Authorized owners and admins with `workspace:update` may submit the versioned
-workspace JSON export or strict UTF-8 `title,status` CSV. Source IDs,
-timestamps, memberships, audit events, credentials, and unknown JSON fields are
-ignored or rejected; imported items receive new IDs, the current actor as
-creator, and current UTC timestamps. The configured import record and byte
-limits apply, and the whole batch is validated and committed in one
-transaction. Any validation, quota, or storage error rolls the batch back.
-Successful and authorized rejected imports append workspace audit events;
-invalid or over-limit input has a safe error without echoing file contents.
-Membership, identity, and arbitrary-domain imports remain unsupported.
-Deletion removes imported items through the normal permanent item deletion
-path; database backups retain them until backup expiry. Import does not create
-a restore or undelete workflow.
-The same bounded import use case is available in the browser at
-`/workspaces/{workspaceId}/settings/import` for owners and admins. The
-server-rendered form requires session-bound CSRF, one `.json` or `.csv` file,
-and an explicit confirmation before submission; it provides localized safe
-success, validation, and limit feedback without echoing file contents. The
-browser form remains synchronous and uses the same atomic transaction. Remote
-CLI, MCP, and WebMCP surfaces omit import because they have no ordinary file
-selection and operator-review flow; backup and restore remain operator-only.
-
-The workspace object in `dynamis-code.workspace/v1` includes its `locale` as
-an additive field. Existing readers that ignore unknown fields remain
-compatible; new exports always include `en` or `es`.
-
-The workspace object in `dynamis-code.workspace/v1` includes its `locale` as
-an additive field. Existing readers that ignore unknown fields remain
-compatible; new exports always include `en` or `es`.
-
-WebMCP may prepare the authorized browser export link under the Settings route
-but never returns export content, credentials, or secret data to a browser
-agent. It does not expose operator backup, restore, import, maintenance, or
-audit administration or history. The browser audit page remains ordinary
-server-rendered HTML; redacted export content remains bounded by the workspace
-export contract.
+Items are no longer included, and the former Items-only import routes are
+removed. Workspace export is not an operator backup or restore mechanism.
+WebMCP can prepare the authorized browser export link, but cannot return the
+export content or submit a mutation.
 
 Webhook registrations and delivery history are not part of workspace export;
 endpoint URLs and delivery payloads can contain integration or personal data,

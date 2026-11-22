@@ -10,14 +10,12 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 )
 
 type result struct {
 	WorkspaceID identity.WorkspaceID `json:"workspaceId"`
-	ItemIDs     []string             `json:"itemIds"`
 }
 
 func main() {
@@ -56,26 +54,11 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	workspaceID, userID, err := demoOwner(ctx, auth, email, password, workspaceName)
+	workspaceID, _, err := demoOwner(ctx, auth, email, password, workspaceName)
 	if err != nil {
 		return err
 	}
-	actor, err := auth.Authorize(ctx, userID, workspaceID, identity.ResourcesWrite)
-	if err != nil {
-		return err
-	}
-	actor.AuthMethod = "demo"
-	service := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace)
-	itemIDs := make([]string, 0, 3)
-	for number, title := range []string{"Welcome to your demo workspace", "Import a CSV or JSON export", "Replace this sample item"} {
-		created, err := service.Create(ctx, actor, workspaceID, title,
-			fmt.Sprintf("demo-item-%d", number+1), identity.AuditContext{})
-		if err != nil {
-			return err
-		}
-		itemIDs = append(itemIDs, created.Item.ID.String())
-	}
-	return json.NewEncoder(os.Stdout).Encode(result{WorkspaceID: workspaceID, ItemIDs: itemIDs})
+	return json.NewEncoder(os.Stdout).Encode(result{WorkspaceID: workspaceID})
 }
 
 func demoOwner(

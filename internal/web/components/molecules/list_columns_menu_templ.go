@@ -87,7 +87,7 @@ func ListColumnsMenu(data viewmodel.PageData, suffix string) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = atoms.Dropdown(atoms.DropdownProps{
 			Class:        "list-menu",
-			SummaryClass: "btn btn-ghost btn-xs",
+			SummaryClass: "btn btn-ghost btn-sm",
 			SummaryAttrs: templ.Attributes{"aria-label": data.T("clients.columns"), "title": data.T("clients.columns")},
 			Summary:      listColumnsSummary(data),
 			Panel:        listColumnsPanel(data, suffix),

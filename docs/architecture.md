@@ -88,8 +88,7 @@ not start hidden transactions.
 
 Workspaces use an integer key (`INTEGER PRIMARY KEY` on SQLite,
 `BIGINT GENERATED ALWAYS AS IDENTITY` on PostgreSQL). `identity.WorkspaceID`
-marshals to its short ID, the only form that leaves the process. Items use the
-same pattern with `items.ItemID` and the item type code. Webhooks, webhook
+marshals to its short ID, the only form that leaves the process. Webhooks, webhook
 deliveries, webhook events, and background jobs use integer keys too;
 `internal/webhooks/ids.go` marshals the first three to their short IDs under
 their own type codes. Audit targets and actors, idempotency principals, and job

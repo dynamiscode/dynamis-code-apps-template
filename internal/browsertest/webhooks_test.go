@@ -57,7 +57,7 @@ func TestWebhookRegistryAndDeliveryHistory(t *testing.T) {
 		navigate(t, tab, workspacePath+"/settings/webhooks")
 		fillByLabel(t, tab, "Name", name)
 		fillByLabel(t, tab, "HTTPS endpoint", endpoint)
-		eval[any](t, tab, `(() => { const box = document.querySelector('input[name="events"][value="item.created"]'); box.checked = true; box.dispatchEvent(new Event("change", { bubbles: true })); })()`)
+		eval[any](t, tab, `(() => { const box = document.querySelector('input[name="events"][value="client.created"]'); box.checked = true; box.dispatchEvent(new Event("change", { bubbles: true })); })()`)
 		headers := responseHeaders(t, tab, "/settings/webhooks", http.MethodPost)
 		clickByText(t, tab, "Create webhook")
 		select {
@@ -109,10 +109,11 @@ func TestWebhookRegistryAndDeliveryHistory(t *testing.T) {
 		t.Fatal("no deliveries link")
 	}
 
-	navigate(t, tab, workspacePath+"/items")
-	fillByLabel(t, tab, "New item title", "WEBHOOK_PRIVATE_PAYLOAD_FIXTURE")
-	clickByText(t, tab, "Add item")
-	eventually(t, tab, `[...document.querySelectorAll('#item-list input[name="title"]')].some((i) => i.getAttribute("value") === "WEBHOOK_PRIVATE_PAYLOAD_FIXTURE")`, "item not created")
+	navigate(t, tab, workspacePath+"/clients")
+	click(t, tab, `a[href$="/clients/new"]`)
+	fill(t, tab, "#client-display-name", "WEBHOOK_PRIVATE_PAYLOAD_FIXTURE")
+	click(t, tab, "form.create button[type=submit]")
+	waitVisible(t, tab, "#client-detail")
 
 	headers := responseHeaders(t, tab, deliveryPath, http.MethodGet)
 	navigate(t, tab, deliveryPath)
@@ -125,7 +126,7 @@ func TestWebhookRegistryAndDeliveryHistory(t *testing.T) {
 		t.Fatal("no delivery history response")
 	}
 	expectCount(t, tab, "main table tbody tr", 1)
-	expectText(t, tab, "main table", regexp.MustCompile("item.created"))
+	expectText(t, tab, "main table", regexp.MustCompile("client.created"))
 	mainText := eval[string](t, tab, `document.querySelector("main").innerText`)
 	if strings.Contains(mainText, secret) || strings.Contains(mainText, "WEBHOOK_PRIVATE_PAYLOAD_FIXTURE") {
 		t.Fatal("delivery history exposes the secret or the private payload")

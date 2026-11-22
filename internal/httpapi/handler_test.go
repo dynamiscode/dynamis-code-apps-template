@@ -17,7 +17,6 @@ import (
 	"example.com/dynamis-code/apps-template/internal/clients"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
@@ -39,64 +38,47 @@ func TestHTTPContracts(t *testing.T) {
 	missing := serve(handler, http.MethodGet, "/missing", "", "")
 	assertProblem(t, missing, http.StatusNotFound, "not-found")
 
-	collection := "/api/v1/workspaces/" + workspaceID + "/items"
-	created := serveAuthorized(handler, http.MethodPost, collection, `{"title":"First"}`, token, map[string]string{"Idempotency-Key": "key-12345678"})
+	collection := "/api/v1/workspaces/" + workspaceID + "/clients"
+	created := serveAuthorized(handler, http.MethodPost, collection, `{"displayName":"First"}`, token, nil)
 	if created.Code != http.StatusCreated || created.Header().Get("ETag") != `"v1"` {
 		t.Fatalf("create response = %d, %s", created.Code, created.Body.String())
 	}
-	var item items.Item
-	if err := json.Unmarshal(created.Body.Bytes(), &item); err != nil {
+	var client clients.Client
+	if err := json.Unmarshal(created.Body.Bytes(), &client); err != nil {
 		t.Fatal(err)
 	}
-	replay := serveAuthorized(handler, http.MethodPost, collection, `{"title":"First"}`, token, map[string]string{"Idempotency-Key": "key-12345678"})
-	if replay.Code != http.StatusCreated || replay.Header().Get("Idempotency-Replayed") != "true" {
-		t.Fatalf("replay response = %d, %s", replay.Code, replay.Body.String())
-	}
-	conflict := serveAuthorized(handler, http.MethodPost, collection, `{"title":"Changed"}`, token, map[string]string{"Idempotency-Key": "key-12345678"})
-	assertProblem(t, conflict, http.StatusConflict, "idempotency-conflict")
 	exported := serveAuthorized(handler, http.MethodGet,
 		"/api/v1/workspaces/"+workspaceID+"/export", "", token, nil)
 	if exported.Code != http.StatusOK || exported.Header().Get("Cache-Control") != "no-store" ||
 		!strings.Contains(exported.Header().Get("Content-Disposition"), "attachment") ||
-		!strings.Contains(exported.Body.String(), item.ID.String()) ||
 		!strings.Contains(exported.Body.String(), portability.FormatVersion) ||
 		strings.Contains(exported.Body.String(), token) {
 		t.Fatalf("export response = %d, headers %v, body %s", exported.Code, exported.Header(), exported.Body.String())
 	}
-	imported := serveAuthorized(handler, http.MethodPost,
-		"/api/v1/workspaces/"+workspaceID+"/import",
-		"title,status\nImported,active\n", token,
-		map[string]string{"Content-Type": "text/csv"})
-	if imported.Code != http.StatusOK || imported.Body.String() != "{\"imported\":1}\n" {
-		t.Fatalf("import response = %d, %s", imported.Code, imported.Body.String())
-	}
-	unsupported := serveAuthorized(handler, http.MethodGet, collection+"?filter=no", "", token, nil)
-	assertProblem(t, unsupported, http.StatusBadRequest, "invalid-request")
-	searched := serveAuthorized(handler, http.MethodGet, collection+"?search=first&limit=1&sort=created_at", "", token, nil)
-	if searched.Code != http.StatusOK || !strings.Contains(searched.Body.String(), item.ID.String()) {
+	searched := serveAuthorized(handler, http.MethodGet, collection+"?limit=1&sort=displayName&filter=displayName%3Acontains%3AFirst", "", token, nil)
+	if searched.Code != http.StatusOK || !strings.Contains(searched.Body.String(), client.ID.String()) {
 		t.Fatalf("search response = %d, %s", searched.Code, searched.Body.String())
 	}
-	assertProblem(t, serveAuthorized(handler, http.MethodGet, collection+"?search=", "", token, nil), http.StatusBadRequest, "invalid-request")
 
-	resource := collection + "/" + item.ID.String()
+	resource := collection + "/" + client.ID.String()
 	got := serveAuthorized(handler, http.MethodGet, resource, "", token, nil)
 	if got.Code != http.StatusOK || got.Header().Get("ETag") != `"v1"` {
 		t.Fatalf("get response = %d, %s", got.Code, got.Body.String())
 	}
-	withoutPrecondition := serveAuthorized(handler, http.MethodPatch, resource, `{"status":"complete"}`, token, nil)
+	withoutPrecondition := serveAuthorized(handler, http.MethodPatch, resource, `{"phone":"+1"}`, token, nil)
 	assertProblem(t, withoutPrecondition, http.StatusPreconditionRequired, "precondition-required")
-	updated := serveAuthorized(handler, http.MethodPatch, resource, `{"status":"complete"}`, token, map[string]string{"If-Match": `"v1"`})
+	updated := serveAuthorized(handler, http.MethodPatch, resource, `{"phone":"+1"}`, token, map[string]string{"If-Match": `"v1"`})
 	if updated.Code != http.StatusOK || updated.Header().Get("ETag") != `"v2"` {
 		t.Fatalf("update response = %d, %s", updated.Code, updated.Body.String())
 	}
-	stale := serveAuthorized(handler, http.MethodPatch, resource, `{"title":"Stale"}`, token, map[string]string{"If-Match": `"v1"`})
+	stale := serveAuthorized(handler, http.MethodPatch, resource, `{"notes":"stale"}`, token, map[string]string{"If-Match": `"v1"`})
 	assertProblem(t, stale, http.StatusPreconditionFailed, "precondition-failed")
 	deleted := serveAuthorized(handler, http.MethodDelete, resource, "", token, map[string]string{"If-Match": `"v2"`})
 	if deleted.Code != http.StatusNoContent {
 		t.Fatalf("delete response = %d, %s", deleted.Code, deleted.Body.String())
 	}
 	assertProblem(t, serveAuthorized(handler, http.MethodGet, resource, "", token, nil), http.StatusNotFound, "not-found")
-	wrongWorkspace := serveAuthorized(handler, http.MethodGet, "/api/v1/workspaces/00000000000000000000000000000000/items", "", token, nil)
+	wrongWorkspace := serveAuthorized(handler, http.MethodGet, "/api/v1/workspaces/00000000000000000000000000000000/clients", "", token, nil)
 	assertProblem(t, wrongWorkspace, http.StatusNotFound, "not-found")
 
 	if err := db.Close(); err != nil {
@@ -377,18 +359,16 @@ func testHandlerWithStorage(t *testing.T, storage func(*config.Storage)) (http.H
 	if err := jobQueue.RegisterExhausted(webhooks.JobKind, webhookService.HandleExhaustedJob); err != nil {
 		t.Fatal(err)
 	}
-	itemService := items.NewService(db, cfg.Database.Driver, auth, cfg.Data.ItemsMaxPerWorkspace, webhookService)
 	objectStore, err := appfiles.NewStore(ctx, cfg.Storage)
 	if err != nil {
 		t.Fatal(err)
 	}
 	fileService := appfiles.NewService(db, cfg.Database.Driver, auth, objectStore,
 		cfg.Storage.MaxObjectBytes, cfg.Storage.MaxWorkspaceBytes, cfg.Storage.SignedURLTTL, cfg.Storage.S3Prefix)
-	handler, err := NewHandlerWithWebhooksAndFiles(db, auth, itemService,
-		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,
-			cfg.Data.ImportMaxRecords, cfg.Data.ImportMaxBytes, itemService, nil),
+	handler, err := NewHandlerWithWebhooksAndFiles(db, auth,
+		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes, nil),
 		oidc, cfg.HTTP, slog.New(slog.NewTextHandler(io.Discard, nil)), webhookService, fileService, "", nil,
-		clients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace))
+		clients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace, webhookService))
 	if err != nil {
 		t.Fatal(err)
 	}

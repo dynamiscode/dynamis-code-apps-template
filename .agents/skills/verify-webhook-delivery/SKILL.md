@@ -25,7 +25,7 @@ Rules 1 to 3 are checked for every input in a bounded range by `TestDeliveryOutc
 - Database writes: `deliveryFailure` and the success and exhaustion UPDATEs in `service.go`.
 - Tests: `internal/webhooks/delivery_rules_test.go`.
 
-Not covered: the HTTP response read and signature, the SSRF-safe dialer, and Postgres-specific SQL. The existing `TestEvaluateDeliveryOutcome` and `TestItemEventsAreSignedEncryptedAndDeliveredOnce` remain part of the suite.
+Not covered: the HTTP response read and signature, the SSRF-safe dialer, and Postgres-specific SQL. The existing `TestEvaluateDeliveryOutcome` and `TestEventsAreSignedEncryptedAndDeliveredOnce` remain part of the suite.
 
 ## Coverage record
 
