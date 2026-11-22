@@ -608,6 +608,29 @@
           }
         }
       },
+    "/api/v1/workspaces/{workspaceId}/clients/{clientId}/timeline": {
+      "get": {
+        "operationId": "listClientTimeline",
+        "description": "Lists manual entries in ascending date order. Requires client read permission.",
+        "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/ClientId"}],
+        "responses": {
+          "200": {"description": "Timeline entries", "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/ClientTimelineEntry"}}}}},
+          "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}, "429": {"$ref": "#/components/responses/RateLimited"}
+        }
+      },
+      "post": {
+        "operationId": "addClientTimelineEntry",
+        "description": "Appends a manual entry. Requires client write permission. Corrections must reference an entry of this client.",
+        "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/ClientId"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AddClientTimelineEntryRequest"}}}},
+        "responses": {
+          "201": {"description": "Created entry", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ClientTimelineEntry"}}}},
+          "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}, "429": {"$ref": "#/components/responses/RateLimited"}
+        }
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/clients/{clientId}/values": {
       "get": {
         "operationId": "listClientValues",
@@ -1000,6 +1023,8 @@
       "LoginResponse": {"type": "object", "required": ["csrfToken", "expiresAt"], "properties": {"csrfToken": {"type": "string"}, "expiresAt": {"type": "string", "format": "date-time"}}},
       "MFALoginResponse": {"type": "object", "required": ["mfaRequired", "challenge", "methods"], "properties": {"mfaRequired": {"const": true}, "challenge": {"type": "string", "minLength": 1}, "methods": {"type": "array", "minItems": 1, "items": {"type": "string", "enum": ["passkey", "totp", "recovery"]}}, "passkeyOptions": {"type": ["object", "null"]}}},
       "Client": {"type": "object", "required": ["id", "workspaceId", "createdByUserId", "displayName", "email", "phone", "notes", "archivedAt", "version", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "createdByUserId": {"type": ["string", "null"]}, "version": {"type": "integer", "minimum": 1}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}, "displayName": {"type": "string", "minLength": 1, "maxLength": 200}, "email": {"type": "string", "maxLength": 254, "description": "Optional. A bare email address when present."}, "phone": {"type": "string", "maxLength": 50}, "notes": {"type": "string", "maxLength": 5000}, "archivedAt": {"type": ["string", "null"], "format": "date-time", "description": "Set while the client is archived. Null when active."}}},
+      "AddClientTimelineEntryRequest": {"type": "object", "additionalProperties": false, "required": ["type", "text"], "properties": {"type": {"type": "string", "enum": ["note", "call", "visit", "document", "update", "change", "delay"]}, "channel": {"type": "string", "enum": ["", "phone", "whatsapp", "email", "in_person", "other"]}, "text": {"type": "string", "minLength": 1, "maxLength": 2000}, "correctsId": {"type": ["string", "null"], "description": "Short ID of an entry belonging to this client."}}},
+      "ClientTimelineEntry": {"type": "object", "required": ["id", "clientId", "authorId", "type", "channel", "text", "correctsId", "createdAt"], "properties": {"id": {"type": "string"}, "clientId": {"type": "string"}, "authorId": {"type": ["string", "null"]}, "type": {"type": "string", "enum": ["note", "call", "visit", "document", "update", "change", "delay"]}, "channel": {"type": "string", "enum": ["", "phone", "whatsapp", "email", "in_person", "other"]}, "text": {"type": "string", "maxLength": 2000}, "correctsId": {"type": ["string", "null"]}, "createdAt": {"type": "string", "format": "date-time"}}},
       "ClientField": {"type": "object", "required": ["id", "workspaceId", "label", "type", "archivedAt", "createdAt", "updatedAt"], "properties": {"id": {"type": "string"}, "workspaceId": {"type": "string"}, "label": {"type": "string", "minLength": 1, "maxLength": 100, "description": "Workspace-entered text, shown as typed."}, "type": {"type": "string", "enum": ["text", "number", "date", "yes_no", "single_choice"]}, "archivedAt": {"type": ["string", "null"], "format": "date-time"}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}}},
       "ClientFieldList": {"type": "object", "required": ["fields"], "properties": {"fields": {"type": "array", "items": {"$ref": "#/components/schemas/ClientField"}}}},
       "ClientFieldOption": {"type": "object", "required": ["id", "fieldId", "label", "createdAt"], "properties": {"id": {"type": "string"}, "fieldId": {"type": "string"}, "label": {"type": "string", "minLength": 1, "maxLength": 100, "description": "Workspace-entered text, shown as typed."}, "createdAt": {"type": "string", "format": "date-time"}}},

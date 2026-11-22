@@ -7,6 +7,13 @@ group rows describe the supported application.
 
 This ledger records implemented conformance evidence and deferred triggers.
 
+## Client timeline REST (#575)
+
+Clients-profile REST exposes append-only timeline list and add through the shared
+clients service. `TestClientTimelineREST` covers ordered entries, corrections,
+validation, missing and foreign clients, and read-only token access. Web and MCP
+surfaces belong to separate issues under #561; this slice adds neither.
+
 ## Route and navigation journey verification (#431, 2026-11-18)
 
 Scope: route families represented by the six migration commits on this branch:

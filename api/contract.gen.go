@@ -9,7 +9,7 @@ type Operation struct {
 }
 
 const OpenAPIVersion = "3.1.0"
-const OpenAPISHA256 = "ceb08ef5908f94b7c04e471233d51baa95ea732c97b53af365f9b8fb143e491d"
+const OpenAPISHA256 = "a6b349f309be453165fa90ff1fe9e923d003cf4e20941bf18ebad2f08104091c"
 
 var Operations = []Operation{
 	{Method: "GET", Path: "/api/openapi.json", ID: "getOpenAPI"},
@@ -41,6 +41,8 @@ var Operations = []Operation{
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/clients/{clientId}", ID: "getClient"},
 	{Method: "PATCH", Path: "/api/v1/workspaces/{workspaceId}/clients/{clientId}", ID: "updateClient"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/clients/{clientId}/archive", ID: "archiveClient"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/clients/{clientId}/timeline", ID: "listClientTimeline"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/clients/{clientId}/timeline", ID: "addClientTimelineEntry"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/clients/{clientId}/unarchive", ID: "unarchiveClient"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/clients/{clientId}/values", ID: "listClientValues"},
 	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/clients/{clientId}/values/{fieldId}", ID: "clearClientValue"},

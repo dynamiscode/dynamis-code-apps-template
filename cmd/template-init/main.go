@@ -313,6 +313,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/bootstrap/agent_smoke_test.go" ||
 		relative == "internal/mcpserver/approval_test.go" || relative == "internal/mcpserver/schema_contract_test.go" ||
 		relative == "internal/httpapi/clients.go" || relative == "internal/httpapi/clients_test.go" ||
+		relative == "internal/httpapi/client_timeline.go" || relative == "internal/httpapi/client_timeline_test.go" ||
 		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" ||
 		relative == "internal/web/clients_filters.go" ||
 		relative == "internal/web/viewmodel/clients_filters.go" || relative == "internal/web/viewmodel/clients.go" ||
@@ -372,6 +373,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.ReplaceAll(value, ", clientServices...)", ")")
 		value = removeLinesContaining(value, `"listClients": h.listClients`)
 		value = removeLinesContaining(value, `"getClient": h.getClient`)
+		value = removeLinesContaining(value, `"listClientTimeline": h.listClientTimeline`)
 		value = removeLinesContaining(value, `"listClientFields": h.listClientFields`)
 		value = removeLinesContaining(value, `"archiveClientField": h.archiveClientField`)
 		value = removeLinesContaining(value, `"listClientValues": h.listClientValues`)

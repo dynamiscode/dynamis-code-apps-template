@@ -148,6 +148,7 @@ func newHandler(
 		"completeFileUpload": h.completeFileUpload, "uploadFileContent": h.uploadFileContent,
 		"listClients": h.listClients, "createClient": h.createClient,
 		"getClient": h.getClient, "updateClient": h.updateClient,
+		"listClientTimeline": h.listClientTimeline, "addClientTimelineEntry": h.addClientTimelineEntry,
 		"archiveClient": h.archiveClient, "unarchiveClient": h.unarchiveClient,
 		"deleteClient":     h.deleteClient,
 		"listClientValues": h.listClientValues, "setClientValue": h.setClientValue,
