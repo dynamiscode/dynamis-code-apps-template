@@ -168,6 +168,16 @@ func TestClientsAddFilterStepsChooseFieldThenCondition(t *testing.T) {
 	}
 }
 
+func TestClientsSearchWithoutMatchesShowsFilteredEmptyState(t *testing.T) {
+	env := newClientsTestEnv(t)
+	env.seedClient(t, "Ada")
+	response := request(env.routes, http.MethodGet, env.listPath()+"?all=1&q=unmatched", nil, env.cookies, nil)
+	body := response.Body.String()
+	if response.Code != http.StatusOK || !strings.Contains(body, "No clients match") || strings.Contains(body, "Add your first client") || !strings.Contains(body, `href="`+env.listPath()+`?all=1"`) {
+		t.Fatalf("search empty state = %d: %s", response.Code, body)
+	}
+}
+
 func TestClientsListShowsCreateFormOnlyToWriters(t *testing.T) {
 	env := newClientsTestEnv(t)
 	owner := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil)

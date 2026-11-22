@@ -626,7 +626,7 @@ func (h *Handler) invitationPost(writer http.ResponseWriter, request *http.Reque
 		h.setCookie(writer, "session", session.Secret, session.ExpiresAt, true)
 		h.setCookie(writer, "csrf", session.CSRFSecret, session.ExpiresAt, true)
 		h.clearCookie(writer, "invitation_csrf")
-		h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/items")
+		h.redirect(writer, request, "/workspaces/"+workspaceID.String())
 		return
 	}
 	session, ok := h.validCSRFSession(writer, request)
@@ -638,7 +638,7 @@ func (h *Handler) invitationPost(writer http.ResponseWriter, request *http.Reque
 		h.renderInvitationPage(writer, request, http.StatusUnprocessableEntity, "invitations.accept_failed")
 		return
 	}
-	h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/items")
+	h.redirect(writer, request, "/workspaces/"+workspaceID.String())
 }
 
 func invitationFormLifetime(raw string) (time.Duration, bool) {

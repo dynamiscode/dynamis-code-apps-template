@@ -277,14 +277,14 @@ func TestMFAPolicyRedirectStartsBrowserChallenge(t *testing.T) {
 	}
 
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	response := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/items", nil, cookies, nil)
+	response := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/members", nil, cookies, nil)
 	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/mfa" {
 		t.Fatalf("MFA redirect = %d, %s", response.Code, response.Body.String())
 	}
 	if challenge := responseCookie(response, "mfa_challenge"); challenge.Value == "" {
 		t.Fatal("MFA challenge cookie missing")
 	}
-	if returnTo := responseCookie(response, "mfa_return_to"); returnTo.Value != "/workspaces/"+workspaceID.String()+"/items" {
+	if returnTo := responseCookie(response, "mfa_return_to"); returnTo.Value != "/workspaces/"+workspaceID.String()+"/settings/members" {
 		t.Fatalf("MFA return path = %q", returnTo.Value)
 	}
 }
@@ -864,12 +864,12 @@ func TestBrowserPagesRenderSpanishDocuments(t *testing.T) {
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}, {Name: "locale", Value: "es"}}
 	paths := []string{
-		"/workspaces/" + workspaceID.String(), "/workspaces/" + workspaceID.String() + "/items",
+		"/workspaces/" + workspaceID.String(),
 		"/workspaces/" + workspaceID.String() + "/settings/general", "/workspaces/" + workspaceID.String() + "/settings/members",
 		"/workspaces/" + workspaceID.String() + "/settings/invitations", "/workspaces/" + workspaceID.String() + "/settings/tokens",
 		"/workspaces/" + workspaceID.String() + "/settings/provisioning", "/workspaces/" + workspaceID.String() + "/settings/export",
 		"/workspaces/" + workspaceID.String() + "/settings/audit",
-		"/workspaces/" + workspaceID.String() + "/settings/import", "/settings/language", "/sessions", "/security",
+		"/settings/language", "/sessions", "/security",
 	}
 	for _, path := range paths {
 		response := requestFrom(handler, http.MethodGet, path+"?all=1", nil, cookies, map[string]string{"Accept-Language": "en"}, "example.com", "192.0.2.1:1234")
@@ -967,7 +967,7 @@ func TestCriticalPagesAccessibilityContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-	for _, target := range []string{"/workspaces/" + workspaceID.String(), "/workspaces/" + workspaceID.String() + "/items", "/workspaces/" + workspaceID.String() + "/settings/audit"} {
+	for _, target := range []string{"/workspaces/" + workspaceID.String(), "/workspaces/" + workspaceID.String() + "/settings/audit"} {
 		response := request(handler, http.MethodGet, target, nil, cookies, nil)
 		assertAccessiblePage(t, response.Body.String(), "")
 	}
@@ -1361,12 +1361,17 @@ func TestWebMCPBrowserSurfaceContract(t *testing.T) {
 		webmcp = webmcp[start : start+end]
 	}
 	for _, tool := range []string{
-		"workspace-create-v1", "item-create-v1", "item-update-v1", "item-delete-v1",
+		"workspace-create-v1",
 		"member-role-update-v1", "member-remove-v1", "ownership-transfer-v1",
 		"invitation-revoke-v1", "token-revoke-v1", "session-revoke-v1", "workspace-export-v1",
 	} {
 		if !strings.Contains(webmcp, `"`+tool+`"`) {
 			t.Errorf("WebMCP tool %q is not registered", tool)
+		}
+	}
+	for _, tool := range []string{"item-create-v1", "item-update-v1", "item-delete-v1"} {
+		if strings.Contains(webmcp, `"`+tool+`"`) {
+			t.Errorf("removed WebMCP tool %q remains", tool)
 		}
 	}
 	if !strings.Contains(webmcp, "document.modelContext") || !strings.Contains(webmcp, "ready-for-user-submission") || strings.Contains(webmcp, "requestSubmit") {
@@ -1385,7 +1390,6 @@ func TestWebMCPBrowserSurfaceContract(t *testing.T) {
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	pages := map[string]string{
 		"/workspaces/" + workspaceID.String():                           "workspace",
-		"/workspaces/" + workspaceID.String() + "/items":                "items",
 		"/workspaces/" + workspaceID.String() + "/settings/members":     "members",
 		"/workspaces/" + workspaceID.String() + "/settings/invitations": "invitations",
 		"/workspaces/" + workspaceID.String() + "/settings/tokens":      "tokens",
@@ -1422,7 +1426,6 @@ func TestWebBaselineManagementRoutes(t *testing.T) {
 		"/workspaces/" + workspaceID.String() + "/settings/tokens",
 		"/sessions", "/security", "/workspaces/" + workspaceID.String() + "/settings/export",
 		"/workspaces/" + workspaceID.String() + "/settings/audit",
-		"/workspaces/" + workspaceID.String() + "/settings/import",
 	} {
 		response := request(handler, http.MethodGet, target, nil, cookies, nil)
 		if response.Code != http.StatusOK {
@@ -2025,7 +2028,7 @@ func TestSingleModeHidesWorkspaceListNavigation(t *testing.T) {
 	})
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
 	workspaceRoot := "/workspaces/" + workspaceID.String()
-	for _, path := range []string{workspaceRoot + "/items", workspaceRoot + "/settings/members", workspaceRoot + "/settings/tokens", workspaceRoot + "/settings/provisioning", workspaceRoot + "/settings/import"} {
+	for _, path := range []string{workspaceRoot, workspaceRoot + "/settings/members", workspaceRoot + "/settings/tokens", workspaceRoot + "/settings/provisioning"} {
 		response := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil)
 		if response.Code != http.StatusOK {
 			t.Errorf("%s = %d in single mode; want 200", path, response.Code)
@@ -2035,7 +2038,7 @@ func TestSingleModeHidesWorkspaceListNavigation(t *testing.T) {
 			t.Errorf("%s shows a workspace list link in single mode", path)
 		}
 	}
-	for _, path := range []string{workspaceRoot + "/items", workspaceRoot + "/settings/members"} {
+	for _, path := range []string{workspaceRoot, workspaceRoot + "/settings/members"} {
 		body := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil).Body.String()
 		if !strings.Contains(body, `<span class="truncate font-bold">`) {
 			t.Errorf("%s lacks plain-text workspace name in single mode", path)
@@ -2054,7 +2057,7 @@ func TestMultiModeKeepsWorkspaceListNavigation(t *testing.T) {
 		h.SetWorkspaceMode(config.WorkspaceModeMulti)
 	})
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
-	body := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/items"+"?all=1", nil, cookies, nil).Body.String()
+	body := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"?all=1", nil, cookies, nil).Body.String()
 	if !strings.Contains(body, `<details class="dropdown dropdown-end">`) || !strings.Contains(body, `<a class="btn btn-ghost btn-sm w-full justify-start font-normal" href="/">← Workspaces</a>`) {
 		t.Error("multi-mode items page lost workspace list navigation")
 	}

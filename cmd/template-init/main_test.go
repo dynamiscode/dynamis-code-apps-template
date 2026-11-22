@@ -12,6 +12,12 @@ import (
 	"time"
 )
 
+func TestTemporaryPlanIsExcluded(t *testing.T) {
+	if !ignored("PLAN.md") {
+		t.Fatal("temporary plan must not be copied into generated applications")
+	}
+}
+
 func TestGenerateApplicationAndLock(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
 	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
@@ -50,7 +56,7 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 	if err != nil || !strings.Contains(string(capabilities), "## Shared navigation migration evidence (#434, 2026-11-16)") {
 		t.Fatalf("generated no-Files capabilities lacks navigation evidence: %v", err)
 	}
-	for _, path := range []string{"cmd/appctl", "internal/appctl", "internal/mcpserver"} {
+	for _, path := range []string{"internal/mcpserver"} {
 		if _, err := os.Stat(filepath.Join(output, path)); err != nil {
 			t.Fatalf("generated Agent path %s missing: %v", path, err)
 		}
@@ -72,7 +78,7 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 		"## Security",
 		"[SUPPORT.md](SUPPORT.md)",
 		"## Contributing and release",
-		"## Replace the sample feature",
+		"## Add a product feature",
 		"## Template provenance",
 		"`example.com/acme/my-app`",
 		"`my-app`",
@@ -379,16 +385,9 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 			t.Errorf("generated application without Clients keeps client_events in %s", filepath.Base(migration))
 		}
 	}
-	// The CLI's client and field commands are Clients wiring, so a Clients-off
-	// CLI keeps no client or field command, flag, or collection.
-	appctlRun, err := os.ReadFile(filepath.Join(output, "internal/appctl/run.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, retained := range []string{`"clients`, `"fields`, "client-fields", "clientID", "fieldID"} {
-		if strings.Contains(string(appctlRun), retained) {
-			t.Errorf("generated appctl without Clients retains %q in run.go", retained)
-		}
+	// No CLI commands remain without the Clients profile.
+	if _, err := os.Stat(filepath.Join(output, "internal/appctl")); !os.IsNotExist(err) {
+		t.Fatalf("generated application without Clients retains appctl: %v", err)
 	}
 	for _, path := range []string{"internal/bootstrap/agent.go", "internal/mcpserver/server_test.go"} {
 		content, err := os.ReadFile(filepath.Join(output, path))

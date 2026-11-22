@@ -101,7 +101,7 @@ func TestRunRejectsInvalidClientAndFieldCommandsBeforeRequests(t *testing.T) {
 		{"define unknown type", []string{"fields", "define", "--workspace", workspace, "--label", "Tier", "--type", "bogus"}, "--type must be text, number, date, yes_no, or single_choice"},
 		{"define without label", []string{"fields", "define", "--workspace", workspace, "--type", "text"}, "define requires --label and --type"},
 		{"archive missing field", []string{"fields", "archive", "--workspace", workspace}, "--field must be a client field short ID"},
-		{"item flag on clients", []string{"clients", "show", "--workspace", workspace, "--client", validClient, "--item", validClient}, "flag is not valid for this command"},
+		{"item flag on clients", []string{"clients", "show", "--workspace", workspace, "--client", validClient, "--item", validClient}, "flags are invalid"},
 		{"unknown clients action", []string{"clients", "purge", "--workspace", workspace}, "unknown clients command"},
 		{"unknown fields action", []string{"fields", "restore", "--workspace", workspace, "--field", validClient}, "unknown fields command"},
 		{"bad workspace", []string{"clients", "list", "--workspace", "no good"}, "--workspace must be a workspace short ID"},

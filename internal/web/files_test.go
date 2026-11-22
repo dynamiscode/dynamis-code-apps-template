@@ -133,6 +133,10 @@ func TestFilesPageRendersOrdinaryMultipartUploadForm(t *testing.T) {
 
 func TestFilesPageHidesUploadForReadOnlyViewer(t *testing.T) {
 	env := newFilesTestEnv(t, 16<<20, 1<<30)
+	empty := request(env.routes, http.MethodGet, env.filesPath()+"?all=1", nil, env.viewerCookies, nil)
+	if empty.Code != http.StatusOK || strings.Contains(empty.Body.String(), `href="#file-upload-heading"`) {
+		t.Fatalf("empty viewer Files page exposes upload link: %d %s", empty.Code, empty.Body.String())
+	}
 	upload := multipartRequest(t, env.routes, env.filesPath(), url.Values{"csrf": {env.csrf}}, "read-only.txt", "hello", env.cookies, nil)
 	if upload.Code != http.StatusSeeOther {
 		t.Fatalf("owner upload = %d: %s", upload.Code, upload.Body.String())

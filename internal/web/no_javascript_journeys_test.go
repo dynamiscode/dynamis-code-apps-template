@@ -69,32 +69,14 @@ func TestNoJavaScriptAccountProfileAndDeletionConfirmation(t *testing.T) {
 	}
 }
 
-func TestNoJavaScriptWorkspaceExportAndImportPreview(t *testing.T) {
+func TestNoJavaScriptWorkspaceExport(t *testing.T) {
 	handler, auth, workspaceID, owner := testWeb(t, 10)
-	cookies, csrf := noJSSession(t, auth, owner.UserID)
-	root := "/workspaces/" + workspaceID.String() + "/settings/import"
-
+	cookies, _ := noJSSession(t, auth, owner.UserID)
 	export := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"/settings/export/download", nil, cookies, nil)
 	if export.Code != http.StatusOK || export.Header().Get("Cache-Control") != "no-store" ||
 		!strings.Contains(export.Header().Get("Content-Type"), "application/json") ||
 		!strings.Contains(export.Body.String(), "dynamis-code.workspace/v1") {
 		t.Fatalf("workspace export = %d headers=%v", export.Code, export.Header())
-	}
-
-	privateTitle := "Do not echo private title"
-	invalid := multipartRequest(t, handler, root, url.Values{"csrf": {csrf}, "action": {"preview"}}, "invalid.csv", "title,status\n"+privateTitle+",unknown\n", cookies, nil)
-	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "Record 1") {
-		t.Fatalf("invalid CSV preview = %d: %s", invalid.Code, invalid.Body.String())
-	}
-	if errorsAt := strings.Index(invalid.Body.String(), "import-preview-errors"); errorsAt < 0 ||
-		strings.Contains(invalid.Body.String()[errorsAt:min(len(invalid.Body.String()), errorsAt+800)], privateTitle) {
-		t.Fatalf("invalid CSV error panel is missing or echoes the submitted title")
-	}
-
-	title := "Browser import"
-	preview := multipartRequest(t, handler, root, url.Values{"csrf": {csrf}, "action": {"preview"}}, "items.csv", "title,status\n"+title+",active\n", cookies, nil)
-	if preview.Code != http.StatusOK || !strings.Contains(preview.Body.String(), title) || !strings.Contains(preview.Body.String(), "import-confirm-form") {
-		t.Fatalf("valid CSV preview = %d: %s", preview.Code, preview.Body.String())
 	}
 }
 
@@ -154,7 +136,7 @@ func TestNoJavaScriptInvitationSignInAcceptsForExistingAccount(t *testing.T) {
 		t.Fatalf("invitation continue page = %d: %s", continued.Code, continued.Body.String())
 	}
 	accepted := request(handler, http.MethodPost, "/invitations/continue", url.Values{"csrf": {memberCookies[1].Value}}, append(append([]*http.Cookie(nil), memberCookies...), handoff...), nil)
-	if accepted.Code != http.StatusSeeOther || accepted.Header().Get("Location") != "/workspaces/"+second.String()+"/items" {
+	if accepted.Code != http.StatusSeeOther || accepted.Header().Get("Location") != "/workspaces/"+second.String() {
 		t.Fatalf("invitation accept = %d, location %q", accepted.Code, accepted.Header().Get("Location"))
 	}
 }
@@ -175,44 +157,6 @@ func TestNoJavaScriptWorkspaceSelectionValidationAndCreate(t *testing.T) {
 	home := request(handler, http.MethodGet, "/", nil, spanish, nil)
 	if !strings.Contains(home.Body.String(), "Espacio de prueba") || !hasHTMLRootLang(home.Body.String(), "es") {
 		t.Fatalf("Spanish workspace list missing new workspace: %s", home.Body.String())
-	}
-}
-
-func TestNoJavaScriptItemCreateAndEditUseOrdinaryForms(t *testing.T) {
-	handler, auth, workspaceID, owner := testWeb(t, 10)
-	cookies, csrf := noJSSession(t, auth, owner.UserID)
-	path := "/workspaces/" + workspaceID.String() + "/items"
-
-	created := request(handler, http.MethodPost, path, url.Values{
-		"csrf": {csrf}, "title": {"No JavaScript item"}, "idempotency_key": {"no-js-create"},
-	}, cookies, nil)
-	if created.Code != http.StatusSeeOther && created.Code != http.StatusOK {
-		t.Fatalf("ordinary item create = %d: %s", created.Code, created.Body.String())
-	}
-	list := request(handler, http.MethodGet, path, nil, cookies, nil)
-	if !strings.Contains(list.Body.String(), `value="No JavaScript item"`) {
-		t.Fatalf("created item missing from list: %s", list.Body.String())
-	}
-	var edit []string
-	for _, candidate := range regexp.MustCompile(`="(/workspaces/[^"/]+/items/[^"/]+)"`).FindAllStringSubmatch(list.Body.String(), -1) {
-		if !strings.HasSuffix(candidate[1], "/items/events") {
-			edit = candidate
-			break
-		}
-	}
-	version := regexp.MustCompile(`name="version"[^>]*value="([0-9]+)"`).FindStringSubmatch(list.Body.String())
-	if len(edit) != 2 || len(version) != 2 {
-		t.Fatalf("item edit form missing action or version; version markup: %s", snippetAround(list.Body.String(), "version", 400))
-	}
-	saved := request(handler, http.MethodPost, edit[1], url.Values{
-		"csrf": {csrf}, "action": {"update"}, "title": {"No JavaScript edit"}, "status": {"active"}, "version": {version[1]},
-	}, cookies, nil)
-	if saved.Code != http.StatusSeeOther && saved.Code != http.StatusOK {
-		t.Fatalf("ordinary item edit to %s = %d: %s", edit[1], saved.Code, snippetAround(saved.Body.String(), "alert", 300))
-	}
-	after := request(handler, http.MethodGet, path, nil, cookies, nil)
-	if !strings.Contains(after.Body.String(), `value="No JavaScript edit"`) {
-		t.Fatalf("edited item missing from list: %s", after.Body.String())
 	}
 }
 
@@ -261,7 +205,7 @@ func TestNoJavaScriptWebhookDeleteNeedsNativeConfirmation(t *testing.T) {
 
 	created := request(handler, http.MethodPost, base, url.Values{
 		"action": {"create"}, "csrf": {csrf}, "name": {"No-JS fixture"},
-		"url": {"https://hooks.example.test/no-js"}, "events": {"item.created"},
+		"url": {"https://hooks.example.test/no-js"}, "events": {"client.created"},
 	}, cookies, nil)
 	if created.Code != http.StatusOK {
 		t.Fatalf("webhook create = %d: %s", created.Code, created.Body.String())

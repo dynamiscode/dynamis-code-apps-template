@@ -19,7 +19,6 @@ import (
 
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -61,152 +60,22 @@ func (transport *authTransport) RoundTrip(request *http.Request) (*http.Response
 	return response, err
 }
 
-func TestMCPToolsUseSharedScopedItemService(t *testing.T) {
-	state := newTestState(t, config.MCP{})
-	server := httptest.NewServer(state.handler)
-	t.Cleanup(server.Close)
-	transport := &authTransport{token: state.token.Secret}
-	var humanConfirms atomic.Bool
-	client := mcp.NewClient(&mcp.Implementation{Name: "component-test", Version: "1.0.0"}, &mcp.ClientOptions{
-		ElicitationHandler: func(context.Context, *mcp.ElicitRequest) (*mcp.ElicitResult, error) {
-			if humanConfirms.Load() {
-				return &mcp.ElicitResult{Action: "accept", Content: map[string]any{"confirm": true}}, nil
-			}
-			return &mcp.ElicitResult{Action: "decline"}, nil
-		},
-	})
-	session, err := client.Connect(context.Background(), &mcp.StreamableClientTransport{
-		Endpoint: server.URL, HTTPClient: &http.Client{Transport: transport},
-		DisableStandaloneSSE: true, MaxRetries: -1,
-	}, nil)
-	if err != nil {
-		t.Fatalf("Connect() error = %v", err)
-	}
-	t.Cleanup(func() { session.Close() })
-
+func TestMCPRemovedItemsTools(t *testing.T) {
+	state := newTestStateWith(t, config.MCP{}, true)
+	session := connectSession(t, state)
 	listed, err := session.ListTools(context.Background(), nil)
-	if err != nil {
-		t.Fatalf("ListTools() error = %v", err)
-	}
-	wantNames := []string{"items_create_v1", "items_delete_v1", "items_get_v1", "items_list_v1", "items_update_v1"}
-	wantReadOnly := map[string]bool{"items_get_v1": true, "items_list_v1": true}
-	wantDestructive := map[string]bool{"items_delete_v1": true, "items_update_v1": true}
-	if len(listed.Tools) != len(wantNames) {
-		t.Fatalf("tools = %d, want %d", len(listed.Tools), len(wantNames))
-	}
-	for index, tool := range listed.Tools {
-		if tool.Name != wantNames[index] || tool.InputSchema == nil || tool.OutputSchema == nil ||
-			tool.Annotations == nil || tool.Annotations.ReadOnlyHint != wantReadOnly[tool.Name] ||
-			!tool.Annotations.IdempotentHint || tool.Annotations.DestructiveHint == nil ||
-			*tool.Annotations.DestructiveHint != wantDestructive[tool.Name] ||
-			tool.Annotations.OpenWorldHint == nil || *tool.Annotations.OpenWorldHint {
-			t.Fatalf("tool[%d] = %+v", index, tool)
-		}
-	}
-	encodedTools, err := json.Marshal(listed.Tools)
-	if err != nil || !bytes.Contains(encodedTools, []byte(`"maximum":100`)) ||
-		!bytes.Contains(encodedTools, []byte(`"additionalProperties":false`)) {
-		t.Fatalf("bounded tool schemas = %s, error = %v", encodedTools, err)
-	}
-	if transport.sawSession.Load() {
-		t.Fatal("stateless endpoint returned Mcp-Session-Id")
-	}
-
-	createdResult := callTool(t, session, "items_create_v1", map[string]any{
-		"workspaceId": state.workspaceID, "title": "MCP secret-shaped title",
-		"idempotencyKey": "mcp-key-1",
-	})
-	if createdResult.IsError {
-		t.Fatalf("create result = %+v", createdResult)
-	}
-	created := decodeOutput[items.Item](t, createdResult)
-	if created.Title != "MCP secret-shaped title" || created.WorkspaceID != state.workspaceKey {
-		t.Fatalf("created = %+v", created)
-	}
-
-	page := decodeOutput[items.Page](t, callTool(t, session, "items_list_v1", map[string]any{
-		"workspaceId": state.workspaceID, "limit": 1, "sort": "-created_at",
-	}))
-	if len(page.Items) != 1 || page.Items[0].ID != created.ID {
-		t.Fatalf("page = %+v", page)
-	}
-	got := decodeOutput[items.Item](t, callTool(t, session, "items_get_v1", map[string]any{
-		"workspaceId": state.workspaceID, "itemId": created.ID.String(),
-	}))
-	if got.ID != created.ID {
-		t.Fatalf("got = %+v", got)
-	}
-	updateArgs := map[string]any{
-		"workspaceId": state.workspaceID, "itemId": created.ID.String(), "version": 1, "status": "complete",
-	}
-	withoutUpdateApproval := callTool(t, session, "items_update_v1", updateArgs)
-	if !withoutUpdateApproval.IsError || !strings.Contains(contentText(withoutUpdateApproval), "human approval") {
-		t.Fatalf("update without approval = %+v", withoutUpdateApproval)
-	}
-	humanConfirms.Store(true)
-	updated := decodeOutput[items.Item](t, callTool(t, session, "items_update_v1", updateArgs))
-	if updated.Status != items.Complete || updated.Version != 2 {
-		t.Fatalf("updated = %+v", updated)
-	}
-
-	humanConfirms.Store(false)
-	withoutApproval := callTool(t, session, "items_delete_v1", map[string]any{
-		"workspaceId": state.workspaceID, "itemId": created.ID.String(), "version": 2,
-	})
-	if !withoutApproval.IsError || !strings.Contains(contentText(withoutApproval), "human approval") {
-		t.Fatalf("delete without approval = %+v", withoutApproval)
-	}
-	humanConfirms.Store(true)
-	deleted := decodeOutput[deleteOutput](t, callTool(t, session, "items_delete_v1", map[string]any{
-		"workspaceId": state.workspaceID, "itemId": created.ID.String(), "version": 2,
-	}))
-	if !deleted.Deleted || string(deleted.ItemID) != created.ID.String() {
-		t.Fatalf("deleted = %+v", deleted)
-	}
-
-	wrongWorkspace := callTool(t, session, "items_list_v1", map[string]any{
-		"workspaceId": "00000000000000000000000000000000", "limit": 1, "sort": "created_at",
-	})
-	if !wrongWorkspace.IsError || contentText(wrongWorkspace) != "access is denied" {
-		t.Fatalf("wrong workspace = %+v", wrongWorkspace)
-	}
-	invalid := callTool(t, session, "items_create_v1", map[string]any{
-		"workspaceId": state.workspaceID, "title": "x", "idempotencyKey": "key", "unknown": true,
-	})
-	if !invalid.IsError || contentText(invalid) != "parameters are invalid" {
-		t.Fatalf("invalid result = %+v", invalid)
-	}
-	overLimit := callTool(t, session, "items_list_v1", map[string]any{
-		"workspaceId": state.workspaceID, "limit": 101, "sort": "created_at",
-	})
-	if !overLimit.IsError || contentText(overLimit) != "parameters are invalid" {
-		t.Fatalf("over-limit result = %+v", overLimit)
-	}
-
-	rows, err := state.db.Query(`SELECT metadata, request_id FROM audit_events WHERE event_type = 'mcp.tool.called'`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer rows.Close()
-	count := 0
-	for rows.Next() {
-		var metadata, requestID string
-		if err := rows.Scan(&metadata, &requestID); err != nil {
-			t.Fatal(err)
+	for _, tool := range listed.Tools {
+		if strings.HasPrefix(tool.Name, "items_") {
+			t.Fatalf("removed Items tool registered: %s", tool.Name)
 		}
-		count++
-		if requestID != testRequestID || strings.Contains(metadata, state.token.Secret) ||
-			strings.Contains(metadata, "MCP secret-shaped title") || !strings.Contains(metadata, `"tool_version":"v1"`) {
-			t.Fatalf("unsafe/incomplete audit metadata = %s, request = %s", metadata, requestID)
-		}
-	}
-	if count != 10 {
-		t.Fatalf("MCP audit events = %d, want 10", count)
 	}
 }
 
 func TestMCPHTTPBoundariesAndLegacyInitialize(t *testing.T) {
-	state := newTestState(t, config.MCP{AllowedOrigins: []string{"https://client.example"}})
+	state := newTestStateWith(t, config.MCP{AllowedOrigins: []string{"https://client.example"}}, true)
 
 	denied := postMCP(state.handler, "", "https://other.example", `{}`)
 	if denied.Code != http.StatusForbidden {
@@ -244,12 +113,12 @@ func TestMCPHTTPBoundariesAndLegacyInitialize(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = session.CallTool(context.Background(), &mcp.CallToolParams{
-		Name: "items_create_v1", Arguments: map[string]any{
-			"workspaceId": state.workspaceID, "title": "blocked", "idempotencyKey": "blocked-key",
+		Name: "clients_create_v1", Arguments: map[string]any{
+			"workspaceId": state.workspaceID, "displayName": "blocked",
 		},
 	})
 	if err == nil {
-		t.Fatal("read-only token created an item")
+		t.Fatal("read-only token created a client")
 	}
 	_ = session.Close()
 
@@ -316,8 +185,24 @@ func newTestStateWith(t *testing.T, mcpConfig config.MCP, withClients bool) *tes
 	}
 	return &testState{
 		db: db, auth: authService, actor: actor, workspaceID: owner.WorkspaceID.String(), workspaceKey: owner.WorkspaceID, token: token,
-		handler: NewHandler(authService, items.NewService(db, cfg.Database.Driver, authService, cfg.Data.ItemsMaxPerWorkspace), mcpConfig, logger, options...),
+		handler: NewHandler(authService, mcpConfig, logger, options...),
 	}
+}
+
+func connectSession(t *testing.T, state *testState) *mcp.ClientSession {
+	t.Helper()
+	server := httptest.NewServer(state.handler)
+	t.Cleanup(server.Close)
+	client := mcp.NewClient(&mcp.Implementation{Name: "contract-test", Version: "1.0.0"}, nil)
+	session, err := client.Connect(context.Background(), &mcp.StreamableClientTransport{
+		Endpoint: server.URL, HTTPClient: &http.Client{Transport: &authTransport{token: state.token.Secret}},
+		DisableStandaloneSSE: true, MaxRetries: -1,
+	}, nil)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	t.Cleanup(func() { session.Close() })
+	return session
 }
 
 func callTool(t *testing.T, session *mcp.ClientSession, name string, arguments any) *mcp.CallToolResult {
@@ -423,7 +308,7 @@ func TestMCPReceivingMiddlewareAuditsEveryKnownMethod(t *testing.T) {
 
 	promptsBody := `{"jsonrpc":"2.0","id":2,"method":"prompts/list","params":{"_meta":{` + statelessMeta + `}}}`
 	prompts := postMCPMethod(state.handler, state.token.Secret, "prompts/list", promptsBody)
-	if prompts.Code != http.StatusOK || !strings.Contains(prompts.Body.String(), `"prompts":[{`) {
+	if prompts.Code != http.StatusOK || !strings.Contains(prompts.Body.String(), `"prompts":[]`) {
 		t.Fatalf("prompts/list response = %d %s", prompts.Code, prompts.Body.String())
 	}
 
@@ -551,8 +436,8 @@ func TestMCPToolsListCacheHints(t *testing.T) {
 	if envelope.Result.TTLMs != 300_000 || envelope.Result.CacheScope != "public" {
 		t.Fatalf("cache hints = ttlMs %d cacheScope %q", envelope.Result.TTLMs, envelope.Result.CacheScope)
 	}
-	if len(envelope.Result.Tools) != 5 {
-		t.Fatalf("tools/list returned %d tools, want 5", len(envelope.Result.Tools))
+	if len(envelope.Result.Tools) != 0 {
+		t.Fatalf("tools/list returned %d tools, want 0", len(envelope.Result.Tools))
 	}
 
 	// Discovery of other results is untouched: an unscoped method must not gain hints.

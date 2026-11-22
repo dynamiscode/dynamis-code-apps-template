@@ -34,7 +34,7 @@ templ filesPage(data viewmodel.PageData, canUpload bool) {
 			}
 			<section aria-labelledby="files-list-heading">
 				<h2 id="files-list-heading" class="sr-only">{ data.T("files.recent") }</h2>
-				@organisms.ListScreen(data, "files.search", fileListTools(data), fileResults(data))
+				@organisms.ListScreen(data, "files.search", fileListTools(data), fileResults(data, canUpload))
 			</section>
 		</div>
 		<script defer src="/assets/htmx.min.js"></script>
@@ -51,11 +51,11 @@ templ fileListTools(data viewmodel.PageData) {
 }
 
 // fileResults is the Files results region, shared with every list: the table or cards and the footer.
-templ fileResults(data viewmodel.PageData) {
-	@organisms.ListResults(data, data.FileListQuery.Limit, listPageSizeOptions(data.FileListQuery.Limit, listPageSizes), data.ClientQuerySuffix, fileList(data), templ.NopComponent)
+templ fileResults(data viewmodel.PageData, canUpload bool) {
+	@organisms.ListResults(data, data.FileListQuery.Limit, listPageSizeOptions(data.FileListQuery.Limit, listPageSizes), data.ClientQuerySuffix, fileList(data, canUpload), templ.NopComponent)
 }
 
-templ fileList(data viewmodel.PageData) {
+templ fileList(data viewmodel.PageData, canUpload bool) {
 	// An empty list renders no table at all: the header row alone reads as a
 	// stray bar where the table "would be".
 	if len(data.ListRows) > 0 && data.HasVisibleClientColumns {
@@ -82,9 +82,11 @@ templ fileList(data viewmodel.PageData) {
 	}
 	if len(data.Files) == 0 {
 		if data.HasClientFilters || data.ListSearch != "" {
-			@molecules.NoMatchesAlert("file-empty-state", data.T("files.none"), data.ClearClientFiltersPath, data.T("clients.clear_filters"))
+			@molecules.NoMatchesAlert(molecules.NoMatchesAlertProps{ID: "file-empty-state", Message: data.T("files.none"), Href: data.ClearClientFiltersPath, Label: data.T("clients.clear_filters")})
+		} else if canUpload {
+			@molecules.EmptyStateCard(molecules.EmptyStateCardProps{ID: "file-empty-state", Title: data.T("files.empty_title"), Description: data.T("files.empty_description"), CTA: filesEmptyCTA(data)})
 		} else {
-			@molecules.EmptyStateCard("file-empty-state", data.T("files.empty_title"), data.T("files.empty_description"), filesEmptyCTA(data))
+			@molecules.EmptyStateCard(molecules.EmptyStateCardProps{ID: "file-empty-state", Title: data.T("files.empty_title"), Description: data.T("files.empty_description")})
 		}
 	}
 }

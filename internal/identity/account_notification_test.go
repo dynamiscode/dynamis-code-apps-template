@@ -93,19 +93,19 @@ func TestAccountLifecycleAndDeletionBoundaries(t *testing.T) {
 	assertAuditEvent(t, db, "user.account_deleted")
 }
 
-func TestAccountDeletionRetainsCreatedItems(t *testing.T) {
+func TestAccountDeletionRetainsOwnedFiles(t *testing.T) {
 	service, db := newTestService(t)
 	ctx := context.Background()
-	userID := insertUser(t, service, db, "item-creator@example.com")
-	workspaceID := insertWorkspace(t, service, db, "Retained items")
+	userID := insertUser(t, service, db, "file-owner@example.com")
+	workspaceID := insertWorkspace(t, service, db, "Retained files")
 	insertMembership(t, service, db, workspaceID, userID, Member)
 	now := timestamp(service.now())
 	if _, err := db.Exec(`
-		INSERT INTO items (
-			id, workspace_id, created_by_user_id, title, status,
-			version, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-	`, 1, workspaceID, userID, "Keep this item", "complete", 2, now, now); err != nil {
+		INSERT INTO files (
+			id, workspace_id, owner_user_id, object_key, original_name,
+			size, status, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, 1, workspaceID, userID, "retained-file", "Keep this file", 0, "pending", now, now); err != nil {
 		t.Fatal(err)
 	}
 
@@ -114,15 +114,15 @@ func TestAccountDeletionRetainsCreatedItems(t *testing.T) {
 	}
 
 	var creator sql.NullString
-	var title, status string
+	var name, status string
 	if err := db.QueryRow(
-		"SELECT created_by_user_id, title, status FROM items WHERE id = ?",
+		"SELECT owner_user_id, original_name, status FROM files WHERE id = ?",
 		1,
-	).Scan(&creator, &title, &status); err != nil {
+	).Scan(&creator, &name, &status); err != nil {
 		t.Fatal(err)
 	}
-	if creator.Valid || title != "Keep this item" || status != "complete" {
-		t.Fatalf("retained item = creator %q valid=%v, title %q, status %q", creator.String, creator.Valid, title, status)
+	if creator.Valid || name != "Keep this file" || status != "pending" {
+		t.Fatalf("retained file = owner %q valid=%v, name %q, status %q", creator.String, creator.Valid, name, status)
 	}
 }
 

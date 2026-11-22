@@ -23,8 +23,10 @@ func openAdminWorkspace(t *testing.T, tab context.Context, origin string) string
 	fill(t, tab, "#email", fixtureOwnerEmail)
 	fill(t, tab, "#password", fixturePassword)
 	click(t, tab, `button[type="submit"]`)
-	eventually(t, tab, fmt.Sprintf("location.href === %s", jsString(origin+"/")), "sign-in did not reach the home page")
-	click(t, tab, `.cards a[href^="/workspaces/"]`)
+	eventually(t, tab, `location.pathname === "/" || /^\/workspaces\/[^/]+$/.test(location.pathname)`, "sign-in did not reach a workspace")
+	if eval[bool](t, tab, `location.pathname === "/"`) {
+		click(t, tab, `.cards a[href^="/workspaces/"]`)
+	}
 	waitVisible(t, tab, "[data-workspace-home]")
 	return regexp.MustCompile(`^(/workspaces/[^/]+)`).FindString(eval[string](t, tab, "location.pathname"))
 }
@@ -132,5 +134,5 @@ func signInOn(t *testing.T, tab context.Context, origin string) {
 	fill(t, tab, "#email", fixtureOwnerEmail)
 	fill(t, tab, "#password", fixturePassword)
 	click(t, tab, `button[type="submit"]`)
-	eventually(t, tab, fmt.Sprintf("location.href === %s", jsString(origin+"/")), "sign-in did not reach the home page")
+	eventually(t, tab, `location.pathname === "/" || /^\/workspaces\/[^/]+$/.test(location.pathname)`, "sign-in did not reach a workspace")
 }

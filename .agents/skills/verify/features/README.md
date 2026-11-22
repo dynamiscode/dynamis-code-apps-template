@@ -8,8 +8,7 @@ the reason in that feature's Gotchas - never weaken the journey.
 | Feature | File | Suite drive (`-run`) |
 |---|---|---|
 | Workspace shell (drawer navbar, skip link, navigation) | [workspace-shell.md](workspace-shell.md) | `TestSettingsKeyboardReachableAndAxeClean`, `TestMembersLayouts`, `TestWorkspaceHome...` |
-| Theme system (light/dark/system, contrast) | [theme-system.md](theme-system.md) | `TestItemsHonorsExplicitAndSystemTheme`, `TestLoginSystemThemeFollowsPreference`, `TestFilesSystemThemeFollowsOSPreference`, `TestAccountAndSecurityPagesRender` |
-| Items lifecycle (create, edit, share, feedback) | [items-lifecycle.md](items-lifecycle.md) | `TestFormUXPatterns`, `TestItemsSharingCreatesAndRevokesPublicLink`, `TestItemsKeyboard` |
+| Theme system (light/dark/system, contrast) | [theme-system.md](theme-system.md) | `TestLoginSystemThemeFollowsPreference`, `TestFilesSystemThemeFollowsOSPreference`, `TestAccountAndSecurityPagesRender` |
 | Clients list screens (filters, columns, bulk, cards) | [clients-list-screens.md](clients-list-screens.md) | `TestClientsList*`, `TestClientDetail*`, `TestClientField*` |
 | File upload (progress, retry, lifecycle) | [file-upload.md](file-upload.md) | `TestFilesUploadProgressRecoversAndRetries`, `TestFilesPassAxe`, `TestFilesViewerListsAndDownloadsWithoutUploadControls` |
 

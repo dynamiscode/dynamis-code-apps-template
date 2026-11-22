@@ -96,7 +96,6 @@ templ WorkspaceNav(data viewmodel.PageData) {
 			<ul class="menu w-full">
 				@navTitle(data.T("common.workspace"))
 				@navLi(data, "/workspaces/"+data.Workspace.ID.String(), "navigation.home", data.NavPage == "workspace")
-				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/items", "navigation.items", data.NavPage == "items")
 				if data.ClientsEnabled {
 					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/clients", "clients.title", data.NavPage == "clients" || data.NavPage == "client-detail" || data.NavPage == "client-fields")
 				}

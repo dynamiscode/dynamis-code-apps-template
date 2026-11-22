@@ -170,10 +170,14 @@ func ListScreen(data viewmodel.PageData, searchKey string, tools templ.Component
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+		}
+		if data.ListHasContent() || len(data.ListViews) > 0 {
 			templ_7745c5c3_Err = ListViewSwitcher(data).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+		}
+		if data.ListHasContent() {
 			templ_7745c5c3_Err = ListAddFilter(data).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

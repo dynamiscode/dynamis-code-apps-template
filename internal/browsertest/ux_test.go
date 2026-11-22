@@ -5,14 +5,13 @@ package browsertest
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 )
 
-// TestFormUXPatterns ports scripts/ux-patterns.mjs. It walks the setup wizard, login, items,
+// TestFormUXPatterns ports scripts/ux-patterns.mjs. It walks the setup wizard, login,
 // drafts, email settings, tokens, the account menu, and clients on a fresh server. The
 // "Find and sort" disclosure check is removed: the disclosure was removed in #533 by design.
 func TestFormUXPatterns(t *testing.T) {
@@ -72,55 +71,8 @@ func TestFormUXPatterns(t *testing.T) {
 	eventually(t, tab, `document.activeElement?.matches('.error[role="alert"]')`, "login error did not take focus")
 	typeInto("#password", password)
 	click(`form[action="/login"] button[type="submit"]`)
-	eventually(t, tab, fmt.Sprintf(`location.href === %s`, jsString(base+"/")), "login did not reach home")
-	workspace := eval[string](t, tab, `new URL(document.querySelector(".cards a").getAttribute("href"), location.href).pathname`)
-
-	// async-feedback: the Add button is busy while sending, a double press makes one item, a toast confirms.
-	run(t, tab, chromedp.Navigate(base+workspace+"/items"))
-	waitVisible(t, tab, "#item-list")
-	// #533 moved the Items title into the topbar, so it is checked by text, not by location.
-	check(js(`[...document.querySelectorAll("h1")].some((h) => h.textContent.trim() === "Items")`), "items-journey: the page has a task-focused title")
-	// #533 shows the description on the workspace home card, not on the Items page; the check follows the copy.
-	run(t, tab, chromedp.Navigate(base+workspace))
-	waitVisible(t, tab, "[data-workspace-home]")
-	check(js(`document.querySelector("#main")?.textContent.includes("View and manage workspace items.")`), "items-journey: the page explains its purpose")
-	run(t, tab, chromedp.Navigate(base+workspace+"/items"))
-	waitVisible(t, tab, "#item-list")
-	eval[any](t, tab, `(() => { window.__busy = false; new MutationObserver(() => { if (document.querySelector('form.create[aria-busy="true"] button:disabled')) window.__busy = true; }).observe(document.body, { subtree: true, attributes: true, childList: true }); })()`)
-	typeInto("#new-title", "First item")
-	eval[any](t, tab, `(() => { const button = document.querySelector("form.create button[type=submit]"); button.click(); button.click(); })()`)
-	eventually(t, tab, `Boolean(document.querySelector(".toasts .toast")) && Boolean(document.querySelector("#item-list .item-list-view tbody tr"))`, "add toast and new row")
-	time.Sleep(300 * time.Millisecond)
-	check(js(`window.__busy`), "async-feedback: the Add button is disabled while sending")
-	firstCount := eval[int](t, tab, `[...document.querySelectorAll("#item-list .item-list-view tbody tr input[name=title]")].filter((el) => el.value === "First item").length`)
-	check(firstCount == 1, fmt.Sprintf("item-create-submission: a double press makes one item (found %d)", firstCount))
-	check(js(`document.querySelector(".toasts .toast").textContent.includes("Item added.")`), "async-feedback: a toast confirms the add")
-	check(js(`document.querySelector("#new-title").value === ""`), "item-create-submission: the box is empty after a save")
-
-	// form-field-input: a blank title is stopped in the browser with a summary.
-	typeInto("#new-title", "   ")
-	enter("#new-title")
-	check(js(`document.activeElement?.classList.contains("error-summary")`), "form-field-input: the error summary takes focus")
-	check(eval[int](t, tab, `document.querySelectorAll("#item-list .item-list-view tbody tr input[name=title]").length`) == 1, "form-field-input: an invalid add sends nothing")
-
-	// form-drafts: Save is enabled only after a change.
-	row := "#item-list .item-list-view tbody tr form[data-dirty-track]"
-	check(js(fmt.Sprintf(`document.querySelector(%s + " button[value=update]").disabled`, jsString(row))), "form-drafts: Save starts disabled")
-	typeInto(row+" input[name=title]", "First item edited")
-	check(js(fmt.Sprintf(`!document.querySelector(%s + " button[value=update]").disabled`, jsString(row))), "form-drafts: Save enables after a change")
-
-	// async-feedback: autosave on status change.
-	eval[any](t, tab, `document.querySelectorAll(".toasts .toast").forEach((t) => t.remove())`)
-	eval[any](t, tab, fmt.Sprintf(`(() => { const select = document.querySelector(%s + " select[name=status]"); select.value = "complete"; select.dispatchEvent(new Event("change", { bubbles: true })); })()`, jsString(row)))
-	eventually(t, tab, `document.querySelector(".toasts .toast") !== null`, "autosave toast")
-	check(js(fmt.Sprintf(`document.querySelector(%s + " select[name=status]").value === "complete"`, jsString(row))), "async-feedback: autosave keeps the new status")
-
-	// async-feedback: optimistic delete hides the row at once.
-	eval[any](t, tab, `window.confirm = () => true`)
-	hiddenAtOnce := eval[bool](t, tab, `(() => { const button = document.querySelector("#item-list button[value=delete]"); const row = button.closest("tr"); button.click(); return row.dataset.optimistic === "hidden"; })()`)
-	check(hiddenAtOnce, "async-feedback: delete hides the row before the answer")
-	eventually(t, tab, `document.querySelectorAll("#item-list .item-list-view tbody tr input[name=title]").length === 0`, "row removed")
-	check(true, "async-feedback: the row is gone after the answer")
+	eventually(t, tab, `location.pathname === "/" || /^\/workspaces\/[^/]+$/.test(location.pathname)`, "login did not reach home")
+	workspace := eval[string](t, tab, `location.pathname === "/" ? new URL(document.querySelector(".cards a").getAttribute("href"), location.href).pathname : location.pathname`)
 
 	// form-drafts: an unsent invitation survives leaving the page.
 	run(t, tab, chromedp.Navigate(base+workspace+"/settings/invitations"))
@@ -168,15 +120,15 @@ func TestFormUXPatterns(t *testing.T) {
 	// clients: a blank name is stopped with a summary; a client is created; a choice field gets an option.
 	run(t, tab, chromedp.Navigate(base+workspace+"/clients"))
 	waitVisible(t, tab, "#client-list")
-	click(".client-create > summary")
+	click(`a[href$="/clients/new"]`)
 	typeInto("#client-display-name", "   ")
 	enter("#client-display-name")
 	check(js(`document.activeElement?.classList.contains("error-summary")`), "clients: a blank name takes the error summary focus")
 	typeInto("#client-display-name", "Ada Lovelace")
 	typeInto("#client-email", "ada@example.com")
-	click(".client-create form button[type=submit]")
+	click("form.create button[type=submit]")
 	waitVisible(t, tab, "#client-detail")
-	check(js(`document.querySelector("h1").textContent === "Ada Lovelace"`), "clients: creating a client opens its detail page")
+	check(js(`document.querySelector("#client-detail #client-display-name").value === "Ada Lovelace"`), "clients: creating a client opens its detail page")
 	clientPath := eval[string](t, tab, `location.pathname`)
 
 	run(t, tab, chromedp.Navigate(base+workspace+"/client-fields"))

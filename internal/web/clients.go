@@ -654,7 +654,7 @@ func blankDash(value string) string {
 
 func clientClearFiltersPath(path string, query url.Values) string {
 	copy := cloneClientQuery(query)
-	for _, key := range []string{"filter", "filter_field", "filter_op", "filter_value", "filter_value_to", "page"} {
+	for _, key := range []string{"q", "filter", "filter_field", "filter_op", "filter_value", "filter_value_to", "page"} {
 		copy.Del(key)
 	}
 	if encoded := copy.Encode(); encoded != "" {

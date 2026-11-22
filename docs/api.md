@@ -1,14 +1,6 @@
 # HTTP and REST API
 
-The server exposes health checks, its OpenAPI 3.1 contract, local browser
-session endpoints, workspace identity management, a workspace-scoped item
-resource, and (when the Files profile is selected) private workspace files. The canonical machine contract is [`api/openapi.json`](../api/openapi.json);
-the live reference is `GET /api/openapi.json`.
-
-Public Item sharing is intentionally browser-only in this slice. No bearer
-token management or public sharing endpoint is added to REST/OpenAPI; use the
-CSRF-protected Items browser controls. File sharing and public API access need
-a separate accepted contract.
+The server exposes health checks, workspace identity management, optional Clients, and private Files. The canonical machine contract is [`api/openapi.json`](../api/openapi.json); the live reference is `GET /api/openapi.json`.
 
 Quick check:
 
@@ -29,100 +21,9 @@ export WORKSPACE_ID='<workspace short ID>'
 export TOKEN='<token secret>'
 ```
 
-Use `resources:read` for item list/read and `resources:write` for item
-create/update/delete. A token must belong to the workspace in the URL.
+Use `resources:read` for Clients reads and `resources:write` for Clients writes when the Clients profile is enabled. Tokens must belong to the workspace in the URL. See [Clients endpoints](#endpoints) for supported operations.
 
-Check liveness and discover the machine contract:
-
-```sh
-curl --silent --show-error "$BASE_URL/health/live"
-curl --silent --show-error "$BASE_URL/api/openapi.json"
-```
-
-List items. Pages are numbered from 1; `total` counts every item the filters match:
-
-```sh
-curl --silent --show-error --include \
-  -H "Authorization: Bearer $TOKEN" \
-  "$BASE_URL/api/v1/workspaces/$WORKSPACE_ID/items?limit=2&sort=-created_at"
-
-# The second page keeps every other query parameter unchanged.
-curl --silent --show-error --include --get \
-  -H "Authorization: Bearer $TOKEN" \
-  --data-urlencode 'limit=2' \
-  --data-urlencode 'sort=-created_at' \
-  --data-urlencode 'page=2' \
-  "$BASE_URL/api/v1/workspaces/$WORKSPACE_ID/items"
-```
-
-Create an item. The key is required, scoped to the token, workspace, and
-operation, and retained for 24 hours. Retrying the same key with the same body
-replays the original response; changing the body returns `409` with code
-`idempotency-conflict`.
-
-```sh
-export IDEMPOTENCY_KEY='onboarding-create-1'
-curl --silent --show-error --include \
-  -X POST "$BASE_URL/api/v1/workspaces/$WORKSPACE_ID/items" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
-  --data '{"title":"Onboarding item"}'
-```
-
-Copy the returned `id` and `ETag` (for example, `"v1"`) into `ITEM_ID` and
-`ETAG`. Reads return the current strong ETag; updates and deletes require that
-value in `If-Match` and return a new ETag after an update.
-
-```sh
-export ITEM_ID='<item short ID>'
-export ETAG='"v1"'
-
-curl --silent --show-error --include \
-  -H "Authorization: Bearer $TOKEN" \
-  "$BASE_URL/api/v1/workspaces/$WORKSPACE_ID/items/$ITEM_ID"
-
-# Returns 304 with no body when the item has not changed.
-curl --silent --show-error --include \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "If-None-Match: $ETAG" \
-  "$BASE_URL/api/v1/workspaces/$WORKSPACE_ID/items/$ITEM_ID"
-
-curl --silent --show-error --include \
-  -X PATCH "$BASE_URL/api/v1/workspaces/$WORKSPACE_ID/items/$ITEM_ID" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -H "If-Match: $ETAG" \
-  --data '{"status":"complete"}'
-
-# Use the update response's new ETag.
-export ETAG='"v2"'
-curl --silent --show-error --include \
-  -X DELETE "$BASE_URL/api/v1/workspaces/$WORKSPACE_ID/items/$ITEM_ID" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "If-Match: $ETAG"
-```
-
-Errors use RFC 9457 Problem Details with content type
-`application/problem+json`. Branch on `status` and stable `code`; treat
-`title` and `detail` as display text. Common onboarding cases:
-
-- Missing or invalid bearer token: `401`, code `unauthorized`, and
-  `WWW-Authenticate: Bearer`.
-- Token missing the required item scope: `403`, code `insufficient-scope`.
-- Missing create key: `400`, code `idempotency-key-required`.
-- Missing `If-Match`: `428`, code `precondition-required`; stale `If-Match`:
-  `412`, code `precondition-failed`.
-- Invalid parameters or page: `400`, code `invalid-request`; missing item:
-  `404`, code `not-found`.
-- Workspace path: a malformed, unknown, or foreign `workspaceId` returns `404`,
-  code `not-found`, with the same body as a missing workspace. Workspace IDs are
-  short IDs; integer keys are never accepted or returned.
-- Item path: a malformed, unknown, or foreign `itemId`, including a workspace
-  short ID, returns `404`, code `not-found`, with the same body as a missing
-  item. Item IDs are short IDs; integer keys are never accepted or returned.
-- Rate limit: `429`, code `rate-limited`; wait the number of seconds in
-  `Retry-After` before retrying.
+Errors use RFC 9457 Problem Details. Missing or invalid credentials return `401`; insufficient scope returns `403`; malformed, unknown, or foreign workspace IDs return `404`. Stale conditional writes return `412`.
 
 Every problem includes `type`, `status`, `detail`, `instance`, `code`, and
 `requestId`. Include `X-Request-ID` on requests when correlating a client log;
@@ -148,10 +49,6 @@ the server returns the accepted or generated request ID.
   /api/v1/auth/mfa/passkeys/{passkeyId}`) are short IDs; a malformed or unknown
   ID returns the same `mfa-invalid` problem as a missing passkey. Challenge tokens and
   recovery codes are secrets, never row IDs.
-- `/api/v1/workspaces/{workspaceId}/items` proves shared, workspace-scoped
-  list, create, read, and update behavior.
-  Item responses retain `createdByUserId` as a required field but return `null`
-  after its creator's account is deleted; item content remains available.
 API resources use `Authorization: Bearer <token>`. The token must belong to the
 path workspace and include the required `resources:read` or `resources:write`
 scope. Export requires `workspace:export`. Browser session rules are
@@ -159,10 +56,6 @@ documented in [authentication](authentication.md).
 
 - `GET /api/v1/workspaces/{workspaceId}/export` returns the bounded versioned
   workspace export described in [data lifecycle](data-lifecycle.md).
-- `POST /api/v1/workspaces/{workspaceId}/import` atomically imports bounded
-  item records from that JSON export format or strict `title,status` CSV.
-  It requires `workspace:update`; source IDs, timestamps, memberships, audit
-  events, and credentials are ignored.
 - Members: `GET /members` returns all members unless `limit` or `page` is
   supplied; with either parameter it returns `total`, the number of members,
   and the `page` returned. Also `PATCH /members/{memberId}`, `DELETE /members/{memberId}`,
@@ -207,7 +100,7 @@ documented in [authentication](authentication.md).
   not-found error. When `externalId` is omitted, the stored external ID defaults
   to the user's short ID.
 - User IDs in responses and exports are short IDs only: `userId` on tokens and
-  sessions, `ExportMember.userId`, item `createdByUserId`, file `ownerUserId`,
+  sessions, `ExportMember.userId`, file `ownerUserId`,
   and audit `actorUserId` and user `targetId`. Integer keys are never emitted.
   An audit `targetId` is the short ID of the entity named by `targetType`; a
   target with no integer key (a session, MFA challenge, external identity,
@@ -221,8 +114,7 @@ documented in [authentication](authentication.md).
 Identity and workspace routes use `Authorization: Bearer <token>`. The token
 must belong to the path workspace and include the permission required by the
 operation: `members:read`, `members:manage`, `ownership:transfer`,
-`invitations:manage`, or `workspace:read`. Item and export requirements remain
-`resources:*` and `workspace:export`. REST intentionally has no workspace
+`invitations:manage`, or `workspace:read`. Client and export requirements are `resources:*` and `workspace:export`. REST intentionally has no workspace
 list/create endpoint; those operations are browser-only.
 
 Token create returns `secret` once only; token lists never return it. Invitation
@@ -309,28 +201,7 @@ Common error codes are `invalid-request`, `not-found`, `precondition-required`,
 `insufficient-scope`, and `rate-limited`. Clients should branch on `status` and
 stable `code`, not on human-readable `title` or `detail`.
 
-Collections use one query shape: optional resource filters, `search`, `sort`,
-`limit`, and `page`. The item reference accepts `status=active|complete`
-and `search`, which is a trimmed, case-insensitive literal substring match on
-`title`; `%`, `_`, and `\\` have no wildcard meaning. Search is limited to 100
-Unicode characters. `sort` is `created_at` or `-created_at`; ties use `id` in
-the same direction. `limit` defaults to 50 and is bounded to 1-100. A response
-always includes `total`, the number of items the filters match across all pages, and the `page` returned. A page past the end is empty. Unsupported, repeated,
-empty, or malformed parameters fail with Problem Details `400`.
-
-Item reads return strong version ETags in the form `"vN"`. `If-None-Match` can
-return `304`. Updates and deletes require `If-Match`; missing, malformed, or
-stale versions return `428` or `412`. Creates require an
-`Idempotency-Key`. Keys are hashed and scoped to the principal (its kind and
-typed key), workspace, and operation for 24 hours. An identical retry replays the result; a changed
-request returns `409`.
-
-Item deletion also requires `If-Match` and permanently removes live data.
-Backup copies remain subject to the retention policy documented for the
-deployment.
-
-All routes have bounded bodies and execution time. Authentication routes use
-a stricter per-source rate limit. `429` responses include `Retry-After`.
+Clients collections support numbered pages, documented filters and sorting. Client updates require `If-Match` with the current ETag; stale writes return `412`. See the Clients endpoint contract above.
 
 ## Compatibility
 

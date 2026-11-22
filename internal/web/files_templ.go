@@ -189,7 +189,7 @@ func filesPage(data viewmodel.PageData, canUpload bool) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = organisms.ListScreen(data, "files.search", fileListTools(data), fileResults(data)).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = organisms.ListScreen(data, "files.search", fileListTools(data), fileResults(data, canUpload)).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -238,7 +238,7 @@ func fileListTools(data viewmodel.PageData) templ.Component {
 }
 
 // fileResults is the Files results region, shared with every list: the table or cards and the footer.
-func fileResults(data viewmodel.PageData) templ.Component {
+func fileResults(data viewmodel.PageData, canUpload bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -255,7 +255,7 @@ func fileResults(data viewmodel.PageData) templ.Component {
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = organisms.ListResults(data, data.FileListQuery.Limit, listPageSizeOptions(data.FileListQuery.Limit, listPageSizes), data.ClientQuerySuffix, fileList(data), templ.NopComponent).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = organisms.ListResults(data, data.FileListQuery.Limit, listPageSizeOptions(data.FileListQuery.Limit, listPageSizes), data.ClientQuerySuffix, fileList(data, canUpload), templ.NopComponent).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -263,7 +263,7 @@ func fileResults(data viewmodel.PageData) templ.Component {
 	})
 }
 
-func fileList(data viewmodel.PageData) templ.Component {
+func fileList(data viewmodel.PageData, canUpload bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -389,12 +389,17 @@ func fileList(data viewmodel.PageData) templ.Component {
 		}
 		if len(data.Files) == 0 {
 			if data.HasClientFilters || data.ListSearch != "" {
-				templ_7745c5c3_Err = molecules.NoMatchesAlert("file-empty-state", data.T("files.none"), data.ClearClientFiltersPath, data.T("clients.clear_filters")).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.NoMatchesAlert(molecules.NoMatchesAlertProps{ID: "file-empty-state", Message: data.T("files.none"), Href: data.ClearClientFiltersPath, Label: data.T("clients.clear_filters")}).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else if canUpload {
+				templ_7745c5c3_Err = molecules.EmptyStateCard(molecules.EmptyStateCardProps{ID: "file-empty-state", Title: data.T("files.empty_title"), Description: data.T("files.empty_description"), CTA: filesEmptyCTA(data)}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = molecules.EmptyStateCard("file-empty-state", data.T("files.empty_title"), data.T("files.empty_description"), filesEmptyCTA(data)).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.EmptyStateCard(molecules.EmptyStateCardProps{ID: "file-empty-state", Title: data.T("files.empty_title"), Description: data.T("files.empty_description")}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -429,7 +434,7 @@ func filesEmptyCTA(data viewmodel.PageData) templ.Component {
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("files.upload"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 94, Col: 87}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `files.templ`, Line: 96, Col: 87}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {

@@ -477,13 +477,13 @@ func clientBody(data viewmodel.PageData) templ.Component {
 			}
 		}
 		if len(data.ListRows) == 0 {
-			if data.HasClientFilters {
-				templ_7745c5c3_Err = molecules.NoMatchesAlert("client-empty-state", data.T("clients.no_matches"), data.ClearClientFiltersPath, data.T("clients.clear_filters")).Render(ctx, templ_7745c5c3_Buffer)
+			if data.HasClientFilters || data.ListSearch != "" {
+				templ_7745c5c3_Err = molecules.NoMatchesAlert(molecules.NoMatchesAlertProps{ID: "client-empty-state", Message: data.T("clients.no_matches"), Href: data.ClearClientFiltersPath, Label: data.T("clients.clear_filters")}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = molecules.EmptyStateCard("client-empty-state", data.T("clients.empty_title"), data.T("clients.empty_description"), clientEmptyCTA(data)).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = molecules.EmptyStateCard(molecules.EmptyStateCardProps{ID: "client-empty-state", Title: data.T("clients.empty_title"), Description: data.T("clients.empty_description"), CTA: clientEmptyCTA(data)}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

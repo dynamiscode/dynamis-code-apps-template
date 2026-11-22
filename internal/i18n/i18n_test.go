@@ -47,7 +47,7 @@ func TestCatalogFallbackAndLocaleMatching(t *testing.T) {
 	if got := catalog.Translate(Spanish, "common.product_name", nil); got != "Dynamis Code" {
 		t.Fatalf("Translate() fallback = %q", got)
 	}
-	if got := catalog.Translate(Spanish, "workspace.items_title", map[string]any{"name": "Equipo"}); got != "Elementos de Equipo" {
+	if got := catalog.Translate(Spanish, "clients.bulk_select_row", map[string]any{"name": "Equipo"}); got != "Seleccionar Equipo" {
 		t.Fatalf("Translate() interpolation = %q", got)
 	}
 	if got := catalog.Resolve("", "", "", "es-MX,es;q=0.9"); got != Spanish {

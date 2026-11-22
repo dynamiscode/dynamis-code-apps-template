@@ -23,7 +23,7 @@ pages all follow it immediately.
 
 ```
 go test -tags browser -count=1 ./internal/browsertest/... \
-  -run 'TestItemsHonorsExplicitAndSystemTheme|TestLoginSystemThemeFollowsPreference|TestFilesSystemThemeFollowsOSPreference|TestAccountAndSecurityPagesRender'
+  -run 'TestLoginSystemThemeFollowsPreference|TestFilesSystemThemeFollowsOSPreference|TestAccountAndSecurityPagesRender'
 ```
 
 Each case asserts the rendered canvas token (`--canvas` computed value:

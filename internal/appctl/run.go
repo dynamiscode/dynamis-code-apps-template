@@ -13,18 +13,16 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 const maxResponseBytes = 1 << 20
 
-const usageLine = "usage: appctl <items|clients|fields> <command> [flags]"
+const usageLine = "usage: appctl <clients|fields> <command> [flags]"
 
 // collections maps each resource to its collection path under a workspace.
 var collections = map[string]string{
-	"items":   "/items",
 	"clients": "/clients",
 	"fields":  "/client-fields",
 }
@@ -32,11 +30,6 @@ var collections = map[string]string{
 // commandFlags names the flags each "resource command" accepts, beyond the
 // connection flags that every command takes.
 var commandFlags = map[string][]string{
-	"items list":        {"status", "search", "page", "sort", "limit"},
-	"items get":         {"item"},
-	"items create":      {"title", "idempotency-key"},
-	"items update":      {"item", "version", "set-title", "set-status"},
-	"items delete":      {"item", "version"},
 	"clients list":      {"archived", "filter", "sort", "page", "limit"},
 	"clients show":      {"client"},
 	"clients create":    {"display-name", "email", "phone", "notes"},
@@ -104,22 +97,10 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 	flags.StringVar(&common.token, "token", common.token, "API bearer token")
 	flags.DurationVar(&common.timeout, "timeout", common.timeout, "request timeout")
 	workspaceID := flags.String("workspace", "", "workspace short ID")
-	itemID := flags.String("item", "", "item ID")
-	title := flags.String("title", "", "item title")
-	status := flags.String("status", "", "item status")
-	search := flags.String("search", "", "case-insensitive title substring")
 	page := flags.String("page", "", "1-based page number")
-	defaultSort := ""
-	if resource == "items" {
-		defaultSort = "-created_at"
-	}
-	sort := flags.String("sort", defaultSort, "sort order")
+	sort := flags.String("sort", "", "sort order")
 	limit := flags.Int("limit", 50, "page size")
 	version := flags.Int64("version", 0, "record version")
-	idempotencyKey := flags.String("idempotency-key", "", "caller-generated idempotency key")
-	var updateTitle, updateStatus optionalString
-	flags.Var(&updateTitle, "set-title", "new title")
-	flags.Var(&updateStatus, "set-status", "active or complete")
 	clientID := flags.String("client", "", "client short ID")
 	fieldID := flags.String("field", "", "client field short ID")
 	displayName := flags.String("display-name", "", "client display name")
@@ -161,58 +142,6 @@ func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 	method, body := http.MethodGet, any(nil)
 	headers := make(http.Header)
 	switch key {
-	case "items list":
-		if *limit < 1 || *limit > 100 || (*status != "" && *status != "active" && *status != "complete") ||
-			(*search != "" && (!utf8.ValidString(*search) || strings.TrimSpace(*search) == "" || utf8.RuneCountInString(strings.TrimSpace(*search)) > 100)) ||
-			(*sort != "created_at" && *sort != "-created_at") {
-			return usage(stderr, "list flags are invalid")
-		}
-		query := make(url.Values)
-		query.Set("limit", strconv.Itoa(*limit))
-		query.Set("sort", *sort)
-		if *status != "" {
-			query.Set("status", *status)
-		}
-		if *search != "" {
-			query.Set("search", *search)
-		}
-		if *page != "" {
-			query.Set("page", *page)
-		}
-		path += "?" + query.Encode()
-	case "items get":
-		if !validShortID(*itemID) {
-			return usage(stderr, "--item must be an item short ID")
-		}
-		path += "/" + *itemID
-	case "items create":
-		if strings.TrimSpace(*title) == "" || *idempotencyKey == "" {
-			return usage(stderr, "create requires --title and --idempotency-key")
-		}
-		method, body = http.MethodPost, map[string]string{"title": *title}
-		headers.Set("Idempotency-Key", *idempotencyKey)
-	case "items update":
-		if !validShortID(*itemID) || *version < 1 || (!updateTitle.set && !updateStatus.set) {
-			return usage(stderr, "update requires --item, --version, and --set-title or --set-status")
-		}
-		if updateStatus.set && updateStatus.value != "active" && updateStatus.value != "complete" {
-			return usage(stderr, "--set-status must be active or complete")
-		}
-		values := make(map[string]string)
-		if updateTitle.set {
-			values["title"] = updateTitle.value
-		}
-		if updateStatus.set {
-			values["status"] = updateStatus.value
-		}
-		method, body, path = http.MethodPatch, values, path+"/"+*itemID
-		headers.Set("If-Match", fmt.Sprintf(`"v%d"`, *version))
-	case "items delete":
-		if !validShortID(*itemID) || *version < 1 {
-			return usage(stderr, "delete requires --item and --version")
-		}
-		method, path = http.MethodDelete, path+"/"+*itemID
-		headers.Set("If-Match", fmt.Sprintf(`"v%d"`, *version))
 	case "clients list":
 		if *limit < 1 || *limit > 100 || (*archived != "" && *archived != "active" && *archived != "archived" && *archived != "all") {
 			return usage(stderr, "list flags are invalid")

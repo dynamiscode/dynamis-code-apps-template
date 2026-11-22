@@ -24,13 +24,15 @@ func signInAs(t *testing.T, tab context.Context, email, password string) {
 	fill(t, tab, "#email", email)
 	fill(t, tab, "#password", password)
 	click(t, tab, `button[type="submit"]`)
-	eventually(t, tab, fmt.Sprintf("location.href === %s", jsString(baseURL+"/")), "sign-in did not reach the home page")
+	eventually(t, tab, `location.pathname === "/" || /^\/workspaces\/[^/]+$/.test(location.pathname)`, "sign-in did not reach a workspace")
 }
 
 // openWorkspaceSettings opens the first workspace and the given settings path under it.
 func openWorkspaceSettings(t *testing.T, tab context.Context, suffix string) string {
 	t.Helper()
-	click(t, tab, `.cards a[href^="/workspaces/"]`)
+	if eval[bool](t, tab, `location.pathname === "/"`) {
+		click(t, tab, `.cards a[href^="/workspaces/"]`)
+	}
 	waitVisible(t, tab, "[data-workspace-home]")
 	workspacePath := regexp.MustCompile(`^(/workspaces/[^/]+)`).FindString(eval[string](t, tab, "location.pathname"))
 	navigate(t, tab, workspacePath+suffix)
@@ -180,6 +182,10 @@ func TestMembersActionsAndPermissions(t *testing.T) {
 	expectAxeClean(t, owner)
 
 	run(t, owner, chromedp.EmulateViewport(1280, 900))
+	eval[any](t, owner, `(() => {
+		const row = [...document.querySelectorAll(".list-view-table tbody tr")].find((r) => r.textContent.includes("removed@example.com"));
+		row.querySelector("details > summary").click();
+	})()`)
 	roleMemberID := eval[string](t, owner, fmt.Sprintf(`(() => {
 		const row = [...document.querySelectorAll(".list-view-table tbody tr")].find((r) => r.textContent.includes("removed@example.com"));
 		return row.querySelector('form[data-webmcp-actions="member-role-update"] input[name="member_id"]').value;

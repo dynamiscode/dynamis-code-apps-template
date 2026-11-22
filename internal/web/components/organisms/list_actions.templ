@@ -58,10 +58,17 @@ func listActionItemClass(action ListAction) string {
 templ listActionForm(data viewmodel.PageData, action ListAction) {
 	<form class="list-action-form" method="post" action={ action.PostPath }>
 		<input type="hidden" name="csrf" value={ data.CSRF }/>
-		<button class={ listActionItemClass(action) } type="submit" { ListActionConfirm(action)... }>
-			@ListActionIcon(action.Icon)
-			<span>{ action.Label }</span>
-		</button>
+		if action.Danger {
+			@molecules.ConfirmButton("", action.Confirm, templ.Attributes{"class": listActionItemClass(action)}) {
+				@ListActionIcon(action.Icon)
+				<span>{ action.Label }</span>
+			}
+		} else {
+			<button class={ listActionItemClass(action) } type="submit" { ListActionConfirm(action)... }>
+				@ListActionIcon(action.Icon)
+				<span>{ action.Label }</span>
+			</button>
+		}
 	</form>
 }
 

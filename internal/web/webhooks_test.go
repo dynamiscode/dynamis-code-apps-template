@@ -50,7 +50,7 @@ func TestWebhooksBrowserLifecycleAndRedaction(t *testing.T) {
 	}
 
 	withoutCSRF := request(handler, http.MethodPost, base, url.Values{
-		"action": {"create"}, "name": {"blocked"}, "url": {"https://hooks.example.test"}, "events": {"item.created"},
+		"action": {"create"}, "name": {"blocked"}, "url": {"https://hooks.example.test"}, "events": {"client.created"},
 	}, cookies, nil)
 	if withoutCSRF.Code != http.StatusForbidden {
 		t.Fatalf("missing webhook CSRF = %d", withoutCSRF.Code)
@@ -65,7 +65,7 @@ func TestWebhooksBrowserLifecycleAndRedaction(t *testing.T) {
 
 	created := request(handler, http.MethodPost, base, url.Values{
 		"action": {"create"}, "csrf": {session.CSRFSecret}, "name": {"items"},
-		"url": {"https://hooks.example.test/events"}, "events": {"item.created", "item.deleted"},
+		"url": {"https://hooks.example.test/events"}, "events": {"client.created", "client.deleted"},
 	}, cookies, nil)
 	if created.Code != http.StatusOK || created.Header().Get("Cache-Control") != "no-store" {
 		t.Fatalf("create webhook = %d, headers=%v, body=%s", created.Code, created.Header(), created.Body.String())
@@ -75,7 +75,7 @@ func TestWebhooksBrowserLifecycleAndRedaction(t *testing.T) {
 		t.Fatalf("create response lacks one-time secret warning: %s", created.Body.String())
 	}
 	listed := request(handler, http.MethodGet, base, nil, cookies, nil)
-	if strings.Contains(listed.Body.String(), secret) || !strings.Contains(listed.Body.String(), "item.deleted") {
+	if strings.Contains(listed.Body.String(), secret) || !strings.Contains(listed.Body.String(), "client.deleted") {
 		t.Fatalf("webhook list secret/events = %s", listed.Body.String())
 	}
 	registered, err := service.List(ctx, mustPrincipal(t, auth, owner.UserID, workspaceID, identity.WebhooksRead), workspaceID)
@@ -98,14 +98,14 @@ func TestWebhooksBrowserLifecycleAndRedaction(t *testing.T) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	var eventKey int64
 	if err := db.QueryRow(`INSERT INTO webhook_events (workspace_id, event_type, created_at)
-		VALUES (?, ?, ?) RETURNING id`, registered[0].WorkspaceID, "item.created", now).Scan(&eventKey); err != nil {
+		VALUES (?, ?, ?) RETURNING id`, registered[0].WorkspaceID, "client.created", now).Scan(&eventKey); err != nil {
 		t.Fatal(err)
 	}
 	_, err = db.Exec(`INSERT INTO webhook_deliveries (
 		webhook_id, event_id, event_type, payload, attempt_count, status,
 		next_attempt_at, last_status_code, last_error, created_at, delivered_at
 	) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, NULL)`,
-		int64(registered[0].ID), eventKey, "item.created",
+		int64(registered[0].ID), eventKey, "client.created",
 		`{"privatePayload":"must not render"}`, 3, "failed", 500, "network-error", now)
 	if err != nil {
 		t.Fatal(err)
@@ -172,7 +172,7 @@ func TestWebhookSecretSurvivesReadbackFailure(t *testing.T) {
 
 	created := request(handler, http.MethodPost, base, url.Values{
 		"action": {"create"}, "csrf": {session.CSRFSecret}, "name": {"readback"},
-		"url": {"https://hooks.example.test"}, "events": {"item.created"},
+		"url": {"https://hooks.example.test"}, "events": {"client.created"},
 	}, cookies, nil)
 	if created.Code != http.StatusOK || !strings.Contains(created.Body.String(), "The webhook was saved") {
 		t.Fatalf("create readback failure = %d, %s", created.Code, created.Body.String())
@@ -217,7 +217,7 @@ func TestWebhookSecretKeyErrorIsActionable(t *testing.T) {
 
 	response := request(handler, http.MethodPost, base, url.Values{
 		"action": {"create"}, "csrf": {session.CSRFSecret}, "name": {"items"},
-		"url": {"https://hooks.example.test"}, "events": {"item.created"},
+		"url": {"https://hooks.example.test"}, "events": {"client.created"},
 	}, cookies, nil)
 	if response.Code != http.StatusUnprocessableEntity || !strings.Contains(response.Body.String(), "ENCRYPTION_KEY") {
 		t.Fatalf("webhook secret key error = %d, %s", response.Code, response.Body.String())

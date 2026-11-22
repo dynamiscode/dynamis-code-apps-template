@@ -12,17 +12,14 @@ description: How this repo uses htmx - the vendored runtime, targeted swaps for 
    link navigates. htmx only makes the round trip targeted
    (`hx-post` + `hx-target` + `hx-swap`) - it never carries logic.
 2. **One-way realtime is SSE.** Live lists subscribe to
-   `data-events={ path + "/events" }` (`#item-list`, client lists) and
+   `data-events={ path + "/events" }` (client lists) and
    the server streams `htmx-sse` messages; the refresh is applied by
    Alpine's `wireRealtime` (`app:refresh`-style events), which waits
    while a row is being edited and preserves dirty state. No
    WebSockets: only measured bidirectional need would trigger one
    (`docs/capabilities.md` governs that).
-3. **Idempotent, guarded mutations.** Create forms carry
-   `idempotency_key`; double presses are also stopped client-side
-   (`hx-sync`, busy state, see `item-create-submission` skill).
-   Responses use `HX-Trigger` for feedback (`app:toast`, ASCII-escaped
-   by `asciiJSON`).
+3. **Guarded mutations.** Keep server authorization, CSRF checks, and ordinary form fallback.
+   Busy state prevents duplicate submissions.
 4. **Swap focus contract.** After a swap, focus returns to the same
    field or to the new error - the `htmx:afterSwap` handlers in
    `wireForms` own it; do not write a second handler, extend that one.
@@ -53,7 +50,7 @@ the `hx-*` inheritance, and the swap target first.
   the redirected HTML (the browser suite does this in
   `TestFilesKeyboardAndSpanishLabels`-style flows and JS-off journeys).
 - Realtime changes: `go test -tags browser -count=1
-  ./internal/browsertest/... -run 'TestClientsListQueryOpenDoesNotBlockRealtime|TestItems'`
+  ./internal/browsertest/... -run 'TestClientsListQueryOpenDoesNotBlockRealtime'`
   and the evaluator tables in `make test-unit`.
 - SSE contract details live in `docs/web.md` "Realtime contract" -
   read it before changing event names.

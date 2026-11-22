@@ -192,7 +192,7 @@ func exportRecordCount(t *testing.T, db *sql.DB, workspaceID identity.WorkspaceI
 	t.Helper()
 	total := 1
 	for _, table := range []string{
-		"workspace_members", "items", "clients", "client_fields", "client_field_options", "audit_events",
+		"workspace_members", "clients", "client_fields", "client_field_options", "audit_events",
 	} {
 		var count int
 		exportCheck(t, db.QueryRow("SELECT COUNT(*) FROM "+table+" WHERE workspace_id = ?", workspaceID).Scan(&count))

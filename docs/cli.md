@@ -1,9 +1,10 @@
 # Remote CLI (Agent profile)
 
-This command is included only when the application is generated with the Agent
-profile. Core and Identity applications do not include `cmd/appctl`.
+This command is included when the Clients profile is selected. Clients requires
+the Agent profile. Generated applications without Clients omit `cmd/appctl`
+because no supported CLI commands remain.
 
-`appctl` is a REST-only client for the versioned item, client, and client
+`appctl` is a REST-only client for the versioned client and client
 custom field APIs. It has no database, shell, or local application-service
 dependency. Its only internal import is the short-ID codec, and a test fails if
 it imports anything else from the application.
@@ -11,10 +12,7 @@ it imports anything else from the application.
 `--workspace` takes the workspace short ID: 4 to 32 characters from
 `23456789abcdefghjkmnpqrstuvwxyz`. The CLI checks only that shape, because the
 value becomes a URL path segment. A malformed or unknown value gets the same
-`not-found` from the server as a missing workspace. `--item` takes the item
-short ID with the same shape check and the same `not-found` rule. A value in the
-retired 32-character hex form fails the server's strict decode and gets that
-same `not-found`.
+`not-found` from the server as a missing workspace.
 
 Configure a remote origin and token through environment variables. Prefer the
 environment for the token because command-line values may appear in process
@@ -23,15 +21,6 @@ listings.
 ```sh
 export APPCTL_BASE_URL=http://127.0.0.1:8080
 export APPCTL_TOKEN='<token shown once by token creation>'
-
-go run ./cmd/appctl items list --workspace "$WORKSPACE_ID"
-go run ./cmd/appctl items get --workspace "$WORKSPACE_ID" --item "$ITEM_ID"
-go run ./cmd/appctl items create --workspace "$WORKSPACE_ID" \
-  --title 'Example' --idempotency-key 'caller-unique-key'
-go run ./cmd/appctl items update --workspace "$WORKSPACE_ID" \
-  --item "$ITEM_ID" --version 1 --set-status complete
-go run ./cmd/appctl items delete --workspace "$WORKSPACE_ID" \
-  --item "$ITEM_ID" --version 2
 
 go run ./cmd/appctl clients create --workspace "$WORKSPACE_ID" \
   --display-name 'Acme' --email ops@example.com
@@ -73,13 +62,9 @@ are JSON on stdout, and errors are JSON on stderr.
 
 List filters, pages, ETags, idempotency, scopes, and public errors retain the
 REST behavior documented in [HTTP and REST API](api.md).
-`items list --search TERM` uses the same bounded, case-insensitive literal title
-search as REST.
 
 ## Local demo seed
 
-`go run ./cmd/demo` is a local operator command for making a generated
-application testable immediately. Set `DEMO_OWNER_PASSWORD` explicitly; it
-creates or reuses `Demo Workspace` and inserts three deterministic items using
-scoped idempotency keys. It prints only workspace and item IDs. It operates on
-the configured database directly and is not a production data migration tool.
+`go run ./cmd/demo` creates or reuses a local demo workspace. Set
+`DEMO_OWNER_PASSWORD` explicitly. It prints the workspace ID and is not a
+production migration tool.

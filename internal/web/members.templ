@@ -81,7 +81,7 @@ templ memberRows(data viewmodel.PageData) {
 		@molecules.StatusLine(data.T("clients.columns_choose"), nil)
 	}
 	if data.MemberTotal == 0 {
-		@molecules.NoMatchesAlert("member-results", data.T("members.none"), data.ClearClientFiltersPath, data.T("clients.clear_filters"))
+		@molecules.NoMatchesAlert(molecules.NoMatchesAlertProps{ID: "member-results", Message: data.T("members.none"), Href: data.ClearClientFiltersPath, Label: data.T("clients.clear_filters")})
 	}
 }
 

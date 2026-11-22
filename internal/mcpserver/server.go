@@ -57,6 +57,7 @@ type (
 
 // contractTypes holds shared keyword constraints that jsonschema-go cannot derive.
 var contractTypes = map[reflect.Type]*jsonschema.Schema{
+	reflect.TypeFor[userShortID](): {Type: "string", Pattern: "^[2-9a-hjkmnp-z]{4,}$"},
 	reflect.TypeFor[pageLimit](): {
 		Type: "integer", Minimum: new(1.0), Maximum: new(100.0), Default: json.RawMessage("50"),
 	},
@@ -77,8 +78,7 @@ func (e *toolError) Error() string { return e.message }
 type toolRun struct {
 	workspaceID identity.WorkspaceID
 	targetID    string
-	// targetType and targetKey name the audited object for non-item tools. Items
-	// leave them empty and keep the item short-ID path.
+	// targetType and targetKey name the audited object for tool calls.
 	targetType string
 	targetKey  int64
 	err        error
@@ -115,8 +115,7 @@ func recordFor(ctx context.Context) *callRecord {
 	return &callRecord{}
 }
 
-// Option adds tools for a composed profile. Options run after the Items tools
-// are registered, so a profile that is not composed adds nothing.
+// Option adds tools for a composed profile.
 type Option func(h *handler, server *mcp.Server)
 
 func NewHandler(
@@ -144,7 +143,6 @@ func NewHandler(
 			}
 		},
 	})
-	h.addTools(server)
 	for _, option := range options {
 		option(h, server)
 	}
@@ -245,8 +243,6 @@ func originMiddleware(next http.Handler, allowed []string) http.Handler {
 		next.ServeHTTP(writer, request)
 	})
 }
-
-func (h *handler) addTools(_ *mcp.Server) {}
 
 // schemaFor derives a tool schema from a contract type. The SDK derives only
 // structure (types, required fields, additionalProperties) from Go types.
@@ -406,10 +402,7 @@ func (h *handler) audit(
 	}
 	eventType, action, targetType, targetKey := eventRequestCalled, method, "", int64(0)
 	if method == methodToolsCall {
-		eventType, targetType, targetKey = eventToolCalled, "item", auditTargetKey("item", record.targetID)
-		if record.targetType != "" {
-			targetType, targetKey = record.targetType, record.targetKey
-		}
+		eventType, targetType, targetKey = eventToolCalled, record.targetType, record.targetKey
 		if record.toolName != "" {
 			action = record.toolName
 		} // unregistered names are client input and are never logged
@@ -426,10 +419,6 @@ func (h *handler) audit(
 		SourceAddress: sourceAddress(req), Metadata: string(metadata), CreatedAt: time.Now().UTC(),
 	})
 }
-
-// auditTargetKey decodes an item short ID to its key. Other target types, and
-// malformed item IDs, have no key.
-func auditTargetKey(string, string) int64 { return 0 }
 
 func errorCategory(err error) string {
 	if value, ok := err.(*toolError); ok {

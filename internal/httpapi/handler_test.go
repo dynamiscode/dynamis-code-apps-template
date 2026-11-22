@@ -55,7 +55,7 @@ func TestHTTPContracts(t *testing.T) {
 		strings.Contains(exported.Body.String(), token) {
 		t.Fatalf("export response = %d, headers %v, body %s", exported.Code, exported.Header(), exported.Body.String())
 	}
-	searched := serveAuthorized(handler, http.MethodGet, collection+"?search=first&limit=1&sort=created_at", "", token, nil)
+	searched := serveAuthorized(handler, http.MethodGet, collection+"?limit=1&sort=displayName&filter=displayName%3Acontains%3AFirst", "", token, nil)
 	if searched.Code != http.StatusOK || !strings.Contains(searched.Body.String(), client.ID.String()) {
 		t.Fatalf("search response = %d, %s", searched.Code, searched.Body.String())
 	}
@@ -368,7 +368,7 @@ func testHandlerWithStorage(t *testing.T, storage func(*config.Storage)) (http.H
 	handler, err := NewHandlerWithWebhooksAndFiles(db, auth,
 		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes, nil),
 		oidc, cfg.HTTP, slog.New(slog.NewTextHandler(io.Discard, nil)), webhookService, fileService, "", nil,
-		clients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace))
+		clients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace, webhookService))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -17,11 +17,11 @@ mode-0600 `template.lock` containing:
 Identity is required because it is the shared authentication and authorization
 boundary for Core. Core and Identity are always composed into a generated
 application. Selecting Agent additionally composes the MCP server and
-REST-only `appctl` packages, commands, bootstrap route, and Agent smoke test;
-omitting Agent or Files removes those files. Files requires Identity. Clients
+MCP bootstrap route. REST-only `appctl` commands are included when Clients is selected;
+omitting Agent or Files removes their respective code. Files requires Identity. Clients
 requires Identity and Agent; generation refuses it otherwise. Selecting Clients
 adds the client module, its REST and web surfaces, and migration 000022; omitting
-it removes those files and their wiring. The sample Item is not a Clients dependency. No
+it removes those files and their wiring. No
 other profile content is currently defined, including CompanySite and
 Integrations.
 The generated application receives repository-specific README, support and

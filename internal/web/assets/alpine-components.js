@@ -156,156 +156,6 @@
 		},
 	});
 
-	// Item list swap orchestration: keeps a dirty or focused row across
-	// htmx swaps, restores optimistic rows that failed, and refreshes the
-	// list only when nothing is being edited. The plan itself is pure.
-	const itemSwapPlan = (forms, sourceForm, editValidationError, focusedForm) => {
-		if (editValidationError) return { defer: true, rows: [], forms: [] };
-		const protectedForms = forms.filter((form) => form !== sourceForm && (
-			form === focusedForm || form.dataset.dirty === "true" || form.dataset.submitting === "true"
-		));
-		if (focusedForm && focusedForm !== sourceForm && !protectedForms.includes(focusedForm)) {
-			protectedForms.push(focusedForm);
-		}
-		const rows = [];
-		const standaloneForms = [];
-		for (const form of protectedForms) {
-			const row = form.closest("[data-item-row]");
-			if (row) rows.push(row);
-			else standaloneForms.push(form);
-		}
-		return {
-			defer: false,
-			rows: [...new Set(rows)],
-			forms: [...new Set(standaloneForms)],
-		};
-	};
-
-	const restoreFailedOptimisticRow = (form) => {
-		const row = form?._optimisticRow;
-		if (!row) return false;
-		delete row.dataset.optimistic;
-		form._optimisticRow = null;
-		return true;
-	};
-
-	// itemList: mounted on the item list root. The wiring resolves the root
-	// from the document on every event, exactly like the script it replaces,
-	// so a swapped-in list keeps working under one set of listeners.
-	const itemList = () => ({
-		init() {
-			if (window.__itemListWired) return;
-			// htmx loads after this file in document order; retry until it is there.
-			if (!window.htmx) { setTimeout(() => this.init(), 25); return; }
-			window.__itemListWired = true;
-
-			let refreshPending = false;
-			let rowsToRestore = [];
-			let formsToRestore = [];
-			let focusAfterSwap = null;
-			const list = () => document.querySelector("#item-list");
-			const forms = (root) => [...root.querySelectorAll("form[data-dirty-track]")];
-			const status = (root) => root.querySelector("#realtime-status");
-			const requestForm = (event) => event.detail?.ctx?.sourceElement?.closest?.("form") || null;
-			const formError = (event) => event.detail?.ctx?.response?.headers?.get?.("HX-Trigger")
-				?.split(",").map((value) => value.trim()).includes("form-error") || false;
-
-			const showError = (root, event) => {
-				const responseText = event.detail?.ctx?.text;
-				if (!formError(event) || !responseText) return;
-				const documentFromResponse = new DOMParser().parseFromString(responseText, "text/html");
-				const source = documentFromResponse.querySelector('[role="alert"]');
-				if (!source?.textContent?.trim()) return;
-				let alert = root.querySelector('[data-item-response-error]');
-				if (!alert) {
-					alert = document.createElement("p");
-					alert.className = "alert alert-error error";
-					alert.setAttribute("role", "alert");
-					alert.setAttribute("tabindex", "-1");
-					alert.dataset.itemResponseError = "";
-					root.insertBefore(alert, root.firstChild);
-				}
-				alert.textContent = source.textContent.trim();
-				alert.focus();
-			};
-
-			const refreshWhenClean = () => {
-				const root = list();
-				if (!refreshPending || !root || forms(root).some((form) =>
-					form.dataset.dirty === "true" || form.dataset.submitting === "true")) return;
-				const activeForm = document.activeElement?.closest?.("form[data-dirty-track]");
-				if (activeForm && root.contains(activeForm)) return;
-				refreshPending = false;
-				window.htmx.ajax("GET", location.pathname + location.search, {
-					target: "#item-list", swap: "outerHTML"
-				});
-			};
-
-			const restoreDirtyRows = (root) => {
-				const body = root.querySelector("tbody");
-				if (body) {
-					for (const row of rowsToRestore) {
-						const incoming = [...body.querySelectorAll("[data-item-row]")]
-							.find((candidate) => candidate.dataset.itemRow === row.dataset.itemRow);
-						if (incoming) incoming.replaceWith(row);
-						else body.append(row);
-					}
-				}
-				rowsToRestore = [];
-				for (const form of formsToRestore) {
-					const incoming = form.dataset.persist
-						? [...root.querySelectorAll("form[data-persist]")].find((candidate) => candidate.dataset.persist === form.dataset.persist)
-						: root.querySelector("form.client-query");
-					incoming?.replaceWith(form);
-				}
-				formsToRestore = [];
-				focusAfterSwap?.focus();
-				focusAfterSwap = null;
-			};
-
-			document.addEventListener("htmx:before:swap", (event) => {
-				const root = list();
-				if (!root || event.detail?.ctx?.target !== root || event.defaultPrevented) return;
-				const sourceForm = requestForm(event);
-				const isEditError = sourceForm?.matches("[data-item-edit]") && formError(event);
-				const hasFormError = formError(event);
-				if (hasFormError) restoreFailedOptimisticRow(sourceForm);
-				const focusedForm = document.activeElement?.closest?.("form[data-dirty-track]");
-				const active = document.activeElement;
-				const focusedFormInList = focusedForm && root.contains(focusedForm) ? focusedForm : null;
-				const plan = itemSwapPlan(forms(root), sourceForm, isEditError, focusedFormInList);
-				if (!plan.defer) {
-					rowsToRestore = plan.rows;
-					formsToRestore = plan.forms;
-					focusAfterSwap = plan.rows.some((row) => row.contains(active))
-						|| plan.forms.some((form) => form.contains(active)) ? active : null;
-					refreshPending ||= plan.rows.length > 0
-						|| plan.rows.some((row) => row === sourceForm?.closest?.("[data-item-row]"));
-					return;
-				}
-				event.preventDefault();
-				showError(root, event);
-				if (!isEditError) {
-					refreshPending = true;
-					const liveStatus = status(root);
-					if (liveStatus) liveStatus.textContent = root.dataset.liveWaiting || "";
-				}
-			});
-			document.addEventListener("htmx:after:swap", (event) => {
-				if (event.detail?.ctx?.target?.id !== "item-list") return;
-				const root = list();
-				if (!root) return;
-				restoreDirtyRows(root);
-				setTimeout(refreshWhenClean, 0);
-			});
-
-			for (const name of ["input", "change", "focusout", "htmx:finally:request"]) {
-				document.addEventListener(name, () => setTimeout(refreshWhenClean, 0));
-			}
-		},
-	});
-
-	
 	// listScreen: shared list behaviors — row tap-to-open, toolbar autosubmit,
 	// filter condition sections, live-search status, menu placement, column
 	// drag order, and bulk selection. Everything resolves from the document
@@ -1379,7 +1229,7 @@
 	// loads later in document order, so this waits for it.
 	const wireRealtime = () => {
 		if (window.__realtimeWired) return;
-		const list = document.querySelector("#item-list[data-events],#client-list[data-events]");
+		const list = document.querySelector("#client-list[data-events]");
 		if (!list || !window.EventSource) return;
 		if (!window.htmx) { setTimeout(wireRealtime, 25); return; }
 		window.__realtimeWired = true;
@@ -1439,7 +1289,7 @@
 		document.addEventListener("toggle", (event) => {
 			if (event.target instanceof HTMLDetailsElement && event.target.dataset.userToggled) retryWaiting();
 		}, true);
-		for (const name of [listID === "client-list" ? "client.changed" : "item.changed", "resync"]) { events.addEventListener(name, refresh); }
+		for (const name of ["client.changed", "resync"]) { events.addEventListener(name, refresh); }
 		for (const name of ["focusout", "input", "change", "htmx:finally:request"]) { document.addEventListener(name, retryWaiting); }
 		events.addEventListener("close", () => events.close());
 	};
@@ -1469,9 +1319,6 @@
 		const textSchema = (maxLength) => ({ type: "string", minLength: 1, maxLength });
 		const schemas = {
 			"workspace-create-v1": { type: "object", properties: { name: textSchema(120) }, required: ["name"], additionalProperties: false },
-			"item-create-v1": { type: "object", properties: { title: textSchema(200) }, required: ["title"], additionalProperties: false },
-			"item-update-v1": { type: "object", properties: { itemId: shortIdSchema, title: textSchema(200), status: { type: "string", enum: ["active", "complete"] } }, required: ["itemId", "title", "status"], additionalProperties: false },
-			"item-delete-v1": { type: "object", properties: { itemId: shortIdSchema }, required: ["itemId"], additionalProperties: false },
 			"member-role-update-v1": { type: "object", properties: { memberId: shortIdSchema, role: { type: "string", enum: ["admin", "member", "viewer"] } }, required: ["memberId", "role"], additionalProperties: false },
 			"member-remove-v1": { type: "object", properties: { memberId: shortIdSchema }, required: ["memberId"], additionalProperties: false },
 			"ownership-transfer-v1": { type: "object", properties: { memberId: shortIdSchema }, required: ["memberId"], additionalProperties: false },
@@ -1481,8 +1328,7 @@
 			"workspace-export-v1": { type: "object", properties: {}, additionalProperties: false }
 		};
 		const actions = {
-			"workspace-create-v1": "workspace-create", "item-create-v1": "item-create", "item-update-v1": "item-update",
-			"item-delete-v1": "item-delete", "member-role-update-v1": "member-role-update", "member-remove-v1": "member-remove",
+			"workspace-create-v1": "workspace-create", "member-role-update-v1": "member-role-update", "member-remove-v1": "member-remove",
 			"ownership-transfer-v1": "ownership-transfer", "invitation-revoke-v1": "invitation-revoke", "token-revoke-v1": "token-revoke",
 			"session-revoke-v1": "session-revoke"
 		};
@@ -1513,10 +1359,6 @@
 		const execute = (name, input) => {
 			if (!object(input)) return result(name, "invalid-input");
 			if (name === "workspace-create-v1") return text(input.name, 120) ? prepare(name, formFor(actions[name]), { name: input.name }) : result(name, "invalid-input");
-			if (name === "item-create-v1") return text(input.title, 200) ? prepare(name, formFor(actions[name]), { title: input.title }) : result(name, "invalid-input");
-			if (name === "item-update-v1") return validShortId(input.itemId) && text(input.title, 200) && ["active", "complete"].includes(input.status)
-				? prepare(name, formFor(actions[name], input.itemId), { title: input.title, status: input.status }, "update") : result(name, "invalid-input");
-			if (name === "item-delete-v1") return validShortId(input.itemId) ? prepare(name, formFor(actions[name], input.itemId), {}, "delete") : result(name, "invalid-input");
 			const idField = { "member-role-update-v1": "memberId", "member-remove-v1": "memberId", "ownership-transfer-v1": "memberId", "invitation-revoke-v1": "invitationId", "token-revoke-v1": "tokenId", "session-revoke-v1": "sessionId" }[name];
 			if (idField) {
 				const idValid = name === "session-revoke-v1" ? validId : validShortId;
@@ -1535,7 +1377,7 @@
 		};
 		for (const [name, schema] of Object.entries(schemas)) {
 			if (name === "workspace-export-v1" && !document.querySelector("[data-webmcp-export]")) continue;
-			if (name !== "workspace-export-v1" && !formFor(actions[name])) continue;
+			if (name !== "workspace-export-v1" && ![...document.querySelectorAll("form[data-webmcp-actions]")].some((form) => form.dataset.webmcpActions.split(" ").includes(actions[name]))) continue;
 			try {
 				Promise.resolve(context.registerTool({ name, description: "Prepare a visible browser control; the user completes the existing flow.", inputSchema: schema, annotations: { readOnlyHint: name === "workspace-export-v1" }, execute: (input) => execute(name, input) })).catch(() => {});
 			} catch (_) {}
@@ -1557,13 +1399,12 @@
 		},
 	});
 
-if (typeof module !== "undefined" && module.exports) module.exports = { core, FileUploader, wireRealtime, notificationsLive, passkeyLogin, passkeyEnroll, itemSwapPlan, restoreFailedOptimisticRow, itemList, listScreen, pageBehaviors };
+if (typeof module !== "undefined" && module.exports) module.exports = { core, FileUploader, wireRealtime, notificationsLive, passkeyLogin, passkeyEnroll, listScreen, pageBehaviors };
 	if (typeof document === "undefined" || typeof window === "undefined") return;
 	document.addEventListener("alpine:init", () => {
 		window.Alpine.data("notificationsLive", notificationsLive);
 		window.Alpine.data("passkeyLogin", passkeyLogin);
 		window.Alpine.data("passkeyEnroll", passkeyEnroll);
-		window.Alpine.data("itemList", itemList);
 		window.Alpine.data("listScreen", listScreen);
 		window.Alpine.data("pageBehaviors", pageBehaviors);
 	});

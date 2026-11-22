@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
@@ -73,15 +72,12 @@ func TestDeliveredRowIsNotOverwrittenByLaterFailure(t *testing.T) {
 	queue := jobs.NewQueue(db, config.SQLite, nil)
 	service := NewService(db, config.SQLite, auth, testKeyring(), queue)
 	created, err := service.Create(ctx, owner, owner.WorkspaceID, CreateInput{
-		Name: "guard", URL: "https://example.com/hook", Events: []string{"item.created"},
+		Name: "guard", URL: "https://example.com/hook", Events: []string{"client.created"},
 	}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	itemService := items.NewService(db, config.SQLite, auth, 100, service)
-	if _, err := itemService.Create(ctx, owner, owner.WorkspaceID, "guard", "guard-key", identity.AuditContext{}); err != nil {
-		t.Fatal(err)
-	}
+	publishTestEvent(t, db, service, owner.WorkspaceID, "guard")
 	var deliveryID int64
 	if err := db.QueryRow(`SELECT id FROM webhook_deliveries WHERE webhook_id = ?`, created.ID).Scan(&deliveryID); err != nil {
 		t.Fatal(err)

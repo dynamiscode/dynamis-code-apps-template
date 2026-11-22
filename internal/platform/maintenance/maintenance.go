@@ -29,13 +29,11 @@ type Result struct {
 	EmailVerifications   int64 `json:"emailVerifications"`
 	PasswordResets       int64 `json:"passwordResets"`
 	Idempotency          int64 `json:"idempotencyRecords"`
-	RealtimeReplay       int64 `json:"realtimeReplay"`
 	ClientRealtimeReplay int64 `json:"clientRealtimeReplay"`
 	Notifications        int64 `json:"notifications"`
 	WebhookDeliveries    int64 `json:"webhookDeliveries"`
 	WebhookEvents        int64 `json:"webhookEvents"`
 	BackgroundJobs       int64 `json:"backgroundJobs"`
-	PublicLinks          int64 `json:"publicLinks"`
 }
 
 func Run(
@@ -74,7 +72,6 @@ func Run(
 		{`DELETE FROM api_tokens WHERE created_at <= ? AND
 			(revoked_at IS NOT NULL OR (expires_at IS NOT NULL AND expires_at <= ?))`, []any{stamp(now.Add(-historyRetention)), stamp(now)}, &result.APITokens},
 		{`DELETE FROM scim_tokens WHERE created_at <= ? AND revoked_at IS NOT NULL`, []any{stamp(now.Add(-historyRetention))}, &result.SCIMTokens},
-		{"DELETE FROM item_events WHERE occurred_at <= ?", []any{stamp(now.Add(-replayRetention))}, &result.RealtimeReplay},
 		{"DELETE FROM client_events WHERE occurred_at <= ?", []any{stamp(now.Add(-replayRetention))}, &result.ClientRealtimeReplay},
 		{"DELETE FROM notifications WHERE created_at <= ?", []any{stamp(now.Add(-historyRetention))}, &result.Notifications},
 		{"DELETE FROM webhook_deliveries WHERE status <> 'pending' AND created_at <= ?", []any{stamp(now.Add(-historyRetention))}, &result.WebhookDeliveries},
@@ -83,7 +80,6 @@ func Run(
 		{`DELETE FROM webhook_events WHERE created_at <= ? AND NOT EXISTS (
 			SELECT 1 FROM webhook_deliveries d WHERE d.event_id = webhook_events.id)`, []any{stamp(now.Add(-historyRetention))}, &result.WebhookEvents},
 		{"DELETE FROM background_jobs WHERE status IN ('succeeded', 'failed') AND completed_at <= ?", []any{stamp(now.Add(-historyRetention))}, &result.BackgroundJobs},
-		{"DELETE FROM public_links WHERE expires_at <= ? OR (revoked_at IS NOT NULL AND revoked_at <= ?)", []any{stamp(now), stamp(now.Add(-historyRetention))}, &result.PublicLinks},
 		{"DELETE FROM audit_events WHERE created_at <= ?", []any{stamp(now.Add(-auditRetention))}, &result.AuditEvents},
 	}
 	for _, deletion := range deletions {

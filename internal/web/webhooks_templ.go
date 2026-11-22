@@ -560,18 +560,6 @@ func webhooksPage(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = webhookEventCheckbox("item.created").Render(ctx, templ_7745c5c3_Buffer)
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = webhookEventCheckbox("item.updated").Render(ctx, templ_7745c5c3_Buffer)
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = webhookEventCheckbox("item.deleted").Render(ctx, templ_7745c5c3_Buffer)
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
 					templ_7745c5c3_Err = webhookEventCheckbox("client.created").Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -620,7 +608,7 @@ func webhooksPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var29 string
 					templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("webhooks.registered"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 101, Col: 73}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 98, Col: 73}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 					if templ_7745c5c3_Err != nil {
@@ -638,7 +626,7 @@ func webhooksPage(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var30 string
 						templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(webhook.Name)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 105, Col: 26}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 102, Col: 26}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 						if templ_7745c5c3_Err != nil {
@@ -651,7 +639,7 @@ func webhooksPage(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var31 string
 						templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("webhooks.endpoint"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 106, Col: 48}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 103, Col: 48}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 						if templ_7745c5c3_Err != nil {
@@ -664,7 +652,7 @@ func webhooksPage(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var32 string
 						templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(webhook.URL)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 106, Col: 117}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 103, Col: 117}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 						if templ_7745c5c3_Err != nil {
@@ -677,7 +665,7 @@ func webhooksPage(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var33 string
 						templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("webhooks.events"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 107, Col: 46}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 104, Col: 46}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 						if templ_7745c5c3_Err != nil {
@@ -695,7 +683,7 @@ func webhooksPage(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var34 string
 							templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(event)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 109, Col: 27}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 106, Col: 27}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 							if templ_7745c5c3_Err != nil {
@@ -713,7 +701,7 @@ func webhooksPage(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var35 string
 						templ_7745c5c3_Var35, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks/" + webhook.ID.String() + "/deliveries").ResolveURL(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 112, Col: 192}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 109, Col: 192}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 						if templ_7745c5c3_Err != nil {
@@ -726,7 +714,7 @@ func webhooksPage(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var36 string
 						templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("webhooks.view_deliveries"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 112, Col: 231}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 109, Col: 231}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 						if templ_7745c5c3_Err != nil {
@@ -744,7 +732,7 @@ func webhooksPage(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var37 string
 							templ_7745c5c3_Var37, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks/" + webhook.ID.String()).ResolveURL(ctx)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 115, Col: 114}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 112, Col: 114}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 							if templ_7745c5c3_Err != nil {
@@ -757,7 +745,7 @@ func webhooksPage(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var38 string
 							templ_7745c5c3_Var38, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 115, Col: 181}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 112, Col: 181}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
 							if templ_7745c5c3_Err != nil {
@@ -785,7 +773,7 @@ func webhooksPage(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var39 string
 							templ_7745c5c3_Var39, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks/" + webhook.ID.String()).ResolveURL(ctx)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 122, Col: 114}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 119, Col: 114}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var39)
 							if templ_7745c5c3_Err != nil {
@@ -798,7 +786,7 @@ func webhooksPage(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var40 string
 							templ_7745c5c3_Var40, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 122, Col: 181}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 119, Col: 181}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var40)
 							if templ_7745c5c3_Err != nil {
@@ -901,7 +889,7 @@ func webhookEventCode(event string) templ.Component {
 		var templ_7745c5c3_Var43 string
 		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(event)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 149, Col: 14}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `webhooks.templ`, Line: 146, Col: 14}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 		if templ_7745c5c3_Err != nil {

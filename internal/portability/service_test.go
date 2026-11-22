@@ -84,9 +84,14 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if err := json.Unmarshal(encoded, &keys); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"clients", "clientFields", "clientFieldOptions"} {
+	for _, key := range []string{"items", "clients", "clientFields", "clientFieldOptions"} {
 		if _, ok := keys[key]; ok {
 			t.Fatalf("export without a client source has key %q", key)
+		}
+	}
+	for _, key := range []string{"formatVersion", "exportedAt", "workspace", "members", "auditEvents", "excluded"} {
+		if _, ok := keys[key]; !ok {
+			t.Fatalf("export missing key %q", key)
 		}
 	}
 	if result.FormatVersion != FormatVersion || result.Workspace.ID != workspaceID.String() ||

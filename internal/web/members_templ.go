@@ -402,7 +402,7 @@ func memberRows(data viewmodel.PageData) templ.Component {
 			}
 		}
 		if data.MemberTotal == 0 {
-			templ_7745c5c3_Err = molecules.NoMatchesAlert("member-results", data.T("members.none"), data.ClearClientFiltersPath, data.T("clients.clear_filters")).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.NoMatchesAlert(molecules.NoMatchesAlertProps{ID: "member-results", Message: data.T("members.none"), Href: data.ClearClientFiltersPath, Label: data.T("clients.clear_filters")}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -6,7 +6,6 @@ import (
 
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 )
 
 func TestClientListCellValueShowsTypedCells(t *testing.T) {
@@ -17,27 +16,21 @@ func TestClientListCellValueShowsTypedCells(t *testing.T) {
 	page := PageData{Catalog: catalog, Locale: "en"}
 	at := time.Date(2026, 11, 20, 9, 30, 0, 0, time.UTC)
 	row := ListRow{ID: "row-1", Cells: map[string]ListCell{
-		"when":   TimeCell(at),
-		"empty":  TimeCell(time.Time{}),
-		"yes":    YesNoCell(true),
-		"no":     YesNoCell(false),
-		"role":   RoleCell(identity.Owner),
-		"active": StatusCell(items.Active),
-		"done":   StatusCell(items.Complete),
-		"other":  StatusCell("archived"),
-		"text":   TextCell("Ada"),
+		"when":  TimeCell(at),
+		"empty": TimeCell(time.Time{}),
+		"yes":   YesNoCell(true),
+		"no":    YesNoCell(false),
+		"role":  RoleCell(identity.Owner),
+		"text":  TextCell("Ada"),
 	}}
 	cases := map[string]string{
-		"when":   page.DateTime(at),
-		"empty":  "",
-		"yes":    page.T("clients.yes"),
-		"no":     page.T("clients.no"),
-		"role":   page.Role(identity.Owner),
-		"active": page.T("items.active"),
-		"done":   page.T("items.complete"),
-		"other":  "archived",
-		"text":   "Ada",
-		"id":     "row-1",
+		"when":  page.DateTime(at),
+		"empty": "",
+		"yes":   page.T("clients.yes"),
+		"no":    page.T("clients.no"),
+		"role":  page.Role(identity.Owner),
+		"text":  "Ada",
+		"id":    "row-1",
 	}
 	for key, want := range cases {
 		column := ListColumn{Key: key}

@@ -9,13 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestMCPApprovalUsesMRTRAndStaysStateless(t *testing.T) {
-	state := newTestState(t, config.MCP{})
+	state := newTestStateWith(t, config.MCP{}, true)
 	server := httptest.NewServer(state.handler)
 	t.Cleanup(server.Close)
 	transport := &authTransport{token: state.token.Secret}
@@ -42,24 +41,20 @@ func TestMCPApprovalUsesMRTRAndStaysStateless(t *testing.T) {
 	if version := first.InitializeResult().ProtocolVersion; version != "2026-07-28" {
 		t.Fatalf("negotiated protocol = %q, want 2026-07-28", version)
 	}
-	created := decodeOutput[items.Item](t, callTool(t, first, "items_create_v1", map[string]any{
-		"workspaceId": state.workspaceID, "title": "approval title", "idempotencyKey": "mrtr-key-1",
-	}))
+	created := createClientTool(t, first, state.workspaceID, "approval title")
 	args := map[string]any{
-		"workspaceId": state.workspaceID, "itemId": created.ID.String(), "version": 1, "status": "complete",
+		"workspaceId": state.workspaceID, "clientId": created.ID,
 	}
-	requireItem := func(wantVersion int64, wantStatus items.Status) {
+	requireClient := func() {
 		t.Helper()
-		got := decodeOutput[items.Item](t, callTool(t, first, "items_get_v1", map[string]any{
-			"workspaceId": state.workspaceID, "itemId": created.ID.String(),
-		}))
-		if got.Version != wantVersion || got.Status != wantStatus {
-			t.Fatalf("item = version %d status %s, want version %d status %s", got.Version, got.Status, wantVersion, wantStatus)
+		result := callTool(t, first, "clients_get_v1", map[string]any{"workspaceId": state.workspaceID, "clientId": created.ID})
+		if result.IsError {
+			t.Fatalf("client missing before approval: %s", contentText(result))
 		}
 	}
 
 	// Round one asks the client host for confirmation and mutates nothing.
-	prompt, err := first.CallTool(ctx, &mcp.CallToolParams{Name: "items_update_v1", Arguments: args})
+	prompt, err := first.CallTool(ctx, &mcp.CallToolParams{Name: "clients_delete_v1", Arguments: args})
 	if err != nil {
 		t.Fatalf("prompt CallTool() error = %v", err)
 	}
@@ -67,19 +62,19 @@ func TestMCPApprovalUsesMRTRAndStaysStateless(t *testing.T) {
 		t.Fatalf("prompt = %+v, want input_required with request state", prompt)
 	}
 	request, ok := prompt.InputRequests["human-approval"].(*mcp.ElicitParams)
-	if !ok || !strings.Contains(request.Message, created.ID.String()) {
+	if !ok || !strings.Contains(request.Message, string(created.ID)) {
 		t.Fatalf("input request = %#v, want elicitation naming the item", prompt.InputRequests)
 	}
-	requireItem(1, items.Active)
+	requireClient()
 
 	// Header-only approval is ignored on MRTR sessions.
 	transport.approval.Store(true)
-	headerOnly, err := first.CallTool(ctx, &mcp.CallToolParams{Name: "items_update_v1", Arguments: args})
+	headerOnly, err := first.CallTool(ctx, &mcp.CallToolParams{Name: "clients_delete_v1", Arguments: args})
 	transport.approval.Store(false)
 	if err != nil || !headerOnly.NeedsInput() {
 		t.Fatalf("header-only result = %+v, error = %v; want input_required", headerOnly, err)
 	}
-	requireItem(1, items.Active)
+	requireClient()
 
 	accept := mcp.InputResponseMap{"human-approval": &mcp.ElicitResult{
 		Action: "accept", Content: map[string]any{"confirm": true},
@@ -89,44 +84,46 @@ func TestMCPApprovalUsesMRTRAndStaysStateless(t *testing.T) {
 	// The retry arrives on a new connection, so the server must rely only on the echoed state.
 	second := connect()
 	forged, err := second.CallTool(ctx, &mcp.CallToolParams{
-		Name: "items_update_v1", Arguments: args, InputResponses: accept, RequestState: "forged",
+		Name: "clients_delete_v1", Arguments: args, InputResponses: accept, RequestState: "forged",
 	})
 	if err != nil || !forged.NeedsInput() {
 		t.Fatalf("forged state result = %+v, error = %v; want input_required", forged, err)
 	}
 	changed := map[string]any{
-		"workspaceId": state.workspaceID, "itemId": created.ID.String(), "version": 1, "status": "active",
+		"workspaceId": state.workspaceID, "clientId": "23456789abcd",
 	}
 	mismatched, err := second.CallTool(ctx, &mcp.CallToolParams{
-		Name: "items_update_v1", Arguments: changed, InputResponses: accept, RequestState: prompt.RequestState,
+		Name: "clients_delete_v1", Arguments: changed, InputResponses: accept, RequestState: prompt.RequestState,
 	})
 	if err != nil || !mismatched.NeedsInput() {
 		t.Fatalf("changed-arguments result = %+v, error = %v; want input_required", mismatched, err)
 	}
-	requireItem(1, items.Active)
+	requireClient()
 
 	declined, err := second.CallTool(ctx, &mcp.CallToolParams{
-		Name: "items_update_v1", Arguments: args, InputResponses: decline, RequestState: prompt.RequestState,
+		Name: "clients_delete_v1", Arguments: args, InputResponses: decline, RequestState: prompt.RequestState,
 	})
 	if err != nil || !declined.IsError || contentText(declined) != "human approval was declined" {
 		t.Fatalf("declined result = %+v, error = %v", declined, err)
 	}
-	requireItem(1, items.Active)
+	requireClient()
 
 	accepted, err := second.CallTool(ctx, &mcp.CallToolParams{
-		Name: "items_update_v1", Arguments: args, InputResponses: accept, RequestState: prompt.RequestState,
+		Name: "clients_delete_v1", Arguments: args, InputResponses: accept, RequestState: prompt.RequestState,
 	})
 	if err != nil || accepted.IsError {
 		t.Fatalf("accepted result = %+v, error = %v", accepted, err)
 	}
-	requireItem(2, items.Complete)
+	if got := callTool(t, first, "clients_get_v1", args); !got.IsError {
+		t.Fatal("client still exists after approved deletion")
+	}
 	if transport.sawSession.Load() {
 		t.Fatal("MRTR round trip issued Mcp-Session-Id on a stateless endpoint")
 	}
 }
 
 func TestMCPLegacyProtocolCannotConfirmWithHeader(t *testing.T) {
-	state := newTestState(t, config.MCP{})
+	state := newTestStateWith(t, config.MCP{}, true)
 	server := httptest.NewServer(state.handler)
 	t.Cleanup(server.Close)
 	ctx := context.Background()
@@ -140,22 +137,15 @@ func TestMCPLegacyProtocolCannotConfirmWithHeader(t *testing.T) {
 		t.Fatalf("Connect() error = %v", err)
 	}
 	t.Cleanup(func() { session.Close() })
-	created := decodeOutput[items.Item](t, callTool(t, session, "items_create_v1", map[string]any{
-		"workspaceId": state.workspaceID, "title": "legacy title", "idempotencyKey": "legacy-key-1",
-	}))
+	created := createClientTool(t, session, state.workspaceID, "legacy title")
 
-	// A pre-MRTR protocol request carrying the old header must not mutate the item.
-	body := fmt.Sprintf(`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"items_update_v1","arguments":{"workspaceId":%q,"itemId":%q,"version":1,"status":"complete"}}}`,
-		state.workspaceID, created.ID.String())
+	body := fmt.Sprintf(`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"clients_delete_v1","arguments":{"workspaceId":%q,"clientId":%q}}}`, state.workspaceID, created.ID)
 	response := postToolCall(state.handler, state.token.Secret, "2025-11-25", true, body)
-	if strings.Contains(response.Body.String(), `"version":2`) || !strings.Contains(response.Body.String(), `"error"`) {
-		t.Fatalf("legacy header call = %d %s, want a protocol error and no update", response.Code, response.Body.String())
+	if !strings.Contains(response.Body.String(), `"error"`) {
+		t.Fatalf("legacy header call = %d %s, want protocol error", response.Code, response.Body.String())
 	}
-	got := decodeOutput[items.Item](t, callTool(t, session, "items_get_v1", map[string]any{
-		"workspaceId": state.workspaceID, "itemId": created.ID.String(),
-	}))
-	if got.Version != 1 || got.Status != items.Active {
-		t.Fatalf("item after legacy header call = version %d status %s", got.Version, got.Status)
+	if result := callTool(t, session, "clients_get_v1", map[string]any{"workspaceId": state.workspaceID, "clientId": created.ID}); result.IsError {
+		t.Fatalf("client missing after legacy approval: %s", contentText(result))
 	}
 }
 

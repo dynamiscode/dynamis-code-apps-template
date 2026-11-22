@@ -24,7 +24,6 @@ var userReferenceColumns = []userKeyColumn{
 	{"sessions", "user_id"},
 	{"invitations", "invited_by_user_id"},
 	{"api_tokens", "user_id"},
-	{"items", "created_by_user_id"},
 	{"oidc_transactions", "user_id"},
 	{"email_verifications", "user_id"},
 	{"password_resets", "user_id"},

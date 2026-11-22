@@ -53,6 +53,21 @@ func TestSavedClientViewOpensAsTheDefaultAndCanBeDeleted(t *testing.T) {
 	}
 }
 
+func TestSavedClientViewAvailableOnEmptyList(t *testing.T) {
+	env := newClientsTestEnv(t)
+	viewsPath := "/workspaces/" + env.workspaceID.String() + "/lists/clients/views"
+	created := request(env.routes, http.MethodPost, viewsPath, url.Values{
+		"csrf": {env.csrf}, "name": {"Empty view"}, "query": {"sort=displayName"},
+	}, env.cookies, nil)
+	if created.Code != http.StatusSeeOther {
+		t.Fatalf("create view = %d: %s", created.Code, created.Body.String())
+	}
+	body := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil).Body.String()
+	if !strings.Contains(body, "Empty view") || !clientViewApplyLink.MatchString(body) {
+		t.Fatal("saved view missing from empty client list")
+	}
+}
+
 func TestArchivedClientsDoNotOfferToSaveAView(t *testing.T) {
 	env := newClientsTestEnv(t)
 	// An archived scope with a filter still counts as content, so the views

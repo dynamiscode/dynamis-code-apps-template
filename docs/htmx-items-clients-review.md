@@ -1,5 +1,8 @@
 # HTMX review: Items, sharing and Clients (#435)
 
+Historical review: Items and public sharing were retired in migration 000030.
+Recommendations for those surfaces no longer describe current behavior.
+
 Review baseline: `81c496187ec060f359a38e844859c23c5e265931`, 2026-11-16.
 This is a decision inventory, not an implementation or evidence that the
 proposed behavior has shipped. Route migrations own the follow-up. The existing
@@ -76,8 +79,8 @@ remain full-page errors; do not treat an error response as a success.
 
 ## Evidence and remaining verification
 
-Source: [item template](../internal/web/items.templ),
-[item handler](../internal/web/handler.go), [sharing handler](../internal/web/sharing.go),
+Historical sources (removed with Items): `internal/web/items.templ`,
+`internal/web/handler.go`, `internal/web/sharing.go`,
 [client list template](https://github.com/dynamiscode/dynamis-code-apps-template/blob/81c496187ec060f359a38e844859c23c5e265931/internal/web/templates/clients.html),
 [client handler](https://github.com/dynamiscode/dynamis-code-apps-template/blob/81c496187ec060f359a38e844859c23c5e265931/internal/web/clients.go), [client lifecycle](https://github.com/dynamiscode/dynamis-code-apps-template/blob/81c496187ec060f359a38e844859c23c5e265931/internal/web/client_lifecycle.go),
 [field lifecycle](https://github.com/dynamiscode/dynamis-code-apps-template/blob/81c496187ec060f359a38e844859c23c5e265931/internal/web/client_fields.go), [field options](https://github.com/dynamiscode/dynamis-code-apps-template/blob/81c496187ec060f359a38e844859c23c5e265931/internal/web/client_options.go),

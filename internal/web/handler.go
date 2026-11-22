@@ -513,12 +513,6 @@ func (h *Handler) home(writer http.ResponseWriter, request *http.Request) {
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	// A single membership answers "which workspace?" before it is asked; the
-	// picker stays for owners of two or more.
-	if len(workspaces) == 1 {
-		h.redirect(writer, request, "/workspaces/"+workspaces[0].ID.String())
-		return
-	}
 	h.render(writer, http.StatusOK, "home.html", viewmodel.PageData{
 		Title: "Workspaces", NavPage: "home", CSRF: csrf, Workspaces: workspaces,
 		CanCreateWorkspace: h.workspaceCreationEnabled(),

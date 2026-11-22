@@ -14,32 +14,19 @@ filesystem, code execution, or external networks.
 
 ## Tools
 
-| Tool | Scope | Safety |
-|---|---|---|
-| `items_list_v1` | `resources:read` | read-only, idempotent, closed-world; bounded search, limit 1-100, and page number |
-| `items_get_v1` | `resources:read` | read-only, idempotent, closed-world |
-| `items_create_v1` | `resources:write` | additive, idempotent with caller key, closed-world |
-| `items_update_v1` | `resources:write` | destructive, idempotent with version, closed-world, MRTR confirmation |
-| `items_delete_v1` | `resources:write` | destructive, idempotent with version, closed-world, MRTR confirmation |
-
-Names include their contract version. A breaking schema, scope, output, or
-side-effect change requires a new name such as `_v2`. Item outputs retain their
-record after account deletion and return `createdByUserId: null` when the
-creator no longer exists. `createdByUserId` is a user short ID, and the tool
-output schema declares the short-ID pattern.
+Names include their contract version. A breaking schema, scope, output, or side-effect change requires a new name. Without the Clients profile, no application tools are registered.
 
 ## Clients tools (Clients profile)
 
 These tools exist only when the Clients profile is composed. Bootstrap passes
 the Clients service to the MCP handler only then, so an application without
-the profile lists only the item tools. Each tool calls the shared Clients
+the profile lists no application tools. Each tool calls the shared Clients
 service, which decides authorization. A refused call returns the safe
 `access is denied` message, the same refusal REST answers with `403`. The one
 exception is a workspace the token is not bound to: the Clients tools return the
 not-found answer a missing record gets (`client not found`,
 `custom field not found`, `choice option not found`, or `workspace not found` for
-a collection call), the same as REST's `404`. Items tools keep `access is denied`
-for that case.
+a collection call), the same as REST's `404`.
 
 | Tools | Scope | Role, decided by the service |
 |---|---|---|
@@ -51,8 +38,7 @@ for that case.
 
 The `workspace:update` scope is a token scope, not only a role. A member cannot
 hold it, so a member's token is refused for those rows. The permanent deletes
-in this section prompt for client-host approval through the same MRTR flow as
-item delete.
+in this section prompt for client-host approval through the MRTR flow described below.
 
 - Client and field short IDs are the only identifiers in inputs and outputs.
   Integer keys are refused by the schema. A malformed or other-type ID is not
@@ -69,87 +55,8 @@ item delete.
 
 ## Prompts
 
-`prompts/list` and `prompts/get` expose three read-only prompt templates. All
-require `resources:read`, use only shared item use cases, and return one user
-message. The first two are listed here; `item_review_v1` is described under
-[Prompts and completion](#prompts-and-completion). They never create, update, or delete data.
-
-| Prompt | Arguments | Result |
-|---|---|---|
-| `items_summarize_v1` | `workspaceId` required; `status` optional, `active` or `complete` | Summarizes the newest 50 matching items |
-| `items_triage_v1` | `workspaceId` required | Ranks the newest 50 active items and proposes next actions; recommends only |
-
-- `workspaceId` is the workspace short ID on every prompt. A malformed value
-  gets the same `access is denied` as a missing workspace.
-- Undeclared arguments, missing required arguments, and unsupported status values
-  return JSON-RPC `-32602` with the safe message `parameters are invalid`. Unknown prompt names use the SDK's standard error.
-- Workspace authorization is enforced by the item use case. Foreign, unknown,
-  malformed, or unauthorized workspaces return `access is denied`.
-- Item titles are untrusted data. They are JSON-encoded inside a
-  `<workspace_items>` block, so encoding escapes markup and a title cannot close
-  the block. The instruction tells the model to treat the block as data.
-- A truncated result says that only the newest 50 matching items are included.
-- The endpoint stays stateless. Prompt lists are static, so no list-changed
-  notifications are sent and no `Mcp-Session-Id` is issued.
-
-Tools use the SDK's typed `mcp.AddTool`: the Go input and output types derive
-the published schemas, and the SDK validates arguments before the handler runs
-and validates outputs before they are returned. `testdata/tools-v1.json` pins
-the published `tools/list` contract, and a contract test fails on any drift.
-Arguments the schema rejects return `parameters are invalid` and write one
-failed audit record without workspace or item identifiers, because the caller's
-workspace is not authorized input at that point. The published constraints are
-enforced for every field, so inputs the previous handler accepted silently or
-mapped to defaults, such as `limit: 0`, an empty `search`, `status`, or `sort`,
-and `status: null`, are now rejected.
-
-## Prompts and completion
-
-The server advertises the `prompts` and `completions` capabilities. MCP
-completion can only target prompt or resource-template arguments, so the
-`item_review_v1` prompt below exists to give argument autocompletion a real target.
-
-| Surface | Scope | Safety |
-|---|---|---|
-| `item_review_v1` prompt | `resources:read` | read-only; requires `workspaceId`, `itemId`, and `status`; `prompts/get` checks the item through `items_get_v1`'s shared service |
-| `completion/complete` for `status` | `resources:read` | read-only; returns `active` and/or `complete` by prefix |
-| `completion/complete` for `itemId` | `resources:read` | read-only; scans the newest 100 items of the `workspaceId` named in the request context, optionally filtered by a valid `status` context value |
-
-Completion is workspace-scoped through the caller's bearer token: an
-unauthorized, unknown, or malformed `workspaceId` returns an empty value list
-rather than an error, so missing and forbidden workspaces look the same.
-Unknown prompts and unknown arguments return empty lists, and an `itemId`
-request without a `workspaceId` context value also returns an empty list. Values are capped at 100 and `hasMore` is set when more
-items exist than the single scanned page. Workspace IDs are not completed:
-workspace enumeration remains browser-only.
-
-Completion and prompt reads are not tool calls, so they write the
-`mcp.request.called` record described under the security contract, not a
-tool record. They return only data that `items_list_v1` or `items_get_v1` would return to
-the same token.
-
-WebMCP is separate from this server MCP endpoint. It is an optional,
-feature-detected browser-tab enhancement that uses the live authenticated web
-session and DOM to prepare narrow visible controls. It does not reuse bearer
-credentials or change these scopes, tools, or transport. Server MCP remains
-the persistent and authoritative automation surface.
-
-## Resources
-
-The endpoint also serves one read-only resource template:
-
-| Template | MIME type | Scope | Safety |
-|---|---|---|---|
-| `dynamis://workspaces/{workspaceId}/items/{itemId}` | `application/json` | `resources:read` | read-only, workspace-scoped, no subscriptions |
-
-Reads call the same workspace-scoped `items.Get` use case as `items_get_v1`
-and return the item's JSON. Malformed URIs, unknown items, and items outside
-the URI's workspace return `Resource not found`; a workspace the token cannot
-read returns `access is denied` without item data. The template is named `item_v1`, following the
-tool naming rule: a breaking URI, output, or side-effect change requires a new
-name such as `item_v2`. The template is the only
-resource: items are discovered through `items_list_v1`. Resource reads write an
-`mcp.request.called` record, not a tool record.
+No application prompts, resource templates, or completions are registered.
+WebMCP is a separate, optional browser-tab enhancement; it does not change server MCP scopes or transport.
 
 ## Discovery cache hints
 
@@ -169,7 +76,7 @@ by this policy.
 - The endpoint is stateless and never issues `Mcp-Session-Id`.
 - Bodies and structured results are limited to 1 MiB. Collection results are
   capped at 100 items.
-- Update and delete require client-host confirmation. On `2026-07-28` and later
+- Destructive Client, field, and option deletion requires client-host confirmation. On `2026-07-28` and later
   sessions, the first call returns an MRTR `input_required` result with one
   `human-approval` form elicitation (`confirm` boolean) and a `requestState`.
   The client retries the same arguments with `inputResponses` and the echoed
@@ -177,7 +84,7 @@ by this policy.
   and the state matches the arguments. Approval is never a tool argument and
   never replaces server authorization. Decision: [MRTR approvals](decisions/0007-mcp-mrtr-approvals.md).
 - The `Mcp-Human-Approval` header is removed. Pre-`2026-07-28` protocol requests
-  cannot confirm update or delete, because the stateless endpoint cannot deliver
+  cannot confirm destructive deletion, because the stateless endpoint cannot deliver
   the server-initiated elicitation that the SDK would otherwise attempt.
 - Inputs are strict, bounded data. Internal errors become safe tool errors.
   Authentication and insufficient scope use HTTP `401` and `403`.
@@ -191,7 +98,7 @@ Other dispatched methods, such as `tools/list` and `prompts/list`, write an
 that fail the SDK's own checks, such as unregistered tool names, are audited as
 `tools/call` with `protocol_error`; the client-supplied name is never recorded.
 
-Raw arguments, item titles, bearer values, panic values, and unrestricted
+Raw arguments, client field values, bearer values, panic values, and unrestricted
 payloads are excluded. A panic becomes an `internal failure` response and an
 `internal` audit record. If an audit write fails, the request returns
 `internal failure` rather than a successful result.
@@ -206,7 +113,7 @@ tool/version, request ID, target, annotation, outcome, duration, and
 error-category fields. Each prompt call writes an
 `mcp.prompt.called` record with the same safe principal, request, client, and
 outcome fields, a `workspace` target, and the prompt version.
-Raw arguments, item titles, bearer values, and unrestricted payloads are
+Raw arguments, client field values, bearer values, and unrestricted payloads are
 excluded.
 
 ## Protected-resource discovery
@@ -271,7 +178,7 @@ Set `MCP_OAUTH_ENABLED=true` to make this application the authorization server
 - `GET /oauth/authorize` is the browser consent page. It requires a browser
   session, redirects to sign-in when none exists, and asks the user to choose one
   workspace where they hold the requested scopes. The localized page shows the
-  client name and requested item permissions; approve and deny use ordinary
+  client name and requested resource permissions; approve and deny use ordinary
   CSRF-protected forms without automatic submission. `POST /oauth/authorize` checks
   the CSRF token, then approves or denies. Approval redirects to the client with a
   single-use code. Invalid client, redirect URI, or resource shows an error page

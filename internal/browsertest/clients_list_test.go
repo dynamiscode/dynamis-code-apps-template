@@ -24,14 +24,16 @@ func signIn(t *testing.T, tab context.Context) {
 	fill(t, tab, "#email", fixtureOwnerEmail)
 	fill(t, tab, "#password", fixturePassword)
 	click(t, tab, `button[type="submit"]`)
-	eventually(t, tab, fmt.Sprintf("location.href === %s", jsString(baseURL+"/")), "sign-in did not reach the home page")
+	eventually(t, tab, `location.pathname === "/" || /^\/workspaces\/[^/]+$/.test(location.pathname)`, "sign-in did not reach a workspace")
 }
 
 // openClients signs in and opens the clients list of the first workspace.
 func openClients(t *testing.T, tab context.Context) {
 	t.Helper()
 	signIn(t, tab)
-	click(t, tab, ".cards a")
+	if eval[bool](t, tab, `location.pathname === "/"`) {
+		click(t, tab, ".cards a")
+	}
 	waitVisible(t, tab, "[data-workspace-home]")
 	click(t, tab, ".workspace-cards a[href$='/clients']")
 	waitVisible(t, tab, "#client-list")
@@ -130,7 +132,7 @@ func TestClientDetailLifecycle(t *testing.T) {
 	tab := newTab(t, 1280, 900, "")
 	openClients(t, tab)
 	name := fmt.Sprintf("Lifecycle %d", time.Now().UnixMilli())
-	click(t, tab, "#client-create > details.client-create > summary")
+	click(t, tab, `a[href$="/clients/new"]`)
 	fillByLabel(t, tab, "Display name", name)
 	clickByText(t, tab, "Add client")
 	eventually(t, tab, `/\/clients\/[^/?]+$/.test(location.pathname)`, "create did not open the client detail")
@@ -171,6 +173,10 @@ func TestClientsListAdaptsAcrossViewports(t *testing.T) {
 	tab := newTab(t, 1280, 900, "")
 	openClients(t, tab)
 	clientsPath := eval[string](t, tab, "location.pathname + location.search")
+	click(t, tab, `a[href$="/clients/new"]`)
+	fillByLabel(t, tab, "Display name", "Responsive client")
+	clickByText(t, tab, "Add client")
+	eventually(t, tab, `/\/clients\/[^/?]+$/.test(location.pathname)`, "create did not open the client detail")
 	for _, colorScheme := range []string{"light", "dark"} {
 		t.Run(colorScheme, func(t *testing.T) {
 			restore := setAccountTheme(t, tab, colorScheme)
@@ -230,15 +236,15 @@ func TestClientsListAdaptsAcrossViewports(t *testing.T) {
 	}
 }
 
-// TestClientsListKeepsServerDraftDuringRefresh ports the 422 draft and SSE refresh test.
+// TestClientsListKeepsServerDraftDuringRefresh checks a rejected draft while another user creates a client.
 func TestClientsListKeepsServerDraftDuringRefresh(t *testing.T) {
 	tab := newTab(t, 1280, 900, "")
 	openClients(t, tab)
 	waitVisible(t, tab, "#client-list")
 	expectAxeClean(t, tab)
 
-	click(t, tab, "#client-create > details.client-create > summary")
-	expectRealtime(t, tab, "connected|connecting")
+	listPath := eval[string](t, tab, "location.pathname")
+	click(t, tab, `a[href$="/clients/new"]`)
 	fillByLabel(t, tab, "Display name", "Server draft survives refresh")
 	fillByLabel(t, tab, "Email", "Ada <ada@example.com>")
 
@@ -246,14 +252,14 @@ func TestClientsListKeepsServerDraftDuringRefresh(t *testing.T) {
 	call(t, tab, network.Enable, network.EnableParams{})
 	_ = chromedp.Listen(tab, func(ev any) {
 		if response, ok := ev.(*network.EventResponseReceived); ok && response.Type == network.ResourceTypeDocument &&
-			strings.HasSuffix(response.Response.URL, "/clients") {
+			strings.HasSuffix(response.Response.URL, "/clients/new") {
 			select {
 			case statuses <- response.Response.Status:
 			default:
 			}
 		}
 	})
-	eval[any](t, tab, `(() => HTMLFormElement.prototype.submit.call(document.querySelector("#client-create form.create")))()`)
+	eval[any](t, tab, `(() => HTMLFormElement.prototype.submit.call(document.querySelector("#client-new-page form.create")))()`)
 	select {
 	case status := <-statuses:
 		if status != 422 {
@@ -264,16 +270,15 @@ func TestClientsListKeepsServerDraftDuringRefresh(t *testing.T) {
 	}
 	waitVisible(t, tab, "[role=alert]")
 	expectLabelValue(t, tab, "Email", "Ada <ada@example.com>")
-	expectAttribute(t, tab, "#client-create form.create", "data-dirty", "true")
+	expectAttribute(t, tab, "#client-new-page form.create", "data-dirty", "true")
 	expectLabelValue(t, tab, "Display name", "Server draft survives refresh")
 
 	peer := newPeer(t, tab)
-	navigate(t, peer, eval[string](t, tab, "location.pathname + location.search"))
-	click(t, peer, "#client-create > details.client-create > summary")
+	navigate(t, peer, listPath)
+	click(t, peer, `a[href$="/clients/new"]`)
 	fillByLabel(t, peer, "Display name", "SSE refresh trigger")
 	clickByText(t, peer, "Add client")
 	eventually(t, peer, `/\/clients\/[^/?]+$/.test(location.pathname)`, "peer create did not open the client detail")
-	expectRealtime(t, tab, "New changes are waiting")
 	expectLabelValue(t, tab, "Display name", "Server draft survives refresh")
 }
 
@@ -290,7 +295,7 @@ func TestClientsListFollowsSpanishLocale(t *testing.T) {
 		t.Fatal("client list has no data-live-connected state")
 	}
 	eventually(t, tab, fmt.Sprintf(`document.querySelector("#realtime-status")?.textContent.trim() === %s`, jsString(connected)), "realtime status does not match the list state")
-	click(t, tab, "#client-create > details.client-create > summary")
+	click(t, tab, `a[href$="/clients/new"]`)
 	eventually(t, tab, `Boolean(document.querySelector("#client-display-name"))`, "Spanish create form not shown")
 	expectLabelValue(t, tab, "Nombre para mostrar", "")
 }
@@ -299,7 +304,7 @@ func TestClientsListFollowsSpanishLocale(t *testing.T) {
 func TestClientDetailAndFieldsResponsiveLayouts(t *testing.T) {
 	tab := newTab(t, 1280, 900, "")
 	openClients(t, tab)
-	click(t, tab, "#client-create > details.client-create > summary")
+	click(t, tab, `a[href$="/clients/new"]`)
 	fillByLabel(t, tab, "Display name", fmt.Sprintf("Accessibility client %d", time.Now().UnixMilli()))
 	clickByText(t, tab, "Add client")
 	eventually(t, tab, `/\/clients\/[^/?]+$/.test(location.pathname)`, "create did not open the client detail")
@@ -327,8 +332,8 @@ func TestClientsListQueryOpenDoesNotBlockRealtime(t *testing.T) {
 
 	peer := newPeer(t, tab)
 	navigate(t, peer, here+"?filter_field=displayName")
-	// Open the create menu only if it is closed: a click on an open summary would close it.
-	eval[any](t, peer, `(() => { const menu = document.querySelector("#client-create > details.client-create"); if (!menu.open) menu.querySelector("summary").click(); })()`)
+	// Create a client in another tab while the list filter is open.
+	click(t, peer, `a[href$="/clients/new"]`)
 	name := fmt.Sprintf("Query disclosure refresh trigger %d", time.Now().UnixMilli())
 	fillByLabel(t, peer, "Display name", name)
 	clickByText(t, peer, "Add client")

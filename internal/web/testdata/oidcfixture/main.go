@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
-	"example.com/dynamis-code/apps-template/internal/items"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/web"
@@ -71,9 +70,8 @@ func main() {
 	if err != nil {
 		log.Fatal("initialize local OIDC provider fixture")
 	}
-	itemService := items.NewService(db, cfg.Database.Driver, identityService, cfg.Data.ItemsMaxPerWorkspace)
 	handler, err := web.NewHandlerWithServices(
-		identityService, itemService, nil, nil, oidcRegistry, cfg.HTTP, "", "", nil,
+		identityService, nil, oidcRegistry, cfg.HTTP, "", "", nil,
 	)
 	if err != nil {
 		log.Fatal("initialize OIDC fixture web handler")

@@ -166,11 +166,11 @@ func TestOAuthAccessTokenScopesChallengesAndRevocation(t *testing.T) {
 	}
 
 	request := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(
-		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"items_create_v1","arguments":{}}}`))
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"clients_create_v1","arguments":{}}}`))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json, text/event-stream")
 	request.Header.Set("Authorization", "Bearer "+tokens.AccessToken)
-	request.Header.Set("Mcp-Name", "items_create_v1")
+	request.Header.Set("Mcp-Name", "clients_create_v1")
 	forbidden := httptest.NewRecorder()
 	setup.state.handler.ServeHTTP(forbidden, request)
 	if forbidden.Code != http.StatusForbidden || !strings.Contains(forbidden.Header().Get("WWW-Authenticate"), `error="insufficient_scope"`) {

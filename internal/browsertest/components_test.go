@@ -27,6 +27,10 @@ func TestResponsiveListComponent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	tokensCSS, err := os.ReadFile(filepath.Join(repoRoot, "internal/web/assets/tokens.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	componentsCSS, err := os.ReadFile(filepath.Join(repoRoot, "internal/web/assets/components.css"))
 	if err != nil {
 		t.Fatal(err)
@@ -52,12 +56,12 @@ func TestResponsiveListComponent(t *testing.T) {
 			run(t, tab, chromedp.Navigate(dataURL))
 			eval[any](t, tab, fmt.Sprintf(`(() => {
 				document.documentElement.setAttribute("data-theme", %s);
-				for (const css of [%s, %s]) {
+				for (const css of [%s, %s, %s]) {
 					const style = document.createElement("style");
 					style.textContent = css;
 					document.head.appendChild(style);
 				}
-			})()`, jsString(c.theme), jsString(string(componentsCSS)), jsString(string(appCSS))))
+			})()`, jsString(c.theme), jsString(string(tokensCSS)), jsString(string(componentsCSS)), jsString(string(appCSS))))
 
 			waitVisible(t, tab, "#"+c.visible)
 			if hidden := eval[bool](t, tab, fmt.Sprintf(`(() => { const el = document.getElementById(%s); if (!el) return true; const style = getComputedStyle(el); const box = el.getBoundingClientRect(); return style.display === "none" || style.visibility === "hidden" || (box.width === 0 && box.height === 0); })()`, jsString(c.hidden))); !hidden {

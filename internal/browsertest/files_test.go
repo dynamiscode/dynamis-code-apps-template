@@ -23,7 +23,9 @@ import (
 func openFiles(t *testing.T, tab context.Context) string {
 	t.Helper()
 	signInAs(t, tab, fixtureOwnerEmail, fixturePassword)
-	click(t, tab, ".cards a")
+	if eval[bool](t, tab, `location.pathname === "/"`) {
+		click(t, tab, ".cards a")
+	}
 	waitVisible(t, tab, "[data-workspace-home]")
 	workspacePath := regexp.MustCompile(`^(/workspaces/[^/]+)`).FindString(eval[string](t, tab, "location.pathname"))
 	navigate(t, tab, workspacePath+"/files")
@@ -59,6 +61,9 @@ func TestFilesLayouts(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			tab := newTab(t, c.width, 900, c.theme)
 			workspacePath := openFiles(t, tab)
+			run(t, tab, chromedp.SetUploadFiles("#file-upload", []string{tempFile(t, "layout.txt", []byte("layout fixture"))}))
+			click(t, tab, `.file-upload-form button[type="submit"]`)
+			eventually(t, tab, visibleDownloadExpr("layout.txt"), "uploaded layout fixture not listed")
 			restore := setAccountTheme(t, tab, c.theme)
 			t.Cleanup(restore)
 			navigate(t, tab, workspacePath+"/files")
@@ -243,7 +248,7 @@ func TestFilesViewerListsAndDownloadsWithoutUploadControls(t *testing.T) {
 	navigate(t, viewer, invitation)
 	fill(t, viewer, "#invite-password", "viewer-long-password")
 	click(t, viewer, `button[name="action"][value="register"]`)
-	eventually(t, viewer, fmt.Sprintf(`new RegExp(%s + "$").test(location.pathname)`, jsString(regexp.QuoteMeta(workspacePath)+"/items")), "viewer did not reach items")
+	eventually(t, viewer, fmt.Sprintf(`new RegExp(%s + "$").test(location.pathname)`, jsString(regexp.QuoteMeta(workspacePath))), "viewer did not reach workspace")
 	navigate(t, viewer, workspacePath+"/files")
 	eventually(t, viewer, `document.querySelectorAll(".list-view-table, .list-view-cards").length > 0`, "viewer list not rendered")
 	eventually(t, viewer, visibleDownloadExpr("viewer-readable.txt"), "viewer does not list the file")
