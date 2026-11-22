@@ -13,7 +13,7 @@ the source wins and this file gets fixed.
 | Release checkout | A verified semantic-version checkout used as generator input. | [Template lifecycle](docs/template-lifecycle.md) |
 | Generated application | A project created by `template-init` from a release checkout. Inherits template terms; owns its product behavior. | [Template lifecycle](docs/template-lifecycle.md) |
 | Template lock | `template.lock`: committed provenance (source, version, commit, UTC time, profiles). Contains no credentials. | [Template lifecycle](docs/template-lifecycle.md) |
-| Profile | A selectable bundle of template content: `Core`, `Identity`, `Agent`, or `Files`. | [Template lifecycle](docs/template-lifecycle.md) |
+| Profile | A selectable bundle of template content: `Core`, `Identity`, `Agent`, `Files`, or `Clients`. | [Template lifecycle](docs/template-lifecycle.md) |
 | Core | Always composed. The base application foundation. | [Template lifecycle](docs/template-lifecycle.md) |
 | Identity | Always composed with Core. The shared authentication and authorization boundary. | [Authentication](docs/authentication.md) |
 | Agent | Optional. Adds the MCP server, the REST-only `appctl` client, a bootstrap route, and an Agent smoke test. | [Template lifecycle](docs/template-lifecycle.md) |
@@ -37,12 +37,12 @@ the source wins and this file gets fixed.
 | Theme preference | A user's profile appearance setting: `system` (follows the OS), `light`, or `dark`. Owned by the user, not the workspace. | [Authentication](docs/authentication.md) |
 | Token | A bearer credential for REST, MCP, or CLI access. Shown once; intersected with the user's current role on every use. | [Authentication](docs/authentication.md#workspace-permissions) |
 | Item | The sample workspace-scoped resource used by the item API and browser. | [API](docs/api.md) |
-| Clients profile | Planned optional profile for workspace clients and their custom fields. Requires Identity and Agent. | [Clients decision](docs/decisions/0013-clients-profile.md) |
-| Client | Planned. A workspace-scoped record of a party the workspace manages, such as a customer. Holds common fields and custom values. | [Clients decision](docs/decisions/0013-clients-profile.md) |
-| Common field | Planned. A fixed client field every workspace has: display name, email, phone, notes, and archived-at. Defined by the template. | [Clients decision](docs/decisions/0013-clients-profile.md) |
-| Custom field | Planned. A client field a workspace defines, typed as text, number, date, yes/no, or single choice. | [Clients decision](docs/decisions/0013-clients-profile.md) |
-| Choice option | Planned. A selectable value of a single-choice custom field. | [Clients decision](docs/decisions/0013-clients-profile.md) |
-| Archive | Planned. Hides a client or custom field from default views and keeps its data. Reversible. A client is archived by setting its archived-at date. | [Clients decision](docs/decisions/0013-clients-profile.md) |
+| Clients profile | Optional profile for workspace clients and their custom fields. Requires Identity and Agent. | [Clients decision](docs/decisions/0013-clients-profile.md) |
+| Client | A workspace-scoped record of a party the workspace manages, such as a customer. Holds common fields and custom values. | [Clients decision](docs/decisions/0013-clients-profile.md) |
+| Common field | A fixed client field every workspace has: display name, email, phone, notes, and archived-at. Defined by the template. | [Clients decision](docs/decisions/0013-clients-profile.md) |
+| Custom field | A client field a workspace defines, typed as text, number, date, yes/no, or single choice. | [Clients decision](docs/decisions/0013-clients-profile.md) |
+| Choice option | A selectable value of a single-choice custom field. | [Clients decision](docs/decisions/0013-clients-profile.md) |
+| Archive | Hides a client or custom field from default views and keeps its data. Reversible. A client is archived by setting its archived-at date. | [Clients decision](docs/decisions/0013-clients-profile.md) |
 | Public item sharing | A bounded, browser-only public link to one Item. | [Public sharing decision](docs/decisions/0005-public-sharing.md) |
 | Audit event | An append-only identity record, shown read-only in Settings → Audit history. | [Audit decision](docs/decisions/0006-workspace-audit-history.md) |
 | Export | The authorized `dynamis-code.workspace/v1` workspace export. | [Data lifecycle](docs/data-lifecycle.md) |
@@ -60,7 +60,7 @@ the source wins and this file gets fixed.
 | Realtime | One-way SSE delivery, such as recipient-scoped notification events. | [Web](docs/web.md#realtime-contract) |
 | MCP | Server-side Model Context Protocol tools. Never access SQL or run shell commands. | [MCP](docs/mcp.md) |
 | WebMCP | Optional browser-tab enhancement, separate from server MCP. Feature-detected; the ordinary form path always works. | [Web](docs/web.md#webmcp-progressive-enhancement) |
-| `appctl` | The REST-only remote CLI for the item API. Has no database access. | [CLI](docs/cli.md) |
+| `appctl` | The REST-only remote CLI for item and client APIs. Has no database access. | [CLI](docs/cli.md) |
 | Capability | A standard or feature recorded in the conformance ledger with its status and evidence. | [Capabilities](docs/capabilities.md) |
 | Deferred trigger | The concrete condition that must be accepted before a deferred capability is added. | [Capabilities](docs/capabilities.md) |
 | Exception | An approved, time-limited deviation from a normative standard. Security exceptions need security-owner approval. Expired exceptions are non-conforming. | [Exceptions](docs/decisions/exceptions/README.md) |

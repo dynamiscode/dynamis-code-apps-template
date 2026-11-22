@@ -42,7 +42,7 @@ application use case and whose adapters contain transport concerns only.
 
 ## Verify and stop
 
-Run focused tests, then the available verification ladder in `AGENTS.md`.
+Run focused tests, then applicable checks in [development](../../../docs/development.md#checks).
 Stop on a contract conflict, missing workspace boundary, unclear destructive
 behavior, or missing canonical contract. Report blockers instead of inventing
 policy.

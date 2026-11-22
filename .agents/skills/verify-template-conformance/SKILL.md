@@ -22,7 +22,7 @@ working behavior.
    source-of-truth links.
 3. Inspect implementation and contracts before running checks. Do not accept a
    document, mock, or generated file as runtime evidence by itself.
-4. Run focused checks, then every applicable target gate in `AGENTS.md` and
+4. Run focused checks, then every applicable target gate in development and
    release documentation. Read complete failures and preserve the first root
    cause.
 5. Confirm each accepted exception is unexpired, approved, scoped, evidenced,

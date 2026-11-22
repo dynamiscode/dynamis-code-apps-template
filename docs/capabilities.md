@@ -262,6 +262,7 @@ These remain out of the build plan until their trigger is demonstrated.
 | Internal AI | deferred | Product behavior requires model-driven decisions |
 | Workspace domains and routing | deferred | Users require workspace-specific domains or URLs |
 | Public sharing or guest access | conforming for bounded Item browser links | Files, public APIs, guest collaboration, or other resource types require a separate contract |
+| Showcase items (`CompanySite` profile) | deferred | Accepted showcase decision; see [decision 0014](decisions/0014-showcase-items.md) (proposed) |
 | Fine-grained permissions | deferred | Baseline roles cannot express a measured requirement |
 | External-issuer OAuth access tokens for MCP | deferred | An accepted requirement needs `/mcp` to accept access tokens from an external authorization server; see [decision 0007](decisions/0007-mcp-oauth-protected-resource-metadata.md) |
 | Email providers | deferred | A workspace needs an HTTP email provider beyond Resend and Postmark. Per-workspace SMTP (issue 203), Resend (issue 204), and Postmark (issue 205) are implemented; each further HTTP provider needs its own contract and evidence. Architecture is accepted in [decision 0009](decisions/0009-workspace-email-settings.md). |
@@ -447,7 +448,7 @@ endpoint dialing, bounded retry/failure status, redacted delivery history,
 retention pruning, REST/OpenAPI behavior, and the CSRF-protected browser
 management surface pass the focused webhook, item, browser, HTTP, configuration,
 maintenance, and migration tests. PostgreSQL execution and Docker smoke remain
-part of the final verification ladder.
+part of the final verification checks.
 
 ## Workspace email evidence
 
