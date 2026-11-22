@@ -34,8 +34,8 @@ in-process S3-compatible endpoint. Set `S3_CONFORMANCE_ENDPOINT` and
    capability evidence only when affected. Changelog timing follows the
    change obligations in [AGENTS.md](../AGENTS.md).
 4. Run focused package checks (e.g. `go test ./internal/<affected-feature>/...`)
-   during iteration to maintain fast feedback loops, then the applicable
-   verification ladder before committing.
+   during iteration to maintain fast feedback loops, then applicable checks
+   listed below.
 
 Ordinary features stay vertical: application behavior first, transport
 adapters second. Reuse shared authorization, Problem Details, audit,
