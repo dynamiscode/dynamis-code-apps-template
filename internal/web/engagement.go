@@ -22,6 +22,9 @@ func (h *Handler) setEngagementAgreement(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	if !h.engagementMatchesClient(w, r, actor, workspace) {
+		return
+	}
 	err := h.engagement.SetAgreement(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), engagement.Agreement{Recorded: r.FormValue("recorded") == "1", FileID: r.FormValue("file_id")}, auditContext(r))
 	if errors.Is(err, identity.ErrForbidden) {
 		h.renderError(w, http.StatusForbidden)
@@ -52,6 +55,9 @@ func (h *Handler) setEngagementAssignee(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	if !h.engagementMatchesClient(w, r, actor, workspace) {
+		return
+	}
 	var assignee identity.UserID
 	var err error
 	if r.FormValue("assignee_id") != "" {
@@ -91,6 +97,9 @@ func (h *Handler) setEngagementQuote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	if !h.engagementMatchesClient(w, r, actor, workspace) {
+		return
+	}
 	err := h.engagement.SetQuote(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), engagement.Quote{Status: r.FormValue("status"), Amount: r.FormValue("amount"), DateSent: r.FormValue("date_sent")}, auditContext(r))
 	if errors.Is(err, identity.ErrForbidden) {
 		h.renderError(w, http.StatusForbidden)
@@ -121,6 +130,9 @@ func (h *Handler) setEngagementNextAction(w http.ResponseWriter, r *http.Request
 		return
 	}
 	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	if !h.engagementMatchesClient(w, r, actor, workspace) {
+		return
+	}
 	var owner identity.UserID
 	var err error
 	if r.FormValue("owner_id") != "" {
@@ -152,6 +164,23 @@ func (h *Handler) setEngagementNextAction(w http.ResponseWriter, r *http.Request
 		return
 	}
 	h.redirect(w, r, h.clientsPath(workspace)+"/"+r.PathValue("clientId"))
+}
+
+func (h *Handler) engagementMatchesClient(w http.ResponseWriter, r *http.Request, actor identity.Principal, workspace identity.WorkspaceID) bool {
+	item, err := h.engagement.Get(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")))
+	if errors.Is(err, identity.ErrForbidden) {
+		h.renderError(w, http.StatusForbidden)
+		return false
+	}
+	if errors.Is(err, engagement.ErrNotFound) || (err == nil && item.ClientID != clients.ParseClientIDOrZero(r.PathValue("clientId"))) {
+		h.renderError(w, http.StatusNotFound)
+		return false
+	}
+	if err != nil {
+		h.renderError(w, http.StatusInternalServerError)
+		return false
+	}
+	return true
 }
 
 func (h *Handler) dueEngagements(w http.ResponseWriter, r *http.Request) {

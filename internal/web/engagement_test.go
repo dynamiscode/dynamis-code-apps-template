@@ -125,6 +125,25 @@ func TestEngagementThroughWeb(t *testing.T) {
 	quotePath := path + "/engagements/" + items[0].ID.String() + "/quote"
 	assigneePath := path + "/engagements/" + items[0].ID.String() + "/assignee"
 	agreementPath := path + "/engagements/" + items[0].ID.String() + "/agreement"
+	otherClient, err := clients.NewService(env.db, config.SQLite, env.auth, 50).Create(ctx, owner, env.workspaceID, clients.Input{DisplayName: "Other"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrongPath := "/workspaces/" + env.workspaceID.String() + "/clients/" + otherClient.ID.String() + "/engagements/" + items[0].ID.String()
+	for suffix, form := range map[string]url.Values{
+		"/agreement":   {"recorded": {"1"}},
+		"/assignee":    {"assignee_id": {env.ownerID.String()}},
+		"/quote":       {"status": {"sent"}},
+		"/next-action": {"text": {"Wrong client"}},
+	} {
+		form.Set("csrf", env.csrf)
+		if got := request(env.routes, http.MethodPost, wrongPath+suffix, form, env.cookies, nil); got.Code != http.StatusNotFound {
+			t.Fatalf("wrong client %s: %d", suffix, got.Code)
+		}
+	}
+	if got, err := svc.Get(ctx, owner, env.workspaceID, items[0].ID); err != nil || got.Agreement.Recorded || got.AssigneeID != 0 || got.Quote.Status == "sent" || got.NextAction.Text != "" {
+		t.Fatalf("wrong client mutated engagement: %+v %v", got, err)
+	}
 	if r := request(env.routes, http.MethodPost, agreementPath, url.Values{"csrf": {env.csrf}, "recorded": {"1"}}, env.cookies, nil); r.Code != http.StatusSeeOther {
 		t.Fatalf("agreement: %d %s", r.Code, r.Body.String())
 	}
