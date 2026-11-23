@@ -9,7 +9,7 @@ type Operation struct {
 }
 
 const OpenAPIVersion = "3.1.0"
-const OpenAPISHA256 = "325ae3714980210be81e9854558d6956f260e8f0424b5e059537691c5c2c03ca"
+const OpenAPISHA256 = "d600abcdc1e574e84235f256e1a09cfba8e97dd254de1d92932f00274cf9a2ae"
 
 var Operations = []Operation{
 	{Method: "GET", Path: "/api/openapi.json", ID: "getOpenAPI"},
@@ -30,8 +30,11 @@ var Operations = []Operation{
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/catalog", ID: "listCatalog"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/catalog", ID: "createCatalog"},
 	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/catalog/{entryId}", ID: "deleteCatalog"},
+	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/catalog/{entryId}", ID: "updateCatalog"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/archive", ID: "archiveCatalog"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/prices", ID: "createCatalogPrice"},
+	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/prices/{priceId}", ID: "deleteCatalogPrice"},
+	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/prices/{priceId}", ID: "updateCatalogPrice"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/unarchive", ID: "unarchiveCatalog"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/client-fields", ID: "listClientFields"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/client-fields", ID: "createClientField"},

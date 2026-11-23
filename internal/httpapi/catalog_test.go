@@ -148,7 +148,7 @@ func TestCatalogRESTRolePermissions(t *testing.T) {
 			if err := json.Unmarshal(response.Body.Bytes(), &entries); err != nil || len(entries) == 0 {
 				t.Fatal("missing catalog entry")
 			}
-			for _, operation := range []struct{ method, suffix string }{{http.MethodPost, "/archive"}, {http.MethodPost, "/unarchive"}, {http.MethodDelete, ""}} {
+			for _, operation := range []struct{ method, suffix string }{{http.MethodPost, "/archive"}, {http.MethodPost, "/unarchive"}, {http.MethodDelete, ""}, {http.MethodPut, ""}, {http.MethodPut, "/prices/aaaa"}, {http.MethodDelete, "/prices/aaaa"}} {
 				response = serveAuthorized(handler, operation.method, path+"/"+entries[0].ID+operation.suffix, "", token.Secret, nil)
 				if response.Code != http.StatusForbidden {
 					t.Errorf("%s %s = %d", role, operation.suffix, response.Code)
@@ -173,6 +173,51 @@ func TestCatalogList(t *testing.T) {
 	denied := serveAuthorized(handler, http.MethodGet, path, "", "invalid", nil)
 	if denied.Code != http.StatusUnauthorized {
 		t.Fatalf("unauthenticated = %d", denied.Code)
+	}
+}
+
+func TestCatalogEditREST(t *testing.T) {
+	handler, _, workspace, token := testHandler(t)
+	path := "/api/v1/workspaces/" + workspace + "/catalog"
+	created := serveAuthorized(handler, http.MethodPost, path, `{"name":"Visit"}`, token, nil)
+	var entry struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(created.Body.Bytes(), &entry); err != nil || entry.ID == "" {
+		t.Fatal(created.Body.String())
+	}
+	entryPath := path + "/" + entry.ID
+	price := serveAuthorized(handler, http.MethodPost, entryPath+"/prices", `{"mode":"fixed","amount":"0.123456789012345678","currency":"BTC","variant":"Visit"}`, token, nil)
+	var row struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(price.Body.Bytes(), &row); err != nil || row.ID == "" {
+		t.Fatalf("price ID: %s", price.Body.String())
+	}
+	response := serveAuthorized(handler, http.MethodPut, entryPath, `{"name":"Updated","durationMinutes":45}`, token, nil)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("edit entry: %d %s", response.Code, response.Body.String())
+	}
+	pricePath := entryPath + "/prices/" + row.ID
+	response = serveAuthorized(handler, http.MethodPut, pricePath, `{"mode":"manual","currency":"EUR","variant":"Week"}`, token, nil)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("edit price: %d %s", response.Code, response.Body.String())
+	}
+	response = serveAuthorized(handler, http.MethodPut, pricePath, `{"mode":"fixed","amount":"0.123456789012345678","currency":"BTC","variant":"Visit"}`, token, nil)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("fixed price: %d %s", response.Code, response.Body.String())
+	}
+	list := serveAuthorized(handler, http.MethodGet, path, "", token, nil)
+	if !strings.Contains(list.Body.String(), `"amount":"0.123456789012345678"`) || !strings.Contains(list.Body.String(), `"name":"Updated"`) {
+		t.Fatal(list.Body.String())
+	}
+	response = serveAuthorized(handler, http.MethodPut, pricePath, `{"mode":"fixed","amount":"-1","currency":"BTC","variant":"Visit"}`, token, nil)
+	if response.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("invalid: %d", response.Code)
+	}
+	response = serveAuthorized(handler, http.MethodDelete, pricePath, "", token, nil)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("delete price: %d", response.Code)
 	}
 }
 

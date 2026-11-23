@@ -36,6 +36,17 @@ templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, canWrite boo
     for _, entry := range entries {
      <li class="card bg-base-100 p-4">
       <strong>{ entry.Name }</strong>
+      if canWrite {
+       <details>
+        <summary class="btn btn-sm">{ data.T("ui.edit") }</summary>
+        <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/edit") } class="space-y-3">
+         <input type="hidden" name="csrf" value={ data.CSRF }/>
+         <label class="form-control"><span class="label-text">{ data.T("catalog.name") }</span><input class="input input-bordered" name="name" value={ entry.Name } required/></label>
+         <label class="form-control"><span class="label-text">{ data.T("catalog.duration") }</span><input class="input input-bordered" type="number" name="duration_minutes" value={ catalogDuration(entry.DurationMinutes) } min="1"/></label>
+         <button class="btn btn-primary" type="submit">{ data.T("common.save") }</button>
+        </form>
+       </details>
+      }
       if entry.DurationMinutes != nil {
        <span>{ strconv.Itoa(*entry.DurationMinutes) } min</span>
       }
@@ -51,6 +62,21 @@ templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, canWrite boo
          <span>{ price.Currency }</span>
          if price.Eligibility != "" {
           <span> — { price.Eligibility }</span>
+         }
+         if canWrite {
+          <details>
+           <summary class="btn btn-sm">{ data.T("ui.edit") }</summary>
+           <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/prices/" + price.ID.String() + "/edit") } class="space-y-3">
+            <input type="hidden" name="csrf" value={ data.CSRF }/>
+            <label class="form-control"><span class="label-text">{ data.T("catalog.mode") }</span><select class="select select-bordered" name="mode"><option value="fixed" selected?={ price.Mode == "fixed" }>{ data.T("catalog.fixed") }</option><option value="manual" selected?={ price.Mode == "manual" }>{ data.T("catalog.manual") }</option></select></label>
+            <label class="form-control"><span class="label-text">{ data.T("catalog.amount") }</span><input class="input input-bordered" name="amount" value={ catalogAmount(price.Amount) } inputmode="decimal"/></label>
+            <label class="form-control"><span class="label-text">{ data.T("catalog.currency") }</span><input class="input input-bordered" name="currency" value={ price.Currency } required/></label>
+            <label class="form-control"><span class="label-text">{ data.T("catalog.variant") }</span><input class="input input-bordered" name="variant" value={ price.Variant } required/></label>
+            <label class="form-control"><span class="label-text">{ data.T("catalog.eligibility") }</span><input class="input input-bordered" name="eligibility" value={ price.Eligibility }/></label>
+            <button class="btn btn-primary" type="submit">{ data.T("common.save") }</button>
+           </form>
+           <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/prices/" + price.ID.String() + "/delete") }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-sm btn-error" type="submit">{ data.T("common.delete") }</button></form>
+          </details>
          }
         </li>
        }

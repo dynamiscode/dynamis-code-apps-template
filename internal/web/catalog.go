@@ -123,6 +123,96 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 	_ = catalogPage(data, entries, identity.CanWriteCatalog(principal), invalid, status == http.StatusConflict, request.URL.Query().Get("includeArchived") == "true", request.FormValue("name"), request.FormValue("duration_minutes")).Render(request.Context(), writer)
 }
 
+func catalogDuration(value *int) string {
+	if value == nil {
+		return ""
+	}
+	return strconv.Itoa(*value)
+}
+
+func catalogAmount(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+func (h *Handler) catalogEdit(writer http.ResponseWriter, request *http.Request) {
+	if h.catalogService == nil {
+		h.renderError(writer, http.StatusNotFound)
+		return
+	}
+	principal, ok := h.mutationPrincipal(writer, request)
+	if !ok {
+		return
+	}
+	if !identity.CanWriteCatalog(principal) {
+		h.renderError(writer, http.StatusForbidden)
+		return
+	}
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	var duration *int
+	if raw := request.FormValue("duration_minutes"); raw != "" {
+		value, err := strconv.Atoi(raw)
+		if err != nil {
+			h.renderCatalog(writer, request, http.StatusUnprocessableEntity, true)
+			return
+		}
+		duration = &value
+	}
+	err := h.catalogService.Update(request.Context(), principal, workspaceID, catalog.ParseEntryID(request.PathValue("entryId")), request.FormValue("name"), duration)
+	h.catalogEditResult(writer, request, workspaceID, err)
+}
+
+func (h *Handler) catalogEditPrice(writer http.ResponseWriter, request *http.Request) {
+	h.catalogChangePrice(writer, request, false)
+}
+
+func (h *Handler) catalogDeletePrice(writer http.ResponseWriter, request *http.Request) {
+	h.catalogChangePrice(writer, request, true)
+}
+
+func (h *Handler) catalogChangePrice(writer http.ResponseWriter, request *http.Request, remove bool) {
+	if h.catalogService == nil {
+		h.renderError(writer, http.StatusNotFound)
+		return
+	}
+	principal, ok := h.mutationPrincipal(writer, request)
+	if !ok {
+		return
+	}
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	entryID := catalog.ParseEntryID(request.PathValue("entryId"))
+	priceID := catalog.ParsePriceID(request.PathValue("priceId"))
+	var err error
+	if remove {
+		err = h.catalogService.DeletePrice(request.Context(), principal, workspaceID, entryID, priceID)
+	} else {
+		var amount *string
+		if value := request.FormValue("amount"); value != "" {
+			amount = &value
+		}
+		option := catalog.PriceOption{Mode: request.FormValue("mode"), Amount: amount, Currency: request.FormValue("currency"), Variant: request.FormValue("variant"), Eligibility: request.FormValue("eligibility")}
+		err = h.catalogService.UpdatePrice(request.Context(), principal, workspaceID, entryID, priceID, option)
+	}
+	h.catalogEditResult(writer, request, workspaceID, err)
+}
+
+func (h *Handler) catalogEditResult(writer http.ResponseWriter, request *http.Request, workspaceID identity.WorkspaceID, err error) {
+	switch {
+	case errors.Is(err, identity.ErrForbidden):
+		h.renderError(writer, http.StatusForbidden)
+	case errors.Is(err, catalog.ErrNotFound):
+		h.renderError(writer, http.StatusNotFound)
+	case errors.Is(err, catalog.ErrInvalidInput):
+		h.renderCatalog(writer, request, http.StatusUnprocessableEntity, true)
+	case err != nil:
+		h.renderError(writer, http.StatusInternalServerError)
+	default:
+		h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/catalog")
+	}
+}
+
 func (h *Handler) catalogCreatePrice(writer http.ResponseWriter, request *http.Request) {
 	if h.catalogService == nil {
 		h.renderError(writer, http.StatusNotFound)

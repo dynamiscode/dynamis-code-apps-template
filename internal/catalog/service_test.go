@@ -153,6 +153,21 @@ func TestListRequiresWorkspaceRead(t *testing.T) {
 		if role != identity.Admin && !errors.Is(err, identity.ErrForbidden) {
 			t.Fatalf("%s add price: %v", role, err)
 		}
+		err = service.Update(ctx, principal, owner.WorkspaceID, created.ID, "Edited", nil)
+		if role == identity.Admin && err != nil {
+			t.Fatalf("admin edit: %v", err)
+		}
+		if role != identity.Admin && !errors.Is(err, identity.ErrForbidden) {
+			t.Fatalf("%s edit: %v", role, err)
+		}
+		if role != identity.Admin {
+			if err := service.UpdatePrice(ctx, principal, owner.WorkspaceID, created.ID, 1, PriceOption{Mode: "manual", Currency: "USD", Variant: "Visit"}); !errors.Is(err, identity.ErrForbidden) {
+				t.Fatalf("%s price edit: %v", role, err)
+			}
+			if err := service.DeletePrice(ctx, principal, owner.WorkspaceID, created.ID, 1); !errors.Is(err, identity.ErrForbidden) {
+				t.Fatalf("%s price delete: %v", role, err)
+			}
+		}
 	}
 	zero := "0"
 	if _, err := service.AddPrice(ctx, actor, owner.WorkspaceID, created.ID.String(), PriceOption{Mode: "fixed", Amount: &zero, Currency: "USD", Variant: "Visit", Eligibility: "Student"}); err != nil {

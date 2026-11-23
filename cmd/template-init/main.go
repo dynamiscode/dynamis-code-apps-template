@@ -320,6 +320,8 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "h.catalogArchive")
 		value = removeLinesContaining(value, "h.catalogUnarchive")
 		value = removeLinesContaining(value, "h.catalogDelete")
+		value = removeLinesContaining(value, "h.catalogEdit")
+		value = removeLinesContaining(value, `"updateCatalog":`)
 		value = removeLinesContaining(value, "EnableCatalog(")
 		value = removeLinesContaining(value, `"listCatalog":`)
 		value = removeLinesContaining(value, `"archiveCatalog":`)
@@ -337,6 +339,7 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 			if paths, ok := document["paths"].(map[string]any); ok {
 				delete(paths, "/api/v1/workspaces/{workspaceId}/catalog")
 				delete(paths, "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/prices")
+				delete(paths, "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/prices/{priceId}")
 				delete(paths, "/api/v1/workspaces/{workspaceId}/catalog/{entryId}")
 				delete(paths, "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/archive")
 				delete(paths, "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/unarchive")

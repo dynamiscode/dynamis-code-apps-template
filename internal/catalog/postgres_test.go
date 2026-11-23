@@ -43,11 +43,24 @@ func TestPostgresCatalogCreateAndList(t *testing.T) {
 		t.Fatal(err)
 	}
 	amount := "0.123456789012345678"
-	if _, err := service.AddPrice(ctx, actor, owner.WorkspaceID, entry.ID.String(), PriceOption{Mode: "fixed", Amount: &amount, Currency: "BTC", Variant: "Visit"}); err != nil {
+	price, err := service.AddPrice(ctx, actor, owner.WorkspaceID, entry.ID.String(), PriceOption{Mode: "fixed", Amount: &amount, Currency: "BTC", Variant: "Visit"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Update(ctx, actor, owner.WorkspaceID, entry.ID, "Consultation", &minutes); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.UpdatePrice(ctx, actor, owner.WorkspaceID, entry.ID, price.ID, PriceOption{Mode: "manual", Currency: "USD", Variant: "Visit"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.UpdatePrice(ctx, actor, owner.WorkspaceID, entry.ID, price.ID, PriceOption{Mode: "fixed", Amount: &amount, Currency: "BTC", Variant: "Visit"}); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := service.List(ctx, actor, owner.WorkspaceID, false)
 	if err != nil || len(entries) != 1 || entries[0].Name != "Consultation" || entries[0].DurationMinutes == nil || *entries[0].DurationMinutes != minutes || len(entries[0].Prices) != 1 || entries[0].Prices[0].Amount == nil || *entries[0].Prices[0].Amount != amount {
 		t.Fatalf("entries = %+v, %v", entries, err)
+	}
+	if err := service.DeletePrice(ctx, actor, owner.WorkspaceID, entry.ID, price.ID); err != nil {
+		t.Fatal(err)
 	}
 }

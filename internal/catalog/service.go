@@ -17,7 +17,14 @@ import (
 var ErrInvalidInput = errors.New("invalid catalog entry")
 var decimalAmount = regexp.MustCompile(`^[0-9]+(\.[0-9]+)?$`)
 
+type PriceID int64
+
+func (v PriceID) String() string               { return id.EncodeKey(id.TypeCatalogPrice, int64(v)) }
+func (v PriceID) MarshalJSON() ([]byte, error) { return json.Marshal(v.String()) }
+func ParsePriceID(s string) PriceID            { v, _ := id.DecodeKey(id.TypeCatalogPrice, s); return PriceID(v) }
+
 type PriceOption struct {
+	ID          PriceID `json:"id"`
 	Mode        string  `json:"mode"`
 	Amount      *string `json:"amount"`
 	Currency    string  `json:"currency"`
@@ -57,7 +64,7 @@ func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceI
 	if _, err := s.auth.AuthorizePrincipal(ctx, actor, workspaceID, identity.ResourcesRead); err != nil {
 		return nil, err
 	}
-	query := `SELECT e.id, e.name, e.duration_minutes, e.archived_at, p.mode, p.amount, p.currency, p.variant, p.eligibility FROM catalog_entries e LEFT JOIN catalog_prices p ON p.entry_id = e.id WHERE e.workspace_id = $1`
+	query := `SELECT e.id, e.name, e.duration_minutes, e.archived_at, p.id, p.mode, p.amount, p.currency, p.variant, p.eligibility FROM catalog_entries e LEFT JOIN catalog_prices p ON p.entry_id = e.id WHERE e.workspace_id = $1`
 	if !includeArchived {
 		query += ` AND e.archived_at IS NULL`
 	}
@@ -73,8 +80,9 @@ func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceI
 		var key int64
 		var name string
 		var duration *int
+		var priceID sql.NullInt64
 		var archived, mode, amount, currency, variant, eligibility sql.NullString
-		if err := rows.Scan(&key, &name, &duration, &archived, &mode, &amount, &currency, &variant, &eligibility); err != nil {
+		if err := rows.Scan(&key, &name, &duration, &archived, &priceID, &mode, &amount, &currency, &variant, &eligibility); err != nil {
 			return nil, err
 		}
 		if key != last {
@@ -82,7 +90,7 @@ func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceI
 			last = key
 		}
 		if mode.Valid {
-			p := PriceOption{Mode: mode.String, Currency: currency.String, Variant: variant.String, Eligibility: eligibility.String}
+			p := PriceOption{ID: PriceID(priceID.Int64), Mode: mode.String, Currency: currency.String, Variant: variant.String, Eligibility: eligibility.String}
 			if amount.Valid {
 				p.Amount = &amount.String
 			}
@@ -118,6 +126,41 @@ func (s *Service) Create(ctx context.Context, actor identity.Principal, workspac
 		return Entry{}, err
 	}
 	return Entry{ID: entryID, Name: name, DurationMinutes: duration, Prices: []PriceOption{}}, nil
+}
+
+func validatePrice(option *PriceOption) error {
+	option.Currency = strings.TrimSpace(option.Currency)
+	option.Variant = strings.TrimSpace(option.Variant)
+	option.Eligibility = strings.TrimSpace(option.Eligibility)
+	if option.Currency == "" || option.Variant == "" || (option.Mode != "fixed" && option.Mode != "manual") || (option.Mode == "fixed" && (option.Amount == nil || !decimalAmount.MatchString(*option.Amount))) || (option.Mode == "manual" && option.Amount != nil) {
+		return ErrInvalidInput
+	}
+	return nil
+}
+
+func (s *Service) Update(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, name string, duration *int) error {
+	return s.mutate(ctx, actor, workspaceID, entryID, func(tx *sql.Tx) (sql.Result, error) {
+		name = strings.TrimSpace(name)
+		if name == "" || (duration != nil && *duration <= 0) {
+			return nil, ErrInvalidInput
+		}
+		return tx.ExecContext(ctx, `UPDATE catalog_entries SET name = $1, duration_minutes = $2 WHERE workspace_id = $3 AND id = $4`, name, duration, workspaceID, entryID)
+	})
+}
+
+func (s *Service) UpdatePrice(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, priceID PriceID, option PriceOption) error {
+	return s.mutate(ctx, actor, workspaceID, entryID, func(tx *sql.Tx) (sql.Result, error) {
+		if err := validatePrice(&option); err != nil {
+			return nil, err
+		}
+		return tx.ExecContext(ctx, `UPDATE catalog_prices SET mode = $1, amount = $2, currency = $3, variant = $4, eligibility = $5 WHERE id = $6 AND entry_id = $7 AND EXISTS (SELECT 1 FROM catalog_entries WHERE id = $7 AND workspace_id = $8)`, option.Mode, option.Amount, option.Currency, option.Variant, option.Eligibility, priceID, entryID, workspaceID)
+	})
+}
+
+func (s *Service) DeletePrice(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, priceID PriceID) error {
+	return s.mutate(ctx, actor, workspaceID, entryID, func(tx *sql.Tx) (sql.Result, error) {
+		return tx.ExecContext(ctx, `DELETE FROM catalog_prices WHERE id = $1 AND entry_id = $2 AND EXISTS (SELECT 1 FROM catalog_entries WHERE id = $2 AND workspace_id = $3)`, priceID, entryID, workspaceID)
+	})
 }
 
 func (s *Service) SetArchived(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, archived bool) error {
@@ -189,26 +232,19 @@ func (s *Service) AddPrice(ctx context.Context, actor identity.Principal, worksp
 	if !identity.CanWriteCatalog(principal) {
 		return PriceOption{}, identity.ErrForbidden
 	}
-	option.Currency = strings.TrimSpace(option.Currency)
-	option.Variant = strings.TrimSpace(option.Variant)
-	option.Eligibility = strings.TrimSpace(option.Eligibility)
-	if option.Currency == "" || option.Variant == "" || (option.Mode != "fixed" && option.Mode != "manual") || (option.Mode == "fixed" && (option.Amount == nil || !decimalAmount.MatchString(*option.Amount))) || (option.Mode == "manual" && option.Amount != nil) {
-		return PriceOption{}, ErrInvalidInput
+	if err := validatePrice(&option); err != nil {
+		return PriceOption{}, err
 	}
 	key, err := id.DecodeKey(id.TypeCatalogEntry, entryID)
 	if err != nil {
 		return PriceOption{}, ErrInvalidInput
 	}
-	result, err := tx.ExecContext(ctx, `INSERT INTO catalog_prices (entry_id, mode, amount, currency, variant, eligibility) SELECT id, $1, $2, $3, $4, $5 FROM catalog_entries WHERE id = $6 AND workspace_id = $7 AND archived_at IS NULL`, option.Mode, option.Amount, option.Currency, option.Variant, option.Eligibility, key, workspaceID)
-	if err != nil {
-		return PriceOption{}, err
-	}
-	n, err := result.RowsAffected()
-	if err != nil {
-		return PriceOption{}, err
-	}
-	if n != 1 {
+	err = tx.QueryRowContext(ctx, `INSERT INTO catalog_prices (entry_id, mode, amount, currency, variant, eligibility) SELECT id, $1, $2, $3, $4, $5 FROM catalog_entries WHERE id = $6 AND workspace_id = $7 AND archived_at IS NULL RETURNING id`, option.Mode, option.Amount, option.Currency, option.Variant, option.Eligibility, key, workspaceID).Scan(&option.ID)
+	if errors.Is(err, sql.ErrNoRows) {
 		return PriceOption{}, ErrInvalidInput
+	}
+	if err != nil {
+		return PriceOption{}, err
 	}
 	if err := tx.Commit(); err != nil {
 		return PriceOption{}, err

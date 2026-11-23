@@ -150,6 +150,7 @@ func newHandler(
 		"initiateFileUpload": h.initiateFileUpload,
 		"completeFileUpload": h.completeFileUpload, "uploadFileContent": h.uploadFileContent,
 		"listCatalog": h.listCatalog, "createCatalog": h.createCatalog, "createCatalogPrice": h.createCatalogPrice,
+		"updateCatalog": h.updateCatalog, "updateCatalogPrice": h.editCatalogPrice, "deleteCatalogPrice": h.editCatalogPrice,
 		"archiveCatalog": h.archiveCatalog, "unarchiveCatalog": h.unarchiveCatalog, "deleteCatalog": h.deleteCatalog,
 		"listClients": h.listClients, "createClient": h.createClient,
 		"getClient": h.getClient, "updateClient": h.updateClient,

@@ -8,7 +8,7 @@ Quick check:
 curl http://127.0.0.1:8080/api/openapi.json
 ```
 
-Catalog profile: `GET /api/v1/workspaces/{workspaceId}/catalog` requires `resources:read` and returns active entries and prices; `includeArchived=true` includes archived entries. Creating entries, adding prices with `POST /{entryId}/prices`, archiving or unarchiving with `POST /{entryId}/archive` or `/{entryId}/unarchive`, and `DELETE /{entryId}` require `resources:write` and owner or admin role. Fixed prices require a non-negative decimal string amount; manual prices omit amount. Both require currency and variant, and accept optional eligibility. Amounts and currencies are returned unchanged. Invalid input returns 422. Deleting an entry reported in use returns 409 and recommends archiving. Sale linkage is deferred.
+Catalog profile: `GET /api/v1/workspaces/{workspaceId}/catalog` requires `resources:read` and returns active entries and prices; `includeArchived=true` includes archived entries. Creating entries, editing entries with `PUT /{entryId}`, adding prices with `POST /{entryId}/prices`, editing or removing prices with `PUT` or `DELETE /{entryId}/prices/{priceId}`, archiving or unarchiving with `POST /{entryId}/archive` or `/{entryId}/unarchive`, and `DELETE /{entryId}` require `resources:write` and owner or admin role. Fixed prices require a non-negative decimal string amount; manual prices omit amount. Both require currency and variant, and accept optional eligibility. Price IDs are typed short IDs. Decimal amounts are returned exactly as supplied; currencies are trimmed. Invalid input returns 422. Deleting an entry reported in use returns 409 and recommends archiving. Sale linkage is deferred.
 
 ## Consumer quickstart
 
