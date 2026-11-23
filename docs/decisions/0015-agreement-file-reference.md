@@ -39,6 +39,9 @@ ID described in issues #605 and #608.
 - The reference grants no access. Reading the file still goes through Files
   and its workspace-scoped authorization. The engagement's read permission does
   not imply file read.
+- A future file picker may list files by name only through independently
+  authorized Files access. Keep manual short-ID entry as a fallback. This
+  decision permits a picker; it does not claim one is implemented.
 - The column and its foreign key exist only when the Files profile and the
   engagement module are both generated. Omitting Files prunes the column and
   its migration step.
@@ -64,7 +67,8 @@ ID described in issues #605 and #608.
   attachment, which 0005-files-object-storage keeps out.
 - Rejected: an owner reference on the files table. It makes Files depend on
   engagements.
-- Rejected: a file browser or picker in the template. Forks may add one.
+- Superseded: the earlier rejection of a file picker in the template. The
+  approved picker remains subject to independent Files authorization.
 
 ## Revisit when
 

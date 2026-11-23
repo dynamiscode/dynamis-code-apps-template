@@ -21,6 +21,10 @@ Read only the route needed for the change.
 | Maintain licensing, contribution, dependency attribution, or repository governance | [Governance](governance.md), [security](../SECURITY.md), [contribution guide](../CONTRIBUTING.md) | None |
 | Propose a deferred capability | [Capabilities](capabilities.md), [decisions](decisions/README.md) | None; accept its trigger first |
 
+For the approved engagement redesign requirements and outstanding decisions,
+see [engagement workflow decisions](engagement-workflow-decisions.md). These
+requirements do not describe implemented behavior.
+
 ## Sources of truth
 
 | Concern | Source |
