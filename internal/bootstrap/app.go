@@ -16,6 +16,7 @@ import (
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/httpapi"
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/intake"
 	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/listviews"
@@ -144,6 +145,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	}
 	clientService := clients.NewService(db, cfg.Database.Driver, identityService, cfg.Data.ClientFieldsMaxPerWorkspace, webhookService)
 	engagementService := engagement.NewService(db, cfg.Database.Driver, identityService)
+	intakeService := intake.NewService(db, cfg.Database.Driver, identityService)
 	portabilityService := portability.NewService(
 		db, cfg.Database.Driver, identityService,
 		cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,
@@ -190,6 +192,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	webHandler.EnableListPreferences(listPreferences)
 	webHandler.EnableClients(clientService, listPreferences)
 	webHandler.EnableEngagement(engagementService)
+	webHandler.EnableIntake(intakeService)
 	webHandler.EnableFilesPreferences(listPreferences)
 	webHandler.EnableListViews(listviews.NewService(db, cfg.Database.Driver, identityService))
 	jobQueue.Start(ctx)

@@ -135,6 +135,9 @@ templ clientCreateForm(data viewmodel.PageData, action string) {
 // second primary action because its empty-state card already offers this one.
 templ clientCreateMenu(data viewmodel.PageData) {
 	<div class="list-create">
+		if data.CanManageFields {
+			<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/intake") }>{ data.T("intake.title") }</a>
+		}
 		<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagement-stages") }>{ data.T("engagement.stages") }</a>
 		<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagements/due") }>{ data.T("engagement.due_list") }</a>
 			if data.CanManageFields {

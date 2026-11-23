@@ -1,0 +1,43 @@
+package web
+
+import "example.com/dynamis-code/apps-template/internal/intake"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
+templ intakeSettingsPage(data viewmodel.PageData, settings intake.Settings, message string, link string) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+		@molecules.PageHeading(data.T("intake.title"), data.T("clients.title")) {}
+		<section class="card my-4 p-6">
+			if message != "" {
+				@molecules.ErrorAlert(data.T(message))
+			}
+			if settings.Active {
+				<p>{ data.T("intake.active") }</p>
+			} else {
+				<p>{ data.T("intake.disabled") }</p>
+			}
+			if link != "" {
+				<p>{ data.T("intake.copy") }</p>
+				<p><input class="input input-bordered w-full" aria-label={ data.T("intake.link") } readonly value={ link }/></p>
+			}
+			<form action={ templ.SafeURL(data.CurrentPath) } method="post">
+				<input type="hidden" name="csrf" value={ data.CSRF }/>
+				@molecules.TextareaField("intake-consent", data.T("intake.consent"), settings.ConsentText, templ.Attributes{"name": "consent", "required": true, "maxlength": "2000"})
+				<button class="btn" name="action" value="consent">{ data.T("intake.save") }</button>
+				if settings.Active {
+					<button class="btn" name="action" value="rotate">{ data.T("intake.rotate") }</button>
+				} else {
+					<button class="btn btn-primary" name="action" value="create">{ data.T("intake.create") }</button>
+				}
+			</form>
+			if settings.Active {
+				<form action={ templ.SafeURL(data.CurrentPath) } method="post">
+					<input type="hidden" name="csrf" value={ data.CSRF }/>
+					<button class="btn" name="action" value="disable">{ data.T("intake.disable") }</button>
+				</form>
+			}
+		</section>
+	}
+}

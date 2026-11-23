@@ -605,8 +605,9 @@ public response headers, and public-token path redaction tests. REST, CLI, MCP,
 WebMCP, file sharing, public writes through Item sharing, search, listing, and
 indexing were intentionally omitted by the accepted
 [decision](decisions/0005-public-sharing.md). The separate public intake write
-path is accepted by [decision 0016](decisions/0016-public-intake.md) but remains
-unimplemented.
+path is accepted by [decision 0016](decisions/0016-public-intake.md). Owners
+and admins can manage its hashed link and consent text; the public form and
+submission path remain unimplemented.
 
 Verified 2026-08-28 with SQLite and Docker smoke. The database-backed worker
 queue persists workspace-scoped webhook jobs in the same transaction as item
