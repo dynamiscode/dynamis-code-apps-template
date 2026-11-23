@@ -315,6 +315,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/httpapi/clients.go" || relative == "internal/httpapi/clients_test.go" ||
 		relative == "internal/httpapi/client_timeline.go" || relative == "internal/httpapi/client_timeline_test.go" ||
 		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" ||
+		relative == "internal/web/engagement_test.go" ||
 		relative == "internal/web/client_timeline.go" || relative == "internal/web/client_timeline_test.go" ||
 		relative == "internal/web/clients_filters.go" ||
 		relative == "internal/web/viewmodel/clients_filters.go" || relative == "internal/web/viewmodel/clients.go" ||
@@ -370,7 +371,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 	case "internal/httpapi/handler.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, "*clients.Service")
-		value = removeLinesContaining(value, "clients: firstClient(")
+		value = removeLinesContaining(value, "firstClient(clientServices)")
 		value = strings.ReplaceAll(value, ", clientServices...)", ")")
 		value = removeLinesContaining(value, `"listClients": h.listClients`)
 		value = removeLinesContaining(value, `"getClient": h.getClient`)
@@ -434,6 +435,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "clientFilterOperator")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/client-fields")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/clients")
+	case "internal/web/engagement.go":
+		value = strings.ReplaceAll(value, "ClientsEnabled: h.clients != nil, ", "")
 	case "internal/platform/maintenance/maintenance.go":
 		// Retention prunes client_events, which Clients-off apps do not have.
 		value = removeLinesContaining(value, "client_events")
@@ -450,6 +453,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 	case "docs/mcp.md":
 		value = removeText(value, "\n## Clients tools (Clients profile)", "\n## Prompts\n")
 	case "docs/capabilities.md":
+		value = strings.ReplaceAll(value, "[web](../internal/web/engagement_test.go)", "web")
 		value = removeLineStarting(value, "| Clients |")
 		value = removeLineStarting(value, "| Clients shared list view |")
 		value = removeLineStarting(value, "| Client timeline service |")
@@ -526,12 +530,12 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		} {
 			value = removeLineStarting(value, prefix)
 		}
-		value = strings.Replace(value, "\tfileService *appfiles.Service,\n", "", 1)
+		value = strings.ReplaceAll(value, "\tfileService *appfiles.Service,\n", "")
 		value = strings.Replace(value, "webhooks: webhookService, files: fileService", "webhooks: webhookService", 1)
 	case "internal/httpapi/handler_test.go":
 		value = removeImport(value, "appfiles")
 		value = strings.Replace(value, "\tcfg.Storage.LocalPath = t.TempDir()\n", "", 1)
-		value = removeText(value, "\tobjectStore, err := appfiles.NewStore(ctx, cfg.Storage)", "\thandler, err := NewHandlerWithWebhooksAndFiles(")
+		value = removeText(value, "\tobjectStore, err := appfiles.NewStore(ctx, cfg.Storage)", "\thandler, err := NewHandlerWithEngagement(")
 		value = strings.ReplaceAll(value, "NewHandlerWithWebhooksAndFiles", "NewHandlerWithWebhooks")
 		value = strings.ReplaceAll(value, "webhookService, fileService, \"\", nil", "webhookService, \"\", nil")
 	case "internal/web/viewmodel/handler.go":

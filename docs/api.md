@@ -123,6 +123,7 @@ secret. Session responses contain metadata only and never session or CSRF
 secrets. Problem details and logs exclude credentials, authorization headers,
 session values, invitation values, connection strings, and signed URLs.
 
+- Engagement stages: `GET` and `POST /api/v1/workspaces/{workspaceId}/engagement-stages` list and append stages. Reads require `resources:read`; creation requires `workspace:update` and an owner or admin role. Supply a nonblank name of at most 200 characters and kind `open`, `won`, or `lost`. New workspaces have no stages. The response uses a stage short ID and creation order.
 - Clients (Clients profile): `GET` and `POST /api/v1/workspaces/{workspaceId}/clients`
   list and create clients. `GET` and `PATCH /api/v1/workspaces/{workspaceId}/clients/{clientId}`
   read and edit one client; `PATCH` requires `If-Match` with the client ETag.

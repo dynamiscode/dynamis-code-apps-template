@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/engagement"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
@@ -37,6 +38,7 @@ type Handler struct {
 	logger          *slog.Logger
 	identity        *identity.Service
 	clients         *clients.Service
+	engagement      *engagement.Service
 	clientsEnabled  bool
 	listPreferences *listprefs.Service
 	listViews       *listviews.Service
@@ -199,6 +201,8 @@ func (h *Handler) Routes() http.Handler {
 		mux.HandleFunc("POST /workspaces", h.createWorkspace)
 	}
 	mux.HandleFunc("GET /workspaces/{workspaceId}", h.workspaceHome)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/engagement-stages", h.engagementStages)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/engagement-stages", h.createEngagementStage)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients", h.clientList)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/preferences/columns/{column}", h.setClientColumn)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/preferences/columns/reset", h.resetClientColumns)

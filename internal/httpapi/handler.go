@@ -16,6 +16,7 @@ import (
 
 	"example.com/dynamis-code/apps-template/api"
 	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/engagement"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
@@ -37,6 +38,7 @@ type handler struct {
 	webhooks    *webhooks.Service
 	files       *appfiles.Service
 	clients     *clients.Service
+	engagement  *engagement.Service
 }
 
 func NewHandler(
@@ -66,7 +68,7 @@ func NewHandlerWithWebhooksAndFiles(
 	mailer appmail.Sender,
 	clientServices ...*clients.Service,
 ) (http.Handler, error) {
-	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, clientServices...)
+	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, nil, clientServices...)
 }
 
 func NewHandlerWithMail(
@@ -85,6 +87,23 @@ func NewHandlerWithMail(
 	)
 }
 
+func NewHandlerWithEngagement(
+	db *sql.DB,
+	identityService *identity.Service,
+	portabilityService *portability.Service,
+	oidcRegistry *identity.OIDCRegistry,
+	cfg config.HTTP,
+	logger *slog.Logger,
+	webhookService *webhooks.Service,
+	fileService *appfiles.Service,
+	publicURL string,
+	mailer appmail.Sender,
+	engagementService *engagement.Service,
+	clientServices ...*clients.Service,
+) (http.Handler, error) {
+	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, engagementService, clientServices...)
+}
+
 func NewHandlerWithWebhooks(
 	db *sql.DB,
 	identityService *identity.Service,
@@ -97,7 +116,7 @@ func NewHandlerWithWebhooks(
 	mailer appmail.Sender,
 	clientServices ...*clients.Service,
 ) (http.Handler, error) {
-	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, nil, publicURL, mailer, clientServices...)
+	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, nil, publicURL, mailer, nil, clientServices...)
 }
 
 func newHandler(
@@ -111,6 +130,7 @@ func newHandler(
 	fileService *appfiles.Service,
 	publicURL string,
 	mailer appmail.Sender,
+	engagementService *engagement.Service,
 	clientServices ...*clients.Service,
 ) (http.Handler, error) {
 	if logger == nil {
@@ -120,7 +140,8 @@ func newHandler(
 		db: db, identity: identityService,
 		oidc: oidcRegistry, cfg: cfg, logger: logger, portability: portabilityService,
 		publicURL: publicURL, mailer: mailer, webhooks: webhookService, files: fileService,
-		clients: firstClient(clientServices),
+		clients:    firstClient(clientServices),
+		engagement: engagementService,
 	}
 	handlers := map[string]http.HandlerFunc{
 		"getLiveness": h.liveness, "getReadiness": h.readiness,
@@ -147,6 +168,7 @@ func newHandler(
 		"initiateFileUpload": h.initiateFileUpload,
 		"completeFileUpload": h.completeFileUpload, "uploadFileContent": h.uploadFileContent,
 		"listClients": h.listClients, "createClient": h.createClient,
+		"listEngagementStages": h.listEngagementStages, "createEngagementStage": h.createEngagementStage,
 		"getClient": h.getClient, "updateClient": h.updateClient,
 		"listClientTimeline": h.listClientTimeline, "addClientTimelineEntry": h.addClientTimelineEntry,
 		"archiveClient": h.archiveClient, "unarchiveClient": h.unarchiveClient,

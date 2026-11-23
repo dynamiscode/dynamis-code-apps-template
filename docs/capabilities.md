@@ -7,6 +7,15 @@ group rows describe the supported application.
 
 This ledger records implemented conformance evidence and deferred triggers.
 
+## Engagement stages (#581)
+
+Owners and admins can append workspace stages through REST and web; readers see
+creation order and new workspaces start empty. The shared service enforces
+workspace access and audits creation. Evidence: [service](../internal/engagement/service_test.go),
+[REST](../internal/httpapi/engagement_test.go), and [web](../internal/web/engagement_test.go)
+tests. Reordering, archiving, and engagement records are later slices. Workspace
+export does not yet include stages.
+
 ## Client timeline REST (#575)
 
 Clients-profile REST exposes append-only timeline list and add through the shared

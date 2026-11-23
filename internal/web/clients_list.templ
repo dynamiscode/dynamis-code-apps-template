@@ -7,6 +7,7 @@ import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import "strconv"
+import "strings"
 
 templ clientList(data viewmodel.PageData) {
 	// The list behaviors (menu placement, exclusive open, tap-outside close,
@@ -134,6 +135,7 @@ templ clientCreateForm(data viewmodel.PageData, action string) {
 // second primary action because its empty-state card already offers this one.
 templ clientCreateMenu(data viewmodel.PageData) {
 	<div class="list-create">
+		<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagement-stages") }>{ data.T("engagement.stages") }</a>
 			if data.CanManageFields {
 				<a class="btn btn-ghost btn-xs" href={ data.FieldsPath }>{ data.T("clients.fields_link") }</a>
 			}

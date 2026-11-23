@@ -13,6 +13,8 @@ Member and invitation pages explain role permissions, ownership transfer,
 invited-email matching, and safe recovery for unavailable links.
 Settings groups general and email setup, member access, API tokens, webhooks,
 SCIM, exports, and audit history into role-aware sidebar sections.
+The Clients list links to engagement stages. Owners and admins can add stages;
+workspace readers see them in order. The form works without JavaScript.
 `/account`, `/notifications`, `/sessions`, and `/security` cover account and
 security settings. Account pages share responsive panels, generated branding,
 and the user's light, dark, or system theme. The authenticated shell uses

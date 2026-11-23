@@ -9,7 +9,7 @@ type Operation struct {
 }
 
 const OpenAPIVersion = "3.1.0"
-const OpenAPISHA256 = "dd91792a53fb49bc78af2609edcb0b104ba1ea1c1c0462da3a4a431063f39f2e"
+const OpenAPISHA256 = "a67132afe1f589da014e96f6bc706bc200713a2b7fa35da86559450b66623df6"
 
 var Operations = []Operation{
 	{Method: "GET", Path: "/api/openapi.json", ID: "getOpenAPI"},
@@ -47,6 +47,8 @@ var Operations = []Operation{
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/clients/{clientId}/values", ID: "listClientValues"},
 	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/clients/{clientId}/values/{fieldId}", ID: "clearClientValue"},
 	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/clients/{clientId}/values/{fieldId}", ID: "setClientValue"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/engagement-stages", ID: "listEngagementStages"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/engagement-stages", ID: "createEngagementStage"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/export", ID: "exportWorkspace"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/files", ID: "listFiles"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/files", ID: "createFile"},
