@@ -48,6 +48,10 @@ escaped user content, and test browser precedence separately from stable
 English REST/CLI/MCP contracts. Add plural support only when the first
 count-dependent product message requires it.
 
+New browser journeys and meaningful interaction or visual changes require
+[rendered UX review](ux-review.md). Report missing browser evidence as blocked;
+a passing automated check does not substitute for the review.
+
 ## Feature completeness
 
 For every feature, record its shared application behavior, authorization

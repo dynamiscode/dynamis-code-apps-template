@@ -11,7 +11,7 @@ Read only the route needed for the change.
 | Change workspace invitation management, acceptance, or return state | [Authentication](authentication.md), [web behavior](web.md), [data lifecycle](data-lifecycle.md), [operations](operations.md) | `change-go-identity` and `change-go-data` |
 | Change MCP or CLI behavior | [API](api.md), [MCP](mcp.md), [CLI](cli.md) | `change-go-agent-surfaces` |
 | Change entity keys, short IDs, type codes, or typed audit, idempotency, and job keys | [Identity keys decision](decisions/0011-identity-integer-keys.md), [Short-ID codec decision](decisions/0009-short-id-codec.md), [Architecture](architecture.md#ids-time-and-transactions) | `change-go-data` |
-| Change web, WebMCP, or realtime behavior | [Web](web.md), [accessibility](accessibility.md), [API](api.md) | `implement-go-feature` |
+| Change web, WebMCP, or realtime behavior | [Web](web.md), [accessibility](accessibility.md), [UX standard](ux.md), [UX review](ux-review.md), [API](api.md) | `implement-go-feature` |
 | Measure browser performance | [Method and asset inventory](ui-measurement.md), [workspace evidence](ui-measurement-workspace.md) | None |
 | Measure administration and data screens | [Administration evidence](ui-measurement-admin.md), [reconciliation and budget recommendation](ui-measurement-reconciliation-450.md) | None |
 | Measure account, authentication, and public screens | [Identity evidence](ui-measurement-identity.md) | None |
@@ -30,7 +30,7 @@ Read only the route needed for the change.
 | HTTP contract | [OpenAPI](../api/openapi.json), [API](api.md) |
 | Database history | `internal/platform/database/migrations/` |
 | Authentication and authorization | [Authentication](authentication.md), shared identity policy |
-| Browser, WebMCP, and realtime behavior | [Web](web.md), [accessibility](accessibility.md) |
+| Browser, WebMCP, and realtime behavior | [Web](web.md), [accessibility](accessibility.md), [UX standard](ux.md) |
 | Agent surfaces | [MCP](mcp.md), [CLI](cli.md), optional [WebMCP contract](web.md#webmcp-progressive-enhancement) |
 | Operations and data lifecycle | [Operations](operations.md), [data lifecycle](data-lifecycle.md) |
 | Conformance and deferred triggers | [Capabilities](capabilities.md) |

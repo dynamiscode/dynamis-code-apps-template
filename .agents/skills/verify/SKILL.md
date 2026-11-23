@@ -96,6 +96,10 @@ drivable without a browser:
 node --test internal/web/assets/*.test.mjs
 ```
 
+For new journeys or meaningful interaction or visual changes, also complete
+[UX review](../../../docs/ux-review.md). A passing suite does not replace
+inspection of rendered journeys; report missing browser evidence as blocked.
+
 ## Evidence
 
 Capture to `/tmp/verify-evidence/<UTC-timestamp>/` - created before the

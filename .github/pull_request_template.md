@@ -8,6 +8,12 @@
 - [ ] I added or updated the smallest regression test where behavior changed.
 - [ ] I checked generated contracts, migrations, and documentation when applicable.
 
+## Browser UX review
+
+<!-- For new journeys or meaningful interaction/visual changes, follow docs/ux-review.md.
+Record revision, viewport, role, journeys and states, actions and outcomes,
+evidence, and unresolved findings. If exempt, explain why; if blocked, say so. -->
+
 ## Safety and scope
 
 - [ ] This change contains no credentials, authorization headers, session values, invitation values, connection strings, signed URLs, or personal data.

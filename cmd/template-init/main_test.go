@@ -48,6 +48,19 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 	if err != nil || !strings.Contains(string(readme), "# My Application") {
 		t.Fatalf("generated README = %q, error = %v", readme, err)
 	}
+	for path, want := range map[string]string{
+		"AGENTS.md":                        "docs/ux-review.md",
+		"docs/README.md":                   "ux-review.md",
+		"docs/ux.md":                       "User experience standard",
+		"docs/ux-review.md":                "Browser UX review",
+		".agents/skills/verify/SKILL.md":   "docs/ux-review.md",
+		".github/pull_request_template.md": "Browser UX review",
+	} {
+		content, err := os.ReadFile(filepath.Join(output, path))
+		if err != nil || !strings.Contains(string(content), want) {
+			t.Errorf("generated %s lacks UX guidance %q: %v", path, want, err)
+		}
+	}
 	web, err := os.ReadFile(filepath.Join(output, "docs/web.md"))
 	if err != nil || !strings.Contains(string(web), "capabilities.md#shared-navigation-migration-evidence-434-2026-11-16") {
 		t.Fatalf("generated web contract lacks navigation evidence link: %v", err)

@@ -37,6 +37,10 @@ domain behavior as application-owned work.
 The command is documented in the root [README](../README.md). Commit the lock
 with the generated application; it contains provenance, not credentials.
 
+Generated applications retain the [UX standard](ux.md) and
+[browser review gate](ux-review.md). Adapt product context and visual identity
+without removing task, accessibility, and evidence requirements.
+
 ## Set up agent docs in a generated application
 
 For the full post-generation map (identity, sample feature, demo seed, and the
