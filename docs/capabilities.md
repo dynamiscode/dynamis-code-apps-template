@@ -28,6 +28,10 @@ data follows engagement retention and is not included in workspace export.
 Writers can assign or clear a workspace member on an engagement; readers can see
 the assignment. [Migration 000036](../internal/platform/database/migrations/000036_engagement_assignee.sql)
 stores the reference. The service, REST, and web tests above cover assignment.
+Writers can record a signed agreement and optionally reference a workspace file;
+readers see its short ID. [Migration 000039](../internal/platform/database/migrations/000039_engagement_agreement.sql)
+stores the internal file key, and the [service test](../internal/engagement/agreement_test.go)
+and REST and web tests above cover the behavior. Agreement data follows engagement retention.
 
 ## Client timeline REST (#575)
 

@@ -25,6 +25,8 @@ Readers see quote status, amount, and sent date on client details; writers can
 update them. The status persists across stage changes.
 Readers see the assignee on client details; writers can assign, change, or clear
 the assignment using workspace members.
+Readers see whether a signed agreement is recorded and its optional file short
+ID. Writers can update both; the referenced file must belong to the workspace.
 `/account`, `/notifications`, `/sessions`, and `/security` cover account and
 security settings. Account pages share responsive panels, generated branding,
 and the user's light, dark, or system theme. The authenticated shell uses

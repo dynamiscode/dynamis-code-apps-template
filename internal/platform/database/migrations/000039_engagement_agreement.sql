@@ -1,0 +1,2 @@
+ALTER TABLE engagements ADD COLUMN agreement_recorded BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE engagements ADD COLUMN agreement_file_id BIGINT REFERENCES files(id) ON DELETE RESTRICT;

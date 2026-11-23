@@ -297,6 +297,7 @@ func filesPath(relative string) bool {
 		relative == "internal/web/files_no_javascript_test.go" || relative == "internal/browsertest/files_test.go" ||
 		relative == "internal/platform/database/migrations/000014_files.sql" ||
 		relative == "internal/platform/database/migrations/000020_file_short_ids.sql" ||
+		relative == "internal/engagement/agreement_test.go" ||
 		relative == "internal/platform/database/migrate_files_test.go" ||
 		relative == "internal/platform/database/migrate_file_ids_test.go"
 }
@@ -309,6 +310,7 @@ func clientsPath(relative string) bool {
 	return relative == "internal/clients" || strings.HasPrefix(relative, "internal/clients/") ||
 		relative == "internal/engagement/engagement.go" ||
 		relative == "internal/platform/database/migrations/000033_engagements.sql" ||
+		relative == "internal/platform/database/migrations/000039_engagement_agreement.sql" ||
 		relative == "cmd/demo/clients.go" || relative == "cmd/demo/clients_test.go" ||
 		relative == "cmd/appctl" || strings.HasPrefix(relative, "cmd/appctl/") ||
 		relative == "internal/appctl" || strings.HasPrefix(relative, "internal/appctl/") ||
@@ -532,6 +534,17 @@ func stripClientsOpenAPI(raw []byte) string {
 func disableFilesSource(relative string, raw []byte) []byte {
 	value := string(raw)
 	switch relative {
+	case "internal/platform/database/migrations/000039_engagement_agreement.sql":
+		value = removeLineStarting(value, "ALTER TABLE engagements ADD COLUMN agreement_file_id")
+	case "internal/engagement/engagement.go":
+		value = strings.ReplaceAll(value, "COALESCE(e.agreement_file_id, 0)", "0")
+	case "internal/engagement/agreement.go":
+		value = removeLinesContaining(value, "/internal/files\"")
+		value = strings.Replace(value, "\t\"errors\"\n", "", 1)
+		value = removeText(value, "\tvar fileID any\n", "\tresult, err := tx.ExecContext")
+		value = strings.Replace(value, "agreement_recorded = ?, agreement_file_id = ?", "agreement_recorded = ?", 1)
+		value = strings.Replace(value, "agreement.Recorded, fileID, workspaceID", "agreement.Recorded, workspaceID", 1)
+		value = strings.Replace(value, "\tresult, err := tx.ExecContext", "\tif agreement.FileID != \"\" { return ErrInvalidInput }\n\tresult, err := tx.ExecContext", 1)
 	case "internal/bootstrap/app.go":
 		value = removeImport(value, "appfiles")
 		value = removeLineStarting(value, "\twebHandler.EnableFilesPreferences(")
@@ -581,6 +594,7 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = removeText(value, "func TestAccountDeletionRetainsOwnedFiles(", "func TestEmailVerificationAndPasswordResetAreSingleUse(")
 		value = removeLinesContaining(value, `"database/sql"`)
 	case "docs/capabilities.md":
+		value = strings.ReplaceAll(value, "[service test](../internal/engagement/agreement_test.go)", "[REST test](../internal/httpapi/engagement_test.go)")
 		value = removeLineStarting(value, "| Files |")
 		value = removeLineStarting(value, "| Files shared list view |")
 		value = removeLineStarting(value, "| Object storage |")

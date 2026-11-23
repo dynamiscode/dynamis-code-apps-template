@@ -81,6 +81,25 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 									<button class="btn btn-primary" type="submit">{ data.T("engagement.save_assignee") }</button>
 								</form>
 							}
+							<p>{ data.T("engagement.agreement") }:
+								if item.Agreement.Recorded {
+									<span>{ data.T("engagement.agreement_recorded") }</span>
+								} else {
+									<span>{ data.T("engagement.agreement_not_recorded") }</span>
+								}
+								{ item.Agreement.FileID }
+							</p>
+							if data.CanEditClients {
+								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/agreement" } method="post">
+									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<label><input class="checkbox" type="checkbox" name="recorded" value="1" checked?={ item.Agreement.Recorded }/> { data.T("engagement.agreement_recorded") }</label>
+									if data.FilesEnabled {
+										<label for={ "agreement-file-" + item.ID.String() }>{ data.T("engagement.agreement_file") }</label>
+										<input class="input input-bordered" id={ "agreement-file-" + item.ID.String() } name="file_id" value={ item.Agreement.FileID }/>
+									}
+									<button class="btn btn-primary" type="submit">{ data.T("engagement.agreement_save") }</button>
+								</form>
+							}
 							<p>{ data.T("engagement.quote") }: { data.T("engagement.quote_" + item.Quote.Status) } { item.Quote.Amount } { item.Quote.DateSent }</p>
 							if data.CanEditClients {
 								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/quote" } method="post">
