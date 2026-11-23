@@ -16,6 +16,8 @@ SCIM, exports, and audit history into role-aware sidebar sections.
 The Clients list links to engagement stages. Owners and admins can add, reorder,
 and archive stages; workspace readers see their order and archive state. The
 forms work without JavaScript.
+Owners and admins can set or reset the workspace work item label on the stages
+page. Client pages use that label; the default is engagement.
 On a client detail page, readers can see engagements and writers can create one
 with notes. Creation uses the first available open stage. A client with an
 engagement cannot be deleted.

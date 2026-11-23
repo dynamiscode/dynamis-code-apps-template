@@ -202,6 +202,7 @@ func (h *Handler) Routes() http.Handler {
 	}
 	mux.HandleFunc("GET /workspaces/{workspaceId}", h.workspaceHome)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/engagement-stages", h.engagementStages)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/engagement-stages/label", h.setEngagementLabel)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/engagement-stages", h.createEngagementStage)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/engagement-stages/reorder", h.reorderEngagementStages)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/engagement-stages/{stageId}/archive", h.archiveEngagementStage)

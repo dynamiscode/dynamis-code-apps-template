@@ -26,6 +26,11 @@ templ engagementStagesPage(data viewmodel.PageData, stages []engagement.Stage, c
 				@molecules.ErrorAlert(data.T(data.ErrorKey))
 			}
 			if canManage {
+				<form action={ templ.SafeURL(data.CurrentPath + "/label") } method="post">
+					<input type="hidden" name="csrf" value={ data.CSRF }/>
+					@molecules.TextField("engagement-label", data.T("engagement.label"), templ.Attributes{"name": "label", "value": data.EngagementLabel, "maxlength": "100"})
+					@molecules.SubmitButton(data.T("engagement.save_label"), nil)
+				</form>
 				<form action={ templ.SafeURL(data.CurrentPath) } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
 					@molecules.TextField("stage-name", data.T("engagement.name"), templ.Attributes{"name": "name", "required": true, "maxlength": "200"})

@@ -17,6 +17,11 @@ tests. Writers can create engagements for one workspace client in an open,
 unarchived stage; readers can view them. Creation is audited, and archiving an
 in-use stage preserves its engagements. The same tests cover these behaviors.
 Workspace export does not yet include stages or engagements.
+Owners and admins can set or reset the workspace work item label. The shared
+service audits changes and [migration 000037](../internal/platform/database/migrations/000037_engagement_label.sql)
+stores it per workspace. Evidence: [service](../internal/engagement/label_test.go),
+[REST](../internal/httpapi/engagement_test.go), and [web](../internal/web/engagement_test.go)
+tests. The label is deleted with its workspace and is not included in export.
 Next actions have text, an optional date, and a workspace-member owner. Writers
 can change them; readers can view them and the workspace's open-stage due list.
 The service, REST, and web tests above cover these surfaces. Dates use UTC for

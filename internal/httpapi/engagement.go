@@ -10,6 +10,52 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 )
 
+func (h *handler) getEngagementLabel(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		notFoundProblem(w, r)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	actor, ok := h.workspaceBearer(w, r, workspace, identity.ResourcesRead)
+	if !ok {
+		return
+	}
+	label, err := h.engagement.Label(r.Context(), actor, workspace)
+	if err != nil {
+		h.engagementError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"label": label})
+}
+
+func (h *handler) setEngagementLabel(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		notFoundProblem(w, r)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	actor, ok := h.workspaceBearer(w, r, workspace, identity.WorkspaceUpdate)
+	if !ok {
+		return
+	}
+	var input struct {
+		Label *string `json:"label"`
+	}
+	if err := decodeJSON(r, &input); err != nil {
+		h.badJSON(w, r, err)
+		return
+	}
+	if input.Label == nil {
+		h.invalidRequest(w, r, "Label is required.")
+		return
+	}
+	if err := h.engagement.SetLabel(r.Context(), actor, workspace, *input.Label, h.auditContext(r)); err != nil {
+		h.engagementError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *handler) setEngagementQuote(w http.ResponseWriter, r *http.Request) {
 	if h.engagement == nil {
 		notFoundProblem(w, r)
