@@ -370,6 +370,9 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	if err != nil || got.StageID != stages[len(stages)-1].ID || got.NextAction != action || got.Quote != quote || got.AssigneeID != viewerID || len(got.History) != 2 || got.History[0].FromStageID != stage.ID || got.History[0].ToStageID != stages[1].ID {
 		t.Fatalf("move history: %+v, %v", got, err)
 	}
+	if _, err := time.Parse(time.RFC3339Nano, got.History[0].CreatedAt); err != nil || got.History[0].ActorUserID != owner.UserID {
+		t.Fatalf("history actor or time: %+v, %v", got.History[0], err)
+	}
 	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, stages[2].ID, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
