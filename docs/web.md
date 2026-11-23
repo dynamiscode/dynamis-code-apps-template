@@ -18,8 +18,8 @@ and archive stages; workspace readers see their order and archive state. The
 forms work without JavaScript.
 On a client detail page, readers can see engagements and their stage history;
 writers can create an engagement with notes and move it to an unarchived stage.
-Creation uses the first available open stage. A client with an engagement cannot
-be deleted.
+Creation uses the first available open stage. Client deletion warns that its
+engagements and their history are permanently deleted too.
 Owners and admins can set or reset the workspace work item label on the stages
 page. Client pages use that label; the default is engagement.
 Readers see next actions on client details; writers can set, change, or clear

@@ -875,7 +875,7 @@
         },
       "delete": {
         "operationId": "deleteClient",
-        "description": "Permanently deletes a client and its custom values in one transaction. Owners and admins only. Clients with engagements cannot be deleted.",
+        "description": "Permanently deletes a client, its custom values, engagements, next actions and engagement stage history in one transaction. Owners and admins only.",
         "security": [{"bearerAuth": []}],
         "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/ClientId"}],
         "responses": {

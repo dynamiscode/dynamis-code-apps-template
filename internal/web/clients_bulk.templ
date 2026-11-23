@@ -16,6 +16,7 @@ templ clientBulkBar(data viewmodel.PageData) {
 			{ data.T("clients.bulk_archive") }
 		}
 		if data.CanDeleteClients {
+			<p class="warning alert alert-warning py-2">{ data.T("clients.bulk_delete_confirm") }</p>
 			@atoms.Button(atoms.ButtonProps{Class: "btn-xs client-bulk-danger", Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "delete", "data-bulk-action": true, "data-confirm": data.T("clients.bulk_delete_confirm")}}) {
 				@organisms.ListActionIcon("delete")
 				{ data.T("clients.bulk_delete") }

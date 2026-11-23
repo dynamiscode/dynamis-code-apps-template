@@ -23,7 +23,6 @@ var (
 	ErrInvalidEmail        = fmt.Errorf("%w: email is invalid", ErrInvalidInput)
 	ErrNotFound            = errors.New("client not found")
 	ErrPreconditionFailed  = errors.New("client version does not match")
-	ErrHasEngagements      = errors.New("client has engagements")
 )
 
 const (

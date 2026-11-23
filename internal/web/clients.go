@@ -596,8 +596,6 @@ func (h *Handler) clientError(writer http.ResponseWriter, _ *http.Request, err e
 		h.renderError(writer, http.StatusBadRequest)
 	case errors.Is(err, clients.ErrNotFound), errors.Is(err, clients.ErrFieldNotFound), errors.Is(err, clients.ErrOptionNotFound):
 		h.renderError(writer, http.StatusNotFound)
-	case errors.Is(err, clients.ErrHasEngagements):
-		http.Error(writer, "A client with engagements cannot be deleted.", http.StatusConflict)
 	default:
 		h.renderError(writer, http.StatusInternalServerError)
 	}

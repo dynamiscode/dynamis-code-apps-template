@@ -227,8 +227,6 @@ func (h *handler) clientError(writer http.ResponseWriter, request *http.Request,
 		writeProblem(writer, request, http.StatusForbidden, "forbidden", "Access is denied.")
 	case errors.Is(err, clients.ErrNotFound):
 		notFoundProblem(writer, request)
-	case errors.Is(err, clients.ErrHasEngagements):
-		writeProblem(writer, request, http.StatusConflict, "client-has-engagements", "A client with engagements cannot be deleted.")
 	case errors.Is(err, clients.ErrFieldNotFound):
 		notFoundProblem(writer, request)
 	case errors.Is(err, clients.ErrLimit):

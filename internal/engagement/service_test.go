@@ -324,12 +324,6 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	if _, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{ClientID: client.ID, StageID: stage.ID}, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("archived target: %v", err)
 	}
-	if err := clientService.Delete(ctx, owner, boot.WorkspaceID, client.ID, identity.AuditContext{}); !errors.Is(err, clients.ErrHasEngagements) {
-		t.Fatalf("delete client: %v", err)
-	}
-	if _, err := svc.Get(ctx, owner, boot.WorkspaceID, created.ID); err != nil {
-		t.Fatalf("delete lost engagement: %v", err)
-	}
 	stages, err := svc.ListStages(ctx, owner, boot.WorkspaceID)
 	if err != nil {
 		t.Fatal(err)
@@ -413,6 +407,15 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	got, err = svc.Get(ctx, viewer, boot.WorkspaceID, created.ID)
 	if err != nil || len(got.History) != 5 {
 		t.Fatalf("history after retention: %+v, %v", got, err)
+	}
+	if err := clientService.Delete(ctx, owner, boot.WorkspaceID, client.ID, identity.AuditContext{}); err != nil {
+		t.Fatalf("delete client: %v", err)
+	}
+	for _, table := range []string{"engagements", "engagement_next_actions", "engagement_stage_history"} {
+		var count int
+		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+table+" WHERE workspace_id = ?", boot.WorkspaceID).Scan(&count); err != nil || count != 0 {
+			t.Fatalf("%s after deletion: %d, %v", table, count, err)
+		}
 	}
 }
 

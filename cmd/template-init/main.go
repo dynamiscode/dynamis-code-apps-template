@@ -308,6 +308,7 @@ func filesPath(relative string) bool {
 func clientsPath(relative string) bool {
 	relative = filepath.ToSlash(relative)
 	return relative == "internal/clients" || strings.HasPrefix(relative, "internal/clients/") ||
+		relative == "internal/identity/engagement_membership_test.go" ||
 		relative == "internal/engagement/engagement.go" ||
 		relative == "internal/engagement/agreement.go" ||
 		relative == "internal/engagement/agreement_test.go" ||
@@ -367,6 +368,9 @@ func clientsPath(relative string) bool {
 func disableClientsSource(relative string, raw []byte) []byte {
 	value := string(raw)
 	switch relative {
+	case "internal/identity/service.go":
+		value = removeText(value, "func (s *Service) clearMemberEngagements(", "func normalizeEmail(")
+		value = strings.Replace(value, "func normalizeEmail(", "func (s *Service) clearMemberEngagements(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, userID UserID) error { return nil }\n\nfunc normalizeEmail(", 1)
 	case "cmd/demo/main.go":
 		value = strings.Replace(value, "workspaceID, userID, err := demoOwner(", "workspaceID, _, err := demoOwner(", 1)
 		value = removeBlockIncludingEnd(value, "\tif err := seedClients(", "\t}\n")

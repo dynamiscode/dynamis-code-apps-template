@@ -177,5 +177,8 @@ func TestEngagementThroughREST(t *testing.T) {
 	if got := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil); got.Code != http.StatusOK || !strings.Contains(got.Body.String(), `"toStageId":"`+target.ID+`"`) {
 		t.Fatalf("history: %d %s", got.Code, got.Body.String())
 	}
-	assertProblem(t, serveAuthorized(handler, http.MethodDelete, base+"/clients/"+c.ID, "", token, nil), http.StatusConflict, "client-has-engagements")
+	if deleted := serveAuthorized(handler, http.MethodDelete, base+"/clients/"+c.ID, "", token, nil); deleted.Code != http.StatusNoContent {
+		t.Fatalf("delete client: %d %s", deleted.Code, deleted.Body.String())
+	}
+	assertProblem(t, serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil), http.StatusNotFound, "not-found")
 }
