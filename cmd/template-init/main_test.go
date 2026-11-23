@@ -418,6 +418,38 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(output, "internal/appctl")); !os.IsNotExist(err) {
 		t.Fatalf("generated application without Clients retains appctl: %v", err)
 	}
+	migrationPath := filepath.Join(output, "internal/platform/database/migrations/000042_application.sql")
+	if err := os.WriteFile(migrationPath, []byte("CREATE TABLE application_feature (id INTEGER PRIMARY KEY);\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	regression := `package database
+
+import (
+ "context"
+ "path/filepath"
+ "testing"
+ "example.com/acme/agent-app/internal/platform/config"
+)
+
+func TestApplicationMigration42(t *testing.T) {
+ ctx := context.Background()
+ db, err := Open(ctx, config.Database{Driver: config.SQLite, SQLitePath: filepath.Join(t.TempDir(), "app.db")})
+ if err != nil { t.Fatal(err) }
+ defer db.Close()
+ for i := 0; i < 2; i++ {
+  if err := Migrate(ctx, db, config.SQLite); err != nil { t.Fatal(err) }
+ }
+ var count int
+ if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM application_feature").Scan(&count); err != nil { t.Fatal(err) }
+ if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations WHERE version = 42").Scan(&count); err != nil || count != 1 { t.Fatalf("migration record count = %d, error = %v", count, err) }
+}
+`
+	if err := os.WriteFile(filepath.Join(output, "internal/platform/database/application_migration_test.go"), []byte(regression), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := runCommand(output, "go", "test", "./internal/platform/database", "-run", "^TestApplicationMigration42$"); err != nil {
+		t.Fatalf("generated application migration 42: %v", err)
+	}
 	for _, path := range []string{"internal/bootstrap/agent.go", "internal/mcpserver/server_test.go"} {
 		content, err := os.ReadFile(filepath.Join(output, path))
 		if err != nil || strings.Contains(string(content), "clients") {

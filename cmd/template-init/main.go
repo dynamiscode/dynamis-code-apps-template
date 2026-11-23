@@ -444,6 +444,10 @@ func clientsPath(relative string) bool {
 func disableClientsSource(relative string, raw []byte) []byte {
 	value := string(raw)
 	switch relative {
+	case "internal/platform/database/migrate.go":
+		value = removeLinesContaining(value, `/internal/platform/id"`)
+		value = removeText(value, "\t\tif migration.version == 42 {", "\t\tif err := recordMigration(ctx, tx, driver, migration.version); err != nil {")
+		value = removeText(value, "func backfillEngagementNames(", "// renderMigration")
 	case "internal/identity/service.go":
 		value = removeText(value, "func (s *Service) clearMemberEngagements(", "func normalizeEmail(")
 		value = strings.Replace(value, "func normalizeEmail(", "func (s *Service) clearMemberEngagements(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, userID UserID) error { return nil }\n\nfunc normalizeEmail(", 1)
