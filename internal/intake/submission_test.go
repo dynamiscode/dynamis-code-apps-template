@@ -112,4 +112,23 @@ func TestSubmissionCreatesClientAndEngagementTogether(t *testing.T) {
 	if err := db.QueryRow(`SELECT s.name, c.intake_consented_at FROM clients c JOIN engagements e ON e.client_id = c.id JOIN engagement_stages s ON s.id = e.stage_id`).Scan(&stage, &consent); err != nil || stage != "First" || consent == "" {
 		t.Fatalf("submission: %q %q %v", stage, consent, err)
 	}
+	if err := svc.Submit(ctx, token, Submission{DisplayName: "Duplicate", Email: "VISITOR@example.com", Phone: "555-1234", Consent: true}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	var first, duplicate bool
+	if err := db.QueryRow(`SELECT possible_duplicate FROM clients WHERE display_name = 'Visitor'`).Scan(&first); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT possible_duplicate FROM clients WHERE display_name = 'Duplicate'`).Scan(&duplicate); err != nil {
+		t.Fatal(err)
+	}
+	if first || !duplicate {
+		t.Fatalf("duplicate flags: original %v, new %v", first, duplicate)
+	}
+	if err := svc.Submit(ctx, token, Submission{DisplayName: "Phone match", Phone: "555-1234", Consent: true}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT possible_duplicate FROM clients WHERE display_name = 'Phone match'`).Scan(&duplicate); err != nil || !duplicate {
+		t.Fatalf("phone duplicate flag: %v, %v", duplicate, err)
+	}
 }

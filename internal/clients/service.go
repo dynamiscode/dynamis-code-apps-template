@@ -33,17 +33,18 @@ const (
 )
 
 type Client struct {
-	ID              ClientID             `json:"id"`
-	WorkspaceID     identity.WorkspaceID `json:"workspaceId"`
-	CreatedByUserID *identity.UserID     `json:"createdByUserId"`
-	DisplayName     string               `json:"displayName"`
-	Email           string               `json:"email"`
-	Phone           string               `json:"phone"`
-	Notes           string               `json:"notes"`
-	ArchivedAt      *time.Time           `json:"archivedAt"`
-	Version         int64                `json:"version"`
-	CreatedAt       time.Time            `json:"createdAt"`
-	UpdatedAt       time.Time            `json:"updatedAt"`
+	ID                ClientID             `json:"id"`
+	WorkspaceID       identity.WorkspaceID `json:"workspaceId"`
+	CreatedByUserID   *identity.UserID     `json:"createdByUserId"`
+	DisplayName       string               `json:"displayName"`
+	Email             string               `json:"email"`
+	Phone             string               `json:"phone"`
+	Notes             string               `json:"notes"`
+	PossibleDuplicate bool                 `json:"possibleDuplicate"`
+	ArchivedAt        *time.Time           `json:"archivedAt"`
+	Version           int64                `json:"version"`
+	CreatedAt         time.Time            `json:"createdAt"`
+	UpdatedAt         time.Time            `json:"updatedAt"`
 }
 
 // MaxListPage bounds the page number, so the row offset (page minus one, times the limit) stays a small integer.
@@ -197,6 +198,11 @@ func (s *Service) createInTx(ctx context.Context, tx *sql.Tx, actor identity.Pri
 		Phone: normalized.Phone, Notes: normalized.Notes,
 		Version: 1, CreatedAt: now, UpdatedAt: now,
 	}
+	if consent != nil {
+		if err := s.queryRow(ctx, tx, `SELECT EXISTS (SELECT 1 FROM clients WHERE workspace_id = ? AND ((? <> '' AND LOWER(email) = LOWER(?)) OR (? <> '' AND phone = ?)))`, workspaceID, normalized.Email, normalized.Email, normalized.Phone, normalized.Phone).Scan(&client.PossibleDuplicate); err != nil {
+			return Client{}, err
+		}
+	}
 	var creator any
 	if actor.UserID != 0 {
 		client.CreatedByUserID = &actor.UserID
@@ -209,11 +215,11 @@ func (s *Service) createInTx(ctx context.Context, tx *sql.Tx, actor identity.Pri
 	if err := s.queryRow(ctx, tx, `
 		INSERT INTO clients (
 			workspace_id, created_by_user_id, display_name, email, phone, notes,
-			version, created_at, updated_at, intake_consented_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			version, created_at, updated_at, intake_consented_at, possible_duplicate
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		RETURNING id
 	`, workspaceID, creator, client.DisplayName, client.Email, client.Phone,
-		client.Notes, client.Version, formatTime(now), formatTime(now), consentAt).Scan(&client.ID); err != nil {
+		client.Notes, client.Version, formatTime(now), formatTime(now), consentAt, client.PossibleDuplicate).Scan(&client.ID); err != nil {
 		return Client{}, err
 	}
 	if err := s.recordChange(ctx, tx, workspaceID, client.ID, "created", client.Version, now); err != nil {
@@ -446,7 +452,7 @@ func (s *Service) get(
 	}
 	client, err := scanClient(s.queryRow(ctx, queryer, `
 		SELECT id, workspace_id, created_by_user_id, display_name, email, phone, notes,
-			version, created_at, updated_at, archived_at
+			version, created_at, updated_at, archived_at, possible_duplicate
 		FROM clients
 		WHERE workspace_id = ? AND id = ?
 	`, workspaceID, clientID))
@@ -468,7 +474,7 @@ func scanClient(row scanner) (Client, error) {
 	if err := row.Scan(
 		&client.ID, &client.WorkspaceID, &createdByUserID, &client.DisplayName,
 		&client.Email, &client.Phone, &client.Notes, &client.Version, &createdAt, &updatedAt,
-		&archivedAt,
+		&archivedAt, &client.PossibleDuplicate,
 	); err != nil {
 		return Client{}, err
 	}

@@ -491,7 +491,7 @@ func (s *Service) buildListQuery(
 		order = fmt.Sprintf("(%s) IS NULL, %s %s, id %s", t.value, s.orderExpr(t), dir, dir)
 	}
 	query.sql = "SELECT id, workspace_id, created_by_user_id, display_name, email, phone, notes, " +
-		"version, created_at, updated_at, archived_at, " + sortExpr + " AS sort_value " +
+		"version, created_at, updated_at, archived_at, possible_duplicate, " + sortExpr + " AS sort_value " +
 		"FROM clients WHERE " + strings.Join(where, " AND ") + " ORDER BY " + order + " LIMIT ? OFFSET ?"
 	query.args = args
 	return query, nil
