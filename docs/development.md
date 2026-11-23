@@ -48,6 +48,14 @@ escaped user content, and test browser precedence separately from stable
 English REST/CLI/MCP contracts. Add plural support only when the first
 count-dependent product message requires it.
 
+## Catalog verification ladder
+
+1. Run `go test ./internal/catalog ./internal/httpapi ./internal/web ./api` for service invariants, authorization, REST, web, and contract behavior.
+2. Run `go test ./cmd/template-init -run Catalog -count=1` for included and omitted profiles.
+3. Run `make ci-local` for repository checks, then `make verify` for the full local verification gate.
+4. Run PostgreSQL catalog tests against an isolated migrated database with `POSTGRES_TEST_URL` set: `go test ./internal/catalog -run Postgres -count=1`.
+5. Run browser and accessibility smoke checks when changing catalog forms; record unavailable environments rather than claiming a pass.
+
 ## Feature completeness
 
 For every feature, record its shared application behavior, authorization

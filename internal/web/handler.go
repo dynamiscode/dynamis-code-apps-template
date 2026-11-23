@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	appcatalog "example.com/dynamis-code/apps-template/internal/catalog"
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/engagement"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
@@ -37,6 +38,7 @@ var files embed.FS
 type Handler struct {
 	logger          *slog.Logger
 	identity        *identity.Service
+	catalogService  *appcatalog.Service
 	clients         *clients.Service
 	engagement      *engagement.Service
 	clientsEnabled  bool
@@ -201,6 +203,15 @@ func (h *Handler) Routes() http.Handler {
 		mux.HandleFunc("POST /workspaces", h.createWorkspace)
 	}
 	mux.HandleFunc("GET /workspaces/{workspaceId}", h.workspaceHome)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/catalog", h.catalogList)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog", h.catalogCreate)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/prices", h.catalogCreatePrice)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/edit", h.catalogEdit)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/prices/{priceId}/edit", h.catalogEditPrice)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/prices/{priceId}/delete", h.catalogDeletePrice)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/archive", h.catalogArchive)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/unarchive", h.catalogUnarchive)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/delete", h.catalogDelete)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/engagement-stages", h.engagementStages)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/engagement-stages/label", h.setEngagementLabel)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/engagement-stages", h.createEngagementStage)
@@ -713,6 +724,7 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 	}
 	data.FilesEnabled = h.files != nil
 	data.ClientsEnabled = h.clients != nil
+	data.CatalogEnabled = h.catalogService != nil
 	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
 	h.localizePage(writer, &data)
 	if data.ToastKey != "" {

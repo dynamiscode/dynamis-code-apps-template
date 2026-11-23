@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"example.com/dynamis-code/apps-template/internal/catalog"
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/engagement"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
@@ -159,9 +160,10 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		db, cfg.Database.Driver, identityService,
 		secretbox.New(cfg.Encryption.Keys, cfg.Encryption.Primary), instanceMailer,
 	)
-	handler, err := httpapi.NewHandlerWithEngagement(
+	catalogService := catalog.NewService(db, identityService, nil)
+	handler, err := httpapi.NewHandlerWithCatalogAndEngagement(
 		db, identityService, portabilityService, oidcRegistry, cfg.HTTP, slog.Default(),
-		webhookService, fileService, cfg.PublicURL, mailer, engagementService, clientService,
+		webhookService, fileService, cfg.PublicURL, mailer, catalogService, engagementService, clientService,
 	)
 	if err != nil {
 		db.Close()
@@ -177,6 +179,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("initialize web handler: %w", err)
 	}
+	webHandler.EnableCatalog(catalogService)
 	webHandler.SetWorkspaceMode(cfg.WorkspaceMode)
 	listPreferences := listprefs.NewService(db, cfg.Database.Driver, identityService)
 	webHandler.EnableListPreferences(listPreferences)

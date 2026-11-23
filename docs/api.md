@@ -8,6 +8,8 @@ Quick check:
 curl http://127.0.0.1:8080/api/openapi.json
 ```
 
+Catalog profile: `GET /api/v1/workspaces/{workspaceId}/catalog` requires `resources:read` and returns active entries and prices; `includeArchived=true` includes archived entries. Creating entries, editing entries with `PUT /{entryId}`, adding prices with `POST /{entryId}/prices`, editing or removing prices with `PUT` or `DELETE /{entryId}/prices/{priceId}`, archiving or unarchiving with `POST /{entryId}/archive` or `/{entryId}/unarchive`, and `DELETE /{entryId}` require `resources:write` and owner or admin role. Fixed prices require a non-negative decimal string amount; manual prices omit amount. Both require currency and variant, and accept optional eligibility. Price IDs are typed short IDs. Decimal amounts are returned exactly as supplied; currencies are trimmed. Invalid input returns 422. Deleting an entry reported in use returns 409 and recommends archiving. Creation requires a nonempty `prices` array and saves the entry and prices in one transaction. Removing the last price returns 409. Adding a row requires an active entry; a foreign entry or price cannot be mutated through another workspace. For legacy entries with no prices, list with `includeArchived=true`, unarchive an archived entry, add a real price with `POST /{entryId}/prices`, and archive it again if needed. No price is invented and existing data is retained; until repaired, legacy entries may remain price-less. Sale linkage is deferred, so the production service has no sale-usage checker yet.
+
 ## Consumer quickstart
 
 API tokens are created from the workspace Settings API-token screen or through

@@ -9,6 +9,8 @@ cases as REST. Sign in at `/login`, create or choose a workspace, then use the
 workspace home and sidebar. `/workspaces/{workspaceId}` is the workspace home;
 it links to enabled workspace tools. Settings groups members, invitations, API tokens, webhooks, SCIM provisioning, export, and audit history.
 
+Catalog profile: `/workspaces/{workspaceId}/catalog` lists active entries and their unconverted price options for workspace resource readers, with an option to include archived entries. Owners and admins can create, edit, archive, unarchive, or delete unused entries and add, edit, or remove fixed or manual prices; members and viewers see no write controls. Fixed amounts are non-negative decimals, while manual options have no preset amount. Creation requires an initial price; removing the last price is rejected. New rows can only be added to active entries. To repair a legacy price-less entry, show archived entries, unarchive it if necessary, add its actual price, and archive it again if appropriate; no prices are invented. Entries reported in use cannot be deleted and should be archived, but sale linkage and the production usage checker remain deferred. Catalog entries and prices are scoped to their workspace. Workspace home links to the catalog.
+
 Member and invitation pages explain role permissions, ownership transfer,
 invited-email matching, and safe recovery for unavailable links.
 Settings groups general and email setup, member access, API tokens, webhooks,
