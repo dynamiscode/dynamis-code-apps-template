@@ -19,7 +19,9 @@ The Clients list links to engagement stages. Owners and admins can add, reorder,
 and archive stages; workspace readers see their order and archive state. The
 forms work without JavaScript.
 On a client detail page, readers can see engagements and their stage history;
-writers can create an engagement with notes and move it to an unarchived stage.
+each engagement name links to a read-only detail page with its existing information
+and a return link to the client. Writers can create an engagement with notes and
+move it to an unarchived stage.
 Creation uses the first available open stage. Client deletion warns that its
 engagements and their history are permanently deleted too.
 Owners and admins can set or reset the workspace work item label on the stages

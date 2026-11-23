@@ -59,6 +59,7 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 				<ul>
 					for _, item := range data.Engagements {
 						<li>
+							<a class="link" href={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() }>{ item.Name }</a>
 							for _, stage := range data.EngagementStages {
 								if stage.ID == item.StageID {
 									<span>{ stage.Name }</span>

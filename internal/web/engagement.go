@@ -183,6 +183,10 @@ func (h *Handler) engagementMatchesClient(w http.ResponseWriter, r *http.Request
 	return true
 }
 
+func (h *Handler) engagementDetail(w http.ResponseWriter, r *http.Request) {
+	h.renderClientDetail(w, r, http.StatusOK, "", nil)
+}
+
 func (h *Handler) dueEngagements(w http.ResponseWriter, r *http.Request) {
 	if h.engagement == nil {
 		h.renderError(w, http.StatusNotFound)

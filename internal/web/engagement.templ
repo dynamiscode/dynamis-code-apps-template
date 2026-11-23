@@ -7,6 +7,61 @@ import molecules "example.com/dynamis-code/apps-template/internal/web/components
 import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
+templ engagementDetailPage(data viewmodel.PageData) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+		for _, item := range data.Engagements {
+			@molecules.PageHeading(item.Name, data.Client.DisplayName) {}
+			<a class="link" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String()) }>{ data.Client.DisplayName }</a>
+			<section class="card my-4 p-6">
+				for _, stage := range data.EngagementStages {
+					if stage.ID == item.StageID {
+						<p>{ data.T("engagement.stages") }: { stage.Name }</p>
+					}
+				}
+				<p>{ data.T("engagement.notes") }: { item.Notes }</p>
+				for _, member := range data.EngagementMembers {
+					if member.UserID == item.AssigneeID {
+						<p>{ data.T("engagement.assignee") }: { member.Email }</p>
+					}
+				}
+				<p>{ data.T("engagement.agreement") }:
+					if item.Agreement.Recorded {
+						<span>{ data.T("engagement.agreement_recorded") }</span>
+					} else {
+						<span>{ data.T("engagement.agreement_not_recorded") }</span>
+					}
+					{ item.Agreement.FileID }
+				</p>
+				<p>{ data.T("engagement.quote") }: { data.T("engagement.quote_" + item.Quote.Status) } { item.Quote.Amount } { item.Quote.DateSent }</p>
+				<p>{ data.T("engagement.next_action") }: { item.NextAction.Text } { item.NextAction.DueDate }</p>
+				for _, member := range data.EngagementMembers {
+					if member.UserID == item.NextAction.OwnerID {
+						<p>{ data.T("engagement.owner") }: { member.Email }</p>
+					}
+				}
+				<ol data-engagement-history>
+					for _, entry := range item.History {
+						<li>
+							for _, stage := range data.EngagementStages {
+								if stage.ID == entry.FromStageID {
+									<span>{ stage.Name }</span>
+								}
+							}
+							<span> → </span>
+							for _, stage := range data.EngagementStages {
+								if stage.ID == entry.ToStageID {
+									<span>{ stage.Name }</span>
+								}
+							}
+							<span> — { entry.ActorUserID.String() } — { entry.CreatedAt }</span>
+						</li>
+					}
+				</ol>
+			</section>
+		}
+	}
+}
+
 templ dueEngagementsPage(data viewmodel.PageData, items []engagement.Engagement, clientsPath string) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
 		@molecules.PageHeading(data.T("engagement.due_list"), data.T("clients.title")) {}

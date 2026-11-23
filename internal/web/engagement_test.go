@@ -135,7 +135,27 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	detailPath := path + "/engagements/" + items[0].ID.String()
+	clientPage := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
+	if !strings.Contains(clientPage.Body.String(), `href="`+detailPath+`"`) {
+		t.Fatal("client page missing engagement detail link")
+	}
+	for _, cookies := range [][]*http.Cookie{env.cookies, env.viewerCookies} {
+		detail := request(env.routes, http.MethodGet, detailPath, nil, cookies, nil)
+		if detail.Code != http.StatusOK || !strings.Contains(detail.Body.String(), "Engagement") || !strings.Contains(detail.Body.String(), "Other person") || !strings.Contains(detail.Body.String(), "Open") {
+			t.Fatalf("detail: %d %s", detail.Code, detail.Body.String())
+		}
+	}
+	if got := request(env.routes, http.MethodGet, detailPath, nil, nil, nil); got.Code == http.StatusOK {
+		t.Fatal("anonymous engagement detail allowed")
+	}
 	wrongPath := "/workspaces/" + env.workspaceID.String() + "/clients/" + otherClient.ID.String() + "/engagements/" + items[0].ID.String()
+	if got := request(env.routes, http.MethodGet, wrongPath, nil, env.cookies, nil); got.Code != http.StatusNotFound {
+		t.Fatalf("wrong client detail: %d", got.Code)
+	}
+	if got := request(env.routes, http.MethodGet, path+"/engagements/invalid", nil, env.cookies, nil); got.Code != http.StatusNotFound {
+		t.Fatalf("invalid engagement detail: %d", got.Code)
+	}
 	for suffix, form := range map[string]url.Values{
 		"/agreement":   {"recorded": {"1"}},
 		"/assignee":    {"assignee_id": {env.ownerID.String()}},

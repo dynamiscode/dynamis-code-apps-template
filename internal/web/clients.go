@@ -404,6 +404,15 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	if !ok {
 		return
 	}
+	if request.Method == http.MethodGet && request.PathValue("engagementId") != "" {
+		if h.engagement == nil {
+			h.renderError(writer, http.StatusNotFound)
+			return
+		}
+		if !h.engagementMatchesClient(writer, request, principal, workspaceID) {
+			return
+		}
+	}
 	client, err := h.clients.Get(request.Context(), principal, workspaceID, clientID)
 	if err != nil {
 		h.clientError(writer, request, err)
@@ -464,8 +473,27 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 			return
 		}
 	}
-	h.renderClientPage(writer, request, status, clientDetailPage, viewmodel.PageData{
-		Title: client.DisplayName, ErrorKey: errorKey, CSRF: csrf,
+	component := clientDetailPage
+	title := client.DisplayName
+	if request.Method == http.MethodGet && request.PathValue("engagementId") != "" {
+		component = engagementDetailPage
+		id := engagement.ParseID(request.PathValue("engagementId"))
+		var selected []engagement.Engagement
+		for _, item := range engagements {
+			if item.ID == id {
+				selected = []engagement.Engagement{item}
+				break
+			}
+		}
+		if len(selected) == 0 {
+			h.renderError(writer, http.StatusNotFound)
+			return
+		}
+		engagements = selected
+		title = selected[0].Name
+	}
+	h.renderClientPage(writer, request, status, component, viewmodel.PageData{
+		Title: title, ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		NavPage: "clients", NavSection: "clients",
 		CurrentPath:     h.clientsPath(workspaceID),
