@@ -59,9 +59,13 @@ templ engagementDetailPage(data viewmodel.PageData) {
 					</details>
 				}
 				<p>{ data.T("engagement.notes") }: { item.Notes }</p>
-				for _, member := range data.EngagementMembers {
-					if member.UserID == item.AssigneeID {
-						<p>{ data.T("engagement.assignee") }: { member.Email }</p>
+				if item.AssigneeID == 0 {
+					<p>{ data.T("engagement.assignee") }: { data.T("engagement.unassigned") }</p>
+				} else {
+					for _, member := range data.EngagementMembers {
+						if member.UserID == item.AssigneeID {
+							<p>{ data.T("engagement.assignee") }: { member.Email }</p>
+						}
 					}
 				}
 				if data.CanEditClients {
@@ -141,7 +145,14 @@ templ engagementDetailPage(data viewmodel.PageData) {
 						</details>
 					}
 				</section>
-				<p>{ data.T("engagement.next_action") }: { item.NextAction.Text } { item.NextAction.DueDate }</p>
+				<p>
+					{ data.T("engagement.next_action") }:
+					if item.NextAction.Text == "" {
+						{ data.T("engagement.no_next_action") }
+					} else {
+						{ item.NextAction.Text } { item.NextAction.DueDate }
+					}
+				</p>
 				for _, member := range data.EngagementMembers {
 					if member.UserID == item.NextAction.OwnerID {
 						<p>{ data.T("engagement.owner") }: { member.Email }</p>

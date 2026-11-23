@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -206,6 +207,13 @@ func TestEngagementThroughWeb(t *testing.T) {
 		t.Fatalf("detail disclosures or stage translation: %s", writerDetail.Body.String())
 	}
 	viewerDetail := request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
+	for _, detail := range []*httptest.ResponseRecorder{writerDetail, viewerDetail} {
+		for _, want := range []string{"Assignee: Unassigned", "Next action: No next action"} {
+			if !strings.Contains(detail.Body.String(), want) {
+				t.Fatalf("unassigned detail missing %q", want)
+			}
+		}
+	}
 	if !strings.Contains(writerDetail.Body.String(), namePath) || strings.Contains(viewerDetail.Body.String(), namePath) {
 		t.Fatalf("name form visibility: writer=%d viewer=%d", writerDetail.Code, viewerDetail.Code)
 	}
@@ -288,6 +296,14 @@ func TestEngagementThroughWeb(t *testing.T) {
 		localized := request(env.routes, http.MethodGet, localizedPath, nil, env.cookies, nil)
 		if strings.Contains(localized.Body.String(), "engagement.stage") || !strings.Contains(localized.Body.String(), "Etapa") {
 			t.Fatalf("Spanish stage translation missing on %s", localizedPath)
+		}
+	}
+	for _, cookies := range [][]*http.Cookie{env.cookies, env.viewerCookies} {
+		detail := request(env.routes, http.MethodGet, detailPath, nil, cookies, nil)
+		for _, want := range []string{"Asignado a: Sin asignar", "Próxima acción: Sin próxima acción"} {
+			if !strings.Contains(detail.Body.String(), want) {
+				t.Fatalf("Spanish unassigned detail missing %q", want)
+			}
 		}
 	}
 	spanishSaved := request(env.routes, http.MethodGet, detailPath+"?saved=1", nil, env.cookies, nil)

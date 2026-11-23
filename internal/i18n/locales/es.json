@@ -247,6 +247,8 @@
   "engagement.invalid_agreement_file": "Introduce un ID de archivo válido para este espacio de trabajo.",
   "engagement.agreement_save": "Guardar acuerdo",
   "engagement.next_action": "Próxima acción",
+  "engagement.no_next_action": "Sin próxima acción",
+  "engagement.unassigned": "Sin asignar",
   "engagement.invalid_next_action": "Introduce una próxima acción, responsable del espacio y fecha límite válidos. La acción requiere un responsable.",
   "engagement.due_date": "Fecha límite (opcional)",
   "engagement.owner": "Responsable",
