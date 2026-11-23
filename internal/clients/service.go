@@ -166,21 +166,54 @@ func (s *Service) Create(
 	); err != nil {
 		return Client{}, identity.ErrForbidden
 	}
+	client, err := s.createInTx(ctx, tx, actor, workspaceID, normalized, audit, nil)
+	if err != nil {
+		return Client{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Client{}, err
+	}
+	return client, nil
+}
+
+// CreateIntakeInTx creates a consented client only for an active workspace link.
+func (s *Service) CreateIntakeInTx(ctx context.Context, tx *sql.Tx, token string, workspaceID identity.WorkspaceID, input Input, audit identity.AuditContext) (Client, error) {
+	if err := s.auth.AuthorizeIntakeInTx(ctx, tx, token, workspaceID); err != nil {
+		return Client{}, err
+	}
+	normalized, err := normalizeInput(input)
+	if err != nil {
+		return Client{}, err
+	}
+	now := s.now().UTC()
+	return s.createInTx(ctx, tx, identity.Principal{AuthMethod: "public_intake"}, workspaceID, normalized, audit, &now)
+}
+
+func (s *Service) createInTx(ctx context.Context, tx *sql.Tx, actor identity.Principal, workspaceID identity.WorkspaceID, normalized Input, audit identity.AuditContext, consent *time.Time) (Client, error) {
 	now := s.now().UTC()
 	client := Client{
-		WorkspaceID: workspaceID, CreatedByUserID: &actor.UserID,
+		WorkspaceID: workspaceID,
 		DisplayName: normalized.DisplayName, Email: normalized.Email,
 		Phone: normalized.Phone, Notes: normalized.Notes,
 		Version: 1, CreatedAt: now, UpdatedAt: now,
 	}
+	var creator any
+	if actor.UserID != 0 {
+		client.CreatedByUserID = &actor.UserID
+		creator = actor.UserID
+	}
+	var consentAt any
+	if consent != nil {
+		consentAt = formatTime(*consent)
+	}
 	if err := s.queryRow(ctx, tx, `
 		INSERT INTO clients (
 			workspace_id, created_by_user_id, display_name, email, phone, notes,
-			version, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			version, created_at, updated_at, intake_consented_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		RETURNING id
-	`, workspaceID, actor.UserID, client.DisplayName, client.Email, client.Phone,
-		client.Notes, client.Version, formatTime(now), formatTime(now)).Scan(&client.ID); err != nil {
+	`, workspaceID, creator, client.DisplayName, client.Email, client.Phone,
+		client.Notes, client.Version, formatTime(now), formatTime(now), consentAt).Scan(&client.ID); err != nil {
 		return Client{}, err
 	}
 	if err := s.recordChange(ctx, tx, workspaceID, client.ID, "created", client.Version, now); err != nil {
@@ -193,9 +226,6 @@ func (s *Service) Create(
 		eventType: "client.created", action: "client.create", targetType: "client",
 		targetKey: int64(client.ID), metadata: "{}", at: now,
 	}); err != nil {
-		return Client{}, err
-	}
-	if err := tx.Commit(); err != nil {
 		return Client{}, err
 	}
 	return client, nil

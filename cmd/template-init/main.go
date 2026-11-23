@@ -412,6 +412,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/web/client_fields.templ" || relative == "internal/web/client_fields_templ.go" ||
 		relative == "internal/web/templates/clients.html" || relative == "internal/web/templates/client.html" ||
 		relative == "internal/platform/database/migrations/000022_clients.sql" ||
+		relative == "internal/platform/database/migrations/000043_client_intake_consent.sql" ||
 		relative == "internal/platform/database/migrations/000023_client_fields.sql" ||
 		relative == "internal/platform/database/migrations/000024_client_events.sql" ||
 		relative == "internal/platform/database/migrations/000031_client_timeline.sql" ||
