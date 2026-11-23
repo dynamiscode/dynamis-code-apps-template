@@ -95,3 +95,22 @@ func TestEmailJobOutcomes(t *testing.T) {
 		t.Fatalf("exhaustion = %+v", got)
 	}
 }
+
+func TestEmailJobSendsEachRecipientEvenWhenOneFails(t *testing.T) {
+	sender := &batchSender{}
+	handler := EmailHandler(sender)
+	err := handler(context.Background(), Job{Payload: `{"recipients":["first@example.com","second@example.com"],"subject":"New request","body":"Open record"}`})
+	if err == nil || len(sender.recipients) != 2 || sender.recipients[1] != "second@example.com" {
+		t.Fatalf("delivery = %v, recipients = %v", err, sender.recipients)
+	}
+}
+
+type batchSender struct{ recipients []string }
+
+func (s *batchSender) Send(_ context.Context, recipient, _, _ string) error {
+	s.recipients = append(s.recipients, recipient)
+	if recipient == "first@example.com" {
+		return errors.New("delivery failed")
+	}
+	return nil
+}

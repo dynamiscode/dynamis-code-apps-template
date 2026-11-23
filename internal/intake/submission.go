@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/engagement"
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 )
 
@@ -66,6 +68,46 @@ func (s *Service) Submit(ctx context.Context, token string, input Submission, au
 	}
 	if err != nil {
 		return err
+	}
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT m.user_id, u.email FROM workspace_members m JOIN users u ON u.id = m.user_id WHERE m.workspace_id = ? AND m.role IN ('owner', 'admin')`), workspace)
+	if err != nil {
+		return err
+	}
+	var recipients []identity.UserID
+	var emails []string
+	for rows.Next() {
+		var recipient identity.UserID
+		var email string
+		if err := rows.Scan(&recipient, &email); err != nil {
+			rows.Close()
+			return err
+		}
+		recipients = append(recipients, recipient)
+		emails = append(emails, email)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	path := "/workspaces/" + workspace.String() + "/clients/" + client.ID.String()
+	for _, recipient := range recipients {
+		_, err := s.auth.CreateNotificationInTx(ctx, tx, identity.Principal{AuthMethod: "system"}, identity.NotificationInput{
+			RecipientUserID: recipient, WorkspaceID: workspace, NotificationType: "public_intake",
+			Title: "New intake submission", Body: path,
+		}, audit)
+		if err != nil {
+			return err
+		}
+	}
+	if s.queue != nil && len(emails) > 0 {
+		if err := jobs.EnqueueEmailTx(ctx, s.queue, tx, workspace, int64(client.ID), jobs.Email{
+			Recipients: emails, Subject: "New intake submission", Body: s.publicURL + path,
+		}, time.Now().UTC()); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }

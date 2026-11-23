@@ -15,6 +15,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/engagement"
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 )
@@ -31,6 +32,13 @@ type Service struct {
 	auth       *identity.Service
 	clients    *clients.Service
 	engagement *engagement.Service
+	queue      *jobs.Queue
+	publicURL  string
+}
+
+func (s *Service) ConfigureNotifications(queue *jobs.Queue, publicURL string) {
+	s.queue = queue
+	s.publicURL = strings.TrimRight(publicURL, "/")
 }
 
 type Settings struct {

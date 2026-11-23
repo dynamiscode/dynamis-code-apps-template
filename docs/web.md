@@ -13,6 +13,8 @@ Owners and admins manage the public intake link and consent text from Clients.
 Visitors use `/intake/{token}` without signing in; the form follows their browser
 language (English or Spanish) and returns a generic confirmation. A disabled or
 unknown link, or a workspace without an open stage, is unavailable.
+Accepted submissions create account notifications for owners and admins and
+queue staff email. Both link to the new client without including submitted data.
 Client details show a possible-duplicate warning when an intake submission
 matches another client in the workspace by email or phone.
 
