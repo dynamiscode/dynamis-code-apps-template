@@ -44,7 +44,26 @@ unknown. Repeat the audit with browser access before completing #621.
 
 Audit attempt at revision `69376b5`: a fresh disposable SQLite instance passed
 readiness and liveness checks, and its login response contained a form. The
-requested `mcp__playwright` tools and `codemode` discovery tools were not
-available in the session, so no browser journey was rendered or evaluated.
-Desktop, mobile, keyboard, accessibility, recovery, role, and no-JavaScript
-review remain blocked; HTTP responses are not rendered-browser evidence.
+previous claim that Playwright was unavailable was incorrect: Playwright is
+available in the parent session. HTTP responses alone are not rendered-browser
+evidence.
+
+## Reported Playwright baseline
+
+The user performed these observations with Playwright in the parent session,
+using a disposable SQLite instance and an owner account. After signing in, the
+user created an open Discovery stage, an Audit client, and an engagement.
+
+- Client detail showed one unnamed engagement in Discovery. Stage, assignee,
+  agreement, quote, and next-action forms were visible at the same time. The
+  engagement creation flow showed no name or stage choice.
+- The stage page grouped the workspace work-item label and stage creation. Its
+  empty state said “No stages yet.”
+- At a 390 × 844 viewport, document `clientWidth` and `scrollWidth` were both
+  375. This sampled state had no horizontal document overflow.
+
+Playwright saved a screenshot in its MCP server output. Its durable location and
+visual contents were not verified. Desktop review and broader mobile review
+remain outstanding, as do keyboard, error recovery, read-only role,
+no-JavaScript, and comprehensive accessibility audits. These observations do
+not complete the required rendered-browser audit.
