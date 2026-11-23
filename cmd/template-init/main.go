@@ -461,6 +461,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `/internal/intake"`)
 		value = removeLineStarting(value, "\tintakeService := intake.NewService(")
+		value = removeLineStarting(value, "\tintakeService.ConfigureNotifications(")
 		value = strings.ReplaceAll(value, ", intakeService,", ",")
 		value = removeLineStarting(value, "\twebHandler.EnableIntake(")
 		value = removeLineStarting(value, "\tclientService := clients.NewService(")
@@ -627,6 +628,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLineStarting(value, "- Agreement:")
 		value = removeText(value, "\n- Clients (Clients profile):", "\n\n## Webhooks")
 	case "docs/web.md":
+		value = removeText(value, "\nOwners and admins manage the public intake", "\nmatches another client in the workspace by email or phone.")
+		value = removeLineStarting(value, "matches another client in the workspace by email or phone.")
 		value = removeText(value, "\nOn a client detail page,", "\n`/account`")
 		value = removeLineStarting(value, "| Workspace clients and custom fields;")
 		value = removeText(value, "\n\n`/workspaces/{workspaceId}/clients` lists", "\n\n## Realtime contract")
