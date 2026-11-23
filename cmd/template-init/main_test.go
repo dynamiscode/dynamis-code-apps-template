@@ -357,6 +357,7 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 	}
 	for _, path := range []string{
 		"internal/clients", "internal/httpapi/clients.go", "internal/httpapi/client_timeline.go", "internal/httpapi/client_timeline_test.go", "internal/web/clients.go",
+		"internal/engagement/engagement.go", "internal/engagement/assignee.go", "internal/engagement/next_action.go", "internal/engagement/quote.go",
 		"internal/web/client_timeline.go", "internal/web/client_timeline_test.go",
 		"internal/web/clients.templ", "internal/web/clients_templ.go",
 		"internal/web/client_details.templ", "internal/web/client_details_templ.go",
@@ -365,6 +366,7 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		"internal/platform/database/migrations/000022_clients.sql",
 		"internal/platform/database/migrations/000024_client_events.sql",
 		"internal/platform/database/migrations/000031_client_timeline.sql",
+		"internal/platform/database/migrations/000033_engagements.sql", "internal/platform/database/migrations/000034_engagement_next_action.sql", "internal/platform/database/migrations/000035_engagement_quote.sql", "internal/platform/database/migrations/000036_engagement_assignee.sql",
 		"internal/web/clients_events.go", "internal/web/clients_no_javascript_test.go",
 		"internal/mcpserver/clients.go", "internal/mcpserver/clients_test.go",
 		"internal/appctl/clients_test.go",

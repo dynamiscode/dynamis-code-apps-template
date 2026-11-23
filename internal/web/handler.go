@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/engagement"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
@@ -37,6 +38,7 @@ type Handler struct {
 	logger          *slog.Logger
 	identity        *identity.Service
 	clients         *clients.Service
+	engagement      *engagement.Service
 	clientsEnabled  bool
 	listPreferences *listprefs.Service
 	listViews       *listviews.Service
@@ -199,6 +201,11 @@ func (h *Handler) Routes() http.Handler {
 		mux.HandleFunc("POST /workspaces", h.createWorkspace)
 	}
 	mux.HandleFunc("GET /workspaces/{workspaceId}", h.workspaceHome)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/engagement-stages", h.engagementStages)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/engagement-stages/label", h.setEngagementLabel)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/engagement-stages", h.createEngagementStage)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/engagement-stages/reorder", h.reorderEngagementStages)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/engagement-stages/{stageId}/archive", h.archiveEngagementStage)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients", h.clientList)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/preferences/columns/{column}", h.setClientColumn)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/preferences/columns/reset", h.resetClientColumns)
@@ -209,6 +216,13 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/new", h.createClient)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients/{clientId}", h.clientDetail)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}", h.changeClient)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements", h.createEngagement)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/stage", h.moveEngagement)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/next-action", h.setEngagementNextAction)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/quote", h.setEngagementQuote)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/agreement", h.setEngagementAgreement)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/assignee", h.setEngagementAssignee)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/engagements/due", h.dueEngagements)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/timeline", h.addClientTimelineEntry)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/bulk", h.bulkClients)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/archive", h.archiveClient)

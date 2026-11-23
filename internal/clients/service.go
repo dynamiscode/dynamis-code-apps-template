@@ -227,6 +227,11 @@ func (s *Service) Get(
 	return client, nil
 }
 
+// GetInTx reads a workspace client within the caller's transaction.
+func (s *Service) GetInTx(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID, clientID ClientID) (Client, error) {
+	return s.get(ctx, tx, workspaceID, clientID)
+}
+
 // Update applies a partial change when version matches the stored client.
 // Writers are Member, Admin, and Owner; Viewer is refused.
 func (s *Service) Update(

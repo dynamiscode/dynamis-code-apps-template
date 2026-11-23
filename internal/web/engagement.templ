@@ -1,0 +1,75 @@
+package web
+
+import "example.com/dynamis-code/apps-template/internal/engagement"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
+templ dueEngagementsPage(data viewmodel.PageData, items []engagement.Engagement, clientsPath string) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+		@molecules.PageHeading(data.T("engagement.due_list"), data.T("clients.title")) {}
+		<section class="card my-4 p-6"><ul>
+			for _, item := range items {
+				<li><a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String()) }>{ item.NextAction.Text }</a> — { item.NextAction.DueDate }</li>
+			}
+		</ul></section>
+	}
+}
+
+templ engagementStagesPage(data viewmodel.PageData, stages []engagement.Stage, canManage bool) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+		@molecules.PageHeading(data.T("engagement.stages"), data.T("clients.title")) {}
+		<section class="card my-4 p-6">
+			if data.ErrorKey != "" {
+				@molecules.ErrorAlert(data.T(data.ErrorKey))
+			}
+			if canManage {
+				<form action={ templ.SafeURL(data.CurrentPath + "/label") } method="post">
+					<input type="hidden" name="csrf" value={ data.CSRF }/>
+					@molecules.TextField("engagement-label", data.T("engagement.label"), templ.Attributes{"name": "label", "value": data.EngagementLabel, "maxlength": "100"})
+					@molecules.SubmitButton(data.T("engagement.save_label"), nil)
+				</form>
+				<form action={ templ.SafeURL(data.CurrentPath) } method="post">
+					<input type="hidden" name="csrf" value={ data.CSRF }/>
+					@molecules.TextField("stage-name", data.T("engagement.name"), templ.Attributes{"name": "name", "required": true, "maxlength": "200"})
+					@atoms.Select(atoms.SelectProps{ID: "stage-kind", Name: "kind", Label: data.T("engagement.kind"), Options: []atoms.SelectOption{{Label: data.T("engagement.open"), Value: "open"}, {Label: data.T("engagement.won"), Value: "won"}, {Label: data.T("engagement.lost"), Value: "lost"}}})
+					@molecules.SubmitButton(data.T("engagement.add"), nil)
+				</form>
+			}
+			if len(stages) == 0 {
+				<p>{ data.T("engagement.none") }</p>
+			} else {
+				<ol class="list-decimal ml-6">
+					for i, stage := range stages {
+						<li>
+							{ stage.Name } — { data.T("engagement." + stage.Kind) }
+							if stage.Archived {
+								<span>({ data.T("engagement.archived") })</span>
+							}
+							if canManage {
+								<form action={ templ.SafeURL(data.CurrentPath + "/reorder") } method="post" class="inline">
+									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<input type="hidden" name="stage" value={ stage.ID.String() }/>
+									if i > 0 {
+										<button class="btn btn-ghost btn-xs" name="direction" value="up" aria-label={ data.T("engagement.up") + " " + stage.Name }>{ data.T("engagement.up") }</button>
+									}
+									if i < len(stages)-1 {
+										<button class="btn btn-ghost btn-xs" name="direction" value="down" aria-label={ data.T("engagement.down") + " " + stage.Name }>{ data.T("engagement.down") }</button>
+									}
+								</form>
+								if !stage.Archived {
+									<form action={ templ.SafeURL(data.CurrentPath + "/" + stage.ID.String() + "/archive") } method="post" class="inline">
+										<input type="hidden" name="csrf" value={ data.CSRF }/>
+										<button class="btn btn-ghost btn-xs" aria-label={ data.T("engagement.archive") + " " + stage.Name }>{ data.T("engagement.archive") }</button>
+									</form>
+								}
+							}
+						</li>
+					}
+				</ol>
+			}
+		</section>
+	}
+}

@@ -9,7 +9,7 @@ type Operation struct {
 }
 
 const OpenAPIVersion = "3.1.0"
-const OpenAPISHA256 = "dd91792a53fb49bc78af2609edcb0b104ba1ea1c1c0462da3a4a431063f39f2e"
+const OpenAPISHA256 = "5fe59f9956edfa101fcf24db79f2799a22decbb6d1005fe5bcb5ab26854cba2d"
 
 var Operations = []Operation{
 	{Method: "GET", Path: "/api/openapi.json", ID: "getOpenAPI"},
@@ -47,6 +47,20 @@ var Operations = []Operation{
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/clients/{clientId}/values", ID: "listClientValues"},
 	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/clients/{clientId}/values/{fieldId}", ID: "clearClientValue"},
 	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/clients/{clientId}/values/{fieldId}", ID: "setClientValue"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/engagement-label", ID: "getEngagementLabel"},
+	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/engagement-label", ID: "setEngagementLabel"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/engagement-stages", ID: "listEngagementStages"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/engagement-stages", ID: "createEngagementStage"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/engagement-stages/reorder", ID: "reorderEngagementStages"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/engagement-stages/{stageId}/archive", ID: "archiveEngagementStage"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/engagements", ID: "createEngagement"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/engagements/due", ID: "listDueEngagements"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}", ID: "getEngagement"},
+	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}/agreement", ID: "setEngagementAgreement"},
+	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}/assignee", ID: "setEngagementAssignee"},
+	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}/next-action", ID: "setEngagementNextAction"},
+	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}/quote", ID: "setEngagementQuote"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}/stage", ID: "moveEngagement"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/export", ID: "exportWorkspace"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/files", ID: "listFiles"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/files", ID: "createFile"},

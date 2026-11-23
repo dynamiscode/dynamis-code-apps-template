@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/engagement"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/listviews"
@@ -14,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 type clientFilterOperator struct {
@@ -236,6 +238,18 @@ func (h *Handler) renderClientList(
 }
 
 func (h *Handler) renderClientPage(writer http.ResponseWriter, request *http.Request, status int, component func(viewmodel.PageData) templ.Component, data viewmodel.PageData) {
+	if h.engagement != nil {
+		actor, _, _, ok := h.workspaceSession(writer, request, data.Workspace.ID, identity.ResourcesRead)
+		if !ok {
+			return
+		}
+		label, err := h.engagement.Label(request.Context(), actor, data.Workspace.ID)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+		data.EngagementLabel = label
+	}
 	data.FilesEnabled = h.filesEnabled
 	data.ClientsEnabled = h.clientsEnabled
 	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
@@ -426,6 +440,30 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
+	var engagements []engagement.Engagement
+	var stages []engagement.Stage
+	var members []identity.MemberSummary
+	var engagementNotes string
+	if strings.HasPrefix(errorKey, "engagement.") {
+		engagementNotes = request.FormValue("notes")
+	}
+	if h.engagement != nil {
+		engagements, err = h.engagement.ListForClient(request.Context(), principal, workspaceID, clientID)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+		stages, err = h.engagement.ListStages(request.Context(), principal, workspaceID)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+		members, err = h.identity.ListMembers(request.Context(), principal)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+	}
 	h.renderClientPage(writer, request, status, clientDetailPage, viewmodel.PageData{
 		Title: client.DisplayName, ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
@@ -435,6 +473,8 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		CanManageFields: principal.Permissions[identity.WorkspaceUpdate],
 		Client:          client, ClientValues: rows, ClientTimeline: entries, TimelinePage: page, TimelineDraft: timelineDraft, CanEditClients: principal.Permissions[identity.ResourcesWrite],
 		CanDeleteClients: principal.Permissions[identity.WorkspaceUpdate],
+		Engagements:      engagements, EngagementStages: stages, EngagementMembers: members, EngagementEnabled: h.engagement != nil,
+		EngagementNotes: engagementNotes,
 	})
 }
 

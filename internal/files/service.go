@@ -387,6 +387,16 @@ func (s *Service) Get(ctx context.Context, actor identity.Principal, workspaceID
 	return s.get(ctx, actor, workspaceID, fileID, identity.ResourcesRead)
 }
 
+// GetInTx retrieves a ready file within an already authorized transaction.
+func (s *Service) GetInTx(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID, fileID FileID) (File, error) {
+	var file File
+	err := scanRow(tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT id, workspace_id, owner_user_id, object_key, original_name, detected_mime, size, sha256, status, created_at, updated_at FROM files WHERE id = ? AND workspace_id = ? AND status = ?`), fileID, workspaceID, Ready), &file)
+	if errors.Is(err, sql.ErrNoRows) {
+		return File{}, ErrNotFound
+	}
+	return file, err
+}
+
 func (s *Service) pending(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, fileID FileID) (File, error) {
 	if workspaceID == 0 {
 		return File{}, ErrInvalidInput

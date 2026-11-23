@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/engagement"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/httpapi"
 	"example.com/dynamis-code/apps-template/internal/identity"
@@ -141,6 +142,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, fmt.Errorf("register exhausted webhook job handler: %w", err)
 	}
 	clientService := clients.NewService(db, cfg.Database.Driver, identityService, cfg.Data.ClientFieldsMaxPerWorkspace, webhookService)
+	engagementService := engagement.NewService(db, cfg.Database.Driver, identityService)
 	portabilityService := portability.NewService(
 		db, cfg.Database.Driver, identityService,
 		cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,
@@ -157,9 +159,9 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		db, cfg.Database.Driver, identityService,
 		secretbox.New(cfg.Encryption.Keys, cfg.Encryption.Primary), instanceMailer,
 	)
-	handler, err := httpapi.NewHandlerWithWebhooksAndFiles(
+	handler, err := httpapi.NewHandlerWithEngagement(
 		db, identityService, portabilityService, oidcRegistry, cfg.HTTP, slog.Default(),
-		webhookService, fileService, cfg.PublicURL, mailer, clientService,
+		webhookService, fileService, cfg.PublicURL, mailer, engagementService, clientService,
 	)
 	if err != nil {
 		db.Close()
@@ -179,6 +181,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	listPreferences := listprefs.NewService(db, cfg.Database.Driver, identityService)
 	webHandler.EnableListPreferences(listPreferences)
 	webHandler.EnableClients(clientService, listPreferences)
+	webHandler.EnableEngagement(engagementService)
 	webHandler.EnableFilesPreferences(listPreferences)
 	webHandler.EnableListViews(listviews.NewService(db, cfg.Database.Driver, identityService))
 	jobQueue.Start(ctx)

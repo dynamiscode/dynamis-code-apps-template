@@ -7,6 +7,39 @@ group rows describe the supported application.
 
 This ledger records implemented conformance evidence and deferred triggers.
 
+## Engagement stages (#581, #584, #592)
+
+Owners and admins can append, reorder, and archive workspace stages through REST
+and web; readers see their order and archive state, and new workspaces start empty.
+The shared service enforces workspace access and audits each action. Evidence: [service](../internal/engagement/service_test.go),
+[REST](../internal/httpapi/engagement_test.go), and [web](../internal/web/engagement_test.go)
+tests. Writers can create engagements for one workspace client in an open,
+unarchived stage; readers can view them. Creation is audited, and archiving an
+in-use stage preserves its engagements. Writers can move engagements and readers
+can see permanent stage history; each move also produces a retention-bounded audit
+event. The same tests cover these behaviors and retention.
+Workspace export does not yet include stages or engagements.
+Owners and admins can set or reset the workspace work item label. The shared
+service audits changes and [migration 000037](../internal/platform/database/migrations/000037_engagement_label.sql)
+stores it per workspace. Evidence: [service](../internal/engagement/label_test.go),
+[REST](../internal/httpapi/engagement_test.go), and [web](../internal/web/engagement_test.go)
+tests. The label is deleted with its workspace and is not included in export.
+Next actions have text, an optional date, and a workspace-member owner. Writers
+can change them; readers can view them and the workspace's open-stage due list.
+The service, REST, and web tests above cover these surfaces. Dates use UTC for
+the due-list cutoff; actions are not included in workspace export.
+Quote status, optional amount and sent date are stored on the engagement by
+[migration 000035](../internal/platform/database/migrations/000035_engagement_quote.sql).
+The linked service, REST and web tests cover writes and read-only access. Quote
+data follows engagement retention and is not included in workspace export.
+Writers can assign or clear a workspace member on an engagement; readers can see
+the assignment. [Migration 000036](../internal/platform/database/migrations/000036_engagement_assignee.sql)
+stores the reference. The service, REST, and web tests above cover assignment.
+Writers can record a signed agreement and optionally reference a workspace file;
+readers see its short ID. [Migration 000039](../internal/platform/database/migrations/000039_engagement_agreement.sql)
+stores the internal file key, and the [service test](../internal/engagement/agreement_test.go)
+and REST and web tests above cover the behavior. Agreement data follows engagement retention.
+
 ## Client timeline REST (#575)
 
 Clients-profile REST exposes append-only timeline list and add through the shared

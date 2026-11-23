@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/engagement"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/jobs"
@@ -369,9 +370,9 @@ func testHandlerWithBodyLimit(t *testing.T, storage func(*config.Storage), bodyL
 	}
 	fileService := appfiles.NewService(db, cfg.Database.Driver, auth, objectStore,
 		cfg.Storage.MaxObjectBytes, cfg.Storage.MaxWorkspaceBytes, cfg.Storage.SignedURLTTL, cfg.Storage.S3Prefix)
-	handler, err := NewHandlerWithWebhooksAndFiles(db, auth,
+	handler, err := NewHandlerWithEngagement(db, auth,
 		portability.NewService(db, cfg.Database.Driver, auth, cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes, nil),
-		oidc, cfg.HTTP, slog.New(slog.NewTextHandler(io.Discard, nil)), webhookService, fileService, "", nil,
+		oidc, cfg.HTTP, slog.New(slog.NewTextHandler(io.Discard, nil)), webhookService, fileService, "", nil, engagement.NewService(db, cfg.Database.Driver, auth),
 		clients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace, webhookService))
 	if err != nil {
 		t.Fatal(err)

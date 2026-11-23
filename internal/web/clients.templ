@@ -44,6 +44,143 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 			</div>
 		}
 		@clientDetail(data)
+		if data.EngagementEnabled {
+			<section class="card my-4 p-6" aria-labelledby="engagement-heading">
+				<h2 id="engagement-heading">{ data.T("engagement.title") }</h2>
+				if data.CanEditClients {
+					<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements" } method="post">
+						<input type="hidden" name="csrf" value={ data.CSRF }/>
+						<label for="engagement-notes">{ data.T("engagement.notes") }</label>
+						<textarea id="engagement-notes" name="notes" maxlength="5000" class="textarea textarea-bordered">{ data.EngagementNotes }</textarea>
+						<button class="btn btn-primary" type="submit">{ data.T("engagement.create") }</button>
+					</form>
+				}
+				<ul>
+					for _, item := range data.Engagements {
+						<li>
+							for _, stage := range data.EngagementStages {
+								if stage.ID == item.StageID {
+									<span>{ stage.Name }</span>
+								}
+							}
+							<p>{ item.Notes }</p>
+							if data.CanEditClients {
+								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/stage" } method="post">
+									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<label for={ "stage-" + item.ID.String() }>{ data.T("engagement.move") }</label>
+									<select id={ "stage-" + item.ID.String() } name="stage" class="select select-bordered">
+										for _, stage := range data.EngagementStages {
+											if !stage.Archived {
+												<option value={ stage.ID.String() } selected?={ stage.ID == item.StageID }>{ stage.Name }</option>
+											}
+										}
+									</select>
+									<button class="btn btn-secondary" type="submit">{ data.T("engagement.move") }</button>
+								</form>
+							}
+							<ol data-engagement-history>
+								for _, entry := range item.History {
+									<li>
+										for _, stage := range data.EngagementStages {
+											if stage.ID == entry.FromStageID {
+											<span>{ stage.Name }</span>
+										}
+									}
+										<span> → </span>
+										for _, stage := range data.EngagementStages {
+											if stage.ID == entry.ToStageID {
+											<span>{ stage.Name }</span>
+										}
+									}
+										<span> — { entry.ActorUserID.String() } — { entry.CreatedAt }</span>
+									</li>
+								}
+							</ol>
+							for _, member := range data.EngagementMembers {
+								if member.UserID == item.AssigneeID {
+									<p>{ data.T("engagement.assignee") }: { member.Email }</p>
+								}
+							}
+							if data.CanEditClients {
+								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/assignee" } method="post">
+									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<label for={ "assignee-" + item.ID.String() }>{ data.T("engagement.assignee") }</label>
+									<select class="select select-bordered" id={ "assignee-" + item.ID.String() } name="assignee_id"><option value="">—</option>
+										for _, member := range data.EngagementMembers {
+											<option value={ member.UserID.String() } selected?={ member.UserID == item.AssigneeID }>{ member.Email }</option>
+										}
+									</select>
+									<button class="btn btn-primary" type="submit">{ data.T("engagement.save_assignee") }</button>
+								</form>
+							}
+							<p>{ data.T("engagement.agreement") }:
+								if item.Agreement.Recorded {
+									<span>{ data.T("engagement.agreement_recorded") }</span>
+								} else {
+									<span>{ data.T("engagement.agreement_not_recorded") }</span>
+								}
+								{ item.Agreement.FileID }
+							</p>
+							if data.CanEditClients {
+								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/agreement" } method="post">
+									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<label><input class="checkbox" type="checkbox" name="recorded" value="1" checked?={ item.Agreement.Recorded }/> { data.T("engagement.agreement_recorded") }</label>
+									if data.FilesEnabled {
+										<label for={ "agreement-file-" + item.ID.String() }>{ data.T("engagement.agreement_file") }</label>
+										<input class="input input-bordered" id={ "agreement-file-" + item.ID.String() } name="file_id" value={ item.Agreement.FileID }/>
+									}
+									<button class="btn btn-primary" type="submit">{ data.T("engagement.agreement_save") }</button>
+								</form>
+							}
+							<p>{ data.T("engagement.quote") }: { data.T("engagement.quote_" + item.Quote.Status) } { item.Quote.Amount } { item.Quote.DateSent }</p>
+							if data.CanEditClients {
+								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/quote" } method="post">
+									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<label for={ "quote-status-" + item.ID.String() }>{ data.T("engagement.quote") }</label>
+									<select class="select select-bordered" id={ "quote-status-" + item.ID.String() } name="status">
+										for _, status := range []string{"not_sent", "sent", "pending", "accepted", "declined"} {
+											<option value={ status } selected?={ item.Quote.Status == status }>{ data.T("engagement.quote_" + status) }</option>
+										}
+									</select>
+									<label for={ "quote-amount-" + item.ID.String() }>{ data.T("engagement.quote_amount") }</label>
+									<input class="input input-bordered" type="number" min="0" max="999999999999.99" step="0.01" id={ "quote-amount-" + item.ID.String() } name="amount" value={ item.Quote.Amount }/>
+									<label for={ "quote-date-" + item.ID.String() }>{ data.T("engagement.quote_date") }</label>
+									<input class="input input-bordered" type="date" id={ "quote-date-" + item.ID.String() } name="date_sent" value={ item.Quote.DateSent }/>
+									<button class="btn btn-primary" type="submit">{ data.T("engagement.quote_save") }</button>
+								</form>
+							}
+							if item.NextAction.Text != "" {
+								<p>{ data.T("engagement.next_action") }: { item.NextAction.Text } { item.NextAction.DueDate }</p>
+								for _, member := range data.EngagementMembers {
+									if member.UserID == item.NextAction.OwnerID {
+										<p>{ data.T("engagement.owner") }: { member.Email }</p>
+									}
+								}
+							}
+							if data.CanEditClients {
+								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/next-action" } method="post">
+									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<label for={ "action-" + item.ID.String() }>{ data.T("engagement.next_action") }</label>
+									<input class="input input-bordered" id={ "action-" + item.ID.String() } name="text" maxlength="5000" value={ item.NextAction.Text }/>
+									<label for={ "due-" + item.ID.String() }>{ data.T("engagement.due_date") }</label>
+									<input class="input input-bordered" type="date" id={ "due-" + item.ID.String() } name="due_date" value={ item.NextAction.DueDate }/>
+									<label for={ "owner-" + item.ID.String() }>{ data.T("engagement.owner") }</label>
+									<select class="select select-bordered" id={ "owner-" + item.ID.String() } name="owner_id"><option value="">—</option>
+										for _, member := range data.EngagementMembers {
+											<option value={ member.UserID.String() } selected?={ member.UserID == item.NextAction.OwnerID }>{ member.Email }</option>
+										}
+									</select>
+									<button class="btn btn-primary" type="submit">{ data.T("engagement.save_action") }</button>
+									if item.NextAction.Text != "" {
+										<button class="btn btn-ghost" type="submit" name="clear" value="1">{ data.T("engagement.clear_action") }</button>
+									}
+								</form>
+							}
+						</li>
+					}
+				</ul>
+			</section>
+		}
 	}
 }
 
