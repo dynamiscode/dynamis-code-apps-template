@@ -58,6 +58,13 @@ func TestAgreementCanBeRecordedAndCleared(t *testing.T) {
 	if err != nil || !got.Agreement.Recorded || got.Agreement.FileID != shortID {
 		t.Fatalf("recorded agreement = %+v, %v", got.Agreement, err)
 	}
+	if err := svc.SetNextAction(ctx, actor, boot.WorkspaceID, e.ID, NextAction{Text: "Call", DueDate: "2020-01-01", OwnerID: boot.UserID}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	due, err := svc.ListDue(ctx, actor, boot.WorkspaceID, "2020-01-01")
+	if err != nil || len(due) != 1 || due[0].Agreement.FileID != shortID || !due[0].Agreement.Recorded {
+		t.Fatalf("due agreement = %+v, %v", due, err)
+	}
 	other, err := auth.CreateWorkspace(ctx, actor, identity.WorkspaceCreateInput{Name: "Other"}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)

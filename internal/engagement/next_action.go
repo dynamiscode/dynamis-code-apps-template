@@ -10,6 +10,7 @@ import (
 
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
+	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 func (s *Service) SetNextAction(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, action NextAction, audit identity.AuditContext) error {
@@ -68,17 +69,19 @@ func (s *Service) ListDue(ctx context.Context, actor identity.Principal, workspa
 	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesRead); err != nil {
 		return nil, identity.ErrForbidden
 	}
-	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT e.id, e.client_id, e.stage_id, e.notes, a.action_text, a.due_date, COALESCE(a.owner_id, 0), e.quote_status, e.quote_amount, e.quote_date_sent, COALESCE(e.assignee_id, 0) FROM engagements e JOIN engagement_stages s ON s.workspace_id = e.workspace_id AND s.id = e.stage_id JOIN engagement_next_actions a ON a.workspace_id = e.workspace_id AND a.engagement_id = e.id WHERE e.workspace_id = ? AND s.kind = 'open' AND a.due_date <> '' AND a.due_date <= ? ORDER BY a.due_date, e.id`), workspaceID, today)
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT e.id, e.client_id, e.stage_id, e.notes, a.action_text, a.due_date, COALESCE(a.owner_id, 0), e.quote_status, e.quote_amount, e.quote_date_sent, COALESCE(e.assignee_id, 0), e.agreement_recorded, COALESCE(e.agreement_file_id, 0) FROM engagements e JOIN engagement_stages s ON s.workspace_id = e.workspace_id AND s.id = e.stage_id JOIN engagement_next_actions a ON a.workspace_id = e.workspace_id AND a.engagement_id = e.id WHERE e.workspace_id = ? AND s.kind = 'open' AND a.due_date <> '' AND a.due_date <= ? ORDER BY a.due_date, e.id`), workspaceID, today)
 	if err != nil {
 		return nil, err
 	}
 	values := []Engagement{}
 	for rows.Next() {
 		var value Engagement
-		if err := rows.Scan(&value.ID, &value.ClientID, &value.StageID, &value.Notes, &value.NextAction.Text, &value.NextAction.DueDate, &value.NextAction.OwnerID, &value.Quote.Status, &value.Quote.Amount, &value.Quote.DateSent, &value.AssigneeID); err != nil {
+		var fileID int64
+		if err := rows.Scan(&value.ID, &value.ClientID, &value.StageID, &value.Notes, &value.NextAction.Text, &value.NextAction.DueDate, &value.NextAction.OwnerID, &value.Quote.Status, &value.Quote.Amount, &value.Quote.DateSent, &value.AssigneeID, &value.Agreement.Recorded, &fileID); err != nil {
 			rows.Close()
 			return nil, err
 		}
+		value.Agreement.FileID = id.EncodeKey(id.TypeFile, fileID)
 		values = append(values, value)
 	}
 	if err := rows.Err(); err != nil {

@@ -310,6 +310,7 @@ func clientsPath(relative string) bool {
 	return relative == "internal/clients" || strings.HasPrefix(relative, "internal/clients/") ||
 		relative == "internal/engagement/engagement.go" ||
 		relative == "internal/engagement/agreement.go" ||
+		relative == "internal/engagement/agreement_test.go" ||
 		relative == "internal/engagement/assignee.go" || relative == "internal/engagement/next_action.go" || relative == "internal/engagement/quote.go" ||
 		relative == "internal/platform/database/migrations/000033_engagements.sql" ||
 		relative == "internal/platform/database/migrations/000039_engagement_agreement.sql" ||
@@ -396,9 +397,11 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `"setEngagementNextAction":`)
 		value = removeLinesContaining(value, `"setEngagementQuote":`)
 		value = removeLinesContaining(value, `"setEngagementAssignee":`)
+		value = removeLinesContaining(value, `"setEngagementAgreement":`)
 	case "internal/httpapi/engagement.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `"time"`)
+		value = removeText(value, "func (h *handler) setEngagementAgreement(", "func (h *handler) setEngagementAssignee(")
 		value = removeText(value, "func (h *handler) setEngagementAssignee(", "func (h *handler) getEngagementLabel(")
 		value = removeText(value, "func (h *handler) setEngagementQuote(", "func (h *handler) createEngagement(")
 		value = removeText(value, "func (h *handler) createEngagement(", "func (h *handler) listEngagementStages(")
@@ -473,6 +476,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.ReplaceAll(value, "ClientsEnabled: h.clients != nil, ", "")
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `"time"`)
+		value = removeText(value, "func (h *Handler) setEngagementAgreement(", "func (h *Handler) setEngagementAssignee(")
 		value = removeText(value, "func (h *Handler) setEngagementAssignee(", "func (h *Handler) EnableEngagement(")
 		value = removeText(value, "func (h *Handler) createEngagement(", "func (h *Handler) engagementStages(")
 	case "internal/web/engagement.templ":
@@ -559,7 +563,7 @@ func disableFilesSource(relative string, raw []byte) []byte {
 	switch relative {
 	case "internal/platform/database/migrations/000039_engagement_agreement.sql":
 		value = removeLineStarting(value, "ALTER TABLE engagements ADD COLUMN agreement_file_id")
-	case "internal/engagement/engagement.go":
+	case "internal/engagement/engagement.go", "internal/engagement/next_action.go":
 		value = strings.ReplaceAll(value, "COALESCE(e.agreement_file_id, 0)", "0")
 	case "internal/engagement/agreement.go":
 		value = removeLinesContaining(value, "/internal/files\"")
