@@ -103,7 +103,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := "/workspaces/" + env.workspaceID.String() + "/clients/" + client.ID.String()
-	noStage := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.csrf}}, env.cookies, nil)
+	noStage := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.csrf}, "name": {"Engagement"}}, env.cookies, nil)
 	if noStage.Code != http.StatusUnprocessableEntity || !strings.Contains(noStage.Body.String(), "no open stage") {
 		t.Fatalf("no stage: %d %s", noStage.Code, noStage.Body.String())
 	}
@@ -111,7 +111,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	created := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.csrf}, "notes": {"Other person"}}, env.cookies, nil)
+	created := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.csrf}, "name": {"Engagement"}, "notes": {"Other person"}}, env.cookies, nil)
 	if created.Code != http.StatusSeeOther {
 		t.Fatalf("create: %d %s", created.Code, created.Body.String())
 	}

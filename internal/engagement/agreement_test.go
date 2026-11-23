@@ -42,7 +42,7 @@ func TestAgreementCanBeRecordedAndCleared(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e, err := svc.Create(ctx, actor, boot.WorkspaceID, Input{ClientID: client.ID}, identity.AuditContext{})
+	e, err := svc.Create(ctx, actor, boot.WorkspaceID, Input{Name: "Engagement", ClientID: client.ID}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -73,7 +73,7 @@ func TestEngagementThroughREST(t *testing.T) {
 	if err := json.Unmarshal(client.Body.Bytes(), &c); err != nil {
 		t.Fatal(err)
 	}
-	noStage := serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"clientId":"`+c.ID+`"}`, token, nil)
+	noStage := serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"name":"Engagement","clientId":"`+c.ID+`"}`, token, nil)
 	if noStage.Code != http.StatusBadRequest || !strings.Contains(noStage.Body.String(), "open stage") {
 		t.Fatalf("no stage: %d %s", noStage.Code, noStage.Body.String())
 	}
@@ -81,7 +81,7 @@ func TestEngagementThroughREST(t *testing.T) {
 	if stage.Code != http.StatusCreated {
 		t.Fatal(stage.Body.String())
 	}
-	created := serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"clientId":"`+c.ID+`","notes":"Other person"}`, token, nil)
+	created := serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"name":"Engagement","clientId":"`+c.ID+`","notes":"Other person"}`, token, nil)
 	if created.Code != http.StatusCreated {
 		t.Fatalf("create: %d %s", created.Code, created.Body.String())
 	}
@@ -92,7 +92,7 @@ func TestEngagementThroughREST(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", token, nil)
-	if got.Code != http.StatusOK || !strings.Contains(got.Body.String(), "Other person") {
+	if got.Code != http.StatusOK || !strings.Contains(got.Body.String(), "Other person") || !strings.Contains(got.Body.String(), `"name":"Engagement"`) {
 		t.Fatalf("get: %d %s", got.Code, got.Body.String())
 	}
 	ctx := context.Background()

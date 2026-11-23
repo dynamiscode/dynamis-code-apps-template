@@ -197,6 +197,7 @@ func (h *handler) createEngagement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
+		Name     string `json:"name"`
 		ClientID string `json:"clientId"`
 		StageID  string `json:"stageId"`
 		Notes    string `json:"notes"`
@@ -210,7 +211,7 @@ func (h *handler) createEngagement(w http.ResponseWriter, r *http.Request) {
 		h.invalidRequest(w, r, "The stage is invalid.")
 		return
 	}
-	value, err := h.engagement.Create(r.Context(), actor, workspace, engagement.Input{ClientID: clients.ParseClientIDOrZero(input.ClientID), StageID: stageID, Notes: input.Notes}, h.auditContext(r))
+	value, err := h.engagement.Create(r.Context(), actor, workspace, engagement.Input{Name: input.Name, ClientID: clients.ParseClientIDOrZero(input.ClientID), StageID: stageID, Notes: input.Notes}, h.auditContext(r))
 	if err != nil {
 		h.engagementError(w, r, err)
 		return
