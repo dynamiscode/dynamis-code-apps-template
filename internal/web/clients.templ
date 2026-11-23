@@ -50,6 +50,7 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 				if data.CanEditClients {
 					<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements" } method="post">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
+						@molecules.TextField("engagement-name", data.T("engagement.name"), templ.Attributes{"name": "name", "required": true, "maxlength": "200"})
 						<label for="engagement-notes">{ data.T("engagement.notes") }</label>
 						<textarea id="engagement-notes" name="notes" maxlength="5000" class="textarea textarea-bordered">{ data.EngagementNotes }</textarea>
 						<button class="btn btn-primary" type="submit">{ data.T("engagement.create") }</button>

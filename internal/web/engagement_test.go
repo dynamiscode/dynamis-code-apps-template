@@ -103,6 +103,12 @@ func TestEngagementThroughWeb(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := "/workspaces/" + env.workspaceID.String() + "/clients/" + client.ID.String()
+	page := request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
+	for _, want := range []string{`for="engagement-name"`, `id="engagement-name"`, `name="name"`, `required`, `maxlength="200"`} {
+		if !strings.Contains(page.Body.String(), want) {
+			t.Fatalf("creation form missing %q", want)
+		}
+	}
 	noStage := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.csrf}, "name": {"Engagement"}}, env.cookies, nil)
 	if noStage.Code != http.StatusUnprocessableEntity || !strings.Contains(noStage.Body.String(), "no open stage") {
 		t.Fatalf("no stage: %d %s", noStage.Code, noStage.Body.String())
@@ -117,7 +123,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 	}
 	svc := engagement.NewService(env.db, config.SQLite, env.auth)
 	items, err := svc.ListForClient(ctx, owner, env.workspaceID, client.ID)
-	if err != nil || len(items) != 1 {
+	if err != nil || len(items) != 1 || items[0].Name != "Engagement" {
 		t.Fatalf("engagements: %+v %v", items, err)
 	}
 	openStage := items[0].StageID
