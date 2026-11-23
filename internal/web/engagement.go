@@ -72,7 +72,11 @@ func (h *Handler) setEngagementAssignee(w http.ResponseWriter, r *http.Request) 
 		assignee, err = identity.ParseUserID(r.FormValue("assignee_id"))
 	}
 	if err != nil {
-		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.invalid", nil)
+		key := "engagement.invalid"
+		if r.FormValue("return_to") == "detail" {
+			key = "engagement.invalid_assignee"
+		}
+		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, key, nil)
 		return
 	}
 	err = h.engagement.SetAssignee(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), assignee, auditContext(r))
@@ -81,7 +85,11 @@ func (h *Handler) setEngagementAssignee(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if errors.Is(err, engagement.ErrInvalidInput) {
-		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.invalid", nil)
+		key := "engagement.invalid"
+		if r.FormValue("return_to") == "detail" {
+			key = "engagement.invalid_assignee"
+		}
+		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, key, nil)
 		return
 	}
 	if errors.Is(err, engagement.ErrNotFound) {

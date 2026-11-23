@@ -10,19 +10,22 @@ import templates "example.com/dynamis-code/apps-template/internal/web/components
 templ engagementDetailPage(data viewmodel.PageData) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
 		for _, item := range data.Engagements {
-			@molecules.PageHeading(item.Name, data.Client.DisplayName) {}
+			@molecules.PageHeading(item.Name, data.Client.DisplayName)
 			<a class="link" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String()) }>{ data.Client.DisplayName }</a>
 			<section class="card my-4 p-6">
 				if data.CanEditClients {
-					if data.ErrorKey != "" && data.ErrorKey != "engagement.invalid_quote" && data.ErrorKey != "engagement.invalid_agreement_file" && data.ErrorKey != "engagement.invalid_next_action" {
-						@molecules.ErrorAlert(data.T(data.ErrorKey))
-					}
-					<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/name") } method="post">
-						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						@molecules.TextField("engagement-name", data.T("engagement.name"), templ.Attributes{"name": "name", "value": item.Name, "required": true, "maxlength": "200"})
-						@molecules.SubmitButton(data.T("engagement.save_name"), nil)
-						<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
-					</form>
+					<details open?={ data.ErrorKey == "engagement.invalid_name" }>
+						<summary class="btn btn-ghost">{ data.T("ui.edit") } { data.T("engagement.name") }</summary>
+						if data.ErrorKey == "engagement.invalid_name" {
+							@molecules.ErrorAlert(data.T(data.ErrorKey))
+						}
+						<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/name") } method="post">
+							<input type="hidden" name="csrf" value={ data.CSRF }/>
+							@molecules.TextField("engagement-name", data.T("engagement.name"), templ.Attributes{"name": "name", "value": item.Name, "required": true, "maxlength": "200"})
+							@molecules.SubmitButton(data.T("engagement.save_name"), nil)
+							<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
+						</form>
+					</details>
 				}
 				for _, stage := range data.EngagementStages {
 					if stage.ID == item.StageID {
@@ -30,21 +33,27 @@ templ engagementDetailPage(data viewmodel.PageData) {
 					}
 				}
 				if data.CanEditClients {
-					<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/stage") } method="post">
-						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						<input type="hidden" name="return_to" value="detail"/>
-						<label for="engagement-stage">{ data.T("engagement.move") }</label>
-						<select id="engagement-stage" name="stage" class="select select-bordered" required>
-							<option value="">{ data.T("engagement.select_stage") }</option>
-							for _, stage := range data.EngagementStages {
-								if !stage.Archived {
-									<option value={ stage.ID.String() } selected?={ stage.ID == item.StageID }>{ stage.Name }</option>
+					<details open?={ data.ErrorKey == "engagement.invalid_move" }>
+						<summary class="btn btn-ghost">{ data.T("engagement.move") }</summary>
+						if data.ErrorKey == "engagement.invalid_move" {
+							@molecules.ErrorAlert(data.T(data.ErrorKey))
+						}
+						<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/stage") } method="post">
+							<input type="hidden" name="csrf" value={ data.CSRF }/>
+							<input type="hidden" name="return_to" value="detail"/>
+							<label for="engagement-stage">{ data.T("engagement.move") }</label>
+							<select id="engagement-stage" name="stage" class="select select-bordered" required>
+								<option value="">{ data.T("engagement.select_stage") }</option>
+								for _, stage := range data.EngagementStages {
+									if !stage.Archived {
+										<option value={ stage.ID.String() } selected?={ stage.ID == item.StageID }>{ stage.Name }</option>
+									}
 								}
-							}
-						</select>
-						@molecules.SubmitButton(data.T("engagement.save_name"), nil)
-						<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
-					</form>
+							</select>
+							@molecules.SubmitButton(data.T("engagement.save_name"), nil)
+							<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
+						</form>
+					</details>
 				}
 				<p>{ data.T("engagement.notes") }: { item.Notes }</p>
 				for _, member := range data.EngagementMembers {
@@ -53,21 +62,28 @@ templ engagementDetailPage(data viewmodel.PageData) {
 					}
 				}
 				if data.CanEditClients {
-					<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/assignee") } method="post">
-						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						<input type="hidden" name="return_to" value="detail"/>
-						<label for="engagement-assignee">{ data.T("engagement.assignee") }</label>
-						<select class="select select-bordered" id="engagement-assignee" name="assignee_id">
-							<option value="">—</option>
-							for _, member := range data.EngagementMembers {
-								<option value={ member.UserID.String() } selected?={ member.UserID == item.AssigneeID }>{ member.Email }</option>
-							}
-						</select>
-						@molecules.SubmitButton(data.T("engagement.save_assignee"), nil)
-						<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
-					</form>
+					<details open?={ data.ErrorKey == "engagement.invalid_assignee" }>
+						<summary class="btn btn-ghost">{ data.T("ui.edit") } { data.T("engagement.assignee") }</summary>
+						if data.ErrorKey == "engagement.invalid_assignee" {
+							@molecules.ErrorAlert(data.T(data.ErrorKey))
+						}
+						<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/assignee") } method="post">
+							<input type="hidden" name="csrf" value={ data.CSRF }/>
+							<input type="hidden" name="return_to" value="detail"/>
+							<label for="engagement-assignee">{ data.T("engagement.assignee") }</label>
+							<select class="select select-bordered" id="engagement-assignee" name="assignee_id">
+								<option value="">—</option>
+								for _, member := range data.EngagementMembers {
+									<option value={ member.UserID.String() } selected?={ member.UserID == item.AssigneeID }>{ member.Email }</option>
+								}
+							</select>
+							@molecules.SubmitButton(data.T("engagement.save_assignee"), nil)
+							<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
+						</form>
+					</details>
 				}
-				<p>{ data.T("engagement.agreement") }:
+				<p>
+					{ data.T("engagement.agreement") }:
 					if item.Agreement.Recorded {
 						<span>{ data.T("engagement.agreement_recorded") }</span>
 					} else {
@@ -76,45 +92,50 @@ templ engagementDetailPage(data viewmodel.PageData) {
 					{ item.Agreement.FileID }
 				</p>
 				if data.CanEditClients {
-					<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/agreement") } method="post">
-						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						<input type="hidden" name="return_to" value="detail"/>
-						<label><input class="checkbox" type="checkbox" name="recorded" value="1" checked?={ item.Agreement.Recorded }/> { data.T("engagement.agreement_recorded") }</label>
-						if data.FilesEnabled || data.ErrorKey == "engagement.invalid_agreement_file" {
-							<label for="engagement-agreement-file">{ data.T("engagement.agreement_file") }</label>
-							if data.ErrorKey == "engagement.invalid_agreement_file" {
-								<input class="input input-bordered" id="engagement-agreement-file" name="file_id" value={ item.Agreement.FileID } aria-invalid="true" aria-describedby="engagement-agreement-file-error"/>
-								<p id="engagement-agreement-file-error" role="alert" tabindex="-1">{ data.T("engagement.invalid_agreement_file") }</p>
-							} else {
-								<input class="input input-bordered" id="engagement-agreement-file" name="file_id" value={ item.Agreement.FileID }/>
+					<details open?={ data.ErrorKey == "engagement.invalid_agreement_file" }>
+						<summary class="btn btn-ghost">{ data.T("ui.edit") } { data.T("engagement.agreement") }</summary>
+						<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/agreement") } method="post">
+							<input type="hidden" name="csrf" value={ data.CSRF }/>
+							<input type="hidden" name="return_to" value="detail"/>
+							<label><input class="checkbox" type="checkbox" name="recorded" value="1" checked?={ item.Agreement.Recorded }/> { data.T("engagement.agreement_recorded") }</label>
+							if data.FilesEnabled || data.ErrorKey == "engagement.invalid_agreement_file" {
+								<label for="engagement-agreement-file">{ data.T("engagement.agreement_file") }</label>
+								if data.ErrorKey == "engagement.invalid_agreement_file" {
+									<input class="input input-bordered" id="engagement-agreement-file" name="file_id" value={ item.Agreement.FileID } aria-invalid="true" aria-describedby="engagement-agreement-file-error"/>
+									<p id="engagement-agreement-file-error" role="alert" tabindex="-1">{ data.T("engagement.invalid_agreement_file") }</p>
+								} else {
+									<input class="input input-bordered" id="engagement-agreement-file" name="file_id" value={ item.Agreement.FileID }/>
+								}
 							}
-						}
-						@molecules.SubmitButton(data.T("engagement.agreement_save"), nil)
-						<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
-					</form>
+							@molecules.SubmitButton(data.T("engagement.agreement_save"), nil)
+							<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
+						</form>
+					</details>
 				}
 				<section aria-labelledby="engagement-quote-heading">
 					<h2 id="engagement-quote-heading">{ data.T("engagement.quote") }</h2>
+					<p>{ data.T("engagement.quote_" + item.Quote.Status) } { item.Quote.Amount } { item.Quote.DateSent }</p>
 					if data.CanEditClients {
-						if data.ErrorKey == "engagement.invalid_quote" {
-							@molecules.ErrorAlert(data.T(data.ErrorKey))
-						}
-						<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/quote") } method="post">
-							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							<input type="hidden" name="return_to" value="detail"/>
-							<label for="engagement-quote-status">{ data.T("engagement.quote") }</label>
-							<select class="select select-bordered" id="engagement-quote-status" name="status">
-								for _, status := range []string{"not_sent", "sent", "pending", "accepted", "declined"} {
-									<option value={ status } selected?={ item.Quote.Status == status }>{ data.T("engagement.quote_" + status) }</option>
-								}
-							</select>
-							@molecules.TextField("engagement-quote-amount", data.T("engagement.quote_amount"), templ.Attributes{"name": "amount", "type": "number", "min": "0", "max": "999999999999.99", "step": "0.01", "value": item.Quote.Amount})
-							@molecules.TextField("engagement-quote-date", data.T("engagement.quote_date"), templ.Attributes{"name": "date_sent", "type": "date", "value": item.Quote.DateSent})
-							@molecules.SubmitButton(data.T("engagement.quote_save"), nil)
-							<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
-						</form>
-					} else {
-						<p>{ data.T("engagement.quote_" + item.Quote.Status) } { item.Quote.Amount } { item.Quote.DateSent }</p>
+						<details open?={ data.ErrorKey == "engagement.invalid_quote" }>
+							<summary class="btn btn-ghost">{ data.T("ui.edit") } { data.T("engagement.quote") }</summary>
+							if data.ErrorKey == "engagement.invalid_quote" {
+								@molecules.ErrorAlert(data.T(data.ErrorKey))
+							}
+							<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/quote") } method="post">
+								<input type="hidden" name="csrf" value={ data.CSRF }/>
+								<input type="hidden" name="return_to" value="detail"/>
+								<label for="engagement-quote-status">{ data.T("engagement.quote") }</label>
+								<select class="select select-bordered" id="engagement-quote-status" name="status">
+									for _, status := range []string{"not_sent", "sent", "pending", "accepted", "declined"} {
+										<option value={ status } selected?={ item.Quote.Status == status }>{ data.T("engagement.quote_" + status) }</option>
+									}
+								</select>
+								@molecules.TextField("engagement-quote-amount", data.T("engagement.quote_amount"), templ.Attributes{"name": "amount", "type": "number", "min": "0", "max": "999999999999.99", "step": "0.01", "value": item.Quote.Amount})
+								@molecules.TextField("engagement-quote-date", data.T("engagement.quote_date"), templ.Attributes{"name": "date_sent", "type": "date", "value": item.Quote.DateSent})
+								@molecules.SubmitButton(data.T("engagement.quote_save"), nil)
+								<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
+							</form>
+						</details>
 					}
 				</section>
 				<p>{ data.T("engagement.next_action") }: { item.NextAction.Text } { item.NextAction.DueDate }</p>
@@ -124,27 +145,30 @@ templ engagementDetailPage(data viewmodel.PageData) {
 					}
 				}
 				if data.CanEditClients {
-					if data.ErrorKey == "engagement.invalid_next_action" {
-						@molecules.ErrorAlert(data.T(data.ErrorKey))
-					}
-					<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/next-action") } method="post">
-						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						<input type="hidden" name="return_to" value="detail"/>
-						@molecules.TextField("engagement-next-action", data.T("engagement.next_action") + " " + data.T("ui.optional"), templ.Attributes{"name": "text", "maxlength": "5000", "value": item.NextAction.Text})
-						@molecules.TextField("engagement-next-action-due", data.T("engagement.due_date"), templ.Attributes{"name": "due_date", "type": "date", "value": item.NextAction.DueDate})
-						<label for="engagement-next-action-owner">{ data.T("engagement.owner") }</label>
-						<select class="select select-bordered" id="engagement-next-action-owner" name="owner_id">
-							<option value="">—</option>
-							for _, member := range data.EngagementMembers {
-								<option value={ member.UserID.String() } selected?={ member.UserID == item.NextAction.OwnerID }>{ member.Email }</option>
-							}
-						</select>
-						@molecules.SubmitButton(data.T("engagement.save_action"), nil)
-						<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
-						if item.NextAction.Text != "" {
-							<button class="btn btn-ghost" type="submit" name="clear" value="1">{ data.T("engagement.clear_action") }</button>
+					<details open?={ data.ErrorKey == "engagement.invalid_next_action" }>
+						<summary class="btn btn-ghost">{ data.T("ui.edit") } { data.T("engagement.next_action") }</summary>
+						if data.ErrorKey == "engagement.invalid_next_action" {
+							@molecules.ErrorAlert(data.T(data.ErrorKey))
 						}
-					</form>
+						<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/next-action") } method="post">
+							<input type="hidden" name="csrf" value={ data.CSRF }/>
+							<input type="hidden" name="return_to" value="detail"/>
+							@molecules.TextField("engagement-next-action", data.T("engagement.next_action")+" "+data.T("ui.optional"), templ.Attributes{"name": "text", "maxlength": "5000", "value": item.NextAction.Text})
+							@molecules.TextField("engagement-next-action-due", data.T("engagement.due_date"), templ.Attributes{"name": "due_date", "type": "date", "value": item.NextAction.DueDate})
+							<label for="engagement-next-action-owner">{ data.T("engagement.owner") }</label>
+							<select class="select select-bordered" id="engagement-next-action-owner" name="owner_id">
+								<option value="">—</option>
+								for _, member := range data.EngagementMembers {
+									<option value={ member.UserID.String() } selected?={ member.UserID == item.NextAction.OwnerID }>{ member.Email }</option>
+								}
+							</select>
+							@molecules.SubmitButton(data.T("engagement.save_action"), nil)
+							<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
+							if item.NextAction.Text != "" {
+								<button class="btn btn-ghost" type="submit" name="clear" value="1">{ data.T("engagement.clear_action") }</button>
+							}
+						</form>
+					</details>
 				}
 				<ol data-engagement-history>
 					for _, entry := range item.History {
@@ -154,13 +178,13 @@ templ engagementDetailPage(data viewmodel.PageData) {
 									<span>{ stage.Name }</span>
 								}
 							}
-							<span> → </span>
+							<span>→ </span>
 							for _, stage := range data.EngagementStages {
 								if stage.ID == entry.ToStageID {
 									<span>{ stage.Name }</span>
 								}
 							}
-							<span> — { entry.ActorUserID.String() } — { entry.CreatedAt }</span>
+							<span>— { entry.ActorUserID.String() } — { entry.CreatedAt }</span>
 						</li>
 					}
 				</ol>
@@ -171,18 +195,20 @@ templ engagementDetailPage(data viewmodel.PageData) {
 
 templ dueEngagementsPage(data viewmodel.PageData, items []engagement.Engagement, clientsPath string) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
-		@molecules.PageHeading(data.T("engagement.due_list"), data.T("clients.title")) {}
-		<section class="card my-4 p-6"><ul>
-			for _, item := range items {
-				<li><a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String()) }>{ item.NextAction.Text }</a> — { item.NextAction.DueDate }</li>
-			}
-		</ul></section>
+		@molecules.PageHeading(data.T("engagement.due_list"), data.T("clients.title"))
+		<section class="card my-4 p-6">
+			<ul>
+				for _, item := range items {
+					<li><a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String()) }>{ item.NextAction.Text }</a> — { item.NextAction.DueDate }</li>
+				}
+			</ul>
+		</section>
 	}
 }
 
 templ engagementStagesPage(data viewmodel.PageData, stages []engagement.Stage, canManage bool) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
-		@molecules.PageHeading(data.T("engagement.stages"), data.T("clients.title")) {}
+		@molecules.PageHeading(data.T("engagement.stages"), data.T("clients.title"))
 		<section class="card my-4 p-6">
 			if data.ErrorKey != "" {
 				@molecules.ErrorAlert(data.T(data.ErrorKey))

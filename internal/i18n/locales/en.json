@@ -257,6 +257,8 @@
   "engagement.due_list": "Actions due",
   "engagement.notes": "Other people and notes",
   "engagement.create": "Create engagement",
+  "engagement.stage": "Stage",
+  "engagement.invalid_assignee": "Select a valid workspace member.",
   "engagement.move": "Move stage",
   "engagement.invalid_move": "Select an available stage.",
   "engagement.no_open_stage": "The workspace has no open stage.",

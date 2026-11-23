@@ -202,6 +202,9 @@ func TestEngagementThroughWeb(t *testing.T) {
 	detailPath := path + "/engagements/" + items[0].ID.String()
 	namePath := detailPath + "/name"
 	writerDetail := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
+	if strings.Count(writerDetail.Body.String(), "<details>") != 6 || strings.Contains(writerDetail.Body.String(), "engagement.stage") || !strings.Contains(writerDetail.Body.String(), "Stage: ") {
+		t.Fatalf("detail disclosures or stage translation: %s", writerDetail.Body.String())
+	}
 	viewerDetail := request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
 	if !strings.Contains(writerDetail.Body.String(), namePath) || strings.Contains(viewerDetail.Body.String(), namePath) {
 		t.Fatalf("name form visibility: writer=%d viewer=%d", writerDetail.Code, viewerDetail.Code)
@@ -209,7 +212,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if got := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.viewerCSRF}, "name": {"Denied"}}, env.viewerCookies, nil); got.Code != http.StatusForbidden {
 		t.Fatalf("viewer rename: %d", got.Code)
 	}
-	if got := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.csrf}, "name": {invalidName}}, env.cookies, nil); got.Code != http.StatusUnprocessableEntity || !strings.Contains(got.Body.String(), invalidName) {
+	if got := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.csrf}, "name": {invalidName}}, env.cookies, nil); got.Code != http.StatusUnprocessableEntity || !strings.Contains(got.Body.String(), invalidName) || !strings.Contains(got.Body.String(), "<details open>") {
 		t.Fatalf("invalid rename: %d %s", got.Code, got.Body.String())
 	}
 	if got := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.csrf}, "name": {"Renamed"}}, env.cookies, nil); got.Code != http.StatusSeeOther || got.Header().Get("Location") != detailPath {
@@ -274,6 +277,12 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if err := env.auth.UpdateWorkspaceLocale(ctx, workspaceAdmin, "es", identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
+	for _, localizedPath := range []string{path, detailPath} {
+		localized := request(env.routes, http.MethodGet, localizedPath, nil, env.cookies, nil)
+		if strings.Contains(localized.Body.String(), "engagement.stage") || !strings.Contains(localized.Body.String(), "Etapa") {
+			t.Fatalf("Spanish stage translation missing on %s", localizedPath)
+		}
+	}
 	spanishAgreement := request(env.routes, http.MethodPost, agreementPath, url.Values{"csrf": {env.csrf}, "file_id": {"invalid-short-id"}, "return_to": {"detail"}}, env.cookies, nil)
 	if spanishAgreement.Code != http.StatusUnprocessableEntity || !strings.Contains(spanishAgreement.Body.String(), "Introduce un ID de archivo válido para este espacio de trabajo.") {
 		t.Fatalf("Spanish agreement error: %d", spanishAgreement.Code)
@@ -307,7 +316,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if denied := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.viewerCSRF}}, env.viewerCookies, nil); denied.Code != http.StatusForbidden {
 		t.Fatalf("viewer assign: %d", denied.Code)
 	}
-	if invalid := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}, "assignee_id": {"invalid"}}, env.cookies, nil); invalid.Code != http.StatusUnprocessableEntity {
+	if invalid := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}, "assignee_id": {"invalid"}, "return_to": {"detail"}}, env.cookies, nil); invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "<details open>") || !strings.Contains(invalid.Body.String(), "Select a valid workspace member.") {
 		t.Fatalf("invalid assign: %d", invalid.Code)
 	}
 	if invalid := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}, "assignee_id": {identity.UserID(999999).String()}}, env.cookies, nil); invalid.Code != http.StatusUnprocessableEntity {
