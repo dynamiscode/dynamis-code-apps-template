@@ -150,21 +150,12 @@ func (s *Service) Create(ctx context.Context, actor identity.Principal, workspac
 		return Engagement{}, err
 	}
 	var stageID StageID
-	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT id FROM engagement_stages WHERE workspace_id = ? AND kind = 'open' AND archived_at IS NULL ORDER BY position LIMIT 1`), workspaceID).Scan(&stageID)
+	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT id FROM engagement_stages WHERE workspace_id = ? AND id = ? AND kind = 'open' AND archived_at IS NULL`), workspaceID, input.StageID).Scan(&stageID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return Engagement{}, ErrNoOpenStage
+		return Engagement{}, ErrInvalidInput
 	}
 	if err != nil {
 		return Engagement{}, err
-	}
-	if input.StageID != 0 {
-		err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT id FROM engagement_stages WHERE workspace_id = ? AND id = ? AND kind = 'open' AND archived_at IS NULL`), workspaceID, input.StageID).Scan(&stageID)
-		if errors.Is(err, sql.ErrNoRows) {
-			return Engagement{}, ErrInvalidInput
-		}
-		if err != nil {
-			return Engagement{}, err
-		}
 	}
 	value := Engagement{Name: input.Name, ClientID: input.ClientID, StageID: stageID, Notes: input.Notes, History: []MoveHistory{}, Quote: Quote{Status: "not_sent"}}
 	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `INSERT INTO engagements (workspace_id, client_id, stage_id, notes, name) VALUES (?, ?, ?, ?, ?) RETURNING id`), workspaceID, value.ClientID, value.StageID, value.Notes, value.Name).Scan(&value.ID)

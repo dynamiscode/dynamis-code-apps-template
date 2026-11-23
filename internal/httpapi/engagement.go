@@ -207,7 +207,7 @@ func (h *handler) createEngagement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	stageID := engagement.ParseStageID(input.StageID)
-	if input.StageID != "" && stageID == 0 {
+	if stageID == 0 {
 		h.invalidRequest(w, r, "The stage is invalid.")
 		return
 	}

@@ -35,14 +35,15 @@ func TestAgreementCanBeRecordedAndCleared(t *testing.T) {
 		t.Fatal(err)
 	}
 	svc := NewService(db, config.SQLite, auth)
-	if _, err := svc.CreateStage(ctx, actor, boot.WorkspaceID, StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{}); err != nil {
+	stage, err := svc.CreateStage(ctx, actor, boot.WorkspaceID, StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
 		t.Fatal(err)
 	}
 	client, err := clients.NewService(db, config.SQLite, auth, 50).Create(ctx, actor, boot.WorkspaceID, clients.Input{DisplayName: "Client"}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	e, err := svc.Create(ctx, actor, boot.WorkspaceID, Input{Name: "Engagement", ClientID: client.ID}, identity.AuditContext{})
+	e, err := svc.Create(ctx, actor, boot.WorkspaceID, Input{Name: "Engagement", ClientID: client.ID, StageID: stage.ID}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}

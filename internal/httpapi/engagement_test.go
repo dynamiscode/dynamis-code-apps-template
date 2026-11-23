@@ -75,14 +75,21 @@ func TestEngagementThroughREST(t *testing.T) {
 	}
 	assertProblem(t, serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"clientId":"`+c.ID+`"}`, token, nil), http.StatusBadRequest, "invalid-request")
 	noStage := serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"name":"Engagement","clientId":"`+c.ID+`"}`, token, nil)
-	if noStage.Code != http.StatusBadRequest || !strings.Contains(noStage.Body.String(), "open stage") {
+	if noStage.Code != http.StatusBadRequest {
 		t.Fatalf("no stage: %d %s", noStage.Code, noStage.Body.String())
 	}
 	stage := serveAuthorized(handler, http.MethodPost, base+"/engagement-stages", `{"name":"Open","kind":"open"}`, token, nil)
 	if stage.Code != http.StatusCreated {
 		t.Fatal(stage.Body.String())
 	}
-	created := serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"name":"Engagement","clientId":"`+c.ID+`","notes":"Other person"}`, token, nil)
+	var open struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(stage.Body.Bytes(), &open); err != nil {
+		t.Fatal(err)
+	}
+	assertProblem(t, serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"name":"Engagement","clientId":"`+c.ID+`"}`, token, nil), http.StatusBadRequest, "invalid-request")
+	created := serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"name":"Engagement","clientId":"`+c.ID+`","stageId":"`+open.ID+`","notes":"Other person"}`, token, nil)
 	if created.Code != http.StatusCreated {
 		t.Fatalf("create: %d %s", created.Code, created.Body.String())
 	}

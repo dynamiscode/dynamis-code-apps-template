@@ -207,12 +207,15 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 		}
 	}
 	_, err = svc.Create(ctx, owner, boot.WorkspaceID, Input{Name: "Engagement", ClientID: client.ID}, identity.AuditContext{})
-	if !errors.Is(err, ErrNoOpenStage) {
+	if !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("no stage: %v", err)
 	}
 	stage, err := svc.CreateStage(ctx, owner, boot.WorkspaceID, StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if _, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{Name: "Engagement", ClientID: client.ID}, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("missing stage with open stage available: %v", err)
 	}
 	_, err = svc.Create(ctx, owner, boot.WorkspaceID, Input{Name: "Engagement", StageID: stage.ID}, identity.AuditContext{})
 	if !errors.Is(err, ErrInvalidInput) {
@@ -321,7 +324,7 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	if _, err := svc.Get(ctx, viewer, boot.WorkspaceID, created.ID); err != nil {
 		t.Fatalf("viewer get: %v", err)
 	}
-	if _, err := svc.Create(ctx, viewer, boot.WorkspaceID, Input{Name: "Engagement", ClientID: client.ID}, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+	if _, err := svc.Create(ctx, viewer, boot.WorkspaceID, Input{Name: "Engagement", ClientID: client.ID, StageID: stage.ID}, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("viewer create: %v", err)
 	}
 	var auditCount int
@@ -334,7 +337,7 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	if _, err := svc.Get(ctx, owner, boot.WorkspaceID, created.ID); err != nil {
 		t.Fatalf("archive lost engagement: %v", err)
 	}
-	if _, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{Name: "Engagement", ClientID: client.ID, StageID: stage.ID}, identity.AuditContext{}); !errors.Is(err, ErrNoOpenStage) {
+	if _, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{Name: "Engagement", ClientID: client.ID, StageID: stage.ID}, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("archived stage: %v", err)
 	}
 	if _, err := svc.CreateStage(ctx, owner, boot.WorkspaceID, StageInput{Name: "Another", Kind: "open"}, identity.AuditContext{}); err != nil {
@@ -461,14 +464,15 @@ func TestNextActionDueList(t *testing.T) {
 		t.Fatal(err)
 	}
 	svc := NewService(db, config.SQLite, auth)
-	if _, err := svc.CreateStage(ctx, owner, boot.WorkspaceID, StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{}); err != nil {
+	stage, err := svc.CreateStage(ctx, owner, boot.WorkspaceID, StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
 		t.Fatal(err)
 	}
 	client, err := clients.NewService(db, config.SQLite, auth, 50).Create(ctx, owner, boot.WorkspaceID, clients.Input{DisplayName: "Client"}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	e, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{Name: "Engagement", ClientID: client.ID}, identity.AuditContext{})
+	e, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{Name: "Engagement", ClientID: client.ID, StageID: stage.ID}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}
