@@ -613,6 +613,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeText(value, " Writers can create engagements", "\nOwners and admins can set or reset")
 		value = removeText(value, "\nNext actions have text", "\n\n## Client timeline REST")
 		value = removeLineStarting(value, "| Clients |")
+		value = removeLineStarting(value, "| Public intake |")
 		value = removeLineStarting(value, "| Clients shared list view |")
 		value = removeLineStarting(value, "| Client timeline service |")
 		value = removeText(value, "\n## Client timeline REST (#575)", "\n## Route and navigation journey verification")
