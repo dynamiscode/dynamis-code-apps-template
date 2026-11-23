@@ -570,9 +570,9 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeText(value, "func (h *Handler) moveEngagement(", "func (h *Handler) setEngagementLabel(")
 		value = removeText(value, "func (h *Handler) createEngagement(", "func (h *Handler) engagementStages(")
 	case "internal/web/engagement.templ":
-		value = removeText(value, "templ dueEngagementsPage(", "templ engagementStagesPage(")
+		value = removeText(value, "templ engagementDetailPage(", "templ engagementStagesPage(")
 	case "internal/web/engagement_templ.go":
-		value = removeText(value, "func dueEngagementsPage(", "func engagementStagesPage(")
+		value = removeText(value, "func engagementDetailPage(", "func engagementStagesPage(")
 	case "internal/platform/maintenance/maintenance.go":
 		// Retention prunes client_events, which Clients-off apps do not have.
 		value = removeLinesContaining(value, "client_events")
