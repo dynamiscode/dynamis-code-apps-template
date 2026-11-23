@@ -340,9 +340,36 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if deniedQuote.Code != http.StatusForbidden {
 		t.Fatalf("viewer quote: %d", deniedQuote.Code)
 	}
-	updated := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {"Call client"}, "due_date": {"2020-01-01"}, "owner_id": {env.ownerID.String()}}, env.cookies, nil)
-	if updated.Code != http.StatusSeeOther {
-		t.Fatalf("set action: %d %s", updated.Code, updated.Body.String())
+	updated := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {"Call client"}, "due_date": {"2020-01-01"}, "owner_id": {env.ownerID.String()}, "return_to": {"detail"}}, env.cookies, nil)
+	if updated.Code != http.StatusSeeOther || updated.Header().Get("Location") != detailPath {
+		t.Fatalf("set action: %d %s", updated.Code, updated.Header().Get("Location"))
+	}
+	writerAction := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
+	for _, want := range []string{`action="` + actionPath + `"`, `name="return_to" value="detail"`, `value="Call client"`, `value="2020-01-01"`, `value="` + env.ownerID.String() + `" selected`, `href="` + detailPath + `"`} {
+		if !strings.Contains(writerAction.Body.String(), want) {
+			t.Fatalf("action form missing %q", want)
+		}
+	}
+	viewerAction := request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
+	if strings.Contains(viewerAction.Body.String(), `action="`+actionPath+`"`) || !strings.Contains(viewerAction.Body.String(), "Call client") || !strings.Contains(viewerAction.Body.String(), "2020-01-01") {
+		t.Fatal("viewer action form or summary")
+	}
+	invalidAction := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {"Keep this action"}, "due_date": {"2026-11-24"}, "return_to": {"detail"}}, env.cookies, nil)
+	for _, want := range []string{"An owner is required", `value="Keep this action"`, `value="2026-11-24"`, `action="` + actionPath + `"`} {
+		if invalidAction.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidAction.Body.String(), want) {
+			t.Fatalf("invalid action missing %q: %d", want, invalidAction.Code)
+		}
+	}
+	if got, err := svc.Get(ctx, owner, env.workspaceID, items[0].ID); err != nil || got.NextAction.Text != "Call client" {
+		t.Fatalf("invalid action mutated engagement: %+v %v", got, err)
+	}
+	cleared := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "clear": {"1"}, "return_to": {"detail"}}, env.cookies, nil)
+	if cleared.Code != http.StatusSeeOther || cleared.Header().Get("Location") != detailPath {
+		t.Fatalf("clear action: %d %s", cleared.Code, cleared.Header().Get("Location"))
+	}
+	updated = request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {"Call client"}, "due_date": {"2020-01-01"}, "owner_id": {env.ownerID.String()}}, env.cookies, nil)
+	if updated.Code != http.StatusSeeOther || updated.Header().Get("Location") != path {
+		t.Fatalf("client action redirect: %d %s", updated.Code, updated.Header().Get("Location"))
 	}
 	viewer := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
 	if viewer.Code != http.StatusOK || !strings.Contains(viewer.Body.String(), "Signed agreement recorded") || strings.Contains(viewer.Body.String(), agreementPath) || !strings.Contains(viewer.Body.String(), "Other person") || !strings.Contains(viewer.Body.String(), "Call client") || !strings.Contains(viewer.Body.String(), "120.50") || strings.Contains(viewer.Body.String(), quotePath) || strings.Contains(viewer.Body.String(), assigneePath) || strings.Contains(viewer.Body.String(), "Create engagement") || strings.Contains(viewer.Body.String(), actionPath) {

@@ -158,7 +158,11 @@ func (h *Handler) setEngagementNextAction(w http.ResponseWriter, r *http.Request
 	if r.FormValue("owner_id") != "" {
 		owner, err = identity.ParseUserID(r.FormValue("owner_id"))
 		if err != nil {
-			h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.invalid", nil)
+			key := "engagement.invalid"
+			if r.FormValue("return_to") == "detail" {
+				key = "engagement.invalid_next_action"
+			}
+			h.renderClientDetail(w, r, http.StatusUnprocessableEntity, key, nil)
 			return
 		}
 	}
@@ -172,7 +176,11 @@ func (h *Handler) setEngagementNextAction(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if errors.Is(err, engagement.ErrInvalidInput) {
-		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.invalid", nil)
+		key := "engagement.invalid"
+		if r.FormValue("return_to") == "detail" {
+			key = "engagement.invalid_next_action"
+		}
+		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, key, nil)
 		return
 	}
 	if errors.Is(err, engagement.ErrNotFound) {
@@ -183,7 +191,11 @@ func (h *Handler) setEngagementNextAction(w http.ResponseWriter, r *http.Request
 		h.renderError(w, http.StatusInternalServerError)
 		return
 	}
-	h.redirect(w, r, h.clientsPath(workspace)+"/"+r.PathValue("clientId"))
+	path := h.clientsPath(workspace) + "/" + r.PathValue("clientId")
+	if r.FormValue("return_to") == "detail" {
+		path += "/engagements/" + r.PathValue("engagementId")
+	}
+	h.redirect(w, r, path)
 }
 
 func (h *Handler) engagementMatchesClient(w http.ResponseWriter, r *http.Request, actor identity.Principal, workspace identity.WorkspaceID) bool {

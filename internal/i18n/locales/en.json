@@ -247,6 +247,7 @@
   "engagement.invalid_agreement_file": "Enter a valid file ID for this workspace.",
   "engagement.agreement_save": "Save agreement",
   "engagement.next_action": "Next action",
+  "engagement.invalid_next_action": "Enter a valid next action, workspace owner, and due date. An owner is required when an action is set.",
   "engagement.due_date": "Due date (optional)",
   "engagement.owner": "Owner",
   "engagement.assignee": "Assignee",
