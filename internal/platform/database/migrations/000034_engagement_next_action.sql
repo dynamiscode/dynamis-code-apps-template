@@ -4,7 +4,7 @@ CREATE TABLE engagement_next_actions (
     engagement_id BIGINT NOT NULL,
     action_text TEXT NOT NULL,
     due_date TEXT NOT NULL DEFAULT '',
-    owner_id BIGINT NOT NULL REFERENCES users(id),
+    owner_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
     PRIMARY KEY (workspace_id, engagement_id),
     FOREIGN KEY (workspace_id, engagement_id) REFERENCES engagements (workspace_id, id) ON DELETE CASCADE
 );
