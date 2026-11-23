@@ -66,9 +66,15 @@ user created an open Discovery stage, an Audit client, and an engagement.
   under Client saying “Enter valid name and kind.” The returned form discarded
   the entered File ID, leaving it empty. This is one tested error, not a
   complete accessibility or recovery audit.
+- In a separate JavaScript-disabled context using the existing owner session,
+  creating an engagement increased the list count from 1 to 2.
+- A separate viewer account created through an invitation saw the engagement
+  region's stage, agreement, and quote summaries. That region contained zero
+  buttons and zero comboboxes.
 
 Playwright saved a screenshot in its MCP server output. Its durable location and
 visual contents were not verified. Desktop review and broader mobile review
-remain outstanding, as do keyboard, error recovery, read-only role,
-no-JavaScript, and comprehensive accessibility audits. These observations do
-not complete the required rendered-browser audit.
+remain outstanding, as do broader keyboard, error recovery, read-only role,
+no-JavaScript, and comprehensive accessibility audits. The viewer and
+JavaScript-disabled observations are sampled cases, not full coverage. These
+observations do not complete the required rendered-browser audit.
