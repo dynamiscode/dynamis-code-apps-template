@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"example.com/dynamis-code/apps-template/internal/catalog"
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
@@ -1805,6 +1806,7 @@ func testWebWithMFARaw(t *testing.T, maximumStreams int, mfaEnabled bool, mailer
 	if err != nil {
 		t.Fatal(err)
 	}
+	webHandler.EnableCatalog(catalog.NewService(db, auth))
 	webHandler.EnableListPreferences(listprefs.NewService(db, cfg.Database.Driver, auth))
 	return webHandler, auth, owner.WorkspaceID, owner
 }

@@ -134,9 +134,8 @@ func newHandler(
 	return &Handler{
 		logger:   slog.Default(),
 		identity: identityService, files: fileService, exporter: exporterService,
-		catalogService: appcatalog.NewService(identityService),
-		webhooks:       webhookService,
-		oidc:           oidcRegistry, publicURL: publicURL, mailer: mailer, cfg: cfg,
+		webhooks: webhookService,
+		oidc:     oidcRegistry, publicURL: publicURL, mailer: mailer, cfg: cfg,
 		setupTokenHash: setupTokenHash,
 		streams:        newStreamLimit(cfg.SSEMaxConnections, cfg.SSEMaxPerUser),
 		catalog:        catalog,
@@ -203,6 +202,7 @@ func (h *Handler) Routes() http.Handler {
 	}
 	mux.HandleFunc("GET /workspaces/{workspaceId}", h.workspaceHome)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/catalog", h.catalogList)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog", h.catalogCreate)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients", h.clientList)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/preferences/columns/{column}", h.setClientColumn)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/preferences/columns/reset", h.resetClientColumns)

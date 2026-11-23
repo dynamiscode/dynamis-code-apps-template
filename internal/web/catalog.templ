@@ -1,13 +1,39 @@
 package web
 
+import "strconv"
+import "example.com/dynamis-code/apps-template/internal/catalog"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
 import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
-templ catalogPage(data viewmodel.PageData) {
+templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, canWrite bool, invalid bool, name string, duration string) {
  @templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
   @molecules.PageHeading(data.T("catalog.title"), "")
-  @molecules.EmptyState(data.T("catalog.empty"))
+  if invalid {
+   <div role="alert" class="alert alert-error">{ data.T("catalog.invalid") }</div>
+  }
+  if canWrite {
+   <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog") } class="card bg-base-100 p-4 space-y-3">
+    <input type="hidden" name="csrf" value={ data.CSRF }/>
+    <label class="form-control"><span class="label-text">{ data.T("catalog.name") }</span><input class="input input-bordered" name="name" value={ name } required/></label>
+    <label class="form-control"><span class="label-text">{ data.T("catalog.duration") }</span><input class="input input-bordered" type="number" name="duration_minutes" value={ duration } min="1"/></label>
+    <button class="btn btn-primary" type="submit">{ data.T("common.create") }</button>
+   </form>
+  }
+  if len(entries) == 0 {
+   @molecules.EmptyState(data.T("catalog.empty"))
+  } else {
+   <ul class="space-y-2">
+    for _, entry := range entries {
+     <li class="card bg-base-100 p-4">
+      <strong>{ entry.Name }</strong>
+      if entry.DurationMinutes != nil {
+       <span>{ strconv.Itoa(*entry.DurationMinutes) } min</span>
+      }
+     </li>
+    }
+   </ul>
+  }
  }
 }

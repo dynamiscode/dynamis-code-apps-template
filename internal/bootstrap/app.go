@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"example.com/dynamis-code/apps-template/internal/catalog"
 	"example.com/dynamis-code/apps-template/internal/clients"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/httpapi"
@@ -175,6 +176,8 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("initialize web handler: %w", err)
 	}
+	catalogService := catalog.NewService(db, identityService)
+	webHandler.EnableCatalog(catalogService)
 	webHandler.SetWorkspaceMode(cfg.WorkspaceMode)
 	listPreferences := listprefs.NewService(db, cfg.Database.Driver, identityService)
 	webHandler.EnableListPreferences(listPreferences)

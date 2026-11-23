@@ -3,12 +3,68 @@ package web
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
 )
+
+func TestCatalogCreate(t *testing.T) {
+	routes, auth, workspaceID, owner := testWeb(t, 2)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	path := "/workspaces/" + workspaceID.String() + "/catalog"
+	form := url.Values{"csrf": {session.CSRFSecret}, "name": {"Consultation"}, "duration_minutes": {"30"}}
+	created := request(routes, http.MethodPost, path, form, cookies, nil)
+	if created.Code != http.StatusSeeOther {
+		t.Fatalf("create = %d %s", created.Code, created.Body.String())
+	}
+	page := request(routes, http.MethodGet, path, nil, cookies, nil)
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Consultation") || !strings.Contains(page.Body.String(), "30 min") {
+		t.Fatalf("list = %d %s", page.Code, page.Body.String())
+	}
+	form.Set("name", " ")
+	invalid := request(routes, http.MethodPost, path, form, cookies, nil)
+	if invalid.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("invalid = %d %s", invalid.Code, invalid.Body.String())
+	}
+}
+
+func TestCatalogMemberCannotCreate(t *testing.T) {
+	routes, auth, workspaceID, owner := testWeb(t, 2)
+	ctx := context.Background()
+	actor, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.InvitationsManage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	invitation, err := auth.CreateInvitation(ctx, actor, "member@example.com", identity.Member, time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	user, _, err := auth.CreateInvitedLocalUser(ctx, invitation.Secret, "long-enough-password", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := auth.CreateSession(ctx, user, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	path := "/workspaces/" + workspaceID.String() + "/catalog"
+	page := request(routes, http.MethodGet, path, nil, cookies, nil)
+	if page.Code != http.StatusOK || strings.Contains(page.Body.String(), `name="name"`) {
+		t.Fatalf("member list = %d %s", page.Code, page.Body.String())
+	}
+	response := request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Denied"}}, cookies, nil)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("member create = %d", response.Code)
+	}
+}
 
 func TestCatalogList(t *testing.T) {
 	routes, auth, workspaceID, owner := testWeb(t, 2)
@@ -34,6 +90,13 @@ func TestCatalogList(t *testing.T) {
 	response := request(routes, http.MethodGet, path, nil, cookies, nil)
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "No catalog entries yet.") {
 		t.Fatalf("catalog = %d %s", response.Code, response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), `name="name"`) {
+		t.Fatal("viewer sees create form")
+	}
+	deniedWrite := request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Denied"}}, cookies, nil)
+	if deniedWrite.Code != http.StatusForbidden {
+		t.Fatalf("viewer write = %d", deniedWrite.Code)
 	}
 	home := request(routes, http.MethodGet, "/workspaces/"+workspaceID.String(), nil, cookies, nil)
 	if home.Code != http.StatusOK || !strings.Contains(home.Body.String(), path) {

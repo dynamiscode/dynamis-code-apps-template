@@ -1,6 +1,9 @@
 {
   "catalog.title": "Catalog",
   "catalog.empty": "No catalog entries yet.",
+  "catalog.name": "Name",
+  "catalog.duration": "Duration in minutes (optional)",
+  "catalog.invalid": "Enter a name and a positive duration if provided.",
   "common.product_name": "Dynamis Code",
   "common.automatic": "Automatic",
   "common.english": "English",

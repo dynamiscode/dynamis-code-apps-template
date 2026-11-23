@@ -236,7 +236,13 @@
       "get": {
         "operationId": "listCatalog", "security": [{"bearerAuth": []}],
         "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
-        "responses": {"200": {"description": "Active catalog entries", "content": {"application/json": {"schema": {"type": "array", "items": {"type": "object"}}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}
+        "responses": {"200": {"description": "Active catalog entries", "content": {"application/json": {"schema": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "durationMinutes": {"type": "integer", "nullable": true}}}}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}
+      },
+      "post": {
+        "operationId": "createCatalog", "description": "Owners and admins with resources:write create entries.", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string", "minLength": 1}, "durationMinutes": {"type": "integer", "minimum": 1, "nullable": true}}}}}},
+        "responses": {"201": {"description": "Created catalog entry", "content": {"application/json": {"schema": {"type": "object", "required": ["name", "durationMinutes"], "properties": {"name": {"type": "string"}, "durationMinutes": {"type": "integer", "nullable": true}}}}}}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "422": {"$ref": "#/components/responses/Problem"}}
       }
     },
     "/api/v1/workspaces/{workspaceId}/clients": {

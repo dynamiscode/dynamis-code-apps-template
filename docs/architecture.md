@@ -161,4 +161,6 @@ validation, authorization, audit), REST and web create and edit, and migrations
 000022 (clients) and 000023 (custom field definitions and 50 slot indexes).
 Clients does not depend on the sample Item. Omitting it removes its files
 and wiring.
+Catalog is optional and requires Identity. It stores workspace-scoped entries and exposes create and active-list operations through its shared service, REST, and web.
+
 CompanySite and Integrations remain unimplemented.

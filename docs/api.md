@@ -8,7 +8,7 @@ Quick check:
 curl http://127.0.0.1:8080/api/openapi.json
 ```
 
-Catalog profile: `GET /api/v1/workspaces/{workspaceId}/catalog` requires `resources:read` and returns the initially empty active list as a JSON array.
+Catalog profile: `GET /api/v1/workspaces/{workspaceId}/catalog` requires `resources:read` and returns active entries as a JSON array. `POST` requires `resources:write` and the owner or admin role; it accepts `name` and optional positive integer `durationMinutes`, returning 201 or 422 for invalid input.
 
 ## Consumer quickstart
 

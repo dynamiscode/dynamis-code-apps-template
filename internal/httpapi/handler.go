@@ -123,7 +123,7 @@ func newHandler(
 		oidc: oidcRegistry, cfg: cfg, logger: logger, portability: portabilityService,
 		publicURL: publicURL, mailer: mailer, webhooks: webhookService, files: fileService,
 		clients:        firstClient(clientServices),
-		catalogService: catalog.NewService(identityService),
+		catalogService: catalog.NewService(db, identityService),
 	}
 	handlers := map[string]http.HandlerFunc{
 		"getLiveness": h.liveness, "getReadiness": h.readiness,
@@ -149,7 +149,7 @@ func newHandler(
 		"getFile": h.getFile, "getFileContent": h.getFileContent,
 		"initiateFileUpload": h.initiateFileUpload,
 		"completeFileUpload": h.completeFileUpload, "uploadFileContent": h.uploadFileContent,
-		"listCatalog": h.listCatalog,
+		"listCatalog": h.listCatalog, "createCatalog": h.createCatalog,
 		"listClients": h.listClients, "createClient": h.createClient,
 		"getClient": h.getClient, "updateClient": h.updateClient,
 		"listClientTimeline": h.listClientTimeline, "addClientTimelineEntry": h.addClientTimelineEntry,

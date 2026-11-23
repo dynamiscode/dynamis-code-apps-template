@@ -303,19 +303,26 @@ func catalogPath(relative string) bool {
 	return relative == "internal/catalog" || strings.HasPrefix(relative, "internal/catalog/") ||
 		relative == "internal/httpapi/catalog.go" || relative == "internal/httpapi/catalog_test.go" ||
 		relative == "internal/web/catalog.go" || relative == "internal/web/catalog_test.go" ||
-		relative == "internal/web/catalog.templ" || relative == "internal/web/catalog_templ.go"
+		relative == "internal/web/catalog.templ" || relative == "internal/web/catalog_templ.go" ||
+		relative == "internal/platform/database/migrations/000032_catalog.sql"
 }
 
 func disableCatalogSource(relative string, raw []byte) []byte {
 	value := string(raw)
 	switch relative {
-	case "internal/bootstrap/app.go", "internal/httpapi/handler.go", "internal/web/handler.go":
+	case "internal/bootstrap/app.go", "internal/httpapi/handler.go", "internal/web/handler.go", "internal/web/handler_test.go":
 		value = removeLinesContaining(value, `/internal/catalog"`)
 		value = removeLinesContaining(value, "catalogService")
 		value = removeLinesContaining(value, "h.catalogList")
+		value = removeLinesContaining(value, "h.catalogCreate")
+		value = removeLinesContaining(value, "EnableCatalog(")
 		value = removeLinesContaining(value, `"listCatalog":`)
 	case "docs/capabilities.md":
 		value = removeLineStarting(value, "| Catalog |")
+	case "docs/architecture.md":
+		value = removeLineStarting(value, "Catalog is optional")
+	case "docs/data-lifecycle.md":
+		value = removeLineStarting(value, "| catalog / `catalog_entries` |")
 	case "docs/api.md", "docs/web.md":
 		value = removeLineStarting(value, "Catalog profile:")
 	case "api/openapi.json":
