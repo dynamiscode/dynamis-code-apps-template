@@ -286,3 +286,99 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 		t.Fatalf("delete lost engagement: %v", err)
 	}
 }
+
+func TestNextActionDueList(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, config.Database{Driver: config.SQLite, SQLitePath: ":memory:", MaxOpenConns: 1, MaxIdleConns: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.Migrate(ctx, db, config.SQLite); err != nil {
+		t.Fatal(err)
+	}
+	auth, err := identity.NewService(db, config.SQLite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	boot, err := auth.BootstrapFirstOwner(ctx, identity.BootstrapInput{Email: "owner@example.com", Password: "long-enough-password", WorkspaceName: "Example"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := auth.Authorize(ctx, boot.UserID, boot.WorkspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := NewService(db, config.SQLite, auth)
+	if _, err := svc.CreateStage(ctx, owner, boot.WorkspaceID, StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	client, err := clients.NewService(db, config.SQLite, auth, 50).Create(ctx, owner, boot.WorkspaceID, clients.Input{DisplayName: "Client"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{ClientID: client.ID}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, NextAction{Text: "Call", DueDate: "2020-01-01", OwnerID: boot.UserID}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.Get(ctx, owner, boot.WorkspaceID, e.ID)
+	if err != nil || got.NextAction.Text != "Call" {
+		t.Fatalf("get = %+v, %v", got, err)
+	}
+	due, err := svc.ListDue(ctx, owner, boot.WorkspaceID, "2020-01-01")
+	if err != nil || len(due) != 1 || due[0].ID != e.ID {
+		t.Fatalf("due = %+v, %v", due, err)
+	}
+	for _, invalid := range []NextAction{{Text: "Call", OwnerID: 999999}, {Text: "Call", OwnerID: boot.UserID, DueDate: "2020-02-30"}, {Text: "Call"}} {
+		if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, invalid, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+			t.Fatalf("invalid action %+v: %v", invalid, err)
+		}
+	}
+	var viewerID identity.UserID
+	if err := db.QueryRowContext(ctx, `INSERT INTO users (email, created_at) VALUES (?, ?) RETURNING id`, "viewer@example.com", time.Now().UTC().Format(time.RFC3339Nano)).Scan(&viewerID); err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.AddMember(ctx, owner, viewerID, identity.Viewer, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	viewer, err := auth.Authorize(ctx, viewerID, boot.WorkspaceID, identity.ResourcesRead)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetNextAction(ctx, viewer, boot.WorkspaceID, e.ID, NextAction{}, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer change: %v", err)
+	}
+	if got, err := svc.Get(ctx, viewer, boot.WorkspaceID, e.ID); err != nil || got.NextAction.Text != "Call" {
+		t.Fatalf("viewer read: %+v %v", got, err)
+	}
+	other, err := auth.CreateWorkspace(ctx, owner, identity.WorkspaceCreateInput{Name: "Other"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherOwner, err := auth.Authorize(ctx, boot.UserID, other, identity.ResourcesRead)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if due, err := svc.ListDue(ctx, otherOwner, other, "2020-01-01"); err != nil || len(due) != 0 {
+		t.Fatalf("foreign due: %+v %v", due, err)
+	}
+	if _, err := svc.Get(ctx, otherOwner, other, e.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("foreign get: %v", err)
+	}
+	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, NextAction{Text: "Later", DueDate: "2020-01-02", OwnerID: viewerID}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if due, err := svc.ListDue(ctx, owner, boot.WorkspaceID, "2020-01-01"); err != nil || len(due) != 0 {
+		t.Fatalf("future due: %+v %v", due, err)
+	}
+	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, NextAction{}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	due, err = svc.ListDue(ctx, owner, boot.WorkspaceID, "2020-01-01")
+	if err != nil || len(due) != 0 {
+		t.Fatalf("cleared due = %+v, %v", due, err)
+	}
+}

@@ -102,6 +102,20 @@ func TestEngagementThroughREST(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	actionPath := base + "/engagements/" + e.ID + "/next-action"
+	updated := serveAuthorized(handler, http.MethodPut, actionPath, `{"text":"Call","dueDate":"2020-01-01","ownerId":"`+userID.String()+`"}`, token, nil)
+	if updated.Code != http.StatusNoContent {
+		t.Fatalf("set action: %d %s", updated.Code, updated.Body.String())
+	}
+	got = serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil)
+	if got.Code != http.StatusOK || !strings.Contains(got.Body.String(), `"text":"Call"`) {
+		t.Fatalf("read action: %d %s", got.Code, got.Body.String())
+	}
+	due := serveAuthorized(handler, http.MethodGet, base+"/engagements/due", "", readOnly.Secret, nil)
+	if due.Code != http.StatusOK || !strings.Contains(due.Body.String(), e.ID) {
+		t.Fatalf("due: %d %s", due.Code, due.Body.String())
+	}
+	assertProblem(t, serveAuthorized(handler, http.MethodPut, actionPath, `{}`, readOnly.Secret, nil), http.StatusForbidden, "insufficient-scope")
 	assertProblem(t, serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"clientId":"`+c.ID+`"}`, readOnly.Secret, nil), http.StatusForbidden, "insufficient-scope")
 	if got := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil); got.Code != http.StatusOK {
 		t.Fatalf("read only get: %d", got.Code)

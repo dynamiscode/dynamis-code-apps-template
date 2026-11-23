@@ -17,6 +17,10 @@ tests. Writers can create engagements for one workspace client in an open,
 unarchived stage; readers can view them. Creation is audited, and archiving an
 in-use stage preserves its engagements. The same tests cover these behaviors.
 Workspace export does not yet include stages or engagements.
+Next actions have text, an optional date, and a workspace-member owner. Writers
+can change them; readers can view them and the workspace's open-stage due list.
+The service, REST, and web tests above cover these surfaces. Dates use UTC for
+the due-list cutoff; actions are not included in workspace export.
 
 ## Client timeline REST (#575)
 

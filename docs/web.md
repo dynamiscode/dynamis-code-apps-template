@@ -19,6 +19,8 @@ forms work without JavaScript.
 On a client detail page, readers can see engagements and writers can create one
 with notes. Creation uses the first available open stage. A client with an
 engagement cannot be deleted.
+Readers see next actions on client details; writers can set, change, or clear
+them. The Clients list links to actions due today or earlier (UTC) in open stages.
 `/account`, `/notifications`, `/sessions`, and `/security` cover account and
 security settings. Account pages share responsive panels, generated branding,
 and the user's light, dark, or system theme. The authenticated shell uses

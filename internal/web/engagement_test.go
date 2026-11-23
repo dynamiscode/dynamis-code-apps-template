@@ -86,9 +86,27 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if created.Code != http.StatusSeeOther {
 		t.Fatalf("create: %d %s", created.Code, created.Body.String())
 	}
+	svc := engagement.NewService(env.db, config.SQLite, env.auth)
+	items, err := svc.ListForClient(ctx, owner, env.workspaceID, client.ID)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("engagements: %+v %v", items, err)
+	}
+	actionPath := path + "/engagements/" + items[0].ID.String() + "/next-action"
+	updated := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {"Call client"}, "due_date": {"2020-01-01"}, "owner_id": {env.ownerID.String()}}, env.cookies, nil)
+	if updated.Code != http.StatusSeeOther {
+		t.Fatalf("set action: %d %s", updated.Code, updated.Body.String())
+	}
 	viewer := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
-	if viewer.Code != http.StatusOK || !strings.Contains(viewer.Body.String(), "Other person") || strings.Contains(viewer.Body.String(), "Create engagement") {
+	if viewer.Code != http.StatusOK || !strings.Contains(viewer.Body.String(), "Other person") || !strings.Contains(viewer.Body.String(), "Call client") || strings.Contains(viewer.Body.String(), "Create engagement") || strings.Contains(viewer.Body.String(), actionPath) {
 		t.Fatalf("viewer: %d notes=%v create=%v", viewer.Code, strings.Contains(viewer.Body.String(), "Other person"), strings.Contains(viewer.Body.String(), "Create engagement"))
+	}
+	due := request(env.routes, http.MethodGet, "/workspaces/"+env.workspaceID.String()+"/engagements/due", nil, env.viewerCookies, nil)
+	if due.Code != http.StatusOK || !strings.Contains(due.Body.String(), "Call client") {
+		t.Fatalf("due: %d %s", due.Code, due.Body.String())
+	}
+	deniedAction := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.viewerCSRF}}, env.viewerCookies, nil)
+	if deniedAction.Code != http.StatusForbidden {
+		t.Fatalf("viewer action: %d", deniedAction.Code)
 	}
 	denied := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.viewerCSRF}}, env.viewerCookies, nil)
 	if denied.Code != http.StatusForbidden {

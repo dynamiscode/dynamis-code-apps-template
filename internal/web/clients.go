@@ -430,6 +430,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	}
 	var engagements []engagement.Engagement
 	var stages []engagement.Stage
+	var members []identity.MemberSummary
 	var engagementNotes string
 	if strings.HasPrefix(errorKey, "engagement.") {
 		engagementNotes = request.FormValue("notes")
@@ -445,6 +446,11 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 			h.renderError(writer, http.StatusInternalServerError)
 			return
 		}
+		members, err = h.identity.ListMembers(request.Context(), principal)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
 	}
 	h.renderClientPage(writer, request, status, clientDetailPage, viewmodel.PageData{
 		Title: client.DisplayName, ErrorKey: errorKey, CSRF: csrf,
@@ -455,7 +461,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		CanManageFields: principal.Permissions[identity.WorkspaceUpdate],
 		Client:          client, ClientValues: rows, ClientTimeline: entries, TimelinePage: page, TimelineDraft: timelineDraft, CanEditClients: principal.Permissions[identity.ResourcesWrite],
 		CanDeleteClients: principal.Permissions[identity.WorkspaceUpdate],
-		Engagements:      engagements, EngagementStages: stages, EngagementEnabled: h.engagement != nil,
+		Engagements:      engagements, EngagementStages: stages, EngagementMembers: members, EngagementEnabled: h.engagement != nil,
 		EngagementNotes: engagementNotes,
 	})
 }

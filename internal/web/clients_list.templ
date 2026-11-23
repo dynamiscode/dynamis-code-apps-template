@@ -136,6 +136,7 @@ templ clientCreateForm(data viewmodel.PageData, action string) {
 templ clientCreateMenu(data viewmodel.PageData) {
 	<div class="list-create">
 		<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagement-stages") }>{ data.T("engagement.stages") }</a>
+		<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagements/due") }>{ data.T("engagement.due_list") }</a>
 			if data.CanManageFields {
 				<a class="btn btn-ghost btn-xs" href={ data.FieldsPath }>{ data.T("clients.fields_link") }</a>
 			}
