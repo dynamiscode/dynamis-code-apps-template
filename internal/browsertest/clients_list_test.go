@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/chromedp/cdproto/cdp"
+	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
@@ -125,6 +126,39 @@ func acceptDialogs(tab context.Context) {
 			}()
 		}
 	})
+}
+
+func TestClientTimelineDialog(t *testing.T) {
+	tab := newTab(t, 1280, 900, "")
+	openClients(t, tab)
+	click(t, tab, `a[href$="/clients/new"]`)
+	fillByLabel(t, tab, "Display name", fmt.Sprintf("Timeline %d", time.Now().UnixMilli()))
+	clickByText(t, tab, "Add client")
+	waitVisible(t, tab, "[data-timeline-open]")
+	click(t, tab, "[data-timeline-open]")
+	eventually(t, tab, `document.querySelector('[data-timeline-dialog]').matches(':modal')`, "timeline dialog did not open")
+	fill(t, tab, "#timeline-text", strings.Repeat("x", 2001))
+	click(t, tab, `[data-timeline-dialog] button[type="submit"]`)
+	eventually(t, tab, `document.querySelector('[data-timeline-dialog]').matches(':modal') && document.querySelector('#timeline-text').value.length === 2001 && document.querySelector('[data-timeline-composer] [role=alert]') !== null`, "rejected draft did not reopen with error")
+	click(t, tab, "[data-timeline-close]")
+	eventually(t, tab, `!document.querySelector('[data-timeline-dialog]').open && document.activeElement.matches('[data-timeline-open]')`, "rejected dialog close did not restore focus")
+	click(t, tab, "[data-timeline-open]")
+	fill(t, tab, "#timeline-text", "Followed up by phone")
+	click(t, tab, `[data-timeline-dialog] button[type="submit"]`)
+	eventually(t, tab, `document.querySelector('.timeline').textContent.includes('Followed up by phone')`, "saved timeline entry missing")
+	click(t, tab, "[data-timeline-open]")
+	click(t, tab, "[data-timeline-close]")
+	eventually(t, tab, `!document.querySelector('[data-timeline-dialog]').open && document.activeElement.matches('[data-timeline-open]')`, "dialog close did not restore focus")
+	path := eval[string](t, tab, `location.pathname`)
+	call(t, tab, emulation.SetScriptExecutionDisabled, emulation.SetScriptExecutionDisabledParams{Value: true})
+	navigate(t, tab, path)
+	waitVisible(t, tab, "#timeline-text")
+	fill(t, tab, "#timeline-text", strings.Repeat("x", 2001))
+	click(t, tab, `[data-timeline-composer] button[type="submit"]`)
+	eventually(t, tab, `document.querySelector('[data-timeline-error-summary] [role=alert]') && document.querySelector('[data-timeline-error-summary] a').getAttribute('href') === '#timeline-text' && document.querySelector('#timeline-text').value.length === 2001`, "no-JavaScript error summary or draft missing")
+	fill(t, tab, "#timeline-text", "No JavaScript entry")
+	click(t, tab, `[data-timeline-composer] button[type="submit"]`)
+	eventually(t, tab, `document.querySelector('.timeline').textContent.includes('No JavaScript entry')`, "no-JavaScript submission failed")
 }
 
 // TestClientDetailLifecycle ports the detail editing, custom value and lifecycle test.
