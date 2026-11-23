@@ -262,9 +262,19 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if r := request(env.routes, http.MethodPost, agreementPath, url.Values{"csrf": {env.csrf}, "file_id": {"invalid"}}, env.cookies, nil); r.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("invalid file: %d", r.Code)
 	}
-	assigned := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}, "assignee_id": {env.ownerID.String()}}, env.cookies, nil)
-	if assigned.Code != http.StatusSeeOther {
-		t.Fatalf("assign: %d %s", assigned.Code, assigned.Body.String())
+	assigned := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}, "assignee_id": {env.ownerID.String()}, "return_to": {"detail"}}, env.cookies, nil)
+	if assigned.Code != http.StatusSeeOther || assigned.Header().Get("Location") != detailPath {
+		t.Fatalf("assign: %d %s", assigned.Code, assigned.Header().Get("Location"))
+	}
+	writerDetail = request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
+	for _, want := range []string{`action="` + assigneePath + `"`, `for="engagement-assignee"`, `name="assignee_id"`, `value="` + env.ownerID.String() + `" selected`, `name="return_to" value="detail"`, `href="` + detailPath + `"`} {
+		if !strings.Contains(writerDetail.Body.String(), want) {
+			t.Fatalf("assignee detail missing %q", want)
+		}
+	}
+	viewerDetail = request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
+	if strings.Contains(viewerDetail.Body.String(), `action="`+assigneePath+`"`) || !strings.Contains(viewerDetail.Body.String(), "Assignee:") {
+		t.Fatalf("viewer assignee summary or form visibility: %d", viewerDetail.Code)
 	}
 	if got, err := svc.Get(ctx, owner, env.workspaceID, items[0].ID); err != nil || got.AssigneeID != env.ownerID {
 		t.Fatalf("assignment: %+v %v", got, err)

@@ -84,7 +84,11 @@ func (h *Handler) setEngagementAssignee(w http.ResponseWriter, r *http.Request) 
 		h.renderError(w, http.StatusInternalServerError)
 		return
 	}
-	h.redirect(w, r, h.clientsPath(workspace)+"/"+r.PathValue("clientId"))
+	path := h.clientsPath(workspace) + "/" + r.PathValue("clientId")
+	if r.FormValue("return_to") == "detail" {
+		path += "/engagements/" + r.PathValue("engagementId")
+	}
+	h.redirect(w, r, path)
 }
 
 func (h *Handler) setEngagementQuote(w http.ResponseWriter, r *http.Request) {

@@ -52,6 +52,21 @@ templ engagementDetailPage(data viewmodel.PageData) {
 						<p>{ data.T("engagement.assignee") }: { member.Email }</p>
 					}
 				}
+				if data.CanEditClients {
+					<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/assignee") } method="post">
+						<input type="hidden" name="csrf" value={ data.CSRF }/>
+						<input type="hidden" name="return_to" value="detail"/>
+						<label for="engagement-assignee">{ data.T("engagement.assignee") }</label>
+						<select class="select select-bordered" id="engagement-assignee" name="assignee_id">
+							<option value="">—</option>
+							for _, member := range data.EngagementMembers {
+								<option value={ member.UserID.String() } selected?={ member.UserID == item.AssigneeID }>{ member.Email }</option>
+							}
+						</select>
+						@molecules.SubmitButton(data.T("engagement.save_assignee"), nil)
+						<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
+					</form>
+				}
 				<p>{ data.T("engagement.agreement") }:
 					if item.Agreement.Recorded {
 						<span>{ data.T("engagement.agreement_recorded") }</span>
