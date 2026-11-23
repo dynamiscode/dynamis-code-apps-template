@@ -379,6 +379,10 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 	}
 	for _, path := range []string{
 		"internal/clients", "internal/httpapi/clients.go", "internal/httpapi/client_timeline.go", "internal/httpapi/client_timeline_test.go", "internal/web/clients.go",
+		"internal/intake", "internal/httpapi/intake.go", "internal/httpapi/intake_test.go",
+		"internal/web/intake.go", "internal/web/intake.templ", "internal/web/intake_templ.go", "internal/web/intake_test.go",
+		"internal/web/public_intake.go", "internal/web/public_intake.templ", "internal/web/public_intake_templ.go",
+		"internal/platform/database/migrations/000042_public_intake.sql",
 		"internal/engagement/engagement.go", "internal/engagement/assignee.go", "internal/engagement/next_action.go", "internal/engagement/quote.go",
 		"internal/web/client_timeline.go", "internal/web/client_timeline_test.go",
 		"internal/web/clients.templ", "internal/web/clients_templ.go",
@@ -425,7 +429,7 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		}
 	}
 	openAPI, err := os.ReadFile(filepath.Join(output, "api/openapi.json"))
-	if err != nil || strings.Contains(string(openAPI), "/clients") {
+	if err != nil || strings.Contains(string(openAPI), "/clients") || strings.Contains(string(openAPI), "/intake/") {
 		t.Fatalf("generated OpenAPI retains Clients paths: error = %v", err)
 	}
 	for path, retained := range map[string]string{
