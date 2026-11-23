@@ -12,6 +12,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/engagement"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
@@ -24,9 +26,11 @@ var (
 )
 
 type Service struct {
-	db     *sql.DB
-	driver config.DatabaseDriver
-	auth   *identity.Service
+	db         *sql.DB
+	driver     config.DatabaseDriver
+	auth       *identity.Service
+	clients    *clients.Service
+	engagement *engagement.Service
 }
 
 type Settings struct {
@@ -34,8 +38,12 @@ type Settings struct {
 	ConsentText string
 }
 
-func NewService(db *sql.DB, driver config.DatabaseDriver, auth *identity.Service) *Service {
-	return &Service{db: db, driver: driver, auth: auth}
+func NewService(db *sql.DB, driver config.DatabaseDriver, auth *identity.Service, clientServices ...*clients.Service) *Service {
+	clientService := clients.NewService(db, driver, auth, 0)
+	if len(clientServices) > 0 {
+		clientService = clientServices[0]
+	}
+	return &Service{db: db, driver: driver, auth: auth, clients: clientService, engagement: engagement.NewService(db, driver, auth)}
 }
 
 func hashToken(token string) string {

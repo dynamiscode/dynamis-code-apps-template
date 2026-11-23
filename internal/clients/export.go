@@ -125,7 +125,7 @@ func (s *Service) exportClientRecords(
 ) ([]portability.ClientRecord, error) {
 	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `
 		SELECT id, workspace_id, created_by_user_id, display_name, email, phone, notes,
-			archived_at, version, custom_values, created_at, updated_at
+			archived_at, version, custom_values, created_at, updated_at, intake_consented_at
 		FROM clients WHERE workspace_id = ? ORDER BY created_at, id LIMIT ?
 	`), workspaceID, limit)
 	if err != nil {
@@ -137,12 +137,12 @@ func (s *Service) exportClientRecords(
 		var value portability.ClientRecord
 		var clientID ClientID
 		var createdByUserID sql.NullInt64
-		var archivedAt sql.NullString
+		var archivedAt, consentedAt sql.NullString
 		var rawValues, createdAt, updatedAt string
 		if err := rows.Scan(
 			&clientID, &value.WorkspaceID, &createdByUserID, &value.DisplayName,
 			&value.Email, &value.Phone, &value.Notes, &archivedAt, &value.Version,
-			&rawValues, &createdAt, &updatedAt,
+			&rawValues, &createdAt, &updatedAt, &consentedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -151,6 +151,9 @@ func (s *Service) exportClientRecords(
 			value.CreatedByUserID = &creator
 		}
 		if value.ArchivedAt, err = exportOptionalTime(archivedAt); err != nil {
+			return nil, err
+		}
+		if value.IntakeConsentedAt, err = exportOptionalTime(consentedAt); err != nil {
 			return nil, err
 		}
 		if value.CreatedAt, err = parseTime(createdAt); err != nil {
