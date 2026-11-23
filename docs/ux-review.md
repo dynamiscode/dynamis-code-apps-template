@@ -9,10 +9,10 @@ AI tool or model is required.
 1. **Inventory.** List affected journeys, entry and return paths, roles, and
    relevant states. Identify task, success, failure and realistic data, including
    multiple similar records. Note a state as not applicable only with a reason.
-2. **Design.** Apply the [UX decision guide](ux-decisions.md) and product
-   context. Challenge existing patterns; compare options and consult sources
-   when the guide calls for it. Define observable acceptance criteria for each
-   changed journey.
+2. **Design.** Follow [ux-workflow](../.agents/skills/ux-workflow/SKILL.md)
+   and the [UX decision guide](ux-decisions.md). Challenge existing patterns;
+   compare options and consult sources when needed. Define observable
+   acceptance criteria for each changed journey.
 3. **Drive.** Run the real application with disposable data using the
    repository's [verification procedure](../.agents/skills/verify/SKILL.md).
    Complete each changed journey, not just visit a page. Inspect desktop and

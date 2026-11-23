@@ -40,9 +40,10 @@ application use case and whose adapters contain transport concerns only.
   through `change-go-data`, and MCP/CLI changes through
   `change-go-agent-surfaces`.
 
-For new browser journeys or meaningful interaction or visual changes, define
-journey acceptance criteria and complete [UX review](../../../docs/ux-review.md).
-A passing service or browser test alone is not a UX review.
+For new browser journeys or meaningful interaction or visual changes, follow
+[ux-workflow](../ux-workflow/SKILL.md), define journey acceptance criteria,
+and complete [UX review](../../../docs/ux-review.md). A passing service or
+browser test alone is not a UX review.
 
 ## Verify and stop
 

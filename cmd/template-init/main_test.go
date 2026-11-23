@@ -49,12 +49,17 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 		t.Fatalf("generated README = %q, error = %v", readme, err)
 	}
 	for path, want := range map[string]string{
-		"AGENTS.md":                        "docs/ux-review.md",
-		"docs/README.md":                   "ux-review.md",
-		"docs/ux.md":                       "User experience standard",
-		"docs/ux-review.md":                "Browser UX review",
-		".agents/skills/verify/SKILL.md":   "docs/ux-review.md",
-		".github/pull_request_template.md": "Browser UX review",
+		"AGENTS.md":                                             "docs/ux-review.md",
+		"docs/README.md":                                        "ux-review.md",
+		"docs/ux.md":                                            "User experience standard",
+		"docs/ux-review.md":                                     "Browser UX review",
+		".agents/skills/verify/SKILL.md":                        "docs/ux-review.md",
+		".github/pull_request_template.md":                      "Browser UX review",
+		".agents/skills/ux-workflow/SKILL.md":                   "UX workflow",
+		".agents/skills/ux-workflow/references/journeys.md":     "Journeys and structure",
+		".agents/skills/ux-workflow/references/interactions.md": "Interactions and states",
+		".agents/skills/ux-workflow/references/evaluation.md":   "Evaluate a browser journey",
+		".agents/skills/ux-workflow/references/patterns.md":     "Choose interaction patterns",
 	} {
 		content, err := os.ReadFile(filepath.Join(output, path))
 		if err != nil || !strings.Contains(string(content), want) {
