@@ -35,6 +35,30 @@ func (h *handler) createCatalog(writer http.ResponseWriter, request *http.Reques
 	}
 }
 
+func (h *handler) createCatalogPrice(writer http.ResponseWriter, request *http.Request) {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	principal, ok := h.workspaceBearer(writer, request, workspaceID, identity.ResourcesWrite)
+	if !ok {
+		return
+	}
+	var option catalog.PriceOption
+	if err := decodeJSON(request, &option); err != nil {
+		h.badJSON(writer, request, err)
+		return
+	}
+	price, err := h.catalogService.AddPrice(request.Context(), principal, workspaceID, request.PathValue("entryId"), option)
+	switch {
+	case errors.Is(err, identity.ErrForbidden):
+		writeProblem(writer, request, http.StatusForbidden, "forbidden", "Access is denied.")
+	case errors.Is(err, catalog.ErrInvalidInput):
+		writeProblem(writer, request, http.StatusUnprocessableEntity, "invalid-input", "Catalog price is invalid.")
+	case err != nil:
+		h.internal(writer, request)
+	default:
+		writeJSON(writer, http.StatusCreated, price)
+	}
+}
+
 func (h *handler) listCatalog(writer http.ResponseWriter, request *http.Request) {
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, ok := h.workspaceBearer(writer, request, workspaceID, identity.ResourcesRead)

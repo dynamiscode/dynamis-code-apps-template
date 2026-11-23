@@ -304,7 +304,8 @@ func catalogPath(relative string) bool {
 		relative == "internal/httpapi/catalog.go" || relative == "internal/httpapi/catalog_test.go" ||
 		relative == "internal/web/catalog.go" || relative == "internal/web/catalog_test.go" ||
 		relative == "internal/web/catalog.templ" || relative == "internal/web/catalog_templ.go" ||
-		relative == "internal/platform/database/migrations/000032_catalog.sql"
+		relative == "internal/platform/database/migrations/000032_catalog.sql" ||
+		relative == "internal/platform/database/migrations/000033_catalog_prices.sql"
 }
 
 func disableCatalogSource(relative string, raw []byte) []byte {
@@ -315,6 +316,7 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "catalogService")
 		value = removeLinesContaining(value, "h.catalogList")
 		value = removeLinesContaining(value, "h.catalogCreate")
+		value = removeLinesContaining(value, "h.catalogCreatePrice")
 		value = removeLinesContaining(value, "EnableCatalog(")
 		value = removeLinesContaining(value, `"listCatalog":`)
 	case "docs/capabilities.md":
@@ -322,7 +324,7 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 	case "docs/architecture.md":
 		value = removeLineStarting(value, "Catalog is optional")
 	case "docs/data-lifecycle.md":
-		value = removeLineStarting(value, "| catalog / `catalog_entries` |")
+		value = removeLineStarting(value, "| catalog / `catalog_entries`")
 	case "docs/api.md", "docs/web.md":
 		value = removeLineStarting(value, "Catalog profile:")
 	case "api/openapi.json":
@@ -330,6 +332,7 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 		if json.Unmarshal(raw, &document) == nil {
 			if paths, ok := document["paths"].(map[string]any); ok {
 				delete(paths, "/api/v1/workspaces/{workspaceId}/catalog")
+				delete(paths, "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/prices")
 				if encoded, err := json.MarshalIndent(document, "", "  "); err == nil {
 					value = string(encoded) + "\n"
 				}

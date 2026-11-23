@@ -203,6 +203,7 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /workspaces/{workspaceId}", h.workspaceHome)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/catalog", h.catalogList)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog", h.catalogCreate)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/prices", h.catalogCreatePrice)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients", h.clientList)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/preferences/columns/{column}", h.setClientColumn)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/preferences/columns/reset", h.resetClientColumns)

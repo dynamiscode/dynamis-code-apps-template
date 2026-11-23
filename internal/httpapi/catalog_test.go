@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -10,6 +11,38 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
+
+func TestCatalogPricesREST(t *testing.T) {
+	handler, _, workspace, token := testHandler(t)
+	path := "/api/v1/workspaces/" + workspace + "/catalog"
+	created := serveAuthorized(handler, http.MethodPost, path, `{"name":"Visit"}`, token, nil)
+	var entry struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(created.Body.Bytes(), &entry); err != nil || entry.ID == "" {
+		t.Fatalf("entry: %s %v", created.Body.String(), err)
+	}
+	pricePath := path + "/" + entry.ID + "/prices"
+	for _, body := range []string{`{"mode":"fixed","amount":"0.123456789012345678","currency":"BTC","variant":"Visit"}`, `{"mode":"manual","currency":"USD","variant":"Week"}`} {
+		response := serveAuthorized(handler, http.MethodPost, pricePath, body, token, nil)
+		if response.Code != http.StatusCreated {
+			t.Fatalf("price = %d %s", response.Code, response.Body.String())
+		}
+	}
+	for _, body := range []string{`{"mode":"fixed","currency":"USD","variant":"Visit"}`, `{"mode":"fixed","amount":"-1","currency":"USD","variant":"Visit"}`, `{"mode":"manual","variant":"Visit"}`, `{"mode":"manual","currency":"USD"}`} {
+		response := serveAuthorized(handler, http.MethodPost, pricePath, body, token, nil)
+		if response.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("invalid = %d %s", response.Code, response.Body.String())
+		}
+	}
+	list := serveAuthorized(handler, http.MethodGet, path, "", token, nil)
+	if response := serveAuthorized(handler, http.MethodPost, pricePath, `{"mode":"fixed","amount":0.1,"currency":"USD","variant":"Visit"}`, token, nil); response.Code != http.StatusBadRequest {
+		t.Fatalf("numeric amount = %d", response.Code)
+	}
+	if !strings.Contains(list.Body.String(), `"amount":"0.123456789012345678"`) || !strings.Contains(list.Body.String(), `"mode":"manual"`) {
+		t.Fatal(list.Body.String())
+	}
+}
 
 func TestCatalogCreateAndList(t *testing.T) {
 	handler, _, workspaceID, token := testHandler(t)

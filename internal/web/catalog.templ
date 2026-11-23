@@ -31,6 +31,33 @@ templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, canWrite boo
       if entry.DurationMinutes != nil {
        <span>{ strconv.Itoa(*entry.DurationMinutes) } min</span>
       }
+      <ul>
+       for _, price := range entry.Prices {
+        <li>
+         <span>{ price.Variant } — </span>
+         if price.Amount != nil {
+          <span>{ *price.Amount } </span>
+         } else {
+          <span>{ data.T("catalog.manual") } </span>
+         }
+         <span>{ price.Currency }</span>
+         if price.Eligibility != "" {
+          <span> — { price.Eligibility }</span>
+         }
+        </li>
+       }
+      </ul>
+      if canWrite {
+       <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID + "/prices") } class="space-y-3">
+        <input type="hidden" name="csrf" value={ data.CSRF }/>
+        <label class="form-control"><span class="label-text">{ data.T("catalog.mode") }</span><select class="select select-bordered" name="mode"><option value="fixed">{ data.T("catalog.fixed") }</option><option value="manual">{ data.T("catalog.manual") }</option></select></label>
+        <label class="form-control"><span class="label-text">{ data.T("catalog.amount") }</span><input class="input input-bordered" name="amount" inputmode="decimal"/></label>
+        <label class="form-control"><span class="label-text">{ data.T("catalog.currency") }</span><input class="input input-bordered" name="currency" required/></label>
+        <label class="form-control"><span class="label-text">{ data.T("catalog.variant") }</span><input class="input input-bordered" name="variant" required/></label>
+        <label class="form-control"><span class="label-text">{ data.T("catalog.eligibility") }</span><input class="input input-bordered" name="eligibility"/></label>
+        <button class="btn btn-primary" type="submit">{ data.T("catalog.add_price") }</button>
+       </form>
+      }
      </li>
     }
    </ul>

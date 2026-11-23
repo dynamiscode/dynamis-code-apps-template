@@ -149,7 +149,7 @@ func newHandler(
 		"getFile": h.getFile, "getFileContent": h.getFileContent,
 		"initiateFileUpload": h.initiateFileUpload,
 		"completeFileUpload": h.completeFileUpload, "uploadFileContent": h.uploadFileContent,
-		"listCatalog": h.listCatalog, "createCatalog": h.createCatalog,
+		"listCatalog": h.listCatalog, "createCatalog": h.createCatalog, "createCatalogPrice": h.createCatalogPrice,
 		"listClients": h.listClients, "createClient": h.createClient,
 		"getClient": h.getClient, "updateClient": h.updateClient,
 		"listClientTimeline": h.listClientTimeline, "addClientTimelineEntry": h.addClientTimelineEntry,

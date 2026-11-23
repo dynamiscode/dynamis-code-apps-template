@@ -9,7 +9,7 @@ cases as REST. Sign in at `/login`, create or choose a workspace, then use the
 workspace home and sidebar. `/workspaces/{workspaceId}` is the workspace home;
 it links to enabled workspace tools. Settings groups members, invitations, API tokens, webhooks, SCIM provisioning, export, and audit history.
 
-Catalog profile: `/workspaces/{workspaceId}/catalog` lists active entries for workspace resource readers. Owners and admins can create entries with a name and optional positive duration in minutes; members and viewers see no create controls. Workspace home links to it.
+Catalog profile: `/workspaces/{workspaceId}/catalog` lists active entries and their unconverted price options for workspace resource readers. Owners and admins can create entries and add fixed or manual prices; members and viewers see no create controls. Fixed amounts are non-negative decimals, while manual options have no preset amount. Workspace home links to it.
 
 Member and invitation pages explain role permissions, ownership transfer,
 invited-email matching, and safe recovery for unavailable links.

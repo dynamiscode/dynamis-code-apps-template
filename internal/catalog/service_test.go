@@ -86,6 +86,24 @@ func TestListRequiresWorkspaceRead(t *testing.T) {
 		if role != identity.Admin && !errors.Is(err, identity.ErrForbidden) {
 			t.Fatalf("%s create: %v", role, err)
 		}
+		_, err = service.AddPrice(ctx, principal, owner.WorkspaceID, created.ID, PriceOption{Mode: "manual", Currency: "USD", Variant: string(role)})
+		if role == identity.Admin && err != nil {
+			t.Fatalf("admin add price: %v", err)
+		}
+		if role != identity.Admin && !errors.Is(err, identity.ErrForbidden) {
+			t.Fatalf("%s add price: %v", role, err)
+		}
+	}
+	zero := "0"
+	if _, err := service.AddPrice(ctx, actor, owner.WorkspaceID, created.ID, PriceOption{Mode: "fixed", Amount: &zero, Currency: "USD", Variant: "Visit", Eligibility: "Student"}); err != nil {
+		t.Fatalf("zero price: %v", err)
+	}
+	entries, err = service.List(ctx, actor, owner.WorkspaceID)
+	if err != nil || len(entries) < 2 || len(entries[0].Prices) != 2 || entries[0].Prices[1].Amount == nil || *entries[0].Prices[1].Amount != zero || entries[0].Prices[1].Eligibility != "Student" || len(entries[1].Prices) != 0 {
+		t.Fatalf("entry price ownership = %+v, %v", entries, err)
+	}
+	if _, err := service.AddPrice(ctx, actor, owner.WorkspaceID+1, created.ID, PriceOption{Mode: "fixed", Amount: &zero, Currency: "USD", Variant: "Visit"}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("foreign workspace price: %v", err)
 	}
 	actor.UserID = 0
 	if _, err := service.List(ctx, actor, owner.WorkspaceID); !errors.Is(err, identity.ErrForbidden) {

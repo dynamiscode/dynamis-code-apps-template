@@ -11,6 +11,50 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 )
 
+func TestCatalogPricesWeb(t *testing.T) {
+	routes, auth, workspaceID, owner := testWeb(t, 2)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	path := "/workspaces/" + workspaceID.String() + "/catalog"
+	request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Service"}}, cookies, nil)
+	page := request(routes, http.MethodGet, path, nil, cookies, nil)
+	doc := page.Body.String()
+	marker := path + "/"
+	start := strings.Index(doc, marker)
+	if start < 0 {
+		t.Fatal("missing price form")
+	}
+	end := strings.Index(doc[start:], "/prices")
+	if end < 0 {
+		t.Fatal("missing price action")
+	}
+	pricePath := doc[start:start+end] + "/prices"
+	for _, form := range []url.Values{{"csrf": {session.CSRFSecret}, "mode": {"fixed"}, "amount": {"0.123456789012345678"}, "currency": {"BTC"}, "variant": {"Visit"}}, {"csrf": {session.CSRFSecret}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Week"}}} {
+		result := request(routes, http.MethodPost, pricePath, form, cookies, nil)
+		if result.Code != http.StatusSeeOther {
+			t.Fatalf("price = %d %s", result.Code, result.Body.String())
+		}
+	}
+	for _, form := range []url.Values{
+		{"csrf": {session.CSRFSecret}, "mode": {"fixed"}, "amount": {"-1"}, "currency": {"USD"}, "variant": {"Visit"}},
+		{"csrf": {session.CSRFSecret}, "mode": {"fixed"}, "currency": {"USD"}, "variant": {"Visit"}},
+		{"csrf": {session.CSRFSecret}, "mode": {"manual"}, "variant": {"Visit"}},
+		{"csrf": {session.CSRFSecret}, "mode": {"manual"}, "currency": {"USD"}},
+	} {
+		invalid := request(routes, http.MethodPost, pricePath, form, cookies, nil)
+		if invalid.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("invalid = %d", invalid.Code)
+		}
+	}
+	page = request(routes, http.MethodGet, path, nil, cookies, nil)
+	if !strings.Contains(page.Body.String(), "0.123456789012345678") || !strings.Contains(page.Body.String(), "Week") {
+		t.Fatal(page.Body.String())
+	}
+}
+
 func TestCatalogCreate(t *testing.T) {
 	routes, auth, workspaceID, owner := testWeb(t, 2)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})

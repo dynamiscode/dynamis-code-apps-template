@@ -236,13 +236,21 @@
       "get": {
         "operationId": "listCatalog", "security": [{"bearerAuth": []}],
         "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
-        "responses": {"200": {"description": "Active catalog entries", "content": {"application/json": {"schema": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "durationMinutes": {"type": "integer", "nullable": true}}}}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}
+        "responses": {"200": {"description": "Active catalog entries", "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/CatalogEntry"}}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}
       },
       "post": {
         "operationId": "createCatalog", "description": "Owners and admins with resources:write create entries.", "security": [{"bearerAuth": []}],
         "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
         "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string", "minLength": 1}, "durationMinutes": {"type": "integer", "minimum": 1, "nullable": true}}}}}},
-        "responses": {"201": {"description": "Created catalog entry", "content": {"application/json": {"schema": {"type": "object", "required": ["name", "durationMinutes"], "properties": {"name": {"type": "string"}, "durationMinutes": {"type": "integer", "nullable": true}}}}}}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "422": {"$ref": "#/components/responses/Problem"}}
+        "responses": {"201": {"description": "Created catalog entry", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CatalogEntry"}}}}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "422": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/prices": {
+      "post": {
+        "operationId": "createCatalogPrice", "description": "Add a fixed or manual price. Amount is a non-negative decimal string for fixed options and null or omitted for manual options.", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "entryId", "in": "path", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CatalogPrice"}}}},
+        "responses": {"201": {"description": "Created price", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CatalogPrice"}}}}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "422": {"$ref": "#/components/responses/Problem"}}
       }
     },
     "/api/v1/workspaces/{workspaceId}/clients": {
@@ -1029,6 +1037,8 @@
       "RateLimited": {"description": "Rate limit exceeded", "headers": {"Retry-After": {"required": true, "schema": {"type": "integer", "minimum": 1}}}, "content": {"application/problem+json": {"schema": {"$ref": "#/components/schemas/Problem"}}}}
     },
     "schemas": {
+      "CatalogEntry": {"type": "object", "required": ["id", "name", "durationMinutes", "prices"], "properties": {"id": {"type": "string"}, "name": {"type": "string"}, "durationMinutes": {"type": "integer", "nullable": true}, "prices": {"type": "array", "items": {"$ref": "#/components/schemas/CatalogPrice"}}}},
+      "CatalogPrice": {"type": "object", "required": ["mode", "currency", "variant"], "properties": {"mode": {"type": "string", "enum": ["fixed", "manual"]}, "amount": {"type": "string", "nullable": true, "pattern": "^[0-9]+(\\.[0-9]+)?$"}, "currency": {"type": "string", "minLength": 1}, "variant": {"type": "string", "minLength": 1}, "eligibility": {"type": "string"}}},
       "HealthAlive": {"type": "object", "required": ["status"], "properties": {"status": {"const": "alive"}}},
       "HealthReady": {"type": "object", "required": ["status"], "properties": {"status": {"const": "ready"}}},
       "HealthNotReady": {"type": "object", "required": ["status", "failedChecks"], "properties": {"status": {"const": "not_ready"}, "failedChecks": {"type": "array", "items": {"type": "string", "enum": ["database"]}}}},

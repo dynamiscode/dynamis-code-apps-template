@@ -53,6 +53,34 @@ func (h *Handler) catalogCreate(writer http.ResponseWriter, request *http.Reques
 	}
 }
 
+func (h *Handler) catalogCreatePrice(writer http.ResponseWriter, request *http.Request) {
+	if h.catalogService == nil {
+		h.renderError(writer, http.StatusNotFound)
+		return
+	}
+	principal, ok := h.mutationPrincipal(writer, request)
+	if !ok {
+		return
+	}
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	var amount *string
+	if value := request.FormValue("amount"); value != "" {
+		amount = &value
+	}
+	option := catalog.PriceOption{Mode: request.FormValue("mode"), Amount: amount, Currency: request.FormValue("currency"), Variant: request.FormValue("variant"), Eligibility: request.FormValue("eligibility")}
+	_, err := h.catalogService.AddPrice(request.Context(), principal, workspaceID, request.PathValue("entryId"), option)
+	switch {
+	case errors.Is(err, catalog.ErrInvalidInput):
+		h.renderCatalog(writer, request, http.StatusUnprocessableEntity, true)
+	case errors.Is(err, identity.ErrForbidden):
+		h.renderError(writer, http.StatusForbidden)
+	case err != nil:
+		h.renderError(writer, http.StatusInternalServerError)
+	default:
+		h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/catalog")
+	}
+}
+
 func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Request, status int, invalid bool) {
 	if h.catalogService == nil {
 		h.renderError(writer, http.StatusNotFound)

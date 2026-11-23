@@ -8,7 +8,7 @@ Quick check:
 curl http://127.0.0.1:8080/api/openapi.json
 ```
 
-Catalog profile: `GET /api/v1/workspaces/{workspaceId}/catalog` requires `resources:read` and returns active entries as a JSON array. `POST` requires `resources:write` and the owner or admin role; it accepts `name` and optional positive integer `durationMinutes`, returning 201 or 422 for invalid input.
+Catalog profile: `GET /api/v1/workspaces/{workspaceId}/catalog` requires `resources:read` and returns active entries and their prices as a JSON array. `POST` requires `resources:write` and the owner or admin role; it accepts `name` and optional positive integer `durationMinutes`. Owners and admins add price options with `POST /api/v1/workspaces/{workspaceId}/catalog/{entryId}/prices`: fixed options require a non-negative decimal string `amount`; manual options omit the amount. Both require `currency` and `variant`, and accept optional `eligibility`. Amounts and currencies are returned unchanged; no conversion is performed. Invalid input returns 422.
 
 ## Consumer quickstart
 
