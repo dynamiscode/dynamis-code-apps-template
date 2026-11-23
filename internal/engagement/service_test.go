@@ -73,6 +73,12 @@ func TestStagesStartEmptyAndRetainCreationOrder(t *testing.T) {
 	if _, err := svc.CreateStage(ctx, member, boot.WorkspaceID, StageInput{Name: "Blocked", Kind: "open"}, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("member create = %v", err)
 	}
+	if err := svc.ReorderStages(ctx, member, boot.WorkspaceID, nil, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("member reorder = %v", err)
+	}
+	if err := svc.ArchiveStage(ctx, member, boot.WorkspaceID, 0, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("member archive = %v", err)
+	}
 	var adminID identity.UserID
 	if err := db.QueryRowContext(ctx, `INSERT INTO users (email, created_at) VALUES (?, ?) RETURNING id`, "admin@example.com", time.Now().UTC().Format(time.RFC3339Nano)).Scan(&adminID); err != nil {
 		t.Fatal(err)
@@ -95,5 +101,71 @@ func TestStagesStartEmptyAndRetainCreationOrder(t *testing.T) {
 	var auditCount int
 	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_events WHERE workspace_id = ? AND event_type = ?`, boot.WorkspaceID, "engagement_stage.created").Scan(&auditCount); err != nil || auditCount != 3 {
 		t.Fatalf("audit count = %d, %v", auditCount, err)
+	}
+}
+
+func TestReorderAndArchiveStages(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, config.Database{Driver: config.SQLite, SQLitePath: ":memory:", MaxOpenConns: 1, MaxIdleConns: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.Migrate(ctx, db, config.SQLite); err != nil {
+		t.Fatal(err)
+	}
+	auth, err := identity.NewService(db, config.SQLite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	boot, err := auth.BootstrapFirstOwner(ctx, identity.BootstrapInput{Email: "owner@example.com", Password: "long-enough-password", WorkspaceName: "Example"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := auth.Authorize(ctx, boot.UserID, boot.WorkspaceID, identity.WorkspaceUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := NewService(db, config.SQLite, auth)
+	first, err := svc.CreateStage(ctx, owner, boot.WorkspaceID, StageInput{Name: "First", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := svc.CreateStage(ctx, owner, boot.WorkspaceID, StageInput{Name: "Second", Kind: "won"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.ReorderStages(ctx, owner, boot.WorkspaceID, []StageID{first.ID, first.ID}, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("duplicate reorder = %v", err)
+	}
+	if err := svc.ReorderStages(ctx, owner, boot.WorkspaceID, []StageID{first.ID}, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("incomplete reorder = %v", err)
+	}
+	other, err := auth.CreateWorkspace(ctx, owner, identity.WorkspaceCreateInput{Name: "Other"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherOwner, err := auth.Authorize(ctx, boot.UserID, other, identity.WorkspaceUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.ArchiveStage(ctx, otherOwner, other, first.ID, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("foreign archive = %v", err)
+	}
+	if err := svc.ReorderStages(ctx, owner, boot.WorkspaceID, []StageID{second.ID, first.ID}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.ArchiveStage(ctx, owner, boot.WorkspaceID, first.ID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, event := range []string{"engagement_stage.reordered", "engagement_stage.archived"} {
+		var count int
+		if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_events WHERE workspace_id = ? AND event_type = ?`, boot.WorkspaceID, event).Scan(&count); err != nil || count != 1 {
+			t.Fatalf("audit %s = %d, %v", event, count, err)
+		}
+	}
+	stages, err := svc.ListStages(ctx, owner, boot.WorkspaceID)
+	if err != nil || len(stages) != 2 || stages[0].ID != second.ID || stages[0].Kind != "won" || !stages[1].Archived {
+		t.Fatalf("stages = %+v, %v", stages, err)
 	}
 }

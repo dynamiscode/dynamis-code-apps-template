@@ -253,6 +253,12 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspaceId}/engagement-stages/reorder": {
+      "post": {"operationId": "reorderEngagementStages", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "required": ["ids"], "properties": {"ids": {"type": "array", "items": {"type": "string"}}}}}}}, "responses": {"204": {"description": "Stages reordered"}, "400": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}}
+    },
+    "/api/v1/workspaces/{workspaceId}/engagement-stages/{stageId}/archive": {
+      "post": {"operationId": "archiveEngagementStage", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "stageId", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"204": {"description": "Stage archived"}, "400": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}}
+    },
     "/api/v1/workspaces/{workspaceId}/clients": {
         "get": {
           "operationId": "listClients",
@@ -1038,7 +1044,7 @@
     },
     "schemas": {
       "EngagementStageInput": {"type": "object", "additionalProperties": false, "required": ["name", "kind"], "properties": {"name": {"type": "string", "maxLength": 200}, "kind": {"type": "string", "enum": ["open", "won", "lost"]}}},
-      "EngagementStage": {"type": "object", "required": ["id", "name", "kind"], "properties": {"id": {"type": "string"}, "name": {"type": "string"}, "kind": {"type": "string", "enum": ["open", "won", "lost"]}}},
+      "EngagementStage": {"type": "object", "required": ["id", "name", "kind", "archived"], "properties": {"id": {"type": "string"}, "name": {"type": "string"}, "kind": {"type": "string", "enum": ["open", "won", "lost"]}, "archived": {"type": "boolean"}}},
       "HealthAlive": {"type": "object", "required": ["status"], "properties": {"status": {"const": "alive"}}},
       "HealthReady": {"type": "object", "required": ["status"], "properties": {"status": {"const": "ready"}}},
       "HealthNotReady": {"type": "object", "required": ["status", "failedChecks"], "properties": {"status": {"const": "not_ready"}, "failedChecks": {"type": "array", "items": {"type": "string", "enum": ["database"]}}}},

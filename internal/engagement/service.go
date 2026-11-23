@@ -23,9 +23,15 @@ func (s StageID) String() string               { return id.EncodeKey(id.TypeEnga
 func (s StageID) MarshalJSON() ([]byte, error) { return json.Marshal(s.String()) }
 
 type Stage struct {
-	ID   StageID `json:"id"`
-	Name string  `json:"name"`
-	Kind string  `json:"kind"`
+	ID       StageID `json:"id"`
+	Name     string  `json:"name"`
+	Kind     string  `json:"kind"`
+	Archived bool    `json:"archived"`
+}
+
+func ParseStageID(value string) StageID {
+	key, _ := id.DecodeKey(id.TypeEngagementStage, value)
+	return StageID(key)
 }
 
 type StageInput struct {
@@ -79,14 +85,14 @@ func (s *Service) ListStages(ctx context.Context, actor identity.Principal, work
 	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesRead); err != nil {
 		return nil, identity.ErrForbidden
 	}
-	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT id, name, kind FROM engagement_stages WHERE workspace_id = ? ORDER BY position`), workspaceID)
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT id, name, kind, archived_at IS NOT NULL FROM engagement_stages WHERE workspace_id = ? ORDER BY position`), workspaceID)
 	if err != nil {
 		return nil, err
 	}
 	stages := []Stage{}
 	for rows.Next() {
 		var stage Stage
-		if err := rows.Scan(&stage.ID, &stage.Name, &stage.Kind); err != nil {
+		if err := rows.Scan(&stage.ID, &stage.Name, &stage.Kind, &stage.Archived); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -103,4 +109,75 @@ func (s *Service) ListStages(ctx context.Context, actor identity.Principal, work
 		return nil, err
 	}
 	return stages, nil
+}
+
+func (s *Service) ReorderStages(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, ids []StageID, audit identity.AuditContext) error {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.WorkspaceUpdate); err != nil {
+		return identity.ErrForbidden
+	}
+	var count int
+	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT COUNT(*) FROM engagement_stages WHERE workspace_id = ?`), workspaceID).Scan(&count); err != nil {
+		return err
+	}
+	if len(ids) != count {
+		return ErrInvalidInput
+	}
+	seen := map[StageID]bool{}
+	for _, stageID := range ids {
+		if seen[stageID] {
+			return ErrInvalidInput
+		}
+		seen[stageID] = true
+		result, err := tx.ExecContext(ctx, database.Rebind(s.driver, `UPDATE engagement_stages SET position = -position WHERE workspace_id = ? AND id = ?`), workspaceID, stageID)
+		if err != nil {
+			return err
+		}
+		n, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if n != 1 {
+			return ErrInvalidInput
+		}
+	}
+	for i, stageID := range ids {
+		if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, `UPDATE engagement_stages SET position = ? WHERE workspace_id = ? AND id = ?`), i+1, workspaceID, stageID); err != nil {
+			return err
+		}
+	}
+	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement_stage.reordered", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "workspace", TargetKey: int64(workspaceID), Action: "engagement_stage.reorder", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: time.Now().UTC()}); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *Service) ArchiveStage(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, stageID StageID, audit identity.AuditContext) error {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.WorkspaceUpdate); err != nil {
+		return identity.ErrForbidden
+	}
+	result, err := tx.ExecContext(ctx, database.Rebind(s.driver, `UPDATE engagement_stages SET archived_at = ? WHERE workspace_id = ? AND id = ? AND archived_at IS NULL`), time.Now().UTC().Format(time.RFC3339Nano), workspaceID, stageID)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return ErrInvalidInput
+	}
+	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement_stage.archived", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "engagement_stage", TargetKey: int64(stageID), Action: "engagement_stage.archive", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: time.Now().UTC()}); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

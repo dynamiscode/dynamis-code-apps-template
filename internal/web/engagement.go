@@ -71,3 +71,76 @@ func (h *Handler) createEngagementStage(w http.ResponseWriter, r *http.Request) 
 	}
 	h.redirect(w, r, "/workspaces/"+workspace.String()+"/engagement-stages")
 }
+
+func (h *Handler) reorderEngagementStages(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		h.renderError(w, http.StatusNotFound)
+		return
+	}
+	actor, ok := h.mutationPrincipal(w, r)
+	if !ok {
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	stages, err := h.engagement.ListStages(r.Context(), actor, workspace)
+	if err == nil {
+		ids := make([]engagement.StageID, len(stages))
+		for i, stage := range stages {
+			ids[i] = stage.ID
+		}
+		stageID := engagement.ParseStageID(r.FormValue("stage"))
+		found := false
+		for i, stage := range stages {
+			if stage.ID == stageID {
+				j := -1
+				if r.FormValue("direction") == "up" {
+					j = i - 1
+				}
+				if r.FormValue("direction") == "down" {
+					j = i + 1
+				}
+				if j >= 0 && j < len(ids) {
+					ids[i], ids[j] = ids[j], ids[i]
+					found = true
+				}
+				break
+			}
+		}
+		if !found {
+			err = engagement.ErrInvalidInput
+		} else {
+			err = h.engagement.ReorderStages(r.Context(), actor, workspace, ids, auditContext(r))
+		}
+	}
+	h.finishStageMutation(w, r, workspace, err)
+}
+
+func (h *Handler) archiveEngagementStage(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		h.renderError(w, http.StatusNotFound)
+		return
+	}
+	actor, ok := h.mutationPrincipal(w, r)
+	if !ok {
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	err := h.engagement.ArchiveStage(r.Context(), actor, workspace, engagement.ParseStageID(r.PathValue("stageId")), auditContext(r))
+	h.finishStageMutation(w, r, workspace, err)
+}
+
+func (h *Handler) finishStageMutation(w http.ResponseWriter, r *http.Request, workspace identity.WorkspaceID, err error) {
+	if errors.Is(err, identity.ErrForbidden) {
+		h.renderError(w, http.StatusForbidden)
+		return
+	}
+	if errors.Is(err, engagement.ErrInvalidInput) {
+		h.renderEngagementStages(w, r, http.StatusUnprocessableEntity, "engagement.invalid")
+		return
+	}
+	if err != nil {
+		h.renderError(w, http.StatusInternalServerError)
+		return
+	}
+	h.redirect(w, r, "/workspaces/"+workspace.String()+"/engagement-stages")
+}

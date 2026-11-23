@@ -49,6 +49,51 @@ func (h *handler) createEngagementStage(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusCreated, stage)
 }
 
+func (h *handler) reorderEngagementStages(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		notFoundProblem(w, r)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	actor, ok := h.workspaceBearer(w, r, workspace, identity.WorkspaceUpdate)
+	if !ok {
+		return
+	}
+	var input struct {
+		IDs []string `json:"ids"`
+	}
+	if err := decodeJSON(r, &input); err != nil {
+		h.badJSON(w, r, err)
+		return
+	}
+	ids := make([]engagement.StageID, len(input.IDs))
+	for i, value := range input.IDs {
+		ids[i] = engagement.ParseStageID(value)
+	}
+	if err := h.engagement.ReorderStages(r.Context(), actor, workspace, ids, h.auditContext(r)); err != nil {
+		h.engagementError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) archiveEngagementStage(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		notFoundProblem(w, r)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	actor, ok := h.workspaceBearer(w, r, workspace, identity.WorkspaceUpdate)
+	if !ok {
+		return
+	}
+	if err := h.engagement.ArchiveStage(r.Context(), actor, workspace, engagement.ParseStageID(r.PathValue("stageId")), h.auditContext(r)); err != nil {
+		h.engagementError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *handler) engagementError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, identity.ErrForbidden):

@@ -26,8 +26,31 @@ templ engagementStagesPage(data viewmodel.PageData, stages []engagement.Stage, c
 				<p>{ data.T("engagement.none") }</p>
 			} else {
 				<ol class="list-decimal ml-6">
-					for _, stage := range stages {
-						<li>{ stage.Name } — { data.T("engagement." + stage.Kind) }</li>
+					for i, stage := range stages {
+						<li>
+							{ stage.Name } — { data.T("engagement." + stage.Kind) }
+							if stage.Archived {
+								<span>({ data.T("engagement.archived") })</span>
+							}
+							if canManage {
+								<form action={ templ.SafeURL(data.CurrentPath + "/reorder") } method="post" class="inline">
+									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<input type="hidden" name="stage" value={ stage.ID.String() }/>
+									if i > 0 {
+										<button class="btn btn-ghost btn-xs" name="direction" value="up" aria-label={ data.T("engagement.up") + " " + stage.Name }>{ data.T("engagement.up") }</button>
+									}
+									if i < len(stages)-1 {
+										<button class="btn btn-ghost btn-xs" name="direction" value="down" aria-label={ data.T("engagement.down") + " " + stage.Name }>{ data.T("engagement.down") }</button>
+									}
+								</form>
+								if !stage.Archived {
+									<form action={ templ.SafeURL(data.CurrentPath + "/" + stage.ID.String() + "/archive") } method="post" class="inline">
+										<input type="hidden" name="csrf" value={ data.CSRF }/>
+										<button class="btn btn-ghost btn-xs" aria-label={ data.T("engagement.archive") + " " + stage.Name }>{ data.T("engagement.archive") }</button>
+									</form>
+								}
+							}
+						</li>
 					}
 				</ol>
 			}
