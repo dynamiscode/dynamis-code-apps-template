@@ -246,13 +246,13 @@
       }
     },
     "/api/v1/workspaces/{workspaceId}/catalog/{entryId}": {
-      "delete": {"operationId": "deleteCatalog", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "entryId", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"204": {"description": "Deleted"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}}
+      "delete": {"operationId": "deleteCatalog", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "entryId", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"204": {"description": "Deleted"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}}
     },
     "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/archive": {
-      "post": {"operationId": "archiveCatalog", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "entryId", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"204": {"description": "Archived"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}}}
+      "post": {"operationId": "archiveCatalog", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "entryId", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"204": {"description": "Archived"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}}}
     },
     "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/unarchive": {
-      "post": {"operationId": "unarchiveCatalog", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "entryId", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"204": {"description": "Unarchived"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}}}
+      "post": {"operationId": "unarchiveCatalog", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "entryId", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"204": {"description": "Unarchived"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}}}
     },
     "/api/v1/workspaces/{workspaceId}/clients": {
         "get": {
