@@ -25,6 +25,7 @@ maintainable, and evidenced.
 - Follow the [WebMCP contract](docs/web.md#webmcp-progressive-enhancement) when changing browser-agent behavior.
 - Use server-rendered HTML, HTMX for targeted updates, and SSE for one-way
   realtime delivery. Add WebSockets only for measured bidirectional needs.
+- Use Tailwind CSS and daisyUI for all page components, including prototypes.
 - Do not add an ORM, DI container, broker, cache, SPA runtime, protocol, or
   service until its trigger in `docs/capabilities.md` is accepted.
 - Pass workspace scope explicitly. Deny authorization by default in shared
