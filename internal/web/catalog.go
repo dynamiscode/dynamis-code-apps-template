@@ -4,12 +4,19 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"example.com/dynamis-code/apps-template/internal/catalog"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 )
+
+type catalogForm struct {
+	kind, entryID, priceID string
+	name, duration         string
+	price                  catalog.PriceOption
+}
 
 func (h *Handler) EnableCatalog(service *catalog.Service) { h.catalogService = service }
 
@@ -109,7 +116,8 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 	if !ok {
 		return
 	}
-	entries, err := h.catalogService.List(request.Context(), principal, workspaceID, request.URL.Query().Get("includeArchived") == "true")
+	includeArchived := request.URL.Query().Get("includeArchived") == "true" || (status == http.StatusUnprocessableEntity && request.PathValue("entryId") != "")
+	entries, err := h.catalogService.List(request.Context(), principal, workspaceID, includeArchived)
 	if err != nil {
 		h.renderError(writer, http.StatusInternalServerError)
 		return
@@ -125,9 +133,25 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)
-	amount := request.FormValue("amount")
-	price := catalog.PriceOption{Mode: request.FormValue("mode"), Amount: &amount, Currency: request.FormValue("currency"), Variant: request.FormValue("variant"), Eligibility: request.FormValue("eligibility")}
-	_ = catalogPage(data, entries, identity.CanWriteCatalog(principal), invalid, status == http.StatusConflict, request.URL.Query().Get("includeArchived") == "true", request.FormValue("name"), request.FormValue("duration_minutes"), price).Render(request.Context(), writer)
+	form := catalogForm{}
+	if status == http.StatusUnprocessableEntity && request.Method == http.MethodPost {
+		form.entryID = request.PathValue("entryId")
+		form.priceID = request.PathValue("priceId")
+		switch {
+		case form.entryID == "":
+			form.kind = "create"
+		case form.priceID != "":
+			form.kind = "edit-price"
+		case strings.HasSuffix(request.URL.Path, "/prices"):
+			form.kind = "add-price"
+		default:
+			form.kind = "edit-entry"
+		}
+		form.name, form.duration = request.FormValue("name"), request.FormValue("duration_minutes")
+		amount := request.FormValue("amount")
+		form.price = catalog.PriceOption{Mode: request.FormValue("mode"), Amount: &amount, Currency: request.FormValue("currency"), Variant: request.FormValue("variant"), Eligibility: request.FormValue("eligibility")}
+	}
+	_ = catalogPage(data, entries, identity.CanWriteCatalog(principal), invalid, status == http.StatusConflict, includeArchived, form).Render(request.Context(), writer)
 }
 
 func catalogDuration(value *int) string {

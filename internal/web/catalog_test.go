@@ -260,6 +260,87 @@ func TestCatalogEditWeb(t *testing.T) {
 	}
 }
 
+func TestCatalogRejectedFormsKeepOnlyTheirValues(t *testing.T) {
+	routes, auth, workspaceID, owner := testWeb(t, 2)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	path := "/workspaces/" + workspaceID.String() + "/catalog"
+	for _, name := range []string{"First", "Second"} {
+		response := request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {name}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Original"}}, cookies, nil)
+		if response.Code != http.StatusSeeOther {
+			t.Fatalf("create: %d", response.Code)
+		}
+	}
+	page := request(routes, http.MethodGet, path, nil, cookies, nil)
+	entries := regexp.MustCompile(`action="([^"]+/catalog/[^"/]+/edit)"`).FindAllStringSubmatch(page.Body.String(), -1)
+	if len(entries) != 2 {
+		t.Fatalf("entry forms: %d", len(entries))
+	}
+	entryPath := strings.TrimSuffix(entries[0][1], "/edit")
+	added := request(routes, http.MethodPost, entryPath+"/prices", url.Values{"csrf": {session.CSRFSecret}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Other"}}, cookies, nil)
+	if added.Code != http.StatusSeeOther {
+		t.Fatalf("add price: %d", added.Code)
+	}
+	page = request(routes, http.MethodGet, path, nil, cookies, nil)
+	priceForms := regexp.MustCompile(`action="(`+regexp.QuoteMeta(entryPath)+`/prices/[^"/]+/edit)"`).FindAllStringSubmatch(page.Body.String(), -1)
+	if len(priceForms) != 2 {
+		t.Fatal("price edit forms missing")
+	}
+	formBody := func(body, action string) string {
+		t.Helper()
+		match := regexp.MustCompile(`(?s)<form[^>]*action="` + regexp.QuoteMeta(action) + `"[^>]*>.*?</form>`).FindString(body)
+		if match == "" {
+			t.Fatalf("form missing: %s", action)
+		}
+		return match
+	}
+	cases := []struct {
+		name, action string
+		values       url.Values
+		want         []string
+	}{
+		{"entry", entries[0][1], url.Values{"csrf": {session.CSRFSecret}, "name": {"Draft <entry>"}, "duration_minutes": {"-3"}}, []string{`name="name" value="Draft &lt;entry&gt;"`, `name="duration_minutes" value="-3"`}},
+		{"edit price", priceForms[0][1], url.Values{"csrf": {session.CSRFSecret}, "mode": {"manual"}, "amount": {"0.123456789012345678"}, "currency": {"BTC"}, "variant": {"Draft <edit>"}, "eligibility": {"Student & staff"}}, []string{`value="manual" selected`, `name="amount" value="0.123456789012345678"`, `name="currency" value="BTC"`, `name="variant" value="Draft &lt;edit&gt;"`, `name="eligibility" value="Student &amp; staff"`}},
+		{"add price", entryPath + "/prices", url.Values{"csrf": {session.CSRFSecret}, "mode": {"manual"}, "amount": {"0.123456789012345678"}, "currency": {"EUR"}, "variant": {"Draft <add>"}, "eligibility": {"Student & staff"}}, []string{`value="manual" selected`, `name="amount" value="0.123456789012345678"`, `name="currency" value="EUR"`, `name="variant" value="Draft &lt;add&gt;"`, `name="eligibility" value="Student &amp; staff"`}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			response := request(routes, http.MethodPost, tc.action, tc.values, cookies, nil)
+			if response.Code != http.StatusUnprocessableEntity {
+				t.Fatalf("rejected = %d", response.Code)
+			}
+			body := response.Body.String()
+			for _, want := range tc.want {
+				if !strings.Contains(formBody(body, tc.action), want) {
+					t.Errorf("submitted form missing %s", want)
+				}
+			}
+			for _, other := range []string{path, entries[1][1], priceForms[1][1]} {
+				if strings.Contains(formBody(body, other), "Draft") || strings.Contains(formBody(body, other), "Student &amp; staff") {
+					t.Errorf("unrelated form contains submitted values: %s", other)
+				}
+			}
+			if tc.name == "edit price" && strings.Contains(formBody(body, entryPath+"/prices"), "Draft") {
+				t.Error("add form contains edit price values")
+			}
+			if tc.name == "add price" && strings.Contains(formBody(body, priceForms[0][1]), "Draft") {
+				t.Error("edit form contains add price values")
+			}
+		})
+	}
+	archived := request(routes, http.MethodPost, entryPath+"/archive", url.Values{"csrf": {session.CSRFSecret}}, cookies, nil)
+	if archived.Code != http.StatusSeeOther {
+		t.Fatalf("archive = %d", archived.Code)
+	}
+	rejected := request(routes, http.MethodPost, entries[0][1], cases[0].values, cookies, nil)
+	if rejected.Code != http.StatusUnprocessableEntity || !strings.Contains(formBody(rejected.Body.String(), entries[0][1]), `Draft &lt;entry&gt;`) {
+		t.Fatalf("archived entry form not restored: %d", rejected.Code)
+	}
+}
+
 func TestCatalogPricesWeb(t *testing.T) {
 	routes, auth, workspaceID, owner := testWeb(t, 2)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
