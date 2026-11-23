@@ -11,6 +11,9 @@ templ engagementDetailPage(data viewmodel.PageData) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
 		for _, item := range data.Engagements {
 			@molecules.PageHeading(item.Name, data.Client.DisplayName)
+			if data.Saved {
+				@molecules.SuccessAlert(data.T("engagement.saved"))
+			}
 			<a class="link" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String()) }>{ data.Client.DisplayName }</a>
 			<section class="card my-4 p-6">
 				if data.CanEditClients {

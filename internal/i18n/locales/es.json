@@ -268,6 +268,7 @@
   "engagement.invalid_create": "La gestión no es válida.",
   "engagement.none": "Aún no hay etapas.",
   "engagement.name": "Nombre",
+  "engagement.saved": "Gestión guardada.",
   "engagement.save_name": "Guardar",
   "engagement.cancel": "Cancelar",
   "engagement.invalid_name": "Introduzca un nombre válido de hasta 200 caracteres.",

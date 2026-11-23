@@ -23,7 +23,7 @@ each engagement name links to a detail page with its existing information
 and a return link to the client. Writers can edit its quote and next action on
 that page; readers see their summaries. Invalid next-action submissions retain
 text, date, and recognized owner for correction. Cancel returns to the saved
-detail. Writers can create an engagement with notes and move it to an
+detail. Successful detail edits show localized confirmation after redirect, including without JavaScript. Writers can create an engagement with notes and move it to an
 unarchived stage.
 Creation requires a selected unarchived open stage. When none exists, administrators
 can open stage setup; other writers are directed to an administrator. Client deletion warns that its

@@ -48,7 +48,7 @@ func (h *Handler) setEngagementAgreement(w http.ResponseWriter, r *http.Request)
 	}
 	path := h.clientsPath(workspace) + "/" + r.PathValue("clientId")
 	if r.FormValue("return_to") == "detail" {
-		path += "/engagements/" + r.PathValue("engagementId")
+		path += "/engagements/" + r.PathValue("engagementId") + "?saved=1"
 	}
 	h.redirect(w, r, path)
 }
@@ -102,7 +102,7 @@ func (h *Handler) setEngagementAssignee(w http.ResponseWriter, r *http.Request) 
 	}
 	path := h.clientsPath(workspace) + "/" + r.PathValue("clientId")
 	if r.FormValue("return_to") == "detail" {
-		path += "/engagements/" + r.PathValue("engagementId")
+		path += "/engagements/" + r.PathValue("engagementId") + "?saved=1"
 	}
 	h.redirect(w, r, path)
 }
@@ -143,7 +143,7 @@ func (h *Handler) setEngagementQuote(w http.ResponseWriter, r *http.Request) {
 	}
 	path := h.clientsPath(workspace) + "/" + r.PathValue("clientId")
 	if r.FormValue("return_to") == "detail" {
-		path += "/engagements/" + r.PathValue("engagementId")
+		path += "/engagements/" + r.PathValue("engagementId") + "?saved=1"
 	}
 	h.redirect(w, r, path)
 }
@@ -201,7 +201,7 @@ func (h *Handler) setEngagementNextAction(w http.ResponseWriter, r *http.Request
 	}
 	path := h.clientsPath(workspace) + "/" + r.PathValue("clientId")
 	if r.FormValue("return_to") == "detail" {
-		path += "/engagements/" + r.PathValue("engagementId")
+		path += "/engagements/" + r.PathValue("engagementId") + "?saved=1"
 	}
 	h.redirect(w, r, path)
 }
@@ -247,7 +247,7 @@ func (h *Handler) setEngagementName(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		h.renderError(w, http.StatusInternalServerError)
 	default:
-		h.redirect(w, r, h.clientsPath(workspace)+"/"+r.PathValue("clientId")+"/engagements/"+r.PathValue("engagementId"))
+		h.redirect(w, r, h.clientsPath(workspace)+"/"+r.PathValue("clientId")+"/engagements/"+r.PathValue("engagementId")+"?saved=1")
 	}
 }
 
@@ -322,7 +322,7 @@ func (h *Handler) moveEngagement(w http.ResponseWriter, r *http.Request) {
 	}
 	path := h.clientsPath(workspace) + "/" + clientID.String()
 	if r.FormValue("return_to") == "detail" {
-		path += "/engagements/" + engagementID.String()
+		path += "/engagements/" + engagementID.String() + "?saved=1"
 	}
 	h.redirect(w, r, path)
 }

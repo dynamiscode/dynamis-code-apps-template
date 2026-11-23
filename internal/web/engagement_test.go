@@ -215,11 +215,18 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if got := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.csrf}, "name": {invalidName}}, env.cookies, nil); got.Code != http.StatusUnprocessableEntity || !strings.Contains(got.Body.String(), invalidName) || !strings.Contains(got.Body.String(), "<details open>") {
 		t.Fatalf("invalid rename: %d %s", got.Code, got.Body.String())
 	}
-	if got := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.csrf}, "name": {"Renamed"}}, env.cookies, nil); got.Code != http.StatusSeeOther || got.Header().Get("Location") != detailPath {
+	if got := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.csrf}, "name": {"Renamed"}}, env.cookies, nil); got.Code != http.StatusSeeOther || got.Header().Get("Location") != detailPath+"?saved=1" {
 		t.Fatalf("rename: %d %s", got.Code, got.Header().Get("Location"))
 	}
 	if got, err := svc.Get(ctx, owner, env.workspaceID, items[0].ID); err != nil || got.Name != "Renamed" {
 		t.Fatalf("renamed engagement: %+v %v", got, err)
+	}
+	savedDetail := request(env.routes, http.MethodGet, detailPath+"?saved=1", nil, env.cookies, nil)
+	if savedDetail.Code != http.StatusOK || !strings.Contains(savedDetail.Body.String(), "Engagement saved.") {
+		t.Fatalf("saved confirmation: %d", savedDetail.Code)
+	}
+	if strings.Contains(writerDetail.Body.String(), "Engagement saved.") {
+		t.Fatal("confirmation shown without successful edit")
 	}
 	clientPage := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
 	if !strings.Contains(clientPage.Body.String(), `href="`+detailPath+`"`) {
@@ -256,7 +263,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if got, err := svc.Get(ctx, owner, env.workspaceID, items[0].ID); err != nil || got.Agreement.Recorded || got.AssigneeID != 0 || got.Quote.Status == "sent" || got.NextAction.Text != "" {
 		t.Fatalf("wrong client mutated engagement: %+v %v", got, err)
 	}
-	if r := request(env.routes, http.MethodPost, agreementPath, url.Values{"csrf": {env.csrf}, "recorded": {"1"}, "return_to": {"detail"}}, env.cookies, nil); r.Code != http.StatusSeeOther || r.Header().Get("Location") != detailPath {
+	if r := request(env.routes, http.MethodPost, agreementPath, url.Values{"csrf": {env.csrf}, "recorded": {"1"}, "return_to": {"detail"}}, env.cookies, nil); r.Code != http.StatusSeeOther || r.Header().Get("Location") != detailPath+"?saved=1" {
 		t.Fatalf("agreement: %d %s", r.Code, r.Header().Get("Location"))
 	}
 	writerAgreement := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
@@ -283,6 +290,10 @@ func TestEngagementThroughWeb(t *testing.T) {
 			t.Fatalf("Spanish stage translation missing on %s", localizedPath)
 		}
 	}
+	spanishSaved := request(env.routes, http.MethodGet, detailPath+"?saved=1", nil, env.cookies, nil)
+	if !strings.Contains(spanishSaved.Body.String(), "Gestión guardada.") {
+		t.Fatal("Spanish confirmation missing")
+	}
 	spanishAgreement := request(env.routes, http.MethodPost, agreementPath, url.Values{"csrf": {env.csrf}, "file_id": {"invalid-short-id"}, "return_to": {"detail"}}, env.cookies, nil)
 	if spanishAgreement.Code != http.StatusUnprocessableEntity || !strings.Contains(spanishAgreement.Body.String(), "Introduce un ID de archivo válido para este espacio de trabajo.") {
 		t.Fatalf("Spanish agreement error: %d", spanishAgreement.Code)
@@ -297,7 +308,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 		t.Fatalf("invalid file: %d", r.Code)
 	}
 	assigned := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}, "assignee_id": {env.ownerID.String()}, "return_to": {"detail"}}, env.cookies, nil)
-	if assigned.Code != http.StatusSeeOther || assigned.Header().Get("Location") != detailPath {
+	if assigned.Code != http.StatusSeeOther || assigned.Header().Get("Location") != detailPath+"?saved=1" {
 		t.Fatalf("assign: %d %s", assigned.Code, assigned.Header().Get("Location"))
 	}
 	writerDetail = request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
@@ -326,7 +337,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 		t.Fatalf("unassign: %d", unassigned.Code)
 	}
 	quote := request(env.routes, http.MethodPost, quotePath, url.Values{"csrf": {env.csrf}, "status": {"sent"}, "amount": {"120.50"}, "date_sent": {"2026-11-23"}, "return_to": {"detail"}}, env.cookies, nil)
-	if quote.Code != http.StatusSeeOther || quote.Header().Get("Location") != detailPath {
+	if quote.Code != http.StatusSeeOther || quote.Header().Get("Location") != detailPath+"?saved=1" {
 		t.Fatalf("quote: %d %s", quote.Code, quote.Header().Get("Location"))
 	}
 	quoteDetail := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
@@ -350,7 +361,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 		t.Fatalf("viewer quote: %d", deniedQuote.Code)
 	}
 	updated := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {"Call client"}, "due_date": {"2020-01-01"}, "owner_id": {env.ownerID.String()}, "return_to": {"detail"}}, env.cookies, nil)
-	if updated.Code != http.StatusSeeOther || updated.Header().Get("Location") != detailPath {
+	if updated.Code != http.StatusSeeOther || updated.Header().Get("Location") != detailPath+"?saved=1" {
 		t.Fatalf("set action: %d %s", updated.Code, updated.Header().Get("Location"))
 	}
 	writerAction := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
@@ -373,7 +384,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 		t.Fatalf("invalid action mutated engagement: %+v %v", got, err)
 	}
 	cleared := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "clear": {"1"}, "return_to": {"detail"}}, env.cookies, nil)
-	if cleared.Code != http.StatusSeeOther || cleared.Header().Get("Location") != detailPath {
+	if cleared.Code != http.StatusSeeOther || cleared.Header().Get("Location") != detailPath+"?saved=1" {
 		t.Fatalf("clear action: %d %s", cleared.Code, cleared.Header().Get("Location"))
 	}
 	updated = request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {"Call client"}, "due_date": {"2020-01-01"}, "owner_id": {env.ownerID.String()}}, env.cookies, nil)
@@ -416,7 +427,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if got := request(env.routes, http.MethodPost, movePath, url.Values{"csrf": {env.viewerCSRF}, "stage": {target.ID.String()}}, env.viewerCookies, nil); got.Code != http.StatusForbidden {
 		t.Fatalf("viewer move: %d", got.Code)
 	}
-	if got := request(env.routes, http.MethodPost, movePath, url.Values{"csrf": {env.csrf}, "stage": {target.ID.String()}, "return_to": {"detail"}}, env.cookies, nil); got.Code != http.StatusSeeOther || got.Header().Get("Location") != detailPath {
+	if got := request(env.routes, http.MethodPost, movePath, url.Values{"csrf": {env.csrf}, "stage": {target.ID.String()}, "return_to": {"detail"}}, env.cookies, nil); got.Code != http.StatusSeeOther || got.Header().Get("Location") != detailPath+"?saved=1" {
 		t.Fatalf("move: %d location=%q", got.Code, got.Header().Get("Location"))
 	}
 	if err := svc.ArchiveStage(ctx, owner, env.workspaceID, openStage, identity.AuditContext{}); err != nil {

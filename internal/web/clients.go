@@ -513,6 +513,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	}
 	h.renderClientPage(writer, request, status, component, viewmodel.PageData{
 		Title: title, ErrorKey: errorKey, CSRF: csrf,
+		Saved:     request.Method == http.MethodGet && request.URL.Query().Get("saved") == "1",
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		NavPage: "clients", NavSection: "clients",
 		CurrentPath:     h.clientsPath(workspaceID),
