@@ -5,11 +5,18 @@ import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
 import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+import "strings"
 
 templ intakeSettingsPage(data viewmodel.PageData, settings intake.Settings, message string, link string) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
 		@molecules.PageHeading(data.T("intake.title"), data.T("clients.title")) {}
 		<section class="card my-4 p-6">
+			if !settings.HasOpenStage {
+				<div class="alert alert-warning" role="status">
+					<span>{ data.T("intake.no_open_stage") }</span>
+					<a class="link" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/intake") + "/engagement-stages") }>{ data.T("engagement.stages") }</a>
+				</div>
+			}
 			if message != "" {
 				@molecules.ErrorAlert(data.T(message))
 			}

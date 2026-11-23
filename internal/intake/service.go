@@ -43,8 +43,9 @@ func (s *Service) ConfigureNotifications(queue *jobs.Queue, publicURL string) {
 }
 
 type Settings struct {
-	Active      bool
-	ConsentText string
+	Active       bool
+	HasOpenStage bool
+	ConsentText  string
 }
 
 type LinkStatus string
@@ -201,13 +202,23 @@ func (s *Service) GetSettings(ctx context.Context, actor identity.Principal, wor
 	}
 	var settings Settings
 	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT token_hash IS NOT NULL, consent_text FROM public_intake_links WHERE workspace_id = ?`), workspace).Scan(&settings.Active, &settings.ConsentText)
-	if errors.Is(err, sql.ErrNoRows) {
-		return Settings{}, nil
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return Settings{}, err
 	}
+	if err := tx.Commit(); err != nil {
+		return Settings{}, err
+	}
+	stages, err := s.engagement.ListStages(ctx, actor, workspace)
 	if err != nil {
 		return Settings{}, err
 	}
-	return settings, tx.Commit()
+	for _, stage := range stages {
+		if stage.Kind == "open" && !stage.Archived {
+			settings.HasOpenStage = true
+			break
+		}
+	}
+	return settings, nil
 }
 
 func (s *Service) SetConsent(ctx context.Context, actor identity.Principal, workspace identity.WorkspaceID, consent string, audit identity.AuditContext) error {

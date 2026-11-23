@@ -17,12 +17,23 @@ func TestIntakeManagementThroughWeb(t *testing.T) {
 	env := newClientsTestEnv(t)
 	path := "/workspaces/" + env.workspaceID.String() + "/intake"
 	page := request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Link disabled") {
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Link disabled") || !strings.Contains(page.Body.String(), "public form is unavailable") || !strings.Contains(page.Body.String(), "/engagement-stages") {
 		t.Fatalf("initial: %d", page.Code)
 	}
 	created := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "action": {"create"}, "consent": {"I agree"}}, env.cookies, nil)
 	if created.Code != http.StatusOK || !strings.Contains(created.Body.String(), "/intake/") || !strings.Contains(created.Body.String(), "Link active") {
 		t.Fatalf("create: %d", created.Code)
+	}
+	owner, err := env.auth.Authorize(context.Background(), env.ownerID, env.workspaceID, identity.WorkspaceUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := engagement.NewService(env.db, config.SQLite, env.auth).CreateStage(context.Background(), owner, env.workspaceID, engagement.StageInput{Name: "New", Kind: "open"}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	page = request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
+	if page.Code != http.StatusOK || strings.Contains(page.Body.String(), "public form is unavailable") {
+		t.Fatalf("open stage: %d", page.Code)
 	}
 	denied := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
 	if denied.Code != http.StatusForbidden {

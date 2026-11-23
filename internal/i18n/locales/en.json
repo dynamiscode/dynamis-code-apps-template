@@ -3,6 +3,7 @@
   "intake.title": "Public intake",
   "intake.active": "Link active",
   "intake.disabled": "Link disabled",
+  "intake.no_open_stage": "The public form is unavailable until you create an open engagement stage.",
   "intake.copy": "Copy this link now. It will not be shown again.",
   "intake.link": "Public intake link",
   "intake.consent": "Consent text",

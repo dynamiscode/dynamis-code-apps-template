@@ -3,6 +3,7 @@
   "intake.title": "Formulario público",
   "intake.active": "Enlace activo",
   "intake.disabled": "Enlace desactivado",
+  "intake.no_open_stage": "El formulario público no estará disponible hasta que crees una etapa abierta de gestión.",
   "intake.copy": "Copia este enlace ahora. No se mostrará de nuevo.",
   "intake.link": "Enlace al formulario público",
   "intake.consent": "Texto de consentimiento",
