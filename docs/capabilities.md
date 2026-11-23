@@ -23,6 +23,12 @@ not needed for ordinary form submissions; persistence and deletion use the
 existing client timeline service. Entries have no editable lifecycle or
 asynchronous state.
 
+## Catalog authorization and isolation (#597)
+
+- [Service](../internal/catalog/authorization_test.go), [REST](../internal/httpapi/catalog_authorization_test.go), and [web](../internal/web/catalog_authorization_test.go) checks cover owner, admin, member, and viewer read and write operations. [REST](../internal/httpapi/catalog_isolation_test.go) and [web](../internal/web/catalog_isolation_test.go) isolation checks use an owner of both workspaces and foreign entry and price IDs. Fixed decimal strings retain their exact value.
+- Verification: focused Catalog tests, Catalog profile include/omit generation, `make ci-local`, and `make verify` passed on SQLite. An initial `make ci-local` failed because new tests were not pruned from generated apps and OpenAPI generation was stale; both were corrected before the passing run.
+- Limits: the in-use callback is exercised in tests but production sale linkage is deferred. Entries can currently have no price rows. Catalog MCP/CLI and sale/payment behavior are not implemented.
+
 ## Route and navigation journey verification (#431, 2026-11-18)
 
 Scope: route families represented by the six migration commits on this branch:

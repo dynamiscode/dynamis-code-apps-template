@@ -300,9 +300,9 @@ func copySymlink(root, path, target, relative string) error {
 
 func catalogPath(relative string) bool {
 	relative = filepath.ToSlash(relative)
-	return relative == "api/catalog_contract_test.go" || relative == "internal/catalog" || strings.HasPrefix(relative, "internal/catalog/") ||
-		relative == "internal/httpapi/catalog.go" || relative == "internal/httpapi/catalog_test.go" ||
-		relative == "internal/web/catalog.go" || relative == "internal/web/catalog_test.go" ||
+	return relative == "api/catalog_contract_test.go" || relative == "api/catalog_authorization_contract_test.go" || relative == "internal/catalog" || strings.HasPrefix(relative, "internal/catalog/") ||
+		relative == "internal/httpapi/catalog.go" || relative == "internal/httpapi/catalog_test.go" || relative == "internal/httpapi/catalog_authorization_test.go" || relative == "internal/httpapi/catalog_isolation_test.go" ||
+		relative == "internal/web/catalog.go" || relative == "internal/web/catalog_test.go" || relative == "internal/web/catalog_authorization_test.go" || relative == "internal/web/catalog_isolation_test.go" ||
 		relative == "internal/web/catalog.templ" || relative == "internal/web/catalog_templ.go" ||
 		relative == "internal/platform/database/migrations/000032_catalog.sql" ||
 		relative == "internal/platform/database/migrations/000033_catalog_prices.sql"
