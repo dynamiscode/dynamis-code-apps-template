@@ -222,6 +222,8 @@
   "engagement.next_action": "Next action",
   "engagement.due_date": "Due date (optional)",
   "engagement.owner": "Owner",
+  "engagement.assignee": "Assignee",
+  "engagement.save_assignee": "Save assignee",
   "engagement.save_action": "Save next action",
   "engagement.clear_action": "Clear next action",
   "engagement.due_list": "Actions due",

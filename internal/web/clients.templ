@@ -64,6 +64,23 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 								}
 							}
 							<p>{ item.Notes }</p>
+							for _, member := range data.EngagementMembers {
+								if member.UserID == item.AssigneeID {
+									<p>{ data.T("engagement.assignee") }: { member.Email }</p>
+								}
+							}
+							if data.CanEditClients {
+								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/assignee" } method="post">
+									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<label for={ "assignee-" + item.ID.String() }>{ data.T("engagement.assignee") }</label>
+									<select class="select select-bordered" id={ "assignee-" + item.ID.String() } name="assignee_id"><option value="">—</option>
+										for _, member := range data.EngagementMembers {
+											<option value={ member.UserID.String() } selected?={ member.UserID == item.AssigneeID }>{ member.Email }</option>
+										}
+									</select>
+									<button class="btn btn-primary" type="submit">{ data.T("engagement.save_assignee") }</button>
+								</form>
+							}
 							<p>{ data.T("engagement.quote") }: { data.T("engagement.quote_" + item.Quote.Status) } { item.Quote.Amount } { item.Quote.DateSent }</p>
 							if data.CanEditClients {
 								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/quote" } method="post">

@@ -25,6 +25,8 @@ Readers see next actions on client details; writers can set, change, or clear
 them. The Clients list links to actions due today or earlier (UTC) in open stages.
 Readers see quote status, amount, and sent date on client details; writers can
 update them. The status persists across stage changes.
+Readers see the assignee on client details; writers can assign, change, or clear
+the assignment using workspace members.
 `/account`, `/notifications`, `/sessions`, and `/security` cover account and
 security settings. Account pages share responsive panels, generated branding,
 and the user's light, dark, or system theme. The authenticated shell uses

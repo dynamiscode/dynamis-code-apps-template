@@ -1,0 +1,1 @@
+ALTER TABLE engagements ADD COLUMN assignee_id BIGINT REFERENCES users(id) ON DELETE SET NULL;
