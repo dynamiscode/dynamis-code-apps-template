@@ -33,6 +33,10 @@ maintainable, and evidenced.
 
 ## Change obligations
 
+- For new browser journeys or meaningful interaction or visual changes, follow
+  [UX review](docs/ux-review.md). Missing rendered-browser evidence blocks
+  completion; automated checks alone do not establish usability.
+
 - When working in parallel agent worktrees or swarms, do not edit CHANGELOG.md
   directly on feature branches; changelog updates are aggregated at release or
   PR merge time.

@@ -124,9 +124,10 @@ applications can establish their own identity.
 - Explicitly bordered controls and cards; elevation shadows on floaters, plus a separate keyboard-focus halo.
 - Responsive navigation, ordinary forms, and visible keyboard focus.
 
-`internal/web/assets/app.css` is the source of truth. This document records
-the current implementation, not a proposed redesign. Tonal ramps in the
-sidecar are generated previews, not implemented color tokens.
+`internal/web/assets/tokens.css` defines theme tokens; `app.css`, `clients.css`,
+and the generated `components.css` apply them alongside daisyUI styles. This
+document records the current implementation, not a proposed redesign. Tonal
+ramps in the sidecar are generated previews, not implemented color tokens.
 
 ## Colors
 
@@ -175,10 +176,10 @@ The desktop shell pairs a `15rem` sidebar with flexible content. Main content
 is capped at `64rem`; narrow pages such as sign-in use `32rem`. Main horizontal
 padding uses `clamp(1rem, 3vw, 2rem)`.
 
-At `38rem` and below, the top bar wraps and the sidebar moves above the content.
-Workspace and settings navigation use two columns; rows and actions stack.
-Narrow pages use bordered surface panels. Tables scroll horizontally when
-needed. Preserve reflow at a `320px` CSS viewport.
+At `38rem` and below, rows and actions stack, and list screens switch from
+tables to cards. On wider screens, list results scroll within the available
+viewport while the toolbar and footer remain in place. Other tables can scroll
+horizontally. Preserve reflow at a `320px` CSS viewport.
 
 ## Elevation & Depth
 

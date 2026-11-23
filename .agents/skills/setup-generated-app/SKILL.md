@@ -20,6 +20,10 @@ repository. Report each requirement as `passed`, `failed`, `blocked`, or `not
 applicable`, the same statuses that
 [verify-template-conformance](../verify-template-conformance/SKILL.md) uses.
 
+Generated applications retain [UX standards](../../../docs/ux.md) and the
+[browser review gate](../../../docs/ux-review.md). Set product context and
+visual identity for the application; keep the task and accessibility criteria.
+
 ## Before you start
 
 1. Confirm the target is a generated app: `template.lock` exists at the root.

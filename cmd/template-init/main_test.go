@@ -48,6 +48,28 @@ func TestGenerateApplicationAndLock(t *testing.T) {
 	if err != nil || !strings.Contains(string(readme), "# My Application") {
 		t.Fatalf("generated README = %q, error = %v", readme, err)
 	}
+	for path, want := range map[string]string{
+		"AGENTS.md":                                                   "docs/ux-review.md",
+		"docs/README.md":                                              "ux-review.md",
+		"docs/ux.md":                                                  "User experience standard",
+		"docs/ux-review.md":                                           "Browser UX review",
+		".agents/skills/verify/SKILL.md":                              "docs/ux-review.md",
+		".github/pull_request_template.md":                            "Browser UX review",
+		".agents/skills/ux-workflow/SKILL.md":                         "UX workflow",
+		".agents/skills/ux-workflow/references/journeys.md":           "Journeys and structure",
+		".agents/skills/ux-workflow/references/interactions.md":       "Interactions and states",
+		".agents/skills/ux-workflow/references/evaluation.md":         "Evaluate a browser journey",
+		".agents/skills/ux-workflow/references/patterns.md":           "Choose interaction patterns",
+		".agents/skills/ux-workflow/references/data-workflows.md":     "Lists, search, filters, and bulk work",
+		".agents/skills/ux-workflow/references/visual-design.md":      "Visual design review",
+		".agents/skills/ux-workflow/references/overlays-and-forms.md": "Dialogs, menus, onboarding, and forms",
+		".agents/skills/ux-workflow/references/review-example.md":     "Worked review: follow-up queue",
+	} {
+		content, err := os.ReadFile(filepath.Join(output, path))
+		if err != nil || !strings.Contains(string(content), want) {
+			t.Errorf("generated %s lacks UX guidance %q: %v", path, want, err)
+		}
+	}
 	web, err := os.ReadFile(filepath.Join(output, "docs/web.md"))
 	if err != nil || !strings.Contains(string(web), "capabilities.md#shared-navigation-migration-evidence-434-2026-11-16") {
 		t.Fatalf("generated web contract lacks navigation evidence link: %v", err)

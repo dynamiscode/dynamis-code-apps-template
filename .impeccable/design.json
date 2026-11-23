@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-15T01:59:25Z",
+  "generatedAt": "2026-11-23T17:39:18Z",
   "title": "Design System: Dynamis Code Apps Template",
   "extensions": {
     "colorMeta": {
@@ -627,7 +627,7 @@
       "refersTo": "card",
       "description": "Bordered navigation card with supporting text.",
       "html": "<a class=\"ds-card\" href=\"#\"><strong>Items</strong><span>View workspace items</span></a>",
-      "css": ".ds-card { display: grid; gap: .5rem; padding: 1rem; background: var(--surface, #fff); border: 1px solid var(--border, #ccd3dd); border-radius: .4rem; color: var(--accent, #154ea3); text-decoration: none; } .ds-card span { color: var(--muted, #536174); } .ds-card:focus-visible { outline: .2rem solid var(--focus-outline, #fff); outline-offset: 0; box-shadow: 0 0 0 .4rem var(--focus-halo, #111827); }"
+      "css": ".ds-card { display: grid; gap: .5rem; padding: 1rem; background: var(--surface, #fff); border: 1px solid var(--border-color, #ccd3dd); border-radius: .4rem; color: var(--accent, #154ea3); text-decoration: none; } .ds-card span { color: var(--muted, #536174); } .ds-card:focus-visible { outline: .2rem solid var(--focus-outline, #fff); outline-offset: 0; box-shadow: 0 0 0 .4rem var(--focus-halo, #111827); }"
     },
     {
       "name": "Workspace navigation",

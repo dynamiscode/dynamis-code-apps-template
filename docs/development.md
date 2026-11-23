@@ -48,6 +48,10 @@ escaped user content, and test browser precedence separately from stable
 English REST/CLI/MCP contracts. Add plural support only when the first
 count-dependent product message requires it.
 
+New browser journeys and meaningful interaction or visual changes require
+[rendered UX review](ux-review.md). Report missing browser evidence as blocked;
+a passing automated check does not substitute for the review.
+
 ## Catalog verification ladder
 
 1. Run `go test ./internal/catalog ./internal/httpapi ./internal/web ./api` for service invariants, authorization, REST, web, and contract behavior.
