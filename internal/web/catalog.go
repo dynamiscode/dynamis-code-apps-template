@@ -125,7 +125,9 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)
-	_ = catalogPage(data, entries, identity.CanWriteCatalog(principal), invalid, status == http.StatusConflict, request.URL.Query().Get("includeArchived") == "true", request.FormValue("name"), request.FormValue("duration_minutes")).Render(request.Context(), writer)
+	amount := request.FormValue("amount")
+	price := catalog.PriceOption{Mode: request.FormValue("mode"), Amount: &amount, Currency: request.FormValue("currency"), Variant: request.FormValue("variant"), Eligibility: request.FormValue("eligibility")}
+	_ = catalogPage(data, entries, identity.CanWriteCatalog(principal), invalid, status == http.StatusConflict, request.URL.Query().Get("includeArchived") == "true", request.FormValue("name"), request.FormValue("duration_minutes"), price).Render(request.Context(), writer)
 }
 
 func catalogDuration(value *int) string {

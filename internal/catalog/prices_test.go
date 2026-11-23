@@ -5,10 +5,42 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 )
+
+func TestDeletePriceSerializationRetry(t *testing.T) {
+	attempts := 0
+	err := retrySerialization(context.Background(), func() error {
+		attempts++
+		if attempts == 1 {
+			return &pgconn.PgError{Code: "40001"}
+		}
+		return ErrLastPrice
+	})
+	if attempts != 2 || !errors.Is(err, ErrLastPrice) {
+		t.Fatalf("retry: attempts=%d err=%v", attempts, err)
+	}
+	attempts = 0
+	err = retrySerialization(context.Background(), func() error {
+		attempts++
+		return &pgconn.PgError{Code: "40001"}
+	})
+	if attempts != 3 || err == nil {
+		t.Fatalf("exhaustion: attempts=%d err=%v", attempts, err)
+	}
+	attempts = 0
+	err = retrySerialization(context.Background(), func() error {
+		attempts++
+		return identity.ErrForbidden
+	})
+	if attempts != 1 || !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("non-serialization error: attempts=%d err=%v", attempts, err)
+	}
+}
 
 func TestPriceOptions(t *testing.T) {
 	ctx := context.Background()
@@ -155,5 +187,23 @@ func TestPriceOptions(t *testing.T) {
 	entries, err = s.List(ctx, actor, owner.WorkspaceID, true)
 	if err != nil || len(entries) != 0 {
 		t.Fatalf("deleted entries = %+v, %v", entries, err)
+	}
+	var legacyID EntryID
+	if err := db.QueryRowContext(ctx, `INSERT INTO catalog_entries (workspace_id, name, archived_at) VALUES ($1, $2, $3) RETURNING id`, owner.WorkspaceID, "Legacy", "2026-01-01T00:00:00Z").Scan(&legacyID); err != nil {
+		t.Fatal(err)
+	}
+	entries, err = s.List(ctx, actor, owner.WorkspaceID, true)
+	if err != nil || len(entries) != 1 || len(entries[0].Prices) != 0 {
+		t.Fatalf("legacy entry: %+v, %v", entries, err)
+	}
+	if err := s.SetArchived(ctx, actor, owner.WorkspaceID, legacyID, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.AddPrice(ctx, actor, owner.WorkspaceID, legacyID.String(), manual); err != nil {
+		t.Fatalf("repair legacy entry: %v", err)
+	}
+	entries, err = s.List(ctx, actor, owner.WorkspaceID, false)
+	if err != nil || len(entries) != 1 || entries[0].Name != "Legacy" || len(entries[0].Prices) != 1 || entries[0].Prices[0].Variant != manual.Variant {
+		t.Fatalf("repaired entry: %+v, %v", entries, err)
 	}
 }

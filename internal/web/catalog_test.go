@@ -91,9 +91,19 @@ func TestCatalogCreate(t *testing.T) {
 		t.Fatalf("list = %d %s", page.Code, page.Body.String())
 	}
 	form.Set("name", " ")
+	form.Set("mode", "manual")
+	form.Set("amount", "0.123456789012345678")
+	form.Set("currency", "BTC")
+	form.Set("variant", "Special")
+	form.Set("eligibility", "Student & staff")
 	invalid := request(routes, http.MethodPost, path, form, cookies, nil)
 	if invalid.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("invalid = %d %s", invalid.Code, invalid.Body.String())
+	}
+	for _, want := range []string{`value="manual" selected`, `name="amount" value="0.123456789012345678"`, `name="currency" value="BTC"`, `name="variant" value="Special"`, `name="eligibility" value="Student &amp; staff"`} {
+		if !strings.Contains(invalid.Body.String(), want) {
+			t.Errorf("rejected create missing %s", want)
+		}
 	}
 }
 

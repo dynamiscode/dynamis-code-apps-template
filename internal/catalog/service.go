@@ -171,22 +171,37 @@ func (s *Service) UpdatePrice(ctx context.Context, actor identity.Principal, wor
 }
 
 func (s *Service) DeletePrice(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, priceID PriceID) error {
-	return s.mutate(ctx, actor, workspaceID, entryID, func(tx *sql.Tx) (sql.Result, error) {
-		var count int
-		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM catalog_prices WHERE entry_id = $1 AND EXISTS (SELECT 1 FROM catalog_entries WHERE id = $1 AND workspace_id = $2)`, entryID, workspaceID).Scan(&count); err != nil {
-			return nil, err
-		}
-		if count <= 1 {
-			var exists bool
-			if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM catalog_prices WHERE id = $1 AND entry_id = $2 AND EXISTS (SELECT 1 FROM catalog_entries WHERE id = $2 AND workspace_id = $3))`, priceID, entryID, workspaceID).Scan(&exists); err != nil {
+	return retrySerialization(ctx, func() error {
+		return s.mutate(ctx, actor, workspaceID, entryID, func(tx *sql.Tx) (sql.Result, error) {
+			var count int
+			if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM catalog_prices WHERE entry_id = $1 AND EXISTS (SELECT 1 FROM catalog_entries WHERE id = $1 AND workspace_id = $2)`, entryID, workspaceID).Scan(&count); err != nil {
 				return nil, err
 			}
-			if exists {
-				return nil, ErrLastPrice
+			if count <= 1 {
+				var exists bool
+				if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM catalog_prices WHERE id = $1 AND entry_id = $2 AND EXISTS (SELECT 1 FROM catalog_entries WHERE id = $2 AND workspace_id = $3))`, priceID, entryID, workspaceID).Scan(&exists); err != nil {
+					return nil, err
+				}
+				if exists {
+					return nil, ErrLastPrice
+				}
 			}
-		}
-		return tx.ExecContext(ctx, `DELETE FROM catalog_prices WHERE id = $1 AND entry_id = $2 AND EXISTS (SELECT 1 FROM catalog_entries WHERE id = $2 AND workspace_id = $3)`, priceID, entryID, workspaceID)
+			return tx.ExecContext(ctx, `DELETE FROM catalog_prices WHERE id = $1 AND entry_id = $2 AND EXISTS (SELECT 1 FROM catalog_entries WHERE id = $2 AND workspace_id = $3)`, priceID, entryID, workspaceID)
+		})
 	})
+}
+
+func retrySerialization(ctx context.Context, operation func() error) error {
+	for attempt := 0; ; attempt++ {
+		err := operation()
+		var state interface{ SQLState() string }
+		if !errors.As(err, &state) || state.SQLState() != "40001" || attempt == 2 {
+			return err
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+	}
 }
 
 func (s *Service) SetArchived(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, archived bool) error {

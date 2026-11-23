@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 
@@ -60,7 +61,21 @@ func TestPostgresCatalogCreateAndList(t *testing.T) {
 	if err != nil || len(entries) != 1 || entries[0].Name != "Consultation" || entries[0].DurationMinutes == nil || *entries[0].DurationMinutes != minutes || len(entries[0].Prices) != 2 || entries[0].Prices[1].Amount == nil || *entries[0].Prices[1].Amount != amount {
 		t.Fatalf("entries = %+v, %v", entries, err)
 	}
-	if err := service.DeletePrice(ctx, actor, owner.WorkspaceID, entry.ID, price.ID); err != nil {
-		t.Fatal(err)
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	for _, option := range entries[0].Prices {
+		go func(priceID PriceID) {
+			<-start
+			results <- service.DeletePrice(ctx, actor, owner.WorkspaceID, entry.ID, priceID)
+		}(option.ID)
+	}
+	close(start)
+	first, second := <-results, <-results
+	if !((first == nil && errors.Is(second, ErrLastPrice)) || (second == nil && errors.Is(first, ErrLastPrice))) {
+		t.Fatalf("concurrent deletes: %v, %v", first, second)
+	}
+	entries, err = service.List(ctx, actor, owner.WorkspaceID, false)
+	if err != nil || len(entries) != 1 || len(entries[0].Prices) != 1 {
+		t.Fatalf("remaining prices: %+v, %v", entries, err)
 	}
 }
