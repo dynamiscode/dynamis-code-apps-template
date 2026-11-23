@@ -169,14 +169,18 @@ func TestEngagementThroughWeb(t *testing.T) {
 	}
 	invalidName := strings.Repeat("x", 201)
 	invalidCreate := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.csrf}, "name": {invalidName}, "stage": {second.ID.String()}, "notes": {"Keep these notes"}}, env.cookies, nil)
-	for _, want := range []string{"The engagement is invalid.", invalidName, "Keep these notes", `value="` + second.ID.String() + `" selected`} {
+	for _, want := range []string{"Enter a valid name of up to 200 characters.", `aria-describedby="engagement-name-error"`, invalidName, "Keep these notes", `value="` + second.ID.String() + `" selected`} {
 		if invalidCreate.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidCreate.Body.String(), want) {
 			t.Fatalf("invalid create missing %q: %d %s", want, invalidCreate.Code, invalidCreate.Body.String())
 		}
 	}
-	missingStage := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.csrf}, "name": {"Engagement"}}, env.cookies, nil)
-	if missingStage.Code != http.StatusUnprocessableEntity {
-		t.Fatalf("missing stage: %d", missingStage.Code)
+	for _, stageValue := range []string{"", "invalid"} {
+		invalidStage := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.csrf}, "name": {"Keep name"}, "stage": {stageValue}, "notes": {"Keep notes"}}, env.cookies, nil)
+		for _, want := range []string{"Select a valid open stage.", `aria-describedby="engagement-stage-error"`, `value="Keep name"`, "Keep notes"} {
+			if invalidStage.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidStage.Body.String(), want) {
+				t.Fatalf("invalid stage %q missing %q: %d", stageValue, want, invalidStage.Code)
+			}
+		}
 	}
 	created := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.csrf}, "name": {"Engagement"}, "stage": {second.ID.String()}, "notes": {"Other person"}}, env.cookies, nil)
 	if created.Code != http.StatusSeeOther {

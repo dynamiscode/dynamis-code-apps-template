@@ -370,7 +370,13 @@ func (h *Handler) createEngagement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if errors.Is(err, engagement.ErrInvalidInput) {
-		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.invalid_create", nil)
+		key := "engagement.invalid_create"
+		if errors.Is(err, engagement.ErrInvalidName) {
+			key = "engagement.invalid_name"
+		} else if errors.Is(err, engagement.ErrInvalidStage) {
+			key = "engagement.invalid_stage"
+		}
+		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, key, nil)
 		return
 	}
 	if err != nil {

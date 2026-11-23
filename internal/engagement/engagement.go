@@ -19,6 +19,7 @@ import (
 var ErrNoOpenStage = errors.New("workspace has no open stage")
 var ErrNotFound = errors.New("engagement not found")
 var ErrInvalidName = fmt.Errorf("%w: engagement name is invalid", ErrInvalidInput)
+var ErrInvalidStage = fmt.Errorf("%w: engagement stage is invalid", ErrInvalidInput)
 
 type ID int64
 
@@ -152,7 +153,7 @@ func (s *Service) Create(ctx context.Context, actor identity.Principal, workspac
 	var stageID StageID
 	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT id FROM engagement_stages WHERE workspace_id = ? AND id = ? AND kind = 'open' AND archived_at IS NULL`), workspaceID, input.StageID).Scan(&stageID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return Engagement{}, ErrInvalidInput
+		return Engagement{}, ErrInvalidStage
 	}
 	if err != nil {
 		return Engagement{}, err

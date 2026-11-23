@@ -274,6 +274,7 @@
   "engagement.save_name": "Save",
   "engagement.cancel": "Cancel",
   "engagement.invalid_name": "Enter a valid name of up to 200 characters.",
+  "engagement.invalid_stage": "Select a valid open stage.",
   "engagement.kind": "Kind",
   "engagement.open": "Open",
   "engagement.won": "Won",

@@ -274,6 +274,7 @@
   "engagement.save_name": "Guardar",
   "engagement.cancel": "Cancelar",
   "engagement.invalid_name": "Introduzca un nombre válido de hasta 200 caracteres.",
+  "engagement.invalid_stage": "Seleccione una etapa abierta válida.",
   "engagement.kind": "Tipo",
   "engagement.open": "Abierta",
   "engagement.won": "Ganada",

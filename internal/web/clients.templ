@@ -58,14 +58,22 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 					} else {
 						<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements" } method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							@molecules.TextField("engagement-name", data.T("engagement.name"), templ.Attributes{"name": "name", "value": data.EngagementName, "required": true, "maxlength": "200"})
+							if data.ErrorKey == "engagement.invalid_name" {
+								@molecules.TextField("engagement-name", data.T("engagement.name"), templ.Attributes{"name": "name", "value": data.EngagementName, "required": true, "maxlength": "200", "aria-invalid": "true", "aria-describedby": "engagement-name-error"})
+								<p id="engagement-name-error">{ data.T(data.ErrorKey) }</p>
+							} else {
+								@molecules.TextField("engagement-name", data.T("engagement.name"), templ.Attributes{"name": "name", "value": data.EngagementName, "required": true, "maxlength": "200"})
+							}
 							<label for="engagement-stage">{ data.T("engagement.stage") }</label>
-							<select id="engagement-stage" name="stage" class="select select-bordered" required>
+							<select id="engagement-stage" name="stage" class="select select-bordered" required { templ.Attributes{"aria-invalid": templ.KV("true", data.ErrorKey == "engagement.invalid_stage"), "aria-describedby": templ.KV("engagement-stage-error", data.ErrorKey == "engagement.invalid_stage")}... }>
 								<option value="">{ data.T("engagement.select_stage") }</option>
 								for _, stage := range data.OpenEngagementStages {
 									<option value={ stage.ID.String() } selected?={ stage.ID.String() == data.EngagementStage }>{ stage.Name }</option>
 								}
 							</select>
+							if data.ErrorKey == "engagement.invalid_stage" {
+								<p id="engagement-stage-error">{ data.T(data.ErrorKey) }</p>
+							}
 							<label for="engagement-notes">{ data.T("engagement.notes") }</label>
 							<textarea id="engagement-notes" name="notes" maxlength="5000" class="textarea textarea-bordered">{ data.EngagementNotes }</textarea>
 							<button class="btn btn-primary" type="submit">{ data.T("engagement.create") }</button>
