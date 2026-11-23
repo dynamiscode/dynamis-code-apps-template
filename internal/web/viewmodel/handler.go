@@ -38,6 +38,7 @@ type PageData struct {
 	EngagementStages     []engagement.Stage
 	EngagementMembers    []identity.MemberSummary
 	EngagementEnabled    bool
+	EngagementLabel      string
 	EngagementNotes      string
 	ClientValues         []ClientValueRow
 	ClientTimeline       []clients.TimelineEntry

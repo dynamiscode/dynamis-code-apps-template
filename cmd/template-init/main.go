@@ -308,7 +308,10 @@ func clientsPath(relative string) bool {
 	relative = filepath.ToSlash(relative)
 	return relative == "internal/clients" || strings.HasPrefix(relative, "internal/clients/") ||
 		relative == "internal/engagement/engagement.go" ||
+		relative == "internal/engagement/assignee.go" || relative == "internal/engagement/next_action.go" || relative == "internal/engagement/quote.go" ||
 		relative == "internal/platform/database/migrations/000033_engagements.sql" ||
+		relative == "internal/platform/database/migrations/000034_engagement_next_action.sql" || relative == "internal/platform/database/migrations/000035_engagement_quote.sql" || relative == "internal/platform/database/migrations/000036_engagement_assignee.sql" ||
+		relative == "internal/platform/database/migrations/000038_engagement_stage_history.sql" ||
 		relative == "cmd/demo/clients.go" || relative == "cmd/demo/clients_test.go" ||
 		relative == "cmd/appctl" || strings.HasPrefix(relative, "cmd/appctl/") ||
 		relative == "internal/appctl" || strings.HasPrefix(relative, "internal/appctl/") ||
@@ -388,8 +391,14 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `"archiveClient":`)
 		value = removeLinesContaining(value, `"deleteClient":`)
 		value = removeLinesContaining(value, `"createEngagement":`)
+		value = removeLinesContaining(value, `"setEngagementNextAction":`)
+		value = removeLinesContaining(value, `"setEngagementQuote":`)
+		value = removeLinesContaining(value, `"setEngagementAssignee":`)
 	case "internal/httpapi/engagement.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `"time"`)
+		value = removeText(value, "func (h *handler) setEngagementAssignee(", "func (h *handler) getEngagementLabel(")
+		value = removeText(value, "func (h *handler) setEngagementQuote(", "func (h *handler) createEngagement(")
 		value = removeText(value, "func (h *handler) createEngagement(", "func (h *handler) listEngagementStages(")
 		value = removeText(value, "\tcase errors.Is(err, engagement.ErrNoOpenStage):", "\tdefault:")
 	case "internal/httpapi/engagement_test.go":
@@ -401,6 +410,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		}
 	case "internal/engagement/service_test.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `/internal/platform/maintenance"`)
 		if i := strings.Index(value, "\nfunc TestCreateEngagementRequiresOpenStageAndClient("); i >= 0 {
 			value = value[:i] + "\n"
 		}
@@ -457,10 +467,18 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "clientFilterOperator")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/client-fields")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/clients")
+		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/due")
 	case "internal/web/engagement.go":
 		value = strings.ReplaceAll(value, "ClientsEnabled: h.clients != nil, ", "")
 		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `"time"`)
+		value = removeText(value, "func (h *Handler) setEngagementAssignee(", "func (h *Handler) EnableEngagement(")
+		value = removeText(value, "func (h *Handler) moveEngagement(", "func (h *Handler) setEngagementLabel(")
 		value = removeText(value, "func (h *Handler) createEngagement(", "func (h *Handler) engagementStages(")
+	case "internal/web/engagement.templ":
+		value = removeText(value, "templ dueEngagementsPage(", "templ engagementStagesPage(")
+	case "internal/web/engagement_templ.go":
+		value = removeText(value, "func dueEngagementsPage(", "func engagementStagesPage(")
 	case "internal/platform/maintenance/maintenance.go":
 		// Retention prunes client_events, which Clients-off apps do not have.
 		value = removeLinesContaining(value, "client_events")
@@ -478,6 +496,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeText(value, "\n## Clients tools (Clients profile)", "\n## Prompts\n")
 	case "docs/capabilities.md":
 		value = strings.ReplaceAll(value, "[web](../internal/web/engagement_test.go)", "web")
+		value = removeText(value, " Writers can create engagements", "\nOwners and admins can set or reset")
+		value = removeText(value, "\nNext actions have text", "\n\n## Client timeline REST")
 		value = removeLineStarting(value, "| Clients |")
 		value = removeLineStarting(value, "| Clients shared list view |")
 		value = removeLineStarting(value, "| Client timeline service |")
@@ -485,8 +505,13 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.ReplaceAll(value, "; [CLI tests](../internal/appctl/run_test.go)", "")
 		value = strings.ReplaceAll(value, "[live surface smoke](../internal/bootstrap/agent_smoke_test.go)", "[composition test](../internal/bootstrap/app_test.go)")
 	case "docs/api.md":
+		value = removeLineStarting(value, "- Engagements:")
+		value = removeLineStarting(value, "- Next actions:")
+		value = removeLineStarting(value, "- Quotes:")
+		value = removeLineStarting(value, "- Assignee:")
 		value = removeText(value, "\n- Clients (Clients profile):", "\n\n## Webhooks")
 	case "docs/web.md":
+		value = removeText(value, "\nOn a client detail page,", "\n`/account`")
 		value = removeLineStarting(value, "| Workspace clients and custom fields;")
 		value = removeText(value, "\n\n`/workspaces/{workspaceId}/clients` lists", "\n\n## Realtime contract")
 		value = removeText(value, "\n\n`GET /workspaces/{workspaceId}/clients/events` is", "\n\n`GET /notifications/events`")

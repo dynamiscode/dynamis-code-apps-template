@@ -170,6 +170,7 @@ func newHandler(
 		"listClients": h.listClients, "createClient": h.createClient,
 		"listEngagementStages": h.listEngagementStages, "createEngagementStage": h.createEngagementStage,
 		"createEngagement": h.createEngagement, "getEngagement": h.getEngagement, "moveEngagement": h.moveEngagement,
+		"getEngagementLabel": h.getEngagementLabel, "setEngagementLabel": h.setEngagementLabel,
 		"setEngagementNextAction": h.setEngagementNextAction, "listDueEngagements": h.listDueEngagements,
 		"setEngagementQuote":      h.setEngagementQuote,
 		"setEngagementAssignee":   h.setEngagementAssignee,

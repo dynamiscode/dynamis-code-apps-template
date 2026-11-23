@@ -238,6 +238,18 @@ func (h *Handler) renderClientList(
 }
 
 func (h *Handler) renderClientPage(writer http.ResponseWriter, request *http.Request, status int, component func(viewmodel.PageData) templ.Component, data viewmodel.PageData) {
+	if h.engagement != nil {
+		actor, _, _, ok := h.workspaceSession(writer, request, data.Workspace.ID, identity.ResourcesRead)
+		if !ok {
+			return
+		}
+		label, err := h.engagement.Label(request.Context(), actor, data.Workspace.ID)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+		data.EngagementLabel = label
+	}
 	data.FilesEnabled = h.filesEnabled
 	data.ClientsEnabled = h.clientsEnabled
 	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle

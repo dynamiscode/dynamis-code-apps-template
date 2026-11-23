@@ -13,6 +13,35 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
 
+func TestEngagementLabelThroughWeb(t *testing.T) {
+	env := newClientsTestEnv(t)
+	path := "/workspaces/" + env.workspaceID.String() + "/engagement-stages"
+	r := request(env.routes, http.MethodPost, path+"/label", url.Values{"csrf": {env.csrf}, "label": {"Matter"}}, env.cookies, nil)
+	if r.Code != http.StatusSeeOther {
+		t.Fatalf("set: %d %s", r.Code, r.Body.String())
+	}
+	r = request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
+	if r.Code != http.StatusOK || !strings.Contains(r.Body.String(), "Matter") {
+		t.Fatalf("view: %d %s", r.Code, r.Body.String())
+	}
+	r = request(env.routes, http.MethodGet, "/workspaces/"+env.workspaceID.String()+"/clients", nil, env.viewerCookies, nil)
+	if r.Code != http.StatusOK || !strings.Contains(r.Body.String(), "Matter stages") {
+		t.Fatalf("navigation: %d %s", r.Code, r.Body.String())
+	}
+	r = request(env.routes, http.MethodPost, path+"/label", url.Values{"csrf": {env.viewerCSRF}, "label": {"Job"}}, env.viewerCookies, nil)
+	if r.Code != http.StatusForbidden {
+		t.Fatalf("viewer: %d", r.Code)
+	}
+	r = request(env.routes, http.MethodPost, path+"/label", url.Values{"csrf": {env.csrf}, "label": {""}}, env.cookies, nil)
+	if r.Code != http.StatusSeeOther {
+		t.Fatalf("reset: %d", r.Code)
+	}
+	r = request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
+	if !strings.Contains(r.Body.String(), "Engagement stages") {
+		t.Fatalf("default: %s", r.Body.String())
+	}
+}
+
 func TestStagesThroughWeb(t *testing.T) {
 	env := newClientsTestEnv(t)
 	path := "/workspaces/" + env.workspaceID.String() + "/engagement-stages"

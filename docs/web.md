@@ -20,6 +20,8 @@ On a client detail page, readers can see engagements and their stage history;
 writers can create an engagement with notes and move it to an unarchived stage.
 Creation uses the first available open stage. A client with an engagement cannot
 be deleted.
+Owners and admins can set or reset the workspace work item label on the stages
+page. Client pages use that label; the default is engagement.
 Readers see next actions on client details; writers can set, change, or clear
 them. The Clients list links to actions due today or earlier (UTC) in open stages.
 Readers see quote status, amount, and sent date on client details; writers can
