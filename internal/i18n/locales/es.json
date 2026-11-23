@@ -249,6 +249,8 @@
   "engagement.next_action": "Próxima acción",
   "engagement.no_next_action": "Sin próxima acción",
   "engagement.unassigned": "Sin asignar",
+  "engagement.unavailable": "No disponible",
+  "engagement.invalid_action_owner": "Selecciona un miembro válido del espacio de trabajo como responsable.",
   "engagement.invalid_next_action": "Introduce una próxima acción, responsable del espacio y fecha límite válidos. La acción requiere un responsable.",
   "engagement.due_date": "Fecha límite (opcional)",
   "engagement.owner": "Responsable",

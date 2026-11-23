@@ -66,6 +66,12 @@ func (h *Handler) setEngagementAssignee(w http.ResponseWriter, r *http.Request) 
 	if !h.engagementMatchesClient(w, r, actor, workspace) {
 		return
 	}
+	if r.FormValue("return_to") == "detail" {
+		if _, present := r.PostForm["assignee_id"]; !present {
+			h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.invalid_assignee", nil)
+			return
+		}
+	}
 	var assignee identity.UserID
 	var err error
 	if r.FormValue("assignee_id") != "" {
@@ -160,6 +166,12 @@ func (h *Handler) setEngagementNextAction(w http.ResponseWriter, r *http.Request
 	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
 	if !h.engagementMatchesClient(w, r, actor, workspace) {
 		return
+	}
+	if r.FormValue("return_to") == "detail" && r.FormValue("clear") != "1" {
+		if _, present := r.PostForm["owner_id"]; !present {
+			h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.invalid_next_action", nil)
+			return
+		}
 	}
 	var owner identity.UserID
 	var err error

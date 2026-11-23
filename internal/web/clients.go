@@ -479,6 +479,21 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 			return
 		}
 	}
+	ownerError := false
+	ownerUnavailable := false
+	if errorKey == "engagement.invalid_next_action" {
+		owner := request.FormValue("owner_id")
+		ownerFound := false
+		for _, member := range members {
+			if member.UserID.String() == owner {
+				ownerFound = true
+				break
+			}
+		}
+		ownerUnavailable = owner != "" && !ownerFound
+		_, ownerPresent := request.PostForm["owner_id"]
+		ownerError = !ownerPresent || ownerUnavailable || (owner == "" && strings.TrimSpace(request.FormValue("text")) != "")
+	}
 	component := clientDetailPage
 	title := client.DisplayName
 	if request.PathValue("engagementId") != "" && (request.Method == http.MethodGet || errorKey == "engagement.invalid_name" || errorKey == "engagement.invalid_assignee" || errorKey == "engagement.invalid_quote" || errorKey == "engagement.invalid_agreement_file" || errorKey == "engagement.invalid_next_action" || (errorKey == "engagement.invalid_move" && request.FormValue("return_to") == "detail")) {
@@ -524,6 +539,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		Engagements:      engagements, EngagementStages: stages, EngagementMembers: members, EngagementEnabled: h.engagement != nil,
 		EngagementNotes: engagementNotes, OpenEngagementStages: openStages,
 		EngagementName: request.FormValue("name"), EngagementStage: request.FormValue("stage"),
+		EngagementAssignee: request.FormValue("assignee_id"), EngagementOwner: request.FormValue("owner_id"), EngagementOwnerError: ownerError, EngagementOwnerUnavailable: ownerUnavailable,
 	})
 }
 

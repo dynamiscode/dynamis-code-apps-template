@@ -350,6 +350,15 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if invalid := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}, "assignee_id": {"invalid"}, "return_to": {"detail"}}, env.cookies, nil); invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "<details open>") || !strings.Contains(invalid.Body.String(), "Select a valid workspace member.") {
 		t.Fatalf("invalid assign: %d", invalid.Code)
 	}
+	invalidAssignee := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}, "assignee_id": {"invalid"}, "return_to": {"detail"}}, env.cookies, nil)
+	for _, want := range []string{`aria-describedby="engagement-assignee-error"`, `id="engagement-assignee-error"`, `<option value="invalid" selected disabled>invalid — Unavailable</option>`} {
+		if !strings.Contains(invalidAssignee.Body.String(), want) {
+			t.Fatalf("invalid assignee missing %q", want)
+		}
+	}
+	if omitted := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}, "return_to": {"detail"}}, env.cookies, nil); omitted.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("omitted assignee: %d", omitted.Code)
+	}
 	if invalid := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}, "assignee_id": {identity.UserID(999999).String()}}, env.cookies, nil); invalid.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("nonmember assign: %d", invalid.Code)
 	}
@@ -399,6 +408,19 @@ func TestEngagementThroughWeb(t *testing.T) {
 		if invalidAction.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidAction.Body.String(), want) {
 			t.Fatalf("invalid action missing %q: %d", want, invalidAction.Code)
 		}
+	}
+	invalidOwner := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {"Keep this action"}, "owner_id": {"invalid"}, "return_to": {"detail"}}, env.cookies, nil)
+	for _, want := range []string{`aria-describedby="engagement-next-action-owner-error"`, `id="engagement-next-action-owner-error"`, `<option value="invalid" selected disabled>invalid — Unavailable</option>`} {
+		if invalidOwner.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidOwner.Body.String(), want) {
+			t.Fatalf("invalid owner missing %q: %d", want, invalidOwner.Code)
+		}
+	}
+	validOwner := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {"Keep this action"}, "owner_id": {env.ownerID.String()}, "due_date": {"invalid"}, "return_to": {"detail"}}, env.cookies, nil)
+	if validOwner.Code != http.StatusUnprocessableEntity || !strings.Contains(validOwner.Body.String(), `value="`+env.ownerID.String()+`" selected`) || strings.Contains(validOwner.Body.String(), `id="engagement-next-action-owner-error"`) {
+		t.Fatalf("valid owner not retained after date error: %d", validOwner.Code)
+	}
+	if omitted := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "return_to": {"detail"}}, env.cookies, nil); omitted.Code != http.StatusUnprocessableEntity || !strings.Contains(omitted.Body.String(), `aria-describedby="engagement-next-action-owner-error"`) {
+		t.Fatalf("omitted owner: %d", omitted.Code)
 	}
 	if got, err := svc.Get(ctx, owner, env.workspaceID, items[0].ID); err != nil || got.NextAction.Text != "Call client" {
 		t.Fatalf("invalid action mutated engagement: %+v %v", got, err)
@@ -459,7 +481,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if got := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil); strings.Contains(got.Body.String(), `<option value="`+openStage.String()+`"`) {
 		t.Fatal("archived stage offered on detail")
 	}
-	if got := request(env.routes, http.MethodPost, movePath, url.Values{"csrf": {env.csrf}, "stage": {openStage.String()}, "return_to": {"detail"}}, env.cookies, nil); got.Code != http.StatusUnprocessableEntity || !strings.Contains(got.Body.String(), "Select an available stage.") || !strings.Contains(got.Body.String(), `action="`+movePath+`"`) {
+	if got := request(env.routes, http.MethodPost, movePath, url.Values{"csrf": {env.csrf}, "stage": {openStage.String()}, "return_to": {"detail"}}, env.cookies, nil); got.Code != http.StatusUnprocessableEntity || !strings.Contains(got.Body.String(), "Select an available stage.") || !strings.Contains(got.Body.String(), `action="`+movePath+`"`) || !strings.Contains(got.Body.String(), `aria-describedby="engagement-stage-error"`) || !strings.Contains(got.Body.String(), `<option value="`+openStage.String()+`" selected disabled>`) {
 		t.Fatalf("archived detail move: %d", got.Code)
 	}
 	viewer = request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)

@@ -249,6 +249,8 @@
   "engagement.next_action": "Next action",
   "engagement.no_next_action": "No next action",
   "engagement.unassigned": "Unassigned",
+  "engagement.unavailable": "Unavailable",
+  "engagement.invalid_action_owner": "Select a valid workspace member as owner.",
   "engagement.invalid_next_action": "Enter a valid next action, workspace owner, and due date. An owner is required when an action is set.",
   "engagement.due_date": "Due date (optional)",
   "engagement.owner": "Owner",
