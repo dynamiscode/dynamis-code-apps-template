@@ -312,6 +312,19 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 	value := string(raw)
 	switch relative {
 	case "internal/bootstrap/app.go", "internal/httpapi/handler.go", "internal/web/handler.go", "internal/web/handler_test.go":
+		if relative == "internal/httpapi/handler.go" {
+			value = removeText(value, "func NewHandlerWithCatalog(", "func newHandler(")
+			value = strings.ReplaceAll(value, ", catalog.NewService(db, identityService, nil)", "")
+		}
+		if relative == "internal/bootstrap/app.go" {
+			constructor := "httpapi.NewHandlerWithWebhooksAndFiles"
+			if !strings.Contains(value, "webhookService, fileService, cfg.PublicURL") {
+				constructor = "httpapi.NewHandlerWithWebhooks"
+			}
+			value = strings.ReplaceAll(value, "httpapi.NewHandlerWithCatalog", constructor)
+			value = strings.ReplaceAll(value, "\t\tcatalogService, ", "\t\t")
+			value = strings.ReplaceAll(value, "\t\tcatalogService,\n", "")
+		}
 		value = removeLinesContaining(value, `/internal/catalog"`)
 		value = removeLinesContaining(value, "catalogService")
 		value = removeLinesContaining(value, "h.catalogList")
@@ -327,6 +340,7 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `"archiveCatalog":`)
 	case "docs/capabilities.md":
 		value = removeLineStarting(value, "| Catalog |")
+		value = removeText(value, "## Catalog authorization and isolation (#597)", "\n## ")
 	case "docs/architecture.md":
 		value = removeLineStarting(value, "Catalog is optional")
 	case "docs/data-lifecycle.md":
@@ -590,7 +604,7 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		} {
 			value = removeLineStarting(value, prefix)
 		}
-		value = strings.Replace(value, "\tfileService *appfiles.Service,\n", "", 1)
+		value = strings.ReplaceAll(value, "\tfileService *appfiles.Service,\n", "")
 		value = strings.Replace(value, "webhooks: webhookService, files: fileService", "webhooks: webhookService", 1)
 	case "internal/httpapi/handler_test.go":
 		value = removeImport(value, "appfiles")

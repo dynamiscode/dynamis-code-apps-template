@@ -51,7 +51,7 @@ func TestCatalogAuthorizationAndIsolation(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			entry, err := service.Create(ctx, actor, owner.WorkspaceID, "Seed", nil)
+			entry, err := service.Create(ctx, actor, owner.WorkspaceID, "Seed", nil, testPrices())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -69,7 +69,7 @@ func TestCatalogAuthorizationAndIsolation(t *testing.T) {
 					t.Errorf("%s: %v", name, err)
 				}
 			}
-			_, err = service.Create(ctx, principal, owner.WorkspaceID, "New", nil)
+			_, err = service.Create(ctx, principal, owner.WorkspaceID, "New", nil, testPrices())
 			check("create", err)
 			check("edit", service.Update(ctx, principal, owner.WorkspaceID, entry.ID, "Edited", nil))
 			_, err = service.AddPrice(ctx, principal, owner.WorkspaceID, entry.ID.String(), PriceOption{Mode: "manual", Currency: "USD", Variant: "Other"})
@@ -89,7 +89,7 @@ func TestCatalogAuthorizationAndIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	entry, err := service.Create(ctx, actor, owner.WorkspaceID, "Private", nil)
+	entry, err := service.Create(ctx, actor, owner.WorkspaceID, "Private", nil, testPrices())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestCatalogAuthorizationAndIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	local, err := service.Create(ctx, otherActor, other, "Local", nil)
+	local, err := service.Create(ctx, otherActor, other, "Local", nil, testPrices())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func TestCatalogAuthorizationAndIsolation(t *testing.T) {
 	found := false
 	for _, e := range list {
 		if e.ID == entry.ID {
-			found = e.Name == "Private" && !e.Archived && len(e.Prices) == 1 && e.Prices[0].ID == row.ID
+			found = e.Name == "Private" && !e.Archived && len(e.Prices) == 2 && e.Prices[1].ID == row.ID
 		}
 	}
 	if !found {

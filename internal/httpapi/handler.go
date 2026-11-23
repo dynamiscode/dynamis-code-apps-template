@@ -68,7 +68,7 @@ func NewHandlerWithWebhooksAndFiles(
 	mailer appmail.Sender,
 	clientServices ...*clients.Service,
 ) (http.Handler, error) {
-	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, clientServices...)
+	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, catalog.NewService(db, identityService, nil), clientServices...)
 }
 
 func NewHandlerWithMail(
@@ -99,7 +99,24 @@ func NewHandlerWithWebhooks(
 	mailer appmail.Sender,
 	clientServices ...*clients.Service,
 ) (http.Handler, error) {
-	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, nil, publicURL, mailer, clientServices...)
+	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, nil, publicURL, mailer, catalog.NewService(db, identityService, nil), clientServices...)
+}
+
+func NewHandlerWithCatalog(
+	db *sql.DB,
+	identityService *identity.Service,
+	portabilityService *portability.Service,
+	oidcRegistry *identity.OIDCRegistry,
+	cfg config.HTTP,
+	logger *slog.Logger,
+	webhookService *webhooks.Service,
+	fileService *appfiles.Service,
+	publicURL string,
+	mailer appmail.Sender,
+	catalogService *catalog.Service,
+	clientServices ...*clients.Service,
+) (http.Handler, error) {
+	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, catalogService, clientServices...)
 }
 
 func newHandler(
@@ -113,6 +130,7 @@ func newHandler(
 	fileService *appfiles.Service,
 	publicURL string,
 	mailer appmail.Sender,
+	catalogService *catalog.Service,
 	clientServices ...*clients.Service,
 ) (http.Handler, error) {
 	if logger == nil {
@@ -123,7 +141,7 @@ func newHandler(
 		oidc: oidcRegistry, cfg: cfg, logger: logger, portability: portabilityService,
 		publicURL: publicURL, mailer: mailer, webhooks: webhookService, files: fileService,
 		clients:        firstClient(clientServices),
-		catalogService: catalog.NewService(db, identityService, nil),
+		catalogService: catalogService,
 	}
 	handlers := map[string]http.HandlerFunc{
 		"getLiveness": h.liveness, "getReadiness": h.readiness,

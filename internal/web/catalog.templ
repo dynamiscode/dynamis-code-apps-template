@@ -10,11 +10,12 @@ import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, canWrite bool, invalid bool, inUse bool, includeArchived bool, name string, duration string) {
  @templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
   @molecules.PageHeading(data.T("catalog.title"), "")
-  if invalid {
-   <div role="alert" class="alert alert-error">{ data.T("catalog.invalid") }</div>
-  }
-  if inUse {
-   <div role="alert" class="alert alert-error">{ data.T("catalog.in_use") }</div>
+  if invalid && inUse {
+   <div role="alert" tabindex="-1" class="alert alert-error">{ data.T("catalog.last_price") }</div>
+  } else if invalid {
+   <div role="alert" tabindex="-1" class="alert alert-error">{ data.T("catalog.invalid") }</div>
+  } else if inUse {
+   <div role="alert" tabindex="-1" class="alert alert-error">{ data.T("catalog.in_use") }</div>
   }
   if includeArchived {
    <a class="link" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog") }>{ data.T("catalog.hide_archived") }</a>
@@ -26,6 +27,11 @@ templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, canWrite boo
     <input type="hidden" name="csrf" value={ data.CSRF }/>
     <label class="form-control"><span class="label-text">{ data.T("catalog.name") }</span><input class="input input-bordered" name="name" value={ name } required/></label>
     <label class="form-control"><span class="label-text">{ data.T("catalog.duration") }</span><input class="input input-bordered" type="number" name="duration_minutes" value={ duration } min="1"/></label>
+    <label class="form-control"><span class="label-text">{ data.T("catalog.mode") }</span><select class="select select-bordered" name="mode"><option value="fixed">{ data.T("catalog.fixed") }</option><option value="manual">{ data.T("catalog.manual") }</option></select></label>
+    <label class="form-control"><span class="label-text">{ data.T("catalog.amount") }</span><input class="input input-bordered" name="amount" inputmode="decimal"/></label>
+    <label class="form-control"><span class="label-text">{ data.T("catalog.currency") }</span><input class="input input-bordered" name="currency" required/></label>
+    <label class="form-control"><span class="label-text">{ data.T("catalog.variant") }</span><input class="input input-bordered" name="variant" required/></label>
+    <label class="form-control"><span class="label-text">{ data.T("catalog.eligibility") }</span><input class="input input-bordered" name="eligibility"/></label>
     <button class="btn btn-primary" type="submit">{ data.T("common.create") }</button>
    </form>
   }

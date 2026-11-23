@@ -43,7 +43,7 @@ func TestCatalogWebRoleMatrix(t *testing.T) {
 				t.Fatal(err)
 			}
 			cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
-			if r := request(routes, http.MethodPost, path, url.Values{"csrf": {ownerSession.CSRFSecret}, "name": {"Seed"}}, ownerCookies, nil); r.Code != http.StatusSeeOther {
+			if r := request(routes, http.MethodPost, path, url.Values{"csrf": {ownerSession.CSRFSecret}, "name": {"Seed"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Initial"}}, ownerCookies, nil); r.Code != http.StatusSeeOther {
 				t.Fatal(r.Code)
 			}
 			ownerPage := request(routes, http.MethodGet, path, nil, ownerCookies, nil)

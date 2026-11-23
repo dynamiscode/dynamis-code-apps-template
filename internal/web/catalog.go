@@ -40,7 +40,12 @@ func (h *Handler) catalogCreate(writer http.ResponseWriter, request *http.Reques
 		duration = &value
 	}
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	_, err := h.catalogService.Create(request.Context(), principal, workspaceID, request.FormValue("name"), duration)
+	var amount *string
+	if value := request.FormValue("amount"); value != "" {
+		amount = &value
+	}
+	price := catalog.PriceOption{Mode: request.FormValue("mode"), Amount: amount, Currency: request.FormValue("currency"), Variant: request.FormValue("variant"), Eligibility: request.FormValue("eligibility")}
+	_, err := h.catalogService.Create(request.Context(), principal, workspaceID, request.FormValue("name"), duration, []catalog.PriceOption{price})
 	switch {
 	case errors.Is(err, catalog.ErrInvalidInput):
 		h.renderCatalog(writer, request, http.StatusUnprocessableEntity, true)
@@ -206,6 +211,8 @@ func (h *Handler) catalogEditResult(writer http.ResponseWriter, request *http.Re
 		h.renderError(writer, http.StatusNotFound)
 	case errors.Is(err, catalog.ErrInvalidInput):
 		h.renderCatalog(writer, request, http.StatusUnprocessableEntity, true)
+	case errors.Is(err, catalog.ErrLastPrice):
+		h.renderCatalog(writer, request, http.StatusConflict, true)
 	case err != nil:
 		h.renderError(writer, http.StatusInternalServerError)
 	default:

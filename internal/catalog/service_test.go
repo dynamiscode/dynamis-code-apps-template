@@ -12,6 +12,10 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 )
 
+func testPrices() []PriceOption {
+	return []PriceOption{{Mode: "manual", Currency: "USD", Variant: "Visit"}}
+}
+
 func TestCatalogArchiveAndDelete(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.Open(ctx, config.Database{Driver: config.SQLite, SQLitePath: ":memory:", MaxOpenConns: 1, MaxIdleConns: 1})
@@ -36,7 +40,7 @@ func TestCatalogArchiveAndDelete(t *testing.T) {
 	}
 	inUse := false
 	service := NewService(db, auth, func(context.Context, *sql.Tx, identity.WorkspaceID, EntryID) (bool, error) { return inUse, nil })
-	entry, err := service.Create(ctx, actor, owner.WorkspaceID, "Consultation", nil)
+	entry, err := service.Create(ctx, actor, owner.WorkspaceID, "Consultation", nil, testPrices())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,11 +103,11 @@ func TestListRequiresWorkspaceRead(t *testing.T) {
 		t.Fatalf("List = %v, %v; want empty list", entries, err)
 	}
 	minutes := 30
-	created, err := service.Create(ctx, actor, owner.WorkspaceID, " Consultation ", &minutes)
+	created, err := service.Create(ctx, actor, owner.WorkspaceID, " Consultation ", &minutes, testPrices())
 	if err != nil || created.Name != "Consultation" || created.DurationMinutes == nil || *created.DurationMinutes != 30 {
 		t.Fatalf("Create = %+v, %v", created, err)
 	}
-	if _, err := service.Create(ctx, actor, owner.WorkspaceID, "  ", nil); !errors.Is(err, ErrInvalidInput) {
+	if _, err := service.Create(ctx, actor, owner.WorkspaceID, "  ", nil, testPrices()); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("blank name = %v", err)
 	}
 	entries, err = service.List(ctx, actor, owner.WorkspaceID, false)
@@ -120,7 +124,7 @@ func TestListRequiresWorkspaceRead(t *testing.T) {
 	if _, err := service.List(ctx, actor, owner.WorkspaceID+1, false); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("foreign workspace list: %v", err)
 	}
-	if entry, err := service.Create(ctx, actor, owner.WorkspaceID, "No duration", nil); err != nil || entry.DurationMinutes != nil {
+	if entry, err := service.Create(ctx, actor, owner.WorkspaceID, "No duration", nil, testPrices()); err != nil || entry.DurationMinutes != nil {
 		t.Fatalf("optional duration = %+v, %v", entry, err)
 	}
 	for _, role := range []identity.Role{identity.Admin, identity.Member, identity.Viewer} {
@@ -139,7 +143,7 @@ func TestListRequiresWorkspaceRead(t *testing.T) {
 		if list, err := service.List(ctx, principal, owner.WorkspaceID, false); err != nil || len(list) < 2 {
 			t.Fatalf("%s list = %v, %v", role, list, err)
 		}
-		_, err = service.Create(ctx, principal, owner.WorkspaceID, string(role), nil)
+		_, err = service.Create(ctx, principal, owner.WorkspaceID, string(role), nil, testPrices())
 		if role == identity.Admin && err != nil {
 			t.Fatalf("admin create: %v", err)
 		}
@@ -174,7 +178,7 @@ func TestListRequiresWorkspaceRead(t *testing.T) {
 		t.Fatalf("zero price: %v", err)
 	}
 	entries, err = service.List(ctx, actor, owner.WorkspaceID, false)
-	if err != nil || len(entries) < 2 || len(entries[0].Prices) != 2 || entries[0].Prices[1].Amount == nil || *entries[0].Prices[1].Amount != zero || entries[0].Prices[1].Eligibility != "Student" || len(entries[1].Prices) != 0 {
+	if err != nil || len(entries) < 2 || len(entries[0].Prices) != 3 || entries[0].Prices[2].Amount == nil || *entries[0].Prices[2].Amount != zero || entries[0].Prices[2].Eligibility != "Student" || len(entries[1].Prices) != 1 {
 		t.Fatalf("entry price ownership = %+v, %v", entries, err)
 	}
 	if _, err := service.AddPrice(ctx, actor, owner.WorkspaceID+1, created.ID.String(), PriceOption{Mode: "fixed", Amount: &zero, Currency: "USD", Variant: "Visit"}); !errors.Is(err, identity.ErrForbidden) {

@@ -43,7 +43,7 @@ func TestCatalogRESTWorkspaceIsolation(t *testing.T) {
 	var entry, row struct {
 		ID string `json:"id"`
 	}
-	r := serveAuthorized(routes, http.MethodPost, path, `{"name":"Private"}`, token, nil)
+	r := serveAuthorized(routes, http.MethodPost, path, `{"name":"Private","prices":[{"mode":"manual","currency":"USD","variant":"Initial"}]}`, token, nil)
 	if err := json.Unmarshal(r.Body.Bytes(), &entry); err != nil || entry.ID == "" {
 		t.Fatal(r.Body.String())
 	}

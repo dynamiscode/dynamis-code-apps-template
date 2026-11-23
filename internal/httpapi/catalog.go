@@ -15,14 +15,15 @@ func (h *handler) createCatalog(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 	var body struct {
-		Name            string `json:"name"`
-		DurationMinutes *int   `json:"durationMinutes"`
+		Name            string                `json:"name"`
+		DurationMinutes *int                  `json:"durationMinutes"`
+		Prices          []catalog.PriceOption `json:"prices"`
 	}
 	if err := decodeJSON(request, &body); err != nil {
 		h.badJSON(writer, request, err)
 		return
 	}
-	entry, err := h.catalogService.Create(request.Context(), principal, workspaceID, body.Name, body.DurationMinutes)
+	entry, err := h.catalogService.Create(request.Context(), principal, workspaceID, body.Name, body.DurationMinutes, body.Prices)
 	switch {
 	case errors.Is(err, identity.ErrForbidden):
 		writeProblem(writer, request, http.StatusForbidden, "forbidden", "Access is denied.")
@@ -147,6 +148,8 @@ func (h *handler) catalogEditResult(writer http.ResponseWriter, request *http.Re
 		writeProblem(writer, request, http.StatusUnprocessableEntity, "invalid-input", "Catalog entry or price is invalid.")
 	case errors.Is(err, catalog.ErrNotFound):
 		writeProblem(writer, request, http.StatusNotFound, "not-found", "Catalog entry or price not found.")
+	case errors.Is(err, catalog.ErrLastPrice):
+		writeProblem(writer, request, http.StatusConflict, "last-price", "Catalog entry must have at least one price.")
 	case err != nil:
 		h.internal(writer, request)
 	default:

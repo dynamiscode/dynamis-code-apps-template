@@ -34,6 +34,7 @@ type PriceOption struct {
 
 var ErrNotFound = errors.New("catalog entry not found")
 var ErrInUse = errors.New("catalog entry is in use; archive it instead")
+var ErrLastPrice = errors.New("catalog entry must have at least one price")
 
 type EntryID int64
 
@@ -100,7 +101,7 @@ func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceI
 	return entries, rows.Err()
 }
 
-func (s *Service) Create(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, name string, duration *int) (Entry, error) {
+func (s *Service) Create(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, name string, duration *int, prices []PriceOption) (Entry, error) {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return Entry{}, err
@@ -114,18 +115,30 @@ func (s *Service) Create(ctx context.Context, actor identity.Principal, workspac
 		return Entry{}, identity.ErrForbidden
 	}
 	name = strings.TrimSpace(name)
-	if name == "" || (duration != nil && *duration <= 0) {
+	if name == "" || (duration != nil && *duration <= 0) || len(prices) == 0 {
 		return Entry{}, ErrInvalidInput
+	}
+	prices = append([]PriceOption(nil), prices...)
+	for i := range prices {
+		if err := validatePrice(&prices[i]); err != nil {
+			return Entry{}, err
+		}
 	}
 	var entryID EntryID
 	err = tx.QueryRowContext(ctx, `INSERT INTO catalog_entries (workspace_id, name, duration_minutes) VALUES ($1, $2, $3) RETURNING id`, workspaceID, name, duration).Scan(&entryID)
 	if err != nil {
 		return Entry{}, err
 	}
+	for i := range prices {
+		p := &prices[i]
+		if err := tx.QueryRowContext(ctx, `INSERT INTO catalog_prices (entry_id, mode, amount, currency, variant, eligibility) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`, entryID, p.Mode, p.Amount, p.Currency, p.Variant, p.Eligibility).Scan(&p.ID); err != nil {
+			return Entry{}, err
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return Entry{}, err
 	}
-	return Entry{ID: entryID, Name: name, DurationMinutes: duration, Prices: []PriceOption{}}, nil
+	return Entry{ID: entryID, Name: name, DurationMinutes: duration, Prices: prices}, nil
 }
 
 func validatePrice(option *PriceOption) error {
@@ -159,6 +172,19 @@ func (s *Service) UpdatePrice(ctx context.Context, actor identity.Principal, wor
 
 func (s *Service) DeletePrice(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, priceID PriceID) error {
 	return s.mutate(ctx, actor, workspaceID, entryID, func(tx *sql.Tx) (sql.Result, error) {
+		var count int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM catalog_prices WHERE entry_id = $1 AND EXISTS (SELECT 1 FROM catalog_entries WHERE id = $1 AND workspace_id = $2)`, entryID, workspaceID).Scan(&count); err != nil {
+			return nil, err
+		}
+		if count <= 1 {
+			var exists bool
+			if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM catalog_prices WHERE id = $1 AND entry_id = $2 AND EXISTS (SELECT 1 FROM catalog_entries WHERE id = $2 AND workspace_id = $3))`, priceID, entryID, workspaceID).Scan(&exists); err != nil {
+				return nil, err
+			}
+			if exists {
+				return nil, ErrLastPrice
+			}
+		}
 		return tx.ExecContext(ctx, `DELETE FROM catalog_prices WHERE id = $1 AND entry_id = $2 AND EXISTS (SELECT 1 FROM catalog_entries WHERE id = $2 AND workspace_id = $3)`, priceID, entryID, workspaceID)
 	})
 }

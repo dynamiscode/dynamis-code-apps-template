@@ -17,7 +17,7 @@ import (
 func TestCatalogArchiveAndDelete(t *testing.T) {
 	handler, _, workspaceID, token := testHandler(t)
 	path := "/api/v1/workspaces/" + workspaceID + "/catalog"
-	created := serveAuthorized(handler, http.MethodPost, path, `{"name":"Consultation"}`, token, nil)
+	created := serveAuthorized(handler, http.MethodPost, path, `{"name":"Consultation","prices":[{"mode":"manual","currency":"USD","variant":"Initial"}]}`, token, nil)
 	var entry struct {
 		ID string `json:"id"`
 	}
@@ -50,7 +50,7 @@ func TestCatalogArchiveAndDelete(t *testing.T) {
 func TestCatalogDeleteInUse(t *testing.T) {
 	routes, db, workspaceID, token := testHandler(t)
 	path := "/api/v1/workspaces/" + workspaceID + "/catalog"
-	created := serveAuthorized(routes, http.MethodPost, path, `{"name":"In use"}`, token, nil)
+	created := serveAuthorized(routes, http.MethodPost, path, `{"name":"In use","prices":[{"mode":"manual","currency":"USD","variant":"Initial"}]}`, token, nil)
 	var entry struct {
 		ID string `json:"id"`
 	}
@@ -74,7 +74,7 @@ func TestCatalogDeleteInUse(t *testing.T) {
 func TestCatalogCreateAndList(t *testing.T) {
 	handler, _, workspaceID, token := testHandler(t)
 	path := "/api/v1/workspaces/" + workspaceID + "/catalog"
-	created := serveAuthorized(handler, http.MethodPost, path, `{"name":"Consultation","durationMinutes":30}`, token, nil)
+	created := serveAuthorized(handler, http.MethodPost, path, `{"name":"Consultation","durationMinutes":30,"prices":[{"mode":"manual","currency":"USD","variant":"Initial"}]}`, token, nil)
 	if created.Code != http.StatusCreated {
 		t.Fatalf("create = %d %s", created.Code, created.Body.String())
 	}
@@ -129,7 +129,7 @@ func TestCatalogRESTRolePermissions(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		response := serveAuthorized(handler, http.MethodPost, path, `{"name":"Role test"}`, token.Secret, nil)
+		response := serveAuthorized(handler, http.MethodPost, path, `{"name":"Role test","prices":[{"mode":"manual","currency":"USD","variant":"Initial"}]}`, token.Secret, nil)
 		want := http.StatusForbidden
 		if role == identity.Owner || role == identity.Admin {
 			want = http.StatusCreated
@@ -179,11 +179,18 @@ func TestCatalogList(t *testing.T) {
 func TestCatalogEditREST(t *testing.T) {
 	handler, _, workspace, token := testHandler(t)
 	path := "/api/v1/workspaces/" + workspace + "/catalog"
-	created := serveAuthorized(handler, http.MethodPost, path, `{"name":"Visit"}`, token, nil)
-	var entry struct {
-		ID string `json:"id"`
+	if invalid := serveAuthorized(handler, http.MethodPost, path, `{"name":"No price"}`, token, nil); invalid.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("missing price: %d", invalid.Code)
 	}
-	if err := json.Unmarshal(created.Body.Bytes(), &entry); err != nil || entry.ID == "" {
+	created := serveAuthorized(handler, http.MethodPost, path, `{"name":"Visit","prices":[{"mode":"fixed","amount":"0.123456789012345678","currency":"BTC","variant":"Initial"}]}`, token, nil)
+	var entry struct {
+		ID     string `json:"id"`
+		Prices []struct {
+			ID     string `json:"id"`
+			Amount string `json:"amount"`
+		} `json:"prices"`
+	}
+	if err := json.Unmarshal(created.Body.Bytes(), &entry); err != nil || entry.ID == "" || len(entry.Prices) != 1 || entry.Prices[0].Amount != "0.123456789012345678" {
 		t.Fatal(created.Body.String())
 	}
 	entryPath := path + "/" + entry.ID
@@ -219,12 +226,16 @@ func TestCatalogEditREST(t *testing.T) {
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("delete price: %d", response.Code)
 	}
+	response = serveAuthorized(handler, http.MethodDelete, entryPath+"/prices/"+entry.Prices[0].ID, "", token, nil)
+	if response.Code != http.StatusConflict {
+		t.Fatalf("delete last price: %d %s", response.Code, response.Body.String())
+	}
 }
 
 func TestCatalogPricesREST(t *testing.T) {
 	handler, _, workspace, token := testHandler(t)
 	path := "/api/v1/workspaces/" + workspace + "/catalog"
-	created := serveAuthorized(handler, http.MethodPost, path, `{"name":"Visit"}`, token, nil)
+	created := serveAuthorized(handler, http.MethodPost, path, `{"name":"Visit","prices":[{"mode":"manual","currency":"USD","variant":"Initial"}]}`, token, nil)
 	var entry struct {
 		ID string `json:"id"`
 	}

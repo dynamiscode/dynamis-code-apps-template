@@ -158,9 +158,11 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		db, cfg.Database.Driver, identityService,
 		secretbox.New(cfg.Encryption.Keys, cfg.Encryption.Primary), instanceMailer,
 	)
-	handler, err := httpapi.NewHandlerWithWebhooksAndFiles(
+	catalogService := catalog.NewService(db, identityService, nil)
+	handler, err := httpapi.NewHandlerWithCatalog(
 		db, identityService, portabilityService, oidcRegistry, cfg.HTTP, slog.Default(),
-		webhookService, fileService, cfg.PublicURL, mailer, clientService,
+		webhookService, fileService, cfg.PublicURL, mailer,
+		catalogService, clientService,
 	)
 	if err != nil {
 		db.Close()
@@ -176,7 +178,6 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("initialize web handler: %w", err)
 	}
-	catalogService := catalog.NewService(db, identityService, nil)
 	webHandler.EnableCatalog(catalogService)
 	webHandler.SetWorkspaceMode(cfg.WorkspaceMode)
 	listPreferences := listprefs.NewService(db, cfg.Database.Driver, identityService)

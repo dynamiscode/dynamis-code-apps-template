@@ -52,7 +52,7 @@ func TestCatalogRESTCompleteRoleMatrix(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			seed := serveAuthorized(routes, http.MethodPost, path, `{"name":"Seed"}`, ownerToken, nil)
+			seed := serveAuthorized(routes, http.MethodPost, path, `{"name":"Seed","prices":[{"mode":"manual","currency":"USD","variant":"Initial"}]}`, ownerToken, nil)
 			var entry struct {
 				ID string `json:"id"`
 			}
@@ -75,7 +75,7 @@ func TestCatalogRESTCompleteRoleMatrix(t *testing.T) {
 				method, target, body string
 				success              int
 			}{
-				{http.MethodPost, path, `{"name":"New"}`, http.StatusCreated},
+				{http.MethodPost, path, `{"name":"New","prices":[{"mode":"manual","currency":"USD","variant":"Initial"}]}`, http.StatusCreated},
 				{http.MethodPut, entryPath, `{"name":"Edited"}`, http.StatusNoContent},
 				{http.MethodPost, entryPath + "/prices", `{"mode":"manual","currency":"USD","variant":"Other"}`, http.StatusCreated},
 				{http.MethodPut, entryPath + "/prices/" + row.ID, `{"mode":"manual","currency":"USD","variant":"Edited"}`, http.StatusNoContent},

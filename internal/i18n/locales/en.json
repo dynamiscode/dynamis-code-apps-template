@@ -13,6 +13,7 @@
   "catalog.add_price": "Add price",
   "catalog.invalid": "Check the required fields, enter a positive duration if provided, and use a non-negative fixed amount.",
   "catalog.in_use": "This entry is in use. Archive it instead of deleting it.",
+  "catalog.last_price": "An entry must have at least one price.",
   "catalog.delete_confirm": "Delete this entry permanently? This cannot be undone.",
   "catalog.archived": "Archived",
   "catalog.show_archived": "Show archived entries",

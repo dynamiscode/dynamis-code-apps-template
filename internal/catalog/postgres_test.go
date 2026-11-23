@@ -38,7 +38,7 @@ func TestPostgresCatalogCreateAndList(t *testing.T) {
 	}
 	service := NewService(db, auth, nil)
 	minutes := 45
-	entry, err := service.Create(ctx, actor, owner.WorkspaceID, "Consultation", &minutes)
+	entry, err := service.Create(ctx, actor, owner.WorkspaceID, "Consultation", &minutes, testPrices())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestPostgresCatalogCreateAndList(t *testing.T) {
 		t.Fatal(err)
 	}
 	entries, err := service.List(ctx, actor, owner.WorkspaceID, false)
-	if err != nil || len(entries) != 1 || entries[0].Name != "Consultation" || entries[0].DurationMinutes == nil || *entries[0].DurationMinutes != minutes || len(entries[0].Prices) != 1 || entries[0].Prices[0].Amount == nil || *entries[0].Prices[0].Amount != amount {
+	if err != nil || len(entries) != 1 || entries[0].Name != "Consultation" || entries[0].DurationMinutes == nil || *entries[0].DurationMinutes != minutes || len(entries[0].Prices) != 2 || entries[0].Prices[1].Amount == nil || *entries[0].Prices[1].Amount != amount {
 		t.Fatalf("entries = %+v, %v", entries, err)
 	}
 	if err := service.DeletePrice(ctx, actor, owner.WorkspaceID, entry.ID, price.ID); err != nil {

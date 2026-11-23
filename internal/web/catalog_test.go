@@ -22,7 +22,7 @@ func TestCatalogArchiveAndDelete(t *testing.T) {
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	path := "/workspaces/" + workspaceID.String() + "/catalog"
-	request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Consultation"}}, cookies, nil)
+	request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Consultation"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Initial"}}, cookies, nil)
 	page := request(routes, http.MethodGet, path, nil, cookies, nil)
 	matches := regexp.MustCompile(`action="([^"]+/archive)"`).FindStringSubmatch(page.Body.String())
 	if len(matches) != 2 {
@@ -61,15 +61,15 @@ func TestCatalogDeleteInUse(t *testing.T) {
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	path := "/workspaces/" + workspaceID.String() + "/catalog"
-	request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"In use"}}, cookies, nil)
+	request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"In use"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Initial"}}, cookies, nil)
 	page := request(routes, http.MethodGet, path, nil, cookies, nil)
-	matches := regexp.MustCompile(`action="([^"]+/delete)"`).FindStringSubmatch(page.Body.String())
+	matches := regexp.MustCompile(`action="([^"]+/catalog/[^"/]+/delete)"`).FindStringSubmatch(page.Body.String())
 	if len(matches) != 2 {
 		t.Fatal("delete form missing")
 	}
 	response := request(routes, http.MethodPost, matches[1], url.Values{"csrf": {session.CSRFSecret}}, cookies, nil)
 	if response.Code != http.StatusConflict || !strings.Contains(response.Body.String(), "Archive it instead") {
-		t.Fatalf("delete in use = %d", response.Code)
+		t.Fatalf("delete in use = %d %s", response.Code, response.Body.String())
 	}
 }
 
@@ -81,7 +81,7 @@ func TestCatalogCreate(t *testing.T) {
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	path := "/workspaces/" + workspaceID.String() + "/catalog"
-	form := url.Values{"csrf": {session.CSRFSecret}, "name": {"Consultation"}, "duration_minutes": {"30"}}
+	form := url.Values{"csrf": {session.CSRFSecret}, "name": {"Consultation"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Initial"}, "duration_minutes": {"30"}}
 	created := request(routes, http.MethodPost, path, form, cookies, nil)
 	if created.Code != http.StatusSeeOther {
 		t.Fatalf("create = %d %s", created.Code, created.Body.String())
@@ -137,7 +137,7 @@ func TestCatalogList(t *testing.T) {
 	}
 	ownerCookies := []*http.Cookie{{Name: "session", Value: ownerSession.Secret}, {Name: "csrf", Value: ownerSession.CSRFSecret}}
 	path := "/workspaces/" + workspaceID.String() + "/catalog"
-	created := request(routes, http.MethodPost, path, url.Values{"csrf": {ownerSession.CSRFSecret}, "name": {"Viewer entry"}}, ownerCookies, nil)
+	created := request(routes, http.MethodPost, path, url.Values{"csrf": {ownerSession.CSRFSecret}, "name": {"Viewer entry"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Initial"}}, ownerCookies, nil)
 	if created.Code != http.StatusSeeOther {
 		t.Fatalf("create = %d", created.Code)
 	}
@@ -203,7 +203,7 @@ func TestCatalogEditWeb(t *testing.T) {
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	path := "/workspaces/" + workspaceID.String() + "/catalog"
-	request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Service"}}, cookies, nil)
+	request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Service"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Initial"}}, cookies, nil)
 	page := request(routes, http.MethodGet, path, nil, cookies, nil)
 	matches := regexp.MustCompile(`action="([^"]+/edit)"`).FindStringSubmatch(page.Body.String())
 	if len(matches) != 2 {
@@ -239,6 +239,15 @@ func TestCatalogEditWeb(t *testing.T) {
 	if response.Code != http.StatusSeeOther {
 		t.Fatalf("delete price: %d", response.Code)
 	}
+	page = request(routes, http.MethodGet, path, nil, cookies, nil)
+	matches = regexp.MustCompile(`action="([^"]+/prices/[^"]+/edit)"`).FindStringSubmatch(page.Body.String())
+	if len(matches) != 2 {
+		t.Fatal("remaining price form missing")
+	}
+	response = request(routes, http.MethodPost, strings.TrimSuffix(matches[1], "/edit")+"/delete", url.Values{"csrf": {session.CSRFSecret}}, cookies, nil)
+	if response.Code != http.StatusConflict || !strings.Contains(response.Body.String(), "must have at least one price") {
+		t.Fatalf("delete last price: %d %s", response.Code, response.Body.String())
+	}
 }
 
 func TestCatalogPricesWeb(t *testing.T) {
@@ -249,7 +258,7 @@ func TestCatalogPricesWeb(t *testing.T) {
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	path := "/workspaces/" + workspaceID.String() + "/catalog"
-	request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Service"}}, cookies, nil)
+	request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Service"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Initial"}}, cookies, nil)
 	page := request(routes, http.MethodGet, path, nil, cookies, nil)
 	matches := regexp.MustCompile(`action="([^"]+/prices)"`).FindStringSubmatch(page.Body.String())
 	if len(matches) != 2 {
