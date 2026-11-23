@@ -53,6 +53,9 @@ templ workspaceHome(data viewmodel.PageData) {
 			<ul class="cards workspace-cards grid list-none gap-4 p-0 grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
 					if data.ClientsEnabled {
 					@molecules.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/clients", data.T("clients.title"), data.T("workspace.clients_description"))
+					if data.CanEditClients {
+						@molecules.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/clients", data.T("engagement.create"), "")
+					}
 				}
 				if data.CatalogEnabled {
 					@molecules.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/catalog", data.T("catalog.title"), "")

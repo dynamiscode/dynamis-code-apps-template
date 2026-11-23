@@ -549,7 +549,7 @@ func (h *Handler) home(writer http.ResponseWriter, request *http.Request) {
 
 func (h *Handler) workspaceHome(writer http.ResponseWriter, request *http.Request) {
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	_, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceRead)
+	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceRead)
 	if !ok {
 		return
 	}
@@ -562,6 +562,7 @@ func (h *Handler) workspaceHome(writer http.ResponseWriter, request *http.Reques
 		// The top bar names the workspace, so the page heading is the workspace rather than a second title.
 		Title: workspaceByID(workspaces, workspaceID).Name, NavPage: "workspace", NavSection: "workspace",
 		CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
+		CanEditClients: principal.Permissions[identity.ResourcesWrite],
 	}
 	h.render(writer, http.StatusOK, "workspace-home", data)
 }

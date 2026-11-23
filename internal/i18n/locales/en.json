@@ -146,6 +146,7 @@
   "scim.revoke": "Revoke credential",
   "items.next_page": "Next page",
   "clients.title": "Clients",
+  "clients.create_engagement_instruction": "Select a client to create an engagement.",
   "clients.live_fallback": "Live updates connect when supported; refresh otherwise.",
   "clients.live_connecting": "Live updates connecting…",
   "clients.live_connected": "Live updates connected.",

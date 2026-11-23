@@ -13,6 +13,47 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
 
+func TestWorkspaceCreateEngagementNavigation(t *testing.T) {
+	env := newClientsTestEnv(t)
+	home := "/workspaces/" + env.workspaceID.String()
+	clientsPath := home + "/clients"
+	for _, tc := range []struct {
+		name    string
+		cookies []*http.Cookie
+		writer  bool
+	}{
+		{"writer", env.cookies, true},
+		{"viewer", env.viewerCookies, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			page := request(env.routes, http.MethodGet, home, nil, tc.cookies, nil)
+			link := `href="` + clientsPath + `"`
+			if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), link) || strings.Contains(page.Body.String(), "Create engagement") != tc.writer {
+				t.Fatalf("home: status=%d writer=%v", page.Code, tc.writer)
+			}
+			page = request(env.routes, http.MethodGet, clientsPath, nil, tc.cookies, nil)
+			if page.Code != http.StatusOK || strings.Contains(page.Body.String(), "Select a client to create an engagement.") != tc.writer {
+				t.Fatalf("clients: status=%d writer=%v", page.Code, tc.writer)
+			}
+		})
+	}
+	principal, err := env.auth.Authorize(context.Background(), env.ownerID, env.workspaceID, identity.WorkspaceUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.auth.UpdateWorkspaceLocale(context.Background(), principal, "es", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	page := request(env.routes, http.MethodGet, home, nil, env.cookies, nil)
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Crear gestión") {
+		t.Fatalf("Spanish home: status=%d", page.Code)
+	}
+	page = request(env.routes, http.MethodGet, clientsPath, nil, env.cookies, nil)
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Selecciona un cliente para crear una gestión.") {
+		t.Fatalf("Spanish clients: status=%d", page.Code)
+	}
+}
+
 func TestEngagementLabelThroughWeb(t *testing.T) {
 	env := newClientsTestEnv(t)
 	path := "/workspaces/" + env.workspaceID.String() + "/engagement-stages"

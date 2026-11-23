@@ -146,6 +146,7 @@
   "scim.revoke": "Revocar credencial",
   "items.next_page": "Página siguiente",
   "clients.title": "Clientes",
+  "clients.create_engagement_instruction": "Selecciona un cliente para crear una gestión.",
   "clients.live_fallback": "Las actualizaciones en vivo se conectan cuando son compatibles; de lo contrario, recarga.",
   "clients.live_connecting": "Conectando actualizaciones en vivo…",
   "clients.live_connected": "Actualizaciones en vivo conectadas.",

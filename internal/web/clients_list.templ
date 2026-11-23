@@ -20,6 +20,9 @@ templ clientList(data viewmodel.PageData) {
 		data-live-waiting={ data.T("ui.updates_waiting") }
 		aria-labelledby="clients-heading">
 		<h2 id="clients-heading" class="sr-only">{ data.T("clients.title") }</h2>
+		if data.CanEditClients {
+			<p class="status-line">{ data.T("clients.create_engagement_instruction") }</p>
+		}
 		if data.ErrorKey != "" {
 			@molecules.ErrorAlert(data.T(data.ErrorKey))
 		}
