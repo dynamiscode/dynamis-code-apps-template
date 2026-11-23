@@ -145,3 +145,56 @@ broader keyboard, error recovery, read-only role, no-JavaScript, and
 comprehensive accessibility audits. The viewer and JavaScript-disabled
 observations are sampled cases, not full coverage. These observations do not
 complete the required rendered-browser audit.
+
+## Remaining current-journey audit
+
+Status: **blocked pending rendered-browser review**. The following scenarios
+cover the existing application, not the unimplemented redesign. Use a fresh
+SQLite instance and synthetic data. Record the tested revision, viewport,
+role, actions, outcomes, and durable screenshots or other evidence for each
+scenario. Do not record credentials, invitation values, or session data.
+Review each journey from the three perspectives in
+[UX decisions](ux-decisions.md#review-perspectives); record whether reviewers
+are independent. Record exact friction and its consequence, not only pass or
+fail. Repeat any journey changed to address a finding.
+
+1. As an owner on desktop and at 390 × 844, start at the workspace home and
+   reach Clients, stages, and the due-actions list. Inspect empty states. Create
+   two similarly named clients, multiple stages, and multiple engagements with
+   distinguishable notes. Return through the available navigation and confirm
+   which client and engagement each action affects. Inspect long names and
+   notes, grouping, headings, and horizontal overflow.
+2. On a client, create an engagement, move it between stages, change and clear
+   its assignee and next action, and update its quote and agreement. Return to
+   the client and stage history after each save. Check saved values, feedback,
+   focus, and whether the next action is clear. Create overdue, today, future,
+   and undated actions and compare the due-actions list with UTC dates and
+   stage state. Inspect archived-stage occupants and attempts to move into an
+   archived stage without assuming behavior that has not been observed.
+3. Reproduce the invalid agreement File ID error on desktop and mobile. Record
+   the message, focused element, field association, and submitted values after
+   rejection. Correct the value and retry. Exercise another invalid field and a
+   successful submission to distinguish a single error from a general pattern.
+4. As a viewer, follow the same read paths and inspect summaries, history,
+   empty states, and long content. Confirm that write controls are absent and
+   record the outcome of a direct write attempt. As a member, inspect the
+   available engagement actions and stage-management access; do not infer role
+   coverage from the owner or viewer samples.
+5. With JavaScript disabled, create and update an engagement, move its stage,
+   submit an invalid value and recover, and inspect stage-management forms as
+   an authorized owner. Check consequences and confirmation before any
+   destructive action. The existing no-JavaScript creation sample does not
+   establish these other paths.
+6. On desktop and mobile, complete representative journeys using only the
+   keyboard. Check visible focus, order, labels, error announcement and focus,
+   and recovery. Run applicable accessibility checks and inspect their results;
+   neither automated checks nor screenshots establish WCAG conformance.
+
+Use these observations to inform redesign choices, not to claim the redesign
+is implemented. After implementation, drive each changed journey again against
+its acceptance criteria, including permission, failure, recovery, and
+no-JavaScript states.
+
+Non-browser baseline at revision `f535a5a`: `go test ./internal/engagement/...
+./internal/web/...` passed. These package tests do not establish rendered
+behavior or close the browser review gate.
