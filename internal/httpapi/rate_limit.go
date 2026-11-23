@@ -94,6 +94,19 @@ func rateLimitMiddleware(next http.Handler, limiter *rateLimiter) http.Handler {
 	})
 }
 
+// LimitPublicIntake shares the existing per-source limit across both intake surfaces.
+func LimitPublicIntake(next http.Handler, requestsPerMinute int) http.Handler {
+	limited := rateLimitMiddleware(next, newRateLimiter(requestsPerMinute, requestsPerMinute))
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method == http.MethodPost && (strings.HasPrefix(request.URL.Path, "/intake/") ||
+			strings.HasPrefix(request.URL.Path, "/api/v1/intake/")) {
+			limited.ServeHTTP(writer, request)
+			return
+		}
+		next.ServeHTTP(writer, request)
+	})
+}
+
 func sourceHost(remoteAddress string) string {
 	host, _, err := net.SplitHostPort(remoteAddress)
 	if err == nil {
