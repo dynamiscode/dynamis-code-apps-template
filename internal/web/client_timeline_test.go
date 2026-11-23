@@ -21,6 +21,9 @@ func TestClientTimelineForms(t *testing.T) {
 		t.Fatalf("add = %d: %s", first.Code, first.Body.String())
 	}
 	page := request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
+	if !strings.Contains(page, `data-timeline-composer`) || !strings.Contains(page, `data-timeline-dialog`) || !strings.Contains(page, `timeline-vertical`) || strings.Index(page, `id="timeline-text"`) > strings.Index(page, `id="timeline-type"`) {
+		t.Fatal("timeline or writing-first form missing")
+	}
 	if strings.Contains(page, `maxlength="2000"`) {
 		t.Fatal("UTF-16 maxlength rejects valid supplementary characters")
 	}
@@ -56,8 +59,12 @@ func TestClientTimelineForms(t *testing.T) {
 		t.Fatal("Spanish validation missing")
 	}
 	invalidCorrection := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "type": {"note"}, "text": {"Draft correction"}, "corrects": {clients.TimelineEntryID(999999).String()}}, env.cookies, nil)
-	if invalidCorrection.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidCorrection.Body.String(), "Draft correction") {
-		t.Fatal("invalid correction not rejected with draft")
+	if invalidCorrection.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidCorrection.Body.String(), "Draft correction") || !strings.Contains(invalidCorrection.Body.String(), "data-timeline-invalid") || !strings.Contains(invalidCorrection.Body.String(), `<details class="collapse collapse-arrow bg-base-200 mt-3" open`) || !strings.Contains(invalidCorrection.Body.String(), `value="`+clients.TimelineEntryID(999999).String()+`" selected`) {
+		t.Fatal("invalid correction not rejected with visible draft")
+	}
+	invalidPage := invalidCorrection.Body.String()
+	if summary, timeline := strings.Index(invalidPage, `data-timeline-error-summary`), strings.Index(invalidPage, `class="client-timeline`); summary < 0 || timeline < 0 || summary > timeline || !strings.Contains(invalidPage, `href="#timeline-text"`) {
+		t.Fatal("timeline error summary must precede entries and link to draft")
 	}
 	viewer := request(env.routes, http.MethodGet, detail, nil, env.viewerCookies, nil)
 	if !strings.Contains(viewer.Body.String(), "First contact") || strings.Contains(viewer.Body.String(), `action="`+path+`?`) {
