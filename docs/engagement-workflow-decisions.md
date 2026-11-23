@@ -11,17 +11,19 @@ current behavior. Existing behavior remains documented in [capabilities](capabil
   required, including in the existing REST API. A later client rename does not
   change the snapshot.
 - Date boundaries use UTC.
-- An engagement has one active action. Completion produces immutable history
-  visible to readers; existing writers manage active actions. Completed history
-  retains the action text, due date, owner, completion actor, and completion
-  time until engagement deletion. Member removal or account deletion clears
-  the affected owner or completion-actor identity reference, preserving the
-  remaining history.
+- An engagement has at most one active action. Completion, replacement, and
+  clearing retain immutable action history visible to readers. Existing writers
+  manage active actions and may reopen completed actions. History retains action
+  text, due date, owner, outcome, actor, and time until engagement deletion.
+  Member removal or account deletion clears the affected identity reference,
+  preserving the remaining history.
 - Archived stages remain visible, including their occupants; moves out are
   allowed but moves into archived stages are not. Dashboard counts include work
   in open stages, including archived-stage occupants.
 - Deletions cascade. Workspace export includes stages, engagements, active
-  actions, and completed action history.
+  actions, action history, stage-change history, and available actor identities.
+- Upcoming, undated, and completed queue filters include engagements in won and
+  lost stages. The default urgent queue includes only open-stage engagements.
 - The migration is forward-only. Recovery uses a pre-upgrade backup, consistent
   with the existing [upgrade procedure](operations.md#backup-and-restore).
 - Stage setup guidance is role-specific. The file picker decision is recorded
@@ -44,23 +46,31 @@ are not additional business-policy approvals or claims of implemented behavior.
   nullable owner; do not fabricate completion events. Membership removal can
   already clear an owner (`internal/engagement/next_action.go` and
   `internal/identity/service.go`). Complete an action and remove it from the
-  active queue atomically, preserving the approved history. Reject stale or
-  repeated completion rather than duplicating history; test concurrent attempts.
+  active queue atomically. Replacement or clearing records the displaced action
+  and its outcome, actor, and time in the same transaction. Reopening copies a
+  completed action into the active slot without changing its history, and records
+  the reopening actor and time as a separate event. If that slot is occupied,
+  reject reopening without changing either action; the writer can clear or
+  replace the active action first. A later completion creates a separate history
+  entry. Reject stale or repeated transitions rather than duplicating history;
+  test concurrent attempts and reopen cycles.
 - **Dates and filters:** calculate today once per request in UTC. Overdue is a
   nonempty due date before today; due today equals today; upcoming is after
   today; undated has no due date. Default queue combines overdue and today.
   Completed is a separate history view, not mixed into active date buckets;
   apply owner filtering to the recorded owner, including a clear unassigned
-  state after identity removal. Preserve current open-stage restriction for
-  active due work (`internal/engagement/next_action.go`); do not silently
-  exclude archived occupants of open stages.
+  state after identity removal. The default urgent queue and its overdue and
+  today buckets include only open-stage engagements, including occupants of
+  archived open stages. Upcoming, undated, and completed filters include open,
+  won, and lost engagements, including archived-stage occupants.
 - **Export:** extend the existing bounded `dynamis-code.workspace/v1` JSON
   export with additive, profile-gated engagement collections, following the
   Clients export seam (`internal/portability/service.go`). Include stage and
-  engagement identifiers and references, active actions and completed history;
-  use public short IDs where defined, preserve nullable identities, and omit
-  secrets. Count new records against existing export limits and fail rather
-  than return a partial export. Specify exact fields and test both profile
+  engagement identifiers and references, active actions, action history, and
+  stage-change history with available actor identities; use public short IDs
+  where defined, preserve nullable identities, and omit secrets. Count new
+  records against existing export limits and fail rather than return a partial
+  export. Specify exact fields and test both profile
   variants when implementing. Existing exports do not yet include these rows.
 - **Interaction and scale:** use existing ordinary GET filters and bounded list
   pagination, with deterministic ordering and links retaining filters; do not
@@ -70,23 +80,15 @@ are not additional business-policy approvals or claims of implemented behavior.
   drag-and-drop until separately justified and reviewed. Detailed visual design
   remains subject to the browser UX review.
 
-## Business-policy approval and implementation gates
+## Implementation gates
 
-- **REST compatibility:** requiring a name on the existing create API is
-  approved and breaks clients that omit it. Whether to release that break in
-  place or provide a versioned transition requires an explicit product decision;
-  do not silently make the name optional or claim old clients remain compatible.
-- **Action replacement and completion:** existing writers can replace or clear
-  an active action without history. Completion history is approved, but whether
-  replacement or clearing must also retain history, and whether completed actions
-  can be reopened, require explicit approval before changing those semantics.
-- **Queue scope:** open-stage due work is existing behavior. Whether upcoming,
-  undated, and completed filters include won/lost engagements needs a product
-  decision; the approved requirements do not specify that boundary.
-- **Export scope:** stages, engagements, active actions, and completed actions
-  are approved. Inclusion of existing stage-move history, which can contain actor
-  identities, requires an explicit decision; do not infer it from deletion or
-  from the approved action-history export.
+Requiring a name on the existing REST create API is approved and breaks clients
+that omit it. Do not make the name optional or claim those clients remain
+compatible. No additional REST policy choice is required.
+
+Reopening a completed action conflicts with the one-active-action limit when
+another action occupies the slot. The rejection rule above preserves both the
+limit and history; it does not discard or replace the active action.
 
 ADR 0015 permits the independently authorized picker with manual short-ID
 fallback; it does not establish that a picker exists. The parent issue's older
