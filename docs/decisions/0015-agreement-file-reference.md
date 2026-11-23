@@ -1,7 +1,7 @@
 # 0015: Engagement agreement file reference
 
-- Status: proposed
-- Date: 2026-11-22
+- Status: accepted
+- Date: 2026-11-23
 - Owners: template maintainers
 
 ## Context
@@ -17,6 +17,9 @@ engagement spec is #563.
 Files use a short ID ([0009](0009-short-id-codec.md)) as their public
 identifier. The short ID is derived from the file's internal key, so the
 internal key is the identity and the short ID is its public form.
+[0011](0011-identity-integer-keys.md) requires foreign references to use
+integer keys. The owner chose that form for this reference over the text short
+ID described in issues #605 and #608.
 
 ## Decision
 
@@ -25,7 +28,8 @@ internal key is the identity and the short ID is its public form.
   the file's internal primary key and references the files table.
 - The short ID is the public form of that key. Pages and APIs show the short
   ID. Storage and joins use the internal key. A lookup by short ID decodes it
-  to the internal key first.
+  to the internal key first. When setting the reference, the Files service
+  verifies that the file belongs to the engagement's workspace.
 - The reference is not an attachment. There is no link table and at most one
   reference per engagement. The Files slice does not learn about engagements;
   the foreign key points from engagements into files.

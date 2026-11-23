@@ -226,6 +226,9 @@ func (s *Service) deleteInTx(
 	if err := s.publishEvent(ctx, tx, workspaceID, "client.deleted", client, now); err != nil {
 		return err
 	}
+	if _, err := s.exec(ctx, tx, `DELETE FROM engagements WHERE workspace_id = ? AND client_id = ?`, workspaceID, clientID); err != nil {
+		return err
+	}
 	if _, err := s.exec(ctx, tx, `
 		DELETE FROM clients WHERE workspace_id = ? AND id = ?
 	`, workspaceID, clientID); err != nil {

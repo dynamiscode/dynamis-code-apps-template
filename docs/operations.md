@@ -56,6 +56,8 @@ audit history, and stale realtime replay in one transaction, then appends a safe
 summary audit event. Invitation paths are redacted in request logs; query values,
 bodies, and cookies are not logged.
 `AUDIT_RETENTION` defaults to 365 days.
+Engagement stage history is retained separately for the engagement lifetime and
+is unaffected by audit pruning; database backups include it.
 
 ## Webhook delivery
 
@@ -161,6 +163,8 @@ pre-merge SCIM-at-000010 and files-at-000012 histories while adding missing
 schemas; migration 000014 applies the Files schema for both histories; migration
 000015 applies the MFA schema after the SCIM and Files migrations and records
 compatibility for databases that already applied MFA at version 12.
+Migration 000039 adds the agreement flag and, with the Files profile, an
+optional restricted file reference. It is additive; older binaries ignore it.
 Binary rollback is safe only when the old binary accepts the new schema.
 Otherwise restore the pre-upgrade backup. Future breaking schema work must use
 expand-contract or publish its explicit outage and recovery procedure.

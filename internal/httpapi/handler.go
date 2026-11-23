@@ -17,6 +17,7 @@ import (
 	"example.com/dynamis-code/apps-template/api"
 	"example.com/dynamis-code/apps-template/internal/catalog"
 	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/engagement"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
@@ -39,6 +40,7 @@ type handler struct {
 	files          *appfiles.Service
 	clients        *clients.Service
 	catalogService *catalog.Service
+	engagement     *engagement.Service
 }
 
 func NewHandler(
@@ -68,7 +70,7 @@ func NewHandlerWithWebhooksAndFiles(
 	mailer appmail.Sender,
 	clientServices ...*clients.Service,
 ) (http.Handler, error) {
-	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, catalog.NewService(db, identityService, nil), clientServices...)
+	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, catalog.NewService(db, identityService, nil), nil, clientServices...)
 }
 
 func NewHandlerWithMail(
@@ -87,6 +89,23 @@ func NewHandlerWithMail(
 	)
 }
 
+func NewHandlerWithEngagement(
+	db *sql.DB,
+	identityService *identity.Service,
+	portabilityService *portability.Service,
+	oidcRegistry *identity.OIDCRegistry,
+	cfg config.HTTP,
+	logger *slog.Logger,
+	webhookService *webhooks.Service,
+	fileService *appfiles.Service,
+	publicURL string,
+	mailer appmail.Sender,
+	engagementService *engagement.Service,
+	clientServices ...*clients.Service,
+) (http.Handler, error) {
+	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, catalog.NewService(db, identityService, nil), engagementService, clientServices...)
+}
+
 func NewHandlerWithWebhooks(
 	db *sql.DB,
 	identityService *identity.Service,
@@ -99,7 +118,7 @@ func NewHandlerWithWebhooks(
 	mailer appmail.Sender,
 	clientServices ...*clients.Service,
 ) (http.Handler, error) {
-	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, nil, publicURL, mailer, catalog.NewService(db, identityService, nil), clientServices...)
+	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, nil, publicURL, mailer, catalog.NewService(db, identityService, nil), nil, clientServices...)
 }
 
 func NewHandlerWithCatalog(
@@ -116,7 +135,25 @@ func NewHandlerWithCatalog(
 	catalogService *catalog.Service,
 	clientServices ...*clients.Service,
 ) (http.Handler, error) {
-	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, catalogService, clientServices...)
+	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, catalogService, nil, clientServices...)
+}
+
+func NewHandlerWithCatalogAndEngagement(
+	db *sql.DB,
+	identityService *identity.Service,
+	portabilityService *portability.Service,
+	oidcRegistry *identity.OIDCRegistry,
+	cfg config.HTTP,
+	logger *slog.Logger,
+	webhookService *webhooks.Service,
+	fileService *appfiles.Service,
+	publicURL string,
+	mailer appmail.Sender,
+	catalogService *catalog.Service,
+	engagementService *engagement.Service,
+	clientServices ...*clients.Service,
+) (http.Handler, error) {
+	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, catalogService, engagementService, clientServices...)
 }
 
 func newHandler(
@@ -131,6 +168,7 @@ func newHandler(
 	publicURL string,
 	mailer appmail.Sender,
 	catalogService *catalog.Service,
+	engagementService *engagement.Service,
 	clientServices ...*clients.Service,
 ) (http.Handler, error) {
 	if logger == nil {
@@ -142,6 +180,7 @@ func newHandler(
 		publicURL: publicURL, mailer: mailer, webhooks: webhookService, files: fileService,
 		clients:        firstClient(clientServices),
 		catalogService: catalogService,
+		engagement:     engagementService,
 	}
 	handlers := map[string]http.HandlerFunc{
 		"getLiveness": h.liveness, "getReadiness": h.readiness,
@@ -171,6 +210,14 @@ func newHandler(
 		"updateCatalog": h.updateCatalog, "updateCatalogPrice": h.editCatalogPrice, "deleteCatalogPrice": h.editCatalogPrice,
 		"archiveCatalog": h.archiveCatalog, "unarchiveCatalog": h.unarchiveCatalog, "deleteCatalog": h.deleteCatalog,
 		"listClients": h.listClients, "createClient": h.createClient,
+		"listEngagementStages": h.listEngagementStages, "createEngagementStage": h.createEngagementStage,
+		"createEngagement": h.createEngagement, "getEngagement": h.getEngagement, "moveEngagement": h.moveEngagement,
+		"getEngagementLabel": h.getEngagementLabel, "setEngagementLabel": h.setEngagementLabel,
+		"setEngagementNextAction": h.setEngagementNextAction, "listDueEngagements": h.listDueEngagements,
+		"setEngagementQuote":      h.setEngagementQuote,
+		"setEngagementAgreement":  h.setEngagementAgreement,
+		"setEngagementAssignee":   h.setEngagementAssignee,
+		"reorderEngagementStages": h.reorderEngagementStages, "archiveEngagementStage": h.archiveEngagementStage,
 		"getClient": h.getClient, "updateClient": h.updateClient,
 		"listClientTimeline": h.listClientTimeline, "addClientTimelineEntry": h.addClientTimelineEntry,
 		"archiveClient": h.archiveClient, "unarchiveClient": h.unarchiveClient,

@@ -32,6 +32,11 @@ func timelineContains(entries []clients.TimelineEntry, id clients.TimelineEntryI
 	return false
 }
 
+func timelineHasDraftCorrection(entries []clients.TimelineEntry, value string) bool {
+	id, err := clients.ParseTimelineEntryID(value)
+	return err == nil && timelineContains(entries, id)
+}
+
 func (h *Handler) addClientTimelineEntry(w http.ResponseWriter, r *http.Request) {
 	if h.clients == nil {
 		h.renderError(w, http.StatusNotFound)

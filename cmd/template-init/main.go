@@ -304,8 +304,8 @@ func catalogPath(relative string) bool {
 		relative == "internal/httpapi/catalog.go" || relative == "internal/httpapi/catalog_test.go" || relative == "internal/httpapi/catalog_authorization_test.go" || relative == "internal/httpapi/catalog_isolation_test.go" ||
 		relative == "internal/web/catalog.go" || relative == "internal/web/catalog_test.go" || relative == "internal/web/catalog_authorization_test.go" || relative == "internal/web/catalog_isolation_test.go" ||
 		relative == "internal/web/catalog.templ" || relative == "internal/web/catalog_templ.go" ||
-		relative == "internal/platform/database/migrations/000032_catalog.sql" ||
-		relative == "internal/platform/database/migrations/000033_catalog_prices.sql"
+		relative == "internal/platform/database/migrations/000040_catalog.sql" ||
+		relative == "internal/platform/database/migrations/000041_catalog_prices.sql"
 }
 
 func disableCatalogSource(relative string, raw []byte) []byte {
@@ -313,17 +313,13 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 	switch relative {
 	case "internal/bootstrap/app.go", "internal/httpapi/handler.go", "internal/web/handler.go", "internal/web/handler_test.go":
 		if relative == "internal/httpapi/handler.go" {
-			value = removeText(value, "func NewHandlerWithCatalog(", "func newHandler(")
+			value = removeText(value, "func NewHandlerWithCatalog(", "func NewHandlerWithCatalogAndEngagement(")
+			value = removeText(value, "func NewHandlerWithCatalogAndEngagement(", "func newHandler(")
 			value = strings.ReplaceAll(value, ", catalog.NewService(db, identityService, nil)", "")
 		}
 		if relative == "internal/bootstrap/app.go" {
-			constructor := "httpapi.NewHandlerWithWebhooksAndFiles"
-			if !strings.Contains(value, "webhookService, fileService, cfg.PublicURL") {
-				constructor = "httpapi.NewHandlerWithWebhooks"
-			}
-			value = strings.ReplaceAll(value, "httpapi.NewHandlerWithCatalog", constructor)
-			value = strings.ReplaceAll(value, "\t\tcatalogService, ", "\t\t")
-			value = strings.ReplaceAll(value, "\t\tcatalogService,\n", "")
+			value = strings.ReplaceAll(value, "httpapi.NewHandlerWithCatalogAndEngagement", "httpapi.NewHandlerWithEngagement")
+			value = strings.ReplaceAll(value, "catalogService, engagementService", "engagementService")
 		}
 		value = removeLinesContaining(value, `/internal/catalog"`)
 		value = removeLinesContaining(value, "catalogService")
@@ -375,6 +371,7 @@ func filesPath(relative string) bool {
 		relative == "internal/web/files_no_javascript_test.go" || relative == "internal/browsertest/files_test.go" ||
 		relative == "internal/platform/database/migrations/000014_files.sql" ||
 		relative == "internal/platform/database/migrations/000020_file_short_ids.sql" ||
+		relative == "internal/engagement/agreement_test.go" ||
 		relative == "internal/platform/database/migrate_files_test.go" ||
 		relative == "internal/platform/database/migrate_file_ids_test.go"
 }
@@ -385,6 +382,15 @@ func filesPath(relative string) bool {
 func clientsPath(relative string) bool {
 	relative = filepath.ToSlash(relative)
 	return relative == "internal/clients" || strings.HasPrefix(relative, "internal/clients/") ||
+		relative == "internal/identity/engagement_membership_test.go" ||
+		relative == "internal/engagement/engagement.go" ||
+		relative == "internal/engagement/agreement.go" ||
+		relative == "internal/engagement/agreement_test.go" ||
+		relative == "internal/engagement/assignee.go" || relative == "internal/engagement/next_action.go" || relative == "internal/engagement/quote.go" ||
+		relative == "internal/platform/database/migrations/000033_engagements.sql" ||
+		relative == "internal/platform/database/migrations/000039_engagement_agreement.sql" ||
+		relative == "internal/platform/database/migrations/000034_engagement_next_action.sql" || relative == "internal/platform/database/migrations/000035_engagement_quote.sql" || relative == "internal/platform/database/migrations/000036_engagement_assignee.sql" ||
+		relative == "internal/platform/database/migrations/000038_engagement_stage_history.sql" ||
 		relative == "cmd/demo/clients.go" || relative == "cmd/demo/clients_test.go" ||
 		relative == "cmd/appctl" || strings.HasPrefix(relative, "cmd/appctl/") ||
 		relative == "internal/appctl" || strings.HasPrefix(relative, "internal/appctl/") ||
@@ -393,6 +399,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/httpapi/clients.go" || relative == "internal/httpapi/clients_test.go" ||
 		relative == "internal/httpapi/client_timeline.go" || relative == "internal/httpapi/client_timeline_test.go" ||
 		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" ||
+		relative == "internal/web/engagement_test.go" ||
 		relative == "internal/web/client_timeline.go" || relative == "internal/web/client_timeline_test.go" ||
 		relative == "internal/web/clients_filters.go" ||
 		relative == "internal/web/viewmodel/clients_filters.go" || relative == "internal/web/viewmodel/clients.go" ||
@@ -435,6 +442,9 @@ func clientsPath(relative string) bool {
 func disableClientsSource(relative string, raw []byte) []byte {
 	value := string(raw)
 	switch relative {
+	case "internal/identity/service.go":
+		value = removeText(value, "func (s *Service) clearMemberEngagements(", "func normalizeEmail(")
+		value = strings.Replace(value, "func normalizeEmail(", "func (s *Service) clearMemberEngagements(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, userID UserID) error { return nil }\n\nfunc normalizeEmail(", 1)
 	case "cmd/demo/main.go":
 		value = strings.Replace(value, "workspaceID, userID, err := demoOwner(", "workspaceID, _, err := demoOwner(", 1)
 		value = removeBlockIncludingEnd(value, "\tif err := seedClients(", "\t}\n")
@@ -447,6 +457,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLineStarting(value, "\twebHandler.EnableClients(")
 	case "internal/httpapi/handler.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
+		value = strings.ReplaceAll(value, ", clientServices ...*clients.Service", "")
 		value = removeLinesContaining(value, "*clients.Service")
 		value = removeLinesContaining(value, "firstClient(clientServices)")
 		value = strings.ReplaceAll(value, ", clientServices...)", ")")
@@ -462,6 +473,32 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `"deleteClientField":`)
 		value = removeLinesContaining(value, `"archiveClient":`)
 		value = removeLinesContaining(value, `"deleteClient":`)
+		value = removeLinesContaining(value, `"createEngagement":`)
+		value = removeLinesContaining(value, `"setEngagementNextAction":`)
+		value = removeLinesContaining(value, `"setEngagementQuote":`)
+		value = removeLinesContaining(value, `"setEngagementAssignee":`)
+		value = removeLinesContaining(value, `"setEngagementAgreement":`)
+	case "internal/httpapi/engagement.go":
+		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `"time"`)
+		value = removeText(value, "func (h *handler) setEngagementAgreement(", "func (h *handler) setEngagementAssignee(")
+		value = removeText(value, "func (h *handler) setEngagementAssignee(", "func (h *handler) getEngagementLabel(")
+		value = removeText(value, "func (h *handler) setEngagementQuote(", "func (h *handler) createEngagement(")
+		value = removeText(value, "func (h *handler) createEngagement(", "func (h *handler) listEngagementStages(")
+		value = removeText(value, "\tcase errors.Is(err, engagement.ErrNoOpenStage):", "\tdefault:")
+	case "internal/httpapi/engagement_test.go":
+		value = removeLinesContaining(value, `"context"`)
+		value = removeLinesContaining(value, `/internal/identity"`)
+		value = removeLinesContaining(value, `/internal/platform/config"`)
+		if i := strings.Index(value, "\nfunc TestEngagementThroughREST("); i >= 0 {
+			value = value[:i] + "\n"
+		}
+	case "internal/engagement/service_test.go":
+		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `/internal/platform/maintenance"`)
+		if i := strings.Index(value, "\nfunc TestCreateEngagementRequiresOpenStageAndClient("); i >= 0 {
+			value = value[:i] + "\n"
+		}
 	case "internal/bootstrap/agent.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, "*clients.Service")
@@ -481,6 +518,9 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.Replace(value, "handler, db, workspaceID, token := testHandler(t)", "handler, db, _, _ := testHandler(t)", 1)
 		value = strings.Replace(value, "\n\t\tclients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace, webhookService))", ")", 1)
 	case "internal/web/viewmodel/handler.go":
+		value = removeLinesContaining(value, `/internal/engagement"`)
+		value = removeLinesContaining(value, "engagement.Engagement")
+		value = removeLinesContaining(value, "engagement.Stage")
 		value = removeBlockIncludingEnd(value, "type TimelineDraft struct {", "}\n")
 		value = removeLinesContaining(value, "TimelineDraft        TimelineDraft")
 		value = removeLinesContaining(value, "clients.TimelineEntry")
@@ -512,6 +552,19 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "clientFilterOperator")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/client-fields")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/clients")
+		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/due")
+	case "internal/web/engagement.go":
+		value = strings.ReplaceAll(value, "ClientsEnabled: h.clients != nil, ", "")
+		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `"time"`)
+		value = removeText(value, "func (h *Handler) setEngagementAgreement(", "func (h *Handler) setEngagementAssignee(")
+		value = removeText(value, "func (h *Handler) setEngagementAssignee(", "func (h *Handler) EnableEngagement(")
+		value = removeText(value, "func (h *Handler) moveEngagement(", "func (h *Handler) setEngagementLabel(")
+		value = removeText(value, "func (h *Handler) createEngagement(", "func (h *Handler) engagementStages(")
+	case "internal/web/engagement.templ":
+		value = removeText(value, "templ dueEngagementsPage(", "templ engagementStagesPage(")
+	case "internal/web/engagement_templ.go":
+		value = removeText(value, "func dueEngagementsPage(", "func engagementStagesPage(")
 	case "internal/platform/maintenance/maintenance.go":
 		// Retention prunes client_events, which Clients-off apps do not have.
 		value = removeLinesContaining(value, "client_events")
@@ -528,6 +581,9 @@ func disableClientsSource(relative string, raw []byte) []byte {
 	case "docs/mcp.md":
 		value = removeText(value, "\n## Clients tools (Clients profile)", "\n## Prompts\n")
 	case "docs/capabilities.md":
+		value = strings.ReplaceAll(value, "[web](../internal/web/engagement_test.go)", "web")
+		value = removeText(value, " Writers can create engagements", "\nOwners and admins can set or reset")
+		value = removeText(value, "\nNext actions have text", "\n\n## Client timeline REST")
 		value = removeLineStarting(value, "| Clients |")
 		value = removeLineStarting(value, "| Clients shared list view |")
 		value = removeLineStarting(value, "| Client timeline service |")
@@ -535,8 +591,14 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.ReplaceAll(value, "; [CLI tests](../internal/appctl/run_test.go)", "")
 		value = strings.ReplaceAll(value, "[live surface smoke](../internal/bootstrap/agent_smoke_test.go)", "[composition test](../internal/bootstrap/app_test.go)")
 	case "docs/api.md":
+		value = removeLineStarting(value, "- Engagements:")
+		value = removeLineStarting(value, "- Next actions:")
+		value = removeLineStarting(value, "- Quotes:")
+		value = removeLineStarting(value, "- Assignee:")
+		value = removeLineStarting(value, "- Agreement:")
 		value = removeText(value, "\n- Clients (Clients profile):", "\n\n## Webhooks")
 	case "docs/web.md":
+		value = removeText(value, "\nOn a client detail page,", "\n`/account`")
 		value = removeLineStarting(value, "| Workspace clients and custom fields;")
 		value = removeText(value, "\n\n`/workspaces/{workspaceId}/clients` lists", "\n\n## Realtime contract")
 		value = removeText(value, "\n\n`GET /workspaces/{workspaceId}/clients/events` is", "\n\n`GET /notifications/events`")
@@ -568,7 +630,7 @@ func stripClientsOpenAPI(raw []byte) string {
 		return string(raw)
 	}
 	for path := range paths {
-		if strings.Contains(path, "/clients") || strings.Contains(path, "/client-fields") {
+		if strings.Contains(path, "/clients") || strings.Contains(path, "/client-fields") || strings.Contains(path, "/engagements") {
 			delete(paths, path)
 		}
 	}
@@ -582,6 +644,17 @@ func stripClientsOpenAPI(raw []byte) string {
 func disableFilesSource(relative string, raw []byte) []byte {
 	value := string(raw)
 	switch relative {
+	case "internal/platform/database/migrations/000039_engagement_agreement.sql":
+		value = removeLineStarting(value, "ALTER TABLE engagements ADD COLUMN agreement_file_id")
+	case "internal/engagement/engagement.go", "internal/engagement/next_action.go":
+		value = strings.ReplaceAll(value, "COALESCE(e.agreement_file_id, 0)", "0")
+	case "internal/engagement/agreement.go":
+		value = removeLinesContaining(value, "/internal/files\"")
+		value = strings.Replace(value, "\t\"errors\"\n", "", 1)
+		value = removeText(value, "\tvar fileID any\n", "\tresult, err := tx.ExecContext")
+		value = strings.Replace(value, "agreement_recorded = ?, agreement_file_id = ?", "agreement_recorded = ?", 1)
+		value = strings.Replace(value, "agreement.Recorded, fileID, workspaceID", "agreement.Recorded, workspaceID", 1)
+		value = strings.Replace(value, "\tresult, err := tx.ExecContext", "\tif agreement.FileID != \"\" { return ErrInvalidInput }\n\tresult, err := tx.ExecContext", 1)
 	case "internal/bootstrap/app.go":
 		value = removeImport(value, "appfiles")
 		value = removeLineStarting(value, "\twebHandler.EnableFilesPreferences(")
@@ -609,7 +682,7 @@ func disableFilesSource(relative string, raw []byte) []byte {
 	case "internal/httpapi/handler_test.go":
 		value = removeImport(value, "appfiles")
 		value = strings.Replace(value, "\tcfg.Storage.LocalPath = t.TempDir()\n", "", 1)
-		value = removeText(value, "\tobjectStore, err := appfiles.NewStore(ctx, cfg.Storage)", "\thandler, err := NewHandlerWithWebhooksAndFiles(")
+		value = removeText(value, "\tobjectStore, err := appfiles.NewStore(ctx, cfg.Storage)", "\thandler, err := NewHandlerWithEngagement(")
 		value = strings.ReplaceAll(value, "NewHandlerWithWebhooksAndFiles", "NewHandlerWithWebhooks")
 		value = strings.ReplaceAll(value, "webhookService, fileService, \"\", nil", "webhookService, \"\", nil")
 	case "internal/web/viewmodel/handler.go":
@@ -631,6 +704,8 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = removeText(value, "func TestAccountDeletionRetainsOwnedFiles(", "func TestEmailVerificationAndPasswordResetAreSingleUse(")
 		value = removeLinesContaining(value, `"database/sql"`)
 	case "docs/capabilities.md":
+		value = strings.ReplaceAll(value, "[service test](../internal/engagement/agreement_test.go)", "[REST test](../internal/httpapi/engagement_test.go)")
+		value = strings.ReplaceAll(value, "stores the internal file key, and the", "stores the agreement flag, and the")
 		value = removeLineStarting(value, "| Files |")
 		value = removeLineStarting(value, "| Files shared list view |")
 		value = removeLineStarting(value, "| Object storage |")

@@ -12,6 +12,7 @@ import (
 
 	"example.com/dynamis-code/apps-template/internal/catalog"
 	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/engagement"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/httpapi"
 	"example.com/dynamis-code/apps-template/internal/identity"
@@ -142,6 +143,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, fmt.Errorf("register exhausted webhook job handler: %w", err)
 	}
 	clientService := clients.NewService(db, cfg.Database.Driver, identityService, cfg.Data.ClientFieldsMaxPerWorkspace, webhookService)
+	engagementService := engagement.NewService(db, cfg.Database.Driver, identityService)
 	portabilityService := portability.NewService(
 		db, cfg.Database.Driver, identityService,
 		cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,
@@ -159,10 +161,9 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		secretbox.New(cfg.Encryption.Keys, cfg.Encryption.Primary), instanceMailer,
 	)
 	catalogService := catalog.NewService(db, identityService, nil)
-	handler, err := httpapi.NewHandlerWithCatalog(
+	handler, err := httpapi.NewHandlerWithCatalogAndEngagement(
 		db, identityService, portabilityService, oidcRegistry, cfg.HTTP, slog.Default(),
-		webhookService, fileService, cfg.PublicURL, mailer,
-		catalogService, clientService,
+		webhookService, fileService, cfg.PublicURL, mailer, catalogService, engagementService, clientService,
 	)
 	if err != nil {
 		db.Close()
@@ -183,6 +184,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	listPreferences := listprefs.NewService(db, cfg.Database.Driver, identityService)
 	webHandler.EnableListPreferences(listPreferences)
 	webHandler.EnableClients(clientService, listPreferences)
+	webHandler.EnableEngagement(engagementService)
 	webHandler.EnableFilesPreferences(listPreferences)
 	webHandler.EnableListViews(listviews.NewService(db, cfg.Database.Driver, identityService))
 	jobQueue.Start(ctx)

@@ -23,6 +23,12 @@ func (p PageData) AuditOutcome(value string) string {
 }
 
 func (p PageData) T(key string, values ...any) string {
+	if p.EngagementLabel != "" {
+		switch key {
+		case "engagement.title", "engagement.stages", "engagement.create", "engagement.invalid_create":
+			return p.Catalog.Translate(i18n.Locale(p.Locale), key+"_custom", map[string]any{"label": p.EngagementLabel})
+		}
+	}
 	args := map[string]any{}
 	if len(values) == 1 {
 		if supplied, ok := values[0].(map[string]any); ok {

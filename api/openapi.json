@@ -267,6 +267,61 @@
     "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/unarchive": {
       "post": {"operationId": "unarchiveCatalog", "description": "Requires owner or admin role and resources:write in the workspace.", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "entryId", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"204": {"description": "Unarchived"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}}}
     },
+    "/api/v1/workspaces/{workspaceId}/engagement-label": {
+      "get":{"operationId":"getEngagementLabel","security":[{"bearerAuth":[]}],"parameters":[{"$ref":"#/components/parameters/WorkspaceId"}],"responses":{"200":{"description":"Workspace engagement label; empty means default","content":{"application/json":{"schema":{"type":"object","required":["label"],"properties":{"label":{"type":"string"}}}}}},"403":{"$ref":"#/components/responses/Problem"}}},
+      "put":{"operationId":"setEngagementLabel","security":[{"bearerAuth":[]}],"parameters":[{"$ref":"#/components/parameters/WorkspaceId"}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"type":"object","additionalProperties":false,"required":["label"],"properties":{"label":{"type":"string","maxLength":100}}}}}},"responses":{"204":{"description":"Label updated; empty resets it"},"400":{"$ref":"#/components/responses/Problem"},"403":{"$ref":"#/components/responses/Problem"}}}
+    },
+    "/api/v1/workspaces/{workspaceId}/engagements": {
+      "post": {"operationId":"createEngagement","security":[{"bearerAuth":[]}],"parameters":[{"$ref":"#/components/parameters/WorkspaceId"}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"type":"object","additionalProperties":false,"required":["clientId"],"properties":{"clientId":{"type":"string"},"stageId":{"type":"string"},"notes":{"type":"string","maxLength":5000}}}}}},"responses":{"201":{"description":"Engagement created","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Engagement"}}}},"400":{"$ref":"#/components/responses/Problem"},"403":{"$ref":"#/components/responses/Problem"}}}
+    },
+    "/api/v1/workspaces/{workspaceId}/engagements/due": {
+      "get":{"operationId":"listDueEngagements","security":[{"bearerAuth":[]}],"parameters":[{"$ref":"#/components/parameters/WorkspaceId"}],"responses":{"200":{"description":"Open engagements due today or earlier (UTC)","content":{"application/json":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/Engagement"}}}}},"403":{"$ref":"#/components/responses/Problem"}}}
+    },
+    "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}/assignee": {
+      "put":{"operationId":"setEngagementAssignee","security":[{"bearerAuth":[]}],"parameters":[{"$ref":"#/components/parameters/WorkspaceId"},{"name":"engagementId","in":"path","required":true,"schema":{"type":"string"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"type":"object","additionalProperties":false,"properties":{"assigneeId":{"type":"string","description":"Workspace member user short ID, or empty to unassign"}}}}}},"responses":{"204":{"description":"Assignment updated"},"400":{"$ref":"#/components/responses/Problem"},"403":{"$ref":"#/components/responses/Problem"},"404":{"$ref":"#/components/responses/Problem"}}}
+    },
+    "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}/agreement": {
+      "put":{"operationId":"setEngagementAgreement","security":[{"bearerAuth":[]}],"parameters":[{"$ref":"#/components/parameters/WorkspaceId"},{"name":"engagementId","in":"path","required":true,"schema":{"type":"string"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/EngagementAgreement"}}}},"responses":{"204":{"description":"Agreement updated"},"400":{"$ref":"#/components/responses/Problem"},"403":{"$ref":"#/components/responses/Problem"},"404":{"$ref":"#/components/responses/Problem"}}}
+    },
+    "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}/quote": {
+      "put":{"operationId":"setEngagementQuote","security":[{"bearerAuth":[]}],"parameters":[{"$ref":"#/components/parameters/WorkspaceId"},{"name":"engagementId","in":"path","required":true,"schema":{"type":"string"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/EngagementQuote"}}}},"responses":{"204":{"description":"Quote updated"},"400":{"$ref":"#/components/responses/Problem"},"403":{"$ref":"#/components/responses/Problem"},"404":{"$ref":"#/components/responses/Problem"}}}
+    },
+    "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}/next-action": {
+      "put":{"operationId":"setEngagementNextAction","security":[{"bearerAuth":[]}],"parameters":[{"$ref":"#/components/parameters/WorkspaceId"},{"name":"engagementId","in":"path","required":true,"schema":{"type":"string"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/EngagementNextAction"}}}},"responses":{"204":{"description":"Action updated or cleared"},"400":{"$ref":"#/components/responses/Problem"},"403":{"$ref":"#/components/responses/Problem"},"404":{"$ref":"#/components/responses/Problem"}}}
+    },
+    "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}": {
+      "get":{"operationId":"getEngagement","security":[{"bearerAuth":[]}],"parameters":[{"$ref":"#/components/parameters/WorkspaceId"},{"name":"engagementId","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Engagement","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Engagement"}}}},"403":{"$ref":"#/components/responses/Problem"},"404":{"$ref":"#/components/responses/Problem"}}}
+    },
+    "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}/stage": {
+      "post":{"operationId":"moveEngagement","security":[{"bearerAuth":[]}],"parameters":[{"$ref":"#/components/parameters/WorkspaceId"},{"name":"engagementId","in":"path","required":true,"schema":{"type":"string"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"type":"object","additionalProperties":false,"required":["stageId"],"properties":{"stageId":{"type":"string"}}}}}},"responses":{"204":{"description":"Engagement moved"},"400":{"$ref":"#/components/responses/Problem"},"403":{"$ref":"#/components/responses/Problem"},"404":{"$ref":"#/components/responses/Problem"}}}
+    },
+    "/api/v1/workspaces/{workspaceId}/engagement-stages": {
+      "get": {
+        "operationId": "listEngagementStages",
+        "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
+        "responses": {
+          "200": {"description": "Stages in workspace order", "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/EngagementStage"}}}}},
+          "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}
+        }
+      },
+      "post": {
+        "operationId": "createEngagementStage",
+        "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/EngagementStageInput"}}}},
+        "responses": {
+          "201": {"description": "Stage created", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/EngagementStage"}}}},
+          "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/engagement-stages/reorder": {
+      "post": {"operationId": "reorderEngagementStages", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "required": ["ids"], "properties": {"ids": {"type": "array", "items": {"type": "string"}}}}}}}, "responses": {"204": {"description": "Stages reordered"}, "400": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}}
+    },
+    "/api/v1/workspaces/{workspaceId}/engagement-stages/{stageId}/archive": {
+      "post": {"operationId": "archiveEngagementStage", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "stageId", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"204": {"description": "Stage archived"}, "400": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}}
+    },
     "/api/v1/workspaces/{workspaceId}/clients": {
         "get": {
           "operationId": "listClients",
@@ -855,7 +910,7 @@
         },
       "delete": {
         "operationId": "deleteClient",
-        "description": "Permanently deletes a client and its custom values in one transaction. Owners and admins only.",
+        "description": "Permanently deletes a client, its custom values, engagements, next actions and engagement stage history in one transaction. Owners and admins only.",
         "security": [{"bearerAuth": []}],
         "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/ClientId"}],
         "responses": {
@@ -863,6 +918,7 @@
           "401": {"$ref": "#/components/responses/Problem"},
           "403": {"$ref": "#/components/responses/Problem"},
           "404": {"$ref": "#/components/responses/Problem"},
+          "409": {"$ref": "#/components/responses/Problem"},
           "429": {"$ref": "#/components/responses/RateLimited"}
         }
       }
@@ -1053,6 +1109,12 @@
     "schemas": {
       "CatalogEntry": {"type": "object", "required": ["id", "name", "durationMinutes", "archived", "prices"], "properties": {"id": {"type": "string"}, "name": {"type": "string"}, "durationMinutes": {"type": "integer", "nullable": true}, "archived": {"type": "boolean"}, "prices": {"type": "array", "items": {"$ref": "#/components/schemas/CatalogPrice"}}}},
       "CatalogPrice": {"type": "object", "required": ["mode", "currency", "variant"], "properties": {"id": {"type": "string", "readOnly": true}, "mode": {"type": "string", "enum": ["fixed", "manual"]}, "amount": {"type": "string", "nullable": true, "pattern": "^[0-9]+(\\.[0-9]+)?$"}, "currency": {"type": "string", "minLength": 1}, "variant": {"type": "string", "minLength": 1}, "eligibility": {"type": "string"}}},
+      "EngagementNextAction": {"type":"object","additionalProperties":false,"properties":{"text":{"type":"string","maxLength":5000},"dueDate":{"type":"string","description":"Optional YYYY-MM-DD date"},"ownerId":{"type":"string","description":"Workspace member user short ID"}}},
+      "EngagementQuote": {"type":"object","additionalProperties":false,"required":["status"],"properties":{"status":{"type":"string","enum":["not_sent","sent","pending","accepted","declined"]},"amount":{"type":"string","pattern":"^([0-9]{1,12}(\\.[0-9]{1,2})?)?$","description":"Optional non-negative decimal amount; empty when absent"},"dateSent":{"type":"string","description":"Optional YYYY-MM-DD date; empty when absent"}}},
+      "EngagementAgreement": {"type":"object","additionalProperties":false,"required":["recorded"],"properties":{"recorded":{"type":"boolean"},"fileId":{"type":"string","description":"Optional workspace file short ID"}}},
+      "Engagement": {"type":"object","required":["id","clientId","stageId","notes","nextAction","quote","assigneeId","agreement","history"],"properties":{"id":{"type":"string"},"clientId":{"type":"string"},"stageId":{"type":"string"},"notes":{"type":"string"},"nextAction":{"$ref":"#/components/schemas/EngagementNextAction"},"quote":{"$ref":"#/components/schemas/EngagementQuote"},"assigneeId":{"type":"string","description":"Assignee user short ID, or empty when unassigned"},"agreement":{"$ref":"#/components/schemas/EngagementAgreement"},"history":{"type":"array","items":{"type":"object","required":["actorUserId","createdAt","fromStageId","toStageId"],"properties":{"actorUserId":{"type":"string"},"createdAt":{"type":"string","format":"date-time"},"fromStageId":{"type":"string"},"toStageId":{"type":"string"}}}}}},
+      "EngagementStageInput": {"type": "object", "additionalProperties": false, "required": ["name", "kind"], "properties": {"name": {"type": "string", "maxLength": 200}, "kind": {"type": "string", "enum": ["open", "won", "lost"]}}},
+      "EngagementStage": {"type": "object", "required": ["id", "name", "kind", "archived"], "properties": {"id": {"type": "string"}, "name": {"type": "string"}, "kind": {"type": "string", "enum": ["open", "won", "lost"]}, "archived": {"type": "boolean"}}},
       "HealthAlive": {"type": "object", "required": ["status"], "properties": {"status": {"const": "alive"}}},
       "HealthReady": {"type": "object", "required": ["status"], "properties": {"status": {"const": "ready"}}},
       "HealthNotReady": {"type": "object", "required": ["status", "failedChecks"], "properties": {"status": {"const": "not_ready"}, "failedChecks": {"type": "array", "items": {"type": "string", "enum": ["database"]}}}},

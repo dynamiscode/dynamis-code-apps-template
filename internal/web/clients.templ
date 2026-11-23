@@ -8,6 +8,7 @@ import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 import "strconv"
+import "strings"
 
 templ clientsPage(data viewmodel.PageData) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
@@ -43,6 +44,143 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 			</div>
 		}
 		@clientDetail(data)
+		if data.EngagementEnabled {
+			<section class="card my-4 p-6" aria-labelledby="engagement-heading">
+				<h2 id="engagement-heading">{ data.T("engagement.title") }</h2>
+				if data.CanEditClients {
+					<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements" } method="post">
+						<input type="hidden" name="csrf" value={ data.CSRF }/>
+						<label for="engagement-notes">{ data.T("engagement.notes") }</label>
+						<textarea id="engagement-notes" name="notes" maxlength="5000" class="textarea textarea-bordered">{ data.EngagementNotes }</textarea>
+						<button class="btn btn-primary" type="submit">{ data.T("engagement.create") }</button>
+					</form>
+				}
+				<ul>
+					for _, item := range data.Engagements {
+						<li>
+							for _, stage := range data.EngagementStages {
+								if stage.ID == item.StageID {
+									<span>{ stage.Name }</span>
+								}
+							}
+							<p>{ item.Notes }</p>
+							if data.CanEditClients {
+								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/stage" } method="post">
+									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<label for={ "stage-" + item.ID.String() }>{ data.T("engagement.move") }</label>
+									<select id={ "stage-" + item.ID.String() } name="stage" class="select select-bordered">
+										for _, stage := range data.EngagementStages {
+											if !stage.Archived {
+												<option value={ stage.ID.String() } selected?={ stage.ID == item.StageID }>{ stage.Name }</option>
+											}
+										}
+									</select>
+									<button class="btn btn-secondary" type="submit">{ data.T("engagement.move") }</button>
+								</form>
+							}
+							<ol data-engagement-history>
+								for _, entry := range item.History {
+									<li>
+										for _, stage := range data.EngagementStages {
+											if stage.ID == entry.FromStageID {
+											<span>{ stage.Name }</span>
+										}
+									}
+										<span> → </span>
+										for _, stage := range data.EngagementStages {
+											if stage.ID == entry.ToStageID {
+											<span>{ stage.Name }</span>
+										}
+									}
+										<span> — { entry.ActorUserID.String() } — { entry.CreatedAt }</span>
+									</li>
+								}
+							</ol>
+							for _, member := range data.EngagementMembers {
+								if member.UserID == item.AssigneeID {
+									<p>{ data.T("engagement.assignee") }: { member.Email }</p>
+								}
+							}
+							if data.CanEditClients {
+								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/assignee" } method="post">
+									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<label for={ "assignee-" + item.ID.String() }>{ data.T("engagement.assignee") }</label>
+									<select class="select select-bordered" id={ "assignee-" + item.ID.String() } name="assignee_id"><option value="">—</option>
+										for _, member := range data.EngagementMembers {
+											<option value={ member.UserID.String() } selected?={ member.UserID == item.AssigneeID }>{ member.Email }</option>
+										}
+									</select>
+									<button class="btn btn-primary" type="submit">{ data.T("engagement.save_assignee") }</button>
+								</form>
+							}
+							<p>{ data.T("engagement.agreement") }:
+								if item.Agreement.Recorded {
+									<span>{ data.T("engagement.agreement_recorded") }</span>
+								} else {
+									<span>{ data.T("engagement.agreement_not_recorded") }</span>
+								}
+								{ item.Agreement.FileID }
+							</p>
+							if data.CanEditClients {
+								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/agreement" } method="post">
+									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<label><input class="checkbox" type="checkbox" name="recorded" value="1" checked?={ item.Agreement.Recorded }/> { data.T("engagement.agreement_recorded") }</label>
+									if data.FilesEnabled {
+										<label for={ "agreement-file-" + item.ID.String() }>{ data.T("engagement.agreement_file") }</label>
+										<input class="input input-bordered" id={ "agreement-file-" + item.ID.String() } name="file_id" value={ item.Agreement.FileID }/>
+									}
+									<button class="btn btn-primary" type="submit">{ data.T("engagement.agreement_save") }</button>
+								</form>
+							}
+							<p>{ data.T("engagement.quote") }: { data.T("engagement.quote_" + item.Quote.Status) } { item.Quote.Amount } { item.Quote.DateSent }</p>
+							if data.CanEditClients {
+								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/quote" } method="post">
+									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<label for={ "quote-status-" + item.ID.String() }>{ data.T("engagement.quote") }</label>
+									<select class="select select-bordered" id={ "quote-status-" + item.ID.String() } name="status">
+										for _, status := range []string{"not_sent", "sent", "pending", "accepted", "declined"} {
+											<option value={ status } selected?={ item.Quote.Status == status }>{ data.T("engagement.quote_" + status) }</option>
+										}
+									</select>
+									<label for={ "quote-amount-" + item.ID.String() }>{ data.T("engagement.quote_amount") }</label>
+									<input class="input input-bordered" type="number" min="0" max="999999999999.99" step="0.01" id={ "quote-amount-" + item.ID.String() } name="amount" value={ item.Quote.Amount }/>
+									<label for={ "quote-date-" + item.ID.String() }>{ data.T("engagement.quote_date") }</label>
+									<input class="input input-bordered" type="date" id={ "quote-date-" + item.ID.String() } name="date_sent" value={ item.Quote.DateSent }/>
+									<button class="btn btn-primary" type="submit">{ data.T("engagement.quote_save") }</button>
+								</form>
+							}
+							if item.NextAction.Text != "" {
+								<p>{ data.T("engagement.next_action") }: { item.NextAction.Text } { item.NextAction.DueDate }</p>
+								for _, member := range data.EngagementMembers {
+									if member.UserID == item.NextAction.OwnerID {
+										<p>{ data.T("engagement.owner") }: { member.Email }</p>
+									}
+								}
+							}
+							if data.CanEditClients {
+								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/next-action" } method="post">
+									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<label for={ "action-" + item.ID.String() }>{ data.T("engagement.next_action") }</label>
+									<input class="input input-bordered" id={ "action-" + item.ID.String() } name="text" maxlength="5000" value={ item.NextAction.Text }/>
+									<label for={ "due-" + item.ID.String() }>{ data.T("engagement.due_date") }</label>
+									<input class="input input-bordered" type="date" id={ "due-" + item.ID.String() } name="due_date" value={ item.NextAction.DueDate }/>
+									<label for={ "owner-" + item.ID.String() }>{ data.T("engagement.owner") }</label>
+									<select class="select select-bordered" id={ "owner-" + item.ID.String() } name="owner_id"><option value="">—</option>
+										for _, member := range data.EngagementMembers {
+											<option value={ member.UserID.String() } selected?={ member.UserID == item.NextAction.OwnerID }>{ member.Email }</option>
+										}
+									</select>
+									<button class="btn btn-primary" type="submit">{ data.T("engagement.save_action") }</button>
+									if item.NextAction.Text != "" {
+										<button class="btn btn-ghost" type="submit" name="clear" value="1">{ data.T("engagement.clear_action") }</button>
+									}
+								</form>
+							}
+						</li>
+					}
+				</ul>
+			</section>
+		}
 	}
 }
 
@@ -50,7 +188,14 @@ templ clientDetail(data viewmodel.PageData) {
 	<section id="client-detail" class="client-panel card my-4 p-6" aria-labelledby="client-heading">
 		<h2 id="client-heading" class="sr-only">{ data.T("clients.client") }</h2>
 		if data.ErrorKey != "" {
-			@molecules.ErrorAlert(data.T(data.ErrorKey))
+			if strings.HasPrefix(data.ErrorKey, "clients.timeline_error_") {
+				<div data-timeline-error-summary>
+					@molecules.ErrorAlert(data.T(data.ErrorKey))
+					<a class="link" href="#timeline-text">{ data.T("clients.timeline_add") }</a>
+				</div>
+			} else {
+				@molecules.ErrorAlert(data.T(data.ErrorKey))
+			}
 		}
 		if data.CanEditClients {
 			<form action={ data.CurrentPath + "/" + data.Client.ID.String() } method="post">
@@ -116,35 +261,46 @@ templ clientDetail(data viewmodel.PageData) {
 
 templ clientTimeline(data viewmodel.PageData) {
 	<section class="client-timeline card my-4 p-6" aria-labelledby="client-timeline-heading">
-		<h2 id="client-timeline-heading">{ data.T("clients.timeline_heading") }</h2>
+		<div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+			<h2 id="client-timeline-heading" class="text-xl font-bold">{ data.T("clients.timeline_heading") }</h2>
+			if data.CanEditClients {
+				<button type="button" class="btn btn-primary" data-timeline-open hidden>{ data.T("clients.timeline_add") }</button>
+			}
+		</div>
 		if len(data.ClientTimeline) == 0 {
 			<p>{ data.T("clients.timeline_empty") }</p>
 		}
-		<ol>
+		<ol class="timeline timeline-vertical timeline-compact timeline-snap-icon">
 			for _, entry := range data.ClientTimeline {
 				<li id={ "timeline-" + entry.ID.String() }>
-					<strong>{ data.T("clients.timeline_type_" + entry.Type) }</strong>
-					if entry.Channel != "" {
-						<span> — { data.T("clients.timeline_channel_" + entry.Channel) }</span>
-					}
-					<p>{ data.T("clients.timeline_author") }:
-						if entry.AuthorID != nil {
-							{ entry.AuthorID.String() }
-						} else {
-							{ data.T("clients.timeline_deleted_author") }
+					<div class="timeline-middle"><span class="block w-3 h-3 rounded-full bg-primary" aria-hidden="true"></span></div>
+					<div class="timeline-end w-full py-4">
+						<div class="flex gap-2 items-center flex-wrap">
+							<strong class="badge badge-soft badge-primary">{ data.T("clients.timeline_type_" + entry.Type) }</strong>
+							if entry.Channel != "" {
+								<span class="text-sm">{ data.T("clients.timeline_channel_" + entry.Channel) }</span>
+							}
+							<time class="text-sm" datetime={ entry.CreatedAt.Format("2006-01-02T15:04:05Z07:00") }>{ entry.CreatedAt.Format("2006-01-02 15:04:05 UTC") }</time>
+						</div>
+						<p class="my-2 whitespace-pre-wrap">{ entry.Text }</p>
+						if entry.CorrectsID != nil {
+							<p class="text-sm">{ data.T("clients.timeline_corrects") }:
+								if timelineContains(data.ClientTimeline, *entry.CorrectsID) {
+									<a class="link" href={ "#timeline-" + entry.CorrectsID.String() }>{ entry.CorrectsID.String() }</a>
+								} else {
+									{ entry.CorrectsID.String() }
+								}
+							</p>
 						}
-					</p>
-					<time datetime={ entry.CreatedAt.Format("2006-01-02T15:04:05Z07:00") }>{ entry.CreatedAt.Format("2006-01-02 15:04:05 UTC") }</time>
-					<p>{ entry.Text }</p>
-					if entry.CorrectsID != nil {
-						<p>{ data.T("clients.timeline_corrects") }:
-							if timelineContains(data.ClientTimeline, *entry.CorrectsID) {
-								<a href={ "#timeline-" + entry.CorrectsID.String() }>{ entry.CorrectsID.String() }</a>
+						<p class="text-sm">{ data.T("clients.timeline_author") }:
+							if entry.AuthorID != nil {
+								{ entry.AuthorID.String() }
 							} else {
-								{ entry.CorrectsID.String() }
+								{ data.T("clients.timeline_deleted_author") }
 							}
 						</p>
-					}
+					</div>
+					<hr/>
 				</li>
 			}
 		</ol>
@@ -157,20 +313,41 @@ templ clientTimeline(data viewmodel.PageData) {
 			}
 		</nav>
 		if data.CanEditClients {
-			<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/timeline?timeline_page=" + strconv.Itoa(data.TimelinePage) } method="post">
-				<input type="hidden" name="csrf" value={ data.CSRF }/>
-				@atoms.Select(atoms.SelectProps{ID:"timeline-type", Name:"type", Label:data.T("clients.timeline_type"), Options:timelineOptions(data, "type", data.TimelineDraft.Type, []string{"note", "call", "visit", "document", "update", "change", "delay"})})
-				@atoms.Select(atoms.SelectProps{ID:"timeline-channel", Name:"channel", Label:data.T("clients.timeline_channel") + " " + data.T("ui.optional"), Options:timelineOptions(data, "channel", data.TimelineDraft.Channel, []string{"", "phone", "whatsapp", "email", "in_person", "other"})})
-				@molecules.TextareaField("timeline-text", data.T("clients.timeline_text"), data.TimelineDraft.Text, templ.Attributes{"name":"text", "required":true})
-				<label for="timeline-corrects">{ data.T("clients.timeline_corrects") } { data.T("ui.optional") }</label>
-				<select id="timeline-corrects" name="corrects" class="select w-full">
-					<option value="">{ data.T("clients.timeline_none") }</option>
-					for _, entry := range data.ClientTimeline {
-						<option value={ entry.ID.String() } selected?={ data.TimelineDraft.Corrects == entry.ID.String() }>{ entry.ID.String() } — { entry.Text }</option>
-					}
-				</select>
-				@atoms.Button(atoms.ButtonProps{Class:"btn-primary", Label:data.T("clients.timeline_add"), Attrs:templ.Attributes{"type":"submit"}})
-			</form>
+			<div data-timeline-composer data-timeline-invalid?={ strings.HasPrefix(data.ErrorKey, "clients.timeline_error_") }>
+				<h3 id="timeline-form-heading" class="text-xl font-bold">{ data.T("clients.timeline_add") }</h3>
+				<p class="text-sm">{ data.Client.DisplayName }</p>
+				if strings.HasPrefix(data.ErrorKey, "clients.timeline_error_") {
+					@molecules.ErrorAlert(data.T(data.ErrorKey))
+				}
+				<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/timeline?timeline_page=" + strconv.Itoa(data.TimelinePage) } method="post">
+					<input type="hidden" name="csrf" value={ data.CSRF }/>
+					@atoms.Textarea(atoms.TextareaProps{ID:"timeline-text", Name:"text", Label:data.T("clients.timeline_text"), Value:data.TimelineDraft.Text, Required:true, Class:"w-full min-h-32"})
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+						@atoms.Select(atoms.SelectProps{ID:"timeline-type", Name:"type", Label:data.T("clients.timeline_type"), Options:timelineOptions(data, "type", data.TimelineDraft.Type, []string{"note", "call", "visit", "document", "update", "change", "delay"})})
+						@atoms.Select(atoms.SelectProps{ID:"timeline-channel", Name:"channel", Label:data.T("clients.timeline_channel") + " " + data.T("ui.optional"), Options:timelineOptions(data, "channel", data.TimelineDraft.Channel, []string{"", "phone", "whatsapp", "email", "in_person", "other"})})
+					</div>
+					<details class="collapse collapse-arrow bg-base-200 mt-3" open?={ data.TimelineDraft.Corrects != "" }>
+						<summary class="collapse-title font-semibold">{ data.T("clients.timeline_corrects") } { data.T("ui.optional") }</summary>
+						<div class="collapse-content">
+							<label for="timeline-corrects">{ data.T("clients.timeline_corrects") } { data.T("ui.optional") }</label>
+							<select id="timeline-corrects" name="corrects" class="select w-full">
+								<option value="">{ data.T("clients.timeline_none") }</option>
+								if data.TimelineDraft.Corrects != "" && !timelineHasDraftCorrection(data.ClientTimeline, data.TimelineDraft.Corrects) {
+									<option value={ data.TimelineDraft.Corrects } selected>{ data.TimelineDraft.Corrects }</option>
+								}
+								for _, entry := range data.ClientTimeline {
+									<option value={ entry.ID.String() } selected?={ data.TimelineDraft.Corrects == entry.ID.String() }>{ entry.ID.String() } — { entry.Text }</option>
+								}
+							</select>
+						</div>
+					</details>
+					<div class="modal-action">
+						<button type="button" class="btn" data-timeline-close hidden>{ data.T("common.cancel") }</button>
+						@atoms.Button(atoms.ButtonProps{Class:"btn-primary", Label:data.T("clients.timeline_add"), Attrs:templ.Attributes{"type":"submit"}})
+					</div>
+				</form>
+			</div>
+			<dialog class="modal" aria-labelledby="timeline-form-heading" data-timeline-dialog><div class="modal-box max-w-xl" data-timeline-modal-content></div></dialog>
 		}
 	</section>
 }

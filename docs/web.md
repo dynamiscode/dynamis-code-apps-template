@@ -15,6 +15,23 @@ Member and invitation pages explain role permissions, ownership transfer,
 invited-email matching, and safe recovery for unavailable links.
 Settings groups general and email setup, member access, API tokens, webhooks,
 SCIM, exports, and audit history into role-aware sidebar sections.
+The Clients list links to engagement stages. Owners and admins can add, reorder,
+and archive stages; workspace readers see their order and archive state. The
+forms work without JavaScript.
+On a client detail page, readers can see engagements and their stage history;
+writers can create an engagement with notes and move it to an unarchived stage.
+Creation uses the first available open stage. Client deletion warns that its
+engagements and their history are permanently deleted too.
+Owners and admins can set or reset the workspace work item label on the stages
+page. Client pages use that label; the default is engagement.
+Readers see next actions on client details; writers can set, change, or clear
+them. The Clients list links to actions due today or earlier (UTC) in open stages.
+Readers see quote status, amount, and sent date on client details; writers can
+update them. The status persists across stage changes.
+Readers see the assignee on client details; writers can assign, change, or clear
+the assignment using workspace members.
+Readers see whether a signed agreement is recorded and its optional file short
+ID. Writers can update both; the referenced file must belong to the workspace.
 `/account`, `/notifications`, `/sessions`, and `/security` cover account and
 security settings. Account pages share responsive panels, generated branding,
 and the user's light, dark, or system theme. The authenticated shell uses

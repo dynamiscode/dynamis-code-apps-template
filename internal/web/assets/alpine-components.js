@@ -1384,10 +1384,30 @@
 		}
 	};
 
+	const wireTimelineDialog = (root) => {
+		const composer = root.querySelector("[data-timeline-composer]");
+		const dialog = root.querySelector("[data-timeline-dialog]");
+		const open = root.querySelector("[data-timeline-open]");
+		const content = root.querySelector("[data-timeline-modal-content]");
+		const close = composer?.querySelector("[data-timeline-close]");
+		if (!composer || !dialog || !open || !content || !close || typeof dialog.showModal !== "function") return;
+		content.append(composer);
+		open.hidden = false;
+		close.hidden = false;
+		open.addEventListener("click", () => dialog.showModal());
+		close.addEventListener("click", () => dialog.close());
+		dialog.addEventListener("close", () => open.focus());
+		if (composer.hasAttribute("data-timeline-invalid")) {
+			root.querySelector("[data-timeline-error-summary]")?.remove();
+			dialog.showModal();
+		}
+	};
+
 	// pageBehaviors: the per-page mount. Every shell body carries it; each
 	// wire function self-guards, so pages without a behavior pay nothing.
 	const pageBehaviors = () => ({
 		init() {
+			wireTimelineDialog(document);
 			wireForms();
 			wireRealtime();
 			wireFileUploader();
@@ -1399,7 +1419,7 @@
 		},
 	});
 
-if (typeof module !== "undefined" && module.exports) module.exports = { core, FileUploader, wireRealtime, notificationsLive, passkeyLogin, passkeyEnroll, listScreen, pageBehaviors };
+if (typeof module !== "undefined" && module.exports) module.exports = { core, FileUploader, wireRealtime, wireTimelineDialog, notificationsLive, passkeyLogin, passkeyEnroll, listScreen, pageBehaviors };
 	if (typeof document === "undefined" || typeof window === "undefined") return;
 	document.addEventListener("alpine:init", () => {
 		window.Alpine.data("notificationsLive", notificationsLive);
