@@ -5,6 +5,9 @@ before declaring meaningful interaction or visual changes complete. Product
 owners define their users and goals; generated applications may change visual
 identity without weakening accessibility or the task outcomes below.
 
+Use the [UX decision guide](ux-decisions.md) to compare patterns and turn
+these principles into journey-specific acceptance criteria.
+
 ## Design for the task
 
 - Identify the user, their goal, starting point, and successful outcome. Use

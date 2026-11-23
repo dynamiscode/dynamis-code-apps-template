@@ -9,17 +9,18 @@ AI tool or model is required.
 1. **Inventory.** List affected journeys, entry and return paths, roles, and
    relevant states. Identify task, success, failure and realistic data, including
    multiple similar records. Note a state as not applicable only with a reason.
-2. **Design.** Apply [UX standard](ux.md), existing components and product
-   context. Resolve routine layout decisions without user approval; ask when a
-   consequential product decision cannot be inferred. Define observable
-   acceptance criteria for each changed journey.
+2. **Design.** Apply the [UX decision guide](ux-decisions.md) and product
+   context. Challenge existing patterns; compare options and consult sources
+   when the guide calls for it. Define observable acceptance criteria for each
+   changed journey.
 3. **Drive.** Run the real application with disposable data using the
    repository's [verification procedure](../.agents/skills/verify/SKILL.md).
    Complete each changed journey, not just visit a page. Inspect desktop and
    narrow screens and sample applicable empty, populated, error, success,
    permission and long-content states. Check keyboard, visible focus, and
    ordinary form fallback. Run applicable accessibility and behavior tests.
-4. **Judge.** For each journey assess navigation and orientation, task priority,
+4. **Judge.** Apply the three perspectives in the [UX decision guide](ux-decisions.md).
+   For each journey assess navigation and orientation, task priority,
    recognition, information grouping, choice and control, feedback, error
    recovery, consistency, and responsive behavior. Name exact friction and the
    consequence for the user; fix findings in scope and repeat the affected drive.
