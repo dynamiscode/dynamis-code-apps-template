@@ -41,3 +41,10 @@ readiness succeeded. Opening its local login page in Chrome was blocked because
 browser origin approval was dismissed before a decision; no journey was
 rendered or evaluated. Accessibility, mobile, and recovery findings remain
 unknown. Repeat the audit with browser access before completing #621.
+
+Audit attempt at revision `69376b5`: a fresh disposable SQLite instance passed
+readiness and liveness checks, and its login response contained a form. The
+requested `mcp__playwright` tools and `codemode` discovery tools were not
+available in the session, so no browser journey was rendered or evaluated.
+Desktop, mobile, keyboard, accessibility, recovery, role, and no-JavaScript
+review remain blocked; HTTP responses are not rendered-browser evidence.
