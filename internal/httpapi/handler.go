@@ -172,6 +172,7 @@ func newHandler(
 		"createEngagement": h.createEngagement, "getEngagement": h.getEngagement,
 		"setEngagementNextAction": h.setEngagementNextAction, "listDueEngagements": h.listDueEngagements,
 		"setEngagementQuote":      h.setEngagementQuote,
+		"setEngagementAssignee":   h.setEngagementAssignee,
 		"reorderEngagementStages": h.reorderEngagementStages, "archiveEngagementStage": h.archiveEngagementStage,
 		"getClient": h.getClient, "updateClient": h.updateClient,
 		"listClientTimeline": h.listClientTimeline, "addClientTimelineEntry": h.addClientTimelineEntry,

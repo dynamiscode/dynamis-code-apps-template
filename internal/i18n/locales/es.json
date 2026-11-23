@@ -215,6 +215,8 @@
   "engagement.next_action": "Próxima acción",
   "engagement.due_date": "Fecha límite (opcional)",
   "engagement.owner": "Responsable",
+  "engagement.assignee": "Asignado a",
+  "engagement.save_assignee": "Guardar asignación",
   "engagement.save_action": "Guardar próxima acción",
   "engagement.clear_action": "Borrar próxima acción",
   "engagement.due_list": "Acciones pendientes",

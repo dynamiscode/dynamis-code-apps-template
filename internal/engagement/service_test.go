@@ -268,6 +268,33 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := svc.SetAssignee(ctx, owner, boot.WorkspaceID, created.ID, boot.UserID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetAssignee(ctx, owner, boot.WorkspaceID, created.ID, viewerID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	assigned, err := svc.Get(ctx, viewer, boot.WorkspaceID, created.ID)
+	if err != nil || assigned.AssigneeID != viewerID {
+		t.Fatalf("assignment: %+v %v", assigned, err)
+	}
+	if err := svc.SetAssignee(ctx, viewer, boot.WorkspaceID, created.ID, 0, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer assignment: %v", err)
+	}
+	if err := svc.SetAssignee(ctx, owner, boot.WorkspaceID, created.ID, identity.UserID(999999), identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("nonmember assignment: %v", err)
+	}
+	if err := svc.SetAssignee(ctx, owner, boot.WorkspaceID, created.ID, 0, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	assigned, err = svc.Get(ctx, owner, boot.WorkspaceID, created.ID)
+	if err != nil || assigned.AssigneeID != 0 {
+		t.Fatalf("unassigned: %+v %v", assigned, err)
+	}
+	var assignmentAudits int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_events WHERE workspace_id = ? AND event_type = 'engagement.assignee_updated'`, boot.WorkspaceID).Scan(&assignmentAudits); err != nil || assignmentAudits != 3 {
+		t.Fatalf("assignment audits: %d %v", assignmentAudits, err)
+	}
 	if err := svc.SetQuote(ctx, viewer, boot.WorkspaceID, created.ID, quote, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("viewer quote: %v", err)
 	}

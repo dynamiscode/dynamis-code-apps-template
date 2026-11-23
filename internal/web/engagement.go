@@ -12,6 +12,45 @@ import (
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 )
 
+func (h *Handler) setEngagementAssignee(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		h.renderError(w, http.StatusNotFound)
+		return
+	}
+	actor, ok := h.mutationPrincipal(w, r)
+	if !ok {
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	var assignee identity.UserID
+	var err error
+	if r.FormValue("assignee_id") != "" {
+		assignee, err = identity.ParseUserID(r.FormValue("assignee_id"))
+	}
+	if err != nil {
+		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.invalid", nil)
+		return
+	}
+	err = h.engagement.SetAssignee(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), assignee, auditContext(r))
+	if errors.Is(err, identity.ErrForbidden) {
+		h.renderError(w, http.StatusForbidden)
+		return
+	}
+	if errors.Is(err, engagement.ErrInvalidInput) {
+		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.invalid", nil)
+		return
+	}
+	if errors.Is(err, engagement.ErrNotFound) {
+		h.renderError(w, http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		h.renderError(w, http.StatusInternalServerError)
+		return
+	}
+	h.redirect(w, r, h.clientsPath(workspace)+"/"+r.PathValue("clientId"))
+}
+
 func (h *Handler) setEngagementQuote(w http.ResponseWriter, r *http.Request) {
 	if h.engagement == nil {
 		h.renderError(w, http.StatusNotFound)

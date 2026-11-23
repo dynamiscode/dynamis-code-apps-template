@@ -10,6 +10,39 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 )
 
+func (h *handler) setEngagementAssignee(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		notFoundProblem(w, r)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	actor, ok := h.workspaceBearer(w, r, workspace, identity.ResourcesWrite)
+	if !ok {
+		return
+	}
+	var input struct {
+		AssigneeID string `json:"assigneeId"`
+	}
+	if err := decodeJSON(r, &input); err != nil {
+		h.badJSON(w, r, err)
+		return
+	}
+	var assignee identity.UserID
+	if input.AssigneeID != "" {
+		var err error
+		assignee, err = identity.ParseUserID(input.AssigneeID)
+		if err != nil {
+			h.invalidRequest(w, r, "The assignee is invalid.")
+			return
+		}
+	}
+	if err := h.engagement.SetAssignee(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), assignee, h.auditContext(r)); err != nil {
+		h.engagementError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *handler) setEngagementQuote(w http.ResponseWriter, r *http.Request) {
 	if h.engagement == nil {
 		notFoundProblem(w, r)

@@ -25,6 +25,9 @@ Quote status, optional amount and sent date are stored on the engagement by
 [migration 000035](../internal/platform/database/migrations/000035_engagement_quote.sql).
 The linked service, REST and web tests cover writes and read-only access. Quote
 data follows engagement retention and is not included in workspace export.
+Writers can assign or clear a workspace member on an engagement; readers can see
+the assignment. [Migration 000036](../internal/platform/database/migrations/000036_engagement_assignee.sql)
+stores the reference. The service, REST, and web tests above cover assignment.
 
 ## Client timeline REST (#575)
 
