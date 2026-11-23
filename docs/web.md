@@ -21,8 +21,9 @@ forms work without JavaScript.
 On a client detail page, readers can see engagements and their stage history;
 each engagement name links to a detail page with its existing information
 and a return link to the client. Writers can edit its quote and next action on
-that page; readers see their summaries. Invalid next-action submissions retain
-text, date, and recognized owner for correction. Cancel returns to the saved
+that page; readers see their summaries. Invalid quote and next-action submissions
+retain entered values and associate determinable field errors with their controls.
+Unrecognized selection values appear as unavailable. Cancel returns to the saved
 detail. Successful detail edits show localized confirmation after redirect, including without JavaScript. Writers can create an engagement with notes and move it to an
 unarchived stage.
 Creation requires a selected unarchived open stage. When none exists, administrators

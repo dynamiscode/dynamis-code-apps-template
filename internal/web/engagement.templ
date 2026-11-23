@@ -138,13 +138,26 @@ templ engagementDetailPage(data viewmodel.PageData) {
 								<input type="hidden" name="csrf" value={ data.CSRF }/>
 								<input type="hidden" name="return_to" value="detail"/>
 								<label for="engagement-quote-status">{ data.T("engagement.quote") }</label>
-								<select class="select select-bordered" id="engagement-quote-status" name="status">
+								<select class="select select-bordered" id="engagement-quote-status" name="status" { templ.Attributes{"aria-invalid": templ.KV("true", data.EngagementQuoteStatusError), "aria-describedby": templ.KV("engagement-quote-status-error", data.EngagementQuoteStatusError)}... }>
+									if data.EngagementQuoteStatusError {
+										<option value={ item.Quote.Status } selected disabled>{ item.Quote.Status } — { data.T("engagement.unavailable") }</option>
+									}
 									for _, status := range []string{"not_sent", "sent", "pending", "accepted", "declined"} {
 										<option value={ status } selected?={ item.Quote.Status == status }>{ data.T("engagement.quote_" + status) }</option>
 									}
 								</select>
-								@molecules.TextField("engagement-quote-amount", data.T("engagement.quote_amount"), templ.Attributes{"name": "amount", "type": "number", "min": "0", "max": "999999999999.99", "step": "0.01", "value": item.Quote.Amount})
-								@molecules.TextField("engagement-quote-date", data.T("engagement.quote_date"), templ.Attributes{"name": "date_sent", "type": "date", "value": item.Quote.DateSent})
+								if data.EngagementQuoteStatusError {
+									<p id="engagement-quote-status-error" class="error text-error font-bold">{ data.T("engagement.invalid_quote_status") }</p>
+								}
+								{{ amountType := "number"; if data.EngagementQuoteAmountError { amountType = "text" }; dateType := "date"; if data.EngagementQuoteDateError { dateType = "text" } }}
+								@molecules.TextField("engagement-quote-amount", data.T("engagement.quote_amount"), templ.Attributes{"name": "amount", "type": amountType, "min": "0", "max": "999999999999.99", "step": "0.01", "value": item.Quote.Amount, "aria-invalid": templ.KV("true", data.EngagementQuoteAmountError), "aria-describedby": templ.KV("engagement-quote-amount-error", data.EngagementQuoteAmountError)})
+								if data.EngagementQuoteAmountError {
+									<p id="engagement-quote-amount-error" class="error text-error font-bold">{ data.T("engagement.invalid_quote_amount") }</p>
+								}
+								@molecules.TextField("engagement-quote-date", data.T("engagement.quote_date"), templ.Attributes{"name": "date_sent", "type": dateType, "value": item.Quote.DateSent, "aria-invalid": templ.KV("true", data.EngagementQuoteDateError), "aria-describedby": templ.KV("engagement-quote-date-error", data.EngagementQuoteDateError)})
+								if data.EngagementQuoteDateError {
+									<p id="engagement-quote-date-error" class="error text-error font-bold">{ data.T("engagement.invalid_quote_date") }</p>
+								}
 								@molecules.SubmitButton(data.T("engagement.quote_save"), nil)
 								<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
 							</form>
@@ -173,8 +186,15 @@ templ engagementDetailPage(data viewmodel.PageData) {
 						<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/next-action") } method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="return_to" value="detail"/>
-							@molecules.TextField("engagement-next-action", data.T("engagement.next_action")+" "+data.T("ui.optional"), templ.Attributes{"name": "text", "maxlength": "5000", "value": item.NextAction.Text})
-							@molecules.TextField("engagement-next-action-due", data.T("engagement.due_date"), templ.Attributes{"name": "due_date", "type": "date", "value": item.NextAction.DueDate})
+							@molecules.TextField("engagement-next-action", data.T("engagement.next_action")+" "+data.T("ui.optional"), templ.Attributes{"name": "text", "maxlength": "5000", "value": item.NextAction.Text, "aria-invalid": templ.KV("true", data.EngagementActionTextError), "aria-describedby": templ.KV("engagement-next-action-error", data.EngagementActionTextError)})
+							if data.EngagementActionTextError {
+								<p id="engagement-next-action-error" class="error text-error font-bold">{ data.T("engagement.invalid_action_text") }</p>
+							}
+							{{ actionDateType := "date"; if data.EngagementActionDateError { actionDateType = "text" } }}
+							@molecules.TextField("engagement-next-action-due", data.T("engagement.due_date"), templ.Attributes{"name": "due_date", "type": actionDateType, "value": item.NextAction.DueDate, "aria-invalid": templ.KV("true", data.EngagementActionDateError), "aria-describedby": templ.KV("engagement-next-action-due-error", data.EngagementActionDateError)})
+							if data.EngagementActionDateError {
+								<p id="engagement-next-action-due-error" class="error text-error font-bold">{ data.T("engagement.invalid_action_date") }</p>
+							}
 							<label for="engagement-next-action-owner">{ data.T("engagement.owner") }</label>
 							<select class="select select-bordered" id="engagement-next-action-owner" name="owner_id" { templ.Attributes{"aria-invalid": templ.KV("true", data.EngagementOwnerError), "aria-describedby": templ.KV("engagement-next-action-owner-error", data.EngagementOwnerError)}... }>
 								<option value="" selected?={ data.ErrorKey == "engagement.invalid_next_action" && data.EngagementOwner == "" }>—</option>

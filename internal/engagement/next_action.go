@@ -13,16 +13,22 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
+func InvalidNextActionFields(action NextAction) (text, date, owner bool) {
+	action.Text = strings.TrimSpace(action.Text)
+	text = !utf8.ValidString(action.Text) || utf8.RuneCountInString(action.Text) > 5000 || (action.Text == "" && (action.OwnerID != 0 || action.DueDate != ""))
+	owner = action.Text != "" && action.OwnerID == 0
+	if action.DueDate != "" {
+		parsed, err := time.Parse("2006-01-02", action.DueDate)
+		date = err != nil || parsed.Format("2006-01-02") != action.DueDate
+	}
+	return
+}
+
 func (s *Service) SetNextAction(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, action NextAction, audit identity.AuditContext) error {
 	action.Text = strings.TrimSpace(action.Text)
-	if !utf8.ValidString(action.Text) || utf8.RuneCountInString(action.Text) > 5000 || (action.Text == "" && (action.OwnerID != 0 || action.DueDate != "")) || (action.Text != "" && action.OwnerID == 0) {
+	text, date, owner := InvalidNextActionFields(action)
+	if text || date || owner {
 		return ErrInvalidInput
-	}
-	if action.DueDate != "" {
-		date, err := time.Parse("2006-01-02", action.DueDate)
-		if err != nil || date.Format("2006-01-02") != action.DueDate {
-			return ErrInvalidInput
-		}
 	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {

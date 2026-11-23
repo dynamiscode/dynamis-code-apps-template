@@ -42,6 +42,11 @@ type PageData struct {
 	EngagementAssignee         string
 	EngagementOwner            string
 	EngagementOwnerError       bool
+	EngagementQuoteStatusError bool
+	EngagementQuoteAmountError bool
+	EngagementQuoteDateError   bool
+	EngagementActionTextError  bool
+	EngagementActionDateError  bool
 	EngagementOwnerUnavailable bool
 	EngagementMembers          []identity.MemberSummary
 	EngagementEnabled          bool

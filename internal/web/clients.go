@@ -481,6 +481,10 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	}
 	ownerError := false
 	ownerUnavailable := false
+	var quoteStatusError, quoteAmountError, quoteDateError, actionTextError, actionDateError bool
+	if errorKey == "engagement.invalid_quote" {
+		quoteStatusError, quoteAmountError, quoteDateError = engagement.InvalidQuoteFields(engagement.Quote{Status: request.FormValue("status"), Amount: request.FormValue("amount"), DateSent: request.FormValue("date_sent")})
+	}
 	if errorKey == "engagement.invalid_next_action" {
 		owner := request.FormValue("owner_id")
 		ownerFound := false
@@ -492,7 +496,10 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		}
 		ownerUnavailable = owner != "" && !ownerFound
 		_, ownerPresent := request.PostForm["owner_id"]
-		ownerError = !ownerPresent || ownerUnavailable || (owner == "" && strings.TrimSpace(request.FormValue("text")) != "")
+		ownerID, _ := identity.ParseUserID(owner)
+		var missingOwner bool
+		actionTextError, actionDateError, missingOwner = engagement.InvalidNextActionFields(engagement.NextAction{Text: request.FormValue("text"), DueDate: request.FormValue("due_date"), OwnerID: ownerID})
+		ownerError = !ownerPresent || ownerUnavailable || missingOwner
 	}
 	component := clientDetailPage
 	title := client.DisplayName
@@ -540,6 +547,8 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		EngagementNotes: engagementNotes, OpenEngagementStages: openStages,
 		EngagementName: request.FormValue("name"), EngagementStage: request.FormValue("stage"),
 		EngagementAssignee: request.FormValue("assignee_id"), EngagementOwner: request.FormValue("owner_id"), EngagementOwnerError: ownerError, EngagementOwnerUnavailable: ownerUnavailable,
+		EngagementQuoteStatusError: quoteStatusError, EngagementQuoteAmountError: quoteAmountError, EngagementQuoteDateError: quoteDateError,
+		EngagementActionTextError: actionTextError, EngagementActionDateError: actionDateError,
 	})
 }
 

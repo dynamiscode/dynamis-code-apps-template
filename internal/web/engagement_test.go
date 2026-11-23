@@ -381,6 +381,16 @@ func TestEngagementThroughWeb(t *testing.T) {
 			t.Fatalf("invalid quote missing %q: %d", want, invalidQuote.Code)
 		}
 	}
+	badQuote := request(env.routes, http.MethodPost, quotePath, url.Values{"csrf": {env.csrf}, "status": {"bogus"}, "amount": {"not-money"}, "date_sent": {"bad-date"}, "return_to": {"detail"}}, env.cookies, nil)
+	for _, want := range []string{`aria-describedby="engagement-quote-status-error"`, `aria-describedby="engagement-quote-amount-error"`, `aria-describedby="engagement-quote-date-error"`, `value="bogus" selected disabled`, `value="not-money"`, `value="bad-date"`, "Select a valid quote status.", "Enter a non-negative amount"} {
+		if badQuote.Code != http.StatusUnprocessableEntity || !strings.Contains(badQuote.Body.String(), want) {
+			t.Fatalf("invalid quote fields missing %q: %d", want, badQuote.Code)
+		}
+	}
+	spanishQuote := request(env.routes, http.MethodPost, quotePath, url.Values{"csrf": {env.csrf}, "status": {"sent"}, "amount": {"-1"}, "return_to": {"detail"}}, append(append([]*http.Cookie{}, env.cookies...), &http.Cookie{Name: "locale", Value: "es"}), nil)
+	if spanishQuote.Code != http.StatusUnprocessableEntity || !strings.Contains(spanishQuote.Body.String(), "Introduce un importe no negativo") || strings.Contains(spanishQuote.Body.String(), `id="engagement-quote-status-error"`) {
+		t.Fatalf("Spanish quote error: %d", spanishQuote.Code)
+	}
 	viewerQuote := request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
 	if strings.Contains(viewerQuote.Body.String(), `action="`+quotePath+`"`) || !strings.Contains(viewerQuote.Body.String(), "120.50") || !strings.Contains(viewerQuote.Body.String(), "2026-11-23") {
 		t.Fatalf("viewer quote summary: %d", viewerQuote.Code)
@@ -416,8 +426,12 @@ func TestEngagementThroughWeb(t *testing.T) {
 		}
 	}
 	validOwner := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {"Keep this action"}, "owner_id": {env.ownerID.String()}, "due_date": {"invalid"}, "return_to": {"detail"}}, env.cookies, nil)
-	if validOwner.Code != http.StatusUnprocessableEntity || !strings.Contains(validOwner.Body.String(), `value="`+env.ownerID.String()+`" selected`) || strings.Contains(validOwner.Body.String(), `id="engagement-next-action-owner-error"`) {
+	if validOwner.Code != http.StatusUnprocessableEntity || !strings.Contains(validOwner.Body.String(), `value="`+env.ownerID.String()+`" selected`) || !strings.Contains(validOwner.Body.String(), `aria-describedby="engagement-next-action-due-error"`) || !strings.Contains(validOwner.Body.String(), `value="invalid"`) || strings.Contains(validOwner.Body.String(), `id="engagement-next-action-owner-error"`) {
 		t.Fatalf("valid owner not retained after date error: %d", validOwner.Code)
+	}
+	badText := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {strings.Repeat("x", 5001)}, "owner_id": {env.ownerID.String()}, "return_to": {"detail"}}, env.cookies, nil)
+	if badText.Code != http.StatusUnprocessableEntity || !strings.Contains(badText.Body.String(), `aria-describedby="engagement-next-action-error"`) || !strings.Contains(badText.Body.String(), strings.Repeat("x", 5001)) {
+		t.Fatalf("invalid action text: %d", badText.Code)
 	}
 	if omitted := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "return_to": {"detail"}}, env.cookies, nil); omitted.Code != http.StatusUnprocessableEntity || !strings.Contains(omitted.Body.String(), `aria-describedby="engagement-next-action-owner-error"`) {
 		t.Fatalf("omitted owner: %d", omitted.Code)
