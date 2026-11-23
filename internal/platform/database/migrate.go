@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/platform/config"
+	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 //go:embed migrations/*.sql
@@ -92,6 +93,11 @@ func migrateFS(
 		if _, err := tx.ExecContext(ctx, renderMigration(migration.sql, driver)); err != nil {
 			return fmt.Errorf("apply migration %s: %w", migration.name, err)
 		}
+		if migration.version == 42 {
+			if err := backfillEngagementNames(ctx, tx, driver); err != nil {
+				return fmt.Errorf("backfill engagement names: %w", err)
+			}
+		}
 		if err := recordMigration(ctx, tx, driver, migration.version); err != nil {
 			return fmt.Errorf("record migration %s: %w", migration.name, err)
 		}
@@ -99,6 +105,40 @@ func migrateFS(
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit migrations: %w", err)
+	}
+	return nil
+}
+
+func backfillEngagementNames(ctx context.Context, tx *sql.Tx, driver config.DatabaseDriver) error {
+	rows, err := tx.QueryContext(ctx, `SELECT e.id, c.display_name FROM engagements e JOIN clients c ON c.workspace_id = e.workspace_id AND c.id = e.client_id`)
+	if err != nil {
+		return err
+	}
+	type entry struct {
+		key  int64
+		name string
+	}
+	var entries []entry
+	for rows.Next() {
+		var value entry
+		if err := rows.Scan(&value.key, &value.name); err != nil {
+			rows.Close()
+			return err
+		}
+		entries = append(entries, value)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	for _, value := range entries {
+		name := value.name + " — " + id.EncodeKey(id.TypeEngagement, value.key)
+		if _, err := tx.ExecContext(ctx, Rebind(driver, `UPDATE engagements SET name = ? WHERE id = ?`), name, value.key); err != nil {
+			return err
+		}
 	}
 	return nil
 }
