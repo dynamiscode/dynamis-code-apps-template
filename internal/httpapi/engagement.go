@@ -219,6 +219,30 @@ func (h *handler) createEngagement(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, value)
 }
 
+func (h *handler) setEngagementName(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		notFoundProblem(w, r)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	actor, ok := h.workspaceBearer(w, r, workspace, identity.ResourcesWrite)
+	if !ok {
+		return
+	}
+	var input struct {
+		Name string `json:"name"`
+	}
+	if err := decodeJSON(r, &input); err != nil {
+		h.badJSON(w, r, err)
+		return
+	}
+	if err := h.engagement.SetName(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), input.Name, h.auditContext(r)); err != nil {
+		h.engagementError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *handler) getEngagement(w http.ResponseWriter, r *http.Request) {
 	if h.engagement == nil {
 		notFoundProblem(w, r)
@@ -351,6 +375,8 @@ func (h *handler) engagementError(w http.ResponseWriter, r *http.Request, err er
 	switch {
 	case errors.Is(err, identity.ErrForbidden):
 		writeProblem(w, r, http.StatusForbidden, "forbidden", "Access is denied.")
+	case errors.Is(err, engagement.ErrInvalidName):
+		h.invalidRequest(w, r, "The engagement name is invalid.")
 	case errors.Is(err, engagement.ErrInvalidInput):
 		h.invalidRequest(w, r, "The engagement or stage is invalid.")
 	case errors.Is(err, engagement.ErrNoOpenStage):

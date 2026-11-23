@@ -289,6 +289,15 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	if err != nil || assigned.AssigneeID != viewerID {
 		t.Fatalf("assignment: %+v %v", assigned, err)
 	}
+	if err := svc.SetName(ctx, viewer, boot.WorkspaceID, created.ID, "Denied", identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer rename: %v", err)
+	}
+	if err := svc.SetName(ctx, otherOwner, other, created.ID, "Denied", identity.AuditContext{}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("foreign rename: %v", err)
+	}
+	if err := svc.SetName(ctx, owner, boot.WorkspaceID, created.ID, string([]byte{0xff}), identity.AuditContext{}); !errors.Is(err, ErrInvalidName) {
+		t.Fatalf("invalid UTF-8 rename: %v", err)
+	}
 	if err := svc.SetAssignee(ctx, viewer, boot.WorkspaceID, created.ID, 0, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("viewer assignment: %v", err)
 	}

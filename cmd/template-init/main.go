@@ -485,6 +485,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeText(value, "func (h *handler) setEngagementAssignee(", "func (h *handler) getEngagementLabel(")
 		value = removeText(value, "func (h *handler) setEngagementQuote(", "func (h *handler) createEngagement(")
 		value = removeText(value, "func (h *handler) createEngagement(", "func (h *handler) listEngagementStages(")
+		value = removeText(value, "\tcase errors.Is(err, engagement.ErrInvalidName):", "\tcase errors.Is(err, engagement.ErrInvalidInput):")
 		value = removeText(value, "\tcase errors.Is(err, engagement.ErrNoOpenStage):", "\tdefault:")
 	case "internal/httpapi/engagement_test.go":
 		value = removeLinesContaining(value, `"context"`)

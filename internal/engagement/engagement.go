@@ -122,9 +122,13 @@ type NextAction struct {
 	OwnerID identity.UserID `json:"ownerId"`
 }
 
+func validName(name string) bool {
+	return name != "" && utf8.ValidString(name) && utf8.RuneCountInString(name) <= 200
+}
+
 func (s *Service) Create(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, input Input, audit identity.AuditContext) (Engagement, error) {
 	input.Name = strings.TrimSpace(input.Name)
-	if input.Name == "" || !utf8.ValidString(input.Name) || utf8.RuneCountInString(input.Name) > 200 {
+	if !validName(input.Name) {
 		return Engagement{}, ErrInvalidName
 	}
 	input.Notes = strings.TrimSpace(input.Notes)
@@ -175,6 +179,37 @@ func (s *Service) Create(ctx context.Context, actor identity.Principal, workspac
 		return Engagement{}, err
 	}
 	return value, nil
+}
+
+func (s *Service) SetName(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, name string, audit identity.AuditContext) error {
+	name = strings.TrimSpace(name)
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesWrite); err != nil {
+		return identity.ErrForbidden
+	}
+	var current string
+	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT name FROM engagements WHERE workspace_id = ? AND id = ?`), workspaceID, engagementID).Scan(&current); errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+	if name == current {
+		return nil
+	}
+	if !validName(name) {
+		return ErrInvalidName
+	}
+	if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, `UPDATE engagements SET name = ? WHERE workspace_id = ? AND id = ?`), name, workspaceID, engagementID); err != nil {
+		return err
+	}
+	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement.name_updated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "engagement", TargetKey: int64(engagementID), Action: "engagement.name.update", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: time.Now().UTC()}); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Service) Get(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID) (Engagement, error) {
