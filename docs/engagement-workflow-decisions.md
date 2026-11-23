@@ -27,21 +27,72 @@ current behavior. Existing behavior remains documented in [capabilities](capabil
 - Stage setup guidance is role-specific. The file picker decision is recorded
   in [ADR 0015](decisions/0015-agreement-file-reference.md).
 
-## Remaining decisions and implementation gates
+## Implementation decisions
 
-The approved snapshot format does not settle name length limits, truncation,
-or collision handling. Completed-action filter semantics, migration of existing
-active actions, and the export representation still require design. Dashboard
-pagination and performance limits, precise archive confirmation, optional
-drag-and-drop, and visual interaction design remain unresolved. No approval for
-additional business-rule changes is implied.
+These choices apply the approved requirements and existing conventions; they
+are not additional business-policy approvals or claims of implemented behavior.
 
-The current next-action table stores one active action per engagement and
-clears its owner on membership removal. Preserve existing active actions during
-the migration; this is a data-preserving implementation detail, not approval
-for a new lifecycle rule. The current workspace export excludes stages,
-engagements, and active actions, so implementation must add them and completed
-history rather than treating the approved export as current behavior.
+- **Names:** accept trimmed valid UTF-8, at most 200 Unicode code points, as
+  for client display names (`internal/clients/service.go`). Migration builds
+  the approved snapshot with the full client name and short ID; it must not
+  silently truncate either. Allow generated names longer than 200 code points
+  when necessary, and allow them to remain unchanged; enforce the limit on new
+  or changed names. Reject invalid new names with a field-specific error. Do
+  not enforce name uniqueness: the short ID distinguishes generated names, and
+  users can intentionally choose the same name. Test long and non-ASCII names.
+- **Existing actions:** retain each active row and its text, due date, and
+  nullable owner; do not fabricate completion events. Membership removal can
+  already clear an owner (`internal/engagement/next_action.go` and
+  `internal/identity/service.go`). Complete an action and remove it from the
+  active queue atomically, preserving the approved history. Reject stale or
+  repeated completion rather than duplicating history; test concurrent attempts.
+- **Dates and filters:** calculate today once per request in UTC. Overdue is a
+  nonempty due date before today; due today equals today; upcoming is after
+  today; undated has no due date. Default queue combines overdue and today.
+  Completed is a separate history view, not mixed into active date buckets;
+  apply owner filtering to the recorded owner, including a clear unassigned
+  state after identity removal. Preserve current open-stage restriction for
+  active due work (`internal/engagement/next_action.go`); do not silently
+  exclude archived occupants of open stages.
+- **Export:** extend the existing bounded `dynamis-code.workspace/v1` JSON
+  export with additive, profile-gated engagement collections, following the
+  Clients export seam (`internal/portability/service.go`). Include stage and
+  engagement identifiers and references, active actions and completed history;
+  use public short IDs where defined, preserve nullable identities, and omit
+  secrets. Count new records against existing export limits and fail rather
+  than return a partial export. Specify exact fields and test both profile
+  variants when implementing. Existing exports do not yet include these rows.
+- **Interaction and scale:** use existing ordinary GET filters and bounded list
+  pagination, with deterministic ordering and links retaining filters; do not
+  claim a performance target without measurement. Use a server-validated
+  confirmation for archiving with consequences visible without JavaScript,
+  following `docs/web.md`. Use accessible stage controls first; omit optional
+  drag-and-drop until separately justified and reviewed. Detailed visual design
+  remains subject to the browser UX review.
+
+## Business-policy approval and implementation gates
+
+- **REST compatibility:** requiring a name on the existing create API is
+  approved and breaks clients that omit it. Whether to release that break in
+  place or provide a versioned transition requires an explicit product decision;
+  do not silently make the name optional or claim old clients remain compatible.
+- **Action replacement and completion:** existing writers can replace or clear
+  an active action without history. Completion history is approved, but whether
+  replacement or clearing must also retain history, and whether completed actions
+  can be reopened, require explicit approval before changing those semantics.
+- **Queue scope:** open-stage due work is existing behavior. Whether upcoming,
+  undated, and completed filters include won/lost engagements needs a product
+  decision; the approved requirements do not specify that boundary.
+- **Export scope:** stages, engagements, active actions, and completed actions
+  are approved. Inclusion of existing stage-move history, which can contain actor
+  identities, requires an explicit decision; do not infer it from deletion or
+  from the approved action-history export.
+
+ADR 0015 permits the independently authorized picker with manual short-ID
+fallback; it does not establish that a picker exists. The parent issue's older
+statement that the ADR rejects it is superseded by the accepted ADR. No further
+picker approval is needed for that architecture, but implementation and its
+independent Files authorization remain gates.
 
 A rendered-browser audit of the current journeys is required before declaring
 #621 complete. Source inspection or automated checks do not replace desktop and
@@ -83,9 +134,12 @@ user created an open Discovery stage, an Audit client, and an engagement.
   region's stage, agreement, and quote summaries. That region contained zero
   buttons and zero comboboxes.
 
-Playwright captured a desktop screenshot in its MCP server output. Its durable
-location and visual contents were not verified. Desktop review and broader
-mobile review remain outstanding, as do broader keyboard, error recovery, read-only role,
-no-JavaScript, and comprehensive accessibility audits. The viewer and
-JavaScript-disabled observations are sampled cases, not full coverage. These
-observations do not complete the required rendered-browser audit.
+Playwright captured a desktop screenshot in its MCP server output. The supplied
+path `/var/folders/pt/yhlb769j4j1frcvj3mk_fy240000gp/T/pi-codemode-655cf9f4f999134a.png`
+was inaccessible in this session (outside the permitted workspace); its
+existence and visual contents could not be verified. No visual findings are
+inferred. Desktop review and broader mobile review remain outstanding, as do
+broader keyboard, error recovery, read-only role, no-JavaScript, and
+comprehensive accessibility audits. The viewer and JavaScript-disabled
+observations are sampled cases, not full coverage. These observations do not
+complete the required rendered-browser audit.
