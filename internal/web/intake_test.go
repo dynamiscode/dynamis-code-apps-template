@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"example.com/dynamis-code/apps-template/internal/engagement"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/intake"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
@@ -43,6 +44,9 @@ func TestPublicIntakeForm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := engagement.NewService(env.db, config.SQLite, env.auth).CreateStage(context.Background(), owner, env.workspaceID, engagement.StageInput{Name: "New", Kind: "open"}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
 	svc := intake.NewService(env.db, config.SQLite, env.auth)
 	token, err := svc.Create(context.Background(), owner, env.workspaceID, "Custom consent", identity.AuditContext{})
 	if err != nil {
@@ -51,5 +55,17 @@ func TestPublicIntakeForm(t *testing.T) {
 	page := request(env.routes, http.MethodGet, "/intake/"+token, nil, nil, map[string]string{"Accept-Language": "es"})
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Custom consent") || !strings.Contains(page.Body.String(), "Nombre") {
 		t.Fatalf("public form: status %d, body %s", page.Code, page.Body.String())
+	}
+	invalid := request(env.routes, http.MethodPost, "/intake/"+token, url.Values{"name": {"Visitor"}}, nil, nil)
+	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "Visitor") {
+		t.Fatalf("invalid form: %d", invalid.Code)
+	}
+	result := request(env.routes, http.MethodPost, "/intake/"+token, url.Values{"name": {"Visitor"}, "email": {"visitor@example.com"}, "consent": {"on"}}, nil, nil)
+	if result.Code != http.StatusOK || !strings.Contains(result.Body.String(), "Thank you") || strings.Contains(result.Body.String(), "Visitor") || strings.Contains(result.Body.String(), "Clients") {
+		t.Fatalf("confirmation: %d, body %s", result.Code, result.Body.String())
+	}
+	missing := request(env.routes, http.MethodGet, "/intake/unknown", nil, nil, nil)
+	if missing.Code != http.StatusNotFound || strings.Contains(missing.Body.String(), "Custom consent") {
+		t.Fatalf("unknown link: %d", missing.Code)
 	}
 }
