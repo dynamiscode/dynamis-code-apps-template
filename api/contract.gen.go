@@ -9,7 +9,7 @@ type Operation struct {
 }
 
 const OpenAPIVersion = "3.1.0"
-const OpenAPISHA256 = "9e8714d42820c74e519e0410be302a082030ccc803c52cce1123d17904c85d85"
+const OpenAPISHA256 = "325ae3714980210be81e9854558d6956f260e8f0424b5e059537691c5c2c03ca"
 
 var Operations = []Operation{
 	{Method: "GET", Path: "/api/openapi.json", ID: "getOpenAPI"},
@@ -29,7 +29,10 @@ var Operations = []Operation{
 	{Method: "DELETE", Path: "/api/v1/sessions/{sessionId}", ID: "revokeSession"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/catalog", ID: "listCatalog"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/catalog", ID: "createCatalog"},
+	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/catalog/{entryId}", ID: "deleteCatalog"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/archive", ID: "archiveCatalog"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/prices", ID: "createCatalogPrice"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/unarchive", ID: "unarchiveCatalog"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/client-fields", ID: "listClientFields"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/client-fields", ID: "createClientField"},
 	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/client-fields/{fieldId}", ID: "deleteClientField"},

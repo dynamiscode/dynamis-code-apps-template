@@ -4,9 +4,11 @@ package catalog
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"regexp"
 	"strings"
+	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
@@ -23,25 +25,44 @@ type PriceOption struct {
 	Eligibility string  `json:"eligibility"`
 }
 
+var ErrNotFound = errors.New("catalog entry not found")
+var ErrInUse = errors.New("catalog entry is in use; archive it instead")
+
+type EntryID int64
+
+func (v EntryID) String() string               { return id.EncodeKey(id.TypeCatalogEntry, int64(v)) }
+func (v EntryID) MarshalJSON() ([]byte, error) { return json.Marshal(v.String()) }
+func ParseEntryID(s string) EntryID            { v, _ := id.DecodeKey(id.TypeCatalogEntry, s); return EntryID(v) }
+
 type Entry struct {
-	ID              string        `json:"id"`
+	ID              EntryID       `json:"id"`
 	Name            string        `json:"name"`
 	DurationMinutes *int          `json:"durationMinutes"`
+	Archived        bool          `json:"archived"`
 	Prices          []PriceOption `json:"prices"`
 }
 
 type Service struct {
-	db   *sql.DB
-	auth *identity.Service
+	db    *sql.DB
+	auth  *identity.Service
+	inUse func(context.Context, *sql.Tx, identity.WorkspaceID, EntryID) (bool, error)
 }
 
-func NewService(db *sql.DB, auth *identity.Service) *Service { return &Service{db: db, auth: auth} }
+// A nil inUse checker is valid only while no sale integration exists.
+func NewService(db *sql.DB, auth *identity.Service, inUse func(context.Context, *sql.Tx, identity.WorkspaceID, EntryID) (bool, error)) *Service {
+	return &Service{db: db, auth: auth, inUse: inUse}
+}
 
-func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID) ([]Entry, error) {
+func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, includeArchived bool) ([]Entry, error) {
 	if _, err := s.auth.AuthorizePrincipal(ctx, actor, workspaceID, identity.ResourcesRead); err != nil {
 		return nil, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT e.id, e.name, e.duration_minutes, p.mode, p.amount, p.currency, p.variant, p.eligibility FROM catalog_entries e LEFT JOIN catalog_prices p ON p.entry_id = e.id WHERE e.workspace_id = $1 AND e.archived_at IS NULL ORDER BY e.id, p.id`, workspaceID)
+	query := `SELECT e.id, e.name, e.duration_minutes, e.archived_at, p.mode, p.amount, p.currency, p.variant, p.eligibility FROM catalog_entries e LEFT JOIN catalog_prices p ON p.entry_id = e.id WHERE e.workspace_id = $1`
+	if !includeArchived {
+		query += ` AND e.archived_at IS NULL`
+	}
+	query += ` ORDER BY e.id, p.id`
+	rows, err := s.db.QueryContext(ctx, query, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -52,12 +73,12 @@ func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceI
 		var key int64
 		var name string
 		var duration *int
-		var mode, amount, currency, variant, eligibility sql.NullString
-		if err := rows.Scan(&key, &name, &duration, &mode, &amount, &currency, &variant, &eligibility); err != nil {
+		var archived, mode, amount, currency, variant, eligibility sql.NullString
+		if err := rows.Scan(&key, &name, &duration, &archived, &mode, &amount, &currency, &variant, &eligibility); err != nil {
 			return nil, err
 		}
 		if key != last {
-			entries = append(entries, Entry{ID: id.EncodeKey(id.TypeCatalogEntry, key), Name: name, DurationMinutes: duration, Prices: []PriceOption{}})
+			entries = append(entries, Entry{ID: EntryID(key), Name: name, DurationMinutes: duration, Archived: archived.Valid, Prices: []PriceOption{}})
 			last = key
 		}
 		if mode.Valid {
@@ -88,14 +109,71 @@ func (s *Service) Create(ctx context.Context, actor identity.Principal, workspac
 	if name == "" || (duration != nil && *duration <= 0) {
 		return Entry{}, ErrInvalidInput
 	}
-	var key int64
-	if err := tx.QueryRowContext(ctx, `INSERT INTO catalog_entries (workspace_id, name, duration_minutes) VALUES ($1, $2, $3) RETURNING id`, workspaceID, name, duration).Scan(&key); err != nil {
+	var entryID EntryID
+	err = tx.QueryRowContext(ctx, `INSERT INTO catalog_entries (workspace_id, name, duration_minutes) VALUES ($1, $2, $3) RETURNING id`, workspaceID, name, duration).Scan(&entryID)
+	if err != nil {
 		return Entry{}, err
 	}
 	if err := tx.Commit(); err != nil {
 		return Entry{}, err
 	}
-	return Entry{ID: id.EncodeKey(id.TypeCatalogEntry, key), Name: name, DurationMinutes: duration, Prices: []PriceOption{}}, nil
+	return Entry{ID: entryID, Name: name, DurationMinutes: duration, Prices: []PriceOption{}}, nil
+}
+
+func (s *Service) SetArchived(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, archived bool) error {
+	return s.mutate(ctx, actor, workspaceID, entryID, func(tx *sql.Tx) (sql.Result, error) {
+		var at any
+		if archived {
+			at = time.Now().UTC().Format(time.RFC3339Nano)
+		}
+		return tx.ExecContext(ctx, `UPDATE catalog_entries SET archived_at = $1 WHERE workspace_id = $2 AND id = $3`, at, workspaceID, entryID)
+	})
+}
+func (s *Service) Delete(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID) error {
+	return s.mutate(ctx, actor, workspaceID, entryID, func(tx *sql.Tx) (sql.Result, error) {
+		var found EntryID
+		if err := tx.QueryRowContext(ctx, `SELECT id FROM catalog_entries WHERE workspace_id = $1 AND id = $2`, workspaceID, entryID).Scan(&found); errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		} else if err != nil {
+			return nil, err
+		}
+		if s.inUse != nil {
+			used, err := s.inUse(ctx, tx, workspaceID, entryID)
+			if err != nil {
+				return nil, err
+			}
+			if used {
+				return nil, ErrInUse
+			}
+		}
+		return tx.ExecContext(ctx, `DELETE FROM catalog_entries WHERE workspace_id = $1 AND id = $2`, workspaceID, entryID)
+	})
+}
+func (s *Service) mutate(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, operation func(*sql.Tx) (sql.Result, error)) error {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	principal, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesWrite)
+	if err != nil {
+		return err
+	}
+	if !identity.CanWriteCatalog(principal) {
+		return identity.ErrForbidden
+	}
+	result, err := operation(tx)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return tx.Commit()
 }
 
 func (s *Service) AddPrice(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID string, option PriceOption) (PriceOption, error) {

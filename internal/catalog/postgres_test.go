@@ -36,17 +36,17 @@ func TestPostgresCatalogCreateAndList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	service := NewService(db, auth)
+	service := NewService(db, auth, nil)
 	minutes := 45
 	entry, err := service.Create(ctx, actor, owner.WorkspaceID, "Consultation", &minutes)
 	if err != nil {
 		t.Fatal(err)
 	}
 	amount := "0.123456789012345678"
-	if _, err := service.AddPrice(ctx, actor, owner.WorkspaceID, entry.ID, PriceOption{Mode: "fixed", Amount: &amount, Currency: "BTC", Variant: "Visit"}); err != nil {
+	if _, err := service.AddPrice(ctx, actor, owner.WorkspaceID, entry.ID.String(), PriceOption{Mode: "fixed", Amount: &amount, Currency: "BTC", Variant: "Visit"}); err != nil {
 		t.Fatal(err)
 	}
-	entries, err := service.List(ctx, actor, owner.WorkspaceID)
+	entries, err := service.List(ctx, actor, owner.WorkspaceID, false)
 	if err != nil || len(entries) != 1 || entries[0].Name != "Consultation" || entries[0].DurationMinutes == nil || *entries[0].DurationMinutes != minutes || len(entries[0].Prices) != 1 || entries[0].Prices[0].Amount == nil || *entries[0].Prices[0].Amount != amount {
 		t.Fatalf("entries = %+v, %v", entries, err)
 	}

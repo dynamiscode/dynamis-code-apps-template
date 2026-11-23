@@ -300,7 +300,7 @@ func copySymlink(root, path, target, relative string) error {
 
 func catalogPath(relative string) bool {
 	relative = filepath.ToSlash(relative)
-	return relative == "internal/catalog" || strings.HasPrefix(relative, "internal/catalog/") ||
+	return relative == "api/catalog_contract_test.go" || relative == "internal/catalog" || strings.HasPrefix(relative, "internal/catalog/") ||
 		relative == "internal/httpapi/catalog.go" || relative == "internal/httpapi/catalog_test.go" ||
 		relative == "internal/web/catalog.go" || relative == "internal/web/catalog_test.go" ||
 		relative == "internal/web/catalog.templ" || relative == "internal/web/catalog_templ.go" ||
@@ -317,8 +317,12 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "h.catalogList")
 		value = removeLinesContaining(value, "h.catalogCreate")
 		value = removeLinesContaining(value, "h.catalogCreatePrice")
+		value = removeLinesContaining(value, "h.catalogArchive")
+		value = removeLinesContaining(value, "h.catalogUnarchive")
+		value = removeLinesContaining(value, "h.catalogDelete")
 		value = removeLinesContaining(value, "EnableCatalog(")
 		value = removeLinesContaining(value, `"listCatalog":`)
+		value = removeLinesContaining(value, `"archiveCatalog":`)
 	case "docs/capabilities.md":
 		value = removeLineStarting(value, "| Catalog |")
 	case "docs/architecture.md":
@@ -333,6 +337,9 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 			if paths, ok := document["paths"].(map[string]any); ok {
 				delete(paths, "/api/v1/workspaces/{workspaceId}/catalog")
 				delete(paths, "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/prices")
+				delete(paths, "/api/v1/workspaces/{workspaceId}/catalog/{entryId}")
+				delete(paths, "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/archive")
+				delete(paths, "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/unarchive")
 				if encoded, err := json.MarshalIndent(document, "", "  "); err == nil {
 					value = string(encoded) + "\n"
 				}

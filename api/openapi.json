@@ -235,7 +235,7 @@
     "/api/v1/workspaces/{workspaceId}/catalog": {
       "get": {
         "operationId": "listCatalog", "security": [{"bearerAuth": []}],
-        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"},{"name":"includeArchived","in":"query","schema":{"type":"boolean"}}],
         "responses": {"200": {"description": "Active catalog entries", "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/CatalogEntry"}}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}
       },
       "post": {
@@ -252,6 +252,15 @@
         "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CatalogPrice"}}}},
         "responses": {"201": {"description": "Created price", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CatalogPrice"}}}}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "422": {"$ref": "#/components/responses/Problem"}}
       }
+    },
+    "/api/v1/workspaces/{workspaceId}/catalog/{entryId}": {
+      "delete": {"operationId": "deleteCatalog", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "entryId", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"204": {"description": "Deleted"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}}
+    },
+    "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/archive": {
+      "post": {"operationId": "archiveCatalog", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "entryId", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"204": {"description": "Archived"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}}}
+    },
+    "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/unarchive": {
+      "post": {"operationId": "unarchiveCatalog", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "entryId", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"204": {"description": "Unarchived"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}}}
     },
     "/api/v1/workspaces/{workspaceId}/clients": {
         "get": {
@@ -1037,7 +1046,7 @@
       "RateLimited": {"description": "Rate limit exceeded", "headers": {"Retry-After": {"required": true, "schema": {"type": "integer", "minimum": 1}}}, "content": {"application/problem+json": {"schema": {"$ref": "#/components/schemas/Problem"}}}}
     },
     "schemas": {
-      "CatalogEntry": {"type": "object", "required": ["id", "name", "durationMinutes", "prices"], "properties": {"id": {"type": "string"}, "name": {"type": "string"}, "durationMinutes": {"type": "integer", "nullable": true}, "prices": {"type": "array", "items": {"$ref": "#/components/schemas/CatalogPrice"}}}},
+      "CatalogEntry": {"type": "object", "required": ["id", "name", "durationMinutes", "archived", "prices"], "properties": {"id": {"type": "string"}, "name": {"type": "string"}, "durationMinutes": {"type": "integer", "nullable": true}, "archived": {"type": "boolean"}, "prices": {"type": "array", "items": {"$ref": "#/components/schemas/CatalogPrice"}}}},
       "CatalogPrice": {"type": "object", "required": ["mode", "currency", "variant"], "properties": {"mode": {"type": "string", "enum": ["fixed", "manual"]}, "amount": {"type": "string", "nullable": true, "pattern": "^[0-9]+(\\.[0-9]+)?$"}, "currency": {"type": "string", "minLength": 1}, "variant": {"type": "string", "minLength": 1}, "eligibility": {"type": "string"}}},
       "HealthAlive": {"type": "object", "required": ["status"], "properties": {"status": {"const": "alive"}}},
       "HealthReady": {"type": "object", "required": ["status"], "properties": {"status": {"const": "ready"}}},

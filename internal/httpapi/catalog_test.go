@@ -2,45 +2,72 @@ package httpapi
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
 
+	"example.com/dynamis-code/apps-template/internal/catalog"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
 
-func TestCatalogPricesREST(t *testing.T) {
-	handler, _, workspace, token := testHandler(t)
-	path := "/api/v1/workspaces/" + workspace + "/catalog"
-	created := serveAuthorized(handler, http.MethodPost, path, `{"name":"Visit"}`, token, nil)
+func TestCatalogArchiveAndDelete(t *testing.T) {
+	handler, _, workspaceID, token := testHandler(t)
+	path := "/api/v1/workspaces/" + workspaceID + "/catalog"
+	created := serveAuthorized(handler, http.MethodPost, path, `{"name":"Consultation"}`, token, nil)
 	var entry struct {
 		ID string `json:"id"`
 	}
 	if err := json.Unmarshal(created.Body.Bytes(), &entry); err != nil || entry.ID == "" {
-		t.Fatalf("entry: %s %v", created.Body.String(), err)
+		t.Fatalf("create: %s, %v", created.Body.String(), err)
 	}
-	pricePath := path + "/" + entry.ID + "/prices"
-	for _, body := range []string{`{"mode":"fixed","amount":"0.123456789012345678","currency":"BTC","variant":"Visit"}`, `{"mode":"manual","currency":"USD","variant":"Week"}`} {
-		response := serveAuthorized(handler, http.MethodPost, pricePath, body, token, nil)
-		if response.Code != http.StatusCreated {
-			t.Fatalf("price = %d %s", response.Code, response.Body.String())
-		}
+	entryPath := path + "/" + entry.ID
+	response := serveAuthorized(handler, http.MethodPost, entryPath+"/archive", "", token, nil)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("archive = %d %s", response.Code, response.Body.String())
 	}
-	for _, body := range []string{`{"mode":"fixed","currency":"USD","variant":"Visit"}`, `{"mode":"fixed","amount":"-1","currency":"USD","variant":"Visit"}`, `{"mode":"manual","variant":"Visit"}`, `{"mode":"manual","currency":"USD"}`} {
-		response := serveAuthorized(handler, http.MethodPost, pricePath, body, token, nil)
-		if response.Code != http.StatusUnprocessableEntity {
-			t.Fatalf("invalid = %d %s", response.Code, response.Body.String())
-		}
+	active := serveAuthorized(handler, http.MethodGet, path, "", token, nil)
+	if strings.Contains(active.Body.String(), "Consultation") {
+		t.Fatal("archived entry in default list")
 	}
-	list := serveAuthorized(handler, http.MethodGet, path, "", token, nil)
-	if response := serveAuthorized(handler, http.MethodPost, pricePath, `{"mode":"fixed","amount":0.1,"currency":"USD","variant":"Visit"}`, token, nil); response.Code != http.StatusBadRequest {
-		t.Fatalf("numeric amount = %d", response.Code)
+	all := serveAuthorized(handler, http.MethodGet, path+"?includeArchived=true", "", token, nil)
+	if !strings.Contains(all.Body.String(), "Consultation") {
+		t.Fatalf("archived list = %s", all.Body.String())
 	}
-	if !strings.Contains(list.Body.String(), `"amount":"0.123456789012345678"`) || !strings.Contains(list.Body.String(), `"mode":"manual"`) {
-		t.Fatal(list.Body.String())
+	response = serveAuthorized(handler, http.MethodPost, entryPath+"/unarchive", "", token, nil)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("unarchive = %d %s", response.Code, response.Body.String())
+	}
+	response = serveAuthorized(handler, http.MethodDelete, entryPath, "", token, nil)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("delete = %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestCatalogDeleteInUse(t *testing.T) {
+	routes, db, workspaceID, token := testHandler(t)
+	path := "/api/v1/workspaces/" + workspaceID + "/catalog"
+	created := serveAuthorized(routes, http.MethodPost, path, `{"name":"In use"}`, token, nil)
+	var entry struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(created.Body.Bytes(), &entry); err != nil || entry.ID == "" {
+		t.Fatal("missing entry ID")
+	}
+	auth, err := identity.NewService(db, config.SQLite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := catalog.NewService(db, auth, func(context.Context, *sql.Tx, identity.WorkspaceID, catalog.EntryID) (bool, error) { return true, nil })
+	h := &handler{identity: auth, catalogService: service}
+	mux := http.NewServeMux()
+	mux.HandleFunc("DELETE /api/v1/workspaces/{workspaceId}/catalog/{entryId}", h.deleteCatalog)
+	response := serveAuthorized(mux, http.MethodDelete, path+"/"+entry.ID, "", token, nil)
+	if response.Code != http.StatusConflict || !strings.Contains(response.Body.String(), "archive") {
+		t.Fatalf("delete = %d %s", response.Code, response.Body.String())
 	}
 }
 
@@ -114,6 +141,20 @@ func TestCatalogRESTRolePermissions(t *testing.T) {
 		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Role test") {
 			t.Errorf("%s list = %d %s", role, response.Code, response.Body.String())
 		}
+		if role == identity.Member || role == identity.Viewer {
+			var entries []struct {
+				ID string `json:"id"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &entries); err != nil || len(entries) == 0 {
+				t.Fatal("missing catalog entry")
+			}
+			for _, operation := range []struct{ method, suffix string }{{http.MethodPost, "/archive"}, {http.MethodPost, "/unarchive"}, {http.MethodDelete, ""}} {
+				response = serveAuthorized(handler, operation.method, path+"/"+entries[0].ID+operation.suffix, "", token.Secret, nil)
+				if response.Code != http.StatusForbidden {
+					t.Errorf("%s %s = %d", role, operation.suffix, response.Code)
+				}
+			}
+		}
 	}
 }
 
@@ -132,5 +173,37 @@ func TestCatalogList(t *testing.T) {
 	denied := serveAuthorized(handler, http.MethodGet, path, "", "invalid", nil)
 	if denied.Code != http.StatusUnauthorized {
 		t.Fatalf("unauthenticated = %d", denied.Code)
+	}
+}
+
+func TestCatalogPricesREST(t *testing.T) {
+	handler, _, workspace, token := testHandler(t)
+	path := "/api/v1/workspaces/" + workspace + "/catalog"
+	created := serveAuthorized(handler, http.MethodPost, path, `{"name":"Visit"}`, token, nil)
+	var entry struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(created.Body.Bytes(), &entry); err != nil || entry.ID == "" {
+		t.Fatalf("entry: %s %v", created.Body.String(), err)
+	}
+	pricePath := path + "/" + entry.ID + "/prices"
+	for _, body := range []string{`{"mode":"fixed","amount":"0.123456789012345678","currency":"BTC","variant":"Visit"}`, `{"mode":"manual","currency":"USD","variant":"Week"}`} {
+		response := serveAuthorized(handler, http.MethodPost, pricePath, body, token, nil)
+		if response.Code != http.StatusCreated {
+			t.Fatalf("price = %d %s", response.Code, response.Body.String())
+		}
+	}
+	for _, body := range []string{`{"mode":"fixed","currency":"USD","variant":"Visit"}`, `{"mode":"fixed","amount":"-1","currency":"USD","variant":"Visit"}`, `{"mode":"manual","variant":"Visit"}`, `{"mode":"manual","currency":"USD"}`} {
+		response := serveAuthorized(handler, http.MethodPost, pricePath, body, token, nil)
+		if response.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("invalid = %d %s", response.Code, response.Body.String())
+		}
+	}
+	list := serveAuthorized(handler, http.MethodGet, path, "", token, nil)
+	if response := serveAuthorized(handler, http.MethodPost, pricePath, `{"mode":"fixed","amount":0.1,"currency":"USD","variant":"Visit"}`, token, nil); response.Code != http.StatusBadRequest {
+		t.Fatalf("numeric amount = %d", response.Code)
+	}
+	if !strings.Contains(list.Body.String(), `"amount":"0.123456789012345678"`) || !strings.Contains(list.Body.String(), `"mode":"manual"`) {
+		t.Fatal(list.Body.String())
 	}
 }

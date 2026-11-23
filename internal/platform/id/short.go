@@ -17,6 +17,7 @@ type TypeCode string
 // Type-code registry. Add every new code to TypeCodes; the registry test
 // enforces that codes are non-empty and unique.
 const (
+	TypeCatalogEntry        TypeCode = "catalog_entry"
 	TypeItem                TypeCode = "item"
 	TypeWorkspace           TypeCode = "workspace"
 	TypeFile                TypeCode = "file"
@@ -41,17 +42,16 @@ const (
 	TypeClientFieldOption   TypeCode = "client_field_option"
 	TypeClientEvent         TypeCode = "client_event"
 	TypeClientTimelineEntry TypeCode = "client_timeline_entry"
-	TypeCatalogEntry        TypeCode = "catalog_entry"
 )
 
 // TypeCodes returns every registered type code.
 func TypeCodes() []TypeCode {
 	return []TypeCode{
-		TypeItem, TypeWorkspace, TypeFile, TypeWebhook, TypeWebhookDelivery,
+		TypeCatalogEntry, TypeItem, TypeWorkspace, TypeFile, TypeWebhook, TypeWebhookDelivery,
 		TypeWebhookEvent, TypeJob, TypeInvitation, TypeMember, TypeToken,
 		TypePublicLink, TypeSCIMToken, TypeOAuthClient, TypeOAuthGrant, TypeItemEvent,
 		TypeNotification, TypeMFAPasskey, TypeAuditEvent, TypeUser,
-		TypeClient, TypeClientField, TypeClientFieldOption, TypeClientEvent, TypeClientTimelineEntry, TypeCatalogEntry,
+		TypeClient, TypeClientField, TypeClientFieldOption, TypeClientEvent, TypeClientTimelineEntry,
 	}
 }
 

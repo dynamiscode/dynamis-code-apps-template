@@ -32,25 +32,49 @@ func TestPriceOptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := NewService(db, auth)
+	s := NewService(db, auth, nil)
 	entry, err := s.Create(ctx, actor, owner.WorkspaceID, "Service", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	amount := "0.123456789012345678"
 	for _, option := range []PriceOption{{Mode: "fixed", Amount: &amount, Currency: "BTC", Variant: "Visit"}, {Mode: "manual", Currency: "USD", Variant: "Week"}} {
-		if _, err := s.AddPrice(ctx, actor, owner.WorkspaceID, entry.ID, option); err != nil {
+		if _, err := s.AddPrice(ctx, actor, owner.WorkspaceID, entry.ID.String(), option); err != nil {
 			t.Fatal(err)
 		}
 	}
-	entries, err := s.List(ctx, actor, owner.WorkspaceID)
+	entries, err := s.List(ctx, actor, owner.WorkspaceID, false)
 	if err != nil || len(entries) != 1 || len(entries[0].Prices) != 2 || *entries[0].Prices[0].Amount != amount || entries[0].Prices[1].Amount != nil {
 		t.Fatalf("prices = %+v, %v", entries, err)
 	}
+	if err := s.SetArchived(ctx, actor, owner.WorkspaceID, entry.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	active, err := s.List(ctx, actor, owner.WorkspaceID, false)
+	if err != nil || len(active) != 0 {
+		t.Fatalf("active entries = %+v, %v", active, err)
+	}
+	archived, err := s.List(ctx, actor, owner.WorkspaceID, true)
+	if err != nil || len(archived) != 1 || !archived[0].Archived || len(archived[0].Prices) != 2 || archived[0].Prices[0].Amount == nil || *archived[0].Prices[0].Amount != amount {
+		t.Fatalf("archived prices = %+v, %v", archived, err)
+	}
+	if _, err := s.AddPrice(ctx, actor, owner.WorkspaceID, entry.ID.String(), PriceOption{Mode: "manual", Currency: "USD", Variant: "Visit"}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("add price to archived entry: %v", err)
+	}
+	if err := s.SetArchived(ctx, actor, owner.WorkspaceID, entry.ID, false); err != nil {
+		t.Fatal(err)
+	}
 	negative := "-1"
 	for _, option := range []PriceOption{{Mode: "fixed", Currency: "USD", Variant: "Visit"}, {Mode: "fixed", Amount: &negative, Currency: "USD", Variant: "Visit"}, {Mode: "manual", Variant: "Visit"}, {Mode: "manual", Currency: "USD"}} {
-		if _, err := s.AddPrice(ctx, actor, owner.WorkspaceID, entry.ID, option); !errors.Is(err, ErrInvalidInput) {
+		if _, err := s.AddPrice(ctx, actor, owner.WorkspaceID, entry.ID.String(), option); !errors.Is(err, ErrInvalidInput) {
 			t.Fatalf("invalid option %+v: %v", option, err)
 		}
+	}
+	if err := s.Delete(ctx, actor, owner.WorkspaceID, entry.ID); err != nil {
+		t.Fatal(err)
+	}
+	entries, err = s.List(ctx, actor, owner.WorkspaceID, true)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("deleted entries = %+v, %v", entries, err)
 	}
 }

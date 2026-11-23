@@ -7,11 +7,19 @@ import organisms "example.com/dynamis-code/apps-template/internal/web/components
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
-templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, canWrite bool, invalid bool, name string, duration string) {
+templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, canWrite bool, invalid bool, inUse bool, includeArchived bool, name string, duration string) {
  @templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
   @molecules.PageHeading(data.T("catalog.title"), "")
   if invalid {
    <div role="alert" class="alert alert-error">{ data.T("catalog.invalid") }</div>
+  }
+  if inUse {
+   <div role="alert" class="alert alert-error">{ data.T("catalog.in_use") }</div>
+  }
+  if includeArchived {
+   <a class="link" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog") }>{ data.T("catalog.hide_archived") }</a>
+  } else {
+   <a class="link" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?includeArchived=true") }>{ data.T("catalog.show_archived") }</a>
   }
   if canWrite {
    <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog") } class="card bg-base-100 p-4 space-y-3">
@@ -47,8 +55,8 @@ templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, canWrite boo
         </li>
        }
       </ul>
-      if canWrite {
-       <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID + "/prices") } class="space-y-3">
+      if canWrite && !entry.Archived {
+       <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/prices") } class="space-y-3">
         <input type="hidden" name="csrf" value={ data.CSRF }/>
         <label class="form-control"><span class="label-text">{ data.T("catalog.mode") }</span><select class="select select-bordered" name="mode"><option value="fixed">{ data.T("catalog.fixed") }</option><option value="manual">{ data.T("catalog.manual") }</option></select></label>
         <label class="form-control"><span class="label-text">{ data.T("catalog.amount") }</span><input class="input input-bordered" name="amount" inputmode="decimal"/></label>
@@ -57,6 +65,21 @@ templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, canWrite boo
         <label class="form-control"><span class="label-text">{ data.T("catalog.eligibility") }</span><input class="input input-bordered" name="eligibility"/></label>
         <button class="btn btn-primary" type="submit">{ data.T("catalog.add_price") }</button>
        </form>
+      }
+      if entry.Archived {
+       <span>{ data.T("catalog.archived") }</span>
+      }
+      if canWrite {
+       if entry.Archived {
+        <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/unarchive") }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-sm" type="submit">{ data.T("clients.unarchive") }</button></form>
+       } else {
+        <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/archive") }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-sm" type="submit">{ data.T("clients.archive") }</button></form>
+       }
+       <details>
+        <summary class="btn btn-sm btn-error">{ data.T("common.delete") }</summary>
+        <p>{ data.T("catalog.delete_confirm") }</p>
+        <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/delete") }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-sm btn-error" type="submit">{ data.T("common.delete") }</button></form>
+       </details>
       }
      </li>
     }
