@@ -530,7 +530,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "engagement.Engagement")
 		value = removeLinesContaining(value, "engagement.Stage")
 		value = removeBlockIncludingEnd(value, "type TimelineDraft struct {", "}\n")
-		value = removeLinesContaining(value, "TimelineDraft        TimelineDraft")
+		value = removeLinesContaining(value, "TimelineDraft ")
 		value = removeLinesContaining(value, "clients.TimelineEntry")
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, "clients.FilterInput")
