@@ -11,6 +11,17 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
 
+func TestEngagementLabelThroughREST(t *testing.T) {
+	handler, _, workspace, token := testHandler(t)
+	path := "/api/v1/workspaces/" + workspace + "/engagement-label"
+	if r := serveAuthorized(handler, http.MethodPut, path, `{"label":"Matter"}`, token, nil); r.Code != http.StatusNoContent {
+		t.Fatalf("set: %d %s", r.Code, r.Body.String())
+	}
+	if r := serveAuthorized(handler, http.MethodGet, path, "", token, nil); r.Code != http.StatusOK || !strings.Contains(r.Body.String(), `"label":"Matter"`) {
+		t.Fatalf("get: %d %s", r.Code, r.Body.String())
+	}
+}
+
 func TestStagesThroughREST(t *testing.T) {
 	handler, _, workspace, token := testHandler(t)
 	path := "/api/v1/workspaces/" + workspace + "/engagement-stages"

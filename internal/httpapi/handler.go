@@ -169,6 +169,7 @@ func newHandler(
 		"completeFileUpload": h.completeFileUpload, "uploadFileContent": h.uploadFileContent,
 		"listClients": h.listClients, "createClient": h.createClient,
 		"listEngagementStages": h.listEngagementStages, "createEngagementStage": h.createEngagementStage,
+		"getEngagementLabel": h.getEngagementLabel, "setEngagementLabel": h.setEngagementLabel,
 		"createEngagement": h.createEngagement, "getEngagement": h.getEngagement,
 		"setEngagementNextAction": h.setEngagementNextAction, "listDueEngagements": h.listDueEngagements,
 		"setEngagementQuote":      h.setEngagementQuote,

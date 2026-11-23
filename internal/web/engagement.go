@@ -184,6 +184,24 @@ func (h *Handler) dueEngagements(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) EnableEngagement(service *engagement.Service) { h.engagement = service }
 
+func (h *Handler) setEngagementLabel(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		h.renderError(w, http.StatusNotFound)
+		return
+	}
+	actor, ok := h.mutationPrincipal(w, r)
+	if !ok {
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	err := h.engagement.SetLabel(r.Context(), actor, workspace, r.FormValue("label"), auditContext(r))
+	if errors.Is(err, engagement.ErrInvalidInput) {
+		h.renderEngagementStages(w, r, http.StatusUnprocessableEntity, "engagement.invalid_label")
+		return
+	}
+	h.finishStageMutation(w, r, workspace, err)
+}
+
 func (h *Handler) createEngagement(w http.ResponseWriter, r *http.Request) {
 	if h.engagement == nil {
 		h.renderError(w, http.StatusNotFound)
@@ -234,13 +252,18 @@ func (h *Handler) renderEngagementStages(w http.ResponseWriter, r *http.Request,
 		h.renderError(w, http.StatusInternalServerError)
 		return
 	}
+	label, err := h.engagement.Label(r.Context(), actor, workspace)
+	if err != nil {
+		h.renderError(w, http.StatusInternalServerError)
+		return
+	}
 	workspaces, err := h.identity.ListWorkspaces(r.Context(), session.UserID)
 	if err != nil {
 		h.renderError(w, http.StatusInternalServerError)
 		return
 	}
 	path := "/workspaces/" + workspace.String() + "/engagement-stages"
-	data := viewmodel.PageData{Title: "Engagement stages", CSRF: csrf, ErrorKey: errorKey, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, NavPage: "clients", NavSection: "clients", CurrentPath: path, FilesEnabled: h.filesEnabled, ClientsEnabled: h.clients != nil, SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle}
+	data := viewmodel.PageData{Title: "Engagement stages", CSRF: csrf, ErrorKey: errorKey, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, NavPage: "clients", NavSection: "clients", CurrentPath: path, FilesEnabled: h.filesEnabled, ClientsEnabled: h.clients != nil, SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle, EngagementLabel: label}
 	h.localizePage(w, &data)
 	data.Title = data.T("engagement.stages")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
