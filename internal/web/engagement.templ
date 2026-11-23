@@ -14,7 +14,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 			<a class="link" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String()) }>{ data.Client.DisplayName }</a>
 			<section class="card my-4 p-6">
 				if data.CanEditClients {
-					if data.ErrorKey != "" {
+					if data.ErrorKey != "" && data.ErrorKey != "engagement.invalid_quote" {
 						@molecules.ErrorAlert(data.T(data.ErrorKey))
 					}
 					<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/name") } method="post">
@@ -75,7 +75,30 @@ templ engagementDetailPage(data viewmodel.PageData) {
 					}
 					{ item.Agreement.FileID }
 				</p>
-				<p>{ data.T("engagement.quote") }: { data.T("engagement.quote_" + item.Quote.Status) } { item.Quote.Amount } { item.Quote.DateSent }</p>
+				<section aria-labelledby="engagement-quote-heading">
+					<h2 id="engagement-quote-heading">{ data.T("engagement.quote") }</h2>
+					if data.CanEditClients {
+						if data.ErrorKey == "engagement.invalid_quote" {
+							@molecules.ErrorAlert(data.T(data.ErrorKey))
+						}
+						<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/quote") } method="post">
+							<input type="hidden" name="csrf" value={ data.CSRF }/>
+							<input type="hidden" name="return_to" value="detail"/>
+							<label for="engagement-quote-status">{ data.T("engagement.quote") }</label>
+							<select class="select select-bordered" id="engagement-quote-status" name="status">
+								for _, status := range []string{"not_sent", "sent", "pending", "accepted", "declined"} {
+									<option value={ status } selected?={ item.Quote.Status == status }>{ data.T("engagement.quote_" + status) }</option>
+								}
+							</select>
+							@molecules.TextField("engagement-quote-amount", data.T("engagement.quote_amount"), templ.Attributes{"name": "amount", "type": "number", "min": "0", "max": "999999999999.99", "step": "0.01", "value": item.Quote.Amount})
+							@molecules.TextField("engagement-quote-date", data.T("engagement.quote_date"), templ.Attributes{"name": "date_sent", "type": "date", "value": item.Quote.DateSent})
+							@molecules.SubmitButton(data.T("engagement.quote_save"), nil)
+							<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
+						</form>
+					} else {
+						<p>{ data.T("engagement.quote_" + item.Quote.Status) } { item.Quote.Amount } { item.Quote.DateSent }</p>
+					}
+				</section>
 				<p>{ data.T("engagement.next_action") }: { item.NextAction.Text } { item.NextAction.DueDate }</p>
 				for _, member := range data.EngagementMembers {
 					if member.UserID == item.NextAction.OwnerID {

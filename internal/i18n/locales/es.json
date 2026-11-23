@@ -239,6 +239,7 @@
   "engagement.quote_amount": "Importe (opcional)",
   "engagement.quote_date": "Fecha de envío (opcional)",
   "engagement.quote_save": "Guardar cotización",
+  "engagement.invalid_quote": "Introduce un estado, importe y fecha de cotización válidos.",
   "engagement.agreement": "Acuerdo",
   "engagement.agreement_recorded": "Acuerdo firmado registrado",
   "engagement.agreement_not_recorded": "No registrado",

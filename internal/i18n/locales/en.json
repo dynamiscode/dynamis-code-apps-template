@@ -239,6 +239,7 @@
   "engagement.quote_amount": "Amount (optional)",
   "engagement.quote_date": "Date sent (optional)",
   "engagement.quote_save": "Save quote",
+  "engagement.invalid_quote": "Enter a valid quote status, amount, and date.",
   "engagement.agreement": "Agreement",
   "engagement.agreement_recorded": "Signed agreement recorded",
   "engagement.agreement_not_recorded": "Not recorded",

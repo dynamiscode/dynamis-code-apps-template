@@ -291,9 +291,25 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if unassigned := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}}, env.cookies, nil); unassigned.Code != http.StatusSeeOther {
 		t.Fatalf("unassign: %d", unassigned.Code)
 	}
-	quote := request(env.routes, http.MethodPost, quotePath, url.Values{"csrf": {env.csrf}, "status": {"sent"}, "amount": {"120.50"}, "date_sent": {"2026-11-23"}}, env.cookies, nil)
-	if quote.Code != http.StatusSeeOther {
-		t.Fatalf("quote: %d %s", quote.Code, quote.Body.String())
+	quote := request(env.routes, http.MethodPost, quotePath, url.Values{"csrf": {env.csrf}, "status": {"sent"}, "amount": {"120.50"}, "date_sent": {"2026-11-23"}, "return_to": {"detail"}}, env.cookies, nil)
+	if quote.Code != http.StatusSeeOther || quote.Header().Get("Location") != detailPath {
+		t.Fatalf("quote: %d %s", quote.Code, quote.Header().Get("Location"))
+	}
+	quoteDetail := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
+	for _, want := range []string{`action="` + quotePath + `"`, `name="return_to" value="detail"`, `value="sent" selected`, `value="120.50"`, `value="2026-11-23"`, `href="` + detailPath + `"`} {
+		if !strings.Contains(quoteDetail.Body.String(), want) {
+			t.Fatalf("quote detail missing %q", want)
+		}
+	}
+	invalidQuote := request(env.routes, http.MethodPost, quotePath, url.Values{"csrf": {env.csrf}, "status": {"pending"}, "amount": {"123.456"}, "date_sent": {"2026-11-24"}, "return_to": {"detail"}}, env.cookies, nil)
+	for _, want := range []string{"Enter a valid quote status, amount, and date.", `value="pending" selected`, `value="123.456"`, `value="2026-11-24"`} {
+		if invalidQuote.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidQuote.Body.String(), want) {
+			t.Fatalf("invalid quote missing %q: %d", want, invalidQuote.Code)
+		}
+	}
+	viewerQuote := request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
+	if strings.Contains(viewerQuote.Body.String(), `action="`+quotePath+`"`) || !strings.Contains(viewerQuote.Body.String(), "120.50") || !strings.Contains(viewerQuote.Body.String(), "2026-11-23") {
+		t.Fatalf("viewer quote summary: %d", viewerQuote.Code)
 	}
 	deniedQuote := request(env.routes, http.MethodPost, quotePath, url.Values{"csrf": {env.viewerCSRF}, "status": {"sent"}}, env.viewerCookies, nil)
 	if deniedQuote.Code != http.StatusForbidden {
