@@ -475,7 +475,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	}
 	component := clientDetailPage
 	title := client.DisplayName
-	if request.Method == http.MethodGet && request.PathValue("engagementId") != "" {
+	if request.PathValue("engagementId") != "" && (request.Method == http.MethodGet || errorKey == "engagement.invalid_name") {
 		component = engagementDetailPage
 		id := engagement.ParseID(request.PathValue("engagementId"))
 		var selected []engagement.Engagement
@@ -491,6 +491,9 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		}
 		engagements = selected
 		title = selected[0].Name
+		if errorKey == "engagement.invalid_name" {
+			engagements[0].Name = request.FormValue("name")
+		}
 	}
 	h.renderClientPage(writer, request, status, component, viewmodel.PageData{
 		Title: title, ErrorKey: errorKey, CSRF: csrf,

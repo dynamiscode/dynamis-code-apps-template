@@ -13,6 +13,17 @@ templ engagementDetailPage(data viewmodel.PageData) {
 			@molecules.PageHeading(item.Name, data.Client.DisplayName) {}
 			<a class="link" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String()) }>{ data.Client.DisplayName }</a>
 			<section class="card my-4 p-6">
+				if data.CanEditClients {
+					if data.ErrorKey != "" {
+						@molecules.ErrorAlert(data.T(data.ErrorKey))
+					}
+					<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/name") } method="post">
+						<input type="hidden" name="csrf" value={ data.CSRF }/>
+						@molecules.TextField("engagement-name", data.T("engagement.name"), templ.Attributes{"name": "name", "value": item.Name, "required": true, "maxlength": "200"})
+						@molecules.SubmitButton(data.T("engagement.save_name"), nil)
+						<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
+					</form>
+				}
 				for _, stage := range data.EngagementStages {
 					if stage.ID == item.StageID {
 						<p>{ data.T("engagement.stages") }: { stage.Name }</p>

@@ -136,13 +136,32 @@ func TestEngagementThroughWeb(t *testing.T) {
 		t.Fatal(err)
 	}
 	detailPath := path + "/engagements/" + items[0].ID.String()
+	namePath := detailPath + "/name"
+	writerDetail := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
+	viewerDetail := request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
+	if !strings.Contains(writerDetail.Body.String(), namePath) || strings.Contains(viewerDetail.Body.String(), namePath) {
+		t.Fatalf("name form visibility: writer=%d viewer=%d", writerDetail.Code, viewerDetail.Code)
+	}
+	if got := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.viewerCSRF}, "name": {"Denied"}}, env.viewerCookies, nil); got.Code != http.StatusForbidden {
+		t.Fatalf("viewer rename: %d", got.Code)
+	}
+	invalidName := strings.Repeat("x", 201)
+	if got := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.csrf}, "name": {invalidName}}, env.cookies, nil); got.Code != http.StatusUnprocessableEntity || !strings.Contains(got.Body.String(), invalidName) {
+		t.Fatalf("invalid rename: %d %s", got.Code, got.Body.String())
+	}
+	if got := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.csrf}, "name": {"Renamed"}}, env.cookies, nil); got.Code != http.StatusSeeOther || got.Header().Get("Location") != detailPath {
+		t.Fatalf("rename: %d %s", got.Code, got.Header().Get("Location"))
+	}
+	if got, err := svc.Get(ctx, owner, env.workspaceID, items[0].ID); err != nil || got.Name != "Renamed" {
+		t.Fatalf("renamed engagement: %+v %v", got, err)
+	}
 	clientPage := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
 	if !strings.Contains(clientPage.Body.String(), `href="`+detailPath+`"`) {
 		t.Fatal("client page missing engagement detail link")
 	}
 	for _, cookies := range [][]*http.Cookie{env.cookies, env.viewerCookies} {
 		detail := request(env.routes, http.MethodGet, detailPath, nil, cookies, nil)
-		if detail.Code != http.StatusOK || !strings.Contains(detail.Body.String(), "Engagement") || !strings.Contains(detail.Body.String(), "Other person") || !strings.Contains(detail.Body.String(), "Open") {
+		if detail.Code != http.StatusOK || !strings.Contains(detail.Body.String(), "Renamed") || !strings.Contains(detail.Body.String(), "Other person") || !strings.Contains(detail.Body.String(), "Open") {
 			t.Fatalf("detail: %d %s", detail.Code, detail.Body.String())
 		}
 	}
@@ -157,6 +176,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 		t.Fatalf("invalid engagement detail: %d", got.Code)
 	}
 	for suffix, form := range map[string]url.Values{
+		"/name":        {"name": {"Wrong client"}},
 		"/agreement":   {"recorded": {"1"}},
 		"/assignee":    {"assignee_id": {env.ownerID.String()}},
 		"/quote":       {"status": {"sent"}},

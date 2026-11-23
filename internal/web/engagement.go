@@ -183,6 +183,34 @@ func (h *Handler) engagementMatchesClient(w http.ResponseWriter, r *http.Request
 	return true
 }
 
+func (h *Handler) setEngagementName(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		h.renderError(w, http.StatusNotFound)
+		return
+	}
+	actor, ok := h.mutationPrincipal(w, r)
+	if !ok {
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	if !h.engagementMatchesClient(w, r, actor, workspace) {
+		return
+	}
+	err := h.engagement.SetName(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), r.FormValue("name"), auditContext(r))
+	switch {
+	case errors.Is(err, identity.ErrForbidden):
+		h.renderError(w, http.StatusForbidden)
+	case errors.Is(err, engagement.ErrNotFound):
+		h.renderError(w, http.StatusNotFound)
+	case errors.Is(err, engagement.ErrInvalidInput):
+		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.invalid_name", nil)
+	case err != nil:
+		h.renderError(w, http.StatusInternalServerError)
+	default:
+		h.redirect(w, r, h.clientsPath(workspace)+"/"+r.PathValue("clientId")+"/engagements/"+r.PathValue("engagementId"))
+	}
+}
+
 func (h *Handler) engagementDetail(w http.ResponseWriter, r *http.Request) {
 	h.renderClientDetail(w, r, http.StatusOK, "", nil)
 }
