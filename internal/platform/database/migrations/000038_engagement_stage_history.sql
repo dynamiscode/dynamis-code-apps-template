@@ -1,5 +1,3 @@
-CREATE UNIQUE INDEX engagements_workspace_key_idx ON engagements (workspace_id, id);
-
 CREATE TABLE engagement_stage_history (
     id {{integer_pk}},
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,

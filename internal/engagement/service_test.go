@@ -244,6 +244,20 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	if err != nil || got.ClientID != client.ID || got.StageID != stage.ID || got.Notes != "Other person" {
 		t.Fatalf("get = %+v, %v", got, err)
 	}
+	if got.Quote.Status != "not_sent" {
+		t.Fatalf("default quote: %+v", got.Quote)
+	}
+	quote := Quote{Status: "sent", Amount: "120.50", DateSent: "2026-11-23"}
+	if err := svc.SetQuote(ctx, owner, boot.WorkspaceID, created.ID, quote, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	got, err = svc.Get(ctx, owner, boot.WorkspaceID, created.ID)
+	if err != nil || got.Quote != quote {
+		t.Fatalf("quote: %+v %v", got.Quote, err)
+	}
+	if err := svc.SetQuote(ctx, owner, boot.WorkspaceID, created.ID, Quote{Status: "invalid"}, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("invalid quote: %v", err)
+	}
 	var viewerID identity.UserID
 	if err := db.QueryRowContext(ctx, `INSERT INTO users (email, created_at) VALUES (?, ?) RETURNING id`, "viewer@example.com", time.Now().UTC().Format(time.RFC3339Nano)).Scan(&viewerID); err != nil {
 		t.Fatal(err)
@@ -254,6 +268,36 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	viewer, err := auth.Authorize(ctx, viewerID, boot.WorkspaceID, identity.ResourcesRead)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if err := svc.SetAssignee(ctx, owner, boot.WorkspaceID, created.ID, boot.UserID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetAssignee(ctx, owner, boot.WorkspaceID, created.ID, viewerID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	assigned, err := svc.Get(ctx, viewer, boot.WorkspaceID, created.ID)
+	if err != nil || assigned.AssigneeID != viewerID {
+		t.Fatalf("assignment: %+v %v", assigned, err)
+	}
+	if err := svc.SetAssignee(ctx, viewer, boot.WorkspaceID, created.ID, 0, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer assignment: %v", err)
+	}
+	if err := svc.SetAssignee(ctx, owner, boot.WorkspaceID, created.ID, identity.UserID(999999), identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("nonmember assignment: %v", err)
+	}
+	if err := svc.SetAssignee(ctx, owner, boot.WorkspaceID, created.ID, 0, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	assigned, err = svc.Get(ctx, owner, boot.WorkspaceID, created.ID)
+	if err != nil || assigned.AssigneeID != 0 {
+		t.Fatalf("unassigned: %+v %v", assigned, err)
+	}
+	var assignmentAudits int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_events WHERE workspace_id = ? AND event_type = 'engagement.assignee_updated'`, boot.WorkspaceID).Scan(&assignmentAudits); err != nil || assignmentAudits != 3 {
+		t.Fatalf("assignment audits: %d %v", assignmentAudits, err)
+	}
+	if err := svc.SetQuote(ctx, viewer, boot.WorkspaceID, created.ID, quote, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer quote: %v", err)
 	}
 	if _, err := svc.Get(ctx, viewer, boot.WorkspaceID, created.ID); err != nil {
 		t.Fatalf("viewer get: %v", err)
@@ -303,18 +347,34 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, foreignStage.ID, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("foreign stage: %v", err)
 	}
+	action := NextAction{Text: "Call", DueDate: "2020-01-01", OwnerID: boot.UserID}
+	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, created.ID, action, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetAssignee(ctx, owner, boot.WorkspaceID, created.ID, viewerID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
 	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, stages[1].ID, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
+	}
+	if due, err := svc.ListDue(ctx, viewer, boot.WorkspaceID, "2020-01-01"); err != nil || len(due) != 0 {
+		t.Fatalf("won due: %+v, %v", due, err)
 	}
 	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, stages[len(stages)-1].ID, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
+	if due, err := svc.ListDue(ctx, viewer, boot.WorkspaceID, "2020-01-01"); err != nil || len(due) != 1 || len(due[0].History) != 2 {
+		t.Fatalf("reopened due: %+v, %v", due, err)
+	}
 	got, err = svc.Get(ctx, viewer, boot.WorkspaceID, created.ID)
-	if err != nil || got.StageID != stages[len(stages)-1].ID || len(got.History) != 2 || got.History[0].FromStageID != stage.ID || got.History[0].ToStageID != stages[1].ID {
+	if err != nil || got.StageID != stages[len(stages)-1].ID || got.NextAction != action || got.Quote != quote || got.AssigneeID != viewerID || len(got.History) != 2 || got.History[0].FromStageID != stage.ID || got.History[0].ToStageID != stages[1].ID {
 		t.Fatalf("move history: %+v, %v", got, err)
 	}
 	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, stages[2].ID, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
+	}
+	if due, err := svc.ListDue(ctx, viewer, boot.WorkspaceID, "2020-01-01"); err != nil || len(due) != 0 {
+		t.Fatalf("lost due: %+v, %v", due, err)
 	}
 	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, stages[3].ID, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
@@ -343,5 +403,101 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	got, err = svc.Get(ctx, viewer, boot.WorkspaceID, created.ID)
 	if err != nil || len(got.History) != 5 {
 		t.Fatalf("history after retention: %+v, %v", got, err)
+	}
+}
+
+func TestNextActionDueList(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, config.Database{Driver: config.SQLite, SQLitePath: ":memory:", MaxOpenConns: 1, MaxIdleConns: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.Migrate(ctx, db, config.SQLite); err != nil {
+		t.Fatal(err)
+	}
+	auth, err := identity.NewService(db, config.SQLite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	boot, err := auth.BootstrapFirstOwner(ctx, identity.BootstrapInput{Email: "owner@example.com", Password: "long-enough-password", WorkspaceName: "Example"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := auth.Authorize(ctx, boot.UserID, boot.WorkspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := NewService(db, config.SQLite, auth)
+	if _, err := svc.CreateStage(ctx, owner, boot.WorkspaceID, StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	client, err := clients.NewService(db, config.SQLite, auth, 50).Create(ctx, owner, boot.WorkspaceID, clients.Input{DisplayName: "Client"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{ClientID: client.ID}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, NextAction{Text: "Call", DueDate: "2020-01-01", OwnerID: boot.UserID}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.Get(ctx, owner, boot.WorkspaceID, e.ID)
+	if err != nil || got.NextAction.Text != "Call" {
+		t.Fatalf("get = %+v, %v", got, err)
+	}
+	due, err := svc.ListDue(ctx, owner, boot.WorkspaceID, "2020-01-01")
+	if err != nil || len(due) != 1 || due[0].ID != e.ID {
+		t.Fatalf("due = %+v, %v", due, err)
+	}
+	for _, invalid := range []NextAction{{Text: "Call", OwnerID: 999999}, {Text: "Call", OwnerID: boot.UserID, DueDate: "2020-02-30"}, {Text: "Call"}} {
+		if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, invalid, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+			t.Fatalf("invalid action %+v: %v", invalid, err)
+		}
+	}
+	var viewerID identity.UserID
+	if err := db.QueryRowContext(ctx, `INSERT INTO users (email, created_at) VALUES (?, ?) RETURNING id`, "viewer@example.com", time.Now().UTC().Format(time.RFC3339Nano)).Scan(&viewerID); err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.AddMember(ctx, owner, viewerID, identity.Viewer, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	viewer, err := auth.Authorize(ctx, viewerID, boot.WorkspaceID, identity.ResourcesRead)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetNextAction(ctx, viewer, boot.WorkspaceID, e.ID, NextAction{}, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer change: %v", err)
+	}
+	if got, err := svc.Get(ctx, viewer, boot.WorkspaceID, e.ID); err != nil || got.NextAction.Text != "Call" {
+		t.Fatalf("viewer read: %+v %v", got, err)
+	}
+	other, err := auth.CreateWorkspace(ctx, owner, identity.WorkspaceCreateInput{Name: "Other"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherOwner, err := auth.Authorize(ctx, boot.UserID, other, identity.ResourcesRead)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if due, err := svc.ListDue(ctx, otherOwner, other, "2020-01-01"); err != nil || len(due) != 0 {
+		t.Fatalf("foreign due: %+v %v", due, err)
+	}
+	if _, err := svc.Get(ctx, otherOwner, other, e.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("foreign get: %v", err)
+	}
+	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, NextAction{Text: "Later", DueDate: "2020-01-02", OwnerID: viewerID}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if due, err := svc.ListDue(ctx, owner, boot.WorkspaceID, "2020-01-01"); err != nil || len(due) != 0 {
+		t.Fatalf("future due: %+v %v", due, err)
+	}
+	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, NextAction{}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	due, err = svc.ListDue(ctx, owner, boot.WorkspaceID, "2020-01-01")
+	if err != nil || len(due) != 0 {
+		t.Fatalf("cleared due = %+v, %v", due, err)
 	}
 }

@@ -86,20 +86,66 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if created.Code != http.StatusSeeOther {
 		t.Fatalf("create: %d %s", created.Code, created.Body.String())
 	}
+	svc := engagement.NewService(env.db, config.SQLite, env.auth)
+	items, err := svc.ListForClient(ctx, owner, env.workspaceID, client.ID)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("engagements: %+v %v", items, err)
+	}
+	actionPath := path + "/engagements/" + items[0].ID.String() + "/next-action"
+	quotePath := path + "/engagements/" + items[0].ID.String() + "/quote"
+	assigneePath := path + "/engagements/" + items[0].ID.String() + "/assignee"
+	assigned := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}, "assignee_id": {env.ownerID.String()}}, env.cookies, nil)
+	if assigned.Code != http.StatusSeeOther {
+		t.Fatalf("assign: %d %s", assigned.Code, assigned.Body.String())
+	}
+	if got, err := svc.Get(ctx, owner, env.workspaceID, items[0].ID); err != nil || got.AssigneeID != env.ownerID {
+		t.Fatalf("assignment: %+v %v", got, err)
+	}
+	if denied := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.viewerCSRF}}, env.viewerCookies, nil); denied.Code != http.StatusForbidden {
+		t.Fatalf("viewer assign: %d", denied.Code)
+	}
+	if invalid := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}, "assignee_id": {"invalid"}}, env.cookies, nil); invalid.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("invalid assign: %d", invalid.Code)
+	}
+	if invalid := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}, "assignee_id": {identity.UserID(999999).String()}}, env.cookies, nil); invalid.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("nonmember assign: %d", invalid.Code)
+	}
+	if unassigned := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}}, env.cookies, nil); unassigned.Code != http.StatusSeeOther {
+		t.Fatalf("unassign: %d", unassigned.Code)
+	}
+	quote := request(env.routes, http.MethodPost, quotePath, url.Values{"csrf": {env.csrf}, "status": {"sent"}, "amount": {"120.50"}, "date_sent": {"2026-11-23"}}, env.cookies, nil)
+	if quote.Code != http.StatusSeeOther {
+		t.Fatalf("quote: %d %s", quote.Code, quote.Body.String())
+	}
+	deniedQuote := request(env.routes, http.MethodPost, quotePath, url.Values{"csrf": {env.viewerCSRF}, "status": {"sent"}}, env.viewerCookies, nil)
+	if deniedQuote.Code != http.StatusForbidden {
+		t.Fatalf("viewer quote: %d", deniedQuote.Code)
+	}
+	updated := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {"Call client"}, "due_date": {"2020-01-01"}, "owner_id": {env.ownerID.String()}}, env.cookies, nil)
+	if updated.Code != http.StatusSeeOther {
+		t.Fatalf("set action: %d %s", updated.Code, updated.Body.String())
+	}
 	viewer := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
-	if viewer.Code != http.StatusOK || !strings.Contains(viewer.Body.String(), "Other person") || strings.Contains(viewer.Body.String(), "Create engagement") {
+	if viewer.Code != http.StatusOK || !strings.Contains(viewer.Body.String(), "Other person") || !strings.Contains(viewer.Body.String(), "Call client") || !strings.Contains(viewer.Body.String(), "120.50") || strings.Contains(viewer.Body.String(), quotePath) || strings.Contains(viewer.Body.String(), assigneePath) || strings.Contains(viewer.Body.String(), "Create engagement") || strings.Contains(viewer.Body.String(), actionPath) {
 		t.Fatalf("viewer: %d notes=%v create=%v", viewer.Code, strings.Contains(viewer.Body.String(), "Other person"), strings.Contains(viewer.Body.String(), "Create engagement"))
+	}
+	due := request(env.routes, http.MethodGet, "/workspaces/"+env.workspaceID.String()+"/engagements/due", nil, env.viewerCookies, nil)
+	if due.Code != http.StatusOK || !strings.Contains(due.Body.String(), "Call client") {
+		t.Fatalf("due: %d %s", due.Code, due.Body.String())
+	}
+	deniedAction := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.viewerCSRF}}, env.viewerCookies, nil)
+	if deniedAction.Code != http.StatusForbidden {
+		t.Fatalf("viewer action: %d", deniedAction.Code)
 	}
 	denied := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.viewerCSRF}}, env.viewerCookies, nil)
 	if denied.Code != http.StatusForbidden {
 		t.Fatalf("viewer create: %d", denied.Code)
 	}
-	svc := engagement.NewService(env.db, config.SQLite, env.auth)
 	target, err := svc.CreateStage(ctx, owner, env.workspaceID, engagement.StageInput{Name: "Won", Kind: "won"}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	items, err := svc.ListForClient(ctx, owner, env.workspaceID, client.ID)
+	items, err = svc.ListForClient(ctx, owner, env.workspaceID, client.ID)
 	if err != nil || len(items) != 1 {
 		t.Fatalf("items: %v %v", items, err)
 	}

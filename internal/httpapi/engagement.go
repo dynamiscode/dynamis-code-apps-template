@@ -3,11 +3,120 @@ package httpapi
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/engagement"
 	"example.com/dynamis-code/apps-template/internal/identity"
 )
+
+func (h *handler) setEngagementAssignee(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		notFoundProblem(w, r)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	actor, ok := h.workspaceBearer(w, r, workspace, identity.ResourcesWrite)
+	if !ok {
+		return
+	}
+	var input struct {
+		AssigneeID string `json:"assigneeId"`
+	}
+	if err := decodeJSON(r, &input); err != nil {
+		h.badJSON(w, r, err)
+		return
+	}
+	var assignee identity.UserID
+	if input.AssigneeID != "" {
+		var err error
+		assignee, err = identity.ParseUserID(input.AssigneeID)
+		if err != nil {
+			h.invalidRequest(w, r, "The assignee is invalid.")
+			return
+		}
+	}
+	if err := h.engagement.SetAssignee(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), assignee, h.auditContext(r)); err != nil {
+		h.engagementError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) setEngagementQuote(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		notFoundProblem(w, r)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	actor, ok := h.workspaceBearer(w, r, workspace, identity.ResourcesWrite)
+	if !ok {
+		return
+	}
+	var quote engagement.Quote
+	if err := decodeJSON(r, &quote); err != nil {
+		h.badJSON(w, r, err)
+		return
+	}
+	if err := h.engagement.SetQuote(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), quote, h.auditContext(r)); err != nil {
+		h.engagementError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) setEngagementNextAction(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		notFoundProblem(w, r)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	actor, ok := h.workspaceBearer(w, r, workspace, identity.ResourcesWrite)
+	if !ok {
+		return
+	}
+	var input struct {
+		Text    string `json:"text"`
+		DueDate string `json:"dueDate"`
+		OwnerID string `json:"ownerId"`
+	}
+	if err := decodeJSON(r, &input); err != nil {
+		h.badJSON(w, r, err)
+		return
+	}
+	var owner identity.UserID
+	if input.OwnerID != "" {
+		var err error
+		owner, err = identity.ParseUserID(input.OwnerID)
+		if err != nil {
+			h.invalidRequest(w, r, "The owner is invalid.")
+			return
+		}
+	}
+	if err := h.engagement.SetNextAction(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), engagement.NextAction{Text: input.Text, DueDate: input.DueDate, OwnerID: owner}, h.auditContext(r)); err != nil {
+		h.engagementError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) listDueEngagements(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		notFoundProblem(w, r)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	actor, ok := h.workspaceBearer(w, r, workspace, identity.ResourcesRead)
+	if !ok {
+		return
+	}
+	values, err := h.engagement.ListDue(r.Context(), actor, workspace, time.Now().UTC().Format("2006-01-02"))
+	if err != nil {
+		h.engagementError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, values)
+}
 
 func (h *handler) createEngagement(w http.ResponseWriter, r *http.Request) {
 	if h.engagement == nil {

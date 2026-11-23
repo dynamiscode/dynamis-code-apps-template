@@ -3,6 +3,7 @@ package web
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/engagement"
@@ -10,6 +11,146 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 )
+
+func (h *Handler) setEngagementAssignee(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		h.renderError(w, http.StatusNotFound)
+		return
+	}
+	actor, ok := h.mutationPrincipal(w, r)
+	if !ok {
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	var assignee identity.UserID
+	var err error
+	if r.FormValue("assignee_id") != "" {
+		assignee, err = identity.ParseUserID(r.FormValue("assignee_id"))
+	}
+	if err != nil {
+		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.invalid", nil)
+		return
+	}
+	err = h.engagement.SetAssignee(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), assignee, auditContext(r))
+	if errors.Is(err, identity.ErrForbidden) {
+		h.renderError(w, http.StatusForbidden)
+		return
+	}
+	if errors.Is(err, engagement.ErrInvalidInput) {
+		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.invalid", nil)
+		return
+	}
+	if errors.Is(err, engagement.ErrNotFound) {
+		h.renderError(w, http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		h.renderError(w, http.StatusInternalServerError)
+		return
+	}
+	h.redirect(w, r, h.clientsPath(workspace)+"/"+r.PathValue("clientId"))
+}
+
+func (h *Handler) setEngagementQuote(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		h.renderError(w, http.StatusNotFound)
+		return
+	}
+	actor, ok := h.mutationPrincipal(w, r)
+	if !ok {
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	err := h.engagement.SetQuote(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), engagement.Quote{Status: r.FormValue("status"), Amount: r.FormValue("amount"), DateSent: r.FormValue("date_sent")}, auditContext(r))
+	if errors.Is(err, identity.ErrForbidden) {
+		h.renderError(w, http.StatusForbidden)
+		return
+	}
+	if errors.Is(err, engagement.ErrInvalidInput) {
+		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.invalid", nil)
+		return
+	}
+	if errors.Is(err, engagement.ErrNotFound) {
+		h.renderError(w, http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		h.renderError(w, http.StatusInternalServerError)
+		return
+	}
+	h.redirect(w, r, h.clientsPath(workspace)+"/"+r.PathValue("clientId"))
+}
+
+func (h *Handler) setEngagementNextAction(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		h.renderError(w, http.StatusNotFound)
+		return
+	}
+	actor, ok := h.mutationPrincipal(w, r)
+	if !ok {
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	var owner identity.UserID
+	var err error
+	if r.FormValue("owner_id") != "" {
+		owner, err = identity.ParseUserID(r.FormValue("owner_id"))
+		if err != nil {
+			h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.invalid", nil)
+			return
+		}
+	}
+	action := engagement.NextAction{Text: r.FormValue("text"), DueDate: r.FormValue("due_date"), OwnerID: owner}
+	if r.FormValue("clear") == "1" {
+		action = engagement.NextAction{}
+	}
+	err = h.engagement.SetNextAction(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), action, auditContext(r))
+	if errors.Is(err, identity.ErrForbidden) {
+		h.renderError(w, http.StatusForbidden)
+		return
+	}
+	if errors.Is(err, engagement.ErrInvalidInput) {
+		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.invalid", nil)
+		return
+	}
+	if errors.Is(err, engagement.ErrNotFound) {
+		h.renderError(w, http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		h.renderError(w, http.StatusInternalServerError)
+		return
+	}
+	h.redirect(w, r, h.clientsPath(workspace)+"/"+r.PathValue("clientId"))
+}
+
+func (h *Handler) dueEngagements(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		h.renderError(w, http.StatusNotFound)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	actor, session, csrf, ok := h.workspaceSession(w, r, workspace, identity.ResourcesRead)
+	if !ok {
+		return
+	}
+	items, err := h.engagement.ListDue(r.Context(), actor, workspace, time.Now().UTC().Format("2006-01-02"))
+	if err != nil {
+		h.renderError(w, http.StatusInternalServerError)
+		return
+	}
+	workspaces, err := h.identity.ListWorkspaces(r.Context(), session.UserID)
+	if err != nil {
+		h.renderError(w, http.StatusInternalServerError)
+		return
+	}
+	data := viewmodel.PageData{CSRF: csrf, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, NavPage: "clients", NavSection: "clients", CurrentPath: "/workspaces/" + workspace.String() + "/engagements/due", ClientsEnabled: h.clients != nil, FilesEnabled: h.filesEnabled, SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle}
+	h.localizePage(w, &data)
+	data.Title = data.T("engagement.due_list")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = dueEngagementsPage(data, items, h.clientsPath(workspace)).Render(r.Context(), w)
+}
 
 func (h *Handler) EnableEngagement(service *engagement.Service) { h.engagement = service }
 
