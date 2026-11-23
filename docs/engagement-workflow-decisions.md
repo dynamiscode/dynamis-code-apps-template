@@ -146,6 +146,12 @@ user created an open Discovery stage, an Audit client, and an engagement.
 - A separate viewer account created through an invitation saw the engagement
   region's stage, agreement, and quote summaries. That region contained zero
   buttons and zero comboboxes.
+- A member registered through an invitation and created an engagement on client
+  detail; the engagement count increased from 2 to 3.
+- The owner submitted an invalid agreement File ID and saw a generic error.
+  After checking signed agreement and resubmitting with an empty File ID, the
+  owner returned to client detail without an alert. The exact displayed status
+  was not verified.
 
 Playwright captured a desktop screenshot in its MCP server output. The supplied
 path `/var/folders/pt/yhlb769j4j1frcvj3mk_fy240000gp/T/pi-codemode-655cf9f4f999134a.png`
