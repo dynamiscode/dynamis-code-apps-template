@@ -128,6 +128,12 @@ user created an open Discovery stage, an Audit client, and an engagement.
 - On client detail, entering next action `Call client` and due date `2020-01-01`
   with the owner unassigned, then selecting Save, returned HTTP 422 with the
   generic alert “Enter valid name and kind.” The due-date input was cleared.
+- With next action `Call client`, due date `2020-01-01`, and owner
+  `verify@example.com` selected, Save returned to client detail without an
+  alert. Actions due listed only “Call client — 2020-01-01”, without client or
+  owner context.
+- Programmatically focusing Save next action and pressing Enter submitted without
+  an alert. This checks Enter activation, not keyboard traversal or focus order.
 - At a 390 × 844 viewport, document `clientWidth` and `scrollWidth` were both
   375. This sampled state had no horizontal document overflow.
 - On mobile client detail, the first Tab focused “Skip to content.” Submitting
@@ -148,8 +154,9 @@ existence and visual contents could not be verified. No visual findings are
 inferred. Desktop review and broader mobile review remain outstanding, as do
 broader keyboard, error recovery, read-only role, no-JavaScript, and
 comprehensive accessibility audits. The viewer and JavaScript-disabled
-observations are sampled cases, not full coverage. These observations do not
-complete the required rendered-browser audit.
+observations are sampled cases, not full coverage. The Enter activation did not
+exercise keyboard traversal. These observations do not complete the #621
+baseline audit; the later redesigned-journey review is a separate gate.
 
 ## Remaining current-journey audit
 
