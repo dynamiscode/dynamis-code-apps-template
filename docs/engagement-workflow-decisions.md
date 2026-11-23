@@ -123,6 +123,11 @@ user created an open Discovery stage, an Audit client, and an engagement.
   engagement creation flow showed no name or stage choice.
 - The stage page grouped the workspace work-item label and stage creation. Its
   empty state said “No stages yet.”
+- The empty actions-due page showed only a heading and an empty list, with no
+  empty-state guidance.
+- On client detail, entering next action `Call client` and due date `2020-01-01`
+  with the owner unassigned, then selecting Save, returned HTTP 422 with the
+  generic alert “Enter valid name and kind.” The due-date input was cleared.
 - At a 390 × 844 viewport, document `clientWidth` and `scrollWidth` were both
   375. This sampled state had no horizontal document overflow.
 - On mobile client detail, the first Tab focused “Skip to content.” Submitting
