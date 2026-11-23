@@ -44,6 +44,11 @@ var rolePermissions = map[Role][]Permission{
 	},
 }
 
+// CanWriteCatalog applies catalog's owner/admin rule to an authorized principal.
+func CanWriteCatalog(principal Principal) bool {
+	return principal.Permissions[ResourcesWrite] && permissionsForRole(principal.Role)[WorkspaceUpdate]
+}
+
 func permissionsForRole(role Role) map[Permission]bool {
 	permissions := make(map[Permission]bool, len(rolePermissions[role]))
 	for _, permission := range rolePermissions[role] {

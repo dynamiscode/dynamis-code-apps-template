@@ -52,6 +52,14 @@ New browser journeys and meaningful interaction or visual changes require
 [rendered UX review](ux-review.md). Report missing browser evidence as blocked;
 a passing automated check does not substitute for the review.
 
+## Catalog verification ladder
+
+1. Run `go test ./internal/catalog ./internal/httpapi ./internal/web ./api` for service invariants, authorization, REST, web, and contract behavior.
+2. Run `go test ./cmd/template-init -run Catalog -count=1` for included and omitted profiles.
+3. Run `make ci-local` for repository checks, then `make verify` for the full local verification gate.
+4. Run PostgreSQL catalog tests against an isolated migrated database with `POSTGRES_TEST_URL` set: `go test ./internal/catalog -run Postgres -count=1`.
+5. Run browser and accessibility smoke checks when changing catalog forms; record unavailable environments rather than claiming a pass.
+
 ## Feature completeness
 
 For every feature, record its shared application behavior, authorization

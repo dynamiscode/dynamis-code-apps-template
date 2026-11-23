@@ -54,6 +54,9 @@ templ workspaceHome(data viewmodel.PageData) {
 					if data.ClientsEnabled {
 					@molecules.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/clients", data.T("clients.title"), data.T("workspace.clients_description"))
 				}
+				if data.CatalogEnabled {
+					@molecules.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/catalog", data.T("catalog.title"), "")
+				}
 				if data.FilesEnabled {
 					@molecules.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/files", data.T("files.files"), data.T("files.description"))
 				}

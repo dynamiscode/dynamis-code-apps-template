@@ -223,6 +223,12 @@ func workspaceHome(data viewmodel.PageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
+			if data.CatalogEnabled {
+				templ_7745c5c3_Err = molecules.LinkedCard("/workspaces/"+data.Workspace.ID.String()+"/catalog", data.T("catalog.title"), "").Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
 			if data.FilesEnabled {
 				templ_7745c5c3_Err = molecules.LinkedCard("/workspaces/"+data.Workspace.ID.String()+"/files", data.T("files.files"), data.T("files.description")).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {

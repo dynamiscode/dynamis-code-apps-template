@@ -12,7 +12,7 @@ mode-0600 `template.lock` containing:
 
 - template source, semantic version, and commit;
 - UTC generation time; and
-- the selected profiles from `Core`, `Identity`, `Agent`, `Files`, and `Clients`.
+- the selected profiles from `Core`, `Identity`, `Agent`, `Files`, `Clients`, and `Catalog`.
 
 Identity is required because it is the shared authentication and authorization
 boundary for Core. Core and Identity are always composed into a generated
@@ -21,7 +21,7 @@ MCP bootstrap route. REST-only `appctl` commands are included when Clients is se
 omitting Agent or Files removes their respective code. Files requires Identity. Clients
 requires Identity and Agent; generation refuses it otherwise. Selecting Clients
 adds the client module, its REST and web surfaces, and migration 000022; omitting
-it removes those files and their wiring. No
+it removes those files and their wiring. Catalog requires Identity and adds an initially empty active catalog list through web and REST; omitting it removes the module and its routes. No
 other profile content is currently defined, including CompanySite and
 Integrations.
 The generated application receives repository-specific README, support and
