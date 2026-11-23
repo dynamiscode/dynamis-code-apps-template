@@ -27,6 +27,22 @@ func (s *Service) CreateNotification(
 	input NotificationInput,
 	audit AuditContext,
 ) (Notification, error) {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return Notification{}, err
+	}
+	defer tx.Rollback()
+	notification, err := s.CreateNotificationInTx(ctx, tx, actor, input, audit)
+	if err != nil {
+		return Notification{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Notification{}, err
+	}
+	return notification, nil
+}
+
+func (s *Service) CreateNotificationInTx(ctx context.Context, tx *sql.Tx, actor Principal, input NotificationInput, audit AuditContext) (Notification, error) {
 	if actor.AuthMethod == "" || input.RecipientUserID == 0 ||
 		strings.TrimSpace(input.NotificationType) == "" ||
 		len(input.NotificationType) > 64 || strings.TrimSpace(input.Title) == "" ||
@@ -35,11 +51,6 @@ func (s *Service) CreateNotification(
 	}
 	input.NotificationType = strings.TrimSpace(input.NotificationType)
 	input.Title = strings.TrimSpace(input.Title)
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
-	if err != nil {
-		return Notification{}, err
-	}
-	defer tx.Rollback()
 	var exists int
 	if err := s.queryRow(ctx, tx, "SELECT 1 FROM users WHERE id = ?", input.RecipientUserID).Scan(&exists); err != nil {
 		return Notification{}, ErrForbidden
@@ -85,9 +96,6 @@ func (s *Service) CreateNotification(
 		}); err != nil {
 			return Notification{}, err
 		}
-	}
-	if err := tx.Commit(); err != nil {
-		return Notification{}, err
 	}
 	return Notification{
 		ID: notificationID, UserID: input.RecipientUserID, WorkspaceID: input.WorkspaceID,

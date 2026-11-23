@@ -3,9 +3,11 @@ package intake
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 )
@@ -33,6 +35,16 @@ func TestSubmissionCreatesClientAndEngagementTogether(t *testing.T) {
 		t.Fatal(err)
 	}
 	svc := NewService(db, config.SQLite, auth)
+	svc.ConfigureNotifications(jobs.NewQueue(db, config.SQLite, nil), "https://example.test")
+	for _, role := range []string{"admin", "member", "viewer"} {
+		var userID int64
+		if err := db.QueryRow(`INSERT INTO users (email, created_at) VALUES (?, '2026-01-01T00:00:00Z') RETURNING id`, role+"@example.com").Scan(&userID); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, '2026-01-01T00:00:00Z')`, boot.WorkspaceID, userID, role); err != nil {
+			t.Fatal(err)
+		}
+	}
 	token, err := svc.Create(ctx, owner, boot.WorkspaceID, "Consent", identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -47,6 +59,9 @@ func TestSubmissionCreatesClientAndEngagementTogether(t *testing.T) {
 	var count int
 	if err := db.QueryRow(`SELECT count(*) FROM clients`).Scan(&count); err != nil || count != 0 {
 		t.Fatalf("clients after refusal: %d, %v", count, err)
+	}
+	if err := db.QueryRow(`SELECT count(*) FROM notifications`).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("notifications after refusal: %d, %v", count, err)
 	}
 	for _, q := range []string{`INSERT INTO engagement_stages (workspace_id,name,kind,position) VALUES (?, 'Won', 'won', 1)`, `INSERT INTO engagement_stages (workspace_id,name,kind,position) VALUES (?, 'First', 'open', 2)`, `INSERT INTO engagement_stages (workspace_id,name,kind,position) VALUES (?, 'Second', 'open', 3)`} {
 		if _, err := db.Exec(q, boot.WorkspaceID); err != nil {
@@ -70,6 +85,27 @@ func TestSubmissionCreatesClientAndEngagementTogether(t *testing.T) {
 	}
 	if err := svc.Submit(ctx, token, input, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
+	}
+	notifications, err := auth.ListNotifications(ctx, boot.UserID, boot.WorkspaceID, true, 10)
+	if err != nil || len(notifications) != 1 {
+		t.Fatalf("owner notifications = %v, %v; want one", notifications, err)
+	}
+	var eligible, other int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM notifications n JOIN workspace_members m ON m.user_id = n.user_id AND m.workspace_id = n.workspace_id WHERE m.role IN ('owner','admin')`).Scan(&eligible); err != nil || eligible != 2 {
+		t.Fatalf("eligible notifications = %d, %v; want two", eligible, err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM notifications n JOIN workspace_members m ON m.user_id = n.user_id AND m.workspace_id = n.workspace_id WHERE m.role IN ('member','viewer')`).Scan(&other); err != nil || other != 0 {
+		t.Fatalf("other notifications = %d, %v; want zero", other, err)
+	}
+	var payload string
+	if err := db.QueryRow(`SELECT payload FROM background_jobs WHERE kind = 'email.delivery'`).Scan(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(payload, "owner@example.com") || !strings.Contains(payload, "admin@example.com") || strings.Contains(payload, "visitor@example.com") || strings.Contains(payload, "Visitor") || !strings.Contains(payload, notifications[0].Body) {
+		t.Fatalf("unexpected email payload %q", payload)
+	}
+	if err := db.QueryRow(`SELECT count(*) FROM background_jobs WHERE kind = 'email.delivery'`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("email jobs = %d, %v; want one", count, err)
 	}
 	var stage string
 	var consent string

@@ -322,7 +322,7 @@ These remain out of the build plan until their trigger is demonstrated.
 | Internal AI | deferred | Product behavior requires model-driven decisions |
 | Workspace domains and routing | deferred | Users require workspace-specific domains or URLs |
 | Public sharing or guest access | deferred | Files, public APIs, guest collaboration, or other resource types require a separate accepted contract |
-| Public intake | partial | Hashed link management and public web and REST submission create a client and first-stage engagement atomically: [service tests](../internal/intake/submission_test.go), [web tests](../internal/web/intake_test.go), [REST tests](../internal/httpapi/intake_test.go). Duplicate detection and staff notifications remain pending. |
+| Public intake | partial | Hashed link management and public web and REST submission create a client, first-stage engagement, staff notifications, and a queued email atomically: [service tests](../internal/intake/submission_test.go), [web tests](../internal/web/intake_test.go), [REST tests](../internal/httpapi/intake_test.go). Duplicate detection remains pending. |
 | Showcase items (`CompanySite` profile) | deferred | Accepted showcase decision; see [decision 0014](decisions/0014-showcase-items.md) (proposed) |
 | Fine-grained permissions | deferred | Baseline roles cannot express a measured requirement |
 | External-issuer OAuth access tokens for MCP | deferred | An accepted requirement needs `/mcp` to accept access tokens from an external authorization server; see [decision 0007](decisions/0007-mcp-oauth-protected-resource-metadata.md) |
