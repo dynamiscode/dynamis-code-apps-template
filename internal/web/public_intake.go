@@ -24,7 +24,7 @@ func (h *Handler) publicIntake(w http.ResponseWriter, r *http.Request) {
 		h.renderError(w, http.StatusInternalServerError)
 		return
 	}
-	data := viewmodel.PageData{Locale: string(h.catalog.Resolve("", "", "", r.Header.Get("Accept-Language"))), Catalog: h.catalog}
+	data := viewmodel.PageData{Locale: string(h.catalog.Resolve("", "", "", r.Header.Get("Accept-Language"))), Theme: h.pageTheme(w), Catalog: h.catalog}
 	w.Header().Set("Content-Language", data.Locale)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	var submission intake.Submission

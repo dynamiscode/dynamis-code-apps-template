@@ -8,7 +8,7 @@ import templates "example.com/dynamis-code/apps-template/internal/web/components
 
 templ publicIntakePage(data viewmodel.PageData, consent string, submission intake.Submission, message string, complete bool) {
 	<!doctype html>
-	<html lang={ data.Locale }>
+	<html lang={ data.Locale } if data.Theme != "system" { data-theme={ data.Theme } }>
 		<head>
 			@templates.PageHead(data, data.T("public_intake.title"))
 		</head>
