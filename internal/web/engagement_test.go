@@ -317,12 +317,20 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if err != nil || len(items) != 1 {
 		t.Fatalf("items: %v %v", items, err)
 	}
-	movePath := path + "/engagements/" + items[0].ID.String() + "/stage"
+	movePath := detailPath + "/stage"
+	detail := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
+	if detail.Code != http.StatusOK || !strings.Contains(detail.Body.String(), `action="`+movePath+`"`) || !strings.Contains(detail.Body.String(), `name="return_to" value="detail"`) {
+		t.Fatalf("writer detail stage form: %d", detail.Code)
+	}
+	viewerDetail = request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
+	if viewerDetail.Code != http.StatusOK || strings.Contains(viewerDetail.Body.String(), `action="`+movePath+`"`) {
+		t.Fatalf("viewer detail stage form: %d", viewerDetail.Code)
+	}
 	if got := request(env.routes, http.MethodPost, movePath, url.Values{"csrf": {env.viewerCSRF}, "stage": {target.ID.String()}}, env.viewerCookies, nil); got.Code != http.StatusForbidden {
 		t.Fatalf("viewer move: %d", got.Code)
 	}
-	if got := request(env.routes, http.MethodPost, movePath, url.Values{"csrf": {env.csrf}, "stage": {target.ID.String()}}, env.cookies, nil); got.Code != http.StatusSeeOther {
-		t.Fatalf("move: %d", got.Code)
+	if got := request(env.routes, http.MethodPost, movePath, url.Values{"csrf": {env.csrf}, "stage": {target.ID.String()}, "return_to": {"detail"}}, env.cookies, nil); got.Code != http.StatusSeeOther || got.Header().Get("Location") != detailPath {
+		t.Fatalf("move: %d location=%q", got.Code, got.Header().Get("Location"))
 	}
 	if err := svc.ArchiveStage(ctx, owner, env.workspaceID, openStage, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
@@ -330,8 +338,11 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if got := request(env.routes, http.MethodGet, path, nil, env.cookies, nil); strings.Contains(got.Body.String(), `<option value="`+openStage.String()+`"`) {
 		t.Fatal("archived stage offered as a move target")
 	}
-	if got := request(env.routes, http.MethodPost, movePath, url.Values{"csrf": {env.csrf}, "stage": {openStage.String()}}, env.cookies, nil); got.Code != http.StatusUnprocessableEntity {
-		t.Fatalf("archived move: %d", got.Code)
+	if got := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil); strings.Contains(got.Body.String(), `<option value="`+openStage.String()+`"`) {
+		t.Fatal("archived stage offered on detail")
+	}
+	if got := request(env.routes, http.MethodPost, movePath, url.Values{"csrf": {env.csrf}, "stage": {openStage.String()}, "return_to": {"detail"}}, env.cookies, nil); got.Code != http.StatusUnprocessableEntity || !strings.Contains(got.Body.String(), "Select an available stage.") || !strings.Contains(got.Body.String(), `action="`+movePath+`"`) {
+		t.Fatalf("archived detail move: %d", got.Code)
 	}
 	viewer = request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
 	if viewer.Code != http.StatusOK || !strings.Contains(viewer.Body.String(), "Won") || !strings.Contains(viewer.Body.String(), "data-engagement-history") || !strings.Contains(viewer.Body.String(), owner.UserID.String()) || strings.Contains(viewer.Body.String(), "Move stage") {

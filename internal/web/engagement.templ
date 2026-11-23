@@ -26,8 +26,25 @@ templ engagementDetailPage(data viewmodel.PageData) {
 				}
 				for _, stage := range data.EngagementStages {
 					if stage.ID == item.StageID {
-						<p>{ data.T("engagement.stages") }: { stage.Name }</p>
+						<p>{ data.T("engagement.stage") }: { stage.Name }</p>
 					}
+				}
+				if data.CanEditClients {
+					<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/stage") } method="post">
+						<input type="hidden" name="csrf" value={ data.CSRF }/>
+						<input type="hidden" name="return_to" value="detail"/>
+						<label for="engagement-stage">{ data.T("engagement.move") }</label>
+						<select id="engagement-stage" name="stage" class="select select-bordered" required>
+							<option value="">{ data.T("engagement.select_stage") }</option>
+							for _, stage := range data.EngagementStages {
+								if !stage.Archived {
+									<option value={ stage.ID.String() } selected?={ stage.ID == item.StageID }>{ stage.Name }</option>
+								}
+							}
+						</select>
+						@molecules.SubmitButton(data.T("engagement.save_name"), nil)
+						<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
+					</form>
 				}
 				<p>{ data.T("engagement.notes") }: { item.Notes }</p>
 				for _, member := range data.EngagementMembers {

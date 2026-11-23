@@ -481,7 +481,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	}
 	component := clientDetailPage
 	title := client.DisplayName
-	if request.PathValue("engagementId") != "" && (request.Method == http.MethodGet || errorKey == "engagement.invalid_name") {
+	if request.PathValue("engagementId") != "" && (request.Method == http.MethodGet || errorKey == "engagement.invalid_name" || (errorKey == "engagement.invalid_move" && request.FormValue("return_to") == "detail")) {
 		component = engagementDetailPage
 		id := engagement.ParseID(request.PathValue("engagementId"))
 		var selected []engagement.Engagement

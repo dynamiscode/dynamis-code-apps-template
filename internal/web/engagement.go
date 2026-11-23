@@ -280,7 +280,11 @@ func (h *Handler) moveEngagement(w http.ResponseWriter, r *http.Request) {
 		h.renderError(w, http.StatusInternalServerError)
 		return
 	}
-	h.redirect(w, r, h.clientsPath(workspace)+"/"+clientID.String())
+	path := h.clientsPath(workspace) + "/" + clientID.String()
+	if r.FormValue("return_to") == "detail" {
+		path += "/engagements/" + engagementID.String()
+	}
+	h.redirect(w, r, path)
 }
 
 func (h *Handler) setEngagementLabel(w http.ResponseWriter, r *http.Request) {
