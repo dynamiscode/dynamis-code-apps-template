@@ -391,6 +391,7 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		"internal/web/templates/clients.html", "internal/web/templates/client.html",
 		"internal/platform/database/migrations/000022_clients.sql",
 		"internal/platform/database/migrations/000043_client_intake_consent.sql",
+		"internal/platform/database/migrations/000044_client_possible_duplicate.sql",
 		"internal/platform/database/migrations/000024_client_events.sql",
 		"internal/platform/database/migrations/000031_client_timeline.sql",
 		"internal/platform/database/migrations/000033_engagements.sql", "internal/platform/database/migrations/000034_engagement_next_action.sql", "internal/platform/database/migrations/000035_engagement_quote.sql", "internal/platform/database/migrations/000036_engagement_assignee.sql",

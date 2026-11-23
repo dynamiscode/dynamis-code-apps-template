@@ -420,6 +420,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/web/templates/clients.html" || relative == "internal/web/templates/client.html" ||
 		relative == "internal/platform/database/migrations/000022_clients.sql" ||
 		relative == "internal/platform/database/migrations/000043_client_intake_consent.sql" ||
+		relative == "internal/platform/database/migrations/000044_client_possible_duplicate.sql" ||
 		relative == "internal/platform/database/migrations/000023_client_fields.sql" ||
 		relative == "internal/platform/database/migrations/000024_client_events.sql" ||
 		relative == "internal/platform/database/migrations/000031_client_timeline.sql" ||
@@ -603,6 +604,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.ReplaceAll(value, "result.ClientRealtimeReplay < 1 || ", "")
 	case "docs/data-lifecycle.md":
 		value = removeLineStarting(value, "| clients / `client_timeline_entries` |")
+		value = removeLineStarting(value, "| clients / `possible_duplicate` |")
 		value = removeLineStarting(value, "| intake / `public_intake_links` |")
 	case "docs/mcp.md":
 		value = removeText(value, "\n## Clients tools (Clients profile)", "\n## Prompts\n")

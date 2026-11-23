@@ -61,7 +61,7 @@ func TestPublicIntakeForm(t *testing.T) {
 		t.Fatalf("invalid form: %d", invalid.Code)
 	}
 	result := request(env.routes, http.MethodPost, "/intake/"+token, url.Values{"name": {"Visitor"}, "email": {"visitor@example.com"}, "consent": {"on"}}, nil, nil)
-	if result.Code != http.StatusOK || !strings.Contains(result.Body.String(), "Thank you") || strings.Contains(result.Body.String(), "Visitor") || strings.Contains(result.Body.String(), "Clients") {
+	if result.Code != http.StatusOK || !strings.Contains(result.Body.String(), "Thank you") || strings.Contains(result.Body.String(), "Visitor") || strings.Contains(result.Body.String(), "/workspaces/") {
 		t.Fatalf("confirmation: %d, body %s", result.Code, result.Body.String())
 	}
 	bot := request(env.routes, http.MethodPost, "/intake/"+token, url.Values{"website": {"spam"}}, nil, nil)
