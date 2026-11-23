@@ -397,8 +397,15 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	if err != nil || len(got.History) != 5 || got.History[4].FromStageID != stages[3].ID || got.History[4].ToStageID != duplicate.ID {
 		t.Fatalf("same name history: %+v, %v", got, err)
 	}
+	var moveAudits int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_events WHERE workspace_id = ? AND event_type = 'engagement.moved'`, boot.WorkspaceID).Scan(&moveAudits); err != nil || moveAudits != 5 {
+		t.Fatalf("move audits: %d, %v", moveAudits, err)
+	}
 	if _, err := maintenance.Run(ctx, db, config.SQLite, time.Now().Add(400*24*time.Hour), 365*24*time.Hour); err != nil {
 		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_events WHERE workspace_id = ? AND event_type = 'engagement.moved'`, boot.WorkspaceID).Scan(&moveAudits); err != nil || moveAudits != 0 {
+		t.Fatalf("pruned move audits: %d, %v", moveAudits, err)
 	}
 	got, err = svc.Get(ctx, viewer, boot.WorkspaceID, created.ID)
 	if err != nil || len(got.History) != 5 {
