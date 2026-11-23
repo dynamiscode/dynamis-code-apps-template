@@ -20,9 +20,10 @@ Public pages expose only Item title and status. Access is rate-limited,
 audited without the token, and protected with no-store/private caching,
 no-referrer, and noindex headers. Permanent Item deletion cascades to links.
 
-There is no public write, search, listing, indexing, membership, REST, CLI,
-MCP, or WebMCP surface. File sharing and other resource types remain later
-work.
+Item sharing has no public write, search, listing, indexing, membership, REST,
+CLI, MCP, or WebMCP surface. [Decision 0016](0016-public-intake.md) permits a
+separate, narrow public intake write path; Item sharing stays read-only. File
+sharing and other resource types remain later work.
 
 ## Consequences
 
