@@ -209,7 +209,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		DB: db, Identity: identityService, OIDC: oidcRegistry,
 		Portability: portabilityService, Webhooks: webhookService,
 		Files: fileService, Jobs: jobQueue,
-		Handler: telemetry.HTTPHandler(mux), Telemetry: telemetryProvider,
+		Handler: telemetry.HTTPHandler(httpapi.LimitPublicIntake(mux, cfg.HTTP.RequestsPerMinute)), Telemetry: telemetryProvider,
 	}, nil
 }
 
