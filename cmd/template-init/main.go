@@ -297,6 +297,7 @@ func filesPath(relative string) bool {
 		relative == "internal/web/files_no_javascript_test.go" || relative == "internal/browsertest/files_test.go" ||
 		relative == "internal/platform/database/migrations/000014_files.sql" ||
 		relative == "internal/platform/database/migrations/000020_file_short_ids.sql" ||
+		relative == "internal/engagement/agreement_test.go" ||
 		relative == "internal/platform/database/migrate_files_test.go" ||
 		relative == "internal/platform/database/migrate_file_ids_test.go"
 }
@@ -308,8 +309,11 @@ func clientsPath(relative string) bool {
 	relative = filepath.ToSlash(relative)
 	return relative == "internal/clients" || strings.HasPrefix(relative, "internal/clients/") ||
 		relative == "internal/engagement/engagement.go" ||
+		relative == "internal/engagement/agreement.go" ||
+		relative == "internal/engagement/agreement_test.go" ||
 		relative == "internal/engagement/assignee.go" || relative == "internal/engagement/next_action.go" || relative == "internal/engagement/quote.go" ||
 		relative == "internal/platform/database/migrations/000033_engagements.sql" ||
+		relative == "internal/platform/database/migrations/000039_engagement_agreement.sql" ||
 		relative == "internal/platform/database/migrations/000034_engagement_next_action.sql" || relative == "internal/platform/database/migrations/000035_engagement_quote.sql" || relative == "internal/platform/database/migrations/000036_engagement_assignee.sql" ||
 		relative == "internal/platform/database/migrations/000038_engagement_stage_history.sql" ||
 		relative == "cmd/demo/clients.go" || relative == "cmd/demo/clients_test.go" ||
@@ -394,9 +398,11 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `"setEngagementNextAction":`)
 		value = removeLinesContaining(value, `"setEngagementQuote":`)
 		value = removeLinesContaining(value, `"setEngagementAssignee":`)
+		value = removeLinesContaining(value, `"setEngagementAgreement":`)
 	case "internal/httpapi/engagement.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `"time"`)
+		value = removeText(value, "func (h *handler) setEngagementAgreement(", "func (h *handler) setEngagementAssignee(")
 		value = removeText(value, "func (h *handler) setEngagementAssignee(", "func (h *handler) getEngagementLabel(")
 		value = removeText(value, "func (h *handler) setEngagementQuote(", "func (h *handler) createEngagement(")
 		value = removeText(value, "func (h *handler) createEngagement(", "func (h *handler) listEngagementStages(")
@@ -472,6 +478,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.ReplaceAll(value, "ClientsEnabled: h.clients != nil, ", "")
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `"time"`)
+		value = removeText(value, "func (h *Handler) setEngagementAgreement(", "func (h *Handler) setEngagementAssignee(")
 		value = removeText(value, "func (h *Handler) setEngagementAssignee(", "func (h *Handler) EnableEngagement(")
 		value = removeText(value, "func (h *Handler) moveEngagement(", "func (h *Handler) setEngagementLabel(")
 		value = removeText(value, "func (h *Handler) createEngagement(", "func (h *Handler) engagementStages(")
@@ -509,6 +516,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLineStarting(value, "- Next actions:")
 		value = removeLineStarting(value, "- Quotes:")
 		value = removeLineStarting(value, "- Assignee:")
+		value = removeLineStarting(value, "- Agreement:")
 		value = removeText(value, "\n- Clients (Clients profile):", "\n\n## Webhooks")
 	case "docs/web.md":
 		value = removeText(value, "\nOn a client detail page,", "\n`/account`")
@@ -557,6 +565,17 @@ func stripClientsOpenAPI(raw []byte) string {
 func disableFilesSource(relative string, raw []byte) []byte {
 	value := string(raw)
 	switch relative {
+	case "internal/platform/database/migrations/000039_engagement_agreement.sql":
+		value = removeLineStarting(value, "ALTER TABLE engagements ADD COLUMN agreement_file_id")
+	case "internal/engagement/engagement.go", "internal/engagement/next_action.go":
+		value = strings.ReplaceAll(value, "COALESCE(e.agreement_file_id, 0)", "0")
+	case "internal/engagement/agreement.go":
+		value = removeLinesContaining(value, "/internal/files\"")
+		value = strings.Replace(value, "\t\"errors\"\n", "", 1)
+		value = removeText(value, "\tvar fileID any\n", "\tresult, err := tx.ExecContext")
+		value = strings.Replace(value, "agreement_recorded = ?, agreement_file_id = ?", "agreement_recorded = ?", 1)
+		value = strings.Replace(value, "agreement.Recorded, fileID, workspaceID", "agreement.Recorded, workspaceID", 1)
+		value = strings.Replace(value, "\tresult, err := tx.ExecContext", "\tif agreement.FileID != \"\" { return ErrInvalidInput }\n\tresult, err := tx.ExecContext", 1)
 	case "internal/bootstrap/app.go":
 		value = removeImport(value, "appfiles")
 		value = removeLineStarting(value, "\twebHandler.EnableFilesPreferences(")
@@ -606,6 +625,8 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = removeText(value, "func TestAccountDeletionRetainsOwnedFiles(", "func TestEmailVerificationAndPasswordResetAreSingleUse(")
 		value = removeLinesContaining(value, `"database/sql"`)
 	case "docs/capabilities.md":
+		value = strings.ReplaceAll(value, "[service test](../internal/engagement/agreement_test.go)", "[REST test](../internal/httpapi/engagement_test.go)")
+		value = strings.ReplaceAll(value, "stores the internal file key, and the", "stores the agreement flag, and the")
 		value = removeLineStarting(value, "| Files |")
 		value = removeLineStarting(value, "| Files shared list view |")
 		value = removeLineStarting(value, "| Object storage |")

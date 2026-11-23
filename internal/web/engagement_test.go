@@ -124,6 +124,16 @@ func TestEngagementThroughWeb(t *testing.T) {
 	actionPath := path + "/engagements/" + items[0].ID.String() + "/next-action"
 	quotePath := path + "/engagements/" + items[0].ID.String() + "/quote"
 	assigneePath := path + "/engagements/" + items[0].ID.String() + "/assignee"
+	agreementPath := path + "/engagements/" + items[0].ID.String() + "/agreement"
+	if r := request(env.routes, http.MethodPost, agreementPath, url.Values{"csrf": {env.csrf}, "recorded": {"1"}}, env.cookies, nil); r.Code != http.StatusSeeOther {
+		t.Fatalf("agreement: %d %s", r.Code, r.Body.String())
+	}
+	if r := request(env.routes, http.MethodPost, agreementPath, url.Values{"csrf": {env.viewerCSRF}}, env.viewerCookies, nil); r.Code != http.StatusForbidden {
+		t.Fatalf("viewer agreement: %d", r.Code)
+	}
+	if r := request(env.routes, http.MethodPost, agreementPath, url.Values{"csrf": {env.csrf}, "file_id": {"invalid"}}, env.cookies, nil); r.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("invalid file: %d", r.Code)
+	}
 	assigned := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}, "assignee_id": {env.ownerID.String()}}, env.cookies, nil)
 	if assigned.Code != http.StatusSeeOther {
 		t.Fatalf("assign: %d %s", assigned.Code, assigned.Body.String())
@@ -156,7 +166,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 		t.Fatalf("set action: %d %s", updated.Code, updated.Body.String())
 	}
 	viewer := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
-	if viewer.Code != http.StatusOK || !strings.Contains(viewer.Body.String(), "Other person") || !strings.Contains(viewer.Body.String(), "Call client") || !strings.Contains(viewer.Body.String(), "120.50") || strings.Contains(viewer.Body.String(), quotePath) || strings.Contains(viewer.Body.String(), assigneePath) || strings.Contains(viewer.Body.String(), "Create engagement") || strings.Contains(viewer.Body.String(), actionPath) {
+	if viewer.Code != http.StatusOK || !strings.Contains(viewer.Body.String(), "Signed agreement recorded") || strings.Contains(viewer.Body.String(), agreementPath) || !strings.Contains(viewer.Body.String(), "Other person") || !strings.Contains(viewer.Body.String(), "Call client") || !strings.Contains(viewer.Body.String(), "120.50") || strings.Contains(viewer.Body.String(), quotePath) || strings.Contains(viewer.Body.String(), assigneePath) || strings.Contains(viewer.Body.String(), "Create engagement") || strings.Contains(viewer.Body.String(), actionPath) {
 		t.Fatalf("viewer: %d notes=%v create=%v", viewer.Code, strings.Contains(viewer.Body.String(), "Other person"), strings.Contains(viewer.Body.String(), "Create engagement"))
 	}
 	due := request(env.routes, http.MethodGet, "/workspaces/"+env.workspaceID.String()+"/engagements/due", nil, env.viewerCookies, nil)

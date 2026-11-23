@@ -116,6 +116,15 @@ func TestEngagementThroughREST(t *testing.T) {
 	actionPath := base + "/engagements/" + e.ID + "/next-action"
 	quotePath := base + "/engagements/" + e.ID + "/quote"
 	assigneePath := base + "/engagements/" + e.ID + "/assignee"
+	agreementPath := base + "/engagements/" + e.ID + "/agreement"
+	if r := serveAuthorized(handler, http.MethodPut, agreementPath, `{"recorded":true}`, token, nil); r.Code != http.StatusNoContent {
+		t.Fatalf("agreement: %d %s", r.Code, r.Body.String())
+	}
+	if r := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil); !strings.Contains(r.Body.String(), `"agreement":{"recorded":true`) {
+		t.Fatalf("agreement read: %s", r.Body.String())
+	}
+	assertProblem(t, serveAuthorized(handler, http.MethodPut, agreementPath, `{"recorded":false}`, readOnly.Secret, nil), http.StatusForbidden, "insufficient-scope")
+	assertProblem(t, serveAuthorized(handler, http.MethodPut, agreementPath, `{"recorded":true,"fileId":"invalid"}`, token, nil), http.StatusBadRequest, "invalid-request")
 	if r := serveAuthorized(handler, http.MethodPut, assigneePath, `{"assigneeId":"`+userID.String()+`"}`, token, nil); r.Code != http.StatusNoContent {
 		t.Fatalf("assign: %d %s", r.Code, r.Body.String())
 	}

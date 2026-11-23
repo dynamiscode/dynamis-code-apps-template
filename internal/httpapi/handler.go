@@ -173,6 +173,7 @@ func newHandler(
 		"getEngagementLabel": h.getEngagementLabel, "setEngagementLabel": h.setEngagementLabel,
 		"setEngagementNextAction": h.setEngagementNextAction, "listDueEngagements": h.listDueEngagements,
 		"setEngagementQuote":      h.setEngagementQuote,
+		"setEngagementAgreement":  h.setEngagementAgreement,
 		"setEngagementAssignee":   h.setEngagementAssignee,
 		"reorderEngagementStages": h.reorderEngagementStages, "archiveEngagementStage": h.archiveEngagementStage,
 		"getClient": h.getClient, "updateClient": h.updateClient,
