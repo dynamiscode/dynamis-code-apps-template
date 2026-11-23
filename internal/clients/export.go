@@ -125,7 +125,7 @@ func (s *Service) exportClientRecords(
 ) ([]portability.ClientRecord, error) {
 	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `
 		SELECT id, workspace_id, created_by_user_id, display_name, email, phone, notes,
-			archived_at, version, custom_values, created_at, updated_at, intake_consented_at
+			archived_at, version, custom_values, created_at, updated_at, intake_consented_at, possible_duplicate
 		FROM clients WHERE workspace_id = ? ORDER BY created_at, id LIMIT ?
 	`), workspaceID, limit)
 	if err != nil {
@@ -142,7 +142,7 @@ func (s *Service) exportClientRecords(
 		if err := rows.Scan(
 			&clientID, &value.WorkspaceID, &createdByUserID, &value.DisplayName,
 			&value.Email, &value.Phone, &value.Notes, &archivedAt, &value.Version,
-			&rawValues, &createdAt, &updatedAt, &consentedAt,
+			&rawValues, &createdAt, &updatedAt, &consentedAt, &value.PossibleDuplicate,
 		); err != nil {
 			return nil, err
 		}

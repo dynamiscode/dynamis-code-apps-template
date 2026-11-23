@@ -13,6 +13,8 @@ Owners and admins manage the public intake link and consent text from Clients.
 Visitors use `/intake/{token}` without signing in; the form follows their browser
 language (English or Spanish) and returns a generic confirmation. A disabled or
 unknown link, or a workspace without an open stage, is unavailable.
+Client details show a possible-duplicate warning when an intake submission
+matches another client in the workspace by email or phone.
 
 Catalog profile: `/workspaces/{workspaceId}/catalog` lists active entries and their unconverted price options for workspace resource readers, with an option to include archived entries. Owners and admins can create, edit, archive, unarchive, or delete unused entries and add, edit, or remove fixed or manual prices; members and viewers see no write controls. Fixed amounts are non-negative decimals, while manual options have no preset amount. Creation requires an initial price; removing the last price is rejected. New rows can only be added to active entries. To repair a legacy price-less entry, show archived entries, unarchive it if necessary, add its actual price, and archive it again if appropriate; no prices are invented. Entries reported in use cannot be deleted and should be archived, but sale linkage and the production usage checker remain deferred. Catalog entries and prices are scoped to their workspace. Workspace home links to the catalog.
 

@@ -63,6 +63,7 @@ type ClientRecord struct {
 	Notes             string               `json:"notes"`
 	ArchivedAt        *time.Time           `json:"archivedAt"`
 	IntakeConsentedAt *time.Time           `json:"intakeConsentedAt"`
+	PossibleDuplicate bool                 `json:"possibleDuplicate"`
 	Version           int64                `json:"version"`
 	CreatedAt         time.Time            `json:"createdAt"`
 	UpdatedAt         time.Time            `json:"updatedAt"`

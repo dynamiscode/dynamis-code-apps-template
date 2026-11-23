@@ -1,0 +1,1 @@
+ALTER TABLE clients ADD COLUMN possible_duplicate BOOLEAN NOT NULL DEFAULT FALSE;

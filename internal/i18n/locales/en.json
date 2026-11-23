@@ -1,4 +1,5 @@
 {
+  "clients.possible_duplicate": "Possible duplicate client. Review existing clients before proceeding.",
   "intake.title": "Public intake",
   "intake.active": "Link active",
   "intake.disabled": "Link disabled",

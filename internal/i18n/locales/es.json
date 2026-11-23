@@ -1,4 +1,5 @@
 {
+  "clients.possible_duplicate": "Posible cliente duplicado. Revisa los clientes existentes antes de continuar.",
   "intake.title": "Formulario público",
   "intake.active": "Enlace activo",
   "intake.disabled": "Enlace desactivado",

@@ -37,6 +37,8 @@ the server returns the accepted or generated request ID.
   consent, and phone or email are required; notes are limited to 2,000
   characters. Success returns `204` without workspace or submission data;
   unavailable links and workspaces without an open stage return `404`.
+  A matching workspace client flags the new client as a possible duplicate;
+  no existing record is changed.
 - `GET /health/live` reports process liveness without dependencies.
 - `GET /health/ready` checks the database with a bounded timeout.
 - `GET /api/openapi.json` serves the exact embedded contract.
