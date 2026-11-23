@@ -389,6 +389,8 @@ func clientsPath(relative string) bool {
 		relative == "internal/engagement/assignee.go" || relative == "internal/engagement/next_action.go" || relative == "internal/engagement/quote.go" ||
 		relative == "internal/platform/database/migrations/000033_engagements.sql" ||
 		relative == "internal/platform/database/migrations/000039_engagement_agreement.sql" ||
+		relative == "internal/platform/database/migrations/000042_engagement_names.sql" ||
+		relative == "internal/platform/database/migrate_engagement_names_test.go" ||
 		relative == "internal/platform/database/migrations/000034_engagement_next_action.sql" || relative == "internal/platform/database/migrations/000035_engagement_quote.sql" || relative == "internal/platform/database/migrations/000036_engagement_assignee.sql" ||
 		relative == "internal/platform/database/migrations/000038_engagement_stage_history.sql" ||
 		relative == "cmd/demo/clients.go" || relative == "cmd/demo/clients_test.go" ||
@@ -495,6 +497,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 			value = value[:i] + "\n"
 		}
 	case "internal/engagement/service_test.go":
+		value = removeLinesContaining(value, `"strings"`)
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `/internal/platform/maintenance"`)
 		if i := strings.Index(value, "\nfunc TestCreateEngagementRequiresOpenStageAndClient("); i >= 0 {

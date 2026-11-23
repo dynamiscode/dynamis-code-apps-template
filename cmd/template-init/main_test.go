@@ -389,6 +389,7 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		"internal/platform/database/migrations/000024_client_events.sql",
 		"internal/platform/database/migrations/000031_client_timeline.sql",
 		"internal/platform/database/migrations/000033_engagements.sql", "internal/platform/database/migrations/000034_engagement_next_action.sql", "internal/platform/database/migrations/000035_engagement_quote.sql", "internal/platform/database/migrations/000036_engagement_assignee.sql",
+		"internal/platform/database/migrations/000042_engagement_names.sql", "internal/platform/database/migrate_engagement_names_test.go",
 		"internal/web/clients_events.go", "internal/web/clients_no_javascript_test.go",
 		"internal/mcpserver/clients.go", "internal/mcpserver/clients_test.go",
 		"internal/appctl/clients_test.go",
