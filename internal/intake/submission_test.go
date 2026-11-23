@@ -83,6 +83,9 @@ func TestSubmissionCreatesClientAndEngagementTogether(t *testing.T) {
 	if _, err := db.Exec(`DROP TRIGGER fail_engagement`); err != nil {
 		t.Fatal(err)
 	}
+	if err := auth.SetNotificationPreference(ctx, boot.UserID, "public_intake", false, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
 	if err := svc.Submit(ctx, token, input, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}

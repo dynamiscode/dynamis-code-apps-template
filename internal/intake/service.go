@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -44,6 +45,38 @@ func (s *Service) ConfigureNotifications(queue *jobs.Queue, publicURL string) {
 type Settings struct {
 	Active      bool
 	ConsentText string
+}
+
+type LinkStatus string
+
+const (
+	LinkInactive LinkStatus = "inactive"
+	LinkActive   LinkStatus = "active"
+)
+
+type Link struct{ TokenHash sql.NullString }
+
+func (l Link) Status(_ time.Time) LinkStatus {
+	if l.TokenHash.Valid {
+		return LinkActive
+	}
+	return LinkInactive
+}
+
+func ValidateLinkTransition(current, target LinkStatus) error {
+	if (current == LinkInactive && target == LinkActive) || (current == LinkActive && (target == LinkActive || target == LinkInactive)) {
+		return nil
+	}
+	return fmt.Errorf("invalid intake link transition %q to %q: %w", current, target, ErrNotFound)
+}
+
+func (s *Service) linkStatus(ctx context.Context, tx *sql.Tx, workspace identity.WorkspaceID) (LinkStatus, error) {
+	var link Link
+	err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT token_hash FROM public_intake_links WHERE workspace_id = ?`), workspace).Scan(&link.TokenHash)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return "", err
+	}
+	return link.Status(time.Now()), nil
 }
 
 func NewService(db *sql.DB, driver config.DatabaseDriver, auth *identity.Service, clientServices ...*clients.Service) *Service {
@@ -85,6 +118,16 @@ func (s *Service) issue(ctx context.Context, actor identity.Principal, workspace
 	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspace, identity.WorkspaceUpdate); err != nil {
 		return "", identity.ErrForbidden
 	}
+	status, err := s.linkStatus(ctx, tx, workspace)
+	if err != nil {
+		return "", err
+	}
+	if !rotate && status == LinkActive {
+		return "", ErrActive
+	}
+	if err := ValidateLinkTransition(status, LinkActive); err != nil {
+		return "", err
+	}
 	query := `INSERT INTO public_intake_links (workspace_id, token_hash, consent_text) VALUES (?, ?, ?)
 		ON CONFLICT (workspace_id) DO UPDATE SET token_hash = excluded.token_hash, consent_text = excluded.consent_text`
 	if !rotate {
@@ -122,6 +165,13 @@ func (s *Service) Disable(ctx context.Context, actor identity.Principal, workspa
 	defer tx.Rollback()
 	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspace, identity.WorkspaceUpdate); err != nil {
 		return identity.ErrForbidden
+	}
+	status, err := s.linkStatus(ctx, tx, workspace)
+	if err != nil {
+		return err
+	}
+	if err := ValidateLinkTransition(status, LinkInactive); err != nil {
+		return err
 	}
 	result, err := tx.ExecContext(ctx, database.Rebind(s.driver, `UPDATE public_intake_links SET token_hash = NULL WHERE workspace_id = ? AND token_hash IS NOT NULL`), workspace)
 	if err != nil {

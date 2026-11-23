@@ -64,6 +64,9 @@ func TestLinkLifecycle(t *testing.T) {
 	if err := svc.Disable(ctx, owner, boot.WorkspaceID, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
+	if err := svc.Disable(ctx, owner, boot.WorkspaceID, identity.AuditContext{}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("disable inactive: %v", err)
+	}
 	if _, _, err := svc.Resolve(ctx, rotated); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("disabled token: %v", err)
 	}

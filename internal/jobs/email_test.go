@@ -29,7 +29,7 @@ func TestQueuedEmailRetriesAndExhausts(t *testing.T) {
 	workspaceID := insertJobsWorkspace(t, db)
 	queue := NewQueue(db, config.SQLite, nil)
 	sender := &emailTestSender{err: errors.New("private error")}
-	if err := queue.Register(EmailJobKind, EmailHandler(sender)); err != nil {
+	if err := queue.Register(EmailJobKind, EmailHandler(queue, sender)); err != nil {
 		t.Fatal(err)
 	}
 	tx, err := db.BeginTx(ctx, nil)
@@ -80,7 +80,7 @@ func (s *emailTestSender) Send(_ context.Context, recipient, subject, body strin
 
 func TestEmailJobOutcomes(t *testing.T) {
 	sender := &emailTestSender{}
-	handler := EmailHandler(sender)
+	handler := EmailHandler(nil, sender)
 	job := Job{Payload: `{"recipient":"staff@example.com","subject":"New request","body":"Open record"}`}
 	if err := handler(context.Background(), job); err != nil || sender.calls != 1 {
 		t.Fatalf("delivery = %v, calls = %d; want successful send", err, sender.calls)
@@ -97,11 +97,42 @@ func TestEmailJobOutcomes(t *testing.T) {
 }
 
 func TestEmailJobSendsEachRecipientEvenWhenOneFails(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, config.Database{Driver: config.SQLite, SQLitePath: filepath.Join(t.TempDir(), "batch.db"), MaxOpenConns: 1, MaxIdleConns: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.Migrate(ctx, db, config.SQLite); err != nil {
+		t.Fatal(err)
+	}
+	workspace := insertJobsWorkspace(t, db)
+	queue := NewQueue(db, config.SQLite, nil)
 	sender := &batchSender{}
-	handler := EmailHandler(sender)
-	err := handler(context.Background(), Job{Payload: `{"recipients":["first@example.com","second@example.com"],"subject":"New request","body":"Open record"}`})
-	if err == nil || len(sender.recipients) != 2 || sender.recipients[1] != "second@example.com" {
-		t.Fatalf("delivery = %v, recipients = %v", err, sender.recipients)
+	if err := queue.Register(EmailJobKind, EmailHandler(queue, sender)); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := EnqueueEmailTx(ctx, queue, tx, workspace, 1, Email{Recipients: []string{"first@example.com", "second@example.com"}, Subject: "New request", Body: "Open record"}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := queue.Process(ctx, 1); err != nil || n != 1 {
+		t.Fatalf("first attempt: %d %v", n, err)
+	}
+	if _, err := db.Exec("UPDATE background_jobs SET available_at = ?", stamp(time.Now().Add(-time.Second))); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := queue.Process(ctx, 1); err != nil || n != 1 {
+		t.Fatalf("retry: %d %v", n, err)
+	}
+	if len(sender.recipients) != 3 || sender.recipients[0] != "first@example.com" || sender.recipients[1] != "second@example.com" || sender.recipients[2] != "first@example.com" {
+		t.Fatalf("recipients = %v", sender.recipients)
 	}
 }
 

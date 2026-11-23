@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/platform/database"
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 )
 
@@ -42,7 +43,7 @@ func EnqueueEmailTx(ctx context.Context, queue *Queue, tx *sql.Tx, workspaceID i
 	return queue.EnqueueTx(ctx, tx, workspaceID, EmailJobKind, key, string(payload), availableAt)
 }
 
-func EmailHandler(sender appmail.Sender) Handler {
+func EmailHandler(queue *Queue, sender appmail.Sender) Handler {
 	return func(ctx context.Context, job Job) error {
 		var message Email
 		if err := json.Unmarshal([]byte(job.Payload), &message); err != nil {
@@ -55,15 +56,30 @@ func EmailHandler(sender appmail.Sender) Handler {
 		if len(recipients) == 0 {
 			return Failure{Category: "email-invalid"}
 		}
-		var failed bool
-		for _, recipient := range recipients {
+		message.Recipient = ""
+		message.Recipients = recipients
+		for i := 0; i < len(message.Recipients); {
+			recipient := message.Recipients[i]
 			if err := appmail.SendFor(ctx, sender, job.WorkspaceID.String(), recipient, message.Subject, message.Body); err != nil {
-				failed = true
+				i++
+				continue
+			}
+			message.Recipients = append(message.Recipients[:i], message.Recipients[i+1:]...)
+			if len(message.Recipients) == 0 {
+				return nil
+			}
+			payload, err := json.Marshal(message)
+			if err != nil {
+				return Failure{Category: "email-invalid"}
+			}
+			result, err := queue.db.ExecContext(ctx, database.Rebind(queue.driver, `UPDATE background_jobs SET payload = ? WHERE id = ? AND status = 'running' AND lease_token = ?`), string(payload), job.ID, job.LeaseToken)
+			if err != nil {
+				return Failure{Category: "email-delivery"}
+			}
+			if n, err := result.RowsAffected(); err != nil || n != 1 {
+				return Failure{Category: "email-delivery"}
 			}
 		}
-		if failed {
-			return Failure{Category: "email-delivery"}
-		}
-		return nil
+		return Failure{Category: "email-delivery"}
 	}
 }

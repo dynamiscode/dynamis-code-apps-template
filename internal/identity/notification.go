@@ -69,12 +69,14 @@ func (s *Service) CreateNotificationInTx(ctx context.Context, tx *sql.Tx, actor 
 	} else if actor.AuthMethod != "system" && actor.UserID != input.RecipientUserID {
 		return Notification{}, ErrForbidden
 	}
-	enabled, err := s.notificationEnabled(ctx, tx, input.RecipientUserID, input.WorkspaceID, input.NotificationType)
-	if err != nil {
-		return Notification{}, err
-	}
-	if !enabled {
-		return Notification{}, nil
+	if actor.AuthMethod != "system" || input.NotificationType != "public_intake" {
+		enabled, err := s.notificationEnabled(ctx, tx, input.RecipientUserID, input.WorkspaceID, input.NotificationType)
+		if err != nil {
+			return Notification{}, err
+		}
+		if !enabled {
+			return Notification{}, nil
+		}
 	}
 	now := s.now().UTC()
 	var notificationKey int64

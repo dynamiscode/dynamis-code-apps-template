@@ -163,7 +163,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		db, cfg.Database.Driver, identityService,
 		secretbox.New(cfg.Encryption.Keys, cfg.Encryption.Primary), instanceMailer,
 	)
-	if err := jobQueue.Register(jobs.EmailJobKind, jobs.EmailHandler(mailer)); err != nil {
+	if err := jobQueue.Register(jobs.EmailJobKind, jobs.EmailHandler(jobQueue, mailer)); err != nil {
 		db.Close()
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("register email job handler: %w", err)
