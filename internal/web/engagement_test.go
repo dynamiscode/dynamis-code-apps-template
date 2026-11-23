@@ -125,6 +125,13 @@ func TestEngagementThroughWeb(t *testing.T) {
 			t.Fatalf("creation form missing %q", want)
 		}
 	}
+	invalidName := strings.Repeat("x", 201)
+	invalidCreate := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.csrf}, "name": {invalidName}, "stage": {second.ID.String()}, "notes": {"Keep these notes"}}, env.cookies, nil)
+	for _, want := range []string{"The engagement is invalid.", invalidName, "Keep these notes", `value="` + second.ID.String() + `" selected`} {
+		if invalidCreate.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidCreate.Body.String(), want) {
+			t.Fatalf("invalid create missing %q: %d %s", want, invalidCreate.Code, invalidCreate.Body.String())
+		}
+	}
 	missingStage := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.csrf}, "name": {"Engagement"}}, env.cookies, nil)
 	if missingStage.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("missing stage: %d", missingStage.Code)
@@ -161,7 +168,6 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if got := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.viewerCSRF}, "name": {"Denied"}}, env.viewerCookies, nil); got.Code != http.StatusForbidden {
 		t.Fatalf("viewer rename: %d", got.Code)
 	}
-	invalidName := strings.Repeat("x", 201)
 	if got := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.csrf}, "name": {invalidName}}, env.cookies, nil); got.Code != http.StatusUnprocessableEntity || !strings.Contains(got.Body.String(), invalidName) {
 		t.Fatalf("invalid rename: %d %s", got.Code, got.Body.String())
 	}
