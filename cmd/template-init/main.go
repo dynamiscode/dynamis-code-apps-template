@@ -513,6 +513,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLineStarting(value, "- Next actions:")
 		value = removeLineStarting(value, "- Quotes:")
 		value = removeLineStarting(value, "- Assignee:")
+		value = removeLineStarting(value, "- Agreement:")
 		value = removeText(value, "\n- Clients (Clients profile):", "\n\n## Webhooks")
 	case "docs/web.md":
 		value = removeText(value, "\nOn a client detail page,", "\n`/account`")
@@ -622,6 +623,7 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `"database/sql"`)
 	case "docs/capabilities.md":
 		value = strings.ReplaceAll(value, "[service test](../internal/engagement/agreement_test.go)", "[REST test](../internal/httpapi/engagement_test.go)")
+		value = strings.ReplaceAll(value, "stores the internal file key, and the", "stores the agreement flag, and the")
 		value = removeLineStarting(value, "| Files |")
 		value = removeLineStarting(value, "| Files shared list view |")
 		value = removeLineStarting(value, "| Object storage |")
