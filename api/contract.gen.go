@@ -9,7 +9,7 @@ type Operation struct {
 }
 
 const OpenAPIVersion = "3.1.0"
-const OpenAPISHA256 = "dd91792a53fb49bc78af2609edcb0b104ba1ea1c1c0462da3a4a431063f39f2e"
+const OpenAPISHA256 = "3378dd5fc289015d09b2183c514f8e9d935e021755a78ef9e98c958e0421bd40"
 
 var Operations = []Operation{
 	{Method: "GET", Path: "/api/openapi.json", ID: "getOpenAPI"},
@@ -27,6 +27,7 @@ var Operations = []Operation{
 	{Method: "POST", Path: "/api/v1/auth/mfa/totp/enroll", ID: "mfaTotpEnroll"},
 	{Method: "GET", Path: "/api/v1/sessions", ID: "listSessions"},
 	{Method: "DELETE", Path: "/api/v1/sessions/{sessionId}", ID: "revokeSession"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/catalog", ID: "listCatalog"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/client-fields", ID: "listClientFields"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/client-fields", ID: "createClientField"},
 	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/client-fields/{fieldId}", ID: "deleteClientField"},

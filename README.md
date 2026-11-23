@@ -100,7 +100,8 @@ Generation refuses an existing output directory and writes `template.lock`.
 Repository, security-reporting, maintainer, and profile inputs become
 application-owned metadata; the lock retains template provenance and selected
 profiles. Identity is required because it is shared by Core. Clients requires
-Identity and Agent. Selecting Agent
+Identity and Agent. Catalog requires Identity and adds the initially empty catalog list.
+Selecting Agent
 also composes the MCP server and REST-only CLI; omitting Agent removes those
 implementation packages from the generated tree. The output README is an
 application-specific handoff that links implemented setup, architecture,

@@ -9,6 +9,8 @@ cases as REST. Sign in at `/login`, create or choose a workspace, then use the
 workspace home and sidebar. `/workspaces/{workspaceId}` is the workspace home;
 it links to enabled workspace tools. Settings groups members, invitations, API tokens, webhooks, SCIM provisioning, export, and audit history.
 
+Catalog profile: `/workspaces/{workspaceId}/catalog` shows the initially empty active catalog to workspace resource readers; workspace home links to it.
+
 Member and invitation pages explain role permissions, ownership transfer,
 invited-email matching, and safe recovery for unavailable links.
 Settings groups general and email setup, member access, API tokens, webhooks,

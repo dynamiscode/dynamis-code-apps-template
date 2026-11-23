@@ -8,6 +8,8 @@ Quick check:
 curl http://127.0.0.1:8080/api/openapi.json
 ```
 
+Catalog profile: `GET /api/v1/workspaces/{workspaceId}/catalog` requires `resources:read` and returns the initially empty active list as a JSON array.
+
 ## Consumer quickstart
 
 API tokens are created from the workspace Settings API-token screen or through

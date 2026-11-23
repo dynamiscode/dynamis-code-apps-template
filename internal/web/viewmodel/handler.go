@@ -45,6 +45,7 @@ type PageData struct {
 	CanEditClients       bool
 	CanDeleteClients     bool
 	ClientsEnabled       bool
+	CatalogEnabled       bool
 	ErrorKey             string
 	Files                []appfiles.File
 	FilesEnabled         bool

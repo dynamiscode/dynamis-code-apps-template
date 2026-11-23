@@ -1,4 +1,6 @@
 {
+  "catalog.title": "Catálogo",
+  "catalog.empty": "Todavía no hay entradas en el catálogo.",
   "common.product_name": "Dynamis Code",
   "common.automatic": "Automático",
   "common.english": "English",

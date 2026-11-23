@@ -20,7 +20,7 @@ var (
 	modulePattern     = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._~/-]+$`)
 	slugPattern       = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
 	maintainerPattern = regexp.MustCompile(`^@[A-Za-z0-9][A-Za-z0-9-]*(/[A-Za-z0-9][A-Za-z0-9-]*)?$`)
-	knownProfiles     = []string{"Core", "Identity", "Agent", "Files", "Clients"}
+	knownProfiles     = []string{"Core", "Identity", "Agent", "Files", "Clients", "Catalog"}
 )
 
 const (
@@ -141,7 +141,7 @@ func run(args []string, now func() time.Time) error {
 	}
 	if err := copyTemplate(
 		root, destination, replacements, templateSlug, slug, hasProfile(selectedProfiles, "Agent"), hasProfile(selectedProfiles, "Files"),
-		hasProfile(selectedProfiles, "Clients"),
+		hasProfile(selectedProfiles, "Clients"), hasProfile(selectedProfiles, "Catalog"),
 	); err != nil {
 		return err
 	}
@@ -178,6 +178,7 @@ func copyTemplate(
 	agent bool,
 	files bool,
 	clients bool,
+	catalog bool,
 ) error {
 	return filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -210,6 +211,12 @@ func copyTemplate(
 			return nil
 		}
 		if !files && filesPath(relative) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !catalog && catalogPath(relative) {
 			if entry.IsDir() {
 				return filepath.SkipDir
 			}
@@ -261,6 +268,9 @@ func copyTemplate(
 		if !clients {
 			raw = disableClientsSource(filepath.ToSlash(relative), raw)
 		}
+		if !catalog {
+			raw = disableCatalogSource(filepath.ToSlash(relative), raw)
+		}
 		info, err := entry.Info()
 		if err != nil {
 			return err
@@ -286,6 +296,40 @@ func copySymlink(root, path, target, relative string) error {
 		return fmt.Errorf("template symlink escapes the template: %s", relative)
 	}
 	return os.Symlink(link, target)
+}
+
+func catalogPath(relative string) bool {
+	relative = filepath.ToSlash(relative)
+	return relative == "internal/catalog" || strings.HasPrefix(relative, "internal/catalog/") ||
+		relative == "internal/httpapi/catalog.go" || relative == "internal/httpapi/catalog_test.go" ||
+		relative == "internal/web/catalog.go" || relative == "internal/web/catalog_test.go" ||
+		relative == "internal/web/catalog.templ" || relative == "internal/web/catalog_templ.go"
+}
+
+func disableCatalogSource(relative string, raw []byte) []byte {
+	value := string(raw)
+	switch relative {
+	case "internal/bootstrap/app.go", "internal/httpapi/handler.go", "internal/web/handler.go":
+		value = removeLinesContaining(value, `/internal/catalog"`)
+		value = removeLinesContaining(value, "catalogService")
+		value = removeLinesContaining(value, "h.catalogList")
+		value = removeLinesContaining(value, `"listCatalog":`)
+	case "docs/capabilities.md":
+		value = removeLineStarting(value, "| Catalog |")
+	case "docs/api.md", "docs/web.md":
+		value = removeLineStarting(value, "Catalog profile:")
+	case "api/openapi.json":
+		var document map[string]any
+		if json.Unmarshal(raw, &document) == nil {
+			if paths, ok := document["paths"].(map[string]any); ok {
+				delete(paths, "/api/v1/workspaces/{workspaceId}/catalog")
+				if encoded, err := json.MarshalIndent(document, "", "  "); err == nil {
+					value = string(encoded) + "\n"
+				}
+			}
+		}
+	}
+	return []byte(value)
 }
 
 func filesPath(relative string) bool {
@@ -370,7 +414,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 	case "internal/httpapi/handler.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, "*clients.Service")
-		value = removeLinesContaining(value, "clients: firstClient(")
+		value = removeLinesContaining(value, "firstClient(clientServices)")
 		value = strings.ReplaceAll(value, ", clientServices...)", ")")
 		value = removeLinesContaining(value, `"listClients": h.listClients`)
 		value = removeLinesContaining(value, `"getClient": h.getClient`)
@@ -517,7 +561,7 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = removeLineStarting(value, "\t\tFiles:")
 	case "internal/httpapi/handler.go":
 		value = removeImport(value, "appfiles")
-		value = strings.Replace(value, "\tfiles       *appfiles.Service\n", "", 1)
+		value = removeLineStarting(value, "\tfiles ")
 		value = removeText(value, "func NewHandlerWithWebhooksAndFiles(", "func NewHandlerWithMail(")
 		value = strings.ReplaceAll(value, "webhookService, nil, publicURL, mailer", "webhookService, publicURL, mailer")
 		value = strings.ReplaceAll(value, "webhookService, fileService, publicURL, mailer", "webhookService, publicURL, mailer")
@@ -737,6 +781,9 @@ func parseProfiles(value string) ([]string, error) {
 			return nil, fmt.Errorf("profile %q is unknown or duplicated", profile)
 		}
 		selected[profile] = true
+	}
+	if selected["Catalog"] && !selected["Identity"] {
+		return nil, errors.New("Catalog profile requires Identity")
 	}
 	if selected["Clients"] && (!selected["Identity"] || !selected["Agent"]) {
 		return nil, errors.New("Clients profile requires Identity and Agent")

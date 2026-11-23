@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"example.com/dynamis-code/apps-template/api"
+	"example.com/dynamis-code/apps-template/internal/catalog"
 	"example.com/dynamis-code/apps-template/internal/clients"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
@@ -26,17 +27,18 @@ import (
 )
 
 type handler struct {
-	db          *sql.DB
-	identity    *identity.Service
-	oidc        *identity.OIDCRegistry
-	cfg         config.HTTP
-	logger      *slog.Logger
-	portability *portability.Service
-	publicURL   string
-	mailer      appmail.Sender
-	webhooks    *webhooks.Service
-	files       *appfiles.Service
-	clients     *clients.Service
+	db             *sql.DB
+	identity       *identity.Service
+	oidc           *identity.OIDCRegistry
+	cfg            config.HTTP
+	logger         *slog.Logger
+	portability    *portability.Service
+	publicURL      string
+	mailer         appmail.Sender
+	webhooks       *webhooks.Service
+	files          *appfiles.Service
+	clients        *clients.Service
+	catalogService *catalog.Service
 }
 
 func NewHandler(
@@ -120,7 +122,8 @@ func newHandler(
 		db: db, identity: identityService,
 		oidc: oidcRegistry, cfg: cfg, logger: logger, portability: portabilityService,
 		publicURL: publicURL, mailer: mailer, webhooks: webhookService, files: fileService,
-		clients: firstClient(clientServices),
+		clients:        firstClient(clientServices),
+		catalogService: catalog.NewService(identityService),
 	}
 	handlers := map[string]http.HandlerFunc{
 		"getLiveness": h.liveness, "getReadiness": h.readiness,
@@ -146,6 +149,7 @@ func newHandler(
 		"getFile": h.getFile, "getFileContent": h.getFileContent,
 		"initiateFileUpload": h.initiateFileUpload,
 		"completeFileUpload": h.completeFileUpload, "uploadFileContent": h.uploadFileContent,
+		"listCatalog": h.listCatalog,
 		"listClients": h.listClients, "createClient": h.createClient,
 		"getClient": h.getClient, "updateClient": h.updateClient,
 		"listClientTimeline": h.listClientTimeline, "addClientTimelineEntry": h.addClientTimelineEntry,

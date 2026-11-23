@@ -232,6 +232,13 @@
         "responses": {"200": {"description": "Bounded webhook delivery history", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WebhookDeliveryPage"}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}}
       }
     },
+    "/api/v1/workspaces/{workspaceId}/catalog": {
+      "get": {
+        "operationId": "listCatalog", "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
+        "responses": {"200": {"description": "Active catalog entries", "content": {"application/json": {"schema": {"type": "array", "items": {"type": "object"}}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/clients": {
         "get": {
           "operationId": "listClients",

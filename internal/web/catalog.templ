@@ -1,0 +1,13 @@
+package web
+
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+templ catalogPage(data viewmodel.PageData) {
+ @templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+  @molecules.PageHeading(data.T("catalog.title"), "")
+  @molecules.EmptyState(data.T("catalog.empty"))
+ }
+}

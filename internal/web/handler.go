@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	appcatalog "example.com/dynamis-code/apps-template/internal/catalog"
 	"example.com/dynamis-code/apps-template/internal/clients"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/i18n"
@@ -36,6 +37,7 @@ var files embed.FS
 type Handler struct {
 	logger          *slog.Logger
 	identity        *identity.Service
+	catalogService  *appcatalog.Service
 	clients         *clients.Service
 	clientsEnabled  bool
 	listPreferences *listprefs.Service
@@ -132,8 +134,9 @@ func newHandler(
 	return &Handler{
 		logger:   slog.Default(),
 		identity: identityService, files: fileService, exporter: exporterService,
-		webhooks: webhookService,
-		oidc:     oidcRegistry, publicURL: publicURL, mailer: mailer, cfg: cfg,
+		catalogService: appcatalog.NewService(identityService),
+		webhooks:       webhookService,
+		oidc:           oidcRegistry, publicURL: publicURL, mailer: mailer, cfg: cfg,
 		setupTokenHash: setupTokenHash,
 		streams:        newStreamLimit(cfg.SSEMaxConnections, cfg.SSEMaxPerUser),
 		catalog:        catalog,
@@ -199,6 +202,7 @@ func (h *Handler) Routes() http.Handler {
 		mux.HandleFunc("POST /workspaces", h.createWorkspace)
 	}
 	mux.HandleFunc("GET /workspaces/{workspaceId}", h.workspaceHome)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/catalog", h.catalogList)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients", h.clientList)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/preferences/columns/{column}", h.setClientColumn)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/preferences/columns/reset", h.resetClientColumns)
@@ -699,6 +703,7 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 	}
 	data.FilesEnabled = h.files != nil
 	data.ClientsEnabled = h.clients != nil
+	data.CatalogEnabled = h.catalogService != nil
 	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
 	h.localizePage(writer, &data)
 	if data.ToastKey != "" {
