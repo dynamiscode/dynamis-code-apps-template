@@ -451,6 +451,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	}
 	var engagements []engagement.Engagement
 	var stages []engagement.Stage
+	var openStages []engagement.Stage
 	var members []identity.MemberSummary
 	var engagementNotes string
 	if strings.HasPrefix(errorKey, "engagement.") {
@@ -466,6 +467,11 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		if err != nil {
 			h.renderError(writer, http.StatusInternalServerError)
 			return
+		}
+		for _, stage := range stages {
+			if stage.Kind == "open" && !stage.Archived {
+				openStages = append(openStages, stage)
+			}
 		}
 		members, err = h.identity.ListMembers(request.Context(), principal)
 		if err != nil {
@@ -505,7 +511,8 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		Client:          client, ClientValues: rows, ClientTimeline: entries, TimelinePage: page, TimelineDraft: timelineDraft, CanEditClients: principal.Permissions[identity.ResourcesWrite],
 		CanDeleteClients: principal.Permissions[identity.WorkspaceUpdate],
 		Engagements:      engagements, EngagementStages: stages, EngagementMembers: members, EngagementEnabled: h.engagement != nil,
-		EngagementNotes: engagementNotes,
+		EngagementNotes: engagementNotes, OpenEngagementStages: openStages,
+		EngagementName: request.FormValue("name"), EngagementStage: request.FormValue("stage"),
 	})
 }
 

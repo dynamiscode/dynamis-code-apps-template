@@ -22,7 +22,8 @@ On a client detail page, readers can see engagements and their stage history;
 each engagement name links to a read-only detail page with its existing information
 and a return link to the client. Writers can create an engagement with notes and
 move it to an unarchived stage.
-Creation uses the first available open stage. Client deletion warns that its
+Creation requires a selected unarchived open stage. When none exists, administrators
+can open stage setup; other writers are directed to an administrator. Client deletion warns that its
 engagements and their history are permanently deleted too.
 Owners and admins can set or reset the workspace work item label on the stages
 page. Client pages use that label; the default is engagement.

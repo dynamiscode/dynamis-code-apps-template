@@ -48,13 +48,29 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 			<section class="card my-4 p-6" aria-labelledby="engagement-heading">
 				<h2 id="engagement-heading">{ data.T("engagement.title") }</h2>
 				if data.CanEditClients {
-					<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements" } method="post">
-						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						@molecules.TextField("engagement-name", data.T("engagement.name"), templ.Attributes{"name": "name", "required": true, "maxlength": "200"})
-						<label for="engagement-notes">{ data.T("engagement.notes") }</label>
-						<textarea id="engagement-notes" name="notes" maxlength="5000" class="textarea textarea-bordered">{ data.EngagementNotes }</textarea>
-						<button class="btn btn-primary" type="submit">{ data.T("engagement.create") }</button>
-					</form>
+					if len(data.OpenEngagementStages) == 0 {
+						<p>{ data.T("engagement.no_open_stage") }</p>
+						if data.CanManageFields {
+							<a class="link" href={ "/workspaces/" + data.Workspace.ID.String() + "/engagement-stages" }>{ data.T("engagement.setup_stages") }</a>
+						} else {
+							<p>{ data.T("engagement.ask_admin") }</p>
+						}
+					} else {
+						<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements" } method="post">
+							<input type="hidden" name="csrf" value={ data.CSRF }/>
+							@molecules.TextField("engagement-name", data.T("engagement.name"), templ.Attributes{"name": "name", "value": data.EngagementName, "required": true, "maxlength": "200"})
+							<label for="engagement-stage">{ data.T("engagement.stage") }</label>
+							<select id="engagement-stage" name="stage" class="select select-bordered" required>
+								<option value="">{ data.T("engagement.select_stage") }</option>
+								for _, stage := range data.OpenEngagementStages {
+									<option value={ stage.ID.String() } selected?={ stage.ID.String() == data.EngagementStage }>{ stage.Name }</option>
+								}
+							</select>
+							<label for="engagement-notes">{ data.T("engagement.notes") }</label>
+							<textarea id="engagement-notes" name="notes" maxlength="5000" class="textarea textarea-bordered">{ data.EngagementNotes }</textarea>
+							<button class="btn btn-primary" type="submit">{ data.T("engagement.create") }</button>
+						</form>
+					}
 				}
 				<ul>
 					for _, item := range data.Engagements {

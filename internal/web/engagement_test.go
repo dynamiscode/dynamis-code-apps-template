@@ -104,22 +104,38 @@ func TestEngagementThroughWeb(t *testing.T) {
 	}
 	path := "/workspaces/" + env.workspaceID.String() + "/clients/" + client.ID.String()
 	page := request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
-	for _, want := range []string{`for="engagement-name"`, `id="engagement-name"`, `name="name"`, `required`, `maxlength="200"`} {
-		if !strings.Contains(page.Body.String(), want) {
-			t.Fatalf("creation form missing %q", want)
-		}
+	if !strings.Contains(page.Body.String(), "no open stage") || !strings.Contains(page.Body.String(), "/engagement-stages") {
+		t.Fatalf("missing setup guidance: %s", page.Body.String())
 	}
 	noStage := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.csrf}, "name": {"Engagement"}}, env.cookies, nil)
 	if noStage.Code != http.StatusUnprocessableEntity || !strings.Contains(noStage.Body.String(), "no open stage") {
 		t.Fatalf("no stage: %d %s", noStage.Code, noStage.Body.String())
 	}
-	_, err = engagement.NewService(env.db, config.SQLite, env.auth).CreateStage(ctx, owner, env.workspaceID, engagement.StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{})
+	stage, err := engagement.NewService(env.db, config.SQLite, env.auth).CreateStage(ctx, owner, env.workspaceID, engagement.StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	created := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.csrf}, "name": {"Engagement"}, "notes": {"Other person"}}, env.cookies, nil)
+	second, err := engagement.NewService(env.db, config.SQLite, env.auth).CreateStage(ctx, owner, env.workspaceID, engagement.StageInput{Name: "Second", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page = request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
+	for _, want := range []string{`for="engagement-name"`, `id="engagement-name"`, `name="name"`, `required`, `maxlength="200"`, `name="stage"`, stage.ID.String(), second.ID.String()} {
+		if !strings.Contains(page.Body.String(), want) {
+			t.Fatalf("creation form missing %q", want)
+		}
+	}
+	missingStage := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.csrf}, "name": {"Engagement"}}, env.cookies, nil)
+	if missingStage.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("missing stage: %d", missingStage.Code)
+	}
+	created := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.csrf}, "name": {"Engagement"}, "stage": {second.ID.String()}, "notes": {"Other person"}}, env.cookies, nil)
 	if created.Code != http.StatusSeeOther {
 		t.Fatalf("create: %d %s", created.Code, created.Body.String())
+	}
+	var savedStage engagement.StageID
+	if err := env.db.QueryRowContext(ctx, `SELECT stage_id FROM engagements WHERE workspace_id = ?`, env.workspaceID).Scan(&savedStage); err != nil || savedStage != second.ID {
+		t.Fatalf("selected stage = %v, %v", savedStage, err)
 	}
 	svc := engagement.NewService(env.db, config.SQLite, env.auth)
 	items, err := svc.ListForClient(ctx, owner, env.workspaceID, client.ID)

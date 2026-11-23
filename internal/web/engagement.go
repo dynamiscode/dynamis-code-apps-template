@@ -312,7 +312,11 @@ func (h *Handler) createEngagement(w http.ResponseWriter, r *http.Request) {
 	}
 	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
 	clientID := clients.ParseClientIDOrZero(r.PathValue("clientId"))
-	_, err := h.engagement.Create(r.Context(), actor, workspace, engagement.Input{Name: r.FormValue("name"), ClientID: clientID, Notes: r.FormValue("notes")}, auditContext(r))
+	stageID := engagement.ParseStageID(r.FormValue("stage"))
+	if stageID == 0 {
+		stageID = -1
+	}
+	_, err := h.engagement.Create(r.Context(), actor, workspace, engagement.Input{Name: r.FormValue("name"), ClientID: clientID, StageID: stageID, Notes: r.FormValue("notes")}, auditContext(r))
 	if errors.Is(err, identity.ErrForbidden) {
 		h.renderError(w, http.StatusForbidden)
 		return
