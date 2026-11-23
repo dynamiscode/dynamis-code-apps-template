@@ -28,7 +28,9 @@ templ publicIntakePage(data viewmodel.PageData, consent string, submission intak
 						@atoms.Input(atoms.InputProps{ID: "phone", Name: "phone", Label: data.T("public_intake.phone"), Type: "tel", Value: submission.Phone, MaxLength: "50", Attrs: templ.Attributes{"autocomplete": "tel"}})
 						@atoms.Input(atoms.InputProps{ID: "email", Name: "email", Label: data.T("public_intake.email"), Type: "email", Value: submission.Email, MaxLength: "254", Attrs: templ.Attributes{"autocomplete": "email"}})
 						@molecules.TextareaField("notes", data.T("public_intake.notes"), submission.Notes, templ.Attributes{"name": "notes", "maxlength": "2000"})
-						<label class="label my-4"><input class="checkbox" type="checkbox" name="consent" required if submission.Consent { checked }/><span>{ consent }</span></label>
+						<div class="my-4">
+							<label class="label"><input class="checkbox" type="checkbox" name="consent" required if submission.Consent { checked }/><span>{ consent }</span></label>
+						</div>
 						<button class="btn btn-primary" type="submit">{ data.T("public_intake.submit") }</button>
 					</form>
 				}

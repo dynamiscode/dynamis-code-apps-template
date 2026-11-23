@@ -64,6 +64,11 @@ func TestPublicIntakeForm(t *testing.T) {
 	if result.Code != http.StatusOK || !strings.Contains(result.Body.String(), "Thank you") || strings.Contains(result.Body.String(), "Visitor") || strings.Contains(result.Body.String(), "Clients") {
 		t.Fatalf("confirmation: %d, body %s", result.Code, result.Body.String())
 	}
+	bot := request(env.routes, http.MethodPost, "/intake/"+token, url.Values{"website": {"spam"}}, nil, nil)
+	var count int
+	if err := env.db.QueryRow(`SELECT COUNT(*) FROM clients`).Scan(&count); err != nil || bot.Code != http.StatusOK || bot.Body.String() != result.Body.String() || count != 1 {
+		t.Fatalf("honeypot: status %d, clients %d, error %v", bot.Code, count, err)
+	}
 	missing := request(env.routes, http.MethodGet, "/intake/unknown", nil, nil, nil)
 	if missing.Code != http.StatusNotFound || strings.Contains(missing.Body.String(), "Custom consent") {
 		t.Fatalf("unknown link: %d", missing.Code)

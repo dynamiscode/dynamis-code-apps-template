@@ -322,7 +322,7 @@ These remain out of the build plan until their trigger is demonstrated.
 | Internal AI | deferred | Product behavior requires model-driven decisions |
 | Workspace domains and routing | deferred | Users require workspace-specific domains or URLs |
 | Public sharing or guest access | deferred | Files, public APIs, guest collaboration, or other resource types require a separate accepted contract |
-| Public intake | deferred | Accepted [decision 0016](decisions/0016-public-intake.md); implementation awaits the showcase decision and engagement item |
+| Public intake | partial | Hashed link management and public web and REST submission create a client and first-stage engagement atomically: [service tests](../internal/intake/submission_test.go), [web tests](../internal/web/intake_test.go), [REST tests](../internal/httpapi/intake_test.go). Duplicate detection and staff notifications remain pending. |
 | Showcase items (`CompanySite` profile) | deferred | Accepted showcase decision; see [decision 0014](decisions/0014-showcase-items.md) (proposed) |
 | Fine-grained permissions | deferred | Baseline roles cannot express a measured requirement |
 | External-issuer OAuth access tokens for MCP | deferred | An accepted requirement needs `/mcp` to accept access tokens from an external authorization server; see [decision 0007](decisions/0007-mcp-oauth-protected-resource-metadata.md) |
@@ -606,8 +606,10 @@ WebMCP, file sharing, public writes through Item sharing, search, listing, and
 indexing were intentionally omitted by the accepted
 [decision](decisions/0005-public-sharing.md). The separate public intake write
 path is accepted by [decision 0016](decisions/0016-public-intake.md). Owners
-and admins can manage its hashed link and consent text; the public form and
-submission path remain unimplemented.
+and admins can manage its hashed link and consent text. The public form and
+REST submission validate consent and contact details, create a client and
+engagement together, and refuse links with no open stage. Duplicate detection
+and staff notifications remain pending.
 
 Verified 2026-08-28 with SQLite and Docker smoke. The database-backed worker
 queue persists workspace-scoped webhook jobs in the same transaction as item

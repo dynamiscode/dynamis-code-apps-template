@@ -43,6 +43,11 @@ func TestPublicIntakeSubmission(t *testing.T) {
 	if response.Code != http.StatusNoContent || response.Body.Len() != 0 {
 		t.Fatalf("submit: %d %s", response.Code, response.Body.String())
 	}
+	response = serve(mux, http.MethodPost, path, `{"website":"spam"}`, "application/json")
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM clients`).Scan(&count); err != nil || response.Code != http.StatusNoContent || count != 1 {
+		t.Fatalf("honeypot: status %d, clients %d, error %v", response.Code, count, err)
+	}
 	response = serve(mux, http.MethodPost, path, `{"name":"Visitor","consent":false}`, "application/json")
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("invalid: %d", response.Code)

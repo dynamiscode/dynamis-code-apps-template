@@ -132,7 +132,7 @@ func publicIntakePage(data viewmodel.PageData, consent string, submission intake
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<label class=\"label my-4\"><input class=\"checkbox\" type=\"checkbox\" name=\"consent\" required")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"my-4\"><label class=\"label\"><input class=\"checkbox\" type=\"checkbox\" name=\"consent\" required")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -149,20 +149,20 @@ func publicIntakePage(data viewmodel.PageData, consent string, submission intake
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(consent)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_intake.templ`, Line: 31, Col: 146}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_intake.templ`, Line: 32, Col: 142}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</span></label> <button class=\"btn btn-primary\" type=\"submit\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</span></label></div><button class=\"btn btn-primary\" type=\"submit\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("public_intake.submit"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_intake.templ`, Line: 32, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_intake.templ`, Line: 34, Col: 84}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
