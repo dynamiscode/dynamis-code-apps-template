@@ -34,6 +34,72 @@ type Engagement struct {
 	ClientID clients.ClientID `json:"clientId"`
 	StageID  StageID          `json:"stageId"`
 	Notes    string           `json:"notes"`
+	History  []MoveHistory    `json:"history"`
+}
+
+type MoveHistory struct {
+	ActorUserID identity.UserID `json:"actorUserId"`
+	CreatedAt   string          `json:"createdAt"`
+	FromStageID StageID         `json:"fromStageId"`
+	ToStageID   StageID         `json:"toStageId"`
+}
+
+func (s *Service) Move(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, stageID StageID, audit identity.AuditContext) error {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesWrite); err != nil {
+		return identity.ErrForbidden
+	}
+	var from StageID
+	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT stage_id FROM engagements WHERE workspace_id = ? AND id = ?`), workspaceID, engagementID).Scan(&from); errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+	var target StageID
+	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT id FROM engagement_stages WHERE workspace_id = ? AND id = ? AND archived_at IS NULL`), workspaceID, stageID).Scan(&target); errors.Is(err, sql.ErrNoRows) {
+		return ErrInvalidInput
+	} else if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, `UPDATE engagements SET stage_id = ? WHERE workspace_id = ? AND id = ?`), target, workspaceID, engagementID); err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, `INSERT INTO engagement_stage_history (workspace_id, engagement_id, actor_user_id, from_stage_id, to_stage_id, created_at) VALUES (?, ?, ?, ?, ?, ?)`), workspaceID, engagementID, actor.UserID, from, target, now.Format(time.RFC3339Nano)); err != nil {
+		return err
+	}
+	metadata, err := json.Marshal(struct {
+		From string `json:"from"`
+		To   string `json:"to"`
+	}{from.String(), target.String()})
+	if err != nil {
+		return err
+	}
+	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement.moved", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "engagement", TargetKey: int64(engagementID), Action: "engagement.move", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: string(metadata), CreatedAt: now}); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *Service) history(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID, engagementID ID) ([]MoveHistory, error) {
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT actor_user_id, created_at, from_stage_id, to_stage_id FROM engagement_stage_history WHERE workspace_id = ? AND engagement_id = ? ORDER BY id`), workspaceID, engagementID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	history := []MoveHistory{}
+	for rows.Next() {
+		var entry MoveHistory
+		if err := rows.Scan(&entry.ActorUserID, &entry.CreatedAt, &entry.FromStageID, &entry.ToStageID); err != nil {
+			return nil, err
+		}
+		history = append(history, entry)
+	}
+	return history, rows.Err()
 }
 
 func (s *Service) Create(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, input Input, audit identity.AuditContext) (Engagement, error) {
@@ -72,7 +138,7 @@ func (s *Service) Create(ctx context.Context, actor identity.Principal, workspac
 			return Engagement{}, err
 		}
 	}
-	value := Engagement{ClientID: input.ClientID, StageID: stageID, Notes: input.Notes}
+	value := Engagement{ClientID: input.ClientID, StageID: stageID, Notes: input.Notes, History: []MoveHistory{}}
 	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `INSERT INTO engagements (workspace_id, client_id, stage_id, notes) VALUES (?, ?, ?, ?) RETURNING id`), workspaceID, value.ClientID, value.StageID, value.Notes).Scan(&value.ID)
 	if err != nil {
 		return Engagement{}, err
@@ -101,6 +167,10 @@ func (s *Service) Get(ctx context.Context, actor identity.Principal, workspaceID
 	if errors.Is(err, sql.ErrNoRows) {
 		return Engagement{}, ErrNotFound
 	}
+	if err != nil {
+		return Engagement{}, err
+	}
+	value.History, err = s.history(ctx, tx, workspaceID, engagementID)
 	if err != nil {
 		return Engagement{}, err
 	}
@@ -138,6 +208,12 @@ func (s *Service) ListForClient(ctx context.Context, actor identity.Principal, w
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
+	}
+	for i := range values {
+		values[i].History, err = s.history(ctx, tx, workspaceID, values[i].ID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err

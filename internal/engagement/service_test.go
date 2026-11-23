@@ -10,6 +10,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
+	"example.com/dynamis-code/apps-template/internal/platform/maintenance"
 )
 
 func TestStagesStartEmptyAndRetainCreationOrder(t *testing.T) {
@@ -284,5 +285,63 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	}
 	if _, err := svc.Get(ctx, owner, boot.WorkspaceID, created.ID); err != nil {
 		t.Fatalf("delete lost engagement: %v", err)
+	}
+	stages, err := svc.ListStages(ctx, owner, boot.WorkspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Move(ctx, viewer, boot.WorkspaceID, created.ID, stages[1].ID, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer move: %v", err)
+	}
+	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, stage.ID, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("archived move: %v", err)
+	}
+	foreignStage, err := svc.CreateStage(ctx, otherOwner, other, StageInput{Name: "Foreign", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, foreignStage.ID, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("foreign stage: %v", err)
+	}
+	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, stages[1].ID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, stages[len(stages)-1].ID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	got, err = svc.Get(ctx, viewer, boot.WorkspaceID, created.ID)
+	if err != nil || got.StageID != stages[len(stages)-1].ID || len(got.History) != 2 || got.History[0].FromStageID != stage.ID || got.History[0].ToStageID != stages[1].ID {
+		t.Fatalf("move history: %+v, %v", got, err)
+	}
+	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, stages[2].ID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, stages[3].ID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.ArchiveStage(ctx, owner, boot.WorkspaceID, stages[3].ID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	got, err = svc.Get(ctx, viewer, boot.WorkspaceID, created.ID)
+	if err != nil || got.StageID != stages[3].ID || len(got.History) != 4 || got.History[3].FromStageID != stages[2].ID {
+		t.Fatalf("archive history: %+v, %v", got, err)
+	}
+	duplicate, err := svc.CreateStage(ctx, owner, boot.WorkspaceID, StageInput{Name: "Another", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, duplicate.ID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	got, err = svc.Get(ctx, viewer, boot.WorkspaceID, created.ID)
+	if err != nil || len(got.History) != 5 || got.History[4].FromStageID != stages[3].ID || got.History[4].ToStageID != duplicate.ID {
+		t.Fatalf("same name history: %+v, %v", got, err)
+	}
+	if _, err := maintenance.Run(ctx, db, config.SQLite, time.Now().Add(400*24*time.Hour), 365*24*time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	got, err = svc.Get(ctx, viewer, boot.WorkspaceID, created.ID)
+	if err != nil || len(got.History) != 5 {
+		t.Fatalf("history after retention: %+v, %v", got, err)
 	}
 }

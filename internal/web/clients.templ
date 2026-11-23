@@ -64,6 +64,38 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 								}
 							}
 							<p>{ item.Notes }</p>
+							if data.CanEditClients {
+								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/stage" } method="post">
+									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<label for={ "stage-" + item.ID.String() }>{ data.T("engagement.move") }</label>
+									<select id={ "stage-" + item.ID.String() } name="stage" class="select select-bordered">
+										for _, stage := range data.EngagementStages {
+											if !stage.Archived {
+												<option value={ stage.ID.String() } selected?={ stage.ID == item.StageID }>{ stage.Name }</option>
+											}
+										}
+									</select>
+									<button class="btn btn-secondary" type="submit">{ data.T("engagement.move") }</button>
+								</form>
+							}
+							<ol data-engagement-history>
+								for _, entry := range item.History {
+									<li>
+										for _, stage := range data.EngagementStages {
+											if stage.ID == entry.FromStageID {
+											<span>{ stage.Name }</span>
+										}
+									}
+										<span> → </span>
+										for _, stage := range data.EngagementStages {
+											if stage.ID == entry.ToStageID {
+											<span>{ stage.Name }</span>
+										}
+									}
+										<span> — { entry.ActorUserID.String() } — { entry.CreatedAt }</span>
+									</li>
+								}
+							</ol>
 						</li>
 					}
 				</ul>

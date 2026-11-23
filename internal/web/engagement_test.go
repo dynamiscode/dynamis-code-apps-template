@@ -94,4 +94,24 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if denied.Code != http.StatusForbidden {
 		t.Fatalf("viewer create: %d", denied.Code)
 	}
+	svc := engagement.NewService(env.db, config.SQLite, env.auth)
+	target, err := svc.CreateStage(ctx, owner, env.workspaceID, engagement.StageInput{Name: "Won", Kind: "won"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := svc.ListForClient(ctx, owner, env.workspaceID, client.ID)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("items: %v %v", items, err)
+	}
+	movePath := path + "/engagements/" + items[0].ID.String() + "/stage"
+	if got := request(env.routes, http.MethodPost, movePath, url.Values{"csrf": {env.viewerCSRF}, "stage": {target.ID.String()}}, env.viewerCookies, nil); got.Code != http.StatusForbidden {
+		t.Fatalf("viewer move: %d", got.Code)
+	}
+	if got := request(env.routes, http.MethodPost, movePath, url.Values{"csrf": {env.csrf}, "stage": {target.ID.String()}}, env.cookies, nil); got.Code != http.StatusSeeOther {
+		t.Fatalf("move: %d", got.Code)
+	}
+	viewer = request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
+	if viewer.Code != http.StatusOK || !strings.Contains(viewer.Body.String(), "Won") || !strings.Contains(viewer.Body.String(), "data-engagement-history") || !strings.Contains(viewer.Body.String(), owner.UserID.String()) || strings.Contains(viewer.Body.String(), "Move stage") {
+		t.Fatalf("viewer history: %d %s", viewer.Code, viewer.Body.String())
+	}
 }

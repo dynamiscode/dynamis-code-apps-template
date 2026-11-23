@@ -7,7 +7,7 @@ group rows describe the supported application.
 
 This ledger records implemented conformance evidence and deferred triggers.
 
-## Engagement stages (#581, #584)
+## Engagement stages (#581, #584, #592)
 
 Owners and admins can append, reorder, and archive workspace stages through REST
 and web; readers see their order and archive state, and new workspaces start empty.
@@ -15,7 +15,9 @@ The shared service enforces workspace access and audits each action. Evidence: [
 [REST](../internal/httpapi/engagement_test.go), and [web](../internal/web/engagement_test.go)
 tests. Writers can create engagements for one workspace client in an open,
 unarchived stage; readers can view them. Creation is audited, and archiving an
-in-use stage preserves its engagements. The same tests cover these behaviors.
+in-use stage preserves its engagements. Writers can move engagements and readers
+can see permanent stage history; each move also produces a retention-bounded audit
+event. The same tests cover these behaviors and retention.
 Workspace export does not yet include stages or engagements.
 
 ## Client timeline REST (#575)

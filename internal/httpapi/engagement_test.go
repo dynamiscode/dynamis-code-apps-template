@@ -106,5 +106,20 @@ func TestEngagementThroughREST(t *testing.T) {
 	if got := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil); got.Code != http.StatusOK {
 		t.Fatalf("read only get: %d", got.Code)
 	}
+	won := serveAuthorized(handler, http.MethodPost, base+"/engagement-stages", `{"name":"Won","kind":"won"}`, token, nil)
+	var target struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(won.Body.Bytes(), &target); err != nil {
+		t.Fatal(err)
+	}
+	movePath := base + "/engagements/" + e.ID + "/stage"
+	assertProblem(t, serveAuthorized(handler, http.MethodPost, movePath, `{"stageId":"`+target.ID+`"}`, readOnly.Secret, nil), http.StatusForbidden, "insufficient-scope")
+	if moved := serveAuthorized(handler, http.MethodPost, movePath, `{"stageId":"`+target.ID+`"}`, token, nil); moved.Code != http.StatusNoContent {
+		t.Fatalf("move: %d %s", moved.Code, moved.Body.String())
+	}
+	if got := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil); got.Code != http.StatusOK || !strings.Contains(got.Body.String(), `"toStageId":"`+target.ID+`"`) {
+		t.Fatalf("history: %d %s", got.Code, got.Body.String())
+	}
 	assertProblem(t, serveAuthorized(handler, http.MethodDelete, base+"/clients/"+c.ID, "", token, nil), http.StatusConflict, "client-has-engagements")
 }

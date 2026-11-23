@@ -205,6 +205,8 @@
   "engagement.title": "Engagements",
   "engagement.notes": "Other people and notes",
   "engagement.create": "Create engagement",
+  "engagement.move": "Move stage",
+  "engagement.invalid_move": "Select an available stage.",
   "engagement.no_open_stage": "The workspace has no open stage.",
   "engagement.invalid_create": "The engagement is invalid.",
   "engagement.none": "No stages yet.",

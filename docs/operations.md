@@ -56,6 +56,8 @@ audit history, and stale realtime replay in one transaction, then appends a safe
 summary audit event. Invitation paths are redacted in request logs; query values,
 bodies, and cookies are not logged.
 `AUDIT_RETENTION` defaults to 365 days.
+Engagement stage history is retained separately for the engagement lifetime and
+is unaffected by audit pruning; database backups include it.
 
 ## Webhook delivery
 

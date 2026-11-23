@@ -13,6 +13,44 @@ import (
 
 func (h *Handler) EnableEngagement(service *engagement.Service) { h.engagement = service }
 
+func (h *Handler) moveEngagement(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		h.renderError(w, http.StatusNotFound)
+		return
+	}
+	actor, ok := h.mutationPrincipal(w, r)
+	if !ok {
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	clientID := clients.ParseClientIDOrZero(r.PathValue("clientId"))
+	engagementID := engagement.ParseID(r.PathValue("engagementId"))
+	item, err := h.engagement.Get(r.Context(), actor, workspace, engagementID)
+	if err == nil && item.ClientID != clientID {
+		err = engagement.ErrNotFound
+	}
+	if err == nil {
+		err = h.engagement.Move(r.Context(), actor, workspace, engagementID, engagement.ParseStageID(r.FormValue("stage")), auditContext(r))
+	}
+	if errors.Is(err, identity.ErrForbidden) {
+		h.renderError(w, http.StatusForbidden)
+		return
+	}
+	if errors.Is(err, engagement.ErrNotFound) {
+		h.renderError(w, http.StatusNotFound)
+		return
+	}
+	if errors.Is(err, engagement.ErrInvalidInput) {
+		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.invalid_move", nil)
+		return
+	}
+	if err != nil {
+		h.renderError(w, http.StatusInternalServerError)
+		return
+	}
+	h.redirect(w, r, h.clientsPath(workspace)+"/"+clientID.String())
+}
+
 func (h *Handler) createEngagement(w http.ResponseWriter, r *http.Request) {
 	if h.engagement == nil {
 		h.renderError(w, http.StatusNotFound)

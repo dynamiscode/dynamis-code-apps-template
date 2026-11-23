@@ -59,6 +59,30 @@ func (h *handler) getEngagement(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, value)
 }
 
+func (h *handler) moveEngagement(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		notFoundProblem(w, r)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	actor, ok := h.workspaceBearer(w, r, workspace, identity.ResourcesWrite)
+	if !ok {
+		return
+	}
+	var input struct {
+		StageID string `json:"stageId"`
+	}
+	if err := decodeJSON(r, &input); err != nil {
+		h.badJSON(w, r, err)
+		return
+	}
+	if err := h.engagement.Move(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), engagement.ParseStageID(input.StageID), h.auditContext(r)); err != nil {
+		h.engagementError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *handler) listEngagementStages(w http.ResponseWriter, r *http.Request) {
 	if h.engagement == nil {
 		notFoundProblem(w, r)

@@ -205,6 +205,8 @@
   "engagement.title": "Gestiones",
   "engagement.notes": "Otras personas y notas",
   "engagement.create": "Crear gestión",
+  "engagement.move": "Mover etapa",
+  "engagement.invalid_move": "Selecciona una etapa disponible.",
   "engagement.no_open_stage": "El espacio de trabajo no tiene una etapa abierta.",
   "engagement.invalid_create": "La gestión no es válida.",
   "engagement.none": "Aún no hay etapas.",
