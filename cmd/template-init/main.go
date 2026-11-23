@@ -307,6 +307,8 @@ func filesPath(relative string) bool {
 func clientsPath(relative string) bool {
 	relative = filepath.ToSlash(relative)
 	return relative == "internal/clients" || strings.HasPrefix(relative, "internal/clients/") ||
+		relative == "internal/engagement/engagement.go" ||
+		relative == "internal/platform/database/migrations/000033_engagements.sql" ||
 		relative == "cmd/demo/clients.go" || relative == "cmd/demo/clients_test.go" ||
 		relative == "cmd/appctl" || strings.HasPrefix(relative, "cmd/appctl/") ||
 		relative == "internal/appctl" || strings.HasPrefix(relative, "internal/appctl/") ||
@@ -385,6 +387,23 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `"deleteClientField":`)
 		value = removeLinesContaining(value, `"archiveClient":`)
 		value = removeLinesContaining(value, `"deleteClient":`)
+		value = removeLinesContaining(value, `"createEngagement":`)
+	case "internal/httpapi/engagement.go":
+		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeText(value, "func (h *handler) createEngagement(", "func (h *handler) listEngagementStages(")
+		value = removeText(value, "\tcase errors.Is(err, engagement.ErrNoOpenStage):", "\tdefault:")
+	case "internal/httpapi/engagement_test.go":
+		value = removeLinesContaining(value, `"context"`)
+		value = removeLinesContaining(value, `/internal/identity"`)
+		value = removeLinesContaining(value, `/internal/platform/config"`)
+		if i := strings.Index(value, "\nfunc TestEngagementThroughREST("); i >= 0 {
+			value = value[:i] + "\n"
+		}
+	case "internal/engagement/service_test.go":
+		value = removeLinesContaining(value, `/internal/clients"`)
+		if i := strings.Index(value, "\nfunc TestCreateEngagementRequiresOpenStageAndClient("); i >= 0 {
+			value = value[:i] + "\n"
+		}
 	case "internal/bootstrap/agent.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, "*clients.Service")
@@ -404,6 +423,9 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.Replace(value, "handler, db, workspaceID, token := testHandler(t)", "handler, db, _, _ := testHandler(t)", 1)
 		value = strings.Replace(value, "\n\t\tclients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace, webhookService))", ")", 1)
 	case "internal/web/viewmodel/handler.go":
+		value = removeLinesContaining(value, `/internal/engagement"`)
+		value = removeLinesContaining(value, "engagement.Engagement")
+		value = removeLinesContaining(value, "engagement.Stage")
 		value = removeBlockIncludingEnd(value, "type TimelineDraft struct {", "}\n")
 		value = removeLinesContaining(value, "TimelineDraft        TimelineDraft")
 		value = removeLinesContaining(value, "clients.TimelineEntry")
@@ -437,6 +459,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/clients")
 	case "internal/web/engagement.go":
 		value = strings.ReplaceAll(value, "ClientsEnabled: h.clients != nil, ", "")
+		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeText(value, "func (h *Handler) createEngagement(", "func (h *Handler) engagementStages(")
 	case "internal/platform/maintenance/maintenance.go":
 		// Retention prunes client_events, which Clients-off apps do not have.
 		value = removeLinesContaining(value, "client_events")
@@ -494,7 +518,7 @@ func stripClientsOpenAPI(raw []byte) string {
 		return string(raw)
 	}
 	for path := range paths {
-		if strings.Contains(path, "/clients") || strings.Contains(path, "/client-fields") {
+		if strings.Contains(path, "/clients") || strings.Contains(path, "/client-fields") || strings.Contains(path, "/engagements") {
 			delete(paths, path)
 		}
 	}

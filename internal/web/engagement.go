@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/engagement"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
@@ -11,6 +12,37 @@ import (
 )
 
 func (h *Handler) EnableEngagement(service *engagement.Service) { h.engagement = service }
+
+func (h *Handler) createEngagement(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		h.renderError(w, http.StatusNotFound)
+		return
+	}
+	actor, ok := h.mutationPrincipal(w, r)
+	if !ok {
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	clientID := clients.ParseClientIDOrZero(r.PathValue("clientId"))
+	_, err := h.engagement.Create(r.Context(), actor, workspace, engagement.Input{ClientID: clientID, Notes: r.FormValue("notes")}, auditContext(r))
+	if errors.Is(err, identity.ErrForbidden) {
+		h.renderError(w, http.StatusForbidden)
+		return
+	}
+	if errors.Is(err, engagement.ErrNoOpenStage) {
+		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.no_open_stage", nil)
+		return
+	}
+	if errors.Is(err, engagement.ErrInvalidInput) {
+		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.invalid_create", nil)
+		return
+	}
+	if err != nil {
+		h.renderError(w, http.StatusInternalServerError)
+		return
+	}
+	h.redirect(w, r, h.clientsPath(workspace)+"/"+clientID.String())
+}
 
 func (h *Handler) engagementStages(w http.ResponseWriter, r *http.Request) {
 	h.renderEngagementStages(w, r, http.StatusOK, "")

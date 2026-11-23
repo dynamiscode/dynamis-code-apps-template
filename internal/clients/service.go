@@ -23,6 +23,7 @@ var (
 	ErrInvalidEmail        = fmt.Errorf("%w: email is invalid", ErrInvalidInput)
 	ErrNotFound            = errors.New("client not found")
 	ErrPreconditionFailed  = errors.New("client version does not match")
+	ErrHasEngagements      = errors.New("client has engagements")
 )
 
 const (
@@ -225,6 +226,11 @@ func (s *Service) Get(
 		return Client{}, err
 	}
 	return client, nil
+}
+
+// GetInTx reads a workspace client within the caller's transaction.
+func (s *Service) GetInTx(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID, clientID ClientID) (Client, error) {
+	return s.get(ctx, tx, workspaceID, clientID)
 }
 
 // Update applies a partial change when version matches the stored client.

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/engagement"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
@@ -58,5 +59,39 @@ func TestStagesThroughWeb(t *testing.T) {
 	denied := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.viewerCSRF}, "name": {"Blocked"}, "kind": {"won"}}, env.viewerCookies, nil)
 	if denied.Code != http.StatusForbidden {
 		t.Fatalf("viewer create = %d", denied.Code)
+	}
+}
+
+func TestEngagementThroughWeb(t *testing.T) {
+	env := newClientsTestEnv(t)
+	ctx := context.Background()
+	owner, err := env.auth.Authorize(ctx, env.ownerID, env.workspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := clients.NewService(env.db, config.SQLite, env.auth, 50).Create(ctx, owner, env.workspaceID, clients.Input{DisplayName: "Client"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := "/workspaces/" + env.workspaceID.String() + "/clients/" + client.ID.String()
+	noStage := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.csrf}}, env.cookies, nil)
+	if noStage.Code != http.StatusUnprocessableEntity || !strings.Contains(noStage.Body.String(), "no open stage") {
+		t.Fatalf("no stage: %d %s", noStage.Code, noStage.Body.String())
+	}
+	_, err = engagement.NewService(env.db, config.SQLite, env.auth).CreateStage(ctx, owner, env.workspaceID, engagement.StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	created := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.csrf}, "notes": {"Other person"}}, env.cookies, nil)
+	if created.Code != http.StatusSeeOther {
+		t.Fatalf("create: %d %s", created.Code, created.Body.String())
+	}
+	viewer := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
+	if viewer.Code != http.StatusOK || !strings.Contains(viewer.Body.String(), "Other person") || strings.Contains(viewer.Body.String(), "Create engagement") {
+		t.Fatalf("viewer: %d notes=%v create=%v", viewer.Code, strings.Contains(viewer.Body.String(), "Other person"), strings.Contains(viewer.Body.String(), "Create engagement"))
+	}
+	denied := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.viewerCSRF}}, env.viewerCookies, nil)
+	if denied.Code != http.StatusForbidden {
+		t.Fatalf("viewer create: %d", denied.Code)
 	}
 }

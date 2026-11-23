@@ -16,6 +16,9 @@ SCIM, exports, and audit history into role-aware sidebar sections.
 The Clients list links to engagement stages. Owners and admins can add, reorder,
 and archive stages; workspace readers see their order and archive state. The
 forms work without JavaScript.
+On a client detail page, readers can see engagements and writers can create one
+with notes. Creation uses the first available open stage. A client with an
+engagement cannot be deleted.
 `/account`, `/notifications`, `/sessions`, and `/security` cover account and
 security settings. Account pages share responsive panels, generated branding,
 and the user's light, dark, or system theme. The authenticated shell uses

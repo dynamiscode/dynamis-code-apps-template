@@ -1,10 +1,14 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
+
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
 
 func TestStagesThroughREST(t *testing.T) {
@@ -43,4 +47,64 @@ func TestStagesThroughREST(t *testing.T) {
 	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), `"archived":true`) || strings.Index(list.Body.String(), "Won") > strings.Index(list.Body.String(), "Prospect") {
 		t.Fatalf("list = %d %s", list.Code, list.Body.String())
 	}
+}
+
+func TestEngagementThroughREST(t *testing.T) {
+	handler, db, workspace, token := testHandler(t)
+	base := "/api/v1/workspaces/" + workspace
+	client := serveAuthorized(handler, http.MethodPost, base+"/clients", `{"displayName":"Client"}`, token, nil)
+	if client.Code != http.StatusCreated {
+		t.Fatalf("client: %d %s", client.Code, client.Body.String())
+	}
+	var c struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(client.Body.Bytes(), &c); err != nil {
+		t.Fatal(err)
+	}
+	noStage := serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"clientId":"`+c.ID+`"}`, token, nil)
+	if noStage.Code != http.StatusBadRequest || !strings.Contains(noStage.Body.String(), "open stage") {
+		t.Fatalf("no stage: %d %s", noStage.Code, noStage.Body.String())
+	}
+	stage := serveAuthorized(handler, http.MethodPost, base+"/engagement-stages", `{"name":"Open","kind":"open"}`, token, nil)
+	if stage.Code != http.StatusCreated {
+		t.Fatal(stage.Body.String())
+	}
+	created := serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"clientId":"`+c.ID+`","notes":"Other person"}`, token, nil)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create: %d %s", created.Code, created.Body.String())
+	}
+	var e struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(created.Body.Bytes(), &e); err != nil {
+		t.Fatal(err)
+	}
+	got := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", token, nil)
+	if got.Code != http.StatusOK || !strings.Contains(got.Body.String(), "Other person") {
+		t.Fatalf("get: %d %s", got.Code, got.Body.String())
+	}
+	ctx := context.Background()
+	auth, err := identity.NewService(db, config.SQLite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var userID identity.UserID
+	var workspaceID identity.WorkspaceID
+	if err := db.QueryRow("SELECT user_id, workspace_id FROM workspace_members LIMIT 1").Scan(&userID, &workspaceID); err != nil {
+		t.Fatal(err)
+	}
+	principal, err := auth.Authorize(ctx, userID, workspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	readOnly, err := auth.CreateAPIToken(ctx, principal, "read-only", []identity.Permission{identity.ResourcesRead}, nil, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertProblem(t, serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"clientId":"`+c.ID+`"}`, readOnly.Secret, nil), http.StatusForbidden, "insufficient-scope")
+	if got := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil); got.Code != http.StatusOK {
+		t.Fatalf("read only get: %d", got.Code)
+	}
+	assertProblem(t, serveAuthorized(handler, http.MethodDelete, base+"/clients/"+c.ID, "", token, nil), http.StatusConflict, "client-has-engagements")
 }

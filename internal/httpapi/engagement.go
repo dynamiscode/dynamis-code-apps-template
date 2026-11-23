@@ -4,9 +4,60 @@ import (
 	"errors"
 	"net/http"
 
+	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/engagement"
 	"example.com/dynamis-code/apps-template/internal/identity"
 )
+
+func (h *handler) createEngagement(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		notFoundProblem(w, r)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	actor, ok := h.workspaceBearer(w, r, workspace, identity.ResourcesWrite)
+	if !ok {
+		return
+	}
+	var input struct {
+		ClientID string `json:"clientId"`
+		StageID  string `json:"stageId"`
+		Notes    string `json:"notes"`
+	}
+	if err := decodeJSON(r, &input); err != nil {
+		h.badJSON(w, r, err)
+		return
+	}
+	stageID := engagement.ParseStageID(input.StageID)
+	if input.StageID != "" && stageID == 0 {
+		h.invalidRequest(w, r, "The stage is invalid.")
+		return
+	}
+	value, err := h.engagement.Create(r.Context(), actor, workspace, engagement.Input{ClientID: clients.ParseClientIDOrZero(input.ClientID), StageID: stageID, Notes: input.Notes}, h.auditContext(r))
+	if err != nil {
+		h.engagementError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, value)
+}
+
+func (h *handler) getEngagement(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		notFoundProblem(w, r)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	actor, ok := h.workspaceBearer(w, r, workspace, identity.ResourcesRead)
+	if !ok {
+		return
+	}
+	value, err := h.engagement.Get(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")))
+	if err != nil {
+		h.engagementError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, value)
+}
 
 func (h *handler) listEngagementStages(w http.ResponseWriter, r *http.Request) {
 	if h.engagement == nil {
@@ -99,7 +150,11 @@ func (h *handler) engagementError(w http.ResponseWriter, r *http.Request, err er
 	case errors.Is(err, identity.ErrForbidden):
 		writeProblem(w, r, http.StatusForbidden, "forbidden", "Access is denied.")
 	case errors.Is(err, engagement.ErrInvalidInput):
-		h.invalidRequest(w, r, "The stage is invalid.")
+		h.invalidRequest(w, r, "The engagement or stage is invalid.")
+	case errors.Is(err, engagement.ErrNoOpenStage):
+		h.invalidRequest(w, r, "The workspace has no open stage.")
+	case errors.Is(err, engagement.ErrNotFound):
+		notFoundProblem(w, r)
 	default:
 		h.internal(w, r)
 	}

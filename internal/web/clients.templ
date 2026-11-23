@@ -44,6 +44,31 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 			</div>
 		}
 		@clientDetail(data)
+		if data.EngagementEnabled {
+			<section class="card my-4 p-6" aria-labelledby="engagement-heading">
+				<h2 id="engagement-heading">{ data.T("engagement.title") }</h2>
+				if data.CanEditClients {
+					<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements" } method="post">
+						<input type="hidden" name="csrf" value={ data.CSRF }/>
+						<label for="engagement-notes">{ data.T("engagement.notes") }</label>
+						<textarea id="engagement-notes" name="notes" maxlength="5000" class="textarea textarea-bordered">{ data.EngagementNotes }</textarea>
+						<button class="btn btn-primary" type="submit">{ data.T("engagement.create") }</button>
+					</form>
+				}
+				<ul>
+					for _, item := range data.Engagements {
+						<li>
+							for _, stage := range data.EngagementStages {
+								if stage.ID == item.StageID {
+									<span>{ stage.Name }</span>
+								}
+							}
+							<p>{ item.Notes }</p>
+						</li>
+					}
+				</ul>
+			</section>
+		}
 	}
 }
 

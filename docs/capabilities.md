@@ -13,8 +13,10 @@ Owners and admins can append, reorder, and archive workspace stages through REST
 and web; readers see their order and archive state, and new workspaces start empty.
 The shared service enforces workspace access and audits each action. Evidence: [service](../internal/engagement/service_test.go),
 [REST](../internal/httpapi/engagement_test.go), and [web](../internal/web/engagement_test.go)
-tests. Engagement records and enforcement of archived stage targets are later
-slices. Workspace export does not yet include stages.
+tests. Writers can create engagements for one workspace client in an open,
+unarchived stage; readers can view them. Creation is audited, and archiving an
+in-use stage preserves its engagements. The same tests cover these behaviors.
+Workspace export does not yet include stages or engagements.
 
 ## Client timeline REST (#575)
 

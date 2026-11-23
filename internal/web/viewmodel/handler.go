@@ -3,6 +3,7 @@ package viewmodel
 import (
 	"encoding/json"
 	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/engagement"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
@@ -33,6 +34,10 @@ type PageData struct {
 	DefaultWorkspaceHref string
 	Clients              []clients.Client
 	Client               clients.Client
+	Engagements          []engagement.Engagement
+	EngagementStages     []engagement.Stage
+	EngagementEnabled    bool
+	EngagementNotes      string
 	ClientValues         []ClientValueRow
 	ClientTimeline       []clients.TimelineEntry
 	TimelinePage         int

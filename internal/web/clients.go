@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/engagement"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/listviews"
@@ -14,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 type clientFilterOperator struct {
@@ -426,6 +428,24 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
+	var engagements []engagement.Engagement
+	var stages []engagement.Stage
+	var engagementNotes string
+	if strings.HasPrefix(errorKey, "engagement.") {
+		engagementNotes = request.FormValue("notes")
+	}
+	if h.engagement != nil {
+		engagements, err = h.engagement.ListForClient(request.Context(), principal, workspaceID, clientID)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+		stages, err = h.engagement.ListStages(request.Context(), principal, workspaceID)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+	}
 	h.renderClientPage(writer, request, status, clientDetailPage, viewmodel.PageData{
 		Title: client.DisplayName, ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
@@ -435,6 +455,8 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		CanManageFields: principal.Permissions[identity.WorkspaceUpdate],
 		Client:          client, ClientValues: rows, ClientTimeline: entries, TimelinePage: page, TimelineDraft: timelineDraft, CanEditClients: principal.Permissions[identity.ResourcesWrite],
 		CanDeleteClients: principal.Permissions[identity.WorkspaceUpdate],
+		Engagements:      engagements, EngagementStages: stages, EngagementEnabled: h.engagement != nil,
+		EngagementNotes: engagementNotes,
 	})
 }
 
@@ -556,6 +578,8 @@ func (h *Handler) clientError(writer http.ResponseWriter, _ *http.Request, err e
 		h.renderError(writer, http.StatusBadRequest)
 	case errors.Is(err, clients.ErrNotFound), errors.Is(err, clients.ErrFieldNotFound), errors.Is(err, clients.ErrOptionNotFound):
 		h.renderError(writer, http.StatusNotFound)
+	case errors.Is(err, clients.ErrHasEngagements):
+		http.Error(writer, "A client with engagements cannot be deleted.", http.StatusConflict)
 	default:
 		h.renderError(writer, http.StatusInternalServerError)
 	}

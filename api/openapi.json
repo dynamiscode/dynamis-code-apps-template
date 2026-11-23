@@ -232,6 +232,12 @@
         "responses": {"200": {"description": "Bounded webhook delivery history", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WebhookDeliveryPage"}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}}
       }
     },
+    "/api/v1/workspaces/{workspaceId}/engagements": {
+      "post": {"operationId":"createEngagement","security":[{"bearerAuth":[]}],"parameters":[{"$ref":"#/components/parameters/WorkspaceId"}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"type":"object","additionalProperties":false,"required":["clientId"],"properties":{"clientId":{"type":"string"},"stageId":{"type":"string"},"notes":{"type":"string","maxLength":5000}}}}}},"responses":{"201":{"description":"Engagement created","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Engagement"}}}},"400":{"$ref":"#/components/responses/Problem"},"403":{"$ref":"#/components/responses/Problem"}}}
+    },
+    "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}": {
+      "get":{"operationId":"getEngagement","security":[{"bearerAuth":[]}],"parameters":[{"$ref":"#/components/parameters/WorkspaceId"},{"name":"engagementId","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Engagement","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Engagement"}}}},"403":{"$ref":"#/components/responses/Problem"},"404":{"$ref":"#/components/responses/Problem"}}}
+    },
     "/api/v1/workspaces/{workspaceId}/engagement-stages": {
       "get": {
         "operationId": "listEngagementStages",
@@ -847,7 +853,7 @@
         },
       "delete": {
         "operationId": "deleteClient",
-        "description": "Permanently deletes a client and its custom values in one transaction. Owners and admins only.",
+        "description": "Permanently deletes a client and its custom values in one transaction. Owners and admins only. Clients with engagements cannot be deleted.",
         "security": [{"bearerAuth": []}],
         "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"$ref": "#/components/parameters/ClientId"}],
         "responses": {
@@ -855,6 +861,7 @@
           "401": {"$ref": "#/components/responses/Problem"},
           "403": {"$ref": "#/components/responses/Problem"},
           "404": {"$ref": "#/components/responses/Problem"},
+          "409": {"$ref": "#/components/responses/Problem"},
           "429": {"$ref": "#/components/responses/RateLimited"}
         }
       }
@@ -1043,6 +1050,7 @@
       "RateLimited": {"description": "Rate limit exceeded", "headers": {"Retry-After": {"required": true, "schema": {"type": "integer", "minimum": 1}}}, "content": {"application/problem+json": {"schema": {"$ref": "#/components/schemas/Problem"}}}}
     },
     "schemas": {
+      "Engagement": {"type":"object","required":["id","clientId","stageId","notes"],"properties":{"id":{"type":"string"},"clientId":{"type":"string"},"stageId":{"type":"string"},"notes":{"type":"string"}}},
       "EngagementStageInput": {"type": "object", "additionalProperties": false, "required": ["name", "kind"], "properties": {"name": {"type": "string", "maxLength": 200}, "kind": {"type": "string", "enum": ["open", "won", "lost"]}}},
       "EngagementStage": {"type": "object", "required": ["id", "name", "kind", "archived"], "properties": {"id": {"type": "string"}, "name": {"type": "string"}, "kind": {"type": "string", "enum": ["open", "won", "lost"]}, "archived": {"type": "boolean"}}},
       "HealthAlive": {"type": "object", "required": ["status"], "properties": {"status": {"const": "alive"}}},

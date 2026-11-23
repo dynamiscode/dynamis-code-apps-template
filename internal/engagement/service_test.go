@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
@@ -167,5 +168,121 @@ func TestReorderAndArchiveStages(t *testing.T) {
 	stages, err := svc.ListStages(ctx, owner, boot.WorkspaceID)
 	if err != nil || len(stages) != 2 || stages[0].ID != second.ID || stages[0].Kind != "won" || !stages[1].Archived {
 		t.Fatalf("stages = %+v, %v", stages, err)
+	}
+}
+
+func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, config.Database{Driver: config.SQLite, SQLitePath: ":memory:", MaxOpenConns: 1, MaxIdleConns: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.Migrate(ctx, db, config.SQLite); err != nil {
+		t.Fatal(err)
+	}
+	auth, err := identity.NewService(db, config.SQLite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	boot, err := auth.BootstrapFirstOwner(ctx, identity.BootstrapInput{Email: "owner@example.com", Password: "long-enough-password", WorkspaceName: "Example"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := auth.Authorize(ctx, boot.UserID, boot.WorkspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientService := clients.NewService(db, config.SQLite, auth, 50)
+	client, err := clientService.Create(ctx, owner, boot.WorkspaceID, clients.Input{DisplayName: "Client"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := NewService(db, config.SQLite, auth)
+	_, err = svc.Create(ctx, owner, boot.WorkspaceID, Input{ClientID: client.ID}, identity.AuditContext{})
+	if !errors.Is(err, ErrNoOpenStage) {
+		t.Fatalf("no stage: %v", err)
+	}
+	stage, err := svc.CreateStage(ctx, owner, boot.WorkspaceID, StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = svc.Create(ctx, owner, boot.WorkspaceID, Input{StageID: stage.ID}, identity.AuditContext{})
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("missing client: %v", err)
+	}
+	other, err := auth.CreateWorkspace(ctx, owner, identity.WorkspaceCreateInput{Name: "Other"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherOwner, err := auth.Authorize(ctx, boot.UserID, other, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign, err := clientService.Create(ctx, otherOwner, other, clients.Input{DisplayName: "Foreign"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{ClientID: foreign.ID, StageID: stage.ID}, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("foreign client: %v", err)
+	}
+	for _, kind := range []string{"won", "lost"} {
+		closed, err := svc.CreateStage(ctx, owner, boot.WorkspaceID, StageInput{Name: kind, Kind: kind}, identity.AuditContext{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{ClientID: client.ID, StageID: closed.ID}, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+			t.Fatalf("%s stage: %v", kind, err)
+		}
+	}
+	created, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{ClientID: client.ID, StageID: stage.ID, Notes: "Other person"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.Get(ctx, owner, boot.WorkspaceID, created.ID)
+	if err != nil || got.ClientID != client.ID || got.StageID != stage.ID || got.Notes != "Other person" {
+		t.Fatalf("get = %+v, %v", got, err)
+	}
+	var viewerID identity.UserID
+	if err := db.QueryRowContext(ctx, `INSERT INTO users (email, created_at) VALUES (?, ?) RETURNING id`, "viewer@example.com", time.Now().UTC().Format(time.RFC3339Nano)).Scan(&viewerID); err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.AddMember(ctx, owner, viewerID, identity.Viewer, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	viewer, err := auth.Authorize(ctx, viewerID, boot.WorkspaceID, identity.ResourcesRead)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Get(ctx, viewer, boot.WorkspaceID, created.ID); err != nil {
+		t.Fatalf("viewer get: %v", err)
+	}
+	if _, err := svc.Create(ctx, viewer, boot.WorkspaceID, Input{ClientID: client.ID}, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer create: %v", err)
+	}
+	var auditCount int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_events WHERE workspace_id = ? AND event_type = 'engagement.created'`, boot.WorkspaceID).Scan(&auditCount); err != nil || auditCount != 1 {
+		t.Fatalf("audit count = %d, %v", auditCount, err)
+	}
+	if err := svc.ArchiveStage(ctx, owner, boot.WorkspaceID, stage.ID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Get(ctx, owner, boot.WorkspaceID, created.ID); err != nil {
+		t.Fatalf("archive lost engagement: %v", err)
+	}
+	if _, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{ClientID: client.ID, StageID: stage.ID}, identity.AuditContext{}); !errors.Is(err, ErrNoOpenStage) {
+		t.Fatalf("archived stage: %v", err)
+	}
+	if _, err := svc.CreateStage(ctx, owner, boot.WorkspaceID, StageInput{Name: "Another", Kind: "open"}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{ClientID: client.ID, StageID: stage.ID}, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("archived target: %v", err)
+	}
+	if err := clientService.Delete(ctx, owner, boot.WorkspaceID, client.ID, identity.AuditContext{}); !errors.Is(err, clients.ErrHasEngagements) {
+		t.Fatalf("delete client: %v", err)
+	}
+	if _, err := svc.Get(ctx, owner, boot.WorkspaceID, created.ID); err != nil {
+		t.Fatalf("delete lost engagement: %v", err)
 	}
 }

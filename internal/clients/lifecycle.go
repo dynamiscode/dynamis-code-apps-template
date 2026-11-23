@@ -221,6 +221,13 @@ func (s *Service) deleteInTx(
 	if err != nil {
 		return err
 	}
+	var count int
+	if err := s.queryRow(ctx, tx, `SELECT COUNT(*) FROM engagements WHERE workspace_id = ? AND client_id = ?`, workspaceID, clientID).Scan(&count); err != nil {
+		return err
+	}
+	if count != 0 {
+		return ErrHasEngagements
+	}
 	now := s.now().UTC()
 	// The payload reads the client's values, so it is written before the row goes.
 	if err := s.publishEvent(ctx, tx, workspaceID, "client.deleted", client, now); err != nil {
