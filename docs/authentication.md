@@ -180,7 +180,7 @@ Roles are protected permission collections:
 |---|:---:|:---:|:---:|:---:|
 | Read workspace, members, resources | yes | yes | yes | yes |
 | Write normal resources | yes | yes | yes | no |
-| Create catalog entries (also requires `resources:write`) | yes | yes | no | no |
+| Create, archive, unarchive, or delete catalog entries (also requires `resources:write`) | yes | yes | no | no |
 | Update workspace, manage members and invitations | yes | yes | no | no |
 | Export workspace data | yes | yes | no | no |
 | Delete workspace or transfer ownership | yes | no | no | no |

@@ -2,14 +2,74 @@ package httpapi
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
 
+	"example.com/dynamis-code/apps-template/internal/catalog"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
+
+func TestCatalogArchiveAndDelete(t *testing.T) {
+	handler, _, workspaceID, token := testHandler(t)
+	path := "/api/v1/workspaces/" + workspaceID + "/catalog"
+	created := serveAuthorized(handler, http.MethodPost, path, `{"name":"Consultation"}`, token, nil)
+	var entry struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(created.Body.Bytes(), &entry); err != nil || entry.ID == "" {
+		t.Fatalf("create: %s, %v", created.Body.String(), err)
+	}
+	entryPath := path + "/" + entry.ID
+	response := serveAuthorized(handler, http.MethodPost, entryPath+"/archive", "", token, nil)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("archive = %d %s", response.Code, response.Body.String())
+	}
+	active := serveAuthorized(handler, http.MethodGet, path, "", token, nil)
+	if strings.Contains(active.Body.String(), "Consultation") {
+		t.Fatal("archived entry in default list")
+	}
+	all := serveAuthorized(handler, http.MethodGet, path+"?includeArchived=true", "", token, nil)
+	if !strings.Contains(all.Body.String(), "Consultation") {
+		t.Fatalf("archived list = %s", all.Body.String())
+	}
+	response = serveAuthorized(handler, http.MethodPost, entryPath+"/unarchive", "", token, nil)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("unarchive = %d %s", response.Code, response.Body.String())
+	}
+	response = serveAuthorized(handler, http.MethodDelete, entryPath, "", token, nil)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("delete = %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestCatalogDeleteInUse(t *testing.T) {
+	routes, db, workspaceID, token := testHandler(t)
+	path := "/api/v1/workspaces/" + workspaceID + "/catalog"
+	created := serveAuthorized(routes, http.MethodPost, path, `{"name":"In use"}`, token, nil)
+	var entry struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(created.Body.Bytes(), &entry); err != nil || entry.ID == "" {
+		t.Fatal("missing entry ID")
+	}
+	auth, err := identity.NewService(db, config.SQLite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := catalog.NewService(db, auth, func(context.Context, *sql.Tx, identity.WorkspaceID, catalog.EntryID) (bool, error) { return true, nil })
+	h := &handler{identity: auth, catalogService: service}
+	mux := http.NewServeMux()
+	mux.HandleFunc("DELETE /api/v1/workspaces/{workspaceId}/catalog/{entryId}", h.deleteCatalog)
+	response := serveAuthorized(mux, http.MethodDelete, path+"/"+entry.ID, "", token, nil)
+	if response.Code != http.StatusConflict || !strings.Contains(response.Body.String(), "archive") {
+		t.Fatalf("delete = %d %s", response.Code, response.Body.String())
+	}
+}
 
 func TestCatalogCreateAndList(t *testing.T) {
 	handler, _, workspaceID, token := testHandler(t)
@@ -80,6 +140,20 @@ func TestCatalogRESTRolePermissions(t *testing.T) {
 		response = serveAuthorized(handler, http.MethodGet, path, "", token.Secret, nil)
 		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Role test") {
 			t.Errorf("%s list = %d %s", role, response.Code, response.Body.String())
+		}
+		if role == identity.Member || role == identity.Viewer {
+			var entries []struct {
+				ID string `json:"id"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &entries); err != nil || len(entries) == 0 {
+				t.Fatal("missing catalog entry")
+			}
+			for _, operation := range []struct{ method, suffix string }{{http.MethodPost, "/archive"}, {http.MethodPost, "/unarchive"}, {http.MethodDelete, ""}} {
+				response = serveAuthorized(handler, operation.method, path+"/"+entries[0].ID+operation.suffix, "", token.Secret, nil)
+				if response.Code != http.StatusForbidden {
+					t.Errorf("%s %s = %d", role, operation.suffix, response.Code)
+				}
+			}
 		}
 	}
 }

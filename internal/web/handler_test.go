@@ -7,6 +7,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha1"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/base32"
 	"encoding/base64"
 	"encoding/hex"
@@ -1760,6 +1761,11 @@ func testWebConfigured(t *testing.T, maximumStreams int, mfaEnabled bool, config
 }
 
 func testWebWithMFARaw(t *testing.T, maximumStreams int, mfaEnabled bool, mailers ...appmail.Sender) (*Handler, *identity.Service, identity.WorkspaceID, identity.BootstrapResult) {
+	handler, auth, workspaceID, owner, _ := testWebWithMFARawDB(t, maximumStreams, mfaEnabled, mailers...)
+	return handler, auth, workspaceID, owner
+}
+
+func testWebWithMFARawDB(t *testing.T, maximumStreams int, mfaEnabled bool, mailers ...appmail.Sender) (*Handler, *identity.Service, identity.WorkspaceID, identity.BootstrapResult, *sql.DB) {
 	t.Helper()
 	ctx := context.Background()
 	cfg, err := config.LoadFrom(func(string) (string, bool) { return "", false })
@@ -1806,9 +1812,9 @@ func testWebWithMFARaw(t *testing.T, maximumStreams int, mfaEnabled bool, mailer
 	if err != nil {
 		t.Fatal(err)
 	}
-	webHandler.EnableCatalog(catalog.NewService(db, auth))
+	webHandler.EnableCatalog(catalog.NewService(db, auth, nil))
 	webHandler.EnableListPreferences(listprefs.NewService(db, cfg.Database.Driver, auth))
-	return webHandler, auth, owner.WorkspaceID, owner
+	return webHandler, auth, owner.WorkspaceID, owner, db
 }
 
 func testUnbootstrappedWeb(t *testing.T, setupToken string) (http.Handler, *identity.Service) {

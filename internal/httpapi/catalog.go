@@ -35,13 +35,51 @@ func (h *handler) createCatalog(writer http.ResponseWriter, request *http.Reques
 	}
 }
 
+func (h *handler) archiveCatalog(writer http.ResponseWriter, request *http.Request) {
+	h.mutateCatalog(writer, request, true)
+}
+func (h *handler) unarchiveCatalog(writer http.ResponseWriter, request *http.Request) {
+	h.mutateCatalog(writer, request, false)
+}
+func (h *handler) deleteCatalog(writer http.ResponseWriter, request *http.Request) {
+	h.mutateCatalog(writer, request, false)
+}
+
+func (h *handler) mutateCatalog(writer http.ResponseWriter, request *http.Request, archived bool) {
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	principal, ok := h.workspaceBearer(writer, request, workspaceID, identity.ResourcesWrite)
+	if !ok {
+		return
+	}
+	entryID := catalog.ParseEntryID(request.PathValue("entryId"))
+	var err error
+	switch request.Method {
+	case http.MethodDelete:
+		err = h.catalogService.Delete(request.Context(), principal, workspaceID, entryID)
+	default:
+		err = h.catalogService.SetArchived(request.Context(), principal, workspaceID, entryID, archived)
+	}
+	switch {
+	case errors.Is(err, identity.ErrForbidden):
+		writeProblem(writer, request, http.StatusForbidden, "forbidden", "Access is denied.")
+	case errors.Is(err, catalog.ErrNotFound):
+		writeProblem(writer, request, http.StatusNotFound, "not-found", "Catalog entry not found.")
+	case errors.Is(err, catalog.ErrInUse):
+		writeProblem(writer, request, http.StatusConflict, "in-use", "Catalog entry is in use; archive it instead.")
+	case err != nil:
+		h.internal(writer, request)
+	default:
+		writer.WriteHeader(http.StatusNoContent)
+	}
+}
+
 func (h *handler) listCatalog(writer http.ResponseWriter, request *http.Request) {
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	principal, ok := h.workspaceBearer(writer, request, workspaceID, identity.ResourcesRead)
 	if !ok {
 		return
 	}
-	entries, err := h.catalogService.List(request.Context(), principal, workspaceID)
+	entries, err := h.catalogService.List(request.Context(), principal, workspaceID, request.URL.Query().Get("includeArchived") == "true")
 	if errors.Is(err, identity.ErrForbidden) {
 		writeProblem(writer, request, http.StatusForbidden, "forbidden", "Access is denied.")
 		return

@@ -235,15 +235,24 @@
     "/api/v1/workspaces/{workspaceId}/catalog": {
       "get": {
         "operationId": "listCatalog", "security": [{"bearerAuth": []}],
-        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
-        "responses": {"200": {"description": "Active catalog entries", "content": {"application/json": {"schema": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "durationMinutes": {"type": "integer", "nullable": true}}}}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}
+        "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "includeArchived", "in": "query", "schema": {"type": "boolean"}}],
+        "responses": {"200": {"description": "Catalog entries", "content": {"application/json": {"schema": {"type": "array", "items": {"type": "object", "required": ["id", "name", "durationMinutes", "archived"], "properties": {"id": {"type": "string"}, "name": {"type": "string"}, "durationMinutes": {"type": "integer", "nullable": true}, "archived": {"type": "boolean"}}}}}}}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}
       },
       "post": {
         "operationId": "createCatalog", "description": "Owners and admins with resources:write create entries.", "security": [{"bearerAuth": []}],
         "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
         "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string", "minLength": 1}, "durationMinutes": {"type": "integer", "minimum": 1, "nullable": true}}}}}},
-        "responses": {"201": {"description": "Created catalog entry", "content": {"application/json": {"schema": {"type": "object", "required": ["name", "durationMinutes"], "properties": {"name": {"type": "string"}, "durationMinutes": {"type": "integer", "nullable": true}}}}}}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "422": {"$ref": "#/components/responses/Problem"}}
+        "responses": {"201": {"description": "Created catalog entry", "content": {"application/json": {"schema": {"type": "object", "required": ["id", "name", "durationMinutes", "archived"], "properties": {"id": {"type": "string"}, "name": {"type": "string"}, "durationMinutes": {"type": "integer", "nullable": true}, "archived": {"type": "boolean"}}}}}}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "422": {"$ref": "#/components/responses/Problem"}}
       }
+    },
+    "/api/v1/workspaces/{workspaceId}/catalog/{entryId}": {
+      "delete": {"operationId": "deleteCatalog", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "entryId", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"204": {"description": "Deleted"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}, "409": {"$ref": "#/components/responses/Problem"}}}
+    },
+    "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/archive": {
+      "post": {"operationId": "archiveCatalog", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "entryId", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"204": {"description": "Archived"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}}}
+    },
+    "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/unarchive": {
+      "post": {"operationId": "unarchiveCatalog", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "entryId", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"204": {"description": "Unarchived"}, "403": {"$ref": "#/components/responses/Problem"}, "404": {"$ref": "#/components/responses/Problem"}}}
     },
     "/api/v1/workspaces/{workspaceId}/clients": {
         "get": {

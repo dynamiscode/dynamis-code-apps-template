@@ -8,7 +8,7 @@ Quick check:
 curl http://127.0.0.1:8080/api/openapi.json
 ```
 
-Catalog profile: `GET /api/v1/workspaces/{workspaceId}/catalog` requires `resources:read` and returns active entries as a JSON array. `POST` requires `resources:write` and the owner or admin role; it accepts `name` and optional positive integer `durationMinutes`, returning 201 or 422 for invalid input.
+Catalog profile: `GET /api/v1/workspaces/{workspaceId}/catalog` requires `resources:read` and returns active entries; `includeArchived=true` includes archived entries. Creating entries and `POST` to `/{entryId}/archive` or `/{entryId}/unarchive`, and `DELETE /{entryId}`, require `resources:write` and owner or admin role. Deleting an entry reported in use returns 409 and recommends archiving. Sale linkage is deferred; the current application has no sale usage source.
 
 ## Consumer quickstart
 
