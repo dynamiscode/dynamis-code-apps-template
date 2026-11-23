@@ -14,7 +14,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 			<a class="link" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String()) }>{ data.Client.DisplayName }</a>
 			<section class="card my-4 p-6">
 				if data.CanEditClients {
-					if data.ErrorKey != "" && data.ErrorKey != "engagement.invalid_quote" {
+					if data.ErrorKey != "" && data.ErrorKey != "engagement.invalid_quote" && data.ErrorKey != "engagement.invalid_agreement_file" {
 						@molecules.ErrorAlert(data.T(data.ErrorKey))
 					}
 					<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/name") } method="post">
@@ -75,6 +75,24 @@ templ engagementDetailPage(data viewmodel.PageData) {
 					}
 					{ item.Agreement.FileID }
 				</p>
+				if data.CanEditClients {
+					<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/agreement") } method="post">
+						<input type="hidden" name="csrf" value={ data.CSRF }/>
+						<input type="hidden" name="return_to" value="detail"/>
+						<label><input class="checkbox" type="checkbox" name="recorded" value="1" checked?={ item.Agreement.Recorded }/> { data.T("engagement.agreement_recorded") }</label>
+						if data.FilesEnabled || data.ErrorKey == "engagement.invalid_agreement_file" {
+							<label for="engagement-agreement-file">{ data.T("engagement.agreement_file") }</label>
+							if data.ErrorKey == "engagement.invalid_agreement_file" {
+								<input class="input input-bordered" id="engagement-agreement-file" name="file_id" value={ item.Agreement.FileID } aria-invalid="true" aria-describedby="engagement-agreement-file-error"/>
+								<p id="engagement-agreement-file-error" role="alert" tabindex="-1">{ data.T("engagement.invalid_agreement_file") }</p>
+							} else {
+								<input class="input input-bordered" id="engagement-agreement-file" name="file_id" value={ item.Agreement.FileID }/>
+							}
+						}
+						@molecules.SubmitButton(data.T("engagement.agreement_save"), nil)
+						<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
+					</form>
+				}
 				<section aria-labelledby="engagement-quote-heading">
 					<h2 id="engagement-quote-heading">{ data.T("engagement.quote") }</h2>
 					if data.CanEditClients {

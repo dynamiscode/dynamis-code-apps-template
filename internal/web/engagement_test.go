@@ -253,8 +253,33 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if got, err := svc.Get(ctx, owner, env.workspaceID, items[0].ID); err != nil || got.Agreement.Recorded || got.AssigneeID != 0 || got.Quote.Status == "sent" || got.NextAction.Text != "" {
 		t.Fatalf("wrong client mutated engagement: %+v %v", got, err)
 	}
-	if r := request(env.routes, http.MethodPost, agreementPath, url.Values{"csrf": {env.csrf}, "recorded": {"1"}}, env.cookies, nil); r.Code != http.StatusSeeOther {
-		t.Fatalf("agreement: %d %s", r.Code, r.Body.String())
+	if r := request(env.routes, http.MethodPost, agreementPath, url.Values{"csrf": {env.csrf}, "recorded": {"1"}, "return_to": {"detail"}}, env.cookies, nil); r.Code != http.StatusSeeOther || r.Header().Get("Location") != detailPath {
+		t.Fatalf("agreement: %d %s", r.Code, r.Header().Get("Location"))
+	}
+	writerAgreement := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
+	viewerAgreement := request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
+	if !strings.Contains(writerAgreement.Body.String(), `action="`+agreementPath+`"`) || strings.Contains(viewerAgreement.Body.String(), `action="`+agreementPath+`"`) || !strings.Contains(viewerAgreement.Body.String(), "Signed agreement recorded") {
+		t.Fatal("agreement form visibility or viewer summary")
+	}
+	invalidAgreement := request(env.routes, http.MethodPost, agreementPath, url.Values{"csrf": {env.csrf}, "recorded": {"1"}, "file_id": {"invalid-short-id"}, "return_to": {"detail"}}, env.cookies, nil)
+	for _, want := range []string{`value="invalid-short-id"`, `aria-describedby="engagement-agreement-file-error"`, "Enter a valid file ID for this workspace.", `name="recorded" value="1" checked`} {
+		if invalidAgreement.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidAgreement.Body.String(), want) {
+			t.Fatalf("invalid agreement missing %q: %d", want, invalidAgreement.Code)
+		}
+	}
+	workspaceAdmin, err := env.auth.Authorize(ctx, env.ownerID, env.workspaceID, identity.WorkspaceUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.auth.UpdateWorkspaceLocale(ctx, workspaceAdmin, "es", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	spanishAgreement := request(env.routes, http.MethodPost, agreementPath, url.Values{"csrf": {env.csrf}, "file_id": {"invalid-short-id"}, "return_to": {"detail"}}, env.cookies, nil)
+	if spanishAgreement.Code != http.StatusUnprocessableEntity || !strings.Contains(spanishAgreement.Body.String(), "Introduce un ID de archivo válido para este espacio de trabajo.") {
+		t.Fatalf("Spanish agreement error: %d", spanishAgreement.Code)
+	}
+	if err := env.auth.UpdateWorkspaceLocale(ctx, workspaceAdmin, "en", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
 	}
 	if r := request(env.routes, http.MethodPost, agreementPath, url.Values{"csrf": {env.viewerCSRF}}, env.viewerCookies, nil); r.Code != http.StatusForbidden {
 		t.Fatalf("viewer agreement: %d", r.Code)
