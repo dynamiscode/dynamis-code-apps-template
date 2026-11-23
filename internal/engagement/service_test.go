@@ -243,6 +243,20 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	if err != nil || got.ClientID != client.ID || got.StageID != stage.ID || got.Notes != "Other person" {
 		t.Fatalf("get = %+v, %v", got, err)
 	}
+	if got.Quote.Status != "not_sent" {
+		t.Fatalf("default quote: %+v", got.Quote)
+	}
+	quote := Quote{Status: "sent", Amount: "120.50", DateSent: "2026-11-23"}
+	if err := svc.SetQuote(ctx, owner, boot.WorkspaceID, created.ID, quote, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	got, err = svc.Get(ctx, owner, boot.WorkspaceID, created.ID)
+	if err != nil || got.Quote != quote {
+		t.Fatalf("quote: %+v %v", got.Quote, err)
+	}
+	if err := svc.SetQuote(ctx, owner, boot.WorkspaceID, created.ID, Quote{Status: "invalid"}, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("invalid quote: %v", err)
+	}
 	var viewerID identity.UserID
 	if err := db.QueryRowContext(ctx, `INSERT INTO users (email, created_at) VALUES (?, ?) RETURNING id`, "viewer@example.com", time.Now().UTC().Format(time.RFC3339Nano)).Scan(&viewerID); err != nil {
 		t.Fatal(err)
@@ -253,6 +267,9 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	viewer, err := auth.Authorize(ctx, viewerID, boot.WorkspaceID, identity.ResourcesRead)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if err := svc.SetQuote(ctx, viewer, boot.WorkspaceID, created.ID, quote, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer quote: %v", err)
 	}
 	if _, err := svc.Get(ctx, viewer, boot.WorkspaceID, created.ID); err != nil {
 		t.Fatalf("viewer get: %v", err)

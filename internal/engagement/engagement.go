@@ -35,6 +35,13 @@ type Engagement struct {
 	StageID    StageID          `json:"stageId"`
 	Notes      string           `json:"notes"`
 	NextAction NextAction       `json:"nextAction"`
+	Quote      Quote            `json:"quote"`
+}
+
+type Quote struct {
+	Status   string `json:"status"`
+	Amount   string `json:"amount"`
+	DateSent string `json:"dateSent"`
 }
 
 type NextAction struct {
@@ -79,7 +86,7 @@ func (s *Service) Create(ctx context.Context, actor identity.Principal, workspac
 			return Engagement{}, err
 		}
 	}
-	value := Engagement{ClientID: input.ClientID, StageID: stageID, Notes: input.Notes}
+	value := Engagement{ClientID: input.ClientID, StageID: stageID, Notes: input.Notes, Quote: Quote{Status: "not_sent"}}
 	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `INSERT INTO engagements (workspace_id, client_id, stage_id, notes) VALUES (?, ?, ?, ?) RETURNING id`), workspaceID, value.ClientID, value.StageID, value.Notes).Scan(&value.ID)
 	if err != nil {
 		return Engagement{}, err
@@ -104,7 +111,7 @@ func (s *Service) Get(ctx context.Context, actor identity.Principal, workspaceID
 		return Engagement{}, identity.ErrForbidden
 	}
 	var value Engagement
-	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT e.id, e.client_id, e.stage_id, e.notes, COALESCE(a.action_text, ''), COALESCE(a.due_date, ''), COALESCE(a.owner_id, 0) FROM engagements e LEFT JOIN engagement_next_actions a ON a.workspace_id = e.workspace_id AND a.engagement_id = e.id WHERE e.workspace_id = ? AND e.id = ?`), workspaceID, engagementID).Scan(&value.ID, &value.ClientID, &value.StageID, &value.Notes, &value.NextAction.Text, &value.NextAction.DueDate, &value.NextAction.OwnerID)
+	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT e.id, e.client_id, e.stage_id, e.notes, COALESCE(a.action_text, ''), COALESCE(a.due_date, ''), COALESCE(a.owner_id, 0), e.quote_status, e.quote_amount, e.quote_date_sent FROM engagements e LEFT JOIN engagement_next_actions a ON a.workspace_id = e.workspace_id AND a.engagement_id = e.id WHERE e.workspace_id = ? AND e.id = ?`), workspaceID, engagementID).Scan(&value.ID, &value.ClientID, &value.StageID, &value.Notes, &value.NextAction.Text, &value.NextAction.DueDate, &value.NextAction.OwnerID, &value.Quote.Status, &value.Quote.Amount, &value.Quote.DateSent)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Engagement{}, ErrNotFound
 	}
@@ -126,14 +133,14 @@ func (s *Service) ListForClient(ctx context.Context, actor identity.Principal, w
 	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesRead); err != nil {
 		return nil, identity.ErrForbidden
 	}
-	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT e.id, e.client_id, e.stage_id, e.notes, COALESCE(a.action_text, ''), COALESCE(a.due_date, ''), COALESCE(a.owner_id, 0) FROM engagements e LEFT JOIN engagement_next_actions a ON a.workspace_id = e.workspace_id AND a.engagement_id = e.id WHERE e.workspace_id = ? AND e.client_id = ? ORDER BY e.id DESC`), workspaceID, clientID)
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT e.id, e.client_id, e.stage_id, e.notes, COALESCE(a.action_text, ''), COALESCE(a.due_date, ''), COALESCE(a.owner_id, 0), e.quote_status, e.quote_amount, e.quote_date_sent FROM engagements e LEFT JOIN engagement_next_actions a ON a.workspace_id = e.workspace_id AND a.engagement_id = e.id WHERE e.workspace_id = ? AND e.client_id = ? ORDER BY e.id DESC`), workspaceID, clientID)
 	if err != nil {
 		return nil, err
 	}
 	var values []Engagement
 	for rows.Next() {
 		var value Engagement
-		if err := rows.Scan(&value.ID, &value.ClientID, &value.StageID, &value.Notes, &value.NextAction.Text, &value.NextAction.DueDate, &value.NextAction.OwnerID); err != nil {
+		if err := rows.Scan(&value.ID, &value.ClientID, &value.StageID, &value.Notes, &value.NextAction.Text, &value.NextAction.DueDate, &value.NextAction.OwnerID, &value.Quote.Status, &value.Quote.Amount, &value.Quote.DateSent); err != nil {
 			rows.Close()
 			return nil, err
 		}

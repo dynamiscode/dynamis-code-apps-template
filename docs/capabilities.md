@@ -21,6 +21,10 @@ Next actions have text, an optional date, and a workspace-member owner. Writers
 can change them; readers can view them and the workspace's open-stage due list.
 The service, REST, and web tests above cover these surfaces. Dates use UTC for
 the due-list cutoff; actions are not included in workspace export.
+Quote status, optional amount and sent date are stored on the engagement by
+[migration 000035](../internal/platform/database/migrations/000035_engagement_quote.sql).
+The linked service, REST and web tests cover writes and read-only access. Quote
+data follows engagement retention and is not included in workspace export.
 
 ## Client timeline REST (#575)
 

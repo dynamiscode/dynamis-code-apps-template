@@ -103,6 +103,15 @@ func TestEngagementThroughREST(t *testing.T) {
 		t.Fatal(err)
 	}
 	actionPath := base + "/engagements/" + e.ID + "/next-action"
+	quotePath := base + "/engagements/" + e.ID + "/quote"
+	if r := serveAuthorized(handler, http.MethodPut, quotePath, `{"status":"sent","amount":"120.50","dateSent":"2026-11-23"}`, token, nil); r.Code != http.StatusNoContent {
+		t.Fatalf("quote: %d %s", r.Code, r.Body.String())
+	}
+	if r := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil); !strings.Contains(r.Body.String(), `"amount":"120.50"`) {
+		t.Fatalf("quote read: %s", r.Body.String())
+	}
+	assertProblem(t, serveAuthorized(handler, http.MethodPut, quotePath, `{"status":"wrong"}`, token, nil), http.StatusBadRequest, "invalid-request")
+	assertProblem(t, serveAuthorized(handler, http.MethodPut, quotePath, `{"status":"sent"}`, readOnly.Secret, nil), http.StatusForbidden, "insufficient-scope")
 	updated := serveAuthorized(handler, http.MethodPut, actionPath, `{"text":"Call","dueDate":"2020-01-01","ownerId":"`+userID.String()+`"}`, token, nil)
 	if updated.Code != http.StatusNoContent {
 		t.Fatalf("set action: %d %s", updated.Code, updated.Body.String())

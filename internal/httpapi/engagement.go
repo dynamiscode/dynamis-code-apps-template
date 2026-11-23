@@ -10,6 +10,28 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 )
 
+func (h *handler) setEngagementQuote(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		notFoundProblem(w, r)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	actor, ok := h.workspaceBearer(w, r, workspace, identity.ResourcesWrite)
+	if !ok {
+		return
+	}
+	var quote engagement.Quote
+	if err := decodeJSON(r, &quote); err != nil {
+		h.badJSON(w, r, err)
+		return
+	}
+	if err := h.engagement.SetQuote(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), quote, h.auditContext(r)); err != nil {
+		h.engagementError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *handler) setEngagementNextAction(w http.ResponseWriter, r *http.Request) {
 	if h.engagement == nil {
 		notFoundProblem(w, r)

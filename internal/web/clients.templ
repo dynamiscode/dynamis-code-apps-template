@@ -64,6 +64,23 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 								}
 							}
 							<p>{ item.Notes }</p>
+							<p>{ data.T("engagement.quote") }: { data.T("engagement.quote_" + item.Quote.Status) } { item.Quote.Amount } { item.Quote.DateSent }</p>
+							if data.CanEditClients {
+								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/quote" } method="post">
+									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<label for={ "quote-status-" + item.ID.String() }>{ data.T("engagement.quote") }</label>
+									<select class="select select-bordered" id={ "quote-status-" + item.ID.String() } name="status">
+										for _, status := range []string{"not_sent", "sent", "pending", "accepted", "declined"} {
+											<option value={ status } selected?={ item.Quote.Status == status }>{ data.T("engagement.quote_" + status) }</option>
+										}
+									</select>
+									<label for={ "quote-amount-" + item.ID.String() }>{ data.T("engagement.quote_amount") }</label>
+									<input class="input input-bordered" type="number" min="0" max="999999999999.99" step="0.01" id={ "quote-amount-" + item.ID.String() } name="amount" value={ item.Quote.Amount }/>
+									<label for={ "quote-date-" + item.ID.String() }>{ data.T("engagement.quote_date") }</label>
+									<input class="input input-bordered" type="date" id={ "quote-date-" + item.ID.String() } name="date_sent" value={ item.Quote.DateSent }/>
+									<button class="btn btn-primary" type="submit">{ data.T("engagement.quote_save") }</button>
+								</form>
+							}
 							if item.NextAction.Text != "" {
 								<p>{ data.T("engagement.next_action") }: { item.NextAction.Text } { item.NextAction.DueDate }</p>
 								for _, member := range data.EngagementMembers {

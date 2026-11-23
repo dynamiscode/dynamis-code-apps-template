@@ -92,12 +92,21 @@ func TestEngagementThroughWeb(t *testing.T) {
 		t.Fatalf("engagements: %+v %v", items, err)
 	}
 	actionPath := path + "/engagements/" + items[0].ID.String() + "/next-action"
+	quotePath := path + "/engagements/" + items[0].ID.String() + "/quote"
+	quote := request(env.routes, http.MethodPost, quotePath, url.Values{"csrf": {env.csrf}, "status": {"sent"}, "amount": {"120.50"}, "date_sent": {"2026-11-23"}}, env.cookies, nil)
+	if quote.Code != http.StatusSeeOther {
+		t.Fatalf("quote: %d %s", quote.Code, quote.Body.String())
+	}
+	deniedQuote := request(env.routes, http.MethodPost, quotePath, url.Values{"csrf": {env.viewerCSRF}, "status": {"sent"}}, env.viewerCookies, nil)
+	if deniedQuote.Code != http.StatusForbidden {
+		t.Fatalf("viewer quote: %d", deniedQuote.Code)
+	}
 	updated := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {"Call client"}, "due_date": {"2020-01-01"}, "owner_id": {env.ownerID.String()}}, env.cookies, nil)
 	if updated.Code != http.StatusSeeOther {
 		t.Fatalf("set action: %d %s", updated.Code, updated.Body.String())
 	}
 	viewer := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
-	if viewer.Code != http.StatusOK || !strings.Contains(viewer.Body.String(), "Other person") || !strings.Contains(viewer.Body.String(), "Call client") || strings.Contains(viewer.Body.String(), "Create engagement") || strings.Contains(viewer.Body.String(), actionPath) {
+	if viewer.Code != http.StatusOK || !strings.Contains(viewer.Body.String(), "Other person") || !strings.Contains(viewer.Body.String(), "Call client") || !strings.Contains(viewer.Body.String(), "120.50") || strings.Contains(viewer.Body.String(), quotePath) || strings.Contains(viewer.Body.String(), "Create engagement") || strings.Contains(viewer.Body.String(), actionPath) {
 		t.Fatalf("viewer: %d notes=%v create=%v", viewer.Code, strings.Contains(viewer.Body.String(), "Other person"), strings.Contains(viewer.Body.String(), "Create engagement"))
 	}
 	due := request(env.routes, http.MethodGet, "/workspaces/"+env.workspaceID.String()+"/engagements/due", nil, env.viewerCookies, nil)
