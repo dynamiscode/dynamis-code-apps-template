@@ -61,6 +61,11 @@ user created an open Discovery stage, an Audit client, and an engagement.
   empty state said “No stages yet.”
 - At a 390 × 844 viewport, document `clientWidth` and `scrollWidth` were both
   375. This sampled state had no horizontal document overflow.
+- On mobile client detail, the first Tab focused “Skip to content.” Submitting
+  an agreement with File ID `invalid-id` returned HTTP 422 and focused an alert
+  under Client saying “Enter valid name and kind.” The returned form discarded
+  the entered File ID, leaving it empty. This is one tested error, not a
+  complete accessibility or recovery audit.
 
 Playwright saved a screenshot in its MCP server output. Its durable location and
 visual contents were not verified. Desktop review and broader mobile review
