@@ -8,7 +8,8 @@ current behavior. Existing behavior remains documented in [capabilities](capabil
 
 - Existing engagements receive an editable name generated from a snapshot of
   the client name followed by ` — ` and the engagement short ID. The name is
-  required, including in the existing REST API. A later client rename does not
+  required, including in the existing REST API. REST v1 create also requires
+  `stageId`, as explicitly approved by the user. A later client rename does not
   change the snapshot.
 - Date boundaries use UTC.
 - An engagement has at most one active action. Completion, replacement, and
@@ -82,9 +83,10 @@ are not additional business-policy approvals or claims of implemented behavior.
 
 ## Implementation gates
 
-Requiring a name on the existing REST create API is approved and breaks clients
-that omit it. Do not make the name optional or claim those clients remain
-compatible. No additional REST policy choice is required.
+Requiring both `name` and `stageId` on the existing REST v1 create API is
+explicitly approved and breaks clients that omit either field. Do not make either
+field optional or claim those clients remain compatible. No additional REST
+policy choice is required.
 
 Reopening a completed action conflicts with the one-active-action limit when
 another action occupies the slot. The rejection rule above preserves both the
