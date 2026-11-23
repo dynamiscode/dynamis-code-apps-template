@@ -781,5 +781,14 @@
   "views.shared": "Share with workspace",
   "views.save": "Save view",
   "views.rename": "Rename",
-  "clients.views_active_only": "Views are for active clients."
+  "clients.views_active_only": "Views are for active clients.",
+  "public_intake.title": "Contact us",
+  "public_intake.contact": "Enter a phone number or email address.",
+  "public_intake.name": "Name",
+  "public_intake.phone": "Phone",
+  "public_intake.email": "Email",
+  "public_intake.notes": "Notes (optional)",
+  "public_intake.submit": "Send",
+  "public_intake.invalid": "Check your name, contact details, notes and consent, then try again.",
+  "public_intake.thanks": "Thank you. Your message has been received."
 }

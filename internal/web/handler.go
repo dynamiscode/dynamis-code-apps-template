@@ -171,6 +171,8 @@ func (h *Handler) Routes() http.Handler {
 		assetsHandler.ServeHTTP(writer, request)
 	}))
 	mux.HandleFunc("GET /language", h.language)
+	mux.HandleFunc("GET /intake/{token}", h.publicIntake)
+	mux.HandleFunc("POST /intake/{token}", h.publicIntake)
 	mux.HandleFunc("GET /login", h.loginPage)
 	mux.HandleFunc("POST /login", h.login)
 	mux.HandleFunc("GET /mfa", h.mfaPage)

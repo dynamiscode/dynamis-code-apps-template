@@ -781,5 +781,14 @@
   "views.save": "Guardar vista",
   "views.rename": "Renombrar",
   "clients.views_active_only": "Las vistas son para clientes activos.",
-  "ui.request_failed":"Algo salió mal. Inténtalo de nuevo."
+  "ui.request_failed":"Algo salió mal. Inténtalo de nuevo.",
+  "public_intake.title": "Contáctanos",
+  "public_intake.contact": "Ingresa un teléfono o correo electrónico.",
+  "public_intake.name": "Nombre",
+  "public_intake.phone": "Teléfono",
+  "public_intake.email": "Correo electrónico",
+  "public_intake.notes": "Notas (opcional)",
+  "public_intake.submit": "Enviar",
+  "public_intake.invalid": "Revisa tu nombre, datos de contacto, notas y consentimiento e inténtalo de nuevo.",
+  "public_intake.thanks": "Gracias. Hemos recibido tu mensaje."
 }

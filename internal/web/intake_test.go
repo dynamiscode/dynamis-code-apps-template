@@ -1,10 +1,15 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+
+	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/intake"
+	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
 
 func TestIntakeManagementThroughWeb(t *testing.T) {
@@ -29,5 +34,22 @@ func TestIntakeManagementThroughWeb(t *testing.T) {
 	disabled := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "action": {"disable"}}, env.cookies, nil)
 	if disabled.Code != http.StatusSeeOther {
 		t.Fatalf("disable: %d", disabled.Code)
+	}
+}
+
+func TestPublicIntakeForm(t *testing.T) {
+	env := newClientsTestEnv(t)
+	owner, err := env.auth.Authorize(context.Background(), env.ownerID, env.workspaceID, identity.WorkspaceUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := intake.NewService(env.db, config.SQLite, env.auth)
+	token, err := svc.Create(context.Background(), owner, env.workspaceID, "Custom consent", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := request(env.routes, http.MethodGet, "/intake/"+token, nil, nil, map[string]string{"Accept-Language": "es"})
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Custom consent") || !strings.Contains(page.Body.String(), "Nombre") {
+		t.Fatalf("public form: status %d, body %s", page.Code, page.Body.String())
 	}
 }

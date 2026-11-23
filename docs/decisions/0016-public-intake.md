@@ -44,8 +44,8 @@ is unchanged.
   email per submission. Email runs as a background job, never inline. The
   notification links by short ID and carries no client data.
 
-The surface is the web form only. There is no public listing, search, or read,
-and no MCP, WebMCP, or CLI surface.
+The surfaces are the web form and a public REST submission endpoint. There is
+no public listing or search, and no MCP, WebMCP, or CLI surface.
 
 ## Consequences
 

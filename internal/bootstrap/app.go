@@ -170,7 +170,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	catalogService := catalog.NewService(db, identityService, nil)
 	handler, err := httpapi.NewHandlerWithCatalogAndEngagement(
 		db, identityService, portabilityService, oidcRegistry, cfg.HTTP, slog.Default(),
-		webhookService, fileService, cfg.PublicURL, mailer, catalogService, engagementService, clientService,
+		webhookService, fileService, cfg.PublicURL, mailer, catalogService, engagementService, intakeService, clientService,
 	)
 	if err != nil {
 		db.Close()
