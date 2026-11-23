@@ -166,6 +166,32 @@ observations are sampled cases, not full coverage. The Enter activation did not
 exercise keyboard traversal. These observations do not complete the #621
 baseline audit; the later redesigned-journey review is a separate gate.
 
+## Reported redesigned detail journey (#622)
+
+The parent session exercised these samples with Playwright at revision
+`90c529b`, using a disposable SQLite application and synthetic data. The owner
+created a named engagement in an open stage and navigated to its detail page.
+The detail sections were collapsed and the stage label was translated.
+
+- On desktop, the owner renamed the engagement and saw “Engagement saved”.
+- At 390 × 844, an invalid agreement file ID remained in the form after HTTP
+  422, with the correct error shown. Document width showed no horizontal
+  overflow in this sampled state.
+- Keyboard sampling found the first Tab focused the skip link; Enter opened the
+  name disclosure.
+- In a separate JavaScript-disabled context, the owner renamed the engagement
+  successfully.
+- In a Spanish workspace at `90c529b`, stage, assignee, agreement, and
+  next-action summaries were translated.
+- A viewer saw the detail page without edit controls. This observation was
+  made before later minor fixes, not at `90c529b`; its exact revision was not
+  recorded.
+
+These are reported samples, not a complete journey matrix or accessibility
+compliance assessment. No durable screenshots or independent review were
+provided with these observations. The earlier baseline and its blocked audit
+status remain separate; broader redesigned-journey review remains outstanding.
+
 ## Remaining current-journey audit
 
 Status: **blocked pending rendered-browser review**. The following scenarios
