@@ -116,7 +116,7 @@ accessibility-smoke:
 	./scripts/accessibility-smoke.sh
 
 browser-smoke:
-	go test -tags browser -count=1 ./internal/browsertest/...
+	go test -tags browser -count=1 ./internal/browsertest/... ./cmd/browsersmoke
 
 template-smoke:
 	set -eu; work="$$(mktemp -d /tmp/dynamis-code-template-smoke.XXXXXX)"; \
