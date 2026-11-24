@@ -121,7 +121,7 @@ templ invitationView(data viewmodel.PageData) {
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
 					@molecules.SubmitButton(data.T("invitations.sign_in_accept"), nil)
 				</form>
-				<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn" type="submit">{ data.T("navigation.sign_out") }</button></form>
+				<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-outline" type="submit">{ data.T("navigation.sign_out") }</button></form>
 			} else {
 				<section aria-labelledby="invite-account-title">
 					<h2 id="invite-account-title">{ data.T("invitations.new_account") }</h2>
@@ -151,7 +151,7 @@ templ invitationView(data viewmodel.PageData) {
 			if data.ErrorKey == "invitations.unavailable" {
 				<p>{ data.T("invitations.unavailable_help") }</p>
 			}
-			<p><a href="/">{ data.T("navigation.home") }</a></p>
+			<p><a class="btn btn-outline btn-sm" href="/">{ data.T("navigation.home") }</a></p>
 		}
 	}
 }
@@ -170,10 +170,10 @@ templ invitationContinueView(data viewmodel.PageData) {
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
 				@molecules.SubmitButton(data.T("invitations.accept"), nil)
 			</form>
-			<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn" type="submit">{ data.T("navigation.sign_out") }</button></form>
+			<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-outline" type="submit">{ data.T("navigation.sign_out") }</button></form>
 		} else {
 			<p>{ data.T("invitations.unavailable_help") }</p>
-			<p><a href="/">{ data.T("navigation.home") }</a></p>
+			<p><a class="btn btn-outline btn-sm" href="/">{ data.T("navigation.home") }</a></p>
 		}
 	}
 }

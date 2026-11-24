@@ -170,6 +170,9 @@ func TestPublicIntakeForm(t *testing.T) {
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Custom consent") || !strings.Contains(page.Body.String(), "Nombre") {
 		t.Fatalf("public form: status %d, body %s", page.Code, page.Body.String())
 	}
+	if !strings.Contains(page.Body.String(), `class="min-w-0 wrap-anywhere"`) {
+		t.Fatal("public consent must wrap long unbroken text")
+	}
 	invalid := request(env.routes, http.MethodPost, "/intake/"+token, url.Values{"name": {"Visitor"}}, nil, nil)
 	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "Visitor") {
 		t.Fatalf("invalid form: %d", invalid.Code)
