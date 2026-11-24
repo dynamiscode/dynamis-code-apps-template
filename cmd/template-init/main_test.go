@@ -12,6 +12,14 @@ import (
 	"time"
 )
 
+func TestEngagementExportWithoutFilesOmitsFileColumn(t *testing.T) {
+	input := "SELECT agreement_recorded, agreement_file_id FROM engagements"
+	got := disableFilesSource("internal/portability/engagement.go", []byte(input))
+	if string(got) != "SELECT agreement_recorded, NULL FROM engagements" {
+		t.Fatalf("generated query = %q", got)
+	}
+}
+
 func TestTemporaryPlanIsExcluded(t *testing.T) {
 	if !ignored("PLAN.md") {
 		t.Fatal("temporary plan must not be copied into generated applications")
@@ -389,8 +397,8 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		"internal/platform/database/migrations/000024_client_events.sql",
 		"internal/platform/database/migrations/000031_client_timeline.sql",
 		"internal/platform/database/migrations/000033_engagements.sql", "internal/platform/database/migrations/000034_engagement_next_action.sql", "internal/platform/database/migrations/000035_engagement_quote.sql", "internal/platform/database/migrations/000036_engagement_assignee.sql",
-		"internal/platform/database/migrations/000042_engagement_names.sql", "internal/platform/database/migrate_engagement_names_test.go",
-		"internal/platform/database/migrate_engagement_names_postgres_test.go",
+		"internal/platform/database/migrations/000042_engagement_names.sql", "internal/platform/database/migrations/000043_engagement_action_history.sql", "internal/platform/database/migrate_engagement_names_test.go",
+		"internal/platform/database/migrate_engagement_names_postgres_test.go", "internal/platform/database/migrations/000044_engagement_action_completion.sql", "internal/platform/database/migrations/000045_engagement_action_version.sql", "internal/platform/database/migrate_engagement_action_test.go",
 		"internal/web/clients_events.go", "internal/web/clients_no_javascript_test.go",
 		"internal/mcpserver/clients.go", "internal/mcpserver/clients_test.go",
 		"internal/appctl/clients_test.go",
@@ -460,6 +468,11 @@ func TestApplicationMigration42(t *testing.T) {
 	openAPI, err := os.ReadFile(filepath.Join(output, "api/openapi.json"))
 	if err != nil || strings.Contains(string(openAPI), "/clients") {
 		t.Fatalf("generated OpenAPI retains Clients paths: error = %v", err)
+	}
+	for _, key := range []string{`"engagementNextActions"`, `"engagementActionHistory"`, `"engagementStageHistory"`} {
+		if strings.Contains(string(openAPI), key) {
+			t.Fatalf("generated OpenAPI retains Clients export key %s", key)
+		}
 	}
 	for path, retained := range map[string]string{
 		"docs/api.md": "/clients", "docs/web.md": "/clients", "docs/capabilities.md": "| Clients |",

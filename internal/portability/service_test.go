@@ -58,6 +58,7 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}
 	exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", workspaceID, userID, identity.Owner, now)
 	exec("INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", workspaceID, viewerID, identity.Viewer, now)
+	exec("INSERT INTO engagement_stages (workspace_id, name, kind, position) VALUES (?, 'Open', 'open', 1)", workspaceID)
 	actor, err := auth.Authorize(ctx, userID, workspaceID, identity.WorkspaceExport)
 	if err != nil {
 		t.Fatal(err)
@@ -84,7 +85,7 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if err := json.Unmarshal(encoded, &keys); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"items", "clients", "clientFields", "clientFieldOptions"} {
+	for _, key := range []string{"items", "clients", "clientFields", "clientFieldOptions", "engagements", "engagementNextActions", "engagementActionHistory", "engagementStageHistory"} {
 		if _, ok := keys[key]; ok {
 			t.Fatalf("export without a client source has key %q", key)
 		}
@@ -96,7 +97,7 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}
 	if result.FormatVersion != FormatVersion || result.Workspace.ID != workspaceID.String() ||
 		result.Workspace.Locale != "es" ||
-		len(result.Members) != 2 ||
+		len(result.Members) != 2 || len(result.EngagementStages) != 1 || result.EngagementStages[0].Name != "Open" ||
 		len(result.AuditEvents) == 0 || len(result.Excluded) == 0 {
 		t.Fatalf("export = %+v", result)
 	}

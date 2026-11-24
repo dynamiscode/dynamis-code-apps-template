@@ -384,12 +384,17 @@ func clientsPath(relative string) bool {
 	return relative == "internal/clients" || strings.HasPrefix(relative, "internal/clients/") ||
 		relative == "internal/identity/engagement_membership_test.go" ||
 		relative == "internal/engagement/engagement.go" ||
+		relative == "internal/engagement/action_queue.go" || relative == "internal/engagement/action_queue_test.go" ||
 		relative == "internal/engagement/agreement.go" ||
 		relative == "internal/engagement/agreement_test.go" ||
 		relative == "internal/engagement/assignee.go" || relative == "internal/engagement/next_action.go" || relative == "internal/engagement/quote.go" ||
 		relative == "internal/platform/database/migrations/000033_engagements.sql" ||
 		relative == "internal/platform/database/migrations/000039_engagement_agreement.sql" ||
 		relative == "internal/platform/database/migrations/000042_engagement_names.sql" ||
+		relative == "internal/platform/database/migrations/000043_engagement_action_history.sql" ||
+		relative == "internal/platform/database/migrations/000044_engagement_action_completion.sql" ||
+		relative == "internal/platform/database/migrations/000045_engagement_action_version.sql" ||
+		relative == "internal/platform/database/migrate_engagement_action_test.go" ||
 		relative == "internal/platform/database/migrate_engagement_names_test.go" ||
 		relative == "internal/platform/database/migrate_engagement_names_postgres_test.go" ||
 		relative == "internal/platform/database/migrations/000034_engagement_next_action.sql" || relative == "internal/platform/database/migrations/000035_engagement_quote.sql" || relative == "internal/platform/database/migrations/000036_engagement_assignee.sql" ||
@@ -402,7 +407,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/httpapi/clients.go" || relative == "internal/httpapi/clients_test.go" ||
 		relative == "internal/httpapi/client_timeline.go" || relative == "internal/httpapi/client_timeline_test.go" ||
 		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" ||
-		relative == "internal/web/engagement_test.go" ||
+		relative == "internal/web/engagement_test.go" || relative == "internal/web/action_queue_test.go" ||
 		relative == "internal/web/client_timeline.go" || relative == "internal/web/client_timeline_test.go" ||
 		relative == "internal/web/clients_filters.go" ||
 		relative == "internal/web/viewmodel/clients_filters.go" || relative == "internal/web/viewmodel/clients.go" ||
@@ -449,6 +454,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `/internal/platform/id"`)
 		value = removeText(value, "\t\tif migration.version == 42 {", "\t\tif err := recordMigration(ctx, tx, driver, migration.version); err != nil {")
 		value = removeText(value, "func backfillEngagementNames(", "// renderMigration")
+	case "internal/identity/account.go":
+		value = removeText(value, "\tif _, err := s.exec(ctx, tx, \"UPDATE engagements SET action_version", "\tresult, err := s.exec(ctx, tx, \"DELETE FROM users WHERE id = ?\", userID)")
 	case "internal/identity/service.go":
 		value = removeText(value, "func (s *Service) clearMemberEngagements(", "func normalizeEmail(")
 		value = strings.Replace(value, "func normalizeEmail(", "func (s *Service) clearMemberEngagements(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, userID UserID) error { return nil }\n\nfunc normalizeEmail(", 1)
@@ -562,10 +569,13 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/client-fields")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/clients")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/due")
+		value = removeLinesContaining(value, "h.changeQueuedAction")
 	case "internal/web/engagement.go":
 		value = strings.ReplaceAll(value, "ClientsEnabled: h.clients != nil, ", "")
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `"time"`)
+		value = removeLinesContaining(value, `"net/url"`)
+		value = removeLinesContaining(value, `"strconv"`)
 		value = removeText(value, "func (h *Handler) setEngagementAgreement(", "func (h *Handler) setEngagementAssignee(")
 		value = removeText(value, "func (h *Handler) setEngagementAssignee(", "func (h *Handler) EnableEngagement(")
 		value = removeText(value, "func (h *Handler) moveEngagement(", "func (h *Handler) setEngagementLabel(")
@@ -573,6 +583,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 	case "internal/web/engagement.templ":
 		value = removeText(value, "templ engagementDetailPage(", "templ engagementStagesPage(")
 	case "internal/web/engagement_templ.go":
+		value = removeLinesContaining(value, `import "strconv"`)
+		value = removeLinesContaining(value, `/internal/identity"`)
 		value = removeText(value, "func engagementDetailPage(", "func engagementStagesPage(")
 	case "internal/platform/maintenance/maintenance.go":
 		// Retention prunes client_events, which Clients-off apps do not have.
@@ -643,6 +655,17 @@ func stripClientsOpenAPI(raw []byte) string {
 			delete(paths, path)
 		}
 	}
+	if components, ok := document["components"].(map[string]any); ok {
+		if schemas, ok := components["schemas"].(map[string]any); ok {
+			if export, ok := schemas["WorkspaceExport"].(map[string]any); ok {
+				if properties, ok := export["properties"].(map[string]any); ok {
+					for _, name := range []string{"clients", "clientFields", "clientFieldOptions", "engagements", "engagementNextActions", "engagementActionHistory", "engagementStageHistory"} {
+						delete(properties, name)
+					}
+				}
+			}
+		}
+	}
 	encoded, err := json.MarshalIndent(document, "", "  ")
 	if err != nil {
 		return string(raw)
@@ -655,6 +678,8 @@ func disableFilesSource(relative string, raw []byte) []byte {
 	switch relative {
 	case "internal/platform/database/migrations/000039_engagement_agreement.sql":
 		value = removeLineStarting(value, "ALTER TABLE engagements ADD COLUMN agreement_file_id")
+	case "internal/portability/engagement.go":
+		value = strings.ReplaceAll(value, "agreement_recorded, agreement_file_id FROM engagements", "agreement_recorded, NULL FROM engagements")
 	case "internal/engagement/engagement.go", "internal/engagement/next_action.go":
 		value = strings.ReplaceAll(value, "COALESCE(e.agreement_file_id, 0)", "0")
 	case "internal/engagement/agreement.go":

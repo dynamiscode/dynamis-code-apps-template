@@ -44,6 +44,19 @@ func (s *Service) SetNextAction(ctx context.Context, actor identity.Principal, w
 	} else if err != nil {
 		return err
 	}
+	var version int64
+	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `UPDATE engagements SET action_version = CASE WHEN action_version = 9223372036854775807 THEN NULL ELSE action_version + 1 END WHERE workspace_id = ? AND id = ? RETURNING action_version`), workspaceID, engagementID).Scan(&version); err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	outcome := "replaced"
+	if action.Text == "" {
+		outcome = "cleared"
+	}
+	_, err = tx.ExecContext(ctx, database.Rebind(s.driver, `INSERT INTO engagement_action_history (workspace_id, engagement_id, action_text, due_date, owner_id, outcome, actor_user_id, created_at) SELECT workspace_id, engagement_id, action_text, due_date, owner_id, ?, ?, ? FROM engagement_next_actions WHERE workspace_id = ? AND engagement_id = ? AND (action_text <> ? OR due_date <> ? OR COALESCE(owner_id, 0) <> ?)`), outcome, actor.UserID, now.Format(time.RFC3339Nano), workspaceID, engagementID, action.Text, action.DueDate, action.OwnerID)
+	if err != nil {
+		return err
+	}
 	if action.Text == "" {
 		_, err = tx.ExecContext(ctx, database.Rebind(s.driver, `DELETE FROM engagement_next_actions WHERE workspace_id = ? AND engagement_id = ?`), workspaceID, engagementID)
 	} else {
@@ -52,12 +65,121 @@ func (s *Service) SetNextAction(ctx context.Context, actor identity.Principal, w
 		} else if err != nil {
 			return err
 		}
-		_, err = tx.ExecContext(ctx, database.Rebind(s.driver, `INSERT INTO engagement_next_actions (workspace_id, engagement_id, action_text, due_date, owner_id) VALUES (?, ?, ?, ?, ?) ON CONFLICT (workspace_id, engagement_id) DO UPDATE SET action_text = excluded.action_text, due_date = excluded.due_date, owner_id = excluded.owner_id`), workspaceID, engagementID, action.Text, action.DueDate, action.OwnerID)
+		_, err = tx.ExecContext(ctx, database.Rebind(s.driver, `INSERT INTO engagement_next_actions (workspace_id, engagement_id, action_text, due_date, owner_id, version) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (workspace_id, engagement_id) DO UPDATE SET action_text = excluded.action_text, due_date = excluded.due_date, owner_id = excluded.owner_id, version = excluded.version`), workspaceID, engagementID, action.Text, action.DueDate, action.OwnerID, version)
 	}
 	if err != nil {
 		return err
 	}
-	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement.next_action_updated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "engagement", TargetKey: int64(engagementID), Action: "engagement.next_action.update", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: time.Now().UTC()}); err != nil {
+	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement.next_action_updated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "engagement", TargetKey: int64(engagementID), Action: "engagement.next_action.update", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now}); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// ErrStaleNextAction indicates that the active action no longer matches the expected version.
+var ErrStaleNextAction = errors.New("next action is stale or absent")
+
+func (s *Service) CompleteNextAction(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, expectedVersion int64, audit identity.AuditContext) error {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesWrite); err != nil {
+		return identity.ErrForbidden
+	}
+	result, err := tx.ExecContext(ctx, database.Rebind(s.driver, `UPDATE engagements SET action_version = CASE WHEN action_version = 9223372036854775807 THEN NULL ELSE action_version + 1 END WHERE workspace_id = ? AND id = ? AND EXISTS (SELECT 1 FROM engagement_next_actions WHERE workspace_id = ? AND engagement_id = ? AND version = ?)`), workspaceID, engagementID, workspaceID, engagementID, expectedVersion)
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return ErrStaleNextAction
+	}
+	var text, dueDate string
+	var ownerID sql.NullInt64
+	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `DELETE FROM engagement_next_actions WHERE workspace_id = ? AND engagement_id = ? AND version = ? RETURNING action_text, due_date, owner_id`), workspaceID, engagementID, expectedVersion).Scan(&text, &dueDate, &ownerID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrStaleNextAction
+	}
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, `INSERT INTO engagement_action_history (workspace_id, engagement_id, action_text, due_date, owner_id, outcome, actor_user_id, created_at) VALUES (?, ?, ?, ?, ?, 'completed', ?, ?)`), workspaceID, engagementID, text, dueDate, ownerID, actor.UserID, now.Format(time.RFC3339Nano)); err != nil {
+		return err
+	}
+	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement.next_action_completed", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "engagement", TargetKey: int64(engagementID), Action: "engagement.next_action.complete", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now}); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// RescheduleNextAction changes only the due date of the observed active action.
+func (s *Service) RescheduleNextAction(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, expectedVersion int64, dueDate string, audit identity.AuditContext) error {
+	if dueDate != "" {
+		parsed, err := time.Parse("2006-01-02", dueDate)
+		if err != nil || parsed.Format("2006-01-02") != dueDate {
+			return ErrInvalidInput
+		}
+	}
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesWrite); err != nil {
+		return identity.ErrForbidden
+	}
+	var version int64
+	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `UPDATE engagements SET action_version = CASE WHEN action_version = 9223372036854775807 THEN NULL ELSE action_version + 1 END WHERE workspace_id = ? AND id = ? AND EXISTS (SELECT 1 FROM engagement_next_actions WHERE workspace_id = ? AND engagement_id = ? AND version = ?) RETURNING action_version`), workspaceID, engagementID, workspaceID, engagementID, expectedVersion).Scan(&version)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrStaleNextAction
+	}
+	if err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, database.Rebind(s.driver, `UPDATE engagement_next_actions SET due_date = ?, version = ? WHERE workspace_id = ? AND engagement_id = ? AND version = ?`), dueDate, version, workspaceID, engagementID, expectedVersion)
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement.next_action_rescheduled", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "engagement", TargetKey: int64(engagementID), Action: "engagement.next_action.reschedule", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now}); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// ReopenNextAction copies a completed history entry into an empty active slot.
+// expectedVersion is the engagement's action counter observed by the caller.
+func (s *Service) ReopenNextAction(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, historyID, expectedVersion int64, audit identity.AuditContext) error {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesWrite); err != nil {
+		return identity.ErrForbidden
+	}
+	var version int64
+	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `UPDATE engagements SET action_version = CASE WHEN action_version = 9223372036854775807 THEN NULL ELSE action_version + 1 END WHERE workspace_id = ? AND id = ? AND action_version = ? AND NOT EXISTS (SELECT 1 FROM engagement_next_actions WHERE workspace_id = ? AND engagement_id = ?) AND EXISTS (SELECT 1 FROM engagement_action_history WHERE workspace_id = ? AND engagement_id = ? AND id = ? AND outcome = 'completed') RETURNING action_version`), workspaceID, engagementID, expectedVersion, workspaceID, engagementID, workspaceID, engagementID, historyID).Scan(&version)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrStaleNextAction
+	}
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, `INSERT INTO engagement_next_actions (workspace_id, engagement_id, action_text, due_date, owner_id, version) SELECT workspace_id, engagement_id, action_text, due_date, owner_id, ? FROM engagement_action_history WHERE workspace_id = ? AND engagement_id = ? AND id = ? AND outcome = 'completed'`), version, workspaceID, engagementID, historyID); err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, `INSERT INTO engagement_action_history (workspace_id, engagement_id, action_text, due_date, owner_id, outcome, actor_user_id, created_at) SELECT workspace_id, engagement_id, action_text, due_date, owner_id, 'reopened', ?, ? FROM engagement_action_history WHERE workspace_id = ? AND engagement_id = ? AND id = ? AND outcome = 'completed'`), actor.UserID, now.Format(time.RFC3339Nano), workspaceID, engagementID, historyID); err != nil {
+		return err
+	}
+	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement.next_action_reopened", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "engagement", TargetKey: int64(engagementID), Action: "engagement.next_action.reopen", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now}); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -75,7 +197,7 @@ func (s *Service) ListDue(ctx context.Context, actor identity.Principal, workspa
 	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesRead); err != nil {
 		return nil, identity.ErrForbidden
 	}
-	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT e.id, e.client_id, e.stage_id, e.notes, e.name, a.action_text, a.due_date, COALESCE(a.owner_id, 0), e.quote_status, e.quote_amount, e.quote_date_sent, COALESCE(e.assignee_id, 0), e.agreement_recorded, COALESCE(e.agreement_file_id, 0) FROM engagements e JOIN engagement_stages s ON s.workspace_id = e.workspace_id AND s.id = e.stage_id JOIN engagement_next_actions a ON a.workspace_id = e.workspace_id AND a.engagement_id = e.id WHERE e.workspace_id = ? AND s.kind = 'open' AND a.due_date <> '' AND a.due_date <= ? ORDER BY a.due_date, e.id`), workspaceID, today)
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT e.id, e.client_id, e.stage_id, e.notes, e.name, a.action_text, a.due_date, COALESCE(a.owner_id, 0), a.version, e.quote_status, e.quote_amount, e.quote_date_sent, COALESCE(e.assignee_id, 0), e.agreement_recorded, COALESCE(e.agreement_file_id, 0) FROM engagements e JOIN engagement_stages s ON s.workspace_id = e.workspace_id AND s.id = e.stage_id JOIN engagement_next_actions a ON a.workspace_id = e.workspace_id AND a.engagement_id = e.id WHERE e.workspace_id = ? AND s.kind = 'open' AND a.due_date <> '' AND a.due_date <= ? ORDER BY a.due_date, e.id`), workspaceID, today)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +205,7 @@ func (s *Service) ListDue(ctx context.Context, actor identity.Principal, workspa
 	for rows.Next() {
 		var value Engagement
 		var fileID int64
-		if err := rows.Scan(&value.ID, &value.ClientID, &value.StageID, &value.Notes, &value.Name, &value.NextAction.Text, &value.NextAction.DueDate, &value.NextAction.OwnerID, &value.Quote.Status, &value.Quote.Amount, &value.Quote.DateSent, &value.AssigneeID, &value.Agreement.Recorded, &fileID); err != nil {
+		if err := rows.Scan(&value.ID, &value.ClientID, &value.StageID, &value.Notes, &value.Name, &value.NextAction.Text, &value.NextAction.DueDate, &value.NextAction.OwnerID, &value.NextAction.Version, &value.Quote.Status, &value.Quote.Amount, &value.Quote.DateSent, &value.AssigneeID, &value.Agreement.Recorded, &fileID); err != nil {
 			rows.Close()
 			return nil, err
 		}
