@@ -890,7 +890,7 @@
 			el.dataset.enhanced = "true";
 			const toggle = document.createElement("button");
 			toggle.type = "button";
-			toggle.className = "btn btn-ghost btn-xs reveal";
+			toggle.className = "btn btn-outline btn-xs reveal";
 			toggle.setAttribute("aria-controls", idFor(el, "password"));
 			toggle.setAttribute("aria-pressed", "false");
 			toggle.setAttribute("aria-label", msg("show-password"));
