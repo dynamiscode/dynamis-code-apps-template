@@ -263,6 +263,8 @@
   "engagement.save_assignee": "Guardar asignación",
   "engagement.save_action": "Guardar próxima acción",
   "engagement.clear_action": "Borrar próxima acción",
+  "engagement.list": "Gestiones",
+  "engagement.list_empty": "No hay gestiones que coincidan con estos filtros.",
   "engagement.due_list": "Acciones pendientes",
   "engagement.notes": "Otras personas y notas",
   "engagement.back_to_client": "Volver al cliente",

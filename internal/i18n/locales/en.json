@@ -263,6 +263,8 @@
   "engagement.save_assignee": "Save assignee",
   "engagement.save_action": "Save next action",
   "engagement.clear_action": "Clear next action",
+  "engagement.list": "Engagements",
+  "engagement.list_empty": "No engagements match these filters.",
   "engagement.due_list": "Actions due",
   "engagement.notes": "Other people and notes",
   "engagement.back_to_client": "Back to client",

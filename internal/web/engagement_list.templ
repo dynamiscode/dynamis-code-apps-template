@@ -1,0 +1,67 @@
+package web
+
+import "example.com/dynamis-code/apps-template/internal/engagement"
+import "example.com/dynamis-code/apps-template/internal/identity"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
+templ engagementListPage(data viewmodel.PageData, page engagement.Page, stages []engagement.Stage, members []identity.MemberSummary, search string, selectedStage string, selectedAssignee string, prev string, next string, clientsPath string) {
+ @templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+  @molecules.PageHeading(data.T("engagement.list"), data.T("clients.title"))
+  <form method="get" action={ templ.SafeURL(data.CurrentPath) } class="card my-4 p-6">
+   <label for="engagement-search">{ data.T("ui.search") } { data.T("ui.optional") }</label>
+   <input class="input input-bordered" id="engagement-search" name="q" type="search" value={ search } maxlength="200"/>
+   <label for="engagement-stage-filter">{ data.T("engagement.stage") }</label>
+   <select class="select select-bordered" id="engagement-stage-filter" name="stage">
+    <option value="">{ data.T("ui.all") }</option>
+    for _, stage := range stages {
+     <option value={ stage.ID.String() } selected?={ stage.ID.String() == selectedStage }>{ stage.Name }</option>
+    }
+   </select>
+   <label for="engagement-assignee-filter">{ data.T("engagement.assignee") }</label>
+   <select class="select select-bordered" id="engagement-assignee-filter" name="assignee">
+    <option value="">{ data.T("ui.all") }</option>
+    <option value="unassigned" selected?={ selectedAssignee == "unassigned" }>{ data.T("engagement.unassigned") }</option>
+    for _, member := range members {
+     <option value={ member.UserID.String() } selected?={ member.UserID.String() == selectedAssignee }>{ member.Email }</option>
+    }
+   </select>
+   <button class="btn btn-primary" type="submit">{ data.T("ui.search") }</button>
+  </form>
+  <section class="card my-4 p-6">
+   if len(page.Engagements) == 0 {
+    <p>{ data.T("engagement.list_empty") }</p>
+   }
+   <ul>
+    for _, item := range page.Engagements {
+     <li><a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String()) }>{ item.Name }</a> — <a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String()) }>{ item.ClientName }</a>
+      for _, stage := range stages {
+       if stage.ID == item.StageID {
+        <span> — { stage.Name }</span>
+       }
+      }
+      if item.AssigneeID == 0 {
+       <span> — { data.T("engagement.unassigned") }</span>
+      } else {
+       for _, member := range members {
+        if member.UserID == item.AssigneeID {
+         <span> — { member.Email }</span>
+        }
+       }
+      }
+     </li>
+    }
+   </ul>
+   <nav aria-label={ data.T("ui.pages") }>
+    if prev != "" {
+     <a class="link" rel="prev" href={ templ.SafeURL(prev) }>{ data.T("ui.previous_page") }</a>
+    }
+    if next != "" {
+     <a class="link" rel="next" href={ templ.SafeURL(next) }>{ data.T("items.next_page") }</a>
+    }
+   </nav>
+  </section>
+ }
+}
