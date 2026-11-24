@@ -32,7 +32,10 @@ engagements and their history are permanently deleted too.
 Owners and admins can set or reset the workspace work item label on the stages
 page. Client pages use that label; the default is engagement.
 Readers see next actions on client details; writers can set, change, or clear
-them. The Clients list links to actions due today or earlier (UTC) in open stages.
+them. The Clients list links to the shared action queue. Its default view shows
+open-stage actions due today or earlier (UTC); readers can filter by overdue,
+today, upcoming, undated, completed, and owner, and navigate pages without
+JavaScript. Upcoming, undated, and completed views include closed stages.
 Readers see quote status, amount, and sent date on client details; writers can
 update them. The status persists across stage changes.
 Readers see the assignee on client details; writers can assign, change, or clear

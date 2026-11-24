@@ -3,7 +3,8 @@ package web
 import (
 	"errors"
 	"net/http"
-	"time"
+	"net/url"
+	"strconv"
 
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/engagement"
@@ -277,7 +278,54 @@ func (h *Handler) dueEngagements(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	items, err := h.engagement.ListDue(r.Context(), actor, workspace, time.Now().UTC().Format("2006-01-02"))
+	query := r.URL.Query()
+	page := 1
+	if query.Get("page") != "" {
+		var err error
+		page, err = strconv.Atoi(query.Get("page"))
+		if err != nil || page < 1 || page > 1000000 {
+			h.renderError(w, http.StatusBadRequest)
+			return
+		}
+	}
+	options := engagement.ActionQueueOptions{Filter: engagement.ActionQueueFilter(query.Get("filter")), Page: page, Limit: 20}
+	owner := query.Get("owner")
+	if owner != "" {
+		var id identity.UserID
+		var err error
+		if owner != "unassigned" {
+			id, err = identity.ParseUserID(owner)
+			if err != nil || id == 0 {
+				h.renderError(w, http.StatusBadRequest)
+				return
+			}
+		}
+		options.OwnerID = &id
+	}
+	items, err := h.engagement.ListActionQueue(r.Context(), actor, workspace, options)
+	if errors.Is(err, engagement.ErrInvalidInput) {
+		h.renderError(w, http.StatusBadRequest)
+		return
+	}
+	if errors.Is(err, identity.ErrForbidden) {
+		h.renderError(w, http.StatusForbidden)
+		return
+	}
+	if err != nil {
+		h.renderError(w, http.StatusInternalServerError)
+		return
+	}
+	members, err := h.identity.ListMembers(r.Context(), actor)
+	if err != nil {
+		h.renderError(w, http.StatusInternalServerError)
+		return
+	}
+	stages, err := h.engagement.ListStages(r.Context(), actor, workspace)
+	if err != nil {
+		h.renderError(w, http.StatusInternalServerError)
+		return
+	}
+	label, err := h.engagement.Label(r.Context(), actor, workspace)
 	if err != nil {
 		h.renderError(w, http.StatusInternalServerError)
 		return
@@ -287,12 +335,30 @@ func (h *Handler) dueEngagements(w http.ResponseWriter, r *http.Request) {
 		h.renderError(w, http.StatusInternalServerError)
 		return
 	}
-	data := viewmodel.PageData{CSRF: csrf, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, NavPage: "clients", NavSection: "clients", CurrentPath: "/workspaces/" + workspace.String() + "/engagements/due", ClientsEnabled: h.clients != nil, FilesEnabled: h.filesEnabled, SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle}
+	data := viewmodel.PageData{CSRF: csrf, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, NavPage: "clients", NavSection: "clients", CurrentPath: "/workspaces/" + workspace.String() + "/engagements/due", ClientsEnabled: h.clients != nil, FilesEnabled: h.filesEnabled, SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle, EngagementLabel: label}
 	h.localizePage(w, &data)
 	data.Title = data.T("engagement.due_list")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	_ = dueEngagementsPage(data, items, h.clientsPath(workspace)).Render(r.Context(), w)
+	previous, next := "", ""
+	pageURL := func(n int) string {
+		values := url.Values{}
+		if options.Filter != "" {
+			values.Set("filter", string(options.Filter))
+		}
+		if owner != "" {
+			values.Set("owner", owner)
+		}
+		values.Set("page", strconv.Itoa(n))
+		return data.CurrentPath + "?" + values.Encode()
+	}
+	if page > 1 {
+		previous = pageURL(page - 1)
+	}
+	if items.HasMore && page < 1000000 {
+		next = pageURL(page + 1)
+	}
+	_ = dueEngagementsPage(data, items, stages, members, string(options.Filter), owner, previous, next, h.clientsPath(workspace)).Render(r.Context(), w)
 }
 
 func (h *Handler) EnableEngagement(service *engagement.Service) { h.engagement = service }

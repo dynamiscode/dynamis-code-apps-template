@@ -1,6 +1,7 @@
 package web
 
 import "example.com/dynamis-code/apps-template/internal/engagement"
+import "example.com/dynamis-code/apps-template/internal/identity"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
@@ -249,16 +250,72 @@ templ engagementDetailPage(data viewmodel.PageData) {
 	}
 }
 
-templ dueEngagementsPage(data viewmodel.PageData, items []engagement.Engagement, clientsPath string) {
+templ dueEngagementsPage(data viewmodel.PageData, page engagement.ActionQueuePage, stages []engagement.Stage, members []identity.MemberSummary, filter string, owner string, previous string, next string, clientsPath string) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
 		@molecules.PageHeading(data.T("engagement.due_list"), data.T("clients.title"))
-		<section class="card my-4 p-6">
-			<ul>
-				for _, item := range items {
-					<li><a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String()) }>{ item.NextAction.Text }</a> — { item.NextAction.DueDate }</li>
+		<form action={ templ.SafeURL(data.CurrentPath) } method="get" class="flex flex-wrap gap-4 my-4">
+			<label for="queue-filter">{ data.T("queue.filter") }</label>
+			<select id="queue-filter" name="filter" class="select select-bordered">
+				for _, option := range []string{"", "overdue", "today", "upcoming", "undated", "completed"} {
+					<option value={ option } selected?={ filter == option }>{ data.T("queue.filter_" + option) }</option>
 				}
-			</ul>
+			</select>
+			<label for="queue-owner">{ data.T("engagement.owner") }</label>
+			<select id="queue-owner" name="owner" class="select select-bordered">
+				<option value="" selected?={ owner == "" }>{ data.T("ui.all") }</option>
+				<option value="unassigned" selected?={ owner == "unassigned" }>{ data.T("engagement.unassigned") }</option>
+				for _, member := range members {
+					<option value={ member.UserID.String() } selected?={ owner == member.UserID.String() }>{ member.Email }</option>
+				}
+			</select>
+			<button type="submit" class="btn btn-primary">{ data.T("queue.apply") }</button>
+		</form>
+		<section class="card my-4 p-6">
+			if len(page.Entries) == 0 {
+				<p>{ data.T("queue.empty") }</p>
+			} else {
+				<ul>
+					for _, item := range page.Entries {
+						<li class="border-b border-base-300 py-4">
+							<a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.EngagementID.String()) }>{ item.Action.Text }</a>
+							<p>{ data.T("clients.title") }: { item.ClientName } · { data.T("engagement.title") }: { item.EngagementName }</p>
+							<p>{ data.T("engagement.stage") }:
+								for _, stage := range stages {
+									if stage.ID == item.StageID {
+										{ stage.Name }
+									}
+								}
+							</p>
+							<p>{ data.T("engagement.owner") }:
+								if item.OwnerEmail == "" {
+									{ data.T("engagement.unassigned") }
+								} else {
+									{ item.OwnerEmail }
+								}
+							</p>
+							<p>{ data.T("queue.due") }:
+								if item.Action.DueDate == "" {
+									{ data.T("queue.filter_undated") }
+								} else {
+									{ item.Action.DueDate }
+								}
+							</p>
+							if item.CompletedAt != "" {
+								<p>{ data.T("queue.completed_at") }: { item.CompletedAt }</p>
+							}
+						</li>
+					}
+				</ul>
+			}
 		</section>
+		<nav aria-label={ data.T("queue.pagination") } class="flex gap-4">
+			if previous != "" {
+				<a class="btn btn-ghost" href={ templ.SafeURL(previous) }>{ data.T("queue.previous") }</a>
+			}
+			if next != "" {
+				<a class="btn btn-ghost" href={ templ.SafeURL(next) }>{ data.T("ui.next") }</a>
+			}
+		</nav>
 	}
 }
 
