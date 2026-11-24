@@ -266,6 +266,21 @@ Local screenshots:
 - `.playwright-mcp/baseline-621-long-20261124.png`
 - `.playwright-mcp/baseline-621-mobile-20261124.png`
 
+Further historical samples used two similarly named clients. Queue links reached
+the intended client on desktop and mobile, but the queue omitted client names;
+two simultaneously active actions were not compared. The owner assigned and
+cleared an assignee, updated a quote, changed and cleared an action, and moved an
+engagement out of an archived occupied stage. Invalid quote and unassigned
+action submissions showed a generic error and discarded drafts. Keyboard Tab
+and Enter activated a move when only one active target existed; selection among
+multiple targets was not established. The reviewer recorded orientation, error
+recovery, and accessibility/resilience observations as three lenses, not three
+independent reviews. Two more local screenshots were captured but not visually
+inspected:
+
+- `.playwright-mcp/baseline-second-client-desktop-20261124.png`
+- `.playwright-mcp/baseline-second-client-mobile-20261124.png`
+
 ### Redesigned samples: `a170ed4`
 
 An owner created a named engagement, scheduled an unassigned overdue action,
@@ -304,11 +319,27 @@ Local screenshots were captured but not independently visually reviewed:
 - `.playwright-mcp/queue-invalid-5b20bf3.png`
 - `.playwright-mcp/agreement-invalid-5b20bf3.png`
 
-The subsequent invalid-date plus replaced-action correction at `bc9e7ff` has
-not been covered by these rendered samples. None of these reports establishes
-full keyboard traversal, screen-reader behavior, comprehensive role and
-lifecycle coverage, picker pagination, independent review, or WCAG compliance.
-Historical baseline and redesigned journey gates remain incomplete.
+### Invalid stale replacement: exact commit `bc9e7ff`
+
+One reviewer tested `bc9e7ffaf294c60f6483946580d90d099841060f`, exported with
+`git archive` and run on a separate disposable server. A queue tab loaded the
+original action at version 1; another tab replaced it. The reviewer changed the
+native date input to text to submit an invalid date. HTTP 422 showed both the
+invalid-date error and conflict warning, the replacement action and current
+date, the invalid draft, and version 1. Correcting the draft and submitting
+returned 409 with version 2; an independent detail reload confirmed the
+replacement date had not changed. Explicit retry succeeded, and another detail
+reload showed the corrected date.
+
+Local screenshots were captured but not independently visually reviewed:
+
+- `.playwright-mcp/bc9-invalid-stale.png`
+- `.playwright-mcp/bc9-corrected-conflict.png`
+
+None of these reports establishes full keyboard traversal, screen-reader
+behavior, comprehensive role and lifecycle coverage, picker pagination,
+independent review, or WCAG compliance. Historical baseline and redesigned
+journey gates remain incomplete.
 
 ## Remaining current-journey audit
 
