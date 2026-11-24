@@ -5,6 +5,7 @@ import (
 	"errors"
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/engagement"
+	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/listviews"
@@ -503,6 +504,8 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	}
 	component := clientDetailPage
 	title := client.DisplayName
+	var agreementFiles appfiles.Page
+	var agreementFilesAvailable bool
 	if request.PathValue("engagementId") != "" && (request.Method == http.MethodGet || errorKey == "engagement.invalid_name" || errorKey == "engagement.invalid_assignee" || errorKey == "engagement.invalid_quote" || errorKey == "engagement.invalid_agreement_file" || errorKey == "engagement.invalid_next_action" || (errorKey == "engagement.invalid_move" && request.FormValue("return_to") == "detail")) {
 		component = engagementDetailPage
 		id := engagement.ParseID(request.PathValue("engagementId"))
@@ -519,6 +522,13 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		}
 		engagements = selected
 		title = selected[0].Name
+		if principal.Permissions[identity.ResourcesWrite] {
+			agreementFiles, agreementFilesAvailable, err = h.agreementFileChoices(request.Context(), principal, workspaceID)
+			if err != nil {
+				h.renderError(writer, http.StatusInternalServerError)
+				return
+			}
+		}
 		if errorKey == "engagement.invalid_name" {
 			engagements[0].Name = request.FormValue("name")
 		}
@@ -544,12 +554,24 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		Client:          client, ClientValues: rows, ClientTimeline: entries, TimelinePage: page, TimelineDraft: timelineDraft, CanEditClients: principal.Permissions[identity.ResourcesWrite],
 		CanDeleteClients: principal.Permissions[identity.WorkspaceUpdate],
 		Engagements:      engagements, EngagementStages: stages, EngagementMembers: members, EngagementEnabled: h.engagement != nil,
+		AgreementFiles: agreementFiles.Files, AgreementFilesTotal: agreementFiles.Total, AgreementFilesAvailable: agreementFilesAvailable,
 		EngagementNotes: engagementNotes, OpenEngagementStages: openStages,
 		EngagementName: request.FormValue("name"), EngagementStage: request.FormValue("stage"),
 		EngagementAssignee: request.FormValue("assignee_id"), EngagementOwner: request.FormValue("owner_id"), EngagementOwnerError: ownerError, EngagementOwnerUnavailable: ownerUnavailable,
 		EngagementQuoteStatusError: quoteStatusError, EngagementQuoteAmountError: quoteAmountError, EngagementQuoteDateError: quoteDateError,
 		EngagementActionTextError: actionTextError, EngagementActionDateError: actionDateError,
 	})
+}
+
+func (h *Handler) agreementFileChoices(ctx context.Context, principal identity.Principal, workspaceID identity.WorkspaceID) (appfiles.Page, bool, error) {
+	if !h.filesEnabled || h.files == nil {
+		return appfiles.Page{}, false, nil
+	}
+	page, err := h.files.ListPage(ctx, principal, workspaceID, appfiles.ListInput{Limit: 100, Sort: "original_name"})
+	if errors.Is(err, identity.ErrForbidden) {
+		return appfiles.Page{}, false, nil
+	}
+	return page, err == nil, err
 }
 
 func (h *Handler) setClientValue(writer http.ResponseWriter, request *http.Request) {
