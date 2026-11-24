@@ -17,6 +17,19 @@ func render(t *testing.T, c templ.Component) string {
 	return b.String()
 }
 
+func TestCatalogNavigationHasVisibleBoundaries(t *testing.T) {
+	feature := render(t, Feature(FeatureProps{Icon: PlainText("icon"), URL: "/feature"}))
+	footer := render(t, FooterNav("Explore", []AnchorProps{{Label: "Documentation", Attrs: templ.Attributes{"href": "/docs"}}}))
+	for _, tc := range []struct{ name, html, href string }{
+		{"feature", feature, "/feature"},
+		{"footer", footer, "/docs"},
+	} {
+		if !strings.Contains(tc.html, `href="`+tc.href+`"`) || !strings.Contains(tc.html, `class="btn btn-sm`) {
+			t.Errorf("%s navigation needs a bounded link: %s", tc.name, tc.html)
+		}
+	}
+}
+
 func TestLoadingVariantDefault(t *testing.T) {
 	got := render(t, Loading(LoadingProps{}))
 	if !strings.Contains(got, "loading-spinner") {

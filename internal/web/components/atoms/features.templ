@@ -41,7 +41,7 @@ templ Feature(feature FeatureProps) {
 		}
 		<p class="text-base-content/70 group-hover:text-base-content text-sm">{ feature.Description }</p>
 		if feature.URL != "" {
-			<a href={ templ.SafeURL(feature.URL) } class="mt-2 link link-primary">Learn more</a>
+			<a href={ templ.SafeURL(feature.URL) } class="btn btn-sm mt-2">Learn more</a>
 		}
 	</div>
 }
