@@ -486,7 +486,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	if errorKey == "engagement.invalid_quote" {
 		quoteStatusError, quoteAmountError, quoteDateError = engagement.InvalidQuoteFields(engagement.Quote{Status: request.FormValue("status"), Amount: request.FormValue("amount"), DateSent: request.FormValue("date_sent")})
 	}
-	if errorKey == "engagement.invalid_next_action" {
+	if errorKey == "engagement.invalid_next_action" || errorKey == "engagement.action_conflict" {
 		owner := request.FormValue("owner_id")
 		ownerFound := false
 		for _, member := range members {
@@ -500,7 +500,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		ownerID, _ := identity.ParseUserID(owner)
 		var missingOwner bool
 		actionTextError, actionDateError, missingOwner = engagement.InvalidNextActionFields(engagement.NextAction{Text: request.FormValue("text"), DueDate: request.FormValue("due_date"), OwnerID: ownerID})
-		ownerError = !ownerPresent || ownerUnavailable || missingOwner
+		ownerError = errorKey == "engagement.invalid_next_action" && (!ownerPresent || ownerUnavailable || missingOwner)
 	}
 	component := clientDetailPage
 	title := client.DisplayName
@@ -508,7 +508,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	var agreementFilesAvailable bool
 	var actionHistory []engagement.ActionHistoryEntry
 	var historyPrevious, historyNext string
-	if request.PathValue("engagementId") != "" && (request.Method == http.MethodGet || errorKey == "engagement.invalid_name" || errorKey == "engagement.invalid_assignee" || errorKey == "engagement.invalid_quote" || errorKey == "engagement.invalid_agreement_file" || errorKey == "engagement.invalid_next_action" || (errorKey == "engagement.action_conflict" && request.FormValue("return_to") == "detail") || (errorKey == "engagement.invalid_move" && request.FormValue("return_to") == "detail")) {
+	if request.PathValue("engagementId") != "" && (request.Method == http.MethodGet || errorKey == "engagement.invalid_name" || errorKey == "engagement.invalid_assignee" || errorKey == "engagement.invalid_quote" || errorKey == "engagement.invalid_agreement_file" || errorKey == "engagement.invalid_next_action" || errorKey == "engagement.action_conflict" || (errorKey == "engagement.invalid_move" && request.FormValue("return_to") == "detail")) {
 		component = engagementDetailPage
 		id := engagement.ParseID(request.PathValue("engagementId"))
 		var selected []engagement.Engagement
@@ -588,6 +588,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		EngagementNotes:     engagementNotes, OpenEngagementStages: openStages,
 		EngagementName: request.FormValue("name"), EngagementStage: request.FormValue("stage"),
 		EngagementAssignee: request.FormValue("assignee_id"), EngagementOwner: request.FormValue("owner_id"), EngagementOwnerError: ownerError, EngagementOwnerUnavailable: ownerUnavailable,
+		ActionConflictText: request.FormValue("text"), ActionConflictDueDate: request.FormValue("due_date"), ActionConflictClear: errorKey == "engagement.action_conflict" && request.FormValue("clear") == "1",
 		EngagementQuoteStatusError: quoteStatusError, EngagementQuoteAmountError: quoteAmountError, EngagementQuoteDateError: quoteDateError,
 		EngagementActionTextError: actionTextError, EngagementActionDateError: actionDateError,
 	})

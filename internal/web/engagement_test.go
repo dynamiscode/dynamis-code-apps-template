@@ -502,18 +502,34 @@ func TestEngagementThroughWeb(t *testing.T) {
 		{"version": {"0"}, "csrf": {env.csrf}, "clear": {"1"}, "return_to": {"detail"}},
 	} {
 		stale := request(env.routes, http.MethodPost, actionPath, fields, env.cookies, nil)
-		if stale.Code != http.StatusConflict || !strings.Contains(stale.Body.String(), "This action changed.") {
+		if stale.Code != http.StatusConflict || !strings.Contains(stale.Body.String(), "This action changed.") || !strings.Contains(stale.Body.String(), `name="version" value="1"`) {
 			t.Fatalf("stale action: %d %s", stale.Code, stale.Body.String())
+		}
+		if fields.Get("clear") == "1" && !strings.Contains(stale.Body.String(), "Retry clear") {
+			t.Fatal("stale clear missing explicit retry")
 		}
 		if got, err := svc.Get(ctx, owner, env.workspaceID, items[0].ID); err != nil || got.NextAction.Text != "Call client" {
 			t.Fatalf("stale action mutated engagement: %+v %v", got, err)
 		}
 	}
-	cleared := request(env.routes, http.MethodPost, actionPath, url.Values{"version": {"1"}, "csrf": {env.csrf}, "clear": {"1"}, "return_to": {"detail"}}, env.cookies, nil)
+	conflict := request(env.routes, http.MethodPost, actionPath, url.Values{"version": {"0"}, "csrf": {env.csrf}, "text": {"Draft call"}, "due_date": {"2026-11-24"}, "owner_id": {env.ownerID.String()}}, env.cookies, nil)
+	for _, want := range []string{"Call client", `value="Draft call"`, `value="2026-11-24"`, `name="version" value="1"`, "Retry save"} {
+		if conflict.Code != http.StatusConflict || !strings.Contains(conflict.Body.String(), want) {
+			t.Fatalf("conflict missing %q: %d", want, conflict.Code)
+		}
+	}
+	retried := request(env.routes, http.MethodPost, actionPath, url.Values{"version": {"1"}, "csrf": {env.csrf}, "text": {"Draft call"}, "due_date": {"2026-11-24"}, "owner_id": {env.ownerID.String()}, "return_to": {"detail"}}, env.cookies, nil)
+	if retried.Code != http.StatusSeeOther {
+		t.Fatalf("retry save: %d", retried.Code)
+	}
+	if got, err := svc.Get(ctx, owner, env.workspaceID, items[0].ID); err != nil || got.NextAction.Text != "Draft call" {
+		t.Fatalf("retry action: %+v %v", got, err)
+	}
+	cleared := request(env.routes, http.MethodPost, actionPath, url.Values{"version": {"2"}, "csrf": {env.csrf}, "clear": {"1"}, "return_to": {"detail"}}, env.cookies, nil)
 	if cleared.Code != http.StatusSeeOther || cleared.Header().Get("Location") != detailPath+"?saved=1" {
 		t.Fatalf("clear action: %d %s", cleared.Code, cleared.Header().Get("Location"))
 	}
-	updated = request(env.routes, http.MethodPost, actionPath, url.Values{"version": {"2"}, "csrf": {env.csrf}, "text": {"Call client"}, "due_date": {"2020-01-01"}, "owner_id": {env.ownerID.String()}}, env.cookies, nil)
+	updated = request(env.routes, http.MethodPost, actionPath, url.Values{"version": {"3"}, "csrf": {env.csrf}, "text": {"Call client"}, "due_date": {"2020-01-01"}, "owner_id": {env.ownerID.String()}}, env.cookies, nil)
 	if updated.Code != http.StatusSeeOther || updated.Header().Get("Location") != path {
 		t.Fatalf("client action redirect: %d %s", updated.Code, updated.Header().Get("Location"))
 	}

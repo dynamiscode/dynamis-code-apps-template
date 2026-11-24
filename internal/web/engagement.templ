@@ -216,40 +216,47 @@ templ engagementDetailPage(data viewmodel.PageData) {
 					}
 				}
 				if data.CanEditClients {
-					<details open?={ data.ErrorKey == "engagement.invalid_next_action" }>
+					<details open?={ data.ErrorKey == "engagement.invalid_next_action" || data.ErrorKey == "engagement.action_conflict" }>
 						<summary class="btn btn-outline">{ data.T("ui.edit") } { data.T("engagement.next_action") }</summary>
 						if data.ErrorKey == "engagement.invalid_next_action" {
 							@molecules.ErrorAlert(data.T(data.ErrorKey))
 						}
+						{{ actionText := item.NextAction.Text; actionDue := item.NextAction.DueDate; if data.ErrorKey == "engagement.action_conflict" { actionText = data.ActionConflictText; actionDue = data.ActionConflictDueDate } }}
 						<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/next-action") } method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="return_to" value="detail"/>
 							<input type="hidden" name="version" value={ strconv.FormatInt(item.ActionVersion, 10) }/>
-							@molecules.TextField("engagement-next-action", data.T("engagement.next_action")+" "+data.T("ui.optional"), templ.Attributes{"name": "text", "maxlength": "5000", "value": item.NextAction.Text, "aria-invalid": templ.KV("true", data.EngagementActionTextError), "aria-describedby": templ.KV("engagement-next-action-error", data.EngagementActionTextError)})
+							@molecules.TextField("engagement-next-action", data.T("engagement.next_action")+" "+data.T("ui.optional"), templ.Attributes{"name": "text", "maxlength": "5000", "value": actionText, "aria-invalid": templ.KV("true", data.EngagementActionTextError), "aria-describedby": templ.KV("engagement-next-action-error", data.EngagementActionTextError)})
 							if data.EngagementActionTextError {
 								<p id="engagement-next-action-error" class="error text-error font-bold">{ data.T("engagement.invalid_action_text") }</p>
 							}
 							{{ actionDateType := "date"; if data.EngagementActionDateError { actionDateType = "text" } }}
-							@molecules.TextField("engagement-next-action-due", data.T("engagement.due_date"), templ.Attributes{"name": "due_date", "type": actionDateType, "value": item.NextAction.DueDate, "aria-invalid": templ.KV("true", data.EngagementActionDateError), "aria-describedby": templ.KV("engagement-next-action-due-error", data.EngagementActionDateError)})
+							@molecules.TextField("engagement-next-action-due", data.T("engagement.due_date"), templ.Attributes{"name": "due_date", "type": actionDateType, "value": actionDue, "aria-invalid": templ.KV("true", data.EngagementActionDateError), "aria-describedby": templ.KV("engagement-next-action-due-error", data.EngagementActionDateError)})
 							if data.EngagementActionDateError {
 								<p id="engagement-next-action-due-error" class="error text-error font-bold">{ data.T("engagement.invalid_action_date") }</p>
 							}
 							<label for="engagement-next-action-owner">{ data.T("engagement.owner") }</label>
 							<select class="select select-bordered" id="engagement-next-action-owner" name="owner_id" { templ.Attributes{"aria-invalid": templ.KV("true", data.EngagementOwnerError), "aria-describedby": templ.KV("engagement-next-action-owner-error", data.EngagementOwnerError)}... }>
-								<option value="" selected?={ data.ErrorKey == "engagement.invalid_next_action" && data.EngagementOwner == "" }>{ data.T("engagement.unassigned") }</option>
+								<option value="" selected?={ (data.ErrorKey == "engagement.invalid_next_action" || data.ErrorKey == "engagement.action_conflict") && data.EngagementOwner == "" }>{ data.T("engagement.unassigned") }</option>
 								if data.EngagementOwnerUnavailable {
 									<option value={ data.EngagementOwner } selected disabled>{ data.EngagementOwner } — { data.T("engagement.unavailable") }</option>
 								}
 								for _, member := range data.EngagementMembers {
-									<option value={ member.UserID.String() } selected?={ (data.ErrorKey == "engagement.invalid_next_action" && member.UserID.String() == data.EngagementOwner) || (data.ErrorKey != "engagement.invalid_next_action" && member.UserID == item.NextAction.OwnerID) }>{ member.Email }</option>
+									<option value={ member.UserID.String() } selected?={ ((data.ErrorKey == "engagement.invalid_next_action" || data.ErrorKey == "engagement.action_conflict") && member.UserID.String() == data.EngagementOwner) || (data.ErrorKey != "engagement.invalid_next_action" && data.ErrorKey != "engagement.action_conflict" && member.UserID == item.NextAction.OwnerID) }>{ member.Email }</option>
 								}
 							</select>
 							if data.EngagementOwnerError {
 								<p id="engagement-next-action-owner-error" role="alert" tabindex="-1">{ data.T("engagement.invalid_action_owner") }</p>
 							}
-							@molecules.SubmitButton(data.T("engagement.save_action"), nil)
+							if data.ErrorKey == "engagement.action_conflict" && data.ActionConflictClear {
+								<button class="btn btn-primary" type="submit" name="clear" value="1">{ data.T("engagement.retry_clear") }</button>
+							} else if data.ErrorKey == "engagement.action_conflict" {
+								@molecules.SubmitButton(data.T("engagement.retry_save"), nil)
+							} else {
+								@molecules.SubmitButton(data.T("engagement.save_action"), nil)
+							}
 							<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
-							if item.NextAction.Text != "" {
+							if item.NextAction.Text != "" && data.ErrorKey != "engagement.action_conflict" {
 								<button class="btn btn-ghost" type="submit" name="clear" value="1">{ data.T("engagement.clear_action") }</button>
 							}
 						</form>

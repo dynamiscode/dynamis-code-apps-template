@@ -513,6 +513,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 			value = value[:i] + "\n"
 		}
 	case "internal/engagement/service_test.go":
+		value = removeLinesContaining(value, `"encoding/json"`)
 		value = removeLinesContaining(value, `"strings"`)
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `/internal/platform/maintenance"`)
@@ -541,6 +542,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `/internal/engagement"`)
 		value = removeLinesContaining(value, "engagement.Engagement")
 		value = removeLinesContaining(value, "engagement.DashboardPage")
+		value = removeLinesContaining(value, "engagement.ActionHistoryEntry")
 		value = removeLinesContaining(value, "DashboardPrevious ")
 		value = removeLinesContaining(value, "DashboardNext ")
 		value = removeLinesContaining(value, "engagement.Stage")
@@ -585,10 +587,14 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "h.changeQueuedAction")
 	case "internal/web/workspace.templ":
 		value = removeLinesContaining(value, `import "strconv"`)
+		value = removeLinesContaining(value, `/internal/engagement"`)
+		value = removeText(value, "templ dashboardActionPreview(", "templ workspaceHome(")
 		value = removeText(value, "\t\tif data.EngagementDashboard != nil {", "\t\t// The home reflects")
 	case "internal/web/workspace_templ.go":
 		value = removeLinesContaining(value, `import "strconv"`)
-		value = removeText(value, "\t\t\tif data.EngagementDashboard != nil {", "\t\t\ttempl_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36,")
+		value = removeLinesContaining(value, `/internal/engagement"`)
+		value = removeText(value, "func dashboardActionPreview(", "func workspaceHome(")
+		value = removeText(value, "\t\t\tif data.EngagementDashboard != nil {", "\t\t\ttempl_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54,")
 	case "internal/web/engagement.go":
 		value = strings.ReplaceAll(value, "ClientsEnabled: h.clients != nil, ", "")
 		value = removeLinesContaining(value, `/internal/clients"`)

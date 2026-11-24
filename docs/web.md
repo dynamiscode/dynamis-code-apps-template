@@ -47,8 +47,9 @@ engagements and their history are permanently deleted too.
 Owners and admins can set or reset the workspace work item label on the stages
 page. Client pages use that label; the default is engagement.
 Readers see next actions on client details; writers can set, change, or clear
-them. Stale edit or clear submissions are rejected with conflict feedback and the
-current action; writers can review it before trying again. The Clients list links to the shared action queue. Its default view shows
+them. Stale edit or clear submissions are rejected with conflict feedback, the
+current action, and the submitted draft. Writers can review both and explicitly
+retry against the observed current version. The Clients list links to the shared action queue. Its default view shows
 open-stage actions due today or earlier (UTC); readers can filter by overdue,
 today, upcoming, undated, completed, and owner, and navigate pages without
 JavaScript. Upcoming, undated, and completed views include closed stages.

@@ -47,6 +47,9 @@ type PageData struct {
 	EngagementStage            string
 	EngagementAssignee         string
 	EngagementOwner            string
+	ActionConflictText         string
+	ActionConflictDueDate      string
+	ActionConflictClear        bool
 	EngagementOwnerError       bool
 	EngagementQuoteStatusError bool
 	EngagementQuoteAmountError bool
