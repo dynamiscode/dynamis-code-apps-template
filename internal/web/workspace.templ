@@ -53,13 +53,13 @@ templ dashboardActionPreview(data viewmodel.PageData, title, filter string, acti
 			<ul>
 				for _, action := range actions {
 					<li>
-						<a class="link" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/clients/" + action.ClientID.String() + "/engagements/" + action.EngagementID.String()) }>{ action.Action.Text }</a>
+						<a class="btn btn-outline btn-sm h-auto min-h-8 max-w-full whitespace-normal break-words" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/clients/" + action.ClientID.String() + "/engagements/" + action.EngagementID.String()) }>{ action.Action.Text }</a>
 						<span> — { action.EngagementName } — { action.ClientName } — { action.Action.DueDate }</span>
 					</li>
 				}
 			</ul>
 		}
-		<a class="link" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/engagements/due?filter=" + filter) }>{ data.T("dashboard.view_all") } — { title }</a>
+		<a class="btn btn-outline btn-sm h-auto min-h-8 max-w-full whitespace-normal break-words" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/engagements/due?filter=" + filter) }>{ data.T("dashboard.view_all") } — { title }</a>
 	</section>
 }
 
@@ -82,7 +82,7 @@ templ workspaceHome(data viewmodel.PageData) {
 				<ul class="grid list-none gap-4 p-0 grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
 					for _, stage := range data.EngagementDashboard.Stages {
 						<li class="card bg-base-100 p-4">
-							<a class="link" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/engagements?stage=" + stage.Stage.ID.String()) }>{ stage.Stage.Name }
+							<a class="btn btn-outline btn-sm h-auto min-h-8 max-w-full whitespace-normal break-words" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/engagements?stage=" + stage.Stage.ID.String()) }>{ stage.Stage.Name }
 								if stage.Stage.Archived {
 									<span> ({ data.T("engagement.archived") })</span>
 								}
@@ -93,10 +93,10 @@ templ workspaceHome(data viewmodel.PageData) {
 				</ul>
 				<nav aria-label={ data.T("ui.pages") }>
 					if data.DashboardPrevious != "" {
-						<a class="link" rel="prev" href={ templ.SafeURL(data.DashboardPrevious) }>{ data.T("ui.previous_page") }</a>
+						<a class="btn btn-outline btn-sm" rel="prev" href={ templ.SafeURL(data.DashboardPrevious) }>{ data.T("ui.previous_page") }</a>
 					}
 					if data.DashboardNext != "" {
-						<a class="link" rel="next" href={ templ.SafeURL(data.DashboardNext) }>{ data.T("items.next_page") }</a>
+						<a class="btn btn-outline btn-sm" rel="next" href={ templ.SafeURL(data.DashboardNext) }>{ data.T("items.next_page") }</a>
 					}
 				</nav>
 			</section>
