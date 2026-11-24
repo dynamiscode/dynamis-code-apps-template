@@ -358,7 +358,7 @@ func TestGenerateWithClientsProfileRecordsLockAndBuilds(t *testing.T) {
 	}
 	for _, path := range []string{
 		"internal/files", "internal/web/files.go", "internal/web/files.templ", "internal/web/files_templ.go",
-		"internal/web/templates/files.html", "internal/platform/database/migrations/000014_files.sql",
+		"internal/web/templates/files.html", "internal/platform/database/migrations/000014_files.sql", "internal/web/agreement_files_test.go",
 	} {
 		if _, err := os.Stat(filepath.Join(output, path)); !os.IsNotExist(err) {
 			t.Errorf("generated Clients-only application still has Files path %s: %v", path, err)
@@ -388,6 +388,9 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 	for _, path := range []string{
 		"internal/clients", "internal/httpapi/clients.go", "internal/httpapi/client_timeline.go", "internal/httpapi/client_timeline_test.go", "internal/web/clients.go",
 		"internal/engagement/engagement.go", "internal/engagement/assignee.go", "internal/engagement/next_action.go", "internal/engagement/quote.go",
+		"internal/engagement/list.go", "internal/engagement/list_test.go",
+		"internal/web/engagement_list.go", "internal/web/engagement_list.templ", "internal/web/engagement_list_templ.go",
+		"internal/web/engagement_board.go", "internal/web/engagement_board.templ", "internal/web/engagement_board_templ.go",
 		"internal/web/client_timeline.go", "internal/web/client_timeline_test.go",
 		"internal/web/clients.templ", "internal/web/clients_templ.go",
 		"internal/web/client_details.templ", "internal/web/client_details_templ.go",

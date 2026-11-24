@@ -371,7 +371,7 @@ func filesPath(relative string) bool {
 		relative == "internal/web/files_no_javascript_test.go" || relative == "internal/browsertest/files_test.go" ||
 		relative == "internal/platform/database/migrations/000014_files.sql" ||
 		relative == "internal/platform/database/migrations/000020_file_short_ids.sql" ||
-		relative == "internal/engagement/agreement_test.go" ||
+		relative == "internal/engagement/agreement_test.go" || relative == "internal/web/agreement_files_test.go" ||
 		relative == "internal/platform/database/migrate_files_test.go" ||
 		relative == "internal/platform/database/migrate_file_ids_test.go"
 }
@@ -383,7 +383,7 @@ func clientsPath(relative string) bool {
 	relative = filepath.ToSlash(relative)
 	return relative == "internal/clients" || strings.HasPrefix(relative, "internal/clients/") ||
 		relative == "internal/identity/engagement_membership_test.go" ||
-		relative == "internal/engagement/engagement.go" ||
+		relative == "internal/engagement/engagement.go" || relative == "internal/engagement/list.go" || relative == "internal/engagement/list_test.go" ||
 		relative == "internal/engagement/action_queue.go" || relative == "internal/engagement/action_queue_test.go" ||
 		relative == "internal/engagement/agreement.go" ||
 		relative == "internal/engagement/agreement_test.go" ||
@@ -408,6 +408,10 @@ func clientsPath(relative string) bool {
 		relative == "internal/httpapi/client_timeline.go" || relative == "internal/httpapi/client_timeline_test.go" ||
 		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" ||
 		relative == "internal/web/engagement_test.go" || relative == "internal/web/action_queue_test.go" ||
+		relative == "internal/web/engagement_list.go" || relative == "internal/web/engagement_list_test.go" ||
+		relative == "internal/web/engagement_board.go" || relative == "internal/web/engagement_board_test.go" ||
+		relative == "internal/web/engagement_list.templ" || relative == "internal/web/engagement_list_templ.go" ||
+		relative == "internal/web/engagement_board.templ" || relative == "internal/web/engagement_board_templ.go" ||
 		relative == "internal/web/client_timeline.go" || relative == "internal/web/client_timeline_test.go" ||
 		relative == "internal/web/clients_filters.go" ||
 		relative == "internal/web/viewmodel/clients_filters.go" || relative == "internal/web/viewmodel/clients.go" ||
@@ -568,6 +572,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "clientFilterOperator")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/client-fields")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/clients")
+		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements\"")
+		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/board")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/due")
 		value = removeLinesContaining(value, "h.changeQueuedAction")
 	case "internal/web/engagement.go":
@@ -719,8 +725,17 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = removeText(value, "\tobjectStore, err := appfiles.NewStore(ctx, cfg.Storage)", "\thandler, err := NewHandlerWithEngagement(")
 		value = strings.ReplaceAll(value, "NewHandlerWithWebhooksAndFiles", "NewHandlerWithWebhooks")
 		value = strings.ReplaceAll(value, "webhookService, fileService, \"\", nil", "webhookService, \"\", nil")
+	case "internal/web/clients.go":
+		value = removeImport(value, "appfiles")
+		value = removeLinesContaining(value, "var agreementFiles ")
+		value = removeLinesContaining(value, "var agreementFilesAvailable ")
+		value = removeText(value, "\t\tif principal.Permissions[identity.ResourcesWrite] {\n\t\t\tfilePage :=", "\t\tif errorKey == \"engagement.invalid_name\" {")
+		value = removeLinesContaining(value, "AgreementFiles: agreementFiles.Files")
+		value = removeLinesContaining(value, "AgreementFilesPager: newListPager")
+		value = removeText(value, "func (h *Handler) agreementFileChoices(", "func (h *Handler) setClientValue(")
 	case "internal/web/viewmodel/handler.go":
 		value = removeImport(value, "appfiles")
+		value = strings.Replace(value, "AgreementFiles             []appfiles.File", "AgreementFiles             []struct{ ID interface{ String() string }; OriginalName string }", 1)
 		value = removeLinesContaining(value, "appfiles.File")
 	case "internal/web/handler.go":
 		value = removeImport(value, "appfiles")
