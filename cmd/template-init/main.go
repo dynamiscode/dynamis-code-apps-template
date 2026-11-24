@@ -407,7 +407,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/httpapi/clients.go" || relative == "internal/httpapi/clients_test.go" ||
 		relative == "internal/httpapi/client_timeline.go" || relative == "internal/httpapi/client_timeline_test.go" ||
 		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" ||
-		relative == "internal/web/engagement_test.go" || relative == "internal/web/action_queue_test.go" ||
+		relative == "internal/web/engagement_test.go" || relative == "internal/web/engagement_dashboard_test.go" || relative == "internal/web/action_queue_test.go" ||
 		relative == "internal/web/engagement_list.go" || relative == "internal/web/engagement_list_test.go" ||
 		relative == "internal/web/engagement_board.go" || relative == "internal/web/engagement_board_test.go" ||
 		relative == "internal/web/engagement_list.templ" || relative == "internal/web/engagement_list_templ.go" ||
@@ -540,6 +540,9 @@ func disableClientsSource(relative string, raw []byte) []byte {
 	case "internal/web/viewmodel/handler.go":
 		value = removeLinesContaining(value, `/internal/engagement"`)
 		value = removeLinesContaining(value, "engagement.Engagement")
+		value = removeLinesContaining(value, "engagement.DashboardPage")
+		value = removeLinesContaining(value, "DashboardPrevious ")
+		value = removeLinesContaining(value, "DashboardNext ")
 		value = removeLinesContaining(value, "engagement.Stage")
 		value = removeBlockIncludingEnd(value, "type TimelineDraft struct {", "}\n")
 		value = removeLinesContaining(value, "TimelineDraft ")
@@ -554,6 +557,10 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "ClientFieldRow")
 		value = removeLinesContaining(value, "ClientValueRow")
 	case "internal/web/handler.go":
+		value = removeText(value, "\tif h.engagement != nil && principal.Permissions[identity.ResourcesRead] {", "\th.render(writer, http.StatusOK, \"workspace-home\", data)")
+		value = removeLinesContaining(value, `"strconv"`)
+		value = removeLinesContaining(value, "CanEditClients: principal.Permissions")
+		value = strings.Replace(value, "principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceRead)", "_, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceRead)", 1)
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, "h.bulkClients")
 		value = removeLinesContaining(value, "*clients.Service")
@@ -576,6 +583,12 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/board")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/due")
 		value = removeLinesContaining(value, "h.changeQueuedAction")
+	case "internal/web/workspace.templ":
+		value = removeLinesContaining(value, `import "strconv"`)
+		value = removeText(value, "\t\tif data.EngagementDashboard != nil {", "\t\t// The home reflects")
+	case "internal/web/workspace_templ.go":
+		value = removeLinesContaining(value, `import "strconv"`)
+		value = removeText(value, "\t\t\tif data.EngagementDashboard != nil {", "\t\t\ttempl_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36,")
 	case "internal/web/engagement.go":
 		value = strings.ReplaceAll(value, "ClientsEnabled: h.clients != nil, ", "")
 		value = removeLinesContaining(value, `/internal/clients"`)

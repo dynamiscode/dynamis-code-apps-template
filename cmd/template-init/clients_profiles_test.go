@@ -47,6 +47,9 @@ func TestGenerateWithClientsAndFilesProfilesBuilds(t *testing.T) {
 
 func assertClientProfileFeatures(t *testing.T, output string, withFiles bool) {
 	t.Helper()
+	if _, err := os.Stat(filepath.Join(output, "internal/web/engagement_dashboard_test.go")); err != nil {
+		t.Errorf("generated Clients application is missing engagement dashboard test: %v", err)
+	}
 	clientsRenderer, err := os.ReadFile(filepath.Join(output, "internal/web/clients.go"))
 	if err != nil {
 		t.Fatalf("read generated Clients renderer: %v", err)
