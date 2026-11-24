@@ -198,6 +198,7 @@ func (h *Handler) renderClientList(
 	}
 	component := clientsPage
 	switch {
+	case request.Header.Get("HX-History-Restore-Request") == "true":
 	case listResultsFragment(request):
 		component = clientResults
 	case request.Header.Get("HX-Request") == "true":
@@ -227,7 +228,7 @@ func (h *Handler) renderClientList(
 		ListLive: true, ListSearch: form.Search, ListFragment: listResultsFragment(request), ListViews: view.Views, ListViewQuery: view.Query, ListViewBase: view.Base, ListViewRoute: view.Route, ListViewCanShare: view.CanShare, ListViewSaveReason: view.SaveReason, ArchivedClientCount: archivedCount,
 		HasVisibleClientColumns: hasVisibleClientColumns(visible), HasClientFilters: len(form.Filters) > 0,
 		HiddenClientSort:       hiddenSort,
-		ClearClientFiltersPath: clearFilters, ClientQuerySuffix: querySuffix,
+		ClearClientFiltersPath: clearFilters, ClientQuerySuffix: querySuffix, ClientReturnQuery: cloneClientQuery(query).Encode(),
 		CanEditClients:   principal.Permissions[identity.ResourcesWrite],
 		ListSelectable:   principal.Permissions[identity.ResourcesWrite],
 		CanDeleteClients: principal.Permissions[identity.WorkspaceUpdate],
@@ -468,10 +469,11 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		Title: client.DisplayName, ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		NavPage: "clients", NavSection: "clients",
-		CurrentPath:     h.clientsPath(workspaceID),
-		FieldsPath:      h.clientFieldsPath(workspaceID),
-		CanManageFields: principal.Permissions[identity.WorkspaceUpdate],
-		Client:          client, ClientValues: rows, ClientTimeline: entries, TimelinePage: page, TimelineDraft: timelineDraft, CanEditClients: principal.Permissions[identity.ResourcesWrite],
+		CurrentPath:       h.clientsPath(workspaceID),
+		ClientReturnQuery: request.URL.Query().Get("return"),
+		FieldsPath:        h.clientFieldsPath(workspaceID),
+		CanManageFields:   principal.Permissions[identity.WorkspaceUpdate],
+		Client:            client, ClientValues: rows, ClientTimeline: entries, TimelinePage: page, TimelineDraft: timelineDraft, CanEditClients: principal.Permissions[identity.ResourcesWrite],
 		CanDeleteClients: principal.Permissions[identity.WorkspaceUpdate],
 		Engagements:      engagements, EngagementStages: stages, EngagementMembers: members, EngagementEnabled: h.engagement != nil,
 		EngagementNotes: engagementNotes,

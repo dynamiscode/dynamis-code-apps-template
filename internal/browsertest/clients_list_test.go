@@ -188,12 +188,14 @@ func TestClientDetailLifecycle(t *testing.T) {
 	clickByText(t, tab, "Clear value")
 	eventually(t, tab, `document.querySelectorAll(".client-value-clear").length === 0`, "cleared value control still shown")
 
+	clickByText(t, tab, "More actions")
 	clickByText(t, tab, "Archive")
 	eventually(t, tab, `document.body.textContent.includes("This client is archived. It is hidden from the default list.")`, "archived notice not shown")
-	clickByText(t, tab, "Unarchive")
+	clickByText(t, tab, "Restore")
 	eventually(t, tab, `[...document.querySelectorAll("button")].some((b) => b.textContent.trim() === "Archive")`, "archive control not restored")
 
 	acceptDialogs(tab)
+	clickByText(t, tab, "More actions")
 	clickByText(t, tab, "Delete permanently")
 	eventually(t, tab, `/\/clients$/.test(location.pathname)`, "delete did not return to the clients list")
 	if count := eval[int](t, tab, fmt.Sprintf(`[...document.querySelectorAll("#client-list *")].filter((el) => el.childElementCount === 0 && el.textContent.trim() === %s).length`, jsString(name+" updated"))); count != 0 {

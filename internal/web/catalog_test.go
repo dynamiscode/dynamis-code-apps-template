@@ -14,6 +14,19 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 )
 
+func catalogDetailLinks(t *testing.T, body string) []string {
+	t.Helper()
+	matches := regexp.MustCompile(`href="([^"]+/catalog\?entry=[^"]+)"`).FindAllStringSubmatch(body, -1)
+	links := make([]string, 0, len(matches))
+	for _, match := range matches {
+		links = append(links, match[1])
+	}
+	if len(links) == 0 {
+		t.Fatal("catalog detail link missing")
+	}
+	return links
+}
+
 func TestCatalogArchiveAndDelete(t *testing.T) {
 	routes, auth, workspaceID, owner := testWeb(t, 2)
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
@@ -24,6 +37,7 @@ func TestCatalogArchiveAndDelete(t *testing.T) {
 	path := "/workspaces/" + workspaceID.String() + "/catalog"
 	request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Consultation"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Initial"}}, cookies, nil)
 	page := request(routes, http.MethodGet, path, nil, cookies, nil)
+	page = request(routes, http.MethodGet, catalogDetailLinks(t, page.Body.String())[0], nil, cookies, nil)
 	matches := regexp.MustCompile(`action="([^"]+/archive)"`).FindStringSubmatch(page.Body.String())
 	if len(matches) != 2 {
 		t.Fatal("archive form missing")
@@ -63,6 +77,7 @@ func TestCatalogDeleteInUse(t *testing.T) {
 	path := "/workspaces/" + workspaceID.String() + "/catalog"
 	request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"In use"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Initial"}}, cookies, nil)
 	page := request(routes, http.MethodGet, path, nil, cookies, nil)
+	page = request(routes, http.MethodGet, catalogDetailLinks(t, page.Body.String())[0], nil, cookies, nil)
 	matches := regexp.MustCompile(`action="([^"]+/catalog/[^"/]+/delete)"`).FindStringSubmatch(page.Body.String())
 	if len(matches) != 2 {
 		t.Fatal("delete form missing")
@@ -87,7 +102,7 @@ func TestCatalogCreate(t *testing.T) {
 		t.Fatalf("create = %d %s", created.Code, created.Body.String())
 	}
 	page := request(routes, http.MethodGet, path, nil, cookies, nil)
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Consultation") || !strings.Contains(page.Body.String(), "30 min") {
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Consultation") {
 		t.Fatalf("list = %d %s", page.Code, page.Body.String())
 	}
 	form.Set("name", " ")
@@ -100,10 +115,56 @@ func TestCatalogCreate(t *testing.T) {
 	if invalid.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("invalid = %d %s", invalid.Code, invalid.Body.String())
 	}
-	for _, want := range []string{`value="manual" selected`, `name="amount" value="0.123456789012345678"`, `name="currency" value="BTC"`, `name="variant" value="Special"`, `name="eligibility" value="Student &amp; staff"`} {
+	for _, want := range []string{`value="manual" selected`, `name="amount" value="0.123456789012345678"`, `value="BTC" selected disabled`, `name="variant" value="Special"`, `name="eligibility" value="Student &amp; staff"`} {
 		if !strings.Contains(invalid.Body.String(), want) {
 			t.Errorf("rejected create missing %s", want)
 		}
+	}
+	if !regexp.MustCompile(`(?s)<dialog[^>]* open[^>]*>`).MatchString(invalid.Body.String()) {
+		t.Error("rejected create form is collapsed")
+	}
+}
+
+func TestCatalogCreateDefaultsVariant(t *testing.T) {
+	routes, auth, workspaceID, owner := testWeb(t, 2)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	path := "/workspaces/" + workspaceID.String() + "/catalog"
+	page := request(routes, http.MethodGet, path, nil, cookies, nil).Body.String()
+	if !strings.Contains(page, `name="variant" value="Standard"`) || !strings.Contains(page, "Advanced pricing options") || !strings.Contains(page, `value="USD" selected`) || !strings.Contains(page, "2 decimal places") {
+		t.Fatal("default advanced variant is missing")
+	}
+	created := request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Service"}, "mode": {"manual"}, "currency": {"USD"}}, cookies, nil)
+	if created.Code != http.StatusSeeOther {
+		t.Fatalf("create = %d", created.Code)
+	}
+	page = request(routes, http.MethodGet, path, nil, cookies, nil).Body.String()
+	if !strings.Contains(page, "Standard") {
+		t.Fatal("default variant was not stored")
+	}
+}
+
+func TestCatalogCurrencySelectionUsesWorkspaceConfiguration(t *testing.T) {
+	webHandler, auth, workspaceID, owner := testWebRaw(t, 2)
+	principal, err := auth.Authorize(context.Background(), owner.UserID, workspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := webHandler.catalogService.SetCurrencies(context.Background(), principal, workspaceID, []catalog.Currency{{Code: "USD", Decimals: 2}, {Code: "EUR", Decimals: 2, Default: true}}); err != nil {
+		t.Fatal(err)
+	}
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	path := "/workspaces/" + workspaceID.String() + "/catalog"
+	page := request(webHandler.Routes(), http.MethodGet, path, nil, cookies, nil).Body.String()
+	if !strings.Contains(page, `value="EUR" selected`) || !strings.Contains(page, `value="USD"`) || strings.Contains(page, `value="BTC"`) {
+		t.Fatal("create form must offer workspace currencies and select its default")
 	}
 }
 
@@ -169,6 +230,7 @@ func TestCatalogList(t *testing.T) {
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	ownerPage := request(routes, http.MethodGet, path, nil, ownerCookies, nil)
+	ownerPage = request(routes, http.MethodGet, catalogDetailLinks(t, ownerPage.Body.String())[0], nil, ownerCookies, nil)
 	edit := regexp.MustCompile(`action="([^"]+/edit)"`).FindStringSubmatch(ownerPage.Body.String())
 	if len(edit) != 2 {
 		t.Fatal("missing owner edit form")
@@ -206,7 +268,9 @@ func TestCatalogList(t *testing.T) {
 }
 
 func TestCatalogEditWeb(t *testing.T) {
-	routes, auth, workspaceID, owner := testWeb(t, 2)
+	webHandler, auth, workspaceID, owner := testWebRaw(t, 2)
+	enableTestBitcoin(t, webHandler, auth, workspaceID, owner.UserID)
+	routes := webHandler.Routes()
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -215,6 +279,8 @@ func TestCatalogEditWeb(t *testing.T) {
 	path := "/workspaces/" + workspaceID.String() + "/catalog"
 	request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Service"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Initial"}}, cookies, nil)
 	page := request(routes, http.MethodGet, path, nil, cookies, nil)
+	detail := catalogDetailLinks(t, page.Body.String())[0]
+	page = request(routes, http.MethodGet, detail, nil, cookies, nil)
 	matches := regexp.MustCompile(`action="([^"]+/edit)"`).FindStringSubmatch(page.Body.String())
 	if len(matches) != 2 {
 		t.Fatal("entry edit form missing")
@@ -228,7 +294,7 @@ func TestCatalogEditWeb(t *testing.T) {
 	if response.Code != http.StatusSeeOther {
 		t.Fatalf("create price: %d", response.Code)
 	}
-	page = request(routes, http.MethodGet, path, nil, cookies, nil)
+	page = request(routes, http.MethodGet, detail, nil, cookies, nil)
 	matches = regexp.MustCompile(`action="([^"]+/prices/[^"]+/edit)"`).FindStringSubmatch(page.Body.String())
 	if len(matches) != 2 {
 		t.Fatal("price edit form missing")
@@ -249,7 +315,7 @@ func TestCatalogEditWeb(t *testing.T) {
 	if response.Code != http.StatusSeeOther {
 		t.Fatalf("delete price: %d", response.Code)
 	}
-	page = request(routes, http.MethodGet, path, nil, cookies, nil)
+	page = request(routes, http.MethodGet, detail, nil, cookies, nil)
 	matches = regexp.MustCompile(`action="([^"]+/prices/[^"]+/edit)"`).FindStringSubmatch(page.Body.String())
 	if len(matches) != 2 {
 		t.Fatal("remaining price form missing")
@@ -275,16 +341,21 @@ func TestCatalogRejectedFormsKeepOnlyTheirValues(t *testing.T) {
 		}
 	}
 	page := request(routes, http.MethodGet, path, nil, cookies, nil)
-	entries := regexp.MustCompile(`action="([^"]+/catalog/[^"/]+/edit)"`).FindAllStringSubmatch(page.Body.String(), -1)
-	if len(entries) != 2 {
-		t.Fatalf("entry forms: %d", len(entries))
+	links := catalogDetailLinks(t, page.Body.String())
+	var entries [][]string
+	for _, link := range links {
+		entryPage := request(routes, http.MethodGet, link, nil, cookies, nil)
+		entries = append(entries, regexp.MustCompile(`action="([^"]+/catalog/[^"/]+/edit)"`).FindStringSubmatch(entryPage.Body.String()))
+	}
+	if len(entries) != 2 || len(entries[0]) != 2 || len(entries[1]) != 2 {
+		t.Fatal("entry forms missing")
 	}
 	entryPath := strings.TrimSuffix(entries[0][1], "/edit")
 	added := request(routes, http.MethodPost, entryPath+"/prices", url.Values{"csrf": {session.CSRFSecret}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Other"}}, cookies, nil)
 	if added.Code != http.StatusSeeOther {
 		t.Fatalf("add price: %d", added.Code)
 	}
-	page = request(routes, http.MethodGet, path, nil, cookies, nil)
+	page = request(routes, http.MethodGet, links[0], nil, cookies, nil)
 	priceForms := regexp.MustCompile(`action="(`+regexp.QuoteMeta(entryPath)+`/prices/[^"/]+/edit)"`).FindAllStringSubmatch(page.Body.String(), -1)
 	if len(priceForms) != 2 {
 		t.Fatal("price edit forms missing")
@@ -303,8 +374,8 @@ func TestCatalogRejectedFormsKeepOnlyTheirValues(t *testing.T) {
 		want         []string
 	}{
 		{"entry", entries[0][1], url.Values{"csrf": {session.CSRFSecret}, "name": {"Draft <entry>"}, "duration_minutes": {"-3"}}, []string{`name="name" value="Draft &lt;entry&gt;"`, `name="duration_minutes" value="-3"`}},
-		{"edit price", priceForms[0][1], url.Values{"csrf": {session.CSRFSecret}, "mode": {"manual"}, "amount": {"0.123456789012345678"}, "currency": {"BTC"}, "variant": {"Draft <edit>"}, "eligibility": {"Student & staff"}}, []string{`value="manual" selected`, `name="amount" value="0.123456789012345678"`, `name="currency" value="BTC"`, `name="variant" value="Draft &lt;edit&gt;"`, `name="eligibility" value="Student &amp; staff"`}},
-		{"add price", entryPath + "/prices", url.Values{"csrf": {session.CSRFSecret}, "mode": {"manual"}, "amount": {"0.123456789012345678"}, "currency": {"EUR"}, "variant": {"Draft <add>"}, "eligibility": {"Student & staff"}}, []string{`value="manual" selected`, `name="amount" value="0.123456789012345678"`, `name="currency" value="EUR"`, `name="variant" value="Draft &lt;add&gt;"`, `name="eligibility" value="Student &amp; staff"`}},
+		{"edit price", priceForms[0][1], url.Values{"csrf": {session.CSRFSecret}, "mode": {"manual"}, "amount": {"0.123456789012345678"}, "currency": {"BTC"}, "variant": {"Draft <edit>"}, "eligibility": {"Student & staff"}}, []string{`value="manual" selected`, `name="amount" value="0.123456789012345678"`, `value="BTC" selected disabled`, `name="variant" value="Draft &lt;edit&gt;"`, `name="eligibility" value="Student &amp; staff"`}},
+		{"add price", entryPath + "/prices", url.Values{"csrf": {session.CSRFSecret}, "mode": {"manual"}, "amount": {"0.123456789012345678"}, "currency": {"EUR"}, "variant": {"Draft <add>"}, "eligibility": {"Student & staff"}}, []string{`value="manual" selected`, `name="amount" value="0.123456789012345678"`, `value="EUR" selected disabled`, `name="variant" value="Draft &lt;add&gt;"`, `name="eligibility" value="Student &amp; staff"`}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -313,12 +384,16 @@ func TestCatalogRejectedFormsKeepOnlyTheirValues(t *testing.T) {
 				t.Fatalf("rejected = %d", response.Code)
 			}
 			body := response.Body.String()
+			openForm := regexp.MustCompile(`(?s)<details[^>]* open[^>]*>\s*<summary[^>]*>[^<]*</summary>\s*<form[^>]*action="` + regexp.QuoteMeta(tc.action) + `"`)
+			if !openForm.MatchString(body) {
+				t.Error("rejected form is collapsed")
+			}
 			for _, want := range tc.want {
 				if !strings.Contains(formBody(body, tc.action), want) {
 					t.Errorf("submitted form missing %s", want)
 				}
 			}
-			for _, other := range []string{path, entries[1][1], priceForms[1][1]} {
+			for _, other := range []string{priceForms[1][1]} {
 				if strings.Contains(formBody(body, other), "Draft") || strings.Contains(formBody(body, other), "Student &amp; staff") {
 					t.Errorf("unrelated form contains submitted values: %s", other)
 				}
@@ -342,7 +417,9 @@ func TestCatalogRejectedFormsKeepOnlyTheirValues(t *testing.T) {
 }
 
 func TestCatalogPricesWeb(t *testing.T) {
-	routes, auth, workspaceID, owner := testWeb(t, 2)
+	webHandler, auth, workspaceID, owner := testWebRaw(t, 2)
+	enableTestBitcoin(t, webHandler, auth, workspaceID, owner.UserID)
+	routes := webHandler.Routes()
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -351,6 +428,7 @@ func TestCatalogPricesWeb(t *testing.T) {
 	path := "/workspaces/" + workspaceID.String() + "/catalog"
 	request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Service"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Initial"}}, cookies, nil)
 	page := request(routes, http.MethodGet, path, nil, cookies, nil)
+	page = request(routes, http.MethodGet, catalogDetailLinks(t, page.Body.String())[0], nil, cookies, nil)
 	matches := regexp.MustCompile(`action="([^"]+/prices)"`).FindStringSubmatch(page.Body.String())
 	if len(matches) != 2 {
 		t.Fatal("missing price form")
@@ -376,5 +454,78 @@ func TestCatalogPricesWeb(t *testing.T) {
 	page = request(routes, http.MethodGet, path, nil, cookies, nil)
 	if !strings.Contains(page.Body.String(), "0.123456789012345678") || !strings.Contains(page.Body.String(), "Week") {
 		t.Fatal(page.Body.String())
+	}
+}
+
+func enableTestBitcoin(t *testing.T, handler *Handler, auth *identity.Service, workspaceID identity.WorkspaceID, userID identity.UserID) {
+	t.Helper()
+	principal, err := auth.Authorize(context.Background(), userID, workspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := handler.catalogService.SetCurrencies(context.Background(), principal, workspaceID, []catalog.Currency{{Code: "USD", Decimals: 2, Default: true}, {Code: "BTC", Decimals: 18}}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCatalogScopeSwapsAndFallsBackToFullPage(t *testing.T) {
+	routes, auth, workspaceID, owner := testWeb(t, 2)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	path := "/workspaces/" + workspaceID.String() + "/catalog"
+	page := request(routes, http.MethodGet, path, nil, cookies, nil)
+	if !strings.Contains(page.Body.String(), `hx-target="#catalog-view"`) || !strings.Contains(page.Body.String(), `href="`+path+`?includeArchived=true"`) || !strings.Contains(page.Body.String(), `/assets/htmx.min.js`) {
+		t.Fatal("catalog scope lacks enhancement or fallback")
+	}
+	fragment := request(routes, http.MethodGet, path+"?includeArchived=true", nil, cookies, map[string]string{"HX-Request": "true"})
+	if fragment.Code != http.StatusOK || !strings.HasPrefix(fragment.Body.String(), `<div id="catalog-view">`) || strings.Contains(fragment.Body.String(), "<!doctype") || !strings.Contains(fragment.Body.String(), "No archived catalog entries.") {
+		t.Fatal("catalog scope did not return the archived fragment")
+	}
+	full := request(routes, http.MethodGet, path+"?includeArchived=true", nil, cookies, nil)
+	if !strings.Contains(full.Body.String(), "<!doctype html>") {
+		t.Fatal("normal navigation must return the full page")
+	}
+	restored := request(routes, http.MethodGet, path+"?includeArchived=true", nil, cookies, map[string]string{"HX-Request": "true", "HX-History-Restore-Request": "true"})
+	if !strings.Contains(restored.Body.String(), "<!doctype html>") {
+		t.Fatal("history restoration must return the full page")
+	}
+}
+
+func TestCatalogDetailUsesEntryAsOnlyMainHeading(t *testing.T) {
+	routes, auth, workspaceID, owner := testWeb(t, 2)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	path := "/workspaces/" + workspaceID.String() + "/catalog"
+	request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Consultation"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Standard"}}, cookies, nil)
+	list := request(routes, http.MethodGet, path, nil, cookies, nil)
+	detail := request(routes, http.MethodGet, catalogDetailLinks(t, list.Body.String())[0], nil, cookies, nil).Body.String()
+	if strings.Count(detail, "<h1") != 1 || !strings.Contains(detail, "<h1>Consultation</h1>") || !strings.Contains(detail, ">Price options</h2>") {
+		t.Fatal("detail must have one entry heading followed by the price section")
+	}
+	if strings.Index(detail, "<main") > strings.Index(detail, "<h1") {
+		t.Fatal("main heading must be inside page content")
+	}
+}
+
+func TestWorkspacePagesUseOneContentHeading(t *testing.T) {
+	routes, auth, workspaceID, owner := testWeb(t, 2)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	base := "/workspaces/" + workspaceID.String()
+	for path, title := range map[string]string{base: "Example", base + "/catalog": "Catalog", base + "/settings/general": "General workspace settings", base + "/settings/members": "Members"} {
+		response := request(routes, http.MethodGet, path, nil, cookies, nil)
+		body := response.Body.String()
+		if response.Code != http.StatusOK || strings.Count(body, "<h1") != 1 || !strings.Contains(body, "<h1>"+title+"</h1>") || strings.Index(body, "<main") > strings.Index(body, "<h1") {
+			t.Errorf("%s must have a single content heading %q (status %d)", path, title, response.Code)
+		}
 	}
 }

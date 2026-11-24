@@ -65,6 +65,34 @@ func TestPriceOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := NewService(db, auth, nil)
+	initial, err := s.ListCurrencies(ctx, actor, owner.WorkspaceID)
+	if err != nil || len(initial) != 1 || initial[0] != (Currency{Code: "USD", Decimals: 2, Default: true}) {
+		t.Fatalf("initial currencies = %+v, %v", initial, err)
+	}
+	tooPrecise := "1.234"
+	if _, err := s.Create(ctx, actor, owner.WorkspaceID, "Too precise", nil, []PriceOption{{Mode: "fixed", Amount: &tooPrecise, Currency: "USD", Variant: "Standard"}}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("USD precision: %v", err)
+	}
+	if err := s.SetCurrencies(ctx, actor, owner.WorkspaceID, []Currency{{Code: "USD", Decimals: 2}, {Code: "EUR", Decimals: 2}}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("missing default: %v", err)
+	}
+	var legacyEntry EntryID
+	if err := db.QueryRowContext(ctx, `INSERT INTO catalog_entries (workspace_id, name) VALUES ($1, 'Legacy') RETURNING id`, owner.WorkspaceID).Scan(&legacyEntry); err != nil {
+		t.Fatal(err)
+	}
+	var legacyPrice PriceID
+	if err := db.QueryRowContext(ctx, `INSERT INTO catalog_prices (entry_id, mode, amount, currency, variant, eligibility) VALUES ($1, 'fixed', '1.234', 'USD', 'Old', '') RETURNING id`, legacyEntry).Scan(&legacyPrice); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.UpdatePrice(ctx, actor, owner.WorkspaceID, legacyEntry, legacyPrice, PriceOption{Mode: "fixed", Amount: &tooPrecise, Currency: "USD", Variant: "Renamed"}); err != nil {
+		t.Fatalf("unchanged legacy amount: %v", err)
+	}
+	if err := s.Delete(ctx, actor, owner.WorkspaceID, legacyEntry); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetCurrencies(ctx, actor, owner.WorkspaceID, []Currency{{Code: "USD", Decimals: 2, Default: true}, {Code: "BTC", Decimals: 18}, {Code: "EUR", Decimals: 2}}); err != nil {
+		t.Fatal(err)
+	}
 	for _, prices := range [][]PriceOption{nil, {}, {{Mode: "manual", Currency: "USD", Variant: "Valid"}, {Mode: "fixed", Currency: "USD", Variant: "Invalid"}}} {
 		if _, err := s.Create(ctx, actor, owner.WorkspaceID, "Invalid", nil, prices); !errors.Is(err, ErrInvalidInput) {
 			t.Fatalf("invalid create: %v", err)
@@ -91,6 +119,9 @@ func TestPriceOptions(t *testing.T) {
 	entry, err := s.Create(ctx, actor, owner.WorkspaceID, "Service", nil, []PriceOption{{Mode: "fixed", Amount: &amount, Currency: "BTC", Variant: "Visit"}})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if err := s.SetCurrencies(ctx, actor, owner.WorkspaceID, []Currency{{Code: "USD", Decimals: 2, Default: true}}); !errors.Is(err, ErrInUse) {
+		t.Fatalf("remove used currency: %v", err)
 	}
 	for _, option := range []PriceOption{{Mode: "manual", Currency: "USD", Variant: "Week"}} {
 		if _, err := s.AddPrice(ctx, actor, owner.WorkspaceID, entry.ID.String(), option); err != nil {

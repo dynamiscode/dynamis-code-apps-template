@@ -1214,6 +1214,7 @@
 		});
 		document.addEventListener("htmx:after:swap", (event) => {
 			enhance(document, false);
+			wireCatalogDialog(document);
 			const alert = document.querySelector('[role="alert"].error');
 			const again = focusedId && document.getElementById(focusedId);
 			if (alert) {
@@ -1426,11 +1427,26 @@
 		}
 	};
 
+	const wireCatalogDialog = (root) => {
+		const catalogDialog = root.querySelector("[data-catalog-dialog]");
+		const catalogOpen = root.querySelector("[data-catalog-create]");
+		const catalogCancel = root.querySelector("[data-catalog-cancel]");
+		if (!catalogDialog || !catalogOpen || !catalogCancel || catalogDialog.dataset.bound || typeof catalogDialog.showModal !== "function") return;
+		catalogDialog.dataset.bound = "true";
+		const initiallyOpen = catalogDialog.open;
+		if (initiallyOpen) catalogDialog.removeAttribute("open");
+		catalogOpen.addEventListener("click", (event) => { event.preventDefault(); catalogDialog.showModal(); });
+		catalogCancel.addEventListener("click", (event) => { event.preventDefault(); catalogDialog.close(); });
+		catalogDialog.addEventListener("close", () => catalogOpen.focus());
+		if (initiallyOpen) catalogDialog.showModal();
+	};
+
 	// pageBehaviors: the per-page mount. Every shell body carries it; each
 	// wire function self-guards, so pages without a behavior pay nothing.
 	const pageBehaviors = () => ({
 		init() {
 			wireTimelineDialog(document);
+			wireCatalogDialog(document);
 			wireForms();
 			wireRealtime();
 			wireFileUploader();
@@ -1442,7 +1458,7 @@
 		},
 	});
 
-if (typeof module !== "undefined" && module.exports) module.exports = { core, FileUploader, wireRealtime, wireTimelineDialog, notificationsLive, passkeyLogin, passkeyEnroll, listScreen, pageBehaviors, copyIntakeLink };
+if (typeof module !== "undefined" && module.exports) module.exports = { core, FileUploader, wireRealtime, wireTimelineDialog, wireCatalogDialog, notificationsLive, passkeyLogin, passkeyEnroll, listScreen, pageBehaviors, copyIntakeLink };
 	if (typeof document === "undefined" || typeof window === "undefined") return;
 	document.addEventListener("alpine:init", () => {
 		window.Alpine.data("notificationsLive", notificationsLive);

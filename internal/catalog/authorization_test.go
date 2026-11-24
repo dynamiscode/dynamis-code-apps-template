@@ -62,6 +62,9 @@ func TestCatalogAuthorizationAndIsolation(t *testing.T) {
 			if _, err := service.List(ctx, principal, owner.WorkspaceID, false); err != nil {
 				t.Fatal(err)
 			}
+			if _, err := service.ListCurrencies(ctx, principal, owner.WorkspaceID); err != nil {
+				t.Fatal(err)
+			}
 			writable := role == identity.Owner || role == identity.Admin
 			check := func(name string, err error) {
 				t.Helper()
@@ -69,6 +72,7 @@ func TestCatalogAuthorizationAndIsolation(t *testing.T) {
 					t.Errorf("%s: %v", name, err)
 				}
 			}
+			check("configure currencies", service.SetCurrencies(ctx, principal, owner.WorkspaceID, []Currency{{Code: "USD", Decimals: 2, Default: true}}))
 			_, err = service.Create(ctx, principal, owner.WorkspaceID, "New", nil, testPrices())
 			check("create", err)
 			check("edit", service.Update(ctx, principal, owner.WorkspaceID, entry.ID, "Edited", nil))

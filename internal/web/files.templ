@@ -9,6 +9,7 @@ import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 templ filesPage(data viewmodel.PageData, canUpload bool) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+		@molecules.PageHeading(data.T("files.files"), "")
 		<div class="files-page">
 			if data.ErrorKey != "" {
 				@molecules.ErrorAlert(data.T(data.ErrorKey))

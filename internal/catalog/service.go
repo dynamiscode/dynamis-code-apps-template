@@ -123,6 +123,9 @@ func (s *Service) Create(ctx context.Context, actor identity.Principal, workspac
 		if err := validatePrice(&prices[i]); err != nil {
 			return Entry{}, err
 		}
+		if err := validateCurrency(ctx, tx, workspaceID, prices[i]); err != nil {
+			return Entry{}, err
+		}
 	}
 	var entryID EntryID
 	err = tx.QueryRowContext(ctx, `INSERT INTO catalog_entries (workspace_id, name, duration_minutes) VALUES ($1, $2, $3) RETURNING id`, workspaceID, name, duration).Scan(&entryID)
@@ -165,6 +168,21 @@ func (s *Service) UpdatePrice(ctx context.Context, actor identity.Principal, wor
 	return s.mutate(ctx, actor, workspaceID, entryID, func(tx *sql.Tx) (sql.Result, error) {
 		if err := validatePrice(&option); err != nil {
 			return nil, err
+		}
+		var existingCurrency string
+		var existingAmount sql.NullString
+		err := tx.QueryRowContext(ctx, `SELECT p.currency, p.amount FROM catalog_prices p JOIN catalog_entries e ON e.id = p.entry_id WHERE p.id = $1 AND e.id = $2 AND e.workspace_id = $3`, priceID, entryID, workspaceID).Scan(&existingCurrency, &existingAmount)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		if err != nil {
+			return nil, err
+		}
+		unchanged := existingCurrency == option.Currency && ((!existingAmount.Valid && option.Amount == nil) || (existingAmount.Valid && option.Amount != nil && existingAmount.String == *option.Amount))
+		if !unchanged {
+			if err := validateCurrency(ctx, tx, workspaceID, option); err != nil {
+				return nil, err
+			}
 		}
 		return tx.ExecContext(ctx, `UPDATE catalog_prices SET mode = $1, amount = $2, currency = $3, variant = $4, eligibility = $5 WHERE id = $6 AND entry_id = $7 AND EXISTS (SELECT 1 FROM catalog_entries WHERE id = $7 AND workspace_id = $8)`, option.Mode, option.Amount, option.Currency, option.Variant, option.Eligibility, priceID, entryID, workspaceID)
 	})
@@ -274,6 +292,9 @@ func (s *Service) AddPrice(ctx context.Context, actor identity.Principal, worksp
 		return PriceOption{}, identity.ErrForbidden
 	}
 	if err := validatePrice(&option); err != nil {
+		return PriceOption{}, err
+	}
+	if err := validateCurrency(ctx, tx, workspaceID, option); err != nil {
 		return PriceOption{}, err
 	}
 	key, err := id.DecodeKey(id.TypeCatalogEntry, entryID)

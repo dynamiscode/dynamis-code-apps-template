@@ -177,7 +177,8 @@ func TestCatalogList(t *testing.T) {
 }
 
 func TestCatalogEditREST(t *testing.T) {
-	handler, _, workspace, token := testHandler(t)
+	handler, db, workspace, token := testHandler(t)
+	seedCatalogCurrencies(t, db, workspace)
 	path := "/api/v1/workspaces/" + workspace + "/catalog"
 	if invalid := serveAuthorized(handler, http.MethodPost, path, `{"name":"No price"}`, token, nil); invalid.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("missing price: %d", invalid.Code)
@@ -233,7 +234,8 @@ func TestCatalogEditREST(t *testing.T) {
 }
 
 func TestCatalogPricesREST(t *testing.T) {
-	handler, _, workspace, token := testHandler(t)
+	handler, db, workspace, token := testHandler(t)
+	seedCatalogCurrencies(t, db, workspace)
 	path := "/api/v1/workspaces/" + workspace + "/catalog"
 	created := serveAuthorized(handler, http.MethodPost, path, `{"name":"Visit","prices":[{"mode":"manual","currency":"USD","variant":"Initial"}]}`, token, nil)
 	var entry struct {
@@ -249,7 +251,7 @@ func TestCatalogPricesREST(t *testing.T) {
 			t.Fatalf("price = %d %s", response.Code, response.Body.String())
 		}
 	}
-	for _, body := range []string{`{"mode":"fixed","currency":"USD","variant":"Visit"}`, `{"mode":"fixed","amount":"-1","currency":"USD","variant":"Visit"}`, `{"mode":"manual","variant":"Visit"}`, `{"mode":"manual","currency":"USD"}`} {
+	for _, body := range []string{`{"mode":"fixed","currency":"USD","variant":"Visit"}`, `{"mode":"fixed","amount":"-1","currency":"USD","variant":"Visit"}`, `{"mode":"fixed","amount":"1.234","currency":"USD","variant":"Visit"}`, `{"mode":"manual","currency":"JPY","variant":"Visit"}`, `{"mode":"manual","variant":"Visit"}`, `{"mode":"manual","currency":"USD"}`} {
 		response := serveAuthorized(handler, http.MethodPost, pricePath, body, token, nil)
 		if response.Code != http.StatusUnprocessableEntity {
 			t.Fatalf("invalid = %d %s", response.Code, response.Body.String())
@@ -261,5 +263,19 @@ func TestCatalogPricesREST(t *testing.T) {
 	}
 	if !strings.Contains(list.Body.String(), `"amount":"0.123456789012345678"`) || !strings.Contains(list.Body.String(), `"mode":"manual"`) {
 		t.Fatal(list.Body.String())
+	}
+}
+
+func seedCatalogCurrencies(t *testing.T, db *sql.DB, workspace string) {
+	t.Helper()
+	workspaceID := identity.ParseWorkspaceIDOrZero(workspace)
+	for _, row := range []struct {
+		code            string
+		decimals        int
+		defaultCurrency bool
+	}{{"USD", 2, true}, {"BTC", 18, false}, {"EUR", 2, false}} {
+		if _, err := db.Exec(`INSERT INTO catalog_currencies (workspace_id, code, decimals, is_default) VALUES ($1, $2, $3, $4)`, workspaceID, row.code, row.decimals, row.defaultCurrency); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

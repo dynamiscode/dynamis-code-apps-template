@@ -303,9 +303,12 @@ func catalogPath(relative string) bool {
 	return relative == "api/catalog_contract_test.go" || relative == "api/catalog_authorization_contract_test.go" || relative == "internal/catalog" || strings.HasPrefix(relative, "internal/catalog/") ||
 		relative == "internal/httpapi/catalog.go" || relative == "internal/httpapi/catalog_test.go" || relative == "internal/httpapi/catalog_authorization_test.go" || relative == "internal/httpapi/catalog_isolation_test.go" ||
 		relative == "internal/web/catalog.go" || relative == "internal/web/catalog_test.go" || relative == "internal/web/catalog_authorization_test.go" || relative == "internal/web/catalog_isolation_test.go" ||
+		relative == "internal/web/currency_settings.go" || relative == "internal/web/currency_settings.templ" || relative == "internal/web/currency_settings_templ.go" || relative == "internal/web/currency_settings_test.go" ||
+		relative == "internal/platform/database/migrate_catalog_currencies_test.go" ||
 		relative == "internal/web/catalog.templ" || relative == "internal/web/catalog_templ.go" ||
 		relative == "internal/platform/database/migrations/000040_catalog.sql" ||
-		relative == "internal/platform/database/migrations/000041_catalog_prices.sql"
+		relative == "internal/platform/database/migrations/000041_catalog_prices.sql" ||
+		relative == "internal/platform/database/migrations/000045_catalog_currencies.sql"
 }
 
 func disableCatalogSource(relative string, raw []byte) []byte {
@@ -332,6 +335,8 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "h.catalogUnarchive")
 		value = removeLinesContaining(value, "h.catalogDelete")
 		value = removeLinesContaining(value, "h.catalogEdit")
+		value = removeLinesContaining(value, "h.currencySettingsPage")
+		value = removeLinesContaining(value, "h.currencySettingsSave")
 		value = removeLinesContaining(value, `"updateCatalog":`)
 		value = removeLinesContaining(value, "EnableCatalog(")
 		value = removeLinesContaining(value, `"listCatalog":`)
@@ -343,8 +348,13 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 		value = removeLineStarting(value, "Catalog is optional")
 	case "docs/data-lifecycle.md":
 		value = removeLineStarting(value, "| catalog / `catalog_entries`")
+		value = removeLineStarting(value, "| catalog / `catalog_currencies`")
 	case "docs/api.md", "docs/web.md":
 		value = removeLineStarting(value, "Catalog profile:")
+	case "docs/operations.md":
+		value = removeLineStarting(value, "Catalog currency migration 000045")
+	case "internal/web/localization.go":
+		value = removeLinesContaining(value, "h.catalogService")
 	case "api/openapi.json":
 		var document map[string]any
 		if json.Unmarshal(raw, &document) == nil {
@@ -405,7 +415,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/mcpserver/approval_test.go" || relative == "internal/mcpserver/schema_contract_test.go" ||
 		relative == "internal/httpapi/clients.go" || relative == "internal/httpapi/clients_test.go" ||
 		relative == "internal/httpapi/client_timeline.go" || relative == "internal/httpapi/client_timeline_test.go" ||
-		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" ||
+		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" || relative == "internal/web/clients_scope_test.go" ||
 		relative == "internal/web/engagement_test.go" ||
 		relative == "internal/web/client_timeline.go" || relative == "internal/web/client_timeline_test.go" ||
 		relative == "internal/web/clients_filters.go" ||

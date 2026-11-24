@@ -18,6 +18,13 @@ templ generalSettingsView(data viewmodel.PageData) {
 			if data.Error != "" {
 				@molecules.ErrorAlert(data.Error)
 			}
+			if data.CatalogEnabled {
+				<section class="settings-panel card min-w-0 p-5" aria-labelledby="currency-settings-title">
+					<h2 id="currency-settings-title">{ data.T("currency.title") }</h2>
+					<p>{ data.T("currency.intro") }</p>
+					<a class="btn" href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/currencies" }>{ data.T("currency.manage") }</a>
+				</section>
+			}
 			<section class="settings-panel card min-w-0 p-5" aria-labelledby="workspace-locale-title">
 				<h2 id="workspace-locale-title">{ data.T("workspace.language_fallback") }</h2>
 				<p class="settings-intro" id="workspace-locale-help">{ data.T("workspace.language_fallback_description") }</p>

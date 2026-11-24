@@ -30,7 +30,7 @@ func TestSharedComponentsRenderAccessibleNativeControls(t *testing.T) {
 		children  templ.Component
 		want      []string
 	}{
-		{"heading", molecules.PageHeading("Items <all>", "Workspace"), nil, []string{`<h2>Items &lt;all&gt;</h2>`, `class="eyebrow"`}},
+		{"heading", molecules.PageHeading("Items <all>", "Workspace"), nil, []string{`<h1>Items &lt;all&gt;</h1>`, `class="eyebrow"`}},
 		{"field", molecules.TextField("title", "Title", templ.Attributes{"name": "title", "required": true, "aria-describedby": "title-error", "aria-invalid": "true"}), nil, []string{`<label class="fieldset-legend" for="title">Title</label>`, `id="title"`, `name="title"`, `required`, `aria-describedby="title-error"`, `aria-invalid="true"`}},
 		{"select", atoms.Select(atoms.SelectProps{ID: "locale", Name: "locale", Label: "Language", Options: []atoms.SelectOption{{Label: "English", Value: "en", Selected: true}}}), nil, []string{`for="locale"`, `id="locale"`, `name="locale"`, `<option selected value="en">English</option>`}},
 		{"textarea", molecules.TextareaField("notes", "Notes", "<notes>", templ.Attributes{"name": "notes"}), nil, []string{`<label class="fieldset-legend" for="notes">Notes</label>`, `id="notes"`, `name="notes"`, `&lt;notes&gt;`}},

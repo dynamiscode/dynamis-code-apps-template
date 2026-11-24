@@ -100,6 +100,7 @@ type PageData struct {
 	HasClientFilters                 bool
 	ClearClientFiltersPath           string
 	ClientQuerySuffix                string
+	ClientReturnQuery                string
 	HiddenClientSort                 string
 	HiddenClientSortLabelKey         string
 	CreateKey                        string

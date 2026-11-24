@@ -6,7 +6,6 @@ import organisms "example.com/dynamis-code/apps-template/internal/web/components
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
-import "strconv"
 import "strings"
 
 templ clientList(data viewmodel.PageData) {
@@ -36,6 +35,9 @@ templ clientListView(data viewmodel.PageData) {
 // clientListTools are the client list's own controls on the toolbar: the columns, the bulk actions, the create
 // menu, and the live status.
 templ clientListTools(data viewmodel.PageData) {
+	<div id="client-list-scope">
+		@clientScope(data)
+	</div>
 	if data.ListHasContent() {
 		@molecules.ListColumnsMenu(data, data.ClientQuerySuffix)
 		if data.ListSelectable {
@@ -62,7 +64,14 @@ templ clientNotice(data viewmodel.PageData) {
 // clientResults is the results region: the table or cards, the empty state, and the footer. A sort, filter, or
 // search swaps this region alone.
 templ clientResults(data viewmodel.PageData) {
-	@organisms.ListResults(data, clientPageLimit(data.ClientQuery.Limit), listPageSizeOptions(clientPageLimit(data.ClientQuery.Limit), listPageSizes), data.ClientQuerySuffix, clientBody(data), clientScopeLink(data))
+	@organisms.ListResults(data, clientPageLimit(data.ClientQuery.Limit), listPageSizeOptions(clientPageLimit(data.ClientQuery.Limit), listPageSizes), data.ClientQuerySuffix, clientBody(data), templ.NopComponent)
+	if data.ListFragment {
+		<div id="client-list-scope" hx-swap-oob="true">@clientScope(data)</div>
+	}
+}
+
+templ clientScope(data viewmodel.PageData) {
+	@molecules.ListScope(data.T("clients.archived_legend"), data.T("catalog.active"), data.T("catalog.archived"), clientScopeHref(data, "active"), clientScopeHref(data, "archived"), "#client-list", data.ClientQuery.Archived == "archived")
 }
 
 // clientBody is the client list's rows: the table or cards, and the empty state.
@@ -78,11 +87,11 @@ templ clientBody(data viewmodel.PageData) {
 			@organisms.ListHeader(data, data.T("clients.actions"))
 			<tbody>
 				for _, row := range data.ListRows {
-					@organisms.ListRow(data.CurrentPath + "/" + row.ID) {
+					@organisms.ListRow(clientDetailHref(data, row.ID)) {
 						if data.ListSelectable {
 							@clientRowSelect(data, row)
 						}
-						@organisms.ListCells(data, row, data.CurrentPath + "/" + row.ID)
+						@organisms.ListCells(data, row, clientDetailHref(data, row.ID))
 						@organisms.ListActionsCell(data, clientRowActions(data, row))
 					}
 				}
@@ -90,7 +99,7 @@ templ clientBody(data viewmodel.PageData) {
 		}
 		@molecules.ListCards() {
 			for _, row := range data.ListRows {
-				@organisms.ListCardItem(data, row, data.CurrentPath + "/" + row.ID) {
+				@organisms.ListCardItem(data, row, clientDetailHref(data, row.ID)) {
 					if data.ListSelectable {
 						@clientCardSelect(data, row)
 					}
@@ -104,6 +113,8 @@ templ clientBody(data viewmodel.PageData) {
 	if len(data.ListRows) == 0 {
 		if data.HasClientFilters || data.ListSearch != "" {
 			@molecules.NoMatchesAlert(molecules.NoMatchesAlertProps{ID: "client-empty-state", Message: data.T("clients.no_matches"), Href: data.ClearClientFiltersPath, Label: data.T("clients.clear_filters")})
+		} else if data.ClientQuery.Archived == "archived" {
+			@molecules.EmptyState(data.T("clients.no_archived"))
 		} else {
 			@molecules.EmptyStateCard(molecules.EmptyStateCardProps{ID: "client-empty-state", Title: data.T("clients.empty_title"), Description: data.T("clients.empty_description"), CTA: clientEmptyCTA(data)})
 		}
@@ -149,29 +160,8 @@ templ clientCreateMenu(data viewmodel.PageData) {
 			}
 		if !data.CanEditClients {
 			<p class="status-line">{ data.T("clients.read_only") }</p>
-		} else if data.ListHasContent() {
+		} else {
 			<a class="btn btn-primary" href={ templ.SafeURL(data.CurrentPath + "/new") }>{ data.T("clients.new_client") }</a>
 		}
 	</div>
-}
-
-
-
-
-
-
-
-// clientScopeLink is the footer's way to the archived clients, and back. It is kept out of the toolbar so the
-// archived view stays easy to find without competing with search and the primary actions.
-templ clientScopeLink(data viewmodel.PageData) {
-	if data.ClientQuery.Archived == "archived" {
-		<a class="client-scope-link" href={ templ.SafeURL(clientScopeHref(data, "active")) }>{ data.T("clients.back_to_active") }</a>
-	} else {
-		<a class="client-scope-link" href={ templ.SafeURL(clientScopeHref(data, "archived")) }>
-			{ data.T("clients.show_archived") }
-			if data.ArchivedClientCount > 0 {
-				<span class="client-scope-count">({ strconv.Itoa(data.ArchivedClientCount) })</span>
-			}
-		</a>
-	}
 }

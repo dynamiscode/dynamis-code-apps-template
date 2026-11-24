@@ -12,18 +12,12 @@ templ DashboardHeader(data viewmodel.PageData) {
 		<div class="navbar-start min-w-0 gap-3">
 			if data.Workspace.ID != 0 {
 				<button type="button" class="btn btn-ghost btn-square drawer-button lg:hidden" aria-label={ data.T("ui.open_navigation") } @click="toggleDrawer">&#9776;</button>
+				<a class="workspace-name" href={ "/workspaces/" + data.Workspace.ID.String() }>{ data.Workspace.Name }</a>
 			} else {
 				<a class="brand inline-flex items-center gap-2 text-lg font-extrabold no-underline" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
 				<div class="hidden min-w-0 items-center gap-2 text-base-content/70 sm:flex">
 					@atoms.Breadcrumbs(atoms.BreadcrumbsProps{Items: molecules.HomeCrumbItems(data)})
 				</div>
-			}
-			if data.TopbarTitleKey != "" {
-				<h1 class="m-0 min-w-0 flex-1 truncate text-lg font-bold">{ data.T(data.TopbarTitleKey) }</h1>
-			} else if data.Title != "" {
-				// Settings and account pages have no localized key for the bar; the page title is what the
-				// document title already shows, so the bar never renders empty.
-				<h1 class="m-0 min-w-0 flex-1 truncate text-lg font-bold">{ data.Title }</h1>
 			}
 		</div>
 		<div class="navbar-end">

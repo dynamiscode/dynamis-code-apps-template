@@ -1,0 +1,5 @@
+package molecules
+
+templ BackLink(href, label string) {
+	<a class="detail-back" href={ templ.SafeURL(href) }><span aria-hidden="true">←</span> { label }</a>
+}

@@ -8,8 +8,6 @@ templ PageHeading(title, eyebrow string) {
 		if eyebrow != "" {
 			<p class="eyebrow">{ eyebrow }</p>
 		}
-		// The top bar already carries the page title, so a page in the shell starts its heading outline at
-		// level two and keeps exactly one h1 per document.
-		<h2>{ title }</h2>
+		<h1>{ title }</h1>
 	</div>{ children... }</div>
 }

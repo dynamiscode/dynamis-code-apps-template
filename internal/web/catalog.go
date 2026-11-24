@@ -51,7 +51,11 @@ func (h *Handler) catalogCreate(writer http.ResponseWriter, request *http.Reques
 	if value := request.FormValue("amount"); value != "" {
 		amount = &value
 	}
-	price := catalog.PriceOption{Mode: request.FormValue("mode"), Amount: amount, Currency: request.FormValue("currency"), Variant: request.FormValue("variant"), Eligibility: request.FormValue("eligibility")}
+	variant := strings.TrimSpace(request.FormValue("variant"))
+	if variant == "" {
+		variant = "Standard"
+	}
+	price := catalog.PriceOption{Mode: request.FormValue("mode"), Amount: amount, Currency: request.FormValue("currency"), Variant: variant, Eligibility: request.FormValue("eligibility")}
 	_, err := h.catalogService.Create(request.Context(), principal, workspaceID, request.FormValue("name"), duration, []catalog.PriceOption{price})
 	switch {
 	case errors.Is(err, catalog.ErrInvalidInput):
@@ -116,8 +120,36 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 	if !ok {
 		return
 	}
-	includeArchived := request.URL.Query().Get("includeArchived") == "true" || (status == http.StatusUnprocessableEntity && request.PathValue("entryId") != "")
-	entries, err := h.catalogService.List(request.Context(), principal, workspaceID, includeArchived)
+	includeArchived := request.URL.Query().Get("includeArchived") == "true"
+	entryID := request.URL.Query().Get("entry")
+	if request.PathValue("entryId") != "" && status != http.StatusOK {
+		entryID = request.PathValue("entryId")
+	}
+	entries, err := h.catalogService.List(request.Context(), principal, workspaceID, includeArchived || entryID != "")
+	if err != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	}
+	filtered := make([]catalog.Entry, 0, len(entries))
+	for _, entry := range entries {
+		if entryID != "" && entry.ID.String() != entryID {
+			continue
+		}
+		if entryID == "" && entry.Archived != includeArchived {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	if len(filtered) == 0 && entryID != "" && status != http.StatusOK {
+		entryID = ""
+		for _, entry := range entries {
+			if !entry.Archived {
+				filtered = append(filtered, entry)
+			}
+		}
+	}
+	entries = filtered
+	currencies, err := h.catalogService.ListCurrencies(request.Context(), principal, workspaceID)
 	if err != nil {
 		h.renderError(writer, http.StatusInternalServerError)
 		return
@@ -127,7 +159,7 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	data := viewmodel.PageData{CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces, NavPage: "workspace", NavSection: "workspace", SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle, FilesEnabled: h.filesEnabled, ClientsEnabled: h.clientsEnabled}
+	data := viewmodel.PageData{CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces, NavPage: "workspace", NavSection: "workspace", SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle, FilesEnabled: h.filesEnabled, ClientsEnabled: h.clientsEnabled, ListLive: true}
 	h.localizePage(writer, &data)
 	data.Title = data.T("catalog.title")
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -150,8 +182,15 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 		form.name, form.duration = request.FormValue("name"), request.FormValue("duration_minutes")
 		amount := request.FormValue("amount")
 		form.price = catalog.PriceOption{Mode: request.FormValue("mode"), Amount: &amount, Currency: request.FormValue("currency"), Variant: request.FormValue("variant"), Eligibility: request.FormValue("eligibility")}
+		if form.kind == "create" && strings.TrimSpace(form.price.Variant) == "" {
+			form.price.Variant = "Standard"
+		}
 	}
-	_ = catalogPage(data, entries, identity.CanWriteCatalog(principal), invalid, status == http.StatusConflict, includeArchived, form).Render(request.Context(), writer)
+	if request.Header.Get("HX-Request") == "true" && request.Header.Get("HX-History-Restore-Request") != "true" && request.Method == http.MethodGet {
+		_ = catalogContent(data, entries, currencies, identity.CanWriteCatalog(principal), invalid, status == http.StatusConflict, includeArchived, entryID, false, form).Render(request.Context(), writer)
+		return
+	}
+	_ = catalogPage(data, entries, currencies, identity.CanWriteCatalog(principal), invalid, status == http.StatusConflict, includeArchived, entryID, request.URL.Query().Get("create") == "true", form).Render(request.Context(), writer)
 }
 
 func catalogDuration(value *int) string {
@@ -242,7 +281,7 @@ func (h *Handler) catalogEditResult(writer http.ResponseWriter, request *http.Re
 	case err != nil:
 		h.renderError(writer, http.StatusInternalServerError)
 	default:
-		h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/catalog")
+		h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/catalog?entry="+request.PathValue("entryId"))
 	}
 }
 
@@ -270,6 +309,6 @@ func (h *Handler) catalogCreatePrice(writer http.ResponseWriter, request *http.R
 	case err != nil:
 		h.renderError(writer, http.StatusInternalServerError)
 	default:
-		h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/catalog")
+		h.redirect(writer, request, "/workspaces/"+workspaceID.String()+"/catalog?entry="+request.PathValue("entryId"))
 	}
 }

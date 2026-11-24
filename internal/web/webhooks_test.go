@@ -222,7 +222,7 @@ func TestWebhookSecretKeyErrorIsActionable(t *testing.T) {
 	if response.Code != http.StatusUnprocessableEntity || !strings.Contains(response.Body.String(), "ENCRYPTION_KEY") {
 		t.Fatalf("webhook secret key error = %d, %s", response.Code, response.Body.String())
 	}
-	if strings.Contains(response.Body.String(), "<h2>Request failed</h2>") || !strings.Contains(response.Body.String(), "<h2>Webhooks</h2>") {
+	if strings.Contains(response.Body.String(), "<h1>Request failed</h1>") || !strings.Contains(response.Body.String(), "<h1>Webhooks</h1>") {
 		t.Fatalf("webhook secret key error left the settings page: %s", response.Body.String())
 	}
 }

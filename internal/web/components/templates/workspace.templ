@@ -12,7 +12,7 @@ templ DashboardShell(data viewmodel.PageData, header, navigation templ.Component
 				<script defer src="/assets/alpine-components.js"></script>
 			<script defer src="/assets/js/alpine.min.js"></script>
 			<link rel="stylesheet" href="/assets/clients.css"/>
-			if data.NavPage == "clients" {
+			if data.NavPage == "clients" || data.ListLive {
 				<script defer src="/assets/htmx.min.js"></script>
 			}
 		</head>

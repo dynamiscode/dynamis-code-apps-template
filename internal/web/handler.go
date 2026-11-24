@@ -263,6 +263,8 @@ func (h *Handler) Routes() http.Handler {
 		mux.HandleFunc("GET /workspaces/{workspaceId}/files/{fileId}/content", h.fileDownload)
 	}
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings", h.settingsPage)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/currencies", h.currencySettingsPage)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/currencies", h.currencySettingsSave)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/members", h.membersPage)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/members/preferences/columns/{column}", h.setMemberColumn)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/members/preferences/columns/reset", h.resetMemberColumns)

@@ -11,6 +11,7 @@ import "example.com/dynamis-code/apps-template/internal/identity"
 
 templ membersPage(data viewmodel.PageData) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
+		@molecules.PageHeading(data.T("members.members"), data.T("navigation.settings_access"))
 		@organisms.PeopleTabs(data)
 		if data.Error != "" {
 			@molecules.ErrorAlert(data.Error)
