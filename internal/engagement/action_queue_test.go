@@ -68,6 +68,28 @@ func TestActionQueue(t *testing.T) {
 	if err := svc.ArchiveStage(ctx, owner, boot.WorkspaceID, open.ID, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
+	dashboard, err := svc.Dashboard(ctx, owner, boot.WorkspaceID, 1, 10)
+	if err != nil || dashboard.Overdue != 1 || dashboard.Today != 1 || len(dashboard.Stages) != 1 || dashboard.Stages[0].Stage.ID != open.ID || !dashboard.Stages[0].Stage.Archived || dashboard.Stages[0].Count != 2 {
+		t.Fatalf("dashboard: %+v %v", dashboard, err)
+	}
+	secondOpen, err := svc.CreateStage(ctx, owner, boot.WorkspaceID, StageInput{Name: "Empty", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstDashboard, err := svc.Dashboard(ctx, owner, boot.WorkspaceID, 1, 1)
+	if err != nil || !firstDashboard.HasMore || len(firstDashboard.Stages) != 1 || firstDashboard.Stages[0].Stage.ID != open.ID {
+		t.Fatalf("first dashboard page: %+v %v", firstDashboard, err)
+	}
+	secondDashboard, err := svc.Dashboard(ctx, owner, boot.WorkspaceID, 2, 1)
+	if err != nil || secondDashboard.HasMore || len(secondDashboard.Stages) != 1 || secondDashboard.Stages[0].Stage.ID != secondOpen.ID || secondDashboard.Stages[0].Count != 0 {
+		t.Fatalf("second dashboard page: %+v %v", secondDashboard, err)
+	}
+	if _, err := svc.Dashboard(ctx, owner, boot.WorkspaceID, 0, 1); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("invalid dashboard page: %v", err)
+	}
+	if _, err := svc.Dashboard(ctx, identity.Principal{}, boot.WorkspaceID, 1, 10); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("dashboard unauthorized: %v", err)
+	}
 	for _, tc := range []struct {
 		filter ActionQueueFilter
 		want   []ID
@@ -125,6 +147,10 @@ func TestActionQueue(t *testing.T) {
 	otherOwner, err := auth.Authorize(ctx, boot.UserID, other, identity.ResourcesRead)
 	if err != nil {
 		t.Fatal(err)
+	}
+	emptyDashboard, err := svc.Dashboard(ctx, otherOwner, other, 1, 10)
+	if err != nil || emptyDashboard.Overdue != 0 || emptyDashboard.Today != 0 || len(emptyDashboard.Stages) != 0 {
+		t.Fatalf("dashboard isolation: %+v %v", emptyDashboard, err)
 	}
 	p, err = svc.ListActionQueue(ctx, otherOwner, other, ActionQueueOptions{Page: 1, Limit: 10})
 	if err != nil || len(p.Entries) != 0 {
