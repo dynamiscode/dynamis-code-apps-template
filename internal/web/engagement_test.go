@@ -32,6 +32,10 @@ func TestWorkspaceCreateEngagementNavigation(t *testing.T) {
 			if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), link) || strings.Contains(page.Body.String(), "Create engagement") != tc.writer {
 				t.Fatalf("home: status=%d writer=%v", page.Code, tc.writer)
 			}
+			list := request(env.routes, http.MethodGet, home+"/engagements", nil, tc.cookies, nil)
+			if strings.Contains(list.Body.String(), `href="`+clientsPath+`">Create engagement</a>`) != tc.writer {
+				t.Fatalf("engagement list create link: status=%d writer=%v", list.Code, tc.writer)
+			}
 			page = request(env.routes, http.MethodGet, clientsPath, nil, tc.cookies, nil)
 			if page.Code != http.StatusOK || strings.Contains(page.Body.String(), "Select a client to create an engagement.") != tc.writer {
 				t.Fatalf("clients: status=%d writer=%v", page.Code, tc.writer)

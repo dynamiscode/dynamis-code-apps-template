@@ -81,7 +81,7 @@ func (h *Handler) listEngagements(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	path := "/workspaces/" + workspace.String() + "/engagements"
-	data := viewmodel.PageData{CSRF: csrf, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, NavPage: "clients", NavSection: "clients", CurrentPath: path, ClientsEnabled: h.clients != nil, FilesEnabled: h.filesEnabled, SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle}
+	data := viewmodel.PageData{CSRF: csrf, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, NavPage: "clients", NavSection: "clients", CurrentPath: path, ClientsEnabled: h.clients != nil, FilesEnabled: h.filesEnabled, SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle, CanEditClients: actor.Permissions[identity.ResourcesWrite]}
 	h.localizePage(w, &data)
 	data.Title = data.T("engagement.list")
 	prev, next := "", ""

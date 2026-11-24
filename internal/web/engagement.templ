@@ -117,39 +117,41 @@ templ engagementDetailPage(data viewmodel.PageData) {
 					{ item.Agreement.FileID }
 				</p>
 				if data.CanEditClients {
-					<details open?={ data.ErrorKey == "engagement.invalid_agreement_file" || data.AgreementFilesAvailable && data.AgreementFilesPager.PageCount > 1 }>
+					<details open?={ data.ErrorKey == "engagement.invalid_agreement_file" || data.ErrorKey == "engagement.agreement_page" || data.AgreementFilesAvailable && data.AgreementFilesPager.PageCount > 1 }>
 						<summary class="btn btn-outline">{ data.T("ui.edit") } { data.T("engagement.agreement") }</summary>
+						{{ agreementRecorded := item.Agreement.Recorded; agreementFile := item.Agreement.FileID; if data.ErrorKey == "engagement.agreement_page" { agreementRecorded = data.AgreementDraftRecorded; agreementFile = data.AgreementDraftFile } }}
 						<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/agreement") } method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="return_to" value="detail"/>
-							<label><input class="checkbox" type="checkbox" name="recorded" value="1" checked?={ item.Agreement.Recorded }/> { data.T("engagement.agreement_recorded") }</label>
+							<label><input class="checkbox" type="checkbox" name="recorded" value="1" checked?={ agreementRecorded }/> { data.T("engagement.agreement_recorded") }</label>
 							if data.FilesEnabled || data.ErrorKey == "engagement.invalid_agreement_file" {
 								if data.AgreementFilesAvailable {
 									<label for="engagement-file-choice">{ data.T("engagement.choose_file") }</label>
 									<select class="select select-bordered" id="engagement-file-choice" name="selected_file_id">
 										<option value="">{ data.T("engagement.use_manual_file") }</option>
+										{{ selectedOnPage := false; for _, file := range data.AgreementFiles { if file.ID.String() == data.AgreementSelectedFile { selectedOnPage = true } } }}
+										if data.AgreementSelectedFile != "" && !selectedOnPage {
+											<option value={ data.AgreementSelectedFile } selected>{ data.AgreementSelectedFile }</option>
+										}
 										for _, file := range data.AgreementFiles {
-											<option value={ file.ID.String() }>{ file.OriginalName } — { file.ID.String() }</option>
+											<option value={ file.ID.String() } selected?={ file.ID.String() == data.AgreementSelectedFile }>{ file.OriginalName } — { file.ID.String() }</option>
 										}
 									</select>
-									if data.AgreementFilesPager.PageCount > 1 {
-										<p>{ data.T("engagement.file_page_warning") }</p>
-									}
 									<nav aria-label={ data.T("engagement.file_pages") }>
 										if data.AgreementFilesPager.Prev != "" {
-											<a class="link" href={ templ.SafeURL(data.AgreementFilesPager.Prev + "#engagement-agreement") }>{ data.T("ui.previous_page") }</a>
+											<button class="btn btn-ghost" type="submit" name="file_page" value="1" formaction={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/agreement?page=" + strconv.Itoa(data.AgreementFilesPager.Page - 1) + "#engagement-agreement") }>{ data.T("ui.previous_page") }</button>
 										}
 										if data.AgreementFilesPager.Next != "" {
-											<a class="link" href={ templ.SafeURL(data.AgreementFilesPager.Next + "#engagement-agreement") }>{ data.T("items.next_page") }</a>
+											<button class="btn btn-ghost" type="submit" name="file_page" value="1" formaction={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/agreement?page=" + strconv.Itoa(data.AgreementFilesPager.Page + 1) + "#engagement-agreement") }>{ data.T("items.next_page") }</button>
 										}
 									</nav>
 								}
 								<label for="engagement-agreement-file">{ data.T("engagement.agreement_file") }</label>
 								if data.ErrorKey == "engagement.invalid_agreement_file" {
-									<input class="input input-bordered" id="engagement-agreement-file" name="file_id" value={ item.Agreement.FileID } aria-invalid="true" aria-describedby="engagement-agreement-file-error"/>
+									<input class="input input-bordered" id="engagement-agreement-file" name="file_id" value={ agreementFile } aria-invalid="true" aria-describedby="engagement-agreement-file-error"/>
 									<p id="engagement-agreement-file-error" role="alert" tabindex="-1">{ data.T("engagement.invalid_agreement_file") }</p>
 								} else {
-									<input class="input input-bordered" id="engagement-agreement-file" name="file_id" value={ item.Agreement.FileID }/>
+									<input class="input input-bordered" id="engagement-agreement-file" name="file_id" value={ agreementFile }/>
 								}
 							}
 							@molecules.SubmitButton(data.T("engagement.agreement_save"), nil)

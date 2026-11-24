@@ -21,7 +21,8 @@ The engagement list supports ordinary GET search, stage and assignee filters,
 and bounded pagination; links open each engagement or its client. Search matches
 literal substrings in engagement and client names, folds ASCII letters only, and
 compares non-ASCII characters as typed on SQLite and PostgreSQL. Workspace
-resource readers can use the list without JavaScript. On the stage board,
+resource readers can use the list without JavaScript. Writers can follow Create
+engagement to the Clients list, choose a client, and use its creation form. On the stage board,
 writers can move an engagement using its labeled form; targets exclude archived
 and current stages. A successful move returns to the selected board kind, including
 without JavaScript. Readers do not see move controls.
@@ -64,8 +65,8 @@ the assignment using workspace members.
 Readers see whether a signed agreement is recorded and its optional file short
 ID. Writers can update both; the referenced file must belong to the workspace.
 On the engagement detail page, writers with independent Files read access can
-choose a ready file by name and short ID. Choices are paginated; navigating
-pages discards unsaved agreement changes. The optional manual short-ID field
+choose a ready file by name and short ID. Choices are paginated; page controls
+preserve the unsaved checkbox, manual ID, and selected file without saving. The optional manual short-ID field
 remains available, including without Files read access or JavaScript. A chosen
 file takes precedence over the manual field.
 `/account`, `/notifications`, `/sessions`, and `/security` cover account and

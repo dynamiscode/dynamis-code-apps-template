@@ -62,6 +62,9 @@ type PageData struct {
 	AgreementFilesTotal        int
 	AgreementFilesAvailable    bool
 	AgreementFilesPager        ListPager
+	AgreementSelectedFile      string
+	AgreementDraftFile         string
+	AgreementDraftRecorded     bool
 	EngagementEnabled          bool
 	EngagementLabel            string
 	EngagementNotes            string

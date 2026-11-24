@@ -508,7 +508,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	var agreementFilesAvailable bool
 	var actionHistory []engagement.ActionHistoryEntry
 	var historyPrevious, historyNext string
-	if request.PathValue("engagementId") != "" && (request.Method == http.MethodGet || errorKey == "engagement.invalid_name" || errorKey == "engagement.invalid_assignee" || errorKey == "engagement.invalid_quote" || errorKey == "engagement.invalid_agreement_file" || errorKey == "engagement.invalid_next_action" || errorKey == "engagement.action_conflict" || (errorKey == "engagement.invalid_move" && request.FormValue("return_to") == "detail")) {
+	if request.PathValue("engagementId") != "" && (request.Method == http.MethodGet || errorKey == "engagement.invalid_name" || errorKey == "engagement.invalid_assignee" || errorKey == "engagement.invalid_quote" || errorKey == "engagement.invalid_agreement_file" || errorKey == "engagement.agreement_page" || errorKey == "engagement.invalid_next_action" || errorKey == "engagement.action_conflict" || (errorKey == "engagement.invalid_move" && request.FormValue("return_to") == "detail")) {
 		component = engagementDetailPage
 		id := engagement.ParseID(request.PathValue("engagementId"))
 		var selected []engagement.Engagement
@@ -584,6 +584,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		Engagements:      engagements, EngagementStages: stages, EngagementMembers: members, EngagementEnabled: h.engagement != nil,
 		ActionHistory: actionHistory, ActionHistoryPrevious: historyPrevious, ActionHistoryNext: historyNext,
 		AgreementFiles: agreementFiles.Files, AgreementFilesTotal: agreementFiles.Total, AgreementFilesAvailable: agreementFilesAvailable,
+		AgreementSelectedFile: request.FormValue("selected_file_id"), AgreementDraftFile: request.FormValue("file_id"), AgreementDraftRecorded: request.FormValue("recorded") == "1",
 		AgreementFilesPager: newListPager(h.clientsPath(workspaceID)+"/"+clientID.String()+"/engagements/"+request.PathValue("engagementId"), nil, agreementFiles.Page, 100, agreementFiles.Total),
 		EngagementNotes:     engagementNotes, OpenEngagementStages: openStages,
 		EngagementName: request.FormValue("name"), EngagementStage: request.FormValue("stage"),

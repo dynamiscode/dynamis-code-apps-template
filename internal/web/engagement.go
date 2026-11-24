@@ -26,6 +26,10 @@ func (h *Handler) setEngagementAgreement(w http.ResponseWriter, r *http.Request)
 	if !h.engagementMatchesClient(w, r, actor, workspace) {
 		return
 	}
+	if r.FormValue("file_page") == "1" {
+		h.renderClientDetail(w, r, http.StatusOK, "engagement.agreement_page", nil)
+		return
+	}
 	fileID := r.FormValue("file_id")
 	if selected := r.FormValue("selected_file_id"); selected != "" {
 		fileID = selected

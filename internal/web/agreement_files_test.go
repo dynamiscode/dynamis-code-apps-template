@@ -97,11 +97,14 @@ func TestAgreementPickerPaginationAndSubmission(t *testing.T) {
 		t.Fatal(err)
 	}
 	actor.AuthMethod = "session"
-	var last appfiles.File
+	var firstFile, last appfiles.File
 	for i := 0; i < 101; i++ {
 		last, err = files.Upload(ctx, actor, env.workspaceID, fmt.Sprintf("file-%03d.txt", i), strings.NewReader("x"), identity.AuditContext{})
 		if err != nil {
 			t.Fatal(err)
+		}
+		if i == 0 {
+			firstFile = last
 		}
 	}
 	h, err := NewHandlerWithServicesAndFiles(env.auth, nil, nil, cfg.HTTP, files, "", "", nil)
@@ -139,6 +142,25 @@ func TestAgreementPickerPaginationAndSubmission(t *testing.T) {
 	}
 	if strings.Contains(first.Body.String(), "file-100.txt") {
 		t.Fatal("last file unexpectedly on first page")
+	}
+	pagedDraft := request(routes, http.MethodPost, detail+"/agreement?page=2", url.Values{"csrf": {env.csrf}, "return_to": {"detail"}, "file_page": {"1"}, "recorded": {"1"}, "file_id": {"manual-draft"}, "selected_file_id": {firstFile.ID.String()}}, env.cookies, nil)
+	for _, want := range []string{"file-100.txt", `value="manual-draft"`, `name="recorded" value="1" checked`, `value="` + firstFile.ID.String() + `" selected`} {
+		if pagedDraft.Code != http.StatusOK || !strings.Contains(pagedDraft.Body.String(), want) {
+			t.Fatalf("paged draft missing %q: %d", want, pagedDraft.Code)
+		}
+	}
+	back := request(routes, http.MethodPost, detail+"/agreement?page=1", url.Values{"csrf": {env.csrf}, "return_to": {"detail"}, "file_page": {"1"}, "file_id": {"manual-draft"}, "selected_file_id": {firstFile.ID.String()}}, env.cookies, nil)
+	for _, want := range []string{`value="manual-draft"`, `value="` + firstFile.ID.String() + `" selected`, "file-000.txt"} {
+		if back.Code != http.StatusOK || !strings.Contains(back.Body.String(), want) {
+			t.Fatalf("previous draft missing %q: %d", want, back.Code)
+		}
+	}
+	if strings.Contains(back.Body.String(), `name="recorded" value="1" checked`) {
+		t.Fatal("unchecked draft not retained")
+	}
+	unchanged, err := svc.Get(ctx, actor, env.workspaceID, items[0].ID)
+	if err != nil || unchanged.Agreement.Recorded || unchanged.Agreement.FileID != "" {
+		t.Fatalf("paging mutated agreement: %+v %v", unchanged.Agreement, err)
 	}
 	second := request(routes, http.MethodGet, detail+"?page=2", nil, env.cookies, nil)
 	if !strings.Contains(second.Body.String(), "file-100.txt") || !strings.Contains(second.Body.String(), "page=1") {
