@@ -119,7 +119,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 				if data.CanEditClients {
 					<details open?={ data.ErrorKey == "engagement.invalid_agreement_file" || data.ErrorKey == "engagement.agreement_page" || data.AgreementFilesAvailable && data.AgreementFilesPager.PageCount > 1 }>
 						<summary class="btn btn-outline">{ data.T("ui.edit") } { data.T("engagement.agreement") }</summary>
-						{{ agreementRecorded := item.Agreement.Recorded; agreementFile := item.Agreement.FileID; if data.ErrorKey == "engagement.agreement_page" { agreementRecorded = data.AgreementDraftRecorded; agreementFile = data.AgreementDraftFile } }}
+						{{ agreementRecorded := item.Agreement.Recorded; agreementFile := item.Agreement.FileID; if data.ErrorKey == "engagement.agreement_page" || data.ErrorKey == "engagement.invalid_agreement_file" { agreementRecorded = data.AgreementDraftRecorded; agreementFile = data.AgreementDraftFile } }}
 						<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/agreement") } method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="return_to" value="detail"/>
@@ -285,7 +285,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 										if entry.OwnerName != "" {
 											{ entry.OwnerName }
 										} else {
-											{ data.T("engagement.unavailable") }
+											{ data.T("engagement.unassigned") }
 										}
 									</p>
 									<p>{ data.T("engagement.action_actor") }:

@@ -562,9 +562,6 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		if errorKey == "engagement.invalid_quote" {
 			engagements[0].Quote = engagement.Quote{Status: request.FormValue("status"), Amount: request.FormValue("amount"), DateSent: request.FormValue("date_sent")}
 		}
-		if errorKey == "engagement.invalid_agreement_file" {
-			engagements[0].Agreement = engagement.Agreement{Recorded: request.FormValue("recorded") == "1", FileID: request.FormValue("file_id")}
-		}
 		if errorKey == "engagement.invalid_next_action" {
 			owner, _ := identity.ParseUserID(request.FormValue("owner_id"))
 			engagements[0].NextAction = engagement.NextAction{Text: request.FormValue("text"), DueDate: request.FormValue("due_date"), OwnerID: owner}

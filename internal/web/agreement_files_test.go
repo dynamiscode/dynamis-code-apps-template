@@ -184,9 +184,26 @@ func TestAgreementPickerPaginationAndSubmission(t *testing.T) {
 	if err != nil || item.Agreement.FileID != last.ID.String() {
 		t.Fatalf("saved: %+v %v", item.Agreement, err)
 	}
-	bad := request(routes, http.MethodPost, detail+"/agreement", url.Values{"csrf": {env.csrf}, "return_to": {"detail"}, "selected_file_id": {"bad-id"}}, env.cookies, nil)
-	if bad.Code != http.StatusUnprocessableEntity || !strings.Contains(bad.Body.String(), `value="bad-id"`) {
-		t.Fatal("invalid selected ID not retained")
+	bad := request(routes, http.MethodPost, detail+"/agreement", url.Values{"csrf": {env.csrf}, "return_to": {"detail"}, "recorded": {"1"}, "file_id": {"manual-draft"}, "selected_file_id": {"bad-id"}}, env.cookies, nil)
+	if bad.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("invalid agreement status: %d", bad.Code)
+	}
+	summary := strings.SplitN(strings.SplitN(bad.Body.String(), `id="engagement-agreement"`, 2)[1], "<details", 2)[0]
+	if !strings.Contains(summary, "Not recorded") || !strings.Contains(summary, last.ID.String()) || strings.Contains(summary, "manual-draft") {
+		t.Fatalf("invalid draft changed saved summary: %s", summary)
+	}
+	for _, want := range []string{`value="bad-id" selected`, `value="manual-draft"`, `name="recorded" value="1" checked`} {
+		if !strings.Contains(bad.Body.String(), want) {
+			t.Fatalf("invalid agreement draft missing %q", want)
+		}
+	}
+	if err := svc.SetAgreement(ctx, actor, env.workspaceID, items[0].ID, engagement.Agreement{Recorded: true, FileID: last.ID.String()}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	badManual := request(routes, http.MethodPost, detail+"/agreement", url.Values{"csrf": {env.csrf}, "return_to": {"detail"}, "file_id": {"bad-manual"}}, env.cookies, nil)
+	summary = strings.SplitN(strings.SplitN(badManual.Body.String(), `id="engagement-agreement"`, 2)[1], "<details", 2)[0]
+	if badManual.Code != http.StatusUnprocessableEntity || !strings.Contains(summary, "Signed agreement recorded") || !strings.Contains(summary, last.ID.String()) || !strings.Contains(badManual.Body.String(), `value="bad-manual"`) || strings.Contains(badManual.Body.String(), `name="recorded" value="1" checked`) {
+		t.Fatalf("invalid unchecked manual draft changed saved summary or form: %s", summary)
 	}
 	manual := request(routes, http.MethodPost, detail+"/agreement", url.Values{"csrf": {env.csrf}, "return_to": {"detail"}, "file_id": {""}}, env.cookies, nil)
 	if manual.Code != http.StatusSeeOther {

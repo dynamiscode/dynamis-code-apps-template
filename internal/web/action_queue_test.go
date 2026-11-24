@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -60,8 +61,10 @@ func TestActionHistoryVisibleToReaders(t *testing.T) {
 		t.Fatal(err)
 	}
 	page = request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
-	if !strings.Contains(page.Body.String(), "Unavailable") {
-		t.Fatal("missing unavailable identity")
+	history := strings.SplitN(strings.SplitN(page.Body.String(), `id="action-history"`, 2)[1], `</section>`, 2)[0]
+	historyText := strings.Join(strings.Fields(regexp.MustCompile(`<[^>]*>`).ReplaceAllString(history, " ")), " ")
+	if !strings.Contains(historyText, "Owner: Unassigned") || !strings.Contains(historyText, "By: Unavailable") {
+		t.Fatalf("unassigned owner or unavailable actor missing: %s", historyText)
 	}
 	for i := 0; i < 50; i++ {
 		if _, err := env.db.ExecContext(ctx, `INSERT INTO engagement_action_history (workspace_id, engagement_id, action_text, outcome, created_at) VALUES (?, ?, 'Paged history', 'cleared', '2025-01-02T15:04:00Z')`, env.workspaceID, item.ID); err != nil {

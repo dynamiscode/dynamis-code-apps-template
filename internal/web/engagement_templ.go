@@ -996,7 +996,7 @@ func engagementDetailPage(data viewmodel.PageData) templ.Component {
 					}
 					agreementRecorded := item.Agreement.Recorded
 					agreementFile := item.Agreement.FileID
-					if data.ErrorKey == "engagement.agreement_page" {
+					if data.ErrorKey == "engagement.agreement_page" || data.ErrorKey == "engagement.invalid_agreement_file" {
 						agreementRecorded = data.AgreementDraftRecorded
 						agreementFile = data.AgreementDraftFile
 					}
@@ -2399,9 +2399,9 @@ func engagementDetailPage(data viewmodel.PageData) templ.Component {
 							}
 						} else {
 							var templ_7745c5c3_Var128 string
-							templ_7745c5c3_Var128, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("engagement.unavailable"))
+							templ_7745c5c3_Var128, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("engagement.unassigned"))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement.templ`, Line: 288, Col: 45}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement.templ`, Line: 288, Col: 44}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var128))
 							if templ_7745c5c3_Err != nil {
