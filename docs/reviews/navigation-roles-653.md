@@ -8,6 +8,10 @@
 
 ## Browser evidence
 
+**Independent preview comparison:** Separate baseline `0bb61048` and target `fb53df6` preview binaries, populated synthetic workspace selection, isolated Playwright contexts. Inspected [baseline desktop](navigation-roles-653/preview-before-desktop.png) and [target desktop](navigation-roles-653/preview-after-desktop.png) at 1280×800 light, and [baseline mobile](navigation-roles-653/preview-before-mobile-dark.png) and [target mobile](navigation-roles-653/preview-after-mobile-dark.png) at 390×844 dark. Header brand link gains a border: computed `border-top-width` is `0px` baseline and `1px` target at both sizes. Captures contain synthetic workspace names and no credentials, session values or personal data. Preview does not test authorization or production data.
+
+Screenshot SHA-256: desktop baseline `3ddd84c3d9f8f568b0d15f5ce2a223b5220e8c51c6446c55131c26f92551325b`, target `f2706a44b8b02f95a6acf8e3c757de8d0e13992af65b9e30e8a4de257076bd1f`; mobile baseline `98310c90d1376864fca0f3e6002f72ac57ba44fd4c318c91bce2b348f5d0ef5c`, target `70db802a015e1684a81ddd68eb6eb3408051a7b5e1f8c61501d2e625f3640880`. Both pairs differ.
+
 **Correction:** The original after server was accidentally built from the invoking worktree, not `navigation-roles-653`: its served CSS hashes match baseline. Therefore the original list, mobile, keyboard and breadcrumb observations below are baseline observations, not proof of the reviewed revision. The member permission dead end was independently repeated against the correctly built revision.
 
 Fresh owner home captures, desktop 1280×800 light, synthetic data: [before](navigation-roles-653/verified-before-home.png) at `http://127.0.0.1:18954/workspaces/njuz`, revision `0bb61048`; [after](navigation-roles-653/verified-after-home.png) at `http://127.0.0.1:18953/workspaces/njuz`, revision `fb53df6`. Playwright read computed `.workspace-name` border width: before `0px`, after `1px`. Served asset SHA-256:
@@ -36,4 +40,4 @@ Original observations, retained as baseline-only:
 
 - Screenshots contain only synthetic workspace and client names; no credentials, session values, or personal data were visible on inspection. Fresh home captures prove the sampled header change; the original identical list images are baseline-only and do not prove list changes.
 - Inline links wrapping over multiple lines, member mutation controls, admin/viewer roles, error and long-content states, and full list actions remain untested.
-- Correct-revision list, mobile/dark, keyboard and inline-wrapping journeys require another drive. Baseline mobile/dark comparison and full keyboard traversal remain untested. Do not treat this record as a completed UX gate.
+- Correct-revision list, mobile/dark, keyboard and inline-wrapping journeys require another drive. The mobile/dark comparison above covers only preview workspace selection; full keyboard traversal remains untested. Do not treat this record as a completed UX gate.
