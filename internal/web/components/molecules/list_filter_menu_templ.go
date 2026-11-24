@@ -51,7 +51,7 @@ func ListFilterMenu(label string, open bool) templ.Component {
 		templ_7745c5c3_Err = atoms.Dropdown(atoms.DropdownProps{
 			Class:         "list-menu",
 			Label:         label,
-			SummaryClass:  "btn btn-ghost btn-sm",
+			SummaryClass:  "btn btn-sm",
 			Open:          open,
 			PanelClass:    "bg-base-100 rounded-box shadow-lg border border-base-200 p-3 w-96 max-w-[90vw]",
 			PanelChildren: true,

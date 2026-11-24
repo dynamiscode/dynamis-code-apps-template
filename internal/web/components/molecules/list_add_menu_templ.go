@@ -78,7 +78,7 @@ func ListAddMenu(label string, open bool, labelled bool) templ.Component {
 		})
 		templ_7745c5c3_Err = atoms.Dropdown(atoms.DropdownProps{
 			Class:         "list-menu",
-			SummaryClass:  "btn btn-ghost btn-xs",
+			SummaryClass:  "btn btn-xs",
 			SummaryAttrs:  templ.Attributes{"aria-label": label, "title": label},
 			Summary:       listAddSummary(label, labelled),
 			Open:          open,

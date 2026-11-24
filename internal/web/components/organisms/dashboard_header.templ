@@ -13,7 +13,7 @@ templ DashboardHeader(data viewmodel.PageData) {
 
 templ ThemeMenu(data viewmodel.PageData) {
 	<details class="dropdown dropdown-end">
-		<summary class="btn btn-ghost btn-sm">{ data.T("account.theme") }: { data.T("account.theme_" + data.Theme) }</summary>
+		<summary class="btn btn-sm">{ data.T("account.theme") }: { data.T("account.theme_" + data.Theme) }</summary>
 		<ul class="menu dropdown-content z-50 w-40 rounded-box bg-base-100 p-2 shadow-lg">
 			for _, theme := range []string{"system", "light", "dark"} {
 				<li>
@@ -33,12 +33,12 @@ templ sharedHeader(data viewmodel.PageData, account bool) {
 		<div class="navbar-start min-w-0 gap-3">
 			if account {
 				<button type="button" class="btn btn-ghost btn-square drawer-button lg:hidden" aria-label={ data.T("ui.open_navigation") } @click="toggleDrawer">&#9776;</button>
-				<a class="workspace-name" href="/account">{ data.T("common.account") }</a>
+				<a class="workspace-name border border-base-300 rounded-field" href="/account">{ data.T("common.account") }</a>
 			} else if data.Workspace.ID != 0 {
 				<button type="button" class="btn btn-ghost btn-square drawer-button lg:hidden" aria-label={ data.T("ui.open_navigation") } @click="toggleDrawer">&#9776;</button>
-				<a class="workspace-name" href={ "/workspaces/" + data.Workspace.ID.String() }>{ data.Workspace.Name }</a>
+				<a class="workspace-name border border-base-300 rounded-field" href={ "/workspaces/" + data.Workspace.ID.String() }>{ data.Workspace.Name }</a>
 			} else {
-				<a class="brand inline-flex items-center gap-2 text-lg font-extrabold no-underline" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
+				<a class="brand inline-flex items-center gap-2 rounded-field border border-base-300 px-2 text-lg font-extrabold no-underline" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
 				<div class="hidden min-w-0 items-center gap-2 text-base-content/70 sm:flex">
 					@atoms.Breadcrumbs(atoms.BreadcrumbsProps{Items: molecules.HomeCrumbItems(data)})
 				</div>

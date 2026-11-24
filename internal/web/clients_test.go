@@ -509,7 +509,7 @@ func TestClientsListUsesResponsiveTableAndSavedColumns(t *testing.T) {
 	}
 	response = request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.viewerCookies, nil)
 	if response.Code != http.StatusOK || strings.Contains(response.Body.String(), `data-column="displayName"`) ||
-		!strings.Contains(response.Body.String(), `class="list-row-link"`) ||
+		!strings.Contains(response.Body.String(), `class="list-row-link `) ||
 		strings.Contains(response.Body.String(), `>Ada Lovelace<`) {
 		t.Fatalf("hidden column remains visible: %d %s", response.Code, response.Body.String())
 	}

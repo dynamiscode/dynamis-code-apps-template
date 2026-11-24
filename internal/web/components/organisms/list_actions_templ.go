@@ -71,7 +71,7 @@ func ListActionsMenu(data viewmodel.PageData, actions []ListAction, vertical boo
 		if len(actions) > 0 {
 			templ_7745c5c3_Err = atoms.Dropdown(atoms.DropdownProps{
 				Class:        "list-menu",
-				SummaryClass: "btn btn-ghost btn-sm list-row-menu-button",
+				SummaryClass: "btn btn-sm list-row-menu-button",
 				SummaryAttrs: templ.Attributes{"aria-label": data.T("ui.row_actions"), "title": data.T("ui.row_actions")},
 				Summary:      molecules.RowMenuGlyph(vertical),
 				ListClass:    "list-action-items bg-base-100 rounded-box shadow-lg",
@@ -105,9 +105,9 @@ func listActionItems(data viewmodel.PageData, actions []ListAction) []atoms.Drop
 // POST button then share the same box, padding, glyph gap, and alignment instead of each drifting.
 func listActionItemClass(action ListAction) string {
 	if action.Danger {
-		return "list-action-item is-danger"
+		return "list-action-item is-danger border border-error rounded-field"
 	}
-	return "list-action-item"
+	return "list-action-item border border-base-300 rounded-field"
 }
 
 // listActionForm is a POST action with its CSRF token. The form is a layout pass-through, so the button sits
@@ -418,7 +418,7 @@ func ListRowMenuCard(data viewmodel.PageData) templ.Component {
 		})
 		templ_7745c5c3_Err = atoms.Dropdown(atoms.DropdownProps{
 			Class:         "list-menu",
-			SummaryClass:  "btn btn-ghost btn-sm list-row-menu-button",
+			SummaryClass:  "btn btn-sm list-row-menu-button",
 			SummaryAttrs:  templ.Attributes{"aria-label": data.T("ui.row_actions"), "title": data.T("ui.row_actions")},
 			Summary:       molecules.RowMenuGlyph(true),
 			PanelClass:    "list-action-items bg-base-100 rounded-box shadow-lg",

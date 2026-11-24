@@ -37,7 +37,7 @@ func ListViewSwitcher(data viewmodel.PageData) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = atoms.Dropdown(atoms.DropdownProps{
 			Class:        "list-menu",
-			SummaryClass: "btn btn-ghost btn-sm",
+			SummaryClass: "btn btn-sm",
 			SummaryAttrs: templ.Attributes{"aria-label": data.T("views.title"), "title": data.T("views.title")},
 			Summary:      listViewSummary(data),
 			Panel:        listViewPanel(data),
@@ -698,9 +698,9 @@ func listViewNoneApplied(data viewmodel.PageData) bool {
 // listViewOptionClass styles a view option, marking the one that is applied.
 func listViewOptionClass(applied bool) string {
 	if applied {
-		return "list-view-option is-applied"
+		return "list-view-option is-applied border border-base-300 rounded-field"
 	}
-	return "list-view-option"
+	return "list-view-option border border-base-300 rounded-field"
 }
 
 // defaultViewTarget is the view a default toggle names: the view itself, or the clear sentinel when it is the

@@ -33,14 +33,14 @@ func workspaceSwitcherItem(href, name, role string, current bool) templ.Componen
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<a href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<a class=\"border border-base-300\" href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templruntime.NewAttributeExpression(href).ResolveURL(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 12, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 12, Col: 46}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -53,7 +53,7 @@ func workspaceSwitcherItem(href, name, role string, current bool) templ.Componen
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templruntime.NewAttributeExpression(currentPage(current)).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 12, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 12, Col: 84}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -66,7 +66,7 @@ func workspaceSwitcherItem(href, name, role string, current bool) templ.Componen
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 12, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 12, Col: 101}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -79,7 +79,7 @@ func workspaceSwitcherItem(href, name, role string, current bool) templ.Componen
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(role)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 12, Col: 109}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 12, Col: 140}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -195,7 +195,7 @@ func WorkspaceContext(data viewmodel.PageData) templ.Component {
 			templ_7745c5c3_Err = atoms.Dropdown(atoms.DropdownProps{
 				Class:        "",
 				Label:        data.Workspace.Name,
-				SummaryClass: "btn-ghost h-auto min-h-0 px-1 text-lg font-bold normal-case border-0 shadow-none",
+				SummaryClass: "btn-sm h-auto min-h-0 px-2 text-lg font-bold normal-case",
 				Summary:      workspaceChevron(),
 				ListClass:    "w-56 max-w-[90vw] bg-base-100 rounded-box shadow-lg",
 				Items:        workspaceSwitcherItems(data),
@@ -254,14 +254,14 @@ func NavLink(data viewmodel.PageData, href, key string, active bool) templ.Compo
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<a aria-current=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<a class=\"border border-base-300\" aria-current=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templruntime.NewAttributeExpression(currentPage(active)).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 57, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 57, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 		if templ_7745c5c3_Err != nil {
@@ -274,7 +274,7 @@ func NavLink(data viewmodel.PageData, href, key string, active bool) templ.Compo
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templruntime.NewAttributeExpression(href).ResolveURL(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 57, Col: 52}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 57, Col: 83}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 		if templ_7745c5c3_Err != nil {
@@ -287,7 +287,7 @@ func NavLink(data viewmodel.PageData, href, key string, active bool) templ.Compo
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(data.T(key))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 57, Col: 68}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 57, Col: 99}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
@@ -632,14 +632,14 @@ func AccountNavigation(data viewmodel.PageData) templ.Component {
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
 		if data.SingleWorkspace && data.DefaultWorkspaceHref != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<a class=\"btn btn-ghost btn-sm w-full justify-start font-normal\" href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<a class=\"btn btn-sm w-full justify-start font-normal\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var27 string
 			templ_7745c5c3_Var27, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.DefaultWorkspaceHref).ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 131, Col: 99}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 131, Col: 89}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
 			if templ_7745c5c3_Err != nil {
@@ -652,7 +652,7 @@ func AccountNavigation(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var28 string
 			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("workspace.back_to_home"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 131, Col: 140}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 131, Col: 130}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 			if templ_7745c5c3_Err != nil {
@@ -663,14 +663,14 @@ func AccountNavigation(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else if !data.SingleWorkspace {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<a class=\"btn btn-ghost btn-sm w-full justify-start font-normal\" href=\"/\">← ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<a class=\"btn btn-sm w-full justify-start font-normal\" href=\"/\">← ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var29 string
 			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("workspace.workspaces"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 133, Col: 112}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/navigation.templ`, Line: 133, Col: 102}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 			if templ_7745c5c3_Err != nil {
@@ -798,7 +798,7 @@ func AccountMenu(data viewmodel.PageData) templ.Component {
 			Class:        "dropdown-end",
 			Label:        "",
 			SummaryAttrs: templ.Attributes{"aria-label": data.T("common.account")},
-			SummaryClass: "btn btn-circle btn-ghost p-0",
+			SummaryClass: "btn btn-circle p-0",
 			Summary:      AccountAvatar(data),
 			ListClass:    "w-52 max-w-[90vw] bg-base-100 rounded-box shadow-lg",
 			Items:        accountMenuItems(data),

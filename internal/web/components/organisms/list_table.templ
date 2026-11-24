@@ -60,7 +60,7 @@ templ ListCellValue(data viewmodel.PageData, row viewmodel.ListRow, column viewm
 	if href != "" && column.Key == data.ClientListLinkKey() {
 		<span class="list-identity">
 			<span class="list-initials" aria-hidden="true">{ molecules.ListInitials(data.ClientListCellValue(column, row)) }</span>
-			<span class="list-name"><a class="list-row-link" href={ href }>@molecules.ListHighlight(data.ClientListCellValue(column, row), data.ListSearch)</a></span>
+			<span class="list-name"><a class="list-row-link rounded-field border border-base-300 px-1" href={ href }>@molecules.ListHighlight(data.ClientListCellValue(column, row), data.ListSearch)</a></span>
 		</span>
 	} else if molecules.ListBadgeColumn(column.Key) {
 		<span class={ "badge badge-sm list-badge list-badge-" + row.CellText(column.Key) }>{ data.ClientListCellValue(column, row) }</span>

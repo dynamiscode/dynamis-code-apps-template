@@ -17,7 +17,7 @@ templ ClientColumnHeading(data viewmodel.PageData, column viewmodel.ListColumn) 
 	if column.SortDirection != "" {
 		<th scope="col" data-column={ column.Key } aria-sort={ column.SortDirection }>
 			if column.SortHref != "" {
-				<a href={ column.SortHref } { ListLiveLinkAttributes(data, column.SortHref)... }>@atoms.HeaderText(ClientColumnLabelText(data, column), nil)</a>
+				<a class="rounded-field border border-base-300 px-1" href={ column.SortHref } { ListLiveLinkAttributes(data, column.SortHref)... }>@atoms.HeaderText(ClientColumnLabelText(data, column), nil)</a>
 			} else {
 				@atoms.HeaderText(ClientColumnLabelText(data, column), nil)
 			}
@@ -25,7 +25,7 @@ templ ClientColumnHeading(data viewmodel.PageData, column viewmodel.ListColumn) 
 	} else {
 		<th scope="col" data-column={ column.Key }>
 			if column.SortHref != "" {
-				<a href={ column.SortHref } { ListLiveLinkAttributes(data, column.SortHref)... }>@atoms.HeaderText(ClientColumnLabelText(data, column), nil)</a>
+				<a class="rounded-field border border-base-300 px-1" href={ column.SortHref } { ListLiveLinkAttributes(data, column.SortHref)... }>@atoms.HeaderText(ClientColumnLabelText(data, column), nil)</a>
 			} else {
 				@atoms.HeaderText(ClientColumnLabelText(data, column), nil)
 			}
