@@ -116,6 +116,23 @@ func TestListWorkspaceFiltersAndPages(t *testing.T) {
 	if _, err := svc.List(ctx, viewer, other, ListInput{Page: 1, Limit: 10}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("foreign access: %v", err)
 	}
+	accentClient, err := cs.Create(ctx, owner, boot.WorkspaceID, clients.Input{DisplayName: "ÉCOLE!_100%"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	accent, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{Name: "MÜNCHEN!_%", ClientID: accentClient.ID, StageID: stage2.ID}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(ListInput{Page: 1, Limit: 10, Search: "mÜnchen"}, 1, accent.ID)
+	check(ListInput{Page: 1, Limit: 10, Search: "münchen"}, 0)
+	check(ListInput{Page: 1, Limit: 10, Search: "école"}, 0)
+	check(ListInput{Page: 1, Limit: 10, Search: "École"}, 1, accent.ID)
+	for _, literal := range []string{"!", "_", "!_%"} {
+		check(ListInput{Page: 1, Limit: 10, Search: literal}, 1, accent.ID)
+	}
+	check(ListInput{Page: 1, Limit: 1, Search: "%"}, 2, accent.ID)
+	check(ListInput{Page: 2, Limit: 1, Search: "%"}, 2, ids[1])
 	for _, in := range []ListInput{{Page: 0, Limit: 1}, {Page: 1, Limit: 101}, {Page: clients.MaxListPage + 1, Limit: 1}, {Page: 1, Limit: 1, Search: string([]byte{0xff})}} {
 		if _, err := svc.List(ctx, owner, boot.WorkspaceID, in); !errors.Is(err, ErrInvalidInput) {
 			t.Fatalf("invalid %+v: %v", in, err)

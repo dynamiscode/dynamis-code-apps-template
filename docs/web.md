@@ -18,7 +18,9 @@ SCIM, exports, and audit history into role-aware sidebar sections.
 For workspace resource readers, workspace home shows overdue and due-today action counts (UTC), up to five individual actions in each category, and paginated counts of work in open stages, including archived stages. Preview links open the engagement; view-all links open the corresponding action queue filter. Counts link to the queue or stage-filtered engagement list. These links work without JavaScript.
 The Clients list links to the workspace engagement list and engagement stages.
 The engagement list supports ordinary GET search, stage and assignee filters,
-and bounded pagination; links open each engagement or its client. Workspace
+and bounded pagination; links open each engagement or its client. Search matches
+literal substrings in engagement and client names, folds ASCII letters only, and
+compares non-ASCII characters as typed on SQLite and PostgreSQL. Workspace
 resource readers can use the list without JavaScript. On the stage board,
 writers can move an engagement using its labeled form; targets exclude archived
 and current stages. A successful move returns to the selected board kind, including

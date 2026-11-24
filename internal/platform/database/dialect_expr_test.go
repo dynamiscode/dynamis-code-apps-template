@@ -38,6 +38,22 @@ func checkDialectExprs(t *testing.T, driver config.DatabaseDriver, db *sql.DB) {
 		}
 	}
 
+	for _, tc := range []struct {
+		haystack, needle string
+		want             bool
+	}{
+		{"MÜNCHEN!_%", "mÜnchen", true},
+		{"MÜNCHEN!_%", "münchen", false},
+		{"MÜNCHEN!_%", "!_%", true},
+		{"MÜNCHEN!_%", "!a%", false},
+	} {
+		var got bool
+		expr := ContainsExpr(driver, ASCIILowerExpr(driver, "?"), ASCIILowerExpr(driver, "?"))
+		if err := db.QueryRowContext(ctx, Rebind(driver, "SELECT "+expr), tc.haystack, tc.needle).Scan(&got); err != nil || got != tc.want {
+			t.Fatalf("contains %q in %q = %v, %v; want %v", tc.needle, tc.haystack, got, err, tc.want)
+		}
+	}
+
 	// Binary order: uppercase sorts before lowercase, on both dialects.
 	rows, err := db.QueryContext(ctx, "SELECT v FROM (SELECT 'a' AS v UNION ALL SELECT 'B' UNION ALL SELECT 'b') AS s ORDER BY "+TextOrderExpr(driver, "v"))
 	if err != nil {

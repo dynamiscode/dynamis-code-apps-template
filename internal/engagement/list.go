@@ -37,7 +37,7 @@ type Page struct {
 }
 
 // List returns engagements in descending ID order, including archived stages.
-// Search matches engagement and client names as literal, case-insensitive text.
+// Search matches literal substrings in engagement and client names, folding ASCII letters only.
 func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, input ListInput) (Page, error) {
 	if input.Page < 1 || input.Page > clients.MaxListPage || input.Limit < 1 || input.Limit > 100 || input.StageID < 0 || (input.AssigneeID != nil && *input.AssigneeID < 0) || !utf8.ValidString(input.Search) || utf8.RuneCountInString(input.Search) > 200 {
 		return Page{}, ErrInvalidInput
@@ -53,9 +53,9 @@ func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceI
 	where := ` FROM engagements e JOIN clients c ON c.workspace_id = e.workspace_id AND c.id = e.client_id WHERE e.workspace_id = ?`
 	args := []any{workspaceID}
 	if search := strings.TrimSpace(input.Search); search != "" {
-		search = strings.NewReplacer("!", "!!", "%", "!%", "_", "!_").Replace(search)
-		where += ` AND (LOWER(e.name) LIKE LOWER(?) ESCAPE '!' OR LOWER(c.display_name) LIKE LOWER(?) ESCAPE '!')`
-		args = append(args, "%"+search+"%", "%"+search+"%")
+		needle := database.ASCIILowerExpr(s.driver, "?")
+		where += ` AND (` + database.ContainsExpr(s.driver, database.ASCIILowerExpr(s.driver, "e.name"), needle) + ` OR ` + database.ContainsExpr(s.driver, database.ASCIILowerExpr(s.driver, "c.display_name"), needle) + `)`
+		args = append(args, search, search)
 	}
 	if input.StageID != 0 {
 		where += ` AND e.stage_id = ?`
