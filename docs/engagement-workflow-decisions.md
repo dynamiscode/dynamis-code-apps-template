@@ -238,6 +238,78 @@ These are reported samples, not a comprehensive UX, accessibility, permission,
 keyboard, error recovery, or no-JavaScript review. They do not close the
 remaining audit gates.
 
+## Additional rendered evidence (2026-11-24)
+
+The following observations come from one reviewer using disposable SQLite
+applications and synthetic data. They supplement, but do not replace, the
+samples above. Screenshots are local, untracked files in the integration
+worktree; they are not durable repository artifacts. File presence was checked
+when this record was written, not their visual contents.
+
+### Historical baseline: `cea28b0`
+
+The reviewer exercised owner, member, and viewer journeys. A viewer's direct
+agreement mutation returned HTTP 403; a member created a second engagement and
+could not see stage-management controls. With JavaScript disabled, an owner
+created an engagement and stage, moved the engagement, and recovered from one
+invalid agreement submission. A mobile keyboard sample covered engagement
+creation, but not the full editing journey.
+
+An invalid agreement ID produced a generic error and cleared the entered value.
+A 359-character unbroken note caused horizontal document overflow: at desktop
+width 1280, client width was 1265 and scroll width 4114; at 390 × 844, client
+width was 375 and scroll width 3827. The reviewer inspected the long-note
+screenshot; the other two images were captured but not visually assessed.
+Local screenshots:
+
+- `.playwright-mcp/baseline-621-viewer-20261124.png`
+- `.playwright-mcp/baseline-621-long-20261124.png`
+- `.playwright-mcp/baseline-621-mobile-20261124.png`
+
+### Redesigned samples: `a170ed4`
+
+An owner created a named engagement, scheduled an unassigned overdue action,
+completed and reopened it, and selected an uploaded file in the agreement
+picker. A viewer could read detail but a direct agreement mutation returned 403;
+a member saw agreement editing but no Add stage button. A JavaScript-disabled
+mobile sample retained an invalid manual file ID and completed a corrected
+agreement submission. A sequential two-tab stale detail edit returned 409,
+retained the draft, and succeeded on explicit retry.
+
+At this revision action history labeled an unassigned owner “Unavailable”; an
+invalid agreement ID contaminated the displayed summary; and stale queue
+rescheduling discarded the submitted date. These observations are specific to
+`a170ed4`, not claims about later revisions. Only one ready file was available:
+picker pagination and cross-page draft preservation were not verified in the
+browser. Local screenshots were captured but not visually assessed:
+
+- `.playwright-mcp/redesign-621-detail-mobile-a170ed4.png`
+- `.playwright-mcp/redesign-stale-conflict-a170ed4.png`
+- `.playwright-mcp/redesign-picker-a170ed4.png`
+
+### Focused recovery samples: `5b20bf3`
+
+Two owner queue tabs exercised stale rescheduling: the recovery page showed the
+current date and retained the submitted date; explicit retry saved the draft.
+For a completed action, recovery retained the submitted date and offered no
+reschedule button. An invalid date, injected after changing the native date
+input to text, returned 422 and retained the input; a corrected retry saved.
+The reviewer also observed “Owner: Unassigned” in action history and an invalid
+agreement draft retained in the field without appearing in the saved summary.
+
+Local screenshots were captured but not independently visually reviewed:
+
+- `.playwright-mcp/queue-conflict-5b20bf3.png`
+- `.playwright-mcp/queue-removed-5b20bf3.png`
+- `.playwright-mcp/queue-invalid-5b20bf3.png`
+- `.playwright-mcp/agreement-invalid-5b20bf3.png`
+
+The subsequent invalid-date plus replaced-action correction at `bc9e7ff` has
+not been covered by these rendered samples. None of these reports establishes
+full keyboard traversal, screen-reader behavior, comprehensive role and
+lifecycle coverage, picker pagination, independent review, or WCAG compliance.
+Historical baseline and redesigned journey gates remain incomplete.
+
 ## Remaining current-journey audit
 
 Status: **blocked pending rendered-browser review**. The following scenarios
