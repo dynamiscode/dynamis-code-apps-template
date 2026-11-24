@@ -23,10 +23,13 @@ writers can move an engagement using its labeled form; targets exclude archived
 and current stages. A successful move returns to the selected board kind, including
 without JavaScript. Readers do not see move controls.
 Owners and admins can add, reorder,
-and archive stages; workspace readers see their order and archive state. The
-forms work without JavaScript.
-On a client detail page, readers can see engagements and their stage history;
-each engagement name links to a detail page with its existing information
+and archive stages; workspace readers see their order and archive state. Archiving
+requires explicit confirmation, explains that existing work stays in the stage,
+and prevents moves into it. The forms work without JavaScript.
+On a client detail page, readers can see engagements and their stage history.
+History shows stage names including archived stages, the actor's display name
+(or email when unset, and unavailable when the account no longer exists), and a
+locale-formatted UTC time. Each engagement name links to a detail page with its existing information
 and a return link to the client. Writers can edit its quote and next action on
 that page; readers see their summaries. Invalid quote and next-action submissions
 retain entered values and associate determinable field errors with their controls.

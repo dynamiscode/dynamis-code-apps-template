@@ -246,27 +246,37 @@ templ engagementDetailPage(data viewmodel.PageData) {
 					</details>
 				}
 				</section>
-				<ol data-engagement-history>
-					for _, entry := range item.History {
-						<li>
-							for _, stage := range data.EngagementStages {
-								if stage.ID == entry.FromStageID {
-									<span>{ stage.Name }</span>
-								}
-							}
-							<span>→ </span>
-							for _, stage := range data.EngagementStages {
-								if stage.ID == entry.ToStageID {
-									<span>{ stage.Name }</span>
-								}
-							}
-							<span>— { entry.ActorUserID.String() } — { entry.CreatedAt }</span>
-						</li>
-					}
-				</ol>
+				@engagementHistory(data, item.History)
 			</section>
 		}
 	}
+}
+
+templ engagementHistory(data viewmodel.PageData, history []engagement.MoveHistory) {
+	<ol data-engagement-history>
+		for _, entry := range history {
+			<li>
+				for _, stage := range data.EngagementStages {
+					if stage.ID == entry.FromStageID {
+						<span>{ stage.Name }</span>
+					}
+				}
+				<span> → </span>
+				for _, stage := range data.EngagementStages {
+					if stage.ID == entry.ToStageID {
+						<span>{ stage.Name }</span>
+					}
+				}
+				<span> — </span>
+				if entry.ActorName != "" {
+					<span>{ entry.ActorName }</span>
+				} else {
+					<span>{ data.T("engagement.unavailable") }</span>
+				}
+				<span> — </span><time datetime={ entry.CreatedAt }>{ data.HistoryTime(entry.CreatedAt) }</time>
+			</li>
+		}
+	</ol>
 }
 
 templ dueEngagementsPage(data viewmodel.PageData, items []engagement.Engagement, clientsPath string) {
@@ -297,7 +307,13 @@ templ engagementStagesPage(data viewmodel.PageData, stages []engagement.Stage, c
 				</form>
 				<form action={ templ.SafeURL(data.CurrentPath) } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@molecules.TextField("stage-name", data.T("engagement.name"), templ.Attributes{"name": "name", "required": true, "maxlength": "200"})
+					@molecules.TextField("stage-name", data.T("engagement.name"), templ.Attributes{"name": "name", "required": true, "maxlength": "200", "list": "stage-name-examples", "aria-describedby": "stage-name-hint"})
+					<p id="stage-name-hint">{ data.T("engagement.stage_examples_hint") }</p>
+					<datalist id="stage-name-examples">
+						<option value={ data.T("engagement.stage_example_discovery") }></option>
+						<option value={ data.T("engagement.stage_example_proposal") }></option>
+						<option value={ data.T("engagement.stage_example_delivery") }></option>
+					</datalist>
 					@atoms.Select(atoms.SelectProps{ID: "stage-kind", Name: "kind", Label: data.T("engagement.kind"), Options: []atoms.SelectOption{{Label: data.T("engagement.open"), Value: "open"}, {Label: data.T("engagement.won"), Value: "won"}, {Label: data.T("engagement.lost"), Value: "lost"}}})
 					@molecules.SubmitButton(data.T("engagement.add"), nil)
 				</form>
@@ -326,6 +342,7 @@ templ engagementStagesPage(data viewmodel.PageData, stages []engagement.Stage, c
 								if !stage.Archived {
 									<form action={ templ.SafeURL(data.CurrentPath + "/" + stage.ID.String() + "/archive") } method="post" class="inline">
 										<input type="hidden" name="csrf" value={ data.CSRF }/>
+										<label><input type="checkbox" name="confirm_archive" value="yes" required/> { data.T("engagement.archive_consequence") } { stage.Name }</label>
 										<button class="btn btn-ghost btn-xs" aria-label={ data.T("engagement.archive") + " " + stage.Name }>{ data.T("engagement.archive") }</button>
 									</form>
 								}

@@ -527,6 +527,13 @@ func (h *Handler) archiveEngagementStage(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	if r.FormValue("confirm_archive") != "yes" {
+		if _, _, _, ok := h.workspaceSession(w, r, workspace, identity.WorkspaceUpdate); !ok {
+			return
+		}
+		h.renderEngagementStages(w, r, http.StatusUnprocessableEntity, "engagement.archive_confirmation_required")
+		return
+	}
 	err := h.engagement.ArchiveStage(r.Context(), actor, workspace, engagement.ParseStageID(r.PathValue("stageId")), auditContext(r))
 	h.finishStageMutation(w, r, workspace, err)
 }
