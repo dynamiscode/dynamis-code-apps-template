@@ -35,4 +35,4 @@ Target server restarted with the same disposable workspace. Playwright, owner, 3
 
 ## Gaps
 
-Public long-consent overflow remains unresolved. No unavailable-link error, successful public submission, old-link invalidation, full keyboard traversal, automated accessibility or asset drift checks in this target run. No app-wide navigation inventory or rendered parent mobile/dark review. Screenshots alone do not establish accessibility conformance. Original report described a run executed from a different worktree; its results are excluded here.
+Public long-consent overflow remains unresolved; follow up under #656 (public journeys). Commit `ab21d98` does not change the public consent markup or CSS; the overflow was not reproduced against its parent. No unavailable-link error, successful public submission, old-link invalidation, full keyboard traversal, automated accessibility or asset drift checks in this target run. No app-wide navigation inventory or rendered parent mobile/dark review. Screenshots alone do not establish accessibility conformance. Original report described a run executed from a different worktree; its results are excluded here.
