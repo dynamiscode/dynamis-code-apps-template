@@ -58,9 +58,9 @@ func TestStagesStartEmptyAndRetainCreationOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stages, err = svc.ListStages(ctx, otherOwner, other)
-	if err != nil || len(stages) != 0 {
-		t.Fatalf("other workspace stages = %v, %v", stages, err)
+	otherStages, err := svc.ListStages(ctx, otherOwner, other)
+	if err != nil || len(otherStages) != 0 {
+		t.Fatalf("other workspace stages = %v, %v", otherStages, err)
 	}
 	var memberID identity.UserID
 	if err := db.QueryRowContext(ctx, `INSERT INTO users (email, created_at) VALUES (?, ?) RETURNING id`, "member@example.com", time.Now().UTC().Format(time.RFC3339Nano)).Scan(&memberID); err != nil {
@@ -76,10 +76,10 @@ func TestStagesStartEmptyAndRetainCreationOrder(t *testing.T) {
 	if _, err := svc.CreateStage(ctx, member, boot.WorkspaceID, StageInput{Name: "Blocked", Kind: "open"}, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("member create = %v", err)
 	}
-	if err := svc.ReorderStages(ctx, member, boot.WorkspaceID, nil, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+	if err := svc.ReorderStages(ctx, member, boot.WorkspaceID, []StageID{stages[1].ID, stages[0].ID}, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("member reorder = %v", err)
 	}
-	if err := svc.ArchiveStage(ctx, member, boot.WorkspaceID, 0, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+	if err := svc.ArchiveStage(ctx, member, boot.WorkspaceID, stages[0].ID, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("member archive = %v", err)
 	}
 	var adminID identity.UserID
@@ -93,8 +93,15 @@ func TestStagesStartEmptyAndRetainCreationOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.CreateStage(ctx, admin, boot.WorkspaceID, StageInput{Name: "Lost", Kind: "lost"}, identity.AuditContext{}); err != nil {
+	lost, err := svc.CreateStage(ctx, admin, boot.WorkspaceID, StageInput{Name: "Lost", Kind: "lost"}, identity.AuditContext{})
+	if err != nil {
 		t.Fatalf("admin create: %v", err)
+	}
+	if err := svc.ReorderStages(ctx, admin, boot.WorkspaceID, []StageID{lost.ID, stages[1].ID, stages[0].ID}, identity.AuditContext{}); err != nil {
+		t.Fatalf("admin reorder: %v", err)
+	}
+	if err := svc.ArchiveStage(ctx, admin, boot.WorkspaceID, lost.ID, identity.AuditContext{}); err != nil {
+		t.Fatalf("admin archive: %v", err)
 	}
 	for _, input := range []StageInput{{Name: " ", Kind: "open"}, {Name: "Bad", Kind: "other"}} {
 		if _, err := svc.CreateStage(ctx, owner, boot.WorkspaceID, input, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
@@ -161,13 +168,30 @@ func TestReorderAndArchiveStages(t *testing.T) {
 	if err := svc.ArchiveStage(ctx, owner, boot.WorkspaceID, first.ID, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
+	if err := svc.ReorderStages(ctx, owner, boot.WorkspaceID, []StageID{first.ID, second.ID}, identity.AuditContext{}); err != nil {
+		t.Fatalf("reorder including archived stage: %v", err)
+	}
+	if err := svc.ReorderStages(ctx, owner, boot.WorkspaceID, []StageID{second.ID}, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("reorder excluding archived stage = %v", err)
+	}
+	stages, err := svc.ListStages(ctx, owner, boot.WorkspaceID)
+	if err != nil || len(stages) != 2 || stages[0].ID != first.ID || !stages[0].Archived || stages[1].ID != second.ID {
+		t.Fatalf("stages after archived reorder = %+v, %v", stages, err)
+	}
+	if err := svc.ReorderStages(ctx, owner, boot.WorkspaceID, []StageID{second.ID, first.ID}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
 	for _, event := range []string{"engagement_stage.reordered", "engagement_stage.archived"} {
 		var count int
-		if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_events WHERE workspace_id = ? AND event_type = ?`, boot.WorkspaceID, event).Scan(&count); err != nil || count != 1 {
+		want := 1
+		if event == "engagement_stage.reordered" {
+			want = 3
+		}
+		if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_events WHERE workspace_id = ? AND event_type = ?`, boot.WorkspaceID, event).Scan(&count); err != nil || count != want {
 			t.Fatalf("audit %s = %d, %v", event, count, err)
 		}
 	}
-	stages, err := svc.ListStages(ctx, owner, boot.WorkspaceID)
+	stages, err = svc.ListStages(ctx, owner, boot.WorkspaceID)
 	if err != nil || len(stages) != 2 || stages[0].ID != second.ID || stages[0].Kind != "won" || !stages[1].Archived {
 		t.Fatalf("stages = %+v, %v", stages, err)
 	}
@@ -353,6 +377,12 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	if err := svc.Move(ctx, viewer, boot.WorkspaceID, created.ID, stages[1].ID, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("viewer move: %v", err)
 	}
+	if err := svc.Move(ctx, otherOwner, other, created.ID, stages[1].ID, identity.AuditContext{}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("foreign engagement move: %v", err)
+	}
+	if err := svc.Move(ctx, viewer, other, created.ID, stages[1].ID, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("foreign principal move: %v", err)
+	}
 	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, stage.ID, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("archived move: %v", err)
 	}
@@ -383,18 +413,34 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	if due, err := svc.ListDue(ctx, viewer, boot.WorkspaceID, "2020-01-01"); err != nil || len(due) != 0 {
 		t.Fatalf("won due: %+v, %v", due, err)
 	}
-	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, stages[len(stages)-1].ID, identity.AuditContext{}); err != nil {
+	if err := svc.Move(ctx, viewer, boot.WorkspaceID, created.ID, stages[len(stages)-1].ID, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer reopen: %v", err)
+	}
+	var memberID identity.UserID
+	if err := db.QueryRowContext(ctx, `INSERT INTO users (email, created_at) VALUES (?, ?) RETURNING id`, "staff@example.com", time.Now().UTC().Format(time.RFC3339Nano)).Scan(&memberID); err != nil {
 		t.Fatal(err)
+	}
+	if err := auth.AddMember(ctx, owner, memberID, identity.Member, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	member, err := auth.Authorize(ctx, memberID, boot.WorkspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Move(ctx, member, boot.WorkspaceID, created.ID, stages[len(stages)-1].ID, identity.AuditContext{}); err != nil {
+		t.Fatalf("member reopen: %v", err)
 	}
 	if due, err := svc.ListDue(ctx, viewer, boot.WorkspaceID, "2020-01-01"); err != nil || len(due) != 1 || len(due[0].History) != 2 {
 		t.Fatalf("reopened due: %+v, %v", due, err)
 	}
 	got, err = svc.Get(ctx, viewer, boot.WorkspaceID, created.ID)
-	if err != nil || got.StageID != stages[len(stages)-1].ID || got.NextAction != action || got.Quote != quote || got.AssigneeID != viewerID || len(got.History) != 2 || got.History[0].FromStageID != stage.ID || got.History[0].ToStageID != stages[1].ID {
+	if err != nil || got.StageID != stages[len(stages)-1].ID || got.NextAction != action || got.Quote != quote || got.AssigneeID != viewerID || len(got.History) != 2 || got.History[0].FromStageID != stage.ID || got.History[0].ToStageID != stages[1].ID || got.History[1].FromStageID != stages[1].ID || got.History[1].ToStageID != stages[len(stages)-1].ID {
 		t.Fatalf("move history: %+v, %v", got, err)
 	}
-	if _, err := time.Parse(time.RFC3339Nano, got.History[0].CreatedAt); err != nil || got.History[0].ActorUserID != owner.UserID {
-		t.Fatalf("history actor or time: %+v, %v", got.History[0], err)
+	for i, actorID := range []identity.UserID{owner.UserID, memberID} {
+		if _, err := time.Parse(time.RFC3339Nano, got.History[i].CreatedAt); err != nil || got.History[i].ActorUserID != actorID {
+			t.Fatalf("history actor or time: %+v, %v", got.History[i], err)
+		}
 	}
 	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, stages[2].ID, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
