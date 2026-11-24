@@ -18,14 +18,14 @@ description: Check the workspace invitation lifecycle (pending, accepted, revoke
 
 - Model: `verification/invitations/Invitation.tla`, config `verification/invitations/Invitation.cfg`.
 - Bounds: time from 0 to 4, lifetime 2 ticks. About 61 distinct states.
-- Actions map to code: `Resend` is `ResendInvitation`, `Revoke` is `RevokeInvitation`, `Accept` is `acceptLoadedInvitation`, `MarkExpired` is `markInvitationExpired`, and `Tick` is time passing. `StatusOf` mirrors `Invitation.Status` (accepted, then revoked, then expired, then pending).
+- Actions map to code: `Resend` is `ResendInvitation`, `Revoke` is `RevokeInvitation`, `Accept` is `acceptLoadedInvitation` (including the `AcceptInvitationReturn` path), `MarkExpired` is `markInvitationExpired`, and `Tick` is time passing. `StatusOf` mirrors `Invitation.Status` (accepted, then revoked, then expired, then pending).
 - Each action is one transaction. The model does not separate the read from the write inside each one. The real code reads the row and writes it in the same transaction.
 - Abstracted away: secrets and their rotation, email binding, roles and memberships, and timing across processes.
 
 ## Coverage record
 
-- Covered code: `internal/identity/invitation.go` (`Status`, `ValidateInvitationTransition`, `ResendInvitation`, `RevokeInvitation`, `findInvitation`, `acceptLoadedInvitation`, `markInvitationExpired`) and the tests in `internal/identity/service_test.go` (`TestInvitationLifecycle`, `TestInvitationStatus`, and the transition table).
-- Sync commit: `11f139b483cbf15f0e47868c0f4f586e80995634`. The model was last confirmed against this commit.
+- Covered code: `internal/identity/invitation.go` (`Status`, `ValidateInvitationTransition`, `ResendInvitation`, `RevokeInvitation`, `findInvitation`, `AcceptInvitationReturn`, `acceptLoadedInvitation`, `markInvitationExpired`) and the tests in `internal/identity/service_test.go` (`TestInvitationLifecycle`, `TestInvitationStatus`, and the transition table).
+- Sync commit: `14a5d42b3c5d96a7e72759e6c20c13a3e91b370f`. The model was last confirmed against this commit.
 - If covered code changed since the sync commit, rerun the checks and read the diff for `invitation.go` before trusting a pass. Move the sync commit forward only after the checks pass against that code and you confirm the model still matches it.
 
 ## Run the check
@@ -64,5 +64,7 @@ Measured on this commit, in scratch copies:
 
 - Races between two real database transactions that touch the same invitation. The model treats each operation as atomic.
 - Secret rotation during accept: accept looks up the invitation by secret inside its transaction. A resend that rotates the secret at the same time is ordered by database isolation, not by this model.
+- Return-handoff token binding, expiry, consumption, and invalidation on resend or revocation. The model covers only the invitation state reached through the handoff.
+- Deletion during account removal or retention cleanup; finality applies while the invitation row exists.
 - Email binding, roles, and membership creation (`workspace_members` and SCIM).
 - Clock skew between application instances.

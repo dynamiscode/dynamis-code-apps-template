@@ -1,7 +1,7 @@
 ---- MODULE SetupWizard ----
 (*
-First-run setup (internal/web/templates/setup.html) as a two-step wizard
-wired by forms.js (enhanceWizard, wizardMove, the submit handler), posting to
+First-run setup (internal/web/auth.templ) as a two-step wizard
+wired by alpine-components.js (enhanceWizard, wizardMove, the submit handler), posting to
 setup in internal/web/handler.go.
 
 - Step 1 "Your owner account": email, password (12+ characters), confirmation.

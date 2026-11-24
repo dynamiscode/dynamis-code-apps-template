@@ -25,12 +25,12 @@ Rules 1 to 3 are checked for every input in a bounded range by `TestDeliveryOutc
 - Database writes: `deliveryFailure` and the success and exhaustion UPDATEs in `service.go`.
 - Tests: `internal/webhooks/delivery_rules_test.go`.
 
-Not covered: the HTTP response read and signature, the SSRF-safe dialer, and Postgres-specific SQL. The existing `TestEvaluateDeliveryOutcome` and `TestEventsAreSignedEncryptedAndDeliveredOnce` remain part of the suite.
+Not covered: the HTTP response read and signature, the SSRF-safe dialer, Postgres-specific SQL, and retention cleanup that deletes terminal delivery rows. Terminality applies while the row exists. The existing `TestEvaluateDeliveryOutcome` and `TestEventsAreSignedEncryptedAndDeliveredOnce` remain part of the suite.
 
 ## Coverage record
 
 - Covered code: `internal/webhooks/service.go` (`evaluateDeliveryOutcome`, `deliveryFailure`, the delivered and exhausted UPDATEs) and `internal/webhooks/delivery_rules_test.go`.
-- Sync commit: `11f139b483cbf15f0e47868c0f4f586e80995634`. The tests were last confirmed against this commit.
+- Sync commit: `14a5d42b3c5d96a7e72759e6c20c13a3e91b370f`. The tests were last confirmed against this commit.
 - If covered code changed since the sync commit, rerun the checks and read the diff for `service.go` before trusting a pass. Move the sync commit forward only after the checks pass against that code, and after you confirm the rules above still describe the intended behavior.
 
 ## Run the check

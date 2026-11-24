@@ -7,14 +7,15 @@ Each action names the code it models:
   Resend        ResendInvitation (~165-265): UPDATE sets a new expires_at,
                 clears expired_at, from pending or expired
   Revoke        RevokeInvitation (~265-350): from pending only; UPDATE guarded by accepted/expired/revoked IS NULL
-  Accept        acceptLoadedInvitation (~599-645): from pending, guarded by expires_at > now
+  Accept        acceptLoadedInvitation: from pending, guarded by expires_at > now;
+                the return-handoff path also calls this in its transaction
   MarkExpired   markInvitationExpired (~687-705): sets expired_at only once expires_at <= now
 
 Status mirrors Invitation.Status(now) (~25-38): accepted, then revoked, then expired, then pending.
 
 Abstractions:
   - Time is an integer clock from 0 to MaxT. Lifetime is Life ticks.
-  - Secrets, email, role, and workspace membership are not modeled.
+  - Secrets, return-handoff state, email, role, and workspace membership are not modeled.
   - Each action is one database transaction. Real code uses one transaction per operation.
 *)
 EXTENDS Naturals
