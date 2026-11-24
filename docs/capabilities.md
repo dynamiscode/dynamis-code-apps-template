@@ -18,6 +18,11 @@ unarchived stage; readers can view them. Creation is audited, and archiving an
 in-use stage preserves its engagements. Writers can move engagements and readers
 can see permanent stage history; each move also produces a retention-bounded audit
 event. The same tests cover these behaviors and retention.
+The shared engagement list service provides workspace-scoped search by engagement
+or client name, stage and assignee filters, and bounded numbered pages ordered by
+descending ID, including archived stages. [Service tests](../internal/engagement/list_test.go)
+cover authorization, isolation, filters, and pagination. No list UI or REST route
+is exposed by this service increment.
 Workspace export does not yet include stages or engagements.
 Owners and admins can set or reset the workspace work item label. The shared
 service audits changes and [migration 000037](../internal/platform/database/migrations/000037_engagement_label.sql)
