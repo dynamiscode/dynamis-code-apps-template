@@ -33,14 +33,14 @@ func DashboardHomeNavigation(data viewmodel.PageData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if !data.SingleWorkspace {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<a class=\"btn btn-ghost btn-sm w-full justify-start font-normal\" href=\"/\">← ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<a class=\"btn btn-sm w-full justify-start font-normal\" href=\"/\">← ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("workspace.back_to_workspaces"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/home_navigation.templ`, Line: 8, Col: 121}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/home_navigation.templ`, Line: 8, Col: 111}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {

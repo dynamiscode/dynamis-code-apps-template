@@ -81,6 +81,8 @@ main h2:not(.sr-only) { margin: 1.5rem 0 .75rem; font-size: 1.375rem; line-heigh
 .brand-mark { position: relative; width: 1.5rem; height: 1.5rem; flex: none; border-radius: var(--brand-radius); background: linear-gradient(135deg, var(--accent), var(--accent-hover)); }
 .brand-mark::after { position: absolute; inset: .38rem; content: ""; border: 2px solid var(--on-accent); border-radius: 50%; }
 a:not(.btn) { color: var(--accent); text-underline-offset: .15em; text-decoration-thickness: .08em; }
+.workspace-main :is(a.link, p > a:not(.btn), a.detail-back) { padding-inline: .25em; border: 1px solid var(--border-strong); border-radius: .25rem; box-decoration-break: clone; -webkit-box-decoration-break: clone; overflow-wrap: anywhere; }
+.list-page-size-options a, .workspace-main a.btn-ghost { border: 1px solid var(--border-strong); }
 .dropdown-content, .modal-box { border: 1px solid var(--border-strong); }
 .sidebar-navigation .menu li.menu-active { background: transparent; color: inherit; }
 .sidebar-navigation .menu li > a:not(.btn) { color: var(--ink); }
@@ -251,9 +253,9 @@ li[data-optimistic="hidden"], tr[data-optimistic="hidden"] { display: none; }
 .list-action-items { list-style: none; margin: 0; padding: 0; display: grid; gap: .125rem; min-width: 12rem; }
 /* One entry box for every row action: a link, a POST button, or a daisyUI button all land on the same
    padding, glyph gap, and text edge. */
-.list-action-item { display: flex; width: 100%; min-height: 2.25rem; align-items: center; gap: .5rem; padding: .4rem .6rem; border: 0; border-radius: .25rem; background: transparent; box-shadow: none; color: var(--ink); font: inherit; font-weight: 500; text-align: left; text-decoration: none; cursor: pointer; }
+.list-action-item { display: flex; width: 100%; min-height: 2.25rem; align-items: center; gap: .5rem; padding: .4rem .6rem; border: 1px solid var(--border-strong); border-radius: .25rem; background: transparent; box-shadow: none; color: var(--ink); font: inherit; font-weight: 500; text-align: left; text-decoration: none; cursor: pointer; }
 .list-action-item:hover, .list-action-item:focus-visible { background: var(--accent-surface); }
-.list-action-item.is-danger { color: var(--danger); font-weight: 600; }
+.list-action-item.is-danger { border-color: var(--danger); color: var(--danger); font-weight: 600; }
 .list-action-item.is-danger:hover, .list-action-item.is-danger:focus-visible { background: var(--danger-surface); }
 .list-action-item .list-action-icon { color: currentColor; opacity: .8; }
 .list-action-form { display: contents; }
@@ -296,7 +298,7 @@ li[data-optimistic="hidden"], tr[data-optimistic="hidden"] { display: none; }
 .list-views-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border-muted); }
 .list-view-row { border-bottom: 1px solid var(--border-muted); padding: .25rem 0; }
 .list-view-apply { margin: 0; }
-.list-view-option { display: flex; align-items: center; gap: .5rem; width: 100%; margin: 0; padding: .45rem .5rem; border: 0; border-radius: .375rem; background: none; color: var(--ink); font: inherit; font-size: .9rem; text-align: left; text-decoration: none; cursor: pointer; }
+.list-view-option { display: flex; align-items: center; gap: .5rem; width: 100%; margin: 0; padding: .45rem .5rem; border: 1px solid var(--border-strong); border-radius: .375rem; background: none; color: var(--ink); font: inherit; font-size: .9rem; text-align: left; text-decoration: none; cursor: pointer; }
 .list-view-option:hover { background: var(--accent-surface); }
 .list-view-option.is-applied { background: var(--accent-surface); color: var(--accent); font-weight: 600; }
 .list-view-name { min-width: 0; overflow-wrap: anywhere; }

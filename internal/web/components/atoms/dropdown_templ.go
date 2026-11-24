@@ -426,7 +426,7 @@ func Dropdown(props DropdownProps) templ.Component {
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						var templ_7745c5c3_Var16 = []any{templ.KV("text-error", di.Danger)}
+						var templ_7745c5c3_Var16 = []any{"border border-base-300", templ.KV("text-error", di.Danger)}
 						templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_ElementWriter, templ_7745c5c3_Var16...)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
@@ -461,7 +461,7 @@ func Dropdown(props DropdownProps) templ.Component {
 					var templ_7745c5c3_Var18 string
 					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(di.Label)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/dropdown.templ`, Line: 66, Col: 80}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/dropdown.templ`, Line: 66, Col: 106}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 					if templ_7745c5c3_Err != nil {

@@ -2066,7 +2066,7 @@ func TestMultiModeKeepsWorkspaceListNavigation(t *testing.T) {
 	})
 	cookies, _ := loginWorkspaceUser(t, handler, "owner@example.com", "long-enough-password")
 	body := request(handler, http.MethodGet, "/workspaces/"+workspaceID.String()+"?all=1", nil, cookies, nil).Body.String()
-	if !strings.Contains(body, `<details class="dropdown dropdown-end">`) || !strings.Contains(body, `<a class="btn btn-ghost btn-sm w-full justify-start font-normal" href="/">← Workspaces</a>`) {
+	if !strings.Contains(body, `<details class="dropdown dropdown-end">`) || !strings.Contains(body, `<a class="btn btn-sm w-full justify-start font-normal" href="/">← Workspaces</a>`) {
 		t.Error("multi-mode items page lost workspace list navigation")
 	}
 }

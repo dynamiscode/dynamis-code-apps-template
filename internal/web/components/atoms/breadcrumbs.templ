@@ -22,7 +22,7 @@ templ Breadcrumbs(props BreadcrumbsProps) {
 			for i, prop := range props.Items {
 				<li class="select-none">
 					if prop.Href != "" {
-						<a href={ templ.SafeURL(prop.Href) } { prop.Attrs... }>{ prop.Label }</a>
+						<a class="btn btn-xs h-auto whitespace-normal" href={ templ.SafeURL(prop.Href) } { prop.Attrs... }>{ prop.Label }</a>
 					} else {
 						{ prop.Label }
 					}

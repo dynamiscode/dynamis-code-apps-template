@@ -9,7 +9,7 @@ import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 // workspaceSwitcherItem is a daisyUI menu entry with the workspace name and role.
 templ workspaceSwitcherItem(href, name, role string, current bool) {
-	<a href={ href } aria-current={ currentPage(current) }><strong>{ name }</strong><span class="text-sm">{ role }</span></a>
+	<a class="border border-base-300" href={ href } aria-current={ currentPage(current) }><strong>{ name }</strong><span class="text-sm">{ role }</span></a>
 }
 
 
@@ -38,7 +38,7 @@ templ WorkspaceContext(data viewmodel.PageData) {
 		@atoms.Dropdown(atoms.DropdownProps{
 			Class:        "",
 			Label:        data.Workspace.Name,
-			SummaryClass: "btn-ghost h-auto min-h-0 px-1 text-lg font-bold normal-case border-0 shadow-none",
+			SummaryClass: "btn-sm h-auto min-h-0 px-2 text-lg font-bold normal-case",
 			Summary:      workspaceChevron(),
 			ListClass:    "w-56 max-w-[90vw] bg-base-100 rounded-box shadow-lg",
 			Items:        workspaceSwitcherItems(data),
@@ -54,7 +54,7 @@ templ workspaceChevron() {
 // NavLink is a plain anchor carrying aria-current; menu-active styling lives
 // on the wrapping li (navLi, or a DropdownItem Class).
 templ NavLink(data viewmodel.PageData, href, key string, active bool) {
-	<a aria-current={ currentPage(active) } href={ href }>{ data.T(key) }</a>
+	<a class="border border-base-300" aria-current={ currentPage(active) } href={ href }>{ data.T(key) }</a>
 }
 
 
@@ -128,9 +128,9 @@ templ PeopleTabs(data viewmodel.PageData) {
 
 templ AccountNavigation(data viewmodel.PageData) {
 	if data.SingleWorkspace && data.DefaultWorkspaceHref != "" {
-		<a class="btn btn-ghost btn-sm w-full justify-start font-normal" href={ data.DefaultWorkspaceHref }>← { data.T("workspace.back_to_home") }</a>
+		<a class="btn btn-sm w-full justify-start font-normal" href={ data.DefaultWorkspaceHref }>← { data.T("workspace.back_to_home") }</a>
 	} else if !data.SingleWorkspace {
-		<a class="btn btn-ghost btn-sm w-full justify-start font-normal" href="/">← { data.T("workspace.workspaces") }</a>
+		<a class="btn btn-sm w-full justify-start font-normal" href="/">← { data.T("workspace.workspaces") }</a>
 	}
 	<nav class="sidebar-navigation" aria-label={ data.T("common.account") }>
 		<ul class="menu w-full">
@@ -197,7 +197,7 @@ templ AccountMenu(data viewmodel.PageData) {
 		Class:        "dropdown-end",
 		Label:        "",
 		SummaryAttrs: templ.Attributes{"aria-label": data.T("common.account")},
-		SummaryClass: "btn btn-circle btn-ghost p-0",
+		SummaryClass: "btn btn-circle p-0",
 		Summary:      AccountAvatar(data),
 		ListClass:    "w-52 max-w-[90vw] bg-base-100 rounded-box shadow-lg",
 		Items:        accountMenuItems(data),

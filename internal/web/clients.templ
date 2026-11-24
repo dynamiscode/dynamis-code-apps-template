@@ -330,10 +330,10 @@ templ clientTimeline(data viewmodel.PageData) {
 		</ol>
 		<nav aria-label={ data.T("clients.timeline_heading") }>
 			if data.TimelinePage > 1 {
-				<a href={ "?timeline_page=" + strconv.Itoa(data.TimelinePage-1) + "#client-timeline-heading" }>{ data.T("ui.previous_page") }</a>
+				<a class="btn btn-sm" href={ "?timeline_page=" + strconv.Itoa(data.TimelinePage-1) + "#client-timeline-heading" }>{ data.T("ui.previous_page") }</a>
 			}
 			if len(data.ClientTimeline) == 50 && data.TimelinePage < 1000000 {
-				<a href={ "?timeline_page=" + strconv.Itoa(data.TimelinePage+1) + "#client-timeline-heading" }>{ data.T("items.next_page") }</a>
+				<a class="btn btn-sm" href={ "?timeline_page=" + strconv.Itoa(data.TimelinePage+1) + "#client-timeline-heading" }>{ data.T("items.next_page") }</a>
 			}
 		</nav>
 		if data.CanEditClients {

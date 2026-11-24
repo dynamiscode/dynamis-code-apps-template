@@ -32,6 +32,6 @@ type NoMatchesAlertProps struct {
 templ NoMatchesAlert(props NoMatchesAlertProps) {
 	<div id={ props.ID } role="status" class={ "alert mt-4 flex-wrap", props.Class } { props.Attrs... }>
 		<span>{ props.Message }</span>
-		<a class="btn btn-ghost btn-sm" href={ templ.SafeURL(props.Href) }>{ props.Label }</a>
+		<a class="btn btn-sm" href={ templ.SafeURL(props.Href) }>{ props.Label }</a>
 	</div>
 }

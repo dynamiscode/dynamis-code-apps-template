@@ -51,7 +51,7 @@ func ListRowMenu(data viewmodel.PageData) templ.Component {
 		})
 		templ_7745c5c3_Err = atoms.Dropdown(atoms.DropdownProps{
 			Class:         "list-menu",
-			SummaryClass:  "btn btn-ghost btn-xs",
+			SummaryClass:  "btn btn-xs",
 			SummaryAttrs:  templ.Attributes{"aria-label": data.T("ui.row_actions"), "title": data.T("ui.row_actions")},
 			Summary:       RowMenuGlyph(false),
 			PanelClass:    "bg-base-100 rounded-box shadow-lg border border-base-200 p-3 w-72 max-w-[90vw]",

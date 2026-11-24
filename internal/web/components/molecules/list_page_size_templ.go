@@ -34,7 +34,7 @@ func ListPageSize(data viewmodel.PageData, limit int, sizes []int) templ.Compone
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = atoms.Dropdown(atoms.DropdownProps{
 			Class:        "list-menu list-page-size",
-			SummaryClass: "btn btn-ghost btn-sm list-page-size-trigger",
+			SummaryClass: "btn btn-sm list-page-size-trigger",
 			SummaryAttrs: templ.Attributes{"aria-label": data.T("clients.page_size") + ": " + ListPageSizeLabel(data, limit)},
 			Label:        ListPageSizeLabel(data, limit),
 			Summary:      pageSizeChevron(),
