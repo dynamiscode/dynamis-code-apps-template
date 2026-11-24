@@ -441,6 +441,124 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	}
 }
 
+func TestCompleteNextAction(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, config.Database{Driver: config.SQLite, SQLitePath: ":memory:", MaxOpenConns: 1, MaxIdleConns: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.Migrate(ctx, db, config.SQLite); err != nil {
+		t.Fatal(err)
+	}
+	auth, err := identity.NewService(db, config.SQLite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	boot, err := auth.BootstrapFirstOwner(ctx, identity.BootstrapInput{Email: "owner@example.com", Password: "long-enough-password", WorkspaceName: "Example"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := auth.Authorize(ctx, boot.UserID, boot.WorkspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := NewService(db, config.SQLite, auth)
+	stage, err := svc.CreateStage(ctx, owner, boot.WorkspaceID, StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := clients.NewService(db, config.SQLite, auth, 50).Create(ctx, owner, boot.WorkspaceID, clients.Input{DisplayName: "Client"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{Name: "Engagement", ClientID: client.ID, StageID: stage.ID}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	action := NextAction{Text: "Call", DueDate: "2020-01-01", OwnerID: boot.UserID}
+	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, action, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	first, err := svc.Get(ctx, owner, boot.WorkspaceID, e.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, action, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	current, err := svc.Get(ctx, owner, boot.WorkspaceID, e.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.CompleteNextAction(ctx, owner, boot.WorkspaceID, e.ID, first.NextAction.Version, identity.AuditContext{}); !errors.Is(err, ErrStaleNextAction) {
+		t.Fatalf("stale: %v", err)
+	}
+	var viewerID identity.UserID
+	if err := db.QueryRowContext(ctx, `INSERT INTO users (email, created_at) VALUES (?, ?) RETURNING id`, "viewer@example.com", time.Now().UTC().Format(time.RFC3339Nano)).Scan(&viewerID); err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.AddMember(ctx, owner, viewerID, identity.Viewer, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	viewer, err := auth.Authorize(ctx, viewerID, boot.WorkspaceID, identity.ResourcesRead)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.CompleteNextAction(ctx, viewer, boot.WorkspaceID, e.ID, current.NextAction.Version, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `CREATE TRIGGER fail_completion BEFORE INSERT ON engagement_action_history WHEN NEW.outcome = 'completed' BEGIN SELECT RAISE(ABORT, 'test failure'); END`); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.CompleteNextAction(ctx, owner, boot.WorkspaceID, e.ID, current.NextAction.Version, identity.AuditContext{}); err == nil {
+		t.Fatal("expected history failure")
+	}
+	after, err := svc.Get(ctx, owner, boot.WorkspaceID, e.ID)
+	if err != nil || after.NextAction != current.NextAction {
+		t.Fatalf("rollback: %+v, %v", after.NextAction, err)
+	}
+	var counter int64
+	if err := db.QueryRowContext(ctx, `SELECT action_version FROM engagements WHERE id = ?`, e.ID).Scan(&counter); err != nil || counter != current.NextAction.Version {
+		t.Fatalf("rollback counter: %d, %v", counter, err)
+	}
+	if _, err := db.ExecContext(ctx, `DROP TRIGGER fail_completion`); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.CompleteNextAction(ctx, owner, boot.WorkspaceID, e.ID, current.NextAction.Version, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.CompleteNextAction(ctx, owner, boot.WorkspaceID, e.ID, current.NextAction.Version, identity.AuditContext{}); !errors.Is(err, ErrStaleNextAction) {
+		t.Fatalf("duplicate: %v", err)
+	}
+	after, err = svc.Get(ctx, owner, boot.WorkspaceID, e.ID)
+	if err != nil || after.NextAction.Text != "" {
+		t.Fatalf("completed: %+v, %v", after.NextAction, err)
+	}
+	var text, due, outcome, created string
+	var ownerID, actorID identity.UserID
+	var count int
+	if err := db.QueryRowContext(ctx, `SELECT action_text, due_date, owner_id, outcome, actor_user_id, created_at FROM engagement_action_history WHERE engagement_id = ? AND outcome = 'completed'`, e.ID).Scan(&text, &due, &ownerID, &outcome, &actorID, &created); err != nil {
+		t.Fatal(err)
+	}
+	if text != action.Text || due != action.DueDate || ownerID != boot.UserID || actorID != boot.UserID || outcome != "completed" || created == "" {
+		t.Fatalf("history: %q %q %d %q %d %q", text, due, ownerID, outcome, actorID, created)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM engagement_action_history WHERE engagement_id = ? AND outcome = 'completed'`, e.ID).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("history count: %d, %v", count, err)
+	}
+	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, action, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	recreated, err := svc.Get(ctx, owner, boot.WorkspaceID, e.ID)
+	if err != nil || recreated.NextAction.Version <= current.NextAction.Version {
+		t.Fatalf("recreated: %+v, %v", recreated.NextAction, err)
+	}
+	if err := svc.CompleteNextAction(ctx, owner, boot.WorkspaceID, e.ID, current.NextAction.Version, identity.AuditContext{}); !errors.Is(err, ErrStaleNextAction) {
+		t.Fatalf("old version after recreation: %v", err)
+	}
+}
+
 func TestNextActionDueList(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.Open(ctx, config.Database{Driver: config.SQLite, SQLitePath: ":memory:", MaxOpenConns: 1, MaxIdleConns: 1})

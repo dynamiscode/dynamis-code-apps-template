@@ -76,6 +76,48 @@ func (s *Service) SetNextAction(ctx context.Context, actor identity.Principal, w
 	return tx.Commit()
 }
 
+// ErrStaleNextAction indicates that the active action no longer matches the expected version.
+var ErrStaleNextAction = errors.New("next action is stale or absent")
+
+func (s *Service) CompleteNextAction(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, expectedVersion int64, audit identity.AuditContext) error {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesWrite); err != nil {
+		return identity.ErrForbidden
+	}
+	result, err := tx.ExecContext(ctx, database.Rebind(s.driver, `UPDATE engagements SET action_version = CASE WHEN action_version = 9223372036854775807 THEN NULL ELSE action_version + 1 END WHERE workspace_id = ? AND id = ? AND EXISTS (SELECT 1 FROM engagement_next_actions WHERE workspace_id = ? AND engagement_id = ? AND version = ?)`), workspaceID, engagementID, workspaceID, engagementID, expectedVersion)
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return ErrStaleNextAction
+	}
+	var text, dueDate string
+	var ownerID sql.NullInt64
+	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `DELETE FROM engagement_next_actions WHERE workspace_id = ? AND engagement_id = ? AND version = ? RETURNING action_text, due_date, owner_id`), workspaceID, engagementID, expectedVersion).Scan(&text, &dueDate, &ownerID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrStaleNextAction
+	}
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, `INSERT INTO engagement_action_history (workspace_id, engagement_id, action_text, due_date, owner_id, outcome, actor_user_id, created_at) VALUES (?, ?, ?, ?, ?, 'completed', ?, ?)`), workspaceID, engagementID, text, dueDate, ownerID, actor.UserID, now.Format(time.RFC3339Nano)); err != nil {
+		return err
+	}
+	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement.next_action_completed", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "engagement", TargetKey: int64(engagementID), Action: "engagement.next_action.complete", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now}); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func (s *Service) ListDue(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, today string) ([]Engagement, error) {
 	if _, err := time.Parse("2006-01-02", today); err != nil {
 		return nil, ErrInvalidInput
