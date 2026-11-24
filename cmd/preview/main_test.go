@@ -146,6 +146,20 @@ func TestIndependentScenarios(t *testing.T) {
 	}
 }
 
+func TestComponentIndexNavigation(t *testing.T) {
+	p, err := newPreview("empty")
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := httptest.NewRecorder()
+	p.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://localhost/components", nil))
+	for _, href := range []string{"/components/alert", "/components/alert?state=error"} {
+		if !strings.Contains(w.Body.String(), `class="btn btn-sm" href="`+href+`"`) {
+			t.Errorf("fixture link %q is missing a visible boundary", href)
+		}
+	}
+}
+
 func TestRejectsCrossOriginMutation(t *testing.T) {
 	p, err := newPreview("empty")
 	if err != nil {

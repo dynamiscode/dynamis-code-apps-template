@@ -25,7 +25,7 @@ type MenuItemProps struct {
 
 templ MenuItem(props MenuItemProps) {
 	<li>
-		<a { props.Attrs... }>
+		<a class="border border-base-300" { props.Attrs... }>
 			if props.Icon != nil && !props.IconAfter {
 				@props.Icon
 			}

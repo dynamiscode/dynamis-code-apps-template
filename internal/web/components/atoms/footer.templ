@@ -44,7 +44,7 @@ templ FooterNav(title string, links []AnchorProps) {
 	<nav>
 		<h6 class="footer-title">{ title }</h6>
 		for _, link := range links {
-			<a { link.Attrs... } class="link link-hover">{ link.Label }</a>
+			<a { link.Attrs... } class="btn btn-sm">{ link.Label }</a>
 		}
 	</nav>
 }
