@@ -27,7 +27,10 @@ tests. The label is deleted with its workspace and is not included in export.
 Next actions have text, an optional date, and a workspace-member owner. Writers
 can change them; readers can view them and the workspace's open-stage due list.
 The service, REST, and web tests above cover these surfaces. Dates use UTC for
-the due-list cutoff; actions are not included in workspace export.
+the due-list cutoff; actions are not included in workspace export. Migration
+[000044](../internal/platform/database/migrations/000044_engagement_action_completion.sql)
+prepares history outcomes and an active-action version; completion, reopening,
+and version enforcement are not implemented.
 Quote status, optional amount and sent date are stored on the engagement by
 [migration 000035](../internal/platform/database/migrations/000035_engagement_quote.sql).
 The linked service, REST and web tests cover writes and read-only access. Quote
