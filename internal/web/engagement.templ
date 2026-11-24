@@ -21,6 +21,9 @@ templ dueEngagementsPage(data viewmodel.PageData, items []engagement.Engagement,
 templ engagementStagesPage(data viewmodel.PageData, stages []engagement.Stage, canManage bool) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
 		@molecules.PageHeading(data.T("engagement.stages"), data.T("clients.title")) {}
+		if canManage && data.ClientsEnabled {
+			<a class="link link-primary" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/intake") }>{ data.T("intake.return_to_form") }</a>
+		}
 		<section class="card my-4 p-6">
 			if data.ErrorKey != "" {
 				@molecules.ErrorAlert(data.T(data.ErrorKey))

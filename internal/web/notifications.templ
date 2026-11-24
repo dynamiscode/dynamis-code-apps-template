@@ -39,7 +39,7 @@ templ notificationsPage(data viewmodel.PageData) {
 										}
 									</div>
 									if notification.NotificationType == "public_intake" {
-										<p><a href={ notification.Body }>{ notification.Body }</a></p>
+										<p><a class="link link-primary" href={ notification.Body }>{ data.T("intake.view_client") }</a></p>
 									} else {
 										<p>{ notification.Body }</p>
 									}

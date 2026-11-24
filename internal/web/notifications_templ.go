@@ -263,14 +263,14 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 								return templ_7745c5c3_Err
 							}
 							if notification.NotificationType == "public_intake" {
-								templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<p><a href=\"")
+								templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<p><a class=\"link link-primary\" href=\"")
 								if templ_7745c5c3_Err != nil {
 									return templ_7745c5c3_Err
 								}
 								var templ_7745c5c3_Var17 string
 								templ_7745c5c3_Var17, templ_7745c5c3_Err = templruntime.NewAttributeExpression(notification.Body).ResolveURL(ctx)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 42, Col: 40}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 42, Col: 66}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 								if templ_7745c5c3_Err != nil {
@@ -281,9 +281,9 @@ func notificationsPage(data viewmodel.PageData) templ.Component {
 									return templ_7745c5c3_Err
 								}
 								var templ_7745c5c3_Var18 string
-								templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(notification.Body)
+								templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("intake.view_client"))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 42, Col: 62}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 42, Col: 99}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 								if templ_7745c5c3_Err != nil {

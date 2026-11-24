@@ -116,6 +116,10 @@ templ clientEmptyCTA(data viewmodel.PageData) {
 	if data.CanEditClients {
 		<a class="btn btn-primary btn-sm" href={ templ.SafeURL(data.CurrentPath + "/new") }>{ data.T("clients.new_client") }</a>
 	}
+	if data.CanManageFields && data.ClientQuery.Archived != "archived" {
+		<p class="mt-4">{ data.T("intake.description") }</p>
+		<a class="link link-primary" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/intake") }>{ data.T("intake.title") }</a>
+	}
 }
 
 // clientCreateForm is the client create form, rendered only by the create page.

@@ -76,6 +76,9 @@ templ WorkspaceNav(data viewmodel.PageData) {
 				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/general", "navigation.general", data.NavPage == "general")
 				if data.Workspace.Role == "owner" || data.Workspace.Role == "admin" {
 					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/email", "navigation.email", data.NavPage == "email")
+					if data.ClientsEnabled {
+						@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/intake", "intake.title", false)
+					}
 				}
 				@navTitle(data.T("navigation.settings_access"))
 				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/members", "navigation.members", data.NavPage == "members" || data.NavPage == "invitations")

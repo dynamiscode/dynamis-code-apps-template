@@ -3,6 +3,7 @@ package web
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"example.com/dynamis-code/apps-template/internal/intake"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
@@ -50,6 +51,9 @@ func (h *Handler) publicIntake(w http.ResponseWriter, r *http.Request) {
 			return
 		case errors.Is(err, intake.ErrInvalidInput):
 			status, message = http.StatusUnprocessableEntity, data.T("public_intake.invalid")
+			if strings.TrimSpace(submission.Email) == "" && strings.TrimSpace(submission.Phone) == "" {
+				message = data.T("public_intake.contact_required")
+			}
 		case err != nil:
 			h.renderError(w, http.StatusInternalServerError)
 			return

@@ -44,6 +44,8 @@ func (h *Handler) renderIntake(w http.ResponseWriter, r *http.Request, status in
 	path := "/workspaces/" + workspace.String() + "/intake"
 	data := viewmodel.PageData{Title: "Public intake", CSRF: csrf, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, NavPage: "clients", NavSection: "clients", CurrentPath: path, FilesEnabled: h.filesEnabled, ClientsEnabled: h.clients != nil, SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle}
 	h.localizePage(w, &data)
+	data.Title = data.T("intake.title")
+	data.Saved = r.URL.Query().Get("saved") == "1"
 	link := ""
 	if token != "" {
 		link = strings.TrimRight(h.publicURL, "/") + "/intake/" + token
@@ -99,5 +101,9 @@ func (h *Handler) intakeMutation(w http.ResponseWriter, r *http.Request) {
 		h.renderIntake(w, r, http.StatusOK, "", token)
 		return
 	}
-	h.redirect(w, r, "/workspaces/"+workspace.String()+"/intake")
+	path := "/workspaces/" + workspace.String() + "/intake"
+	if r.FormValue("action") == "consent" {
+		path += "?saved=1"
+	}
+	h.redirect(w, r, path)
 }

@@ -24,6 +24,9 @@ func TestIntakeManagementThroughWeb(t *testing.T) {
 	if created.Code != http.StatusOK || !strings.Contains(created.Body.String(), "/intake/") || !strings.Contains(created.Body.String(), "Link active") {
 		t.Fatalf("create: %d", created.Code)
 	}
+	if !strings.Contains(created.Body.String(), "data-copy-target=\"intake-link\"") || !strings.Contains(created.Body.String(), "Existing links and QR codes will stop working") {
+		t.Fatal("created link must offer copying and warn before replacement")
+	}
 	owner, err := env.auth.Authorize(context.Background(), env.ownerID, env.workspaceID, identity.WorkspaceUpdate)
 	if err != nil {
 		t.Fatal(err)
@@ -70,6 +73,10 @@ func TestPublicIntakeForm(t *testing.T) {
 	invalid := request(env.routes, http.MethodPost, "/intake/"+token, url.Values{"name": {"Visitor"}}, nil, nil)
 	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "Visitor") {
 		t.Fatalf("invalid form: %d", invalid.Code)
+	}
+	missingContact := request(env.routes, http.MethodPost, "/intake/"+token, url.Values{"name": {"Visitor"}, "consent": {"on"}}, nil, nil)
+	if missingContact.Code != http.StatusUnprocessableEntity || !strings.Contains(missingContact.Body.String(), "Enter a phone number or email address to continue.") {
+		t.Fatalf("missing contact: %d", missingContact.Code)
 	}
 	result := request(env.routes, http.MethodPost, "/intake/"+token, url.Values{"name": {"Visitor"}, "email": {"visitor@example.com"}, "consent": {"on"}}, nil, nil)
 	if result.Code != http.StatusOK || !strings.Contains(result.Body.String(), "Thank you") || strings.Contains(result.Body.String(), "Visitor") || strings.Contains(result.Body.String(), "/workspaces/") {
