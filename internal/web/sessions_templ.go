@@ -292,7 +292,7 @@ func sessionsPage(data viewmodel.PageData, currentSessionID string, now time.Tim
 							return templ_7745c5c3_Err
 						}
 						templ_7745c5c3_Err = atoms.Button(atoms.ButtonProps{
-							Class: "btn-secondary secondary",
+							Class: "btn-outline btn-error secondary",
 							Label: data.T("sessions.revoke"),
 							Attrs: templ.Attributes{"type": "submit"},
 						}).Render(ctx, templ_7745c5c3_Buffer)

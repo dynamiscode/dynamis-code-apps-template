@@ -50,7 +50,7 @@ templ sessionsPage(data viewmodel.PageData, currentSessionID string, now time.Ti
 								<form class="inline" data-webmcp-actions="session-revoke" data-webmcp-id={ session.ID } action={ "/sessions/" + session.ID } method="post">
 									<input type="hidden" name="csrf" value={ data.CSRF }/>
 									@atoms.Button(atoms.ButtonProps{
-										Class: "btn-secondary secondary",
+										Class: "btn-outline btn-error secondary",
 										Label: data.T("sessions.revoke"),
 										Attrs: templ.Attributes{"type": "submit"},
 									})
