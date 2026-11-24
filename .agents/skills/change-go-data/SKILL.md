@@ -19,6 +19,39 @@ and PostgreSQL databases and cannot cross workspace scope.
 
 ## Workflow
 
+Before parallel schema work, the coordinator fetches the target branch and
+records its commit and highest migration version, then assigns each worker a
+distinct version and intended merge order. Share the allocation with every
+worker before migrations are written. Include any other in-flight schema work;
+an allocation is coordination, not a reservation enforced by Git.
+
+```sh
+git fetch origin
+git rev-parse origin/main
+git ls-tree --name-only origin/main internal/platform/database/migrations/
+```
+
+Workers start from that base and report their migration name and any new schema
+dependency to the coordinator. Before committing a migration, refresh the base
+and allocations; if the target or another worker has claimed its version,
+coordinate a new unused version and merge order before committing. Check the
+working tree for changes to existing migrations. Before opening or updating a
+PR, fetch again and run the existing history guard against the latest target:
+
+```sh
+git status --short -- internal/platform/database/migrations/
+git diff --name-status origin/main -- internal/platform/database/migrations/
+sh scripts/check-migration-history.sh origin/main HEAD
+```
+
+The guard checks committed history; inspect the working tree separately. After
+another schema PR lands, repeat the preflight and verify the intended order and
+dependencies. Do not rename, renumber, or edit a committed migration to resolve
+a collision: the history guard rejects retained renames, and an applied version
+must remain immutable. Coordinate a safe forward migration or replacement branch
+after confirming whether the migration was applied; never rewrite an applied
+migration.
+
 1. Define ownership, classification, purpose, retention, export, deletion, UTC
    representation, identifier, foreign-key, and index behavior for each field.
 2. Add one ordered migration history for both databases. Use vendor-specific
