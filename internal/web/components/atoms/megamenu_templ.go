@@ -130,7 +130,7 @@ func Megamenu(props MegamenuProps) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var6 = []any{"megamenu", props.Classes}
+			var templ_7745c5c3_Var6 = []any{"megamenu max-sm:megamenu-vertical", props.Classes}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_ElementWriter, templ_7745c5c3_Var6...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

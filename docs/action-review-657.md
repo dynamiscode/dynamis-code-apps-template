@@ -60,12 +60,18 @@ submitted successfully with JavaScript disabled. See [desktop form](reviews/issu
 [no-JS success](reviews/issue-657/mobile-nojs-success.png). Screenshots contain
 synthetic fixture data only.
 
-## Remaining blocker
+## Mobile nested megamenu
 
-At 390 × 844 with JavaScript disabled, Enter opens the catalog fixture's outer
-native megamenu popover, but its nested trigger has computed `display: none`
-and cannot receive focus (`Element is not focusable (-32000)`). See
-[opened menu](reviews/issue-657/mobile-megamenu-nojs.png). The nested keyboard
-journey is skipped, not passed; root cause is not yet confirmed. The fixture is
-not used by a production page. Other theme/viewport combinations and complete
-variant coverage remain unreviewed. Issue #657 remains incomplete.
+The catalog atom omitted daisyUI's `max-sm:megamenu-vertical` modifier. At
+390 × 844, the outer native popover opened but its nested trigger stayed hidden.
+The regression failed before the fix with `nested trigger not visible in mobile
+fixture`. Adding the responsive modifier restores the documented vertical mobile
+layout; desktop layout and native popovers remain unchanged.
+
+With JavaScript disabled, isolated Chrome opened the outer popover with Enter,
+Tabbed to the nested trigger, opened it with Enter, Tabbed to its link with a
+visible focus indicator, and followed it to `#item` with Enter. See the
+[synthetic nested-menu keyboard state](reviews/issue-657/mobile-megamenu-nested-nojs.png).
+`TestCatalogNavigationBrowser` now passes without a skipped nested journey.
+The atom is not currently used by a production page. Other theme/viewport
+combinations and complete variant coverage remain unreviewed.

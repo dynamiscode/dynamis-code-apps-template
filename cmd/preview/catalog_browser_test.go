@@ -51,7 +51,7 @@ func TestCatalogNavigationBrowser(t *testing.T) {
 		width, height int64
 	}{{"desktop-light", "light", 1280, 900}, {"mobile-dark", "dark", 390, 844}} {
 		t.Run(tc.name, func(t *testing.T) {
-			if err := chromedp.Do(ctx, chromedp.EmulateViewport(tc.width, tc.height), chromedp.Navigate(server.URL), chromedp.WaitVisible("main"), chromedp.Evaluate[chromedp.Void](`document.documentElement.setAttribute('data-theme', '`+tc.theme+`')`), chromedp.KeyEvent("\t")); err != nil {
+			if err := chromedp.Do(ctx, chromedp.EmulateViewport(tc.width, tc.height), chromedp.Navigate(server.URL), chromedp.WaitVisible(`a[href="#variant"]`), chromedp.Evaluate[chromedp.Void](`document.documentElement.setAttribute('data-theme', '`+tc.theme+`')`), chromedp.KeyEvent("\t")); err != nil {
 				t.Fatal(err)
 			}
 			focus, err := chromedp.Run(ctx, chromedp.Evaluate[string](`document.activeElement.textContent.trim()`))
@@ -83,7 +83,7 @@ func TestCatalogNavigationBrowser(t *testing.T) {
 	if _, err := chromedp.Call(ctx, emulation.SetScriptExecutionDisabled, emulation.SetScriptExecutionDisabledParams{Value: true}); err != nil {
 		t.Fatal(err)
 	}
-	if err := chromedp.Do(ctx, chromedp.EmulateViewport(390, 844), chromedp.Navigate(server.URL), chromedp.WaitVisible(`button[popovertarget="catalog"]`), chromedp.Focus(`button[popovertarget="catalog"]`), chromedp.KeyEvent("\r")); err != nil {
+	if err := chromedp.Do(ctx, chromedp.EmulateViewport(390, 844), chromedp.Navigate(server.URL), chromedp.WaitVisible(`a[href="#variant"]`), chromedp.Focus(`button[popovertarget="catalog"]`), chromedp.KeyEvent("\r")); err != nil {
 		t.Fatal(err)
 	}
 	state, err := chromedp.Run(ctx, chromedp.Evaluate[string](`JSON.stringify({outer:document.querySelector('#catalog').matches(':popover-open'), display:getComputedStyle(document.querySelector('#catalog')).display, buttonDisplay:getComputedStyle(document.querySelector('button[popovertarget="group-0"]')).display, innerVisible:!!document.querySelector('button[popovertarget="group-0"]').getClientRects().length})`))
@@ -105,9 +105,36 @@ func TestCatalogNavigationBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !visible {
-		t.Skip("nested trigger not visible in mobile fixture; keyboard journey blocked")
+		t.Fatal("nested trigger not visible in mobile fixture")
 	}
-	if err := chromedp.Do(ctx, chromedp.Focus(`button[popovertarget="group-0"]`), chromedp.KeyEvent("\r"), chromedp.WaitVisible(`a[href="#item"]`), chromedp.Focus(`a[href="#item"]`), chromedp.KeyEvent("\r")); err != nil {
+	if err := chromedp.Do(ctx, chromedp.KeyEvent("\t")); err != nil {
+		t.Fatal(err)
+	}
+	focused, err := chromedp.Run(ctx, chromedp.Evaluate[bool](`document.activeElement.matches('button[popovertarget="group-0"]')`))
+	if err != nil || !focused {
+		t.Fatalf("nested trigger keyboard focus = %v, error = %v", focused, err)
+	}
+	if err := chromedp.Do(ctx, chromedp.KeyEvent("\r"), chromedp.WaitVisible(`a[href="#item"]`), chromedp.KeyEvent("\t")); err != nil {
+		t.Fatal(err)
+	}
+	focused, err = chromedp.Run(ctx, chromedp.Evaluate[bool](`document.activeElement.matches('a[href="#item"]')`))
+	if err != nil || !focused {
+		t.Fatalf("nested link keyboard focus = %v, error = %v", focused, err)
+	}
+	focusVisible, err := chromedp.Run(ctx, chromedp.Evaluate[bool](`(() => { const s = getComputedStyle(document.activeElement); return (s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0) || s.boxShadow !== 'none'; })()`))
+	if err != nil || !focusVisible {
+		t.Fatalf("nested link focus indicator = %v, error = %v", focusVisible, err)
+	}
+	if dir := os.Getenv("CATALOG_EVIDENCE_DIR"); dir != "" {
+		png, err := chromedp.Run(ctx, chromedp.CaptureScreenshot())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "mobile-megamenu-nested-nojs.png"), png, 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := chromedp.Do(ctx, chromedp.KeyEvent("\r")); err != nil {
 		t.Fatal(err)
 	}
 	hash, err := chromedp.Run(ctx, chromedp.Evaluate[string](`location.hash`))
