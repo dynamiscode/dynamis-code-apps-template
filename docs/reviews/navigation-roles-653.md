@@ -8,12 +8,12 @@
 
 ## Browser evidence
 
-- Owner, desktop 1280×800, light: signed in, opened workspace and clients, created a client, returned to the list, and opened Columns. Baseline and revision screenshots were inspected: list and menu remained usable; reviewed revision adds visible control boundaries. Screenshots contain synthetic data but remain local browser artifacts, not committed or review-accessible.
-- Owner, mobile 390×844, dark: opened sidebar; Escape closed it and returned focus to Open navigation. No document-level horizontal overflow in this state. Enter opened Filter.
+- Owner, desktop 1280×800, light: signed in, opened workspace and clients, created a client, returned to the list, and opened Columns. [Baseline](navigation-roles-653/before-desktop.png) and [revision](navigation-roles-653/after-desktop.png) captures were inspected. Both files have identical SHA-256 hashes, so they do not demonstrate a visual change; the earlier claim that this comparison showed added boundaries was unsupported. The captured list and menu were usable.
+- Owner, mobile 390×844, dark: [opened sidebar](navigation-roles-653/after-mobile-dark.png); Escape closed it and returned focus to Open navigation. No document-level horizontal overflow in this state. Enter opened Filter.
 - Owner, desktop light: created a second similarly named client; Display name sorting produced Alpha then Beta. Enter opened row actions; Open reached the client. Back to clients retained the sort query.
 - Owner: workspace-selection header exposed the Workspaces breadcrumb link. Client detail back link worked as above. Deeper breadcrumb traversal was not exercised.
 - Member, desktop light: signed in and reached Members. Invitations navigation returned HTTP 403. Same result on baseline.
-- Owner, 320×844: sampled visible client-list links; none wrapped, so inline multi-line border behavior remains unverified.
+- Owner, 320×844: sampled visible client-list links and dashboard inline links; none wrapped, so inline multi-line border behavior remains unverified. Source inspection shows the shared home breadcrumb component produces at most one Workspaces item; no deeper breadcrumb journey was identified.
 
 ## Checks
 
@@ -21,6 +21,6 @@
 
 ## Remaining gaps
 
-- Durable before/after images were not published: browser artifacts excluded from commit. Local images alone do not meet `docs/ux-review.md` evidence-retention requirement.
-- Inline links wrapping over multiple lines, deeper breadcrumbs, member mutation controls, admin/viewer roles, error and long-content states, and full list actions remain untested.
+- Committed screenshots contain only synthetic workspace and client names; no credentials, session values, or personal data were visible on inspection. The identical desktop files leave the visual before/after comparison inconclusive; recapture independently before asserting a visual difference.
+- Inline links wrapping over multiple lines, member mutation controls, admin/viewer roles, error and long-content states, and full list actions remain untested.
 - Baseline mobile/dark comparison and full keyboard traversal remain untested. Do not treat this record as a completed UX gate.
