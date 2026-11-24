@@ -198,7 +198,16 @@ notes. A mobile after screenshot was captured locally at
 `.playwright-mcp/engagement-622-mobile-after.png`; actual mobile before/after
 review confirmed improved affordance. The next-action section falls near the
 bottom of the viewport and requires scrolling. These local screenshot paths are
-not committed; no desktop after screenshot is claimed.
+not committed.
+
+The parent captured `.playwright-mcp/engagement-622-desktop-after.png` at
+revision `1a5db57` and compared it with
+`.playwright-mcp/engagement-622-desktop.png`. The explicit back link and
+outlined controls improve recognition; dividers separate stages and sections.
+Dense horizontal whitespace and the need to scroll remain subjective
+observations. Sidebar contrast was not numerically verified. “Confirmed work”
+and “Discovery” are synthetic user-entered values, not untranslated UI. Empty
+notes are deliberately hidden when absent.
 
 These are reported samples, not a complete journey matrix or accessibility
 compliance assessment. The visual review does not establish accessibility smoke
