@@ -10,6 +10,7 @@ import templates "example.com/dynamis-code/apps-template/internal/web/components
 templ engagementListPage(data viewmodel.PageData, page engagement.Page, stages []engagement.Stage, members []identity.MemberSummary, search string, selectedStage string, selectedAssignee string, prev string, next string, clientsPath string) {
  @templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
   @molecules.PageHeading(data.T("engagement.list"), data.T("clients.title"))
+  <a class="link" href={ templ.SafeURL(data.CurrentPath + "/board") }>{ data.T("engagement.board") }</a>
   <form method="get" action={ templ.SafeURL(data.CurrentPath) } class="card my-4 p-6">
    <label for="engagement-search">{ data.T("ui.search") } { data.T("ui.optional") }</label>
    <input class="input input-bordered" id="engagement-search" name="q" type="search" value={ search } maxlength="200"/>

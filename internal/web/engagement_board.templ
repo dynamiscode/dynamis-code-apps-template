@@ -1,0 +1,46 @@
+package web
+
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
+templ engagementBoardPage(data viewmodel.PageData, columns []engagementBoardColumn, kind string, listPath string, clientsPath string) {
+ @templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+  @molecules.PageHeading(data.T("engagement.board"), data.T("clients.title"))
+  <nav aria-label={ data.T("engagement.board_filter") } class="flex flex-wrap gap-2 my-4">
+   <a class="btn btn-outline" aria-current?={ kind == "open" } href={ templ.SafeURL(data.CurrentPath) }>{ data.T("engagement.open") }</a>
+   <a class="btn btn-outline" aria-current?={ kind == "won" } href={ templ.SafeURL(data.CurrentPath + "?kind=won") }>{ data.T("engagement.won") }</a>
+   <a class="btn btn-outline" aria-current?={ kind == "lost" } href={ templ.SafeURL(data.CurrentPath + "?kind=lost") }>{ data.T("engagement.lost") }</a>
+  </nav>
+  <a class="link" href={ templ.SafeURL(listPath) }>{ data.T("engagement.list") }</a>
+  if len(columns) == 0 {
+   <p>{ data.T("engagement.board_empty") }</p>
+  }
+  <div class="flex flex-wrap gap-4 my-4">
+   for _, column := range columns {
+    <section class="card bg-base-100 p-4 flex-1 min-w-64" aria-labelledby={ "stage-" + column.Stage.ID.String() }>
+     <h2 id={ "stage-" + column.Stage.ID.String() } class="text-lg font-bold">{ column.Stage.Name }
+      if column.Stage.Archived {
+       <span> ({ data.T("engagement.archived") })</span>
+      }
+     </h2>
+     if len(column.Page.Engagements) == 0 {
+      <p>{ data.T("engagement.board_stage_empty") }</p>
+     }
+     <ul>
+      for _, item := range column.Page.Engagements {
+       <li class="py-2">
+        <a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String()) }>{ item.Name }</a>
+        <span> — </span><a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String()) }>{ item.ClientName }</a>
+       </li>
+      }
+     </ul>
+     if column.Page.Total > len(column.Page.Engagements) {
+      <a class="link" href={ templ.SafeURL(listPath + "?stage=" + column.Stage.ID.String()) }>{ data.T("engagement.board_view_all") }</a>
+     }
+    </section>
+   }
+  </div>
+ }
+}
