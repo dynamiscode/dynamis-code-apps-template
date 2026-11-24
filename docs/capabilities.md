@@ -21,8 +21,8 @@ event. The same tests cover these behaviors and retention.
 The shared engagement list service provides workspace-scoped search by engagement
 or client name, stage and assignee filters, and bounded numbered pages ordered by
 descending ID, including archived stages. [Service tests](../internal/engagement/list_test.go)
-cover authorization, isolation, filters, and pagination. No list UI or REST route
-is exposed by this service increment.
+cover authorization, isolation, filters, and pagination. The web list and board
+use the shared service; no REST list route is exposed.
 Workspace export includes archived stages in all profiles and engagement records
 when Clients is enabled. [SQLite and PostgreSQL export tests](../internal/clients/engagement_export_test.go)
 cover scoped records, action and stage history, actor IDs, and limits.
@@ -31,15 +31,15 @@ service audits changes and [migration 000037](../internal/platform/database/migr
 stores it per workspace. Evidence: [service](../internal/engagement/label_test.go),
 [REST](../internal/httpapi/engagement_test.go), and [web](../internal/web/engagement_test.go)
 tests. The label is deleted with its workspace and is not included in export.
-Next actions have text, an optional date, and a workspace-member owner. Writers
-can change them; readers can view them and the workspace's open-stage due list.
-The service, REST, and web tests above cover these surfaces. Dates use UTC for
-the due-list cutoff; active actions and action history are included in workspace export. Migration
+Next actions have text, an optional date, and an optional workspace-member owner.
+Writers can change, complete, reschedule, and reopen actions; readers can view
+active actions and the action queue. Dates use UTC for queue boundaries. Active
+actions and action history are included in workspace export. Migration
 [000044](../internal/platform/database/migrations/000044_engagement_action_completion.sql)
-prepares history outcomes; [000045](../internal/platform/database/migrations/000045_engagement_action_version.sql)
+stores history outcomes; [000045](../internal/platform/database/migrations/000045_engagement_action_version.sql)
 retains a monotonic active-action version across replacement, clearing, and owner
-removal. Service reads expose the version; completion, reopening, and version
-enforcement are not implemented.
+removal. Completion, rescheduling, and reopening check the observed version;
+ordinary action edits do not yet enforce it. See [queue tests](../internal/engagement/action_queue_test.go).
 Quote status, optional amount and sent date are stored on the engagement by
 [migration 000035](../internal/platform/database/migrations/000035_engagement_quote.sql).
 The linked service, REST and web tests cover writes and read-only access. Quote

@@ -16,7 +16,6 @@ import (
 func InvalidNextActionFields(action NextAction) (text, date, owner bool) {
 	action.Text = strings.TrimSpace(action.Text)
 	text = !utf8.ValidString(action.Text) || utf8.RuneCountInString(action.Text) > 5000 || (action.Text == "" && (action.OwnerID != 0 || action.DueDate != ""))
-	owner = action.Text != "" && action.OwnerID == 0
 	if action.DueDate != "" {
 		parsed, err := time.Parse("2006-01-02", action.DueDate)
 		date = err != nil || parsed.Format("2006-01-02") != action.DueDate
@@ -60,12 +59,16 @@ func (s *Service) SetNextAction(ctx context.Context, actor identity.Principal, w
 	if action.Text == "" {
 		_, err = tx.ExecContext(ctx, database.Rebind(s.driver, `DELETE FROM engagement_next_actions WHERE workspace_id = ? AND engagement_id = ?`), workspaceID, engagementID)
 	} else {
-		if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?`), workspaceID, action.OwnerID).Scan(&exists); errors.Is(err, sql.ErrNoRows) {
-			return ErrInvalidInput
-		} else if err != nil {
-			return err
+		var owner any
+		if action.OwnerID != 0 {
+			if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?`), workspaceID, action.OwnerID).Scan(&exists); errors.Is(err, sql.ErrNoRows) {
+				return ErrInvalidInput
+			} else if err != nil {
+				return err
+			}
+			owner = action.OwnerID
 		}
-		_, err = tx.ExecContext(ctx, database.Rebind(s.driver, `INSERT INTO engagement_next_actions (workspace_id, engagement_id, action_text, due_date, owner_id, version) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (workspace_id, engagement_id) DO UPDATE SET action_text = excluded.action_text, due_date = excluded.due_date, owner_id = excluded.owner_id, version = excluded.version`), workspaceID, engagementID, action.Text, action.DueDate, action.OwnerID, version)
+		_, err = tx.ExecContext(ctx, database.Rebind(s.driver, `INSERT INTO engagement_next_actions (workspace_id, engagement_id, action_text, due_date, owner_id, version) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (workspace_id, engagement_id) DO UPDATE SET action_text = excluded.action_text, due_date = excluded.due_date, owner_id = excluded.owner_id, version = excluded.version`), workspaceID, engagementID, action.Text, action.DueDate, owner, version)
 	}
 	if err != nil {
 		return err

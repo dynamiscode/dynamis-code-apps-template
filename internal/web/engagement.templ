@@ -203,9 +203,13 @@ templ engagementDetailPage(data viewmodel.PageData) {
 						{ item.NextAction.Text } { item.NextAction.DueDate }
 					}
 				</p>
-				for _, member := range data.EngagementMembers {
-					if member.UserID == item.NextAction.OwnerID {
-						<p>{ data.T("engagement.owner") }: { member.Email }</p>
+				if item.NextAction.Text != "" && item.NextAction.OwnerID == 0 {
+					<p>{ data.T("engagement.owner") }: { data.T("engagement.unassigned") }</p>
+				} else {
+					for _, member := range data.EngagementMembers {
+						if member.UserID == item.NextAction.OwnerID {
+							<p>{ data.T("engagement.owner") }: { member.Email }</p>
+						}
 					}
 				}
 				if data.CanEditClients {
@@ -228,7 +232,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 							}
 							<label for="engagement-next-action-owner">{ data.T("engagement.owner") }</label>
 							<select class="select select-bordered" id="engagement-next-action-owner" name="owner_id" { templ.Attributes{"aria-invalid": templ.KV("true", data.EngagementOwnerError), "aria-describedby": templ.KV("engagement-next-action-owner-error", data.EngagementOwnerError)}... }>
-								<option value="" selected?={ data.ErrorKey == "engagement.invalid_next_action" && data.EngagementOwner == "" }>—</option>
+								<option value="" selected?={ data.ErrorKey == "engagement.invalid_next_action" && data.EngagementOwner == "" }>{ data.T("engagement.unassigned") }</option>
 								if data.EngagementOwnerUnavailable {
 									<option value={ data.EngagementOwner } selected disabled>{ data.EngagementOwner } — { data.T("engagement.unavailable") }</option>
 								}

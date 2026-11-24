@@ -739,7 +739,7 @@ func TestNextActionDueList(t *testing.T) {
 	if err != nil || len(due) != 1 || due[0].ID != e.ID || due[0].NextAction.Version != got.NextAction.Version {
 		t.Fatalf("due = %+v, %v", due, err)
 	}
-	for _, invalid := range []NextAction{{Text: "Call", OwnerID: 999999}, {Text: "Call", OwnerID: boot.UserID, DueDate: "2020-02-30"}, {Text: "Call"}} {
+	for _, invalid := range []NextAction{{Text: "Call", OwnerID: 999999}, {Text: "Call", OwnerID: boot.UserID, DueDate: "2020-02-30"}} {
 		if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, invalid, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
 			t.Fatalf("invalid action %+v: %v", invalid, err)
 		}
@@ -834,5 +834,14 @@ func TestNextActionDueList(t *testing.T) {
 	}
 	if rows.Next() || rows.Err() != nil {
 		t.Fatalf("unexpected extra history: %v", rows.Err())
+	}
+	if err := rows.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, NextAction{Text: "Unassigned"}, identity.AuditContext{}); err != nil {
+		t.Fatalf("set unassigned action: %v", err)
+	}
+	if unassigned, err := svc.Get(ctx, owner, boot.WorkspaceID, e.ID); err != nil || unassigned.NextAction.Text != "Unassigned" || unassigned.NextAction.OwnerID != 0 {
+		t.Fatalf("unassigned action: %+v, %v", unassigned.NextAction, err)
 	}
 }
