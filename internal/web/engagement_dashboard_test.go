@@ -62,7 +62,7 @@ func TestEngagementDashboardWeb(t *testing.T) {
 	svc := engagement.NewService(env.db, config.SQLite, env.auth)
 	path := "/workspaces/" + env.workspaceID.String()
 	empty := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
-	if empty.Code != http.StatusOK || !strings.Contains(empty.Body.String(), "No open stages yet.") {
+	if empty.Code != http.StatusOK || !strings.Contains(empty.Body.String(), "No open stages yet.") || strings.Count(empty.Body.String(), "No actions match these filters.") < 2 {
 		t.Fatalf("empty dashboard: %d", empty.Code)
 	}
 	for _, filter := range []string{"overdue", "today"} {
@@ -93,7 +93,7 @@ func TestEngagementDashboardWeb(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := svc.SetNextAction(ctx, actor, env.workspaceID, item.ID, engagement.NextAction{Text: "Follow up", DueDate: due, OwnerID: env.ownerID}, identity.AuditContext{}); err != nil {
+		if err := svc.SetNextAction(ctx, actor, env.workspaceID, item.ID, engagement.NextAction{Text: "Follow up " + due, DueDate: due, OwnerID: env.ownerID}, identity.AuditContext{}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -122,7 +122,7 @@ func TestEngagementDashboardWeb(t *testing.T) {
 	}
 	for _, cookies := range [][]*http.Cookie{env.cookies, env.viewerCookies} {
 		response := request(env.routes, http.MethodGet, path, nil, cookies, nil)
-		if response.Code != http.StatusOK || strings.Contains(response.Body.String(), "Other stage") {
+		if response.Code != http.StatusOK || strings.Contains(response.Body.String(), "Other stage") || strings.Contains(response.Body.String(), "Other action") || !strings.Contains(response.Body.String(), "Follow up 2000-01-01") || !strings.Contains(response.Body.String(), "Follow up "+today) || !strings.Contains(response.Body.String(), "Dashboard client") {
 			t.Fatalf("dashboard status or workspace isolation: %d", response.Code)
 		}
 		for _, tc := range []struct {

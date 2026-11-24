@@ -16,10 +16,12 @@ type DashboardStage struct {
 }
 
 type DashboardPage struct {
-	Overdue int
-	Today   int
-	Stages  []DashboardStage
-	HasMore bool
+	Overdue        int
+	Today          int
+	Stages         []DashboardStage
+	HasMore        bool
+	OverdueActions []ActionQueueEntry
+	TodayActions   []ActionQueueEntry
 }
 
 // Dashboard counts urgent actions and pages open stages, including archived stages.
@@ -65,6 +67,31 @@ func (s *Service) Dashboard(ctx context.Context, actor identity.Principal, works
 	if len(result.Stages) > limit {
 		result.HasMore = true
 		result.Stages = result.Stages[:limit]
+	}
+	for _, preview := range []struct {
+		operator string
+		entries  *[]ActionQueueEntry
+	}{{"<", &result.OverdueActions}, {"=", &result.TodayActions}} {
+		query := `SELECT c.id, c.display_name, e.id, e.name, a.action_text, a.due_date FROM engagement_next_actions a JOIN engagements e ON e.workspace_id = a.workspace_id AND e.id = a.engagement_id JOIN clients c ON c.workspace_id = e.workspace_id AND c.id = e.client_id JOIN engagement_stages s ON s.workspace_id = e.workspace_id AND s.id = e.stage_id WHERE a.workspace_id = ? AND s.kind = 'open' AND a.due_date <> '' AND a.due_date ` + preview.operator + ` ? ORDER BY a.due_date, e.id LIMIT 5`
+		rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, query), workspaceID, today)
+		if err != nil {
+			return DashboardPage{}, err
+		}
+		for rows.Next() {
+			var entry ActionQueueEntry
+			if err := rows.Scan(&entry.ClientID, &entry.ClientName, &entry.EngagementID, &entry.EngagementName, &entry.Action.Text, &entry.Action.DueDate); err != nil {
+				rows.Close()
+				return DashboardPage{}, err
+			}
+			*preview.entries = append(*preview.entries, entry)
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return DashboardPage{}, err
+		}
+		if err := rows.Close(); err != nil {
+			return DashboardPage{}, err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return DashboardPage{}, err

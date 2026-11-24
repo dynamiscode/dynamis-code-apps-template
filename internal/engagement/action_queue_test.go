@@ -72,6 +72,9 @@ func TestActionQueue(t *testing.T) {
 	if err != nil || dashboard.Overdue != 1 || dashboard.Today != 1 || len(dashboard.Stages) != 1 || dashboard.Stages[0].Stage.ID != open.ID || !dashboard.Stages[0].Stage.Archived || dashboard.Stages[0].Count != 2 {
 		t.Fatalf("dashboard: %+v %v", dashboard, err)
 	}
+	if len(dashboard.OverdueActions) != 1 || dashboard.OverdueActions[0].EngagementID != ids[0] || len(dashboard.TodayActions) != 1 || dashboard.TodayActions[0].EngagementID != ids[1] || dashboard.TodayActions[0].ClientName != "Client" {
+		t.Fatalf("dashboard previews: %+v", dashboard)
+	}
 	secondOpen, err := svc.CreateStage(ctx, owner, boot.WorkspaceID, StageInput{Name: "Empty", Kind: "open"}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -163,5 +166,27 @@ func TestActionQueue(t *testing.T) {
 		if _, err := svc.ListActionQueue(ctx, owner, boot.WorkspaceID, opt); !errors.Is(err, ErrInvalidInput) {
 			t.Fatalf("invalid %+v: %v", opt, err)
 		}
+	}
+	for i := 0; i < 7; i++ {
+		e, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{Name: "Extra", ClientID: client.ID, StageID: secondOpen.ID}, identity.AuditContext{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, NextAction{Text: "Extra", DueDate: dates[0]}, identity.AuditContext{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, date := range []string{dates[2], ""} {
+		e, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{Name: "Not urgent", ClientID: client.ID, StageID: secondOpen.ID}, identity.AuditContext{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, NextAction{Text: "Not urgent", DueDate: date}, identity.AuditContext{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dashboard, err = svc.Dashboard(ctx, owner, boot.WorkspaceID, 1, 10)
+	if err != nil || dashboard.Overdue != 7 || len(dashboard.OverdueActions) != 5 || len(dashboard.TodayActions) != 1 {
+		t.Fatalf("bounded previews: %+v %v", dashboard, err)
 	}
 }

@@ -279,6 +279,7 @@
   "dashboard.title": "Panel de gestiones",
   "dashboard.open_stages": "Gestiones abiertas por etapa",
   "dashboard.empty_stages": "Aún no hay etapas abiertas.",
+  "dashboard.view_all": "Ver todas",
   "queue.filter": "Mostrar acciones",
   "queue.filter_": "Urgentes (vencidas y de hoy)",
   "queue.filter_overdue": "Vencidas",

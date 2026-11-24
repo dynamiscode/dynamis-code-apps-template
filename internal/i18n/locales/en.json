@@ -279,6 +279,7 @@
   "dashboard.title": "Engagement dashboard",
   "dashboard.open_stages": "Open work by stage",
   "dashboard.empty_stages": "No open stages yet.",
+  "dashboard.view_all": "View all",
   "queue.filter": "Show actions",
   "queue.filter_": "Urgent (overdue and today)",
   "queue.filter_overdue": "Overdue",

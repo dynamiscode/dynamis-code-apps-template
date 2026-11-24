@@ -5,6 +5,7 @@ import organisms "example.com/dynamis-code/apps-template/internal/web/components
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import "example.com/dynamis-code/apps-template/internal/engagement"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "strconv"
 templ workspaceSelection(data viewmodel.PageData) {
@@ -43,6 +44,25 @@ templ workspaceSelection(data viewmodel.PageData) {
 		}
 	}
 }
+templ dashboardActionPreview(data viewmodel.PageData, title, filter string, actions []engagement.ActionQueueEntry) {
+	<section aria-label={ title }>
+		<h3>{ title }</h3>
+		if len(actions) == 0 {
+			<p>{ data.T("queue.empty") }</p>
+		} else {
+			<ul>
+				for _, action := range actions {
+					<li>
+						<a class="link" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/clients/" + action.ClientID.String() + "/engagements/" + action.EngagementID.String()) }>{ action.Action.Text }</a>
+						<span> — { action.EngagementName } — { action.ClientName } — { action.Action.DueDate }</span>
+					</li>
+				}
+			</ul>
+		}
+		<a class="link" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/engagements/due?filter=" + filter) }>{ data.T("dashboard.view_all") } — { title }</a>
+	</section>
+}
+
 templ workspaceHome(data viewmodel.PageData) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
 		<h2 class="sr-only">{ data.Workspace.Name }</h2>
@@ -53,6 +73,8 @@ templ workspaceHome(data viewmodel.PageData) {
 					@molecules.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/engagements/due?filter=overdue", data.T("queue.filter_overdue"), strconv.Itoa(data.EngagementDashboard.Overdue))
 					@molecules.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/engagements/due?filter=today", data.T("queue.filter_today"), strconv.Itoa(data.EngagementDashboard.Today))
 				</ul>
+				@dashboardActionPreview(data, data.T("queue.filter_overdue"), "overdue", data.EngagementDashboard.OverdueActions)
+				@dashboardActionPreview(data, data.T("queue.filter_today"), "today", data.EngagementDashboard.TodayActions)
 				<h3>{ data.T("dashboard.open_stages") }</h3>
 				if len(data.EngagementDashboard.Stages) == 0 {
 					<p>{ data.T("dashboard.empty_stages") }</p>

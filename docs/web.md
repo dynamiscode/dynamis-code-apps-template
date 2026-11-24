@@ -15,7 +15,7 @@ Member and invitation pages explain role permissions, ownership transfer,
 invited-email matching, and safe recovery for unavailable links.
 Settings groups general and email setup, member access, API tokens, webhooks,
 SCIM, exports, and audit history into role-aware sidebar sections.
-For workspace resource readers, workspace home shows overdue and due-today action counts (UTC) and paginated counts of work in open stages, including archived stages. Counts link to the corresponding action queue filter or stage-filtered engagement list and work without JavaScript.
+For workspace resource readers, workspace home shows overdue and due-today action counts (UTC), up to five individual actions in each category, and paginated counts of work in open stages, including archived stages. Preview links open the engagement; view-all links open the corresponding action queue filter. Counts link to the queue or stage-filtered engagement list. These links work without JavaScript.
 The Clients list links to the workspace engagement list and engagement stages.
 The engagement list supports ordinary GET search, stage and assignee filters,
 and bounded pagination; links open each engagement or its client. Workspace
