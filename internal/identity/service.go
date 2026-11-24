@@ -693,7 +693,7 @@ func (s *Service) RemoveMember(
 	if role == Owner {
 		return ErrLastOwner
 	}
-	if err := s.clearMemberEngagements(ctx, tx, actor.WorkspaceID, userID); err != nil {
+	if err := s.clearMemberAssignments(ctx, tx, actor.WorkspaceID, userID); err != nil {
 		return err
 	}
 	if _, err := s.exec(ctx, tx, `
@@ -723,11 +723,14 @@ func (s *Service) RemoveMember(
 	return tx.Commit()
 }
 
-func (s *Service) clearMemberEngagements(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, userID UserID) error {
+func (s *Service) clearMemberAssignments(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, userID UserID) error {
 	if _, err := s.exec(ctx, tx, "UPDATE engagements SET assignee_id = NULL WHERE workspace_id = ? AND assignee_id = ?", workspaceID, userID); err != nil {
 		return err
 	}
-	_, err := s.exec(ctx, tx, "UPDATE engagement_next_actions SET owner_id = NULL WHERE workspace_id = ? AND owner_id = ?", workspaceID, userID)
+	if _, err := s.exec(ctx, tx, "UPDATE engagement_next_actions SET owner_id = NULL WHERE workspace_id = ? AND owner_id = ?", workspaceID, userID); err != nil {
+		return err
+	}
+	_, err := s.exec(ctx, tx, "UPDATE scheduling_resources SET user_id = NULL WHERE workspace_id = ? AND user_id = ?", workspaceID, userID)
 	return err
 }
 

@@ -66,6 +66,14 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 								}
 							}
 							<p>{ item.Notes }</p>
+							if len(data.EngagementBookings[item.ID]) > 0 {
+								<h3>{ data.T("scheduling.bookings") }</h3>
+								<ul>
+									for _, booking := range data.EngagementBookings[item.ID] {
+										<li><a class="link" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/scheduling") }>{ booking.Start.Format("2006-01-02 15:04") } — { booking.EntryName }</a></li>
+									}
+								</ul>
+							}
 							if data.CanEditClients {
 								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/stage" } method="post">
 									<input type="hidden" name="csrf" value={ data.CSRF }/>

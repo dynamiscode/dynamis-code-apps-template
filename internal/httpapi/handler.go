@@ -25,6 +25,7 @@ import (
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 	"example.com/dynamis-code/apps-template/internal/portability"
+	"example.com/dynamis-code/apps-template/internal/scheduling"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
 )
 
@@ -42,6 +43,7 @@ type handler struct {
 	clients        *clients.Service
 	catalogService *catalog.Service
 	engagement     *engagement.Service
+	scheduling     *scheduling.Service
 	intake         *intake.Service
 }
 
@@ -72,7 +74,7 @@ func NewHandlerWithWebhooksAndFiles(
 	mailer appmail.Sender,
 	clientServices ...*clients.Service,
 ) (http.Handler, error) {
-	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, catalog.NewService(db, identityService, nil), nil, clientServices...)
+	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, catalog.NewService(db, identityService, scheduling.CatalogEntryInUse), nil, clientServices...)
 }
 
 func NewHandlerWithMail(
@@ -105,7 +107,7 @@ func NewHandlerWithEngagement(
 	engagementService *engagement.Service,
 	clientServices ...*clients.Service,
 ) (http.Handler, error) {
-	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, catalog.NewService(db, identityService, nil), engagementService, clientServices...)
+	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, catalog.NewService(db, identityService, scheduling.CatalogEntryInUse), engagementService, clientServices...)
 }
 
 func NewHandlerWithWebhooks(
@@ -120,7 +122,7 @@ func NewHandlerWithWebhooks(
 	mailer appmail.Sender,
 	clientServices ...*clients.Service,
 ) (http.Handler, error) {
-	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, nil, publicURL, mailer, catalog.NewService(db, identityService, nil), nil, clientServices...)
+	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, nil, publicURL, mailer, catalog.NewService(db, identityService, scheduling.CatalogEntryInUse), nil, clientServices...)
 }
 
 func NewHandlerWithCatalog(
@@ -194,6 +196,7 @@ func newHandlerWithIntake(
 		clients:        firstClient(clientServices),
 		catalogService: catalogService,
 		engagement:     engagementService,
+		scheduling:     scheduling.NewService(db, identityService),
 		intake:         intakeService,
 	}
 	handlers := map[string]http.HandlerFunc{
@@ -222,6 +225,12 @@ func newHandlerWithIntake(
 		"initiateFileUpload": h.initiateFileUpload,
 		"completeFileUpload": h.completeFileUpload, "uploadFileContent": h.uploadFileContent,
 		"listCatalog": h.listCatalog, "createCatalog": h.createCatalog, "createCatalogPrice": h.createCatalogPrice,
+		"listSchedulingResources": h.listSchedulingResources, "createSchedulingResource": h.createSchedulingResource,
+		"updateSchedulingResource": h.updateSchedulingResource, "setSchedulingTimeZone": h.setSchedulingTimeZone, "setSchedulingWorkingHours": h.setSchedulingWorkingHours,
+		"listSchedulingBookings": h.schedulingBookings, "createSchedulingBooking": h.schedulingBookings,
+		"setSchedulingEngagement":    h.setSchedulingEngagement,
+		"setSchedulingBookingStatus": h.setSchedulingBookingStatus,
+		"moveSchedulingBooking":      h.moveSchedulingBooking, "schedulingBookingHistory": h.schedulingBookingHistory,
 		"updateCatalog": h.updateCatalog, "updateCatalogPrice": h.editCatalogPrice, "deleteCatalogPrice": h.editCatalogPrice,
 		"archiveCatalog": h.archiveCatalog, "unarchiveCatalog": h.unarchiveCatalog, "deleteCatalog": h.deleteCatalog,
 		"listClients": h.listClients, "createClient": h.createClient,

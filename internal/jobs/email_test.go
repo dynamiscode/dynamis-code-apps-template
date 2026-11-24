@@ -11,6 +11,84 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 )
 
+type testEmailSender struct {
+	calls                    int
+	fail                     bool
+	recipient, subject, body string
+}
+
+func (s *testEmailSender) Send(_ context.Context, recipient, subject, body string) error {
+	s.calls++
+	s.recipient, s.subject, s.body = recipient, subject, body
+	if s.fail {
+		return errors.New("private provider detail")
+	}
+	return nil
+}
+
+func TestEmailJobDeliveryAndRetries(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		failures int
+		want     string
+	}{{"success", 0, "succeeded"}, {"retry", 1, "succeeded"}, {"exhaustion", MaxAttempts, "failed"}} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			db, err := database.Open(ctx, config.Database{Driver: config.SQLite, SQLitePath: filepath.Join(t.TempDir(), "jobs.db"), MaxOpenConns: 1, MaxIdleConns: 1})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+			if err := database.Migrate(ctx, db, config.SQLite); err != nil {
+				t.Fatal(err)
+			}
+			workspace := insertJobsWorkspace(t, db)
+			queue := NewQueue(db, config.SQLite, nil)
+			sender := &testEmailSender{}
+			if err := queue.Register(EmailJobKind, EmailHandler(queue, sender)); err != nil {
+				t.Fatal(err)
+			}
+			tx, err := db.BeginTx(ctx, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := EnqueueEmailTx(ctx, queue, tx, workspace, 1, Email{Recipient: "staff@example.com", Subject: "Alert", Body: "New request"}, time.Now()); err != nil {
+				t.Fatal(err)
+			}
+			if err := tx.Commit(); err != nil {
+				t.Fatal(err)
+			}
+			if sender.calls != 0 {
+				t.Fatal("email sent before processing")
+			}
+			for attempt := 1; attempt <= tc.failures+1 && attempt <= MaxAttempts; attempt++ {
+				sender.fail = attempt <= tc.failures
+				if _, err := db.Exec("UPDATE background_jobs SET available_at = ?", stamp(time.Now().Add(-time.Second))); err != nil {
+					t.Fatal(err)
+				}
+				if count, err := queue.Process(ctx, 1); err != nil || count != 1 {
+					t.Fatalf("Process = %d, %v", count, err)
+				}
+				var status string
+				var attempts int
+				if err := db.QueryRow("SELECT status, attempt_count FROM background_jobs").Scan(&status, &attempts); err != nil {
+					t.Fatal(err)
+				}
+				want := "pending"
+				if attempt == tc.failures+1 || attempt == MaxAttempts {
+					want = tc.want
+				}
+				if status != want || attempts != attempt {
+					t.Fatalf("state = %s, %d; want %s, %d", status, attempts, want, attempt)
+				}
+			}
+			if sender.recipient != "staff@example.com" || sender.subject != "Alert" || sender.body != "New request" {
+				t.Fatal("message changed during delivery")
+			}
+		})
+	}
+}
+
 type emailTestSender struct {
 	err   error
 	calls int

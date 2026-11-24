@@ -46,6 +46,10 @@ exponential retry. Metrics and logs contain only handler kind, status, attempt,
 and redacted failure category; they never contain payloads, URLs, secrets, or
 authorization values.
 
+Email jobs use workspace mail settings and persist the recipient, subject, and
+body in the job payload. A worker crash after delivery can result in a duplicate
+email. Settled jobs follow the background-job retention period.
+
 Run retention at least daily:
 
 ```sh
@@ -120,6 +124,10 @@ rotate access, and treat loss of an unrecoverable encryption root as permanent
 loss of encrypted data.
 
 ## Upgrades and alerts
+
+With the Catalog profile, migration 000048 adds booking storage. Back up before
+upgrading; restore the backup to roll back the schema, losing changes made after
+that backup. Booking data is included in database backups, not workspace export.
 
 Migration 000030 permanently deletes all Items, Item realtime events, and public
 sharing links. Audit history and unrelated workspace data remain. Before upgrade,

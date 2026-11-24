@@ -20,6 +20,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/id"
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
+	"example.com/dynamis-code/apps-template/internal/scheduling"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
 	"fmt"
@@ -40,6 +41,7 @@ type Handler struct {
 	logger          *slog.Logger
 	identity        *identity.Service
 	catalogService  *appcatalog.Service
+	scheduling      *scheduling.Service
 	clients         *clients.Service
 	engagement      *engagement.Service
 	intake          *intake.Service
@@ -208,6 +210,15 @@ func (h *Handler) Routes() http.Handler {
 	}
 	mux.HandleFunc("GET /workspaces/{workspaceId}", h.workspaceHome)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/catalog", h.catalogList)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/scheduling", h.schedulingList)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/scheduling", h.schedulingCreate)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/scheduling/time-zone", h.schedulingZone)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/scheduling/{resourceId}/edit", h.schedulingEdit)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/scheduling/{resourceId}/working-hours", h.schedulingHours)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/scheduling/{resourceId}/bookings", h.schedulingBook)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/scheduling/bookings/{bookingId}/engagement", h.schedulingSetEngagement)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/scheduling/{resourceId}/bookings/{bookingId}/status", h.schedulingBookingStatus)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/scheduling/{resourceId}/bookings/{bookingId}/move", h.schedulingBook)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog", h.catalogCreate)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/prices", h.catalogCreatePrice)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/edit", h.catalogEdit)
@@ -733,6 +744,7 @@ func (h *Handler) render(writer http.ResponseWriter, status int, name string, da
 	data.FilesEnabled = h.files != nil
 	data.ClientsEnabled = h.clients != nil
 	data.CatalogEnabled = h.catalogService != nil
+	data.SchedulingEnabled = h.scheduling != nil
 	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
 	h.localizePage(writer, &data)
 	if data.ToastKey != "" {

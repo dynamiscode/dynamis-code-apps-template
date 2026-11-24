@@ -9,6 +9,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/listviews"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
+	"example.com/dynamis-code/apps-template/internal/scheduling"
 	atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"github.com/a-h/templ"
@@ -442,6 +443,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		return
 	}
 	var engagements []engagement.Engagement
+	engagementBookings := make(map[engagement.ID][]scheduling.Booking)
 	var stages []engagement.Stage
 	var members []identity.MemberSummary
 	var engagementNotes string
@@ -465,6 +467,25 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 			return
 		}
 	}
+	if h.scheduling != nil && len(engagements) > 0 {
+		resources, _, err := h.scheduling.List(request.Context(), principal, workspaceID)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+		for _, resource := range resources {
+			bookings, _, err := h.scheduling.Schedule(request.Context(), principal, workspaceID, resource.ID)
+			if err != nil {
+				h.renderError(writer, http.StatusInternalServerError)
+				return
+			}
+			for _, booking := range bookings {
+				if booking.EngagementID != nil {
+					engagementBookings[*booking.EngagementID] = append(engagementBookings[*booking.EngagementID], booking)
+				}
+			}
+		}
+	}
 	h.renderClientPage(writer, request, status, clientDetailPage, viewmodel.PageData{
 		Title: client.DisplayName, ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
@@ -475,7 +496,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		CanManageFields:   principal.Permissions[identity.WorkspaceUpdate],
 		Client:            client, ClientValues: rows, ClientTimeline: entries, TimelinePage: page, TimelineDraft: timelineDraft, CanEditClients: principal.Permissions[identity.ResourcesWrite],
 		CanDeleteClients: principal.Permissions[identity.WorkspaceUpdate],
-		Engagements:      engagements, EngagementStages: stages, EngagementMembers: members, EngagementEnabled: h.engagement != nil,
+		Engagements:      engagements, EngagementBookings: engagementBookings, EngagementStages: stages, EngagementMembers: members, EngagementEnabled: h.engagement != nil,
 		EngagementNotes: engagementNotes,
 	})
 }

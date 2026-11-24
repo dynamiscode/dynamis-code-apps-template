@@ -20,12 +20,14 @@ import (
 	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/listviews"
+	"example.com/dynamis-code/apps-template/internal/notifications"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 	"example.com/dynamis-code/apps-template/internal/portability"
+	"example.com/dynamis-code/apps-template/internal/scheduling"
 	"example.com/dynamis-code/apps-template/internal/web"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
 	"example.com/dynamis-code/apps-template/internal/workspaceemail"
@@ -168,7 +170,19 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("register email job handler: %w", err)
 	}
-	catalogService := catalog.NewService(db, identityService, nil)
+	schedulingService := scheduling.NewService(db, identityService)
+	clientService.SetEmailChangeHook(schedulingService.RefreshClientRemindersTx)
+	if err := schedulingService.ReconcileReminders(ctx); err != nil {
+		db.Close()
+		telemetryProvider.Shutdown(context.Background())
+		return nil, fmt.Errorf("reconcile booking reminders: %w", err)
+	}
+	if err := jobQueue.Register(notifications.BookingReminderKind, schedulingService.ReminderHandler(mailer)); err != nil {
+		db.Close()
+		telemetryProvider.Shutdown(context.Background())
+		return nil, fmt.Errorf("register booking reminder handler: %w", err)
+	}
+	catalogService := catalog.NewService(db, identityService, scheduling.CatalogEntryInUse)
 	handler, err := httpapi.NewHandlerWithCatalogAndEngagement(
 		db, identityService, portabilityService, oidcRegistry, cfg.HTTP, slog.Default(),
 		webhookService, fileService, cfg.PublicURL, mailer, catalogService, engagementService, intakeService, clientService,
@@ -188,6 +202,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, fmt.Errorf("initialize web handler: %w", err)
 	}
 	webHandler.EnableCatalog(catalogService)
+	webHandler.EnableScheduling(schedulingService)
 	webHandler.SetWorkspaceMode(cfg.WorkspaceMode)
 	listPreferences := listprefs.NewService(db, cfg.Database.Driver, identityService)
 	webHandler.EnableListPreferences(listPreferences)

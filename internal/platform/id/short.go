@@ -19,6 +19,8 @@ type TypeCode string
 const (
 	TypeCatalogEntry        TypeCode = "catalog_entry"
 	TypeCatalogPrice        TypeCode = "catalog_price"
+	TypeSchedulingResource  TypeCode = "scheduling_resource"
+	TypeSchedulingBooking   TypeCode = "scheduling_booking"
 	TypeItem                TypeCode = "item"
 	TypeWorkspace           TypeCode = "workspace"
 	TypeFile                TypeCode = "file"
@@ -50,7 +52,7 @@ const (
 // TypeCodes returns every registered type code.
 func TypeCodes() []TypeCode {
 	return []TypeCode{
-		TypeCatalogEntry, TypeCatalogPrice, TypeItem, TypeWorkspace, TypeFile, TypeWebhook, TypeWebhookDelivery,
+		TypeCatalogEntry, TypeCatalogPrice, TypeSchedulingResource, TypeSchedulingBooking, TypeItem, TypeWorkspace, TypeFile, TypeWebhook, TypeWebhookDelivery,
 		TypeWebhookEvent, TypeJob, TypeInvitation, TypeMember, TypeToken,
 		TypePublicLink, TypeSCIMToken, TypeOAuthClient, TypeOAuthGrant, TypeItemEvent,
 		TypeNotification, TypeMFAPasskey, TypeAuditEvent, TypeUser,

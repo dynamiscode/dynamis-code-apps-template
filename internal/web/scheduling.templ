@@ -1,0 +1,216 @@
+package web
+
+import "example.com/dynamis-code/apps-template/internal/identity"
+import "example.com/dynamis-code/apps-template/internal/scheduling"
+import "example.com/dynamis-code/apps-template/internal/catalog"
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import "strconv"
+
+templ schedulingHoursRow(data viewmodel.PageData, h scheduling.WorkingHours) {
+ <fieldset class="flex flex-wrap gap-3 items-end">
+  <legend class="sr-only">{ data.T("scheduling.range") }</legend>
+  <label class="form-control flex w-full flex-col gap-1 sm:w-auto"><span>{ data.T("scheduling.day") }</span><select class="select select-bordered w-full" name="weekday">
+   for day := 0; day < 7; day++ {
+    <option value={ strconv.Itoa(day) } selected?={ h.Weekday == day }>{ data.T("scheduling.day_"+strconv.Itoa(day)) }</option>
+   }
+  </select></label>
+  <label class="form-control flex w-full flex-col gap-1 sm:w-auto"><span>{ data.T("scheduling.start") }</span><input class="input input-bordered w-full" type="time" name="start" value={ h.Start }/></label>
+  <label class="form-control flex w-full flex-col gap-1 sm:w-auto"><span>{ data.T("scheduling.end") }</span><input class="input input-bordered w-full" type="time" name="end" value={ h.End }/></label>
+ </fieldset>
+}
+
+templ schedulingUser(data viewmodel.PageData, members []identity.MemberSummary, selected string) {
+ <label class="form-control flex flex-col gap-1"><span class="label-text">{ data.T("scheduling.user") }</span><select class="select select-bordered" name="user_id"><option value="">{ data.T("scheduling.no_user") }</option>
+  for _, member := range members {
+   <option value={ member.UserID.String() } selected?={ selected == member.UserID.String() }>{ member.Email }</option>
+  }
+ </select></label>
+}
+
+templ schedulingEngagement(data viewmodel.PageData, options []scheduling.EngagementOption, selected string) {
+ <label class="form-control flex flex-col gap-1"><span>{ data.T("scheduling.engagement") }</span><select class="select select-bordered" name="engagement_id">
+  <option value="">{ data.T("scheduling.no_engagement") }</option>
+  for _, option := range options {
+   <option value={ option.ID.String() } selected?={ selected == option.ID.String() }>{ option.Label }</option>
+  }
+ </select></label>
+}
+
+templ schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zone string, members []identity.MemberSummary, bookings map[scheduling.ResourceID][]scheduling.Booking, history map[scheduling.BookingID][]scheduling.BookingMove, entries []catalog.Entry, engagements []scheduling.EngagementOption, canWrite bool, canBook bool, invalid bool, draft schedulingDraft) {
+ @templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+  @molecules.PageHeading(data.T("scheduling.title"), "")
+  if invalid {
+   <div role="alert" tabindex="-1" autofocus class="alert alert-error">
+    if draft.action == "booking" || draft.action == "move" {
+     { data.T("scheduling."+draft.bookingError) }
+    } else if draft.action == "zone" {
+     { data.T("scheduling.invalid_zone") }
+    } else if draft.action == "hours" {
+     { data.T("scheduling.invalid_hours") }
+    } else {
+     { data.T("scheduling.invalid") }
+    }
+   </div>
+  }
+  <p>{ data.T("scheduling.zone") }: { zone }</p>
+  if canWrite {
+   {{ zoneInput := zone }}
+   if draft.action == "zone" {
+    {{ zoneInput = draft.zone }}
+   }
+   <form method="post" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/scheduling/time-zone") } class="card bg-base-100 p-4 space-y-3 max-w-xl">
+    <input type="hidden" name="csrf" value={ data.CSRF }/>
+    <label class="form-control flex flex-col gap-1"><span class="label-text">{ data.T("scheduling.zone") }</span><input class="input input-bordered" name="time_zone" value={ zoneInput } required/></label>
+    <button class="btn btn-primary w-fit" type="submit">{ data.T("common.save") }</button>
+   </form>
+   {{ createName, createUser := "", "" }}
+   if draft.action == "create" {
+    {{ createName, createUser = draft.name, draft.userID }}
+   }
+   <form method="post" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/scheduling") } class="card bg-base-100 p-4 space-y-3 max-w-xl">
+    <input type="hidden" name="csrf" value={ data.CSRF }/>
+    <label class="form-control flex flex-col gap-1"><span class="label-text">{ data.T("scheduling.name") }</span><input class="input input-bordered" name="name" value={ createName } required/></label>
+    @schedulingUser(data, members, createUser)
+    <button class="btn btn-primary w-fit" type="submit">{ data.T("common.create") }</button>
+   </form>
+  }
+  if len(resources) == 0 {
+   @molecules.EmptyState(data.T("scheduling.empty"))
+  } else {
+   <ul class="space-y-2">
+    for _, resource := range resources {
+     <li class="card bg-base-100 p-4"><strong>{ resource.Name }</strong>
+      <h2 class="font-semibold">{ data.T("scheduling.bookings") }</h2>
+      if len(bookings[resource.ID]) == 0 {
+       <p>{ data.T("scheduling.no_bookings") }</p>
+      } else {
+       <ul>
+        for _, booking := range bookings[resource.ID] {
+         <li>{ booking.Start.Format("2006-01-02 15:04") }–{ booking.End.Format("15:04") }: { booking.EntryName } ({ string(booking.Status) })
+          if len(history[booking.ID]) > 0 {
+           <details><summary>{ data.T("scheduling.history") }</summary><ul>
+            for _, move := range history[booking.ID] {
+             {{ actorName := move.ActorID.String() }}
+             for _, member := range members {
+              if member.UserID == move.ActorID {
+               {{ actorName = member.Email }}
+              }
+             }
+             <li>{ move.OldStart.Format("2006-01-02 15:04 UTC") }–{ move.OldEnd.Format("15:04 UTC") } → { move.NewStart.Format("2006-01-02 15:04 UTC") }–{ move.NewEnd.Format("15:04 UTC") }; { actorName }; { move.MovedAt.Format("2006-01-02 15:04 UTC") }</li>
+            }
+           </ul></details>
+          }
+          if canBook && booking.Status != scheduling.BookingCancelled && booking.Status != scheduling.BookingNoShow {
+           {{ moveStart := "" }}
+           if draft.action == "move" && draft.bookingID == booking.ID.String() {
+            {{ moveStart = draft.start }}
+           }
+           <details open?={ draft.action == "move" && draft.bookingID == booking.ID.String() }><summary class="btn btn-sm">{ data.T("scheduling.move") }</summary>
+            <form method="post" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/scheduling/"+resource.ID.String()+"/bookings/"+booking.ID.String()+"/move") }>
+             <input type="hidden" name="csrf" value={ data.CSRF }/>
+             <label class="form-control"><span>{ data.T("scheduling.start") } ({ zone })</span><input class="input input-bordered" type="datetime-local" name="start" value={ moveStart } required/></label>
+             <button class="btn btn-primary" type="submit">{ data.T("scheduling.move") }</button>
+            </form>
+           </details>
+          }
+          for _, option := range engagements {
+           if booking.EngagementID != nil && *booking.EngagementID == option.ID {
+            <a class="link" href={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/clients/"+option.ClientID.String()) }>{ option.Label }</a>
+           }
+          }
+          if canBook && len(engagements) > 0 {
+           <form method="post" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/scheduling/bookings/"+booking.ID.String()+"/engagement") }>
+            <input type="hidden" name="csrf" value={ data.CSRF }/>
+            if booking.EngagementID != nil {
+             @schedulingEngagement(data, engagements, booking.EngagementID.String())
+            } else {
+             @schedulingEngagement(data, engagements, "")
+            }
+            <button class="btn btn-sm" type="submit">{ data.T("common.save") }</button>
+           </form>
+          }
+          if canBook && booking.Status == scheduling.BookingBooked {
+           <form method="post" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/scheduling/"+resource.ID.String()+"/bookings/"+booking.ID.String()+"/status") }>
+            <input type="hidden" name="csrf" value={ data.CSRF }/>
+            <button class="btn btn-sm" name="status" value="done">{ data.T("scheduling.done") }</button>
+            <button class="btn btn-sm" name="status" value="cancelled">{ data.T("scheduling.cancelled") }</button>
+            <button class="btn btn-sm" name="status" value="no-show">{ data.T("scheduling.no_show") }</button>
+           </form>
+          }
+         </li>
+        }
+       </ul>
+      }
+      if canBook && len(entries) > 0 {
+       <details open?={ draft.action == "booking" && draft.resourceID == resource.ID.String() }><summary class="btn btn-sm">{ data.T("scheduling.book") }</summary>
+        <form method="post" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/scheduling/"+resource.ID.String()+"/bookings") } class="space-y-3">
+         <input type="hidden" name="csrf" value={ data.CSRF }/>
+         <label class="form-control flex flex-col gap-1"><span>{ data.T("scheduling.entry") }</span><select class="select select-bordered" name="entry_id" required>
+          for _, entry := range entries {
+           <option value={ entry.ID.String() } selected?={ draft.entryID == entry.ID.String() }>{ entry.Name }</option>
+          }
+         </select></label>
+         if len(engagements) > 0 {
+          @schedulingEngagement(data, engagements, draft.engagementID)
+         }
+         <label class="form-control flex flex-col gap-1"><span>{ data.T("scheduling.start") } ({ zone })</span><input class="input input-bordered" type="datetime-local" name="start" value={ draft.start } required/></label>
+         <button class="btn btn-primary" type="submit">{ data.T("scheduling.book") }</button>
+        </form>
+       </details>
+      }
+      <p>{ data.T("scheduling.hours") }</p>
+      if len(resource.WorkingHours) == 0 {
+       <p>{ data.T("scheduling.no_hours") }</p>
+      } else {
+       <ul>
+        for _, hours := range resource.WorkingHours {
+         <li>{ data.T("scheduling.day_"+strconv.Itoa(hours.Weekday)) }: { hours.Start }–{ hours.End }</li>
+        }
+       </ul>
+      }
+      for _, member := range members {
+       if resource.UserID != nil && *resource.UserID == member.UserID {
+        <span>{ member.Email }</span>
+       }
+      }
+      if canWrite {
+       {{ hours := resource.WorkingHours }}
+       if draft.action == "hours" && draft.resourceID == resource.ID.String() {
+        {{ hours = draft.hours }}
+       }
+       <details open?={ draft.action == "hours" && draft.resourceID == resource.ID.String() }><summary class="btn btn-sm">{ data.T("scheduling.edit_hours") }</summary>
+       <form method="post" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/scheduling/"+resource.ID.String()+"/working-hours") } class="space-y-3">
+        <input type="hidden" name="csrf" value={ data.CSRF }/>
+        <p>{ data.T("scheduling.hours_help") }</p>
+        for _, hour := range hours {
+         @schedulingHoursRow(data, hour)
+        }
+        @schedulingHoursRow(data, scheduling.WorkingHours{})
+        <button class="btn btn-primary" type="submit">{ data.T("common.save") }</button>
+       </form>
+       </details>
+       {{ name, userID := resource.Name, "" }}
+       if resource.UserID != nil {
+        {{ userID = resource.UserID.String() }}
+       }
+       if draft.resourceID == resource.ID.String() && draft.action != "hours" && draft.action != "booking" && draft.action != "move" {
+        {{ name, userID = draft.name, draft.userID }}
+       }
+       <details open?={ draft.resourceID == resource.ID.String() && draft.action != "hours" && draft.action != "booking" && draft.action != "move" }><summary class="btn btn-sm">{ data.T("ui.edit") }</summary>
+        <form method="post" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/scheduling/"+resource.ID.String()+"/edit") } class="space-y-3">
+         <input type="hidden" name="csrf" value={ data.CSRF }/>
+         <label class="form-control flex flex-col gap-1"><span class="label-text">{ data.T("scheduling.name") }</span><input class="input input-bordered" name="name" value={ name } required/></label>
+         @schedulingUser(data, members, userID)
+         <button class="btn btn-primary" type="submit">{ data.T("common.save") }</button>
+        </form>
+       </details>
+      }
+     </li>
+    }
+   </ul>
+  }
+ }
+}
