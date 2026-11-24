@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -32,15 +33,23 @@ func TestEngagementBoard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	var openItem engagement.ID
+	var wonStage engagement.StageID
 	for _, kind := range []string{"open", "won", "lost"} {
 		item, err := service.Create(ctx, actor, env.workspaceID, engagement.Input{Name: "Occupant " + kind, ClientID: client.ID, StageID: openStage.ID}, identity.AuditContext{})
 		if err != nil {
 			t.Fatal(err)
 		}
+		if kind == "open" {
+			openItem = item.ID
+		}
 		if kind != "open" {
 			stage, err := service.CreateStage(ctx, admin, env.workspaceID, engagement.StageInput{Name: "Board " + kind, Kind: kind}, identity.AuditContext{})
 			if err != nil {
 				t.Fatal(err)
+			}
+			if kind == "won" {
+				wonStage = stage.ID
 			}
 			if err := service.Move(ctx, actor, env.workspaceID, item.ID, stage.ID, identity.AuditContext{}); err != nil {
 				t.Fatal(err)
@@ -61,6 +70,32 @@ func TestEngagementBoard(t *testing.T) {
 				t.Fatal("archived stage not marked")
 			}
 		}
+	}
+	movePath := "/workspaces/" + env.workspaceID.String() + "/clients/" + client.ID.String() + "/engagements/" + openItem.String() + "/stage"
+	writer := request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
+	for _, want := range []string{`action="` + movePath + `"`, `for="move-` + openItem.String() + `"`, `<option value="` + wonStage.String() + `"`, `name="return_to" value="board"`} {
+		if !strings.Contains(writer.Body.String(), want) {
+			t.Fatalf("board missing %q", want)
+		}
+	}
+	if strings.Contains(writer.Body.String(), `<option value="`+openStage.ID.String()+`"`) {
+		t.Fatal("archived stage offered")
+	}
+	viewer := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
+	if strings.Contains(viewer.Body.String(), `action="`+movePath+`"`) {
+		t.Fatal("viewer offered move control")
+	}
+	values := url.Values{"csrf": {env.viewerCSRF}, "stage": {wonStage.String()}, "return_to": {"board"}, "kind": {"lost"}}
+	if denied := request(env.routes, http.MethodPost, movePath, values, env.viewerCookies, nil); denied.Code != http.StatusForbidden {
+		t.Fatalf("viewer move: %d", denied.Code)
+	}
+	values.Set("csrf", env.csrf)
+	if moved := request(env.routes, http.MethodPost, movePath, values, env.cookies, nil); moved.Code != http.StatusSeeOther || moved.Header().Get("Location") != path+"?kind=lost" {
+		t.Fatalf("board move: %d %s", moved.Code, moved.Header().Get("Location"))
+	}
+	item, err := service.Get(ctx, actor, env.workspaceID, openItem)
+	if err != nil || item.StageID != wonStage {
+		t.Fatalf("stage after move: %v, %v", item.StageID, err)
 	}
 	response := request(env.routes, http.MethodGet, path+"?kind=invalid", nil, env.cookies, nil)
 	if response.Code != http.StatusBadRequest {

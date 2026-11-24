@@ -55,10 +55,10 @@ func (h *Handler) engagementBoard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	path := "/workspaces/" + workspace.String() + "/engagements"
-	data := viewmodel.PageData{CSRF: csrf, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, NavPage: "clients", NavSection: "clients", CurrentPath: path + "/board", ClientsEnabled: h.clients != nil, FilesEnabled: h.filesEnabled, SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle}
+	data := viewmodel.PageData{CanEditClients: actor.Permissions[identity.ResourcesWrite], CSRF: csrf, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, NavPage: "clients", NavSection: "clients", CurrentPath: path + "/board", ClientsEnabled: h.clients != nil, FilesEnabled: h.filesEnabled, SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle}
 	h.localizePage(w, &data)
 	data.Title = data.T("engagement.board")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	_ = engagementBoardPage(data, columns, kind, path, h.clientsPath(workspace)).Render(r.Context(), w)
+	_ = engagementBoardPage(data, columns, stages, kind, path, h.clientsPath(workspace)).Render(r.Context(), w)
 }

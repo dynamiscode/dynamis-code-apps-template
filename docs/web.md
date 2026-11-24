@@ -18,7 +18,10 @@ SCIM, exports, and audit history into role-aware sidebar sections.
 The Clients list links to the workspace engagement list and engagement stages.
 The engagement list supports ordinary GET search, stage and assignee filters,
 and bounded pagination; links open each engagement or its client. Workspace
-resource readers can use the list without JavaScript.
+resource readers can use the list without JavaScript. On the stage board,
+writers can move an engagement using its labeled form; targets exclude archived
+and current stages. A successful move returns to the selected board kind, including
+without JavaScript. Readers do not see move controls.
 Owners and admins can add, reorder,
 and archive stages; workspace readers see their order and archive state. The
 forms work without JavaScript.

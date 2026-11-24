@@ -335,6 +335,11 @@ func (h *Handler) moveEngagement(w http.ResponseWriter, r *http.Request) {
 	path := h.clientsPath(workspace) + "/" + clientID.String()
 	if r.FormValue("return_to") == "detail" {
 		path += "/engagements/" + engagementID.String() + "?saved=1"
+	} else if r.FormValue("return_to") == "board" {
+		path = "/workspaces/" + workspace.String() + "/engagements/board"
+		if kind := r.FormValue("kind"); kind == "won" || kind == "lost" {
+			path += "?kind=" + kind
+		}
 	}
 	h.redirect(w, r, path)
 }
