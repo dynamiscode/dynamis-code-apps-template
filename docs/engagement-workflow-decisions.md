@@ -215,6 +215,29 @@ checks or full UX completion. Independent review was not reported. The earlier
 baseline and its blocked audit status remain separate; broader redesigned-journey
 review remains outstanding.
 
+## Reported integrated workflow samples (#619)
+
+The parent session used Playwright with a disposable SQLite application at
+baseline revision `cf59bd1`. The session created a stage,
+client, and named engagement, then scheduled an overdue action.
+
+- The dashboard showed “Overdue 1” and “Discovery 1”. The overdue link opened
+  the correct contextual queue.
+- Completing the action removed it from the active queue and showed it in the
+  completed filter. Reopening it returned it to the overdue queue.
+- The uploaded `agreement.txt` appeared by name in the independently authorized
+  file picker. Selecting it saved the agreement.
+
+After UI fixes at revision `f0fc252`, the parent sampled the mobile board at
+390 × 844. The document had no overflow and showed no-target
+guidance. Completing an action displayed “Action completed.” The parent
+captured `.playwright-mcp/engagement-619-queue-mobile.png` in the original
+checkout; the screenshot is local and not committed.
+
+These are reported samples, not a comprehensive UX, accessibility, permission,
+keyboard, error recovery, or no-JavaScript review. They do not close the
+remaining audit gates.
+
 ## Remaining current-journey audit
 
 Status: **blocked pending rendered-browser review**. The following scenarios
