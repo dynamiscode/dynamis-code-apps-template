@@ -3,10 +3,38 @@
 package browsertest
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
 	"github.com/chromedp/cdproto/emulation"
 )
+
+func TestSignInKeyboardFocus(t *testing.T) {
+	tab := newTab(t, 390, 844, "light")
+	navigate(t, tab, "/login")
+	waitVisible(t, tab, "#email")
+	for _, selector := range []string{`.skip-link`, "#email", "#password", `#password + .reveal`, `button[type=submit]`, `a[href="/password-reset"]`} {
+		assertTabFocus(t, tab, selector)
+		if selector == `a[href="/password-reset"]` {
+			capturePublicIntake(t, tab, "mobile-login-keyboard-recovery.png")
+		}
+	}
+}
+
+func assertTabFocus(t *testing.T, tab context.Context, selector string) {
+	t.Helper()
+	press(t, tab, "\t")
+	got := eval[string](t, tab, `document.activeElement?.outerHTML ?? ""`)
+	if !eval[bool](t, tab, fmt.Sprintf(`document.activeElement?.matches(%s)`, jsString(selector))) {
+		t.Fatalf("Tab focused %s, want %s", got, selector)
+	}
+	visible := eval[bool](t, tab, `(() => { const s = getComputedStyle(document.activeElement); return (s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0) || s.boxShadow !== 'none'; })()`)
+	if !visible {
+		t.Fatalf("focused %s has no outline or box shadow", selector)
+	}
+	t.Logf("Tab focus %s: visible outline or shadow", selector)
+}
 
 func TestIdentityRolesWithoutJavaScript(t *testing.T) {
 	tab := newTab(t, 390, 844, "light")

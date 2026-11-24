@@ -49,9 +49,11 @@ func TestPublicIntakeLongConsentReflow(t *testing.T) {
 				t.Fatalf("consent length = %d, want %d", got, len(consent))
 			}
 			expectAxeClean(t, tab)
-			run(t, tab, chromedp.Focus(`input[name=consent]`))
-			if !eval[bool](t, tab, `document.activeElement === document.querySelector('input[name=consent]')`) {
-				t.Fatal("consent checkbox is not keyboard focusable")
+			for _, selector := range []string{"#name", "#phone", "#email", "#notes", `input[name=consent]`, `button[type=submit]`} {
+				assertTabFocus(t, tab, selector)
+				if selector == `input[name=consent]` {
+					capturePublicIntake(t, tab, tc.name+"-keyboard-consent.png")
+				}
 			}
 			capturePublicIntake(t, tab, tc.name+"-form.png")
 			fill(t, tab, "#name", "Synthetic Visitor")

@@ -16,16 +16,25 @@ At 390×844 light with JavaScript disabled, a visitor submitted a name, syntheti
 
 `TestAccountAndSecurityPagesRender` additionally visited account, language, security and sessions at 1280×900 and 390×844 in both themes, and checked narrow reflow. `TestProfilePreferencePersistsThroughOrdinaryForm` saved a profile change. These automated visits are not a visual review of every state.
 
+## Keyboard review
+
+On the real local application with JavaScript enabled, Chrome Tab key events traversed these controls in order. Each focused control had a computed nonzero outline or box shadow; these checks do not measure contrast.
+
+- Public form, 390×844 dark and 1440×900 light: name → phone → email → notes → consent checkbox → submit. Consent focus: [mobile](mobile-dark-keyboard-consent.png), [desktop](desktop-light-keyboard-consent.png).
+- Sign-in, 390×844 light: skip link → email → password → reveal password → sign in → password recovery. [Recovery link focused](mobile-login-keyboard-recovery.png).
+
+Screenshots show synthetic states without credentials or the private link. The tests send actual Tab key events rather than calling element focus. Review is limited to these two paths and states.
+
 ## Source inventory
 
-Compared names changed between local `origin/main` and this branch and inspected account, authentication, security, sessions, notifications, invitations, public consent and request-form templates. Account shortcuts, recovery and provider links, notifications and public return links use outlined navigation; form submissions remain native buttons. Invitation resend now has a secondary outline and revoke has a danger outline; its existing confirmation checkbox remains. Shared account navigation is supplied by `components/organisms/navigation.templ`. Setup, MFA, recovery and email verification use shared auth layout and action components; OAuth consent uses native allow/deny buttons. This is a scoped source inventory, not proof of all feature-gated rendering.
+Compared names changed between local `origin/main` and this branch and inspected account, authentication, security, sessions, notifications, invitations, public consent and request-form templates. Account shortcuts, recovery and provider links, notifications and public return links use outlined navigation; form submissions remain native buttons. Invitation resend now has a secondary outline and revoke has a danger outline; its existing confirmation checkbox remains. Shared account navigation is supplied by `components/organisms/navigation.templ`. Setup, MFA, recovery and email verification use shared auth layout and action components; OAuth consent uses native allow/deny buttons. The local integration branch remained at `aa927e2` when merged into this worktree; its diff from the execution base contains no newly added screens to inventory. This is a scoped source inventory, not proof of all feature-gated rendering.
 
 ## Three review perspectives
 
 - Journey: contact requirement appears before fields; missing contact produces an error; valid submission reaches confirmation without JavaScript.
-- Interaction and hierarchy: submit remains primary; consent wraps without widening the document. Checkbox can receive programmatic keyboard focus; full keyboard traversal was not reviewed.
+- Interaction and hierarchy: submit remains primary; consent wraps without widening the document. Tab order and computed focus styles were checked on the public form and sign-in; other paths were not traversed.
 - Accessibility and implementation: axe returned no violations for tested public form and error states. Automated checks do not establish accessibility conformance; screen-reader behavior was not tested.
 
 ## Remaining gaps
 
-This is not completion evidence for #656. Notifications, setup, MFA, recovery, invitation and optional authorization consent still need rendered journey review, including feature-gated states and keyboard navigation. Full keyboard traversal, screen-reader review, and successful invitation or OAuth consent were not exercised. Source comparison used the locally available `origin/main` ref; no remote refresh was performed.
+This is not completion evidence for #656. Notifications, setup, MFA, recovery, invitation and optional authorization consent still need rendered journey review, including feature-gated states and keyboard navigation. Keyboard traversal outside the two documented paths, screen-reader review, and successful invitation or OAuth consent were not exercised. Source comparison used the locally available `origin/main` ref; no remote refresh was performed.
