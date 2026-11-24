@@ -347,8 +347,12 @@ func (h *Handler) dueEngagements(w http.ResponseWriter, r *http.Request) {
 	} else if query.Get("invalid_date") == "1" {
 		data.ErrorKey = "queue.invalid_date"
 	}
+	status := query.Get("status")
+	if status != "completed" && status != "reopened" && status != "rescheduled" {
+		status = ""
+	}
 	if query.Get("rescheduled") == "1" {
-		data.Saved = true
+		status = "rescheduled"
 	}
 	h.localizePage(w, &data)
 	data.Title = data.T("engagement.due_list")
@@ -372,7 +376,7 @@ func (h *Handler) dueEngagements(w http.ResponseWriter, r *http.Request) {
 	if items.HasMore && page < 1000000 {
 		next = pageURL(page + 1)
 	}
-	_ = dueEngagementsPage(data, items, stages, members, string(options.Filter), owner, previous, next, h.clientsPath(workspace)).Render(r.Context(), w)
+	_ = dueEngagementsPage(data, items, stages, members, string(options.Filter), owner, status, previous, next, h.clientsPath(workspace)).Render(r.Context(), w)
 }
 
 func queueOperation(historyID int64) string {
@@ -419,29 +423,45 @@ func (h *Handler) changeQueuedAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	path := "/workspaces/" + workspace.String() + "/engagements/due"
-	if r.PathValue("operation") == "reopen" {
-		path += "?filter=completed"
+	values := url.Values{}
+	filter := r.FormValue("filter")
+	switch filter {
+	case "overdue", "today", "upcoming", "undated", "completed":
+		values.Set("filter", filter)
+	default:
+		if filter == "" && r.PathValue("operation") == "reopen" {
+			values.Set("filter", "completed")
+		}
+	}
+	owner := r.FormValue("owner")
+	if id, parseErr := identity.ParseUserID(owner); owner == "unassigned" || (parseErr == nil && id != 0) {
+		values.Set("owner", owner)
 	}
 	switch {
 	case errors.Is(err, identity.ErrForbidden):
 		h.renderError(w, http.StatusForbidden)
+		return
 	case errors.Is(err, engagement.ErrStaleNextAction):
-		if r.PathValue("operation") == "reopen" {
-			path += "&conflict=1"
-		} else {
-			path += "?conflict=1"
-		}
-		h.redirect(w, r, path)
+		values.Set("conflict", "1")
 	case errors.Is(err, engagement.ErrInvalidInput):
-		h.redirect(w, r, path+"?invalid_date=1")
+		values.Set("invalid_date", "1")
 	case err != nil:
 		h.renderError(w, http.StatusInternalServerError)
+		return
 	default:
-		if r.PathValue("operation") == "reschedule" {
-			path += "?rescheduled=1"
+		switch r.PathValue("operation") {
+		case "complete":
+			values.Set("status", "completed")
+		case "reopen":
+			values.Set("status", "reopened")
+		case "reschedule":
+			values.Set("rescheduled", "1")
 		}
-		h.redirect(w, r, path)
 	}
+	if encoded := values.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	h.redirect(w, r, path)
 }
 
 func (h *Handler) EnableEngagement(service *engagement.Service) { h.engagement = service }

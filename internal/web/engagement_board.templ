@@ -34,7 +34,10 @@ templ engagementBoardPage(data viewmodel.PageData, columns []engagementBoardColu
        <li class="py-2">
         <a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String()) }>{ item.Name }</a>
         <span> — </span><a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String()) }>{ item.ClientName }</a>
-        if data.CanEditClients {
+        if data.CanEditClients && !boardHasMoveTarget(stages, item.StageID) {
+         <p>{ data.T("engagement.no_move_target") }</p>
+        }
+        if data.CanEditClients && boardHasMoveTarget(stages, item.StageID) {
          <form action={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String() + "/stage") } method="post">
           <input type="hidden" name="csrf" value={ data.CSRF }/>
           <input type="hidden" name="return_to" value="board"/>

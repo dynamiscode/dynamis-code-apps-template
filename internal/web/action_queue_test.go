@@ -56,8 +56,8 @@ func TestActionQueueWeb(t *testing.T) {
 		t.Fatal("viewer sees completion control")
 	}
 	writer := request(env.routes, http.MethodGet, path+"?filter=undated", nil, env.cookies, nil)
-	if !strings.Contains(writer.Body.String(), "/action/complete") {
-		t.Fatal("writer missing completion control")
+	if !strings.Contains(writer.Body.String(), "/action/complete") || !strings.Contains(writer.Body.String(), `name="filter" value="undated"`) {
+		t.Fatal("writer missing completion control or filter context")
 	}
 	completePath := path[:strings.LastIndex(path, "/due")] + "/" + completed.String() + "/action/complete"
 	reschedulePath := strings.TrimSuffix(completePath, "complete") + "reschedule"
@@ -74,7 +74,7 @@ func TestActionQueueWeb(t *testing.T) {
 	if got := request(env.routes, http.MethodPost, reschedulePath, reschedule, env.cookies, nil); !strings.Contains(got.Header().Get("Location"), "conflict=1") {
 		t.Fatalf("stale reschedule: %d %s", got.Code, got.Header().Get("Location"))
 	}
-	form := url.Values{"csrf": {env.csrf}, "version": {"2"}}
+	form := url.Values{"csrf": {env.csrf}, "version": {"2"}, "filter": {"overdue"}, "owner": {env.ownerID.String()}}
 	if got := request(env.routes, http.MethodPost, completePath, url.Values{"version": {"1"}}, env.cookies, nil); got.Code != http.StatusForbidden {
 		t.Fatalf("missing csrf: %d", got.Code)
 	}
@@ -83,6 +83,15 @@ func TestActionQueueWeb(t *testing.T) {
 	}
 	if got := request(env.routes, http.MethodPost, completePath, form, env.cookies, nil); got.Code != http.StatusSeeOther {
 		t.Fatalf("complete: %d", got.Code)
+	} else {
+		location := got.Header().Get("Location")
+		if !strings.Contains(location, "filter=overdue") || !strings.Contains(location, "owner="+env.ownerID.String()) || !strings.Contains(location, "status=completed") {
+			t.Fatalf("complete redirect: %s", location)
+		}
+		page := request(env.routes, http.MethodGet, location, nil, env.cookies, nil)
+		if !strings.Contains(page.Body.String(), "Action completed.") {
+			t.Fatal("missing completion feedback")
+		}
 	}
 	if got := request(env.routes, http.MethodPost, completePath, form, env.cookies, nil); got.Code != http.StatusSeeOther || !strings.Contains(got.Header().Get("Location"), "conflict=1") {
 		t.Fatalf("stale complete: %d %s", got.Code, got.Header().Get("Location"))
@@ -112,10 +121,10 @@ func TestActionQueueWeb(t *testing.T) {
 	}
 	entry := entries.Entries[0]
 	reopenPath := strings.TrimSuffix(completePath, "complete") + "reopen"
-	reopen := url.Values{"csrf": {env.csrf}, "version": {fmt.Sprint(entry.Action.Version)}, "history_id": {fmt.Sprint(entry.HistoryID)}}
-	writerDone := request(env.routes, http.MethodGet, path+"?filter=completed", nil, env.cookies, nil)
-	if !strings.Contains(writerDone.Body.String(), "/action/reopen") {
-		t.Fatal("writer missing reopen control")
+	reopen := url.Values{"csrf": {env.csrf}, "version": {fmt.Sprint(entry.Action.Version)}, "history_id": {fmt.Sprint(entry.HistoryID)}, "filter": {"completed"}, "owner": {env.ownerID.String()}}
+	writerDone := request(env.routes, http.MethodGet, path+"?filter=completed&owner="+env.ownerID.String(), nil, env.cookies, nil)
+	if !strings.Contains(writerDone.Body.String(), "/action/reopen") || !strings.Contains(writerDone.Body.String(), `name="owner" value="`+env.ownerID.String()+`"`) {
+		t.Fatal("writer missing reopen control or owner context")
 	}
 	viewerReopen := url.Values{"csrf": {env.viewerCSRF}, "version": {fmt.Sprint(entry.Action.Version)}, "history_id": {fmt.Sprint(entry.HistoryID)}}
 	if got := request(env.routes, http.MethodPost, reopenPath, viewerReopen, env.viewerCookies, nil); got.Code != http.StatusForbidden {
@@ -123,6 +132,15 @@ func TestActionQueueWeb(t *testing.T) {
 	}
 	if got := request(env.routes, http.MethodPost, reopenPath, reopen, env.cookies, nil); got.Code != http.StatusSeeOther {
 		t.Fatalf("reopen: %d", got.Code)
+	} else {
+		location := got.Header().Get("Location")
+		if !strings.Contains(location, "filter=completed") || !strings.Contains(location, "owner="+env.ownerID.String()) || !strings.Contains(location, "status=reopened") {
+			t.Fatalf("reopen redirect: %s", location)
+		}
+		page := request(env.routes, http.MethodGet, location, nil, append(append([]*http.Cookie{}, env.cookies...), &http.Cookie{Name: "locale", Value: "es"}), nil)
+		if !strings.Contains(page.Body.String(), "Acción reabierta.") {
+			t.Fatal("missing localized reopen feedback")
+		}
 	}
 	if got := request(env.routes, http.MethodPost, reopenPath, reopen, env.cookies, nil); !strings.Contains(got.Header().Get("Location"), "conflict=1") {
 		t.Fatalf("stale reopen: %d %s", got.Code, got.Header().Get("Location"))

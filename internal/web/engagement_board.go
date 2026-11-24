@@ -14,6 +14,15 @@ type engagementBoardColumn struct {
 	Page  engagement.Page
 }
 
+func boardHasMoveTarget(stages []engagement.Stage, current engagement.StageID) bool {
+	for _, stage := range stages {
+		if !stage.Archived && stage.ID != current {
+			return true
+		}
+	}
+	return false
+}
+
 func (h *Handler) engagementBoard(w http.ResponseWriter, r *http.Request) {
 	if h.engagement == nil {
 		h.renderError(w, http.StatusNotFound)

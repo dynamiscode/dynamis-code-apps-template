@@ -33,6 +33,19 @@ func TestEngagementBoard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	itemOnly, err := service.Create(ctx, actor, env.workspaceID, engagement.Input{Name: "Only stage item", ClientID: client.ID, StageID: openStage.ID}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	boardPath := "/workspaces/" + env.workspaceID.String() + "/engagements/board"
+	only := request(env.routes, http.MethodGet, boardPath, nil, env.cookies, nil)
+	if !strings.Contains(only.Body.String(), "No other active stage is available") || strings.Contains(only.Body.String(), `id="move-`+itemOnly.ID.String()+`"`) {
+		t.Fatal("single-stage board should show guidance instead of move control")
+	}
+	spanishOnly := request(env.routes, http.MethodGet, boardPath, nil, append(append([]*http.Cookie{}, env.cookies...), &http.Cookie{Name: "locale", Value: "es"}), nil)
+	if !strings.Contains(spanishOnly.Body.String(), "No hay otra etapa activa disponible") {
+		t.Fatal("single-stage guidance not localized")
+	}
 	var openItem engagement.ID
 	var wonStage engagement.StageID
 	for _, kind := range []string{"open", "won", "lost"} {
