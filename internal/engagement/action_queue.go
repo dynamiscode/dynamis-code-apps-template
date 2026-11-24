@@ -79,7 +79,7 @@ func (s *Service) ListActionQueue(ctx context.Context, actor identity.Principal,
 	}
 	table, extra, order := "engagement_next_actions", "a.version, 0, ''", "a.due_date, e.id"
 	if options.Filter == ActionQueueCompleted {
-		table, extra, order = "engagement_action_history", "0, a.id, a.created_at", "a.created_at DESC, a.id DESC"
+		table, extra, order = "engagement_action_history", "e.action_version, a.id, a.created_at", "a.created_at DESC, a.id DESC"
 	}
 	args = append(args, options.Limit+1, (options.Page-1)*options.Limit)
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: true})

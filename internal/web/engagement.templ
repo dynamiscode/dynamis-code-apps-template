@@ -1,5 +1,6 @@
 package web
 
+import "strconv"
 import "example.com/dynamis-code/apps-template/internal/engagement"
 import "example.com/dynamis-code/apps-template/internal/identity"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
@@ -253,6 +254,9 @@ templ engagementDetailPage(data viewmodel.PageData) {
 templ dueEngagementsPage(data viewmodel.PageData, page engagement.ActionQueuePage, stages []engagement.Stage, members []identity.MemberSummary, filter string, owner string, previous string, next string, clientsPath string) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
 		@molecules.PageHeading(data.T("engagement.due_list"), data.T("clients.title"))
+		if data.ErrorKey != "" {
+			@molecules.ErrorAlert(data.T(data.ErrorKey))
+		}
 		<form action={ templ.SafeURL(data.CurrentPath) } method="get" class="flex flex-wrap gap-4 my-4">
 			<label for="queue-filter">{ data.T("queue.filter") }</label>
 			<select id="queue-filter" name="filter" class="select select-bordered">
@@ -302,6 +306,16 @@ templ dueEngagementsPage(data viewmodel.PageData, page engagement.ActionQueuePag
 							</p>
 							if item.CompletedAt != "" {
 								<p>{ data.T("queue.completed_at") }: { item.CompletedAt }</p>
+							}
+							if data.CanEditClients {
+								<form action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/engagements/" + item.EngagementID.String() + "/action/" + queueOperation(item.HistoryID)) } method="post">
+									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<input type="hidden" name="version" value={ strconv.FormatInt(item.Action.Version, 10) }/>
+									if item.HistoryID != 0 {
+										<input type="hidden" name="history_id" value={ strconv.FormatInt(item.HistoryID, 10) }/>
+									}
+									<button type="submit" class="btn btn-outline btn-sm" aria-label={ data.T("queue." + queueOperation(item.HistoryID)) + ": " + item.Action.Text }>{ data.T("queue." + queueOperation(item.HistoryID)) }</button>
+								</form>
 							}
 						</li>
 					}

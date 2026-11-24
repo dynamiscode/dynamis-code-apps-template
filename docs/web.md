@@ -36,6 +36,9 @@ them. The Clients list links to the shared action queue. Its default view shows
 open-stage actions due today or earlier (UTC); readers can filter by overdue,
 today, upcoming, undated, completed, and owner, and navigate pages without
 JavaScript. Upcoming, undated, and completed views include closed stages.
+Writers can complete an active action or reopen a completed action from the queue
+without JavaScript. A stale action or occupied active slot produces conflict
+feedback; readers do not see these controls.
 Readers see quote status, amount, and sent date on client details; writers can
 update them. The status persists across stage changes.
 Readers see the assignee on client details; writers can assign, change, or clear
