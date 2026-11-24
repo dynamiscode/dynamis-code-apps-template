@@ -49,6 +49,10 @@ type PageData struct {
 	EngagementActionDateError  bool
 	EngagementOwnerUnavailable bool
 	EngagementMembers          []identity.MemberSummary
+	AgreementFiles             []appfiles.File
+	AgreementFilesTotal        int
+	AgreementFilesAvailable    bool
+	AgreementFilesPager        ListPager
 	EngagementEnabled          bool
 	EngagementLabel            string
 	EngagementNotes            string

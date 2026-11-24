@@ -101,7 +101,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 					</details>
 				}
 				</section>
-				<section class="border-t border-base-300 py-4">
+				<section id="engagement-agreement" class="border-t border-base-300 py-4">
 				<p>
 					{ data.T("engagement.agreement") }:
 					if item.Agreement.Recorded {
@@ -112,13 +112,33 @@ templ engagementDetailPage(data viewmodel.PageData) {
 					{ item.Agreement.FileID }
 				</p>
 				if data.CanEditClients {
-					<details open?={ data.ErrorKey == "engagement.invalid_agreement_file" }>
+					<details open?={ data.ErrorKey == "engagement.invalid_agreement_file" || data.AgreementFilesAvailable && data.AgreementFilesPager.PageCount > 1 }>
 						<summary class="btn btn-outline">{ data.T("ui.edit") } { data.T("engagement.agreement") }</summary>
 						<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/agreement") } method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="return_to" value="detail"/>
 							<label><input class="checkbox" type="checkbox" name="recorded" value="1" checked?={ item.Agreement.Recorded }/> { data.T("engagement.agreement_recorded") }</label>
 							if data.FilesEnabled || data.ErrorKey == "engagement.invalid_agreement_file" {
+								if data.AgreementFilesAvailable {
+									<label for="engagement-file-choice">{ data.T("engagement.choose_file") }</label>
+									<select class="select select-bordered" id="engagement-file-choice" name="selected_file_id">
+										<option value="">{ data.T("engagement.use_manual_file") }</option>
+										for _, file := range data.AgreementFiles {
+											<option value={ file.ID.String() }>{ file.OriginalName } — { file.ID.String() }</option>
+										}
+									</select>
+									if data.AgreementFilesPager.PageCount > 1 {
+										<p>{ data.T("engagement.file_page_warning") }</p>
+									}
+									<nav aria-label={ data.T("engagement.file_pages") }>
+										if data.AgreementFilesPager.Prev != "" {
+											<a class="link" href={ templ.SafeURL(data.AgreementFilesPager.Prev + "#engagement-agreement") }>{ data.T("ui.previous_page") }</a>
+										}
+										if data.AgreementFilesPager.Next != "" {
+											<a class="link" href={ templ.SafeURL(data.AgreementFilesPager.Next + "#engagement-agreement") }>{ data.T("items.next_page") }</a>
+										}
+									</nav>
+								}
 								<label for="engagement-agreement-file">{ data.T("engagement.agreement_file") }</label>
 								if data.ErrorKey == "engagement.invalid_agreement_file" {
 									<input class="input input-bordered" id="engagement-agreement-file" name="file_id" value={ item.Agreement.FileID } aria-invalid="true" aria-describedby="engagement-agreement-file-error"/>

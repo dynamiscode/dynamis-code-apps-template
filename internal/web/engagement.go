@@ -25,7 +25,13 @@ func (h *Handler) setEngagementAgreement(w http.ResponseWriter, r *http.Request)
 	if !h.engagementMatchesClient(w, r, actor, workspace) {
 		return
 	}
-	err := h.engagement.SetAgreement(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), engagement.Agreement{Recorded: r.FormValue("recorded") == "1", FileID: r.FormValue("file_id")}, auditContext(r))
+	fileID := r.FormValue("file_id")
+	if selected := r.FormValue("selected_file_id"); selected != "" {
+		fileID = selected
+		r.PostForm.Set("file_id", selected)
+		r.Form.Set("file_id", selected)
+	}
+	err := h.engagement.SetAgreement(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), engagement.Agreement{Recorded: r.FormValue("recorded") == "1", FileID: fileID}, auditContext(r))
 	if errors.Is(err, identity.ErrForbidden) {
 		h.renderError(w, http.StatusForbidden)
 		return
