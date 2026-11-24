@@ -15,7 +15,7 @@ templ workspaceSwitcherItem(href, name, role string, current bool) {
 
 // logoutItem is the POST logout form as a daisyUI menu entry.
 templ logoutItem(data viewmodel.PageData) {
-	<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button type="submit" class="btn btn-ghost btn-sm w-full justify-start font-normal">{ data.T("navigation.sign_out") }</button></form>
+	<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button type="submit" class="btn btn-outline btn-sm w-full justify-start font-normal">{ data.T("navigation.sign_out") }</button></form>
 }
 
 

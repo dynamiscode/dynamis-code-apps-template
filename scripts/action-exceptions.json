@@ -1,0 +1,18 @@
+[
+  {"path":"internal/web/components/atoms/anchor.templ","selector":"class={ props.Class }","reason":"Configurable catalog anchor; consumers choose its role."},
+  {"path":"internal/web/components/atoms/link.templ","selector":"class={ \"link\", props.Class }","reason":"Catalog demonstrates supported link variant; production callers must supply a boundary."},
+  {"path":"internal/web/components/atoms/card.templ","selector":"class=\"flex items-start justify-between gap-3\"","reason":"Whole-card link uses the enclosing bordered card as its boundary."},
+  {"path":"internal/web/components/atoms/date_picker.templ","selector":"name=\"datepicker-day-btn\"","reason":"Catalog calendar day variant with its own border and selected-state styling."},
+  {"path":"internal/web/components/atoms/dock.templ","selector":"templ.KV(\"dock-active\"","reason":"Catalog dock component demonstrates native daisyUI dock controls."},
+  {"path":"internal/web/components/atoms/modal.templ","selector":"<button>","reason":"Native dialog backdrop close control, not a visible action."},
+  {"path":"internal/web/components/atoms/time_slot_picker.templ","selector":"class=\"btn btn-sm btn-ghost w-full\"","reason":"Catalog time-slot picker preserves its supported variant."},
+  {"path":"internal/web/components/atoms/time_slot_picker.templ","selector":"time.Duration(-7*24)","reason":"Catalog time-slot picker previous control preserves its supported variant."},
+  {"path":"internal/web/components/atoms/time_slot_picker.templ","selector":"time.Duration(7*24)","reason":"Catalog time-slot picker next control preserves its supported variant."},
+  {"path":"internal/web/components/molecules/back_link.templ","selector":"class=\"detail-back\"","reason":"Workspace CSS gives this back link a visible border."},
+  {"path":"internal/web/components/molecules/skip_link.templ","selector":"class=\"skip-link\"","reason":"Accessibility skip link is hidden until focus and styled in app.css."},
+  {"path":"internal/web/components/templates/workspace.templ","selector":"class=\"drawer-overlay block\"","reason":"Aria-hidden non-tabbable drawer backdrop, not a visible action."},
+  {"path":"internal/web/components/organisms/list_actions.templ","selector":"<button class={ listActionItemClass(action) }","reason":"Shared helper returns bounded list-action classes for every role."},
+  {"path":"internal/web/components/organisms/list_actions.templ","selector":"<a class={ listActionItemClass(action) }","reason":"Shared helper returns bounded list-action classes for every role."},
+  {"path":"internal/web/components/organisms/list_views.templ","selector":"class={ listViewOptionClass(listViewNoneApplied(data)) }","reason":"Shared helper returns bordered list-view classes in both states."},
+  {"path":"internal/web/components/organisms/list_views.templ","selector":"class={ listViewOptionClass(view.Current) }","reason":"Shared helper returns bordered list-view classes in both states."}
+]

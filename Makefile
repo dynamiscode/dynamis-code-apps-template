@@ -26,6 +26,8 @@ doc-links:
 
 web-conformance:
 	./scripts/check-web-conformance.sh
+	node --test scripts/check-action-links.test.mjs
+	node scripts/check-action-links.mjs
 
 test-unit:
 	node --test internal/web/assets/*.test.mjs

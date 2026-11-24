@@ -115,14 +115,14 @@ func ThemeMenu(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"> <button class=\"btn btn-ghost w-full justify-start\" type=\"submit\" name=\"theme\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"> <button class=\"btn btn-outline w-full justify-start\" type=\"submit\" name=\"theme\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templruntime.NewAttributeExpression(theme).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/dashboard_header.templ`, Line: 23, Col: 97}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/dashboard_header.templ`, Line: 23, Col: 99}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 			if templ_7745c5c3_Err != nil {
@@ -135,7 +135,7 @@ func ThemeMenu(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templruntime.NewAttributeExpression(currentPage(data.Theme == theme)).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/dashboard_header.templ`, Line: 23, Col: 147}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/dashboard_header.templ`, Line: 23, Col: 149}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 			if templ_7745c5c3_Err != nil {
@@ -148,7 +148,7 @@ func ThemeMenu(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.theme_" + theme))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/dashboard_header.templ`, Line: 23, Col: 184}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/dashboard_header.templ`, Line: 23, Col: 186}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
@@ -189,14 +189,14 @@ func sharedHeader(data viewmodel.PageData, account bool) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if account {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<button type=\"button\" class=\"btn btn-ghost btn-square drawer-button lg:hidden\" aria-label=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<button type=\"button\" class=\"btn btn-outline btn-square drawer-button lg:hidden\" aria-label=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("ui.open_navigation")).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/dashboard_header.templ`, Line: 35, Col: 124}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/dashboard_header.templ`, Line: 35, Col: 126}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 			if templ_7745c5c3_Err != nil {
@@ -220,14 +220,14 @@ func sharedHeader(data viewmodel.PageData, account bool) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else if data.Workspace.ID != 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<button type=\"button\" class=\"btn btn-ghost btn-square drawer-button lg:hidden\" aria-label=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<button type=\"button\" class=\"btn btn-outline btn-square drawer-button lg:hidden\" aria-label=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("ui.open_navigation")).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/dashboard_header.templ`, Line: 38, Col: 124}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/dashboard_header.templ`, Line: 38, Col: 126}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 			if templ_7745c5c3_Err != nil {
