@@ -13,6 +13,7 @@ import (
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/intake"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/listviews"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
@@ -41,6 +42,7 @@ type Handler struct {
 	catalogService  *appcatalog.Service
 	clients         *clients.Service
 	engagement      *engagement.Service
+	intake          *intake.Service
 	clientsEnabled  bool
 	listPreferences *listprefs.Service
 	listViews       *listviews.Service
@@ -169,6 +171,8 @@ func (h *Handler) Routes() http.Handler {
 		assetsHandler.ServeHTTP(writer, request)
 	}))
 	mux.HandleFunc("GET /language", h.language)
+	mux.HandleFunc("GET /intake/{token}", h.publicIntake)
+	mux.HandleFunc("POST /intake/{token}", h.publicIntake)
 	mux.HandleFunc("GET /login", h.loginPage)
 	mux.HandleFunc("POST /login", h.login)
 	mux.HandleFunc("GET /mfa", h.mfaPage)
@@ -213,6 +217,8 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/unarchive", h.catalogUnarchive)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/delete", h.catalogDelete)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/engagement-stages", h.engagementStages)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/intake", h.intakePage)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/intake", h.intakeMutation)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/engagement-stages/label", h.setEngagementLabel)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/engagement-stages", h.createEngagementStage)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/engagement-stages/reorder", h.reorderEngagementStages)

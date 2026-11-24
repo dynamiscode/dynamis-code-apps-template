@@ -308,7 +308,7 @@ func catalogPath(relative string) bool {
 		relative == "internal/web/catalog.templ" || relative == "internal/web/catalog_templ.go" ||
 		relative == "internal/platform/database/migrations/000040_catalog.sql" ||
 		relative == "internal/platform/database/migrations/000041_catalog_prices.sql" ||
-		relative == "internal/platform/database/migrations/000042_catalog_currencies.sql"
+		relative == "internal/platform/database/migrations/000045_catalog_currencies.sql"
 }
 
 func disableCatalogSource(relative string, raw []byte) []byte {
@@ -317,11 +317,13 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 	case "internal/bootstrap/app.go", "internal/httpapi/handler.go", "internal/web/handler.go", "internal/web/handler_test.go":
 		if relative == "internal/httpapi/handler.go" {
 			value = removeText(value, "func NewHandlerWithCatalog(", "func NewHandlerWithCatalogAndEngagement(")
-			value = removeText(value, "func NewHandlerWithCatalogAndEngagement(", "func newHandler(")
+			value = strings.ReplaceAll(value, "NewHandlerWithCatalogAndEngagement", "NewHandlerWithEngagementAndIntake")
 			value = strings.ReplaceAll(value, ", catalog.NewService(db, identityService, nil)", "")
+			value = strings.ReplaceAll(value, "catalogService *catalog.Service, ", "")
+			value = strings.ReplaceAll(value, "catalogService, ", "")
 		}
 		if relative == "internal/bootstrap/app.go" {
-			value = strings.ReplaceAll(value, "httpapi.NewHandlerWithCatalogAndEngagement", "httpapi.NewHandlerWithEngagement")
+			value = strings.ReplaceAll(value, "httpapi.NewHandlerWithCatalogAndEngagement", "httpapi.NewHandlerWithEngagementAndIntake")
 			value = strings.ReplaceAll(value, "catalogService, engagementService", "engagementService")
 		}
 		value = removeLinesContaining(value, `/internal/catalog"`)
@@ -350,7 +352,7 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 	case "docs/api.md", "docs/web.md":
 		value = removeLineStarting(value, "Catalog profile:")
 	case "docs/operations.md":
-		value = removeLineStarting(value, "Catalog currency migration 000042")
+		value = removeLineStarting(value, "Catalog currency migration 000045")
 	case "internal/web/localization.go":
 		value = removeLinesContaining(value, "h.catalogService")
 	case "api/openapi.json":
@@ -392,6 +394,11 @@ func filesPath(relative string) bool {
 func clientsPath(relative string) bool {
 	relative = filepath.ToSlash(relative)
 	return relative == "internal/clients" || strings.HasPrefix(relative, "internal/clients/") ||
+		relative == "internal/intake" || strings.HasPrefix(relative, "internal/intake/") ||
+		relative == "internal/httpapi/intake.go" || relative == "internal/httpapi/intake_test.go" ||
+		relative == "internal/web/intake.go" || relative == "internal/web/intake_test.go" || relative == "internal/web/intake.templ" || relative == "internal/web/intake_templ.go" ||
+		relative == "internal/web/public_intake.go" || relative == "internal/web/public_intake.templ" || relative == "internal/web/public_intake_templ.go" ||
+		relative == "internal/platform/database/migrations/000042_public_intake.sql" ||
 		relative == "internal/identity/engagement_membership_test.go" ||
 		relative == "internal/engagement/engagement.go" ||
 		relative == "internal/engagement/agreement.go" ||
@@ -422,6 +429,8 @@ func clientsPath(relative string) bool {
 		relative == "internal/web/client_fields.templ" || relative == "internal/web/client_fields_templ.go" ||
 		relative == "internal/web/templates/clients.html" || relative == "internal/web/templates/client.html" ||
 		relative == "internal/platform/database/migrations/000022_clients.sql" ||
+		relative == "internal/platform/database/migrations/000043_client_intake_consent.sql" ||
+		relative == "internal/platform/database/migrations/000044_client_possible_duplicate.sql" ||
 		relative == "internal/platform/database/migrations/000023_client_fields.sql" ||
 		relative == "internal/platform/database/migrations/000024_client_events.sql" ||
 		relative == "internal/platform/database/migrations/000031_client_timeline.sql" ||
@@ -460,6 +469,11 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeBlockIncludingEnd(value, "\tif err := seedClients(", "\t}\n")
 	case "internal/bootstrap/app.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `/internal/intake"`)
+		value = removeLineStarting(value, "\tintakeService := intake.NewService(")
+		value = removeLineStarting(value, "\tintakeService.ConfigureNotifications(")
+		value = strings.ReplaceAll(value, ", intakeService,", ",")
+		value = removeLineStarting(value, "\twebHandler.EnableIntake(")
 		value = removeLineStarting(value, "\tclientService := clients.NewService(")
 		// The portability export takes the client source as its last argument.
 		value = strings.ReplaceAll(value, "\t\tclientService,\n", "\t\tnil,\n")
@@ -467,6 +481,14 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLineStarting(value, "\twebHandler.EnableClients(")
 	case "internal/httpapi/handler.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `/internal/intake"`)
+		value = removeLinesContaining(value, "intake         *intake.Service")
+		value = strings.ReplaceAll(value, "intakeService *intake.Service, clientServices", "clientServices")
+		value = removeLinesContaining(value, "\tintakeService *intake.Service,")
+		value = strings.ReplaceAll(value, "engagementService, intakeService, clientServices", "engagementService, clientServices")
+		value = strings.ReplaceAll(value, "engagementService, nil, clientServices", "engagementService, clientServices")
+		value = removeLinesContaining(value, "intake:         intakeService")
+		value = removeLinesContaining(value, `"submitPublicIntake":`)
 		value = strings.ReplaceAll(value, ", clientServices ...*clients.Service", "")
 		value = removeLinesContaining(value, "*clients.Service")
 		value = removeLinesContaining(value, "firstClient(clientServices)")
@@ -545,6 +567,11 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "ClientValueRow")
 	case "internal/web/handler.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `/internal/intake"`)
+		value = removeLinesContaining(value, "intake          *intake.Service")
+		value = removeLinesContaining(value, "h.publicIntake")
+		value = removeLinesContaining(value, "h.intakePage")
+		value = removeLinesContaining(value, "h.intakeMutation")
 		value = removeLinesContaining(value, "h.bulkClients")
 		value = removeLinesContaining(value, "*clients.Service")
 		value = removeLinesContaining(value, "clients.FilterInput")
@@ -588,6 +615,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.ReplaceAll(value, "result.ClientRealtimeReplay < 1 || ", "")
 	case "docs/data-lifecycle.md":
 		value = removeLineStarting(value, "| clients / `client_timeline_entries` |")
+		value = removeLineStarting(value, "| clients / `possible_duplicate` |")
+		value = removeLineStarting(value, "| intake / `public_intake_links` |")
 	case "docs/mcp.md":
 		value = removeText(value, "\n## Clients tools (Clients profile)", "\n## Prompts\n")
 	case "docs/capabilities.md":
@@ -595,6 +624,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeText(value, " Writers can create engagements", "\nOwners and admins can set or reset")
 		value = removeText(value, "\nNext actions have text", "\n\n## Client timeline REST")
 		value = removeLineStarting(value, "| Clients |")
+		value = removeLineStarting(value, "| Public intake |")
 		value = removeLineStarting(value, "| Clients shared list view |")
 		value = removeLineStarting(value, "| Client timeline service |")
 		value = removeText(value, "\n## Client timeline REST (#575)", "\n## Route and navigation journey verification")
@@ -608,6 +638,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLineStarting(value, "- Agreement:")
 		value = removeText(value, "\n- Clients (Clients profile):", "\n\n## Webhooks")
 	case "docs/web.md":
+		value = removeText(value, "\nOwners and admins manage the public intake", "\nmatches another client in the workspace by email or phone.")
+		value = removeLineStarting(value, "matches another client in the workspace by email or phone.")
 		value = removeText(value, "\nOn a client detail page,", "\n`/account`")
 		value = removeLineStarting(value, "| Workspace clients and custom fields;")
 		value = removeText(value, "\n\n`/workspaces/{workspaceId}/clients` lists", "\n\n## Realtime contract")
@@ -640,7 +672,7 @@ func stripClientsOpenAPI(raw []byte) string {
 		return string(raw)
 	}
 	for path := range paths {
-		if strings.Contains(path, "/clients") || strings.Contains(path, "/client-fields") || strings.Contains(path, "/engagements") {
+		if strings.Contains(path, "/clients") || strings.Contains(path, "/client-fields") || strings.Contains(path, "/engagements") || strings.Contains(path, "/intake/") {
 			delete(paths, path)
 		}
 	}
@@ -678,6 +710,7 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = removeLineStarting(value, "\t\tFiles:")
 	case "internal/httpapi/handler.go":
 		value = removeImport(value, "appfiles")
+		value = strings.ReplaceAll(value, "fileService *appfiles.Service, ", "")
 		value = removeLineStarting(value, "\tfiles ")
 		value = removeText(value, "func NewHandlerWithWebhooksAndFiles(", "func NewHandlerWithMail(")
 		value = strings.ReplaceAll(value, "webhookService, nil, publicURL, mailer", "webhookService, publicURL, mailer")

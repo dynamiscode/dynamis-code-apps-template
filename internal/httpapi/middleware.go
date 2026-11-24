@@ -337,6 +337,11 @@ func loggingMiddleware(next http.Handler, logger *slog.Logger) http.Handler {
 }
 
 func logPath(path string) string {
+	for _, prefix := range []string{"/intake/", "/api/v1/intake/"} {
+		if strings.HasPrefix(path, prefix) {
+			return prefix + "[redacted]"
+		}
+	}
 	if strings.HasPrefix(path, "/share/") {
 		return "/share/[redacted]"
 	}

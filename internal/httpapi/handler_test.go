@@ -426,6 +426,8 @@ func TestPublicSharePathIsRedactedFromLogs(t *testing.T) {
 		t.Fatalf("ordinary logPath() = %q", got)
 	}
 	for path, want := range map[string]string{
+		"/intake/intake-secret":                "/intake/[redacted]",
+		"/api/v1/intake/intake-secret":         "/api/v1/intake/[redacted]",
 		"/invitations/invite-secret":           "/invitations/[redacted]",
 		"/invitations/invite-secret/sign-in":   "/invitations/[redacted]/sign-in",
 		"/invitations/continue":                "/invitations/continue",

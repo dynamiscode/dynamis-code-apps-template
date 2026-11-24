@@ -1,6 +1,6 @@
 # Operations
 
-Catalog currency migration 000042 retains existing prices and their currency codes. Existing workspaces receive USD with two decimal places as the default and existing non-USD codes with up to 18 decimal places. New workspaces use USD with two decimal places until configured. A price whose legacy amount exceeds configured precision remains editable without changing its amount; changing that amount requires the configured precision. Currency settings are included in database backups. Rolling back the schema requires restoring a pre-upgrade backup; restoring loses subsequent writes.
+Catalog currency migration 000045 retains existing prices and their currency codes. Existing workspaces receive USD with two decimal places as the default and existing non-USD codes with up to 18 decimal places. New workspaces use USD with two decimal places until configured. A price whose legacy amount exceeds configured precision remains editable without changing its amount; changing that amount requires the configured precision. Currency settings are included in database backups. Rolling back the schema requires restoring a pre-upgrade backup; restoring loses subsequent writes.
 
 ## Health, telemetry, and limits
 

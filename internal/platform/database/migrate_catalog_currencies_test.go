@@ -23,7 +23,7 @@ func TestCatalogCurrencyMigrationPreservesPrices(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, name := range names {
-		if name >= "migrations/000042" {
+		if name >= "migrations/000045" {
 			continue
 		}
 		data, err := fs.ReadFile(migrationFiles, name)

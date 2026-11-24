@@ -1,6 +1,19 @@
 (() => {
 	"use strict";
 
+	const copyIntakeLink = async (field, clipboard, origin) => {
+		const url = new URL(field.value, origin).href;
+		try {
+			await clipboard.writeText(url);
+			return true;
+		} catch (_) {
+			field.value = url;
+			field.focus();
+			field.select();
+			return false;
+		}
+	};
+
 	// Alpine components for the app's browser behaviors. Each factory keeps its
 	// DOM access inside init() (via this.$root) so the node tests can drive it
 	// with a fake root element; registration runs only in a browser.
@@ -1059,6 +1072,16 @@
 		}
 
 		// ---- Event handlers ----
+		document.addEventListener("click", async (event) => {
+			const button = event.target instanceof Element ? event.target.closest("button[data-copy-target]") : null;
+			if (!button) return;
+			const field = document.getElementById(button.dataset.copyTarget);
+			if (!(field instanceof HTMLInputElement)) return;
+			if (await copyIntakeLink(field, navigator.clipboard, window.location.origin)) {
+				const status = button.parentElement.querySelector("[data-copy-status]");
+				if (status) status.textContent = button.dataset.copySuccess;
+			}
+		});
 
 		document.addEventListener("input", (event) => {
 			const el = event.target;
@@ -1435,7 +1458,7 @@
 		},
 	});
 
-if (typeof module !== "undefined" && module.exports) module.exports = { core, FileUploader, wireRealtime, wireTimelineDialog, wireCatalogDialog, notificationsLive, passkeyLogin, passkeyEnroll, listScreen, pageBehaviors };
+if (typeof module !== "undefined" && module.exports) module.exports = { core, FileUploader, wireRealtime, wireTimelineDialog, wireCatalogDialog, notificationsLive, passkeyLogin, passkeyEnroll, listScreen, pageBehaviors, copyIntakeLink };
 	if (typeof document === "undefined" || typeof window === "undefined") return;
 	document.addEventListener("alpine:init", () => {
 		window.Alpine.data("notificationsLive", notificationsLive);

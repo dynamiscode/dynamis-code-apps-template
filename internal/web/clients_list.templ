@@ -116,8 +116,20 @@ templ clientBody(data viewmodel.PageData) {
 		} else if data.ClientQuery.Archived == "archived" {
 			@molecules.EmptyState(data.T("clients.no_archived"))
 		} else {
-			@molecules.EmptyStateCard(molecules.EmptyStateCardProps{ID: "client-empty-state", Title: data.T("clients.empty_title"), Description: data.T("clients.empty_description")})
+			@molecules.EmptyStateCard(molecules.EmptyStateCardProps{ID: "client-empty-state", Title: data.T("clients.empty_title"), Description: data.T("clients.empty_description"), CTA: clientEmptyCTA(data)})
 		}
+	}
+}
+
+// clientEmptyCTA gives a pristine list one way to create: it opens the create
+// page, so no form is loaded on a list that has nothing to show yet.
+templ clientEmptyCTA(data viewmodel.PageData) {
+	if data.CanEditClients {
+		<a class="btn btn-primary btn-sm" href={ templ.SafeURL(data.CurrentPath + "/new") }>{ data.T("clients.new_client") }</a>
+	}
+	if data.CanManageFields && data.ClientQuery.Archived != "archived" {
+		<p class="mt-4">{ data.T("intake.description") }</p>
+		<a class="link link-primary" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/intake") }>{ data.T("intake.title") }</a>
 	}
 }
 
@@ -138,6 +150,9 @@ templ clientCreateForm(data viewmodel.PageData, action string) {
 // second primary action because its empty-state card already offers this one.
 templ clientCreateMenu(data viewmodel.PageData) {
 	<div class="list-create">
+		if data.CanManageFields {
+			<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/intake") }>{ data.T("intake.title") }</a>
+		}
 		<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagement-stages") }>{ data.T("engagement.stages") }</a>
 		<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagements/due") }>{ data.T("engagement.due_list") }</a>
 			if data.CanManageFields {

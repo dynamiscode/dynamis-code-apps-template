@@ -42,6 +42,9 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 				}
 			</div>
 		}
+		if data.Client.PossibleDuplicate {
+			<div class="alert alert-warning my-4" role="status">{ data.T("clients.possible_duplicate") }</div>
+		}
 		@clientDetail(data)
 		if data.EngagementEnabled {
 			<section class="card my-4 p-6" aria-labelledby="engagement-heading">

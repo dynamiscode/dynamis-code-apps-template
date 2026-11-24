@@ -20,6 +20,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/engagement"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/intake"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
@@ -41,6 +42,7 @@ type handler struct {
 	clients        *clients.Service
 	catalogService *catalog.Service
 	engagement     *engagement.Service
+	intake         *intake.Service
 }
 
 func NewHandler(
@@ -151,9 +153,10 @@ func NewHandlerWithCatalogAndEngagement(
 	mailer appmail.Sender,
 	catalogService *catalog.Service,
 	engagementService *engagement.Service,
+	intakeService *intake.Service,
 	clientServices ...*clients.Service,
 ) (http.Handler, error) {
-	return newHandler(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, catalogService, engagementService, clientServices...)
+	return newHandlerWithIntake(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, catalogService, engagementService, intakeService, clientServices...)
 }
 
 func newHandler(
@@ -171,6 +174,16 @@ func newHandler(
 	engagementService *engagement.Service,
 	clientServices ...*clients.Service,
 ) (http.Handler, error) {
+	return newHandlerWithIntake(db, identityService, portabilityService, oidcRegistry, cfg, logger, webhookService, fileService, publicURL, mailer, catalogService, engagementService, nil, clientServices...)
+}
+
+func newHandlerWithIntake(
+	db *sql.DB, identityService *identity.Service, portabilityService *portability.Service,
+	oidcRegistry *identity.OIDCRegistry, cfg config.HTTP, logger *slog.Logger,
+	webhookService *webhooks.Service, fileService *appfiles.Service, publicURL string,
+	mailer appmail.Sender, catalogService *catalog.Service, engagementService *engagement.Service,
+	intakeService *intake.Service, clientServices ...*clients.Service,
+) (http.Handler, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -181,12 +194,14 @@ func newHandler(
 		clients:        firstClient(clientServices),
 		catalogService: catalogService,
 		engagement:     engagementService,
+		intake:         intakeService,
 	}
 	handlers := map[string]http.HandlerFunc{
 		"getLiveness": h.liveness, "getReadiness": h.readiness,
 		"getOpenAPI": h.openAPI, "loginLocal": h.login,
-		"logoutLocal":  h.logout,
-		"mfaLoginTOTP": h.mfaLoginTOTP, "mfaLoginRecovery": h.mfaLoginRecovery,
+		"submitPublicIntake": h.submitPublicIntake,
+		"logoutLocal":        h.logout,
+		"mfaLoginTOTP":       h.mfaLoginTOTP, "mfaLoginRecovery": h.mfaLoginRecovery,
 		"mfaLoginPasskey": h.mfaLoginPasskey, "mfaStatus": h.mfaStatus,
 		"mfaTotpEnroll": h.mfaTotpEnroll, "mfaTotpComplete": h.mfaTotpComplete,
 		"mfaPasskeyOptions": h.mfaPasskeyOptions, "mfaPasskeyComplete": h.mfaPasskeyComplete,

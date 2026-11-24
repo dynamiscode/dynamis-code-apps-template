@@ -54,18 +54,20 @@ type ClientExport struct {
 
 // ClientRecord is one client. CustomValues is keyed by field short ID.
 type ClientRecord struct {
-	ID              string               `json:"id"`
-	WorkspaceID     identity.WorkspaceID `json:"workspaceId"`
-	CreatedByUserID *identity.UserID     `json:"createdByUserId"`
-	DisplayName     string               `json:"displayName"`
-	Email           string               `json:"email"`
-	Phone           string               `json:"phone"`
-	Notes           string               `json:"notes"`
-	ArchivedAt      *time.Time           `json:"archivedAt"`
-	Version         int64                `json:"version"`
-	CreatedAt       time.Time            `json:"createdAt"`
-	UpdatedAt       time.Time            `json:"updatedAt"`
-	CustomValues    map[string]string    `json:"customValues"`
+	ID                string               `json:"id"`
+	WorkspaceID       identity.WorkspaceID `json:"workspaceId"`
+	CreatedByUserID   *identity.UserID     `json:"createdByUserId"`
+	DisplayName       string               `json:"displayName"`
+	Email             string               `json:"email"`
+	Phone             string               `json:"phone"`
+	Notes             string               `json:"notes"`
+	ArchivedAt        *time.Time           `json:"archivedAt"`
+	IntakeConsentedAt *time.Time           `json:"intakeConsentedAt"`
+	PossibleDuplicate bool                 `json:"possibleDuplicate"`
+	Version           int64                `json:"version"`
+	CreatedAt         time.Time            `json:"createdAt"`
+	UpdatedAt         time.Time            `json:"updatedAt"`
+	CustomValues      map[string]string    `json:"customValues"`
 }
 
 // ClientField is a workspace-defined custom field, archived ones included.

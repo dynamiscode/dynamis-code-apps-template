@@ -131,6 +131,25 @@ func (s *Service) Create(ctx context.Context, actor identity.Principal, workspac
 	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesWrite); err != nil {
 		return Engagement{}, identity.ErrForbidden
 	}
+	value, err := s.createInTx(ctx, tx, actor, workspaceID, input, audit)
+	if err != nil {
+		return Engagement{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Engagement{}, err
+	}
+	return value, nil
+}
+
+// CreateIntakeInTx creates an engagement only for an active workspace link.
+func (s *Service) CreateIntakeInTx(ctx context.Context, tx *sql.Tx, token string, workspaceID identity.WorkspaceID, clientID clients.ClientID, audit identity.AuditContext) (Engagement, error) {
+	if err := s.auth.AuthorizeIntakeInTx(ctx, tx, token, workspaceID); err != nil {
+		return Engagement{}, err
+	}
+	return s.createInTx(ctx, tx, identity.Principal{AuthMethod: "public_intake"}, workspaceID, Input{ClientID: clientID}, audit)
+}
+
+func (s *Service) createInTx(ctx context.Context, tx *sql.Tx, actor identity.Principal, workspaceID identity.WorkspaceID, input Input, audit identity.AuditContext) (Engagement, error) {
 	clientService := clients.NewService(s.db, s.driver, s.auth, 0)
 	if _, err := clientService.GetInTx(ctx, tx, workspaceID, input.ClientID); errors.Is(err, clients.ErrNotFound) {
 		return Engagement{}, ErrInvalidInput
@@ -138,7 +157,7 @@ func (s *Service) Create(ctx context.Context, actor identity.Principal, workspac
 		return Engagement{}, err
 	}
 	var stageID StageID
-	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT id FROM engagement_stages WHERE workspace_id = ? AND kind = 'open' AND archived_at IS NULL ORDER BY position LIMIT 1`), workspaceID).Scan(&stageID)
+	err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT id FROM engagement_stages WHERE workspace_id = ? AND kind = 'open' AND archived_at IS NULL ORDER BY position LIMIT 1`), workspaceID).Scan(&stageID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Engagement{}, ErrNoOpenStage
 	}
@@ -161,9 +180,6 @@ func (s *Service) Create(ctx context.Context, actor identity.Principal, workspac
 	}
 	err = s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement.created", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "engagement", TargetKey: int64(value.ID), Action: "engagement.create", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: time.Now().UTC()})
 	if err != nil {
-		return Engagement{}, err
-	}
-	if err := tx.Commit(); err != nil {
 		return Engagement{}, err
 	}
 	return value, nil

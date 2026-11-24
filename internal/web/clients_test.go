@@ -6,6 +6,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/engagement"
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/intake"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/listviews"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
@@ -67,6 +68,7 @@ func newClientsTestEnv(t *testing.T) clientsTestEnv {
 	handler.EnableClients(clients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace),
 		listprefs.NewService(db, cfg.Database.Driver, auth))
 	handler.EnableEngagement(engagement.NewService(db, cfg.Database.Driver, auth))
+	handler.EnableIntake(intake.NewService(db, cfg.Database.Driver, auth))
 	handler.EnableListViews(listviews.NewService(db, cfg.Database.Driver, auth))
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {

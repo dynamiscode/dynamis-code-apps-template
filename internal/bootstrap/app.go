@@ -16,6 +16,7 @@ import (
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/httpapi"
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/intake"
 	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/listviews"
@@ -144,6 +145,8 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	}
 	clientService := clients.NewService(db, cfg.Database.Driver, identityService, cfg.Data.ClientFieldsMaxPerWorkspace, webhookService)
 	engagementService := engagement.NewService(db, cfg.Database.Driver, identityService)
+	intakeService := intake.NewService(db, cfg.Database.Driver, identityService, clientService)
+	intakeService.ConfigureNotifications(jobQueue, cfg.PublicURL)
 	portabilityService := portability.NewService(
 		db, cfg.Database.Driver, identityService,
 		cfg.Data.ExportMaxRecords, cfg.Data.ExportMaxBytes,
@@ -160,10 +163,15 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		db, cfg.Database.Driver, identityService,
 		secretbox.New(cfg.Encryption.Keys, cfg.Encryption.Primary), instanceMailer,
 	)
+	if err := jobQueue.Register(jobs.EmailJobKind, jobs.EmailHandler(jobQueue, mailer)); err != nil {
+		db.Close()
+		telemetryProvider.Shutdown(context.Background())
+		return nil, fmt.Errorf("register email job handler: %w", err)
+	}
 	catalogService := catalog.NewService(db, identityService, nil)
 	handler, err := httpapi.NewHandlerWithCatalogAndEngagement(
 		db, identityService, portabilityService, oidcRegistry, cfg.HTTP, slog.Default(),
-		webhookService, fileService, cfg.PublicURL, mailer, catalogService, engagementService, clientService,
+		webhookService, fileService, cfg.PublicURL, mailer, catalogService, engagementService, intakeService, clientService,
 	)
 	if err != nil {
 		db.Close()
@@ -185,6 +193,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	webHandler.EnableListPreferences(listPreferences)
 	webHandler.EnableClients(clientService, listPreferences)
 	webHandler.EnableEngagement(engagementService)
+	webHandler.EnableIntake(intakeService)
 	webHandler.EnableFilesPreferences(listPreferences)
 	webHandler.EnableListViews(listviews.NewService(db, cfg.Database.Driver, identityService))
 	jobQueue.Start(ctx)
@@ -201,7 +210,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		DB: db, Identity: identityService, OIDC: oidcRegistry,
 		Portability: portabilityService, Webhooks: webhookService,
 		Files: fileService, Jobs: jobQueue,
-		Handler: telemetry.HTTPHandler(mux), Telemetry: telemetryProvider,
+		Handler: telemetry.HTTPHandler(httpapi.LimitPublicIntake(mux, cfg.HTTP.RequestsPerMinute)), Telemetry: telemetryProvider,
 	}, nil
 }
 

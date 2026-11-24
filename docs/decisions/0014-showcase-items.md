@@ -35,8 +35,8 @@ They are not a mode of Items or of Item sharing links.
   opts in per workspace.
 - **Languages.** English and Spanish. Item text is entered per language and
   falls back to English.
-- **Decision 0005 stays as written.** Its status and wording do not change.
-  Showcase pages do not use sharing tokens.
+- **Decision 0005 remains in force.** Showcase pages do not use sharing tokens.
+  [Decision 0016](0016-public-intake.md) separately permits public intake.
 
 ## Consequences
 
@@ -57,8 +57,8 @@ Rejected alternatives:
 
 ## Revisit when
 
-- A workspace needs public write paths, such as comments or intake. That is a
-  separate decision.
+- A workspace needs public write paths beyond intake, such as comments. That
+  requires a separate decision.
 - Showcase must appear in Core rather than the optional `CompanySite` profile.
 - Files gains a general public-serving contract that replaces the per-item
   publication check.

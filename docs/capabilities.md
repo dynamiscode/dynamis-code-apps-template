@@ -58,7 +58,7 @@ asynchronous state.
 
 ## Catalog authorization and isolation (#597)
 
-- Currency configuration is workspace-scoped. New workspaces default to USD with two decimal places; migration 000042 retains existing currency codes and prices. Enabled currencies and their precision constrain new or changed prices; unchanged legacy amounts remain editable. Used currencies cannot be removed.
+- Currency configuration is workspace-scoped. New workspaces default to USD with two decimal places; migration 000045 retains existing currency codes and prices. Enabled currencies and their precision constrain new or changed prices; unchanged legacy amounts remain editable. Used currencies cannot be removed.
 - [Service](../internal/catalog/authorization_test.go), [REST](../internal/httpapi/catalog_authorization_test.go), and [web](../internal/web/catalog_authorization_test.go) checks cover owner, admin, member, and viewer read and write operations. [REST](../internal/httpapi/catalog_isolation_test.go) and [web](../internal/web/catalog_isolation_test.go) isolation checks use an owner of both workspaces and foreign entry and price IDs. Fixed decimal strings retain their exact value.
 - Verification: focused Catalog tests, Catalog profile include/omit generation, `make ci-local`, and `make verify` passed on SQLite. An initial `make ci-local` failed because new tests were not pruned from generated apps and OpenAPI generation was stale; both were corrected before the passing run.
 - Limits: the in-use callback is exercised in tests but production sale linkage is deferred. Existing entries created before the price requirement can have no price rows; new entries require at least one price. Catalog MCP/CLI and sale/payment behavior are not implemented.
@@ -323,6 +323,7 @@ These remain out of the build plan until their trigger is demonstrated.
 | Internal AI | deferred | Product behavior requires model-driven decisions |
 | Workspace domains and routing | deferred | Users require workspace-specific domains or URLs |
 | Public sharing or guest access | deferred | Files, public APIs, guest collaboration, or other resource types require a separate accepted contract |
+| Public intake | partial | Hashed link management and public web and REST submission create a client, first-stage engagement, staff notifications, and a queued email atomically; possible duplicates are flagged: [service tests](../internal/intake/submission_test.go), [web tests](../internal/web/intake_test.go), [REST tests](../internal/httpapi/intake_test.go). |
 | Showcase items (`CompanySite` profile) | deferred | Accepted showcase decision; see [decision 0014](decisions/0014-showcase-items.md) (proposed) |
 | Fine-grained permissions | deferred | Baseline roles cannot express a measured requirement |
 | External-issuer OAuth access tokens for MCP | deferred | An accepted requirement needs `/mcp` to accept access tokens from an external authorization server; see [decision 0007](decisions/0007-mcp-oauth-protected-resource-metadata.md) |
@@ -602,8 +603,14 @@ Bounded Item sharing passes hashed-token storage, default and maximum expiry,
 explicit write authorization, safe title/status-only public projection,
 revocation, item-deletion invalidation, access outcome audits, browser CSRF,
 public response headers, and public-token path redaction tests. REST, CLI, MCP,
-WebMCP, file sharing, public writes, search, listing, and indexing remain
-intentionally omitted by the accepted [decision](decisions/0005-public-sharing.md).
+WebMCP, file sharing, public writes through Item sharing, search, listing, and
+indexing were intentionally omitted by the accepted
+[decision](decisions/0005-public-sharing.md). The separate public intake write
+path is accepted by [decision 0016](decisions/0016-public-intake.md). Owners
+and admins can manage its hashed link and consent text. The public form and
+REST submission validate consent and contact details, create a client and
+engagement together, and refuse links with no open stage. Matching email or
+phone flags the new client for staff review; staff notifications remain pending.
 
 Verified 2026-08-28 with SQLite and Docker smoke. The database-backed worker
 queue persists workspace-scoped webhook jobs in the same transaction as item
