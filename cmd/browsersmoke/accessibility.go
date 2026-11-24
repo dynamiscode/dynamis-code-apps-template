@@ -736,12 +736,8 @@ func (s *a11yRun) expectActive(id string) error {
 
 // expectFocusRole checks that the focused element has the given ARIA role.
 func (s *a11yRun) expectFocusRole(role, message string) error {
-	f, err := s.active()
-	if err != nil {
-		return err
-	}
-	if f.Role != role {
-		return errors.New(message)
+	if err := s.waitUntil(fmt.Sprintf(`document.activeElement?.getAttribute("role") === %s`, jsString(role))); err != nil {
+		return fmt.Errorf("%s: %w", message, err)
 	}
 	return nil
 }
