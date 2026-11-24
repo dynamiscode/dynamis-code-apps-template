@@ -727,7 +727,10 @@ func (s *Service) clearMemberEngagements(ctx context.Context, tx *sql.Tx, worksp
 	if _, err := s.exec(ctx, tx, "UPDATE engagements SET assignee_id = NULL WHERE workspace_id = ? AND assignee_id = ?", workspaceID, userID); err != nil {
 		return err
 	}
-	_, err := s.exec(ctx, tx, "UPDATE engagement_next_actions SET owner_id = NULL WHERE workspace_id = ? AND owner_id = ?", workspaceID, userID)
+	if _, err := s.exec(ctx, tx, "UPDATE engagement_next_actions SET owner_id = NULL WHERE workspace_id = ? AND owner_id = ?", workspaceID, userID); err != nil {
+		return err
+	}
+	_, err := s.exec(ctx, tx, "UPDATE engagement_action_history SET owner_id = CASE WHEN owner_id = ? THEN NULL ELSE owner_id END, actor_user_id = CASE WHEN actor_user_id = ? THEN NULL ELSE actor_user_id END WHERE workspace_id = ? AND (owner_id = ? OR actor_user_id = ?)", userID, userID, workspaceID, userID, userID)
 	return err
 }
 

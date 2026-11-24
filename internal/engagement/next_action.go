@@ -44,6 +44,15 @@ func (s *Service) SetNextAction(ctx context.Context, actor identity.Principal, w
 	} else if err != nil {
 		return err
 	}
+	now := time.Now().UTC()
+	outcome := "replaced"
+	if action.Text == "" {
+		outcome = "cleared"
+	}
+	_, err = tx.ExecContext(ctx, database.Rebind(s.driver, `INSERT INTO engagement_action_history (workspace_id, engagement_id, action_text, due_date, owner_id, outcome, actor_user_id, created_at) SELECT workspace_id, engagement_id, action_text, due_date, owner_id, ?, ?, ? FROM engagement_next_actions WHERE workspace_id = ? AND engagement_id = ? AND (action_text <> ? OR due_date <> ? OR COALESCE(owner_id, 0) <> ?)`), outcome, actor.UserID, now.Format(time.RFC3339Nano), workspaceID, engagementID, action.Text, action.DueDate, action.OwnerID)
+	if err != nil {
+		return err
+	}
 	if action.Text == "" {
 		_, err = tx.ExecContext(ctx, database.Rebind(s.driver, `DELETE FROM engagement_next_actions WHERE workspace_id = ? AND engagement_id = ?`), workspaceID, engagementID)
 	} else {
@@ -57,7 +66,7 @@ func (s *Service) SetNextAction(ctx context.Context, actor identity.Principal, w
 	if err != nil {
 		return err
 	}
-	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement.next_action_updated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "engagement", TargetKey: int64(engagementID), Action: "engagement.next_action.update", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: time.Now().UTC()}); err != nil {
+	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement.next_action_updated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "engagement", TargetKey: int64(engagementID), Action: "engagement.next_action.update", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now}); err != nil {
 		return err
 	}
 	return tx.Commit()

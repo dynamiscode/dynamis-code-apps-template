@@ -39,6 +39,9 @@ func TestMembershipRemovalClearsEngagementReferences(t *testing.T) {
 			if _, err := db.Exec("INSERT INTO engagement_next_actions (workspace_id, engagement_id, action_text, owner_id) VALUES (?, 1, 'Call', ?)", boot.WorkspaceID, user.UserID); err != nil {
 				t.Fatal(err)
 			}
+			if _, err := db.Exec("INSERT INTO engagement_action_history (workspace_id, engagement_id, action_text, owner_id, actor_user_id, outcome, created_at) VALUES (?, 1, 'Previous', ?, ?, 'replaced', '2020-01-01T00:00:00Z')", boot.WorkspaceID, user.UserID, user.UserID); err != nil {
+				t.Fatal(err)
+			}
 			switch method {
 			case "member":
 				err = service.RemoveMember(ctx, owner, memberIDFor(t, service, owner, user.UserID), AuditContext{})
@@ -66,6 +69,13 @@ func TestMembershipRemovalClearsEngagementReferences(t *testing.T) {
 			}
 			if assignee.Valid || actionOwner.Valid || action != "Call" {
 				t.Fatalf("references or action: %v %v %q", assignee, actionOwner, action)
+			}
+			var historyOwner, historyActor sql.NullInt64
+			if err := db.QueryRow("SELECT owner_id, actor_user_id, action_text FROM engagement_action_history WHERE workspace_id = ?", boot.WorkspaceID).Scan(&historyOwner, &historyActor, &action); err != nil {
+				t.Fatal(err)
+			}
+			if historyOwner.Valid || historyActor.Valid || action != "Previous" {
+				t.Fatalf("history references or action: %v %v %q", historyOwner, historyActor, action)
 			}
 		})
 	}

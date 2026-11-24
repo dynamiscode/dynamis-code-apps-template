@@ -523,6 +523,12 @@ func TestNextActionDueList(t *testing.T) {
 	if _, err := svc.Get(ctx, otherOwner, other, e.ID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("foreign get: %v", err)
 	}
+	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, NextAction{Text: "Call", DueDate: "2020-01-01", OwnerID: boot.UserID}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, NextAction{Text: "Rejected", OwnerID: identity.UserID(999999999)}, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("nonmember owner: %v", err)
+	}
 	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, NextAction{Text: "Later", DueDate: "2020-01-02", OwnerID: viewerID}, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
@@ -532,8 +538,38 @@ func TestNextActionDueList(t *testing.T) {
 	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, NextAction{}, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
+	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, NextAction{}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
 	due, err = svc.ListDue(ctx, owner, boot.WorkspaceID, "2020-01-01")
 	if err != nil || len(due) != 0 {
 		t.Fatalf("cleared due = %+v, %v", due, err)
+	}
+	rows, err := db.QueryContext(ctx, `SELECT action_text, due_date, owner_id, outcome, actor_user_id, created_at FROM engagement_action_history WHERE workspace_id = ? AND engagement_id = ? ORDER BY id`, boot.WorkspaceID, e.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for _, want := range []struct {
+		text, date, outcome string
+		owner               identity.UserID
+	}{{"Call", "2020-01-01", "replaced", boot.UserID}, {"Later", "2020-01-02", "cleared", viewerID}} {
+		if !rows.Next() {
+			t.Fatal("missing history row")
+		}
+		var text, date, outcome, created string
+		var ownerID, actorID identity.UserID
+		if err := rows.Scan(&text, &date, &ownerID, &outcome, &actorID, &created); err != nil {
+			t.Fatal(err)
+		}
+		if text != want.text || date != want.date || ownerID != want.owner || outcome != want.outcome || actorID != boot.UserID {
+			t.Fatalf("unexpected history: %q %q %d %q %d", text, date, ownerID, outcome, actorID)
+		}
+		if parsed, err := time.Parse(time.RFC3339Nano, created); err != nil || parsed.Location() != time.UTC {
+			t.Fatalf("invalid UTC time %q", created)
+		}
+	}
+	if rows.Next() || rows.Err() != nil {
+		t.Fatalf("unexpected extra history: %v", rows.Err())
 	}
 }
