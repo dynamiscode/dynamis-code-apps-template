@@ -18,7 +18,9 @@ unarchived stage; readers can view them. Creation is audited, and archiving an
 in-use stage preserves its engagements. Writers can move engagements and readers
 can see permanent stage history; each move also produces a retention-bounded audit
 event. The same tests cover these behaviors and retention.
-Workspace export does not yet include stages or engagements.
+Workspace export includes archived stages in all profiles and engagement records
+when Clients is enabled. [SQLite and PostgreSQL export tests](../internal/clients/engagement_export_test.go)
+cover scoped records and limits; stage history and actions remain excluded.
 Owners and admins can set or reset the workspace work item label. The shared
 service audits changes and [migration 000037](../internal/platform/database/migrations/000037_engagement_label.sql)
 stores it per workspace. Evidence: [service](../internal/engagement/label_test.go),
@@ -36,7 +38,7 @@ enforcement are not implemented.
 Quote status, optional amount and sent date are stored on the engagement by
 [migration 000035](../internal/platform/database/migrations/000035_engagement_quote.sql).
 The linked service, REST and web tests cover writes and read-only access. Quote
-data follows engagement retention and is not included in workspace export.
+data follows engagement retention and is included in workspace export.
 Writers can assign or clear a workspace member on an engagement; readers can see
 the assignment. [Migration 000036](../internal/platform/database/migrations/000036_engagement_assignee.sql)
 stores the reference. The service, REST, and web tests above cover assignment.

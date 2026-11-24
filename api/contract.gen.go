@@ -9,7 +9,7 @@ type Operation struct {
 }
 
 const OpenAPIVersion = "3.1.0"
-const OpenAPISHA256 = "ed3441b8f1a9a3661be62b98610c15c55831700c7f362ba5204d88af50bd8c7f"
+const OpenAPISHA256 = "451a0ad0edfd8c82f886a96eea3fa3f28acb17f0f4114ee0beb7a6c6703192ce"
 
 var Operations = []Operation{
 	{Method: "GET", Path: "/api/openapi.json", ID: "getOpenAPI"},

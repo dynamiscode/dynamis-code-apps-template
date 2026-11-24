@@ -384,6 +384,7 @@ func clientsPath(relative string) bool {
 	return relative == "internal/clients" || strings.HasPrefix(relative, "internal/clients/") ||
 		relative == "internal/identity/engagement_membership_test.go" ||
 		relative == "internal/engagement/engagement.go" ||
+		relative == "internal/engagement/action_queue.go" || relative == "internal/engagement/action_queue_test.go" ||
 		relative == "internal/engagement/agreement.go" ||
 		relative == "internal/engagement/agreement_test.go" ||
 		relative == "internal/engagement/assignee.go" || relative == "internal/engagement/next_action.go" || relative == "internal/engagement/quote.go" ||
@@ -406,7 +407,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/httpapi/clients.go" || relative == "internal/httpapi/clients_test.go" ||
 		relative == "internal/httpapi/client_timeline.go" || relative == "internal/httpapi/client_timeline_test.go" ||
 		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" ||
-		relative == "internal/web/engagement_test.go" ||
+		relative == "internal/web/engagement_test.go" || relative == "internal/web/action_queue_test.go" ||
 		relative == "internal/web/client_timeline.go" || relative == "internal/web/client_timeline_test.go" ||
 		relative == "internal/web/clients_filters.go" ||
 		relative == "internal/web/viewmodel/clients_filters.go" || relative == "internal/web/viewmodel/clients.go" ||
@@ -568,10 +569,13 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/client-fields")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/clients")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/due")
+		value = removeLinesContaining(value, "h.changeQueuedAction")
 	case "internal/web/engagement.go":
 		value = strings.ReplaceAll(value, "ClientsEnabled: h.clients != nil, ", "")
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `"time"`)
+		value = removeLinesContaining(value, `"net/url"`)
+		value = removeLinesContaining(value, `"strconv"`)
 		value = removeText(value, "func (h *Handler) setEngagementAgreement(", "func (h *Handler) setEngagementAssignee(")
 		value = removeText(value, "func (h *Handler) setEngagementAssignee(", "func (h *Handler) EnableEngagement(")
 		value = removeText(value, "func (h *Handler) moveEngagement(", "func (h *Handler) setEngagementLabel(")
@@ -579,6 +583,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 	case "internal/web/engagement.templ":
 		value = removeText(value, "templ engagementDetailPage(", "templ engagementStagesPage(")
 	case "internal/web/engagement_templ.go":
+		value = removeLinesContaining(value, `import "strconv"`)
+		value = removeLinesContaining(value, `/internal/identity"`)
 		value = removeText(value, "func engagementDetailPage(", "func engagementStagesPage(")
 	case "internal/platform/maintenance/maintenance.go":
 		// Retention prunes client_events, which Clients-off apps do not have.
@@ -661,6 +667,8 @@ func disableFilesSource(relative string, raw []byte) []byte {
 	switch relative {
 	case "internal/platform/database/migrations/000039_engagement_agreement.sql":
 		value = removeLineStarting(value, "ALTER TABLE engagements ADD COLUMN agreement_file_id")
+	case "internal/portability/engagement.go":
+		value = strings.ReplaceAll(value, "agreement_recorded, agreement_file_id FROM engagements", "agreement_recorded, NULL FROM engagements")
 	case "internal/engagement/engagement.go", "internal/engagement/next_action.go":
 		value = strings.ReplaceAll(value, "COALESCE(e.agreement_file_id, 0)", "0")
 	case "internal/engagement/agreement.go":

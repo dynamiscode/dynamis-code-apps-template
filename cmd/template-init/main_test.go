@@ -12,6 +12,14 @@ import (
 	"time"
 )
 
+func TestEngagementExportWithoutFilesOmitsFileColumn(t *testing.T) {
+	input := "SELECT agreement_recorded, agreement_file_id FROM engagements"
+	got := disableFilesSource("internal/portability/engagement.go", []byte(input))
+	if string(got) != "SELECT agreement_recorded, NULL FROM engagements" {
+		t.Fatalf("generated query = %q", got)
+	}
+}
+
 func TestTemporaryPlanIsExcluded(t *testing.T) {
 	if !ignored("PLAN.md") {
 		t.Fatal("temporary plan must not be copied into generated applications")
