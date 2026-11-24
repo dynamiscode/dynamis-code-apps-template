@@ -41,4 +41,4 @@ Owner opened Create workspace and saw name and language controls: [desktop/light
 
 ## Remaining gaps
 
-No admin or member journey, populated invitation revoke, list search/filter/columns/saved views, error/recovery, ordinary form fallback, complete keyboard traversal, or automated accessibility audit was performed. No screen-reader or contrast conformance claim is made. Viewport images sample the journeys; they do not establish full UX or WCAG conformance.
+No admin or member journey, populated invitation revoke, list search/filter/columns/saved views, error/recovery, ordinary form fallback, complete keyboard traversal, or automated accessibility audit was performed. The Playwright shared browser profile was occupied during the invitation Home-link follow-up, so that follow-up has no rendered evidence. `TestUnavailableInvitationHasBoundedHomeLink` checks the native Home destination and visible boundary in both unavailable-invitation states. No screen-reader or contrast conformance claim is made. Viewport images sample the journeys; they do not establish full UX or WCAG conformance.

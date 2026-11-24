@@ -11,6 +11,26 @@ import (
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 )
 
+func TestUnavailableInvitationHasBoundedHomeLink(t *testing.T) {
+	catalog, err := i18n.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := viewmodel.PageData{Catalog: catalog, Locale: "en", ErrorKey: "invitations.unavailable"}
+	for name, render := range map[string]func(*bytes.Buffer) error{
+		"invitation": func(b *bytes.Buffer) error { return invitationView(data).Render(context.Background(), b) },
+		"continue":   func(b *bytes.Buffer) error { return invitationContinueView(data).Render(context.Background(), b) },
+	} {
+		var body bytes.Buffer
+		if err := render(&body); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(body.String(), `<a class="btn btn-outline btn-sm" href="/">`) {
+			t.Errorf("%s: missing bounded native Home link", name)
+		}
+	}
+}
+
 func TestWorkspaceCreationDisclosureRespectsPermission(t *testing.T) {
 	catalog, err := i18n.New()
 	if err != nil {
