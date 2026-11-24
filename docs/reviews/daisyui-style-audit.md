@@ -44,6 +44,8 @@ a11y state, JS-hook state, pseudo-content, or structural layout.
 | body | kept: token-driven base (margin/background/color) |
 | header | kept: legacy header base (navbar carries its own now; candidate for deletion after header sweep) |
 | .workspace-name | kept: navbar brand name truncation |
+| .sidebar-navigation .menu | kept: scoped navigation state overrides global link color and daisyUI active background using theme tokens |
+| .dropdown-content, .modal-box | kept: shared token border distinguishes floating surfaces from matching dark backgrounds |
 | @media min-width: 38.001rem | kept: responsive block (table<->card switch, form stacking) |
 | .client-controls | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |
 | .client-controls summary | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |

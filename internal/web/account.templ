@@ -8,7 +8,7 @@ import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 templ accountPageView(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.AccountHeader(data), nil) {
+	@templates.DashboardShell(data, organisms.AccountHeader(data), organisms.AccountNavigation(data)) {
 		<div class="account-page" data-account-page>
 				<header class="account-heading bg-base-100 border-b border-base-200">
 					<p class="eyebrow">{ data.T("common.account") }</p>
@@ -174,8 +174,8 @@ templ accountPageView(data viewmodel.PageData) {
 }
 
 templ languageSettingsView(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.AccountHeader(data), nil) {
-		<div class="account-page narrow card mx-auto w-full max-w-xl my-6 p-6" data-account-page>
+	@templates.DashboardShell(data, organisms.AccountHeader(data), organisms.AccountNavigation(data)) {
+		<div class="account-page" data-account-page>
 				<p class="eyebrow">{ data.T("common.account") }</p>
 				<h1>{ data.T("account.language_settings_title") }</h1>
 				<p class="account-intro">{ data.T("account.language_settings_description") }</p>

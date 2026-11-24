@@ -159,7 +159,7 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	data := viewmodel.PageData{CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces, NavPage: "workspace", NavSection: "workspace", SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle, FilesEnabled: h.filesEnabled, ClientsEnabled: h.clientsEnabled, ListLive: true}
+	data := viewmodel.PageData{CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces, NavPage: "catalog", NavSection: "workspace", SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle, FilesEnabled: h.filesEnabled, ClientsEnabled: h.clientsEnabled, ListLive: true}
 	h.localizePage(writer, &data)
 	data.Title = data.T("catalog.title")
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")

@@ -513,7 +513,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/httpapi/intake.go" || relative == "internal/httpapi/intake_test.go" ||
 		relative == "internal/web/intake.go" || relative == "internal/web/intake_test.go" || relative == "internal/web/intake.templ" || relative == "internal/web/intake_templ.go" ||
 		relative == "internal/web/public_intake.go" || relative == "internal/web/public_intake.templ" || relative == "internal/web/public_intake_templ.go" ||
-		relative == "internal/platform/database/migrations/000042_public_intake.sql" ||
+		relative == "internal/platform/database/migrations/000042_public_intake.sql" || relative == "internal/platform/database/migrations/000051_public_intake_encrypted_token.sql" ||
 		relative == "internal/identity/engagement_membership_test.go" ||
 		relative == "internal/engagement/engagement.go" ||
 		relative == "internal/engagement/agreement.go" ||
@@ -530,7 +530,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/mcpserver/approval_test.go" || relative == "internal/mcpserver/schema_contract_test.go" ||
 		relative == "internal/httpapi/clients.go" || relative == "internal/httpapi/clients_test.go" ||
 		relative == "internal/httpapi/client_timeline.go" || relative == "internal/httpapi/client_timeline_test.go" ||
-		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" || relative == "internal/web/clients_scope_test.go" ||
+		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" || relative == "internal/web/clients_scope_test.go" || relative == "internal/web/clients_intake_menu_test.go" ||
 		relative == "internal/web/engagement_test.go" ||
 		relative == "internal/web/client_timeline.go" || relative == "internal/web/client_timeline_test.go" ||
 		relative == "internal/web/clients_filters.go" ||
@@ -647,6 +647,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `/internal/intake"`)
 		value = removeLineStarting(value, "\tintakeService := intake.NewService(")
 		value = removeLineStarting(value, "\tintakeService.ConfigureNotifications(")
+		value = removeLineStarting(value, "\tintakeService.ConfigureEncryption(")
 		value = strings.ReplaceAll(value, ", intakeService,", ",")
 		value = removeLineStarting(value, "\twebHandler.EnableIntake(")
 		value = removeLineStarting(value, "\tclientService := clients.NewService(")
@@ -743,6 +744,9 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "ClientQueryForm")
 		value = removeLinesContaining(value, "ClientFieldRow")
 		value = removeLinesContaining(value, "ClientValueRow")
+	case "internal/web/navigation_test.go":
+		value = removeText(value, "func TestAvatarUsesSessionProfileAcrossRenderPaths(", "func TestCatalogWorkspaceNavigation(")
+		value = removeLinesContaining(value, `"net/http"`)
 	case "internal/web/handler.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, "h.schedulingSetEngagement)")

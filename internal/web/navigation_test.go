@@ -11,9 +11,57 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"github.com/a-h/templ"
+	"net/http"
 	"strings"
 	"testing"
 )
+
+func TestAvatarUsesSessionProfileAcrossRenderPaths(t *testing.T) {
+	env := newClientsTestEnv(t)
+	for _, path := range []string{"/account", "/workspaces/" + env.workspaceID.String(), env.listPath()} {
+		response := request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
+		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `class="text-sm font-semibold">O</span>`) {
+			t.Errorf("%s: expected signed-in avatar initial (status %d)", path, response.Code)
+		}
+	}
+}
+
+func TestCatalogWorkspaceNavigation(t *testing.T) {
+	_, _, workspaceID, _ := testWeb(t, 10)
+	catalog, err := i18n.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := viewmodel.PageData{Catalog: catalog, Locale: "en", Workspace: identity.WorkspaceSummary{ID: workspaceID}, NavPage: "catalog"}
+	for _, enabled := range []bool{false, true} {
+		data.CatalogEnabled = enabled
+		var body bytes.Buffer
+		if err := organisms.WorkspaceNav(data).Render(context.Background(), &body); err != nil {
+			t.Fatal(err)
+		}
+		link := `aria-current="page" href="/workspaces/` + workspaceID.String() + `/catalog"`
+		if strings.Contains(body.String(), link) != enabled {
+			t.Errorf("catalog enabled=%v: active catalog link mismatch", enabled)
+		}
+	}
+}
+
+func TestAccountNavigationCurrentPage(t *testing.T) {
+	catalog, err := i18n.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for page, path := range map[string]string{"account": "/account", "notifications": "/notifications", "language": "/settings/language", "security": "/security", "sessions": "/sessions"} {
+		data := viewmodel.PageData{Catalog: catalog, Locale: "en", NavPage: page}
+		var body bytes.Buffer
+		if err := organisms.AccountNavigation(data).Render(context.Background(), &body); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(body.String(), `aria-current="page" href="`+path+`"`) || strings.Count(body.String(), `aria-current="page"`) != 1 {
+			t.Errorf("%s: expected one current navigation link", page)
+		}
+	}
+}
 
 func TestNavigationComponentsEscapeInput(t *testing.T) {
 	_, _, workspaceID, _ := testWeb(t, 10)

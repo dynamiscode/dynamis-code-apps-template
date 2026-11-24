@@ -216,6 +216,24 @@ func (h *Handler) renderClientList(
 	}
 	archived := query.Get("archived") != "" && query.Get("archived") != clients.ArchivedActive
 	view := h.listViewState(request, principal, workspaceID, listviews.ListClients, archived)
+	intakeEnabled := h.intake != nil && principal.Permissions[identity.WorkspaceUpdate]
+	intakeActive, intakeReady, intakeUnavailable, intakeLink := false, false, false, ""
+	if intakeEnabled {
+		settings, err := h.intake.GetSettings(request.Context(), principal, workspaceID)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+		intakeActive, intakeReady = settings.Active, settings.HasOpenStage
+		if intakeActive {
+			token, err := h.intake.GetToken(request.Context(), principal, workspaceID)
+			if err != nil {
+				intakeUnavailable = true
+			} else {
+				intakeLink = strings.TrimRight(h.publicURL, "/") + "/intake/" + token
+			}
+		}
+	}
 	h.renderClientPage(writer, request, status, component, viewmodel.PageData{
 		Title: "Clients", TopbarTitleKey: "clients.title", ErrorKey: errorKey, CSRF: csrf,
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
@@ -236,6 +254,7 @@ func (h *Handler) renderClientList(
 		ClientDraft:      draft,
 		FieldsPath:       h.clientFieldsPath(workspaceID),
 		CanManageFields:  principal.Permissions[identity.WorkspaceUpdate],
+		IntakeEnabled:    intakeEnabled, IntakeActive: intakeActive, IntakeReady: intakeReady, IntakeUnavailable: intakeUnavailable, IntakeLink: intakeLink,
 	})
 }
 

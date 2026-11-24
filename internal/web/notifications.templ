@@ -7,7 +7,7 @@ import atoms "example.com/dynamis-code/apps-template/internal/web/components/ato
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 templ notificationsPage(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.AccountHeader(data), nil) {
+	@templates.DashboardShell(data, organisms.AccountHeader(data), organisms.AccountNavigation(data)) {
 		<div class="notification-center" x-data="notificationsLive" data-notification-cursor={ data.NotificationCursor }>
 				<div class="workspace-heading"><div>
 					<p class="eyebrow">{ data.T("common.account") }</p>

@@ -190,6 +190,7 @@ func (h *Handler) Routes() http.Handler {
 	}
 	mux.HandleFunc("GET /account", h.accountPage)
 	mux.HandleFunc("POST /account/profile", h.accountProfileMutation)
+	mux.HandleFunc("POST /account/theme", h.accountThemeMutation)
 	mux.HandleFunc("POST /account/notifications", h.accountNotificationMutation)
 	mux.HandleFunc("POST /account/password", h.accountPasswordMutation)
 	mux.HandleFunc("POST /account/delete", h.accountDeleteMutation)
@@ -736,11 +737,6 @@ func listVisibleParam(request *http.Request) string {
 }
 
 func (h *Handler) render(writer http.ResponseWriter, status int, name string, data viewmodel.PageData) {
-	if lw, ok := writer.(*localeWriter); ok && len(data.Profile.Email) == 0 {
-		if state, found := lw.context.Value(localeContextKey{}).(localeState); found && state.userEmail != "" {
-			data.Profile = identity.UserProfile{DisplayName: state.userName, Email: state.userEmail}
-		}
-	}
 	data.FilesEnabled = h.files != nil
 	data.ClientsEnabled = h.clients != nil
 	data.CatalogEnabled = h.catalogService != nil

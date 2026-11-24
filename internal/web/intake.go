@@ -1,6 +1,7 @@
 package web
 
 import (
+	"crypto/aes"
 	"errors"
 	"net/http"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/intake"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
+	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 )
 
@@ -36,13 +38,34 @@ func (h *Handler) renderIntake(w http.ResponseWriter, r *http.Request, status in
 		h.renderError(w, http.StatusInternalServerError)
 		return
 	}
+	if message != "" {
+		settings.ConsentText = r.FormValue("consent")
+	}
+	linkMessage := ""
+	if settings.Active && token == "" {
+		token, err = h.intake.GetToken(r.Context(), actor, workspace)
+		var keySizeError aes.KeySizeError
+		switch {
+		case err == nil:
+		case errors.Is(err, identity.ErrForbidden):
+			h.renderError(w, http.StatusForbidden)
+			return
+		case errors.Is(err, intake.ErrNotFound):
+			linkMessage = "intake.link_unavailable"
+		case errors.Is(err, secretbox.ErrUnknownKey), errors.Is(err, secretbox.ErrInvalidValue), errors.Is(err, secretbox.ErrNoPrimaryKey), errors.As(err, &keySizeError):
+			linkMessage = "intake.link_key_unavailable"
+		default:
+			h.renderError(w, http.StatusInternalServerError)
+			return
+		}
+	}
 	workspaces, err := h.identity.ListWorkspaces(r.Context(), session.UserID)
 	if err != nil {
 		h.renderError(w, http.StatusInternalServerError)
 		return
 	}
 	path := "/workspaces/" + workspace.String() + "/intake"
-	data := viewmodel.PageData{Title: "Public intake", CSRF: csrf, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, NavPage: "clients", NavSection: "clients", CurrentPath: path, FilesEnabled: h.filesEnabled, ClientsEnabled: h.clients != nil, SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle}
+	data := viewmodel.PageData{Title: "Public intake", CSRF: csrf, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, NavPage: "intake", NavSection: "settings", CurrentPath: path, FilesEnabled: h.filesEnabled, ClientsEnabled: h.clients != nil, SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle}
 	h.localizePage(w, &data)
 	data.Title = data.T("intake.title")
 	data.Saved = r.URL.Query().Get("saved") == "1"
@@ -53,7 +76,7 @@ func (h *Handler) renderIntake(w http.ResponseWriter, r *http.Request, status in
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
-	_ = intakeSettingsPage(data, settings, message, link).Render(r.Context(), w)
+	_ = intakeSettingsPage(data, settings, message, link, linkMessage).Render(r.Context(), w)
 }
 
 func (h *Handler) intakeMutation(w http.ResponseWriter, r *http.Request) {
@@ -91,6 +114,10 @@ func (h *Handler) intakeMutation(w http.ResponseWriter, r *http.Request) {
 	}
 	if errors.Is(err, intake.ErrActive) || errors.Is(err, intake.ErrNotFound) {
 		h.renderIntake(w, r, http.StatusUnprocessableEntity, "intake.conflict", "")
+		return
+	}
+	if errors.Is(err, secretbox.ErrNoPrimaryKey) {
+		h.renderIntake(w, r, http.StatusServiceUnavailable, "errors.email_secret_key", "")
 		return
 	}
 	if err != nil {

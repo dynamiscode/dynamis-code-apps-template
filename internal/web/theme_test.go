@@ -10,6 +10,42 @@ import (
 	"time"
 )
 
+func TestHeaderThemeUpdatesOnlyTheme(t *testing.T) {
+	handler, auth, _, owner := testWeb(t, 10)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	before, err := auth.GetUserProfile(context.Background(), owner.UserID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := request(handler, http.MethodPost, "/account/theme", url.Values{"csrf": {session.CSRFSecret}, "theme": {"dark"}, "return_to": {"/account"}}, cookies, nil)
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/account" {
+		t.Fatalf("theme update status = %d, location = %q", response.Code, response.Header().Get("Location"))
+	}
+	unsafe := request(handler, http.MethodPost, "/account/theme", url.Values{"csrf": {session.CSRFSecret}, "theme": {"dark"}, "return_to": {"//example.org"}}, cookies, nil)
+	if unsafe.Header().Get("Location") != "/" {
+		t.Fatal("theme update accepted external redirect")
+	}
+	after, err := auth.GetUserProfile(context.Background(), owner.UserID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Theme != "dark" || after.DisplayName != before.DisplayName || after.Locale != before.Locale || after.Timezone != before.Timezone {
+		t.Fatal("theme update modified another profile field")
+	}
+	invalid := request(handler, http.MethodPost, "/account/theme", url.Values{"csrf": {session.CSRFSecret}, "theme": {"invalid"}}, cookies, nil)
+	if invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid theme status = %d", invalid.Code)
+	}
+	missingCSRF := request(handler, http.MethodPost, "/account/theme", url.Values{"theme": {"light"}}, cookies, nil)
+	if missingCSRF.Code != http.StatusForbidden {
+		t.Fatalf("missing CSRF status = %d", missingCSRF.Code)
+	}
+}
+
 func TestWebThemePreferenceAppliesToFirstPaint(t *testing.T) {
 	mailer := &recordingMailer{}
 	handler, auth, _, owner := testWeb(t, 10, mailer)

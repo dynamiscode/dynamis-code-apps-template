@@ -33,6 +33,28 @@ func (h *Handler) pageTheme(writer http.ResponseWriter) string {
 	return "system"
 }
 
+func (h *Handler) accountThemeMutation(writer http.ResponseWriter, request *http.Request) {
+	if err := request.ParseForm(); err != nil {
+		h.renderError(writer, http.StatusBadRequest)
+		return
+	}
+	session, _, ok := h.validCSRFSessionWithCSRF(writer, request)
+	if !ok {
+		return
+	}
+	theme := request.FormValue("theme")
+	if !validTheme(theme) {
+		h.renderError(writer, http.StatusBadRequest)
+		return
+	}
+	if err := h.identity.SetUserTheme(request.Context(), session.UserID, theme, auditContext(request)); err != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	}
+	h.setCookie(writer, themeCookie, theme, time.Now().Add(themeCookieTTL), true)
+	h.redirect(writer, request, safeReturnTo(request.FormValue("return_to")))
+}
+
 func validTheme(theme string) bool {
 	switch theme {
 	case "system", "light", "dark":

@@ -7,12 +7,13 @@ import organisms "example.com/dynamis-code/apps-template/internal/web/components
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 import "strings"
 
-templ intakeSettingsPage(data viewmodel.PageData, settings intake.Settings, message string, link string) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
-		@molecules.PageHeading(data.T("intake.title"), data.T("clients.title")) {}
-		<section class="card my-4 p-6">
-			<p>{ data.T("intake.description") }</p>
-			<h2 class="mt-4">{ data.T("intake.readiness") }</h2>
+templ intakeSettingsPage(data viewmodel.PageData, settings intake.Settings, message string, link string, linkMessage string) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
+		<div class="settings-page">
+			@molecules.PageHeading(data.T("intake.title"), data.T("navigation.settings_setup")) {}
+			<p class="settings-intro">{ data.T("intake.description") }</p>
+			<section class="settings-panel card min-w-0 p-5" aria-labelledby="intake-readiness-title">
+			<h2 id="intake-readiness-title">{ data.T("intake.readiness") }</h2>
 			if data.Saved {
 				@molecules.SuccessAlert(data.T("intake.saved"))
 			}
@@ -25,26 +26,32 @@ templ intakeSettingsPage(data viewmodel.PageData, settings intake.Settings, mess
 			if message != "" {
 				@molecules.ErrorAlert(data.T(message))
 			}
-			if settings.Active {
+			if settings.Active && settings.HasOpenStage {
 				<p>{ data.T("intake.active") }</p>
-			} else {
+			} else if !settings.Active {
 				<p>{ data.T("intake.disabled") }</p>
 			}
-			<h2 class="mt-4">{ data.T("intake.share") }</h2>
+			</section>
+			<section class="settings-panel card min-w-0 p-5" aria-labelledby="intake-share-title">
+			<h2 id="intake-share-title">{ data.T("intake.share") }</h2>
 			if link != "" {
 				<p>{ data.T("intake.copy") }</p>
 				<p><input id="intake-link" class="input input-bordered w-full" aria-label={ data.T("intake.link") } readonly value={ link }/></p>
-				<button type="button" class="btn btn-secondary" data-copy-target="intake-link" data-copy-success={ data.T("intake.copied") }>{ data.T("intake.copy_button") }</button>
-				<span role="status" aria-live="polite" data-copy-status></span>
-				<a class="link" href={ templ.SafeURL(link) } target="_blank" rel="noopener noreferrer">{ data.T("intake.test_link") }</a>
+				if settings.HasOpenStage {
+					<button type="button" class="btn btn-secondary" data-copy-target="intake-link" data-copy-success={ data.T("intake.copied") }>{ data.T("intake.copy_button") }</button>
+					<span role="status" aria-live="polite" data-copy-status></span>
+					<a class="link" href={ templ.SafeURL(link) } target="_blank" rel="noopener noreferrer">{ data.T("intake.test_link") }</a>
+				}
 			} else if settings.Active {
-				<p>{ data.T("intake.link_unavailable") }</p>
+				<p>{ data.T(linkMessage) }</p>
 			} else {
 				<p>{ data.T("intake.create_help") }</p>
 			}
+			</section>
+			<section class="settings-panel card min-w-0 p-5" aria-labelledby="intake-consent-title">
+			<h2 id="intake-consent-title">{ data.T("intake.consent") }</h2>
 			<form action={ templ.SafeURL(data.CurrentPath) } method="post">
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
-				<h2 class="mt-4">{ data.T("intake.consent") }</h2>
 				<p id="intake-consent-help">{ data.T("intake.consent_help") }</p>
 				@molecules.TextareaField("intake-consent", data.T("intake.consent"), settings.ConsentText, templ.Attributes{"name": "consent", "required": true, "maxlength": "2000", "aria-describedby": "intake-consent-help"})
 				if settings.ConsentText != "" {
@@ -64,10 +71,13 @@ templ intakeSettingsPage(data viewmodel.PageData, settings intake.Settings, mess
 					<button class="btn" name="action" value="disable" data-confirm={ data.T("intake.disable_confirm") }>{ data.T("intake.disable") }</button>
 				</form>
 			}
-			<h2 class="mt-4">{ data.T("intake.delivery") }</h2>
+			</section>
+			<section class="settings-panel card min-w-0 p-5" aria-labelledby="intake-delivery-title">
+			<h2 id="intake-delivery-title">{ data.T("intake.delivery") }</h2>
 			<p>{ data.T("intake.delivery_help") }</p>
 			<a class="link link-primary" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/settings/email") }>{ data.T("intake.email_settings") }</a>
 			<a class="link link-primary" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/intake") + "/clients") }>{ data.T("intake.view_clients") }</a>
-		</section>
+			</section>
+		</div>
 	}
 }

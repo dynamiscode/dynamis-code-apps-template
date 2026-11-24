@@ -70,14 +70,14 @@ templ navTitle(text string) {
 
 templ WorkspaceNav(data viewmodel.PageData) {
 	if data.NavSection == "settings" {
-		<nav aria-label={ data.T("navigation.workspace_settings") }>
+		<nav class="sidebar-navigation" aria-label={ data.T("navigation.workspace_settings") }>
 			<ul class="menu w-full">
 				@navTitle(data.T("navigation.settings_setup"))
 				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/general", "navigation.general", data.NavPage == "general")
 				if data.Workspace.Role == "owner" || data.Workspace.Role == "admin" {
 					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/email", "navigation.email", data.NavPage == "email")
 					if data.ClientsEnabled {
-						@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/intake", "intake.title", false)
+						@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/intake", "intake.title", data.NavPage == "intake")
 					}
 				}
 				@navTitle(data.T("navigation.settings_access"))
@@ -95,12 +95,15 @@ templ WorkspaceNav(data viewmodel.PageData) {
 			</ul>
 		</nav>
 	} else {
-		<nav aria-label={ data.T("navigation.workspace_navigation") }>
+		<nav class="sidebar-navigation" aria-label={ data.T("navigation.workspace_navigation") }>
 			<ul class="menu w-full">
 				@navTitle(data.T("common.workspace"))
 				@navLi(data, "/workspaces/"+data.Workspace.ID.String(), "navigation.home", data.NavPage == "workspace")
 				if data.ClientsEnabled {
 					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/clients", "clients.title", data.NavPage == "clients" || data.NavPage == "client-detail" || data.NavPage == "client-fields")
+				}
+				if data.CatalogEnabled {
+					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/catalog", "catalog.title", data.NavPage == "catalog")
 				}
 				if data.FilesEnabled {
 					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/files", "files.files", data.NavPage == "files")
@@ -122,6 +125,24 @@ templ PeopleTabs(data viewmodel.PageData) {
 	</nav>
 }
 
+
+templ AccountNavigation(data viewmodel.PageData) {
+	if data.SingleWorkspace && data.DefaultWorkspaceHref != "" {
+		<a class="btn btn-ghost btn-sm w-full justify-start font-normal" href={ data.DefaultWorkspaceHref }>← { data.T("workspace.back_to_home") }</a>
+	} else if !data.SingleWorkspace {
+		<a class="btn btn-ghost btn-sm w-full justify-start font-normal" href="/">← { data.T("workspace.workspaces") }</a>
+	}
+	<nav class="sidebar-navigation" aria-label={ data.T("common.account") }>
+		<ul class="menu w-full">
+			@navTitle(data.T("common.account"))
+			@navLi(data, "/account", "account.account", data.NavPage == "account")
+			@navLi(data, "/notifications", "notifications.notifications", data.NavPage == "notifications")
+			@navLi(data, "/settings/language", "account.language_settings", data.NavPage == "language")
+			@navLi(data, "/security", "navigation.security", data.NavPage == "security")
+			@navLi(data, "/sessions", "navigation.sessions", data.NavPage == "sessions")
+		</ul>
+	</nav>
+}
 
 // accountMenuItems builds the account dropdown items, marking the current page active.
 func accountMenuItems(data viewmodel.PageData) []atoms.DropdownItem {

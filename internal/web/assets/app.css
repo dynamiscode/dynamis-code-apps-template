@@ -81,6 +81,11 @@ main h2:not(.sr-only) { margin: 1.5rem 0 .75rem; font-size: 1.375rem; line-heigh
 .brand-mark { position: relative; width: 1.5rem; height: 1.5rem; flex: none; border-radius: var(--brand-radius); background: linear-gradient(135deg, var(--accent), var(--accent-hover)); }
 .brand-mark::after { position: absolute; inset: .38rem; content: ""; border: 2px solid var(--on-accent); border-radius: 50%; }
 a:not(.btn) { color: var(--accent); text-underline-offset: .15em; text-decoration-thickness: .08em; }
+.dropdown-content, .modal-box { border: 1px solid var(--border-strong); }
+.sidebar-navigation .menu li.menu-active { background: transparent; color: inherit; }
+.sidebar-navigation .menu li > a:not(.btn) { color: var(--ink); }
+.sidebar-navigation .menu li > a:not(.btn):hover { background: var(--canvas); }
+.sidebar-navigation .menu li > a[aria-current="page"]:not(.btn) { background: var(--accent-surface); color: var(--accent); font-weight: 600; }
 .btn:not(.btn-primary, .btn-secondary, .btn-accent, .btn-neutral, .btn-info, .btn-success, .btn-warning, .btn-error, .btn-ghost, .btn-link, .btn-outline, .btn-soft, .btn-dash, :disabled) {
   --btn-bg: var(--surface);
   --btn-border: var(--border-strong);

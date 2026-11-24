@@ -11,6 +11,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/listviews"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
+	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -68,7 +69,9 @@ func newClientsTestEnv(t *testing.T) clientsTestEnv {
 	handler.EnableClients(clients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace),
 		listprefs.NewService(db, cfg.Database.Driver, auth))
 	handler.EnableEngagement(engagement.NewService(db, cfg.Database.Driver, auth))
-	handler.EnableIntake(intake.NewService(db, cfg.Database.Driver, auth))
+	intakeService := intake.NewService(db, cfg.Database.Driver, auth)
+	intakeService.ConfigureEncryption(secretbox.New(map[int][]byte{1: []byte("01234567890123456789012345678901")}, 1))
+	handler.EnableIntake(intakeService)
 	handler.EnableListViews(listviews.NewService(db, cfg.Database.Driver, auth))
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {

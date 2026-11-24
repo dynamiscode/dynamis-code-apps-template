@@ -145,13 +145,40 @@ templ clientCreateForm(data viewmodel.PageData, action string) {
 	</form>
 }
 
+templ clientIntakeMenu(data viewmodel.PageData) {
+	<details class="dropdown dropdown-end">
+		<summary class="btn btn-ghost btn-xs">{ data.T("intake.share") }</summary>
+		<div class="dropdown-content z-50 flex w-80 max-w-[90vw] flex-col items-start gap-2 rounded-box bg-base-100 p-4 shadow-lg">
+			if !data.IntakeActive {
+				<p>{ data.T("intake.disabled") }</p>
+			} else if !data.IntakeReady {
+				<p>{ data.T("intake.no_open_stage") }</p>
+				<a class="link link-primary" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagement-stages") }>{ data.T("engagement.stages") }</a>
+			} else if data.IntakeUnavailable {
+				<p>{ data.T("intake.share_unavailable") }</p>
+			} else if data.IntakeLink != "" {
+				<p>{ data.T("intake.active") }</p>
+				<input id="client-intake-link" class="input input-bordered w-full" aria-label={ data.T("intake.link") } readonly value={ data.IntakeLink }/>
+				<div>
+					<button type="button" class="btn btn-secondary btn-sm" data-copy-target="client-intake-link" data-copy-success={ data.T("intake.copied") }>{ data.T("intake.copy_button") }</button>
+					<span role="status" aria-live="polite" data-copy-status></span>
+				</div>
+				<a class="link" href={ templ.SafeURL(data.IntakeLink) } target="_blank" rel="noopener noreferrer">{ data.T("intake.test_link") }</a>
+			} else {
+				<p>{ data.T("intake.share_unavailable") }</p>
+			}
+			<a class="link link-primary" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/intake") }>{ data.T("intake.configure") }</a>
+		</div>
+	</details>
+}
+
 // clientCreateMenu is the toolbar's "New client" action: a link to the create page.
 // Users who cannot write see a read-only note, and a pristine list renders no
 // second primary action because its empty-state card already offers this one.
 templ clientCreateMenu(data viewmodel.PageData) {
 	<div class="list-create">
-		if data.CanManageFields {
-			<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/intake") }>{ data.T("intake.title") }</a>
+		if data.CanManageFields && data.IntakeEnabled {
+			@clientIntakeMenu(data)
 		}
 		<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagement-stages") }>{ data.T("engagement.stages") }</a>
 		<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagements/due") }>{ data.T("engagement.due_list") }</a>

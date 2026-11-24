@@ -382,7 +382,8 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		"internal/intake", "internal/httpapi/intake.go", "internal/httpapi/intake_test.go",
 		"internal/web/intake.go", "internal/web/intake.templ", "internal/web/intake_templ.go", "internal/web/intake_test.go",
 		"internal/web/public_intake.go", "internal/web/public_intake.templ", "internal/web/public_intake_templ.go",
-		"internal/platform/database/migrations/000042_public_intake.sql",
+		"internal/platform/database/migrations/000042_public_intake.sql", "internal/platform/database/migrations/000051_public_intake_encrypted_token.sql",
+		"internal/web/clients_intake_menu_test.go",
 		"internal/engagement/engagement.go", "internal/engagement/assignee.go", "internal/engagement/next_action.go", "internal/engagement/quote.go",
 		"internal/web/client_timeline.go", "internal/web/client_timeline_test.go",
 		"internal/web/clients.templ", "internal/web/clients_templ.go",
@@ -413,7 +414,7 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, table := range []string{"client_events", "client_timeline_entries"} {
+		for _, table := range []string{"client_events", "client_timeline_entries", "public_intake_links"} {
 			if strings.Contains(string(content), table) {
 				t.Errorf("generated application without Clients keeps %s in %s", table, filepath.Base(migration))
 			}

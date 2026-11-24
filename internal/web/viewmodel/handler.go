@@ -23,6 +23,7 @@ type PageData struct {
 	MCPConsent           *McpConsentView
 	Locale               string
 	Theme                string
+	ReturnPath           string
 	Catalog              *i18n.Catalog
 	Title                string
 	NavPage              string
@@ -50,6 +51,11 @@ type PageData struct {
 	ClientFields         []ClientFieldRow
 	FieldDraft           clients.FieldInput
 	CanManageFields      bool
+	IntakeEnabled        bool
+	IntakeActive         bool
+	IntakeReady          bool
+	IntakeLink           string
+	IntakeUnavailable    bool
 	FieldsPath           string
 	CanEditClients       bool
 	CanDeleteClients     bool

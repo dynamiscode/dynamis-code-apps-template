@@ -20,6 +20,7 @@ type localeState struct {
 	cookieTheme    string
 	userName       string
 	userEmail      string
+	returnPath     string
 }
 
 type localeWriter struct {
@@ -46,7 +47,7 @@ func (h *Handler) localeMiddleware(next http.Handler) http.Handler {
 			userLocale: userLocale, cookieLocale: cookieValue(request, "locale"),
 			acceptLanguage: request.Header.Get("Accept-Language"),
 			userTheme:      userTheme, cookieTheme: cookieValue(request, themeCookie),
-			userName: userName, userEmail: userEmail,
+			userName: userName, userEmail: userEmail, returnPath: request.URL.Path,
 		}))
 		next.ServeHTTP(&localeWriter{ResponseWriter: writer, context: request.Context()}, request)
 	})
@@ -77,6 +78,15 @@ func (h *Handler) localizePage(writer http.ResponseWriter, data *viewmodel.PageD
 	data.Locale = string(locale)
 	data.Theme = h.pageTheme(writer)
 	data.Catalog = h.catalog
+	data.CatalogEnabled = h.catalogService != nil
+	if state, ok := writer.(*localeWriter); ok {
+		if values, ok := state.context.Value(localeContextKey{}).(localeState); ok {
+			data.ReturnPath = values.returnPath
+			if data.Profile.Email == "" && values.userEmail != "" {
+				data.Profile = identity.UserProfile{DisplayName: values.userName, Email: values.userEmail}
+			}
+		}
+	}
 	data.Title = localizedLegacy(h.catalog, locale, data.Title)
 	data.Error = localizedLegacy(h.catalog, locale, data.Error)
 	data.MFAError = localizedLegacy(h.catalog, locale, data.MFAError)

@@ -18,7 +18,7 @@ queue staff email. Both link to the new client without including submitted data.
 Client details show a possible-duplicate warning when an intake submission
 matches another client in the workspace by email or phone.
 
-Catalog profile: `/workspaces/{workspaceId}/catalog` lists active entries and their unconverted price options for workspace resource readers, with an option to include archived entries. Owners and admins can create, edit, archive, unarchive, or delete unused entries and add, edit, or remove fixed or manual prices; members and viewers see no write controls. Fixed amounts are non-negative decimals, while manual options have no preset amount. Creation requires an initial price; removing the last price is rejected. New rows can only be added to active entries. To repair a legacy price-less entry, show archived entries, unarchive it if necessary, add its actual price, and archive it again if appropriate; no prices are invented. Entries reported in use cannot be deleted and should be archived, and booked entries are protected; sale linkage remains deferred. Catalog entries and prices are scoped to their workspace. Workspace home links to the catalog.
+Catalog profile: `/workspaces/{workspaceId}/catalog` lists active entries and their unconverted price options for workspace resource readers, with an option to include archived entries. Owners and admins can create, edit, archive, unarchive, or delete unused entries and add, edit, or remove fixed or manual prices; members and viewers see no write controls. Fixed amounts are non-negative decimals, while manual options have no preset amount. Creation requires an initial price; removing the last price is rejected. New rows can only be added to active entries. To repair a legacy price-less entry, show archived entries, unarchive it if necessary, add its actual price, and archive it again if appropriate; no prices are invented. Entries reported in use cannot be deleted and should be archived, and booked entries are protected; sale linkage remains deferred. Catalog entries and prices are scoped to their workspace. Workspace home and workspace sidebar link to the enabled catalog. Catalog navigation was previously omitted from the sidebar because feature availability was not populated consistently across pages; keep the shared page data feature flag populated and mark the catalog page current.
 
 Catalog profile: the resource schedule shows bookings in the workspace time zone. Writers can select a catalog entry and start time; readers see the schedule without booking controls. Invalid, overlapping, and out-of-hours requests retain the draft and show an error.
 
@@ -43,11 +43,30 @@ Readers see the assignee on client details; writers can assign, change, or clear
 the assignment using workspace members.
 Readers see whether a signed agreement is recorded and its optional file short
 ID. Writers can update both; the referenced file must belong to the workspace.
-`/account`, `/notifications`, `/sessions`, and `/security` cover account and
-security settings. Account pages share responsive panels, generated branding,
-and the user's light, dark, or system theme. The authenticated shell uses
-a top bar for brand, workspace switching, and account actions, plus a context-aware
-sidebar whose contents follow the current workspace context. Every mutation validates
+`/account`, `/notifications`, `/settings/language`, `/sessions`, and `/security`
+cover account and security settings. They share the authenticated drawer layout
+and account navigation, distinct from workspace and settings navigation. Passing
+no navigation previously removed the drawer and made account pages feel separate;
+keep each account destination in the shared navigation and mark its current page.
+Account pages share responsive panels and the user's light, dark, or system
+theme. The top-bar theme menu saves only the theme with CSRF protection; using
+the full profile update for this control would risk overwriting other preferences.
+The menu returns to the originating path, validated as a local redirect; relying
+on Referer previously returned users to workspace selection because the browser
+suppresses it. Query parameters are not retained. Theme menu forms must stretch each button
+across its full visible row: daisyUI's grid form layout previously left only
+the text clickable. Dropdowns and modal boxes share a strong token border:
+the workspace switcher previously blended into the identical dark sidebar surface. Account and workspace headers use the same top-bar component with their
+own context labels; separate header markup previously drifted in wrapping and
+alignment. Shared page preparation supplies the signed-in profile to all render
+paths; loading it only in the legacy renderer previously made direct-rendered
+pages show a question-mark avatar. The drawer overlay must be block-level: an inline overlay adds a
+line box and creates a scrollbar even when navigation fits. Preserve scrolling
+when the menu exceeds the viewport. Sidebar menus use neutral links and a
+soft accent current-page state: the global link color previously overrode
+daisyUI's active text against a dark background. Scope navigation state colors
+to the sidebar and use existing light/dark tokens. The authenticated shell uses a top bar for brand, workspace
+switching, and account actions, plus context-aware sidebars. Every mutation validates
 the session-bound CSRF token
 and rechecks current workspace permission.
 

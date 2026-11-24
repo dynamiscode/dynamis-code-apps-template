@@ -28,11 +28,13 @@ templ DashboardShell(data viewmodel.PageData, header, navigation templ.Component
 						</main>
 					</div>
 					<div class="drawer-side z-40">
-						<button type="button" class="drawer-overlay" tabindex="-1" aria-hidden="true" @click="toggleDrawer"></button>
+						<button type="button" class="drawer-overlay block" tabindex="-1" aria-hidden="true" @click="toggleDrawer"></button>
 						<div class="min-h-full w-64 border-r border-base-200 bg-base-100 p-4">
-							<div class="mb-3 border-b border-base-200 pb-3">
-								@organisms.WorkspaceContext(data)
-							</div>
+							if data.Workspace.ID != 0 {
+								<div class="mb-3 border-b border-base-200 pb-3">
+									@organisms.WorkspaceContext(data)
+								</div>
+							}
 							@navigation
 						</div>
 					</div>

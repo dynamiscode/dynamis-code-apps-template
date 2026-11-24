@@ -10,6 +10,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
+	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 )
 
 func TestSubmissionCreatesClientAndEngagementTogether(t *testing.T) {
@@ -35,6 +36,7 @@ func TestSubmissionCreatesClientAndEngagementTogether(t *testing.T) {
 		t.Fatal(err)
 	}
 	svc := NewService(db, config.SQLite, auth)
+	svc.ConfigureEncryption(secretbox.New(map[int][]byte{1: []byte("01234567890123456789012345678901")}, 1))
 	svc.ConfigureNotifications(jobs.NewQueue(db, config.SQLite, nil), "https://example.test")
 	for _, role := range []string{"admin", "member", "viewer"} {
 		var userID int64

@@ -19,6 +19,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/jobs"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
+	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 )
 
 var (
@@ -35,6 +36,11 @@ type Service struct {
 	engagement *engagement.Service
 	queue      *jobs.Queue
 	publicURL  string
+	secrets    secretbox.Keyring
+}
+
+func (s *Service) ConfigureEncryption(secrets secretbox.Keyring) {
+	s.secrets = secrets
 }
 
 func (s *Service) ConfigureNotifications(queue *jobs.Queue, publicURL string) {
@@ -129,12 +135,16 @@ func (s *Service) issue(ctx context.Context, actor identity.Principal, workspace
 	if err := ValidateLinkTransition(status, LinkActive); err != nil {
 		return "", err
 	}
-	query := `INSERT INTO public_intake_links (workspace_id, token_hash, consent_text) VALUES (?, ?, ?)
-		ON CONFLICT (workspace_id) DO UPDATE SET token_hash = excluded.token_hash, consent_text = excluded.consent_text`
+	sealed, version, err := s.secrets.Seal(token)
+	if err != nil {
+		return "", err
+	}
+	query := `INSERT INTO public_intake_links (workspace_id, token_hash, consent_text, encrypted_token, token_key_version) VALUES (?, ?, ?, ?, ?)
+		ON CONFLICT (workspace_id) DO UPDATE SET token_hash = excluded.token_hash, consent_text = excluded.consent_text, encrypted_token = excluded.encrypted_token, token_key_version = excluded.token_key_version`
 	if !rotate {
 		query += ` WHERE public_intake_links.token_hash IS NULL`
 	}
-	result, err := tx.ExecContext(ctx, database.Rebind(s.driver, query), workspace, hashToken(token), consent)
+	result, err := tx.ExecContext(ctx, database.Rebind(s.driver, query), workspace, hashToken(token), consent, sealed, version)
 	if err != nil {
 		return "", err
 	}
@@ -174,7 +184,7 @@ func (s *Service) Disable(ctx context.Context, actor identity.Principal, workspa
 	if err := ValidateLinkTransition(status, LinkInactive); err != nil {
 		return err
 	}
-	result, err := tx.ExecContext(ctx, database.Rebind(s.driver, `UPDATE public_intake_links SET token_hash = NULL WHERE workspace_id = ? AND token_hash IS NOT NULL`), workspace)
+	result, err := tx.ExecContext(ctx, database.Rebind(s.driver, `UPDATE public_intake_links SET token_hash = NULL, encrypted_token = NULL, token_key_version = NULL WHERE workspace_id = ? AND token_hash IS NOT NULL`), workspace)
 	if err != nil {
 		return err
 	}
@@ -219,6 +229,40 @@ func (s *Service) GetSettings(ctx context.Context, actor identity.Principal, wor
 		}
 	}
 	return settings, nil
+}
+
+// GetToken returns the active token when it was created with encrypted storage.
+// Legacy hash-only links remain valid but cannot be retrieved until rotated.
+func (s *Service) GetToken(ctx context.Context, actor identity.Principal, workspace identity.WorkspaceID) (string, error) {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: true})
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
+	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspace, identity.WorkspaceUpdate); err != nil {
+		return "", identity.ErrForbidden
+	}
+	var sealed sql.NullString
+	var version sql.NullInt64
+	var tokenHash string
+	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT encrypted_token, token_key_version, token_hash FROM public_intake_links WHERE workspace_id = ? AND token_hash IS NOT NULL`), workspace).Scan(&sealed, &version, &tokenHash)
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && (!sealed.Valid || !version.Valid)) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", err
+	}
+	token, err := s.secrets.Open(int(version.Int64), sealed.String)
+	if err != nil {
+		return "", err
+	}
+	if hashToken(token) != tokenHash {
+		return "", ErrNotFound
+	}
+	if err := tx.Commit(); err != nil {
+		return "", err
+	}
+	return token, nil
 }
 
 func (s *Service) SetConsent(ctx context.Context, actor identity.Principal, workspace identity.WorkspaceID, consent string, audit identity.AuditContext) error {
