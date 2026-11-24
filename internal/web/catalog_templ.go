@@ -616,14 +616,14 @@ func catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencies
 						return templ_7745c5c3_Err
 					}
 					if includeArchived {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "<a class=\"link link-hover font-semibold text-lg\" href=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "<a class=\"btn btn-outline btn-sm h-auto min-h-8 max-w-full whitespace-normal break-words text-left font-semibold\" href=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var33 string
 						templ_7745c5c3_Var33, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String() + "&includeArchived=true")).ResolveURL(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `catalog.templ`, Line: 90, Col: 188}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `catalog.templ`, Line: 90, Col: 253}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 						if templ_7745c5c3_Err != nil {
@@ -636,7 +636,7 @@ func catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencies
 						var templ_7745c5c3_Var34 string
 						templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(entry.Name)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `catalog.templ`, Line: 90, Col: 203}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `catalog.templ`, Line: 90, Col: 268}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 						if templ_7745c5c3_Err != nil {
@@ -647,14 +647,14 @@ func catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencies
 							return templ_7745c5c3_Err
 						}
 					} else {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "<a class=\"link link-hover font-semibold text-lg\" href=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "<a class=\"btn btn-outline btn-sm h-auto min-h-8 max-w-full whitespace-normal break-words text-left font-semibold\" href=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var35 string
 						templ_7745c5c3_Var35, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String())).ResolveURL(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `catalog.templ`, Line: 92, Col: 162}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `catalog.templ`, Line: 92, Col: 227}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 						if templ_7745c5c3_Err != nil {
@@ -667,7 +667,7 @@ func catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencies
 						var templ_7745c5c3_Var36 string
 						templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(entry.Name)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `catalog.templ`, Line: 92, Col: 177}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `catalog.templ`, Line: 92, Col: 242}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 						if templ_7745c5c3_Err != nil {
@@ -1366,14 +1366,14 @@ func catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencies
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "</button></form></details> <details><summary class=\"btn btn-sm btn-ghost text-error\">")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "</button></form></details> <details><summary class=\"btn btn-sm btn-outline btn-error\">")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 							var templ_7745c5c3_Var77 string
 							templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("catalog.delete_price"))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `catalog.templ`, Line: 174, Col: 92}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `catalog.templ`, Line: 174, Col: 93}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var77))
 							if templ_7745c5c3_Err != nil {

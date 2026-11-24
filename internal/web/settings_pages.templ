@@ -22,7 +22,7 @@ templ generalSettingsView(data viewmodel.PageData) {
 				<section class="settings-panel card min-w-0 p-5" aria-labelledby="currency-settings-title">
 					<h2 id="currency-settings-title">{ data.T("currency.title") }</h2>
 					<p>{ data.T("currency.intro") }</p>
-					<a class="btn" href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/currencies" }>{ data.T("currency.manage") }</a>
+					<a class="btn btn-outline" href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/currencies" }>{ data.T("currency.manage") }</a>
 				</section>
 			}
 			<section class="settings-panel card min-w-0 p-5" aria-labelledby="workspace-locale-title">

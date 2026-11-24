@@ -87,9 +87,9 @@ templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencie
      if entryID == "" {
       <li class="card bg-base-100 p-4">
        if includeArchived {
-        <a class="link link-hover font-semibold text-lg" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String() + "&includeArchived=true") }>{ entry.Name }</a>
+        <a class="btn btn-outline btn-sm h-auto min-h-8 max-w-full whitespace-normal break-words text-left font-semibold" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String() + "&includeArchived=true") }>{ entry.Name }</a>
        } else {
-        <a class="link link-hover font-semibold text-lg" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String()) }>{ entry.Name }</a>
+        <a class="btn btn-outline btn-sm h-auto min-h-8 max-w-full whitespace-normal break-words text-left font-semibold" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String()) }>{ entry.Name }</a>
        }
        <p class="text-sm">
         for _, price := range entry.Prices {
@@ -171,7 +171,7 @@ templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencie
            </form>
           </details>
           <details>
-           <summary class="btn btn-sm btn-ghost text-error">{ data.T("catalog.delete_price") }</summary>
+           <summary class="btn btn-sm btn-outline btn-error">{ data.T("catalog.delete_price") }</summary>
            <p>{ data.T("catalog.delete_price_confirm") }</p>
            <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/prices/" + price.ID.String() + "/delete") }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-sm btn-error" type="submit">{ data.T("catalog.delete_price") }</button></form>
           </details>

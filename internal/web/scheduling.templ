@@ -91,7 +91,7 @@ templ schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, z
         for _, booking := range bookings[resource.ID] {
          <li>{ booking.Start.Format("2006-01-02 15:04") }–{ booking.End.Format("15:04") }: { booking.EntryName } ({ string(booking.Status) })
           if len(history[booking.ID]) > 0 {
-           <details><summary>{ data.T("scheduling.history") }</summary><ul>
+           <details><summary class="btn btn-outline btn-sm">{ data.T("scheduling.history") }</summary><ul>
             for _, move := range history[booking.ID] {
              {{ actorName := move.ActorID.String() }}
              for _, member := range members {
@@ -118,7 +118,7 @@ templ schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, z
           }
           for _, option := range engagements {
            if booking.EngagementID != nil && *booking.EngagementID == option.ID {
-            <a class="link" href={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/clients/"+option.ClientID.String()) }>{ option.Label }</a>
+            <a class="btn btn-outline btn-sm h-auto min-h-8 max-w-full whitespace-normal break-words" href={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/clients/"+option.ClientID.String()) }>{ option.Label }</a>
            }
           }
           if canBook && len(engagements) > 0 {

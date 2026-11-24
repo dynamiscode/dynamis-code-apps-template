@@ -17,7 +17,7 @@ templ auditHistory(data viewmodel.PageData) {
 		if data.AuditLazy {
 			<div id="audit-table" data-lazy-src={ data.CurrentPath + "?part=table" } aria-busy="true">
 				<p class="loading" role="status">@atoms.Loading(atoms.LoadingProps{}) { data.T("ui.loading") }</p>
-				<p><a href={ data.CurrentPath + "?all=1" }>{ data.T("audit.show") }</a></p>
+				<p><a class="btn btn-outline btn-sm" href={ data.CurrentPath + "?all=1" }>{ data.T("audit.show") }</a></p>
 			</div>
 		} else {
 			@auditTable(data)
