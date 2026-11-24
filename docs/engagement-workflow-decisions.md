@@ -271,12 +271,24 @@ the intended client on desktop and mobile, but the queue omitted client names;
 two simultaneously active actions were not compared. The owner assigned and
 cleared an assignee, updated a quote, changed and cleared an action, and moved an
 engagement out of an archived occupied stage. Invalid quote and unassigned
-action submissions showed a generic error and discarded drafts. Keyboard Tab
-and Enter activated a move when only one active target existed; selection among
-multiple targets was not established. The reviewer recorded orientation, error
-recovery, and accessibility/resilience observations as three lenses, not three
-independent reviews. Two more local screenshots were captured but not visually
-inspected:
+action submissions showed a generic error and discarded drafts. A later
+keyboard-only sample used sequential Tab, ArrowDown, End, and Enter to select
+and submit a move with multiple active targets. Another sequential keyboard
+sample submitted an invalid agreement ID: the generic error appeared, the
+input cleared, and focus landed on BODY. Using Tab, Space, and Enter, the owner
+then corrected and saved it. Focus visibility and screen-reader announcements
+were not assessed.
+
+Following each similarly named client from the list produced its distinct
+heading and path. Archiving the client with an overdue action hid it from the
+default client list, but its action remained in Actions due; unarchiving
+restored the client with action and history intact. This records observed
+existing behavior, not a decision that archived-client actions should remain
+in the queue.
+
+The reviewer recorded orientation, error recovery, and accessibility/resilience
+observations as three lenses, not three independent reviews. Two more local
+screenshots were captured but not visually inspected:
 
 - `.playwright-mcp/baseline-second-client-desktop-20261124.png`
 - `.playwright-mcp/baseline-second-client-mobile-20261124.png`
