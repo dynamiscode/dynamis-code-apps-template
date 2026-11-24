@@ -86,6 +86,16 @@ func TestGenerateCatalogProfile(t *testing.T) {
 			if err != nil || strings.Contains(string(raw), `data.T("scheduling.bookings")`) != selected || !strings.Contains(string(raw), `data.T("scheduling.hours")`) {
 				t.Fatalf("booking controls or working hours mismatch: selected=%v err=%v", selected, err)
 			}
+			for path, test := range map[string]string{
+				"internal/scheduling/service_test.go": "func TestBookingRequiresAvailableWorkingHours(",
+				"internal/httpapi/scheduling_test.go": "func TestSchedulingBookingsREST(",
+				"internal/web/scheduling_test.go":     "func TestSchedulingBookingWeb(",
+			} {
+				raw, err = os.ReadFile(filepath.Join(output, path))
+				if err != nil || strings.Contains(string(raw), test) != selected {
+					t.Fatalf("%s booking test, selected=%v: %v", path, selected, err)
+				}
+			}
 			if err := runCommand(output, "go", "test", "./..."); err != nil {
 				t.Fatalf("generated application tests: %v", err)
 			}
