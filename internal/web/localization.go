@@ -243,6 +243,7 @@ func (h *Handler) generalSettingsPage(writer http.ResponseWriter, request *http.
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		WorkspaceNotificationPreferences: preferences,
 		CanManage:                        principal.Permissions[identity.WorkspaceUpdate], Saved: request.URL.Query().Get("saved") == "1",
+		CatalogEnabled: h.catalogService != nil,
 	}, generalSettingsView)
 }
 

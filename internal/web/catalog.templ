@@ -7,9 +7,24 @@ import organisms "example.com/dynamis-code/apps-template/internal/web/components
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
-templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, canWrite bool, invalid bool, inUse bool, includeArchived bool, form catalogForm) {
+templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, currencies []catalog.Currency, canWrite bool, invalid bool, inUse bool, includeArchived bool, entryID string, createPage bool, form catalogForm) {
  @templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
-  @molecules.PageHeading(data.T("catalog.title"), "")
+  if entryID != "" && len(entries) > 0 {
+   if includeArchived {
+    @molecules.BackLink("/workspaces/" + data.Workspace.ID.String() + "/catalog?includeArchived=true", data.T("catalog.back"))
+   } else {
+    @molecules.BackLink("/workspaces/" + data.Workspace.ID.String() + "/catalog", data.T("catalog.back"))
+   }
+   @molecules.PageHeading(entries[0].Name, data.T("catalog.title"))
+  } else {
+   @molecules.PageHeading(data.T("catalog.title"), data.T("catalog.description"))
+  }
+  @catalogContent(data, entries, currencies, canWrite, invalid, inUse, includeArchived, entryID, createPage, form)
+ }
+}
+
+templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencies []catalog.Currency, canWrite bool, invalid bool, inUse bool, includeArchived bool, entryID string, createPage bool, form catalogForm) {
+ <div id="catalog-view">
   if invalid && inUse {
    <div role="alert" tabindex="-1" class="alert alert-error">{ data.T("catalog.last_price") }</div>
   } else if invalid {
@@ -17,122 +32,213 @@ templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, canWrite boo
   } else if inUse {
    <div role="alert" tabindex="-1" class="alert alert-error">{ data.T("catalog.in_use") }</div>
   }
-  if includeArchived {
-   <a class="link" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog") }>{ data.T("catalog.hide_archived") }</a>
-  } else {
-   <a class="link" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?includeArchived=true") }>{ data.T("catalog.show_archived") }</a>
+  if entryID == "" {
+   <div class="list-toolbar">
+    @molecules.ListScope(data.T("catalog.title"), data.T("catalog.active"), data.T("catalog.archived"), "/workspaces/" + data.Workspace.ID.String() + "/catalog", "/workspaces/" + data.Workspace.ID.String() + "/catalog?includeArchived=true", "#catalog-view", includeArchived)
+    if canWrite {
+     <div class="list-create"><a class="btn btn-primary" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?create=true") } data-catalog-create>{ data.T("catalog.create") }</a></div>
+    }
+   </div>
   }
-  if canWrite {
+  if canWrite && entryID == "" {
    {{ name, duration := "", "" }}
-   {{ initialPrice := catalog.PriceOption{} }}
+   {{ initialPrice := catalog.PriceOption{Variant: "Standard"} }}
    if form.kind == "create" {
     {{ name, duration, initialPrice = form.name, form.duration, form.price }}
    }
-   <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog") } class="card bg-base-100 p-4 space-y-3">
+   <dialog class="modal" aria-labelledby="catalog-create-title" data-catalog-dialog open?={ createPage || form.kind == "create" }>
+   <div class="modal-box">
+   <h2 id="catalog-create-title" class="text-xl font-semibold">{ data.T("catalog.create") }</h2>
+   <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog") } class="space-y-3 mt-4">
+    <h3 class="font-semibold">{ data.T("catalog.entry_details") }</h3>
     <input type="hidden" name="csrf" value={ data.CSRF }/>
-    <label class="form-control"><span class="label-text">{ data.T("catalog.name") }</span><input class="input input-bordered" name="name" value={ name } required/></label>
-    <label class="form-control"><span class="label-text">{ data.T("catalog.duration") }</span><input class="input input-bordered" type="number" name="duration_minutes" value={ duration } min="1"/></label>
-    <label class="form-control"><span class="label-text">{ data.T("catalog.mode") }</span><select class="select select-bordered" name="mode"><option value="fixed" selected?={ initialPrice.Mode == "fixed" }>{ data.T("catalog.fixed") }</option><option value="manual" selected?={ initialPrice.Mode == "manual" }>{ data.T("catalog.manual") }</option></select></label>
-    <label class="form-control"><span class="label-text">{ data.T("catalog.amount") }</span><input class="input input-bordered" name="amount" value={ catalogAmount(initialPrice.Amount) } inputmode="decimal"/></label>
-    <label class="form-control"><span class="label-text">{ data.T("catalog.currency") }</span><input class="input input-bordered" name="currency" value={ initialPrice.Currency } required/></label>
-    <label class="form-control"><span class="label-text">{ data.T("catalog.variant") }</span><input class="input input-bordered" name="variant" value={ initialPrice.Variant } required/></label>
-    <label class="form-control"><span class="label-text">{ data.T("catalog.eligibility") }</span><input class="input input-bordered" name="eligibility" value={ initialPrice.Eligibility }/></label>
+    if form.kind == "create" {
+     <p role="alert" class="alert alert-error">{ data.T("catalog.invalid") }</p>
+    }
+    <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.name") }</span><input class="input input-bordered w-full" name="name" value={ name } required/></label>
+    <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.duration") }</span><input class="input input-bordered w-full" type="number" name="duration_minutes" value={ duration } min="1"/></label>
+    <h3 class="font-semibold">{ data.T("catalog.first_price") }</h3>
+    <p class="text-sm">{ data.T("catalog.price_help") }</p>
+    <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.mode") }</span><select class="select select-bordered w-full" name="mode"><option value="fixed" selected?={ initialPrice.Mode == "fixed" }>{ data.T("catalog.fixed") }</option><option value="manual" selected?={ initialPrice.Mode == "manual" }>{ data.T("catalog.manual") }</option></select></label>
+    <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.amount") }</span><input class="input input-bordered w-full" name="amount" value={ catalogAmount(initialPrice.Amount) } inputmode="decimal"/></label>
+    @catalogCurrencySelect(data, currencies, initialPrice.Currency)
+    <details open?={ form.kind == "create" && (initialPrice.Variant != "Standard" || initialPrice.Eligibility != "") }>
+     <summary class="btn btn-sm">{ data.T("catalog.advanced_pricing") }</summary>
+     <div class="space-y-3 mt-3">
+      <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.variant") }</span><input class="input input-bordered w-full" name="variant" value={ initialPrice.Variant }/></label>
+      <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.eligibility") }</span><input class="input input-bordered w-full" name="eligibility" value={ initialPrice.Eligibility }/></label>
+     </div>
+    </details>
     <button class="btn btn-primary" type="submit">{ data.T("common.create") }</button>
+    <a class="btn btn-outline" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog") } data-catalog-cancel>{ data.T("common.cancel") }</a>
    </form>
+   </div>
+   </dialog>
   }
   if len(entries) == 0 {
-   @molecules.EmptyState(data.T("catalog.empty"))
+   if includeArchived {
+    @molecules.EmptyState(data.T("catalog.empty_archived"))
+   } else {
+    @molecules.EmptyState(data.T("catalog.empty"))
+   }
   } else {
    <ul class="space-y-2">
     for _, entry := range entries {
-     <li class="card bg-base-100 p-4">
-      <strong>{ entry.Name }</strong>
+     if entryID == "" {
+      <li class="card bg-base-100 p-4">
+       if includeArchived {
+        <a class="link link-hover font-semibold text-lg" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String() + "&includeArchived=true") }>{ entry.Name }</a>
+       } else {
+        <a class="link link-hover font-semibold text-lg" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String()) }>{ entry.Name }</a>
+       }
+       <p class="text-sm">
+        for _, price := range entry.Prices {
+         <span>{ price.Variant }: </span>
+         if price.Amount != nil {
+          <span>{ *price.Amount } </span>
+         } else {
+          <span>{ data.T("catalog.manual") } </span>
+         }
+         <span>{ price.Currency } </span>
+        }
+       </p>
+      </li>
+     } else {
+     <li class="card bg-base-100 p-4 space-y-4">
+      <h2 class="font-semibold">{ data.T("catalog.entry_details") }</h2>
+      <div class="flex flex-wrap items-center gap-2">
+      if entry.Archived {
+       <span class="badge">{ data.T("catalog.archived") }</span>
+      }
+      if entry.DurationMinutes != nil {
+       <span class="text-sm">{ data.T("catalog.duration_label") }: { strconv.Itoa(*entry.DurationMinutes) } min</span>
+      } else {
+       <span class="text-sm">{ data.T("catalog.duration_label") }: { data.T("catalog.not_set") }</span>
+      }
+      </div>
       if canWrite {
        {{ editName, editDuration := entry.Name, catalogDuration(entry.DurationMinutes) }}
        if form.kind == "edit-entry" && form.entryID == entry.ID.String() {
         {{ editName, editDuration = form.name, form.duration }}
        }
-       <details>
-        <summary class="btn btn-sm">{ data.T("ui.edit") }</summary>
+       <details open?={ form.kind == "edit-entry" && form.entryID == entry.ID.String() }>
+        <summary class="btn btn-sm">{ data.T("catalog.edit_entry") }</summary>
         <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/edit") } class="space-y-3">
          <input type="hidden" name="csrf" value={ data.CSRF }/>
-         <label class="form-control"><span class="label-text">{ data.T("catalog.name") }</span><input class="input input-bordered" name="name" value={ editName } required/></label>
-         <label class="form-control"><span class="label-text">{ data.T("catalog.duration") }</span><input class="input input-bordered" type="number" name="duration_minutes" value={ editDuration } min="1"/></label>
+         <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.name") }</span><input class="input input-bordered w-full" name="name" value={ editName } required/></label>
+         <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.duration") }</span><input class="input input-bordered w-full" type="number" name="duration_minutes" value={ editDuration } min="1"/></label>
          <button class="btn btn-primary" type="submit">{ data.T("common.save") }</button>
         </form>
        </details>
       }
-      if entry.DurationMinutes != nil {
-       <span>{ strconv.Itoa(*entry.DurationMinutes) } min</span>
+      <h2 class="font-semibold">{ data.T("catalog.prices") }</h2>
+      if canWrite && !entry.Archived {
+       @catalogAddPrice(data, entry, currencies, form)
       }
-      <ul>
+      <ul class="space-y-3">
        for _, price := range entry.Prices {
-        <li>
-         <span>{ price.Variant } — </span>
+        <li class="rounded-box border border-base-300 p-3 space-y-2">
+         <strong>{ price.Variant }</strong>{ " — " }
          if price.Amount != nil {
           <span>{ *price.Amount } </span>
          } else {
           <span>{ data.T("catalog.manual") } </span>
          }
          <span>{ price.Currency }</span>
+         if price.Amount != nil {
+          <span> · { data.T("catalog.fixed") }</span>
+         }
          if price.Eligibility != "" {
           <span> — { price.Eligibility }</span>
          }
          if canWrite {
+          <div class="flex flex-wrap items-start gap-2">
           {{ editPrice := price }}
           if form.kind == "edit-price" && form.entryID == entry.ID.String() && form.priceID == price.ID.String() {
            {{ editPrice = form.price }}
           }
-          <details>
-           <summary class="btn btn-sm">{ data.T("ui.edit") }</summary>
+          <details open?={ form.kind == "edit-price" && form.entryID == entry.ID.String() && form.priceID == price.ID.String() }>
+           <summary class="btn btn-sm">{ data.T("catalog.edit_price") }</summary>
            <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/prices/" + price.ID.String() + "/edit") } class="space-y-3">
+            <p class="text-sm">{ data.T("catalog.price_help") }</p>
             <input type="hidden" name="csrf" value={ data.CSRF }/>
-            <label class="form-control"><span class="label-text">{ data.T("catalog.mode") }</span><select class="select select-bordered" name="mode"><option value="fixed" selected?={ editPrice.Mode == "fixed" }>{ data.T("catalog.fixed") }</option><option value="manual" selected?={ editPrice.Mode == "manual" }>{ data.T("catalog.manual") }</option></select></label>
-            <label class="form-control"><span class="label-text">{ data.T("catalog.amount") }</span><input class="input input-bordered" name="amount" value={ catalogAmount(editPrice.Amount) } inputmode="decimal"/></label>
-            <label class="form-control"><span class="label-text">{ data.T("catalog.currency") }</span><input class="input input-bordered" name="currency" value={ editPrice.Currency } required/></label>
-            <label class="form-control"><span class="label-text">{ data.T("catalog.variant") }</span><input class="input input-bordered" name="variant" value={ editPrice.Variant } required/></label>
-            <label class="form-control"><span class="label-text">{ data.T("catalog.eligibility") }</span><input class="input input-bordered" name="eligibility" value={ editPrice.Eligibility }/></label>
+            <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.mode") }</span><select class="select select-bordered w-full" name="mode"><option value="fixed" selected?={ editPrice.Mode == "fixed" }>{ data.T("catalog.fixed") }</option><option value="manual" selected?={ editPrice.Mode == "manual" }>{ data.T("catalog.manual") }</option></select></label>
+            <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.amount") }</span><input class="input input-bordered w-full" name="amount" value={ catalogAmount(editPrice.Amount) } inputmode="decimal"/></label>
+            @catalogCurrencySelect(data, currencies, editPrice.Currency)
+            <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.variant") }</span><input class="input input-bordered w-full" name="variant" value={ editPrice.Variant } required/></label>
+            <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.eligibility") }</span><input class="input input-bordered w-full" name="eligibility" value={ editPrice.Eligibility }/></label>
             <button class="btn btn-primary" type="submit">{ data.T("common.save") }</button>
            </form>
-           <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/prices/" + price.ID.String() + "/delete") }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-sm btn-error" type="submit">{ data.T("common.delete") }</button></form>
           </details>
+          <details>
+           <summary class="btn btn-sm btn-ghost text-error">{ data.T("catalog.delete_price") }</summary>
+           <p>{ data.T("catalog.delete_price_confirm") }</p>
+           <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/prices/" + price.ID.String() + "/delete") }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-sm btn-error" type="submit">{ data.T("catalog.delete_price") }</button></form>
+          </details>
+          </div>
          }
         </li>
        }
       </ul>
-      if canWrite && !entry.Archived {
-       {{ newPrice := catalog.PriceOption{} }}
-       if form.kind == "add-price" && form.entryID == entry.ID.String() {
-        {{ newPrice = form.price }}
-       }
-       <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/prices") } class="space-y-3">
-        <input type="hidden" name="csrf" value={ data.CSRF }/>
-        <label class="form-control"><span class="label-text">{ data.T("catalog.mode") }</span><select class="select select-bordered" name="mode"><option value="fixed" selected?={ newPrice.Mode == "fixed" }>{ data.T("catalog.fixed") }</option><option value="manual" selected?={ newPrice.Mode == "manual" }>{ data.T("catalog.manual") }</option></select></label>
-        <label class="form-control"><span class="label-text">{ data.T("catalog.amount") }</span><input class="input input-bordered" name="amount" value={ catalogAmount(newPrice.Amount) } inputmode="decimal"/></label>
-        <label class="form-control"><span class="label-text">{ data.T("catalog.currency") }</span><input class="input input-bordered" name="currency" value={ newPrice.Currency } required/></label>
-        <label class="form-control"><span class="label-text">{ data.T("catalog.variant") }</span><input class="input input-bordered" name="variant" value={ newPrice.Variant } required/></label>
-        <label class="form-control"><span class="label-text">{ data.T("catalog.eligibility") }</span><input class="input input-bordered" name="eligibility" value={ newPrice.Eligibility }/></label>
-        <button class="btn btn-primary" type="submit">{ data.T("catalog.add_price") }</button>
-       </form>
-      }
-      if entry.Archived {
-       <span>{ data.T("catalog.archived") }</span>
-      }
       if canWrite {
        if entry.Archived {
-        <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/unarchive") }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-sm" type="submit">{ data.T("clients.unarchive") }</button></form>
-       } else {
-        <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/archive") }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-sm" type="submit">{ data.T("clients.archive") }</button></form>
+        <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/unarchive") }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-sm" type="submit">{ data.T("common.restore") }</button></form>
        }
        <details>
+        <summary class="btn btn-sm">{ data.T("common.more_actions") }</summary>
+        if !entry.Archived {
+         <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/archive") }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-sm" type="submit">{ data.T("clients.archive") }</button></form>
+        }
+        <details>
         <summary class="btn btn-sm btn-error">{ data.T("common.delete") }</summary>
         <p>{ data.T("catalog.delete_confirm") }</p>
         <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/delete") }><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-sm btn-error" type="submit">{ data.T("common.delete") }</button></form>
+        </details>
        </details>
       }
      </li>
+     }
     }
    </ul>
   }
+ </div>
+}
+
+templ catalogAddPrice(data viewmodel.PageData, entry catalog.Entry, currencies []catalog.Currency, form catalogForm) {
+ {{ newPrice := catalog.PriceOption{} }}
+ if form.kind == "add-price" && form.entryID == entry.ID.String() {
+  {{ newPrice = form.price }}
  }
+ <details open?={ form.kind == "add-price" && form.entryID == entry.ID.String() }>
+  <summary class="btn btn-sm">{ data.T("catalog.add_price") }</summary>
+  <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/prices") } class="space-y-3 mt-3">
+   <p class="text-sm">{ data.T("catalog.price_help") }</p>
+   <input type="hidden" name="csrf" value={ data.CSRF }/>
+   <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.mode") }</span><select class="select select-bordered w-full" name="mode"><option value="fixed" selected?={ newPrice.Mode == "fixed" }>{ data.T("catalog.fixed") }</option><option value="manual" selected?={ newPrice.Mode == "manual" }>{ data.T("catalog.manual") }</option></select></label>
+   <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.amount") }</span><input class="input input-bordered w-full" name="amount" value={ catalogAmount(newPrice.Amount) } inputmode="decimal"/></label>
+   @catalogCurrencySelect(data, currencies, newPrice.Currency)
+   <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.variant") }</span><input class="input input-bordered w-full" name="variant" value={ newPrice.Variant } required/></label>
+   <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.eligibility") }</span><input class="input input-bordered w-full" name="eligibility" value={ newPrice.Eligibility }/></label>
+   <button class="btn btn-primary" type="submit">{ data.T("catalog.add_price") }</button>
+  </form>
+ </details>
+}
+
+templ catalogCurrencySelect(data viewmodel.PageData, currencies []catalog.Currency, selected string) {
+ {{ found := false }}
+ for _, currency := range currencies {
+  if currency.Code == selected {
+   {{ found = true }}
+  }
+ }
+ <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.currency") }</span>
+  <select class="select select-bordered w-full" name="currency" required>
+   if selected != "" && !found {
+    <option value={ selected } selected disabled>{ selected } — { data.T("catalog.currency_unavailable") }</option>
+   }
+   for _, currency := range currencies {
+    <option value={ currency.Code } selected?={ currency.Code == selected || (selected == "" && currency.Default) }>{ currency.Code } — { strconv.Itoa(currency.Decimals) } { data.T("catalog.decimals") }</option>
+   }
+  </select>
+ </label>
 }

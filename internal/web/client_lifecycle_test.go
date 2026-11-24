@@ -92,7 +92,7 @@ func TestClientArchiveUnarchiveAndDeleteThroughForms(t *testing.T) {
 		t.Fatalf("default list shows an archived client: %s", defaultList)
 	}
 	archivedList := request(env.routes, http.MethodGet, env.listPath()+"?all=1&archived=archived", nil, env.cookies, nil).Body.String()
-	if !strings.Contains(archivedList, `href="`+detailPath+`"`) || !strings.Contains(archivedList, "Back to active clients") {
+	if !strings.Contains(archivedList, `href="`+detailPath+`?return=`) || !strings.Contains(archivedList, `>Active</a>`) {
 		t.Fatalf("archived selector list lacks the client or the selector: %s", archivedList)
 	}
 	if bad := request(env.routes, http.MethodGet, env.listPath()+"?archived=nope", nil, env.cookies, nil); bad.Code != http.StatusBadRequest {

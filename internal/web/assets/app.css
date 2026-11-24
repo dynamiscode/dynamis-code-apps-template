@@ -27,6 +27,8 @@ body { margin: 0; background: var(--canvas); color: var(--ink); }
 .client-controls summary:hover { background: var(--canvas); }
 .client-controls[open] summary { margin-bottom: .75rem; }
 .list-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 1rem 0 .75rem; }
+.list-scope { display: inline-flex; flex-wrap: wrap; gap: .25rem; }
+.list-scope .btn[aria-current="page"] { background: var(--accent-surface); border-color: var(--accent); color: var(--accent); }
 .list-toolbar .menu { position: relative; margin: 0; }
 .list-toolbar > details { position: relative; margin: 0; }
 .list-page-size { display: flex; align-items: center; gap: .5rem; margin-left: .5rem; font-size: .875rem; }
@@ -79,6 +81,11 @@ main h2:not(.sr-only) { margin: 1.5rem 0 .75rem; font-size: 1.375rem; line-heigh
 .brand-mark { position: relative; width: 1.5rem; height: 1.5rem; flex: none; border-radius: var(--brand-radius); background: linear-gradient(135deg, var(--accent), var(--accent-hover)); }
 .brand-mark::after { position: absolute; inset: .38rem; content: ""; border: 2px solid var(--on-accent); border-radius: 50%; }
 a:not(.btn) { color: var(--accent); text-underline-offset: .15em; text-decoration-thickness: .08em; }
+.btn:not(.btn-primary, .btn-secondary, .btn-accent, .btn-neutral, .btn-info, .btn-success, .btn-warning, .btn-error, .btn-ghost, .btn-link, .btn-outline, .btn-soft, .btn-dash, :disabled) {
+  --btn-bg: var(--surface);
+  --btn-border: var(--border-strong);
+  --btn-fg: var(--ink);
+}
 main form:not(.inline) > :is(fieldset, input:not([type="hidden"]), select, textarea, .reveal-box, .strength, .wizard-nav) + button { margin-top: .75rem; }
 /* Form actions keep the 44px touch height the accessibility smoke requires. */
 main form .btn { min-height: 2.75rem; }
@@ -102,7 +109,8 @@ details.dropdown:not([open]) > .dropdown-content { display: none; }
 .consent-actions button { margin: 0; }
 .workspace-main { background: var(--canvas); width: 100%; max-width: none; margin: 0; }
 .workspace-heading { display: flex; align-items: end; justify-content: space-between; margin-bottom: 2rem; }
-.workspace-heading h1, .workspace-heading h2 { margin: 0; font-size: 1rem; font-weight: 500; }
+.workspace-heading h1 { margin: 0; font-size: 1.5rem; font-weight: 700; }
+.detail-back { display: inline-flex; align-items: center; gap: .35rem; margin-bottom: .75rem; font-weight: 600; }
 .eyebrow { margin: 0 0 .35rem; color: var(--muted); font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 /* Account pages keep their danger and disabled button states inside the dashboard shell. */
 /* daisyUI mutes .label to 60% ink; 4.2:1 on the light canvas fails WCAG AA, so 70% keeps the muted look above 4.5:1. */

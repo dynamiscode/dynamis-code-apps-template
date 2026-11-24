@@ -47,6 +47,12 @@ func TestCatalogWebRoleMatrix(t *testing.T) {
 				t.Fatal(r.Code)
 			}
 			ownerPage := request(routes, http.MethodGet, path, nil, ownerCookies, nil)
+			seedLink := regexp.MustCompile(`href="([^"]+/catalog\?entry=[^"]+)"[^>]*>Seed</a>`).FindStringSubmatch(ownerPage.Body.String())
+			if len(seedLink) != 2 {
+				t.Fatal("seed detail missing")
+			}
+			detail := seedLink[1]
+			ownerPage = request(routes, http.MethodGet, detail, nil, ownerCookies, nil)
 			match := regexp.MustCompile(`action="([^"]+/edit)"`).FindStringSubmatch(ownerPage.Body.String())
 			if len(match) != 2 {
 				t.Fatal("missing edit form")
@@ -56,12 +62,12 @@ func TestCatalogWebRoleMatrix(t *testing.T) {
 			if r.Code != http.StatusSeeOther {
 				t.Fatal(r.Code)
 			}
-			ownerPage = request(routes, http.MethodGet, path, nil, ownerCookies, nil)
+			ownerPage = request(routes, http.MethodGet, detail, nil, ownerCookies, nil)
 			price := regexp.MustCompile(`action="([^"]+/prices/[^"]+/edit)"`).FindStringSubmatch(ownerPage.Body.String())
 			if len(price) != 2 {
 				t.Fatal("missing price form")
 			}
-			page := request(routes, http.MethodGet, path, nil, cookies, nil)
+			page := request(routes, http.MethodGet, detail, nil, cookies, nil)
 			writable := role == identity.Owner || role == identity.Admin
 			if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Seed") {
 				t.Fatalf("read: %d", page.Code)

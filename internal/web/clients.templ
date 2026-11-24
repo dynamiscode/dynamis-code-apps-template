@@ -12,6 +12,7 @@ import "strings"
 
 templ clientsPage(data viewmodel.PageData) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+		@molecules.PageHeading(data.T("clients.title"), "")
 		@clientList(data)
 	}
 }
@@ -20,10 +21,8 @@ templ clientsPage(data viewmodel.PageData) {
 // never loads four fields it does not need and a phone gets a full-width form.
 templ clientNewPage(data viewmodel.PageData) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+		@molecules.BackLink(data.CurrentPath, data.T("clients.back"))
 		@molecules.PageHeading(data.T("clients.new_client"), data.T("clients.title")) {
-			<div class="actions client-page-actions">
-				<a class="btn btn-ghost" href={ data.CurrentPath }>{ data.T("clients.back") }</a>
-			</div>
 		}
 		<div class="card p-5 mt-4" id="client-new-page">
 			if data.ErrorKey != "" {
@@ -35,9 +34,9 @@ templ clientNewPage(data viewmodel.PageData) {
 }
 
 templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+		@molecules.BackLink(clientReturnHref(data.CurrentPath, data.ClientReturnQuery), data.T("clients.back"))
 		@molecules.PageHeading(data.Client.DisplayName, data.T("clients.title")) {
 			<div class="actions client-page-actions">
-				<a class="btn btn-ghost" href={ data.CurrentPath }>{ data.T("clients.back") }</a>
 				if data.CanManageFields {
 					<a class="btn btn-ghost" href={ data.FieldsPath }>{ data.T("clients.fields_link") }</a>
 				}
@@ -235,12 +234,15 @@ templ clientDetail(data viewmodel.PageData) {
 				if data.Client.ArchivedAt != nil {
 					<form method="post" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/unarchive" }>
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("clients.unarchive"), Attrs: templ.Attributes{"type": "submit"}})
+						@atoms.Button(atoms.ButtonProps{Label: data.T("common.restore"), Attrs: templ.Attributes{"type": "submit"}})
 					</form>
-				} else {
+				}
+				<details>
+					<summary class="btn btn-sm">{ data.T("common.more_actions") }</summary>
+				if data.Client.ArchivedAt == nil {
 					<form method="post" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/archive" }>
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("clients.archive"), Attrs: templ.Attributes{"type": "submit"}})
+						@atoms.Button(atoms.ButtonProps{Label: data.T("clients.archive"), Attrs: templ.Attributes{"type": "submit"}})
 					</form>
 				}
 				if data.CanDeleteClients {
@@ -252,6 +254,7 @@ templ clientDetail(data viewmodel.PageData) {
 						</form>
 					</div>
 				}
+				</details>
 			</div>
 		}
 		@clientValues(data)

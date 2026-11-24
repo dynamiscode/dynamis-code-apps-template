@@ -1,0 +1,48 @@
+package web
+
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+templ currencySettingsView(data viewmodel.PageData, rows []currencySettingsRow, newCode, newDecimals, message string, newDefault, canWrite bool) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
+		<div class="settings-page">
+			<a class="link" href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/general" }>{ data.T("currency.back") }</a>
+			@molecules.PageHeading(data.T("currency.title"), data.T("navigation.settings_setup"))
+			<p>{ data.T("currency.intro") }</p>
+			if data.Saved {
+				@molecules.SuccessAlert(data.T("workspace.settings_saved"))
+			}
+			if message != "" {
+				@molecules.ErrorAlert(data.T(message))
+			}
+			<form class="settings-panel card min-w-0 p-5 space-y-4" method="post" action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/currencies" }>
+				<input type="hidden" name="csrf" value={ data.CSRF }/>
+				<p>{ data.T("currency.default_help") }</p>
+				for _, row := range rows {
+					<fieldset class="rounded-box border border-base-300 p-4 space-y-3">
+						<legend class="font-semibold">{ row.Code }</legend>
+						<input type="hidden" name="code" value={ row.Code }/>
+						<label class="flex flex-col gap-1"><span class="label-text">{ data.T("currency.decimals") }</span><input class="input input-bordered w-full" type="number" min="0" max="18" required name={ "decimals_" + row.Code } value={ row.Decimals } disabled?={ !canWrite }/></label>
+						<label class="flex items-center gap-2"><input class="radio" type="radio" name="default" value={ row.Code } checked?={ row.Default } disabled?={ !canWrite }/> { data.T("currency.default") }</label>
+						if canWrite {
+							<label class="flex items-center gap-2"><input class="checkbox" type="checkbox" name={ "remove_" + row.Code } value="1" checked?={ row.Remove }/> { data.T("currency.remove") }</label>
+						}
+					</fieldset>
+				}
+				if canWrite {
+					<fieldset class="rounded-box border border-base-300 p-4 space-y-3">
+						<legend class="font-semibold">{ data.T("currency.add") }</legend>
+						<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+							<label class="flex flex-col gap-1"><span class="label-text">{ data.T("currency.code_optional") }</span><input class="input input-bordered w-full" name="new_code" value={ newCode }/></label>
+							<label class="flex flex-col gap-1"><span class="label-text">{ data.T("currency.decimals") }</span><input class="input input-bordered w-full" type="number" min="0" max="18" name="new_decimals" value={ newDecimals }/></label>
+						</div>
+						<label class="flex items-center gap-2"><input class="radio" type="radio" name="default" value="__new" checked?={ newDefault }/> { data.T("currency.make_new_default") }</label>
+					</fieldset>
+					<button class="btn btn-primary" type="submit">{ data.T("common.save") }</button>
+				}
+			</form>
+		</div>
+	}
+}

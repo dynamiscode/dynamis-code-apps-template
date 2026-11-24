@@ -187,12 +187,11 @@ func TestClientsListShowsCreateFormOnlyToWriters(t *testing.T) {
 		t.Fatalf("owner list = %d, want a link to the create page: %s", owner.Code, owner.Body.String())
 	}
 	body := owner.Body.String()
-	// A pristine list links to the create page from its empty card only, and
-	// offers no views or filters for rows that do not exist.
+	// A pristine list keeps the create action in the toolbar.
 	emptyCard := strings.Index(body, `id="client-empty-state"`)
 	createLink := strings.Index(body, `href="`+env.listPath()+`/new"`)
-	if emptyCard < 0 || createLink < emptyCard {
-		t.Fatalf("pristine list must link to the create page from its empty card: %s", body)
+	if emptyCard < 0 || createLink < 0 || createLink > emptyCard {
+		t.Fatalf("pristine list must link to the create page from its toolbar: %s", body)
 	}
 	if strings.Contains(body, `name="display_name"`) || strings.Contains(body, `aria-label="Filter"`) {
 		t.Fatalf("pristine list loads the create form or offers filters: %s", body)
@@ -421,7 +420,7 @@ func TestClientsListFilterAndSortFromTheForm(t *testing.T) {
 		t.Fatalf("filtered list = %d: %s", code, body)
 	}
 	// After a filter is applied the menu starts again at the field list, with the archive selector.
-	if !strings.Contains(body, `class="client-field-choices"`) || !strings.Contains(body, "Show archived clients") {
+	if !strings.Contains(body, `class="client-field-choices"`) || !strings.Contains(body, `aria-label="Archived"`) {
 		t.Fatalf("list lacks the field choices: %s", body)
 	}
 	code, body = list(t, "?filter_field=displayName&filter_op=before&filter_value=x")

@@ -36,7 +36,7 @@ func TestNoJavaScriptClientsCreateEditArchiveAndValidation(t *testing.T) {
 		t.Fatalf("client archive = %d: %s", archived.Code, archived.Body.String())
 	}
 	after := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
-	if !strings.Contains(after.Body.String(), "Unarchive") {
-		t.Fatalf("archived client lacks Unarchive action: %s", after.Body.String())
+	if !strings.Contains(after.Body.String(), "Restore") {
+		t.Fatalf("archived client lacks Restore action: %s", after.Body.String())
 	}
 }

@@ -1,0 +1,13 @@
+package molecules
+
+templ ListScope(label string, activeLabel string, archivedLabel string, activeHref string, archivedHref string, target string, archived bool) {
+	<nav class="list-scope" aria-label={ label }>
+		if archived {
+			<a id="list-scope-active" class="btn btn-sm" href={ templ.SafeURL(activeHref) } hx-get={ activeHref } hx-target={ target } hx-swap="outerHTML" hx-push-url={ activeHref }>{ activeLabel }</a>
+			<a id="list-scope-archived" class="btn btn-sm btn-active" href={ templ.SafeURL(archivedHref) } hx-get={ archivedHref } hx-target={ target } hx-swap="outerHTML" hx-push-url={ archivedHref } aria-current="page">{ archivedLabel }</a>
+		} else {
+			<a id="list-scope-active" class="btn btn-sm btn-active" href={ templ.SafeURL(activeHref) } hx-get={ activeHref } hx-target={ target } hx-swap="outerHTML" hx-push-url={ activeHref } aria-current="page">{ activeLabel }</a>
+			<a id="list-scope-archived" class="btn btn-sm" href={ templ.SafeURL(archivedHref) } hx-get={ archivedHref } hx-target={ target } hx-swap="outerHTML" hx-push-url={ archivedHref }>{ archivedLabel }</a>
+		}
+	</nav>
+}

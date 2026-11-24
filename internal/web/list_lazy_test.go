@@ -62,7 +62,7 @@ func TestSearchKeepsAConditionAddedFromTheMenu(t *testing.T) {
 func TestLiveResultsRefreshTheControlsThatCarryTheSearch(t *testing.T) {
 	env := newClientsTestEnv(t)
 	fragment := request(env.routes, http.MethodGet, env.listPath()+"?part=results&q=ix", nil, env.cookies, map[string]string{"HX-Request": "true"}).Body.String()
-	for _, marker := range []string{`<div id="list-filter-bar" hx-swap-oob="true">`} {
+	for _, marker := range []string{`<div id="list-filter-bar" hx-swap-oob="true">`, `<div id="client-list-scope" hx-swap-oob="true">`, `archived=archived&amp;q=ix`} {
 		if !strings.Contains(fragment, marker) {
 			t.Fatalf("results fragment lacks out-of-band %s", marker)
 		}
@@ -70,6 +70,24 @@ func TestLiveResultsRefreshTheControlsThatCarryTheSearch(t *testing.T) {
 	page := request(env.routes, http.MethodGet, env.listPath()+"?all=1&q=ix", nil, env.cookies, nil).Body.String()
 	if strings.Contains(page, "hx-swap-oob") {
 		t.Fatal("the full page must not carry out-of-band swaps")
+	}
+}
+
+func TestClientScopeSwapPreservesSearchAndFullPageFallback(t *testing.T) {
+	env := newClientsTestEnv(t)
+	path := env.listPath() + "?archived=archived&q=Ada"
+	fragment := request(env.routes, http.MethodGet, path, nil, env.cookies, map[string]string{"HX-Request": "true"})
+	body := fragment.Body.String()
+	if fragment.Code != http.StatusOK || !strings.HasPrefix(body, `<section id="client-list"`) || !strings.Contains(body, `hx-target="#client-list"`) || !strings.Contains(body, `?q=Ada`) || strings.Contains(body, "<!doctype") {
+		t.Fatal("client scope fragment must preserve search and target the list")
+	}
+	full := request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
+	if !strings.Contains(full.Body.String(), "<!doctype html>") {
+		t.Fatal("normal navigation must return the full page")
+	}
+	restored := request(env.routes, http.MethodGet, path, nil, env.cookies, map[string]string{"HX-Request": "true", "HX-History-Restore-Request": "true"})
+	if !strings.Contains(restored.Body.String(), "<!doctype html>") {
+		t.Fatal("history restoration must return the full page")
 	}
 }
 
@@ -143,7 +161,7 @@ func TestClientCardsCarryTheRowActions(t *testing.T) {
 	}
 }
 
-// TestArchivedClientsListOffersRestoreNotArchive checks the archived view: the footer link opens it, and its rows
+// TestArchivedClientsListOffersRestoreNotArchive checks the archived view: the toolbar opens it, and its rows
 // offer restore, not archive.
 func TestArchivedClientsListOffersRestoreNotArchive(t *testing.T) {
 	env := newClientsTestEnv(t)
@@ -157,11 +175,11 @@ func TestArchivedClientsListOffersRestoreNotArchive(t *testing.T) {
 		t.Fatalf("archive = %d", archive.Code)
 	}
 	active := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil).Body.String()
-	if !strings.Contains(active, "Show archived clients") || strings.Contains(active, location+"/unarchive") {
+	if !strings.Contains(active, `>Archived</a>`) || strings.Contains(active, location+"/unarchive") {
 		t.Fatalf("active list must link to archived clients and hide archived rows")
 	}
 	archived := request(env.routes, http.MethodGet, env.listPath()+"?all=1&archived=archived", nil, env.cookies, nil).Body.String()
-	if !strings.Contains(archived, location+"/unarchive") || strings.Contains(archived, location+"/archive\"") || !strings.Contains(archived, "Back to active clients") {
+	if !strings.Contains(archived, location+"/unarchive") || strings.Contains(archived, location+"/archive\"") || !strings.Contains(archived, `>Active</a>`) {
 		t.Fatalf("archived list must offer restore and a way back")
 	}
 }

@@ -18,6 +18,7 @@ func TestCatalogRESTWorkspaceIsolation(t *testing.T) {
 		t.Fatal(err)
 	}
 	ws := identity.ParseWorkspaceIDOrZero(workspace)
+	seedCatalogCurrencies(t, db, workspace)
 	var ownerID identity.UserID
 	if err := db.QueryRowContext(ctx, "SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'owner'", ws).Scan(&ownerID); err != nil {
 		t.Fatal(err)

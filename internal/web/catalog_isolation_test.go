@@ -13,7 +13,9 @@ import (
 )
 
 func TestCatalogWebWorkspaceIsolation(t *testing.T) {
-	routes, auth, workspace, owner := testWeb(t, 2)
+	webHandler, auth, workspace, owner := testWebRaw(t, 2)
+	enableTestBitcoin(t, webHandler, auth, workspace, owner.UserID)
+	routes := webHandler.Routes()
 	ctx := context.Background()
 	actor, err := auth.Authorize(ctx, owner.UserID, workspace, identity.ResourcesWrite)
 	if err != nil {
@@ -23,6 +25,7 @@ func TestCatalogWebWorkspaceIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	enableTestBitcoin(t, webHandler, auth, other, owner.UserID)
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -35,6 +38,8 @@ func TestCatalogWebWorkspaceIsolation(t *testing.T) {
 		t.Fatal(r.Code)
 	}
 	page := request(routes, http.MethodGet, path, nil, cookies, nil)
+	detail := catalogDetailLinks(t, page.Body.String())[0]
+	page = request(routes, http.MethodGet, detail, nil, cookies, nil)
 	match := regexp.MustCompile(`action="([^"]+/edit)"`).FindStringSubmatch(page.Body.String())
 	if len(match) != 2 {
 		t.Fatal("missing entry")
@@ -43,7 +48,7 @@ func TestCatalogWebWorkspaceIsolation(t *testing.T) {
 	if r := request(routes, http.MethodPost, entry+"/prices", form, cookies, nil); r.Code != http.StatusSeeOther {
 		t.Fatal(r.Code)
 	}
-	page = request(routes, http.MethodGet, path, nil, cookies, nil)
+	page = request(routes, http.MethodGet, detail, nil, cookies, nil)
 	match = regexp.MustCompile(`action="([^"]+/prices/[^"]+/edit)"`).FindStringSubmatch(page.Body.String())
 	if len(match) != 2 {
 		t.Fatal("missing price")
@@ -60,6 +65,7 @@ func TestCatalogWebWorkspaceIsolation(t *testing.T) {
 		t.Fatalf("create local entry: %d", r.Code)
 	}
 	localPage := request(routes, http.MethodGet, otherPath, nil, cookies, nil)
+	localPage = request(routes, http.MethodGet, catalogDetailLinks(t, localPage.Body.String())[0], nil, cookies, nil)
 	localMatch := regexp.MustCompile(`action="([^"]+/catalog/[^"/]+/edit)"`).FindStringSubmatch(localPage.Body.String())
 	if len(localMatch) != 2 {
 		t.Fatal("missing local entry")

@@ -44,7 +44,7 @@ templ workspaceSelection(data viewmodel.PageData) {
 }
 templ workspaceHome(data viewmodel.PageData) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
-		<h2 class="sr-only">{ data.Workspace.Name }</h2>
+		@molecules.PageHeading(data.Workspace.Name, "")
 		// The home reflects the workspace's components: the items component
 		// surfaces its own create form and newest rows, and the tiles below
 		// mirror every enabled feature. The header already names the workspace.
