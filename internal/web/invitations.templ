@@ -86,7 +86,7 @@ templ invitationManagementView(data viewmodel.PageData) {
 											<form class="inline" data-webmcp-actions="invitation-revoke" data-webmcp-id={ invitation.ID.String() } action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/invitations" } method="post">
 												<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="invitation_id" value={ invitation.ID.String() }/>
 												@molecules.ConfirmationField("revoke-" + invitation.ID.String(), "confirm_revoke", data.T("invitations.revoke_confirm"))
-												@molecules.SubmitButton(data.T("invitations.revoke"), templ.Attributes{"name": "action", "value": "revoke"})
+												@atoms.Button(atoms.ButtonProps{Class: "btn-error", Label: data.T("invitations.revoke"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "revoke"}})
 											</form>
 										}
 									</td>

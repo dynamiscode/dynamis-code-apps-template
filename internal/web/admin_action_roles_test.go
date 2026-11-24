@@ -11,6 +11,23 @@ import (
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 )
 
+func TestWorkspaceCreationDisclosureRespectsPermission(t *testing.T) {
+	catalog, err := i18n.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, allowed := range []bool{false, true} {
+		data := viewmodel.PageData{Catalog: catalog, Locale: "en", CanCreateWorkspace: allowed}
+		var body bytes.Buffer
+		if err := workspaceSelection(data).Render(context.Background(), &body); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(body.String(), `class="collapse-title font-semibold rounded-field border border-base-300"`) != allowed {
+			t.Errorf("bounded workspace creation disclosure visibility differs from canCreate=%v", allowed)
+		}
+	}
+}
+
 func TestCurrencyNavigationAndViewerPermissions(t *testing.T) {
 	_, _, workspaceID, _ := testWeb(t, 10)
 	catalog, err := i18n.New()

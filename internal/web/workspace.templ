@@ -25,7 +25,7 @@ templ workspaceSelection(data viewmodel.PageData) {
 		}
 		if data.CanCreateWorkspace {
 			<details class="collapse bg-base-100" if data.Error != "" { open }>
-				<summary class="collapse-title font-semibold">{ data.T("workspace.create") }</summary>
+				<summary class="collapse-title font-semibold rounded-field border border-base-300">{ data.T("workspace.create") }</summary>
 				<div class="collapse-content">
 					<form data-webmcp-actions="workspace-create" action="/workspaces" method="post">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
