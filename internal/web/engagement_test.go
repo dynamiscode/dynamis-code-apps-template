@@ -84,6 +84,44 @@ func TestEngagementLabelThroughWeb(t *testing.T) {
 	}
 }
 
+func TestStageNameExamples(t *testing.T) {
+	env := newClientsTestEnv(t)
+	path := "/workspaces/" + env.workspaceID.String() + "/engagement-stages"
+	owner, err := env.auth.Authorize(context.Background(), env.ownerID, env.workspaceID, identity.WorkspaceUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		locale string
+		want   []string
+	}{
+		{"en", []string{"Choose an example or enter your own stage name.", `value="Discovery"`, `value="Proposal"`, `value="Delivery"`}},
+		{"es", []string{"Elige un ejemplo o introduce tu propio nombre de etapa.", `value="Descubrimiento"`, `value="Propuesta"`, `value="Ejecución"`}},
+	} {
+		if err := env.auth.UpdateWorkspaceLocale(context.Background(), owner, tc.locale, identity.AuditContext{}); err != nil {
+			t.Fatal(err)
+		}
+		page := request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
+		for _, want := range append(tc.want, `list="stage-name-examples"`, `aria-describedby="stage-name-hint"`, "<datalist") {
+			if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), want) {
+				t.Fatalf("%s page missing %q: %d", tc.locale, want, page.Code)
+			}
+		}
+	}
+	stages, err := engagement.NewService(env.db, config.SQLite, env.auth).ListStages(context.Background(), owner, env.workspaceID)
+	if err != nil || len(stages) != 0 {
+		t.Fatalf("examples created stages: %v, %v", stages, err)
+	}
+	created := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "name": {"Custom discovery"}, "kind": {"open"}}, env.cookies, nil)
+	if created.Code != http.StatusSeeOther {
+		t.Fatalf("create edited example: %d", created.Code)
+	}
+	stages, err = engagement.NewService(env.db, config.SQLite, env.auth).ListStages(context.Background(), owner, env.workspaceID)
+	if err != nil || len(stages) != 1 || stages[0].Name != "Custom discovery" {
+		t.Fatalf("saved stages: %v, %v", stages, err)
+	}
+}
+
 func TestStagesThroughWeb(t *testing.T) {
 	env := newClientsTestEnv(t)
 	path := "/workspaces/" + env.workspaceID.String() + "/engagement-stages"

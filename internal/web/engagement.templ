@@ -277,7 +277,13 @@ templ engagementStagesPage(data viewmodel.PageData, stages []engagement.Stage, c
 				</form>
 				<form action={ templ.SafeURL(data.CurrentPath) } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@molecules.TextField("stage-name", data.T("engagement.name"), templ.Attributes{"name": "name", "required": true, "maxlength": "200"})
+					@molecules.TextField("stage-name", data.T("engagement.name"), templ.Attributes{"name": "name", "required": true, "maxlength": "200", "list": "stage-name-examples", "aria-describedby": "stage-name-hint"})
+					<p id="stage-name-hint">{ data.T("engagement.stage_examples_hint") }</p>
+					<datalist id="stage-name-examples">
+						<option value={ data.T("engagement.stage_example_discovery") }></option>
+						<option value={ data.T("engagement.stage_example_proposal") }></option>
+						<option value={ data.T("engagement.stage_example_delivery") }></option>
+					</datalist>
 					@atoms.Select(atoms.SelectProps{ID: "stage-kind", Name: "kind", Label: data.T("engagement.kind"), Options: []atoms.SelectOption{{Label: data.T("engagement.open"), Value: "open"}, {Label: data.T("engagement.won"), Value: "won"}, {Label: data.T("engagement.lost"), Value: "lost"}}})
 					@molecules.SubmitButton(data.T("engagement.add"), nil)
 				</form>
