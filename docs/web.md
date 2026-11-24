@@ -26,23 +26,63 @@ Member and invitation pages explain role permissions, ownership transfer,
 invited-email matching, and safe recovery for unavailable links.
 Settings groups general and email setup, member access, API tokens, webhooks,
 SCIM, exports, and audit history into role-aware sidebar sections.
-The Clients list links to engagement stages. Owners and admins can add, reorder,
-and archive stages; workspace readers see their order and archive state. The
-forms work without JavaScript.
-On a client detail page, readers can see engagements and their stage history;
-writers can create an engagement with notes and move it to an unarchived stage.
-Creation uses the first available open stage. Client deletion warns that its
+For workspace resource readers, workspace home shows overdue and due-today action counts (UTC), up to five individual actions in each category, and paginated counts of work in open stages, including archived stages. Preview links open the engagement; view-all links open the corresponding action queue filter. Counts link to the queue or stage-filtered engagement list. These links work without JavaScript.
+The Clients list links to the workspace engagement list and engagement stages.
+The engagement list supports ordinary GET search, stage and assignee filters,
+and bounded pagination; links open each engagement or its client. Search matches
+literal substrings in engagement and client names, folds ASCII letters only, and
+compares non-ASCII characters as typed on SQLite and PostgreSQL. Workspace
+resource readers can use the list without JavaScript. Writers can follow Create
+engagement to the Clients list, choose a client, and use its creation form. On the stage board,
+writers can move an engagement using its labeled form; targets exclude archived
+and current stages. A successful move returns to the selected board kind, including
+without JavaScript. Readers do not see move controls.
+Owners and admins can add, reorder,
+and archive stages; workspace readers see their order and archive state. Archiving
+requires explicit confirmation, explains that existing work stays in the stage,
+and prevents moves into it. The forms work without JavaScript.
+On a client detail page, readers can see engagements and their stage history.
+History shows stage names including archived stages, the actor's display name
+(or email when unset, and unavailable when the account no longer exists), and a
+locale-formatted UTC time. Each engagement name links to a detail page with its existing information
+and a return link to the client. Readers can view paginated action history on the
+engagement detail, including recorded outcomes, text, due date, owner, actor,
+and localized time. Unavailable identities are labeled. Writers can edit its quote and next action on
+that page; readers see their summaries. Invalid quote and next-action submissions
+retain entered values and associate determinable field errors with their controls.
+Unrecognized selection values appear as unavailable. Cancel returns to the saved
+detail. Successful detail edits show localized confirmation after redirect, including without JavaScript. Writers can create an engagement with notes and move it to an
+unarchived stage.
+Creation requires a selected unarchived open stage. When none exists, administrators
+can open stage setup; other writers are directed to an administrator. Client deletion warns that its
 engagements and their history are permanently deleted too.
 Owners and admins can set or reset the workspace work item label on the stages
 page. Client pages use that label; the default is engagement.
 Readers see next actions on client details; writers can set, change, or clear
-them. The Clients list links to actions due today or earlier (UTC) in open stages.
+them. Stale edit or clear submissions are rejected with conflict feedback, the
+current action, and the submitted draft. Writers can review both and explicitly
+retry against the observed current version. The Clients list links to the shared action queue. Its default view shows
+open-stage actions due today or earlier (UTC); readers can filter by overdue,
+today, upcoming, undated, completed, and owner, and navigate pages without
+JavaScript. Upcoming, undated, and completed views include closed stages.
+Writers can reschedule or complete an active action, or reopen a completed action,
+from the queue without JavaScript. Rescheduling changes only the optional due date.
+A stale reschedule or invalid date preserves the submitted date on a recovery page.
+When an action remains, the page shows its current text and date and offers an
+explicit retry against the observed version, even outside the original filter. If
+no action remains, it shows the submitted date without a retry. Other stale actions
+or occupied active slots produce conflict feedback; readers do not see these controls.
 Readers see quote status, amount, and sent date on client details; writers can
 update them. The status persists across stage changes.
 Readers see the assignee on client details; writers can assign, change, or clear
 the assignment using workspace members.
 Readers see whether a signed agreement is recorded and its optional file short
 ID. Writers can update both; the referenced file must belong to the workspace.
+On the engagement detail page, writers with independent Files read access can
+choose a ready file by name and short ID. Choices are paginated; page controls
+preserve the unsaved checkbox, manual ID, and selected file without saving. The optional manual short-ID field
+remains available, including without Files read access or JavaScript. A chosen
+file takes precedence over the manual field.
 `/account`, `/notifications`, `/sessions`, and `/security` cover account and
 security settings. Account pages share responsive panels, generated branding,
 and the user's light, dark, or system theme. The authenticated shell uses

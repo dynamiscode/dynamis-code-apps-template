@@ -9,7 +9,7 @@ type Operation struct {
 }
 
 const OpenAPIVersion = "3.1.0"
-const OpenAPISHA256 = "16b1b8c051b0a4cb1e44d4632f2c74c87d8e8be1da87f97af4dc0bf56f2fbc94"
+const OpenAPISHA256 = "6dfcbf81b14a23eaf7c9147081426f3015370f4f7c3bad3cca91c13e81f83372"
 
 var Operations = []Operation{
 	{Method: "GET", Path: "/api/openapi.json", ID: "getOpenAPI"},
@@ -68,6 +68,7 @@ var Operations = []Operation{
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}", ID: "getEngagement"},
 	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}/agreement", ID: "setEngagementAgreement"},
 	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}/assignee", ID: "setEngagementAssignee"},
+	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}/name", ID: "setEngagementName"},
 	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}/next-action", ID: "setEngagementNextAction"},
 	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}/quote", ID: "setEngagementQuote"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/engagements/{engagementId}/stage", ID: "moveEngagement"},

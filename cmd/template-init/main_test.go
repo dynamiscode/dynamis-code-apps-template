@@ -12,6 +12,14 @@ import (
 	"time"
 )
 
+func TestEngagementExportWithoutFilesOmitsFileColumn(t *testing.T) {
+	input := "SELECT agreement_recorded, agreement_file_id FROM engagements"
+	got := disableFilesSource("internal/portability/engagement.go", []byte(input))
+	if string(got) != "SELECT agreement_recorded, NULL FROM engagements" {
+		t.Fatalf("generated query = %q", got)
+	}
+}
+
 func TestTemporaryPlanIsExcluded(t *testing.T) {
 	if !ignored("PLAN.md") {
 		t.Fatal("temporary plan must not be copied into generated applications")
@@ -350,7 +358,7 @@ func TestGenerateWithClientsProfileRecordsLockAndBuilds(t *testing.T) {
 	}
 	for _, path := range []string{
 		"internal/files", "internal/web/files.go", "internal/web/files.templ", "internal/web/files_templ.go",
-		"internal/web/templates/files.html", "internal/platform/database/migrations/000014_files.sql",
+		"internal/web/templates/files.html", "internal/platform/database/migrations/000014_files.sql", "internal/web/agreement_files_test.go",
 	} {
 		if _, err := os.Stat(filepath.Join(output, path)); !os.IsNotExist(err) {
 			t.Errorf("generated Clients-only application still has Files path %s: %v", path, err)
@@ -384,6 +392,10 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		"internal/web/public_intake.go", "internal/web/public_intake.templ", "internal/web/public_intake_templ.go",
 		"internal/platform/database/migrations/000042_public_intake.sql",
 		"internal/engagement/engagement.go", "internal/engagement/assignee.go", "internal/engagement/next_action.go", "internal/engagement/quote.go",
+		"internal/engagement/list.go", "internal/engagement/list_test.go", "internal/engagement/dashboard.go",
+		"internal/web/engagement_dashboard_test.go",
+		"internal/web/engagement_list.go", "internal/web/engagement_list.templ", "internal/web/engagement_list_templ.go",
+		"internal/web/engagement_board.go", "internal/web/engagement_board.templ", "internal/web/engagement_board_templ.go",
 		"internal/web/client_timeline.go", "internal/web/client_timeline_test.go",
 		"internal/web/clients.templ", "internal/web/clients_templ.go",
 		"internal/web/client_details.templ", "internal/web/client_details_templ.go",
@@ -395,6 +407,8 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		"internal/platform/database/migrations/000024_client_events.sql",
 		"internal/platform/database/migrations/000031_client_timeline.sql",
 		"internal/platform/database/migrations/000033_engagements.sql", "internal/platform/database/migrations/000034_engagement_next_action.sql", "internal/platform/database/migrations/000035_engagement_quote.sql", "internal/platform/database/migrations/000036_engagement_assignee.sql",
+		"internal/platform/database/migrations/000051_engagement_names.sql", "internal/platform/database/migrations/000052_engagement_action_history.sql", "internal/platform/database/migrate_engagement_names_test.go",
+		"internal/platform/database/migrate_engagement_names_postgres_test.go", "internal/platform/database/migrations/000053_engagement_action_completion.sql", "internal/platform/database/migrations/000054_engagement_action_version.sql", "internal/platform/database/migrate_engagement_action_test.go",
 		"internal/web/clients_events.go", "internal/web/clients_no_javascript_test.go",
 		"internal/mcpserver/clients.go", "internal/mcpserver/clients_test.go",
 		"internal/appctl/clients_test.go",
@@ -423,6 +437,38 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(output, "internal/appctl")); !os.IsNotExist(err) {
 		t.Fatalf("generated application without Clients retains appctl: %v", err)
 	}
+	migrationPath := filepath.Join(output, "internal/platform/database/migrations/000042_application.sql")
+	if err := os.WriteFile(migrationPath, []byte("CREATE TABLE application_feature (id INTEGER PRIMARY KEY);\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	regression := `package database
+
+import (
+ "context"
+ "path/filepath"
+ "testing"
+ "example.com/acme/agent-app/internal/platform/config"
+)
+
+func TestApplicationMigration42(t *testing.T) {
+ ctx := context.Background()
+ db, err := Open(ctx, config.Database{Driver: config.SQLite, SQLitePath: filepath.Join(t.TempDir(), "app.db")})
+ if err != nil { t.Fatal(err) }
+ defer db.Close()
+ for i := 0; i < 2; i++ {
+  if err := Migrate(ctx, db, config.SQLite); err != nil { t.Fatal(err) }
+ }
+ var count int
+ if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM application_feature").Scan(&count); err != nil { t.Fatal(err) }
+ if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations WHERE version = 42").Scan(&count); err != nil || count != 1 { t.Fatalf("migration record count = %d, error = %v", count, err) }
+}
+`
+	if err := os.WriteFile(filepath.Join(output, "internal/platform/database/application_migration_test.go"), []byte(regression), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := runCommand(output, "go", "test", "./internal/platform/database", "-run", "^TestApplicationMigration42$"); err != nil {
+		t.Fatalf("generated application migration 42: %v", err)
+	}
 	for _, path := range []string{"internal/bootstrap/agent.go", "internal/mcpserver/server_test.go"} {
 		content, err := os.ReadFile(filepath.Join(output, path))
 		if err != nil || strings.Contains(string(content), "clients") {
@@ -432,6 +478,11 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 	openAPI, err := os.ReadFile(filepath.Join(output, "api/openapi.json"))
 	if err != nil || strings.Contains(string(openAPI), "/clients") || strings.Contains(string(openAPI), "/intake/") {
 		t.Fatalf("generated OpenAPI retains Clients paths: error = %v", err)
+	}
+	for _, key := range []string{`"engagementNextActions"`, `"engagementActionHistory"`, `"engagementStageHistory"`} {
+		if strings.Contains(string(openAPI), key) {
+			t.Fatalf("generated OpenAPI retains Clients export key %s", key)
+		}
 	}
 	for path, retained := range map[string]string{
 		"docs/api.md": "/clients", "docs/web.md": "/clients", "docs/capabilities.md": "| Clients |",

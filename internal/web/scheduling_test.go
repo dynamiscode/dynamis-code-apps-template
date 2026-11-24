@@ -35,10 +35,11 @@ func TestSchedulingBookingWeb(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := es.CreateStage(ctx, actor, workspace, engagement.StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{}); err != nil {
+	stage, err := es.CreateStage(ctx, actor, workspace, engagement.StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
 		t.Fatal(err)
 	}
-	eng, err := es.Create(ctx, actor, workspace, engagement.Input{ClientID: client.ID}, identity.AuditContext{})
+	eng, err := es.Create(ctx, actor, workspace, engagement.Input{Name: "Engagement", ClientID: client.ID, StageID: stage.ID}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}

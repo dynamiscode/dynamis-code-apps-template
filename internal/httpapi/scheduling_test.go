@@ -69,10 +69,11 @@ func TestSchedulingBookingsREST(t *testing.T) {
 		t.Fatal(err)
 	}
 	es := engagement.NewService(db, config.SQLite, auth)
-	if _, err := es.CreateStage(ctx, actor, wid, engagement.StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{}); err != nil {
+	stage, err := es.CreateStage(ctx, actor, wid, engagement.StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
 		t.Fatal(err)
 	}
-	eng, err := es.Create(ctx, actor, wid, engagement.Input{ClientID: client.ID}, identity.AuditContext{})
+	eng, err := es.Create(ctx, actor, wid, engagement.Input{Name: "Engagement", ClientID: client.ID, StageID: stage.ID}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}

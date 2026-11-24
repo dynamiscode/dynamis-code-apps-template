@@ -727,7 +727,13 @@ func (s *Service) clearMemberAssignments(ctx context.Context, tx *sql.Tx, worksp
 	if _, err := s.exec(ctx, tx, "UPDATE engagements SET assignee_id = NULL WHERE workspace_id = ? AND assignee_id = ?", workspaceID, userID); err != nil {
 		return err
 	}
-	if _, err := s.exec(ctx, tx, "UPDATE engagement_next_actions SET owner_id = NULL WHERE workspace_id = ? AND owner_id = ?", workspaceID, userID); err != nil {
+	if _, err := s.exec(ctx, tx, "UPDATE engagements SET action_version = CASE WHEN action_version = 9223372036854775807 THEN NULL ELSE action_version + 1 END WHERE workspace_id = ? AND id IN (SELECT engagement_id FROM engagement_next_actions WHERE workspace_id = ? AND owner_id = ?)", workspaceID, workspaceID, userID); err != nil {
+		return err
+	}
+	if _, err := s.exec(ctx, tx, "UPDATE engagement_next_actions SET owner_id = NULL, version = (SELECT action_version FROM engagements WHERE engagements.workspace_id = engagement_next_actions.workspace_id AND engagements.id = engagement_next_actions.engagement_id) WHERE workspace_id = ? AND owner_id = ?", workspaceID, userID); err != nil {
+		return err
+	}
+	if _, err := s.exec(ctx, tx, "UPDATE engagement_action_history SET owner_id = CASE WHEN owner_id = ? THEN NULL ELSE owner_id END, actor_user_id = CASE WHEN actor_user_id = ? THEN NULL ELSE actor_user_id END WHERE workspace_id = ? AND (owner_id = ? OR actor_user_id = ?)", userID, userID, workspaceID, userID, userID); err != nil {
 		return err
 	}
 	_, err := s.exec(ctx, tx, "UPDATE scheduling_resources SET user_id = NULL WHERE workspace_id = ? AND user_id = ?", workspaceID, userID)

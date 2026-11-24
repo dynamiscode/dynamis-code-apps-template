@@ -175,6 +175,10 @@ schemas; migration 000014 applies the Files schema for both histories; migration
 compatibility for databases that already applied MFA at version 12.
 Migration 000039 adds the agreement flag and, with the Files profile, an
 optional restricted file reference. It is additive; older binaries ignore it.
+Migration 000044 rebuilds action history to permit completed and reopened outcomes,
+preserving history IDs and rows, and adds an active-action version column. It
+requires the stop-the-world procedure and a verified pre-upgrade backup. The
+current service does not yet update the version or create those outcomes.
 Binary rollback is safe only when the old binary accepts the new schema.
 Otherwise restore the pre-upgrade backup. Future breaking schema work must use
 expand-contract or publish its explicit outage and recovery procedure.
