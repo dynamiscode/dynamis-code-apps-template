@@ -13,6 +13,7 @@ import (
 
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/emulation"
+	"github.com/chromedp/cdproto/input"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
@@ -137,7 +138,8 @@ func TestClientTimelineDialog(t *testing.T) {
 	waitVisible(t, tab, "[data-timeline-open]")
 	click(t, tab, "[data-timeline-open]")
 	eventually(t, tab, `document.querySelector('[data-timeline-dialog]').matches(':modal')`, "timeline dialog did not open")
-	fill(t, tab, "#timeline-text", strings.Repeat("x", 2001))
+	click(t, tab, "#timeline-text")
+	call(t, tab, input.InsertText, input.InsertTextParams{Text: strings.Repeat("x", 2001)})
 	click(t, tab, `[data-timeline-dialog] button[type="submit"]`)
 	eventually(t, tab, `document.querySelector('[data-timeline-dialog]').matches(':modal') && document.querySelector('#timeline-text').value.length === 2001 && document.querySelector('[data-timeline-composer] [role=alert]') !== null`, "rejected draft did not reopen with error")
 	click(t, tab, "[data-timeline-close]")
@@ -153,7 +155,8 @@ func TestClientTimelineDialog(t *testing.T) {
 	call(t, tab, emulation.SetScriptExecutionDisabled, emulation.SetScriptExecutionDisabledParams{Value: true})
 	navigate(t, tab, path)
 	waitVisible(t, tab, "#timeline-text")
-	fill(t, tab, "#timeline-text", strings.Repeat("x", 2001))
+	click(t, tab, "#timeline-text")
+	call(t, tab, input.InsertText, input.InsertTextParams{Text: strings.Repeat("x", 2001)})
 	click(t, tab, `[data-timeline-composer] button[type="submit"]`)
 	eventually(t, tab, `document.querySelector('[data-timeline-error-summary] [role=alert]') && document.querySelector('[data-timeline-error-summary] a').getAttribute('href') === '#timeline-text' && document.querySelector('#timeline-text').value.length === 2001`, "no-JavaScript error summary or draft missing")
 	fill(t, tab, "#timeline-text", "No JavaScript entry")
