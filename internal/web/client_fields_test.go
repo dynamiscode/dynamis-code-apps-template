@@ -21,6 +21,7 @@ func TestClientFieldsDefineArchiveAndRestoreThroughForms(t *testing.T) {
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `name="label"`) ||
 		!strings.Contains(page.Body.String(), `id="client-field-label"`) ||
 		!strings.Contains(page.Body.String(), `class="input w-full"`) ||
+		!strings.Contains(page.Body.String(), `class="btn btn-outline" href="`+env.listPath()+`"`) ||
 		!strings.Contains(page.Body.String(), `class="btn btn-primary" type="submit"`) {
 		t.Fatalf("owner fields page rendering is incorrect (%d): %s", page.Code, page.Body.String())
 	}

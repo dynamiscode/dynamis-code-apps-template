@@ -38,7 +38,7 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 		@molecules.PageHeading(data.Client.DisplayName, data.T("clients.title")) {
 			<div class="actions client-page-actions">
 				if data.CanManageFields {
-					<a class="btn btn-ghost" href={ data.FieldsPath }>{ data.T("clients.fields_link") }</a>
+					<a class="btn btn-outline" href={ data.FieldsPath }>{ data.T("clients.fields_link") }</a>
 				}
 			</div>
 		}
@@ -53,7 +53,7 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 					if len(data.OpenEngagementStages) == 0 {
 						<p>{ data.T("engagement.no_open_stage") }</p>
 						if data.CanManageFields {
-							<a class="link" href={ "/workspaces/" + data.Workspace.ID.String() + "/engagement-stages" }>{ data.T("engagement.setup_stages") }</a>
+							<a class="btn btn-outline btn-sm" href={ "/workspaces/" + data.Workspace.ID.String() + "/engagement-stages" }>{ data.T("engagement.setup_stages") }</a>
 						} else {
 							<p>{ data.T("engagement.ask_admin") }</p>
 						}
@@ -85,7 +85,7 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 				<ul>
 					for _, item := range data.Engagements {
 						<li>
-							<a class="link" href={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() }>{ item.Name }</a>
+							<a class="rounded-field border border-base-300 px-1" href={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() }>{ item.Name }</a>
 							for _, stage := range data.EngagementStages {
 								if stage.ID == item.StageID {
 									<span>{ stage.Name }</span>
@@ -96,7 +96,7 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 								<h3>{ data.T("scheduling.bookings") }</h3>
 								<ul>
 									for _, booking := range data.EngagementBookings[item.ID] {
-										<li><a class="link" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/scheduling") }>{ booking.Start.Format("2006-01-02 15:04") } — { booking.EntryName }</a></li>
+										<li><a class="rounded-field border border-base-300 px-1" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/scheduling") }>{ booking.Start.Format("2006-01-02 15:04") } — { booking.EntryName }</a></li>
 									}
 								</ul>
 							}
@@ -192,7 +192,7 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 									</select>
 									<button class="btn btn-primary" type="submit">{ data.T("engagement.save_action") }</button>
 									if item.NextAction.Text != "" {
-										<button class="btn btn-ghost" type="submit" name="clear" value="1">{ data.T("engagement.clear_action") }</button>
+										<button class="btn btn-outline" type="submit" name="clear" value="1">{ data.T("engagement.clear_action") }</button>
 									}
 								</form>
 							}
@@ -211,7 +211,7 @@ templ clientDetail(data viewmodel.PageData) {
 			if strings.HasPrefix(data.ErrorKey, "clients.timeline_error_") {
 				<div data-timeline-error-summary>
 					@molecules.ErrorAlert(data.T(data.ErrorKey))
-					<a class="link" href="#timeline-text">{ data.T("clients.timeline_add") }</a>
+					<a class="btn btn-outline btn-sm" href="#timeline-text">{ data.T("clients.timeline_add") }</a>
 				</div>
 			} else {
 				@molecules.ErrorAlert(data.T(data.ErrorKey))
@@ -310,7 +310,7 @@ templ clientTimeline(data viewmodel.PageData) {
 						if entry.CorrectsID != nil {
 							<p class="text-sm">{ data.T("clients.timeline_corrects") }:
 								if timelineContains(data.ClientTimeline, *entry.CorrectsID) {
-									<a class="link" href={ "#timeline-" + entry.CorrectsID.String() }>{ entry.CorrectsID.String() }</a>
+									<a class="rounded-field border border-base-300 px-1" href={ "#timeline-" + entry.CorrectsID.String() }>{ entry.CorrectsID.String() }</a>
 								} else {
 									{ entry.CorrectsID.String() }
 								}
@@ -405,7 +405,7 @@ templ clientValues(data viewmodel.PageData) {
 						<form class="client-value-clear card card-compact mt-2 p-4 bg-base-200" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() + "/clear" } method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
-							@atoms.Button(atoms.ButtonProps{Class: "btn-ghost", Label: data.T("clients.value_clear"), Attrs: templ.Attributes{"type": "submit"}})
+							@atoms.Button(atoms.ButtonProps{Class: "btn-outline", Label: data.T("clients.value_clear"), Attrs: templ.Attributes{"type": "submit"}})
 						</form>
 					}
 				} else {

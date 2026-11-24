@@ -14,7 +14,7 @@ templ engagementBoardPage(data viewmodel.PageData, columns []engagementBoardColu
    <a class="btn btn-outline" aria-current?={ kind == "won" } href={ templ.SafeURL(data.CurrentPath + "?kind=won") }>{ data.T("engagement.won") }</a>
    <a class="btn btn-outline" aria-current?={ kind == "lost" } href={ templ.SafeURL(data.CurrentPath + "?kind=lost") }>{ data.T("engagement.lost") }</a>
   </nav>
-  <a class="link" href={ templ.SafeURL(listPath) }>{ data.T("engagement.list") }</a>
+  <a class="btn btn-outline" href={ templ.SafeURL(listPath) }>{ data.T("engagement.list") }</a>
   if len(columns) == 0 {
    <p>{ data.T("engagement.board_empty") }</p>
   }
@@ -58,7 +58,7 @@ templ engagementBoardPage(data viewmodel.PageData, columns []engagementBoardColu
       }
      </ul>
      if column.Page.Total > len(column.Page.Engagements) {
-      <a class="link" href={ templ.SafeURL(listPath + "?stage=" + column.Stage.ID.String()) }>{ data.T("engagement.board_view_all") }</a>
+      <a class="btn btn-outline btn-sm" href={ templ.SafeURL(listPath + "?stage=" + column.Stage.ID.String()) }>{ data.T("engagement.board_view_all") }</a>
      }
     </section>
    }
