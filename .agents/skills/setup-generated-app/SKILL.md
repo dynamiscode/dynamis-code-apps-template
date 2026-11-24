@@ -92,6 +92,7 @@ Items and public links were removed by migration 000030. Earlier migrations and 
 | Path | Kind | Action |
 |---|---|---|
 | `cmd/demo/` | Demo seed | Delete unless you want demo data (step 5) |
+| `cmd/preview/` and `internal/web/screenshot_fixture.go` | Synthetic browser fixtures | Adapt or remove for your app; check with `go test ./cmd/preview` |
 | `internal/files/filestest/s3.go` | Fake S3 server for tests | Keep. Check that only `_test.go` files import it: `git grep -l "files/filestest" -- ':!*_test.go'` prints nothing |
 | `verification/invitations/`, `verification/jobs/` | TLA+ models of core behavior | Keep while the feature they model exists |
 | `verification/files/` | TLA+ model of the Files profile | Delete without the Files profile (step 6) |

@@ -9,6 +9,9 @@ Follow [UX standard](../../../docs/ux.md), [decision guide](../../../docs/ux-dec
 
 ## Before implementation
 
+For synthetic browser states, use or extend the [local preview](../../../cmd/preview/README.md)
+when useful. Its fixtures supplement the real-application review below.
+
 1. Identify user, task, context, entry and return paths, desired outcome, roles, and constraints. Trace existing behavior and related journeys. Use realistic data, including multiple similar records.
 2. Inventory screens, actions, and applicable states. Identify the main decision and next action at each step. Write observable acceptance criteria, including failure and recovery.
 3. Read [journeys and structure](references/journeys.md) and [interactions and states](references/interactions.md). For lists, search, filters, or bulk work read [data workflows](references/data-workflows.md); for forms, dialogs, menus, or onboarding read [overlays and forms](references/overlays-and-forms.md). For visual or layout work read [visual design](references/visual-design.md).

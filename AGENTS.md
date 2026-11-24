@@ -36,6 +36,8 @@ maintainable, and evidenced.
 - For new browser journeys or meaningful interaction or visual changes, follow
   [UX review](docs/ux-review.md). Missing rendered-browser evidence blocks
   completion; automated checks alone do not establish usability.
+- For browser work, use and extend the [local preview](cmd/preview/README.md)
+  when synthetic states help; keep preview routes and fakes out of production.
 
 - When working in parallel agent worktrees or swarms, do not edit CHANGELOG.md
   directly on feature branches; changelog updates are aggregated at release or
