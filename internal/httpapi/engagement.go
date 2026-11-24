@@ -197,6 +197,7 @@ func (h *handler) createEngagement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
+		Name     string `json:"name"`
 		ClientID string `json:"clientId"`
 		StageID  string `json:"stageId"`
 		Notes    string `json:"notes"`
@@ -206,16 +207,40 @@ func (h *handler) createEngagement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	stageID := engagement.ParseStageID(input.StageID)
-	if input.StageID != "" && stageID == 0 {
+	if stageID == 0 {
 		h.invalidRequest(w, r, "The stage is invalid.")
 		return
 	}
-	value, err := h.engagement.Create(r.Context(), actor, workspace, engagement.Input{ClientID: clients.ParseClientIDOrZero(input.ClientID), StageID: stageID, Notes: input.Notes}, h.auditContext(r))
+	value, err := h.engagement.Create(r.Context(), actor, workspace, engagement.Input{Name: input.Name, ClientID: clients.ParseClientIDOrZero(input.ClientID), StageID: stageID, Notes: input.Notes}, h.auditContext(r))
 	if err != nil {
 		h.engagementError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, value)
+}
+
+func (h *handler) setEngagementName(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		notFoundProblem(w, r)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	actor, ok := h.workspaceBearer(w, r, workspace, identity.ResourcesWrite)
+	if !ok {
+		return
+	}
+	var input struct {
+		Name string `json:"name"`
+	}
+	if err := decodeJSON(r, &input); err != nil {
+		h.badJSON(w, r, err)
+		return
+	}
+	if err := h.engagement.SetName(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), input.Name, h.auditContext(r)); err != nil {
+		h.engagementError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *handler) getEngagement(w http.ResponseWriter, r *http.Request) {
@@ -350,6 +375,8 @@ func (h *handler) engagementError(w http.ResponseWriter, r *http.Request, err er
 	switch {
 	case errors.Is(err, identity.ErrForbidden):
 		writeProblem(w, r, http.StatusForbidden, "forbidden", "Access is denied.")
+	case errors.Is(err, engagement.ErrInvalidName):
+		h.invalidRequest(w, r, "The engagement name is invalid.")
 	case errors.Is(err, engagement.ErrInvalidInput):
 		h.invalidRequest(w, r, "The engagement or stage is invalid.")
 	case errors.Is(err, engagement.ErrNoOpenStage):

@@ -73,15 +73,23 @@ func TestEngagementThroughREST(t *testing.T) {
 	if err := json.Unmarshal(client.Body.Bytes(), &c); err != nil {
 		t.Fatal(err)
 	}
-	noStage := serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"clientId":"`+c.ID+`"}`, token, nil)
-	if noStage.Code != http.StatusBadRequest || !strings.Contains(noStage.Body.String(), "open stage") {
+	assertProblem(t, serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"clientId":"`+c.ID+`"}`, token, nil), http.StatusBadRequest, "invalid-request")
+	noStage := serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"name":"Engagement","clientId":"`+c.ID+`"}`, token, nil)
+	if noStage.Code != http.StatusBadRequest {
 		t.Fatalf("no stage: %d %s", noStage.Code, noStage.Body.String())
 	}
 	stage := serveAuthorized(handler, http.MethodPost, base+"/engagement-stages", `{"name":"Open","kind":"open"}`, token, nil)
 	if stage.Code != http.StatusCreated {
 		t.Fatal(stage.Body.String())
 	}
-	created := serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"clientId":"`+c.ID+`","notes":"Other person"}`, token, nil)
+	var open struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(stage.Body.Bytes(), &open); err != nil {
+		t.Fatal(err)
+	}
+	assertProblem(t, serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"name":"Engagement","clientId":"`+c.ID+`"}`, token, nil), http.StatusBadRequest, "invalid-request")
+	created := serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"name":"Engagement","clientId":"`+c.ID+`","stageId":"`+open.ID+`","notes":"Other person"}`, token, nil)
 	if created.Code != http.StatusCreated {
 		t.Fatalf("create: %d %s", created.Code, created.Body.String())
 	}
@@ -92,7 +100,7 @@ func TestEngagementThroughREST(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", token, nil)
-	if got.Code != http.StatusOK || !strings.Contains(got.Body.String(), "Other person") {
+	if got.Code != http.StatusOK || !strings.Contains(got.Body.String(), "Other person") || !strings.Contains(got.Body.String(), `"name":"Engagement"`) {
 		t.Fatalf("get: %d %s", got.Code, got.Body.String())
 	}
 	ctx := context.Background()
@@ -112,6 +120,38 @@ func TestEngagementThroughREST(t *testing.T) {
 	readOnly, err := auth.CreateAPIToken(ctx, principal, "read-only", []identity.Permission{identity.ResourcesRead}, nil, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
+	}
+	namePath := base + "/engagements/" + e.ID + "/name"
+	assertProblem(t, serveAuthorized(handler, http.MethodPut, namePath, `{}`, token, nil), http.StatusBadRequest, "invalid-request")
+	assertProblem(t, serveAuthorized(handler, http.MethodPut, base+"/engagements/not-an-id/name", `{"name":"New"}`, token, nil), http.StatusNotFound, "not-found")
+	assertProblem(t, serveAuthorized(handler, http.MethodPut, namePath, `{"name":"Denied"}`, readOnly.Secret, nil), http.StatusForbidden, "insufficient-scope")
+	for _, name := range []string{"", "   ", strings.Repeat("é", 201)} {
+		body, err := json.Marshal(map[string]string{"name": name})
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertProblem(t, serveAuthorized(handler, http.MethodPut, namePath, string(body), token, nil), http.StatusBadRequest, "invalid-request")
+	}
+	if r := serveAuthorized(handler, http.MethodPut, namePath, `{"name":"  Élan  "}`, token, nil); r.Code != http.StatusNoContent {
+		t.Fatalf("rename: %d %s", r.Code, r.Body.String())
+	}
+	if r := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil); !strings.Contains(r.Body.String(), `"name":"Élan"`) {
+		t.Fatalf("renamed: %d %s", r.Code, r.Body.String())
+	}
+	var auditCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM audit_events WHERE event_type = 'engagement.name_updated'`).Scan(&auditCount); err != nil || auditCount != 1 {
+		t.Fatalf("rename audit = %d, %v", auditCount, err)
+	}
+	longName := strings.Repeat("é", 201)
+	if _, err := db.Exec(`UPDATE engagements SET name = ?`, longName); err != nil {
+		t.Fatal(err)
+	}
+	longBody, err := json.Marshal(map[string]string{"name": longName})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := serveAuthorized(handler, http.MethodPut, namePath, string(longBody), token, nil); r.Code != http.StatusNoContent {
+		t.Fatalf("unchanged migrated name: %d %s", r.Code, r.Body.String())
 	}
 	actionPath := base + "/engagements/" + e.ID + "/next-action"
 	quotePath := base + "/engagements/" + e.ID + "/quote"

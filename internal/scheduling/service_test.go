@@ -165,10 +165,11 @@ func TestBookingRequiresAvailableWorkingHours(t *testing.T) {
 		t.Fatal(err)
 	}
 	es := engagement.NewService(db, config.SQLite, auth)
-	if _, err := es.CreateStage(ctx, actor, owner.WorkspaceID, engagement.StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{}); err != nil {
+	stage, err := es.CreateStage(ctx, actor, owner.WorkspaceID, engagement.StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
 		t.Fatal(err)
 	}
-	e, err := es.Create(ctx, actor, owner.WorkspaceID, engagement.Input{ClientID: client.ID}, identity.AuditContext{})
+	e, err := es.Create(ctx, actor, owner.WorkspaceID, engagement.Input{Name: "Engagement", ClientID: client.ID, StageID: stage.ID}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,10 +199,11 @@ func TestBookingRequiresAvailableWorkingHours(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := es.CreateStage(ctx, otherActor, other, engagement.StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{}); err != nil {
+	otherStage, err := es.CreateStage(ctx, otherActor, other, engagement.StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
 		t.Fatal(err)
 	}
-	foreign, err := es.Create(ctx, otherActor, other, engagement.Input{ClientID: otherClient.ID}, identity.AuditContext{})
+	foreign, err := es.Create(ctx, otherActor, other, engagement.Input{Name: "Foreign", ClientID: otherClient.ID, StageID: otherStage.ID}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -24,6 +24,10 @@ Read only the route needed for the change.
 | Maintain formal verification after covered code changes | [Formal verification maintenance](agents/formal-verification.md) | `maintain-formal-verification-skill` |
 | Propose a deferred capability | [Capabilities](capabilities.md), [decisions](decisions/README.md) | None; accept its trigger first |
 
+For the approved engagement redesign requirements and outstanding decisions,
+see [engagement workflow decisions](engagement-workflow-decisions.md). These
+requirements do not describe implemented behavior.
+
 ## Sources of truth
 
 | Concern | Source |

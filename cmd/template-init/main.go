@@ -442,7 +442,7 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 	case "internal/web/clients.go":
 		value = removeLinesContaining(value, `/internal/scheduling"`)
 		value = removeLinesContaining(value, "engagementBookings :=")
-		value = removeText(value, "\tif h.scheduling != nil && len(engagements) > 0 {", "\th.renderClientPage(")
+		value = removeText(value, "\tif h.scheduling != nil && len(engagements) > 0 {", "\townerError := false")
 		value = strings.ReplaceAll(value, "EngagementBookings: engagementBookings, ", "")
 	case "internal/web/clients.templ":
 		value = removeText(value, "\t\t\t\t\t\t\tif len(data.EngagementBookings[item.ID]) > 0 {", "\t\t\t\t\t\t\tif data.CanEditClients {")
@@ -497,7 +497,7 @@ func filesPath(relative string) bool {
 		relative == "internal/web/files_no_javascript_test.go" || relative == "internal/browsertest/files_test.go" ||
 		relative == "internal/platform/database/migrations/000014_files.sql" ||
 		relative == "internal/platform/database/migrations/000020_file_short_ids.sql" ||
-		relative == "internal/engagement/agreement_test.go" ||
+		relative == "internal/engagement/agreement_test.go" || relative == "internal/web/agreement_files_test.go" ||
 		relative == "internal/platform/database/migrate_files_test.go" ||
 		relative == "internal/platform/database/migrate_file_ids_test.go"
 }
@@ -515,12 +515,20 @@ func clientsPath(relative string) bool {
 		relative == "internal/web/public_intake.go" || relative == "internal/web/public_intake.templ" || relative == "internal/web/public_intake_templ.go" ||
 		relative == "internal/platform/database/migrations/000042_public_intake.sql" ||
 		relative == "internal/identity/engagement_membership_test.go" ||
-		relative == "internal/engagement/engagement.go" ||
+		relative == "internal/engagement/engagement.go" || relative == "internal/engagement/list.go" || relative == "internal/engagement/list_test.go" ||
+		relative == "internal/engagement/action_queue.go" || relative == "internal/engagement/action_queue_test.go" || relative == "internal/engagement/dashboard.go" ||
 		relative == "internal/engagement/agreement.go" ||
 		relative == "internal/engagement/agreement_test.go" ||
 		relative == "internal/engagement/assignee.go" || relative == "internal/engagement/next_action.go" || relative == "internal/engagement/quote.go" ||
 		relative == "internal/platform/database/migrations/000033_engagements.sql" ||
 		relative == "internal/platform/database/migrations/000039_engagement_agreement.sql" ||
+		relative == "internal/platform/database/migrations/000051_engagement_names.sql" ||
+		relative == "internal/platform/database/migrations/000052_engagement_action_history.sql" ||
+		relative == "internal/platform/database/migrations/000053_engagement_action_completion.sql" ||
+		relative == "internal/platform/database/migrations/000054_engagement_action_version.sql" ||
+		relative == "internal/platform/database/migrate_engagement_action_test.go" ||
+		relative == "internal/platform/database/migrate_engagement_names_test.go" ||
+		relative == "internal/platform/database/migrate_engagement_names_postgres_test.go" ||
 		relative == "internal/platform/database/migrations/000034_engagement_next_action.sql" || relative == "internal/platform/database/migrations/000035_engagement_quote.sql" || relative == "internal/platform/database/migrations/000036_engagement_assignee.sql" ||
 		relative == "internal/platform/database/migrations/000038_engagement_stage_history.sql" ||
 		relative == "cmd/demo/clients.go" || relative == "cmd/demo/clients_test.go" ||
@@ -531,7 +539,11 @@ func clientsPath(relative string) bool {
 		relative == "internal/httpapi/clients.go" || relative == "internal/httpapi/clients_test.go" ||
 		relative == "internal/httpapi/client_timeline.go" || relative == "internal/httpapi/client_timeline_test.go" ||
 		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" || relative == "internal/web/clients_scope_test.go" ||
-		relative == "internal/web/engagement_test.go" ||
+		relative == "internal/web/engagement_test.go" || relative == "internal/web/engagement_dashboard_test.go" || relative == "internal/web/action_queue_test.go" ||
+		relative == "internal/web/engagement_list.go" || relative == "internal/web/engagement_list_test.go" ||
+		relative == "internal/web/engagement_board.go" || relative == "internal/web/engagement_board_test.go" ||
+		relative == "internal/web/engagement_list.templ" || relative == "internal/web/engagement_list_templ.go" ||
+		relative == "internal/web/engagement_board.templ" || relative == "internal/web/engagement_board_templ.go" ||
 		relative == "internal/web/client_timeline.go" || relative == "internal/web/client_timeline_test.go" ||
 		relative == "internal/web/clients_filters.go" ||
 		relative == "internal/web/viewmodel/clients_filters.go" || relative == "internal/web/viewmodel/clients.go" ||
@@ -576,6 +588,12 @@ func clientsPath(relative string) bool {
 func disableClientsSource(relative string, raw []byte) []byte {
 	value := string(raw)
 	switch relative {
+	case "internal/platform/database/migrate.go":
+		value = removeLinesContaining(value, `/internal/platform/id"`)
+		value = removeText(value, "\t\tif migration.version == 51 {", "\t\tif err := recordMigration(ctx, tx, driver, migration.version); err != nil {")
+		value = removeText(value, "func backfillEngagementNames(", "// renderMigration")
+	case "internal/identity/account.go":
+		value = removeText(value, "\tif _, err := s.exec(ctx, tx, \"UPDATE engagements SET action_version", "\tresult, err := s.exec(ctx, tx, \"DELETE FROM users WHERE id = ?\", userID)")
 	case "internal/scheduling/booking.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `/internal/engagement"`)
@@ -693,6 +711,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeText(value, "func (h *handler) setEngagementAssignee(", "func (h *handler) getEngagementLabel(")
 		value = removeText(value, "func (h *handler) setEngagementQuote(", "func (h *handler) createEngagement(")
 		value = removeText(value, "func (h *handler) createEngagement(", "func (h *handler) listEngagementStages(")
+		value = removeText(value, "\tcase errors.Is(err, engagement.ErrInvalidName):", "\tcase errors.Is(err, engagement.ErrInvalidInput):")
 		value = removeText(value, "\tcase errors.Is(err, engagement.ErrNoOpenStage):", "\tdefault:")
 	case "internal/httpapi/engagement_test.go":
 		value = removeLinesContaining(value, `"context"`)
@@ -702,6 +721,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 			value = value[:i] + "\n"
 		}
 	case "internal/engagement/service_test.go":
+		value = removeLinesContaining(value, `"encoding/json"`)
+		value = removeLinesContaining(value, `"strings"`)
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `/internal/platform/maintenance"`)
 		if i := strings.Index(value, "\nfunc TestCreateEngagementRequiresOpenStageAndClient("); i >= 0 {
@@ -730,9 +751,13 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `/internal/scheduling"`)
 		value = removeLinesContaining(value, "EngagementBookings")
 		value = removeLinesContaining(value, "engagement.Engagement")
+		value = removeLinesContaining(value, "engagement.DashboardPage")
+		value = removeLinesContaining(value, "engagement.ActionHistoryEntry")
+		value = removeLinesContaining(value, "DashboardPrevious ")
+		value = removeLinesContaining(value, "DashboardNext ")
 		value = removeLinesContaining(value, "engagement.Stage")
 		value = removeBlockIncludingEnd(value, "type TimelineDraft struct {", "}\n")
-		value = removeLinesContaining(value, "TimelineDraft        TimelineDraft")
+		value = removeLinesContaining(value, "TimelineDraft ")
 		value = removeLinesContaining(value, "clients.TimelineEntry")
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, "clients.FilterInput")
@@ -744,6 +769,10 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "ClientFieldRow")
 		value = removeLinesContaining(value, "ClientValueRow")
 	case "internal/web/handler.go":
+		value = removeText(value, "\tif h.engagement != nil && principal.Permissions[identity.ResourcesRead] {", "\th.render(writer, http.StatusOK, \"workspace-home\", data)")
+		value = removeLinesContaining(value, `"strconv"`)
+		value = removeLinesContaining(value, "CanEditClients: principal.Permissions")
+		value = strings.Replace(value, "principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceRead)", "_, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceRead)", 1)
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, "h.schedulingSetEngagement)")
 		value = removeLinesContaining(value, `/internal/intake"`)
@@ -768,19 +797,38 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "clientFilterOperator")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/client-fields")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/clients")
+		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements\"")
+		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/board")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/due")
+		value = removeLinesContaining(value, "h.changeQueuedAction")
+	case "internal/web/workspace.templ":
+		value = removeLinesContaining(value, `import "strconv"`)
+		value = removeLinesContaining(value, `/internal/engagement"`)
+		value = removeText(value, "templ dashboardActionPreview(", "templ workspaceHome(")
+		value = removeText(value, "\t\tif data.EngagementDashboard != nil {", "\t\t// The home reflects")
+	case "internal/web/workspace_templ.go":
+		value = removeLinesContaining(value, `import "strconv"`)
+		value = removeLinesContaining(value, `/internal/engagement"`)
+		value = removeText(value, "func dashboardActionPreview(", "func workspaceHome(")
+		value = removeText(value, "\t\t\tif data.EngagementDashboard != nil {", "\t\t\ttempl_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54,")
 	case "internal/web/engagement.go":
 		value = strings.ReplaceAll(value, "ClientsEnabled: h.clients != nil, ", "")
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `"time"`)
+		value = removeLinesContaining(value, `"net/url"`)
+		value = removeLinesContaining(value, `"strconv"`)
 		value = removeText(value, "func (h *Handler) setEngagementAgreement(", "func (h *Handler) setEngagementAssignee(")
 		value = removeText(value, "func (h *Handler) setEngagementAssignee(", "func (h *Handler) EnableEngagement(")
 		value = removeText(value, "func (h *Handler) moveEngagement(", "func (h *Handler) setEngagementLabel(")
 		value = removeText(value, "func (h *Handler) createEngagement(", "func (h *Handler) engagementStages(")
 	case "internal/web/engagement.templ":
-		value = removeText(value, "templ dueEngagementsPage(", "templ engagementStagesPage(")
+		value = removeLinesContaining(value, `import "strconv"`)
+		value = removeLinesContaining(value, `/internal/identity"`)
+		value = removeText(value, "templ engagementDetailPage(", "templ engagementStagesPage(")
 	case "internal/web/engagement_templ.go":
-		value = removeText(value, "func dueEngagementsPage(", "func engagementStagesPage(")
+		value = removeLinesContaining(value, `import "strconv"`)
+		value = removeLinesContaining(value, `/internal/identity"`)
+		value = removeText(value, "func engagementDetailPage(", "func engagementStagesPage(")
 	case "internal/platform/maintenance/maintenance.go":
 		// Retention prunes client_events, which Clients-off apps do not have.
 		value = removeLinesContaining(value, "client_events")
@@ -856,6 +904,17 @@ func stripClientsOpenAPI(raw []byte) string {
 			delete(paths, path)
 		}
 	}
+	if components, ok := document["components"].(map[string]any); ok {
+		if schemas, ok := components["schemas"].(map[string]any); ok {
+			if export, ok := schemas["WorkspaceExport"].(map[string]any); ok {
+				if properties, ok := export["properties"].(map[string]any); ok {
+					for _, name := range []string{"clients", "clientFields", "clientFieldOptions", "engagements", "engagementNextActions", "engagementActionHistory", "engagementStageHistory"} {
+						delete(properties, name)
+					}
+				}
+			}
+		}
+	}
 	delete(paths, "/api/v1/workspaces/{workspaceId}/scheduling/bookings/{bookingId}/engagement")
 	bookingRequest := nestedObject(paths, "/api/v1/workspaces/{workspaceId}/scheduling/resources/{resourceId}/bookings", "post", "requestBody", "content", "application/json", "schema", "properties")
 	delete(bookingRequest, "engagementId")
@@ -888,6 +947,8 @@ func disableFilesSource(relative string, raw []byte) []byte {
 	switch relative {
 	case "internal/platform/database/migrations/000039_engagement_agreement.sql":
 		value = removeLineStarting(value, "ALTER TABLE engagements ADD COLUMN agreement_file_id")
+	case "internal/portability/engagement.go":
+		value = strings.ReplaceAll(value, "agreement_recorded, agreement_file_id FROM engagements", "agreement_recorded, NULL FROM engagements")
 	case "internal/engagement/engagement.go", "internal/engagement/next_action.go":
 		value = strings.ReplaceAll(value, "COALESCE(e.agreement_file_id, 0)", "0")
 	case "internal/engagement/agreement.go":
@@ -928,8 +989,17 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = removeText(value, "\tobjectStore, err := appfiles.NewStore(ctx, cfg.Storage)", "\thandler, err := NewHandlerWithEngagement(")
 		value = strings.ReplaceAll(value, "NewHandlerWithWebhooksAndFiles", "NewHandlerWithWebhooks")
 		value = strings.ReplaceAll(value, "webhookService, fileService, \"\", nil", "webhookService, \"\", nil")
+	case "internal/web/clients.go":
+		value = removeImport(value, "appfiles")
+		value = removeLinesContaining(value, "var agreementFiles ")
+		value = removeLinesContaining(value, "var agreementFilesAvailable ")
+		value = removeText(value, "\t\tif principal.Permissions[identity.ResourcesWrite] {\n\t\t\tfilePage :=", "\t\tif errorKey == \"engagement.invalid_name\" {")
+		value = removeLinesContaining(value, "AgreementFiles: agreementFiles.Files")
+		value = removeLinesContaining(value, "AgreementFilesPager: newListPager")
+		value = removeText(value, "func (h *Handler) agreementFileChoices(", "func (h *Handler) setClientValue(")
 	case "internal/web/viewmodel/handler.go":
 		value = removeImport(value, "appfiles")
+		value = strings.Replace(value, "AgreementFiles             []appfiles.File", "AgreementFiles             []struct{ ID interface{ String() string }; OriginalName string }", 1)
 		value = removeLinesContaining(value, "appfiles.File")
 	case "internal/web/handler.go":
 		value = removeImport(value, "appfiles")

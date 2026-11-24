@@ -12,19 +12,24 @@ import (
 
 var quoteAmount = regexp.MustCompile(`^[0-9]{1,12}(\.[0-9]{1,2})?$`)
 
-func (s *Service) SetQuote(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, quote Quote, audit identity.AuditContext) error {
+func InvalidQuoteFields(quote Quote) (status, amount, date bool) {
 	switch quote.Status {
 	case "not_sent", "sent", "pending", "accepted", "declined":
 	default:
-		return ErrInvalidInput
+		status = true
 	}
-	if quote.Amount != "" && !quoteAmount.MatchString(quote.Amount) {
-		return ErrInvalidInput
-	}
+	amount = quote.Amount != "" && !quoteAmount.MatchString(quote.Amount)
 	if quote.DateSent != "" {
-		if _, err := time.Parse("2006-01-02", quote.DateSent); err != nil {
-			return ErrInvalidInput
-		}
+		_, err := time.Parse("2006-01-02", quote.DateSent)
+		date = err != nil
+	}
+	return
+}
+
+func (s *Service) SetQuote(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, quote Quote, audit identity.AuditContext) error {
+	status, amount, date := InvalidQuoteFields(quote)
+	if status || amount || date {
+		return ErrInvalidInput
 	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {

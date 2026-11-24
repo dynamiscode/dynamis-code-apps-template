@@ -63,10 +63,11 @@ func TestBookingRequestsReminderAndReplacesOrCancelsIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	es := engagement.NewService(db, config.SQLite, auth)
-	if _, err := es.CreateStage(ctx, actor, owner.WorkspaceID, engagement.StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{}); err != nil {
+	stage, err := es.CreateStage(ctx, actor, owner.WorkspaceID, engagement.StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
 		t.Fatal(err)
 	}
-	e, err := es.Create(ctx, actor, owner.WorkspaceID, engagement.Input{ClientID: client.ID}, identity.AuditContext{})
+	e, err := es.Create(ctx, actor, owner.WorkspaceID, engagement.Input{Name: "Engagement", ClientID: client.ID, StageID: stage.ID}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +137,7 @@ func TestBookingRequestsReminderAndReplacesOrCancelsIt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	noEmailEngagement, err := es.Create(ctx, actor, owner.WorkspaceID, engagement.Input{ClientID: noEmail.ID}, identity.AuditContext{})
+	noEmailEngagement, err := es.Create(ctx, actor, owner.WorkspaceID, engagement.Input{Name: "No email", ClientID: noEmail.ID, StageID: stage.ID}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
 	}

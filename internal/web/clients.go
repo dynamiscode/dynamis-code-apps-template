@@ -5,6 +5,7 @@ import (
 	"errors"
 	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/engagement"
+	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/listviews"
@@ -406,6 +407,15 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	if !ok {
 		return
 	}
+	if request.Method == http.MethodGet && request.PathValue("engagementId") != "" {
+		if h.engagement == nil {
+			h.renderError(writer, http.StatusNotFound)
+			return
+		}
+		if !h.engagementMatchesClient(writer, request, principal, workspaceID) {
+			return
+		}
+	}
 	client, err := h.clients.Get(request.Context(), principal, workspaceID, clientID)
 	if err != nil {
 		h.clientError(writer, request, err)
@@ -445,6 +455,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	var engagements []engagement.Engagement
 	engagementBookings := make(map[engagement.ID][]scheduling.Booking)
 	var stages []engagement.Stage
+	var openStages []engagement.Stage
 	var members []identity.MemberSummary
 	var engagementNotes string
 	if strings.HasPrefix(errorKey, "engagement.") {
@@ -460,6 +471,11 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		if err != nil {
 			h.renderError(writer, http.StatusInternalServerError)
 			return
+		}
+		for _, stage := range stages {
+			if stage.Kind == "open" && !stage.Archived {
+				openStages = append(openStages, stage)
+			}
 		}
 		members, err = h.identity.ListMembers(request.Context(), principal)
 		if err != nil {
@@ -486,8 +502,97 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 			}
 		}
 	}
-	h.renderClientPage(writer, request, status, clientDetailPage, viewmodel.PageData{
-		Title: client.DisplayName, ErrorKey: errorKey, CSRF: csrf,
+	ownerError := false
+	ownerUnavailable := false
+	var quoteStatusError, quoteAmountError, quoteDateError, actionTextError, actionDateError bool
+	if errorKey == "engagement.invalid_quote" {
+		quoteStatusError, quoteAmountError, quoteDateError = engagement.InvalidQuoteFields(engagement.Quote{Status: request.FormValue("status"), Amount: request.FormValue("amount"), DateSent: request.FormValue("date_sent")})
+	}
+	if errorKey == "engagement.invalid_next_action" || errorKey == "engagement.action_conflict" {
+		owner := request.FormValue("owner_id")
+		ownerFound := false
+		for _, member := range members {
+			if member.UserID.String() == owner {
+				ownerFound = true
+				break
+			}
+		}
+		ownerUnavailable = owner != "" && !ownerFound
+		_, ownerPresent := request.PostForm["owner_id"]
+		ownerID, _ := identity.ParseUserID(owner)
+		var missingOwner bool
+		actionTextError, actionDateError, missingOwner = engagement.InvalidNextActionFields(engagement.NextAction{Text: request.FormValue("text"), DueDate: request.FormValue("due_date"), OwnerID: ownerID})
+		ownerError = errorKey == "engagement.invalid_next_action" && (!ownerPresent || ownerUnavailable || missingOwner)
+	}
+	component := clientDetailPage
+	title := client.DisplayName
+	var agreementFiles appfiles.Page
+	var agreementFilesAvailable bool
+	var actionHistory []engagement.ActionHistoryEntry
+	var historyPrevious, historyNext string
+	if request.PathValue("engagementId") != "" && (request.Method == http.MethodGet || errorKey == "engagement.invalid_name" || errorKey == "engagement.invalid_assignee" || errorKey == "engagement.invalid_quote" || errorKey == "engagement.invalid_agreement_file" || errorKey == "engagement.agreement_page" || errorKey == "engagement.invalid_next_action" || errorKey == "engagement.action_conflict" || (errorKey == "engagement.invalid_move" && request.FormValue("return_to") == "detail")) {
+		component = engagementDetailPage
+		id := engagement.ParseID(request.PathValue("engagementId"))
+		var selected []engagement.Engagement
+		for _, item := range engagements {
+			if item.ID == id {
+				selected = []engagement.Engagement{item}
+				break
+			}
+		}
+		if len(selected) == 0 {
+			h.renderError(writer, http.StatusNotFound)
+			return
+		}
+		engagements = selected
+		title = selected[0].Name
+		historyPage := 1
+		if raw := request.URL.Query().Get("action_history_page"); raw != "" {
+			historyPage, err = strconv.Atoi(raw)
+			if err != nil || historyPage < 1 || historyPage > 1000000 {
+				h.renderError(writer, http.StatusBadRequest)
+				return
+			}
+		}
+		var hasMore bool
+		actionHistory, hasMore, err = h.engagement.ListActionHistory(request.Context(), principal, workspaceID, id, historyPage)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+		historyPath := h.clientsPath(workspaceID) + "/" + clientID.String() + "/engagements/" + id.String()
+		if historyPage > 1 {
+			historyPrevious = historyPath + "?action_history_page=" + strconv.Itoa(historyPage-1) + "#action-history"
+		}
+		if hasMore {
+			historyNext = historyPath + "?action_history_page=" + strconv.Itoa(historyPage+1) + "#action-history"
+		}
+		if principal.Permissions[identity.ResourcesWrite] {
+			filePage := listPageNumber(request.URL.Query())
+			if filePage > 1000000 {
+				filePage = 1
+			}
+			agreementFiles, agreementFilesAvailable, err = h.agreementFileChoices(request.Context(), principal, workspaceID, filePage)
+			if err != nil {
+				h.renderError(writer, http.StatusInternalServerError)
+				return
+			}
+		}
+		if errorKey == "engagement.invalid_name" {
+			engagements[0].Name = request.FormValue("name")
+		}
+		if errorKey == "engagement.invalid_quote" {
+			engagements[0].Quote = engagement.Quote{Status: request.FormValue("status"), Amount: request.FormValue("amount"), DateSent: request.FormValue("date_sent")}
+		}
+		if errorKey == "engagement.invalid_next_action" {
+			owner, _ := identity.ParseUserID(request.FormValue("owner_id"))
+			engagements[0].NextAction = engagement.NextAction{Text: request.FormValue("text"), DueDate: request.FormValue("due_date"), OwnerID: owner}
+			engagements[0].ActionVersion, _ = strconv.ParseInt(request.FormValue("version"), 10, 64)
+		}
+	}
+	h.renderClientPage(writer, request, status, component, viewmodel.PageData{
+		Title: title, ErrorKey: errorKey, CSRF: csrf,
+		Saved:     request.Method == http.MethodGet && request.URL.Query().Get("saved") == "1",
 		Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		NavPage: "clients", NavSection: "clients",
 		CurrentPath:       h.clientsPath(workspaceID),
@@ -497,8 +602,34 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		Client:            client, ClientValues: rows, ClientTimeline: entries, TimelinePage: page, TimelineDraft: timelineDraft, CanEditClients: principal.Permissions[identity.ResourcesWrite],
 		CanDeleteClients: principal.Permissions[identity.WorkspaceUpdate],
 		Engagements:      engagements, EngagementBookings: engagementBookings, EngagementStages: stages, EngagementMembers: members, EngagementEnabled: h.engagement != nil,
-		EngagementNotes: engagementNotes,
+		ActionHistory: actionHistory, ActionHistoryPrevious: historyPrevious, ActionHistoryNext: historyNext,
+		AgreementFiles: agreementFiles.Files, AgreementFilesTotal: agreementFiles.Total, AgreementFilesAvailable: agreementFilesAvailable,
+		AgreementSelectedFile: request.FormValue("selected_file_id"), AgreementDraftFile: request.FormValue("file_id"), AgreementDraftRecorded: request.FormValue("recorded") == "1",
+		AgreementFilesPager: newListPager(h.clientsPath(workspaceID)+"/"+clientID.String()+"/engagements/"+request.PathValue("engagementId"), nil, agreementFiles.Page, 100, agreementFiles.Total),
+		EngagementNotes:     engagementNotes, OpenEngagementStages: openStages,
+		EngagementName: request.FormValue("name"), EngagementStage: request.FormValue("stage"),
+		EngagementAssignee: request.FormValue("assignee_id"), EngagementOwner: request.FormValue("owner_id"), EngagementOwnerError: ownerError, EngagementOwnerUnavailable: ownerUnavailable,
+		ActionConflictText: request.FormValue("text"), ActionConflictDueDate: request.FormValue("due_date"), ActionConflictClear: errorKey == "engagement.action_conflict" && request.FormValue("clear") == "1",
+		EngagementQuoteStatusError: quoteStatusError, EngagementQuoteAmountError: quoteAmountError, EngagementQuoteDateError: quoteDateError,
+		EngagementActionTextError: actionTextError, EngagementActionDateError: actionDateError,
 	})
+}
+
+func (h *Handler) agreementFileChoices(ctx context.Context, principal identity.Principal, workspaceID identity.WorkspaceID, pageNumber int) (appfiles.Page, bool, error) {
+	if !h.filesEnabled || h.files == nil {
+		return appfiles.Page{}, false, nil
+	}
+	page, err := h.files.ListPage(ctx, principal, workspaceID, appfiles.ListInput{Limit: 100, Page: pageNumber, Sort: "original_name"})
+	if errors.Is(err, identity.ErrForbidden) {
+		return appfiles.Page{}, false, nil
+	}
+	if err == nil && page.Page > max(1, (page.Total+99)/100) {
+		page, err = h.files.ListPage(ctx, principal, workspaceID, appfiles.ListInput{Limit: 100, Page: max(1, (page.Total+99)/100), Sort: "original_name"})
+		if errors.Is(err, identity.ErrForbidden) {
+			return appfiles.Page{}, false, nil
+		}
+	}
+	return page, err == nil, err
 }
 
 func (h *Handler) setClientValue(writer http.ResponseWriter, request *http.Request) {
