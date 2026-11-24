@@ -11,8 +11,5 @@
   {"path":"internal/web/components/molecules/back_link.templ","selector":"class=\"detail-back\"","reason":"Workspace CSS gives this back link a visible border."},
   {"path":"internal/web/components/molecules/skip_link.templ","selector":"class=\"skip-link\"","reason":"Accessibility skip link is hidden until focus and styled in app.css."},
   {"path":"internal/web/components/templates/workspace.templ","selector":"class=\"drawer-overlay block\"","reason":"Aria-hidden non-tabbable drawer backdrop, not a visible action."},
-  {"path":"internal/web/components/organisms/list_actions.templ","selector":"<button class={ listActionItemClass(action) }","reason":"Shared helper returns bounded list-action classes for every role."},
-  {"path":"internal/web/components/organisms/list_actions.templ","selector":"<a class={ listActionItemClass(action) }","reason":"Shared helper returns bounded list-action classes for every role."},
-  {"path":"internal/web/components/organisms/list_views.templ","selector":"class={ listViewOptionClass(listViewNoneApplied(data)) }","reason":"Shared helper returns bordered list-view classes in both states."},
-  {"path":"internal/web/components/organisms/list_views.templ","selector":"class={ listViewOptionClass(view.Current) }","reason":"Shared helper returns bordered list-view classes in both states."}
+  {"path":"internal/web/components/molecules/buttons.templ","selector":"@atoms.Button(atoms.ButtonProps{Class: class, Label: label, Attrs: attrs}","reason":"ConfirmButton starts with btn-error danger and adds caller classes; the Button atom supplies btn."}
 ]

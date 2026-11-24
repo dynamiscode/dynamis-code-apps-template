@@ -15,6 +15,32 @@ test('checks actual templ controls and accepts bounded roles', () => {
   assert.equal(violations('<a class="link" href="/clients" data-action-exception="demo">Clients</a>').length, 1);
 });
 
+test('rejects unsafe component props and conditional boundary classes', () => {
+  assert.equal(violations('@atoms.Anchor(atoms.AnchorProps{Href: "/clients", Class: "link"})').length, 1);
+  assert.equal(violations('@atoms.Anchor(atoms.AnchorProps{Href: "/clients", Class: "btn btn-primary"})').length, 0);
+  assert.equal(violations('@atoms.Button(atoms.ButtonProps{Class: "btn-ghost"})').length, 1);
+  assert.equal(violations('@atoms.Button(atoms.ButtonProps{Class: "btn-primary"})').length, 0);
+  assert.equal(violations('<button class={ templ.KV("btn", active) }>Save</button>').length, 1);
+  assert.equal(violations('<a class={ "btn", templ.KV("btn-ghost", active) }>Open</a>').length, 1);
+});
+
+test('dynamic class helper branches must each return bounded classes', () => {
+  const good = 'func listViewOptionClass(applied bool) string {\n if applied { return "btn btn-active" }\n return "btn"\n}\n<a class={ listViewOptionClass(true) }>View</a>';
+  assert.equal(violations(good).length, 0);
+  assert.equal(violations(good.replace('return "btn"', 'return "link"')).length, 1);
+  assert.equal(violations(good.replace('return "btn"', 'return other')).length, 1);
+});
+
+test('checks real shared helper and component calls', () => {
+  const root = new URL('../', import.meta.url);
+  const views = readFileSync(new URL('internal/web/components/organisms/list_views.templ', root), 'utf8');
+  assert.equal(violations(views).length, 0);
+  assert.equal(violations(views.replace('return "list-view-option border border-base-300 rounded-field"', 'return "link"')).length, 2);
+  const buttons = readFileSync(new URL('internal/web/settings_pages.templ', root), 'utf8');
+  assert.equal(violations(buttons).length, 0);
+  assert.equal(violations(buttons.replace('Class: "btn btn-primary"', 'Class: "link"')).length, 1);
+});
+
 test('repository demo and accessibility exceptions accept their real controls', () => {
   const root = new URL('../', import.meta.url);
   const exceptions = JSON.parse(readFileSync(new URL('scripts/action-exceptions.json', root), 'utf8'));
