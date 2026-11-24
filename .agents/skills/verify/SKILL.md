@@ -103,7 +103,9 @@ inspection of rendered journeys; report missing browser evidence as blocked.
 ## Evidence
 
 Capture to `/tmp/verify-evidence/<UTC-timestamp>/` - created before the
-drive, never inside the instance's temp dir, so teardown cannot eat it:
+drive, never inside the instance's temp dir, so teardown cannot eat it. This
+directory is staging, not durable storage; retain and link review evidence as
+described in [UX review](../../../docs/ux-review.md#capture-and-retain-evidence):
 
 - exit code of the exact command run (`go test ... -run X; echo $?`),
 - full output of that command (`| tee /tmp/verify-evidence/<ts>/run.log`),
