@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/chromedp"
 )
 
@@ -67,6 +68,19 @@ func TestPublicIntakeLongConsentReflow(t *testing.T) {
 			capturePublicIntake(t, tab, tc.name+"-error.png")
 		})
 	}
+
+	t.Run("success-without-javascript", func(t *testing.T) {
+		tab := newTab(t, 390, 844, "light")
+		call(t, tab, emulation.SetScriptExecutionDisabled, emulation.SetScriptExecutionDisabledParams{Value: true})
+		run(t, tab, chromedp.Navigate(link))
+		waitVisible(t, tab, `input[name=consent]`)
+		fill(t, tab, "#name", "Synthetic Visitor")
+		fill(t, tab, "#email", "visitor@example.invalid")
+		click(t, tab, `input[name=consent]`)
+		click(t, tab, `button[type=submit]`)
+		eventually(t, tab, `document.querySelector('h1')?.textContent.includes('Your message has been received')`, "public submission did not complete")
+		capturePublicIntake(t, tab, "mobile-nojs-success.png")
+	})
 }
 
 func capturePublicIntake(t *testing.T, tab context.Context, name string) {

@@ -373,7 +373,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = atoms.Button(atoms.ButtonProps{Label: data.T("invitations.resend"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "resend"}}).Render(ctx, templ_7745c5c3_Buffer)
+							templ_7745c5c3_Err = atoms.Button(atoms.ButtonProps{Class: "btn-outline", Label: data.T("invitations.resend"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "resend"}}).Render(ctx, templ_7745c5c3_Buffer)
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -443,7 +443,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = molecules.SubmitButton(data.T("invitations.revoke"), templ.Attributes{"name": "action", "value": "revoke"}).Render(ctx, templ_7745c5c3_Buffer)
+							templ_7745c5c3_Err = atoms.Button(atoms.ButtonProps{Class: "btn-outline btn-error", Label: data.T("invitations.revoke"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "revoke"}}).Render(ctx, templ_7745c5c3_Buffer)
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
