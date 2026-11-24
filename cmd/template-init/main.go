@@ -659,7 +659,7 @@ func stripClientsOpenAPI(raw []byte) string {
 		if schemas, ok := components["schemas"].(map[string]any); ok {
 			if export, ok := schemas["WorkspaceExport"].(map[string]any); ok {
 				if properties, ok := export["properties"].(map[string]any); ok {
-					for _, name := range []string{"clients", "clientFields", "clientFieldOptions", "engagements", "engagementNextActions", "engagementActionHistory"} {
+					for _, name := range []string{"clients", "clientFields", "clientFieldOptions", "engagements", "engagementNextActions", "engagementActionHistory", "engagementStageHistory"} {
 						delete(properties, name)
 					}
 				}

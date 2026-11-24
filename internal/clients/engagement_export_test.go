@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"testing"
+	"time"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
@@ -49,6 +50,8 @@ func runEngagementExport(t *testing.T, db *sql.DB, driver config.DatabaseDriver)
 	insert(`INSERT INTO engagement_next_actions (workspace_id, engagement_id, action_text, due_date, owner_id, version) VALUES (?, ?, 'Active', '2026-09-01', ?, 3) RETURNING engagement_id`, workspace, engagement, actor.UserID)
 	insert(`INSERT INTO engagement_action_history (workspace_id, engagement_id, action_text, due_date, owner_id, actor_user_id, outcome, created_at) VALUES (?, ?, 'Previous', '', ?, ?, 'completed', '2026-08-22T09:00:00Z') RETURNING id`, workspace, engagement, actor.UserID, actor.UserID)
 	insert(`INSERT INTO engagement_action_history (workspace_id, engagement_id, action_text, due_date, outcome, created_at) VALUES (?, ?, 'Anonymous', '', 'reopened', '2026-08-22T10:00:00Z') RETURNING id`, workspace, engagement)
+	fromStage := insert(`INSERT INTO engagement_stages (workspace_id, name, kind, position) VALUES (?, 'From', 'open', 2) RETURNING id`, workspace)
+	insert(`INSERT INTO engagement_stage_history (workspace_id, engagement_id, actor_user_id, from_stage_id, to_stage_id, created_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`, workspace, engagement, actor.UserID, fromStage, stage, "2026-08-22T11:00:00Z")
 	_, otherActor, other := newExportWorkspace(t, db, driver)
 	otherFixture := seedExportFixture(t, db, driver, other, otherActor.UserID)
 	otherClient, err := id.DecodeKey(id.TypeClient, otherFixture.active)
@@ -57,12 +60,13 @@ func runEngagementExport(t *testing.T, db *sql.DB, driver config.DatabaseDriver)
 	otherEngagement := insert(`INSERT INTO engagements (workspace_id, client_id, stage_id, notes) VALUES (?, ?, ?, 'Secret engagement') RETURNING id`, other, otherClient, otherStage)
 	insert(`INSERT INTO engagement_next_actions (workspace_id, engagement_id, action_text) VALUES (?, ?, 'Secret action') RETURNING engagement_id`, other, otherEngagement)
 	insert(`INSERT INTO engagement_action_history (workspace_id, engagement_id, action_text, outcome, created_at) VALUES (?, ?, 'Secret history', 'cleared', '2026-08-22T09:00:00Z') RETURNING id`, other, otherEngagement)
+	insert(`INSERT INTO engagement_stage_history (workspace_id, engagement_id, actor_user_id, from_stage_id, to_stage_id, created_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`, other, otherEngagement, otherActor.UserID, otherStage, otherStage, "2026-08-22T11:00:00Z")
 	service := portability.NewService(db, driver, auth, 100, 1<<20, NewService(db, driver, auth, 50))
 	encoded, err := service.Export(ctx, actor, workspace, identity.AuditContext{})
 	exportCheck(t, err)
 	var result portability.Export
 	exportCheck(t, json.Unmarshal(encoded, &result))
-	if len(result.EngagementStages) != 1 || result.EngagementStages[0].ID != id.EncodeKey(id.TypeEngagementStage, stage) || result.EngagementStages[0].ArchivedAt == nil || result.EngagementStages[0].Position != 1 {
+	if len(result.EngagementStages) != 2 || result.EngagementStages[0].ID != id.EncodeKey(id.TypeEngagementStage, stage) || result.EngagementStages[0].ArchivedAt == nil || result.EngagementStages[0].Position != 1 {
 		t.Fatalf("stages = %+v", result.EngagementStages)
 	}
 	if len(result.Engagements) != 1 {
@@ -78,10 +82,27 @@ func runEngagementExport(t *testing.T, db *sql.DB, driver config.DatabaseDriver)
 	if len(result.EngagementActionHistory) != 2 || result.EngagementActionHistory[0].EngagementID != got.ID || result.EngagementActionHistory[0].OwnerID == nil || *result.EngagementActionHistory[0].OwnerID != actor.UserID || result.EngagementActionHistory[0].ActorUserID == nil || *result.EngagementActionHistory[0].ActorUserID != actor.UserID || result.EngagementActionHistory[0].Outcome != "completed" || result.EngagementActionHistory[1].OwnerID != nil || result.EngagementActionHistory[1].ActorUserID != nil {
 		t.Fatalf("history = %+v", result.EngagementActionHistory)
 	}
+	if len(result.EngagementStageHistory) != 1 || result.EngagementStageHistory[0].EngagementID != got.ID || result.EngagementStageHistory[0].ActorUserID != actor.UserID || result.EngagementStageHistory[0].FromStageID != id.EncodeKey(id.TypeEngagementStage, fromStage) || result.EngagementStageHistory[0].ToStageID != got.StageID || result.EngagementStageHistory[0].CreatedAt.Format(time.RFC3339) != "2026-08-22T11:00:00Z" {
+		t.Fatalf("stage history = %+v", result.EngagementStageHistory)
+	}
+	for _, excluded := range result.Excluded {
+		if excluded == "engagementStageHistory" {
+			t.Fatal("stage history is listed as excluded")
+		}
+	}
 	// Count all exported rows immediately before each attempt; each attempt adds an audit row.
-	count := exportRecordCount(t, db, workspace) + 5
+	count := exportRecordCount(t, db, workspace) + 7
 	limited := portability.NewService(db, driver, auth, count-1, 1<<20, NewService(db, driver, auth, 50))
 	if _, err := limited.Export(ctx, actor, workspace, identity.AuditContext{}); !errors.Is(err, portability.ErrLimit) {
 		t.Fatalf("limit = %v", err)
+	}
+	count = exportRecordCount(t, db, workspace) + 7
+	exact := portability.NewService(db, driver, auth, count, 1<<20, NewService(db, driver, auth, 50))
+	if _, err := exact.Export(ctx, actor, workspace, identity.AuditContext{}); err != nil {
+		t.Fatalf("exact record limit = %v", err)
+	}
+	payloadLimited := portability.NewService(db, driver, auth, 100, 1, NewService(db, driver, auth, 50))
+	if _, err := payloadLimited.Export(ctx, actor, workspace, identity.AuditContext{}); !errors.Is(err, portability.ErrLimit) {
+		t.Fatalf("payload limit = %v", err)
 	}
 }

@@ -49,6 +49,7 @@ type ClientExport struct {
 	Engagements             []EngagementRecord        `json:"engagements"`
 	EngagementNextActions   []EngagementNextAction    `json:"engagementNextActions"`
 	EngagementActionHistory []EngagementActionHistory `json:"engagementActionHistory"`
+	EngagementStageHistory  []EngagementStageHistory  `json:"engagementStageHistory"`
 }
 
 // The client record types are declared here, not in the Clients package, so
@@ -172,7 +173,6 @@ func (s *Service) Export(
 			"invitations", "oidcTransactions", "idempotencyRecords", "realtimeReplay",
 			"notifications", "notificationPreferences", "clientTimelineEntries",
 			"webhooks", "webhookDeliveries", "backgroundJobs",
-			"engagementStageHistory",
 		},
 	}
 	var createdAt string
@@ -210,6 +210,10 @@ func (s *Service) Export(
 		if err != nil {
 			return nil, err
 		}
+		section.EngagementStageHistory, err = s.engagementStageHistory(ctx, tx, workspaceID)
+		if err != nil {
+			return nil, err
+		}
 		result.ClientExport = &section
 	}
 	if result.AuditEvents, err = s.auditEvents(ctx, tx, workspaceID); err != nil {
@@ -217,7 +221,7 @@ func (s *Service) Export(
 	}
 	records := 1 + len(result.Members) + len(result.AuditEvents) + len(result.EngagementStages)
 	if result.ClientExport != nil {
-		records += len(result.Clients) + len(result.ClientFields) + len(result.ClientFieldOptions) + len(result.Engagements) + len(result.EngagementNextActions) + len(result.EngagementActionHistory)
+		records += len(result.Clients) + len(result.ClientFields) + len(result.ClientFieldOptions) + len(result.Engagements) + len(result.EngagementNextActions) + len(result.EngagementActionHistory) + len(result.EngagementStageHistory)
 	}
 	encoded, encodeErr := json.Marshal(result)
 	if records > s.maxRecords || (encodeErr == nil && len(encoded) > s.maxBytes) {

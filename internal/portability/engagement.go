@@ -49,6 +49,40 @@ type EngagementActionHistory struct {
 	CreatedAt    time.Time        `json:"createdAt"`
 }
 
+type EngagementStageHistory struct {
+	EngagementID string          `json:"engagementId"`
+	ActorUserID  identity.UserID `json:"actorUserId"`
+	FromStageID  string          `json:"fromStageId"`
+	ToStageID    string          `json:"toStageId"`
+	CreatedAt    time.Time       `json:"createdAt"`
+}
+
+func (s *Service) engagementStageHistory(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID) ([]EngagementStageHistory, error) {
+	rows, err := tx.QueryContext(ctx, s.bind(`SELECT engagement_id, actor_user_id, from_stage_id, to_stage_id, created_at FROM engagement_stage_history WHERE workspace_id = ? ORDER BY id LIMIT ?`), workspaceID, s.maxRecords+1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := []EngagementStageHistory{}
+	for rows.Next() {
+		var value EngagementStageHistory
+		var engagement, from, to int64
+		var created string
+		if err := rows.Scan(&engagement, &value.ActorUserID, &from, &to, &created); err != nil {
+			return nil, err
+		}
+		value.EngagementID = id.EncodeKey(id.TypeEngagement, engagement)
+		value.FromStageID = id.EncodeKey(id.TypeEngagementStage, from)
+		value.ToStageID = id.EncodeKey(id.TypeEngagementStage, to)
+		value.CreatedAt, err = parseTime(created)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, value)
+	}
+	return result, rows.Err()
+}
+
 func (s *Service) engagementNextActions(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID) ([]EngagementNextAction, error) {
 	rows, err := tx.QueryContext(ctx, s.bind(`SELECT engagement_id, action_text, due_date, owner_id, version FROM engagement_next_actions WHERE workspace_id = ? ORDER BY engagement_id LIMIT ?`), workspaceID, s.maxRecords+1)
 	if err != nil {

@@ -20,7 +20,7 @@ can see permanent stage history; each move also produces a retention-bounded aud
 event. The same tests cover these behaviors and retention.
 Workspace export includes archived stages in all profiles and engagement records
 when Clients is enabled. [SQLite and PostgreSQL export tests](../internal/clients/engagement_export_test.go)
-cover scoped records and limits; stage history and actions remain excluded.
+cover scoped records, action and stage history, actor IDs, and limits.
 Owners and admins can set or reset the workspace work item label. The shared
 service audits changes and [migration 000037](../internal/platform/database/migrations/000037_engagement_label.sql)
 stores it per workspace. Evidence: [service](../internal/engagement/label_test.go),
@@ -29,7 +29,7 @@ tests. The label is deleted with its workspace and is not included in export.
 Next actions have text, an optional date, and a workspace-member owner. Writers
 can change them; readers can view them and the workspace's open-stage due list.
 The service, REST, and web tests above cover these surfaces. Dates use UTC for
-the due-list cutoff; actions are not included in workspace export. Migration
+the due-list cutoff; active actions and action history are included in workspace export. Migration
 [000044](../internal/platform/database/migrations/000044_engagement_action_completion.sql)
 prepares history outcomes; [000045](../internal/platform/database/migrations/000045_engagement_action_version.sql)
 retains a monotonic active-action version across replacement, clearing, and owner
