@@ -120,7 +120,7 @@ accessibility-smoke:
 	./scripts/accessibility-smoke.sh
 
 browser-smoke:
-	go test -tags browser -count=1 ./internal/browsertest/... ./cmd/browsersmoke
+	go test -tags browser -count=1 ./internal/browsertest/... ./cmd/browsersmoke ./cmd/preview
 
 template-smoke:
 	set -eu; work="$$(mktemp -d /tmp/dynamis-code-template-smoke.XXXXXX)"; \

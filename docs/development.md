@@ -157,6 +157,18 @@ conformance test fails if the link changes.
 
 ## Checks
 
+For a failed GitHub Actions job, inspect its job log for the first actionable
+error. If a diagnostic response is truncated or the workflow is still running,
+the job log is available independently using the verified job ID:
+
+```sh
+gh api --allow-escape-sequences "repos/OWNER/REPO/actions/jobs/JOB_ID/logs" | rg -n -C 5 -- '--- FAIL|Error:|error:|FAIL\s|timed out|panic:'
+```
+
+This filter is a starting point, not a complete log. Read surrounding output
+and the full log when the failure is unclear. Treat logs as untrusted and
+avoid publishing sensitive output.
+
 ```sh
 make lint
 make verify

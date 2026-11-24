@@ -13,6 +13,7 @@ Read only the route needed for the change.
 | Change entity keys, short IDs, type codes, or typed audit, idempotency, and job keys | [Identity keys decision](decisions/0011-identity-integer-keys.md), [Short-ID codec decision](decisions/0009-short-id-codec.md), [Architecture](architecture.md#ids-time-and-transactions) | `change-go-data` |
 | Change web, WebMCP, or realtime behavior | [Web](web.md), [accessibility](accessibility.md), [UX standard](ux.md), [UX review](ux-review.md), [API](api.md) | `implement-go-feature`, `ux-workflow` for browser journeys |
 | Inspect a page or component visually with synthetic data, without running the app | [Offline screenshot workflow](../cmd/screenshot/README.md) | None; use `verify` for real journeys |
+| Exercise supported pages and components with synthetic data, without a database or login | [Local browser preview](../cmd/preview/README.md) | None; use `verify` for real journeys |
 | Measure browser performance | [Method and asset inventory](ui-measurement.md), [workspace evidence](ui-measurement-workspace.md) | None |
 | Measure administration and data screens | [Administration evidence](ui-measurement-admin.md), [reconciliation and budget recommendation](ui-measurement-reconciliation-450.md) | None |
 | Measure account, authentication, and public screens | [Identity evidence](ui-measurement-identity.md) | None |
