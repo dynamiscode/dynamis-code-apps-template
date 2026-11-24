@@ -96,6 +96,8 @@ a11y state, JS-hook state, pseudo-content, or structural layout.
 | .brand-mark | kept: gradient logo pseudo-content |
 | .brand-mark::after | kept: gradient logo pseudo-content |
 | a | kept: global link color/tie to brand tokens |
+| .workspace-main :is(a.link, p > a:not(.btn), a.detail-back) | kept: inline navigation boundaries clone across wrapped text without changing anchor layout |
+| .list-page-size-options a, .workspace-main a.btn-ghost | kept: shared list and workspace navigation retain visible boundaries |
 | main form:not(.inline) > :is(fieldset, input:not([type="hidden"]), select, textarea, .reveal-box, .strength, .wizard-nav) + button | kept: JS-created (utilities added in JS) |
 | main form .btn | kept: 44px touch height contract (a11y smoke asserts it) |
 | .auth-card .input | kept: iOS zoom guard - 1rem font so Safari does not zoom on focus (auth forms only; rest of app pending measurement) |

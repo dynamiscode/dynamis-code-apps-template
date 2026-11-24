@@ -1041,14 +1041,14 @@ func clientCreateMenu(data viewmodel.PageData) templ.Component {
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "<div class=\"list-create\"><a class=\"btn btn-ghost btn-xs\" href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "<div class=\"list-create\"><a class=\"btn btn-xs\" href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var51 string
 		templ_7745c5c3_Var51, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagements")).ResolveURL(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_list.templ`, Line: 183, Col: 121}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_list.templ`, Line: 183, Col: 111}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var51)
 		if templ_7745c5c3_Err != nil {
@@ -1061,7 +1061,7 @@ func clientCreateMenu(data viewmodel.PageData) templ.Component {
 		var templ_7745c5c3_Var52 string
 		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("engagement.list"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_list.templ`, Line: 183, Col: 151}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_list.templ`, Line: 183, Col: 141}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 		if templ_7745c5c3_Err != nil {
@@ -1077,14 +1077,14 @@ func clientCreateMenu(data viewmodel.PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "<a class=\"btn btn-ghost btn-xs\" href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "<a class=\"btn btn-xs\" href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var53 string
 		templ_7745c5c3_Var53, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagement-stages")).ResolveURL(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_list.templ`, Line: 187, Col: 127}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_list.templ`, Line: 187, Col: 117}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var53)
 		if templ_7745c5c3_Err != nil {
@@ -1097,20 +1097,20 @@ func clientCreateMenu(data viewmodel.PageData) templ.Component {
 		var templ_7745c5c3_Var54 string
 		templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("engagement.stages"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_list.templ`, Line: 187, Col: 159}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_list.templ`, Line: 187, Col: 149}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "</a> <a class=\"btn btn-ghost btn-xs\" href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "</a> <a class=\"btn btn-xs\" href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var55 string
 		templ_7745c5c3_Var55, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagements/due")).ResolveURL(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_list.templ`, Line: 188, Col: 125}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_list.templ`, Line: 188, Col: 115}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var55)
 		if templ_7745c5c3_Err != nil {
@@ -1123,7 +1123,7 @@ func clientCreateMenu(data viewmodel.PageData) templ.Component {
 		var templ_7745c5c3_Var56 string
 		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("engagement.due_list"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_list.templ`, Line: 188, Col: 159}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_list.templ`, Line: 188, Col: 149}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 		if templ_7745c5c3_Err != nil {
@@ -1134,14 +1134,14 @@ func clientCreateMenu(data viewmodel.PageData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.CanManageFields {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<a class=\"btn btn-ghost btn-xs\" href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<a class=\"btn btn-xs\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var57 string
 			templ_7745c5c3_Var57, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.FieldsPath).ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_list.templ`, Line: 190, Col: 58}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_list.templ`, Line: 190, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var57)
 			if templ_7745c5c3_Err != nil {
@@ -1154,7 +1154,7 @@ func clientCreateMenu(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var58 string
 			templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.fields_link"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_list.templ`, Line: 190, Col: 92}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients_list.templ`, Line: 190, Col: 82}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
 			if templ_7745c5c3_Err != nil {

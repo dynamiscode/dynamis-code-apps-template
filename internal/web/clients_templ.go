@@ -2627,14 +2627,14 @@ func clientTimeline(data viewmodel.PageData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.TimelinePage > 1 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 233, "<a href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 233, "<a class=\"btn btn-sm\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var150 string
 			templ_7745c5c3_Var150, templ_7745c5c3_Err = templruntime.NewAttributeExpression("?timeline_page=" + strconv.Itoa(data.TimelinePage-1) + "#client-timeline-heading").ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 333, Col: 96}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 333, Col: 115}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var150)
 			if templ_7745c5c3_Err != nil {
@@ -2647,7 +2647,7 @@ func clientTimeline(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var151 string
 			templ_7745c5c3_Var151, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("ui.previous_page"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 333, Col: 127}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 333, Col: 146}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var151))
 			if templ_7745c5c3_Err != nil {
@@ -2659,14 +2659,14 @@ func clientTimeline(data viewmodel.PageData) templ.Component {
 			}
 		}
 		if len(data.ClientTimeline) == 50 && data.TimelinePage < 1000000 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 236, "<a href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 236, "<a class=\"btn btn-sm\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var152 string
 			templ_7745c5c3_Var152, templ_7745c5c3_Err = templruntime.NewAttributeExpression("?timeline_page=" + strconv.Itoa(data.TimelinePage+1) + "#client-timeline-heading").ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 336, Col: 96}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 336, Col: 115}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var152)
 			if templ_7745c5c3_Err != nil {
@@ -2679,7 +2679,7 @@ func clientTimeline(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var153 string
 			templ_7745c5c3_Var153, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("items.next_page"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 336, Col: 126}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 336, Col: 145}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var153))
 			if templ_7745c5c3_Err != nil {

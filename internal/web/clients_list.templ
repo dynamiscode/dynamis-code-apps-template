@@ -180,14 +180,14 @@ templ clientIntakeMenu(data viewmodel.PageData) {
 // second primary action because its empty-state card already offers this one.
 templ clientCreateMenu(data viewmodel.PageData) {
 	<div class="list-create">
-		<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagements") }>{ data.T("engagement.list") }</a>
+		<a class="btn btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagements") }>{ data.T("engagement.list") }</a>
 		if data.CanManageFields && data.IntakeEnabled {
 			@clientIntakeMenu(data)
 		}
-		<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagement-stages") }>{ data.T("engagement.stages") }</a>
-		<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagements/due") }>{ data.T("engagement.due_list") }</a>
+		<a class="btn btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagement-stages") }>{ data.T("engagement.stages") }</a>
+		<a class="btn btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagements/due") }>{ data.T("engagement.due_list") }</a>
 			if data.CanManageFields {
-				<a class="btn btn-ghost btn-xs" href={ data.FieldsPath }>{ data.T("clients.fields_link") }</a>
+				<a class="btn btn-xs" href={ data.FieldsPath }>{ data.T("clients.fields_link") }</a>
 			}
 		if !data.CanEditClients {
 			<p class="status-line">{ data.T("clients.read_only") }</p>

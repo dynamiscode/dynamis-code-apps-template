@@ -63,7 +63,7 @@ templ Dropdown(props DropdownProps) {
 						<li class={ di.Class }>@di.Item</li>
 					} else {
 						<li>
-							<a { di.Attrs... } class={ templ.KV("text-error", di.Danger) }>{ di.Label }</a>
+							<a { di.Attrs... } class={ "border border-base-300", templ.KV("text-error", di.Danger) }>{ di.Label }</a>
 						</li>
 					}
 				}
