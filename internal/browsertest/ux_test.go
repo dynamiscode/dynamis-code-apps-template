@@ -121,6 +121,7 @@ func TestFormUXPatterns(t *testing.T) {
 	run(t, tab, chromedp.Navigate(base+workspace+"/clients"))
 	waitVisible(t, tab, "#client-list")
 	click(`a[href$="/clients/new"]`)
+	waitVisible(t, tab, "#client-display-name")
 	typeInto("#client-display-name", "   ")
 	enter("#client-display-name")
 	check(js(`document.activeElement?.classList.contains("error-summary")`), "clients: a blank name takes the error summary focus")
