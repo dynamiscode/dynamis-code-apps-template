@@ -12,7 +12,10 @@ import (
 
 func TestPreviewBrowser(t *testing.T) {
 	address := startPreview(t, buildPreview(t), "empty")
-	ctx, cancel := chromedp.NewContext(context.Background())
+	allocator, cancelAllocator := chromedp.NewExecAllocator(context.Background(),
+		chromedp.Flag("headless", true), chromedp.NoSandbox, chromedp.NoFirstRun, chromedp.NoDefaultBrowserCheck)
+	defer cancelAllocator()
+	ctx, cancel := chromedp.NewContext(allocator)
 	defer cancel()
 	ctx, cancelTimeout := context.WithTimeout(ctx, 45*time.Second)
 	defer cancelTimeout()
