@@ -37,7 +37,7 @@ fake side effects in `cmd/preview/`.
    rendered result at suitable viewport sizes. Stop only the process you
    started. Restart it to reset state.
 4. Add focused regression coverage for non-trivial fixture behavior and run
-   `go test ./cmd/preview`. Report the scenario, URL path, actions, results,
+   `go test ./cmd/preview` and `go test -tags browser ./cmd/preview`. Report the scenario, URL path, actions, results,
    and which behavior remains unimplemented.
 
 Fixtures may be committed when useful to later work. Never add a preview flag,

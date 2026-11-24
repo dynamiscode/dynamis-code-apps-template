@@ -256,7 +256,7 @@ jobs:
           web=true
           if [ '${{ github.event_name }}' = pull_request ]; then
             web=false
-            if git diff --name-only "origin/$BASE_REF...HEAD" | grep -Eq '^(internal/web/|internal/identity/|internal/browsertest/|cmd/browsersmoke/|scripts/accessibility-smoke\.sh$|scripts/webmcp-smoke\.sh$|package[^/]*\.json$)'; then
+            if git diff --name-only "origin/$BASE_REF...HEAD" | grep -Eq '^(internal/web/|internal/identity/|internal/browsertest/|cmd/browsersmoke/|cmd/preview/|scripts/accessibility-smoke\.sh$|scripts/webmcp-smoke\.sh$|package[^/]*\.json$)'; then
               web=true
             fi
           fi

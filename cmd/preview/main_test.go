@@ -1,12 +1,115 @@
 package main
 
 import (
+	"bufio"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
+
+func buildPreview(t *testing.T) string {
+	t.Helper()
+	binary := filepath.Join(t.TempDir(), "preview")
+	output, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput()
+	if err != nil {
+		t.Fatalf("build preview: %v\n%s", err, output)
+	}
+	return binary
+}
+
+func startPreview(t *testing.T, binary, scenario string) string {
+	t.Helper()
+	cmd := exec.Command(binary, "-scenario", scenario)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cmd.Process.Kill(); _ = cmd.Wait() })
+	lines := make(chan string, 1)
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		if scanner.Scan() {
+			lines <- scanner.Text()
+		} else {
+			lines <- ""
+		}
+	}()
+	select {
+	case address := <-lines:
+		parsed, err := url.Parse(address)
+		if err != nil || parsed.Scheme != "http" || net.ParseIP(parsed.Hostname()) == nil || !net.ParseIP(parsed.Hostname()).IsLoopback() || parsed.Port() == "" {
+			t.Fatalf("invalid preview address %q", address)
+		}
+		return strings.TrimSuffix(address, "/")
+	case <-time.After(30 * time.Second):
+		t.Fatal("preview did not start")
+		return ""
+	}
+}
+
+func TestPreviewProcessBoundaries(t *testing.T) {
+	binary := buildPreview(t)
+	a := startPreview(t, binary, "empty")
+	b := startPreview(t, binary, "empty")
+	if a == b {
+		t.Fatal("preview instances share an address")
+	}
+	client := &http.Client{Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	r, err := http.NewRequest(http.MethodGet, a, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Host = "attacker.example"
+	res, err := client.Do(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if res.StatusCode != http.StatusForbidden {
+		t.Fatalf("unexpected host status: %d", res.StatusCode)
+	}
+	r, err = http.NewRequest(http.MethodPost, a+"/workspaces", strings.NewReader(url.Values{"name": {"Isolated studio"}, "locale": {"en"}}.Encode()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	r.Header.Set("Origin", a)
+	res, err = client.Do(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if res.StatusCode != http.StatusSeeOther {
+		t.Fatalf("create status: %d", res.StatusCode)
+	}
+	for _, tc := range []struct {
+		address string
+		want    bool
+	}{{a, true}, {b, false}} {
+		res, err := client.Get(tc.address)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, err := io.ReadAll(res.Body)
+		res.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(body), "Isolated studio") != tc.want {
+			t.Fatalf("unexpected state at %s", tc.address)
+		}
+	}
+}
 
 func TestIndependentScenarios(t *testing.T) {
 	a, err := newPreview("empty")
