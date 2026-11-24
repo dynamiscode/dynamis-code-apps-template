@@ -144,6 +144,12 @@ func TestAgreementPickerPaginationAndSubmission(t *testing.T) {
 	if !strings.Contains(second.Body.String(), "file-100.txt") || !strings.Contains(second.Body.String(), "page=1") {
 		t.Fatal("second page or previous link missing")
 	}
+	for _, query := range []string{"?page=3", "?page=1000000"} {
+		outOfRange := request(routes, http.MethodGet, detail+query, nil, env.cookies, nil)
+		if outOfRange.Code != http.StatusOK || !strings.Contains(outOfRange.Body.String(), "file-100.txt") || !strings.Contains(outOfRange.Body.String(), "page=1#engagement-agreement") {
+			t.Fatalf("out-of-range %s did not fall back to last page", query)
+		}
+	}
 	viewer := request(routes, http.MethodGet, detail, nil, env.viewerCookies, nil)
 	if strings.Contains(viewer.Body.String(), "file-000.txt") {
 		t.Fatal("viewer saw picker choices")

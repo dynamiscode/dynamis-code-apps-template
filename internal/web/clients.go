@@ -576,6 +576,12 @@ func (h *Handler) agreementFileChoices(ctx context.Context, principal identity.P
 	if errors.Is(err, identity.ErrForbidden) {
 		return appfiles.Page{}, false, nil
 	}
+	if err == nil && page.Page > max(1, (page.Total+99)/100) {
+		page, err = h.files.ListPage(ctx, principal, workspaceID, appfiles.ListInput{Limit: 100, Page: max(1, (page.Total+99)/100), Sort: "original_name"})
+		if errors.Is(err, identity.ErrForbidden) {
+			return appfiles.Page{}, false, nil
+		}
+	}
 	return page, err == nil, err
 }
 
