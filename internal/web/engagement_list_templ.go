@@ -371,14 +371,14 @@ func engagementListPage(data viewmodel.PageData, page engagement.Page, stages []
 				return templ_7745c5c3_Err
 			}
 			for _, item := range page.Engagements {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<li><a class=\"link\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<li><a class=\"link rounded-field border border-base-300 px-1\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var22 string
 				templ_7745c5c3_Var22, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String())).ResolveURL(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_list.templ`, Line: 43, Col: 126}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_list.templ`, Line: 43, Col: 168}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 				if templ_7745c5c3_Err != nil {
@@ -391,20 +391,20 @@ func engagementListPage(data viewmodel.PageData, page engagement.Page, stages []
 				var templ_7745c5c3_Var23 string
 				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(item.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_list.templ`, Line: 43, Col: 140}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_list.templ`, Line: 43, Col: 182}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</a> — <a class=\"link\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</a> — <a class=\"link rounded-field border border-base-300 px-1\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var24 string
 				templ_7745c5c3_Var24, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL(clientsPath + "/" + item.ClientID.String())).ResolveURL(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_list.templ`, Line: 43, Col: 231}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_list.templ`, Line: 43, Col: 315}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 				if templ_7745c5c3_Err != nil {
@@ -417,7 +417,7 @@ func engagementListPage(data viewmodel.PageData, page engagement.Page, stages []
 				var templ_7745c5c3_Var25 string
 				templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(item.ClientName)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_list.templ`, Line: 43, Col: 251}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_list.templ`, Line: 43, Col: 335}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 				if templ_7745c5c3_Err != nil {

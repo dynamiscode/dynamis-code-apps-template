@@ -18,6 +18,12 @@ Owner, disposable SQLite instance, Chrome/Playwright. Created a client, added an
 
 Three passes by the implementer, not independent: journey navigation and creation worked; primary and secondary actions remain distinct; native controls and keyboard entry remain available. Automated client/engagement browser tests and accessibility smoke supplement this review.
 
-## Remaining review gaps
+## Follow-up review
 
-Rendered review is incomplete: error recovery, read-only role, populated board and queue, custom-field editing, actual dark theme selection, and keyboard operation through every changed control were not manually driven. Desktop and mobile screenshots alone do not establish usability or accessibility conformance. Review is blocked until these states are exercised and findings resolved.
+Base `ff38f57` plus the follow-up in this commit, disposable SQLite and real Chrome/Playwright, synthetic records. On a populated engagement list, a viewer saw client and engagement links with their correct destinations but no create action. Selecting **Dark** in the theme menu set `data-theme="dark"`. Focusing the Stage board link showed a solid focus outline; Enter opened the populated board. Submitting a whitespace-only stage name produced HTTP 422 and the message “Enter a valid name and kind.” Entering a valid name afterward created the stage.
+
+- [Viewer engagement list](issue-654/654-viewer.png)
+- [Viewer board in selected dark theme](issue-654/654-board-dark.png)
+- [Stage validation error](issue-654/654-error.png)
+
+The viewer was provisioned in the disposable fixture; no production data was used. Screenshots precede restoration of the existing `link` class on record anchors to retain its wrapping rules. These passes were not independent. Remaining gaps: populated queue, custom-field editing, and keyboard operation through every changed control were not manually driven. Screenshots and automated checks alone do not establish usability or accessibility conformance.

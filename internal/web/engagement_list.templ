@@ -40,7 +40,7 @@ templ engagementListPage(data viewmodel.PageData, page engagement.Page, stages [
    }
    <ul>
     for _, item := range page.Engagements {
-     <li><a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String()) }>{ item.Name }</a> — <a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String()) }>{ item.ClientName }</a>
+     <li><a class="link rounded-field border border-base-300 px-1" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String()) }>{ item.Name }</a> — <a class="link rounded-field border border-base-300 px-1" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String()) }>{ item.ClientName }</a>
       for _, stage := range stages {
        if stage.ID == item.StageID {
         <span> — { stage.Name }</span>

@@ -32,8 +32,8 @@ templ engagementBoardPage(data viewmodel.PageData, columns []engagementBoardColu
      <ul>
       for _, item := range column.Page.Engagements {
        <li class="py-2">
-        <a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String()) }>{ item.Name }</a>
-        <span> — </span><a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String()) }>{ item.ClientName }</a>
+        <a class="link rounded-field border border-base-300 px-1" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String()) }>{ item.Name }</a>
+        <span> — </span><a class="link rounded-field border border-base-300 px-1" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String()) }>{ item.ClientName }</a>
         if data.CanEditClients && !boardHasMoveTarget(stages, item.StageID) {
          <p>{ data.T("engagement.no_move_target") }</p>
         }

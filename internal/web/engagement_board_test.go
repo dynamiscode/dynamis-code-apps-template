@@ -39,6 +39,15 @@ func TestEngagementBoard(t *testing.T) {
 	}
 	boardPath := "/workspaces/" + env.workspaceID.String() + "/engagements/board"
 	only := request(env.routes, http.MethodGet, boardPath, nil, env.cookies, nil)
+	clientsPath := "/workspaces/" + env.workspaceID.String() + "/clients/" + client.ID.String()
+	for _, want := range []string{
+		`<a class="link rounded-field border border-base-300 px-1" href="` + clientsPath + `/engagements/` + itemOnly.ID.String() + `">Only stage item</a>`,
+		`<a class="link rounded-field border border-base-300 px-1" href="` + clientsPath + `">Board client</a>`,
+	} {
+		if only.Code != http.StatusOK || !strings.Contains(only.Body.String(), want) {
+			t.Errorf("board status %d: missing %q", only.Code, want)
+		}
+	}
 	if !strings.Contains(only.Body.String(), "No other active stage is available") || strings.Contains(only.Body.String(), `id="move-`+itemOnly.ID.String()+`"`) {
 		t.Fatal("single-stage board should show guidance instead of move control")
 	}
