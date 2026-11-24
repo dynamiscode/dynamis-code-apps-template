@@ -210,6 +210,9 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if strings.Count(writerDetail.Body.String(), "<details>") != 6 || strings.Contains(writerDetail.Body.String(), "engagement.stage") || !strings.Contains(writerDetail.Body.String(), "Stage: ") {
 		t.Fatalf("detail disclosures or stage translation: %s", writerDetail.Body.String())
 	}
+	if !strings.Contains(writerDetail.Body.String(), "Back to client: Client") || strings.Count(writerDetail.Body.String(), `<summary class="btn btn-outline">`) != 6 {
+		t.Fatal("detail navigation or edit affordances missing")
+	}
 	viewerDetail := request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
 	for _, detail := range []*httptest.ResponseRecorder{writerDetail, viewerDetail} {
 		for _, want := range []string{"Assignee: Unassigned", "Next action: No next action"} {

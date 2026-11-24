@@ -14,11 +14,11 @@ templ engagementDetailPage(data viewmodel.PageData) {
 			if data.Saved {
 				@molecules.SuccessAlert(data.T("engagement.saved"))
 			}
-			<a class="link" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String()) }>{ data.Client.DisplayName }</a>
+			<a class="link" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String()) }>← { data.T("engagement.back_to_client") }: { data.Client.DisplayName }</a>
 			<section class="card my-4 p-6">
 				if data.CanEditClients {
 					<details open?={ data.ErrorKey == "engagement.invalid_name" }>
-						<summary class="btn btn-ghost">{ data.T("ui.edit") } { data.T("engagement.name") }</summary>
+						<summary class="btn btn-outline">{ data.T("ui.edit") } { data.T("engagement.name") }</summary>
 						if data.ErrorKey == "engagement.invalid_name" {
 							@molecules.ErrorAlert(data.T(data.ErrorKey))
 						}
@@ -30,6 +30,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 						</form>
 					</details>
 				}
+				<section class="border-t border-base-300 py-4">
 				for _, stage := range data.EngagementStages {
 					if stage.ID == item.StageID {
 						<p>{ data.T("engagement.stage") }: { stage.Name }</p>
@@ -37,7 +38,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 				}
 				if data.CanEditClients {
 					<details open?={ data.ErrorKey == "engagement.invalid_move" }>
-						<summary class="btn btn-ghost">{ data.T("engagement.move") }</summary>
+						<summary class="btn btn-outline">{ data.T("engagement.move") }</summary>
 						<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/stage") } method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="return_to" value="detail"/>
@@ -61,7 +62,11 @@ templ engagementDetailPage(data viewmodel.PageData) {
 						</form>
 					</details>
 				}
-				<p>{ data.T("engagement.notes") }: { item.Notes }</p>
+				</section>
+				if item.Notes != "" {
+					<p class="border-t border-base-300 py-4">{ data.T("engagement.notes") }: { item.Notes }</p>
+				}
+				<section class="border-t border-base-300 py-4">
 				if item.AssigneeID == 0 {
 					<p>{ data.T("engagement.assignee") }: { data.T("engagement.unassigned") }</p>
 				} else {
@@ -73,7 +78,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 				}
 				if data.CanEditClients {
 					<details open?={ data.ErrorKey == "engagement.invalid_assignee" }>
-						<summary class="btn btn-ghost">{ data.T("ui.edit") } { data.T("engagement.assignee") }</summary>
+						<summary class="btn btn-outline">{ data.T("ui.edit") } { data.T("engagement.assignee") }</summary>
 						<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/assignee") } method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="return_to" value="detail"/>
@@ -95,6 +100,8 @@ templ engagementDetailPage(data viewmodel.PageData) {
 						</form>
 					</details>
 				}
+				</section>
+				<section class="border-t border-base-300 py-4">
 				<p>
 					{ data.T("engagement.agreement") }:
 					if item.Agreement.Recorded {
@@ -106,7 +113,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 				</p>
 				if data.CanEditClients {
 					<details open?={ data.ErrorKey == "engagement.invalid_agreement_file" }>
-						<summary class="btn btn-ghost">{ data.T("ui.edit") } { data.T("engagement.agreement") }</summary>
+						<summary class="btn btn-outline">{ data.T("ui.edit") } { data.T("engagement.agreement") }</summary>
 						<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/agreement") } method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="return_to" value="detail"/>
@@ -125,12 +132,13 @@ templ engagementDetailPage(data viewmodel.PageData) {
 						</form>
 					</details>
 				}
-				<section aria-labelledby="engagement-quote-heading">
+				</section>
+				<section class="border-t border-base-300 py-4" aria-labelledby="engagement-quote-heading">
 					<h2 id="engagement-quote-heading">{ data.T("engagement.quote") }</h2>
 					<p>{ data.T("engagement.quote_" + item.Quote.Status) } { item.Quote.Amount } { item.Quote.DateSent }</p>
 					if data.CanEditClients {
 						<details open?={ data.ErrorKey == "engagement.invalid_quote" }>
-							<summary class="btn btn-ghost">{ data.T("ui.edit") } { data.T("engagement.quote") }</summary>
+							<summary class="btn btn-outline">{ data.T("ui.edit") } { data.T("engagement.quote") }</summary>
 							if data.ErrorKey == "engagement.invalid_quote" {
 								@molecules.ErrorAlert(data.T(data.ErrorKey))
 							}
@@ -164,6 +172,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 						</details>
 					}
 				</section>
+				<section class="border-t border-base-300 py-4">
 				<p>
 					{ data.T("engagement.next_action") }:
 					if item.NextAction.Text == "" {
@@ -179,7 +188,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 				}
 				if data.CanEditClients {
 					<details open?={ data.ErrorKey == "engagement.invalid_next_action" }>
-						<summary class="btn btn-ghost">{ data.T("ui.edit") } { data.T("engagement.next_action") }</summary>
+						<summary class="btn btn-outline">{ data.T("ui.edit") } { data.T("engagement.next_action") }</summary>
 						if data.ErrorKey == "engagement.invalid_next_action" {
 							@molecules.ErrorAlert(data.T(data.ErrorKey))
 						}
@@ -216,6 +225,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 						</form>
 					</details>
 				}
+				</section>
 				<ol data-engagement-history>
 					for _, entry := range item.History {
 						<li>

@@ -265,6 +265,7 @@
   "engagement.clear_action": "Clear next action",
   "engagement.due_list": "Actions due",
   "engagement.notes": "Other people and notes",
+  "engagement.back_to_client": "Back to client",
   "engagement.create": "Create engagement",
   "engagement.stage": "Stage",
   "engagement.invalid_assignee": "Select a valid workspace member.",

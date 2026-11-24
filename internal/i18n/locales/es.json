@@ -265,6 +265,7 @@
   "engagement.clear_action": "Borrar próxima acción",
   "engagement.due_list": "Acciones pendientes",
   "engagement.notes": "Otras personas y notas",
+  "engagement.back_to_client": "Volver al cliente",
   "engagement.create": "Crear gestión",
   "engagement.stage": "Etapa",
   "engagement.invalid_assignee": "Selecciona un miembro válido del espacio de trabajo.",
