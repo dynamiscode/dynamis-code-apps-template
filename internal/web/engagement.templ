@@ -256,6 +256,48 @@ templ engagementDetailPage(data viewmodel.PageData) {
 					</details>
 				}
 				</section>
+				<section id="action-history" class="border-t border-base-300 py-4" aria-labelledby="action-history-heading">
+					<h2 id="action-history-heading">{ data.T("engagement.action_history") }</h2>
+					if len(data.ActionHistory) == 0 {
+						<p>{ data.T("engagement.action_history_empty") }</p>
+					} else {
+						<ol>
+							for _, entry := range data.ActionHistory {
+								<li>
+									<p>{ data.T("engagement.action_outcome_" + entry.Outcome) }: { entry.Text }</p>
+									<p>{ data.T("engagement.due_date") }:
+										if entry.DueDate != "" {
+											{ entry.DueDate }
+												} else {
+											{ data.T("queue.undated") }
+											}
+									</p>
+									<p>{ data.T("engagement.owner") }:
+										if entry.OwnerName != "" {
+											{ entry.OwnerName }
+										} else {
+											{ data.T("engagement.unavailable") }
+										}
+									</p>
+									<p>{ data.T("engagement.action_actor") }:
+										if entry.ActorName != "" {
+											{ entry.ActorName }
+										} else {
+											{ data.T("engagement.unavailable") }
+										}
+										 — <time datetime={ entry.CreatedAt }>{ data.HistoryTime(entry.CreatedAt) }</time>
+									</p>
+								</li>
+							}
+						</ol>
+					}
+					if data.ActionHistoryPrevious != "" {
+						<a class="link" href={ templ.SafeURL(data.ActionHistoryPrevious) }>{ data.T("queue.previous") }</a>
+					}
+					if data.ActionHistoryNext != "" {
+						<a class="link" href={ templ.SafeURL(data.ActionHistoryNext) }>{ data.T("queue.next") }</a>
+					}
+				</section>
 				@engagementHistory(data, item.History)
 			</section>
 		}

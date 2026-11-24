@@ -13,6 +13,51 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
+type ActionHistoryEntry struct {
+	Text, DueDate, OwnerName, Outcome, ActorName, CreatedAt string
+}
+
+func (s *Service) ListActionHistory(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, page int) ([]ActionHistoryEntry, bool, error) {
+	if page < 1 || page > 1000000 {
+		return nil, false, ErrInvalidInput
+	}
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: true})
+	if err != nil {
+		return nil, false, err
+	}
+	defer tx.Rollback()
+	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesRead); err != nil {
+		return nil, false, identity.ErrForbidden
+	}
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT h.action_text, h.due_date, COALESCE(NULLIF(owner.display_name, ''), owner.email, ''), h.outcome, COALESCE(NULLIF(actor.display_name, ''), actor.email, ''), h.created_at FROM engagement_action_history h LEFT JOIN users owner ON owner.id = h.owner_id LEFT JOIN users actor ON actor.id = h.actor_user_id WHERE h.workspace_id = ? AND h.engagement_id = ? ORDER BY h.id DESC LIMIT ? OFFSET ?`), workspaceID, engagementID, 51, (page-1)*50)
+	if err != nil {
+		return nil, false, err
+	}
+	defer rows.Close()
+	var history []ActionHistoryEntry
+	for rows.Next() {
+		var entry ActionHistoryEntry
+		if err := rows.Scan(&entry.Text, &entry.DueDate, &entry.OwnerName, &entry.Outcome, &entry.ActorName, &entry.CreatedAt); err != nil {
+			return nil, false, err
+		}
+		history = append(history, entry)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, false, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, false, err
+	}
+	hasMore := len(history) > 50
+	if hasMore {
+		history = history[:50]
+	}
+	return history, hasMore, nil
+}
+
 func InvalidNextActionFields(action NextAction) (text, date, owner bool) {
 	action.Text = strings.TrimSpace(action.Text)
 	text = !utf8.ValidString(action.Text) || utf8.RuneCountInString(action.Text) > 5000 || (action.Text == "" && (action.OwnerID != 0 || action.DueDate != ""))

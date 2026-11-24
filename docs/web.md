@@ -31,7 +31,9 @@ On a client detail page, readers can see engagements and their stage history.
 History shows stage names including archived stages, the actor's display name
 (or email when unset, and unavailable when the account no longer exists), and a
 locale-formatted UTC time. Each engagement name links to a detail page with its existing information
-and a return link to the client. Writers can edit its quote and next action on
+and a return link to the client. Readers can view paginated action history on the
+engagement detail, including recorded outcomes, text, due date, owner, actor,
+and localized time. Unavailable identities are labeled. Writers can edit its quote and next action on
 that page; readers see their summaries. Invalid quote and next-action submissions
 retain entered values and associate determinable field errors with their controls.
 Unrecognized selection values appear as unavailable. Cancel returns to the saved

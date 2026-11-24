@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -13,6 +14,72 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 )
+
+func TestActionHistoryVisibleToReaders(t *testing.T) {
+	env := newClientsTestEnv(t)
+	ctx := context.Background()
+	actor, err := env.auth.Authorize(ctx, env.ownerID, env.workspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := engagement.NewService(env.db, config.SQLite, env.auth)
+	stage, err := svc.CreateStage(ctx, actor, env.workspaceID, engagement.StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := clients.NewService(env.db, config.SQLite, env.auth, 50).Create(ctx, actor, env.workspaceID, clients.Input{DisplayName: "History client"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	item, err := svc.Create(ctx, actor, env.workspaceID, engagement.Input{Name: "History case", ClientID: client.ID, StageID: stage.ID}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.db.ExecContext(ctx, `UPDATE users SET display_name = 'History Person' WHERE id = ?`, env.ownerID); err != nil {
+		t.Fatal(err)
+	}
+	for _, outcome := range []string{"completed", "replaced", "cleared", "reopened"} {
+		if _, err := env.db.ExecContext(ctx, `INSERT INTO engagement_action_history (workspace_id, engagement_id, action_text, due_date, owner_id, actor_user_id, outcome, created_at) VALUES (?, ?, ?, '2025-02-03', ?, ?, ?, '2025-01-02T15:04:00Z')`, env.workspaceID, item.ID, "History "+outcome, env.ownerID, env.ownerID, outcome); err != nil {
+			t.Fatal(err)
+		}
+	}
+	path := "/workspaces/" + env.workspaceID.String() + "/clients/" + client.ID.String() + "/engagements/" + item.ID.String()
+	page := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
+	for _, want := range []string{"Action history", "History completed", "History replaced", "History cleared", "History reopened", "Completed:", "Replaced:", "Cleared:", "Reopened:", "History Person", "2025-02-03", "Jan 2, 2025 3:04 PM UTC"} {
+		if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), want) {
+			t.Fatalf("history missing %q: status %d", want, page.Code)
+		}
+	}
+	spanish := request(env.routes, http.MethodGet, path, nil, append(append([]*http.Cookie{}, env.viewerCookies...), &http.Cookie{Name: "locale", Value: "es"}), nil)
+	for _, want := range []string{"Historial de acciones", "Completada:", "2 de enero de 2025 15:04 UTC"} {
+		if !strings.Contains(spanish.Body.String(), want) {
+			t.Fatalf("Spanish history missing %q", want)
+		}
+	}
+	if _, err := env.db.ExecContext(ctx, `UPDATE engagement_action_history SET owner_id = NULL, actor_user_id = NULL WHERE engagement_id = ?`, item.ID); err != nil {
+		t.Fatal(err)
+	}
+	page = request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
+	if !strings.Contains(page.Body.String(), "Unavailable") {
+		t.Fatal("missing unavailable identity")
+	}
+	for i := 0; i < 50; i++ {
+		if _, err := env.db.ExecContext(ctx, `INSERT INTO engagement_action_history (workspace_id, engagement_id, action_text, outcome, created_at) VALUES (?, ?, 'Paged history', 'cleared', '2025-01-02T15:04:00Z')`, env.workspaceID, item.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	page = request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
+	if !strings.Contains(page.Body.String(), "action_history_page=2") || strings.Contains(page.Body.String(), "History completed") {
+		t.Fatal("history first page not bounded")
+	}
+	page = request(env.routes, http.MethodGet, path+"?action_history_page=2", nil, env.viewerCookies, nil)
+	if !strings.Contains(page.Body.String(), "History completed") || !strings.Contains(page.Body.String(), "action_history_page=1") {
+		t.Fatal("history second page missing entries or previous link")
+	}
+	if _, _, err := svc.ListActionHistory(ctx, identity.Principal{}, env.workspaceID, item.ID, 1); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("unauthorized history: %v", err)
+	}
+}
 
 func TestActionQueueWeb(t *testing.T) {
 	env := newClientsTestEnv(t)

@@ -35,6 +35,9 @@ type PageData struct {
 	Clients                    []clients.Client
 	Client                     clients.Client
 	Engagements                []engagement.Engagement
+	ActionHistory              []engagement.ActionHistoryEntry
+	ActionHistoryPrevious      string
+	ActionHistoryNext          string
 	EngagementDashboard        *engagement.DashboardPage
 	DashboardPrevious          string
 	DashboardNext              string

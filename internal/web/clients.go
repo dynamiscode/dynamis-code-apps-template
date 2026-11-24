@@ -506,6 +506,8 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	title := client.DisplayName
 	var agreementFiles appfiles.Page
 	var agreementFilesAvailable bool
+	var actionHistory []engagement.ActionHistoryEntry
+	var historyPrevious, historyNext string
 	if request.PathValue("engagementId") != "" && (request.Method == http.MethodGet || errorKey == "engagement.invalid_name" || errorKey == "engagement.invalid_assignee" || errorKey == "engagement.invalid_quote" || errorKey == "engagement.invalid_agreement_file" || errorKey == "engagement.invalid_next_action" || (errorKey == "engagement.action_conflict" && request.FormValue("return_to") == "detail") || (errorKey == "engagement.invalid_move" && request.FormValue("return_to") == "detail")) {
 		component = engagementDetailPage
 		id := engagement.ParseID(request.PathValue("engagementId"))
@@ -522,6 +524,27 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		}
 		engagements = selected
 		title = selected[0].Name
+		historyPage := 1
+		if raw := request.URL.Query().Get("action_history_page"); raw != "" {
+			historyPage, err = strconv.Atoi(raw)
+			if err != nil || historyPage < 1 || historyPage > 1000000 {
+				h.renderError(writer, http.StatusBadRequest)
+				return
+			}
+		}
+		var hasMore bool
+		actionHistory, hasMore, err = h.engagement.ListActionHistory(request.Context(), principal, workspaceID, id, historyPage)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return
+		}
+		historyPath := h.clientsPath(workspaceID) + "/" + clientID.String() + "/engagements/" + id.String()
+		if historyPage > 1 {
+			historyPrevious = historyPath + "?action_history_page=" + strconv.Itoa(historyPage-1) + "#action-history"
+		}
+		if hasMore {
+			historyNext = historyPath + "?action_history_page=" + strconv.Itoa(historyPage+1) + "#action-history"
+		}
 		if principal.Permissions[identity.ResourcesWrite] {
 			filePage := listPageNumber(request.URL.Query())
 			if filePage > 1000000 {
@@ -559,6 +582,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		Client:          client, ClientValues: rows, ClientTimeline: entries, TimelinePage: page, TimelineDraft: timelineDraft, CanEditClients: principal.Permissions[identity.ResourcesWrite],
 		CanDeleteClients: principal.Permissions[identity.WorkspaceUpdate],
 		Engagements:      engagements, EngagementStages: stages, EngagementMembers: members, EngagementEnabled: h.engagement != nil,
+		ActionHistory: actionHistory, ActionHistoryPrevious: historyPrevious, ActionHistoryNext: historyNext,
 		AgreementFiles: agreementFiles.Files, AgreementFilesTotal: agreementFiles.Total, AgreementFilesAvailable: agreementFilesAvailable,
 		AgreementFilesPager: newListPager(h.clientsPath(workspaceID)+"/"+clientID.String()+"/engagements/"+request.PathValue("engagementId"), nil, agreementFiles.Page, 100, agreementFiles.Total),
 		EngagementNotes:     engagementNotes, OpenEngagementStages: openStages,
