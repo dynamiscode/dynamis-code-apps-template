@@ -655,6 +655,17 @@ func stripClientsOpenAPI(raw []byte) string {
 			delete(paths, path)
 		}
 	}
+	if components, ok := document["components"].(map[string]any); ok {
+		if schemas, ok := components["schemas"].(map[string]any); ok {
+			if export, ok := schemas["WorkspaceExport"].(map[string]any); ok {
+				if properties, ok := export["properties"].(map[string]any); ok {
+					for _, name := range []string{"clients", "clientFields", "clientFieldOptions", "engagements", "engagementNextActions", "engagementActionHistory"} {
+						delete(properties, name)
+					}
+				}
+			}
+		}
+	}
 	encoded, err := json.MarshalIndent(document, "", "  ")
 	if err != nil {
 		return string(raw)

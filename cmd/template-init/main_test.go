@@ -469,6 +469,11 @@ func TestApplicationMigration42(t *testing.T) {
 	if err != nil || strings.Contains(string(openAPI), "/clients") {
 		t.Fatalf("generated OpenAPI retains Clients paths: error = %v", err)
 	}
+	for _, key := range []string{`"engagementNextActions"`, `"engagementActionHistory"`} {
+		if strings.Contains(string(openAPI), key) {
+			t.Fatalf("generated OpenAPI retains Clients export key %s", key)
+		}
+	}
 	for path, retained := range map[string]string{
 		"docs/api.md": "/clients", "docs/web.md": "/clients", "docs/capabilities.md": "| Clients |",
 		"docs/mcp.md": "clients_",

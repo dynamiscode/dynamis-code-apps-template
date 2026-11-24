@@ -31,6 +31,81 @@ type EngagementRecord struct {
 	AgreementFileID   *string          `json:"agreementFileId"`
 }
 
+type EngagementNextAction struct {
+	EngagementID string           `json:"engagementId"`
+	Text         string           `json:"text"`
+	DueDate      string           `json:"dueDate"`
+	OwnerID      *identity.UserID `json:"ownerId"`
+	Version      int64            `json:"version"`
+}
+
+type EngagementActionHistory struct {
+	EngagementID string           `json:"engagementId"`
+	Text         string           `json:"text"`
+	DueDate      string           `json:"dueDate"`
+	OwnerID      *identity.UserID `json:"ownerId"`
+	ActorUserID  *identity.UserID `json:"actorUserId"`
+	Outcome      string           `json:"outcome"`
+	CreatedAt    time.Time        `json:"createdAt"`
+}
+
+func (s *Service) engagementNextActions(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID) ([]EngagementNextAction, error) {
+	rows, err := tx.QueryContext(ctx, s.bind(`SELECT engagement_id, action_text, due_date, owner_id, version FROM engagement_next_actions WHERE workspace_id = ? ORDER BY engagement_id LIMIT ?`), workspaceID, s.maxRecords+1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := []EngagementNextAction{}
+	for rows.Next() {
+		var value EngagementNextAction
+		var key int64
+		var owner sql.NullInt64
+		if err := rows.Scan(&key, &value.Text, &value.DueDate, &owner, &value.Version); err != nil {
+			return nil, err
+		}
+		value.EngagementID = id.EncodeKey(id.TypeEngagement, key)
+		if owner.Valid {
+			user := identity.UserID(owner.Int64)
+			value.OwnerID = &user
+		}
+		result = append(result, value)
+	}
+	return result, rows.Err()
+}
+
+func (s *Service) engagementActionHistory(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID) ([]EngagementActionHistory, error) {
+	rows, err := tx.QueryContext(ctx, s.bind(`SELECT engagement_id, action_text, due_date, owner_id, actor_user_id, outcome, created_at FROM engagement_action_history WHERE workspace_id = ? ORDER BY id LIMIT ?`), workspaceID, s.maxRecords+1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := []EngagementActionHistory{}
+	for rows.Next() {
+		var value EngagementActionHistory
+		var key int64
+		var owner, actor sql.NullInt64
+		var created string
+		if err := rows.Scan(&key, &value.Text, &value.DueDate, &owner, &actor, &value.Outcome, &created); err != nil {
+			return nil, err
+		}
+		value.EngagementID = id.EncodeKey(id.TypeEngagement, key)
+		if owner.Valid {
+			user := identity.UserID(owner.Int64)
+			value.OwnerID = &user
+		}
+		if actor.Valid {
+			user := identity.UserID(actor.Int64)
+			value.ActorUserID = &user
+		}
+		value.CreatedAt, err = parseTime(created)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, value)
+	}
+	return result, rows.Err()
+}
+
 func (s *Service) engagementStages(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID) ([]EngagementStage, error) {
 	rows, err := tx.QueryContext(ctx, s.bind(`SELECT id, name, kind, position, archived_at FROM engagement_stages WHERE workspace_id = ? ORDER BY position, id LIMIT ?`), workspaceID, s.maxRecords+1)
 	if err != nil {

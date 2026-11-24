@@ -57,7 +57,7 @@ scope. Export requires `workspace:export`. Browser session rules are
 documented in [authentication](authentication.md).
 
 - `GET /api/v1/workspaces/{workspaceId}/export` returns the bounded versioned
-  workspace export described in [data lifecycle](data-lifecycle.md).
+  workspace export described in [data lifecycle](data-lifecycle.md). With Clients enabled, `engagementNextActions` and `engagementActionHistory` include nullable owner and actor user short IDs; stage-change history remains excluded.
 - Members: `GET /members` returns all members unless `limit` or `page` is
   supplied; with either parameter it returns `total`, the number of members,
   and the `page` returned. Also `PATCH /members/{memberId}`, `DELETE /members/{memberId}`,

@@ -43,10 +43,12 @@ type ClientSource interface {
 // ClientExport is the additive client section of dynamis-code.workspace/v1.
 // Its keys are documented in docs/data-lifecycle.md.
 type ClientExport struct {
-	Clients            []ClientRecord      `json:"clients"`
-	ClientFields       []ClientField       `json:"clientFields"`
-	ClientFieldOptions []ClientFieldOption `json:"clientFieldOptions"`
-	Engagements        []EngagementRecord  `json:"engagements"`
+	Clients                 []ClientRecord            `json:"clients"`
+	ClientFields            []ClientField             `json:"clientFields"`
+	ClientFieldOptions      []ClientFieldOption       `json:"clientFieldOptions"`
+	Engagements             []EngagementRecord        `json:"engagements"`
+	EngagementNextActions   []EngagementNextAction    `json:"engagementNextActions"`
+	EngagementActionHistory []EngagementActionHistory `json:"engagementActionHistory"`
 }
 
 // The client record types are declared here, not in the Clients package, so
@@ -170,7 +172,7 @@ func (s *Service) Export(
 			"invitations", "oidcTransactions", "idempotencyRecords", "realtimeReplay",
 			"notifications", "notificationPreferences", "clientTimelineEntries",
 			"webhooks", "webhookDeliveries", "backgroundJobs",
-			"engagementStageHistory", "engagementNextActions", "engagementActionHistory",
+			"engagementStageHistory",
 		},
 	}
 	var createdAt string
@@ -200,6 +202,14 @@ func (s *Service) Export(
 		if err != nil {
 			return nil, err
 		}
+		section.EngagementNextActions, err = s.engagementNextActions(ctx, tx, workspaceID)
+		if err != nil {
+			return nil, err
+		}
+		section.EngagementActionHistory, err = s.engagementActionHistory(ctx, tx, workspaceID)
+		if err != nil {
+			return nil, err
+		}
 		result.ClientExport = &section
 	}
 	if result.AuditEvents, err = s.auditEvents(ctx, tx, workspaceID); err != nil {
@@ -207,7 +217,7 @@ func (s *Service) Export(
 	}
 	records := 1 + len(result.Members) + len(result.AuditEvents) + len(result.EngagementStages)
 	if result.ClientExport != nil {
-		records += len(result.Clients) + len(result.ClientFields) + len(result.ClientFieldOptions) + len(result.Engagements)
+		records += len(result.Clients) + len(result.ClientFields) + len(result.ClientFieldOptions) + len(result.Engagements) + len(result.EngagementNextActions) + len(result.EngagementActionHistory)
 	}
 	encoded, encodeErr := json.Marshal(result)
 	if records > s.maxRecords || (encodeErr == nil && len(encoded) > s.maxBytes) {
