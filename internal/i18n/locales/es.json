@@ -290,6 +290,8 @@
   "engagement.add": "Añadir etapa",
   "engagement.archived": "Archivada",
   "engagement.archive": "Archivar",
+  "engagement.archive_consequence": "Entiendo que las gestiones permanecen en esta etapa, pero no se pueden mover gestiones a ella:",
+  "engagement.archive_confirmation_required": "Confirma las consecuencias antes de archivar esta etapa.",
   "engagement.up": "Subir",
   "engagement.down": "Bajar",
   "engagement.invalid": "Introduce un nombre y tipo válidos.",

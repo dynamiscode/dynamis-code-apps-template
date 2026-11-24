@@ -111,11 +111,28 @@ func TestStagesThroughWeb(t *testing.T) {
 	if reordered.Code != http.StatusSeeOther {
 		t.Fatalf("reorder = %d", reordered.Code)
 	}
-	archived := request(env.routes, http.MethodPost, path+"/"+stages[0].ID.String()+"/archive", url.Values{"csrf": {env.csrf}}, env.cookies, nil)
+	unconfirmed := request(env.routes, http.MethodPost, path+"/"+stages[0].ID.String()+"/archive", url.Values{"csrf": {env.csrf}}, env.cookies, nil)
+	if unconfirmed.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("unconfirmed archive = %d", unconfirmed.Code)
+	}
+	stagesAfter, err := engagement.NewService(env.db, config.SQLite, env.auth).ListStages(context.Background(), owner, env.workspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, stage := range stagesAfter {
+		if stage.ID == stages[0].ID && stage.Archived {
+			t.Fatal("unconfirmed archive changed stage")
+		}
+	}
+	archived := request(env.routes, http.MethodPost, path+"/"+stages[0].ID.String()+"/archive", url.Values{"csrf": {env.csrf}, "confirm_archive": {"yes"}}, env.cookies, nil)
 	if archived.Code != http.StatusSeeOther {
 		t.Fatalf("archive = %d", archived.Code)
 	}
-	deniedArchive := request(env.routes, http.MethodPost, path+"/"+stages[1].ID.String()+"/archive", url.Values{"csrf": {env.viewerCSRF}}, env.viewerCookies, nil)
+	deniedUnconfirmed := request(env.routes, http.MethodPost, path+"/"+stages[1].ID.String()+"/archive", url.Values{"csrf": {env.viewerCSRF}}, env.viewerCookies, nil)
+	if deniedUnconfirmed.Code != http.StatusForbidden {
+		t.Fatalf("viewer unconfirmed archive = %d", deniedUnconfirmed.Code)
+	}
+	deniedArchive := request(env.routes, http.MethodPost, path+"/"+stages[1].ID.String()+"/archive", url.Values{"csrf": {env.viewerCSRF}, "confirm_archive": {"yes"}}, env.viewerCookies, nil)
 	if deniedArchive.Code != http.StatusForbidden {
 		t.Fatalf("viewer archive = %d", deniedArchive.Code)
 	}

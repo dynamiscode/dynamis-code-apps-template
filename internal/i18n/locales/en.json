@@ -290,6 +290,8 @@
   "engagement.add": "Add stage",
   "engagement.archived": "Archived",
   "engagement.archive": "Archive",
+  "engagement.archive_consequence": "I understand work stays in this stage, but no work can be moved into it:",
+  "engagement.archive_confirmation_required": "Confirm the consequences before archiving this stage.",
   "engagement.up": "Move up",
   "engagement.down": "Move down",
   "engagement.invalid": "Enter a valid name and kind.",
