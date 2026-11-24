@@ -24,9 +24,24 @@ Final cross-slice enforcement belongs to #658.
 ## Evidence and gap
 
 Focused render tests fail before the changes for unbounded feature, footer,
-menu, step, megamenu, and preview-index links and pass after. The preview
-browser suite passes, but automated tests do not establish usability.
-Interactive Playwright review was blocked: its Chrome profile was already in
-use (`mcp-chrome-bf590a5`). No screenshots were captured. Desktop/mobile,
-light/dark, keyboard, and real-application UX review remain outstanding; this
-issue is not complete until durable sanitized evidence is recorded.
+menu, step, megamenu, and preview-index links and pass after.
+
+Isolated headless Chrome, on integration `66ee529` merged with `6e2502c`,
+rendered synthetic catalog components without accounts or personal data:
+
+- [Desktop light, 1280 × 900](reviews/issue-657/desktop-light.png).
+- [Mobile dark, 390 × 844](reviews/issue-657/mobile-dark.png).
+
+`go test -tags browser -count=1 -run TestCatalogNavigationBrowser -v ./cmd/preview`
+rendered the feature, footer, menu, step, megamenu, and supported Link variant.
+Tab focused Learn more; Enter navigated to `#reports`. The test checked for
+horizontal overflow. Screenshots capture the keyboard-focused state. Fixture
+links and labels are synthetic. The view demonstrates bounded navigation beside
+an intentionally unbounded supported Link variant.
+
+**Gaps:** screenshots and automated checks are not a complete interactive UX
+review. The fixture does not exercise the nested megamenu popovers, every
+variant, all tab stops, or real application journeys. Other theme/viewport
+combinations and no-JavaScript interaction were not reviewed. The Playwright
+shared profile was occupied; this run used a separate chromedp browser instead.
+Real-application UX review remains outstanding; this issue is not complete.
