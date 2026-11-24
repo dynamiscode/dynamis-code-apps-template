@@ -389,6 +389,33 @@ func (h *Handler) dueEngagements(w http.ResponseWriter, r *http.Request) {
 	_ = dueEngagementsPage(data, items, stages, members, string(options.Filter), owner, status, previous, next, h.clientsPath(workspace)).Render(r.Context(), w)
 }
 
+func (h *Handler) renderRescheduleRecovery(w http.ResponseWriter, r *http.Request, workspace identity.WorkspaceID, id engagement.ID, queuePath string, values url.Values, status int, key string) {
+	actor, session, csrf, ok := h.workspaceSession(w, r, workspace, identity.ResourcesRead)
+	if !ok {
+		return
+	}
+	item, err := h.engagement.Get(r.Context(), actor, workspace, id)
+	if err != nil && !errors.Is(err, engagement.ErrNotFound) {
+		h.renderError(w, http.StatusInternalServerError)
+		return
+	}
+	workspaces, err := h.identity.ListWorkspaces(r.Context(), session.UserID)
+	if err != nil {
+		h.renderError(w, http.StatusInternalServerError)
+		return
+	}
+	data := viewmodel.PageData{CSRF: csrf, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, NavPage: "clients", NavSection: "clients", CurrentPath: queuePath, ClientsEnabled: h.clients != nil, FilesEnabled: h.filesEnabled, SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle, ErrorKey: key}
+	h.localizePage(w, &data)
+	data.Title = data.T("queue.reschedule")
+	if encoded := values.Encode(); encoded != "" {
+		queuePath += "?" + encoded
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	_ = rescheduleRecoveryPage(data, item, r.FormValue("due_date"), r.FormValue("filter"), r.FormValue("owner"), queuePath).Render(r.Context(), w)
+}
+
 func queueOperation(historyID int64) string {
 	if historyID != 0 {
 		return "reopen"
@@ -446,6 +473,14 @@ func (h *Handler) changeQueuedAction(w http.ResponseWriter, r *http.Request) {
 	owner := r.FormValue("owner")
 	if id, parseErr := identity.ParseUserID(owner); owner == "unassigned" || (parseErr == nil && id != 0) {
 		values.Set("owner", owner)
+	}
+	if r.PathValue("operation") == "reschedule" && (errors.Is(err, engagement.ErrStaleNextAction) || errors.Is(err, engagement.ErrInvalidInput)) {
+		status, key := http.StatusConflict, "queue.reschedule_conflict"
+		if errors.Is(err, engagement.ErrInvalidInput) {
+			status, key = http.StatusUnprocessableEntity, "queue.invalid_date"
+		}
+		h.renderRescheduleRecovery(w, r, workspace, id, path, values, status, key)
+		return
 	}
 	switch {
 	case errors.Is(err, identity.ErrForbidden):

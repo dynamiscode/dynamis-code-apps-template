@@ -340,6 +340,33 @@ templ engagementHistory(data viewmodel.PageData, history []engagement.MoveHistor
 	</ol>
 }
 
+templ rescheduleRecoveryPage(data viewmodel.PageData, item engagement.Engagement, draft string, filter string, owner string, queuePath string) {
+	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+		@molecules.PageHeading(data.T("queue.reschedule"), data.T("engagement.due_list"))
+		@molecules.ErrorAlert(data.T(data.ErrorKey))
+		<section class="card my-4 p-6">
+			if item.NextAction.Text != "" {
+				<p>{ data.T("engagement.title") }: { item.Name }</p>
+				<p>{ data.T("queue.current_action") }: { item.NextAction.Text }</p>
+				<p>{ data.T("queue.due") }: { item.NextAction.DueDate }</p>
+				<form action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/engagements/" + item.ID.String() + "/action/reschedule") } method="post">
+					<input type="hidden" name="csrf" value={ data.CSRF }/>
+					<input type="hidden" name="version" value={ strconv.FormatInt(item.NextAction.Version, 10) }/>
+					<input type="hidden" name="filter" value={ filter }/>
+					<input type="hidden" name="owner" value={ owner }/>
+					@molecules.TextField("reschedule-draft", data.T("queue.reschedule_date"), templ.Attributes{"name": "due_date", "type": "text", "value": draft, "aria-invalid": templ.KV("true", data.ErrorKey == "queue.invalid_date"), "aria-describedby": "reschedule-date-hint"})
+					<p id="reschedule-date-hint">{ data.T("queue.date_format") }</p>
+					@molecules.SubmitButton(data.T("queue.retry_reschedule"), nil)
+				</form>
+			} else {
+				<p>{ data.T("queue.action_unavailable") }</p>
+				<p>{ data.T("queue.submitted_date") }: { draft }</p>
+			}
+			<a class="link" href={ templ.SafeURL(queuePath) }>{ data.T("queue.back") }</a>
+		</section>
+	}
+}
+
 templ dueEngagementsPage(data viewmodel.PageData, page engagement.ActionQueuePage, stages []engagement.Stage, members []identity.MemberSummary, filter string, owner string, status string, previous string, next string, clientsPath string) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
 		@molecules.PageHeading(data.T("engagement.due_list"), data.T("clients.title"))

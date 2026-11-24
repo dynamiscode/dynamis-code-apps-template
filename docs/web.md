@@ -56,8 +56,11 @@ today, upcoming, undated, completed, and owner, and navigate pages without
 JavaScript. Upcoming, undated, and completed views include closed stages.
 Writers can reschedule or complete an active action, or reopen a completed action,
 from the queue without JavaScript. Rescheduling changes only the optional due date.
-A stale action or occupied active slot produces conflict feedback; readers do not
-see these controls.
+A stale reschedule or invalid date preserves the submitted date on a recovery page.
+When an action remains, the page shows its current text and date and offers an
+explicit retry against the observed version, even outside the original filter. If
+no action remains, it shows the submitted date without a retry. Other stale actions
+or occupied active slots produce conflict feedback; readers do not see these controls.
 Readers see quote status, amount, and sent date on client details; writers can
 update them. The status persists across stage changes.
 Readers see the assignee on client details; writers can assign, change, or clear

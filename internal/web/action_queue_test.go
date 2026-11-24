@@ -84,6 +84,65 @@ func TestActionHistoryVisibleToReaders(t *testing.T) {
 	}
 }
 
+func TestRescheduleRecovery(t *testing.T) {
+	env := newClientsTestEnv(t)
+	ctx := context.Background()
+	actor, err := env.auth.Authorize(ctx, env.ownerID, env.workspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := engagement.NewService(env.db, config.SQLite, env.auth)
+	stage, err := svc.CreateStage(ctx, actor, env.workspaceID, engagement.StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := clients.NewService(env.db, config.SQLite, env.auth, 50).Create(ctx, actor, env.workspaceID, clients.Input{DisplayName: "Recovery client"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	item, err := svc.Create(ctx, actor, env.workspaceID, engagement.Input{Name: "Recovery case", ClientID: client.ID, StageID: stage.ID}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetNextAction(ctx, actor, env.workspaceID, item.ID, engagement.NextAction{Text: "Original action", DueDate: "2020-01-01"}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	path := "/workspaces/" + env.workspaceID.String() + "/engagements/" + item.ID.String() + "/action/reschedule"
+	form := url.Values{"csrf": {env.csrf}, "version": {"1"}, "due_date": {"not-a-date"}, "filter": {"today"}}
+	invalid := request(env.routes, http.MethodPost, path, form, env.cookies, nil)
+	for _, want := range []string{`value="not-a-date"`, "Original action", "2020-01-01", `name="version" value="1"`} {
+		if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), want) {
+			t.Errorf("invalid recovery missing %q (status %d)", want, invalid.Code)
+		}
+	}
+	if err := svc.SetNextAction(ctx, actor, env.workspaceID, item.ID, engagement.NextAction{Text: "Replacement action", DueDate: "2030-01-01"}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	form.Set("due_date", "2031-02-03")
+	stale := request(env.routes, http.MethodPost, path, form, env.cookies, nil)
+	for _, want := range []string{`value="2031-02-03"`, "Replacement action", "2030-01-01", `name="version" value="2"`} {
+		if stale.Code != http.StatusConflict || !strings.Contains(stale.Body.String(), want) {
+			t.Errorf("stale recovery missing %q (status %d)", want, stale.Code)
+		}
+	}
+	form.Set("version", "2")
+	retry := request(env.routes, http.MethodPost, path, form, env.cookies, nil)
+	if retry.Code != http.StatusSeeOther {
+		t.Fatalf("explicit retry: %d", retry.Code)
+	}
+	updated, err := svc.Get(ctx, actor, env.workspaceID, item.ID)
+	if err != nil || updated.NextAction.Text != "Replacement action" || updated.NextAction.DueDate != "2031-02-03" {
+		t.Fatalf("explicit retry did not reschedule observed action: %+v %v", updated.NextAction, err)
+	}
+	if err := svc.SetNextAction(ctx, actor, env.workspaceID, item.ID, engagement.NextAction{}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	gone := request(env.routes, http.MethodPost, path, form, env.cookies, nil)
+	if gone.Code != http.StatusConflict || !strings.Contains(gone.Body.String(), "2031-02-03") || strings.Contains(gone.Body.String(), `name="version"`) {
+		t.Errorf("removed action recovery lost draft or permits retry: status %d", gone.Code)
+	}
+}
+
 func TestActionQueueWeb(t *testing.T) {
 	env := newClientsTestEnv(t)
 	ctx := context.Background()
@@ -141,8 +200,8 @@ func TestActionQueueWeb(t *testing.T) {
 	if got := request(env.routes, http.MethodPost, reschedulePath, reschedule, env.cookies, nil); got.Code != http.StatusSeeOther || !strings.Contains(got.Header().Get("Location"), "rescheduled=1") {
 		t.Fatalf("reschedule: %d %s", got.Code, got.Header().Get("Location"))
 	}
-	if got := request(env.routes, http.MethodPost, reschedulePath, reschedule, env.cookies, nil); !strings.Contains(got.Header().Get("Location"), "conflict=1") {
-		t.Fatalf("stale reschedule: %d %s", got.Code, got.Header().Get("Location"))
+	if got := request(env.routes, http.MethodPost, reschedulePath, reschedule, env.cookies, nil); got.Code != http.StatusConflict || !strings.Contains(got.Body.String(), `value="2020-01-02"`) {
+		t.Fatalf("stale reschedule must preserve draft: %d", got.Code)
 	}
 	form := url.Values{"csrf": {env.csrf}, "version": {"2"}, "filter": {"overdue"}, "owner": {env.ownerID.String()}}
 	if got := request(env.routes, http.MethodPost, completePath, url.Values{"version": {"1"}}, env.cookies, nil); got.Code != http.StatusForbidden {
