@@ -14,7 +14,7 @@ templ engagementBoardPage(data viewmodel.PageData, columns []engagementBoardColu
    <a class="btn btn-outline" aria-current?={ kind == "won" } href={ templ.SafeURL(data.CurrentPath + "?kind=won") }>{ data.T("engagement.won") }</a>
    <a class="btn btn-outline" aria-current?={ kind == "lost" } href={ templ.SafeURL(data.CurrentPath + "?kind=lost") }>{ data.T("engagement.lost") }</a>
   </nav>
-  <a class="link" href={ templ.SafeURL(listPath) }>{ data.T("engagement.list") }</a>
+  <a class="btn btn-outline" href={ templ.SafeURL(listPath) }>{ data.T("engagement.list") }</a>
   if len(columns) == 0 {
    <p>{ data.T("engagement.board_empty") }</p>
   }
@@ -32,8 +32,8 @@ templ engagementBoardPage(data viewmodel.PageData, columns []engagementBoardColu
      <ul>
       for _, item := range column.Page.Engagements {
        <li class="py-2">
-        <a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String()) }>{ item.Name }</a>
-        <span> — </span><a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String()) }>{ item.ClientName }</a>
+        <a class="link rounded-field border border-base-300 px-1" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String()) }>{ item.Name }</a>
+        <span> — </span><a class="link rounded-field border border-base-300 px-1" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String()) }>{ item.ClientName }</a>
         if data.CanEditClients && !boardHasMoveTarget(stages, item.StageID) {
          <p>{ data.T("engagement.no_move_target") }</p>
         }
@@ -58,7 +58,7 @@ templ engagementBoardPage(data viewmodel.PageData, columns []engagementBoardColu
       }
      </ul>
      if column.Page.Total > len(column.Page.Engagements) {
-      <a class="link" href={ templ.SafeURL(listPath + "?stage=" + column.Stage.ID.String()) }>{ data.T("engagement.board_view_all") }</a>
+      <a class="btn btn-outline btn-sm" href={ templ.SafeURL(listPath + "?stage=" + column.Stage.ID.String()) }>{ data.T("engagement.board_view_all") }</a>
      }
     </section>
    }

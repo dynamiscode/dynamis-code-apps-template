@@ -15,9 +15,9 @@ templ accountPageView(data viewmodel.PageData) {
 					<h1>{ data.T("account.account") }</h1>
 					<p class="account-intro">{ data.T("account.page_description") }</p>
 					<nav class="account-shortcuts" aria-label={ data.T("account.security_navigation") }>
-						<a class="account-shortcut btn btn-ghost btn-sm" href="/security">{ data.T("navigation.security") }</a>
-						<a class="account-shortcut btn btn-ghost btn-sm" href="/sessions">{ data.T("navigation.sessions") }</a>
-						<a class="account-shortcut btn btn-ghost btn-sm" href="/settings/language">{ data.T("account.language_settings") }</a>
+						<a class="account-shortcut btn btn-outline btn-sm" href="/security">{ data.T("navigation.security") }</a>
+						<a class="account-shortcut btn btn-outline btn-sm" href="/sessions">{ data.T("navigation.sessions") }</a>
+						<a class="account-shortcut btn btn-outline btn-sm" href="/settings/language">{ data.T("account.language_settings") }</a>
 					</nav>
 				</header>
 				if data.Saved {
@@ -110,7 +110,7 @@ templ accountPageView(data viewmodel.PageData) {
 					}
 					<section class="settings-panel card min-w-0 p-5">
 						<h2>{ data.T("account.notifications") }</h2>
-						<p><a href="/notifications">{ data.T("account.view_notifications") }</a></p>
+						<p><a class="btn btn-outline btn-sm" href="/notifications">{ data.T("account.view_notifications") }</a></p>
 						if len(data.NotificationPreferences) == 0 {
 							@molecules.EmptyState(data.T("workspace.notifications_empty"))
 						} else {

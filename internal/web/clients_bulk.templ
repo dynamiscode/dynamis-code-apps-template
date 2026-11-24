@@ -11,7 +11,7 @@ templ clientBulkBar(data viewmodel.PageData) {
 		<input type="hidden" name="csrf" value={ data.CSRF }/>
 		<input type="hidden" name="return" value={ data.CurrentPath + data.ClientQuerySuffix }/>
 				<span class="client-bulk-count" aria-live="polite" data-count-template={ data.T("clients.bulk_selected", map[string]any{"count": "COUNT"}) }>{ data.T("clients.bulk_selected", map[string]any{"count": 0}) }</span>
-		@atoms.Button(atoms.ButtonProps{Class: "btn-ghost btn-xs", Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "archive", "data-bulk-action": true}}) {
+		@atoms.Button(atoms.ButtonProps{Class: "btn-outline btn-xs", Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "archive", "data-bulk-action": true}}) {
 			@organisms.ListActionIcon("archive")
 			{ data.T("clients.bulk_archive") }
 		}
