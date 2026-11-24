@@ -226,27 +226,37 @@ templ engagementDetailPage(data viewmodel.PageData) {
 					</details>
 				}
 				</section>
-				<ol data-engagement-history>
-					for _, entry := range item.History {
-						<li>
-							for _, stage := range data.EngagementStages {
-								if stage.ID == entry.FromStageID {
-									<span>{ stage.Name }</span>
-								}
-							}
-							<span>→ </span>
-							for _, stage := range data.EngagementStages {
-								if stage.ID == entry.ToStageID {
-									<span>{ stage.Name }</span>
-								}
-							}
-							<span>— { entry.ActorUserID.String() } — { entry.CreatedAt }</span>
-						</li>
-					}
-				</ol>
+				@engagementHistory(data, item.History)
 			</section>
 		}
 	}
+}
+
+templ engagementHistory(data viewmodel.PageData, history []engagement.MoveHistory) {
+	<ol data-engagement-history>
+		for _, entry := range history {
+			<li>
+				for _, stage := range data.EngagementStages {
+					if stage.ID == entry.FromStageID {
+						<span>{ stage.Name }</span>
+					}
+				}
+				<span> → </span>
+				for _, stage := range data.EngagementStages {
+					if stage.ID == entry.ToStageID {
+						<span>{ stage.Name }</span>
+					}
+				}
+				<span> — </span>
+				if entry.ActorName != "" {
+					<span>{ entry.ActorName }</span>
+				} else {
+					<span>{ data.T("engagement.unavailable") }</span>
+				}
+				<span> — </span><time datetime={ entry.CreatedAt }>{ data.HistoryTime(entry.CreatedAt) }</time>
+			</li>
+		}
+	</ol>
 }
 
 templ dueEngagementsPage(data viewmodel.PageData, items []engagement.Engagement, clientsPath string) {

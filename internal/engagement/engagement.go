@@ -47,6 +47,7 @@ type Engagement struct {
 }
 
 type MoveHistory struct {
+	ActorName   string          `json:"-"`
 	ActorUserID identity.UserID `json:"actorUserId"`
 	CreatedAt   string          `json:"createdAt"`
 	FromStageID StageID         `json:"fromStageId"`
@@ -95,7 +96,7 @@ func (s *Service) Move(ctx context.Context, actor identity.Principal, workspaceI
 }
 
 func (s *Service) history(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID, engagementID ID) ([]MoveHistory, error) {
-	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT actor_user_id, created_at, from_stage_id, to_stage_id FROM engagement_stage_history WHERE workspace_id = ? AND engagement_id = ? ORDER BY id`), workspaceID, engagementID)
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT h.actor_user_id, h.created_at, h.from_stage_id, h.to_stage_id, COALESCE(NULLIF(u.display_name, ''), u.email, '') FROM engagement_stage_history h LEFT JOIN users u ON u.id = h.actor_user_id WHERE h.workspace_id = ? AND h.engagement_id = ? ORDER BY h.id`), workspaceID, engagementID)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +104,7 @@ func (s *Service) history(ctx context.Context, tx *sql.Tx, workspaceID identity.
 	history := []MoveHistory{}
 	for rows.Next() {
 		var entry MoveHistory
-		if err := rows.Scan(&entry.ActorUserID, &entry.CreatedAt, &entry.FromStageID, &entry.ToStageID); err != nil {
+		if err := rows.Scan(&entry.ActorUserID, &entry.CreatedAt, &entry.FromStageID, &entry.ToStageID, &entry.ActorName); err != nil {
 			return nil, err
 		}
 		history = append(history, entry)

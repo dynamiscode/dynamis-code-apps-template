@@ -46,6 +46,14 @@ func (p PageData) DateTime(value time.Time) string {
 	return i18n.FormatDateTime(i18n.Locale(p.Locale), value)
 }
 
+func (p PageData) HistoryTime(value string) string {
+	at, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return value
+	}
+	return p.DateTime(at) + " UTC"
+}
+
 // DefaultTokenExpiry is the smart default for a new API token: 90 days from
 // today. The user can change it or clear it for a token without expiry.
 func (p PageData) DefaultTokenExpiry() string {

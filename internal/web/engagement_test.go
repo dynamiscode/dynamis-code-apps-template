@@ -556,8 +556,41 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if got := request(env.routes, http.MethodPost, movePath, url.Values{"csrf": {env.csrf}, "stage": {openStage.String()}, "return_to": {"detail"}}, env.cookies, nil); got.Code != http.StatusUnprocessableEntity || !strings.Contains(got.Body.String(), "Select an available stage.") || !strings.Contains(got.Body.String(), `action="`+movePath+`"`) || !strings.Contains(got.Body.String(), `aria-describedby="engagement-stage-error"`) || !strings.Contains(got.Body.String(), `<option value="`+openStage.String()+`" selected disabled>`) {
 		t.Fatalf("archived detail move: %d", got.Code)
 	}
-	viewer = request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
-	if viewer.Code != http.StatusOK || !strings.Contains(viewer.Body.String(), "Won") || !strings.Contains(viewer.Body.String(), "data-engagement-history") || !strings.Contains(viewer.Body.String(), owner.UserID.String()) || strings.Contains(viewer.Body.String(), "Move stage") {
-		t.Fatalf("viewer history: %d %s", viewer.Code, viewer.Body.String())
+	if _, err := env.db.ExecContext(ctx, `UPDATE users SET display_name = 'History Actor' WHERE id = ?`, owner.UserID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.db.ExecContext(ctx, `UPDATE engagement_stage_history SET created_at = '2025-01-02T15:04:00Z' WHERE workspace_id = ?`, env.workspaceID); err != nil {
+		t.Fatal(err)
+	}
+	stages, err := svc.ListStages(ctx, owner, env.workspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	archivedName := ""
+	for _, stage := range stages {
+		if stage.ID == openStage {
+			archivedName = stage.Name
+		}
+	}
+	for _, historyPath := range []string{path, detailPath} {
+		viewer = request(env.routes, http.MethodGet, historyPath, nil, env.viewerCookies, nil)
+		body := viewer.Body.String()
+		if viewer.Code != http.StatusOK || archivedName == "" || !strings.Contains(body, archivedName+"</span>") || !strings.Contains(body, "Won") || !strings.Contains(body, "data-engagement-history") || !strings.Contains(body, "History Actor") || !strings.Contains(body, "Jan 2, 2025 3:04 PM UTC") || strings.Contains(body, "Move stage") {
+			t.Fatalf("viewer history: %d %s", viewer.Code, body)
+		}
+	}
+	if err := env.auth.UpdateWorkspaceLocale(ctx, owner, "es", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	viewer = request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
+	if !strings.Contains(viewer.Body.String(), "2 de enero de 2025 15:04 UTC") {
+		t.Fatalf("localized history: %d %s", viewer.Code, viewer.Body.String())
+	}
+	if _, err := env.db.ExecContext(ctx, `UPDATE engagement_stage_history SET actor_user_id = -1 WHERE workspace_id = ?`, env.workspaceID); err != nil {
+		t.Fatal(err)
+	}
+	viewer = request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
+	if !strings.Contains(viewer.Body.String(), "No disponible</span>") {
+		t.Fatalf("missing actor: %d %s", viewer.Code, viewer.Body.String())
 	}
 }
