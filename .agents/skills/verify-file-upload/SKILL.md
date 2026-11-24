@@ -20,6 +20,9 @@ description: Check the private file lifecycle (pending, ready, failed), its quot
   rejected by `Complete`, `CompleteAccepts` and `CompleteRejects` are `Complete`
   and `completeDB`, `Abort` is `markFailed` during `PutContent`, and `Cleanup` is
   `CleanupStaleFiles`.
+- `PutContent` completes local writes immediately; S3 writes remain pending until
+  `Complete`. The model allows the latter intermediate state and abstracts the
+  local write and completion as successive steps.
 - Each action is treated as one serializable transaction, matching the `SERIALIZABLE` transactions in `service.go`.
 - Abstracted away: MIME types, owners, signed URLs, and real cleanup timing.
   Store errors are not modeled; `TestStreamedWriteFailureReleasesPendingQuota`
@@ -28,7 +31,7 @@ description: Check the private file lifecycle (pending, ready, failed), its quot
 ## Coverage record
 
 - Covered code: `internal/files/service.go` (`reserve`, `completeDB`, `Complete`, `PutContent`, `transitionFile`, `markFailed`, `CleanupStaleFiles`) and the tests listed below.
-- Sync commit: `11f139b483cbf15f0e47868c0f4f586e80995634`. The model was last confirmed against this commit.
+- Sync commit: `14a5d42b3c5d96a7e72759e6c20c13a3e91b370f`. The model was last confirmed against this commit.
 - If covered code changed since the sync commit, rerun the checks and read the diff before trusting a pass. Move the sync commit forward only after the checks pass against that code and you confirm the model still matches it.
 
 ## Run the check
@@ -37,7 +40,7 @@ description: Check the private file lifecycle (pending, ready, failed), its quot
    `verification/tools/run-tlc.sh verification/files FileUpload`
    The pass line is `Model checking completed. No error has been found.`
 2. Run the Go checks against the real code:
-   `go test ./internal/files/ -run 'TestLocalFileLifecycleAndValidation|TestWorkspaceQuotaAndIsolation|TestStreamedWriteFailureReleasesPendingQuota|TestFileStateTransitions|TestQuotaCalculationCleanupStaleAndFailedFiles' -count=1`
+   `go test ./internal/files/ -run 'TestLocalFileLifecycleAndValidation|TestWorkspaceQuotaAndIsolation|TestStreamedS3UploadStaysPendingUntilComplete|TestStreamedWriteFailureReleasesPendingQuota|TestFileStateTransitions|TestQuotaCalculationCleanupStaleAndFailedFiles' -count=1`
 3. Both must pass. For the Postgres path, set `POSTGRES_TEST_URL` and run `TestPostgresFileStateTransitions` too.
 
 ## Read a failure
@@ -63,5 +66,5 @@ Measured on this commit, in scratch copies:
 ## Not covered
 
 - Concurrency beyond the model's two files, and the real `SERIALIZABLE` retry behavior on Postgres.
-- Storage failures (S3 or local disk) beyond the "pending stays pending" behavior.
+- Storage failures and failed quota-release deletes. The streamed write-failure test checks successful quota release separately.
 - Real cleanup timing (`CleanupStaleFiles` cutoff) and the file HTTP routes.

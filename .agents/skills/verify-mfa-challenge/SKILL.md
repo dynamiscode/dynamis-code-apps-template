@@ -23,8 +23,8 @@ replayed expired challenge, signs in as the user.
   `maxMFAAttempts`/`mfaChallengeLifetime` constants) and
   `internal/identity/mfa_test.go` (`TestEvaluateChallengeState`).
 - Model: `docs/statecharts/sign-in-mfa/SignInMfa.tla`, config
-  `SignInMfa.cfg` (28 states, complete graph).
-- Sync commit: `74bf0ba84949f108fe05e77bb7eac0af20a75d0e`. The model and test were last confirmed
+  `SignInMfa.cfg` (17 distinct states, complete graph).
+- Sync commit: `14a5d42b3c5d96a7e72759e6c20c13a3e91b370f`. The model and test were last confirmed
   against this commit.
 - If the covered code has changed since the sync commit, this check needs a
   fresh look. Run the steps below and read what changed in `mfa.go` before

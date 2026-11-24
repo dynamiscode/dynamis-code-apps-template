@@ -5,7 +5,8 @@ workspace with two files that compete for quota.
 
 Each action names the code it models:
   Reserve         reserve()                         (service.go ~344-380): quota check, then INSERT as pending
-  PutObject       PutContent() store.Put            (service.go ~155-195): validated bytes stored under the reserved size
+  PutObject       PutContent() store.Put: validated bytes stored under the reserved size;
+                  S3 remains pending until Complete, while local storage completes immediately
   PutWrongSize    mismatched stored object size    (Complete rejects): differs from reservation
   CompleteAccepts Complete()/PutContent() + completeDB() accept path (service.go ~195-243, ~388-441)
   CompleteRejects Complete()/PutContent() markFailed paths (object size or content mismatch)

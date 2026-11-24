@@ -2,11 +2,11 @@
 (*
 One full-page form with a stored draft (data-persist), dirty tracking
 (data-dirty-track), and the unsaved-changes warning (data-unsaved-warning),
-as wired by internal/web/assets/forms.js. Example: the invitation form in
-internal/web/templates/invitations.html, whose server re-render does not echo
+as wired by internal/web/assets/alpine-components.js. Example: the invitation
+form in internal/web/invitations.templ, whose server re-render does not echo
 the typed email.
 
-Code this model follows (forms.js):
+Code this model follows (alpine-components.js, wireForms):
 - input handler: updateDirty, then writeDraft(form, false), which is skipped
   while the form is submitting.
 - submit handler: writeDraft(form, true), then mark the form submitting.

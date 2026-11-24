@@ -15,21 +15,21 @@ description: Check multi-step forms and progressive disclosure - the two-step fi
 
 ## What is modeled
 
-- Model: `verification/web/SetupWizard.tla`, config `verification/web/SetupWizard.cfg`; 13 distinct states. Actions: fill or break each step, Next, Back, Create owner, and the server refusing setup (the page re-renders at step 1 with the error focused).
+- Model: `verification/web/SetupWizard.tla`, config `verification/web/SetupWizard.cfg`; 8 distinct states. Actions: fill or break each step, Next, Back, Create owner, and the server refusing setup (the page re-renders at step 1 with the error focused).
 - `wizardMove` is tested over every step, total up to 6, direction and validity in `internal/web/assets/forms.test.mjs`.
-- Browser checks (`scripts/ux-patterns.mjs` (retired), tagged `form-wizard`): step 2 and the submit start hidden, Next is blocked on an invalid step, focus moves to the new step's legend, setup completes from the last step, and the email provider switch swaps sections.
+- Browser checks (`internal/browsertest/ux_test.go`, `TestFormUXPatterns`): step 2 and the submit start hidden, Next is blocked on an invalid step, focus moves to the new step's legend, setup completes from the last step, and the email provider switch swaps sections.
 - Left out: the setup token field's server check and the server's own validation rules.
 
 ## Coverage record
 
 - Covered code: `internal/web/auth.templ` (setup wizard), `internal/web/settings_pages.templ` (email provider disclosure), `internal/web/assets/alpine-components.js`, wireForms (`wizardMove`, `enhanceWizard`, `revealStep`, `enhanceDisclosure`, the submit handler's wizard branch, `validateFields` skipping hidden fields).
-- Sync commit: the commit that last changed this file (`git log -1 --format=%H -- .agents/skills/form-wizard/SKILL.md`). Diff the covered files against it before trusting a pass, then update this file.
+- Sync commit: `14a5d42b3c5d96a7e72759e6c20c13a3e91b370f`. Diff the covered files against it before trusting a pass, then update this file.
 
 ## Run the check
 
 1. `verification/tools/run-tlc.sh verification/web SetupWizard` → `Model checking completed. No error has been found.`
 2. `node --test internal/web/assets/forms.test.mjs` → `fail 0`.
-3. `make browser-smoke` → `TestFormUXPatterns` passes (it starts from an empty database, so it walks setup).
+3. `go test -tags browser -count=1 -timeout=3m ./internal/browsertest -run '^TestFormUXPatterns$'` → `ok` (it starts from an empty database, so it walks setup).
 4. Read a counterexample or redraw `docs/statecharts/setup-wizard/chart/chart.mmd` with the `/statechart` skill and `docs/statecharts/setup-wizard/view.js`.
 
 ## Read a failure

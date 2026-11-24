@@ -25,7 +25,7 @@ Rule 1 is the one the model found to be most at risk. Rule 1 is also what `TestS
 ## Coverage record
 
 - Covered code: `internal/jobs/queue.go` (`claim`, `finish`, `Process`, `EvaluateJobOutcome`) and `internal/jobs/queue_lease_test.go`.
-- Sync commit: `11f139b483cbf15f0e47868c0f4f586e80995634`. The model and test were last confirmed against this commit.
+- Sync commit: `14a5d42b3c5d96a7e72759e6c20c13a3e91b370f`. The model and test were last confirmed against this commit.
 - If the covered code has changed since the sync commit, this check needs a fresh look. Run the steps below and read what changed in `queue.go` before trusting a pass. Move the sync commit forward only after you confirm the model still describes the code at the new commit.
 
 ## Run the check
@@ -63,3 +63,4 @@ Measured on this commit:
 - Handler idempotency: the model is at-least-once, and it does not check what a handler does twice.
 - Postgres behavior: the Go test runs on SQLite. Run `internal/jobs/postgres_test.go` as well when the SQL changes.
 - Liveness: the model does not prove that every job eventually finishes. It checks only safety.
+- Retention cleanup deletes terminal job rows; terminality applies while the row exists.

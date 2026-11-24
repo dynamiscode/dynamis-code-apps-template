@@ -18,19 +18,19 @@ description: Check how forms keep unsent work - dirty detection that enables Sav
 - Model: `verification/web/FormDrafts.tla`, config `verification/web/FormDrafts.cfg`; 29 distinct states. One full-page form whose server re-render does not echo input (the invitation form).
 - Actions → forms.js: `YouType`/`YouClear` (input handler: `updateDirty`, `writeDraft(form, false)`), `YouSubmit` (submit handler: `writeDraft(form, true)`, then `submitting`), `EventWhileSubmitting` (an input/change on the old form during the request; `writeDraft` skips a submitting form), `ServerSaves`/`ServerRejects`/`YouComeBack` (page load: `applyDraft` → `draftAction`), `YouLeave` (`beforeunload`), `YouDiscard` (the Discard changes button).
 - Exhaustive tests (`internal/web/assets/forms.test.mjs`): `draftAction` over every stored/submitted/error combination, `isDirty` over every pair of two-field values, `refreshDecision`.
-- Browser checks (`scripts/ux-patterns.mjs` (retired), lines tagged `form-drafts`): Save starts disabled and enables after a change, the invitation draft is restored and announced, Discard clears it, the warning fires only when dirty.
-- Left out: several tabs (sessionStorage is per tab), text typed while a request is in flight (the response replaces the form), and the realtime refresh timing (only the decision is tested; `app.js` applies it on `focusout` and after each request).
+- Browser checks (`internal/browsertest/ux_test.go`, `TestFormUXPatterns`): the invitation draft is restored and announced, Discard clears it, and the warning fires only when dirty.
+- Left out: several tabs (sessionStorage is per tab), text typed while a request is in flight (the response replaces the form), and realtime refresh timing (only the decision is tested; `wireRealtime` applies it on `focusout` and after each request).
 
 ## Coverage record
 
-- Covered code: `internal/web/assets/alpine-components.js`, wireForms (`draftAction`, `isDirty`, `refreshDecision`, `writeDraft`, `readDraft`, `applyDraft`, `updateDirty`, the input/change/submit/beforeunload handlers, `isEditing`), `internal/web/assets/app.js` (the deferred `refresh`), and the templates using `data-persist` (invitations, webhooks), `data-dirty-track` (account profile, general settings, email settings), `data-unsaved-warning`.
-- Sync commit: the commit that last changed this file (`git log -1 --format=%H -- .agents/skills/form-drafts/SKILL.md`). Diff the covered files against it first; if they changed, confirm the model still matches before trusting a pass, then update this file.
+- Covered code: `internal/web/assets/alpine-components.js`, wireForms (`draftAction`, `isDirty`, `refreshDecision`, `writeDraft`, `readDraft`, `applyDraft`, `updateDirty`, the input/change/submit/beforeunload handlers, `isEditing`) and `wireRealtime` (the deferred `refresh`), and templates using `data-persist`, `data-dirty-track`, or `data-unsaved-warning`.
+- Sync commit: `14a5d42b3c5d96a7e72759e6c20c13a3e91b370f`. Diff the covered files against it first; if they changed, confirm the model still matches before trusting a pass, then update this file.
 
 ## Run the check
 
 1. `verification/tools/run-tlc.sh verification/web FormDrafts` → `Model checking completed. No error has been found.`
 2. `node --test internal/web/assets/forms.test.mjs` → `fail 0`.
-3. `make browser-smoke` → `TestFormUXPatterns` passes (needs Chrome and `npm ci`).
+3. `go test -tags browser -count=1 -timeout=3m ./internal/browsertest -run '^TestFormUXPatterns$'` → `ok` (needs Chrome).
 4. Read a counterexample, or redraw `docs/statecharts/form-drafts/chart/chart.mmd`, with the `/statechart` skill on the model and `docs/statecharts/form-drafts/view.js`.
 
 ## Read a failure
