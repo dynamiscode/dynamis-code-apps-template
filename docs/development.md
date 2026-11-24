@@ -178,6 +178,13 @@ JavaScript/TypeScript.
 
 ### Verification checklist
 
+Pull request CI checks migration history. It rejects changes to migrations at
+the merge base and migrations removed or renamed in retained branch commits.
+Run `sh scripts/check-migration-history.sh origin/main HEAD` locally. Squashing,
+rebasing, or force-pushing can erase the relevant commits, so this check cannot
+detect every migration applied from an unreleased branch. Coordinate databases
+used during development before changing migration versions.
+
 Prior to PR creation, verify changes with the following checklist:
 - Run `make lint` (runs `fmt-check` and `go vet`) so mechanical formatting failures are caught before pushing.
 - Run focused tests and `go test ./...` across affected packages.
