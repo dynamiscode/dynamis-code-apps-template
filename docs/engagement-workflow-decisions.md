@@ -187,10 +187,24 @@ The detail sections were collapsed and the stage label was translated.
   made before later minor fixes, not at `90c529b`; its exact revision was not
   recorded.
 
+Visual review used synthetic local data in the original workspace checkout.
+Before the visual fix, desktop and mobile screenshots were captured locally at
+`.playwright-mcp/engagement-622-desktop.png` and
+`.playwright-mcp/engagement-622-mobile-closed.png`. Review found that edit
+controls looked like static text, the navigation relationship was unclear,
+blank notes added clutter, and sections lacked clear grouping. Commit `88ff69e`
+adds outlined disclosures, an explicit back link, dividers, and hides blank
+notes. A mobile after screenshot was captured locally at
+`.playwright-mcp/engagement-622-mobile-after.png`; actual mobile before/after
+review confirmed improved affordance. The next-action section falls near the
+bottom of the viewport and requires scrolling. These local screenshot paths are
+not committed; no desktop after screenshot is claimed.
+
 These are reported samples, not a complete journey matrix or accessibility
-compliance assessment. No durable screenshots or independent review were
-provided with these observations. The earlier baseline and its blocked audit
-status remain separate; broader redesigned-journey review remains outstanding.
+compliance assessment. The visual review does not establish accessibility smoke
+checks or full UX completion. Independent review was not reported. The earlier
+baseline and its blocked audit status remain separate; broader redesigned-journey
+review remains outstanding.
 
 ## Remaining current-journey audit
 
