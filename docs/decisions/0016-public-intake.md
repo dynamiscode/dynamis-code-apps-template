@@ -1,6 +1,6 @@
 # 0016: Public Intake Form
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-22
 - Owners: template maintainers
 
@@ -44,8 +44,8 @@ is unchanged.
   email per submission. Email runs as a background job, never inline. The
   notification links by short ID and carries no client data.
 
-The surface is the web form only. There is no public listing, search, or read,
-and no MCP, WebMCP, or CLI surface.
+The surfaces are the web form and a public REST submission endpoint. There is
+no public listing or search, and no MCP, WebMCP, or CLI surface.
 
 ## Consequences
 
@@ -59,8 +59,8 @@ limits and a honeypot. Duplicates are flagged for staff review, not resolved.
 Rejected: custom fields on the form; CAPTCHA; automatic duplicate merge; several
 active links per workspace; link expiry.
 
-Build is blocked until this record is accepted, the showcase decision is made,
-and the engagement item is built. Email notification waits for email support in
+Build is blocked until the showcase decision is made and the engagement item is
+built. Email notification waits for email support in
 the job queue; the in-app notification ships first.
 
 ## Revisit when

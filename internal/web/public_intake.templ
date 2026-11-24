@@ -1,0 +1,40 @@
+package web
+
+import "example.com/dynamis-code/apps-template/internal/intake"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
+templ publicIntakePage(data viewmodel.PageData, consent string, submission intake.Submission, message string, complete bool) {
+	<!doctype html>
+	<html lang={ data.Locale } if data.Theme != "system" { data-theme={ data.Theme } }>
+		<head>
+			@templates.PageHead(data, data.T("public_intake.title"))
+		</head>
+		<body>
+			<main class="narrow card mx-auto w-[calc(100%-2rem)] max-w-xl my-6 p-6 shadow-xl" id="main">
+				if complete {
+					<h1>{ data.T("public_intake.thanks") }</h1>
+				} else {
+					<h1>{ data.T("public_intake.title") }</h1>
+					<p id="intake-contact-help">{ data.T("public_intake.contact") }</p>
+					if message != "" {
+						@molecules.ErrorAlert(message)
+					}
+					<form method="post">
+						<input type="text" name="website" tabindex="-1" aria-hidden="true" autocomplete="off" class="hidden"/>
+						@atoms.Input(atoms.InputProps{ID: "name", Name: "name", Label: data.T("public_intake.name"), Value: submission.DisplayName, Required: true, MaxLength: "200", Attrs: templ.Attributes{"autocomplete": "name"}})
+						@atoms.Input(atoms.InputProps{ID: "phone", Name: "phone", Label: data.T("public_intake.phone"), Type: "tel", Value: submission.Phone, MaxLength: "50", Attrs: templ.Attributes{"autocomplete": "tel", "aria-describedby": "intake-contact-help"}})
+						@atoms.Input(atoms.InputProps{ID: "email", Name: "email", Label: data.T("public_intake.email"), Type: "email", Value: submission.Email, MaxLength: "254", Attrs: templ.Attributes{"autocomplete": "email", "aria-describedby": "intake-contact-help"}})
+						@molecules.TextareaField("notes", data.T("public_intake.notes"), submission.Notes, templ.Attributes{"name": "notes", "maxlength": "2000"})
+						<div class="my-4">
+							<label class="label"><input class="checkbox" type="checkbox" name="consent" required if submission.Consent { checked }/><span>{ consent }</span></label>
+						</div>
+						<button class="btn btn-primary" type="submit">{ data.T("public_intake.submit") }</button>
+					</form>
+				}
+			</main>
+		</body>
+	</html>
+}
