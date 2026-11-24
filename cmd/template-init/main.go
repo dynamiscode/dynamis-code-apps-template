@@ -384,7 +384,7 @@ func clientsPath(relative string) bool {
 	return relative == "internal/clients" || strings.HasPrefix(relative, "internal/clients/") ||
 		relative == "internal/identity/engagement_membership_test.go" ||
 		relative == "internal/engagement/engagement.go" || relative == "internal/engagement/list.go" || relative == "internal/engagement/list_test.go" ||
-		relative == "internal/engagement/action_queue.go" || relative == "internal/engagement/action_queue_test.go" ||
+		relative == "internal/engagement/action_queue.go" || relative == "internal/engagement/action_queue_test.go" || relative == "internal/engagement/dashboard.go" ||
 		relative == "internal/engagement/agreement.go" ||
 		relative == "internal/engagement/agreement_test.go" ||
 		relative == "internal/engagement/assignee.go" || relative == "internal/engagement/next_action.go" || relative == "internal/engagement/quote.go" ||

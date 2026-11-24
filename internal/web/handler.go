@@ -26,6 +26,7 @@ import (
 	"log/slog"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -566,6 +567,33 @@ func (h *Handler) workspaceHome(writer http.ResponseWriter, request *http.Reques
 		Title: workspaceByID(workspaces, workspaceID).Name, NavPage: "workspace", NavSection: "workspace",
 		CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
 		CanEditClients: principal.Permissions[identity.ResourcesWrite],
+	}
+	if h.engagement != nil && principal.Permissions[identity.ResourcesRead] {
+		page := 1
+		if value := request.URL.Query().Get("page"); value != "" {
+			page, err = strconv.Atoi(value)
+			if err != nil || page < 1 || page > clients.MaxListPage {
+				h.renderError(writer, http.StatusBadRequest)
+				return
+			}
+		}
+		dashboard, err := h.engagement.Dashboard(request.Context(), principal, workspaceID, page, 20)
+		if err != nil {
+			if errors.Is(err, identity.ErrForbidden) {
+				h.renderError(writer, http.StatusForbidden)
+			} else {
+				h.renderError(writer, http.StatusInternalServerError)
+			}
+			return
+		}
+		data.EngagementDashboard = &dashboard
+		path := "/workspaces/" + workspaceID.String() + "?page="
+		if page > 1 {
+			data.DashboardPrevious = path + strconv.Itoa(page-1)
+		}
+		if dashboard.HasMore && page < clients.MaxListPage {
+			data.DashboardNext = path + strconv.Itoa(page+1)
+		}
 	}
 	h.render(writer, http.StatusOK, "workspace-home", data)
 }

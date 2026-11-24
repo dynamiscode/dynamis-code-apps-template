@@ -6,6 +6,7 @@ import templates "example.com/dynamis-code/apps-template/internal/web/components
 
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+import "strconv"
 templ workspaceSelection(data viewmodel.PageData) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), nil) {
 		@molecules.PageHeading(data.T("workspace.workspaces"), "")
@@ -45,6 +46,39 @@ templ workspaceSelection(data viewmodel.PageData) {
 templ workspaceHome(data viewmodel.PageData) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
 		<h2 class="sr-only">{ data.Workspace.Name }</h2>
+		if data.EngagementDashboard != nil {
+			<section aria-labelledby="engagement-dashboard-title">
+				<h2 id="engagement-dashboard-title">{ data.T("dashboard.title") }</h2>
+				<ul class="grid list-none gap-4 p-0 grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
+					@molecules.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/engagements/due?filter=overdue", data.T("queue.filter_overdue"), strconv.Itoa(data.EngagementDashboard.Overdue))
+					@molecules.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/engagements/due?filter=today", data.T("queue.filter_today"), strconv.Itoa(data.EngagementDashboard.Today))
+				</ul>
+				<h3>{ data.T("dashboard.open_stages") }</h3>
+				if len(data.EngagementDashboard.Stages) == 0 {
+					<p>{ data.T("dashboard.empty_stages") }</p>
+				}
+				<ul class="grid list-none gap-4 p-0 grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
+					for _, stage := range data.EngagementDashboard.Stages {
+						<li class="card bg-base-100 p-4">
+							<a class="link" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/engagements?stage=" + stage.Stage.ID.String()) }>{ stage.Stage.Name }
+								if stage.Stage.Archived {
+									<span> ({ data.T("engagement.archived") })</span>
+								}
+								<span> — { strconv.Itoa(stage.Count) }</span>
+							</a>
+						</li>
+					}
+				</ul>
+				<nav aria-label={ data.T("ui.pages") }>
+					if data.DashboardPrevious != "" {
+						<a class="link" rel="prev" href={ templ.SafeURL(data.DashboardPrevious) }>{ data.T("ui.previous_page") }</a>
+					}
+					if data.DashboardNext != "" {
+						<a class="link" rel="next" href={ templ.SafeURL(data.DashboardNext) }>{ data.T("items.next_page") }</a>
+					}
+				</nav>
+			</section>
+		}
 		// The home reflects the workspace's components: the items component
 		// surfaces its own create form and newest rows, and the tiles below
 		// mirror every enabled feature. The header already names the workspace.
