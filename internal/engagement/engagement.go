@@ -75,6 +75,9 @@ func (s *Service) Move(ctx context.Context, actor identity.Principal, workspaceI
 	} else if err != nil {
 		return err
 	}
+	if from == target {
+		return nil
+	}
 	if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, `UPDATE engagements SET stage_id = ? WHERE workspace_id = ? AND id = ?`), target, workspaceID, engagementID); err != nil {
 		return err
 	}

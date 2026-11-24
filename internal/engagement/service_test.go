@@ -373,6 +373,13 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, stages[1].ID, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
+	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, stages[1].ID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	unchanged, err := svc.Get(ctx, viewer, boot.WorkspaceID, created.ID)
+	if err != nil || len(unchanged.History) != 1 {
+		t.Fatalf("same-stage move changed history: %+v, %v", unchanged.History, err)
+	}
 	if due, err := svc.ListDue(ctx, viewer, boot.WorkspaceID, "2020-01-01"); err != nil || len(due) != 0 {
 		t.Fatalf("won due: %+v, %v", due, err)
 	}
