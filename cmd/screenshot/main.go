@@ -223,6 +223,17 @@ func screenshot(ctx context.Context, page []byte, width, height int64) ([]byte, 
 	defer cancel()
 	browser, cancel = context.WithTimeout(browser, 30*time.Second)
 	defer cancel()
+	blocked := make(chan string, 1)
+	if err := chromedp.Listen(browser, func(event any) {
+		if failed, ok := event.(*network.EventLoadingFailed); ok && failed.BlockedReason != "" {
+			select {
+			case blocked <- failed.ErrorText:
+			default:
+			}
+		}
+	}); err != nil {
+		return nil, fmt.Errorf("listen for blocked resources: %w", err)
+	}
 	if _, err := chromedp.Call(browser, network.Enable, network.EnableParams{}); err != nil {
 		return nil, fmt.Errorf("start browser: %w", err)
 	}
@@ -236,6 +247,11 @@ func screenshot(ctx context.Context, page []byte, width, height int64) ([]byte, 
 	png, err := chromedp.Run(browser, chromedp.CaptureScreenshot())
 	if err != nil {
 		return nil, fmt.Errorf("capture screenshot: %w", err)
+	}
+	select {
+	case reason := <-blocked:
+		return nil, fmt.Errorf("blocked runtime resource: %s", reason)
+	default:
 	}
 	return png, nil
 }
