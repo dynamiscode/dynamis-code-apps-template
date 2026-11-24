@@ -8,8 +8,8 @@ description: Check every templ form for the form markup rules - persistent label
 ## The rules
 
 1. **Persistent labels.** Every visible input, select and textarea has a label that stays on screen: `<label for=id>`, a wrapping `<label>`, or an `aria-label`. No placeholder-only fields. Harm: screen reader users cannot tell what a field is.
-2. **Error auto-focus.** In a template htmx swaps (`hx-target`), every `role="alert"` has `tabindex="-1"`, so the `htmx:after:swap` handler in `forms.js` can move focus to it. forms.js also focuses the first full-page error on load. Harm: keyboard users never hear the error.
-3. **Confirmation dialog.** Every button with value delete, remove, revoke or transfer has `data-confirm`, which `forms.js` turns into `window.confirm`. Harm: one stray click removes a member or revokes a token. Some forms confirm with a required `confirm_*` checkbox instead (members, webhooks); that also counts.
+2. **Error auto-focus.** In a template htmx swaps (`hx-target`), every `role="alert"` has `tabindex="-1"`, so the `htmx:after:swap` handler in `internal/web/assets/alpine-components.js` can move focus to it. The handler also focuses the first full-page error on load. Harm: keyboard users never hear the error.
+3. **Confirmation dialog.** Every button with value delete, remove, revoke or transfer has `data-confirm`, which `internal/web/assets/alpine-components.js` turns into `window.confirm`. Harm: one stray click removes a member or revokes a token. Some forms confirm with a required `confirm_*` checkbox instead (members, webhooks); that also counts.
 4. **Explicit optional marking.** A text field that is not `required` says "optional" in its label key. Selects are skipped because they always have a value. Fields inside a `data-show-when` section are required only for the option that shows the section (see `form-wizard`).
 
 ## Enforcement
@@ -19,7 +19,7 @@ No automated source scan. `TestFormMarkupRules` read the legacy `templates/*.htm
 ## Coverage record
 
 - Covered by review: all `internal/web/*.templ` forms; the `data-confirm` click handler and the `htmx:after:swap` focus handler in the wireForms section of `internal/web/assets/alpine-components.js`.
-- Sync commit: the commit that last changed this file (`git log -1 --format=%H -- .agents/skills/form-markup/SKILL.md`). If `forms.js` changed how confirm or focus works since then, update the rules here before trusting a pass.
+- Sync commit: `e643b4030f8e1130335da1a52e73d30e5a287ba2` (the last skill change before this path correction). If `internal/web/assets/alpine-components.js` changed how confirm or focus works since then, update the rules here before trusting a pass.
 
 ## Proof a break is caught by hand
 
