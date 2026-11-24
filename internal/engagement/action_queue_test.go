@@ -90,6 +90,19 @@ func TestActionQueue(t *testing.T) {
 	if err != nil || second.HasMore || second.Entries[0].EngagementID != ids[1] {
 		t.Fatalf("second: %+v %v", second, err)
 	}
+	if err := svc.RescheduleNextAction(ctx, owner, boot.WorkspaceID, ids[0], 1, "2030-02-30", identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("invalid date: %v", err)
+	}
+	if err := svc.RescheduleNextAction(ctx, owner, boot.WorkspaceID, ids[0], 1, "2030-02-28", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.RescheduleNextAction(ctx, owner, boot.WorkspaceID, ids[0], 1, "", identity.AuditContext{}); !errors.Is(err, ErrStaleNextAction) {
+		t.Fatalf("stale reschedule: %v", err)
+	}
+	updated, err := svc.Get(ctx, owner, boot.WorkspaceID, ids[0])
+	if err != nil || updated.NextAction.DueDate != "2030-02-28" || updated.NextAction.Text != "Action" || updated.NextAction.OwnerID != boot.UserID || updated.NextAction.Version != 2 {
+		t.Fatalf("rescheduled action: %+v %v", updated.NextAction, err)
+	}
 	if err := svc.CompleteNextAction(ctx, owner, boot.WorkspaceID, ids[4], 1, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}

@@ -254,6 +254,9 @@ templ engagementDetailPage(data viewmodel.PageData) {
 templ dueEngagementsPage(data viewmodel.PageData, page engagement.ActionQueuePage, stages []engagement.Stage, members []identity.MemberSummary, filter string, owner string, previous string, next string, clientsPath string) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
 		@molecules.PageHeading(data.T("engagement.due_list"), data.T("clients.title"))
+		if data.Saved {
+			@molecules.SuccessAlert(data.T("queue.rescheduled"))
+		}
 		if data.ErrorKey != "" {
 			@molecules.ErrorAlert(data.T(data.ErrorKey))
 		}
@@ -308,6 +311,15 @@ templ dueEngagementsPage(data viewmodel.PageData, page engagement.ActionQueuePag
 								<p>{ data.T("queue.completed_at") }: { item.CompletedAt }</p>
 							}
 							if data.CanEditClients {
+								if item.HistoryID == 0 {
+									<form action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/engagements/" + item.EngagementID.String() + "/action/reschedule") } method="post">
+										<input type="hidden" name="csrf" value={ data.CSRF }/>
+										<input type="hidden" name="version" value={ strconv.FormatInt(item.Action.Version, 10) }/>
+										<label for={ "reschedule-" + item.EngagementID.String() }>{ data.T("queue.reschedule_date") }: { item.Action.Text }</label>
+										<input id={ "reschedule-" + item.EngagementID.String() } type="date" name="due_date" value={ item.Action.DueDate } class="input input-bordered"/>
+										<button type="submit" class="btn btn-outline btn-sm">{ data.T("queue.reschedule") }</button>
+									</form>
+								}
 								<form action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/engagements/" + item.EngagementID.String() + "/action/" + queueOperation(item.HistoryID)) } method="post">
 									<input type="hidden" name="csrf" value={ data.CSRF }/>
 									<input type="hidden" name="version" value={ strconv.FormatInt(item.Action.Version, 10) }/>

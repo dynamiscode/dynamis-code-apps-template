@@ -60,11 +60,25 @@ func TestActionQueueWeb(t *testing.T) {
 		t.Fatal("writer missing completion control")
 	}
 	completePath := path[:strings.LastIndex(path, "/due")] + "/" + completed.String() + "/action/complete"
-	form := url.Values{"csrf": {env.csrf}, "version": {"1"}}
+	reschedulePath := strings.TrimSuffix(completePath, "complete") + "reschedule"
+	if !strings.Contains(writer.Body.String(), "/action/reschedule") || strings.Contains(first.Body.String(), "/action/reschedule") {
+		t.Fatal("reschedule controls must be writer-only")
+	}
+	reschedule := url.Values{"csrf": {env.csrf}, "version": {"1"}, "due_date": {"2020-01-02"}}
+	if got := request(env.routes, http.MethodPost, reschedulePath, url.Values{"csrf": {env.viewerCSRF}, "version": {"1"}, "due_date": {"2020-01-02"}}, env.viewerCookies, nil); got.Code != http.StatusForbidden {
+		t.Fatalf("viewer reschedule: %d", got.Code)
+	}
+	if got := request(env.routes, http.MethodPost, reschedulePath, reschedule, env.cookies, nil); got.Code != http.StatusSeeOther || !strings.Contains(got.Header().Get("Location"), "rescheduled=1") {
+		t.Fatalf("reschedule: %d %s", got.Code, got.Header().Get("Location"))
+	}
+	if got := request(env.routes, http.MethodPost, reschedulePath, reschedule, env.cookies, nil); !strings.Contains(got.Header().Get("Location"), "conflict=1") {
+		t.Fatalf("stale reschedule: %d %s", got.Code, got.Header().Get("Location"))
+	}
+	form := url.Values{"csrf": {env.csrf}, "version": {"2"}}
 	if got := request(env.routes, http.MethodPost, completePath, url.Values{"version": {"1"}}, env.cookies, nil); got.Code != http.StatusForbidden {
 		t.Fatalf("missing csrf: %d", got.Code)
 	}
-	if got := request(env.routes, http.MethodPost, completePath, url.Values{"csrf": {env.viewerCSRF}, "version": {"1"}}, env.viewerCookies, nil); got.Code != http.StatusForbidden {
+	if got := request(env.routes, http.MethodPost, completePath, url.Values{"csrf": {env.viewerCSRF}, "version": {"2"}}, env.viewerCookies, nil); got.Code != http.StatusForbidden {
 		t.Fatalf("viewer complete: %d", got.Code)
 	}
 	if got := request(env.routes, http.MethodPost, completePath, form, env.cookies, nil); got.Code != http.StatusSeeOther {

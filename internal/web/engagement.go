@@ -338,6 +338,11 @@ func (h *Handler) dueEngagements(w http.ResponseWriter, r *http.Request) {
 	data := viewmodel.PageData{CSRF: csrf, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, NavPage: "clients", NavSection: "clients", CurrentPath: "/workspaces/" + workspace.String() + "/engagements/due", ClientsEnabled: h.clients != nil, FilesEnabled: h.filesEnabled, SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle, EngagementLabel: label, CanEditClients: actor.Permissions[identity.ResourcesWrite]}
 	if query.Get("conflict") == "1" {
 		data.ErrorKey = "queue.conflict"
+	} else if query.Get("invalid_date") == "1" {
+		data.ErrorKey = "queue.invalid_date"
+	}
+	if query.Get("rescheduled") == "1" {
+		data.Saved = true
 	}
 	h.localizePage(w, &data)
 	data.Title = data.T("engagement.due_list")
@@ -388,6 +393,12 @@ func (h *Handler) changeQueuedAction(w http.ResponseWriter, r *http.Request) {
 	}
 	id := engagement.ParseID(r.PathValue("engagementId"))
 	switch r.PathValue("operation") {
+	case "reschedule":
+		if _, present := r.PostForm["due_date"]; !present {
+			h.renderError(w, http.StatusBadRequest)
+			return
+		}
+		err = h.engagement.RescheduleNextAction(r.Context(), actor, workspace, id, version, r.FormValue("due_date"), auditContext(r))
 	case "complete":
 		err = h.engagement.CompleteNextAction(r.Context(), actor, workspace, id, version, auditContext(r))
 	case "reopen":
@@ -415,9 +426,14 @@ func (h *Handler) changeQueuedAction(w http.ResponseWriter, r *http.Request) {
 			path += "?conflict=1"
 		}
 		h.redirect(w, r, path)
+	case errors.Is(err, engagement.ErrInvalidInput):
+		h.redirect(w, r, path+"?invalid_date=1")
 	case err != nil:
 		h.renderError(w, http.StatusInternalServerError)
 	default:
+		if r.PathValue("operation") == "reschedule" {
+			path += "?rescheduled=1"
+		}
 		h.redirect(w, r, path)
 	}
 }

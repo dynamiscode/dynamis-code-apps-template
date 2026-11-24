@@ -118,6 +118,41 @@ func (s *Service) CompleteNextAction(ctx context.Context, actor identity.Princip
 	return tx.Commit()
 }
 
+// RescheduleNextAction changes only the due date of the observed active action.
+func (s *Service) RescheduleNextAction(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, expectedVersion int64, dueDate string, audit identity.AuditContext) error {
+	if dueDate != "" {
+		parsed, err := time.Parse("2006-01-02", dueDate)
+		if err != nil || parsed.Format("2006-01-02") != dueDate {
+			return ErrInvalidInput
+		}
+	}
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesWrite); err != nil {
+		return identity.ErrForbidden
+	}
+	var version int64
+	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `UPDATE engagements SET action_version = CASE WHEN action_version = 9223372036854775807 THEN NULL ELSE action_version + 1 END WHERE workspace_id = ? AND id = ? AND EXISTS (SELECT 1 FROM engagement_next_actions WHERE workspace_id = ? AND engagement_id = ? AND version = ?) RETURNING action_version`), workspaceID, engagementID, workspaceID, engagementID, expectedVersion).Scan(&version)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrStaleNextAction
+	}
+	if err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, database.Rebind(s.driver, `UPDATE engagement_next_actions SET due_date = ?, version = ? WHERE workspace_id = ? AND engagement_id = ? AND version = ?`), dueDate, version, workspaceID, engagementID, expectedVersion)
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement.next_action_rescheduled", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "engagement", TargetKey: int64(engagementID), Action: "engagement.next_action.reschedule", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now}); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 // ReopenNextAction copies a completed history entry into an empty active slot.
 // expectedVersion is the engagement's action counter observed by the caller.
 func (s *Service) ReopenNextAction(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, historyID, expectedVersion int64, audit identity.AuditContext) error {
