@@ -20,7 +20,7 @@ templ intakeSettingsPage(data viewmodel.PageData, settings intake.Settings, mess
 			if !settings.HasOpenStage {
 				<div class="alert alert-warning" role="status">
 					<span>{ data.T("intake.no_open_stage") }</span>
-					<a class="link" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/intake") + "/engagement-stages") }>{ data.T("engagement.stages") }</a>
+					<a class="btn btn-outline btn-sm" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/intake") + "/engagement-stages") }>{ data.T("engagement.stages") }</a>
 				</div>
 			}
 			if message != "" {
@@ -38,9 +38,9 @@ templ intakeSettingsPage(data viewmodel.PageData, settings intake.Settings, mess
 				<p>{ data.T("intake.copy") }</p>
 				<p><input id="intake-link" class="input input-bordered w-full" aria-label={ data.T("intake.link") } readonly value={ link }/></p>
 				if settings.HasOpenStage {
-					<button type="button" class="btn btn-secondary" data-copy-target="intake-link" data-copy-success={ data.T("intake.copied") }>{ data.T("intake.copy_button") }</button>
+					<button type="button" class="btn btn-primary" data-copy-target="intake-link" data-copy-success={ data.T("intake.copied") }>{ data.T("intake.copy_button") }</button>
 					<span role="status" aria-live="polite" data-copy-status></span>
-					<a class="link" href={ templ.SafeURL(link) } target="_blank" rel="noopener noreferrer">{ data.T("intake.test_link") }</a>
+					<a class="btn btn-outline" href={ templ.SafeURL(link) } target="_blank" rel="noopener noreferrer">{ data.T("intake.test_link") }</a>
 				}
 			} else if settings.Active {
 				<p>{ data.T(linkMessage) }</p>
@@ -58,9 +58,9 @@ templ intakeSettingsPage(data viewmodel.PageData, settings intake.Settings, mess
 					<p>{ data.T("intake.consent_preview") }</p>
 					<blockquote class="border-l-4 border-base-300 pl-4">{ settings.ConsentText }</blockquote>
 				}
-				<button class="btn" name="action" value="consent">{ data.T("intake.save") }</button>
+				<button class={ "btn", templ.KV("btn-primary", settings.Active), templ.KV("btn-outline", !settings.Active) } name="action" value="consent">{ data.T("intake.save") }</button>
 				if settings.Active {
-					<button class="btn" name="action" value="rotate" data-confirm={ data.T("intake.rotate_confirm") }>{ data.T("intake.rotate") }</button>
+					<button class="btn btn-outline btn-error" name="action" value="rotate" data-confirm={ data.T("intake.rotate_confirm") }>{ data.T("intake.rotate") }</button>
 				} else {
 					<button class="btn btn-primary" name="action" value="create">{ data.T("intake.create") }</button>
 				}
@@ -68,15 +68,15 @@ templ intakeSettingsPage(data viewmodel.PageData, settings intake.Settings, mess
 			if settings.Active {
 				<form action={ templ.SafeURL(data.CurrentPath) } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					<button class="btn" name="action" value="disable" data-confirm={ data.T("intake.disable_confirm") }>{ data.T("intake.disable") }</button>
+					<button class="btn btn-outline btn-error" name="action" value="disable" data-confirm={ data.T("intake.disable_confirm") }>{ data.T("intake.disable") }</button>
 				</form>
 			}
 			</section>
 			<section class="settings-panel card min-w-0 p-5" aria-labelledby="intake-delivery-title">
 			<h2 id="intake-delivery-title">{ data.T("intake.delivery") }</h2>
 			<p>{ data.T("intake.delivery_help") }</p>
-			<a class="link link-primary" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/settings/email") }>{ data.T("intake.email_settings") }</a>
-			<a class="link link-primary" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/intake") + "/clients") }>{ data.T("intake.view_clients") }</a>
+			<a class="btn btn-outline" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/settings/email") }>{ data.T("intake.email_settings") }</a>
+			<a class="btn btn-outline" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/intake") + "/clients") }>{ data.T("intake.view_clients") }</a>
 			</section>
 		</div>
 	}

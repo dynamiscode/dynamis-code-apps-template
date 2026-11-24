@@ -37,6 +37,16 @@ examples; accessibility and security requirements remain binding.
 | Performance and scale | Can people find and act on work with realistic amounts of data? Check long text, repeated records, delay feedback, and list navigation without claiming unmeasured performance. |
 | Visual coherence | Use typography, spacing, color, and grouping to make relationships visible. Reuse design tokens and components when suitable; improve a weak pattern rather than copying it blindly. |
 
+## Action roles
+
+Use existing daisyUI buttons and shared components. Prefer one `btn-primary`
+action per section; use `btn-outline` for secondary actions and bounded
+navigation. Use `btn-error` for destructive actions and retain confirmations.
+Navigation remains an anchor, actions remain buttons, and current-page markers
+remain intact. Apply boundaries to sidebar, breadcrumb, and inline navigation;
+inline links must remain readable and wrap naturally. Supported component demos
+may continue showing their documented variants.
+
 ## Pattern trade-offs
 
 - **Page, inline edit, or dialog:** use a page when a task needs space, context,

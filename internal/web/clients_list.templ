@@ -132,7 +132,7 @@ templ clientEmptyCTA(data viewmodel.PageData) {
 	}
 	if data.CanManageFields && data.ClientQuery.Archived != "archived" {
 		<p class="mt-4">{ data.T("intake.description") }</p>
-		<a class="link link-primary" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/intake") }>{ data.T("intake.title") }</a>
+		<a class="btn btn-outline btn-sm" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/intake") }>{ data.T("intake.title") }</a>
 	}
 }
 
@@ -150,27 +150,27 @@ templ clientCreateForm(data viewmodel.PageData, action string) {
 
 templ clientIntakeMenu(data viewmodel.PageData) {
 	<details class="dropdown dropdown-end">
-		<summary class="btn btn-ghost btn-xs">{ data.T("intake.share") }</summary>
+		<summary class="btn btn-outline btn-xs">{ data.T("intake.share") }</summary>
 		<div class="dropdown-content z-50 flex w-80 max-w-[90vw] flex-col items-start gap-2 rounded-box bg-base-100 p-4 shadow-lg">
 			if !data.IntakeActive {
 				<p>{ data.T("intake.disabled") }</p>
 			} else if !data.IntakeReady {
 				<p>{ data.T("intake.no_open_stage") }</p>
-				<a class="link link-primary" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagement-stages") }>{ data.T("engagement.stages") }</a>
+				<a class="btn btn-outline btn-sm" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagement-stages") }>{ data.T("engagement.stages") }</a>
 			} else if data.IntakeUnavailable {
 				<p>{ data.T("intake.share_unavailable") }</p>
 			} else if data.IntakeLink != "" {
 				<p>{ data.T("intake.active") }</p>
 				<input id="client-intake-link" class="input input-bordered w-full" aria-label={ data.T("intake.link") } readonly value={ data.IntakeLink }/>
 				<div>
-					<button type="button" class="btn btn-secondary btn-sm" data-copy-target="client-intake-link" data-copy-success={ data.T("intake.copied") }>{ data.T("intake.copy_button") }</button>
+					<button type="button" class="btn btn-primary btn-sm" data-copy-target="client-intake-link" data-copy-success={ data.T("intake.copied") }>{ data.T("intake.copy_button") }</button>
 					<span role="status" aria-live="polite" data-copy-status></span>
 				</div>
-				<a class="link" href={ templ.SafeURL(data.IntakeLink) } target="_blank" rel="noopener noreferrer">{ data.T("intake.test_link") }</a>
+				<a class="btn btn-outline btn-sm" href={ templ.SafeURL(data.IntakeLink) } target="_blank" rel="noopener noreferrer">{ data.T("intake.test_link") }</a>
 			} else {
 				<p>{ data.T("intake.share_unavailable") }</p>
 			}
-			<a class="link link-primary" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/intake") }>{ data.T("intake.configure") }</a>
+			<a class="btn btn-outline btn-sm" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/intake") }>{ data.T("intake.configure") }</a>
 		</div>
 	</details>
 }
