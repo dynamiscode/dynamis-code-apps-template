@@ -10,9 +10,9 @@ import templates "example.com/dynamis-code/apps-template/internal/web/components
 templ engagementListPage(data viewmodel.PageData, page engagement.Page, stages []engagement.Stage, members []identity.MemberSummary, search string, selectedStage string, selectedAssignee string, prev string, next string, clientsPath string) {
  @templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
   @molecules.PageHeading(data.T("engagement.list"), data.T("clients.title"))
-  <a class="link" href={ templ.SafeURL(data.CurrentPath + "/board") }>{ data.T("engagement.board") }</a>
+  <a class="btn btn-outline" href={ templ.SafeURL(data.CurrentPath + "/board") }>{ data.T("engagement.board") }</a>
   if data.CanEditClients {
-   <a class="link" href={ templ.SafeURL(clientsPath) }>{ data.T("engagement.create") }</a>
+   <a class="btn btn-outline" href={ templ.SafeURL(clientsPath) }>{ data.T("engagement.create") }</a>
   }
   <form method="get" action={ templ.SafeURL(data.CurrentPath) } class="card my-4 p-6">
    <label for="engagement-search">{ data.T("ui.search") } { data.T("ui.optional") }</label>
@@ -40,7 +40,7 @@ templ engagementListPage(data viewmodel.PageData, page engagement.Page, stages [
    }
    <ul>
     for _, item := range page.Engagements {
-     <li><a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String()) }>{ item.Name }</a> — <a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String()) }>{ item.ClientName }</a>
+     <li><a class="link rounded-field border border-base-300 px-1" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String()) }>{ item.Name }</a> — <a class="link rounded-field border border-base-300 px-1" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String()) }>{ item.ClientName }</a>
       for _, stage := range stages {
        if stage.ID == item.StageID {
         <span> — { stage.Name }</span>
@@ -60,10 +60,10 @@ templ engagementListPage(data viewmodel.PageData, page engagement.Page, stages [
    </ul>
    <nav aria-label={ data.T("ui.pages") }>
     if prev != "" {
-     <a class="link" rel="prev" href={ templ.SafeURL(prev) }>{ data.T("ui.previous_page") }</a>
+     <a class="btn btn-outline btn-sm" rel="prev" href={ templ.SafeURL(prev) }>{ data.T("ui.previous_page") }</a>
     }
     if next != "" {
-     <a class="link" rel="next" href={ templ.SafeURL(next) }>{ data.T("items.next_page") }</a>
+     <a class="btn btn-outline btn-sm" rel="next" href={ templ.SafeURL(next) }>{ data.T("items.next_page") }</a>
     }
    </nav>
   </section>

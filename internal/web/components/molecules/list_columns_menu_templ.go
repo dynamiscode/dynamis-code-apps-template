@@ -205,14 +205,14 @@ func listColumnsPanel(data viewmodel.PageData, suffix string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"> <button class=\"btn btn-ghost btn-xs\" type=\"submit\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"> <button class=\"btn btn-outline btn-xs\" type=\"submit\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.columns_reset"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_columns_menu.templ`, Line: 55, Col: 86}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_columns_menu.templ`, Line: 55, Col: 88}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -468,14 +468,14 @@ func ListColumnsBody(data viewmodel.PageData, suffix string, oob bool) templ.Com
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "\"> <button class=\"btn btn-ghost btn-xs\" type=\"submit\" aria-label=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "\"> <button class=\"btn btn-outline btn-xs\" type=\"submit\" aria-label=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var22 string
 				templ_7745c5c3_Var22, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("ui.move_column_up", map[string]any{"name": ClientColumnLabelText(data, column)})).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_columns_menu.templ`, Line: 91, Col: 159}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_columns_menu.templ`, Line: 91, Col: 161}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 				if templ_7745c5c3_Err != nil {
@@ -539,14 +539,14 @@ func ListColumnsBody(data viewmodel.PageData, suffix string, oob bool) templ.Com
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "\"> <button class=\"btn btn-ghost btn-xs\" type=\"submit\" aria-label=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "\"> <button class=\"btn btn-outline btn-xs\" type=\"submit\" aria-label=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("ui.move_column_down", map[string]any{"name": ClientColumnLabelText(data, column)})).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_columns_menu.templ`, Line: 98, Col: 161}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_columns_menu.templ`, Line: 98, Col: 163}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
 				if templ_7745c5c3_Err != nil {

@@ -11,7 +11,7 @@ import "example.com/dynamis-code/apps-template/internal/clients"
 templ clientFieldsPage(data viewmodel.PageData) {
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
 		@molecules.PageHeading(data.T("clients.fields_title"), data.T("clients.title")) {
-			<a class="btn btn-ghost" href={ clientFieldsBackPath(data.FieldsPath) }>{ data.T("clients.back") }</a>
+			<a class="btn btn-outline" href={ clientFieldsBackPath(data.FieldsPath) }>{ data.T("clients.back") }</a>
 		}
 		@clientFieldList(data)
 	}

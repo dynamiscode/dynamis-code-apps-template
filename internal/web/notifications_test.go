@@ -36,7 +36,7 @@ func TestNotificationSSELifetimeReconnectReplaysAfterLastEvent(t *testing.T) {
 		`data-notification-cursor="` + existing.ID.String() + `"`,
 		`<ul class="list notification-list">`, `<li class="list-row notification-card card grid grid-cols-[1fr_auto] items-start gap-4 p-5 max-md:grid-cols-1">`,
 		`<span class="badge badge-primary">Unread</span>`,
-		`<button class="btn btn-secondary" type="submit">Mark as read</button>`,
+		`<button class="btn btn-outline" type="submit">Mark as read</button>`,
 		`name="csrf" value="` + session.CSRFSecret + `"`,
 	} {
 		if !strings.Contains(list.Body.String(), marker) {

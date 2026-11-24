@@ -52,7 +52,7 @@ templ listColumnsPanel(data viewmodel.PageData, suffix string) {
 	@ListColumnsBody(data, suffix, false)
 	<form method="post" action={ data.CurrentPath + "/preferences/columns/reset" + suffix } hx-post={ ListResultsURL(data.CurrentPath+"/preferences/columns/reset", suffix) } hx-target="#list-results" hx-swap="outerHTML">
 		<input type="hidden" name="csrf" value={ data.CSRF }/>
-		<button class="btn btn-ghost btn-xs" type="submit">{ data.T("clients.columns_reset") }</button>
+		<button class="btn btn-outline btn-xs" type="submit">{ data.T("clients.columns_reset") }</button>
 	</form>
 }
 
@@ -88,14 +88,14 @@ templ ListColumnsBody(data viewmodel.PageData, suffix string, oob bool) {
 						<form method="post" action={ ListColumnOrderHref(data.CurrentPath, suffix) } hx-post={ ListColumnOrderHref(data.CurrentPath, suffix) } hx-target="#list-results" hx-swap="outerHTML">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="order" value={ ListColumnOrderAfterMove(data, i, -1) }/>
-							<button class="btn btn-ghost btn-xs" type="submit" aria-label={ data.T("ui.move_column_up", map[string]any{"name": ClientColumnLabelText(data, column)}) }><span aria-hidden="true">&#8593;</span></button>
+							<button class="btn btn-outline btn-xs" type="submit" aria-label={ data.T("ui.move_column_up", map[string]any{"name": ClientColumnLabelText(data, column)}) }><span aria-hidden="true">&#8593;</span></button>
 						</form>
 					}
 					if i > 0 && i < len(data.ListColumns)-1 {
 						<form method="post" action={ ListColumnOrderHref(data.CurrentPath, suffix) } hx-post={ ListColumnOrderHref(data.CurrentPath, suffix) } hx-target="#list-results" hx-swap="outerHTML">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="order" value={ ListColumnOrderAfterMove(data, i, 1) }/>
-							<button class="btn btn-ghost btn-xs" type="submit" aria-label={ data.T("ui.move_column_down", map[string]any{"name": ClientColumnLabelText(data, column)}) }><span aria-hidden="true">&#8595;</span></button>
+							<button class="btn btn-outline btn-xs" type="submit" aria-label={ data.T("ui.move_column_down", map[string]any{"name": ClientColumnLabelText(data, column)}) }><span aria-hidden="true">&#8595;</span></button>
 						</form>
 					}
 			</li>

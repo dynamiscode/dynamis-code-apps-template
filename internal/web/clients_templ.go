@@ -197,14 +197,14 @@ func clientDetailPage(data viewmodel.PageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				if data.CanManageFields {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<a class=\"btn btn-ghost\" href=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<a class=\"btn btn-outline\" href=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var9 string
 					templ_7745c5c3_Var9, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.FieldsPath).ResolveURL(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 41, Col: 52}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 41, Col: 54}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 					if templ_7745c5c3_Err != nil {
@@ -217,7 +217,7 @@ func clientDetailPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var10 string
 					templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.fields_link"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 41, Col: 86}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 41, Col: 88}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 					if templ_7745c5c3_Err != nil {
@@ -303,14 +303,14 @@ func clientDetailPage(data viewmodel.PageData) templ.Component {
 							return templ_7745c5c3_Err
 						}
 						if data.CanManageFields {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<a class=\"link\" href=\"")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<a class=\"btn btn-outline btn-sm\" href=\"")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 							var templ_7745c5c3_Var14 string
 							templ_7745c5c3_Var14, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/workspaces/" + data.Workspace.ID.String() + "/engagement-stages").ResolveURL(ctx)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 56, Col: 96}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 56, Col: 114}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 							if templ_7745c5c3_Err != nil {
@@ -323,7 +323,7 @@ func clientDetailPage(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var15 string
 							templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("engagement.setup_stages"))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 56, Col: 134}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 56, Col: 152}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 							if templ_7745c5c3_Err != nil {
@@ -582,14 +582,14 @@ func clientDetailPage(data viewmodel.PageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				for _, item := range data.Engagements {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<li><a class=\"link\" href=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<li><a class=\"rounded-field border border-base-300 px-1\" href=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var28 string
 					templ_7745c5c3_Var28, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()).ResolveURL(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 88, Col: 115}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 88, Col: 152}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 					if templ_7745c5c3_Err != nil {
@@ -602,7 +602,7 @@ func clientDetailPage(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var29 string
 					templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(item.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 88, Col: 129}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 88, Col: 166}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 					if templ_7745c5c3_Err != nil {
@@ -669,14 +669,14 @@ func clientDetailPage(data viewmodel.PageData) templ.Component {
 							return templ_7745c5c3_Err
 						}
 						for _, booking := range data.EngagementBookings[item.ID] {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "<li><a class=\"link\" href=\"")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "<li><a class=\"rounded-field border border-base-300 px-1\" href=\"")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 							var templ_7745c5c3_Var33 string
 							templ_7745c5c3_Var33, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/scheduling")).ResolveURL(ctx)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 99, Col: 111}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 99, Col: 148}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 							if templ_7745c5c3_Err != nil {
@@ -689,7 +689,7 @@ func clientDetailPage(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var34 string
 							templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(booking.Start.Format("2006-01-02 15:04"))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 99, Col: 156}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 99, Col: 193}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 							if templ_7745c5c3_Err != nil {
@@ -702,7 +702,7 @@ func clientDetailPage(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var35 string
 							templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(booking.EntryName)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 99, Col: 182}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 99, Col: 219}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 							if templ_7745c5c3_Err != nil {
@@ -1831,14 +1831,14 @@ func clientDetailPage(data viewmodel.PageData) templ.Component {
 							return templ_7745c5c3_Err
 						}
 						if item.NextAction.Text != "" {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 161, "<button class=\"btn btn-ghost\" type=\"submit\" name=\"clear\" value=\"1\">")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 161, "<button class=\"btn btn-outline\" type=\"submit\" name=\"clear\" value=\"1\">")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 							var templ_7745c5c3_Var108 string
 							templ_7745c5c3_Var108, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("engagement.clear_action"))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 195, Col: 112}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 195, Col: 114}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var108))
 							if templ_7745c5c3_Err != nil {
@@ -1918,14 +1918,14 @@ func clientDetail(data viewmodel.PageData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 169, "<a class=\"link\" href=\"#timeline-text\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 169, "<a class=\"btn btn-outline btn-sm\" href=\"#timeline-text\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var111 string
 				templ_7745c5c3_Var111, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.timeline_add"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 214, Col: 75}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 214, Col: 93}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var111))
 				if templ_7745c5c3_Err != nil {
@@ -2520,14 +2520,14 @@ func clientTimeline(data viewmodel.PageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				if timelineContains(data.ClientTimeline, *entry.CorrectsID) {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 224, "<a class=\"link\" href=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 224, "<a class=\"rounded-field border border-base-300 px-1\" href=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var143 string
 					templ_7745c5c3_Var143, templ_7745c5c3_Err = templruntime.NewAttributeExpression("#timeline-" + entry.CorrectsID.String()).ResolveURL(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 313, Col: 72}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 313, Col: 109}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var143)
 					if templ_7745c5c3_Err != nil {
@@ -2540,7 +2540,7 @@ func clientTimeline(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var144 string
 					templ_7745c5c3_Var144, templ_7745c5c3_Err = templ.JoinStringErrs(entry.CorrectsID.String())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 313, Col: 102}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `clients.templ`, Line: 313, Col: 139}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var144))
 					if templ_7745c5c3_Err != nil {
@@ -3153,7 +3153,7 @@ func clientValues(data viewmodel.PageData) templ.Component {
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = atoms.Button(atoms.ButtonProps{Class: "btn-ghost", Label: data.T("clients.value_clear"), Attrs: templ.Attributes{"type": "submit"}}).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = atoms.Button(atoms.ButtonProps{Class: "btn-outline", Label: data.T("clients.value_clear"), Attrs: templ.Attributes{"type": "submit"}}).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}

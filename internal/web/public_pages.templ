@@ -47,6 +47,7 @@ templ mcpConsentPage(data viewmodel.PageData) {
 						Attrs: templ.Attributes{"type": "submit", "name": "decision", "value": "approve"},
 					})
 					@atoms.Button(atoms.ButtonProps{
+						Class: "btn-outline",
 						Label: data.T("oauth.deny"),
 						Attrs: templ.Attributes{"type": "submit", "name": "decision", "value": "deny"},
 					})
@@ -60,7 +61,7 @@ templ errorPage(data viewmodel.PageData) {
 	@authLayout(data, data.Title) {
 		<h1>{ data.Title }</h1>
 		@molecules.ErrorAlert(data.Error)
-		<p><a href="/">{ data.T("navigation.home") }</a></p>
+		<p><a class="btn btn-outline btn-sm" href="/">{ data.T("navigation.home") }</a></p>
 	}
 }
 

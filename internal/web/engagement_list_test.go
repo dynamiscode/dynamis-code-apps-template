@@ -37,7 +37,11 @@ func TestEngagementListRoute(t *testing.T) {
 	query := url.Values{"q": {"List engagement"}, "stage": {stage.ID.String()}, "assignee": {"unassigned"}}
 	for _, cookies := range [][]*http.Cookie{env.cookies, env.viewerCookies} {
 		response := request(env.routes, http.MethodGet, path+"?"+query.Encode(), nil, cookies, nil)
-		for _, want := range []string{"List engagement", "List client", "/clients/" + client.ID.String() + "/engagements/" + item.ID.String()} {
+		clientsPath := "/workspaces/" + env.workspaceID.String() + "/clients/" + client.ID.String()
+		for _, want := range []string{
+			`<a class="link rounded-field border border-base-300 px-1" href="` + clientsPath + `/engagements/` + item.ID.String() + `">List engagement</a>`,
+			`<a class="link rounded-field border border-base-300 px-1" href="` + clientsPath + `">List client</a>`,
+		} {
 			if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), want) {
 				t.Fatalf("status %d: missing %q", response.Code, want)
 			}

@@ -291,6 +291,7 @@ func mcpConsentPage(data viewmodel.PageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				templ_7745c5c3_Err = atoms.Button(atoms.ButtonProps{
+					Class: "btn-outline",
 					Label: data.T("oauth.deny"),
 					Attrs: templ.Attributes{"type": "submit", "name": "decision", "value": "deny"},
 				}).Render(ctx, templ_7745c5c3_Buffer)
@@ -348,7 +349,7 @@ func errorPage(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var21 string
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(data.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 61, Col: 18}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 62, Col: 18}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 			if templ_7745c5c3_Err != nil {
@@ -362,14 +363,14 @@ func errorPage(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<p><a href=\"/\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<p><a class=\"btn btn-outline btn-sm\" href=\"/\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("navigation.home"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 63, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_pages.templ`, Line: 64, Col: 75}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 			if templ_7745c5c3_Err != nil {

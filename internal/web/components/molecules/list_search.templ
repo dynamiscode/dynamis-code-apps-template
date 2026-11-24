@@ -14,7 +14,7 @@ templ ListSearch(data viewmodel.PageData, placeholderKey string, value string) {
 		}
 		<label class="sr-only" for="list-search">{ data.T(placeholderKey) }</label>
 		<input class="input flex-[0_1_22rem] w-auto min-w-0" id="list-search" type="search" name="q" value={ value } maxlength="200" placeholder={ data.T(placeholderKey) }/>
-		<button class="btn btn-ghost btn-sm" type="submit">{ data.T("ui.search") }</button>
+		<button class="btn btn-outline btn-sm" type="submit">{ data.T("ui.search") }</button>
 		<p class="list-search-status" role="status" aria-live="polite" data-error-text={ data.T("ui.search_failed") } hidden></p>
 		<p class="sr-only" role="status" aria-live="polite" data-list-announce></p>
 	</form>
