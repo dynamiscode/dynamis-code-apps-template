@@ -30,6 +30,19 @@ func TestClientIntakeMenuLoadsAuthorizedLink(t *testing.T) {
 	}
 }
 
+func TestClientIntakeActionsHaveBoundaries(t *testing.T) {
+	data := viewmodel.PageData{CurrentPath: "/workspaces/1/clients", IntakeActive: true, IntakeReady: true, IntakeLink: "/intake/example"}
+	var out bytes.Buffer
+	if err := clientIntakeMenu(data).Render(context.Background(), &out); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`<summary class="btn btn-outline btn-xs"`, `class="btn btn-primary btn-sm" data-copy-target=`, `class="btn btn-outline btn-sm" href="/intake/example"`, `class="btn btn-outline btn-sm" href="/workspaces/1/intake"`} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("missing bounded action %q", want)
+		}
+	}
+}
+
 func TestClientIntakeMenuStates(t *testing.T) {
 	const link = "/intake/private-token"
 	cases := []struct {
