@@ -30,6 +30,22 @@ func TestCatalogNavigationHasVisibleBoundaries(t *testing.T) {
 	}
 }
 
+func TestCatalogMenuAndStepsLinksAreBounded(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		component templ.Component
+	}{
+		{"menu", MenuItem(MenuItemProps{Label: "Menu", Attrs: templ.Attributes{"href": "/menu"}})},
+		{"step", Step(StepProps{Label: "Step", Attrs: templ.Attributes{"href": "/step"}})},
+		{"megamenu", Megamenu(MegamenuProps{Popovers: []PopoverProps{{Items: []PopoverItem{{Href: "/item", Label: "Item"}}}}})},
+	} {
+		got := render(t, tc.component)
+		if !strings.Contains(got, `border border-base-300`) {
+			t.Errorf("%s link has no visible boundary: %s", tc.name, got)
+		}
+	}
+}
+
 func TestLoadingVariantDefault(t *testing.T) {
 	got := render(t, Loading(LoadingProps{}))
 	if !strings.Contains(got, "loading-spinner") {

@@ -45,7 +45,7 @@ func (p *preview) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.URL.Path == "/components" && r.Method == http.MethodGet {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprint(w, `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/assets/tokens.css"><link rel="stylesheet" href="/assets/components.css"><link rel="stylesheet" href="/assets/app.css"><title>Component fixtures</title></head><body><main class="p-4"><h1>Component fixtures</h1><ul><li><a href="/components/alert">Info alert</a></li><li><a href="/components/alert?state=error">Error alert</a></li></ul></main></body></html>`)
+		fmt.Fprint(w, `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/assets/tokens.css"><link rel="stylesheet" href="/assets/components.css"><link rel="stylesheet" href="/assets/app.css"><title>Component fixtures</title></head><body><main class="p-4"><h1>Component fixtures</h1><ul class="flex flex-wrap gap-2"><li><a class="btn btn-sm" href="/components/alert">Info alert</a></li><li><a class="btn btn-sm" href="/components/alert?state=error">Error alert</a></li></ul></main></body></html>`)
 		return
 	}
 	if r.URL.Path == "/components/alert" && r.Method == http.MethodGet {
