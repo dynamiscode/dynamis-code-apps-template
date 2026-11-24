@@ -27,6 +27,9 @@ func TestClientBulkBarAndEndpoint(t *testing.T) {
 	if owner.Code != http.StatusOK || !strings.Contains(owner.Body.String(), `id="client-bulk"`) {
 		t.Fatalf("owner list = %d, want the bulk bar", owner.Code)
 	}
+	if !regexp.MustCompile(`<button[^>]*class="btn btn-outline btn-xs"[^>]*value="archive"`).MatchString(owner.Body.String()) {
+		t.Fatal("bulk archive is not a secondary action")
+	}
 	if !strings.Contains(owner.Body.String(), "their values, engagements, and engagement history") {
 		t.Fatal("bulk deletion warning is missing")
 	}

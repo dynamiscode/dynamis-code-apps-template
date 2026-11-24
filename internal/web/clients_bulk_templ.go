@@ -133,7 +133,7 @@ func clientBulkBar(data viewmodel.PageData) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = atoms.Button(atoms.ButtonProps{Class: "btn-ghost btn-xs", Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "archive", "data-bulk-action": true}}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = atoms.Button(atoms.ButtonProps{Class: "btn-outline btn-xs", Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "archive", "data-bulk-action": true}}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

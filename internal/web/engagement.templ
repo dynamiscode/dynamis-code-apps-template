@@ -19,7 +19,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 			if data.ErrorKey == "engagement.action_conflict" {
 				@molecules.ErrorAlert(data.T(data.ErrorKey))
 			}
-			<a class="link" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String()) }>← { data.T("engagement.back_to_client") }: { data.Client.DisplayName }</a>
+			<a class="btn btn-outline h-auto whitespace-normal" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String()) }>← { data.T("engagement.back_to_client") }: { data.Client.DisplayName }</a>
 			<section class="card my-4 p-6">
 				if data.CanEditClients {
 					<details open?={ data.ErrorKey == "engagement.invalid_name" }>
@@ -31,7 +31,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							@molecules.TextField("engagement-name", data.T("engagement.name"), templ.Attributes{"name": "name", "value": item.Name, "required": true, "maxlength": "200"})
 							@molecules.SubmitButton(data.T("engagement.save_name"), nil)
-							<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
+							<a class="btn btn-outline" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
 						</form>
 					</details>
 				}
@@ -63,7 +63,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 								<p id="engagement-stage-error" role="alert" tabindex="-1">{ data.T("engagement.invalid_move") }</p>
 							}
 							@molecules.SubmitButton(data.T("engagement.save_name"), nil)
-							<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
+							<a class="btn btn-outline" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
 						</form>
 					</details>
 				}
@@ -101,7 +101,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 								<p id="engagement-assignee-error" role="alert" tabindex="-1">{ data.T("engagement.invalid_assignee") }</p>
 							}
 							@molecules.SubmitButton(data.T("engagement.save_assignee"), nil)
-							<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
+							<a class="btn btn-outline" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
 						</form>
 					</details>
 				}
@@ -139,10 +139,10 @@ templ engagementDetailPage(data viewmodel.PageData) {
 									</select>
 									<nav aria-label={ data.T("engagement.file_pages") }>
 										if data.AgreementFilesPager.Prev != "" {
-											<button class="btn btn-ghost" type="submit" name="file_page" value="1" formaction={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/agreement?page=" + strconv.Itoa(data.AgreementFilesPager.Page - 1) + "#engagement-agreement") }>{ data.T("ui.previous_page") }</button>
+											<button class="btn btn-outline" type="submit" name="file_page" value="1" formaction={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/agreement?page=" + strconv.Itoa(data.AgreementFilesPager.Page - 1) + "#engagement-agreement") }>{ data.T("ui.previous_page") }</button>
 										}
 										if data.AgreementFilesPager.Next != "" {
-											<button class="btn btn-ghost" type="submit" name="file_page" value="1" formaction={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/agreement?page=" + strconv.Itoa(data.AgreementFilesPager.Page + 1) + "#engagement-agreement") }>{ data.T("items.next_page") }</button>
+											<button class="btn btn-outline" type="submit" name="file_page" value="1" formaction={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/agreement?page=" + strconv.Itoa(data.AgreementFilesPager.Page + 1) + "#engagement-agreement") }>{ data.T("items.next_page") }</button>
 										}
 									</nav>
 								}
@@ -155,7 +155,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 								}
 							}
 							@molecules.SubmitButton(data.T("engagement.agreement_save"), nil)
-							<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
+							<a class="btn btn-outline" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
 						</form>
 					</details>
 				}
@@ -194,7 +194,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 									<p id="engagement-quote-date-error" class="error text-error font-bold">{ data.T("engagement.invalid_quote_date") }</p>
 								}
 								@molecules.SubmitButton(data.T("engagement.quote_save"), nil)
-								<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
+								<a class="btn btn-outline" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
 							</form>
 						</details>
 					}
@@ -257,9 +257,9 @@ templ engagementDetailPage(data viewmodel.PageData) {
 							} else {
 								@molecules.SubmitButton(data.T("engagement.save_action"), nil)
 							}
-							<a class="btn btn-ghost" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
+							<a class="btn btn-outline" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>{ data.T("engagement.cancel") }</a>
 							if item.NextAction.Text != "" && data.ErrorKey != "engagement.action_conflict" {
-								<button class="btn btn-ghost" type="submit" name="clear" value="1">{ data.T("engagement.clear_action") }</button>
+								<button class="btn btn-outline" type="submit" name="clear" value="1">{ data.T("engagement.clear_action") }</button>
 							}
 						</form>
 					</details>
@@ -301,10 +301,10 @@ templ engagementDetailPage(data viewmodel.PageData) {
 						</ol>
 					}
 					if data.ActionHistoryPrevious != "" {
-						<a class="link" href={ templ.SafeURL(data.ActionHistoryPrevious) }>{ data.T("queue.previous") }</a>
+						<a class="btn btn-outline" href={ templ.SafeURL(data.ActionHistoryPrevious) }>{ data.T("queue.previous") }</a>
 					}
 					if data.ActionHistoryNext != "" {
-						<a class="link" href={ templ.SafeURL(data.ActionHistoryNext) }>{ data.T("queue.next") }</a>
+						<a class="btn btn-outline" href={ templ.SafeURL(data.ActionHistoryNext) }>{ data.T("queue.next") }</a>
 					}
 				</section>
 				@engagementHistory(data, item.History)
@@ -365,7 +365,7 @@ templ rescheduleRecoveryPage(data viewmodel.PageData, item engagement.Engagement
 				<p>{ data.T("queue.action_unavailable") }</p>
 				<p>{ data.T("queue.submitted_date") }: { draft }</p>
 			}
-			<a class="link" href={ templ.SafeURL(queuePath) }>{ data.T("queue.back") }</a>
+			<a class="btn btn-outline" href={ templ.SafeURL(queuePath) }>{ data.T("queue.back") }</a>
 		</section>
 	}
 }
@@ -403,7 +403,7 @@ templ dueEngagementsPage(data viewmodel.PageData, page engagement.ActionQueuePag
 				<ul>
 					for _, item := range page.Entries {
 						<li class="border-b border-base-300 py-4">
-							<a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.EngagementID.String()) }>{ item.Action.Text }</a>
+							<a class="btn btn-outline h-auto whitespace-normal" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.EngagementID.String()) }>{ item.Action.Text }</a>
 							<p>{ data.T("clients.title") }: { item.ClientName } · { data.T("engagement.title") }: { item.EngagementName }</p>
 							<p>{ data.T("engagement.stage") }:
 								for _, stage := range stages {
@@ -459,10 +459,10 @@ templ dueEngagementsPage(data viewmodel.PageData, page engagement.ActionQueuePag
 		</section>
 		<nav aria-label={ data.T("queue.pagination") } class="flex gap-4">
 			if previous != "" {
-				<a class="btn btn-ghost" href={ templ.SafeURL(previous) }>{ data.T("queue.previous") }</a>
+				<a class="btn btn-outline" href={ templ.SafeURL(previous) }>{ data.T("queue.previous") }</a>
 			}
 			if next != "" {
-				<a class="btn btn-ghost" href={ templ.SafeURL(next) }>{ data.T("ui.next") }</a>
+				<a class="btn btn-outline" href={ templ.SafeURL(next) }>{ data.T("ui.next") }</a>
 			}
 		</nav>
 	}
@@ -472,7 +472,7 @@ templ engagementStagesPage(data viewmodel.PageData, stages []engagement.Stage, c
 	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
 		@molecules.PageHeading(data.T("engagement.stages"), data.T("clients.title")) {}
 		if canManage && data.ClientsEnabled {
-			<a class="link link-primary" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/intake") }>{ data.T("intake.return_to_form") }</a>
+			<a class="btn btn-outline" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/intake") }>{ data.T("intake.return_to_form") }</a>
 		}
 		<section class="card my-4 p-6">
 			if data.ErrorKey != "" {
@@ -512,17 +512,17 @@ templ engagementStagesPage(data viewmodel.PageData, stages []engagement.Stage, c
 									<input type="hidden" name="csrf" value={ data.CSRF }/>
 									<input type="hidden" name="stage" value={ stage.ID.String() }/>
 									if i > 0 {
-										<button class="btn btn-ghost btn-xs" name="direction" value="up" aria-label={ data.T("engagement.up") + " " + stage.Name }>{ data.T("engagement.up") }</button>
+										<button class="btn btn-outline btn-xs" name="direction" value="up" aria-label={ data.T("engagement.up") + " " + stage.Name }>{ data.T("engagement.up") }</button>
 									}
 									if i < len(stages)-1 {
-										<button class="btn btn-ghost btn-xs" name="direction" value="down" aria-label={ data.T("engagement.down") + " " + stage.Name }>{ data.T("engagement.down") }</button>
+										<button class="btn btn-outline btn-xs" name="direction" value="down" aria-label={ data.T("engagement.down") + " " + stage.Name }>{ data.T("engagement.down") }</button>
 									}
 								</form>
 								if !stage.Archived {
 									<form action={ templ.SafeURL(data.CurrentPath + "/" + stage.ID.String() + "/archive") } method="post" class="inline">
 										<input type="hidden" name="csrf" value={ data.CSRF }/>
 										<label><input type="checkbox" name="confirm_archive" value="yes" required/> { data.T("engagement.archive_consequence") } { stage.Name }</label>
-										<button class="btn btn-ghost btn-xs" aria-label={ data.T("engagement.archive") + " " + stage.Name }>{ data.T("engagement.archive") }</button>
+										<button class="btn btn-error btn-xs" aria-label={ data.T("engagement.archive") + " " + stage.Name }>{ data.T("engagement.archive") }</button>
 									</form>
 								}
 							}

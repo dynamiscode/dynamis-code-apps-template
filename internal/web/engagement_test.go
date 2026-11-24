@@ -36,6 +36,9 @@ func TestWorkspaceCreateEngagementNavigation(t *testing.T) {
 			if strings.Contains(list.Body.String(), `href="`+clientsPath+`">Create engagement</a>`) != tc.writer {
 				t.Fatalf("engagement list create link: status=%d writer=%v", list.Code, tc.writer)
 			}
+			if tc.writer && !strings.Contains(list.Body.String(), `class="btn btn-outline" href="`+clientsPath+`">Create engagement</a>`) {
+				t.Fatal("engagement create link lacks a visible boundary")
+			}
 			page = request(env.routes, http.MethodGet, clientsPath, nil, tc.cookies, nil)
 			if page.Code != http.StatusOK || strings.Contains(page.Body.String(), "Select a client to create an engagement.") != tc.writer {
 				t.Fatalf("clients: status=%d writer=%v", page.Code, tc.writer)

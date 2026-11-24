@@ -60,12 +60,12 @@ templ listViewPanel(data viewmodel.PageData) {
 							</button>
 						</form>
 						<details class="list-view-manage">
-							<summary>{ data.T("views.manage") }</summary>
+							<summary class="btn btn-outline btn-xs">{ data.T("views.manage") }</summary>
 							<div class="list-view-manage-body">
 								<form method="post" action={ data.ListViewRoute + "/" + defaultViewTarget(view) + "/default" } class="list-view-action">
 									<input type="hidden" name="csrf" value={ data.CSRF }/>
 									<p class="list-view-hint">{ data.T("views.default_hint") }</p>
-									<button class="btn btn-ghost btn-xs" type="submit">
+									<button class="btn btn-outline btn-xs" type="submit">
 										if view.Default {
 											{ data.T("views.clear_default") }
 										} else {
@@ -77,11 +77,11 @@ templ listViewPanel(data viewmodel.PageData) {
 									<form method="post" action={ data.ListViewRoute + "/" + strconv.FormatInt(view.ID, 10) + "/rename" } class="list-view-action">
 										<input type="hidden" name="csrf" value={ data.CSRF }/>
 										@atoms.Input(atoms.InputProps{Label: data.T("views.name"), Name: "name", Value: view.Name, Required: true, MaxLength: "60"})
-										<button class="btn btn-ghost btn-xs" type="submit">{ data.T("views.rename") }</button>
+										<button class="btn btn-outline btn-xs" type="submit">{ data.T("views.rename") }</button>
 									</form>
 									<form method="post" action={ data.ListViewRoute + "/" + strconv.FormatInt(view.ID, 10) + "/delete" } class="list-view-action">
 										<input type="hidden" name="csrf" value={ data.CSRF }/>
-										<button class="btn btn-ghost btn-xs list-danger" type="submit" data-confirm={ data.T("views.delete_confirm") }>{ data.T("common.delete") }</button>
+										<button class="btn btn-outline btn-error btn-xs list-danger" type="submit" data-confirm={ data.T("views.delete_confirm") }>{ data.T("common.delete") }</button>
 									</form>
 								}
 							</div>
@@ -90,7 +90,7 @@ templ listViewPanel(data viewmodel.PageData) {
 				}
 			</ul>
 			<details class="list-views-save" open?={ len(data.ListViews) == 0 }>
-				<summary>{ data.T("views.save_heading") }</summary>
+				<summary class="btn btn-outline btn-xs">{ data.T("views.save_heading") }</summary>
 				if data.ListViewSaveReason != "" {
 					<p class="list-view-note">{ data.T(data.ListViewSaveReason) }</p>
 				} else {
