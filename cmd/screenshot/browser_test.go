@@ -52,3 +52,11 @@ func TestScreenshot(t *testing.T) {
 		t.Fatalf("viewport = %dx%d", config.Width, config.Height)
 	}
 }
+
+func TestScreenshotRejectsRuntimeMissingAsset(t *testing.T) {
+	script := base64.StdEncoding.EncodeToString([]byte(`const image = document.createElement('img'); image.src = 'https://example.invalid/missing.png'; document.body.appendChild(image);`))
+	page := []byte(`<html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src data:; img-src data:"></head><body><script src="data:text/javascript;base64,` + script + `"></script></body></html>`)
+	if _, err := screenshot(context.Background(), page, 320, 240); err == nil {
+		t.Fatal("expected an error for the missing runtime asset")
+	}
+}
