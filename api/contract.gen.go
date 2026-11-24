@@ -9,7 +9,7 @@ type Operation struct {
 }
 
 const OpenAPIVersion = "3.1.0"
-const OpenAPISHA256 = "f9723450ed3b929625f9d9ff93ab037c045f4a3261c0fd1236d49c8b5f492ff4"
+const OpenAPISHA256 = "16b1b8c051b0a4cb1e44d4632f2c74c87d8e8be1da87f97af4dc0bf56f2fbc94"
 
 var Operations = []Operation{
 	{Method: "GET", Path: "/api/openapi.json", ID: "getOpenAPI"},
@@ -87,6 +87,17 @@ var Operations = []Operation{
 	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/members/{memberId}", ID: "removeMember"},
 	{Method: "PATCH", Path: "/api/v1/workspaces/{workspaceId}/members/{memberId}", ID: "changeMemberRole"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/ownership", ID: "transferOwnership"},
+	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/scheduling/bookings/{bookingId}/engagement", ID: "setSchedulingEngagement"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/scheduling/resources", ID: "listSchedulingResources"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/scheduling/resources", ID: "createSchedulingResource"},
+	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/scheduling/resources/{resourceId}", ID: "updateSchedulingResource"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/scheduling/resources/{resourceId}/bookings", ID: "listSchedulingBookings"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/scheduling/resources/{resourceId}/bookings", ID: "createSchedulingBooking"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/scheduling/resources/{resourceId}/bookings/{bookingId}/history", ID: "schedulingBookingHistory"},
+	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/scheduling/resources/{resourceId}/bookings/{bookingId}/move", ID: "moveSchedulingBooking"},
+	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/scheduling/resources/{resourceId}/bookings/{bookingId}/status", ID: "setSchedulingBookingStatus"},
+	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/scheduling/resources/{resourceId}/working-hours", ID: "setSchedulingWorkingHours"},
+	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/scheduling/time-zone", ID: "setSchedulingTimeZone"},
 	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/scim-token", ID: "revokeSCIMToken"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/scim-token", ID: "createSCIMToken"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/tokens", ID: "listTokens"},

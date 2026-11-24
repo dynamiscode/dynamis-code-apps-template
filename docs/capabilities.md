@@ -7,6 +7,84 @@ group rows describe the supported application.
 
 This ledger records implemented conformance evidence and deferred triggers.
 
+## Scheduling resources (#579)
+
+Booking engagement links (#598) use [migration 000049](../internal/platform/database/migrations/000049_scheduling_engagement.sql). Writers may set or clear a same-workspace engagement on creation or later; readers see links and engagement bookings. Evidence: [service](../internal/scheduling/service_test.go), [REST](../internal/httpapi/scheduling_test.go), [web](../internal/web/scheduling_test.go), and [browser review](reviews/scheduling-598.md). MCP, CLI, and WebMCP remain deferred until scheduling agent workflows are defined.
+
+Owners and admins can create and edit workspace resources and set the IANA time
+zone; members and viewers can list resources. A resource may link to a current
+workspace member. [Migration 000046](../internal/platform/database/migrations/000046_scheduling_resources.sql)
+defaults existing workspaces to UTC. Evidence: [service](../internal/scheduling/service_test.go),
+[REST](../internal/httpapi/scheduling_test.go), [web](../internal/web/scheduling_test.go),
+and [browser review](reviews/scheduling-594.md).
+The workspace export does not include these fields. MCP, CLI and WebMCP are
+deferred until scheduling agent workflows are defined; realtime is unnecessary
+for these ordinary configuration forms.
+
+Owners and admins can replace weekly working hours per resource; readers can see
+them in the workspace time zone. Ranges use weekday 0 for Sunday through 6 for
+Saturday, and non-overlapping local 24-hour times. An empty list means no hours.
+[Migration 000047](../internal/platform/database/migrations/000047_scheduling_working_hours.sql)
+stores the ranges. Evidence: [service](../internal/scheduling/service_test.go),
+[REST](../internal/httpapi/scheduling_test.go), and [web](../internal/web/scheduling_test.go).
+The workspace export does not include these ranges; MCP, CLI and WebMCP remain
+deferred until scheduling agent workflows are defined. Realtime is unnecessary
+for this configuration form.
+
+Browser review used a disposable SQLite workspace with owner and viewer roles.
+At 390×844 the owner saw stacked time controls, received a focused overlap
+error with the draft retained, corrected the range and saved it; the viewer saw
+the Monday ranges without mutation controls. Desktop review covered saving and
+overlap recovery. Review was conducted against the #582 working tree before
+commit; journey, interaction, and accessibility passes were not independent.
+
+## Scheduling bookings (#588)
+
+With Catalog enabled, resource writers can book an active catalog entry for its
+duration within working hours; resource readers can view the schedule. The
+service rejects missing durations, overlaps, and out-of-hours bookings with
+distinct errors. [Migration 000048](../internal/platform/database/migrations/000048_scheduling_bookings.sql)
+stores UTC instants and booked status. A booked entry cannot be deleted; it can
+be archived. Evidence: [service and permissions](../internal/scheduling/service_test.go),
+[PostgreSQL concurrency](../internal/scheduling/postgres_test.go),
+[REST](../internal/httpapi/scheduling_test.go), [web](../internal/web/scheduling_test.go),
+and [browser review](reviews/scheduling-588.md). Workspace export excludes bookings.
+MCP, CLI, and WebMCP are deferred until scheduling agent workflows are defined;
+realtime is unnecessary for this ordinary form.
+
+Upcoming booked appointments with an engagement client email request a queued
+email reminder 24 hours before the start; bookings made inside that window are
+queued immediately. No engagement or client email means no reminder. Moves and
+client email changes replace the pending request, while done, cancelled, and no-show outcomes cancel
+it. Startup reconciles eligible upcoming bookings, including those created
+before reminders were available, without requeueing an unchanged completed
+request. Delivery rechecks the current booking, client email, and queue lease. Email
+uses the workspace sender and the queue's retry policy. Queue delivery is
+at-least-once: a crash after a provider accepts mail but before commit can send
+a duplicate. Delivery holds database write locks through the provider call to
+order it against moves and cancellations; on SQLite this can delay other
+writes for the provider timeout. Evidence: [reminder service](../internal/scheduling/reminder_test.go).
+MCP, CLI, and WebMCP have no separate reminder mutation surface.
+
+Resource writers can record a booked booking as done, cancelled, or no-show.
+Outcomes are terminal; cancelled and no-show bookings release the slot while
+done bookings keep it. Readers see outcomes without mutation controls. Evidence:
+[service and permissions](../internal/scheduling/service_test.go),
+[REST](../internal/httpapi/scheduling_test.go), [web](../internal/web/scheduling_test.go),
+and [browser review](reviews/scheduling-591.md).
+MCP, CLI, and WebMCP remain deferred until scheduling agent workflows are defined.
+
+Resource writers can move bookings in place while preserving their duration,
+resource, and catalog entry. The service applies working hours and overlap
+rules and records each successful move in
+[migration 000050](../internal/platform/database/migrations/000050_scheduling_booking_moves.sql).
+Readers can view the history; cancelled and no-show bookings cannot be moved.
+Evidence: [service and permissions](../internal/scheduling/service_test.go),
+[REST](../internal/httpapi/scheduling_test.go), and [web](../internal/web/scheduling_test.go).
+MCP, CLI, and WebMCP remain deferred until scheduling agent workflows are defined;
+realtime is unnecessary for this ordinary form. Workspace export excludes bookings
+and their move history.
+
 ## Engagement stages (#581, #584, #592)
 
 Owners and admins can append, reorder, and archive workspace stages through REST

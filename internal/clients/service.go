@@ -94,12 +94,18 @@ type EventPublisher interface {
 }
 
 type Service struct {
-	db        *sql.DB
-	driver    config.DatabaseDriver
-	auth      *identity.Service
-	now       func() time.Time
-	maxFields int
-	publisher EventPublisher
+	db          *sql.DB
+	driver      config.DatabaseDriver
+	auth        *identity.Service
+	now         func() time.Time
+	maxFields   int
+	publisher   EventPublisher
+	emailChange func(context.Context, *sql.Tx, identity.WorkspaceID, ClientID) error
+}
+
+// SetEmailChangeHook registers transactional work for client email changes.
+func (s *Service) SetEmailChangeHook(hook func(context.Context, *sql.Tx, identity.WorkspaceID, ClientID) error) {
+	s.emailChange = hook
 }
 
 // NewService takes at most one publisher. Without one, client changes emit no webhook events.
@@ -302,6 +308,7 @@ func (s *Service) Update(
 	if client.Version != version {
 		return Client{}, ErrPreconditionFailed
 	}
+	emailChanged := input.Email != nil && *input.Email != client.Email
 	if input.DisplayName != nil {
 		client.DisplayName = *input.DisplayName
 	}
@@ -326,6 +333,11 @@ func (s *Service) Update(
 	}
 	if changed, _ := result.RowsAffected(); changed != 1 {
 		return Client{}, ErrPreconditionFailed
+	}
+	if emailChanged && s.emailChange != nil {
+		if err := s.emailChange(ctx, tx, workspaceID, clientID); err != nil {
+			return Client{}, err
+		}
 	}
 	if err := s.recordChange(ctx, tx, workspaceID, client.ID, "updated", client.Version, client.UpdatedAt); err != nil {
 		return Client{}, err

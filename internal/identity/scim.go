@@ -416,7 +416,7 @@ func (s *Service) PatchSCIMUser(ctx context.Context, actor Principal, resourceID
 		}
 	}
 	if !active && current.Active {
-		if err := s.clearMemberEngagements(ctx, tx, actor.WorkspaceID, current.UserID); err != nil {
+		if err := s.clearMemberAssignments(ctx, tx, actor.WorkspaceID, current.UserID); err != nil {
 			return SCIMUser{}, err
 		}
 		if _, err := s.exec(ctx, tx, "DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?", actor.WorkspaceID, current.UserID); err != nil {
@@ -578,7 +578,7 @@ func (s *Service) PatchSCIMGroup(ctx context.Context, actor Principal, groupID s
 				if currentRole != group.Role || !active {
 					continue
 				}
-				if err := s.clearMemberEngagements(ctx, tx, actor.WorkspaceID, userID); err != nil {
+				if err := s.clearMemberAssignments(ctx, tx, actor.WorkspaceID, userID); err != nil {
 					return SCIMGroup{}, err
 				}
 				if _, err := s.exec(ctx, tx, "DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?", actor.WorkspaceID, userID); err != nil {

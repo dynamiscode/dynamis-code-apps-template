@@ -7,6 +7,7 @@ import (
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/scheduling"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
 	"example.com/dynamis-code/apps-template/internal/workspaceemail"
 )
@@ -35,6 +36,7 @@ type PageData struct {
 	Clients              []clients.Client
 	Client               clients.Client
 	Engagements          []engagement.Engagement
+	EngagementBookings   map[engagement.ID][]scheduling.Booking
 	EngagementStages     []engagement.Stage
 	EngagementMembers    []identity.MemberSummary
 	EngagementEnabled    bool
@@ -53,6 +55,7 @@ type PageData struct {
 	CanDeleteClients     bool
 	ClientsEnabled       bool
 	CatalogEnabled       bool
+	SchedulingEnabled    bool
 	ErrorKey             string
 	Files                []appfiles.File
 	FilesEnabled         bool

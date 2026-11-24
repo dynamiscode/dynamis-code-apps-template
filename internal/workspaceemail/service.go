@@ -155,40 +155,52 @@ func (s *Service) Available() bool { return s.fallback != nil }
 // otherwise through the instance sender. The caller must already have authorized
 // the invitation.
 func (s *Service) SendFor(ctx context.Context, shortID, recipient, subject, body string) error {
-	workspaceID, err := identity.ParseWorkspaceID(shortID)
+	sender, err := s.SenderFor(ctx, shortID)
 	if err != nil {
 		return err
+	}
+	return sender.Send(ctx, recipient, subject, body)
+}
+
+// SenderFor resolves workspace settings before a caller starts its transaction.
+func (s *Service) SenderFor(ctx context.Context, shortID string) (appmail.Sender, error) {
+	workspaceID, err := identity.ParseWorkspaceID(shortID)
+	if err != nil {
+		return nil, err
 	}
 	row, found, err := s.load(ctx, workspaceID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !found {
-		return s.Send(ctx, recipient, subject, body)
+		if s.fallback == nil {
+			return nil, appmail.ErrNotConfigured
+		}
+		return s.fallback, nil
 	}
 	secret, err := s.secrets.Open(row.keyVersion, row.ciphertext)
 	if err != nil {
-		return ErrUnreadable
+		return nil, ErrUnreadable
 	}
 	if row.Provider == ProviderResend {
 		sender, err := appmail.NewResend(s.resendBase, secret, row.SenderAddress, row.SenderName)
 		if err != nil {
-			return ErrInvalidInput
+			return nil, ErrInvalidInput
 		}
-		return sender.Send(ctx, recipient, subject, body)
+		return sender, nil
 	}
 	if row.Provider == ProviderPostmark {
 		sender, err := appmail.NewPostmark(s.postmarkBase, secret, row.SenderAddress, row.SenderName)
 		if err != nil {
-			return ErrInvalidInput
+			return nil, ErrInvalidInput
 		}
-		return sender.Send(ctx, recipient, subject, body)
+		return sender, nil
 	}
 	sender, err := appmail.NewWorkspaceSMTP(smtpConfig(row.SaveInput, secret), row.SenderName)
 	if err != nil {
-		return ErrInvalidInput
+		return nil, ErrInvalidInput
 	}
-	return sender.Send(ctx, recipient, subject, body)
+	return sender, nil
 }
 
 // Get returns the masked settings to a principal who can update the workspace.

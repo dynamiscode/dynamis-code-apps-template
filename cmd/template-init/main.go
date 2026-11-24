@@ -152,6 +152,13 @@ func run(args []string, now func() time.Time) error {
 	); err != nil {
 		return err
 	}
+	if !hasProfile(selectedProfiles, "Catalog") || !hasProfile(selectedProfiles, "Clients") {
+		command := exec.Command("go", "tool", "templ", "generate", "-path", "internal/web")
+		command.Dir = destination
+		if output, err := command.CombinedOutput(); err != nil {
+			return fmt.Errorf("regenerate catalog-free templates: %s", strings.TrimSpace(string(output)))
+		}
+	}
 	command := exec.Command("go", "generate", "./api")
 	command.Dir = destination
 	if output, err := command.CombinedOutput(); err != nil {
@@ -228,6 +235,12 @@ func copyTemplate(
 			}
 			return nil
 		}
+		if (!clients || !catalog) && reminderPath(relative) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 		target := filepath.Join(destination, relative)
 		if entry.IsDir() {
 			return os.MkdirAll(target, 0o750)
@@ -265,6 +278,9 @@ func copyTemplate(
 		if !files {
 			raw = disableFilesSource(filepath.ToSlash(relative), raw)
 		}
+		if !clients || !catalog {
+			raw = disableReminderSource(filepath.ToSlash(relative), raw)
+		}
 		if !clients {
 			raw = disableClientsSource(filepath.ToSlash(relative), raw)
 		}
@@ -277,6 +293,27 @@ func copyTemplate(
 		}
 		return os.WriteFile(target, raw, info.Mode().Perm())
 	})
+}
+
+func reminderPath(relative string) bool {
+	relative = filepath.ToSlash(relative)
+	return relative == "internal/notifications/reminder.go" || relative == "internal/scheduling/reminder.go" || relative == "internal/scheduling/reminder_test.go"
+}
+
+func disableReminderSource(relative string, raw []byte) []byte {
+	value := string(raw)
+	switch relative {
+	case "internal/bootstrap/app.go":
+		value = removeLinesContaining(value, `/internal/notifications"`)
+		value = removeLinesContaining(value, "SetEmailChangeHook(")
+		value = removeText(value, "\tif err := schedulingService.ReconcileReminders(", "\tcatalogService :=")
+	case "internal/scheduling/booking.go", "internal/scheduling/move.go":
+		value = strings.ReplaceAll(value, "\tif err := refreshReminder(ctx, tx, workspace, booking, false); err != nil {\n\t\treturn err\n\t}\n", "")
+		value = strings.ReplaceAll(value, "\tif err := refreshReminder(ctx, tx, workspace, b.ID, false); err != nil {\n\t\treturn Booking{}, err\n\t}\n", "")
+	case "docs/capabilities.md":
+		value = removeText(value, "Upcoming booked appointments with an engagement client email", "Resource writers can record")
+	}
+	return []byte(value)
 }
 
 // copySymlink recreates a relative symlink whose target stays inside the
@@ -306,6 +343,8 @@ func catalogPath(relative string) bool {
 		relative == "internal/web/currency_settings.go" || relative == "internal/web/currency_settings.templ" || relative == "internal/web/currency_settings_templ.go" || relative == "internal/web/currency_settings_test.go" ||
 		relative == "internal/platform/database/migrate_catalog_currencies_test.go" ||
 		relative == "internal/web/catalog.templ" || relative == "internal/web/catalog_templ.go" ||
+		relative == "internal/scheduling/booking.go" || relative == "internal/scheduling/move.go" || relative == "internal/scheduling/hours_bounds_test.go" || relative == "internal/platform/database/migrations/000048_scheduling_bookings.sql" ||
+		relative == "internal/platform/database/migrations/000049_scheduling_engagement.sql" || relative == "internal/platform/database/migrations/000050_scheduling_booking_moves.sql" ||
 		relative == "internal/platform/database/migrations/000040_catalog.sql" ||
 		relative == "internal/platform/database/migrations/000041_catalog_prices.sql" ||
 		relative == "internal/platform/database/migrations/000045_catalog_currencies.sql"
@@ -317,6 +356,8 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 	case "internal/bootstrap/app.go", "internal/httpapi/handler.go", "internal/web/handler.go", "internal/web/handler_test.go":
 		if relative == "internal/httpapi/handler.go" {
 			value = removeText(value, "func NewHandlerWithCatalog(", "func NewHandlerWithCatalogAndEngagement(")
+			value = strings.ReplaceAll(value, ", catalog.NewService(db, identityService, scheduling.CatalogEntryInUse)", "")
+			value = removeLinesContaining(value, `"listSchedulingBookings":`)
 			value = strings.ReplaceAll(value, "NewHandlerWithCatalogAndEngagement", "NewHandlerWithEngagementAndIntake")
 			value = strings.ReplaceAll(value, ", catalog.NewService(db, identityService, nil)", "")
 			value = strings.ReplaceAll(value, "catalogService *catalog.Service, ", "")
@@ -341,13 +382,81 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "EnableCatalog(")
 		value = removeLinesContaining(value, `"listCatalog":`)
 		value = removeLinesContaining(value, `"archiveCatalog":`)
+		value = removeLinesContaining(value, "h.schedulingBook)")
+		value = removeLinesContaining(value, "h.schedulingBookingStatus)")
+		value = removeLinesContaining(value, "h.schedulingSetEngagement)")
+		value = removeLinesContaining(value, `"setSchedulingEngagement":`)
+		value = removeLinesContaining(value, `"setSchedulingBookingStatus":`)
+		value = removeLinesContaining(value, `"moveSchedulingBooking":`)
+	case "internal/httpapi/scheduling.go":
+		value = removeText(value, "func (h *handler) moveSchedulingBooking(", "func (h *handler) listSchedulingResources(")
+		value = removeText(value, "\tcase errors.Is(err, scheduling.ErrNoDuration):", "\tcase err != nil:")
+		value = removeLinesContaining(value, `"time"`)
+		value = removeLinesContaining(value, `/internal/catalog"`)
+		value = removeLinesContaining(value, `/internal/engagement"`)
+		value = removeLinesContaining(value, `"encoding/json"`)
+	case "internal/httpapi/scheduling_test.go":
+		value = removeText(value, "func TestSchedulingBookingsREST(", "func TestSchedulingRESTReadOnlyRoles(")
+		value = removeText(value, "\t\tif role == identity.Viewer {\n\t\t\tif response := serveAuthorized(h, http.MethodPut, path+\"/\"+resource.ID+\"/bookings/invalid/move\"", "\n\t}\n}")
+		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `/internal/engagement"`)
+	case "internal/scheduling/service_test.go":
+		value = removeText(value, "func TestBookingTransitions(", "func TestResourceAndWorkspaceTimeZone(")
+		value = removeText(value, "\tduration := 60\n\tentry, err := catalog.NewService", "\tfor _, role := range")
+		value = removeText(value, "\t\tif role == identity.Member || role == identity.Viewer {", "\t\tif role == identity.Member {")
+		value = removeLinesContaining(value, `/internal/catalog"`)
+		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `/internal/engagement"`)
+		value = removeLinesContaining(value, `"path/filepath"`)
+	case "internal/scheduling/postgres_test.go":
+		value = removeText(value, "\tif err := s.SetTimeZone(ctx, actor, owner.WorkspaceID, \"UTC\");", "\n}")
+	case "internal/web/scheduling_test.go":
+		value = removeText(value, "func TestSchedulingBookingWeb(", "func TestSchedulingResourcesWeb(")
+		value = removeText(value, "\tduration := 60\n\tentry, err := catalog.NewService", "\tinv, err := auth.CreateInvitation")
+		value = removeText(value, "\tif !strings.Contains(page.Body.String(), \"Move history\")", "\tif page.Code != http.StatusOK")
+		value = removeLinesContaining(value, `/internal/catalog"`)
+		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `/internal/engagement"`)
+		value = removeLinesContaining(value, `/internal/listprefs"`)
+		value = removeLinesContaining(value, `/internal/platform/config"`)
+	case "internal/web/scheduling.go":
+		value = removeText(value, "func (h *Handler) schedulingBookingStatus(", "type schedulingDraft struct")
+		value = removeText(value, "\tbookings := make(map[scheduling.ResourceID]", "\tworkspaces, err :=")
+		value = removeText(value, "func (h *Handler) schedulingBook(", "func (h *Handler) schedulingCreate(")
+		value = strings.ReplaceAll(value, "members, bookings, history, entries, engagements, identity.CanManageScheduling(principal), principal.Permissions[identity.ResourcesWrite],", "members, identity.CanManageScheduling(principal),")
+		value = strings.ReplaceAll(value, "members, bookings, history, entries, identity.CanManageScheduling(principal), principal.Permissions[identity.ResourcesWrite],", "members, identity.CanManageScheduling(principal),")
+		value = removeLinesContaining(value, `/internal/catalog"`)
+		value = removeLinesContaining(value, `/internal/engagement"`)
+		value = removeLinesContaining(value, `"time"`)
+	case "internal/web/scheduling.templ":
+		value = removeLinesContaining(value, `/internal/catalog"`)
+		value = removeText(value, "templ schedulingEngagement(", "templ schedulingPage(")
+		value = strings.ReplaceAll(value, "bookings map[scheduling.ResourceID][]scheduling.Booking, history map[scheduling.BookingID][]scheduling.BookingMove, entries []catalog.Entry, engagements []scheduling.EngagementOption, canWrite bool, canBook bool,", "canWrite bool,")
+		value = strings.ReplaceAll(value, "bookings map[scheduling.ResourceID][]scheduling.Booking, history map[scheduling.BookingID][]scheduling.BookingMove, entries []catalog.Entry, canWrite bool, canBook bool,", "canWrite bool,")
+		value = removeText(value, "    if draft.action == \"booking\" || draft.action == \"move\" {", "    } else if draft.action == \"zone\" {")
+		value = strings.Replace(value, "    } else if draft.action == \"zone\" {", "    if draft.action == \"zone\" {", 1)
+		value = removeText(value, "      <h2 class=\"font-semibold\">{ data.T(\"scheduling.bookings\") }</h2>", "      <p>{ data.T(\"scheduling.hours\") }</p>")
+	case "internal/web/viewmodel/handler.go":
+		value = removeLinesContaining(value, `/internal/scheduling"`)
+		value = removeLinesContaining(value, "EngagementBookings")
+	case "internal/web/clients.go":
+		value = removeLinesContaining(value, `/internal/scheduling"`)
+		value = removeLinesContaining(value, "engagementBookings :=")
+		value = removeText(value, "\tif h.scheduling != nil && len(engagements) > 0 {", "\th.renderClientPage(")
+		value = strings.ReplaceAll(value, "EngagementBookings: engagementBookings, ", "")
+	case "internal/web/clients.templ":
+		value = removeText(value, "\t\t\t\t\t\t\tif len(data.EngagementBookings[item.ID]) > 0 {", "\t\t\t\t\t\t\tif data.CanEditClients {")
 	case "docs/capabilities.md":
+		value = removeLinesContaining(value, "000049_scheduling_engagement.sql")
+		value = removeLinesContaining(value, "000050_scheduling_booking_moves.sql")
 		value = removeLineStarting(value, "| Catalog |")
 		value = removeText(value, "## Catalog authorization and isolation (#597)", "\n## ")
+		value = removeText(value, "## Scheduling bookings (#588)", "## Engagement stages")
 	case "docs/architecture.md":
 		value = removeLineStarting(value, "Catalog is optional")
 	case "docs/data-lifecycle.md":
 		value = removeLineStarting(value, "| catalog / `catalog_entries`")
+		value = removeLineStarting(value, "| scheduling / `scheduling_bookings`")
 		value = removeLineStarting(value, "| catalog / `catalog_currencies`")
 	case "docs/api.md", "docs/web.md":
 		value = removeLineStarting(value, "Catalog profile:")
@@ -365,6 +474,11 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 				delete(paths, "/api/v1/workspaces/{workspaceId}/catalog/{entryId}")
 				delete(paths, "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/archive")
 				delete(paths, "/api/v1/workspaces/{workspaceId}/catalog/{entryId}/unarchive")
+				delete(paths, "/api/v1/workspaces/{workspaceId}/scheduling/resources/{resourceId}/bookings")
+				delete(paths, "/api/v1/workspaces/{workspaceId}/scheduling/bookings/{bookingId}/engagement")
+				delete(paths, "/api/v1/workspaces/{workspaceId}/scheduling/resources/{resourceId}/bookings/{bookingId}/move")
+				delete(paths, "/api/v1/workspaces/{workspaceId}/scheduling/resources/{resourceId}/bookings/{bookingId}/history")
+				delete(paths, "/api/v1/workspaces/{workspaceId}/scheduling/resources/{resourceId}/bookings/{bookingId}/status")
 				if encoded, err := json.MarshalIndent(document, "", "  "); err == nil {
 					value = string(encoded) + "\n"
 				}
@@ -394,6 +508,7 @@ func filesPath(relative string) bool {
 func clientsPath(relative string) bool {
 	relative = filepath.ToSlash(relative)
 	return relative == "internal/clients" || strings.HasPrefix(relative, "internal/clients/") ||
+		relative == "internal/platform/database/migrations/000049_scheduling_engagement.sql" ||
 		relative == "internal/intake" || strings.HasPrefix(relative, "internal/intake/") ||
 		relative == "internal/httpapi/intake.go" || relative == "internal/httpapi/intake_test.go" ||
 		relative == "internal/web/intake.go" || relative == "internal/web/intake_test.go" || relative == "internal/web/intake.templ" || relative == "internal/web/intake_templ.go" ||
@@ -461,9 +576,61 @@ func clientsPath(relative string) bool {
 func disableClientsSource(relative string, raw []byte) []byte {
 	value := string(raw)
 	switch relative {
+	case "internal/scheduling/booking.go":
+		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `/internal/engagement"`)
+		value = removeLinesContaining(value, "EngagementID *engagement.ID")
+		value = removeText(value, "type EngagementOption struct", "func (s *Service) SetBookingStatus(")
+		value = strings.ReplaceAll(value, ", b.engagement_id FROM scheduling_bookings", " FROM scheduling_bookings")
+		value = strings.ReplaceAll(value, ", &b.EngagementID", "")
+		value = removeText(value, "func (s *Service) Book(ctx", "func (s *Service) BookWithEngagement(")
+		value = strings.ReplaceAll(value, "BookWithEngagement(ctx context.Context, actor identity.Principal, workspace identity.WorkspaceID, resource ResourceID, entry catalog.EntryID, start time.Time, link *engagement.ID)", "Book(ctx context.Context, actor identity.Principal, workspace identity.WorkspaceID, resource ResourceID, entry catalog.EntryID, start time.Time)")
+		value = strings.ReplaceAll(value, "resource, entry, start, link)", "resource, entry, start)")
+		value = strings.ReplaceAll(value, "start time.Time, link *engagement.ID)", "start time.Time)")
+		value = strings.ReplaceAll(value, ", EngagementID: link", "")
+		value = removeText(value, "\tif err := validateEngagement(", "\t// Lock the resource")
+		value = strings.ReplaceAll(value, ", status, engagement_id) VALUES ($1, $2, $3, $4, $5, $6, $7)", ", status) VALUES ($1, $2, $3, $4, $5, $6)")
+		value = strings.ReplaceAll(value, ", b.Status, link).Scan", ", b.Status).Scan")
+		if start := strings.Index(value, "func validateEngagement("); start >= 0 {
+			value = value[:start]
+		}
+	case "internal/scheduling/service_test.go":
+		value = removeText(value, "func TestBookingRequiresAvailableWorkingHours(", "func TestResourceAndWorkspaceTimeZone(")
+		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `/internal/engagement"`)
+		value = removeText(value, "\t\t\t} else if err := s.SetEngagement(", "\t\t\t} else if role == identity.Viewer {")
+	case "internal/httpapi/scheduling_test.go":
+		value = removeText(value, "func TestSchedulingBookingsREST(", "func TestSchedulingRESTReadOnlyRoles(")
+		value = removeText(value, "\t\t\tif response := serveAuthorized(h, http.MethodPut, \"/api/v1/workspaces/\"+workspace+\"/scheduling/bookings/invalid/engagement\"", "\t\t\tif response := serveAuthorized(h, http.MethodPut, path+\"/\"+resource.ID+\"/bookings/invalid/status\"")
+		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `/internal/engagement"`)
+	case "internal/web/scheduling_test.go":
+		value = removeText(value, "func TestSchedulingBookingWeb(", "func TestSchedulingResourcesWeb(")
+		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `/internal/engagement"`)
+		value = removeLinesContaining(value, `/internal/listprefs"`)
+		value = removeLinesContaining(value, `/internal/platform/config"`)
+	case "internal/httpapi/scheduling.go":
+		value = removeLinesContaining(value, `/internal/engagement"`)
+		value = removeLinesContaining(value, `"encoding/json"`)
+		value = removeLinesContaining(value, "EngagementID *string")
+		value = removeLinesContaining(value, "link := schedulingEngagementID")
+		value = strings.ReplaceAll(value, "BookWithEngagement(r.Context(), principal, workspace, resource, catalog.ParseEntryID(body.EntryID), body.Start, link)", "Book(r.Context(), principal, workspace, resource, catalog.ParseEntryID(body.EntryID), body.Start)")
+		value = removeText(value, "func schedulingEngagementID(", "func (h *handler) listSchedulingResources(")
+	case "internal/web/scheduling.go":
+		value = removeLinesContaining(value, `/internal/engagement"`)
+		value = removeText(value, "\tvar engagements []scheduling.EngagementOption", "\tif h.catalogService != nil")
+		value = strings.ReplaceAll(value, "entries, engagements, identity.CanManageScheduling", "entries, identity.CanManageScheduling")
+		value = strings.ReplaceAll(value, "BookWithEngagement(r.Context(), principal, workspace, scheduling.ParseResourceID(r.PathValue(\"resourceId\")), catalog.ParseEntryID(r.FormValue(\"entry_id\")), start, webEngagementID(r.FormValue(\"engagement_id\")))", "Book(r.Context(), principal, workspace, scheduling.ParseResourceID(r.PathValue(\"resourceId\")), catalog.ParseEntryID(r.FormValue(\"entry_id\")), start)")
+		value = removeText(value, "func webEngagementID(", "func (h *Handler) schedulingCreate(")
+	case "internal/web/scheduling.templ":
+		value = removeText(value, "templ schedulingEngagement(", "templ schedulingPage(")
+		value = strings.ReplaceAll(value, "engagements []scheduling.EngagementOption, ", "")
+		value = removeText(value, "          for _, option := range engagements {", "          if canBook && booking.Status")
+		value = removeText(value, "         if len(engagements) > 0 {", "         <label class=\"form-control flex flex-col gap-1\"><span>{ data.T(\"scheduling.start\")")
 	case "internal/identity/service.go":
-		value = removeText(value, "func (s *Service) clearMemberEngagements(", "func normalizeEmail(")
-		value = strings.Replace(value, "func normalizeEmail(", "func (s *Service) clearMemberEngagements(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, userID UserID) error { return nil }\n\nfunc normalizeEmail(", 1)
+		value = removeText(value, "func (s *Service) clearMemberAssignments(", "func normalizeEmail(")
+		value = strings.Replace(value, "func normalizeEmail(", "func (s *Service) clearMemberAssignments(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, userID UserID) error { _, err := s.exec(ctx, tx, \"UPDATE scheduling_resources SET user_id = NULL WHERE workspace_id = ? AND user_id = ?\", workspaceID, userID); return err }\n\nfunc normalizeEmail(", 1)
 	case "cmd/demo/main.go":
 		value = strings.Replace(value, "workspaceID, userID, err := demoOwner(", "workspaceID, _, err := demoOwner(", 1)
 		value = removeBlockIncludingEnd(value, "\tif err := seedClients(", "\t}\n")
@@ -481,6 +648,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLineStarting(value, "\twebHandler.EnableClients(")
 	case "internal/httpapi/handler.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, `"setSchedulingEngagement":`)
 		value = removeLinesContaining(value, `/internal/intake"`)
 		value = removeLinesContaining(value, "intake         *intake.Service")
 		value = strings.ReplaceAll(value, "intakeService *intake.Service, clientServices", "clientServices")
@@ -551,6 +719,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.Replace(value, "\n\t\tclients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace, webhookService))", ")", 1)
 	case "internal/web/viewmodel/handler.go":
 		value = removeLinesContaining(value, `/internal/engagement"`)
+		value = removeLinesContaining(value, `/internal/scheduling"`)
+		value = removeLinesContaining(value, "EngagementBookings")
 		value = removeLinesContaining(value, "engagement.Engagement")
 		value = removeLinesContaining(value, "engagement.Stage")
 		value = removeBlockIncludingEnd(value, "type TimelineDraft struct {", "}\n")
@@ -567,6 +737,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "ClientValueRow")
 	case "internal/web/handler.go":
 		value = removeLinesContaining(value, `/internal/clients"`)
+		value = removeLinesContaining(value, "h.schedulingSetEngagement)")
 		value = removeLinesContaining(value, `/internal/intake"`)
 		value = removeLinesContaining(value, "intake          *intake.Service")
 		value = removeLinesContaining(value, "h.publicIntake")
@@ -620,6 +791,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 	case "docs/mcp.md":
 		value = removeText(value, "\n## Clients tools (Clients profile)", "\n## Prompts\n")
 	case "docs/capabilities.md":
+		value = removeLinesContaining(value, "000049_scheduling_engagement.sql")
 		value = strings.ReplaceAll(value, "[web](../internal/web/engagement_test.go)", "web")
 		value = removeText(value, " Writers can create engagements", "\nOwners and admins can set or reset")
 		value = removeText(value, "\nNext actions have text", "\n\n## Client timeline REST")
@@ -676,11 +848,31 @@ func stripClientsOpenAPI(raw []byte) string {
 			delete(paths, path)
 		}
 	}
+	delete(paths, "/api/v1/workspaces/{workspaceId}/scheduling/bookings/{bookingId}/engagement")
+	bookingRequest := nestedObject(paths, "/api/v1/workspaces/{workspaceId}/scheduling/resources/{resourceId}/bookings", "post", "requestBody", "content", "application/json", "schema", "properties")
+	delete(bookingRequest, "engagementId")
+	booking := nestedObject(document, "components", "schemas", "SchedulingBooking")
+	delete(nestedObject(booking, "properties"), "engagementId")
+	if required, ok := booking["required"].([]any); ok {
+		for i, field := range required {
+			if field == "engagementId" {
+				booking["required"] = append(required[:i], required[i+1:]...)
+				break
+			}
+		}
+	}
 	encoded, err := json.MarshalIndent(document, "", "  ")
 	if err != nil {
 		return string(raw)
 	}
 	return string(encoded) + "\n"
+}
+
+func nestedObject(value map[string]any, keys ...string) map[string]any {
+	for _, key := range keys {
+		value, _ = value[key].(map[string]any)
+	}
+	return value
 }
 
 func disableFilesSource(relative string, raw []byte) []byte {
