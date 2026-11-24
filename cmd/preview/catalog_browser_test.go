@@ -100,5 +100,18 @@ func TestCatalogNavigationBrowser(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	t.Skip("nested trigger not visible in mobile fixture; keyboard journey blocked")
+	visible, err := chromedp.Run(ctx, chromedp.Evaluate[bool](`!!document.querySelector('button[popovertarget="group-0"]').getClientRects().length`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !visible {
+		t.Skip("nested trigger not visible in mobile fixture; keyboard journey blocked")
+	}
+	if err := chromedp.Do(ctx, chromedp.Focus(`button[popovertarget="group-0"]`), chromedp.KeyEvent("\r"), chromedp.WaitVisible(`a[href="#item"]`), chromedp.Focus(`a[href="#item"]`), chromedp.KeyEvent("\r")); err != nil {
+		t.Fatal(err)
+	}
+	hash, err := chromedp.Run(ctx, chromedp.Evaluate[string](`location.hash`))
+	if err != nil || hash != "#item" {
+		t.Fatalf("nested link hash = %q, error = %v", hash, err)
+	}
 }
