@@ -235,7 +235,7 @@ func newHandlerWithIntake(
 		"archiveCatalog": h.archiveCatalog, "unarchiveCatalog": h.unarchiveCatalog, "deleteCatalog": h.deleteCatalog,
 		"listClients": h.listClients, "createClient": h.createClient,
 		"listEngagementStages": h.listEngagementStages, "createEngagementStage": h.createEngagementStage,
-		"createEngagement": h.createEngagement, "getEngagement": h.getEngagement, "moveEngagement": h.moveEngagement,
+		"createEngagement": h.createEngagement, "getEngagement": h.getEngagement, "moveEngagement": h.moveEngagement, "setEngagementName": h.setEngagementName,
 		"getEngagementLabel": h.getEngagementLabel, "setEngagementLabel": h.setEngagementLabel,
 		"setEngagementNextAction": h.setEngagementNextAction, "listDueEngagements": h.listDueEngagements,
 		"setEngagementQuote":      h.setEngagementQuote,

@@ -112,10 +112,10 @@ func TestSubmissionCreatesClientAndEngagementTogether(t *testing.T) {
 	if err := db.QueryRow(`SELECT count(*) FROM background_jobs WHERE kind = 'email.delivery'`).Scan(&count); err != nil || count != 1 {
 		t.Fatalf("email jobs = %d, %v; want one", count, err)
 	}
-	var stage string
+	var stage, name string
 	var consent string
-	if err := db.QueryRow(`SELECT s.name, c.intake_consented_at FROM clients c JOIN engagements e ON e.client_id = c.id JOIN engagement_stages s ON s.id = e.stage_id`).Scan(&stage, &consent); err != nil || stage != "First" || consent == "" {
-		t.Fatalf("submission: %q %q %v", stage, consent, err)
+	if err := db.QueryRow(`SELECT s.name, c.intake_consented_at, e.name FROM clients c JOIN engagements e ON e.client_id = c.id JOIN engagement_stages s ON s.id = e.stage_id`).Scan(&stage, &consent, &name); err != nil || stage != "First" || consent == "" || name != "Visitor" {
+		t.Fatalf("submission: stage=%q consent=%q name=%q err=%v", stage, consent, name, err)
 	}
 	if err := svc.Submit(ctx, token, Submission{DisplayName: "Duplicate", Email: "VISITOR@example.com", Phone: "555-1234", Consent: true}, identity.AuditContext{}); err != nil {
 		t.Fatal(err)

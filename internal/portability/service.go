@@ -21,10 +21,11 @@ var (
 const FormatVersion = "dynamis-code.workspace/v1"
 
 type Export struct {
-	FormatVersion string    `json:"formatVersion"`
-	ExportedAt    time.Time `json:"exportedAt"`
-	Workspace     Workspace `json:"workspace"`
-	Members       []Member  `json:"members"`
+	FormatVersion    string            `json:"formatVersion"`
+	ExportedAt       time.Time         `json:"exportedAt"`
+	Workspace        Workspace         `json:"workspace"`
+	Members          []Member          `json:"members"`
+	EngagementStages []EngagementStage `json:"engagementStages"`
 	// ClientExport adds the additive client keys. It is nil, and the keys are
 	// absent, unless a ClientSource is wired (the Clients profile).
 	*ClientExport
@@ -42,9 +43,13 @@ type ClientSource interface {
 // ClientExport is the additive client section of dynamis-code.workspace/v1.
 // Its keys are documented in docs/data-lifecycle.md.
 type ClientExport struct {
-	Clients            []ClientRecord      `json:"clients"`
-	ClientFields       []ClientField       `json:"clientFields"`
-	ClientFieldOptions []ClientFieldOption `json:"clientFieldOptions"`
+	Clients                 []ClientRecord            `json:"clients"`
+	ClientFields            []ClientField             `json:"clientFields"`
+	ClientFieldOptions      []ClientFieldOption       `json:"clientFieldOptions"`
+	Engagements             []EngagementRecord        `json:"engagements"`
+	EngagementNextActions   []EngagementNextAction    `json:"engagementNextActions"`
+	EngagementActionHistory []EngagementActionHistory `json:"engagementActionHistory"`
+	EngagementStageHistory  []EngagementStageHistory  `json:"engagementStageHistory"`
 }
 
 // The client record types are declared here, not in the Clients package, so
@@ -187,8 +192,27 @@ func (s *Service) Export(
 	if result.Members, err = s.members(ctx, tx, workspaceID); err != nil {
 		return nil, err
 	}
+	if result.EngagementStages, err = s.engagementStages(ctx, tx, workspaceID); err != nil {
+		return nil, err
+	}
 	if s.clients != nil {
 		section, err := s.clients.ExportClients(ctx, tx, workspaceID, s.maxRecords+1)
+		if err != nil {
+			return nil, err
+		}
+		section.Engagements, err = s.engagements(ctx, tx, workspaceID)
+		if err != nil {
+			return nil, err
+		}
+		section.EngagementNextActions, err = s.engagementNextActions(ctx, tx, workspaceID)
+		if err != nil {
+			return nil, err
+		}
+		section.EngagementActionHistory, err = s.engagementActionHistory(ctx, tx, workspaceID)
+		if err != nil {
+			return nil, err
+		}
+		section.EngagementStageHistory, err = s.engagementStageHistory(ctx, tx, workspaceID)
 		if err != nil {
 			return nil, err
 		}
@@ -197,9 +221,9 @@ func (s *Service) Export(
 	if result.AuditEvents, err = s.auditEvents(ctx, tx, workspaceID); err != nil {
 		return nil, err
 	}
-	records := 1 + len(result.Members) + len(result.AuditEvents)
+	records := 1 + len(result.Members) + len(result.AuditEvents) + len(result.EngagementStages)
 	if result.ClientExport != nil {
-		records += len(result.Clients) + len(result.ClientFields) + len(result.ClientFieldOptions)
+		records += len(result.Clients) + len(result.ClientFields) + len(result.ClientFieldOptions) + len(result.Engagements) + len(result.EngagementNextActions) + len(result.EngagementActionHistory) + len(result.EngagementStageHistory)
 	}
 	encoded, encodeErr := json.Marshal(result)
 	if records > s.maxRecords || (encodeErr == nil && len(encoded) > s.maxBytes) {

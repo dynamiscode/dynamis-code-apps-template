@@ -96,20 +96,32 @@ unarchived stage; readers can view them. Creation is audited, and archiving an
 in-use stage preserves its engagements. Writers can move engagements and readers
 can see permanent stage history; each move also produces a retention-bounded audit
 event. The same tests cover these behaviors and retention.
-Workspace export does not yet include stages or engagements.
+The shared engagement list service provides workspace-scoped search by engagement
+or client name, stage and assignee filters, and bounded numbered pages ordered by
+descending ID, including archived stages. [Service tests](../internal/engagement/list_test.go)
+cover authorization, isolation, filters, and pagination. The web list and board
+use the shared service; no REST list route is exposed.
+Workspace export includes archived stages in all profiles and engagement records
+when Clients is enabled. [SQLite and PostgreSQL export tests](../internal/clients/engagement_export_test.go)
+cover scoped records, action and stage history, actor IDs, and limits.
 Owners and admins can set or reset the workspace work item label. The shared
 service audits changes and [migration 000037](../internal/platform/database/migrations/000037_engagement_label.sql)
 stores it per workspace. Evidence: [service](../internal/engagement/label_test.go),
 [REST](../internal/httpapi/engagement_test.go), and [web](../internal/web/engagement_test.go)
 tests. The label is deleted with its workspace and is not included in export.
-Next actions have text, an optional date, and a workspace-member owner. Writers
-can change them; readers can view them and the workspace's open-stage due list.
-The service, REST, and web tests above cover these surfaces. Dates use UTC for
-the due-list cutoff; actions are not included in workspace export.
+Next actions have text, an optional date, and an optional workspace-member owner.
+Writers can change, complete, reschedule, and reopen actions; readers can view
+active actions and the action queue. Dates use UTC for queue boundaries. Active
+actions and action history are included in workspace export. Migration
+[000053](../internal/platform/database/migrations/000053_engagement_action_completion.sql)
+stores history outcomes; [000054](../internal/platform/database/migrations/000054_engagement_action_version.sql)
+retains a monotonic active-action version across replacement, clearing, and owner
+removal. Completion, rescheduling, and reopening check the observed version;
+ordinary action edits do not yet enforce it. See [queue tests](../internal/engagement/action_queue_test.go).
 Quote status, optional amount and sent date are stored on the engagement by
 [migration 000035](../internal/platform/database/migrations/000035_engagement_quote.sql).
 The linked service, REST and web tests cover writes and read-only access. Quote
-data follows engagement retention and is not included in workspace export.
+data follows engagement retention and is included in workspace export.
 Writers can assign or clear a workspace member on an engagement; readers can see
 the assignment. [Migration 000036](../internal/platform/database/migrations/000036_engagement_assignee.sql)
 stores the reference. The service, REST, and web tests above cover assignment.
@@ -401,7 +413,7 @@ These remain out of the build plan until their trigger is demonstrated.
 | Internal AI | deferred | Product behavior requires model-driven decisions |
 | Workspace domains and routing | deferred | Users require workspace-specific domains or URLs |
 | Public sharing or guest access | deferred | Files, public APIs, guest collaboration, or other resource types require a separate accepted contract |
-| Public intake | partial | Hashed link management with encrypted token retrieval for workspace administrators (migration 000051); legacy hash-only links remain usable but require rotation for retrieval. Public web and REST submission create a client, first-stage engagement, staff notifications, and a queued email atomically; possible duplicates are flagged: [service tests](../internal/intake/submission_test.go), [web tests](../internal/web/intake_test.go), [REST tests](../internal/httpapi/intake_test.go). |
+| Public intake | partial | Hashed link management with encrypted token retrieval for workspace administrators (migration 000055); legacy hash-only links remain usable but require rotation for retrieval. Public web and REST submission create a client, first-stage engagement, staff notifications, and a queued email atomically; possible duplicates are flagged: [service tests](../internal/intake/submission_test.go), [web tests](../internal/web/intake_test.go), [REST tests](../internal/httpapi/intake_test.go). |
 | Showcase items (`CompanySite` profile) | deferred | Accepted showcase decision; see [decision 0014](decisions/0014-showcase-items.md) (proposed) |
 | Fine-grained permissions | deferred | Baseline roles cannot express a measured requirement |
 | External-issuer OAuth access tokens for MCP | deferred | An accepted requirement needs `/mcp` to accept access tokens from an external authorization server; see [decision 0007](decisions/0007-mcp-oauth-protected-resource-metadata.md) |

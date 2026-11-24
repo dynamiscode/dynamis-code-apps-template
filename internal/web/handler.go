@@ -28,6 +28,7 @@ import (
 	"log/slog"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -246,12 +247,17 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients/{clientId}", h.clientDetail)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}", h.changeClient)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements", h.createEngagement)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}", h.engagementDetail)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/name", h.setEngagementName)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/stage", h.moveEngagement)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/next-action", h.setEngagementNextAction)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/quote", h.setEngagementQuote)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/agreement", h.setEngagementAgreement)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/assignee", h.setEngagementAssignee)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/engagements", h.listEngagements)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/engagements/board", h.engagementBoard)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/engagements/due", h.dueEngagements)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/engagements/{engagementId}/action/{operation}", h.changeQueuedAction)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/timeline", h.addClientTimelineEntry)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/bulk", h.bulkClients)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/archive", h.archiveClient)
@@ -567,7 +573,7 @@ func (h *Handler) home(writer http.ResponseWriter, request *http.Request) {
 
 func (h *Handler) workspaceHome(writer http.ResponseWriter, request *http.Request) {
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
-	_, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceRead)
+	principal, session, csrf, ok := h.workspaceSession(writer, request, workspaceID, identity.WorkspaceRead)
 	if !ok {
 		return
 	}
@@ -580,6 +586,34 @@ func (h *Handler) workspaceHome(writer http.ResponseWriter, request *http.Reques
 		// The top bar names the workspace, so the page heading is the workspace rather than a second title.
 		Title: workspaceByID(workspaces, workspaceID).Name, NavPage: "workspace", NavSection: "workspace",
 		CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces,
+		CanEditClients: principal.Permissions[identity.ResourcesWrite],
+	}
+	if h.engagement != nil && principal.Permissions[identity.ResourcesRead] {
+		page := 1
+		if value := request.URL.Query().Get("page"); value != "" {
+			page, err = strconv.Atoi(value)
+			if err != nil || page < 1 || page > clients.MaxListPage {
+				h.renderError(writer, http.StatusBadRequest)
+				return
+			}
+		}
+		dashboard, err := h.engagement.Dashboard(request.Context(), principal, workspaceID, page, 20)
+		if err != nil {
+			if errors.Is(err, identity.ErrForbidden) {
+				h.renderError(writer, http.StatusForbidden)
+			} else {
+				h.renderError(writer, http.StatusInternalServerError)
+			}
+			return
+		}
+		data.EngagementDashboard = &dashboard
+		path := "/workspaces/" + workspaceID.String() + "?page="
+		if page > 1 {
+			data.DashboardPrevious = path + strconv.Itoa(page-1)
+		}
+		if dashboard.HasMore && page < clients.MaxListPage {
+			data.DashboardNext = path + strconv.Itoa(page+1)
+		}
 	}
 	h.render(writer, http.StatusOK, "workspace-home", data)
 }

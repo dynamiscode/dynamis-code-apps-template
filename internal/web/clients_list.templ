@@ -19,6 +19,9 @@ templ clientList(data viewmodel.PageData) {
 		data-live-waiting={ data.T("ui.updates_waiting") }
 		aria-labelledby="clients-heading">
 		<h2 id="clients-heading" class="sr-only">{ data.T("clients.title") }</h2>
+		if data.CanEditClients {
+			<p class="status-line">{ data.T("clients.create_engagement_instruction") }</p>
+		}
 		if data.ErrorKey != "" {
 			@molecules.ErrorAlert(data.T(data.ErrorKey))
 		}
@@ -177,6 +180,7 @@ templ clientIntakeMenu(data viewmodel.PageData) {
 // second primary action because its empty-state card already offers this one.
 templ clientCreateMenu(data viewmodel.PageData) {
 	<div class="list-create">
+		<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagements") }>{ data.T("engagement.list") }</a>
 		if data.CanManageFields && data.IntakeEnabled {
 			@clientIntakeMenu(data)
 		}

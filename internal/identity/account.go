@@ -449,6 +449,12 @@ func (s *Service) DeleteAccount(
 	if _, err := s.exec(ctx, tx, "DELETE FROM scim_tokens WHERE created_by_user_id = ?", userID); err != nil {
 		return err
 	}
+	if _, err := s.exec(ctx, tx, "UPDATE engagements SET action_version = CASE WHEN action_version = 9223372036854775807 THEN NULL ELSE action_version + 1 END WHERE EXISTS (SELECT 1 FROM engagement_next_actions WHERE workspace_id = engagements.workspace_id AND engagement_id = engagements.id AND owner_id = ?)", userID); err != nil {
+		return err
+	}
+	if _, err := s.exec(ctx, tx, "UPDATE engagement_next_actions SET owner_id = NULL, version = (SELECT action_version FROM engagements WHERE engagements.workspace_id = engagement_next_actions.workspace_id AND engagements.id = engagement_next_actions.engagement_id) WHERE owner_id = ?", userID); err != nil {
+		return err
+	}
 	result, err := s.exec(ctx, tx, "DELETE FROM users WHERE id = ?", userID)
 	if err != nil {
 		return err

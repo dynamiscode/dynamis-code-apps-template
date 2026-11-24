@@ -50,16 +50,42 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 			<section class="card my-4 p-6" aria-labelledby="engagement-heading">
 				<h2 id="engagement-heading">{ data.T("engagement.title") }</h2>
 				if data.CanEditClients {
-					<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements" } method="post">
-						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						<label for="engagement-notes">{ data.T("engagement.notes") }</label>
-						<textarea id="engagement-notes" name="notes" maxlength="5000" class="textarea textarea-bordered">{ data.EngagementNotes }</textarea>
-						<button class="btn btn-primary" type="submit">{ data.T("engagement.create") }</button>
-					</form>
+					if len(data.OpenEngagementStages) == 0 {
+						<p>{ data.T("engagement.no_open_stage") }</p>
+						if data.CanManageFields {
+							<a class="link" href={ "/workspaces/" + data.Workspace.ID.String() + "/engagement-stages" }>{ data.T("engagement.setup_stages") }</a>
+						} else {
+							<p>{ data.T("engagement.ask_admin") }</p>
+						}
+					} else {
+						<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements" } method="post">
+							<input type="hidden" name="csrf" value={ data.CSRF }/>
+							if data.ErrorKey == "engagement.invalid_name" {
+								@molecules.TextField("engagement-name", data.T("engagement.name"), templ.Attributes{"name": "name", "value": data.EngagementName, "required": true, "maxlength": "200", "aria-invalid": "true", "aria-describedby": "engagement-name-error"})
+								<p id="engagement-name-error">{ data.T(data.ErrorKey) }</p>
+							} else {
+								@molecules.TextField("engagement-name", data.T("engagement.name"), templ.Attributes{"name": "name", "value": data.EngagementName, "required": true, "maxlength": "200"})
+							}
+							<label for="engagement-stage">{ data.T("engagement.stage") }</label>
+							<select id="engagement-stage" name="stage" class="select select-bordered" required { templ.Attributes{"aria-invalid": templ.KV("true", data.ErrorKey == "engagement.invalid_stage"), "aria-describedby": templ.KV("engagement-stage-error", data.ErrorKey == "engagement.invalid_stage")}... }>
+								<option value="">{ data.T("engagement.select_stage") }</option>
+								for _, stage := range data.OpenEngagementStages {
+									<option value={ stage.ID.String() } selected?={ stage.ID.String() == data.EngagementStage }>{ stage.Name }</option>
+								}
+							</select>
+							if data.ErrorKey == "engagement.invalid_stage" {
+								<p id="engagement-stage-error">{ data.T(data.ErrorKey) }</p>
+							}
+							<label for="engagement-notes">{ data.T("engagement.notes") }</label>
+							<textarea id="engagement-notes" name="notes" maxlength="5000" class="textarea textarea-bordered">{ data.EngagementNotes }</textarea>
+							<button class="btn btn-primary" type="submit">{ data.T("engagement.create") }</button>
+						</form>
+					}
 				}
 				<ul>
 					for _, item := range data.Engagements {
 						<li>
+							<a class="link" href={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() }>{ item.Name }</a>
 							for _, stage := range data.EngagementStages {
 								if stage.ID == item.StageID {
 									<span>{ stage.Name }</span>
@@ -88,24 +114,7 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 									<button class="btn btn-secondary" type="submit">{ data.T("engagement.move") }</button>
 								</form>
 							}
-							<ol data-engagement-history>
-								for _, entry := range item.History {
-									<li>
-										for _, stage := range data.EngagementStages {
-											if stage.ID == entry.FromStageID {
-											<span>{ stage.Name }</span>
-										}
-									}
-										<span> → </span>
-										for _, stage := range data.EngagementStages {
-											if stage.ID == entry.ToStageID {
-											<span>{ stage.Name }</span>
-										}
-									}
-										<span> — { entry.ActorUserID.String() } — { entry.CreatedAt }</span>
-									</li>
-								}
-							</ol>
+							@engagementHistory(data, item.History)
 							for _, member := range data.EngagementMembers {
 								if member.UserID == item.AssigneeID {
 									<p>{ data.T("engagement.assignee") }: { member.Email }</p>
@@ -170,6 +179,7 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 							if data.CanEditClients {
 								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/next-action" } method="post">
 									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<input type="hidden" name="version" value={ strconv.FormatInt(item.ActionVersion, 10) }/>
 									<label for={ "action-" + item.ID.String() }>{ data.T("engagement.next_action") }</label>
 									<input class="input input-bordered" id={ "action-" + item.ID.String() } name="text" maxlength="5000" value={ item.NextAction.Text }/>
 									<label for={ "due-" + item.ID.String() }>{ data.T("engagement.due_date") }</label>
