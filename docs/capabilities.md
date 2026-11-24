@@ -29,8 +29,10 @@ can change them; readers can view them and the workspace's open-stage due list.
 The service, REST, and web tests above cover these surfaces. Dates use UTC for
 the due-list cutoff; actions are not included in workspace export. Migration
 [000044](../internal/platform/database/migrations/000044_engagement_action_completion.sql)
-prepares history outcomes and an active-action version; completion, reopening,
-and version enforcement are not implemented.
+prepares history outcomes; [000045](../internal/platform/database/migrations/000045_engagement_action_version.sql)
+retains a monotonic active-action version across replacement, clearing, and owner
+removal. Service reads expose the version; completion, reopening, and version
+enforcement are not implemented.
 Quote status, optional amount and sent date are stored on the engagement by
 [migration 000035](../internal/platform/database/migrations/000035_engagement_quote.sql).
 The linked service, REST and web tests cover writes and read-only access. Quote

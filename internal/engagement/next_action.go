@@ -44,6 +44,10 @@ func (s *Service) SetNextAction(ctx context.Context, actor identity.Principal, w
 	} else if err != nil {
 		return err
 	}
+	var version int64
+	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `UPDATE engagements SET action_version = CASE WHEN action_version = 9223372036854775807 THEN NULL ELSE action_version + 1 END WHERE workspace_id = ? AND id = ? RETURNING action_version`), workspaceID, engagementID).Scan(&version); err != nil {
+		return err
+	}
 	now := time.Now().UTC()
 	outcome := "replaced"
 	if action.Text == "" {
@@ -61,7 +65,7 @@ func (s *Service) SetNextAction(ctx context.Context, actor identity.Principal, w
 		} else if err != nil {
 			return err
 		}
-		_, err = tx.ExecContext(ctx, database.Rebind(s.driver, `INSERT INTO engagement_next_actions (workspace_id, engagement_id, action_text, due_date, owner_id) VALUES (?, ?, ?, ?, ?) ON CONFLICT (workspace_id, engagement_id) DO UPDATE SET action_text = excluded.action_text, due_date = excluded.due_date, owner_id = excluded.owner_id`), workspaceID, engagementID, action.Text, action.DueDate, action.OwnerID)
+		_, err = tx.ExecContext(ctx, database.Rebind(s.driver, `INSERT INTO engagement_next_actions (workspace_id, engagement_id, action_text, due_date, owner_id, version) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (workspace_id, engagement_id) DO UPDATE SET action_text = excluded.action_text, due_date = excluded.due_date, owner_id = excluded.owner_id, version = excluded.version`), workspaceID, engagementID, action.Text, action.DueDate, action.OwnerID, version)
 	}
 	if err != nil {
 		return err
@@ -84,7 +88,7 @@ func (s *Service) ListDue(ctx context.Context, actor identity.Principal, workspa
 	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesRead); err != nil {
 		return nil, identity.ErrForbidden
 	}
-	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT e.id, e.client_id, e.stage_id, e.notes, e.name, a.action_text, a.due_date, COALESCE(a.owner_id, 0), e.quote_status, e.quote_amount, e.quote_date_sent, COALESCE(e.assignee_id, 0), e.agreement_recorded, COALESCE(e.agreement_file_id, 0) FROM engagements e JOIN engagement_stages s ON s.workspace_id = e.workspace_id AND s.id = e.stage_id JOIN engagement_next_actions a ON a.workspace_id = e.workspace_id AND a.engagement_id = e.id WHERE e.workspace_id = ? AND s.kind = 'open' AND a.due_date <> '' AND a.due_date <= ? ORDER BY a.due_date, e.id`), workspaceID, today)
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT e.id, e.client_id, e.stage_id, e.notes, e.name, a.action_text, a.due_date, COALESCE(a.owner_id, 0), a.version, e.quote_status, e.quote_amount, e.quote_date_sent, COALESCE(e.assignee_id, 0), e.agreement_recorded, COALESCE(e.agreement_file_id, 0) FROM engagements e JOIN engagement_stages s ON s.workspace_id = e.workspace_id AND s.id = e.stage_id JOIN engagement_next_actions a ON a.workspace_id = e.workspace_id AND a.engagement_id = e.id WHERE e.workspace_id = ? AND s.kind = 'open' AND a.due_date <> '' AND a.due_date <= ? ORDER BY a.due_date, e.id`), workspaceID, today)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +96,7 @@ func (s *Service) ListDue(ctx context.Context, actor identity.Principal, workspa
 	for rows.Next() {
 		var value Engagement
 		var fileID int64
-		if err := rows.Scan(&value.ID, &value.ClientID, &value.StageID, &value.Notes, &value.Name, &value.NextAction.Text, &value.NextAction.DueDate, &value.NextAction.OwnerID, &value.Quote.Status, &value.Quote.Amount, &value.Quote.DateSent, &value.AssigneeID, &value.Agreement.Recorded, &fileID); err != nil {
+		if err := rows.Scan(&value.ID, &value.ClientID, &value.StageID, &value.Notes, &value.Name, &value.NextAction.Text, &value.NextAction.DueDate, &value.NextAction.OwnerID, &value.NextAction.Version, &value.Quote.Status, &value.Quote.Amount, &value.Quote.DateSent, &value.AssigneeID, &value.Agreement.Recorded, &fileID); err != nil {
 			rows.Close()
 			return nil, err
 		}

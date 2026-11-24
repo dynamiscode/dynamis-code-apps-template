@@ -363,7 +363,7 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	if err := svc.Move(ctx, owner, boot.WorkspaceID, created.ID, foreignStage.ID, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("foreign stage: %v", err)
 	}
-	action := NextAction{Text: "Call", DueDate: "2020-01-01", OwnerID: boot.UserID}
+	action := NextAction{Text: "Call", DueDate: "2020-01-01", OwnerID: boot.UserID, Version: 1}
 	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, created.ID, action, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
@@ -480,11 +480,15 @@ func TestNextActionDueList(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := svc.Get(ctx, owner, boot.WorkspaceID, e.ID)
-	if err != nil || got.NextAction.Text != "Call" {
+	if err != nil || got.NextAction.Text != "Call" || got.NextAction.Version != 1 {
 		t.Fatalf("get = %+v, %v", got, err)
 	}
+	listed, err := svc.ListForClient(ctx, owner, boot.WorkspaceID, client.ID)
+	if err != nil || len(listed) != 1 || listed[0].NextAction.Version != got.NextAction.Version {
+		t.Fatalf("list = %+v, %v", listed, err)
+	}
 	due, err := svc.ListDue(ctx, owner, boot.WorkspaceID, "2020-01-01")
-	if err != nil || len(due) != 1 || due[0].ID != e.ID {
+	if err != nil || len(due) != 1 || due[0].ID != e.ID || due[0].NextAction.Version != got.NextAction.Version {
 		t.Fatalf("due = %+v, %v", due, err)
 	}
 	for _, invalid := range []NextAction{{Text: "Call", OwnerID: 999999}, {Text: "Call", OwnerID: boot.UserID, DueDate: "2020-02-30"}, {Text: "Call"}} {
@@ -535,6 +539,10 @@ func TestNextActionDueList(t *testing.T) {
 	if due, err := svc.ListDue(ctx, owner, boot.WorkspaceID, "2020-01-01"); err != nil || len(due) != 0 {
 		t.Fatalf("future due: %+v %v", due, err)
 	}
+	replaced, err := svc.Get(ctx, owner, boot.WorkspaceID, e.ID)
+	if err != nil || replaced.NextAction.Version <= got.NextAction.Version {
+		t.Fatalf("replacement version: %+v, %v", replaced.NextAction, err)
+	}
 	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, NextAction{}, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
@@ -544,6 +552,13 @@ func TestNextActionDueList(t *testing.T) {
 	due, err = svc.ListDue(ctx, owner, boot.WorkspaceID, "2020-01-01")
 	if err != nil || len(due) != 0 {
 		t.Fatalf("cleared due = %+v, %v", due, err)
+	}
+	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, NextAction{Text: "Again", OwnerID: boot.UserID}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	recreated, err := svc.Get(ctx, owner, boot.WorkspaceID, e.ID)
+	if err != nil || recreated.NextAction.Version <= replaced.NextAction.Version {
+		t.Fatalf("recreated version: %+v, %v", recreated.NextAction, err)
 	}
 	rows, err := db.QueryContext(ctx, `SELECT action_text, due_date, owner_id, outcome, actor_user_id, created_at FROM engagement_action_history WHERE workspace_id = ? AND engagement_id = ? ORDER BY id`, boot.WorkspaceID, e.ID)
 	if err != nil {

@@ -77,6 +77,24 @@ func TestEngagementActionCompletionUpgrade(t *testing.T) {
 			if err := db.QueryRow(q(`INSERT INTO engagement_action_history (workspace_id, engagement_id, action_text, due_date, outcome, created_at) VALUES (?, ?, 'Previous', '2026-01-01', 'replaced', 'stamp') RETURNING id`), workspace, engagement).Scan(&history); err != nil {
 				t.Fatal(err)
 			}
+			preVersion := fstest.MapFS{}
+			for _, entry := range entries {
+				if entry.Name() >= "000045" {
+					continue
+				}
+				path := "migrations/" + entry.Name()
+				data, err := fs.ReadFile(migrationFiles, path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				preVersion[path] = &fstest.MapFile{Data: data}
+			}
+			if err := migrateFS(ctx, db, driver, preVersion); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Exec(q(`UPDATE engagement_next_actions SET version = 7 WHERE workspace_id = ? AND engagement_id = ?`), workspace, engagement); err != nil {
+				t.Fatal(err)
+			}
 			if err := Migrate(ctx, db, driver); err != nil {
 				t.Fatal(err)
 			}
@@ -88,8 +106,12 @@ func TestEngagementActionCompletionUpgrade(t *testing.T) {
 			if err := db.QueryRow(q(`SELECT action_text, due_date, version FROM engagement_next_actions WHERE workspace_id = ? AND engagement_id = ?`), workspace, engagement).Scan(&text, &date, &version); err != nil {
 				t.Fatal(err)
 			}
-			if text != "Active" || date != "2026-02-01" || version != 1 {
+			if text != "Active" || date != "2026-02-01" || version != 7 {
 				t.Fatalf("active = %q %q %d", text, date, version)
+			}
+			var counter int64
+			if err := db.QueryRow(q(`SELECT action_version FROM engagements WHERE workspace_id = ? AND id = ?`), workspace, engagement).Scan(&counter); err != nil || counter != version {
+				t.Fatalf("backfilled counter = %d, %v", counter, err)
 			}
 			if err := db.QueryRow(q(`SELECT action_text, due_date, outcome, created_at FROM engagement_action_history WHERE id = ? AND workspace_id = ? AND engagement_id = ?`), history, workspace, engagement).Scan(&text, &date, &outcome, &stamp); err != nil {
 				t.Fatal(err)

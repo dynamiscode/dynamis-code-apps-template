@@ -392,6 +392,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/platform/database/migrations/000042_engagement_names.sql" ||
 		relative == "internal/platform/database/migrations/000043_engagement_action_history.sql" ||
 		relative == "internal/platform/database/migrations/000044_engagement_action_completion.sql" ||
+		relative == "internal/platform/database/migrations/000045_engagement_action_version.sql" ||
 		relative == "internal/platform/database/migrate_engagement_action_test.go" ||
 		relative == "internal/platform/database/migrate_engagement_names_test.go" ||
 		relative == "internal/platform/database/migrate_engagement_names_postgres_test.go" ||
@@ -452,6 +453,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `/internal/platform/id"`)
 		value = removeText(value, "\t\tif migration.version == 42 {", "\t\tif err := recordMigration(ctx, tx, driver, migration.version); err != nil {")
 		value = removeText(value, "func backfillEngagementNames(", "// renderMigration")
+	case "internal/identity/account.go":
+		value = removeText(value, "\tif _, err := s.exec(ctx, tx, \"UPDATE engagements SET action_version", "\tresult, err := s.exec(ctx, tx, \"DELETE FROM users WHERE id = ?\", userID)")
 	case "internal/identity/service.go":
 		value = removeText(value, "func (s *Service) clearMemberEngagements(", "func normalizeEmail(")
 		value = strings.Replace(value, "func normalizeEmail(", "func (s *Service) clearMemberEngagements(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, userID UserID) error { return nil }\n\nfunc normalizeEmail(", 1)
