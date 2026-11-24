@@ -43,6 +43,20 @@ Read it as in **Read an issue** above.
 
 Route the change with [docs/README.md](../README.md). For an ordinary Go feature slice, use the `implement-go-feature` skill: [.agents/skills/implement-go-feature/SKILL.md](../../.agents/skills/implement-go-feature/SKILL.md).
 
+## Reminder delivery policy intake
+
+When a spec or ticket introduces or changes reminders, record the decisions for:
+
+- Recipient and delivery channel, including which contact details to use.
+- Lead time and bookings made inside that window.
+- Missing contact details or other ineligible bookings.
+- Rescheduling, cancellation, and changes to recipient details.
+- Retry and duplicate-delivery semantics.
+- Existing bookings, including whether and how to backfill reminders.
+
+Treat these as questions to resolve, not default behavior. For the current
+scheduling reminder policy, see [capabilities](../capabilities.md).
+
 ## Wayfinding operations
 
 Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets.

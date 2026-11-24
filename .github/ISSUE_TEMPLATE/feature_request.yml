@@ -7,6 +7,7 @@ body:
     attributes:
       value: |
         Explain the concrete user or operator need. Avoid including credentials or private data.
+        For reminder changes, address the [reminder delivery policy checklist](https://github.com/dynamiscode/dynamis-code-apps-template/blob/main/docs/agents/issue-tracker.md#reminder-delivery-policy-intake).
   - type: textarea
     id: problem
     attributes:
