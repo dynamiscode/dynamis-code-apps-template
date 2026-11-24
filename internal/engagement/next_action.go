@@ -118,6 +118,38 @@ func (s *Service) CompleteNextAction(ctx context.Context, actor identity.Princip
 	return tx.Commit()
 }
 
+// ReopenNextAction copies a completed history entry into an empty active slot.
+// expectedVersion is the engagement's action counter observed by the caller.
+func (s *Service) ReopenNextAction(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, historyID, expectedVersion int64, audit identity.AuditContext) error {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesWrite); err != nil {
+		return identity.ErrForbidden
+	}
+	var version int64
+	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `UPDATE engagements SET action_version = CASE WHEN action_version = 9223372036854775807 THEN NULL ELSE action_version + 1 END WHERE workspace_id = ? AND id = ? AND action_version = ? AND NOT EXISTS (SELECT 1 FROM engagement_next_actions WHERE workspace_id = ? AND engagement_id = ?) AND EXISTS (SELECT 1 FROM engagement_action_history WHERE workspace_id = ? AND engagement_id = ? AND id = ? AND outcome = 'completed') RETURNING action_version`), workspaceID, engagementID, expectedVersion, workspaceID, engagementID, workspaceID, engagementID, historyID).Scan(&version)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrStaleNextAction
+	}
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, `INSERT INTO engagement_next_actions (workspace_id, engagement_id, action_text, due_date, owner_id, version) SELECT workspace_id, engagement_id, action_text, due_date, owner_id, ? FROM engagement_action_history WHERE workspace_id = ? AND engagement_id = ? AND id = ? AND outcome = 'completed'`), version, workspaceID, engagementID, historyID); err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, `INSERT INTO engagement_action_history (workspace_id, engagement_id, action_text, due_date, owner_id, outcome, actor_user_id, created_at) SELECT workspace_id, engagement_id, action_text, due_date, owner_id, 'reopened', ?, ? FROM engagement_action_history WHERE workspace_id = ? AND engagement_id = ? AND id = ? AND outcome = 'completed'`), actor.UserID, now.Format(time.RFC3339Nano), workspaceID, engagementID, historyID); err != nil {
+		return err
+	}
+	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement.next_action_reopened", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "engagement", TargetKey: int64(engagementID), Action: "engagement.next_action.reopen", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: now}); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func (s *Service) ListDue(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, today string) ([]Engagement, error) {
 	if _, err := time.Parse("2006-01-02", today); err != nil {
 		return nil, ErrInvalidInput

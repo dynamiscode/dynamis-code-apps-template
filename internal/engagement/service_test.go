@@ -547,6 +547,83 @@ func TestCompleteNextAction(t *testing.T) {
 	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM engagement_action_history WHERE engagement_id = ? AND outcome = 'completed'`, e.ID).Scan(&count); err != nil || count != 1 {
 		t.Fatalf("history count: %d, %v", count, err)
 	}
+	var historyID, completedVersion int64
+	if err := db.QueryRowContext(ctx, `SELECT id FROM engagement_action_history WHERE engagement_id = ? AND outcome = 'completed'`, e.ID).Scan(&historyID); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT action_version FROM engagements WHERE id = ?`, e.ID).Scan(&completedVersion); err != nil {
+		t.Fatal(err)
+	}
+	reopen := func(principal identity.Principal, id, version int64) error {
+		return svc.ReopenNextAction(ctx, principal, boot.WorkspaceID, e.ID, id, version, identity.AuditContext{})
+	}
+	if err := reopen(viewer, historyID, completedVersion); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("reopen viewer: %v", err)
+	}
+	for _, tc := range []struct{ id, version int64 }{{historyID, completedVersion - 1}, {historyID + 10000, completedVersion}} {
+		if err := reopen(owner, tc.id, tc.version); !errors.Is(err, ErrStaleNextAction) {
+			t.Fatalf("invalid reopen: %v", err)
+		}
+	}
+	if _, err := db.ExecContext(ctx, `CREATE TRIGGER fail_reopen BEFORE INSERT ON engagement_action_history WHEN NEW.outcome = 'reopened' BEGIN SELECT RAISE(ABORT, 'test failure'); END`); err != nil {
+		t.Fatal(err)
+	}
+	if err := reopen(owner, historyID, completedVersion); err == nil {
+		t.Fatal("expected reopen history failure")
+	}
+	if err := db.QueryRowContext(ctx, `SELECT action_version FROM engagements WHERE id = ?`, e.ID).Scan(&counter); err != nil || counter != completedVersion {
+		t.Fatalf("reopen rollback counter: %d, %v", counter, err)
+	}
+	if got, err := svc.Get(ctx, owner, boot.WorkspaceID, e.ID); err != nil || got.NextAction.Text != "" {
+		t.Fatalf("reopen rollback action: %+v, %v", got.NextAction, err)
+	}
+	if _, err := db.ExecContext(ctx, `DROP TRIGGER fail_reopen`); err != nil {
+		t.Fatal(err)
+	}
+	results := make(chan error, 2)
+	for i := 0; i < 2; i++ {
+		go func() { results <- reopen(owner, historyID, completedVersion) }()
+	}
+	var successes, stale int
+	for i := 0; i < 2; i++ {
+		err := <-results
+		if err == nil {
+			successes++
+		} else if errors.Is(err, ErrStaleNextAction) {
+			stale++
+		} else {
+			t.Fatal(err)
+		}
+	}
+	if successes != 1 || stale != 1 {
+		t.Fatalf("concurrent reopen: successes=%d stale=%d", successes, stale)
+	}
+	reopened, err := svc.Get(ctx, owner, boot.WorkspaceID, e.ID)
+	if err != nil || reopened.NextAction.Text != action.Text || reopened.NextAction.DueDate != action.DueDate || reopened.NextAction.OwnerID != action.OwnerID || reopened.NextAction.Version != completedVersion+1 {
+		t.Fatalf("reopened: %+v, %v", reopened.NextAction, err)
+	}
+	if err := reopen(owner, historyID, reopened.NextAction.Version); !errors.Is(err, ErrStaleNextAction) {
+		t.Fatalf("occupied: %v", err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM engagement_action_history WHERE engagement_id = ? AND outcome IN ('completed', 'reopened')`, e.ID).Scan(&count); err != nil || count != 2 {
+		t.Fatalf("reopen history count: %d, %v", count, err)
+	}
+	var reopenedID int64
+	if err := db.QueryRowContext(ctx, `SELECT id, action_text, due_date, owner_id, actor_user_id, created_at FROM engagement_action_history WHERE engagement_id = ? AND outcome = 'reopened'`, e.ID).Scan(&reopenedID, &text, &due, &ownerID, &actorID, &created); err != nil || text != action.Text || due != action.DueDate || ownerID != boot.UserID || actorID != boot.UserID || created == "" {
+		t.Fatalf("reopened history: %q %q %d %d %q, %v", text, due, ownerID, actorID, created, err)
+	}
+	if err := svc.CompleteNextAction(ctx, owner, boot.WorkspaceID, e.ID, reopened.NextAction.Version, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := reopen(owner, historyID, completedVersion); !errors.Is(err, ErrStaleNextAction) {
+		t.Fatalf("old replay after completion: %v", err)
+	}
+	if err := reopen(owner, reopenedID, reopened.NextAction.Version+1); !errors.Is(err, ErrStaleNextAction) {
+		t.Fatalf("non-completed history: %v", err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM engagement_action_history WHERE engagement_id = ? AND outcome = 'completed'`, e.ID).Scan(&count); err != nil || count != 2 {
+		t.Fatalf("completion cycle history: %d, %v", count, err)
+	}
 	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, action, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
