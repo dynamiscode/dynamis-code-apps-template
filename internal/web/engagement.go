@@ -412,8 +412,14 @@ func (h *Handler) renderRescheduleRecovery(w http.ResponseWriter, r *http.Reques
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
+	retryVersion := item.NextAction.Version
+	invalidStale := false
+	if status == http.StatusUnprocessableEntity {
+		retryVersion, _ = strconv.ParseInt(r.FormValue("version"), 10, 64)
+		invalidStale = item.NextAction.Text != "" && retryVersion != item.NextAction.Version
+	}
 	w.WriteHeader(status)
-	_ = rescheduleRecoveryPage(data, item, r.FormValue("due_date"), r.FormValue("filter"), r.FormValue("owner"), queuePath).Render(r.Context(), w)
+	_ = rescheduleRecoveryPage(data, item, r.FormValue("due_date"), r.FormValue("filter"), r.FormValue("owner"), queuePath, retryVersion, invalidStale).Render(r.Context(), w)
 }
 
 func queueOperation(historyID int64) string {

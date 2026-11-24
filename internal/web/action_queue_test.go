@@ -118,6 +118,12 @@ func TestRescheduleRecovery(t *testing.T) {
 	if err := svc.SetNextAction(ctx, actor, env.workspaceID, item.ID, engagement.NextAction{Text: "Replacement action", DueDate: "2030-01-01"}, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
+	invalidStale := request(env.routes, http.MethodPost, path, form, env.cookies, nil)
+	for _, want := range []string{`value="not-a-date"`, "Replacement action", "This action changed", `name="version" value="1"`} {
+		if invalidStale.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidStale.Body.String(), want) {
+			t.Errorf("invalid stale recovery missing %q (status %d)", want, invalidStale.Code)
+		}
+	}
 	form.Set("due_date", "2031-02-03")
 	stale := request(env.routes, http.MethodPost, path, form, env.cookies, nil)
 	for _, want := range []string{`value="2031-02-03"`, "Replacement action", "2030-01-01", `name="version" value="2"`} {
