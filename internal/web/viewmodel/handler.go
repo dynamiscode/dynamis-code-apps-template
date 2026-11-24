@@ -52,6 +52,7 @@ type PageData struct {
 	AgreementFiles             []appfiles.File
 	AgreementFilesTotal        int
 	AgreementFilesAvailable    bool
+	AgreementFilesPager        ListPager
 	EngagementEnabled          bool
 	EngagementLabel            string
 	EngagementNotes            string

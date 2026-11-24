@@ -523,7 +523,11 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		engagements = selected
 		title = selected[0].Name
 		if principal.Permissions[identity.ResourcesWrite] {
-			agreementFiles, agreementFilesAvailable, err = h.agreementFileChoices(request.Context(), principal, workspaceID)
+			filePage := listPageNumber(request.URL.Query())
+			if filePage > 1000000 {
+				filePage = 1
+			}
+			agreementFiles, agreementFilesAvailable, err = h.agreementFileChoices(request.Context(), principal, workspaceID, filePage)
 			if err != nil {
 				h.renderError(writer, http.StatusInternalServerError)
 				return
@@ -555,7 +559,8 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		CanDeleteClients: principal.Permissions[identity.WorkspaceUpdate],
 		Engagements:      engagements, EngagementStages: stages, EngagementMembers: members, EngagementEnabled: h.engagement != nil,
 		AgreementFiles: agreementFiles.Files, AgreementFilesTotal: agreementFiles.Total, AgreementFilesAvailable: agreementFilesAvailable,
-		EngagementNotes: engagementNotes, OpenEngagementStages: openStages,
+		AgreementFilesPager: newListPager(h.clientsPath(workspaceID)+"/"+clientID.String()+"/engagements/"+request.PathValue("engagementId"), nil, agreementFiles.Page, 100, agreementFiles.Total),
+		EngagementNotes:     engagementNotes, OpenEngagementStages: openStages,
 		EngagementName: request.FormValue("name"), EngagementStage: request.FormValue("stage"),
 		EngagementAssignee: request.FormValue("assignee_id"), EngagementOwner: request.FormValue("owner_id"), EngagementOwnerError: ownerError, EngagementOwnerUnavailable: ownerUnavailable,
 		EngagementQuoteStatusError: quoteStatusError, EngagementQuoteAmountError: quoteAmountError, EngagementQuoteDateError: quoteDateError,
@@ -563,11 +568,11 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	})
 }
 
-func (h *Handler) agreementFileChoices(ctx context.Context, principal identity.Principal, workspaceID identity.WorkspaceID) (appfiles.Page, bool, error) {
+func (h *Handler) agreementFileChoices(ctx context.Context, principal identity.Principal, workspaceID identity.WorkspaceID, pageNumber int) (appfiles.Page, bool, error) {
 	if !h.filesEnabled || h.files == nil {
 		return appfiles.Page{}, false, nil
 	}
-	page, err := h.files.ListPage(ctx, principal, workspaceID, appfiles.ListInput{Limit: 100, Sort: "original_name"})
+	page, err := h.files.ListPage(ctx, principal, workspaceID, appfiles.ListInput{Limit: 100, Page: pageNumber, Sort: "original_name"})
 	if errors.Is(err, identity.ErrForbidden) {
 		return appfiles.Page{}, false, nil
 	}

@@ -39,6 +39,11 @@ Readers see the assignee on client details; writers can assign, change, or clear
 the assignment using workspace members.
 Readers see whether a signed agreement is recorded and its optional file short
 ID. Writers can update both; the referenced file must belong to the workspace.
+On the engagement detail page, writers with independent Files read access can
+choose a ready file by name and short ID. Choices are paginated; navigating
+pages discards unsaved agreement changes. The optional manual short-ID field
+remains available, including without Files read access or JavaScript. A chosen
+file takes precedence over the manual field.
 `/account`, `/notifications`, `/sessions`, and `/security` cover account and
 security settings. Account pages share responsive panels, generated branding,
 and the user's light, dark, or system theme. The authenticated shell uses
