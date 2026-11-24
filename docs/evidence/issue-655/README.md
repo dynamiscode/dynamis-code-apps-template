@@ -39,6 +39,14 @@ Baseline `components.css`: `29ac5558317ab695add60729df836b78fc1afde456b9cc41611c
 
 Owner opened Create workspace and saw name and language controls: [desktop/light](desktop-light.png), [mobile/dark](mobile-dark.png). The disclosure had the expected border classes and computed solid border. `go test ./internal/web -run 'TestWorkspaceCreationDisclosureRespectsPermission|TestCurrencyNavigationAndViewerPermissions' -count=1` passed.
 
+## Invitation and list follow-up
+
+Tested committed revision `4f8bf6b`, built from a separate source archive, against a fresh disposable SQLite database and isolated headless Playwright browser. Owner role, 1440 × 900 light. Images contain synthetic records only; invitation links were not captured.
+
+- Created a viewer invitation and reloaded the list to remove the one-time link: [pending](invitation-pending.png). Revoke without the required confirmation was blocked by native form validation. Space checked the confirmation, and Enter on Revoke submitted it: [confirmed](invitation-confirm.png), [revoked](invitation-revoked.png).
+- Opened a separately revoked link in a signed-out browser: [unavailable invitation](invitation-unavailable.png). The outlined Home link led to `/`, which redirected the signed-out user to `/login`; activated with Enter after focusing it programmatically.
+- Created two similarly named clients. Tab reached Columns with a solid 3px focus outline; Enter opened its menu: [columns](list-columns-keyboard.png). Enter in the search field for `Studio` reported one result: [search](list-search.png). Enter opened Views after focusing its summary programmatically: [views](list-views.png).
+
 ## Remaining gaps
 
-No admin or member journey, populated invitation revoke, list search/filter/columns/saved views, error/recovery, ordinary form fallback, complete keyboard traversal, or automated accessibility audit was performed. The Playwright shared browser profile was occupied during the invitation Home-link follow-up, so that follow-up has no rendered evidence. `TestUnavailableInvitationHasBoundedHomeLink` checks the native Home destination and visible boundary in both unavailable-invitation states. No screen-reader or contrast conformance claim is made. Viewport images sample the journeys; they do not establish full UX or WCAG conformance.
+No admin or member journey, list filter or saved-view mutation, ordinary form fallback, complete keyboard traversal, or automated accessibility audit was performed. No screen-reader or contrast conformance claim is made. Viewport images sample the journeys; they do not establish full UX or WCAG conformance. The invitation and list follow-up does not include mobile or baseline comparison.
