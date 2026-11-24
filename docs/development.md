@@ -17,7 +17,7 @@ Use Go 1.26 or newer; the module records the development toolchain. Use an
 isolated PostgreSQL database through `POSTGRES_TEST_URL` (for example,
 `postgres://postgres@127.0.0.1:5432/dynamis_code_test?sslmode=disable`) for
 PostgreSQL compatibility tests across schema migrations, leasing locks, and
-queue claim transactions. `make test-postgres` runs the identity Postgres tests against a fresh container on CI's pinned version, because those tests require a fresh database per run (see the target in the [Makefile](../Makefile)).
+queue claim transactions. `make test-postgres` runs the identity, files, and scheduling tests against fresh databases in a container on CI's pinned version (see the target in the [Makefile](../Makefile)).
 
 The object-storage conformance suite in `internal/files` always runs against an
 in-process S3-compatible endpoint. Set `S3_CONFORMANCE_ENDPOINT` and
