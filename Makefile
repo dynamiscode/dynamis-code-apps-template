@@ -21,6 +21,8 @@ js-check:
 doc-links:
 	node --test scripts/check-doc-link-anchors.test.mjs
 	./scripts/check-doc-links.sh
+	node --test scripts/check-formal-verification.test.mjs
+	node scripts/check-formal-verification.mjs
 
 web-conformance:
 	./scripts/check-web-conformance.sh

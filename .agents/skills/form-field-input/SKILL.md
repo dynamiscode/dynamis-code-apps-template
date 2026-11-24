@@ -20,8 +20,8 @@ These are functions of one input, not orderings of events, so the check runs the
 ## Coverage record
 
 - Covered code: `internal/web/assets/alpine-components.js`, wireForms (`passwordStrength`, `maskDigits`, `maskUpper`, `validateField`, `validateFields`, `showSummary`, `checkMatch`, `enhancePassword`, the input/focusout/submit handlers, the `data-default` timezone), `internal/identity/mfa.go` (`normalizeTOTPCode`, `normalizeRecoveryCode`, `validTOTP`, `CompleteRecoveryLogin`), `internal/web/handler.go` (`DefaultTokenExpiry`, login email echo), and the templates using these attributes (setup, login, account, password-reset, invitation, mfa, security, tokens, webhooks, invitations).
-- Checks: `internal/web/assets/forms.test.mjs`, `internal/identity/mfa_normalize_test.go` (`TestMFACodeForgivingFormat`), `scripts/ux-patterns.mjs` (retired) (lines tagged `form-field-input`).
-- Sync commit: the commit that last changed this file (`git log -1 --format=%H -- .agents/skills/form-field-input/SKILL.md`). Diff the covered files against it before trusting a pass, then update this file.
+- Checks: `internal/web/assets/forms.test.mjs`, `internal/identity/mfa_normalize_test.go` (`TestMFACodeForgivingFormat`), `internal/browsertest/ux_test.go` (`TestFormUXPatterns`, lines tagged `form-field-input`).
+- Sync commit: `f2165f74a80e5cee68663ec8df7455610956b796` (the last skill change before this path correction). Diff the covered files against it before trusting a pass, then update this file.
 
 ## Run the check
 
@@ -32,7 +32,7 @@ These are functions of one input, not orderings of events, so the check runs the
 ## Read a failure
 
 - `forms.test.mjs` prints the exact input, for example `"1 2-3a456" -> 12345`: the mask and the server disagree on it. Decide which side is wrong from the rule; the server normalizer is the contract.
-- If the server's password minimum changes, change `MIN_PASSWORD` in forms.js with it; the meter test then follows.
+- If the server's password minimum changes, change `MIN_PASSWORD` in `internal/web/assets/alpine-components.js` with it; the meter test then follows.
 - `TestMFACodeForgivingFormat` names the raw code that the server no longer reads the same.
 
 ## Proof the check catches a break

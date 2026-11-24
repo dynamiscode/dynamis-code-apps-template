@@ -20,6 +20,7 @@ Read only the route needed for the change.
 | Generate, update, or release the template | [Template lifecycle](template-lifecycle.md), [release](release.md), [capabilities](capabilities.md) | `verify-template-conformance` for verification |
 | Set up a generated application (identity, sample, demo, verify gate) | [Template lifecycle](template-lifecycle.md) | `setup-generated-app` |
 | Maintain licensing, contribution, dependency attribution, or repository governance | [Governance](governance.md), [security](../SECURITY.md), [contribution guide](../CONTRIBUTING.md) | None |
+| Maintain formal verification after covered code changes | [Formal verification maintenance](agents/formal-verification.md) | `maintain-formal-verification-skill` |
 | Propose a deferred capability | [Capabilities](capabilities.md), [decisions](decisions/README.md) | None; accept its trigger first |
 
 ## Sources of truth

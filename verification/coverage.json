@@ -1,0 +1,9 @@
+{
+  "verify-mfa-challenge": ["internal/identity/mfa.go", "internal/identity/mfa_test.go"],
+  "verify-invitation-lifecycle": ["internal/identity/invitation.go", "internal/identity/service_test.go", "internal/web/invitations.go", "internal/web/invitations.templ"],
+  "verify-file-upload": ["internal/files/service.go", "internal/files/storage.go", "internal/files/s3.go", "internal/files/*_test.go", "internal/httpapi/files.go"],
+  "verify-job-queue": ["internal/jobs/queue.go", "internal/jobs/queue*_test.go"],
+  "verify-webhook-delivery": ["internal/webhooks/service.go", "internal/webhooks/delivery_rules_test.go"],
+  "form-drafts": ["internal/web/assets/alpine-components.js", "internal/web/*.templ"],
+  "form-wizard": ["internal/web/assets/alpine-components.js", "internal/web/auth.templ", "internal/web/settings_pages.templ", "internal/web/handler.go"]
+}
