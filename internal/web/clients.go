@@ -506,7 +506,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	title := client.DisplayName
 	var agreementFiles appfiles.Page
 	var agreementFilesAvailable bool
-	if request.PathValue("engagementId") != "" && (request.Method == http.MethodGet || errorKey == "engagement.invalid_name" || errorKey == "engagement.invalid_assignee" || errorKey == "engagement.invalid_quote" || errorKey == "engagement.invalid_agreement_file" || errorKey == "engagement.invalid_next_action" || (errorKey == "engagement.invalid_move" && request.FormValue("return_to") == "detail")) {
+	if request.PathValue("engagementId") != "" && (request.Method == http.MethodGet || errorKey == "engagement.invalid_name" || errorKey == "engagement.invalid_assignee" || errorKey == "engagement.invalid_quote" || errorKey == "engagement.invalid_agreement_file" || errorKey == "engagement.invalid_next_action" || (errorKey == "engagement.action_conflict" && request.FormValue("return_to") == "detail") || (errorKey == "engagement.invalid_move" && request.FormValue("return_to") == "detail")) {
 		component = engagementDetailPage
 		id := engagement.ParseID(request.PathValue("engagementId"))
 		var selected []engagement.Engagement
@@ -545,6 +545,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		if errorKey == "engagement.invalid_next_action" {
 			owner, _ := identity.ParseUserID(request.FormValue("owner_id"))
 			engagements[0].NextAction = engagement.NextAction{Text: request.FormValue("text"), DueDate: request.FormValue("due_date"), OwnerID: owner}
+			engagements[0].ActionVersion, _ = strconv.ParseInt(request.FormValue("version"), 10, 64)
 		}
 	}
 	h.renderClientPage(writer, request, status, component, viewmodel.PageData{

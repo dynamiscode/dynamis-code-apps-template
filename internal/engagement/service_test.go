@@ -2,6 +2,7 @@ package engagement
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -529,7 +530,39 @@ func TestCompleteNextAction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	checkVersion := func(want int64, text string) {
+		t.Helper()
+		got, err := svc.Get(ctx, owner, boot.WorkspaceID, e.ID)
+		if err != nil || got.ActionVersion != want || got.NextAction.Text != text {
+			t.Fatalf("get action version: %+v, %v; want %d %q", got, err, want, text)
+		}
+		encoded, err := json.Marshal(got)
+		if err != nil || strings.Contains(string(encoded), "ActionVersion") || strings.Contains(string(encoded), "actionVersion") {
+			t.Fatalf("action version leaked into JSON: %s, %v", encoded, err)
+		}
+		items, err := svc.ListForClient(ctx, owner, boot.WorkspaceID, client.ID)
+		if err != nil || len(items) != 1 || items[0].ActionVersion != want || items[0].NextAction.Text != text {
+			t.Fatalf("client action version: %+v, %v; want %d %q", items, err, want, text)
+		}
+	}
+	checkVersion(0, "")
 	action := NextAction{Text: "Call", DueDate: "2020-01-01", OwnerID: boot.UserID}
+	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, action, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	checkVersion(1, "Call")
+	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, NextAction{}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	checkVersion(2, "")
+	if err := svc.SetNextActionIfVersion(ctx, owner, boot.WorkspaceID, e.ID, action, 0, identity.AuditContext{}); !errors.Is(err, ErrStaleNextAction) {
+		t.Fatalf("stale empty slot: %v", err)
+	}
+	checkVersion(2, "")
+	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, action, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	checkVersion(3, "Call")
 	if err := svc.SetNextAction(ctx, owner, boot.WorkspaceID, e.ID, action, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}

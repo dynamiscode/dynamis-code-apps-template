@@ -169,6 +169,7 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 							if data.CanEditClients {
 								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/next-action" } method="post">
 									<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<input type="hidden" name="version" value={ strconv.FormatInt(item.ActionVersion, 10) }/>
 									<label for={ "action-" + item.ID.String() }>{ data.T("engagement.next_action") }</label>
 									<input class="input input-bordered" id={ "action-" + item.ID.String() } name="text" maxlength="5000" value={ item.NextAction.Text }/>
 									<label for={ "due-" + item.ID.String() }>{ data.T("engagement.due_date") }</label>

@@ -295,6 +295,7 @@
   "queue.invalid_date": "Enter a valid due date.",
   "queue.complete": "Complete",
   "queue.reopen": "Reopen",
+  "engagement.action_conflict": "This action changed. Review the current action before trying again.",
   "queue.conflict": "This action changed or is no longer available. Refresh the queue and try again.",
   "queue.empty": "No actions match these filters.",
   "queue.due": "Due date",

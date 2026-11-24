@@ -295,6 +295,7 @@
   "queue.invalid_date": "Introduce una fecha válida.",
   "queue.complete": "Completar",
   "queue.reopen": "Reabrir",
+  "engagement.action_conflict": "Esta acción cambió. Revisa la acción actual antes de volver a intentarlo.",
   "queue.conflict": "Esta acción cambió o ya no está disponible. Actualiza la cola e inténtalo de nuevo.",
   "queue.empty": "No hay acciones que coincidan con estos filtros.",
   "queue.due": "Fecha límite",

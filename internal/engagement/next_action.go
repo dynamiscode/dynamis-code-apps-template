@@ -24,6 +24,14 @@ func InvalidNextActionFields(action NextAction) (text, date, owner bool) {
 }
 
 func (s *Service) SetNextAction(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, action NextAction, audit identity.AuditContext) error {
+	return s.setNextAction(ctx, actor, workspaceID, engagementID, action, nil, audit)
+}
+
+func (s *Service) SetNextActionIfVersion(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, action NextAction, expectedVersion int64, audit identity.AuditContext) error {
+	return s.setNextAction(ctx, actor, workspaceID, engagementID, action, &expectedVersion, audit)
+}
+
+func (s *Service) setNextAction(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, action NextAction, expectedVersion *int64, audit identity.AuditContext) error {
 	action.Text = strings.TrimSpace(action.Text)
 	text, date, owner := InvalidNextActionFields(action)
 	if text || date || owner {
@@ -44,7 +52,17 @@ func (s *Service) SetNextAction(ctx context.Context, actor identity.Principal, w
 		return err
 	}
 	var version int64
-	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `UPDATE engagements SET action_version = CASE WHEN action_version = 9223372036854775807 THEN NULL ELSE action_version + 1 END WHERE workspace_id = ? AND id = ? RETURNING action_version`), workspaceID, engagementID).Scan(&version); err != nil {
+	query := `UPDATE engagements SET action_version = CASE WHEN action_version = 9223372036854775807 THEN NULL ELSE action_version + 1 END WHERE workspace_id = ? AND id = ?`
+	args := []any{workspaceID, engagementID}
+	if expectedVersion != nil {
+		query += ` AND action_version = ?`
+		args = append(args, *expectedVersion)
+	}
+	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, query+` RETURNING action_version`), args...).Scan(&version)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrStaleNextAction
+	}
+	if err != nil {
 		return err
 	}
 	now := time.Now().UTC()
@@ -200,7 +218,7 @@ func (s *Service) ListDue(ctx context.Context, actor identity.Principal, workspa
 	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesRead); err != nil {
 		return nil, identity.ErrForbidden
 	}
-	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT e.id, e.client_id, e.stage_id, e.notes, e.name, a.action_text, a.due_date, COALESCE(a.owner_id, 0), a.version, e.quote_status, e.quote_amount, e.quote_date_sent, COALESCE(e.assignee_id, 0), e.agreement_recorded, COALESCE(e.agreement_file_id, 0) FROM engagements e JOIN engagement_stages s ON s.workspace_id = e.workspace_id AND s.id = e.stage_id JOIN engagement_next_actions a ON a.workspace_id = e.workspace_id AND a.engagement_id = e.id WHERE e.workspace_id = ? AND s.kind = 'open' AND a.due_date <> '' AND a.due_date <= ? ORDER BY a.due_date, e.id`), workspaceID, today)
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT e.id, e.client_id, e.stage_id, e.notes, e.name, a.action_text, a.due_date, COALESCE(a.owner_id, 0), a.version, e.action_version, e.quote_status, e.quote_amount, e.quote_date_sent, COALESCE(e.assignee_id, 0), e.agreement_recorded, COALESCE(e.agreement_file_id, 0) FROM engagements e JOIN engagement_stages s ON s.workspace_id = e.workspace_id AND s.id = e.stage_id JOIN engagement_next_actions a ON a.workspace_id = e.workspace_id AND a.engagement_id = e.id WHERE e.workspace_id = ? AND s.kind = 'open' AND a.due_date <> '' AND a.due_date <= ? ORDER BY a.due_date, e.id`), workspaceID, today)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +226,7 @@ func (s *Service) ListDue(ctx context.Context, actor identity.Principal, workspa
 	for rows.Next() {
 		var value Engagement
 		var fileID int64
-		if err := rows.Scan(&value.ID, &value.ClientID, &value.StageID, &value.Notes, &value.Name, &value.NextAction.Text, &value.NextAction.DueDate, &value.NextAction.OwnerID, &value.NextAction.Version, &value.Quote.Status, &value.Quote.Amount, &value.Quote.DateSent, &value.AssigneeID, &value.Agreement.Recorded, &fileID); err != nil {
+		if err := rows.Scan(&value.ID, &value.ClientID, &value.StageID, &value.Notes, &value.Name, &value.NextAction.Text, &value.NextAction.DueDate, &value.NextAction.OwnerID, &value.NextAction.Version, &value.ActionVersion, &value.Quote.Status, &value.Quote.Amount, &value.Quote.DateSent, &value.AssigneeID, &value.Agreement.Recorded, &fileID); err != nil {
 			rows.Close()
 			return nil, err
 		}

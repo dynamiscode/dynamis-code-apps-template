@@ -174,6 +174,11 @@ func (h *Handler) setEngagementNextAction(w http.ResponseWriter, r *http.Request
 	if !h.engagementMatchesClient(w, r, actor, workspace) {
 		return
 	}
+	version, err := strconv.ParseInt(r.FormValue("version"), 10, 64)
+	if err != nil || version < 0 {
+		h.renderError(w, http.StatusBadRequest)
+		return
+	}
 	if r.FormValue("return_to") == "detail" && r.FormValue("clear") != "1" {
 		if _, present := r.PostForm["owner_id"]; !present {
 			h.renderClientDetail(w, r, http.StatusUnprocessableEntity, "engagement.invalid_next_action", nil)
@@ -181,7 +186,6 @@ func (h *Handler) setEngagementNextAction(w http.ResponseWriter, r *http.Request
 		}
 	}
 	var owner identity.UserID
-	var err error
 	if r.FormValue("owner_id") != "" {
 		owner, err = identity.ParseUserID(r.FormValue("owner_id"))
 		if err != nil {
@@ -197,7 +201,11 @@ func (h *Handler) setEngagementNextAction(w http.ResponseWriter, r *http.Request
 	if r.FormValue("clear") == "1" {
 		action = engagement.NextAction{}
 	}
-	err = h.engagement.SetNextAction(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), action, auditContext(r))
+	err = h.engagement.SetNextActionIfVersion(r.Context(), actor, workspace, engagement.ParseID(r.PathValue("engagementId")), action, version, auditContext(r))
+	if errors.Is(err, engagement.ErrStaleNextAction) {
+		h.renderClientDetail(w, r, http.StatusConflict, "engagement.action_conflict", nil)
+		return
+	}
 	if errors.Is(err, identity.ErrForbidden) {
 		h.renderError(w, http.StatusForbidden)
 		return

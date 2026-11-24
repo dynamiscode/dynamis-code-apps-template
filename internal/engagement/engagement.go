@@ -34,16 +34,17 @@ type Input struct {
 	Notes    string           `json:"notes"`
 }
 type Engagement struct {
-	Name       string           `json:"name"`
-	ID         ID               `json:"id"`
-	ClientID   clients.ClientID `json:"clientId"`
-	StageID    StageID          `json:"stageId"`
-	Notes      string           `json:"notes"`
-	History    []MoveHistory    `json:"history"`
-	NextAction NextAction       `json:"nextAction"`
-	Quote      Quote            `json:"quote"`
-	AssigneeID identity.UserID  `json:"assigneeId"`
-	Agreement  Agreement        `json:"agreement"`
+	Name          string           `json:"name"`
+	ID            ID               `json:"id"`
+	ClientID      clients.ClientID `json:"clientId"`
+	StageID       StageID          `json:"stageId"`
+	Notes         string           `json:"notes"`
+	History       []MoveHistory    `json:"history"`
+	NextAction    NextAction       `json:"nextAction"`
+	ActionVersion int64            `json:"-"`
+	Quote         Quote            `json:"quote"`
+	AssigneeID    identity.UserID  `json:"assigneeId"`
+	Agreement     Agreement        `json:"agreement"`
 }
 
 type MoveHistory struct {
@@ -220,7 +221,7 @@ func (s *Service) Get(ctx context.Context, actor identity.Principal, workspaceID
 	}
 	var value Engagement
 	var fileID int64
-	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT e.id, e.client_id, e.stage_id, e.notes, e.name, COALESCE(a.action_text, ''), COALESCE(a.due_date, ''), COALESCE(a.owner_id, 0), COALESCE(a.version, 0), e.quote_status, e.quote_amount, e.quote_date_sent, COALESCE(e.assignee_id, 0), e.agreement_recorded, COALESCE(e.agreement_file_id, 0) FROM engagements e LEFT JOIN engagement_next_actions a ON a.workspace_id = e.workspace_id AND a.engagement_id = e.id WHERE e.workspace_id = ? AND e.id = ?`), workspaceID, engagementID).Scan(&value.ID, &value.ClientID, &value.StageID, &value.Notes, &value.Name, &value.NextAction.Text, &value.NextAction.DueDate, &value.NextAction.OwnerID, &value.NextAction.Version, &value.Quote.Status, &value.Quote.Amount, &value.Quote.DateSent, &value.AssigneeID, &value.Agreement.Recorded, &fileID)
+	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT e.id, e.client_id, e.stage_id, e.notes, e.name, COALESCE(a.action_text, ''), COALESCE(a.due_date, ''), COALESCE(a.owner_id, 0), COALESCE(a.version, 0), e.action_version, e.quote_status, e.quote_amount, e.quote_date_sent, COALESCE(e.assignee_id, 0), e.agreement_recorded, COALESCE(e.agreement_file_id, 0) FROM engagements e LEFT JOIN engagement_next_actions a ON a.workspace_id = e.workspace_id AND a.engagement_id = e.id WHERE e.workspace_id = ? AND e.id = ?`), workspaceID, engagementID).Scan(&value.ID, &value.ClientID, &value.StageID, &value.Notes, &value.Name, &value.NextAction.Text, &value.NextAction.DueDate, &value.NextAction.OwnerID, &value.NextAction.Version, &value.ActionVersion, &value.Quote.Status, &value.Quote.Amount, &value.Quote.DateSent, &value.AssigneeID, &value.Agreement.Recorded, &fileID)
 	value.Agreement.FileID = id.EncodeKey(id.TypeFile, fileID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Engagement{}, ErrNotFound
@@ -247,7 +248,7 @@ func (s *Service) ListForClient(ctx context.Context, actor identity.Principal, w
 	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesRead); err != nil {
 		return nil, identity.ErrForbidden
 	}
-	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT e.id, e.client_id, e.stage_id, e.notes, e.name, COALESCE(a.action_text, ''), COALESCE(a.due_date, ''), COALESCE(a.owner_id, 0), COALESCE(a.version, 0), e.quote_status, e.quote_amount, e.quote_date_sent, COALESCE(e.assignee_id, 0), e.agreement_recorded, COALESCE(e.agreement_file_id, 0) FROM engagements e LEFT JOIN engagement_next_actions a ON a.workspace_id = e.workspace_id AND a.engagement_id = e.id WHERE e.workspace_id = ? AND e.client_id = ? ORDER BY e.id DESC`), workspaceID, clientID)
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT e.id, e.client_id, e.stage_id, e.notes, e.name, COALESCE(a.action_text, ''), COALESCE(a.due_date, ''), COALESCE(a.owner_id, 0), COALESCE(a.version, 0), e.action_version, e.quote_status, e.quote_amount, e.quote_date_sent, COALESCE(e.assignee_id, 0), e.agreement_recorded, COALESCE(e.agreement_file_id, 0) FROM engagements e LEFT JOIN engagement_next_actions a ON a.workspace_id = e.workspace_id AND a.engagement_id = e.id WHERE e.workspace_id = ? AND e.client_id = ? ORDER BY e.id DESC`), workspaceID, clientID)
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +256,7 @@ func (s *Service) ListForClient(ctx context.Context, actor identity.Principal, w
 	for rows.Next() {
 		var value Engagement
 		var fileID int64
-		if err := rows.Scan(&value.ID, &value.ClientID, &value.StageID, &value.Notes, &value.Name, &value.NextAction.Text, &value.NextAction.DueDate, &value.NextAction.OwnerID, &value.NextAction.Version, &value.Quote.Status, &value.Quote.Amount, &value.Quote.DateSent, &value.AssigneeID, &value.Agreement.Recorded, &fileID); err != nil {
+		if err := rows.Scan(&value.ID, &value.ClientID, &value.StageID, &value.Notes, &value.Name, &value.NextAction.Text, &value.NextAction.DueDate, &value.NextAction.OwnerID, &value.NextAction.Version, &value.ActionVersion, &value.Quote.Status, &value.Quote.Amount, &value.Quote.DateSent, &value.AssigneeID, &value.Agreement.Recorded, &fileID); err != nil {
 			rows.Close()
 			return nil, err
 		}

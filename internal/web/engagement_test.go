@@ -457,12 +457,12 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if deniedQuote.Code != http.StatusForbidden {
 		t.Fatalf("viewer quote: %d", deniedQuote.Code)
 	}
-	updated := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {"Call client"}, "due_date": {"2020-01-01"}, "owner_id": {env.ownerID.String()}, "return_to": {"detail"}}, env.cookies, nil)
+	updated := request(env.routes, http.MethodPost, actionPath, url.Values{"version": {"0"}, "csrf": {env.csrf}, "text": {"Call client"}, "due_date": {"2020-01-01"}, "owner_id": {env.ownerID.String()}, "return_to": {"detail"}}, env.cookies, nil)
 	if updated.Code != http.StatusSeeOther || updated.Header().Get("Location") != detailPath+"?saved=1" {
 		t.Fatalf("set action: %d %s", updated.Code, updated.Header().Get("Location"))
 	}
 	writerAction := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
-	for _, want := range []string{`action="` + actionPath + `"`, `name="return_to" value="detail"`, `value="Call client"`, `value="2020-01-01"`, `value="` + env.ownerID.String() + `" selected`, `href="` + detailPath + `"`} {
+	for _, want := range []string{`action="` + actionPath + `"`, `name="return_to" value="detail"`, `name="version" value="1"`, `value="Call client"`, `value="2020-01-01"`, `value="` + env.ownerID.String() + `" selected`, `href="` + detailPath + `"`} {
 		if !strings.Contains(writerAction.Body.String(), want) {
 			t.Fatalf("action form missing %q", want)
 		}
@@ -471,37 +471,49 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if strings.Contains(viewerAction.Body.String(), `action="`+actionPath+`"`) || !strings.Contains(viewerAction.Body.String(), "Call client") || !strings.Contains(viewerAction.Body.String(), "2020-01-01") {
 		t.Fatal("viewer action form or summary")
 	}
-	invalidAction := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {"Keep this action"}, "due_date": {"2026-11-24"}, "return_to": {"detail"}}, env.cookies, nil)
-	for _, want := range []string{"An owner is required", `value="Keep this action"`, `value="2026-11-24"`, `action="` + actionPath + `"`} {
+	invalidAction := request(env.routes, http.MethodPost, actionPath, url.Values{"version": {"1"}, "csrf": {env.csrf}, "text": {"Keep this action"}, "due_date": {"2026-11-24"}, "return_to": {"detail"}}, env.cookies, nil)
+	for _, want := range []string{"An owner is required", `name="version" value="1"`, `value="Keep this action"`, `value="2026-11-24"`, `action="` + actionPath + `"`} {
 		if invalidAction.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidAction.Body.String(), want) {
 			t.Fatalf("invalid action missing %q: %d", want, invalidAction.Code)
 		}
 	}
-	invalidOwner := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {"Keep this action"}, "owner_id": {"invalid"}, "return_to": {"detail"}}, env.cookies, nil)
+	invalidOwner := request(env.routes, http.MethodPost, actionPath, url.Values{"version": {"1"}, "csrf": {env.csrf}, "text": {"Keep this action"}, "owner_id": {"invalid"}, "return_to": {"detail"}}, env.cookies, nil)
 	for _, want := range []string{`aria-describedby="engagement-next-action-owner-error"`, `id="engagement-next-action-owner-error"`, `<option value="invalid" selected disabled>invalid — Unavailable</option>`} {
 		if invalidOwner.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidOwner.Body.String(), want) {
 			t.Fatalf("invalid owner missing %q: %d", want, invalidOwner.Code)
 		}
 	}
-	validOwner := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {"Keep this action"}, "owner_id": {env.ownerID.String()}, "due_date": {"invalid"}, "return_to": {"detail"}}, env.cookies, nil)
+	validOwner := request(env.routes, http.MethodPost, actionPath, url.Values{"version": {"1"}, "csrf": {env.csrf}, "text": {"Keep this action"}, "owner_id": {env.ownerID.String()}, "due_date": {"invalid"}, "return_to": {"detail"}}, env.cookies, nil)
 	if validOwner.Code != http.StatusUnprocessableEntity || !strings.Contains(validOwner.Body.String(), `value="`+env.ownerID.String()+`" selected`) || !strings.Contains(validOwner.Body.String(), `aria-describedby="engagement-next-action-due-error"`) || !strings.Contains(validOwner.Body.String(), `value="invalid"`) || strings.Contains(validOwner.Body.String(), `id="engagement-next-action-owner-error"`) {
 		t.Fatalf("valid owner not retained after date error: %d", validOwner.Code)
 	}
-	badText := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {strings.Repeat("x", 5001)}, "owner_id": {env.ownerID.String()}, "return_to": {"detail"}}, env.cookies, nil)
+	badText := request(env.routes, http.MethodPost, actionPath, url.Values{"version": {"1"}, "csrf": {env.csrf}, "text": {strings.Repeat("x", 5001)}, "owner_id": {env.ownerID.String()}, "return_to": {"detail"}}, env.cookies, nil)
 	if badText.Code != http.StatusUnprocessableEntity || !strings.Contains(badText.Body.String(), `aria-describedby="engagement-next-action-error"`) || !strings.Contains(badText.Body.String(), strings.Repeat("x", 5001)) {
 		t.Fatalf("invalid action text: %d", badText.Code)
 	}
-	if omitted := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "return_to": {"detail"}}, env.cookies, nil); omitted.Code != http.StatusUnprocessableEntity || !strings.Contains(omitted.Body.String(), `aria-describedby="engagement-next-action-owner-error"`) {
+	if omitted := request(env.routes, http.MethodPost, actionPath, url.Values{"version": {"1"}, "csrf": {env.csrf}, "return_to": {"detail"}}, env.cookies, nil); omitted.Code != http.StatusUnprocessableEntity || !strings.Contains(omitted.Body.String(), `aria-describedby="engagement-next-action-owner-error"`) {
 		t.Fatalf("omitted owner: %d", omitted.Code)
 	}
 	if got, err := svc.Get(ctx, owner, env.workspaceID, items[0].ID); err != nil || got.NextAction.Text != "Call client" {
 		t.Fatalf("invalid action mutated engagement: %+v %v", got, err)
 	}
-	cleared := request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "clear": {"1"}, "return_to": {"detail"}}, env.cookies, nil)
+	for _, fields := range []url.Values{
+		{"version": {"0"}, "csrf": {env.csrf}, "text": {"Stale edit"}, "owner_id": {env.ownerID.String()}, "return_to": {"detail"}},
+		{"version": {"0"}, "csrf": {env.csrf}, "clear": {"1"}, "return_to": {"detail"}},
+	} {
+		stale := request(env.routes, http.MethodPost, actionPath, fields, env.cookies, nil)
+		if stale.Code != http.StatusConflict || !strings.Contains(stale.Body.String(), "This action changed.") {
+			t.Fatalf("stale action: %d %s", stale.Code, stale.Body.String())
+		}
+		if got, err := svc.Get(ctx, owner, env.workspaceID, items[0].ID); err != nil || got.NextAction.Text != "Call client" {
+			t.Fatalf("stale action mutated engagement: %+v %v", got, err)
+		}
+	}
+	cleared := request(env.routes, http.MethodPost, actionPath, url.Values{"version": {"1"}, "csrf": {env.csrf}, "clear": {"1"}, "return_to": {"detail"}}, env.cookies, nil)
 	if cleared.Code != http.StatusSeeOther || cleared.Header().Get("Location") != detailPath+"?saved=1" {
 		t.Fatalf("clear action: %d %s", cleared.Code, cleared.Header().Get("Location"))
 	}
-	updated = request(env.routes, http.MethodPost, actionPath, url.Values{"csrf": {env.csrf}, "text": {"Call client"}, "due_date": {"2020-01-01"}, "owner_id": {env.ownerID.String()}}, env.cookies, nil)
+	updated = request(env.routes, http.MethodPost, actionPath, url.Values{"version": {"2"}, "csrf": {env.csrf}, "text": {"Call client"}, "due_date": {"2020-01-01"}, "owner_id": {env.ownerID.String()}}, env.cookies, nil)
 	if updated.Code != http.StatusSeeOther || updated.Header().Get("Location") != path {
 		t.Fatalf("client action redirect: %d %s", updated.Code, updated.Header().Get("Location"))
 	}

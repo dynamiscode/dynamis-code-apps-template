@@ -16,6 +16,9 @@ templ engagementDetailPage(data viewmodel.PageData) {
 			if data.Saved {
 				@molecules.SuccessAlert(data.T("engagement.saved"))
 			}
+			if data.ErrorKey == "engagement.action_conflict" {
+				@molecules.ErrorAlert(data.T(data.ErrorKey))
+			}
 			<a class="link" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String()) }>← { data.T("engagement.back_to_client") }: { data.Client.DisplayName }</a>
 			<section class="card my-4 p-6">
 				if data.CanEditClients {
@@ -221,6 +224,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 						<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/next-action") } method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="return_to" value="detail"/>
+							<input type="hidden" name="version" value={ strconv.FormatInt(item.ActionVersion, 10) }/>
 							@molecules.TextField("engagement-next-action", data.T("engagement.next_action")+" "+data.T("ui.optional"), templ.Attributes{"name": "text", "maxlength": "5000", "value": item.NextAction.Text, "aria-invalid": templ.KV("true", data.EngagementActionTextError), "aria-describedby": templ.KV("engagement-next-action-error", data.EngagementActionTextError)})
 							if data.EngagementActionTextError {
 								<p id="engagement-next-action-error" class="error text-error font-bold">{ data.T("engagement.invalid_action_text") }</p>
