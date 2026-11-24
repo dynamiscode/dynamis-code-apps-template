@@ -595,17 +595,25 @@ func disableClientsSource(relative string, raw []byte) []byte {
 			value = value[:start]
 		}
 	case "internal/scheduling/service_test.go":
-		value = removeText(value, "func TestBookingRequiresAvailableWorkingHours(", "func TestResourceAndWorkspaceTimeZone(")
+		value = removeText(value, "\tclient, err := clients.NewService", "\tif _, err := s.Book(ctx, actor, owner.WorkspaceID, r.ID, entry.ID, start.Add(30*time.Minute))")
+		value = strings.Replace(value, "\tif _, err := s.Book(ctx, actor, owner.WorkspaceID, r.ID, entry.ID, start.Add(30*time.Minute))", "\tif _, err := s.Book(ctx, actor, owner.WorkspaceID, r.ID, entry.ID, start.Add(time.Hour)); err != nil {\n\t\tt.Fatal(err)\n\t}\n\tif _, err := s.Book(ctx, actor, owner.WorkspaceID, r.ID, entry.ID, start.Add(30*time.Minute))", 1)
+		value = removeText(value, "\tif err := clients.NewService", "\tfor _, outcome := range")
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `/internal/engagement"`)
 		value = removeText(value, "\t\t\t} else if err := s.SetEngagement(", "\t\t\t} else if role == identity.Viewer {")
 	case "internal/httpapi/scheduling_test.go":
-		value = removeText(value, "func TestSchedulingBookingsREST(", "func TestSchedulingRESTReadOnlyRoles(")
+		value = removeText(value, "\tctx := context.Background()\n\tauth, err := identity.NewService", "\tbase := \"/api/v1/workspaces/\" + workspace")
+		value = strings.Replace(value, "h, db, workspace, token := testHandler(t)", "h, _, workspace, token := testHandler(t)", 1)
+		value = removeText(value, "\tresponse = serveAuthorized(h, http.MethodPut, base+\"/scheduling/bookings/\"+booking.ID+\"/engagement\"", "\tresponse = serveAuthorized(h, http.MethodPost, path+\"/bookings\", body")
 		value = removeText(value, "\t\t\tif response := serveAuthorized(h, http.MethodPut, \"/api/v1/workspaces/\"+workspace+\"/scheduling/bookings/invalid/engagement\"", "\t\t\tif response := serveAuthorized(h, http.MethodPut, path+\"/\"+resource.ID+\"/bookings/invalid/status\"")
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `/internal/engagement"`)
 	case "internal/web/scheduling_test.go":
-		value = removeText(value, "func TestSchedulingBookingWeb(", "func TestSchedulingResourcesWeb(")
+		value = removeText(value, "\tes := engagement.NewService", "\tactor, err := auth.Authorize")
+		value = removeText(value, "\tclient, err := clients.NewService", "\tr, err := s.Create")
+		value = strings.Replace(value, `, "engagement_id": {eng.ID.String()}`, "", 1)
+		value = strings.Replace(value, ` || !strings.Contains(page.Body.String(), eng.ID.String())`, "", 1)
+		value = removeText(value, "\tclientPage := request", "\tbookings, _, err := s.Schedule")
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `/internal/engagement"`)
 		value = removeLinesContaining(value, `/internal/listprefs"`)
