@@ -6,6 +6,9 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -25,6 +28,28 @@ type Exception struct {
 	Reason  string
 }
 
+// Real import paths trust in a package qualifier (actionattrs.X, atoms.X,
+// molecules.X) is tied to, resolved per file via resolveImports. A file
+// that aliases some other import to one of these names, or that imports
+// nothing by that name, gets none of the corresponding trust: see
+// resolveImports and trustedPackage.
+const (
+	actionattrsImportPath = "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+	atomsImportPath       = "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+	moleculesImportPath   = "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+)
+
+// dangerousKinds names the component constructors whose Class/Attrs must be
+// bounded. scanGoSource looks for calls to these by name anywhere in a
+// file's Go code, not only directly under an `@` component expression, so
+// that building one in a `{{ }}` block or a helper function and rendering
+// it via a bare `@value` reference cannot skip the check that bare
+// references otherwise extend (see safeComponent).
+var dangerousKinds = map[string]bool{
+	"Anchor": true, "Link": true, "Button": true,
+	"ConfirmButton": true, "SubmitButton": true, "SubmitButtonStyled": true,
+}
+
 // Check fails closed on dynamic classes, attribute spreads, and unresolved props.
 func Check(source string) ([]Violation, error) {
 	return CheckPath(source, "", nil)
@@ -36,13 +61,14 @@ func CheckPath(source, path string, exceptions []Exception) ([]Violation, error)
 	if err != nil {
 		return nil, err
 	}
+	imports := resolveImports(source)
 	var violations []Violation
 	matches := make([]int, len(exceptions))
 	v := visitor.New()
 	visitElement := v.Element
 	v.Element = func(element *templparser.Element) error {
 		if element.Name == "a" || element.Name == "button" {
-			if !safeElement(element) {
+			if !safeElement(element, imports) {
 				from, to := element.OpenTagRange.From.Index, element.OpenTagRange.To.Index
 				excepted := false
 				if from >= 0 && to >= from && to <= int64(len(source)) {
@@ -66,10 +92,29 @@ func CheckPath(source, path string, exceptions []Exception) ([]Violation, error)
 		expr, err := parser.ParseExpr(call.Expression.Value)
 		if err != nil {
 			violations = append(violations, Violation{call.Range.From.Line + 1, "unsupported component expression"})
-		} else if !safeComponent(expr) {
+		} else if !safeComponent(expr, imports) {
 			violations = append(violations, Violation{call.Range.From.Line + 1, "unbounded or unresolved action component"})
 		}
 		return visitCall(call)
+	}
+	// Go code living in `{{ }}` blocks or in plain helper functions (outside
+	// any `@` expression) can construct one of dangerousKinds and hand it to
+	// a bare component reference elsewhere, which safeComponent trusts
+	// unconditionally (see its doc comment). Scan every such block directly
+	// so that path cannot bypass the Class/Attrs checks.
+	visitGoCode := v.GoCode
+	v.GoCode = func(code *templparser.GoCode) error {
+		if unsafe := scanStatements(code.Expression.Value, imports); unsafe {
+			violations = append(violations, Violation{code.Range.From.Line + 1, "unbounded or unresolved action component built in Go code"})
+		}
+		return visitGoCode(code)
+	}
+	visitFileGo := v.TemplateFileGoExpression
+	v.TemplateFileGoExpression = func(code *templparser.TemplateFileGoExpression) error {
+		if unsafe := scanDecls(code.Expression.Value, imports); unsafe {
+			violations = append(violations, Violation{code.Expression.Range.From.Line + 1, "unbounded or unresolved action component built in Go code"})
+		}
+		return visitFileGo(code)
 	}
 	if err := file.Visit(v); err != nil {
 		return nil, err
@@ -82,14 +127,177 @@ func CheckPath(source, path string, exceptions []Exception) ([]Violation, error)
 	return violations, nil
 }
 
-func safeElement(element *templparser.Element) bool {
+// resolveImports extracts "local identifier -> import path" from a templ
+// file's Go import declarations (single-line and grouped). Trust in a
+// package qualifier is tied to this map (see trustedPackage), not to the
+// identifier text alone: a file that imports some other package under an
+// alias matching a trusted name (for example `import actionattrs
+// "github.com/attacker/evil"`) gets no trust from that alias, because its
+// resolved path will not match the real one.
+func resolveImports(source string) map[string]string {
+	imports := map[string]string{}
+	inBlock := false
+	for _, line := range strings.Split(source, "\n") {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case !inBlock && trimmed == "import (":
+			inBlock = true
+		case !inBlock && strings.HasPrefix(trimmed, "import "):
+			addImport(imports, strings.TrimPrefix(trimmed, "import "))
+		case inBlock && trimmed == ")":
+			inBlock = false
+		case inBlock:
+			addImport(imports, trimmed)
+		}
+	}
+	return imports
+}
+
+var importLineRe = regexp.MustCompile(`^(?:([A-Za-z_]\w*|\.|_)\s+)?"([^"]+)"$`)
+
+func addImport(imports map[string]string, line string) {
+	m := importLineRe.FindStringSubmatch(strings.TrimSpace(line))
+	if m == nil {
+		return
+	}
+	path := m[2]
+	name := m[1]
+	if name == "" {
+		segments := strings.Split(path, "/")
+		name = segments[len(segments)-1]
+	}
+	if name == "_" || name == "." {
+		return
+	}
+	imports[name] = path
+}
+
+// trustedPackage reports whether ident resolves, in this file's imports, to
+// wantPath. An ident with no matching import, or one that resolves
+// elsewhere, is not trusted: this is the only source of truth a qualifier
+// like `actionattrs.` or `atoms.` gets.
+func trustedPackage(imports map[string]string, ident, wantPath string) bool {
+	return imports[ident] == wantPath
+}
+
+// scanStatements parses code as a function body (the shape of a `{{ }}`
+// block) and reports whether it contains a call to a dangerousKinds
+// constructor that safeComponent would reject. A code block that fails to
+// parse this way is not flagged (it is not valid standalone Go), consistent
+// with the rest of this checker only acting on syntax it can parse.
+func scanStatements(code string, imports map[string]string) bool {
+	return scanGoSource("package p\nfunc _() {\n"+code+"\n}\n", imports)
+}
+
+// scanDecls parses code as top-level declarations (the shape of Go source
+// outside any templ block: imports, types, plain functions) and reports
+// whether it contains a call to a dangerousKinds constructor that
+// safeComponent would reject.
+func scanDecls(code string, imports map[string]string) bool {
+	return scanGoSource("package p\n"+code+"\n", imports)
+}
+
+func scanGoSource(wrapped string, imports map[string]string) bool {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "", wrapped, 0)
+	if err != nil {
+		return false
+	}
+	unsafe := false
+	ast.Inspect(file, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		var kind string
+		switch fn := call.Fun.(type) {
+		case *ast.SelectorExpr:
+			kind = fn.Sel.Name
+		case *ast.Ident:
+			kind = fn.Name
+		}
+		if !dangerousKinds[kind] {
+			return true
+		}
+		if !safeComponent(call, imports) {
+			unsafe = true
+		}
+		return true
+	})
+	return unsafe
+}
+
+// VerifyTemplUniqueness fails if any type other than actionattrs.Safe
+// defines a method literally named Templ. safeAttrs trusts any bare
+// `<expr>.Templ()` call as a bounded attribute source precisely because,
+// today, only actionattrs.Safe has that method; this function makes that a
+// checked invariant at scan time (in scripts/actioncheck/cmd), not only in
+// `go test`, so a second Templ() method fails the actual check run rather
+// than depending on a separate test having been run first.
+func VerifyTemplUniqueness(root string) error {
+	fset := token.NewFileSet()
+	var found []string
+	walkErr := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			switch info.Name() {
+			case "node_modules", ".git", "vendor":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_templ.go") {
+			return nil
+		}
+		src, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			return nil
+		}
+		for _, decl := range src.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Recv == nil || fn.Name.Name != "Templ" {
+				continue
+			}
+			found = append(found, fmt.Sprintf("%s: %s", path, recvTypeName(fn.Recv)))
+		}
+		return nil
+	})
+	if walkErr != nil {
+		return walkErr
+	}
+	if len(found) != 1 {
+		return fmt.Errorf("expected exactly one Templ() method in the module, found %d: %v", len(found), found)
+	}
+	if !strings.Contains(filepath.ToSlash(strings.SplitN(found[0], ":", 2)[0]), "/components/actionattrs/") || !strings.HasSuffix(found[0], " Safe") {
+		return fmt.Errorf("the one Templ() method in the module is not actionattrs.Safe.Templ: %s", found[0])
+	}
+	return nil
+}
+
+func recvTypeName(recv *ast.FieldList) string {
+	if recv == nil || len(recv.List) == 0 {
+		return "?"
+	}
+	expr := recv.List[0].Type
+	if star, ok := expr.(*ast.StarExpr); ok {
+		expr = star.X
+	}
+	if id, ok := expr.(*ast.Ident); ok {
+		return id.Name
+	}
+	return "?"
+}
+
+func safeElement(element *templparser.Element, imports map[string]string) bool {
 	boundary := false
 	classSeen := false
 	for _, attr := range element.Attributes {
 		switch attr := attr.(type) {
 		case *templparser.SpreadAttributes:
 			expr, err := parser.ParseExpr(attr.Expression.Value)
-			if err != nil || !safeAttrs(expr, false) {
+			if err != nil || !safeAttrs(expr, false, imports) {
 				return false
 			}
 		case *templparser.ConditionalAttribute:
@@ -126,7 +334,7 @@ func safeElement(element *templparser.Element) bool {
 					return false
 				}
 				for _, item := range expr.(*ast.CompositeLit).Elts {
-					value, unconditional, ok := classValue(item)
+					value, unconditional, ok := classValue(item, imports)
 					if !ok || !safeTokens(value) {
 						return false
 					}
@@ -161,18 +369,23 @@ func safeConditionalAttributes(attrs []templparser.Attribute) bool {
 	return true
 }
 
-func classValue(expr ast.Expr) (string, bool, bool) {
+func classValue(expr ast.Expr, imports map[string]string) (string, bool, bool) {
 	if value, ok := stringValue(expr); ok {
 		return value, true, true
 	}
 	// actionattrs.LinkClass enforces the boundary token itself at runtime;
-	// actionattrs.ButtonClass does not (its caller's own element already
-	// carries an unconditional "btn" literal), so it contributes an empty,
-	// trivially-safe, non-boundary token.
-	if isActionattrsCall(expr, "LinkClass") {
+	// actionattrs.ButtonClass does not (it relies on its caller's element
+	// already carrying an unconditional "btn" literal), so it contributes
+	// an empty, trivially-safe, non-boundary token. A raw element has no
+	// such caller to rely on, but ButtonClass is still accepted here
+	// because safeElement's own boundary accumulation still requires some
+	// other item in the same class expression to supply "btn"/"border";
+	// ButtonClass alone, with no such item, correctly leaves boundary false
+	// and the element rejected.
+	if isActionattrsCall(expr, "LinkClass", imports) {
 		return "btn", true, true
 	}
-	if isActionattrsCall(expr, "ButtonClass") {
+	if isActionattrsCall(expr, "ButtonClass", imports) {
 		return "", true, true
 	}
 	call, ok := expr.(*ast.CallExpr)
@@ -192,8 +405,11 @@ func classValue(expr ast.Expr) (string, bool, bool) {
 }
 
 // isActionattrsCall reports whether expr is a one-argument call to the
-// named function in the actionattrs package.
-func isActionattrsCall(expr ast.Expr, name string) bool {
+// named function, qualified by an identifier that this file's imports
+// actually resolve to the real actionattrs package (see resolveImports and
+// trustedPackage). An identifier named "actionattrs" that resolves
+// elsewhere, or that resolves nowhere, is not trusted.
+func isActionattrsCall(expr ast.Expr, name string, imports map[string]string) bool {
 	call, ok := expr.(*ast.CallExpr)
 	if !ok || len(call.Args) != 1 {
 		return false
@@ -203,22 +419,29 @@ func isActionattrsCall(expr ast.Expr, name string) bool {
 		return false
 	}
 	pkg, ok := selector.X.(*ast.Ident)
-	return ok && pkg.Name == "actionattrs"
+	return ok && trustedPackage(imports, pkg.Name, actionattrsImportPath)
 }
 
 // safeClassExpr reports whether expr is a known-safe class source: a string
 // literal that passes the static checks, or a runtime-guarded
 // actionattrs.ButtonClass/LinkClass call (see that package's doc comments).
-// requireBoundary applies the hasBoundary literal check only to the literal
-// path; the actionattrs calls enforce their own boundary rule at runtime.
-func safeClassExpr(expr ast.Expr, requireBoundary bool) bool {
+// requireBoundary applies the hasBoundary literal check on the literal
+// path; on the actionattrs-call path, only LinkClass is accepted when a
+// boundary is required, because only LinkClass enforces one at runtime.
+// ButtonClass does not, and is only safe where the caller's own element
+// already carries "btn" unconditionally (atoms.Button's own definition),
+// which requireBoundary=false signals.
+func safeClassExpr(expr ast.Expr, requireBoundary bool, imports map[string]string) bool {
 	if value, ok := stringValue(expr); ok {
 		return safeTokens(value) && (!requireBoundary || hasBoundary(value))
 	}
-	return isActionattrsCall(expr, "ButtonClass") || isActionattrsCall(expr, "LinkClass")
+	if isActionattrsCall(expr, "LinkClass", imports) {
+		return true
+	}
+	return !requireBoundary && isActionattrsCall(expr, "ButtonClass", imports)
 }
 
-func safeComponent(expr ast.Expr) bool {
+func safeComponent(expr ast.Expr, imports map[string]string) bool {
 	call, ok := expr.(*ast.CallExpr)
 	if !ok {
 		// A bare component value reference (`@props.Icon`, `@tab.Content`, a
@@ -226,10 +449,11 @@ func safeComponent(expr ast.Expr) bool {
 		// carry a caller-controlled Class or Attrs override: there is no
 		// composite literal here for an override to live in. Whatever
 		// templ.Component value it names was already type-checked where it
-		// was constructed, the same trust already extended below to a call
-		// of an unrecognized function (go/types, not this checker, is what
-		// proves that value really is a templ.Component). Reject anything
-		// that is not a plain identifier/selector/index chain.
+		// was constructed; scanStatements/scanDecls check every place in this
+		// file's Go code where such a value could have been constructed, so
+		// this trust is not extended to code this checker never looked at.
+		// Reject anything that is not a plain identifier/selector/index
+		// chain.
 		switch expr.(type) {
 		case *ast.Ident, *ast.SelectorExpr, *ast.IndexExpr, *ast.StarExpr, *ast.TypeAssertExpr:
 			return true
@@ -249,11 +473,11 @@ func safeComponent(expr ast.Expr) bool {
 	kind := selector.Sel.Name
 	if kind == "SubmitButton" {
 		pkg, ok := selector.X.(*ast.Ident)
-		return ok && pkg.Name == "molecules" && len(call.Args) == 2 && safeAttrs(call.Args[1], false)
+		return ok && trustedPackage(imports, pkg.Name, moleculesImportPath) && len(call.Args) == 2 && safeAttrs(call.Args[1], false, imports)
 	}
 	if kind == "ConfirmButton" || kind == "SubmitButtonStyled" {
 		pkg, ok := selector.X.(*ast.Ident)
-		if !ok || pkg.Name != "molecules" {
+		if !ok || !trustedPackage(imports, pkg.Name, moleculesImportPath) {
 			return false
 		}
 		classIndex, attrsIndex := 2, 3
@@ -263,7 +487,7 @@ func safeComponent(expr ast.Expr) bool {
 		if len(call.Args) != attrsIndex+1 {
 			return false
 		}
-		return safeClassExpr(call.Args[classIndex], false) && safeAttrs(call.Args[attrsIndex], false)
+		return safeClassExpr(call.Args[classIndex], false, imports) && safeAttrs(call.Args[attrsIndex], false, imports)
 	}
 	if kind != "Anchor" && kind != "Link" && kind != "Button" {
 		return true
@@ -281,7 +505,7 @@ func safeComponent(expr ast.Expr) bool {
 	}
 	componentPackage, componentOK := selector.X.(*ast.Ident)
 	propsPackage, propsOK := propsType.X.(*ast.Ident)
-	if !componentOK || !propsOK || componentPackage.Name != "atoms" || propsPackage.Name != "atoms" {
+	if !componentOK || !propsOK || !trustedPackage(imports, componentPackage.Name, atomsImportPath) || !trustedPackage(imports, propsPackage.Name, atomsImportPath) {
 		return false
 	}
 	hasClass := false
@@ -296,12 +520,12 @@ func safeComponent(expr ast.Expr) bool {
 		}
 		switch key.Name {
 		case "Class":
-			if !safeClassExpr(kv.Value, kind != "Button") {
+			if !safeClassExpr(kv.Value, kind != "Button", imports) {
 				return false
 			}
 			hasClass = true
 		case "Attrs":
-			if !safeAttrs(kv.Value, false) {
+			if !safeAttrs(kv.Value, false, imports) {
 				return false
 			}
 		}
@@ -309,15 +533,15 @@ func safeComponent(expr ast.Expr) bool {
 	return hasClass || kind == "Button"
 }
 
-func safeAttrs(expr ast.Expr, allowClass bool) bool {
+func safeAttrs(expr ast.Expr, allowClass bool, imports map[string]string) bool {
 	if id, ok := expr.(*ast.Ident); ok && id.Name == "nil" {
 		return true
 	}
 	// A bare `<expr>.Templ()` call is trusted: in this module only
-	// actionattrs.Safe defines a Templ() method (guarded by
-	// internal/web/components/actionattrs.TestTemplMethodIsUnique), and its
-	// only constructors enforce an attribute key allow-list. See the
-	// actionattrs package doc comment.
+	// actionattrs.Safe defines a Templ() method (VerifyTemplUniqueness
+	// checks this at scan time; TestTemplMethodIsUnique checks it in `go
+	// test`), and its only constructors enforce an attribute key allow-list.
+	// See the actionattrs package doc comment.
 	if call, ok := expr.(*ast.CallExpr); ok && len(call.Args) == 0 {
 		if selector, ok := call.Fun.(*ast.SelectorExpr); ok && selector.Sel.Name == "Templ" {
 			return true
@@ -326,7 +550,7 @@ func safeAttrs(expr ast.Expr, allowClass bool) bool {
 	// actionattrs.From(expr) validates every key of its argument against the
 	// same allow-list at runtime and panics before render if one is missing;
 	// see the actionattrs package doc comment.
-	if isActionattrsCall(expr, "From") {
+	if isActionattrsCall(expr, "From", imports) {
 		return true
 	}
 	literal, ok := expr.(*ast.CompositeLit)
@@ -372,6 +596,9 @@ func stringValue(expr ast.Expr) (string, bool) {
 func safeTokens(value string) bool {
 	for _, token := range strings.Fields(value) {
 		base := token[strings.LastIndex(token, ":")+1:]
+		// Tailwind's "important" modifier prefixes the utility with "!"
+		// (e.g. "!border-0", "md:!border-0"); strip it before comparing.
+		base = strings.TrimPrefix(base, "!")
 		if base == "btn-ghost" || base == "btn-link" || base == "border-0" {
 			return false
 		}

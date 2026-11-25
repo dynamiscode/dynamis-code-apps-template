@@ -19,8 +19,8 @@
   },
   {
     "Path": "internal/web/components/atoms/button.templ",
-    "OpenTag": "<button class={ \"btn\", props.Class } { actionattrs.From(attrs)... }>",
-    "Line": 24,
+    "OpenTag": "<button class={ \"btn\", props.Class } { actionattrs.From(props.Attrs)... }>",
+    "Line": 14,
     "Reason": "This is the Button atom's own definition, the trust boundary every other caller goes through. props.Class is exactly the value scripts/actioncheck's safeComponent already requires to be a literal/actionattrs-guarded expression at every ButtonProps{...} call site; the attrs spread is revalidated here via actionattrs.From."
   },
   {

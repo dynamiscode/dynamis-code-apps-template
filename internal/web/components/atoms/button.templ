@@ -2,8 +2,6 @@
 // https://daisyui.com/components/button
 package atoms
 
-import "strings"
-
 import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 
 type ButtonProps struct {
@@ -13,13 +11,5 @@ type ButtonProps struct {
 }
 
 templ Button(props ButtonProps) {
-	{{
-		attrs := make(templ.Attributes, len(props.Attrs))
-		for key, value := range props.Attrs {
-			if !strings.EqualFold(key, "class") {
-				attrs[key] = value
-			}
-		}
-	}}
-	<button class={ "btn", props.Class } { actionattrs.From(attrs)... }>{ props.Label }{ children... }</button>
+	<button class={ "btn", props.Class } { actionattrs.From(props.Attrs)... }>{ props.Label }{ children... }</button>
 }

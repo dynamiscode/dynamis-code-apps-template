@@ -5,6 +5,16 @@ import (
 	"testing"
 )
 
+// testImports gives test fixtures real imports for atoms, molecules, and
+// actionattrs so safeComponent's import-path checks (trustedPackage) have
+// something genuine to resolve against, matching how real .templ files are
+// structured. Tests that must prove a spoofed/aliased import is rejected
+// build their own source instead of using this constant.
+const testImports = "package demo\n\n" +
+	"import atoms \"example.com/dynamis-code/apps-template/internal/web/components/atoms\"\n" +
+	"import molecules \"example.com/dynamis-code/apps-template/internal/web/components/molecules\"\n" +
+	"import \"example.com/dynamis-code/apps-template/internal/web/components/actionattrs\"\n"
+
 func TestCheck(t *testing.T) {
 	cases := []struct {
 		name, body string
@@ -62,7 +72,7 @@ func TestCheck(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := Check("package demo\n\ntempl Demo() {\n" + tc.body + "\n}")
+			got, err := Check(testImports + "\ntempl Demo() {\n" + tc.body + "\n}")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -108,5 +118,171 @@ func TestExactExceptions(t *testing.T) {
 func TestInvalidTemplateFails(t *testing.T) {
 	if _, err := Check("package demo\ntempl Demo() { <a class=\"btn\"> }"); err == nil {
 		t.Fatal("invalid template accepted")
+	}
+}
+
+// TestUnsafeComponentBuiltInGoCodeIsCaught regresses a bypass found in
+// adversarial review: building an unresolved Anchor/Button inside a `{{ }}`
+// Go code block, then rendering it with a bare `@value` reference, used to
+// pass unnoticed because safeComponent trusts bare references and nothing
+// scanned the Go code block itself.
+func TestUnsafeComponentBuiltInGoCodeIsCaught(t *testing.T) {
+	source := testImports + `
+templ Demo(class string) {
+	{{ unsafe := atoms.Anchor(atoms.AnchorProps{Class: class}) }}
+	@unsafe
+}
+`
+	got, err := Check(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 {
+		t.Fatal("unsafe component built in a {{ }} block and bare-rendered was not caught")
+	}
+}
+
+// TestUnsafeComponentBuiltInHelperFuncIsCaught is the same bypass, but the
+// unresolved construction lives in a plain top-level helper function
+// instead of a `{{ }}` block.
+func TestUnsafeComponentBuiltInHelperFuncIsCaught(t *testing.T) {
+	source := testImports + `
+func buildIcon(class string) templ.Component {
+	return atoms.Button(atoms.ButtonProps{Class: class})
+}
+
+templ Demo() {
+	@buildIcon("whatever")
+}
+`
+	got, err := Check(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 {
+		t.Fatal("unsafe component built in a helper function was not caught")
+	}
+}
+
+// TestButtonClassDoesNotSatisfyAnchorBoundary regresses a bug found in
+// adversarial review: safeClassExpr accepted actionattrs.ButtonClass as a
+// Class source for Anchor (and any other non-Button component), even though
+// ButtonClass enforces no boundary token at runtime and Anchor injects no
+// "btn" literal of its own the way atoms.Button does. Only LinkClass may
+// satisfy a boundary requirement.
+func TestButtonClassDoesNotSatisfyAnchorBoundary(t *testing.T) {
+	source := testImports + `
+templ Demo(extra string) {
+	@atoms.Anchor(atoms.AnchorProps{Class: actionattrs.ButtonClass(extra)})
+}
+`
+	got, err := Check(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 {
+		t.Fatal("actionattrs.ButtonClass on atoms.Anchor must not satisfy the boundary requirement")
+	}
+}
+
+// TestSpoofedActionattrsImportIsRejected regresses a bug found in
+// adversarial review: isActionattrsCall trusted any call to a function
+// literally named actionattrs.From/.Templ/.ButtonClass/.LinkClass by
+// identifier text alone, so a file that imports an unrelated package under
+// the alias "actionattrs" (or "atoms"/"molecules") got the same trust as
+// the real package.
+func TestSpoofedActionattrsImportIsRejected(t *testing.T) {
+	source := "package demo\n\n" +
+		`import actionattrs "github.com/attacker/evil"` + "\n" +
+		`import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"` + "\n" + `
+templ Demo(extra templ.Attributes) {
+	@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Attrs: actionattrs.From(extra)})
+}
+`
+	got, err := Check(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 {
+		t.Fatal("a spoofed actionattrs import alias must not be trusted")
+	}
+}
+
+func TestSpoofedAtomsImportIsRejected(t *testing.T) {
+	source := "package demo\n\n" +
+		`import atoms "github.com/attacker/evil"` + "\n" + `
+templ Demo() {
+	@atoms.Button(atoms.ButtonProps{Class: "btn-primary"})
+}
+`
+	got, err := Check(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 {
+		t.Fatal("a spoofed atoms import alias must not be trusted")
+	}
+}
+
+// TestImportantModifierCannotSmuggleBorderZero regresses a bug found in
+// adversarial review: the forbidden-token check compared tokens like
+// "!border-0" literally, so Tailwind's "important" prefix ("!") let a
+// caller remove the boundary border without matching "border-0" exactly.
+func TestImportantModifierCannotSmuggleBorderZero(t *testing.T) {
+	for _, body := range []string{
+		`<a class="btn !border-0">Open</a>`,
+		`<a class="btn md:!border-0">Open</a>`,
+	} {
+		got, err := Check(testImports + "\ntempl Demo() {\n" + body + "\n}")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got) == 0 {
+			t.Fatalf("%q: important-prefixed border-0 override was not caught", body)
+		}
+	}
+}
+
+// TestVerifyTemplUniquenessRejectsASecondMethod regresses the gap where the
+// Templ()-method uniqueness invariant that safeAttrs' `.Templ()` trust
+// depends on was checked only by a separate `go test`, never by the
+// actioncheck scan itself (scripts/actioncheck/cmd now calls this at
+// startup).
+func TestVerifyTemplUniquenessRejectsWrongLocation(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(root+"/real.go", []byte("package real\ntype Safe struct{}\nfunc (s Safe) Templ() string { return \"\" }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyTemplUniqueness(root); err == nil {
+		t.Fatal("a Templ() method outside components/actionattrs on a type named Safe must still fail")
+	}
+}
+
+func TestVerifyTemplUniquenessPassesForActionattrs(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(root+"/components/actionattrs", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(root+"/components/actionattrs/actionattrs.go", []byte("package actionattrs\ntype Safe struct{}\nfunc (s Safe) Templ() string { return \"\" }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyTemplUniqueness(root); err != nil {
+		t.Fatalf("expected the single, correctly-located Templ() method to pass: %v", err)
+	}
+}
+
+func TestVerifyTemplUniquenessRejectsASecondMethodElsewhere(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(root+"/components/actionattrs", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(root+"/components/actionattrs/actionattrs.go", []byte("package actionattrs\ntype Safe struct{}\nfunc (s Safe) Templ() string { return \"\" }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(root+"/evil.go", []byte("package evil\ntype Evil struct{}\nfunc (e Evil) Templ() string { return \"\" }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyTemplUniqueness(root); err == nil {
+		t.Fatal("a second Templ() method anywhere in the tree must fail VerifyTemplUniqueness")
 	}
 }

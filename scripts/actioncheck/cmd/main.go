@@ -13,6 +13,10 @@ import (
 )
 
 func main() {
+	if err := actioncheck.VerifyTemplUniqueness("."); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	data, err := os.ReadFile("scripts/actioncheck/exceptions.json")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -39,7 +43,12 @@ func main() {
 		seen[path] = true
 		violations, err := actioncheck.CheckPath(string(source), filepath.ToSlash(path), exceptions)
 		if err != nil {
-			return fmt.Errorf("%s: %w", path, err)
+			// Report and keep walking: one file's error (an invalid exception,
+			// an unparseable expression) must not hide every later file's
+			// violations and exception-path checks behind it.
+			fmt.Fprintf(os.Stderr, "%s: %s\n", path, err)
+			failed = true
+			return nil
 		}
 		for _, violation := range violations {
 			fmt.Fprintf(os.Stderr, "%s:%d: %s\n", path, violation.Line, violation.Reason)

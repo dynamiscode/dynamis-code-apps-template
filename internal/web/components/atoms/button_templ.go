@@ -13,8 +13,6 @@ package atoms
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "strings"
-
 import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 
 type ButtonProps struct {
@@ -41,12 +39,6 @@ func Button(props ButtonProps) templ.Component {
 		ctx = templ.InitializeContext(ctx)
 		templ_7745c5c3_Var1 := templ.GetChildren(ctx)
 		ctx = templ.ClearChildren(ctx)
-		attrs := make(templ.Attributes, len(props.Attrs))
-		for key, value := range props.Attrs {
-			if !strings.EqualFold(key, "class") {
-				attrs[key] = value
-			}
-		}
 		{
 			templ_7745c5c3_ElementWriter := templ_7745c5c3_Buffer
 			templ_7745c5c3_Buffer := templ.GetBuffer()
@@ -73,7 +65,7 @@ func Button(props ButtonProps) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "button", actionattrs.From(attrs))
+			templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "button", actionattrs.From(props.Attrs))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -94,7 +86,7 @@ func Button(props ButtonProps) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(props.Label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/atoms/button.templ`, Line: 24, Col: 82}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/atoms/button.templ`, Line: 14, Col: 88}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
