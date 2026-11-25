@@ -9,7 +9,6 @@
 package actionattrs
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -342,54 +341,92 @@ func LinkClass(value string) string {
 // scripts/actioncheck requires every bare component-slot reference (a
 // render with no call syntax at all) to be wrapped in a call to Scanned;
 // see safeComponent's doc comment.
+//
+// Scanned streams: it reads the slot's output one HTML token at a time
+// (through an io.Pipe feeding an html.Tokenizer) and forwards each token's
+// exact original bytes to w immediately after validating it, rather than
+// buffering the whole slot before writing anything. Memory held at any
+// moment is bounded by one token, not by the slot's total output size,
+// which matters for a slot that is itself a whole list or page section
+// (list_screen.templ's results/body) and for Scanned wrapping Scanned
+// (each layer adds only its own one-token overhead, not another full
+// copy). It also means a child render that fails partway through still
+// has its already-validated prefix reach w before the error is returned:
+// that prefix was independently verified safe token by token, so holding
+// it back would not make the result any safer, only incomplete in a
+// different way. ctx is checked between tokens so a cancelled request
+// stops reading and writing promptly instead of finishing an arbitrarily
+// large slot first; the underlying render is unblocked by closing the
+// pipe out from under it; see Scanned's test for both of these.
 func Scanned(c templ.Component) templ.Component {
 	if c == nil {
 		return c
 	}
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		var buf bytes.Buffer
-		if err := c.Render(ctx, &buf); err != nil {
-			return err
+		pipeReader, pipeWriter := io.Pipe()
+		renderDone := make(chan error, 1)
+		go func() {
+			err := c.Render(ctx, pipeWriter)
+			renderDone <- err
+			pipeWriter.CloseWithError(err)
+		}()
+		tokenizer := html.NewTokenizer(pipeReader)
+		for {
+			if err := ctx.Err(); err != nil {
+				pipeReader.CloseWithError(err)
+				<-renderDone
+				return err
+			}
+			tt := tokenizer.Next()
+			if tt == html.ErrorToken {
+				if err := tokenizer.Err(); err != nil && err != io.EOF {
+					pipeReader.CloseWithError(err)
+					<-renderDone
+					return err
+				}
+				break
+			}
+			if tt == html.StartTagToken || tt == html.SelfClosingTagToken {
+				if err := checkTagToken(tokenizer); err != nil {
+					pipeReader.CloseWithError(err)
+					<-renderDone
+					panic("actionattrs: " + err.Error())
+				}
+			}
+			if _, err := w.Write(tokenizer.Raw()); err != nil {
+				pipeReader.CloseWithError(err)
+				<-renderDone
+				return err
+			}
 		}
-		if err := scanRenderedHTML(buf.Bytes()); err != nil {
-			panic("actionattrs: " + err.Error())
-		}
-		_, err := w.Write(buf.Bytes())
-		return err
+		return <-renderDone
 	})
 }
 
-// scanRenderedHTML parses rendered and checks every <a> or <button>
-// element it contains against the boundary/override-token rule described
-// on Scanned.
-func scanRenderedHTML(rendered []byte) error {
-	tokenizer := html.NewTokenizer(bytes.NewReader(rendered))
-	for {
-		switch tokenizer.Next() {
-		case html.ErrorToken:
-			return nil
-		case html.StartTagToken, html.SelfClosingTagToken:
-			name, hasAttr := tokenizer.TagName()
-			tag := string(name)
-			if tag != "a" && tag != "button" {
-				continue
-			}
-			class := ""
-			for hasAttr {
-				var key, val []byte
-				key, val, hasAttr = tokenizer.TagAttr()
-				if string(key) == "class" {
-					class = string(val)
-				}
-			}
-			if !hasBoundaryToken(class) {
-				return fmt.Errorf("rendered a <%s> with no btn/border boundary class: %q", tag, class)
-			}
-			for _, tok := range strings.Fields(class) {
-				if forbiddenClassTokens[normalizeClassToken(tok)] {
-					return fmt.Errorf("rendered a <%s> with forbidden class token %q", tag, tok)
-				}
-			}
+// checkTagToken checks the current <a> or <button> start/self-closing tag
+// tokenizer is positioned on against the boundary/override-token rule
+// described on Scanned. Any other tag name passes trivially.
+func checkTagToken(tokenizer *html.Tokenizer) error {
+	name, hasAttr := tokenizer.TagName()
+	tag := string(name)
+	if tag != "a" && tag != "button" {
+		return nil
+	}
+	class := ""
+	for hasAttr {
+		var key, val []byte
+		key, val, hasAttr = tokenizer.TagAttr()
+		if string(key) == "class" {
+			class = string(val)
 		}
 	}
+	if !hasBoundaryToken(class) {
+		return fmt.Errorf("rendered a <%s> with no btn/border boundary class: %q", tag, class)
+	}
+	for _, tok := range strings.Fields(class) {
+		if forbiddenClassTokens[normalizeClassToken(tok)] {
+			return fmt.Errorf("rendered a <%s> with forbidden class token %q", tag, tok)
+		}
+	}
+	return nil
 }
