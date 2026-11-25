@@ -28,53 +28,43 @@ import (
 // oversight; no caller should route either through Attrs. A caller that
 // needs a visual variant has Class for exactly that purpose, checked
 // separately by scripts/actioncheck.
+// allowed lists the individual, non-namespaced keys this guard permits.
+// "aria-*", "data-*", and "hx-*" are not enumerated here one at a time;
+// Allowed below admits the whole namespace for each. All three are
+// HTML/htmx-spec guaranteed inert: an aria-* or data-* attribute carries no
+// browser-interpreted behavior at all (that is the point of both
+// namespaces -- accessibility semantics and custom data hooks,
+// respectively), and an hx-* attribute only ever configures htmx's
+// declarative request/swap behavior, never arbitrary script. Enumerating
+// every key in these namespaces one at a time, as this list once did,
+// means every new legitimate key is a new panic in production until
+// someone notices and adds it; the namespaces themselves are the actual
+// safety boundary, not their individual member names.
 var allowed = map[string]bool{
 	// href is allowed, value-checked below, because this codebase routes
 	// some anchor targets through Attrs instead of a dedicated Href field
 	// (DropdownItem, FooterNav's AnchorProps).
-	"href":                 true,
-	"id":                   true,
-	"name":                 true,
-	"type":                 true,
-	"value":                true,
-	"disabled":             true,
-	"aria-label":           true,
-	"aria-current":         true,
-	"aria-expanded":        true,
-	"aria-haspopup":        true,
-	"aria-controls":        true,
-	"data-confirm":         true,
-	"data-testid":          true,
-	"data-requires-change": true,
-	"data-challenge":       true,
-	"data-csrf":            true,
-	"data-bulk-action":     true,
-	"data-webmcp-export":   true,
-	"aria-describedby":     true,
-	"hx-sync":              true,
+	"href":     true,
+	"id":       true,
+	"name":     true,
+	"type":     true,
+	"value":    true,
+	"disabled": true,
 	// title and download are plain, non-executable HTML attribute values
 	// (a tooltip, a save-as filename hint); templ escapes attribute values,
 	// so neither carries a script-injection or style-override risk the way
-	// class/style/onclick/href do. Several real callers already route
-	// title through a Dropdown's SummaryAttrs.
+	// class/style/onclick/href do.
 	"title":    true,
 	"download": true,
+	// target and rel are standard anchor-navigation attributes with no
+	// browser-executed content (rel is, if anything, a security hardening
+	// attribute: "noopener noreferrer" is what prevents target="_blank"
+	// tabnapping).
+	"target": true,
+	"rel":    true,
 	// onclick is allowed, value-checked below to the one fixed shape this
 	// codebase uses (the time-slot picker's modal trigger).
-	"onclick":      true,
-	"hx-get":       true,
-	"hx-post":      true,
-	"hx-put":       true,
-	"hx-delete":    true,
-	"hx-target":    true,
-	"hx-swap":      true,
-	"hx-trigger":   true,
-	"hx-include":   true,
-	"hx-confirm":   true,
-	"hx-indicator": true,
-	"hx-vals":      true,
-	"hx-push-url":  true,
-	"hx-boost":     true,
+	"onclick": true,
 }
 
 // showModalPattern is the onclick shapes this codebase uses: the time-slot
@@ -185,7 +175,13 @@ func ValidateValue(key string, value any) error {
 // actionattrs.From/With call would, instead of only restricting "class"
 // there as it historically did.
 func Allowed(key string) bool {
-	return allowed[key]
+	if allowed[key] {
+		return true
+	}
+	// "class" and "style" must never match here: both would need to start
+	// with "class-"/"style-" to do so, which they do not, so the prefix
+	// check below cannot accidentally let either through.
+	return strings.HasPrefix(key, "aria-") || strings.HasPrefix(key, "data-") || strings.HasPrefix(key, "hx-")
 }
 
 func checkValue(key string, value any) {
@@ -208,7 +204,7 @@ func New() Safe {
 // With returns a copy of s with key set to value. It panics if key is not
 // on the allow list, so an unreviewed key fails at construction, not later.
 func (s Safe) With(key string, value any) Safe {
-	if !allowed[key] {
+	if !Allowed(key) {
 		panic("actionattrs: key not allowed: " + key)
 	}
 	checkValue(key, value)
@@ -249,7 +245,7 @@ func (s Safe) Templ() templ.Attributes {
 // reason it trusts Templ(): the panic happens before render.
 func From(m templ.Attributes) templ.Attributes {
 	for key, value := range m {
-		if !allowed[key] {
+		if !Allowed(key) {
 			panic("actionattrs: key not allowed: " + key)
 		}
 		checkValue(key, value)

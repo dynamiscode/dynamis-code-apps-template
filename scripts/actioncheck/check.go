@@ -52,6 +52,94 @@ var dangerousKinds = map[string]bool{
 	"ConfirmButton": true, "SubmitButton": true, "SubmitButtonStyled": true,
 }
 
+// unprovableSelectors names templ package calls that can embed arbitrary
+// content -- a raw HTML string, a hand-written render function -- this
+// checker has no AST left to inspect once it is built. A call to any of
+// these, anywhere, is always a violation: there is no amount of static
+// analysis that proves a raw string or an opaque function is bounded.
+var unprovableSelectors = map[string]bool{"Raw": true, "ComponentFunc": true, "FromGoHTML": true}
+
+// isUnprovableCall reports whether call invokes one of unprovableSelectors,
+// qualified by an identifier literally named "templ" (the same convention,
+// not import-path-verified, this checker already uses for templ.Attributes/
+// templ.KV/templ.SafeURL; spoofing "templ" itself is a materially bigger
+// and more visible change than spoofing actionattrs/atoms/molecules, which
+// import-path verification covers).
+func isUnprovableCall(call *ast.CallExpr) bool {
+	selector, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	pkg, ok := selector.X.(*ast.Ident)
+	return ok && pkg.Name == "templ" && unprovableSelectors[selector.Sel.Name]
+}
+
+// isDangerousCall reports whether call is a genuine candidate for
+// safeComponentCall: a call to one of dangerousKinds, qualified by a
+// package this file's imports actually resolve to the real atoms or
+// molecules package (see trustedPackage), or -- the same-package-
+// forwarding shape safeComponentCall always rejects -- an unqualified call
+// to one of those names in a file that is itself part of the atoms or
+// molecules package. Matching by name alone, with no package or package-
+// membership check, would also flag any unrelated function or method that
+// merely happens to share one of these names (an unrelated type's own
+// Button() method, say); this is what keeps that firmly out of scope.
+func isDangerousCall(call *ast.CallExpr, imports map[string]string, pkgName string) bool {
+	switch fn := call.Fun.(type) {
+	case *ast.SelectorExpr:
+		if !dangerousKinds[fn.Sel.Name] {
+			return false
+		}
+		qualifier, ok := fn.X.(*ast.Ident)
+		if !ok {
+			return false
+		}
+		return trustedPackage(imports, qualifier.Name, atomsImportPath) || trustedPackage(imports, qualifier.Name, moleculesImportPath)
+	case *ast.Ident:
+		return dangerousKinds[fn.Name] && (pkgName == "atoms" || pkgName == "molecules")
+	}
+	return false
+}
+
+// findUnsafeCalls walks root for any call that is either unprovable
+// (isUnprovableCall) or a dangerous construction (isDangerousCall) that
+// fails safeComponentCall, and reports whether it found at least one.
+func findUnsafeCalls(root ast.Node, imports map[string]string, pkgName string) bool {
+	unsafe := false
+	ast.Inspect(root, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		if isUnprovableCall(call) {
+			unsafe = true
+			return true
+		}
+		if isDangerousCall(call, imports, pkgName) && !safeComponentCall(call, imports) {
+			unsafe = true
+		}
+		return true
+	})
+	return unsafe
+}
+
+// packageName extracts a templ or Go file's own package name from its
+// source text (the first "package X" line), for isDangerousCall's
+// same-package-forwarding check. An absent or unparseable package clause
+// yields "", which isDangerousCall's bare-Ident branch never matches --
+// fail-closed in the sense that it narrows what counts as dangerous,
+// consistent with isDangerousCall's purpose of avoiding false positives on
+// code with no real relationship to atoms/molecules.
+var packageClauseRe = regexp.MustCompile(`(?m)^\s*package\s+(\w+)`)
+
+func packageName(source string) string {
+	m := packageClauseRe.FindStringSubmatch(source)
+	if m == nil {
+		return ""
+	}
+	return m[1]
+}
+
 // Check fails closed on dynamic classes, attribute spreads, and unresolved props.
 func Check(source string) ([]Violation, error) {
 	return CheckPath(source, "", nil)
@@ -94,13 +182,18 @@ func CheckGoFile(source, path string) ([]Violation, error) {
 			delete(imports, name)
 		}
 	}
+	pkgName := ""
+	if file.Name != nil {
+		pkgName = file.Name.Name
+	}
 	var violations []Violation
 	ast.Inspect(file, func(n ast.Node) bool {
 		call, ok := n.(*ast.CallExpr)
-		if !ok || !dangerousKinds[callKindName(call)] {
+		if !ok {
 			return true
 		}
-		if !safeComponentCall(call, imports) {
+		unsafe := isUnprovableCall(call) || (isDangerousCall(call, imports, pkgName) && !safeComponentCall(call, imports))
+		if unsafe {
 			violations = append(violations, Violation{uint32(fset.Position(call.Pos()).Line), "unbounded or unresolved action component built in Go code"})
 		}
 		return true
@@ -116,6 +209,7 @@ func CheckPath(source, path string, exceptions []Exception) ([]Violation, error)
 	}
 	imports := resolveImports(source)
 	revokeShadowedTrust(file, imports)
+	pkgName := packageName(source)
 	var violations []Violation
 	matches := make([]int, len(exceptions))
 	v := visitor.New()
@@ -146,7 +240,7 @@ func CheckPath(source, path string, exceptions []Exception) ([]Violation, error)
 		expr, err := parser.ParseExpr(call.Expression.Value)
 		if err != nil {
 			violations = append(violations, Violation{call.Range.From.Line + 1, "unsupported component expression"})
-		} else if !safeComponent(expr, imports) {
+		} else if !safeComponent(expr, imports, pkgName) {
 			violations = append(violations, Violation{call.Range.From.Line + 1, "unbounded or unresolved action component"})
 		}
 		return visitCall(call)
@@ -158,14 +252,14 @@ func CheckPath(source, path string, exceptions []Exception) ([]Violation, error)
 	// so that path cannot bypass the Class/Attrs checks.
 	visitGoCode := v.GoCode
 	v.GoCode = func(code *templparser.GoCode) error {
-		if unsafe := scanStatements(code.Expression.Value, imports); unsafe {
+		if unsafe := scanStatements(code.Expression.Value, imports, pkgName); unsafe {
 			violations = append(violations, Violation{code.Range.From.Line + 1, "unbounded or unresolved action component built in Go code"})
 		}
 		return visitGoCode(code)
 	}
 	visitFileGo := v.TemplateFileGoExpression
 	v.TemplateFileGoExpression = func(code *templparser.TemplateFileGoExpression) error {
-		if unsafe := scanDecls(code.Expression.Value, imports); unsafe {
+		if unsafe := scanDecls(code.Expression.Value, imports, pkgName); unsafe {
 			violations = append(violations, Violation{code.Expression.Range.From.Line + 1, "unbounded or unresolved action component built in Go code"})
 		}
 		return visitFileGo(code)
@@ -382,46 +476,25 @@ func trustedPackage(imports map[string]string, ident, wantPath string) bool {
 // constructor that safeComponent would reject. A code block that fails to
 // parse this way is not flagged (it is not valid standalone Go), consistent
 // with the rest of this checker only acting on syntax it can parse.
-func scanStatements(code string, imports map[string]string) bool {
-	return scanGoSource("package p\nfunc _() {\n"+code+"\n}\n", imports)
+func scanStatements(code string, imports map[string]string, pkgName string) bool {
+	return scanGoSource("package p\nfunc _() {\n"+code+"\n}\n", imports, pkgName)
 }
 
 // scanDecls parses code as top-level declarations (the shape of Go source
 // outside any templ block: imports, types, plain functions) and reports
 // whether it contains a call to a dangerousKinds constructor that
 // safeComponent would reject.
-func scanDecls(code string, imports map[string]string) bool {
-	return scanGoSource("package p\n"+code+"\n", imports)
+func scanDecls(code string, imports map[string]string, pkgName string) bool {
+	return scanGoSource("package p\n"+code+"\n", imports, pkgName)
 }
 
-func scanGoSource(wrapped string, imports map[string]string) bool {
+func scanGoSource(wrapped string, imports map[string]string, pkgName string) bool {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "", wrapped, 0)
 	if err != nil {
 		return false
 	}
-	unsafe := false
-	ast.Inspect(file, func(n ast.Node) bool {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
-			return true
-		}
-		var kind string
-		switch fn := call.Fun.(type) {
-		case *ast.SelectorExpr:
-			kind = fn.Sel.Name
-		case *ast.Ident:
-			kind = fn.Name
-		}
-		if !dangerousKinds[kind] {
-			return true
-		}
-		if !safeComponent(call, imports) {
-			unsafe = true
-		}
-		return true
-	})
-	return unsafe
+	return findUnsafeCalls(file, imports, pkgName)
 }
 
 // VerifyTemplUniqueness fails if any type other than actionattrs.Safe
@@ -457,6 +530,17 @@ func VerifyTemplUniqueness(root string) error {
 		// trick above) can just as easily be declared inside a function body
 		// as at package level, and would be invisible to safeAttrs' identical
 		// trust either way.
+		hasTemplField := func(struct_ *ast.StructType) bool {
+			for _, field := range struct_.Fields.List {
+				for _, name := range field.Names {
+					if name.Name == "Templ" {
+						return true
+					}
+				}
+			}
+			return false
+		}
+		namedStructs := map[*ast.StructType]bool{}
 		ast.Inspect(src, func(n ast.Node) bool {
 			switch node := n.(type) {
 			case *ast.FuncDecl:
@@ -468,12 +552,25 @@ func VerifyTemplUniqueness(root string) error {
 				if !ok {
 					return true
 				}
-				for _, field := range struct_.Fields.List {
-					for _, name := range field.Names {
-						if name.Name == "Templ" {
-							found = append(found, fmt.Sprintf("%s: field on %s", path, node.Name.Name))
-						}
-					}
+				// Recorded here, by pointer, so the generic *ast.StructType case
+				// below (which ast.Inspect will also visit, as this node's
+				// child) does not count the same named struct a second time.
+				namedStructs[struct_] = true
+				if hasTemplField(struct_) {
+					found = append(found, fmt.Sprintf("%s: field on %s", path, node.Name.Name))
+				}
+			case *ast.StructType:
+				// Matched directly, not only through a wrapping *ast.TypeSpec:
+				// an anonymous struct type (`struct{ Templ func() templ.Attributes }`
+				// used inline in a var or composite literal, with no `type X
+				// struct` declaration at all) has no TypeSpec to match the case
+				// above, but is callable with the exact same x.Templ() syntax
+				// safeAttrs trusts.
+				if namedStructs[node] {
+					return true
+				}
+				if hasTemplField(node) {
+					found = append(found, fmt.Sprintf("%s: field on an anonymous struct", path))
 				}
 			}
 			return true
@@ -672,7 +769,7 @@ func safeClassExpr(expr ast.Expr, requireBoundary bool, imports map[string]strin
 // and each one is required to pass safeComponentCall. Only an unrecognized
 // wrapper call with no such nested construction anywhere inside it is
 // trusted, the same as an unrecognized bare call always was.
-func safeComponent(expr ast.Expr, imports map[string]string) bool {
+func safeComponent(expr ast.Expr, imports map[string]string, pkgName string) bool {
 	if !containsCall(expr) {
 		switch expr.(type) {
 		case *ast.Ident, *ast.SelectorExpr, *ast.IndexExpr, *ast.StarExpr, *ast.TypeAssertExpr:
@@ -680,21 +777,17 @@ func safeComponent(expr ast.Expr, imports map[string]string) bool {
 		}
 		return false
 	}
-	safe := true
-	ast.Inspect(expr, func(n ast.Node) bool {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
-			return true
-		}
-		if !dangerousKinds[callKindName(call)] {
-			return true
-		}
-		if !safeComponentCall(call, imports) {
-			safe = false
-		}
-		return true
-	})
-	return safe
+	// The expression actually being rendered via `@` is held to the strict,
+	// name-only rule regardless of package: if it is shaped like one of
+	// dangerousKinds at all, it must pass safeComponentCall, so an
+	// aliased/untrusted/wrong-package call at exactly this position is a
+	// violation, not silently out of scope (unlike a buried nested call
+	// found below, which uses the package-verified isDangerousCall
+	// specifically to avoid flagging unrelated code -- see its doc comment).
+	if call, ok := expr.(*ast.CallExpr); ok && dangerousKinds[callKindName(call)] && !safeComponentCall(call, imports) {
+		return false
+	}
+	return !findUnsafeCalls(expr, imports, pkgName)
 }
 
 func containsCall(expr ast.Expr) bool {

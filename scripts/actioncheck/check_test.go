@@ -631,3 +631,114 @@ templ Demo(extra templ.Attributes) {
 		t.Fatal("a local shadow of a non-default actionattrs import alias must not be trusted")
 	}
 }
+
+// TestVerifyTemplUniquenessRejectsAnonymousStructField regresses a bug
+// found in adversarial review: a struct literal type with no `type X
+// struct` declaration at all (`struct{ Templ func() templ.Attributes }`
+// used directly in a var or composite literal) has no *ast.TypeSpec, so
+// the TypeSpec-only scan missed it entirely, even though it is callable
+// with the exact same x.Templ() syntax safeAttrs trusts.
+func TestVerifyTemplUniquenessRejectsAnonymousStructField(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(root+"/components/actionattrs", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(root+"/components/actionattrs/actionattrs.go", []byte("package actionattrs\ntype Safe struct{}\nfunc (s Safe) Templ() string { return \"\" }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(root+"/evil.go", []byte(`package evil
+
+func build() any {
+	return struct {
+		Templ func() string
+	}{Templ: func() string { return "style=\"display:none\"" }}
+}
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyTemplUniqueness(root); err == nil {
+		t.Fatal("an anonymous struct literal's field literally named Templ must still fail VerifyTemplUniqueness")
+	}
+}
+
+// TestCheckGoFileIgnoresUnrelatedSameNamedMethod regresses a false positive
+// found in adversarial review: dangerousKinds matched by name alone, so an
+// entirely unrelated type's own Button() method (returning an int, say, for
+// a gamepad button index) was treated as a candidate atoms.Button call and
+// flagged, because it could never satisfy safeComponentCall's shape. A
+// same-named call is only in scope when its package qualifier actually
+// resolves to atoms or molecules.
+func TestCheckGoFileIgnoresUnrelatedSameNamedMethod(t *testing.T) {
+	source := `package input
+
+type Device struct{}
+
+func (d Device) Button() int { return 0 }
+
+func read(d Device) int {
+	return d.Button()
+}
+`
+	got, err := CheckGoFile(source, "internal/web/input/device.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("an unrelated Device.Button() int method must not be flagged, got %v", got)
+	}
+}
+
+// TestCheckGoFileCatchesTemplRaw and
+// TestNestedTemplRawInsideUnrecognizedWrapperIsCaught regress a bug found
+// in adversarial review: templ.Raw (and templ.ComponentFunc/FromGoHTML)
+// embeds an arbitrary string as HTML with no AST left for this checker to
+// inspect at all; a bare @icon reference could originate one of these,
+// undetected, anywhere upstream.
+func TestCheckGoFileCatchesTemplRaw(t *testing.T) {
+	source := `package molecules
+
+import "github.com/a-h/templ"
+
+func buildIcon(class string) templ.Component {
+	return templ.Raw("<a class=\"" + class + "\">click</a>")
+}
+`
+	got, err := CheckGoFile(source, "internal/web/components/molecules/helper.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 {
+		t.Fatal("templ.Raw building raw HTML in a plain .go file was not caught")
+	}
+}
+
+func TestNestedTemplRawInsideUnrecognizedWrapperIsCaught(t *testing.T) {
+	source := testImports + `
+templ Demo(class string) {
+	@organisms.Something(templ.Raw("<a class=\"" + class + "\">click</a>"))
+}
+`
+	got, err := Check(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 {
+		t.Fatal("templ.Raw nested inside an unrecognized wrapper call's arguments was not caught")
+	}
+}
+
+func TestBareTemplRawReferenceIsCaughtViaItsConstruction(t *testing.T) {
+	source := testImports + `
+templ Demo(class string) {
+	{{ icon := templ.Raw("<a class=\"" + class + "\">click</a>") }}
+	@icon
+}
+`
+	got, err := Check(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 {
+		t.Fatal("a bare @icon reference to a templ.Raw value built in the same {{ }} block was not caught")
+	}
+}
