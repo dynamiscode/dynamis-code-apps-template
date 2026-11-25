@@ -151,9 +151,13 @@ conformance test fails if the link changes.
    `CHANGELOG.md` under `## Unreleased`. When rebasing or merging `origin/main`,
    preserve all concurrent unreleased entries by keeping both sides of the
    conflict markers, ensuring no entries are dropped or duplicated.
-6. Rebase onto `origin/main` before running `make verify`. A branch cut from an
-   older `main` can miss Makefile steps that CI runs, so a local pass proves less
-   than it appears to.
+6. Rebase onto `origin/main`, commit the candidate, then run
+   `sh scripts/verify-commit.sh HEAD`. This clones the exact commit into a temporary
+   directory, runs `npm ci` and the existing `make verify` gate, and removes the
+   temporary clone. It does not include staged, unstaged, untracked, or ignored
+   files. Record the printed commit ID; rerun after any commit change. Use only
+   a development environment: checks inherit environment variables and can use
+   external services. CI remains authoritative for its additional jobs.
 
 ## Checks
 

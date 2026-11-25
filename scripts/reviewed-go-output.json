@@ -5,7 +5,7 @@
   ".github/workflows/scorecard.yml": "4bad5937df3d6f802fe2fffc44bdf2015ee132cfa0f7b1b115e67e5d0eab9ab3",
   ".github/workflows/source-security.yml": "55af64fb203896276ea987007a2e8a5e478bb18acf2cfa1266eec02bbbfc19d5",
   "Dockerfile": "f8c93a788babf1da83f6c039d7bb17bd1e1c8d268aed067856ca0b0ccb66eb31",
-  "Makefile": "8025c0d91359a50b60d6dbb80da64884b18515b78f082cb4f2bdb254bab9b203",
+  "Makefile": "1dfda44ef6ae8e0fbd0864920629f7103a530a41188a0d2d3100e4ee8dcbf4bb",
   "README.md": "a9ddaa44b05a782e1aa91f8a9a432f273e293a5b009c02d80279b2db6f17546b",
   "VERSION": "e9dd8507f4bf0c6f42458e41aea833ad0bd3f6127272335eee9bf4d58541ed67",
   "api/contract.gen.go": "a9b6990f09a9b582d13da35a0e352bdd39da66d921e06106f81d3cffb7c92535",
@@ -607,6 +607,8 @@
   "scripts/test-commit-msg-hook.sh": "ad6b2ec1869e2d1df6944bcf910478014140720744833e4937b3225236d104fc",
   "scripts/test-release-workflow-nonpublishing.sh": "90a53049108cdf693658a08d13bb74514e995f9141ceec8f87d5fd2275aa15e4",
   "scripts/test-templ-check.sh": "f56e6e70ecd34e31cccb7d0b21477b118e3062735653bcd7cc0dae1c0c907d4c",
+  "scripts/test-verify-commit.sh": "426f9a535687aef5951ddffce59e25f211b06fe65cbdb79578c434246d5f2730",
   "scripts/update-go-output-manifest/main.go": "827d226bb47544b2f95c5d558462aa568f4f8f270ac52474c4cfc0241acd8528",
+  "scripts/verify-commit.sh": "59b102db0d217779ef7f6261f01614b9480f836ac1b11091a1641b4ee0fe3274",
   "scripts/webmcp-smoke.sh": "da870f117b6d7f2bfbffb1dc2e848360c6159b9ae8285987bbf434b3b27d4fb7"
 }
