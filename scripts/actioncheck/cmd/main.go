@@ -33,26 +33,55 @@ func main() {
 		if err != nil {
 			return err
 		}
-		if entry.IsDir() || !strings.HasSuffix(path, ".templ") {
+		if entry.IsDir() {
 			return nil
 		}
-		source, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		seen[path] = true
-		violations, err := actioncheck.CheckPath(string(source), filepath.ToSlash(path), exceptions)
-		if err != nil {
-			// Report and keep walking: one file's error (an invalid exception,
-			// an unparseable expression) must not hide every later file's
-			// violations and exception-path checks behind it.
-			fmt.Fprintf(os.Stderr, "%s: %s\n", path, err)
-			failed = true
-			return nil
-		}
-		for _, violation := range violations {
-			fmt.Fprintf(os.Stderr, "%s:%d: %s\n", path, violation.Line, violation.Reason)
-			failed = true
+		// Plain .go files are scanned too (CheckGoFile), not only .templ
+		// ones: a dangerousKinds constructor can be built in an ordinary Go
+		// helper file and handed across files as a templ.Component value,
+		// which is exactly what a bare component reference elsewhere trusts
+		// (safeComponent's doc comment). Generated _templ.go files are
+		// skipped: they are templ's own compiled output of the .templ file
+		// already scanned, not a second source of truth.
+		switch {
+		case strings.HasSuffix(path, ".templ"):
+			source, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			seen[path] = true
+			violations, err := actioncheck.CheckPath(string(source), filepath.ToSlash(path), exceptions)
+			if err != nil {
+				// Report and keep walking: one file's error (an invalid
+				// exception, an unparseable expression) must not hide every
+				// later file's violations and exception-path checks behind it.
+				fmt.Fprintf(os.Stderr, "%s: %s\n", path, err)
+				failed = true
+				return nil
+			}
+			for _, violation := range violations {
+				fmt.Fprintf(os.Stderr, "%s:%d: %s\n", path, violation.Line, violation.Reason)
+				failed = true
+			}
+		case strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_templ.go") && !strings.HasSuffix(path, "_test.go"):
+			// _test.go is excluded: test files deliberately construct both
+			// safe and rejected-at-runtime inputs to exercise actionattrs'
+			// own panics (see button_test.go), and are never rendered in
+			// production.
+			source, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			violations, err := actioncheck.CheckGoFile(string(source), path)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %s\n", path, err)
+				failed = true
+				return nil
+			}
+			for _, violation := range violations {
+				fmt.Fprintf(os.Stderr, "%s:%d: %s\n", path, violation.Line, violation.Reason)
+				failed = true
+			}
 		}
 		return nil
 	})

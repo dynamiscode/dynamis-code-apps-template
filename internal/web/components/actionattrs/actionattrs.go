@@ -21,6 +21,13 @@ import (
 // purpose: those must stay with the component, not the caller. A key alone
 // is not enough for href and onclick, whose VALUE also controls behavior;
 // valueCheckers below additionally constrains those two.
+// "class" and "style" are deliberately absent and always panic: they are
+// exactly the two attributes that can hide or restyle an action control the
+// same way an unbounded Class string can (style="display:none" is
+// equivalent to removing the "btn"/"border" boundary class). This is not an
+// oversight; no caller should route either through Attrs. A caller that
+// needs a visual variant has Class for exactly that purpose, checked
+// separately by scripts/actioncheck.
 var allowed = map[string]bool{
 	// href is allowed, value-checked below, because this codebase routes
 	// some anchor targets through Attrs instead of a dedicated Href field
@@ -45,6 +52,13 @@ var allowed = map[string]bool{
 	"data-webmcp-export":   true,
 	"aria-describedby":     true,
 	"hx-sync":              true,
+	// title and download are plain, non-executable HTML attribute values
+	// (a tooltip, a save-as filename hint); templ escapes attribute values,
+	// so neither carries a script-injection or style-override risk the way
+	// class/style/onclick/href do. Several real callers already route
+	// title through a Dropdown's SummaryAttrs.
+	"title":    true,
+	"download": true,
 	// onclick is allowed, value-checked below to the one fixed shape this
 	// codebase uses (the time-slot picker's modal trigger).
 	"onclick":      true,
@@ -84,8 +98,43 @@ var hrefSchemePattern = regexp.MustCompile(`(?i)^[a-z][a-z0-9+.-]*:`)
 // ("/\evil.com", "\\evil.com"), which several browsers normalize to the
 // same thing. A backslash anywhere else in the value is also rejected,
 // since it serves no legitimate purpose in a path this codebase builds.
-func validHref(s string) bool {
-	if s == "" || strings.HasPrefix(s, "#") || strings.HasPrefix(s, "?") {
+// normalizeHref mirrors the WHATWG URL parser's own input-cleanup steps
+// (https://url.spec.whatwg.org/#concept-basic-url-parser): remove every
+// ASCII tab or newline anywhere in the string, then trim leading and
+// trailing C0 controls (U+0000-U+001F) and space. Browsers apply this
+// before looking at the scheme, so "jav\tascript:" and " //evil.com" (a
+// leading space) are indistinguishable from "javascript:" and "//evil.com"
+// at the point a browser actually navigates; validating the raw string
+// without this step lets either hide a scheme or a protocol-relative
+// prefix from the checks below.
+func normalizeHref(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if r == '\t' || r == '\n' || r == '\r' {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	cleaned := b.String()
+	isTrimmed := func(r rune) bool { return r <= ' ' }
+	return strings.TrimFunc(cleaned, isTrimmed)
+}
+
+func validHref(raw string) bool {
+	s := normalizeHref(raw)
+	if s == "" {
+		return true
+	}
+	// Any remaining C0 control character is rejected outright: it serves no
+	// legitimate purpose in a path/URL this codebase builds, and is exactly
+	// the kind of byte real-world scheme/host obfuscation tricks rely on.
+	for _, r := range s {
+		if r < 0x20 {
+			return false
+		}
+	}
+	if strings.HasPrefix(s, "#") || strings.HasPrefix(s, "?") {
 		return true
 	}
 	if strings.HasPrefix(s, "/") {

@@ -57,6 +57,57 @@ func Check(source string) ([]Violation, error) {
 	return CheckPath(source, "", nil)
 }
 
+// CheckGoFile reports dangerousKinds constructions in a plain .go file (not
+// a .templ file). CheckPath only ever sees one .templ file's own Go-like
+// text; a plain .go helper -- for example a file alongside a .templ one in
+// the same package, building and returning a templ.Component -- is never
+// scanned at all unless something calls CheckGoFile on it too, yet its
+// result can flow into any .templ file's bare component reference
+// (safeComponent's doc comment) exactly as if it had been built in that
+// file's own {{ }} block.
+func CheckGoFile(source, path string) ([]Violation, error) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, path, source, 0)
+	if err != nil {
+		return nil, err
+	}
+	imports := map[string]string{}
+	for _, imp := range file.Imports {
+		path, err := strconv.Unquote(imp.Path.Value)
+		if err != nil {
+			continue
+		}
+		name := ""
+		if imp.Name != nil {
+			name = imp.Name.Name
+		} else {
+			segments := strings.Split(path, "/")
+			name = segments[len(segments)-1]
+		}
+		if name == "_" || name == "." {
+			continue
+		}
+		imports[name] = path
+	}
+	if names := trustedIdents(imports); len(names) > 0 && astDeclaresAnyName(file, names) {
+		for name := range names {
+			delete(imports, name)
+		}
+	}
+	var violations []Violation
+	ast.Inspect(file, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok || !dangerousKinds[callKindName(call)] {
+			return true
+		}
+		if !safeComponentCall(call, imports) {
+			violations = append(violations, Violation{uint32(fset.Position(call.Pos()).Line), "unbounded or unresolved action component built in Go code"})
+		}
+		return true
+	})
+	return violations, nil
+}
+
 // CheckPath accepts only exact, uniquely occurring opening tags in the named file.
 func CheckPath(source, path string, exceptions []Exception) ([]Violation, error) {
 	file, err := templparser.ParseString(source)
@@ -175,112 +226,139 @@ func addImport(imports map[string]string, line string) {
 	imports[name] = path
 }
 
-// reservedNames are the package qualifiers safeComponent/safeAttrs place
-// trust in. revokeShadowedTrust makes sure a local binding never gets that
-// trust by reusing one of these names.
-var reservedNames = map[string]bool{"actionattrs": true, "atoms": true, "molecules": true}
+// trustedPaths are the import paths safeComponent/safeAttrs place trust in,
+// whatever local identifier a file imports them under.
+var trustedPaths = map[string]bool{actionattrsImportPath: true, atomsImportPath: true, moleculesImportPath: true}
 
-// revokeShadowedTrust deletes any reservedNames entry from imports that this
-// file also declares as a local variable, range variable, or function
-// parameter anywhere -- a templ function parameter, a `{{ }}` block's `:=`,
-// or a top-level var/const/type/func. Go's own scoping would let such a
-// local binding shadow the package import within its block; this checker
-// has no per-scope resolution to tell a shadowed use from a real one, so it
-// fails closed for the whole file instead: once a file declares a local
-// named "actionattrs" (or "atoms"/"molecules") anywhere, nothing in that
-// file gets the corresponding package's trust, even outside that binding's
-// real scope. Legitimate code has no reason to name a local that way.
+// trustedIdents returns the set of local identifiers that, in this file's
+// own imports, resolve to one of trustedPaths -- not a fixed guess like
+// {"actionattrs", "atoms", "molecules"}, which would miss a file that
+// imports the real package under a different alias (`import aa
+// "...actionattrs"`) and would then fail to notice a local shadow of "aa"
+// specifically.
+func trustedIdents(imports map[string]string) map[string]bool {
+	idents := map[string]bool{}
+	for name, path := range imports {
+		if trustedPaths[path] {
+			idents[name] = true
+		}
+	}
+	return idents
+}
+
+// revokeShadowedTrust deletes every entry of imports resolving to a
+// trustedPaths package (see trustedIdents) that this file also declares as
+// a local variable, range variable, or function parameter anywhere -- a
+// templ function parameter, a `{{ }}` block's `:=`, or a top-level
+// var/const/type/func. Go's own scoping would let such a local binding
+// shadow the package import within its block; this checker has no
+// per-scope resolution to tell a shadowed use from a real one, so it fails
+// closed for the whole file instead: once a file declares a local reusing
+// one of its own trusted import names anywhere, nothing in that file gets
+// the corresponding package's trust, even outside that binding's real
+// scope. Legitimate code has no reason to name a local that way.
 func revokeShadowedTrust(file *templparser.TemplateFile, imports map[string]string) {
+	names := trustedIdents(imports)
+	if len(names) == 0 {
+		return
+	}
+	revoke := func() {
+		for name := range names {
+			delete(imports, name)
+		}
+	}
 	v := visitor.New()
 	visitGoCode := v.GoCode
 	v.GoCode = func(code *templparser.GoCode) error {
-		if declaresReservedName("package p\nfunc _() {\n" + code.Expression.Value + "\n}\n") {
-			for name := range reservedNames {
-				delete(imports, name)
-			}
+		if declaresAnyName("package p\nfunc _() {\n"+code.Expression.Value+"\n}\n", names) {
+			revoke()
 		}
 		return visitGoCode(code)
 	}
 	visitFileGo := v.TemplateFileGoExpression
 	v.TemplateFileGoExpression = func(code *templparser.TemplateFileGoExpression) error {
-		if declaresReservedName("package p\n" + code.Expression.Value + "\n") {
-			for name := range reservedNames {
-				delete(imports, name)
-			}
+		if declaresAnyName("package p\n"+code.Expression.Value+"\n", names) {
+			revoke()
 		}
 		return visitFileGo(code)
 	}
 	visitTemplate := v.HTMLTemplate
 	v.HTMLTemplate = func(template *templparser.HTMLTemplate) error {
-		if declaresReservedName("package p\nfunc " + template.Expression.Value + " {}\n") {
-			for name := range reservedNames {
-				delete(imports, name)
-			}
+		if declaresAnyName("package p\nfunc "+template.Expression.Value+" {}\n", names) {
+			revoke()
 		}
 		return visitTemplate(template)
 	}
 	_ = file.Visit(v)
 }
 
-// declaresReservedName reports whether wrapped (already-valid Go source)
-// declares a variable, range variable, parameter, or result named
-// "actionattrs", "atoms", or "molecules" anywhere. A parse error yields
-// false, same as elsewhere in this checker.
-func declaresReservedName(wrapped string) bool {
+// declaresAnyName reports whether wrapped (already-valid Go source)
+// declares a variable, range variable, parameter, result, type, or function
+// named anything in names, anywhere -- including nested inside a function
+// body, not only at top level. A parse error yields false, same as
+// elsewhere in this checker.
+func declaresAnyName(wrapped string, names map[string]bool) bool {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "", wrapped, 0)
 	if err != nil {
 		return false
 	}
+	return astDeclaresAnyName(f, names)
+}
+
+// astDeclaresAnyName is declaresAnyName's logic over an already-parsed Go
+// AST node, reused by CheckGoFile for real .go files parsed once with
+// go/parser directly.
+func astDeclaresAnyName(root ast.Node, names map[string]bool) bool {
 	found := false
-	names := func(idents []*ast.Ident) {
-		for _, id := range idents {
-			if reservedNames[id.Name] {
+	idents := func(list []*ast.Ident) {
+		for _, id := range list {
+			if names[id.Name] {
 				found = true
 			}
 		}
 	}
-	ast.Inspect(f, func(n ast.Node) bool {
+	ast.Inspect(root, func(n ast.Node) bool {
 		switch node := n.(type) {
 		case *ast.AssignStmt:
 			if node.Tok == token.DEFINE {
 				for _, lhs := range node.Lhs {
-					if id, ok := lhs.(*ast.Ident); ok && reservedNames[id.Name] {
+					if id, ok := lhs.(*ast.Ident); ok && names[id.Name] {
 						found = true
 					}
 				}
 			}
 		case *ast.ValueSpec:
-			names(node.Names)
+			idents(node.Names)
 		case *ast.TypeSpec:
-			if reservedNames[node.Name.Name] {
+			if names[node.Name.Name] {
 				found = true
 			}
 		case *ast.FuncDecl:
-			if reservedNames[node.Name.Name] {
+			if names[node.Name.Name] {
 				found = true
 			}
 			if node.Recv != nil {
 				for _, field := range node.Recv.List {
-					names(field.Names)
+					idents(field.Names)
 				}
 			}
 			for _, field := range node.Type.Params.List {
-				names(field.Names)
+				idents(field.Names)
 			}
 			if node.Type.Results != nil {
 				for _, field := range node.Type.Results.List {
-					names(field.Names)
+					idents(field.Names)
 				}
 			}
 		case *ast.FuncLit:
 			for _, field := range node.Type.Params.List {
-				names(field.Names)
+				idents(field.Names)
 			}
 		case *ast.RangeStmt:
 			if node.Tok == token.DEFINE {
 				for _, expr := range []ast.Expr{node.Key, node.Value} {
-					if id, ok := expr.(*ast.Ident); ok && reservedNames[id.Name] {
+					if id, ok := expr.(*ast.Ident); ok && names[id.Name] {
 						found = true
 					}
 				}
@@ -374,37 +452,32 @@ func VerifyTemplUniqueness(root string) error {
 		if err != nil {
 			return nil
 		}
-		for _, decl := range src.Decls {
-			if fn, ok := decl.(*ast.FuncDecl); ok && fn.Recv != nil && fn.Name.Name == "Templ" {
-				found = append(found, fmt.Sprintf("%s: method on %s", path, recvTypeName(fn.Recv)))
-				continue
-			}
-			// A struct field of function type literally named Templ is just as
-			// trusted by safeAttrs' `<expr>.Templ()` check as a real method
-			// (the call syntax is identical), so it must count toward this
-			// same uniqueness invariant.
-			gen, ok := decl.(*ast.GenDecl)
-			if !ok {
-				continue
-			}
-			for _, spec := range gen.Specs {
-				type_, ok := spec.(*ast.TypeSpec)
-				if !ok {
-					continue
+		// ast.Inspect walks the whole file, not just its top-level
+		// declarations: a struct type (and the Templ-named field or method
+		// trick above) can just as easily be declared inside a function body
+		// as at package level, and would be invisible to safeAttrs' identical
+		// trust either way.
+		ast.Inspect(src, func(n ast.Node) bool {
+			switch node := n.(type) {
+			case *ast.FuncDecl:
+				if node.Recv != nil && node.Name.Name == "Templ" {
+					found = append(found, fmt.Sprintf("%s: method on %s", path, recvTypeName(node.Recv)))
 				}
-				struct_, ok := type_.Type.(*ast.StructType)
+			case *ast.TypeSpec:
+				struct_, ok := node.Type.(*ast.StructType)
 				if !ok {
-					continue
+					return true
 				}
 				for _, field := range struct_.Fields.List {
 					for _, name := range field.Names {
 						if name.Name == "Templ" {
-							found = append(found, fmt.Sprintf("%s: field on %s", path, type_.Name.Name))
+							found = append(found, fmt.Sprintf("%s: field on %s", path, node.Name.Name))
 						}
 					}
 				}
 			}
-		}
+			return true
+		})
 		return nil
 	})
 	if walkErr != nil {

@@ -519,3 +519,115 @@ func TestHrefAcceptsLegitimateRelative(t *testing.T) {
 		}()
 	}
 }
+
+// TestHrefRejectsControlCharacterObfuscation regresses a bug found in
+// adversarial review: a tab/newline/CR inserted inside a scheme name
+// ("jav\tascript:") defeated the scheme regex, and the value then fell
+// through to the "plain relative reference" branch and was accepted --
+// exactly the normalization a real browser performs before it ever looks at
+// the scheme (WHATWG URL spec). A leading space before "//evil.com" had the
+// same effect on the protocol-relative check.
+func TestHrefRejectsControlCharacterObfuscation(t *testing.T) {
+	for _, href := range []string{
+		"jav\tascript:alert(1)",
+		"jav\nascript:alert(1)",
+		"jav\rascript:alert(1)",
+		" //evil.com",
+		"\t//evil.com",
+	} {
+		href := href
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Fatalf("expected href %q to be rejected", href)
+				}
+			}()
+			actionattrs.New().With("href", href)
+		}()
+	}
+}
+
+// TestTypeLocalTemplFieldIsCaught regresses a bug found in adversarial
+// review: VerifyTemplUniqueness only inspected a file's top-level
+// declarations, so a struct type (and its Templ-named field) declared
+// *inside a function body* was invisible to it, even though it is callable
+// with the exact same x.Templ() syntax safeAttrs trusts.
+func TestTypeLocalTemplFieldIsCaught(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(root+"/components/actionattrs", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(root+"/components/actionattrs/actionattrs.go", []byte("package actionattrs\ntype Safe struct{}\nfunc (s Safe) Templ() string { return \"\" }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(root+"/evil.go", []byte("package evil\nfunc build() {\n\ttype Evil struct{ Templ func() string }\n\t_ = Evil{}\n}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyTemplUniqueness(root); err == nil {
+		t.Fatal("a function-local type with a field literally named Templ must still fail VerifyTemplUniqueness")
+	}
+}
+
+// TestCheckGoFileCatchesUnresolvedConstructionInAPlainGoFile regresses a
+// bug found in adversarial review: scripts/actioncheck/cmd only scanned
+// .templ files, so a dangerousKinds construction built in an ordinary .go
+// helper -- handed to a .templ file as a bare templ.Component value exactly
+// as safeComponent's doc comment describes -- was never scanned at all, in
+// any file.
+func TestCheckGoFileCatchesUnresolvedConstructionInAPlainGoFile(t *testing.T) {
+	source := `package molecules
+
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+
+func buildIcon(class string) templ.Component {
+	return atoms.Button(atoms.ButtonProps{Class: class})
+}
+`
+	got, err := CheckGoFile(source, "internal/web/components/molecules/helper.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 {
+		t.Fatal("an unresolved Button construction in a plain .go file was not caught")
+	}
+}
+
+func TestCheckGoFileAcceptsSafeConstruction(t *testing.T) {
+	source := `package molecules
+
+import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+
+func buildIcon() templ.Component {
+	return atoms.Button(atoms.ButtonProps{Class: "btn-primary"})
+}
+`
+	got, err := CheckGoFile(source, "internal/web/components/molecules/helper.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("expected a safe construction to be clean, got %v", got)
+	}
+}
+
+// TestShadowedAliasedActionattrsNameIsNotTrusted regresses a bug found in
+// adversarial review: the fixed names {"actionattrs", "atoms", "molecules"}
+// missed a file that imports the real actionattrs package under a
+// different alias ("aa") and then locally shadows that alias specifically.
+func TestShadowedAliasedActionattrsNameIsNotTrusted(t *testing.T) {
+	source := "package demo\n\n" +
+		`import aa "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"` + "\n" +
+		`import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"` + "\n" + `
+templ Demo(extra templ.Attributes) {
+	{{ aa := extra }}
+	@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Attrs: aa.From(extra)})
+}
+`
+	got, err := Check(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 {
+		t.Fatal("a local shadow of a non-default actionattrs import alias must not be trusted")
+	}
+}
