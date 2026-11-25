@@ -3,28 +3,16 @@ package catalog
 import (
 	"context"
 	"errors"
-	"os"
 	"testing"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
-	"example.com/dynamis-code/apps-template/internal/platform/database"
+	"example.com/dynamis-code/apps-template/internal/platform/testdb"
 )
 
 func TestPostgresCatalogCreateAndList(t *testing.T) {
-	url := os.Getenv("POSTGRES_TEST_URL")
-	if url == "" {
-		t.Skip("POSTGRES_TEST_URL is not set")
-	}
 	ctx := context.Background()
-	db, err := database.Open(ctx, config.Database{Driver: config.Postgres, URL: url, MaxOpenConns: 4, MaxIdleConns: 2})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	if err := database.Migrate(ctx, db, config.Postgres); err != nil {
-		t.Fatal(err)
-	}
+	db := testdb.Postgres(t)
 	auth, err := identity.NewService(db, config.Postgres)
 	if err != nil {
 		t.Fatal(err)
@@ -38,6 +26,9 @@ func TestPostgresCatalogCreateAndList(t *testing.T) {
 		t.Fatal(err)
 	}
 	service := NewService(db, auth, nil)
+	if err := service.SetCurrencies(ctx, actor, owner.WorkspaceID, []Currency{{Code: "USD", Decimals: 2, Default: true}, {Code: "BTC", Decimals: 18}}); err != nil {
+		t.Fatal(err)
+	}
 	minutes := 45
 	entry, err := service.Create(ctx, actor, owner.WorkspaceID, "Consultation", &minutes, testPrices())
 	if err != nil {

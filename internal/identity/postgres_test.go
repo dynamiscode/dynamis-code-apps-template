@@ -11,25 +11,12 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
+	"example.com/dynamis-code/apps-template/internal/platform/testdb"
 )
 
 func TestPostgresIdentityLifecycle(t *testing.T) {
-	databaseURL := os.Getenv("POSTGRES_TEST_URL")
-	if databaseURL == "" {
-		t.Skip("POSTGRES_TEST_URL is not set")
-	}
 	ctx := context.Background()
-	db, err := database.Open(ctx, config.Database{
-		Driver: config.Postgres, URL: databaseURL,
-		MaxOpenConns: 4, MaxIdleConns: 2,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { db.Close() })
-	if err := database.Migrate(ctx, db, config.Postgres); err != nil {
-		t.Fatal(err)
-	}
+	db := testdb.Postgres(t)
 	service, err := NewService(db, config.Postgres)
 	if err != nil {
 		t.Fatal(err)

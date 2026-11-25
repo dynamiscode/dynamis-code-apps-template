@@ -2,28 +2,16 @@ package scheduling
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
-	"example.com/dynamis-code/apps-template/internal/platform/database"
+	"example.com/dynamis-code/apps-template/internal/platform/testdb"
 )
 
 func TestPostgresResources(t *testing.T) {
-	url := os.Getenv("POSTGRES_TEST_URL")
-	if url == "" {
-		t.Skip("POSTGRES_TEST_URL is not set")
-	}
 	ctx := context.Background()
-	db, err := database.Open(ctx, config.Database{Driver: config.Postgres, URL: url, MaxOpenConns: 4, MaxIdleConns: 2})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	if err := database.Migrate(ctx, db, config.Postgres); err != nil {
-		t.Fatal(err)
-	}
+	db := testdb.Postgres(t)
 	auth, err := identity.NewService(db, config.Postgres)
 	if err != nil {
 		t.Fatal(err)
