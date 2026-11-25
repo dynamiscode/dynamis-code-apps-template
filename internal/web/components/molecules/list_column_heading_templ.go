@@ -10,6 +10,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 func ClientColumnLabel(data viewmodel.PageData, column viewmodel.ListColumn) templ.Component {
@@ -33,7 +34,7 @@ func ClientColumnLabel(data viewmodel.PageData, column viewmodel.ListColumn) tem
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(data.T(column.LabelKey))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_column_heading.templ`, Line: 9, Col: 27}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/molecules/list_column_heading.templ`, Line: 10, Col: 27}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -43,7 +44,7 @@ func ClientColumnLabel(data viewmodel.PageData, column viewmodel.ListColumn) tem
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(column.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_column_heading.templ`, Line: 11, Col: 16}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/molecules/list_column_heading.templ`, Line: 12, Col: 16}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -79,7 +80,7 @@ func ClientColumnHeading(data viewmodel.PageData, column viewmodel.ListColumn) t
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templruntime.NewAttributeExpression(column.Key).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_column_heading.templ`, Line: 18, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/molecules/list_column_heading.templ`, Line: 19, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
@@ -92,7 +93,7 @@ func ClientColumnHeading(data viewmodel.PageData, column viewmodel.ListColumn) t
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templruntime.NewAttributeExpression(column.SortDirection).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_column_heading.templ`, Line: 18, Col: 77}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/molecules/list_column_heading.templ`, Line: 19, Col: 77}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 			if templ_7745c5c3_Err != nil {
@@ -114,7 +115,7 @@ func ClientColumnHeading(data viewmodel.PageData, column viewmodel.ListColumn) t
 					var templ_7745c5c3_Var7 string
 					templ_7745c5c3_Var7, templ_7745c5c3_Err = templruntime.NewAttributeExpression(column.SortHref).ResolveURL(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_column_heading.templ`, Line: 20, Col: 79}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/molecules/list_column_heading.templ`, Line: 21, Col: 79}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 					if templ_7745c5c3_Err != nil {
@@ -124,7 +125,7 @@ func ClientColumnHeading(data viewmodel.PageData, column viewmodel.ListColumn) t
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "a", ListLiveLinkAttributes(data, column.SortHref))
+					templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "a", actionattrs.From(ListLiveLinkAttributes(data, column.SortHref)))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -168,7 +169,7 @@ func ClientColumnHeading(data viewmodel.PageData, column viewmodel.ListColumn) t
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templruntime.NewAttributeExpression(column.Key).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_column_heading.templ`, Line: 26, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/molecules/list_column_heading.templ`, Line: 27, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 			if templ_7745c5c3_Err != nil {
@@ -190,7 +191,7 @@ func ClientColumnHeading(data viewmodel.PageData, column viewmodel.ListColumn) t
 					var templ_7745c5c3_Var9 string
 					templ_7745c5c3_Var9, templ_7745c5c3_Err = templruntime.NewAttributeExpression(column.SortHref).ResolveURL(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_column_heading.templ`, Line: 28, Col: 79}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/molecules/list_column_heading.templ`, Line: 29, Col: 79}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 					if templ_7745c5c3_Err != nil {
@@ -200,7 +201,7 @@ func ClientColumnHeading(data viewmodel.PageData, column viewmodel.ListColumn) t
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "a", ListLiveLinkAttributes(data, column.SortHref))
+					templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "a", actionattrs.From(ListLiveLinkAttributes(data, column.SortHref)))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
