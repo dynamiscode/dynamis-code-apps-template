@@ -9,6 +9,7 @@
 package actionattrs
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -342,65 +343,96 @@ func LinkClass(value string) string {
 // render with no call syntax at all) to be wrapped in a call to Scanned;
 // see safeComponent's doc comment.
 //
-// Scanned streams: it reads the slot's output one HTML token at a time
-// (through an io.Pipe feeding an html.Tokenizer) and forwards each token's
-// exact original bytes to w immediately after validating it, rather than
-// buffering the whole slot before writing anything. Memory held at any
-// moment is bounded by one token, not by the slot's total output size,
-// which matters for a slot that is itself a whole list or page section
-// (list_screen.templ's results/body) and for Scanned wrapping Scanned
-// (each layer adds only its own one-token overhead, not another full
-// copy). It also means a child render that fails partway through still
-// has its already-validated prefix reach w before the error is returned:
-// that prefix was independently verified safe token by token, so holding
-// it back would not make the result any safer, only incomplete in a
-// different way. ctx is checked between tokens so a cancelled request
-// stops reading and writing promptly instead of finishing an arbitrarily
-// large slot first; the underlying render is unblocked by closing the
-// pipe out from under it; see Scanned's test for both of these.
+// Scanned fully buffers the slot's rendered output before validating or
+// writing any of it. An earlier, streaming version of this function
+// (reading one HTML token at a time through a goroutine and an io.Pipe)
+// was reviewed and found to have several real, separately-discovered
+// concurrency bugs: a panic inside the render goroutine crashed the whole
+// process instead of propagating to the caller; a cancelled context could
+// not actually interrupt a blocked tokenizer.Next() call (the renderer
+// goroutine has no reason to stop, since ordinary templ-generated code
+// does not check ctx between every write, so cancellation silently did
+// nothing and the render could still "succeed"); a token cut off mid-way
+// by an error was partly consumed by the tokenizer but never written out
+// (neither validated nor forwarded, nor accounted for); and a short write
+// (an io.Writer returning fewer bytes than requested with a nil error)
+// went undetected. Each fix for one of these introduced a new way to get
+// another one wrong. None of that complexity is load-bearing: a plain,
+// synchronous, non-concurrent implementation has none of these failure
+// modes by construction. It has no goroutine, so a panic propagates to
+// the caller normally. It checks ctx at its two real decision points
+// (before rendering, and before writing) instead of pretending it can
+// interrupt code it does not control mid-flight. It only tokenizes a
+// complete, fully-rendered buffer, so there is no such thing as a token
+// cut off mid-stream. And it checks the byte count from its one Write
+// call for a short write.
+//
+// The real, known cost of this choice: Scanned holds a slot's entire
+// rendered output in memory before writing any of it, proportional to
+// that slot's size, not to the size of one HTML token. A slot that
+// renders a single icon, badge, table row, or page section pays an
+// acceptable, small cost. A slot built to render an unbounded or very
+// large amount of content in one call would hold all of it in memory at
+// once; Scanned is not the right tool for such a slot. None of the real
+// call sites in this codebase construct one: list_screen.templ's
+// results/body/tools/extras are each one already-paginated page of list
+// content, not an unbounded stream, and wrapping them does not change how
+// this codebase's SSE/htmx partial-swap list updates behave -- those
+// still replace one bounded page of rows at a time, the same bounded
+// case Scanned already handles acceptably.
 func Scanned(c templ.Component) templ.Component {
 	if c == nil {
 		return c
 	}
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		pipeReader, pipeWriter := io.Pipe()
-		renderDone := make(chan error, 1)
-		go func() {
-			err := c.Render(ctx, pipeWriter)
-			renderDone <- err
-			pipeWriter.CloseWithError(err)
-		}()
-		tokenizer := html.NewTokenizer(pipeReader)
-		for {
-			if err := ctx.Err(); err != nil {
-				pipeReader.CloseWithError(err)
-				<-renderDone
-				return err
-			}
-			tt := tokenizer.Next()
-			if tt == html.ErrorToken {
-				if err := tokenizer.Err(); err != nil && err != io.EOF {
-					pipeReader.CloseWithError(err)
-					<-renderDone
-					return err
-				}
-				break
-			}
-			if tt == html.StartTagToken || tt == html.SelfClosingTagToken {
-				if err := checkTagToken(tokenizer); err != nil {
-					pipeReader.CloseWithError(err)
-					<-renderDone
-					panic("actionattrs: " + err.Error())
-				}
-			}
-			if _, err := w.Write(tokenizer.Raw()); err != nil {
-				pipeReader.CloseWithError(err)
-				<-renderDone
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		var buf bytes.Buffer
+		if err := c.Render(ctx, &buf); err != nil {
+			// Deliberate: nothing is written, not even whatever prefix
+			// rendered before the error. The slot never finished, so this
+			// check never saw the complete output and cannot rule out that
+			// the unseen rest would have contained something unsafe; writing
+			// a partial, unvalidated prefix would defeat the point of this
+			// guard.
+			return err
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err := scanRenderedHTML(buf.Bytes()); err != nil {
+			panic("actionattrs: " + err.Error())
+		}
+		n, err := w.Write(buf.Bytes())
+		if err != nil {
+			return err
+		}
+		if n < buf.Len() {
+			return io.ErrShortWrite
+		}
+		return nil
+	})
+}
+
+// scanRenderedHTML parses the fully-rendered buffer and checks every <a>
+// or <button> element it contains against the boundary/override-token
+// rule described on Scanned. The whole buffer is already in memory, so
+// reaching the tokenizer's end-of-input is always a clean, complete parse,
+// never a stream being cut off partway through a token.
+func scanRenderedHTML(rendered []byte) error {
+	tokenizer := html.NewTokenizer(bytes.NewReader(rendered))
+	for {
+		tt := tokenizer.Next()
+		if tt == html.ErrorToken {
+			return nil
+		}
+		if tt == html.StartTagToken || tt == html.SelfClosingTagToken {
+			if err := checkTagToken(tokenizer); err != nil {
 				return err
 			}
 		}
-		return <-renderDone
-	})
+	}
 }
 
 // checkTagToken checks the current <a> or <button> start/self-closing tag

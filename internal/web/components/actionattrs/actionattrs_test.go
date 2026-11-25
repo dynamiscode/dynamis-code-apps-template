@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/a-h/templ"
 )
@@ -149,75 +148,30 @@ func TestScannedPassesThroughNil(t *testing.T) {
 	}
 }
 
-// blockingComponent writes first, then waits for either resume to be
-// closed (continuing with second) or ctx to be cancelled.
-type blockingComponent struct {
-	first, second string
-	resume        chan struct{}
+// panicComponent panics instead of rendering.
+type panicComponent struct{ msg string }
+
+func (p panicComponent) Render(context.Context, io.Writer) error {
+	panic(p.msg)
 }
 
-func (b blockingComponent) Render(ctx context.Context, w io.Writer) error {
-	if _, err := io.WriteString(w, b.first); err != nil {
-		return err
-	}
-	select {
-	case <-b.resume:
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-	_, err := io.WriteString(w, b.second)
-	return err
-}
-
-// TestScannedStreamsWithoutBufferingWholeSlot regresses a functional
-// review finding: Scanned used to render the whole slot into a
-// bytes.Buffer before validating or writing anything, so a large slot (a
-// whole list's results, not a single row) held its entire output in
-// memory at once and never streamed. Scanned now forwards each validated
-// HTML token as soon as it is read, so the first chunk of a slot that
-// blocks partway through must reach the real writer before that slot
-// finishes rendering, not after.
-func TestScannedStreamsWithoutBufferingWholeSlot(t *testing.T) {
-	resume := make(chan struct{})
-	comp := blockingComponent{first: `<svg class="icon"></svg>`, second: `<span>done</span>`, resume: resume}
-	pr, pw := io.Pipe()
-	renderDone := make(chan error, 1)
-	go func() {
-		err := Scanned(comp).Render(context.Background(), pw)
-		pw.CloseWithError(err)
-		renderDone <- err
-	}()
-	readFirst := make(chan []byte, 1)
-	readErr := make(chan error, 1)
-	go func() {
-		buf := make([]byte, len(comp.first))
-		if _, err := io.ReadFull(pr, buf); err != nil {
-			readErr <- err
-			return
+// TestScannedChildPanicPropagatesToCaller regresses a functional review
+// finding specific to the (reverted) streaming implementation: it ran the
+// child's Render in its own goroutine, so a panic there crashed the whole
+// process instead of reaching any recover() in the caller's goroutine.
+// This synchronous implementation calls Render directly, so a panic
+// propagates exactly like any other panic in a normal function call: it is
+// recoverable by the caller.
+func TestScannedChildPanicPropagatesToCaller(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r != "deliberate panic" {
+			t.Fatalf("expected to recover the child's own panic in this goroutine, got %v", r)
 		}
-		readFirst <- buf
 	}()
-	select {
-	case buf := <-readFirst:
-		if string(buf) != comp.first {
-			t.Fatalf("got %q, want %q", buf, comp.first)
-		}
-	case err := <-readErr:
-		t.Fatalf("reading the first chunk failed: %v", err)
-	case <-time.After(2 * time.Second):
-		t.Fatal("Scanned did not forward the first token before the blocked component finished: it is buffering the whole slot instead of streaming")
-	}
-	close(resume)
-	rest, err := io.ReadAll(pr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(rest), "done") {
-		t.Fatalf("missing the rest of the output: %q", rest)
-	}
-	if err := <-renderDone; err != nil {
-		t.Fatal(err)
-	}
+	var buf bytes.Buffer
+	_ = Scanned(panicComponent{msg: "deliberate panic"}).Render(context.Background(), &buf)
+	t.Fatal("expected Render to panic")
 }
 
 // errThenComponent writes prefix, then fails with err without closing its
@@ -234,15 +188,16 @@ func (e errThenComponent) Render(_ context.Context, w io.Writer) error {
 	return e.err
 }
 
-// TestScannedPreservesValidatedPrefixOnChildError regresses a functional
-// review finding: the previous buffer-everything-then-write
-// implementation discarded a child's entire output, including the part
-// already produced before it failed, instead of the already-validated
-// prefix reaching the caller. That prefix was independently validated
-// token by token as it streamed through, so there is nothing unsafe about
-// forwarding it; this is a deliberate, documented behavior (see Scanned's
-// doc comment), not an oversight.
-func TestScannedPreservesValidatedPrefixOnChildError(t *testing.T) {
+// TestScannedWritesNothingOnChildError regresses a functional review
+// finding specific to the (reverted) streaming implementation: a token
+// partially consumed by the tokenizer when the underlying stream ended in
+// an error was silently discarded -- neither validated nor forwarded, nor
+// accounted for in the returned error. This implementation only ever
+// tokenizes a complete, fully-rendered buffer, so that failure mode does
+// not exist; a child that fails partway through writes nothing at all
+// (see Scanned's doc comment for why that is deliberate, not merely
+// convenient).
+func TestScannedWritesNothingOnChildError(t *testing.T) {
 	wantErr := errors.New("boom")
 	comp := errThenComponent{prefix: `<svg class="icon"></svg>`, err: wantErr}
 	var buf bytes.Buffer
@@ -250,43 +205,92 @@ func TestScannedPreservesValidatedPrefixOnChildError(t *testing.T) {
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("got err %v, want %v", err, wantErr)
 	}
-	if !strings.Contains(buf.String(), "<svg") {
-		t.Fatalf("expected the validated prefix to have reached the writer before the error, got %q", buf.String())
+	if buf.Len() != 0 {
+		t.Fatalf("expected nothing to be written when the child errors, got %q", buf.String())
 	}
 }
 
-// TestScannedStopsOnContextCancellation regresses a functional review
-// finding: Scanned wrote its buffered output unconditionally, without
-// checking whether ctx had already been cancelled (the client
-// disconnected, the request timed out). It now checks ctx between tokens
-// and tears down the underlying render via the pipe if cancelled.
-func TestScannedStopsOnContextCancellation(t *testing.T) {
-	resume := make(chan struct{})
-	defer close(resume) // let the blocked render goroutine exit; it must not leak
-	comp := blockingComponent{first: `<svg class="icon"></svg>`, second: `<span>done</span>`, resume: resume}
+// TestScannedChecksContextBeforeRendering and
+// TestScannedChecksContextBeforeWriting regress a functional review
+// finding: Scanned wrote its buffered output unconditionally, with no
+// check for whether ctx had already been cancelled. The (reverted)
+// streaming implementation then tried to check ctx *during* a blocked
+// tokenizer.Next() read, which cannot actually interrupt a child Render
+// that does not itself check ctx (ordinary templ-generated code does
+// not), so cancellation silently did nothing and the render could still
+// "succeed". This implementation is honest about what it can and cannot
+// do: it cannot preempt a child Render already in progress (no code in
+// this codebase can, without the child's own cooperation), so it checks
+// ctx at its two real decision points instead -- before starting to
+// render, and again before writing the validated result -- and returns
+// ctx.Err() at either one if already cancelled.
+func TestScannedChecksContextBeforeRendering(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	var buf bytes.Buffer
-	done := make(chan error, 1)
-	go func() {
-		done <- Scanned(comp).Render(ctx, &buf)
-	}()
-	time.Sleep(20 * time.Millisecond) // let the first chunk flow through
 	cancel()
-	select {
-	case err := <-done:
-		if !errors.Is(err, context.Canceled) {
-			t.Fatalf("got err %v, want context.Canceled", err)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("Scanned did not stop promptly after ctx was cancelled")
+	comp := rawHTMLComponent(`<svg class="icon"></svg>`)
+	rendered := false
+	spy := templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+		rendered = true
+		return comp.Render(ctx, w)
+	})
+	var buf bytes.Buffer
+	err := Scanned(spy).Render(ctx, &buf)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("got err %v, want context.Canceled", err)
+	}
+	if rendered {
+		t.Fatal("expected Scanned to check ctx before rendering an already-cancelled request")
 	}
 }
 
-// TestScannedNestingDoesNotDeadlock proves Scanned(Scanned(c)) still works
-// correctly: each layer only adds its own one-token pipe/tokenizer
-// overhead, not another full copy of the slot's output (see Scanned's doc
-// comment on nesting).
-func TestScannedNestingDoesNotDeadlock(t *testing.T) {
+func TestScannedChecksContextBeforeWriting(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	comp := templ.ComponentFunc(func(renderCtx context.Context, w io.Writer) error {
+		cancel() // simulate the request being cancelled while this child renders
+		_, err := io.WriteString(w, `<svg class="icon"></svg>`)
+		return err
+	})
+	var buf bytes.Buffer
+	err := Scanned(comp).Render(ctx, &buf)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("got err %v, want context.Canceled", err)
+	}
+	if buf.Len() != 0 {
+		t.Fatalf("expected nothing to be written once ctx was found cancelled, got %q", buf.String())
+	}
+}
+
+// shortWriter always reports writing one fewer byte than it was given,
+// with a nil error -- a technically non-compliant io.Writer, but one this
+// defensive check still needs to catch.
+type shortWriter struct{ buf bytes.Buffer }
+
+func (s *shortWriter) Write(p []byte) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
+	s.buf.Write(p[:len(p)-1])
+	return len(p) - 1, nil
+}
+
+// TestScannedDetectsShortWrite regresses a functional review finding: the
+// final w.Write call's returned byte count was never checked against the
+// length of what was asked to be written, so a writer that silently
+// truncates (returns fewer bytes with a nil error, which io.Writer's
+// contract discourages but does not forbid implementations from doing)
+// went undetected.
+func TestScannedDetectsShortWrite(t *testing.T) {
+	w := &shortWriter{}
+	err := Scanned(rawHTMLComponent(`<svg class="icon"></svg>`)).Render(context.Background(), w)
+	if !errors.Is(err, io.ErrShortWrite) {
+		t.Fatalf("got err %v, want io.ErrShortWrite", err)
+	}
+}
+
+// TestScannedNestingStillValidates proves Scanned(Scanned(c)) still
+// validates correctly; see Scanned's doc comment on the memory cost of
+// nesting (each layer holds its own full copy of the slot's output).
+func TestScannedNestingStillValidates(t *testing.T) {
 	got, _ := renderScanned(t, Scanned(rawHTMLComponent(`<button class="btn btn-outline">ok</button>`)))
 	if !strings.Contains(got, "btn-outline") {
 		t.Fatalf("expected the nested-safe button to render unchanged, got %q", got)
