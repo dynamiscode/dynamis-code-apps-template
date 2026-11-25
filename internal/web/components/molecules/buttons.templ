@@ -1,23 +1,30 @@
 package molecules
 
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 import "maps"
 import "strings"
 
 
+// submitAttrs returns a validated copy of attrs with "type": "submit" set.
+// Shared by SubmitButton and SubmitButtonStyled so neither forwards an
+// unqualified call to the other (scripts/actioncheck requires qualified
+// molecules.* calls for these action helpers).
+func submitAttrs(attrs templ.Attributes) templ.Attributes {
+	attrs = actionattrs.From(maps.Clone(attrs))
+	if attrs == nil {
+		attrs = templ.Attributes{}
+	}
+	attrs["type"] = "submit"
+	return attrs
+}
+
 templ SubmitButton(label string, attrs templ.Attributes) {
-	@SubmitButtonStyled(label, "", attrs)
+	@atoms.Button(atoms.ButtonProps{Class: actionattrs.ButtonClass("btn-primary"), Label: label, Attrs: actionattrs.From(submitAttrs(attrs))})
 }
 
 templ SubmitButtonStyled(label, class string, attrs templ.Attributes) {
-	{{
-		attrs = maps.Clone(attrs)
-		if attrs == nil {
-			attrs = templ.Attributes{}
-		}
-		attrs["type"] = "submit"
-	}}
-	@atoms.Button(atoms.ButtonProps{Class: strings.TrimSpace("btn-primary " + class), Label: label, Attrs: attrs})
+	@atoms.Button(atoms.ButtonProps{Class: actionattrs.ButtonClass(strings.TrimSpace("btn-primary " + class)), Label: label, Attrs: actionattrs.From(submitAttrs(attrs))})
 }
 
 
@@ -29,14 +36,14 @@ templ LinkButton(href, label string) {
 // ConfirmButton preserves the existing progressive enhancement for destructive actions.
 templ ConfirmButton(label, prompt, class string, attrs templ.Attributes) {
 	{{
-		attrs = maps.Clone(attrs)
+		attrs = actionattrs.From(maps.Clone(attrs))
 		if attrs == nil {
 			attrs = templ.Attributes{}
 		}
 		attrs["type"] = "submit"
 		attrs["data-confirm"] = prompt
 	}}
-	@atoms.Button(atoms.ButtonProps{Class: strings.TrimSpace("btn-error danger " + class), Label: label, Attrs: attrs}) {
+	@atoms.Button(atoms.ButtonProps{Class: actionattrs.ButtonClass(strings.TrimSpace("btn-error danger " + class)), Label: label, Attrs: actionattrs.From(attrs)}) {
 		{ children... }
 	}
 }

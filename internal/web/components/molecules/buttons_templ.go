@@ -10,8 +10,22 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 import "maps"
 import "strings"
+
+// submitAttrs returns a validated copy of attrs with "type": "submit" set.
+// Shared by SubmitButton and SubmitButtonStyled so neither forwards an
+// unqualified call to the other (scripts/actioncheck requires qualified
+// molecules.* calls for these action helpers).
+func submitAttrs(attrs templ.Attributes) templ.Attributes {
+	attrs = actionattrs.From(maps.Clone(attrs))
+	if attrs == nil {
+		attrs = templ.Attributes{}
+	}
+	attrs["type"] = "submit"
+	return attrs
+}
 
 func SubmitButton(label string, attrs templ.Attributes) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -30,7 +44,7 @@ func SubmitButton(label string, attrs templ.Attributes) templ.Component {
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = SubmitButtonStyled(label, "", attrs).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = atoms.Button(atoms.ButtonProps{Class: actionattrs.ButtonClass("btn-primary"), Label: label, Attrs: actionattrs.From(submitAttrs(attrs))}).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -55,12 +69,7 @@ func SubmitButtonStyled(label, class string, attrs templ.Attributes) templ.Compo
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		attrs = maps.Clone(attrs)
-		if attrs == nil {
-			attrs = templ.Attributes{}
-		}
-		attrs["type"] = "submit"
-		templ_7745c5c3_Err = atoms.Button(atoms.ButtonProps{Class: strings.TrimSpace("btn-primary " + class), Label: label, Attrs: attrs}).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = atoms.Button(atoms.ButtonProps{Class: actionattrs.ButtonClass(strings.TrimSpace("btn-primary " + class)), Label: label, Attrs: actionattrs.From(submitAttrs(attrs))}).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -112,7 +121,7 @@ func ConfirmButton(label, prompt, class string, attrs templ.Attributes) templ.Co
 		ctx = templ.InitializeContext(ctx)
 		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
 		ctx = templ.ClearChildren(ctx)
-		attrs = maps.Clone(attrs)
+		attrs = actionattrs.From(maps.Clone(attrs))
 		if attrs == nil {
 			attrs = templ.Attributes{}
 		}
@@ -136,7 +145,7 @@ func ConfirmButton(label, prompt, class string, attrs templ.Attributes) templ.Co
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = atoms.Button(atoms.ButtonProps{Class: strings.TrimSpace("btn-error danger " + class), Label: label, Attrs: attrs}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var5), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = atoms.Button(atoms.ButtonProps{Class: actionattrs.ButtonClass(strings.TrimSpace("btn-error danger " + class)), Label: label, Attrs: actionattrs.From(attrs)}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var5), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

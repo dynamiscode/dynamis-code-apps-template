@@ -1,0 +1,14 @@
+[
+  {
+    "Path": "internal/web/components/molecules/skip_link.templ",
+    "OpenTag": "<a class=\"skip-link\" href=\"#main\">",
+    "Line": 7,
+    "Reason": "Accessibility skip link is hidden until focus and styled in app.css."
+  },
+  {
+    "Path": "internal/web/components/atoms/modal.templ",
+    "OpenTag": "<button>",
+    "Line": 36,
+    "Reason": "Native dialog backdrop close control, not a visible action."
+  }
+]
