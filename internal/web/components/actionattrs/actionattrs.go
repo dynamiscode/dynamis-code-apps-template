@@ -18,6 +18,13 @@ import (
 // that controls layout or styling ("class", "style") is excluded on
 // purpose: those must stay with the component, not the caller.
 var allowed = map[string]bool{
+	// href is allowed because this codebase routes some anchor targets
+	// through Attrs instead of a dedicated Href field (DropdownItem,
+	// FooterNav's AnchorProps). It gets none of templ.SafeURL's
+	// sanitization either way, here or before this package existed; that
+	// is a pre-existing gap outside this guard's scope (preventing
+	// class/style/behavior overrides), not one this change introduces.
+	"href":                 true,
 	"id":                   true,
 	"name":                 true,
 	"type":                 true,
@@ -31,19 +38,32 @@ var allowed = map[string]bool{
 	"data-confirm":         true,
 	"data-testid":          true,
 	"data-requires-change": true,
-	"hx-get":               true,
-	"hx-post":              true,
-	"hx-put":               true,
-	"hx-delete":            true,
-	"hx-target":            true,
-	"hx-swap":              true,
-	"hx-trigger":           true,
-	"hx-include":           true,
-	"hx-confirm":           true,
-	"hx-indicator":         true,
-	"hx-vals":              true,
-	"hx-push-url":          true,
-	"hx-boost":             true,
+	"data-challenge":       true,
+	"data-csrf":            true,
+	"data-bulk-action":     true,
+	"data-webmcp-export":   true,
+	"aria-describedby":     true,
+	"hx-sync":              true,
+	// onclick is allowed for the time-slot picker's modal trigger buttons,
+	// whose value is always a fixed, server-built "<slotName>.showModal()"
+	// string (slotName derives from a parsed timestamp), never
+	// user-supplied text. This allow-list stops class/style/key
+	// overrides; it does not make onclick generally safe to pass
+	// user input through.
+	"onclick":      true,
+	"hx-get":       true,
+	"hx-post":      true,
+	"hx-put":       true,
+	"hx-delete":    true,
+	"hx-target":    true,
+	"hx-swap":      true,
+	"hx-trigger":   true,
+	"hx-include":   true,
+	"hx-confirm":   true,
+	"hx-indicator": true,
+	"hx-vals":      true,
+	"hx-push-url":  true,
+	"hx-boost":     true,
 }
 
 // Safe is an action-control attribute set. Build one with New and With;

@@ -2,6 +2,8 @@
 // https://daisyui.com/components/breadcrumbs
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type BreadcrumbsProps struct {
 	// Separator renders between items; "" omits a visible separator
 	Separator string
@@ -22,7 +24,7 @@ templ Breadcrumbs(props BreadcrumbsProps) {
 			for i, prop := range props.Items {
 				<li class="select-none">
 					if prop.Href != "" {
-						<a class="btn btn-xs h-auto whitespace-normal" href={ templ.SafeURL(prop.Href) } { prop.Attrs... }>{ prop.Label }</a>
+						<a class="btn btn-xs h-auto whitespace-normal" href={ templ.SafeURL(prop.Href) } { actionattrs.From(prop.Attrs)... }>{ prop.Label }</a>
 					} else {
 						{ prop.Label }
 					}

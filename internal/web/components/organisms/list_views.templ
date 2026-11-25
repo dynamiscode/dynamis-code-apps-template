@@ -2,6 +2,7 @@ package organisms
 
 import (
 	atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+	"example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"strconv"
 )
@@ -34,7 +35,7 @@ templ listViewPanel(data viewmodel.PageData) {
 			<p class="list-views-intro">{ data.T("views.intro") }</p>
 			<ul class="list-views-list">
 				<li class="list-view-row">
-					<a class={ listViewOptionClass(listViewNoneApplied(data)) } href={ templ.SafeURL(data.ListViewBase + "?all=1") }>
+					<a class={ actionattrs.LinkClass(listViewOptionClass(listViewNoneApplied(data))) } href={ templ.SafeURL(data.ListViewBase + "?all=1") }>
 						<span class="list-view-name">{ data.T("views.all") }</span>
 						if listViewNoneApplied(data) {
 							@atoms.Badge(atoms.BadgeProps{Class: "badge badge-ghost badge-sm", Label: data.T("views.applied")})
@@ -46,7 +47,7 @@ templ listViewPanel(data viewmodel.PageData) {
 						<form method="post" action={ data.ListViewRoute + "/" + strconv.FormatInt(view.ID, 10) + "/apply" } class="list-view-apply">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="q" value={ data.ListSearch }/>
-							<button class={ listViewOptionClass(view.Current) } type="submit">
+							<button class={ actionattrs.LinkClass(listViewOptionClass(view.Current)) } type="submit">
 								<span class="list-view-name">{ view.Name }</span>
 								if view.Current {
 									@atoms.Badge(atoms.BadgeProps{Class: "badge badge-ghost badge-sm", Label: data.T("views.applied")})

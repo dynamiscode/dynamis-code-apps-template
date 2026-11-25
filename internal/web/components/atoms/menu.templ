@@ -2,6 +2,8 @@
 // https://daisyui.com/components/menu
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type MenuProps struct {
 	Title string
 	Class string
@@ -25,7 +27,7 @@ type MenuItemProps struct {
 
 templ MenuItem(props MenuItemProps) {
 	<li>
-		<a class="border border-base-300" { props.Attrs... }>
+		<a class="border border-base-300" { actionattrs.From(props.Attrs)... }>
 			if props.Icon != nil && !props.IconAfter {
 				@props.Icon
 			}

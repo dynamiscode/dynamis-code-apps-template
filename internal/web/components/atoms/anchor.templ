@@ -1,6 +1,8 @@
 // navigation
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type AnchorProps struct {
 	Href      string
 	Label     string
@@ -16,7 +18,7 @@ templ Anchor(props AnchorProps) {
 			href={ templ.SafeURL(props.Href) }
 		}
 		class={ props.Class }
-		{ props.Attrs... }
+		{ actionattrs.From(props.Attrs)... }
 	>
 		if props.LeftIcon != nil {
 			@props.LeftIcon

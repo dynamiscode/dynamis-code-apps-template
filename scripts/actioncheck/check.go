@@ -165,6 +165,16 @@ func classValue(expr ast.Expr) (string, bool, bool) {
 	if value, ok := stringValue(expr); ok {
 		return value, true, true
 	}
+	// actionattrs.LinkClass enforces the boundary token itself at runtime;
+	// actionattrs.ButtonClass does not (its caller's own element already
+	// carries an unconditional "btn" literal), so it contributes an empty,
+	// trivially-safe, non-boundary token.
+	if isActionattrsCall(expr, "LinkClass") {
+		return "btn", true, true
+	}
+	if isActionattrsCall(expr, "ButtonClass") {
+		return "", true, true
+	}
 	call, ok := expr.(*ast.CallExpr)
 	if !ok || len(call.Args) != 2 {
 		return "", false, false
@@ -211,6 +221,19 @@ func safeClassExpr(expr ast.Expr, requireBoundary bool) bool {
 func safeComponent(expr ast.Expr) bool {
 	call, ok := expr.(*ast.CallExpr)
 	if !ok {
+		// A bare component value reference (`@props.Icon`, `@tab.Content`, a
+		// loop variable, an indexed slice element, ...) has no call syntax to
+		// carry a caller-controlled Class or Attrs override: there is no
+		// composite literal here for an override to live in. Whatever
+		// templ.Component value it names was already type-checked where it
+		// was constructed, the same trust already extended below to a call
+		// of an unrecognized function (go/types, not this checker, is what
+		// proves that value really is a templ.Component). Reject anything
+		// that is not a plain identifier/selector/index chain.
+		switch expr.(type) {
+		case *ast.Ident, *ast.SelectorExpr, *ast.IndexExpr, *ast.StarExpr, *ast.TypeAssertExpr:
+			return true
+		}
 		return false
 	}
 	selector, ok := call.Fun.(*ast.SelectorExpr)

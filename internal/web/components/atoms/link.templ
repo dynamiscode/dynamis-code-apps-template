@@ -2,6 +2,8 @@
 // https://daisyui.com/components/link
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type LinkProps struct {
 	Class  string
 	Href   string
@@ -14,7 +16,7 @@ templ Link(props LinkProps) {
 	<a
 		href={ props.Href }
 		class={ "link", props.Class }
-		{ props.Attrs... }
+		{ actionattrs.From(props.Attrs)... }
 		if props.NewTab {
 			target="_blank"
 			rel="noopener"

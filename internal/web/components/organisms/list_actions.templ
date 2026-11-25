@@ -2,6 +2,7 @@ package organisms
 
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 // ListActionsCell is a row's last cell: a sticky "⋯" menu of the row's actions. It stays on the right while the
@@ -59,12 +60,12 @@ templ listActionForm(data viewmodel.PageData, action ListAction) {
 	<form class="list-action-form" method="post" action={ action.PostPath }>
 		<input type="hidden" name="csrf" value={ data.CSRF }/>
 		if action.Danger {
-			@molecules.ConfirmButton("", action.Confirm, listActionItemClass(action), nil) {
+			@molecules.ConfirmButton("", action.Confirm, actionattrs.ButtonClass(listActionItemClass(action)), nil) {
 				@ListActionIcon(action.Icon)
 				<span>{ action.Label }</span>
 			}
 		} else {
-			<button class={ listActionItemClass(action) } type="submit" { ListActionConfirm(action)... }>
+			<button class={ actionattrs.LinkClass(listActionItemClass(action)) } type="submit" { actionattrs.From(ListActionConfirm(action))... }>
 				@ListActionIcon(action.Icon)
 				<span>{ action.Label }</span>
 			</button>
@@ -74,7 +75,7 @@ templ listActionForm(data viewmodel.PageData, action ListAction) {
 
 // listActionLink is a GET action.
 templ listActionLink(action ListAction) {
-	<a class={ listActionItemClass(action) } href={ templ.SafeURL(action.Href) }>
+	<a class={ actionattrs.LinkClass(listActionItemClass(action)) } href={ templ.SafeURL(action.Href) }>
 		@ListActionIcon(action.Icon)
 		<span>{ action.Label }</span>
 	</a>
