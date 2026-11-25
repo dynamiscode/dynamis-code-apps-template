@@ -34,7 +34,7 @@ templ authLogin(data viewmodel.PageData) {
 		<form action="/login" method="post">
 			<input type="hidden" name="csrf" value={ data.CSRF }/>
 			<input type="hidden" name="return_to" value={ data.ReturnTo }/>
-			@atoms.Input(atoms.InputProps{
+			@atoms.PlainInput(atoms.InputProps{
 				ID:        "email",
 				Name:      "email",
 				Label:     data.T("common.email"),
@@ -44,7 +44,7 @@ templ authLogin(data viewmodel.PageData) {
 				MaxLength: "320",
 				Attrs:     templ.Attributes{"autocomplete": "username", "data-trim": true},
 			})
-			@atoms.Input(atoms.InputProps{
+			@atoms.PlainInput(atoms.InputProps{
 				ID:        "password",
 				Name:      "password",
 				Label:     data.T("common.password"),
@@ -53,7 +53,7 @@ templ authLogin(data viewmodel.PageData) {
 				MaxLength: "1024",
 				Attrs:     templ.Attributes{"autocomplete": "current-password"},
 			})
-			@molecules.SubmitButton(data.T("account.sign_in"), templ.Attributes{"class": "w-full"})
+			@molecules.SubmitButtonStyled(data.T("account.sign_in"), "w-full", nil)
 		</form>
 		<p><a class="auth-recovery-link btn btn-outline btn-sm" href="/password-reset">{ data.T("account.forgot_password") }</a></p>
 		if len(data.OIDCProviders) > 0 {
@@ -88,7 +88,7 @@ templ authSetup(data viewmodel.PageData) {
 						Label:   data.T("setup.token_format"),
 						Options: setupTokenFormatOptions(data),
 					})
-					@atoms.Input(atoms.InputProps{
+					@atoms.PlainInput(atoms.InputProps{
 						ID:        "setup-token",
 						Name:      "setup_token",
 						Label:     data.T("setup.setup_token"),
@@ -98,7 +98,7 @@ templ authSetup(data viewmodel.PageData) {
 						Attrs:     templ.Attributes{"autocomplete": "off"},
 					})
 				}
-				@atoms.Input(atoms.InputProps{
+				@atoms.PlainInput(atoms.InputProps{
 					ID:        "email",
 					Name:      "email",
 					Label:     data.T("common.email"),
@@ -108,7 +108,7 @@ templ authSetup(data viewmodel.PageData) {
 					MaxLength: "320",
 					Attrs:     templ.Attributes{"autocomplete": "username", "data-trim": true},
 				})
-				@atoms.Input(atoms.InputProps{
+				@atoms.PlainInput(atoms.InputProps{
 					ID:        "password",
 					Name:      "password",
 					Label:     data.T("common.password"),
@@ -118,7 +118,7 @@ templ authSetup(data viewmodel.PageData) {
 					MaxLength: "1024",
 					Attrs:     templ.Attributes{"autocomplete": "new-password", "data-strength": true},
 				})
-				@atoms.Input(atoms.InputProps{
+				@atoms.PlainInput(atoms.InputProps{
 					ID:        "password-confirmation",
 					Name:      "password_confirmation",
 					Label:     data.T("setup.confirm_password"),
@@ -131,7 +131,7 @@ templ authSetup(data viewmodel.PageData) {
 			</fieldset>
 			<fieldset data-step>
 				<legend>{ data.T("setup.step_workspace") }</legend>
-				@atoms.Input(atoms.InputProps{
+				@atoms.PlainInput(atoms.InputProps{
 					ID:        "workspace",
 					Name:      "workspace",
 					Label:     data.T("workspace.name"),
@@ -148,7 +148,7 @@ templ authSetup(data viewmodel.PageData) {
 					Options: workspaceLocaleOptions(data),
 				})
 			</fieldset>
-			@molecules.SubmitButton(data.T("setup.create_owner"), templ.Attributes{"class": "w-full"})
+			@molecules.SubmitButtonStyled(data.T("setup.create_owner"), "w-full", nil)
 		</form>
 	}
 }
@@ -167,7 +167,7 @@ templ authPasswordReset(data viewmodel.PageData) {
 				<p class="auth-intro">{ data.T("account.choose_password_description") }</p>
 				<form action={ "/password-reset/" + data.PasswordResetSecret } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@atoms.Input(atoms.InputProps{
+					@atoms.PlainInput(atoms.InputProps{
 						ID:        "reset-password",
 						Name:      "password",
 						Label:     data.T("account.new_password"),
@@ -177,7 +177,7 @@ templ authPasswordReset(data viewmodel.PageData) {
 						MaxLength: "1024",
 						Attrs:     templ.Attributes{"autocomplete": "new-password", "data-strength": true},
 					})
-					@atoms.Input(atoms.InputProps{
+					@atoms.PlainInput(atoms.InputProps{
 						ID:        "reset-password-confirmation",
 						Name:      "password_confirmation",
 						Label:     data.T("account.confirm_password"),
@@ -187,13 +187,13 @@ templ authPasswordReset(data viewmodel.PageData) {
 						MaxLength: "1024",
 						Attrs:     templ.Attributes{"autocomplete": "new-password", "data-match": "reset-password"},
 					})
-					@molecules.SubmitButton(data.T("account.reset_password"), templ.Attributes{"class": "w-full"})
+					@molecules.SubmitButtonStyled(data.T("account.reset_password"), "w-full", nil)
 				</form>
 			} else {
 				<p class="auth-intro">{ data.T("account.password_reset_description") }</p>
 				<form action="/password-reset" method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@atoms.Input(atoms.InputProps{
+					@atoms.PlainInput(atoms.InputProps{
 						ID:        "reset-email",
 						Name:      "email",
 						Label:     data.T("common.email"),
@@ -202,7 +202,7 @@ templ authPasswordReset(data viewmodel.PageData) {
 						MaxLength: "320",
 						Attrs:     templ.Attributes{"autocomplete": "username"},
 					})
-					@molecules.SubmitButton(data.T("account.send_reset"), templ.Attributes{"class": "w-full"})
+					@molecules.SubmitButtonStyled(data.T("account.send_reset"), "w-full", nil)
 				</form>
 			}
 		}
@@ -232,7 +232,7 @@ templ authMFA(data viewmodel.PageData) {
 			<p>{ data.T("security.mfa_authenticator_description") }</p>
 			<form action="/mfa/totp" method="post">
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
-				@atoms.Input(atoms.InputProps{
+				@atoms.PlainInput(atoms.InputProps{
 					ID:        "totp-code",
 					Name:      "code",
 					Label:     data.T("security.mfa_authenticator_code"),
@@ -241,7 +241,7 @@ templ authMFA(data viewmodel.PageData) {
 					MaxLength: "9",
 					Attrs:     templ.Attributes{"inputmode": "numeric", "autocomplete": "one-time-code", "data-mask": "digits", "data-mask-length": "6"},
 				})
-				@molecules.SubmitButton(data.T("security.mfa_verify_code"), templ.Attributes{"class": "w-full"})
+				@molecules.SubmitButtonStyled(data.T("security.mfa_verify_code"), "w-full", nil)
 			</form>
 		</section>
 		<section class="auth-method" aria-labelledby="recovery-heading">
@@ -249,14 +249,14 @@ templ authMFA(data viewmodel.PageData) {
 			<p>{ data.T("security.mfa_recovery_description") }</p>
 			<form action="/mfa/recovery" method="post">
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
-				@atoms.Input(atoms.InputProps{
+				@atoms.PlainInput(atoms.InputProps{
 					ID:        "recovery-code",
 					Name:      "code",
 					Label:     data.T("security.mfa_recovery_code"),
 					Required:  true,
 					Attrs:     templ.Attributes{"autocomplete": "one-time-code", "autocapitalize": "characters", "spellcheck": "false", "data-mask": "upper"},
 				})
-				@molecules.SubmitButton(data.T("security.mfa_use_recovery"), templ.Attributes{"class": "w-full"})
+				@molecules.SubmitButtonStyled(data.T("security.mfa_use_recovery"), "w-full", nil)
 			</form>
 		</section>
 	}

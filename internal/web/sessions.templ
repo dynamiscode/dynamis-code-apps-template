@@ -1,7 +1,6 @@
 package web
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
@@ -10,7 +9,7 @@ import atoms "example.com/dynamis-code/apps-template/internal/web/components/ato
 import "time"
 
 templ sessionsPage(data viewmodel.PageData, currentSessionID string, now time.Time) {
-	@templates.DashboardShell(data, organisms.AccountHeader(data), organisms.AccountNavigation(data)) {
+	@templates.DashboardShell(data, templates.DashboardAccount) {
 		<section class="account-page" aria-labelledby="sessions-heading">
 			<header class="account-heading bg-base-100 border-b border-base-200">
 				<p class="eyebrow">{ data.T("navigation.security") }</p>

@@ -20,7 +20,7 @@ templ ThemeMenu(data viewmodel.PageData) {
 					<form class="!flex w-full !p-0" method="post" action="/account/theme">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
 						<input type="hidden" name="return_to" value={ data.ReturnPath }/>
-						<button class="btn btn-ghost w-full justify-start" type="submit" name="theme" value={ theme } aria-current={ currentPage(data.Theme == theme) }>{ data.T("account.theme_" + theme) }</button>
+						<button class="btn btn-outline w-full justify-start" type="submit" name="theme" value={ theme } aria-current={ currentPage(data.Theme == theme) }>{ data.T("account.theme_" + theme) }</button>
 					</form>
 				</li>
 			}
@@ -32,10 +32,10 @@ templ sharedHeader(data viewmodel.PageData, account bool) {
 	<header class="navbar sticky top-0 z-30 flex-nowrap gap-4 border-b border-base-200 bg-base-100 px-4">
 		<div class="navbar-start min-w-0 gap-3">
 			if account {
-				<button type="button" class="btn btn-ghost btn-square drawer-button lg:hidden" aria-label={ data.T("ui.open_navigation") } @click="toggleDrawer">&#9776;</button>
+				<button type="button" class="btn btn-outline btn-square drawer-button lg:hidden" aria-label={ data.T("ui.open_navigation") } @click="toggleDrawer">&#9776;</button>
 				<a class="workspace-name border border-base-300 rounded-field" href="/account">{ data.T("common.account") }</a>
 			} else if data.Workspace.ID != 0 {
-				<button type="button" class="btn btn-ghost btn-square drawer-button lg:hidden" aria-label={ data.T("ui.open_navigation") } @click="toggleDrawer">&#9776;</button>
+				<button type="button" class="btn btn-outline btn-square drawer-button lg:hidden" aria-label={ data.T("ui.open_navigation") } @click="toggleDrawer">&#9776;</button>
 				<a class="workspace-name border border-base-300 rounded-field" href={ "/workspaces/" + data.Workspace.ID.String() }>{ data.Workspace.Name }</a>
 			} else {
 				<a class="brand inline-flex items-center gap-2 rounded-field border border-base-300 px-2 text-lg font-extrabold no-underline" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>

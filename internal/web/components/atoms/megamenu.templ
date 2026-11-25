@@ -3,6 +3,7 @@
 package atoms
 
 import "fmt"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 
 type PopoverItem struct {
 	ID    string
@@ -30,7 +31,7 @@ type MegamenuProps struct {
 
 templ Megamenu(props MegamenuProps) {
 	<button
-		class={ "btn sm:hidden", props.ButtonClasses }
+		class={ "btn sm:hidden", actionattrs.ButtonClass(props.ButtonClasses) }
 		popovertarget={ props.ID }
 	>
 		{ props.ButtonLabel }
@@ -48,7 +49,7 @@ templ Megamenu(props MegamenuProps) {
 			<div id={ fmt.Sprintf("%s-%d", popover.ID, i) } popover>
 				<ul class={ "menu", popover.Classes }>
 					if popover.Component != nil {
-						@popover.Component
+						@actionattrs.Scanned(popover.Component)
 					} else {
 						for _, item := range popover.Items {
 							<li id={ item.ID }>

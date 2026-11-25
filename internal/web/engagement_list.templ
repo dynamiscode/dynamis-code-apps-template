@@ -4,11 +4,10 @@ import "example.com/dynamis-code/apps-template/internal/engagement"
 import "example.com/dynamis-code/apps-template/internal/identity"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
 templ engagementListPage(data viewmodel.PageData, page engagement.Page, stages []engagement.Stage, members []identity.MemberSummary, search string, selectedStage string, selectedAssignee string, prev string, next string, clientsPath string) {
- @templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+ @templates.DashboardShell(data, templates.DashboardHome) {
   @molecules.PageHeading(data.T("engagement.list"), data.T("clients.title"))
   <a class="btn btn-outline" href={ templ.SafeURL(data.CurrentPath + "/board") }>{ data.T("engagement.board") }</a>
   if data.CanEditClients {

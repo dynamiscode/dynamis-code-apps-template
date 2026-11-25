@@ -2,6 +2,8 @@
 // https://daisyui.com/components/select
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type SelectProps struct {
 	ID          string
 	Label       string
@@ -46,7 +48,7 @@ templ Select(props SelectProps) {
 			if props.Required {
 				required
 			}
-			{ props.Attrs... }
+			{ actionattrs.ScalarAttributes(props.Attrs)... }
 		>
 			@SelectOptions(props.Options)
 		</select>

@@ -215,7 +215,7 @@ func DatePicker(props DatePickerProps) templ.Component {
 				}
 				var templ_7745c5c3_Var8 = []any{"btn btn-square border shadow-md shadow-base-300 h-10 w-10 p-3",
 					templ.KV("text-primary", d.Year() == utcNow.Year() && d.Month() == utcNow.Month() && utcNow.Day() == d.Day()),
-					templ.KV("btn-ghost", d.Month() == time.Month(props.Month)),
+					templ.KV("btn-outline", d.Month() == time.Month(props.Month)),
 					templ.KV("btn-neutral", d.Month() != time.Month(props.Month)),
 					templ.KV("border-primary bg-base-300", !props.Selected.IsZero() && d.Day() == props.Selected.Day()),
 				}

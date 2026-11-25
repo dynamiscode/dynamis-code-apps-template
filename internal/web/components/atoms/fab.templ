@@ -2,6 +2,8 @@
 // https://daisyui.com/components/fab
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type FABProps struct {
 	Class       string
 	Toggle      any // string or templ.Component
@@ -16,17 +18,17 @@ templ FAB(props FABProps) {
 			if t, ok := props.Toggle.(string); ok {
 				{ t }
 			} else {
-				@props.Toggle.(templ.Component)
+				@actionattrs.Scanned(props.Toggle.(templ.Component))
 			}
 		</div>
 		if props.Close != nil {
 			<div class="fab-close">
-				@props.Close
+				@actionattrs.Scanned(props.Close)
 			</div>
 		}
 		if props.MainAction != nil {
 			<div class="fab-main-action">
-				@props.MainAction
+				@actionattrs.Scanned(props.MainAction)
 			</div>
 		}
 		{ children... }

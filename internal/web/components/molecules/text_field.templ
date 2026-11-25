@@ -16,7 +16,7 @@ templ TextField(id, label string, attrs templ.Attributes) {
 		delete(attrs, "value")
 		delete(attrs, "placeholder")
 	}}
-	@atoms.Input(atoms.InputProps{ID: id, Label: label, Name: name, Type: inputType, Value: value, Placeholder: placeholder, Attrs: attrs})
+	@atoms.PlainInput(atoms.InputProps{ID: id, Label: label, Name: name, Type: inputType, Value: value, Placeholder: placeholder, Attrs: attrs})
 }
 
 

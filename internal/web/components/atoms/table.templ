@@ -2,6 +2,8 @@
 // https://daisyui.com/components/table
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type TableProps struct {
 	Class   string
 	Caption string // rendered as a visually hidden <caption>
@@ -12,7 +14,7 @@ type TableProps struct {
 
 templ Table(props TableProps) {
 	<div class={ "overflow-x-auto" }>
-		<table { props.Attrs... } class={ "table", props.Class }>
+		<table { actionattrs.ScalarAttributes(props.Attrs)... } class={ "table", props.Class }>
 			if props.Caption != "" {
 				<caption class="sr-only">{ props.Caption }</caption>
 			}
@@ -20,14 +22,14 @@ templ Table(props TableProps) {
 				<tr>
 					for _, header := range props.Headers {
 						<th scope="col">
-							@header
+							@actionattrs.Scanned(header)
 						</th>
 					}
 				</tr>
 			</thead>
 			<tbody>
 				for _, trow := range props.Rows {
-					@trow
+					@actionattrs.Scanned(trow)
 				}
 			</tbody>
 		</table>
@@ -36,7 +38,7 @@ templ Table(props TableProps) {
 
 // HeaderText is a header cell with attributes (aria-sort, class, abbr).
 templ HeaderText(text string, attrs templ.Attributes) {
-	<span { attrs... }>{ text }</span>
+	<span { actionattrs.ScalarAttributes(attrs)... }>{ text }</span>
 }
 
 // TableWrap renders the table shell (scroll container, table element, caption);
@@ -50,7 +52,7 @@ type TableWrapProps struct {
 }
 
 templ TableWrap(props TableWrapProps) {
-	<div class={ props.WrapClass } { props.Attrs... }>
+	<div class={ props.WrapClass } { actionattrs.ScalarAttributes(props.Attrs)... }>
 		<table
 			if props.TableClass != "" {
 				class={ "table", props.TableClass }

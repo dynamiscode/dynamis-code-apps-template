@@ -3,12 +3,11 @@ package web
 import "example.com/dynamis-code/apps-template/internal/intake"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 import "strings"
 
 templ intakeSettingsPage(data viewmodel.PageData, settings intake.Settings, message string, link string, linkMessage string) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
+	@templates.DashboardShell(data, templates.DashboardSettings) {
 		<div class="settings-page">
 			@molecules.PageHeading(data.T("intake.title"), data.T("navigation.settings_setup")) {}
 			<p class="settings-intro">{ data.T("intake.description") }</p>

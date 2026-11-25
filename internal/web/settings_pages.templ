@@ -1,7 +1,6 @@
 package web
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
@@ -9,7 +8,7 @@ import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 
 templ generalSettingsView(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
+	@templates.DashboardShell(data, templates.DashboardSettings) {
 		<div class="settings-page">
 			@molecules.PageHeading(data.T("workspace.general_settings"), data.T("navigation.settings_setup"))
 			if data.Saved {
@@ -85,7 +84,7 @@ templ generalSettingsView(data viewmodel.PageData) {
 }
 
 templ emailSettingsView(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
+	@templates.DashboardShell(data, templates.DashboardSettings) {
 		<div class="settings-page">
 			@molecules.PageHeading(data.T("email.title"), data.T("navigation.settings_setup"))
 			<p class="settings-intro">{ data.T("email.intro") }</p>
@@ -132,7 +131,7 @@ templ emailSettingsView(data viewmodel.PageData) {
 						@molecules.TextField("email-port", data.T("email.port"), templ.Attributes{"name": "port", "type": "number", "min": "1", "max": "65535", "value": emailPortValue(data.EmailSettings)})
 						@molecules.TextField("email-username", data.T("email.username")+" "+data.T("ui.optional"), templ.Attributes{"name": "username", "maxlength": "254", "autocomplete": "off", "value": emailSMTPValue(data.EmailSettings, data.EmailSettings.Username)})
 						<p id="email-password-help">{ data.T("email.password_help") }</p>
-						@atoms.Input(atoms.InputProps{ID: "email-password", Name: "password", Type: "password", Label: data.T("email.password"), MaxLength: "1024", Attrs: templ.Attributes{"autocomplete": "new-password", "aria-describedby": "email-password-help"}})
+						@atoms.PlainInput(atoms.InputProps{ID: "email-password", Name: "password", Type: "password", Label: data.T("email.password"), MaxLength: "1024", Attrs: templ.Attributes{"autocomplete": "new-password", "aria-describedby": "email-password-help"}})
 					</fieldset>
 					<fieldset data-show-when="email-provider=resend">
 						<legend>{ data.T("email.resend_section") }</legend>
@@ -140,7 +139,7 @@ templ emailSettingsView(data viewmodel.PageData) {
 							<li>{ data.T("email.resend_step_1") }</li><li>{ data.T("email.resend_step_2") }</li><li>{ data.T("email.resend_step_3") }</li><li>{ data.T("email.resend_step_4") }</li>
 						</ol>
 						<p id="email-api-key-help">{ data.T("email.api_key_help") }</p>
-						@atoms.Input(atoms.InputProps{ID: "email-api-key", Name: "api_key", Type: "password", Label: data.T("email.api_key"), MaxLength: "1024", Attrs: templ.Attributes{"autocomplete": "new-password", "aria-describedby": "email-api-key-help"}})
+						@atoms.PlainInput(atoms.InputProps{ID: "email-api-key", Name: "api_key", Type: "password", Label: data.T("email.api_key"), MaxLength: "1024", Attrs: templ.Attributes{"autocomplete": "new-password", "aria-describedby": "email-api-key-help"}})
 					</fieldset>
 					<fieldset data-show-when="email-provider=postmark">
 						<legend>{ data.T("email.postmark_section") }</legend>
@@ -148,12 +147,12 @@ templ emailSettingsView(data viewmodel.PageData) {
 							<li>{ data.T("email.postmark_step_1") }</li><li>{ data.T("email.postmark_step_2") }</li><li>{ data.T("email.postmark_step_3") }</li><li>{ data.T("email.postmark_step_4") }</li>
 						</ol>
 						<p id="email-server-token-help">{ data.T("email.server_token_help") }</p>
-						@atoms.Input(atoms.InputProps{ID: "email-server-token", Name: "server_token", Type: "password", Label: data.T("email.server_token"), MaxLength: "1024", Attrs: templ.Attributes{"autocomplete": "new-password", "aria-describedby": "email-server-token-help"}})
+						@atoms.PlainInput(atoms.InputProps{ID: "email-server-token", Name: "server_token", Type: "password", Label: data.T("email.server_token"), MaxLength: "1024", Attrs: templ.Attributes{"autocomplete": "new-password", "aria-describedby": "email-server-token-help"}})
 						<p id="email-account-token-help">{ data.T("email.account_token_help") }</p>
 						if data.EmailSettings.AccountTokenSet {
 							<p>{ data.T("email.account_token_set") }</p>
 						}
-						@atoms.Input(atoms.InputProps{ID: "email-account-token", Name: "account_token", Type: "password", Label: data.T("email.account_token"), MaxLength: "1024", Attrs: templ.Attributes{"autocomplete": "new-password", "aria-describedby": "email-account-token-help"}})
+						@atoms.PlainInput(atoms.InputProps{ID: "email-account-token", Name: "account_token", Type: "password", Label: data.T("email.account_token"), MaxLength: "1024", Attrs: templ.Attributes{"autocomplete": "new-password", "aria-describedby": "email-account-token-help"}})
 					</fieldset>
 					@molecules.SubmitButton(data.T("email.save"), nil)
 				</form>
@@ -163,12 +162,12 @@ templ emailSettingsView(data viewmodel.PageData) {
 }
 
 templ exportSettingsView(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
+	@templates.DashboardShell(data, templates.DashboardSettings) {
 		<div class="settings-page">
 			@molecules.PageHeading(data.Workspace.Name+" "+data.T("navigation.export"), data.T("navigation.settings_activity"))
 			<p class="settings-intro">{ data.T("export.description") }</p>
 			<section class="settings-panel card min-w-0 p-5" aria-label={ data.T("navigation.export") }>
-				@atoms.Anchor(atoms.AnchorProps{Href: "/workspaces/" + data.Workspace.ID.String() + "/settings/export/download", Label: data.T("export.download"), Class: "btn btn-primary", Attrs: templ.Attributes{"data-webmcp-export": true}})
+				<a href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/settings/export/download") } class="btn btn-primary" data-webmcp-export>{ data.T("export.download") + " " }</a>
 			</section>
 		</div>
 	}

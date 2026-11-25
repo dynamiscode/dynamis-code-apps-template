@@ -33,26 +33,22 @@ func (h *Handler) pageTheme(writer http.ResponseWriter) string {
 	return "system"
 }
 
-func (h *Handler) accountThemeMutation(writer http.ResponseWriter, request *http.Request) {
+func (h *Handler) accountThemeMutation(request *http.Request) authPageOutput {
 	if err := request.ParseForm(); err != nil {
-		h.renderError(writer, http.StatusBadRequest)
-		return
+		return authPageOutput{status: http.StatusBadRequest}
 	}
-	session, _, ok := h.validCSRFSessionWithCSRF(writer, request)
-	if !ok {
-		return
+	session, status := h.checkCSRFSession(request)
+	if status != http.StatusOK {
+		return authSessionFailure(status)
 	}
 	theme := request.FormValue("theme")
 	if !validTheme(theme) {
-		h.renderError(writer, http.StatusBadRequest)
-		return
+		return authPageOutput{status: http.StatusBadRequest}
 	}
 	if err := h.identity.SetUserTheme(request.Context(), session.UserID, theme, auditContext(request)); err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
+		return authPageOutput{status: http.StatusInternalServerError}
 	}
-	h.setCookie(writer, themeCookie, theme, time.Now().Add(themeCookieTTL), true)
-	h.redirect(writer, request, safeReturnTo(request.FormValue("return_to")))
+	return authPageOutput{kind: authPageThemeChanged, theme: theme, target: safeReturnTo(request.FormValue("return_to"))}
 }
 
 func validTheme(theme string) bool {

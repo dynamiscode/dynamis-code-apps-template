@@ -2,6 +2,8 @@
 // https://daisyui.com/components/toggle
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 // ToggleInput is a bare checkbox styled as a daisyUI toggle, for use inside a
 // form where the caller provides the label and the submit behavior (for
 // example a column visibility switch that posts on change).
@@ -14,5 +16,5 @@ type ToggleInputProps struct {
 }
 
 templ ToggleInput(props ToggleInputProps) {
-	<input type="checkbox" class="toggle" name={ props.Name } value={ props.Value } checked?={ props.Checked } disabled?={ props.Disabled } { props.Attrs... }/>
+	<input type="checkbox" class="toggle" name={ props.Name } value={ props.Value } checked?={ props.Checked } disabled?={ props.Disabled } { actionattrs.ScalarAttributes(props.Attrs)... }/>
 }

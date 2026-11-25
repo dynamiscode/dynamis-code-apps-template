@@ -32,7 +32,20 @@ templ clientList(data viewmodel.PageData) {
 }
 
 templ clientListView(data viewmodel.PageData) {
-	@organisms.ListScreen(data, "clients.search", clientListTools(data), clientResults(data))
+	<div class="list-toolbar">
+		if data.ListHasContent() {
+			@molecules.ListSearch(data, "clients.search", data.ListSearch)
+		}
+		if data.ListHasContent() || len(data.ListViews) > 0 {
+			@organisms.ListViewSwitcher(data)
+		}
+		if data.ListHasContent() {
+			@organisms.ListAddFilter(data)
+		}
+		@clientListTools(data)
+	</div>
+	@organisms.ListFilterBar(data)
+	@clientResults(data)
 }
 
 // clientListTools are the client list's own controls on the toolbar: the columns, the bulk actions, the create
@@ -67,7 +80,16 @@ templ clientNotice(data viewmodel.PageData) {
 // clientResults is the results region: the table or cards, the empty state, and the footer. A sort, filter, or
 // search swaps this region alone.
 templ clientResults(data viewmodel.PageData) {
-	@organisms.ListResults(data, clientPageLimit(data.ClientQuery.Limit), listPageSizeOptions(clientPageLimit(data.ClientQuery.Limit), listPageSizes), data.ClientQuerySuffix, clientBody(data), templ.NopComponent)
+	<div id="list-results">
+		@clientBody(data)
+		@organisms.ListFooter(data, clientPageLimit(data.ClientQuery.Limit), listPageSizeOptions(clientPageLimit(data.ClientQuery.Limit), listPageSizes)) {
+			@molecules.ListPager(data)
+		}
+	</div>
+	if data.ListFragment {
+		@organisms.ListFilterBarOOB(data)
+		@molecules.ListColumnsBody(data, data.ClientQuerySuffix, true)
+	}
 	if data.ListFragment {
 		<div id="client-list-scope" hx-swap-oob="true">@clientScope(data)</div>
 	}
@@ -119,7 +141,7 @@ templ clientBody(data viewmodel.PageData) {
 		} else if data.ClientQuery.Archived == "archived" {
 			@molecules.EmptyState(data.T("clients.no_archived"))
 		} else {
-			@molecules.EmptyStateCard(molecules.EmptyStateCardProps{ID: "client-empty-state", Title: data.T("clients.empty_title"), Description: data.T("clients.empty_description"), CTA: clientEmptyCTA(data)})
+			@molecules.EmptyStateCardBody(molecules.EmptyStateCardProps{ID: "client-empty-state", Title: data.T("clients.empty_title"), Description: data.T("clients.empty_description")}) { @clientEmptyCTA(data) }
 		}
 	}
 }

@@ -1,7 +1,6 @@
 package web
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
@@ -9,7 +8,7 @@ import "example.com/dynamis-code/apps-template/internal/engagement"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "strconv"
 templ workspaceSelection(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), nil) {
+	@templates.DashboardShell(data, templates.DashboardStandalone) {
 		@molecules.PageHeading(data.T("workspace.workspaces"), "")
 		if data.Error != "" {
 			@molecules.ErrorAlert(data.Error)
@@ -64,7 +63,7 @@ templ dashboardActionPreview(data viewmodel.PageData, title, filter string, acti
 }
 
 templ workspaceHome(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+	@templates.DashboardShell(data, templates.DashboardHome) {
 		@molecules.PageHeading(data.Workspace.Name, "")
 		if data.EngagementDashboard != nil {
 			<section aria-labelledby="engagement-dashboard-title">

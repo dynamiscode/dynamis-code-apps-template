@@ -13,6 +13,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"example.com/dynamis-code/apps-template/internal/platform/sourceaudit"
 )
 
 var (
@@ -99,6 +101,12 @@ func run(args []string, now func() time.Time) error {
 	if err != nil {
 		return err
 	}
+	if err := sourceaudit.Verify(root); err != nil {
+		return fmt.Errorf("validate released Go output source before profile generation: %w", err)
+	}
+	if err := sourceaudit.VerifyBuildEnvironment(root); err != nil {
+		return err
+	}
 	destination, err := filepath.Abs(*output)
 	if err != nil || strings.TrimSpace(*output) == "" || destination == root {
 		return errors.New("output must name a new application directory")
@@ -142,6 +150,10 @@ func run(args []string, now func() time.Time) error {
 	if err := copyTemplate(
 		root, destination, replacements, templateSlug, slug, hasProfile(selectedProfiles, "Agent"), hasProfile(selectedProfiles, "Files"),
 		hasProfile(selectedProfiles, "Clients"), hasProfile(selectedProfiles, "Catalog"),
+		templateName, *name, "Dynamis Code", *name,
+		"Copyright (c) 2026 David Londono", "Copyright (c) 2026 "+*name+" contributors",
+		templateRepositoryURL, strings.TrimRight(*repository, "/"),
+		templateSecurityURL, strings.TrimRight(*securityURL, "/"),
 	); err != nil {
 		return err
 	}
@@ -169,6 +181,12 @@ func run(args []string, now func() time.Time) error {
 	if output, err := command.CombinedOutput(); err != nil {
 		return fmt.Errorf("prune generated module dependencies: %s", strings.TrimSpace(string(output)))
 	}
+	if err := sourceaudit.VerifyBuildEnvironment(destination); err != nil {
+		return err
+	}
+	if err := sourceaudit.WriteReviewed(destination); err != nil {
+		return fmt.Errorf("derive reviewed Go output manifest after profile generation: %w", err)
+	}
 	lock := lockFile{GeneratedAt: now().UTC(), Profiles: selectedProfiles}
 	lock.Template.Source = *source
 	lock.Template.Version = selectedVersion
@@ -186,7 +204,10 @@ func copyTemplate(
 	files bool,
 	clients bool,
 	catalog bool,
+	dynamicReplacements ...string,
 ) error {
+	replace := strings.NewReplacer(replacements...)
+	dynamic := strings.NewReplacer(dynamicReplacements...)
 	return filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -204,6 +225,9 @@ func copyTemplate(
 		relative, err := filepath.Rel(root, path)
 		if err != nil || relative == "." {
 			return err
+		}
+		if filepath.ToSlash(relative) == sourceaudit.ManifestPath {
+			return nil
 		}
 		if ignored(relative) {
 			if entry.IsDir() {
@@ -253,7 +277,10 @@ func copyTemplate(
 			return err
 		}
 		if !strings.ContainsRune(string(raw), '\x00') {
-			value := strings.NewReplacer(replacements...).Replace(string(raw))
+			value, err := replaceBrandedSource(filepath.ToSlash(relative), string(raw), replace, dynamic)
+			if err != nil {
+				return fmt.Errorf("generate %s: %w", relative, err)
+			}
 			if !agent && filepath.ToSlash(relative) == "docs/capabilities.md" {
 				value = strings.ReplaceAll(value, "; [MCP tests](../internal/mcpserver/server_test.go); [CLI tests](../internal/appctl/run_test.go)", "")
 				value = strings.ReplaceAll(value, "[live surface smoke](../internal/bootstrap/agent_smoke_test.go)", "[composition test](../internal/bootstrap/app_test.go)")
@@ -493,6 +520,7 @@ func filesPath(relative string) bool {
 	return relative == "internal/files" || strings.HasPrefix(relative, "internal/files/") ||
 		relative == "internal/httpapi/files.go" || relative == "internal/httpapi/files_test.go" || relative == "internal/web/files.go" || relative == "internal/web/files_test.go" ||
 		relative == "internal/web/files.templ" || relative == "internal/web/files_templ.go" ||
+		relative == "internal/web/files_stream_test.go" ||
 		relative == "internal/web/viewmodel/files.go" || relative == "internal/web/files_actions.go" || relative == "internal/web/files_order.go" || relative == "docs/files-417-evidence.md" ||
 		relative == "internal/web/files_no_javascript_test.go" || relative == "internal/browsertest/files_test.go" ||
 		relative == "internal/platform/database/migrations/000014_files.sql" ||
@@ -539,6 +567,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/httpapi/clients.go" || relative == "internal/httpapi/clients_test.go" ||
 		relative == "internal/httpapi/client_timeline.go" || relative == "internal/httpapi/client_timeline_test.go" ||
 		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" || relative == "internal/web/clients_scope_test.go" || relative == "internal/web/clients_intake_menu_test.go" ||
+		relative == "internal/web/clients_stream_test.go" ||
 		relative == "internal/web/engagement_test.go" || relative == "internal/web/engagement_dashboard_test.go" || relative == "internal/web/action_queue_test.go" ||
 		relative == "internal/web/engagement_list.go" || relative == "internal/web/engagement_list_test.go" ||
 		relative == "internal/web/engagement_board.go" || relative == "internal/web/engagement_board_test.go" ||

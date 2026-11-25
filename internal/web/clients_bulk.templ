@@ -27,7 +27,7 @@ templ clientBulkBar(data viewmodel.PageData) {
 
 // clientRowSelect is a row's selection checkbox in the table.
 templ clientRowSelect(data viewmodel.PageData, row viewmodel.ListRow) {
-	<td class="list-select-cell">@atoms.Checkbox(atoms.CheckboxProps{
+	<td class="list-select-cell">@atoms.PlainCheckbox(atoms.CheckboxProps{
 		Name: "client_id",
 		Attrs: templ.Attributes{"form": "client-bulk", "value": row.ID, "data-bulk-row": true, "aria-label": data.T("clients.bulk_select_row", map[string]any{"name": row.CellText(data.ClientListLinkKey())})},
 	})</td>
@@ -35,7 +35,7 @@ templ clientRowSelect(data viewmodel.PageData, row viewmodel.ListRow) {
 
 // clientCardSelect is a card's selection checkbox on small screens.
 templ clientCardSelect(data viewmodel.PageData, row viewmodel.ListRow) {
-	@atoms.Checkbox(atoms.CheckboxProps{
+	@atoms.PlainCheckbox(atoms.CheckboxProps{
 		Name:       "client_id",
 		LabelClass: "list-select",
 		After:      data.T("clients.bulk_select"),

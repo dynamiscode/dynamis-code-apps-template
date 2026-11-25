@@ -1,12 +1,14 @@
 package molecules
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 
 // ListSearch is the search box at the start of a list's toolbar. It sends q and always combines with the
 // filters, whatever their match mode. placeholderKey names what the list searches.
 templ ListSearch(data viewmodel.PageData, placeholderKey string, value string) {
-	<form class="list-search flex flex-nowrap items-center gap-2" role="search" method="get" action={ data.CurrentPath } { ListSearchLive(data)... }>
+	<form class="list-search flex flex-nowrap items-center gap-2" role="search" method="get" action={ data.CurrentPath } { actionattrs.ScalarAttributes(ListSearchLive(data))... }>
 		for _, field := range data.ListPreservedQuery {
 			if field.Name != "q" && field.Name != "search" {
 				<input type="hidden" name={ field.Name } value={ field.Value }/>

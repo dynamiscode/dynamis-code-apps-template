@@ -3,6 +3,7 @@
 package atoms
 
 import "fmt"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 
 type PaginationProps struct {
 	URL      string
@@ -48,7 +49,7 @@ templ LinkPagination(props LinkPaginationProps) {
 					if p.Rel != "" {
 						rel={ p.Rel }
 					}
-					{ p.Attrs... }
+					{ actionattrs.From(p.Attrs)... }
 				>
 					{ p.Label }
 				</a>

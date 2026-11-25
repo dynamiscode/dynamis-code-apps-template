@@ -155,6 +155,21 @@ func TestInvitationContinueRejectsInvalidOpaqueState(t *testing.T) {
 	}
 }
 
+func TestInvitationSignInCSRFRejectionRetainsPrivateHeaders(t *testing.T) {
+	handler, _, _, _ := testWeb(t, 10)
+	response := request(handler, http.MethodPost, "/invitations/unavailable/sign-in",
+		url.Values{"csrf": {"wrong-value"}}, nil, nil)
+	if response.Code != http.StatusForbidden || response.Header().Get("Referrer-Policy") != "no-referrer" ||
+		response.Header().Get("X-Robots-Tag") != "noindex, nofollow, noarchive" {
+		t.Fatalf("invitation sign-in CSRF rejection did not retain privacy headers (status %d)", response.Code)
+	}
+	for _, cookie := range response.Result().Cookies() {
+		if cookie.Name == "invitation_handoff" || cookie.Name == "invitation_handoff_binding" {
+			t.Fatal("rejected sign-in issued a handoff cookie")
+		}
+	}
+}
+
 func TestInvitationReturnSurvivesMFAWithoutSecretReturnTarget(t *testing.T) {
 	handler, auth, workspaceID, owner := testWebWithMFA(t, 10, true)
 	ctx := context.Background()

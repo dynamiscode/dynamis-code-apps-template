@@ -2,7 +2,7 @@
 // https://daisyui.com/components/button
 package atoms
 
-import "strings"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 
 type ButtonProps struct {
 	Class string
@@ -11,13 +11,5 @@ type ButtonProps struct {
 }
 
 templ Button(props ButtonProps) {
-	{{
-		if extra, ok := props.Attrs["class"]; ok {
-			if s, ok := extra.(string); ok {
-				props.Class = strings.TrimSpace(props.Class + " " + s)
-				delete(props.Attrs, "class")
-			}
-		}
-	}}
-	<button class={ "btn", props.Class } { props.Attrs... }>{ props.Label }{ children... }</button>
+	<button class={ "btn", props.Class } { actionattrs.From(props.Attrs)... }>{ props.Label }{ children... }</button>
 }

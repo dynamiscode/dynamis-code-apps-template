@@ -1,6 +1,5 @@
 package organisms
 
-import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "strings"
 
 import "example.com/dynamis-code/apps-template/internal/identity"
@@ -15,19 +14,7 @@ templ workspaceSwitcherItem(href, name, role string, current bool) {
 
 // logoutItem is the POST logout form as a daisyUI menu entry.
 templ logoutItem(data viewmodel.PageData) {
-	<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button type="submit" class="btn btn-ghost btn-sm w-full justify-start font-normal">{ data.T("navigation.sign_out") }</button></form>
-}
-
-
-// workspaceSwitcherItems builds the dropdown items for the workspace switcher menu.
-func workspaceSwitcherItems(data viewmodel.PageData) []atoms.DropdownItem {
-	items := make([]atoms.DropdownItem, 0, len(data.Workspaces)+2)
-	items = append(items, atoms.DropdownItem{Title: data.T("navigation.home")})
-	for _, workspace := range data.Workspaces {
-		items = append(items, atoms.DropdownItem{Item: workspaceSwitcherItem("/workspaces/"+workspace.ID.String(), workspace.Name, data.Role(workspace.Role), workspace.ID == data.Workspace.ID)})
-	}
-	items = append(items, atoms.DropdownItem{Label: data.T("workspace.workspaces"), Attrs: templ.Attributes{"href": "/"}})
-	return items
+	<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button type="submit" class="btn btn-outline btn-sm w-full justify-start font-normal">{ data.T("navigation.sign_out") }</button></form>
 }
 
 
@@ -35,14 +22,16 @@ templ WorkspaceContext(data viewmodel.PageData) {
 	if data.SingleWorkspace {
 		<span class="truncate font-bold">{ data.Workspace.Name }</span>
 	} else {
-		@atoms.Dropdown(atoms.DropdownProps{
-			Class:        "",
-			Label:        data.Workspace.Name,
-			SummaryClass: "btn-sm h-auto min-h-0 px-2 text-lg font-bold normal-case",
-			Summary:      workspaceChevron(),
-			ListClass:    "w-56 max-w-[90vw] bg-base-100 rounded-box shadow-lg",
-			Items:        workspaceSwitcherItems(data),
-		})
+		<details class="dropdown">
+			<summary class="btn m-1 btn-sm h-auto min-h-0 px-2 text-lg font-bold normal-case">{ data.Workspace.Name + " " }@workspaceChevron()</summary>{ " " }
+			<ul class="menu dropdown-content w-56 max-w-[90vw] bg-base-100 rounded-box shadow-lg">
+				<li class="menu-title">{ data.T("navigation.home") }</li>
+				for _, workspace := range data.Workspaces {
+					<li class="">@workspaceSwitcherItem("/workspaces/"+workspace.ID.String(), workspace.Name, data.Role(workspace.Role), workspace.ID == data.Workspace.ID)</li>
+				}
+				<li><a href="/" class="border border-base-300">{ data.T("workspace.workspaces") }</a></li>
+			</ul>
+		</details>
 	}
 }
 
@@ -144,32 +133,6 @@ templ AccountNavigation(data viewmodel.PageData) {
 	</nav>
 }
 
-// accountMenuItems builds the account dropdown items, marking the current page active.
-func accountMenuItems(data viewmodel.PageData) []atoms.DropdownItem {
-	active := func(page string) string {
-		if data.NavPage == page {
-			return "menu-active"
-		}
-		return ""
-	}
-	items := []atoms.DropdownItem{
-		{Class: active("account"), Item: NavLink(data, "/account", "account.account", data.NavPage == "account")},
-		{Class: active("notifications"), Item: NavLink(data, "/notifications", "notifications.notifications", data.NavPage == "notifications")},
-		{Class: active("language"), Item: NavLink(data, "/settings/language", "account.language_settings", data.NavPage == "language")},
-		{Class: active("security"), Item: NavLink(data, "/security", "navigation.security", data.NavPage == "security")},
-		{Class: active("sessions"), Item: NavLink(data, "/sessions", "navigation.sessions", data.NavPage == "sessions")},
-		{Item: logoutItem(data)},
-	}
-	if data.Profile.Email != "" {
-		who := data.Profile.DisplayName
-		if who == "" {
-			who = data.Profile.Email
-		}
-		items = append([]atoms.DropdownItem{{Title: who}}, items...)
-	}
-	return items
-}
-
 // avatarInitials derives up to two uppercase initials from the display name,
 // falling back to the email, then a question mark for anonymous pages.
 func avatarInitials(profile identity.UserProfile) string {
@@ -193,15 +156,26 @@ func avatarInitials(profile identity.UserProfile) string {
 
 
 templ AccountMenu(data viewmodel.PageData) {
-	@atoms.Dropdown(atoms.DropdownProps{
-		Class:        "dropdown-end",
-		Label:        "",
-		SummaryAttrs: templ.Attributes{"aria-label": data.T("common.account")},
-		SummaryClass: "btn btn-circle p-0",
-		Summary:      AccountAvatar(data),
-		ListClass:    "w-52 max-w-[90vw] bg-base-100 rounded-box shadow-lg",
-		Items:        accountMenuItems(data),
-	})
+	<details class="dropdown dropdown-end">
+		<summary class="btn m-1 btn btn-circle p-0" aria-label={ data.T("common.account") }>{ " " }@AccountAvatar(data)</summary>{ " " }
+		<ul class="menu dropdown-content w-52 max-w-[90vw] bg-base-100 rounded-box shadow-lg">
+			if data.Profile.Email != "" {
+				<li class="menu-title">
+					if data.Profile.DisplayName == "" {
+						{ data.Profile.Email }
+					} else {
+						{ data.Profile.DisplayName }
+					}
+				</li>
+			}
+			@navLi(data, "/account", "account.account", data.NavPage == "account")
+			@navLi(data, "/notifications", "notifications.notifications", data.NavPage == "notifications")
+			@navLi(data, "/settings/language", "account.language_settings", data.NavPage == "language")
+			@navLi(data, "/security", "navigation.security", data.NavPage == "security")
+			@navLi(data, "/sessions", "navigation.sessions", data.NavPage == "sessions")
+			<li class="">@logoutItem(data)</li>
+		</ul>
+	</details>
 }
 
 // AccountAvatar is the decorative initials circle; the dropdown summary's

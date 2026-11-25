@@ -1,7 +1,7 @@
 package organisms
 
-import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 // ListActionsCell is a row's last cell: a sticky "⋯" menu of the row's actions. It stays on the right while the
@@ -17,31 +17,32 @@ templ ListActionsCell(data viewmodel.PageData, actions []ListAction) {
 // horizontal ones. A row with no actions shows nothing.
 templ ListActionsMenu(data viewmodel.PageData, actions []ListAction, vertical bool) {
 	if len(actions) > 0 {
-		@atoms.Dropdown(atoms.DropdownProps{
-			Class:        "list-menu",
-			SummaryClass: "btn btn-sm list-row-menu-button",
-			SummaryAttrs: templ.Attributes{"aria-label": data.T("ui.row_actions"), "title": data.T("ui.row_actions")},
-			Summary:      molecules.RowMenuGlyph(vertical),
-			ListClass:    "list-action-items bg-base-100 rounded-box shadow-lg",
-			Items:        listActionItems(data, actions),
-		})
+		<details class="dropdown list-menu">
+			@listActionsSummary(data, vertical)
+			<ul class="menu dropdown-content list-action-items bg-base-100 rounded-box shadow-lg">
+				for _, action := range actions {
+					@listActionItem(data, action)
+				}
+			</ul>
+		</details>
 	}
 }
 
-// listActionItems builds one menu entry per action, with a divider before each danger action.
-func listActionItems(data viewmodel.PageData, actions []ListAction) []atoms.DropdownItem {
-	items := make([]atoms.DropdownItem, 0, len(actions)*2)
-	for _, action := range actions {
-		if action.Danger {
-			items = append(items, atoms.DropdownItem{Divider: true})
-		}
-		if action.PostPath != "" {
-			items = append(items, atoms.DropdownItem{Item: listActionForm(data, action)})
-		} else {
-			items = append(items, atoms.DropdownItem{Item: listActionLink(action)})
-		}
+templ listActionItem(data viewmodel.PageData, action ListAction) {
+	if action.Danger {
+		<li class="my-1 border-t border-base-content/10"></li>
 	}
-	return items
+	<li class="">
+		if action.PostPath != "" {
+			@listActionForm(data, action)
+		} else {
+			@listActionLink(action)
+		}
+	</li>
+}
+
+templ listActionsSummary(data viewmodel.PageData, vertical bool) {
+	<summary class="btn m-1 btn btn-sm list-row-menu-button" aria-label={ data.T("ui.row_actions") } title={ data.T("ui.row_actions") }>{ " " }@molecules.RowMenuGlyph(vertical)</summary>{ " " }
 }
 
 // listActionItemClass is the one class every menu entry wears, whichever element carries the action. A link and a
@@ -59,12 +60,12 @@ templ listActionForm(data viewmodel.PageData, action ListAction) {
 	<form class="list-action-form" method="post" action={ action.PostPath }>
 		<input type="hidden" name="csrf" value={ data.CSRF }/>
 		if action.Danger {
-			@molecules.ConfirmButton("", action.Confirm, templ.Attributes{"class": listActionItemClass(action)}) {
+			@molecules.ConfirmButton("", action.Confirm, actionattrs.ButtonClass(listActionItemClass(action)), nil) {
 				@ListActionIcon(action.Icon)
 				<span>{ action.Label }</span>
 			}
 		} else {
-			<button class={ listActionItemClass(action) } type="submit" { ListActionConfirm(action)... }>
+			<button class={ actionattrs.LinkClass(listActionItemClass(action)) } type="submit" { actionattrs.From(ListActionConfirm(action))... }>
 				@ListActionIcon(action.Icon)
 				<span>{ action.Label }</span>
 			</button>
@@ -74,7 +75,7 @@ templ listActionForm(data viewmodel.PageData, action ListAction) {
 
 // listActionLink is a GET action.
 templ listActionLink(action ListAction) {
-	<a class={ listActionItemClass(action) } href={ templ.SafeURL(action.Href) }>
+	<a class={ actionattrs.LinkClass(listActionItemClass(action)) } href={ templ.SafeURL(action.Href) }>
 		@ListActionIcon(action.Icon)
 		<span>{ action.Label }</span>
 	</a>
@@ -83,18 +84,12 @@ templ listActionLink(action ListAction) {
 // ListRowMenuCard is a card's menu for the Members rows, whose actions are written in the page. It uses the vertical
 // dots.
 templ ListRowMenuCard(data viewmodel.PageData) {
-	@atoms.Dropdown(atoms.DropdownProps{
-		Class:          "list-menu",
-		SummaryClass:   "btn btn-sm list-row-menu-button",
-		SummaryAttrs:   templ.Attributes{"aria-label": data.T("ui.row_actions"), "title": data.T("ui.row_actions")},
-		Summary:        molecules.RowMenuGlyph(true),
-		PanelClass:     "list-action-items bg-base-100 rounded-box shadow-lg",
-		PanelChildren:  true,
-	}) {
-		<ul class="list-action-items">
-			{ children... }
-		</ul>
-	}
+	<details class="dropdown list-menu">
+		@listActionsSummary(data, true)
+		<div class="dropdown-content list-action-items bg-base-100 rounded-box shadow-lg">
+			<ul class="list-action-items">{ children... }</ul>
+		</div>
+	</details>
 }
 
 // ListActionIcon is the glyph of a row action. It is decorative: the label names the action.

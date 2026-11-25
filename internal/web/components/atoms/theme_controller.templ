@@ -2,6 +2,8 @@
 // https://daisyui.com/components/theme-controller
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type ThemeControllerProps struct {
 	// Theme must be a valid daisyUI theme name, e.g. "light", "dark"
 	Theme string
@@ -23,6 +25,6 @@ templ ThemeController(props ThemeControllerProps) {
 		type={ props.typ() }
 		value={ props.Theme }
 		class={ "theme-controller", props.Class }
-		{ props.Attrs... }
+		{ actionattrs.ScalarAttributes(props.Attrs)... }
 	/>
 }

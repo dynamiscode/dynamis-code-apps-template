@@ -1,0 +1,56 @@
+[
+  {
+    "Path": "internal/web/components/molecules/skip_link.templ",
+    "OpenTag": "<a class=\"skip-link\" href=\"#main\">",
+    "Line": 7,
+    "Reason": "Accessibility skip link is hidden until focus and styled in app.css."
+  },
+  {
+    "Path": "internal/web/components/atoms/modal.templ",
+    "OpenTag": "<button>",
+    "Line": 37,
+    "Reason": "Native dialog backdrop close control, not a visible action."
+  },
+  {
+    "Path": "internal/web/components/atoms/anchor.templ",
+    "OpenTag": "<a\n\t\tif props.Href != \"\" {\n\t\t\thref={ templ.SafeURL(props.Href) }\n\t\t}\n\t\tclass={ props.Class }\n\t\t{ actionattrs.From(props.Attrs)... }\n\t>",
+    "Line": 16,
+    "Reason": "This is the Anchor atom's own definition, the trust boundary every other caller goes through. props.Class and props.Attrs are exactly the values scripts/actioncheck's safeComponent already requires to be a literal/actionattrs-guarded expression at every AnchorProps{...} call site; Attrs is additionally revalidated here via actionattrs.From before it reaches the element."
+  },
+  {
+    "Path": "internal/web/components/atoms/button.templ",
+    "OpenTag": "<button class={ \"btn\", props.Class } { actionattrs.From(props.Attrs)... }>",
+    "Line": 14,
+    "Reason": "This is the Button atom's own definition, the trust boundary every other caller goes through. props.Class is exactly the value scripts/actioncheck's safeComponent already requires to be a literal/actionattrs-guarded expression at every ButtonProps{...} call site; the attrs spread is revalidated here via actionattrs.From."
+  },
+  {
+    "Path": "internal/web/components/atoms/link.templ",
+    "OpenTag": "<a\n\t\thref={ props.Href }\n\t\tclass={ \"link\", props.Class }\n\t\t{ actionattrs.From(props.Attrs)... }\n\t\tif props.NewTab {\n\t\t\ttarget=\"_blank\"\n\t\t\trel=\"noopener\"\n\t\t}\n\t>",
+    "Line": 16,
+    "Reason": "This is the Link atom's own definition, the trust boundary every other caller goes through. Link has no safeComponent-recognized call-site check today (no LinkProps{...} are constructed anywhere in the app yet), so props.Class and props.Attrs are not independently caller-verified; Attrs is revalidated here via actionattrs.From. If a caller is added, extend safeComponent for Link the same way SubmitButton/ConfirmButton are handled."
+  },
+  {
+    "Path": "internal/web/components/atoms/card.templ",
+    "OpenTag": "<a href={ templ.SafeURL(props.Href) } class=\"flex items-start justify-between gap-3\">",
+    "Line": 40,
+    "Reason": "ListCard's whole-card link has a fully literal, unconditional class with no Attrs spread: there is no caller-controlled input of any kind reaching this tag, so there is nothing to override. It does not carry daisyUI's btn/border boundary classes by design (it is a card row, not a button)."
+  },
+  {
+    "Path": "internal/web/components/atoms/dock.templ",
+    "OpenTag": "<button class={ templ.KV(\"dock-active\", item.Active) } { actionattrs.From(item.Attrs)... }>",
+    "Line": 30,
+    "Reason": "Dock items intentionally render without daisyUI's btn/border boundary classes (dock-specific styling only); the only class content is a fixed-string conditional (dock-active or nothing), so there is no override surface to protect. item.Attrs is independently guarded via actionattrs.From, which also rejects a smuggled \"class\" key."
+  },
+  {
+    "Path": "internal/web/components/molecules/back_link.templ",
+    "OpenTag": "<a class=\"detail-back\" href={ templ.SafeURL(href) }>",
+    "Line": 4,
+    "Reason": "Fully literal, unconditional class with no Attrs spread and no caller-supplied class fragment: there is nothing to override. It does not use daisyUI's btn/border boundary classes by design (it is an inline back-navigation link, not a button)."
+  },
+  {
+    "Path": "internal/web/components/templates/workspace.templ",
+    "OpenTag": "<button type=\"button\" class=\"drawer-overlay block\" tabindex=\"-1\" aria-hidden=\"true\" @click=\"toggleDrawer\">",
+    "Line": 44,
+    "Reason": "Fully literal class, no Attrs spread, no caller input. Same category as the modal.templ backdrop exception above: a click-to-close drawer overlay, not a visible/labeled action control."
+  }
+]

@@ -10,7 +10,7 @@ import atoms "example.com/dynamis-code/apps-template/internal/web/components/ato
 import "example.com/dynamis-code/apps-template/internal/identity"
 
 templ membersPage(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
+	@templates.DashboardShell(data, templates.DashboardSettings) {
 		@molecules.PageHeading(data.T("members.members"), data.T("navigation.settings_access"))
 		@organisms.PeopleTabs(data)
 		if data.Error != "" {
@@ -36,7 +36,20 @@ templ membersPage(data viewmodel.PageData) {
 }
 
 templ memberListView(data viewmodel.PageData) {
-	@organisms.ListScreen(data, "members.search", memberListTools(data), memberResults(data))
+	<div class="list-toolbar">
+		if data.ListHasContent() {
+			@molecules.ListSearch(data, "members.search", data.ListSearch)
+		}
+		if data.ListHasContent() || len(data.ListViews) > 0 {
+			@organisms.ListViewSwitcher(data)
+		}
+		if data.ListHasContent() {
+			@organisms.ListAddFilter(data)
+		}
+		@memberListTools(data)
+	</div>
+	@organisms.ListFilterBar(data)
+	@memberResults(data)
 }
 
 // memberListTools are the member list's own controls on the toolbar: the columns.
@@ -49,7 +62,16 @@ templ memberListTools(data viewmodel.PageData) {
 // memberResults is the Members results region: the table or cards and the empty state. A live search also
 // refreshes the filter bar out of band.
 templ memberResults(data viewmodel.PageData) {
-	@organisms.ListResults(data, data.MemberListQuery.Limit, listPageSizeOptions(data.MemberListQuery.Limit, memberPageSizes), data.ClientQuerySuffix, memberRows(data), templ.NopComponent)
+	<div id="list-results">
+		@memberRows(data)
+		@organisms.ListFooter(data, data.MemberListQuery.Limit, listPageSizeOptions(data.MemberListQuery.Limit, memberPageSizes)) {
+			@molecules.ListPager(data)
+		}
+	</div>
+	if data.ListFragment {
+		@organisms.ListFilterBarOOB(data)
+		@molecules.ListColumnsBody(data, data.ClientQuerySuffix, true)
+	}
 }
 
 templ memberRows(data viewmodel.PageData) {
@@ -105,7 +127,7 @@ templ memberActions(data viewmodel.PageData, member identity.MemberSummary, suff
 			<form data-webmcp-actions="member-remove" data-webmcp-id={ member.ID.String() } action={ "/workspaces/"+data.Workspace.ID.String()+"/settings/members" } method="post">
 				<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="member_id" value={ member.ID.String() }/>
 				<p id={ "remove-consequence-"+member.ID.String()+"-"+suffix } class="status-line">{ data.T("members.remove_consequence") }</p>
-				<fieldset><legend>{ data.T("members.remove_confirm") }</legend>@atoms.Checkbox(atoms.CheckboxProps{
+				<fieldset><legend>{ data.T("members.remove_confirm") }</legend>@atoms.PlainCheckbox(atoms.CheckboxProps{
 					ID:         "confirm-remove-" + member.ID.String() + "-" + suffix,
 					Name:       "confirm_remove",
 					LabelClass: "confirmation",

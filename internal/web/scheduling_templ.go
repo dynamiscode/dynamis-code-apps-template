@@ -13,7 +13,6 @@ import "example.com/dynamis-code/apps-template/internal/identity"
 import "example.com/dynamis-code/apps-template/internal/scheduling"
 import "example.com/dynamis-code/apps-template/internal/catalog"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "strconv"
@@ -42,7 +41,7 @@ func schedulingHoursRow(data viewmodel.PageData, h scheduling.WorkingHours) temp
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.range"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 14, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 13, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -55,7 +54,7 @@ func schedulingHoursRow(data viewmodel.PageData, h scheduling.WorkingHours) temp
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.day"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 15, Col: 99}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 14, Col: 99}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -73,7 +72,7 @@ func schedulingHoursRow(data viewmodel.PageData, h scheduling.WorkingHours) temp
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templruntime.NewAttributeExpression(strconv.Itoa(day)).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 17, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 16, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 			if templ_7745c5c3_Err != nil {
@@ -96,7 +95,7 @@ func schedulingHoursRow(data viewmodel.PageData, h scheduling.WorkingHours) temp
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.day_" + strconv.Itoa(day)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 17, Col: 116}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 16, Col: 116}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -114,7 +113,7 @@ func schedulingHoursRow(data viewmodel.PageData, h scheduling.WorkingHours) temp
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.start"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 20, Col: 101}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 19, Col: 101}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -127,7 +126,7 @@ func schedulingHoursRow(data viewmodel.PageData, h scheduling.WorkingHours) temp
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templruntime.NewAttributeExpression(h.Start).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 20, Col: 193}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 19, Col: 193}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
@@ -140,7 +139,7 @@ func schedulingHoursRow(data viewmodel.PageData, h scheduling.WorkingHours) temp
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.end"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 21, Col: 99}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 20, Col: 99}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -153,7 +152,7 @@ func schedulingHoursRow(data viewmodel.PageData, h scheduling.WorkingHours) temp
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templruntime.NewAttributeExpression(h.End).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 21, Col: 187}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 20, Col: 187}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
@@ -191,7 +190,7 @@ func schedulingUser(data viewmodel.PageData, members []identity.MemberSummary, s
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.user"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 26, Col: 101}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 25, Col: 101}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
@@ -204,7 +203,7 @@ func schedulingUser(data viewmodel.PageData, members []identity.MemberSummary, s
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.no_user"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 26, Col: 211}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 25, Col: 211}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -222,7 +221,7 @@ func schedulingUser(data viewmodel.PageData, members []identity.MemberSummary, s
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templruntime.NewAttributeExpression(member.UserID.String()).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 28, Col: 41}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 27, Col: 41}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 			if templ_7745c5c3_Err != nil {
@@ -245,7 +244,7 @@ func schedulingUser(data viewmodel.PageData, members []identity.MemberSummary, s
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(member.Email)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 28, Col: 107}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 27, Col: 107}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 			if templ_7745c5c3_Err != nil {
@@ -288,7 +287,7 @@ func schedulingEngagement(data viewmodel.PageData, options []scheduling.Engageme
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.engagement"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 34, Col: 88}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 33, Col: 88}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
@@ -301,7 +300,7 @@ func schedulingEngagement(data viewmodel.PageData, options []scheduling.Engageme
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.no_engagement"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 35, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 34, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -319,7 +318,7 @@ func schedulingEngagement(data viewmodel.PageData, options []scheduling.Engageme
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templruntime.NewAttributeExpression(option.ID.String()).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 37, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 36, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 			if templ_7745c5c3_Err != nil {
@@ -342,7 +341,7 @@ func schedulingEngagement(data viewmodel.PageData, options []scheduling.Engageme
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(option.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 37, Col: 99}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 36, Col: 99}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 			if templ_7745c5c3_Err != nil {
@@ -403,7 +402,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 					var templ_7745c5c3_Var22 string
 					templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling." + draft.bookingError))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 48, Col: 47}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 47, Col: 47}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 					if templ_7745c5c3_Err != nil {
@@ -413,7 +412,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 					var templ_7745c5c3_Var23 string
 					templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.invalid_zone"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 50, Col: 40}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 49, Col: 40}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 					if templ_7745c5c3_Err != nil {
@@ -423,7 +422,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 					var templ_7745c5c3_Var24 string
 					templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.invalid_hours"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 52, Col: 41}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 51, Col: 41}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 					if templ_7745c5c3_Err != nil {
@@ -433,7 +432,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 					var templ_7745c5c3_Var25 string
 					templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.invalid"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 54, Col: 35}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 53, Col: 35}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 					if templ_7745c5c3_Err != nil {
@@ -452,7 +451,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 			var templ_7745c5c3_Var26 string
 			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.zone"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 58, Col: 32}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 57, Col: 32}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 			if templ_7745c5c3_Err != nil {
@@ -465,7 +464,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 			var templ_7745c5c3_Var27 string
 			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(zone)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 58, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 57, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 			if templ_7745c5c3_Err != nil {
@@ -487,7 +486,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 				var templ_7745c5c3_Var28 string
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/scheduling/time-zone")).ResolveURL(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 64, Col: 112}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 63, Col: 112}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 				if templ_7745c5c3_Err != nil {
@@ -500,7 +499,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 				var templ_7745c5c3_Var29 string
 				templ_7745c5c3_Var29, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 65, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 64, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 				if templ_7745c5c3_Err != nil {
@@ -513,7 +512,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 				var templ_7745c5c3_Var30 string
 				templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.zone"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 66, Col: 104}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 65, Col: 104}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 				if templ_7745c5c3_Err != nil {
@@ -526,7 +525,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 				var templ_7745c5c3_Var31 string
 				templ_7745c5c3_Var31, templ_7745c5c3_Err = templruntime.NewAttributeExpression(zoneInput).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 66, Col: 183}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 65, Col: 183}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
 				if templ_7745c5c3_Err != nil {
@@ -539,7 +538,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 				var templ_7745c5c3_Var32 string
 				templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("common.save"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 67, Col: 79}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 66, Col: 79}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 				if templ_7745c5c3_Err != nil {
@@ -560,7 +559,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 				var templ_7745c5c3_Var33 string
 				templ_7745c5c3_Var33, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/scheduling")).ResolveURL(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 73, Col: 102}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 72, Col: 102}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 				if templ_7745c5c3_Err != nil {
@@ -573,7 +572,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 				var templ_7745c5c3_Var34 string
 				templ_7745c5c3_Var34, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 74, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 73, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 				if templ_7745c5c3_Err != nil {
@@ -586,7 +585,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.name"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 75, Col: 104}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 74, Col: 104}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 				if templ_7745c5c3_Err != nil {
@@ -599,7 +598,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 				var templ_7745c5c3_Var36 string
 				templ_7745c5c3_Var36, templ_7745c5c3_Err = templruntime.NewAttributeExpression(createName).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 75, Col: 179}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 74, Col: 179}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
 				if templ_7745c5c3_Err != nil {
@@ -620,7 +619,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 				var templ_7745c5c3_Var37 string
 				templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("common.create"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 77, Col: 81}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 76, Col: 81}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 				if templ_7745c5c3_Err != nil {
@@ -653,7 +652,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 					var templ_7745c5c3_Var38 string
 					templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(resource.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 85, Col: 61}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 84, Col: 61}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 					if templ_7745c5c3_Err != nil {
@@ -666,7 +665,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 					var templ_7745c5c3_Var39 string
 					templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.bookings"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 86, Col: 63}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 85, Col: 63}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 					if templ_7745c5c3_Err != nil {
@@ -684,7 +683,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var40 string
 						templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.no_bookings"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 88, Col: 44}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 87, Col: 44}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 						if templ_7745c5c3_Err != nil {
@@ -707,7 +706,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 							var templ_7745c5c3_Var41 string
 							templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(booking.Start.Format("2006-01-02 15:04"))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 92, Col: 55}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 91, Col: 55}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 							if templ_7745c5c3_Err != nil {
@@ -720,7 +719,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 							var templ_7745c5c3_Var42 string
 							templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(booking.End.Format("15:04"))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 92, Col: 89}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 91, Col: 89}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 							if templ_7745c5c3_Err != nil {
@@ -733,7 +732,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 							var templ_7745c5c3_Var43 string
 							templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(booking.EntryName)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 92, Col: 112}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 91, Col: 112}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 							if templ_7745c5c3_Err != nil {
@@ -746,7 +745,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 							var templ_7745c5c3_Var44 string
 							templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(string(booking.Status))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 92, Col: 140}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 91, Col: 140}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 							if templ_7745c5c3_Err != nil {
@@ -764,7 +763,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 								var templ_7745c5c3_Var45 string
 								templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.history"))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 94, Col: 90}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 93, Col: 90}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 								if templ_7745c5c3_Err != nil {
@@ -788,7 +787,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 									var templ_7745c5c3_Var46 string
 									templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(move.OldStart.Format("2006-01-02 15:04 UTC"))
 									if templ_7745c5c3_Err != nil {
-										return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 102, Col: 63}
+										return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 101, Col: 63}
 									}
 									_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 									if templ_7745c5c3_Err != nil {
@@ -801,7 +800,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 									var templ_7745c5c3_Var47 string
 									templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(move.OldEnd.Format("15:04 UTC"))
 									if templ_7745c5c3_Err != nil {
-										return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 102, Col: 101}
+										return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 101, Col: 101}
 									}
 									_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 									if templ_7745c5c3_Err != nil {
@@ -814,7 +813,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 									var templ_7745c5c3_Var48 string
 									templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(move.NewStart.Format("2006-01-02 15:04 UTC"))
 									if templ_7745c5c3_Err != nil {
-										return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 102, Col: 154}
+										return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 101, Col: 154}
 									}
 									_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 									if templ_7745c5c3_Err != nil {
@@ -827,7 +826,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 									var templ_7745c5c3_Var49 string
 									templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(move.NewEnd.Format("15:04 UTC"))
 									if templ_7745c5c3_Err != nil {
-										return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 102, Col: 192}
+										return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 101, Col: 192}
 									}
 									_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 									if templ_7745c5c3_Err != nil {
@@ -840,7 +839,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 									var templ_7745c5c3_Var50 string
 									templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(actorName)
 									if templ_7745c5c3_Err != nil {
-										return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 102, Col: 207}
+										return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 101, Col: 207}
 									}
 									_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 									if templ_7745c5c3_Err != nil {
@@ -853,7 +852,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 									var templ_7745c5c3_Var51 string
 									templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(move.MovedAt.Format("2006-01-02 15:04 UTC"))
 									if templ_7745c5c3_Err != nil {
-										return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 102, Col: 256}
+										return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 101, Col: 256}
 									}
 									_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 									if templ_7745c5c3_Err != nil {
@@ -891,7 +890,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 								var templ_7745c5c3_Var52 string
 								templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.move"))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 111, Col: 150}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 110, Col: 150}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 								if templ_7745c5c3_Err != nil {
@@ -904,7 +903,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 								var templ_7745c5c3_Var53 string
 								templ_7745c5c3_Var53, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/scheduling/" + resource.ID.String() + "/bookings/" + booking.ID.String() + "/move")).ResolveURL(ctx)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 112, Col: 174}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 111, Col: 174}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var53)
 								if templ_7745c5c3_Err != nil {
@@ -917,7 +916,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 								var templ_7745c5c3_Var54 string
 								templ_7745c5c3_Var54, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 113, Col: 63}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 112, Col: 63}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var54)
 								if templ_7745c5c3_Err != nil {
@@ -930,7 +929,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 								var templ_7745c5c3_Var55 string
 								templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.start"))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 114, Col: 75}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 113, Col: 75}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 								if templ_7745c5c3_Err != nil {
@@ -943,7 +942,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 								var templ_7745c5c3_Var56 string
 								templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(zone)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 114, Col: 85}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 113, Col: 85}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 								if templ_7745c5c3_Err != nil {
@@ -956,7 +955,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 								var templ_7745c5c3_Var57 string
 								templ_7745c5c3_Var57, templ_7745c5c3_Err = templruntime.NewAttributeExpression(moveStart).Resolve(ctx)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 114, Col: 183}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 113, Col: 183}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var57)
 								if templ_7745c5c3_Err != nil {
@@ -969,7 +968,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 								var templ_7745c5c3_Var58 string
 								templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.move"))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 115, Col: 86}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 114, Col: 86}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
 								if templ_7745c5c3_Err != nil {
@@ -989,7 +988,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 									var templ_7745c5c3_Var59 string
 									templ_7745c5c3_Var59, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/clients/" + option.ClientID.String())).ResolveURL(ctx)
 									if templ_7745c5c3_Err != nil {
-										return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 121, Col: 202}
+										return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 120, Col: 202}
 									}
 									_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var59)
 									if templ_7745c5c3_Err != nil {
@@ -1002,7 +1001,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 									var templ_7745c5c3_Var60 string
 									templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(option.Label)
 									if templ_7745c5c3_Err != nil {
-										return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 121, Col: 219}
+										return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 120, Col: 219}
 									}
 									_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 									if templ_7745c5c3_Err != nil {
@@ -1022,7 +1021,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 								var templ_7745c5c3_Var61 string
 								templ_7745c5c3_Var61, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/scheduling/bookings/" + booking.ID.String() + "/engagement")).ResolveURL(ctx)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 125, Col: 154}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 124, Col: 154}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var61)
 								if templ_7745c5c3_Err != nil {
@@ -1035,7 +1034,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 								var templ_7745c5c3_Var62 string
 								templ_7745c5c3_Var62, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 126, Col: 62}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 125, Col: 62}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var62)
 								if templ_7745c5c3_Err != nil {
@@ -1063,7 +1062,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 								var templ_7745c5c3_Var63 string
 								templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("common.save"))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 132, Col: 76}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 131, Col: 76}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var63))
 								if templ_7745c5c3_Err != nil {
@@ -1082,7 +1081,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 								var templ_7745c5c3_Var64 string
 								templ_7745c5c3_Var64, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/scheduling/" + resource.ID.String() + "/bookings/" + booking.ID.String() + "/status")).ResolveURL(ctx)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 136, Col: 175}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 135, Col: 175}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var64)
 								if templ_7745c5c3_Err != nil {
@@ -1095,7 +1094,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 								var templ_7745c5c3_Var65 string
 								templ_7745c5c3_Var65, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 137, Col: 62}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 136, Col: 62}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var65)
 								if templ_7745c5c3_Err != nil {
@@ -1108,7 +1107,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 								var templ_7745c5c3_Var66 string
 								templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.done"))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 138, Col: 93}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 137, Col: 93}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 								if templ_7745c5c3_Err != nil {
@@ -1121,7 +1120,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 								var templ_7745c5c3_Var67 string
 								templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.cancelled"))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 139, Col: 103}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 138, Col: 103}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var67))
 								if templ_7745c5c3_Err != nil {
@@ -1134,7 +1133,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 								var templ_7745c5c3_Var68 string
 								templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.no_show"))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 140, Col: 99}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 139, Col: 99}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var68))
 								if templ_7745c5c3_Err != nil {
@@ -1173,7 +1172,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var69 string
 						templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.book"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 148, Col: 151}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 147, Col: 151}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var69))
 						if templ_7745c5c3_Err != nil {
@@ -1186,7 +1185,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var70 string
 						templ_7745c5c3_Var70, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/scheduling/" + resource.ID.String() + "/bookings")).ResolveURL(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 149, Col: 141}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 148, Col: 141}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var70)
 						if templ_7745c5c3_Err != nil {
@@ -1199,7 +1198,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var71 string
 						templ_7745c5c3_Var71, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 150, Col: 59}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 149, Col: 59}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var71)
 						if templ_7745c5c3_Err != nil {
@@ -1212,7 +1211,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var72 string
 						templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.entry"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 151, Col: 91}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 150, Col: 91}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var72))
 						if templ_7745c5c3_Err != nil {
@@ -1230,7 +1229,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 							var templ_7745c5c3_Var73 string
 							templ_7745c5c3_Var73, templ_7745c5c3_Err = templruntime.NewAttributeExpression(entry.ID.String()).Resolve(ctx)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 153, Col: 44}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 152, Col: 44}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var73)
 							if templ_7745c5c3_Err != nil {
@@ -1253,7 +1252,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 							var templ_7745c5c3_Var74 string
 							templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.JoinStringErrs(entry.Name)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 153, Col: 108}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 152, Col: 108}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var74))
 							if templ_7745c5c3_Err != nil {
@@ -1281,7 +1280,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var75 string
 						templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.start"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 159, Col: 91}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 158, Col: 91}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var75))
 						if templ_7745c5c3_Err != nil {
@@ -1294,7 +1293,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var76 string
 						templ_7745c5c3_Var76, templ_7745c5c3_Err = templ.JoinStringErrs(zone)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 159, Col: 101}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 158, Col: 101}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var76))
 						if templ_7745c5c3_Err != nil {
@@ -1307,7 +1306,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var77 string
 						templ_7745c5c3_Var77, templ_7745c5c3_Err = templruntime.NewAttributeExpression(draft.start).Resolve(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 159, Col: 201}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 158, Col: 201}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var77)
 						if templ_7745c5c3_Err != nil {
@@ -1320,7 +1319,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var78 string
 						templ_7745c5c3_Var78, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.book"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 160, Col: 82}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 159, Col: 82}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var78))
 						if templ_7745c5c3_Err != nil {
@@ -1338,7 +1337,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 					var templ_7745c5c3_Var79 string
 					templ_7745c5c3_Var79, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.hours"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 164, Col: 37}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 163, Col: 37}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var79))
 					if templ_7745c5c3_Err != nil {
@@ -1356,7 +1355,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var80 string
 						templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.no_hours"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 166, Col: 41}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 165, Col: 41}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var80))
 						if templ_7745c5c3_Err != nil {
@@ -1379,7 +1378,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 							var templ_7745c5c3_Var81 string
 							templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.day_" + strconv.Itoa(hours.Weekday)))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 170, Col: 68}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 169, Col: 68}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var81))
 							if templ_7745c5c3_Err != nil {
@@ -1392,7 +1391,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 							var templ_7745c5c3_Var82 string
 							templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.JoinStringErrs(hours.Start)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 170, Col: 85}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 169, Col: 85}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var82))
 							if templ_7745c5c3_Err != nil {
@@ -1405,7 +1404,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 							var templ_7745c5c3_Var83 string
 							templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.JoinStringErrs(hours.End)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 170, Col: 101}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 169, Col: 101}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var83))
 							if templ_7745c5c3_Err != nil {
@@ -1430,7 +1429,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 							var templ_7745c5c3_Var84 string
 							templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.JoinStringErrs(member.Email)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 176, Col: 28}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 175, Col: 28}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var84))
 							if templ_7745c5c3_Err != nil {
@@ -1464,7 +1463,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var85 string
 						templ_7745c5c3_Var85, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.edit_hours"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 184, Col: 155}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 183, Col: 155}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var85))
 						if templ_7745c5c3_Err != nil {
@@ -1477,7 +1476,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var86 string
 						templ_7745c5c3_Var86, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/scheduling/" + resource.ID.String() + "/working-hours")).ResolveURL(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 185, Col: 145}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 184, Col: 145}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var86)
 						if templ_7745c5c3_Err != nil {
@@ -1490,7 +1489,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var87 string
 						templ_7745c5c3_Var87, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 186, Col: 58}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 185, Col: 58}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var87)
 						if templ_7745c5c3_Err != nil {
@@ -1503,7 +1502,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var88 string
 						templ_7745c5c3_Var88, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.hours_help"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 187, Col: 44}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 186, Col: 44}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var88))
 						if templ_7745c5c3_Err != nil {
@@ -1530,7 +1529,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var89 string
 						templ_7745c5c3_Var89, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("common.save"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 192, Col: 77}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 191, Col: 77}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var89))
 						if templ_7745c5c3_Err != nil {
@@ -1568,7 +1567,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var90 string
 						templ_7745c5c3_Var90, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("ui.edit"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 202, Col: 196}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 201, Col: 196}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var90))
 						if templ_7745c5c3_Err != nil {
@@ -1581,7 +1580,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var91 string
 						templ_7745c5c3_Var91, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/scheduling/" + resource.ID.String() + "/edit")).ResolveURL(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 203, Col: 137}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 202, Col: 137}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var91)
 						if templ_7745c5c3_Err != nil {
@@ -1594,7 +1593,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var92 string
 						templ_7745c5c3_Var92, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 204, Col: 59}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 203, Col: 59}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var92)
 						if templ_7745c5c3_Err != nil {
@@ -1607,7 +1606,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var93 string
 						templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("scheduling.name"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 205, Col: 109}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 204, Col: 109}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var93))
 						if templ_7745c5c3_Err != nil {
@@ -1620,7 +1619,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var94 string
 						templ_7745c5c3_Var94, templ_7745c5c3_Err = templruntime.NewAttributeExpression(name).Resolve(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 205, Col: 178}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 204, Col: 178}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var94)
 						if templ_7745c5c3_Err != nil {
@@ -1641,7 +1640,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 						var templ_7745c5c3_Var95 string
 						templ_7745c5c3_Var95, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("common.save"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 207, Col: 78}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `scheduling.templ`, Line: 206, Col: 78}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var95))
 						if templ_7745c5c3_Err != nil {
@@ -1664,7 +1663,7 @@ func schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zo
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var21), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templates.DashboardShell(data, templates.DashboardHome).Render(templ.WithChildren(ctx, templ_7745c5c3_Var21), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -4,7 +4,6 @@ import "example.com/dynamis-code/apps-template/internal/identity"
 import "example.com/dynamis-code/apps-template/internal/scheduling"
 import "example.com/dynamis-code/apps-template/internal/catalog"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "strconv"
@@ -40,7 +39,7 @@ templ schedulingEngagement(data viewmodel.PageData, options []scheduling.Engagem
 }
 
 templ schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zone string, members []identity.MemberSummary, bookings map[scheduling.ResourceID][]scheduling.Booking, history map[scheduling.BookingID][]scheduling.BookingMove, entries []catalog.Entry, engagements []scheduling.EngagementOption, canWrite bool, canBook bool, invalid bool, draft schedulingDraft) {
- @templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+ @templates.DashboardShell(data, templates.DashboardHome) {
   @molecules.PageHeading(data.T("scheduling.title"), "")
   if invalid {
    <div role="alert" tabindex="-1" autofocus class="alert alert-error">

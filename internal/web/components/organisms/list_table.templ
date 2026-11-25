@@ -1,5 +1,7 @@
 package organisms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
@@ -10,7 +12,7 @@ import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 templ ListHeader(data viewmodel.PageData, actionsLabel string) {
 	<thead><tr>
 			if data.ListSelectable {
-				<th scope="col" class="list-select-cell">@atoms.Checkbox(atoms.CheckboxProps{
+				<th scope="col" class="list-select-cell">@atoms.PlainCheckbox(atoms.CheckboxProps{
 					Attrs: templ.Attributes{"data-bulk-all": true, "aria-label": data.T("clients.bulk_select_all")},
 				})</th>
 			}
@@ -36,7 +38,7 @@ templ ListRow(href string) {
 
 // ListRowWith is a table row with extra attributes, for lists whose scripts find a row by an attribute.
 templ ListRowWith(href string, attrs templ.Attributes) {
-	<tr class="list-row" data-row-href={ href } { attrs... }>
+	<tr class="list-row" data-row-href={ href } { actionattrs.ScalarAttributes(attrs)... }>
 		{ children... }
 	</tr>
 }

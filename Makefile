@@ -25,7 +25,13 @@ doc-links:
 	node scripts/check-formal-verification.mjs
 
 web-conformance:
+	@flags="$$(go env GOFLAGS)" && experiments="$$(go env GOEXPERIMENT)" && work="$$(go env GOWORK)" && test -z "$$flags$$experiments" && { test -z "$$work" || test "$$work" = off; } || { echo "Unsupported Go output build overrides"; exit 1; }
+	go run ./scripts/update-go-output-manifest --verify
 	./scripts/check-web-conformance.sh
+	node --test scripts/check-js-actions.test.mjs
+	node scripts/check-js-actions.mjs
+	go test ./scripts/actioncheck/...
+	go run ./scripts/actioncheck/cmd
 
 test-unit:
 	node --test internal/web/assets/*.test.mjs

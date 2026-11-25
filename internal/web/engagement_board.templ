@@ -3,11 +3,10 @@ package web
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "example.com/dynamis-code/apps-template/internal/engagement"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
 templ engagementBoardPage(data viewmodel.PageData, columns []engagementBoardColumn, stages []engagement.Stage, kind string, listPath string, clientsPath string) {
- @templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+ @templates.DashboardShell(data, templates.DashboardHome) {
   @molecules.PageHeading(data.T("engagement.board"), data.T("clients.title"))
   <nav aria-label={ data.T("engagement.board_filter") } class="flex flex-wrap gap-2 my-4">
    <a class="btn btn-outline" aria-current?={ kind == "open" } href={ templ.SafeURL(data.CurrentPath) }>{ data.T("engagement.open") }</a>

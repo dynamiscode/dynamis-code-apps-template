@@ -2,6 +2,8 @@
 // https://daisyui.com/components/checkbox
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type CheckboxProps struct {
 	ID         string
 	Before     string
@@ -18,6 +20,28 @@ type CheckboxProps struct {
 }
 
 templ Checkbox(props CheckboxProps) {
+	@checkboxFrame(props) {
+		if props.Content != nil {
+			<span class="ml-2">
+				@actionattrs.Scanned(props.Content)
+			</span>
+		}
+	}
+}
+
+// PlainCheckbox renders only the checkbox and its text labels.
+templ PlainCheckbox(props CheckboxProps) {
+	@checkboxFrame(props)
+}
+
+// CheckboxWithLabel renders a checkbox with statically composed label children.
+templ CheckboxWithLabel(props CheckboxProps) {
+	@checkboxFrame(props) {
+		<span class="ml-2">{ children... }</span>
+	}
+}
+
+templ checkboxFrame(props CheckboxProps) {
 	<label class={ "label justify-center cursor-pointer", props.LabelClass }>
 		if props.Before != "" {
 			<span
@@ -33,7 +57,7 @@ templ Checkbox(props CheckboxProps) {
 			</span>
 		}
 		<input
-			{ props.Attrs... }
+			{ actionattrs.ScalarAttributes(props.Attrs)... }
 			if props.ID != "" {
 				id={ props.ID }
 			}
@@ -55,10 +79,6 @@ templ Checkbox(props CheckboxProps) {
 				{ props.After }
 			</span>
 		}
-		if props.Content != nil {
-			<span class="ml-2">
-				@props.Content
-			</span>
-		}
+		{ children... }
 	</label>
 }

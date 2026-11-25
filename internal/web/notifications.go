@@ -11,44 +11,37 @@ import (
 	"time"
 )
 
-func (h *Handler) notificationsPage(writer http.ResponseWriter, request *http.Request) {
-	session, csrf, ok := h.session(writer, request)
+func (h *Handler) notificationsPage(request *http.Request) authPageOutput {
+	session, csrf, ok := h.checkSession(request)
 	if !ok {
-		return
+		return authSessionFailure(http.StatusSeeOther)
 	}
 	notifications, err := h.identity.ListNotifications(request.Context(), session.UserID, 0, true, 100)
 	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
+		return authPageOutput{status: http.StatusInternalServerError}
 	}
 	unread, err := h.identity.UnreadNotificationCount(request.Context(), session.UserID)
 	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
+		return authPageOutput{status: http.StatusInternalServerError}
 	}
 	data := viewmodel.PageData{
 		Title: "Notifications", NavPage: "notifications", CSRF: csrf,
 		Notifications: notifications, UnreadNotifications: unread,
 		NotificationCursor: notificationCursor(notifications),
 	}
-	h.localizePage(writer, &data)
-	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	writer.Header().Set("Cache-Control", "no-store")
-	writer.WriteHeader(http.StatusOK)
-	_ = notificationsPage(data).Render(request.Context(), writer)
+	return authPageOutput{kind: authPageNotifications, data: data}
 }
 
-func (h *Handler) notificationMutation(writer http.ResponseWriter, request *http.Request) {
-	session, ok := h.validCSRFSession(writer, request)
-	if !ok {
-		return
+func (h *Handler) notificationMutation(request *http.Request) authPageOutput {
+	session, status := h.checkCSRFSession(request)
+	if status != http.StatusOK {
+		return authSessionFailure(status)
 	}
 	if err := h.identity.MarkNotificationRead(request.Context(), session.UserID,
 		request.PathValue("notificationId"), auditContext(request)); err != nil {
-		h.renderError(writer, http.StatusForbidden)
-		return
+		return authPageOutput{status: http.StatusForbidden}
 	}
-	h.redirect(writer, request, "/notifications")
+	return authPageOutput{kind: authPageRedirect, target: "/notifications"}
 }
 
 func (h *Handler) notificationEvents(writer http.ResponseWriter, request *http.Request) {

@@ -2,6 +2,8 @@
 // https://daisyui.com/components/tab
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type TabsProps struct {
 	Name         string
 	Class        string
@@ -28,7 +30,7 @@ templ Tabs(props TabsProps) {
 				}
 			/>
 			<div class={ "tab-content", props.ContentClass }>
-				@tab.Content
+				@actionattrs.Scanned(tab.Content)
 			</div>
 		}
 	</div>

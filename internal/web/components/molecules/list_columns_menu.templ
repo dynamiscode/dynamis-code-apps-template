@@ -1,5 +1,7 @@
 package molecules
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "strconv"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
@@ -29,15 +31,10 @@ templ ListDragHandleIcon() {
 // handles, and the reset. suffix keeps the list query on the preference routes. A change updates the list's results
 // in place, and the switches refresh out of band, so the menu stays open.
 templ ListColumnsMenu(data viewmodel.PageData, suffix string) {
-	@atoms.Dropdown(atoms.DropdownProps{
-		Class:        "list-menu",
-		SummaryClass: "btn btn-sm",
-		SummaryAttrs: templ.Attributes{"aria-label": data.T("clients.columns"), "title": data.T("clients.columns")},
-		Summary:      listColumnsSummary(data),
-		Panel:        listColumnsPanel(data, suffix),
-		PanelClass:   "list-columns-panel bg-base-100 rounded-box shadow-lg border border-base-200 p-3 w-80 max-w-[90vw]",
-		PanelAttrs:   templ.Attributes{"aria-label": data.T("clients.columns")},
-	})
+	<details class="dropdown list-menu">
+		<summary class="btn m-1 btn btn-sm" aria-label={ data.T("clients.columns") } title={ data.T("clients.columns") }>{ " " }@listColumnsSummary(data)</summary>{ " " }
+		<div class="dropdown-content list-columns-panel bg-base-100 rounded-box shadow-lg border border-base-200 p-3 w-80 max-w-[90vw]" aria-label={ data.T("clients.columns") }>@listColumnsPanel(data, suffix)</div>
+	</details>
 }
 
 
@@ -60,7 +57,7 @@ templ listColumnsPanel(data viewmodel.PageData, suffix string) {
 // ListColumnsBody is the switch list, the drag order form and the count. As an out-of-band swap it refreshes those
 // parts of the menu after a live change, and leaves the open menu as it is.
 templ ListColumnsBody(data viewmodel.PageData, suffix string, oob bool) {
-	<ul id="list-column-switches" class="list-column-switches" { ListOOB(oob)... }>
+	<ul id="list-column-switches" class="list-column-switches" { actionattrs.ScalarAttributes(ListOOB(oob))... }>
 		for i, column := range data.ListColumns {
 			<li class="list-column-switch" data-column-key={ column.Key } draggable={ strconv.FormatBool(i > 0) } data-locked?={ i == 0 }>
 				if i > 0 {
@@ -101,9 +98,9 @@ templ ListColumnsBody(data viewmodel.PageData, suffix string, oob bool) {
 			</li>
 		}
 	</ul>
-	<form id="list-column-order" class="list-column-order" method="post" action={ ListColumnOrderHref(data.CurrentPath, suffix) } hx-post={ ListColumnOrderHref(data.CurrentPath, suffix) } hx-target="#list-results" hx-swap="outerHTML" { ListOOB(oob)... }>
+	<form id="list-column-order" class="list-column-order" method="post" action={ ListColumnOrderHref(data.CurrentPath, suffix) } hx-post={ ListColumnOrderHref(data.CurrentPath, suffix) } hx-target="#list-results" hx-swap="outerHTML" { actionattrs.ScalarAttributes(ListOOB(oob))... }>
 		<input type="hidden" name="csrf" value={ data.CSRF }/>
 		<input type="hidden" name="order" value={ ListColumnOrderValue(data) }/>
 	</form>
-	<p id="list-column-count" class="list-column-count" { ListOOB(oob)... }>{ data.T("ui.columns_shown", ListColumnCounts(data.ListColumns)) }</p>
+	<p id="list-column-count" class="list-column-count" { actionattrs.ScalarAttributes(ListOOB(oob))... }>{ data.T("ui.columns_shown", ListColumnCounts(data.ListColumns)) }</p>
 }
