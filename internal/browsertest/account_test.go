@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/chromedp/chromedp"
+	"github.com/chromedp/chromedp/kb"
 	_ "modernc.org/sqlite"
 )
 
@@ -81,12 +82,20 @@ func TestAccountThemeSelectorSurfaceAndPersistence(t *testing.T) {
 		fraction   float64
 		key, theme string
 	}{
-		{0.1, "d", "dark"},
-		{0.5, "l", "light"},
-		{0.9, "s", "system"},
+		{0.1, kb.End, "dark"},
+		{0.5, kb.ArrowUp, "light"},
+		{0.9, kb.Home, "system"},
 	} {
 		box := eval[struct{ X, Y float64 }](t, tab, fmt.Sprintf(`(() => { const r = document.querySelector('#account-theme').getBoundingClientRect(); return {x: r.left + r.width * %g, y: r.top + r.height / 2}; })()`, choice.fraction))
-		run(t, tab, chromedp.MouseClickXY(box.X, box.Y), chromedp.KeyEvent(choice.key), chromedp.KeyEvent("\r"))
+		if !eval[bool](t, tab, fmt.Sprintf(`document.elementFromPoint(%g, %g) === document.querySelector('#account-theme')`, box.X, box.Y)) {
+			t.Fatalf("theme selector obscured at fraction %g", choice.fraction)
+		}
+		eval[any](t, tab, `(() => { window.themeClickTarget = null; document.addEventListener('mousedown', event => { window.themeClickTarget = event.target; }, {once: true, capture: true}); })()`)
+		run(t, tab, chromedp.MouseClickXY(box.X, box.Y))
+		if !eval[bool](t, tab, `window.themeClickTarget === document.querySelector('#account-theme')`) {
+			t.Fatalf("theme selector did not receive click at fraction %g", choice.fraction)
+		}
+		run(t, tab, chromedp.KeyEvent(choice.key), chromedp.KeyEvent("\r"))
 		eventually(t, tab, fmt.Sprintf(`document.querySelector('#account-theme').value === %s`, jsString(choice.theme)), "theme selection failed")
 		clickByText(t, tab, "Save")
 		eventually(t, tab, `location.search.includes("saved=1")`, "profile save did not confirm")
