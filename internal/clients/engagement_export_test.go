@@ -91,12 +91,12 @@ func runEngagementExport(t *testing.T, db *sql.DB, driver config.DatabaseDriver)
 		}
 	}
 	// Count all exported rows immediately before each attempt; each attempt adds an audit row.
-	count := exportRecordCount(t, db, workspace) + 7
+	count := exportRecordCount(t, db, driver, workspace) + 7
 	limited := portability.NewService(db, driver, auth, count-1, 1<<20, NewService(db, driver, auth, 50))
 	if _, err := limited.Export(ctx, actor, workspace, identity.AuditContext{}); !errors.Is(err, portability.ErrLimit) {
 		t.Fatalf("limit = %v", err)
 	}
-	count = exportRecordCount(t, db, workspace) + 7
+	count = exportRecordCount(t, db, driver, workspace) + 7
 	exact := portability.NewService(db, driver, auth, count, 1<<20, NewService(db, driver, auth, 50))
 	if _, err := exact.Export(ctx, actor, workspace, identity.AuditContext{}); err != nil {
 		t.Fatalf("exact record limit = %v", err)

@@ -16,19 +16,17 @@ concurrency:
 jobs:
   go:
     if: always()
-    needs: [go-lint, go-test, go-build, go-checks, go-race]
+    needs: [go-lint, go-test, go-build, go-checks, go-race, postgres]
     runs-on: ubuntu-24.04
     steps:
-      - name: Require go-race on merge queue and main
+      - name: Require Go verification
         run: |
           test '${{ needs.go-lint.result }}' = success
           test '${{ needs.go-test.result }}' = success
           test '${{ needs.go-build.result }}' = success
           test '${{ needs.go-checks.result }}' = success
-          case '${{ github.event_name }}' in
-            pull_request) test '${{ needs.go-race.result }}' = success || test '${{ needs.go-race.result }}' = skipped ;;
-            *) test '${{ needs.go-race.result }}' = success ;;
-          esac
+          test '${{ needs.go-race.result }}' = success
+          test '${{ needs.postgres.result }}' = success
 
   go-lint:
     runs-on: ubuntu-24.04
@@ -182,7 +180,6 @@ jobs:
       - run: make template-smoke
 
   go-race:
-    if: github.event_name == 'merge_group' || github.event_name == 'push'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -199,10 +196,9 @@ jobs:
           key: gobuild-${{ runner.os }}-go-race-${{ hashFiles('go.sum') }}
           restore-keys: |
             gobuild-${{ runner.os }}-go-race-
-      - run: make race
+      - run: go test -race -timeout 30m ./...
 
   postgres:
-    if: github.event_name == 'merge_group' || github.event_name == 'push'
     runs-on: ubuntu-24.04
     services:
       postgres:
@@ -236,7 +232,7 @@ jobs:
           restore-keys: |
             gobuild-${{ runner.os }}-postgres-
       - run: command -v pg_dump && command -v pg_restore
-      - run: go test -race ./...
+      - run: go test -race -timeout 30m ./...
 
   changes:
     runs-on: ubuntu-24.04

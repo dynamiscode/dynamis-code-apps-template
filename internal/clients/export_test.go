@@ -56,12 +56,12 @@ func TestSQLiteClientExportRecordLimitCountsClientRecords(t *testing.T) {
 	clientService := NewService(db, config.SQLite, auth, 50)
 
 	// Each export writes an audit row, so read the boundary from the tables right before each attempt.
-	count := exportRecordCount(t, db, workspaceID)
+	count := exportRecordCount(t, db, config.SQLite, workspaceID)
 	under := portability.NewService(db, config.SQLite, auth, count-1, 1<<20, clientService)
 	if _, err := under.Export(ctx, actor, workspaceID, audit); !errors.Is(err, portability.ErrLimit) {
 		t.Fatalf("export one record over limit = %v; want ErrLimit", err)
 	}
-	count = exportRecordCount(t, db, workspaceID)
+	count = exportRecordCount(t, db, config.SQLite, workspaceID)
 	exact := portability.NewService(db, config.SQLite, auth, count, 1<<20, clientService)
 	if _, err := exact.Export(ctx, actor, workspaceID, audit); err != nil {
 		t.Fatalf("export at exact record limit = %v", err)
@@ -188,14 +188,14 @@ func openExportDB(t *testing.T, driver config.DatabaseDriver) *sql.DB {
 
 // exportRecordCount counts the rows the export's record limit covers, read
 // straight from the tables. It is the independent side of the boundary check.
-func exportRecordCount(t *testing.T, db *sql.DB, workspaceID identity.WorkspaceID) int {
+func exportRecordCount(t *testing.T, db *sql.DB, driver config.DatabaseDriver, workspaceID identity.WorkspaceID) int {
 	t.Helper()
 	total := 1
 	for _, table := range []string{
 		"workspace_members", "clients", "client_fields", "client_field_options", "audit_events",
 	} {
 		var count int
-		exportCheck(t, db.QueryRow("SELECT COUNT(*) FROM "+table+" WHERE workspace_id = ?", workspaceID).Scan(&count))
+		exportCheck(t, db.QueryRow(database.Rebind(driver, "SELECT COUNT(*) FROM "+table+" WHERE workspace_id = ?"), workspaceID).Scan(&count))
 		total += count
 	}
 	return total
