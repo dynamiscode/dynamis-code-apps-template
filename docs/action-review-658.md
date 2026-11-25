@@ -1,6 +1,8 @@
 # Action guardrail review (#658)
 
-Baseline: integration `455c15b`; `origin/main` was an ancestor at review time.
+Inventory baseline: integration `455c15b`. Final integration base:
+`origin/main` at `6d95000`. Comparing `0824a31..6d95000` found no
+changes under `internal/web` or `cmd/preview`.
 The source inventory scans all `.templ` files under `internal/web`, including
 catalog atoms and feature-gated templates. Four shared shell controls used
 `btn-ghost`: theme selection, both mobile drawer triggers, and sign out. They
@@ -119,8 +121,27 @@ route returned 404. This does not isolate flag behavior from provider setup.
 `TestFormUXPatterns` failed before the fix on the transparent reveal border and
 passed afterward; it also checks the toggle and accessible state.
 
+## Enabled workspaces and setup wizard
+
+A clean checkout at `935ba9253b94738ba7f8e2d295feff8b4f8a364a`
+used a synthetic owner, `MULTI_WORKSPACE_ENABLED=true`, and Chrome with
+a dark system theme at 1280 × 900 and 390 × 844.
+
+- The owner signed in, pressed Enter to select a workspace, and opened
+  Clients. The page fit both viewports. Mobile Clients navigation used a DOM
+  click and did not verify keyboard navigation in the drawer.
+  [Desktop Clients](reviews/issue-658/enabled-clients-desktop.png).
+- In the setup wizard, Enter activated Next and focus moved to the legend.
+  Back returned to the previous step, and setup completed successfully.
+  [Mobile wizard](reviews/issue-658/wizard-back-mobile.png).
+
+The focused browser suite passed 16 tests, including `TestFormUXPatterns`,
+`TestWorkspaceHomePassesAxe`, `TestClientsListAdaptsAcrossViewports`, and
+OIDC coverage.
+
 ## Review gaps
 
-Enabled feature-flag states, other localized journeys, full keyboard traversal,
-and other roles and states remain unreviewed. The JavaScript control migration
-has automated checks but is not covered by the older screenshots above.
+Other feature-flag states, localized journeys, full keyboard traversal
+including the enabled mobile drawer, and other roles and states remain
+unreviewed. The wizard captures cover part of the JavaScript control migration.
+Toast dismiss, draft discard, and lazy Retry lack rendered review here.
