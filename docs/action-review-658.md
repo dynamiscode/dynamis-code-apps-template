@@ -6,16 +6,88 @@ catalog atoms and feature-gated templates. Four shared shell controls used
 `btn-ghost`: theme selection, both mobile drawer triggers, and sign out. They
 now use `btn-outline`, retaining their native button semantics and behavior.
 
-`make web-conformance` checks anchor and button opening tags and calls to
-`atoms.Anchor`, `atoms.Link`, and `atoms.Button`. It checks literal class
-props and rejects conditional-only boundaries, ghost and link variants. It
-checks return branches of the two shared dynamic list-class helpers. Exceptions
-in `scripts/action-exceptions.json` are path-and-selector scoped; each must
-match exactly one control. Regression tests mutate real component calls and
-helper returns. This is not a full templ parser: arbitrary component APIs,
-generated markup, non-templ HTML, CSS-defined boundaries, and arbitrary dynamic
-classes require separate review. Exceptions must be rechecked when their
-implementations or callers change.
+`make web-conformance` uses the templ parser and a Go type pass to check
+declared controls and supported render paths. It rejects conditional-only
+boundaries, invisible-border and ghost/link overrides, and unsupported
+render or spread sources. Static exceptions are audited in
+`scripts/actioncheck/exceptions.json` by exact file, line and opening tag.
+The runtime scanner does not inherit those source exceptions. Compose
+exceptional controls using statically checked template children, not opaque
+component slots. Those slots remain buffered as described in [Web](web.md).
+
+The app's JavaScript toast dismiss, draft discard, wizard Back and lazy
+Retry buttons are outlined. Wizard Next is primary and validation-summary
+links keep their native anchors with compact borders. Runtime JavaScript
+can construct or restyle actions through arbitrary code, so the guardrail
+rejects unreviewed executable browser assets rather than infer safety from
+syntax. `scripts/reviewed-browser-scripts.json` binds each reviewed script to
+its path, byte size and SHA-256 digest. Script changes require a fresh action
+review, relevant automated and browser checks, and an explicit digest update
+with its review reason. Do not refresh digests automatically. The checker
+rejects new, changed, stale and linked assets and reads only files whose
+size matches the reviewed entry. It does not check CSS in arbitrary scripts.
+Templ script tags must select a reviewed asset or match an exact inline
+snippet recorded by path and digest. Alpine expressions likewise require a
+reviewed literal binding and cannot be supplied through attribute spreads.
+
+Existing opaque component slots are constrained in source by template path,
+expression, parent element chain and occurrence count. This prevents adding or
+moving a buffered slot silently. It does not establish parent-independent
+safety of arbitrary component return values. Use statically checked children
+for new composition.
+
+## Browser response boundary
+
+`internal/web/handler.go` registers 150 browser routes, counting optional
+profiles and feature branches. Bootstrap routes `/api/`, `/health/` and agent
+traffic separately before mounting the browser router. Classify by response
+capability, not HTTP method. Mutations can render HTML validation errors, and
+list routes can render either complete pages or fragments.
+
+Login, setup, password reset, MFA challenge/completion, email verification,
+OIDC, logout, notification pages and mutations, and account pages register through
+`serveAuthPage`. Their callbacks receive no writer and return only a
+typed outcome, with no arbitrary template producer. The adapter retains cookie
+settings, locale middleware, native redirects and verified renderer selection.
+Other browser routes still use the legacy writer. To avoid rewriting their
+request and authorization behavior, the conformance command checks
+`scripts/reviewed-go-output.json` before relying on the reviewed browser ingress,
+rendering, transport and build inputs. The manifest records exact paths and
+SHA-256 digests. It covers Go and templ source, build-tagged and committed
+generated source, native build inputs, Go dependency files, the supported
+build/check scripts, generator metadata, and Go embed payloads. Test-only Go
+files are not release-app inputs.
+
+An unreviewed addition, edit, rename or deletion fails. Before updating the
+manifest, review all reported changes and their callers, registration,
+response framing, component provenance, and consumers for every affected
+profile. Then run `go run ./scripts/update-go-output-manifest --reviewed`,
+inspect the manifest diff, and rerun full and generated-profile conformance.
+Do not use the update command to clear a failure without review. This is a
+deliberately broad maintenance tradeoff rather than a claim that arbitrary Go
+writer effects can be inferred safely. The manifest and the standard pinned Go
+toolchain are trust roots. An active workspace, Go flags or experiments are
+outside the verified build; module cache verification supplements the pinned
+`go.mod` and `go.sum`.
+
+`template-init` checks the released source manifest and build environment
+before copying. It derives a new manifest only after the known profile
+transformations, code generation, and dependency pruning succeed. Application
+metadata is escaped in supported data contexts and unsupported executable
+substitutions fail. Generated applications need the same explicit review for
+later changes.
+
+Uploaded file bytes and presigned storage responses are user data outside the
+app-authored action-markup contract. File rows and menus navigate to native
+download links. Local file delivery sets attachment disposition and remote
+delivery retains its existing storage redirect. The app's HTMX response hook
+refuses attachment bodies and final external responses before parsing, even
+when they advertise HTML. SSE uses EventSource and API data uses its own
+consumers. Standard `net/http.Redirect` may emit a small escaped fallback HTML
+body for native GET navigation; it is not application-authored action markup.
+The reviewed baseline includes preview fixture HTML and excludes arbitrary
+external content. These boundaries do not certify arbitrary same-origin HTML
+output.
 
 ## Real-app Playwright review
 
@@ -50,6 +122,5 @@ passed afterward; it also checks the toggle and accessible state.
 ## Review gaps
 
 Enabled feature-flag states, other localized journeys, full keyboard traversal,
-and other roles and states remain unreviewed. Screenshots do not establish
-accessibility conformance. Other JavaScript-generated ghost controls remain
-outside the template guardrail and were not changed in this follow-up.
+and other roles and states remain unreviewed. The JavaScript control migration
+has automated checks but is not covered by the older screenshots above.

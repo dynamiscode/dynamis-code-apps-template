@@ -139,15 +139,15 @@ func publicIntakePage(data viewmodel.PageData, consent string, submission intake
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{ID: "name", Name: "name", Label: data.T("public_intake.name"), Value: submission.DisplayName, Required: true, MaxLength: "200", Attrs: templ.Attributes{"autocomplete": "name"}}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{ID: "name", Name: "name", Label: data.T("public_intake.name"), Value: submission.DisplayName, Required: true, MaxLength: "200", Attrs: templ.Attributes{"autocomplete": "name"}}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{ID: "phone", Name: "phone", Label: data.T("public_intake.phone"), Type: "tel", Value: submission.Phone, MaxLength: "50", Attrs: templ.Attributes{"autocomplete": "tel", "aria-describedby": "intake-contact-help"}}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{ID: "phone", Name: "phone", Label: data.T("public_intake.phone"), Type: "tel", Value: submission.Phone, MaxLength: "50", Attrs: templ.Attributes{"autocomplete": "tel", "aria-describedby": "intake-contact-help"}}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{ID: "email", Name: "email", Label: data.T("public_intake.email"), Type: "email", Value: submission.Email, MaxLength: "254", Attrs: templ.Attributes{"autocomplete": "email", "aria-describedby": "intake-contact-help"}}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{ID: "email", Name: "email", Label: data.T("public_intake.email"), Type: "email", Value: submission.Email, MaxLength: "254", Attrs: templ.Attributes{"autocomplete": "email", "aria-describedby": "intake-contact-help"}}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

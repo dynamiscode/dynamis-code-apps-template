@@ -2,6 +2,8 @@
 // https://daisyui.com/components/progress
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type ProgressProps struct {
 	Value int
 	Max   int
@@ -25,6 +27,6 @@ templ Progress(props ProgressProps) {
 		aria-label={ props.Label }
 		aria-valuemin="0"
 		aria-valuenow={ props.Value }
-		{ props.Attrs... }
+		{ actionattrs.ScalarAttributes(props.Attrs)... }
 	></progress>
 }

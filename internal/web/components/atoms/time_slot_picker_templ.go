@@ -77,7 +77,7 @@ func TimeSlotPicker(props TimeSlotPickerProps) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templruntime.NewAttributeExpression(props.ID).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/atoms/time_slot_picker.templ`, Line: 47, Col: 19}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/time_slot_picker.templ`, Line: 47, Col: 19}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -144,7 +144,7 @@ func timeSlotPickerDay(props TimeSlotPickerProps, day time.Time) templ.Component
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.CSSClasses(templ_7745c5c3_Var4).String()).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/atoms/time_slot_picker.templ`, Line: 1, Col: 0}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/time_slot_picker.templ`, Line: 1, Col: 0}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
@@ -171,7 +171,7 @@ func timeSlotPickerDay(props TimeSlotPickerProps, day time.Time) templ.Component
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(day.Format("Mon Jan 02"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/atoms/time_slot_picker.templ`, Line: 65, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/time_slot_picker.templ`, Line: 65, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -267,7 +267,7 @@ func timeSlotButton(slot TimeSlot, attrs templ.Attributes) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(slot.Start.Format("15:04"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/atoms/time_slot_picker.templ`, Line: 88, Col: 30}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/time_slot_picker.templ`, Line: 88, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -280,7 +280,7 @@ func timeSlotButton(slot TimeSlot, attrs templ.Attributes) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(slot.End.Format("15:04"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/atoms/time_slot_picker.templ`, Line: 88, Col: 61}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/time_slot_picker.templ`, Line: 88, Col: 61}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -318,7 +318,7 @@ func timeSlotModalContent(slot TimeSlot, slotName, reserveURL string) templ.Comp
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(slot.Start.Format("15:04"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/atoms/time_slot_picker.templ`, Line: 108, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/time_slot_picker.templ`, Line: 108, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -331,7 +331,7 @@ func timeSlotModalContent(slot TimeSlot, slotName, reserveURL string) templ.Comp
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(slot.End.Format("15:04"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/atoms/time_slot_picker.templ`, Line: 108, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/time_slot_picker.templ`, Line: 108, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -344,7 +344,7 @@ func timeSlotModalContent(slot TimeSlot, slotName, reserveURL string) templ.Comp
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(slot.Start.Format("Monday January 02"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/atoms/time_slot_picker.templ`, Line: 108, Col: 144}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/time_slot_picker.templ`, Line: 108, Col: 144}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
@@ -357,7 +357,7 @@ func timeSlotModalContent(slot TimeSlot, slotName, reserveURL string) templ.Comp
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templruntime.NewAttributeExpression(reserveURL + "?start=" + slot.Start.Format("2006-01-02-15-04") + "&end=" + slot.End.Format("2006-01-02-15-04")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/atoms/time_slot_picker.templ`, Line: 115, Col: 124}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/time_slot_picker.templ`, Line: 115, Col: 124}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 		if templ_7745c5c3_Err != nil {
@@ -429,7 +429,7 @@ func timeSlotPickerControls(props TimeSlotPickerProps) templ.Component {
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templruntime.NewAttributeExpression(props.PickerURL + "?date=" + props.CurrentDate.Add(time.Duration(-7*24)*time.Hour).Format("2006-01-02")).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/atoms/time_slot_picker.templ`, Line: 138, Col: 115}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/time_slot_picker.templ`, Line: 138, Col: 115}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 			if templ_7745c5c3_Err != nil {
@@ -442,7 +442,7 @@ func timeSlotPickerControls(props TimeSlotPickerProps) templ.Component {
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templruntime.NewAttributeExpression("#" + props.ID).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/atoms/time_slot_picker.templ`, Line: 139, Col: 29}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/time_slot_picker.templ`, Line: 139, Col: 29}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 			if templ_7745c5c3_Err != nil {
@@ -460,7 +460,7 @@ func timeSlotPickerControls(props TimeSlotPickerProps) templ.Component {
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.CSSClasses(templ_7745c5c3_Var19).String()).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/atoms/time_slot_picker.templ`, Line: 1, Col: 0}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/time_slot_picker.templ`, Line: 1, Col: 0}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 			if templ_7745c5c3_Err != nil {
@@ -501,7 +501,7 @@ func timeSlotPickerControls(props TimeSlotPickerProps) templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templruntime.NewAttributeExpression(props.PickerURL + "?date=" + props.CurrentDate.Add(time.Duration(7*24)*time.Hour).Format("2006-01-02")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/atoms/time_slot_picker.templ`, Line: 149, Col: 114}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/time_slot_picker.templ`, Line: 149, Col: 114}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 		if templ_7745c5c3_Err != nil {
@@ -514,7 +514,7 @@ func timeSlotPickerControls(props TimeSlotPickerProps) templ.Component {
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templruntime.NewAttributeExpression("#" + props.ID).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/atoms/time_slot_picker.templ`, Line: 150, Col: 29}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/time_slot_picker.templ`, Line: 150, Col: 29}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 		if templ_7745c5c3_Err != nil {

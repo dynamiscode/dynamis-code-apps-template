@@ -138,12 +138,12 @@ templ ListFilterAddPanel(data viewmodel.PageData) {
 					}}
 					@atoms.Select(atoms.SelectProps{ID: "list-filter-value", Label: data.T("clients.filter_value"), Name: "filter_value", Options: options})
 				} else {
-					@atoms.Input(atoms.InputProps{ID: "list-filter-value", Label: data.T("clients.filter_value"), Name: "filter_value", Type: ListInputType(data.Filter.Step.InputType), Value: data.Filter.Step.Value, MaxLength: "1024"})
+					@atoms.PlainInput(atoms.InputProps{ID: "list-filter-value", Label: data.T("clients.filter_value"), Name: "filter_value", Type: ListInputType(data.Filter.Step.InputType), Value: data.Filter.Step.Value, MaxLength: "1024"})
 				}
 			</div>
 			if data.Filter.Step.Range {
 				<div class="client-step-section" data-show-for-operator="between">
-					@atoms.Input(atoms.InputProps{ID: "list-filter-value-to", Label: data.T("clients.filter_value_to"), Name: "filter_value_to", Type: ListInputType(data.Filter.Step.InputType), Value: data.Filter.Step.ValueTo, MaxLength: "1024"})
+					@atoms.PlainInput(atoms.InputProps{ID: "list-filter-value-to", Label: data.T("clients.filter_value_to"), Name: "filter_value_to", Type: ListInputType(data.Filter.Step.InputType), Value: data.Filter.Step.ValueTo, MaxLength: "1024"})
 				</div>
 			}
 			<div class="client-step-actions">

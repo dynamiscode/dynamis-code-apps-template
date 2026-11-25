@@ -1,21 +1,14 @@
 package molecules
 
-import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 
 // ListRowMenu holds a row's actions behind a "⋯" button. Only rows with actions use it.
 templ ListRowMenu(data viewmodel.PageData) {
-	@atoms.Dropdown(atoms.DropdownProps{
-		Class:          "list-menu",
-		SummaryClass:   "btn btn-xs",
-		SummaryAttrs:   templ.Attributes{"aria-label": data.T("ui.row_actions"), "title": data.T("ui.row_actions")},
-		Summary:        RowMenuGlyph(false),
-		PanelClass:     "bg-base-100 rounded-box shadow-lg border border-base-200 p-3 w-72 max-w-[90vw]",
-		PanelChildren:  true,
-	}) {
-		{ children... }
-	}
+	<details class="dropdown list-menu">
+		<summary class="btn m-1 btn btn-xs" aria-label={ data.T("ui.row_actions") } title={ data.T("ui.row_actions") }>{ " " }@RowMenuGlyph(false)</summary>{ " " }
+		<div class="dropdown-content bg-base-100 rounded-box shadow-lg border border-base-200 p-3 w-72 max-w-[90vw]">{ children... }</div>
+	</details>
 }
 
 

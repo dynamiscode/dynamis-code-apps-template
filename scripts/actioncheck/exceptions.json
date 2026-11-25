@@ -42,12 +42,6 @@
     "Reason": "Dock items intentionally render without daisyUI's btn/border boundary classes (dock-specific styling only); the only class content is a fixed-string conditional (dock-active or nothing), so there is no override surface to protect. item.Attrs is independently guarded via actionattrs.From, which also rejects a smuggled \"class\" key."
   },
   {
-    "Path": "internal/web/components/atoms/date_picker.templ",
-    "OpenTag": "<button\n\t\t\t\t\tname=\"datepicker-day-btn\"\n\t\t\t\t\tclass={\n\t\t\t\t\t\t\"btn btn-square border shadow-md shadow-base-300 h-10 w-10 p-3\",\n\t\t\t\t\t\ttempl.KV(\"text-primary\", d.Year() == utcNow.Year() && d.Month() == utcNow.Month() && utcNow.Day() == d.Day()),\n\t\t\t\t\t\ttempl.KV(\"btn-ghost\", d.Month() == time.Month(props.Month)),\n\t\t\t\t\t\ttempl.KV(\"btn-neutral\", d.Month() != time.Month(props.Month)),\n\t\t\t\t\t\ttempl.KV(\"border-primary bg-base-300\", !props.Selected.IsZero() && d.Day() == props.Selected.Day()),\n\t\t\t\t\t}\n\t\t\t\t\thx-post={ props.BaseURL + \"/select?date=\" + d.Format(\"2006-01-02\") }\n\t\t\t\t\thx-target=\"#datepicker-input\"\n\t\t\t\t\thx-swap=\"outerHTML\"\n\t\t\t\t\tif d.Month() != time.Month(props.Month) {\n\t\t\t\t\t\tdisabled\n\t\t\t\t\t}\n\t\t\t\t>",
-    "Line": 125,
-    "Reason": "Every class token here is either a fixed literal or a templ.KV condition on server-computed date math (d, utcNow, props.Selected/Month/Year); none of it is caller- or user-supplied, so there is no override to defend against. btn-ghost specifically is this calendar's deliberate low-emphasis style for days outside the shown month, not a security-relevant override, and the literal \"btn\" item keeps the boundary class present unconditionally regardless."
-  },
-  {
     "Path": "internal/web/components/molecules/back_link.templ",
     "OpenTag": "<a class=\"detail-back\" href={ templ.SafeURL(href) }>",
     "Line": 4,
@@ -56,7 +50,7 @@
   {
     "Path": "internal/web/components/templates/workspace.templ",
     "OpenTag": "<button type=\"button\" class=\"drawer-overlay block\" tabindex=\"-1\" aria-hidden=\"true\" @click=\"toggleDrawer\">",
-    "Line": 32,
+    "Line": 44,
     "Reason": "Fully literal class, no Attrs spread, no caller input. Same category as the modal.templ backdrop exception above: a click-to-close drawer overlay, not a visible/labeled action control."
   }
 ]

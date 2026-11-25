@@ -3,12 +3,11 @@ package web
 import "strconv"
 import "example.com/dynamis-code/apps-template/internal/catalog"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, currencies []catalog.Currency, canWrite bool, invalid bool, inUse bool, includeArchived bool, entryID string, createPage bool, form catalogForm) {
- @templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+ @templates.DashboardShell(data, templates.DashboardHome) {
   if entryID != "" && len(entries) > 0 {
    if includeArchived {
     @molecules.BackLink("/workspaces/" + data.Workspace.ID.String() + "/catalog?includeArchived=true", data.T("catalog.back"))

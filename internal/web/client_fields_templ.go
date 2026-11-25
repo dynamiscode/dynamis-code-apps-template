@@ -10,7 +10,6 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
@@ -66,7 +65,7 @@ func clientFieldsPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templruntime.NewAttributeExpression(clientFieldsBackPath(data.FieldsPath)).ResolveURL(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 14, Col: 74}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 13, Col: 74}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 				if templ_7745c5c3_Err != nil {
@@ -79,7 +78,7 @@ func clientFieldsPage(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.back"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 14, Col: 101}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 13, Col: 101}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -101,7 +100,7 @@ func clientFieldsPage(data viewmodel.PageData) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templates.DashboardShell(data, templates.DashboardHome).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -137,7 +136,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.fields_title"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 26, Col: 81}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 25, Col: 81}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -150,7 +149,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.fields_intro"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 27, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 26, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -186,7 +185,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.FieldsPath).ResolveURL(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 37, Col: 34}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 36, Col: 34}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 				if templ_7745c5c3_Err != nil {
@@ -199,7 +198,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 38, Col: 55}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 37, Col: 55}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 				if templ_7745c5c3_Err != nil {
@@ -256,7 +255,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.fields_read_only"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 54, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 53, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
@@ -280,7 +279,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var13 string
 				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(field.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 61, Col: 28}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 60, Col: 28}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 				if templ_7745c5c3_Err != nil {
@@ -293,7 +292,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var14 string
 				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.field_type_" + field.Type))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 62, Col: 57}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 61, Col: 57}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 				if templ_7745c5c3_Err != nil {
@@ -306,7 +305,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 				var templ_7745c5c3_Var15 string
 				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(data.T(clientFieldStatusKey(field.ArchivedAt != nil)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 63, Col: 88}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 62, Col: 88}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 				if templ_7745c5c3_Err != nil {
@@ -329,7 +328,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var16 string
 						templ_7745c5c3_Var16, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.FieldsPath + "/" + field.ID.String() + "/restore").ResolveURL(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 68, Col: 92}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 67, Col: 92}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 						if templ_7745c5c3_Err != nil {
@@ -342,7 +341,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var17 string
 						templ_7745c5c3_Var17, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 68, Col: 145}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 67, Col: 145}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 						if templ_7745c5c3_Err != nil {
@@ -363,7 +362,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var18 string
 						templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.delete_field_confirm"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 69, Col: 120}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 68, Col: 120}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 						if templ_7745c5c3_Err != nil {
@@ -376,7 +375,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var19 string
 						templ_7745c5c3_Var19, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.FieldsPath + "/" + field.ID.String() + "/delete").ResolveURL(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 69, Col: 208}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 68, Col: 208}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 						if templ_7745c5c3_Err != nil {
@@ -389,7 +388,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var20 string
 						templ_7745c5c3_Var20, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 69, Col: 261}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 68, Col: 261}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 						if templ_7745c5c3_Err != nil {
@@ -415,7 +414,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var21 string
 						templ_7745c5c3_Var21, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.FieldsPath + "/" + field.ID.String() + "/archive").ResolveURL(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 71, Col: 92}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 70, Col: 92}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 						if templ_7745c5c3_Err != nil {
@@ -428,7 +427,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var22 string
 						templ_7745c5c3_Var22, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 71, Col: 145}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 70, Col: 145}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 						if templ_7745c5c3_Err != nil {
@@ -460,7 +459,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var23 string
 					templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.options_heading"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 77, Col: 47}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 76, Col: 47}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 					if templ_7745c5c3_Err != nil {
@@ -483,7 +482,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 							var templ_7745c5c3_Var24 string
 							templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(option.Label)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 82, Col: 28}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 81, Col: 28}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 							if templ_7745c5c3_Err != nil {
@@ -501,7 +500,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 								var templ_7745c5c3_Var25 string
 								templ_7745c5c3_Var25, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.FieldsPath + "/" + field.ID.String() + "/options/" + option.ID.String() + "/delete").ResolveURL(ctx)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 84, Col: 126}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 83, Col: 126}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 								if templ_7745c5c3_Err != nil {
@@ -514,7 +513,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 								var templ_7745c5c3_Var26 string
 								templ_7745c5c3_Var26, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 85, Col: 60}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 84, Col: 60}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 								if templ_7745c5c3_Err != nil {
@@ -527,7 +526,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 								var templ_7745c5c3_Var27 string
 								templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.option_delete_confirm"))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 86, Col: 95}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 85, Col: 95}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 								if templ_7745c5c3_Err != nil {
@@ -563,7 +562,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var28 string
 						templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.option_none"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 94, Col: 43}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 93, Col: 43}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 						if templ_7745c5c3_Err != nil {
@@ -582,7 +581,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var29 string
 						templ_7745c5c3_Var29, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.FieldsPath + "/" + field.ID.String() + "/options").ResolveURL(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 97, Col: 100}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 96, Col: 100}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 						if templ_7745c5c3_Err != nil {
@@ -595,7 +594,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 						var templ_7745c5c3_Var30 string
 						templ_7745c5c3_Var30, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CSRF).Resolve(ctx)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 97, Col: 167}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 96, Col: 167}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 						if templ_7745c5c3_Err != nil {
@@ -640,7 +639,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 			var templ_7745c5c3_Var31 string
 			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("clients.fields_none"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 105, Col: 57}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `client_fields.templ`, Line: 104, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 			if templ_7745c5c3_Err != nil {

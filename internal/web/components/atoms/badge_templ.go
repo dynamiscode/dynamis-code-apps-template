@@ -15,6 +15,8 @@ package atoms
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type BadgeProps struct {
 	Class string
 	Label string
@@ -65,7 +67,7 @@ func Badge(props BadgeProps) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "span", props.Attrs)
+			templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "span", actionattrs.ScalarAttributes(props.Attrs))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -86,7 +88,7 @@ func Badge(props BadgeProps) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(props.Label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/badge.templ`, Line: 13, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/badge.templ`, Line: 15, Col: 100}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {

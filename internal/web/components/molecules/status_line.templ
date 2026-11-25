@@ -1,8 +1,10 @@
 package molecules
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 
 
 // StatusLine is a polite or plain status message; attrs adds live-region ids.
 templ StatusLine(text string, attrs templ.Attributes) {
-	<p class="status-line" role="status" { attrs... }>{ text }</p>
+	<p class="status-line" role="status" { actionattrs.ScalarAttributes(attrs)... }>{ text }</p>
 }

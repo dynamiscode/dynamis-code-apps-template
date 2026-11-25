@@ -18,6 +18,7 @@ import (
 
 	"github.com/a-h/templ"
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 // allowed lists the only attribute keys a Safe value may carry. Anything
@@ -158,6 +159,9 @@ func validHref(raw string) bool {
 // literal templ.Attributes{...} composite, instead of maintaining a
 // second, divergent copy of this logic.
 func ValidateValue(key string, value any) error {
+	if !isAttributeScalar(value) {
+		return fmt.Errorf("actionattrs: %s attribute value has unsupported type %T", key, value)
+	}
 	switch key {
 	case "onclick":
 		s, ok := value.(string)
@@ -173,6 +177,28 @@ func ValidateValue(key string, value any) error {
 	return nil
 }
 
+func isAttributeScalar(value any) bool {
+	switch value.(type) {
+	case nil, string, bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr,
+		float32, float64, complex64, complex128, templ.KeyValue[string, bool], templ.KeyValue[bool, bool],
+		templ.SafeURL, templ.SafeCSS, *string, *bool, *int, *int8, *int16, *int32, *int64, *uint, *uint8, *uint16,
+		*uint32, *uint64, *uintptr, *float32, *float64, *complex64, *complex128:
+		return true
+	}
+	return false
+}
+
+// ScalarAttributes preserves native attributes on non-action elements while
+// rejecting values that can render HTML, scripts, or callbacks.
+func ScalarAttributes(attrs templ.Attributes) templ.Attributes {
+	for key, value := range attrs {
+		if ExecutableAttribute(key) || !isAttributeScalar(value) {
+			panic(fmt.Sprintf("actionattrs: unverified %s attribute value of type %T", key, value))
+		}
+	}
+	return attrs
+}
+
 // Allowed reports whether key is on the attribute allow-list. Exported so
 // scripts/actioncheck can require every key of a literal
 // templ.Attributes{...} composite to pass the same check a runtime
@@ -182,10 +208,21 @@ func Allowed(key string) bool {
 	if allowed[key] {
 		return true
 	}
+	if ExecutableAttribute(key) {
+		return false
+	}
 	// "class" and "style" must never match here: both would need to start
 	// with "class-"/"style-" to do so, which they do not, so the prefix
 	// check below cannot accidentally let either through.
 	return strings.HasPrefix(key, "aria-") || strings.HasPrefix(key, "data-") || strings.HasPrefix(key, "hx-")
+}
+
+// ExecutableAttribute identifies native and framework code-bearing attributes.
+func ExecutableAttribute(key string) bool {
+	key = strings.ToLower(key)
+	return key == "srcdoc" || strings.HasPrefix(key, "x-") || strings.HasPrefix(key, "@") ||
+		strings.HasPrefix(key, ":") || strings.HasPrefix(key, "on") ||
+		strings.HasPrefix(key, "hx-on") || strings.HasPrefix(key, "data-hx-on")
 }
 
 func checkValue(key string, value any) {
@@ -258,9 +295,12 @@ func From(m templ.Attributes) templ.Attributes {
 }
 
 var forbiddenClassTokens = map[string]bool{
-	"btn-ghost": true,
-	"btn-link":  true,
-	"border-0":  true,
+	"btn-ghost":          true,
+	"btn-link":           true,
+	"border-0":           true,
+	"border-transparent": true,
+	"border-none":        true,
+	"border-hidden":      true,
 }
 
 func normalizeClassToken(tok string) string {
@@ -275,17 +315,38 @@ func normalizeClassToken(tok string) string {
 }
 
 func checkClassTokens(value string) {
-	for _, tok := range strings.Fields(value) {
-		base := normalizeClassToken(tok)
-		if forbiddenClassTokens[base] {
-			panic("actionattrs: forbidden class override: " + tok)
-		}
+	if tok := forbiddenClassToken(value); tok != "" {
+		panic("actionattrs: forbidden class override: " + tok)
 	}
 }
 
-func hasBoundaryToken(value string) bool {
-	for _, tok := range strings.Fields(value) {
-		if normalizeClassToken(tok) == "btn" || normalizeClassToken(tok) == "border" {
+func htmlClassTokens(value string) []string {
+	return strings.FieldsFunc(value, func(r rune) bool { return strings.ContainsRune("\t\n\f\r ", r) })
+}
+
+// SafeClass reports whether value contains no forbidden action class override.
+func SafeClass(value string) bool {
+	return forbiddenClassToken(value) == ""
+}
+
+func forbiddenClassToken(value string) string {
+	for _, tok := range htmlClassTokens(value) {
+		base := normalizeClassToken(tok)
+		if forbiddenClassTokens[base] || strings.HasPrefix(base, "border-") && (strings.HasSuffix(base, "/0") || strings.HasSuffix(base, "-0") ||
+			strings.Contains(base, "[") || strings.Contains(base, "(")) || strings.Contains(tok, "[border:") || strings.Contains(tok, "[border-") {
+			return tok
+		}
+	}
+	return ""
+}
+
+// HasBoundary requires an unconditional HTML class token for the boundary.
+func HasBoundary(value string) bool {
+	for _, tok := range htmlClassTokens(value) {
+		if strings.ContainsRune(tok, ':') {
+			continue
+		}
+		if base := normalizeClassToken(tok); base == "btn" || base == "border" {
 			return true
 		}
 	}
@@ -311,7 +372,7 @@ func ButtonClass(value string) string {
 // as a bounded class source.
 func LinkClass(value string) string {
 	checkClassTokens(value)
-	if !hasBoundaryToken(value) {
+	if !HasBoundary(value) {
 		panic("actionattrs: class missing boundary token (btn or border): " + value)
 	}
 	return value
@@ -367,19 +428,11 @@ func LinkClass(value string) string {
 // cut off mid-stream. And it checks the byte count from its one Write
 // call for a short write.
 //
-// The real, known cost of this choice: Scanned holds a slot's entire
-// rendered output in memory before writing any of it, proportional to
-// that slot's size, not to the size of one HTML token. A slot that
-// renders a single icon, badge, table row, or page section pays an
-// acceptable, small cost. A slot built to render an unbounded or very
-// large amount of content in one call would hold all of it in memory at
-// once; Scanned is not the right tool for such a slot. None of the real
-// call sites in this codebase construct one: list_screen.templ's
-// results/body/tools/extras are each one already-paginated page of list
-// content, not an unbounded stream, and wrapping them does not change how
-// this codebase's SSE/htmx partial-swap list updates behave -- those
-// still replace one bounded page of rows at a time, the same bounded
-// case Scanned already handles acceptably.
+// Scanned holds the entire slot output in memory. Nested wrappers hold
+// multiple copies. The legacy list_screen.templ slots remain buffered but
+// the client, member, and file journeys no longer use them. Replacing this
+// with streaming validation must preserve HTML tokenizer state across writes
+// and reject incomplete fragments before they can join adjacent markup.
 func Scanned(c templ.Component) templ.Component {
 	if c == nil {
 		return c
@@ -422,14 +475,46 @@ func Scanned(c templ.Component) templ.Component {
 // never a stream being cut off partway through a token.
 func scanRenderedHTML(rendered []byte) error {
 	tokenizer := html.NewTokenizer(bytes.NewReader(rendered))
+	contextSensitive := false
+	var tokenViolation error
 	for {
 		tt := tokenizer.Next()
+		if tt == html.CommentToken {
+			raw := tokenizer.Raw()
+			if bytes.HasPrefix(raw, []byte("<!--")) && !bytes.HasSuffix(raw, []byte("-->")) &&
+				!bytes.HasSuffix(raw, []byte("--!>")) && !bytes.Equal(raw, []byte("<!-->")) && !bytes.Equal(raw, []byte("<!--->")) {
+				return fmt.Errorf("rendered output contains an unterminated HTML comment")
+			}
+		}
 		if tt == html.ErrorToken {
-			return nil
+			// html.Tokenizer reports a dangling fragment it could not form
+			// into a complete token (an unterminated "<button", a tag cut off
+			// mid-attribute, ...) the same way it reports a clean end: an
+			// ErrorToken with Err() == io.EOF. The one difference is Raw():
+			// for every well-formed input, the final ErrorToken's Raw() is
+			// empty; a dangling fragment leaves its unconsumed bytes there
+			// instead. That distinction matters here specifically because a
+			// slot's output does not stay isolated once it reaches the
+			// browser: HTML is parsed as one continuous stream, so "<button"
+			// from one slot followed immediately by
+			// " onclick=evil()>x</button>" from unrelated, adjacent markup
+			// forms one real, live <button> neither half looked like alone.
+			// A validated slot's own output must never end on a dangling
+			// fragment for that reason, not only a genuine parse error.
+			if tokenizer.Err() != io.EOF || len(tokenizer.Raw()) > 0 {
+				return fmt.Errorf("rendered output did not end as well-formed, complete HTML (dangling fragment %q)", tokenizer.Raw())
+			}
+			if !contextSensitive {
+				return tokenViolation
+			}
+			return checkContextSensitiveHTML(rendered)
 		}
 		if tt == html.StartTagToken || tt == html.SelfClosingTagToken {
-			if err := checkTagToken(tokenizer); err != nil {
-				return err
+			name, hasAttrs := tokenizer.TagName()
+			tag := string(name)
+			contextSensitive = contextSensitive || tag == "svg" || tag == "math" || tag == "noscript"
+			if err := checkTagToken(tokenizer, tag, hasAttrs); err != nil && tokenViolation == nil {
+				tokenViolation = err
 			}
 		}
 	}
@@ -438,27 +523,73 @@ func scanRenderedHTML(rendered []byte) error {
 // checkTagToken checks the current <a> or <button> start/self-closing tag
 // tokenizer is positioned on against the boundary/override-token rule
 // described on Scanned. Any other tag name passes trivially.
-func checkTagToken(tokenizer *html.Tokenizer) error {
-	name, hasAttr := tokenizer.TagName()
-	tag := string(name)
+func checkTagToken(tokenizer *html.Tokenizer, tag string, hasAttr bool) error {
 	if tag != "a" && tag != "button" {
 		return nil
 	}
 	class := ""
+	classSeen := false
 	for hasAttr {
 		var key, val []byte
 		key, val, hasAttr = tokenizer.TagAttr()
-		if string(key) == "class" {
-			class = string(val)
+		switch string(key) {
+		case "style":
+			return fmt.Errorf("rendered a <%s> with unverified inline style", tag)
+		case "class":
+			if !classSeen {
+				class = string(val)
+				classSeen = true // Browsers use the first class attribute.
+			}
 		}
 	}
-	if !hasBoundaryToken(class) {
+	return checkRenderedActionClass(tag, class)
+}
+
+func checkContextSensitiveHTML(rendered []byte) error {
+	for _, scripts := range []bool{false, true} {
+		nodes, err := html.ParseFragmentWithOptions(bytes.NewReader(rendered), &html.Node{Type: html.ElementNode, Data: "div", DataAtom: atom.Div}, html.ParseOptionEnableScripting(scripts))
+		if err != nil {
+			return err
+		}
+		for _, node := range nodes {
+			for element := range node.Descendants() {
+				if err := checkContextElement(element); err != nil {
+					return err
+				}
+			}
+			if err := checkContextElement(node); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func checkContextElement(node *html.Node) error {
+	if node.Type != html.ElementNode || (node.Data != "a" && node.Data != "button") {
+		return nil
+	}
+	class := ""
+	classSeen := false
+	for _, attribute := range node.Attr {
+		switch attribute.Key {
+		case "style":
+			return fmt.Errorf("rendered a <%s> with unverified inline style", node.Data)
+		case "class":
+			if !classSeen {
+				class, classSeen = attribute.Val, true
+			}
+		}
+	}
+	return checkRenderedActionClass(node.Data, class)
+}
+
+func checkRenderedActionClass(tag, class string) error {
+	if !HasBoundary(class) {
 		return fmt.Errorf("rendered a <%s> with no btn/border boundary class: %q", tag, class)
 	}
-	for _, tok := range strings.Fields(class) {
-		if forbiddenClassTokens[normalizeClassToken(tok)] {
-			return fmt.Errorf("rendered a <%s> with forbidden class token %q", tag, tok)
-		}
+	if tok := forbiddenClassToken(class); tok != "" {
+		return fmt.Errorf("rendered a <%s> with forbidden class token %q", tag, tok)
 	}
 	return nil
 }

@@ -9,13 +9,27 @@ import (
 	"path/filepath"
 	"strings"
 
+	"example.com/dynamis-code/apps-template/internal/platform/sourceaudit"
 	"example.com/dynamis-code/apps-template/scripts/actioncheck"
 )
 
 func main() {
-	if err := actioncheck.VerifyTemplUniqueness("."); err != nil {
+	if err := sourceaudit.Verify("."); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+	if err := sourceaudit.VerifyBuildEnvironment("."); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	failed := false
+	if err := actioncheck.VerifyTemplUniqueness("."); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		failed = true
+	}
+	if err := actioncheck.VerifyTypedComponentArguments("."); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		failed = true
 	}
 	data, err := os.ReadFile("scripts/actioncheck/exceptions.json")
 	if err != nil {
@@ -28,7 +42,6 @@ func main() {
 		os.Exit(1)
 	}
 	seen := make(map[string]bool)
-	failed := false
 	err = filepath.WalkDir("internal/web", func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err

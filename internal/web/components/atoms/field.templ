@@ -2,6 +2,8 @@
 // https://daisyui.com/components/field
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type FieldProps struct {
 	Class   string
 	Label   string
@@ -11,7 +13,7 @@ type FieldProps struct {
 }
 
 templ Field(props FieldProps) {
-	<fieldset class={ "fieldset", props.Class } { props.Attrs... }>
+	<fieldset class={ "fieldset", props.Class } { actionattrs.ScalarAttributes(props.Attrs)... }>
 		if props.Label != "" {
 			<legend class="fieldset-legend">{ props.Label }</legend>
 		}

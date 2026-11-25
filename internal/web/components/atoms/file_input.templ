@@ -2,6 +2,8 @@
 // https://daisyui.com/components/file-input
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type FileInputProps struct {
 	Name            string
 	ID              string // when set, the label binds with for=id
@@ -47,7 +49,7 @@ templ FileInput(props FileInputProps) {
 			if props.DisabledMessage != "" {
 				disabled
 			}
-			{ props.Attrs... }
+			{ actionattrs.ScalarAttributes(props.Attrs)... }
 		/>
 		if props.Description != "" {
 			<label class="fieldset-label">{ props.Description }</label>

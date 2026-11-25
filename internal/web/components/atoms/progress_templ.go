@@ -13,6 +13,8 @@ package atoms
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type ProgressProps struct {
 	Value int
 	Max   int
@@ -74,7 +76,7 @@ func Progress(props ProgressProps) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templruntime.NewAttributeExpression(props.Value).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/progress.templ`, Line: 23, Col: 21}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/progress.templ`, Line: 25, Col: 21}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 			if templ_7745c5c3_Err != nil {
@@ -87,7 +89,7 @@ func Progress(props ProgressProps) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templruntime.NewAttributeExpression(props.max()).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/progress.templ`, Line: 24, Col: 19}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/progress.templ`, Line: 26, Col: 19}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
@@ -100,7 +102,7 @@ func Progress(props ProgressProps) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templruntime.NewAttributeExpression(props.Label).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/progress.templ`, Line: 25, Col: 26}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/progress.templ`, Line: 27, Col: 26}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 			if templ_7745c5c3_Err != nil {
@@ -113,7 +115,7 @@ func Progress(props ProgressProps) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templruntime.NewAttributeExpression(props.Value).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/progress.templ`, Line: 27, Col: 29}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/progress.templ`, Line: 29, Col: 29}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 			if templ_7745c5c3_Err != nil {
@@ -123,7 +125,7 @@ func Progress(props ProgressProps) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "progress", props.Attrs)
+			templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "progress", actionattrs.ScalarAttributes(props.Attrs))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

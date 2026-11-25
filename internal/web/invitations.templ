@@ -14,7 +14,7 @@ import (
 )
 
 templ invitationManagementView(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
+	@templates.DashboardShell(data, templates.DashboardSettings) {
 		<div class="settings-page">
 			@molecules.PageHeading(data.Workspace.Name + " · " + data.T("invitations.invitations"), data.T("navigation.settings"))
 			@organisms.PeopleTabs(data)
@@ -23,13 +23,13 @@ templ invitationManagementView(data viewmodel.PageData) {
 			}
 			if data.InvitationURL != "" {
 				<p role="status">{ data.T("invitations.copy_link") }</p>
-				@atoms.Input(atoms.InputProps{Value: data.InvitationURL, Attrs: templ.Attributes{"readonly": true, "aria-label": data.T("invitations.copy_link")}})
+				@atoms.PlainInput(atoms.InputProps{Value: data.InvitationURL, Attrs: templ.Attributes{"readonly": true, "aria-label": data.T("invitations.copy_link")}})
 			}
 			<section class="settings-panel card min-w-0 p-5" aria-labelledby="invitation-create-title">
 				<h2 id="invitation-create-title">{ data.T("invitations.create") }</h2>
 				<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/invitations" } method="post" data-persist="invitation-create">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@atoms.Input(atoms.InputProps{
+					@atoms.PlainInput(atoms.InputProps{
 						ID:        "invite-email",
 						Label:     data.T("common.email"),
 						Name:      "email",
@@ -49,7 +49,7 @@ templ invitationManagementView(data viewmodel.PageData) {
 						},
 					})
 					<p class="status-line">{ data.T("members.role_help") }</p>
-					@atoms.Input(atoms.InputProps{
+					@atoms.PlainInput(atoms.InputProps{
 						ID:    "invite-life",
 						Label: data.T("invitations.lifetime") + " " + data.T("ui.optional"),
 						Name:  "lifetime",
@@ -128,7 +128,7 @@ templ invitationView(data viewmodel.PageData) {
 					<p>{ data.T("invitations.existing_account_help") }</p>
 					<form action={ "/invitations/" + data.InvitationSecret } method="post">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						@atoms.Input(atoms.InputProps{
+						@atoms.PlainInput(atoms.InputProps{
 							ID:        "invite-password",
 							Label:     data.T("common.password"),
 							Name:      "password",

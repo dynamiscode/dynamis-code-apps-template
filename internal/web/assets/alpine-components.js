@@ -1,6 +1,12 @@
 (() => {
 	"use strict";
 
+	function createAction(tag, classes) {
+		const action = document.createElement(tag);
+		action.className = classes;
+		return action;
+	}
+
 	const copyIntakeLink = async (field, clipboard, origin) => {
 		const url = new URL(field.value, origin).href;
 		try {
@@ -703,9 +709,8 @@
 			const item = document.createElement("p");
 			item.className = `toast alert py-2 ${kind === "error" ? "alert-error" : "alert-success"}`;
 			item.textContent = text;
-			const close = document.createElement("button");
+			const close = createAction("button", "btn btn-outline btn-xs");
 			close.type = "button";
-			close.className = "btn btn-ghost btn-xs";
 			close.textContent = msg("dismiss");
 			close.addEventListener("click", () => item.remove());
 			item.appendChild(close);
@@ -769,7 +774,7 @@
 			title.textContent = msg("error-summary");
 			const list = document.createElement("ul");
 			for (const el of invalid) {
-				const link = document.createElement("a");
+				const link = createAction("a", "rounded-field border border-base-300 px-1");
 				link.href = `#${idFor(el, "field")}`;
 				link.textContent = `${fieldLabel(el)}: ${el.validationMessage}`;
 				link.addEventListener("click", (event) => {
@@ -864,9 +869,8 @@
 			note.className = "draft-notice alert alert-info py-2 text-sm";
 			note.setAttribute("role", "status");
 			note.textContent = `${msg("draft-restored")} `;
-			const discard = document.createElement("button");
+			const discard = createAction("button", "btn btn-outline btn-xs");
 			discard.type = "button";
-			discard.className = "btn btn-ghost btn-xs";
 			discard.textContent = msg("discard-draft");
 			discard.addEventListener("click", () => {
 				storage?.removeItem(draftKey(form));
@@ -888,9 +892,8 @@
 		function enhancePassword(el) {
 			if (el.dataset.enhanced) return;
 			el.dataset.enhanced = "true";
-			const toggle = document.createElement("button");
+			const toggle = createAction("button", "btn btn-outline btn-xs reveal");
 			toggle.type = "button";
-			toggle.className = "btn btn-outline btn-xs reveal";
 			toggle.setAttribute("aria-controls", idFor(el, "password"));
 			toggle.setAttribute("aria-pressed", "false");
 			toggle.setAttribute("aria-label", msg("show-password"));
@@ -957,8 +960,8 @@
 			const status = document.createElement("p");
 			status.className = "wizard-status text-base-content/60 font-bold";
 			status.setAttribute("aria-live", "polite");
-			const back = Object.assign(document.createElement("button"), { type: "button", className: "btn btn-ghost btn-sm", textContent: msg("back") });
-			const next = Object.assign(document.createElement("button"), { type: "button", textContent: msg("next") });
+			const back = Object.assign(createAction("button", "btn btn-outline btn-sm"), { type: "button", textContent: msg("back") });
+			const next = Object.assign(createAction("button", "btn btn-primary btn-sm"), { type: "button", textContent: msg("next") });
 			nav.append(back, next);
 			form.insertBefore(status, steps[0]);
 			submit.insertAdjacentElement("beforebegin", nav);
@@ -1030,9 +1033,8 @@
 				const status = box.querySelector('[role="status"]');
 				if (status) status.textContent = msg("load-failed");
 				if (box.querySelector(".lazy-retry")) return;
-				const retry = document.createElement("button");
+				const retry = createAction("button", "btn btn-outline btn-xs lazy-retry");
 				retry.type = "button";
-				retry.className = "btn btn-ghost btn-xs lazy-retry";
 				retry.textContent = msg("retry");
 				retry.addEventListener("click", () => {
 					retry.remove();
@@ -1460,6 +1462,16 @@
 
 if (typeof module !== "undefined" && module.exports) module.exports = { core, FileUploader, wireRealtime, wireTimelineDialog, wireCatalogDialog, notificationsLive, passkeyLogin, passkeyEnroll, listScreen, pageBehaviors, copyIntakeLink };
 	if (typeof document === "undefined" || typeof window === "undefined") return;
+	// The pinned HTMX runtime dispatches this before reading or parsing the body.
+	// Keep downloads, EventSource, API data and external redirects out of swaps.
+	document.addEventListener("htmx:before:response", (event) => {
+		const response = event.detail?.ctx?.response;
+		if ([204, 205, 304].includes(response?.status)) return;
+		const mediaType = response?.headers?.get("Content-Type")?.trim() ?? "";
+		const disposition = response?.headers?.get("Content-Disposition");
+		const local = response?.raw?.url?.startsWith(location.origin + "/");
+		if (!local || disposition != null || !/^text\/html(?:[ \t]*;[ \t]*charset[ \t]*=[ \t]*(?:utf-8|"utf-8"))?$/i.test(mediaType)) event.preventDefault();
+	}, true);
 	document.addEventListener("alpine:init", () => {
 		window.Alpine.data("notificationsLive", notificationsLive);
 		window.Alpine.data("passkeyLogin", passkeyLogin);

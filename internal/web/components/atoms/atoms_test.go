@@ -17,6 +17,18 @@ func render(t *testing.T, c templ.Component) string {
 	return b.String()
 }
 
+func TestTimeSlotActionsHaveVisibleBoundaries(t *testing.T) {
+	for _, component := range []templ.Component{
+		timeSlotButton(TimeSlot{}, templ.Attributes{"onclick": "slot.showModal()"}),
+		timeSlotPickerControls(TimeSlotPickerProps{}),
+	} {
+		got := render(t, component)
+		if strings.Contains(got, "btn-ghost") || !strings.Contains(got, "btn-outline") {
+			t.Errorf("time-slot actions need bordered styling: %s", got)
+		}
+	}
+}
+
 func TestCatalogNavigationHasVisibleBoundaries(t *testing.T) {
 	feature := render(t, Feature(FeatureProps{Icon: PlainText("icon"), URL: "/feature"}))
 	footer := render(t, FooterNav("Explore", []AnchorProps{{Label: "Documentation", Attrs: templ.Attributes{"href": "/docs"}}}))

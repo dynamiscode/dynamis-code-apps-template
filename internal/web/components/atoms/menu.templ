@@ -51,7 +51,7 @@ type SubmenuProps struct {
 
 templ Submenu(props SubmenuProps) {
 	<li>
-		<details { props.Attrs... }>
+		<details { actionattrs.ScalarAttributes(props.Attrs)... }>
 			<summary>
 				if props.Icon != nil && !props.IconAfter {
 					@actionattrs.Scanned(props.Icon)

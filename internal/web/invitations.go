@@ -55,94 +55,71 @@ func setInvitationSecurityHeaders(writer http.ResponseWriter) {
 	writer.Header().Set("X-Robots-Tag", "noindex, nofollow, noarchive")
 }
 
-func (h *Handler) invitationSignIn(writer http.ResponseWriter, request *http.Request) {
-	setInvitationSecurityHeaders(writer)
+func (h *Handler) invitationSignIn(request *http.Request) invitationOutput {
 	if err := request.ParseForm(); err != nil {
-		h.renderError(writer, http.StatusBadRequest)
-		return
+		return invitationOutput{status: http.StatusBadRequest}
 	}
 	csrf := request.FormValue("csrf")
 	session, sessionErr := h.identity.AuthenticateSession(request.Context(), cookieValue(request, "session"))
 	if sessionErr == nil {
 		if !h.identity.VerifyCSRF(request.Context(), session.ID, csrf) {
-			h.renderError(writer, http.StatusForbidden)
-			return
+			return invitationOutput{status: http.StatusForbidden}
 		}
 	} else if !sameValue(cookieValue(request, "invitation_csrf"), csrf) {
-		h.renderError(writer, http.StatusForbidden)
-		return
+		return invitationOutput{status: http.StatusForbidden}
 	}
 	handoff, err := h.identity.BeginInvitationReturn(request.Context(), request.PathValue("secret"))
 	if err != nil {
-		h.renderInvitationPage(writer, request, http.StatusNotFound, "invitations.unavailable")
-		return
+		return h.invitationPageResult(request, http.StatusNotFound, "invitations.unavailable")
 	}
-	h.setCookie(writer, "invitation_handoff", handoff.Token, handoff.ExpiresAt, true)
-	h.setCookie(writer, "invitation_handoff_binding", handoff.Binding, handoff.ExpiresAt, true)
-	if sessionErr != nil {
-		h.clearCookie(writer, "invitation_csrf")
-	}
-	http.Redirect(writer, request, invitationLoginLocation, http.StatusSeeOther)
+	return invitationOutput{kind: invitationHandoff, handoff: handoff, clearCSRF: sessionErr != nil}
 }
 
-func (h *Handler) invitationContinuePage(writer http.ResponseWriter, request *http.Request) {
-	setInvitationSecurityHeaders(writer)
+func (h *Handler) invitationContinuePage(request *http.Request) invitationOutput {
 	invitation, err := h.identity.InvitationForReturn(
 		request.Context(), cookieValue(request, "invitation_handoff"),
 		cookieValue(request, "invitation_handoff_binding"),
 	)
 	if err != nil {
-		h.renderInvitationComponent(writer, request, http.StatusNotFound,
-			viewmodel.PageData{Title: "Workspace invitation", ErrorKey: "invitations.unavailable"}, invitationContinueView)
-		return
+		return invitationOutput{kind: invitationContinueMarkup, status: http.StatusNotFound, data: viewmodel.PageData{Title: "Workspace invitation", ErrorKey: "invitations.unavailable"}}
 	}
 	session, err := h.identity.AuthenticateSession(request.Context(), cookieValue(request, "session"))
 	csrf := cookieValue(request, "csrf")
 	if err != nil || csrf == "" || !h.identity.VerifyCSRF(request.Context(), session.ID, csrf) {
-		http.Redirect(writer, request, invitationLoginLocation, http.StatusSeeOther)
-		return
+		return invitationOutput{kind: invitationLogin}
 	}
-	h.renderInvitationComponent(writer, request, http.StatusOK, viewmodel.PageData{
+	return invitationOutput{kind: invitationContinueMarkup, status: http.StatusOK, data: viewmodel.PageData{
 		Title: "Workspace invitation", CSRF: csrf, Invitation: invitation,
 		InvitationAuthenticated: true,
-	}, invitationContinueView)
+	}}
 }
 
-func (h *Handler) invitationContinuePost(writer http.ResponseWriter, request *http.Request) {
-	setInvitationSecurityHeaders(writer)
+func (h *Handler) invitationContinuePost(request *http.Request) invitationOutput {
 	if err := request.ParseForm(); err != nil {
-		h.renderError(writer, http.StatusBadRequest)
-		return
+		return invitationOutput{status: http.StatusBadRequest}
 	}
 	token := cookieValue(request, "invitation_handoff")
 	binding := cookieValue(request, "invitation_handoff_binding")
 	invitation, err := h.identity.InvitationForReturn(request.Context(), token, binding)
 	if err != nil {
-		h.renderInvitationComponent(writer, request, http.StatusNotFound,
-			viewmodel.PageData{Title: "Workspace invitation", ErrorKey: "invitations.unavailable"}, invitationContinueView)
-		return
+		return invitationOutput{kind: invitationContinueMarkup, status: http.StatusNotFound, data: viewmodel.PageData{Title: "Workspace invitation", ErrorKey: "invitations.unavailable"}}
 	}
 	session, err := h.identity.AuthenticateSession(request.Context(), cookieValue(request, "session"))
 	if err != nil {
-		http.Redirect(writer, request, invitationLoginLocation, http.StatusSeeOther)
-		return
+		return invitationOutput{kind: invitationLogin}
 	}
 	if !h.identity.VerifyCSRF(request.Context(), session.ID, request.FormValue("csrf")) {
-		h.renderError(writer, http.StatusForbidden)
-		return
+		return invitationOutput{status: http.StatusForbidden}
 	}
 	workspaceID, err := h.identity.AcceptInvitationReturn(
 		request.Context(), token, binding, session.UserID, auditContext(request),
 	)
 	if err != nil {
-		h.renderInvitationComponent(writer, request, http.StatusUnprocessableEntity, viewmodel.PageData{
+		return invitationOutput{kind: invitationContinueMarkup, status: http.StatusUnprocessableEntity, data: viewmodel.PageData{
 			Title: "Workspace invitation", CSRF: cookieValue(request, "csrf"),
 			Invitation: invitation, InvitationAuthenticated: true,
 			ErrorKey: "invitations.accept_failed",
-		}, invitationContinueView)
-		return
+		}}
 	}
-	h.clearCookie(writer, "invitation_handoff")
-	h.clearCookie(writer, "invitation_handoff_binding")
-	h.redirect(writer, request, "/workspaces/"+workspaceID.String())
+	return invitationOutput{kind: invitationAccepted, target: "/workspaces/" + workspaceID.String()}
 }

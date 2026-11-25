@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -29,6 +30,36 @@ func TestWithAllowsListedKey(t *testing.T) {
 	got := New().With("hx-get", "/x").Templ()
 	if got["hx-get"] != "/x" {
 		t.Fatalf("got %v", got)
+	}
+}
+
+func TestValidateValueRejectsRenderableAttributes(t *testing.T) {
+	for _, value := range []any{templ.ComponentScript{}, rawHTMLComponent("text"), func() bool { return true }} {
+		if err := ValidateValue("data-test", value); err == nil {
+			t.Errorf("accepted %T", value)
+		}
+	}
+	for _, value := range []any{"text", true, 1, templ.KV("text", true)} {
+		if err := ValidateValue("data-test", value); err != nil {
+			t.Errorf("rejected %T: %v", value, err)
+		}
+	}
+}
+
+func TestScalarAttributesPreservesNativeValuesAndRejectsRawContent(t *testing.T) {
+	want := templ.Attributes{"class": "input w-full", "required": true, "tabindex": 0, "aria-label": templ.KV("Name", true)}
+	if got := ScalarAttributes(want); !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %#v, want %#v", got, want)
+	}
+	for _, attrs := range []templ.Attributes{{"SrcDoc": "text"}, {"data-label": templ.ComponentScript{}}, {"x-html": "action"}, {"@click": "action"}, {"data-hx-on:click": "action"}} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Error("expected unverified attribute to be rejected")
+				}
+			}()
+			ScalarAttributes(attrs)
+		}()
 	}
 }
 
@@ -117,9 +148,63 @@ func TestScannedRejectsUnboundedAnchor(t *testing.T) {
 	assertPanicked()
 }
 
+func TestScannedRejectsSplitActionTag(t *testing.T) {
+	for _, fragment := range []string{`<button`, `<a class="btn"`, `<button class="btn`} {
+		t.Run(fragment, func(t *testing.T) {
+			got, assertPanicked := renderScanned(t, rawHTMLComponent(fragment))
+			assertPanicked()
+			if got != "" {
+				t.Fatalf("incomplete tag was written: %q", got)
+			}
+		})
+	}
+}
+
 func TestScannedRejectsGhostButton(t *testing.T) {
 	_, assertPanicked := renderScanned(t, rawHTMLComponent(`<button class="btn btn-ghost">click</button>`))
 	assertPanicked()
+}
+
+func TestScannedRejectsDanglingCommentBeforeEmission(t *testing.T) {
+	for _, fragment := range []string{"<!--", "<!-- unfinished >"} {
+		got, assertPanicked := renderScanned(t, rawHTMLComponent(fragment))
+		assertPanicked()
+		if got != "" {
+			t.Fatalf("emitted %q before rejecting the unclosed comment", got)
+		}
+	}
+}
+
+func TestScannedUsesBrowserEffectiveClass(t *testing.T) {
+	for _, class := range []string{`class="btn-ghost" CLASS="btn"`, `class="text&nbsp;btn"`, `class="md:btn"`, `class="btn" style="border:0"`, `class="border border-transparent"`, `class="border border-none"`} {
+		t.Run(class, func(t *testing.T) {
+			_, assertPanicked := renderScanned(t, rawHTMLComponent(`<button `+class+`>click</button>`))
+			assertPanicked()
+		})
+	}
+}
+
+func TestScannedRejectsActionInContextSensitiveTextElement(t *testing.T) {
+	for _, fragment := range []string{`<svg><title><a>Link</a></title></svg>`, `<svg><textarea><a href="#example">Link</a></textarea></svg>`, `<noscript><button>Continue</button></noscript>`} {
+		t.Run(fragment, func(t *testing.T) {
+			_, assertPanicked := renderScanned(t, rawHTMLComponent(fragment))
+			assertPanicked()
+		})
+	}
+}
+
+func TestScannedPreservesLiteralActionTextInRawContexts(t *testing.T) {
+	for _, fragment := range []string{
+		`<script>const sample = "<button>sample</button>";</script>`,
+		`<textarea><button>sample</button></textarea>`,
+		`<svg><![CDATA[<a>sample</a>]]></svg>`,
+		`<svg><![CDATA[ > <a href="#sample">sample</a> ]]></svg>`,
+	} {
+		got, _ := renderScanned(t, rawHTMLComponent(fragment))
+		if got != fragment {
+			t.Errorf("got %q, want %q", got, fragment)
+		}
+	}
 }
 
 func TestScannedAcceptsPlainIcon(t *testing.T) {
@@ -295,4 +380,28 @@ func TestScannedNestingStillValidates(t *testing.T) {
 	if !strings.Contains(got, "btn-outline") {
 		t.Fatalf("expected the nested-safe button to render unchanged, got %q", got)
 	}
+}
+
+func TestScannedRejectsSplitUnsafeTagBeforeEmission(t *testing.T) {
+	var output bytes.Buffer
+	component := templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+		for _, part := range []string{`<button`, ` class="btn-`, `ghost">bad</button>`} {
+			if _, err := io.WriteString(w, part); err != nil {
+				return err
+			}
+			if output.Len() != 0 {
+				t.Fatalf("unsafe or incomplete tag was emitted: %q", output.String())
+			}
+		}
+		return nil
+	})
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic for split unsafe tag")
+		}
+		if output.Len() != 0 {
+			t.Fatalf("unsafe tag was emitted: %q", output.String())
+		}
+	}()
+	_ = Scanned(Scanned(component)).Render(context.Background(), &output)
 }

@@ -1,7 +1,6 @@
 package web
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
@@ -9,7 +8,7 @@ import atoms "example.com/dynamis-code/apps-template/internal/web/components/ato
 
 import "example.com/dynamis-code/apps-template/internal/clients"
 templ clientFieldsPage(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+	@templates.DashboardShell(data, templates.DashboardHome) {
 		@molecules.PageHeading(data.T("clients.fields_title"), data.T("clients.title")) {
 			<a class="btn btn-outline" href={ clientFieldsBackPath(data.FieldsPath) }>{ data.T("clients.back") }</a>
 		}

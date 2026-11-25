@@ -19,6 +19,51 @@ const testImports = "package demo\n\n" +
 	"import molecules \"example.com/dynamis-code/apps-template/internal/web/components/molecules\"\n" +
 	"import \"example.com/dynamis-code/apps-template/internal/web/components/actionattrs\"\n"
 
+func TestReviewedInlineScriptRejectsMutatedAndMovedBytes(t *testing.T) {
+	const path = "internal/web/components/atoms/time_slot_picker.templ"
+	body, err := os.ReadFile("../../" + path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(body)
+	start := strings.Index(source, "<script>")
+	end := strings.Index(source[start:], "</script>") + start + len("</script>")
+	script := source[start:end]
+	for _, tc := range []struct {
+		path, script string
+		want         int
+	}{
+		{path, script, 0},
+		{path, strings.Replace(script, "modal.close()", "document.createElement(\"button\")", 1), 1},
+		{path, script + "\n" + script, 1},
+		{"internal/web/new.templ", script, 1},
+	} {
+		violations, err := CheckPath("package fixture\n\ntempl view() {\n"+tc.script+"\n}\n", tc.path, nil)
+		if err != nil || len(violations) != tc.want {
+			t.Errorf("%s: got %v, %v, want %d violations", tc.path, violations, err, tc.want)
+		}
+	}
+}
+
+func TestReviewedOpaqueSlotRejectsNewAndMovedCalls(t *testing.T) {
+	const path = "internal/web/components/atoms/anchor.templ"
+	for _, tc := range []struct {
+		path, body string
+		want       int
+	}{
+		{path, `<a class="btn">@actionattrs.Scanned(props.LeftIcon)</a>`, 0},
+		{path, `<a class="btn"><span>@actionattrs.Scanned(props.LeftIcon)</span></a>`, 1},
+		{path, `<a class="btn">@actionattrs.Scanned(other)</a>`, 1},
+		{"internal/web/new.templ", `<a class="btn">@actionattrs.Scanned(props.LeftIcon)</a>`, 1},
+		{path, `<svg><title>@actionattrs.Scanned(props.LeftIcon)</title></svg>`, 2},
+	} {
+		violations, err := CheckPath(testImports+"\ntempl view() {\n"+tc.body+"\n}\n", tc.path, nil)
+		if err != nil || len(violations) != tc.want {
+			t.Errorf("%s: got %v, %v, want %d violations", tc.body, violations, err, tc.want)
+		}
+	}
+}
+
 func TestCheck(t *testing.T) {
 	cases := []struct {
 		name, body string
@@ -26,6 +71,11 @@ func TestCheck(t *testing.T) {
 	}{
 		{"bounded element", `<a class="btn" href={ path }>Open</a>`, 0},
 		{"unbounded element", `<a class="link">Open</a>`, 1},
+		{"encoded class override", `<button class="btn b&#116;n-ghost">Save</button>`, 1},
+		{"inline style override", `<button class="btn" style="border:0">Save</button>`, 1},
+		{"conditional inline style override", `<button class="btn" if enabled { style="border:0" }>Save</button>`, 1},
+		{"boolean class duplicate", `<button class class="btn">Save</button>`, 1},
+		{"conditional boolean class duplicate", `<button if enabled { class } class="btn">Save</button>`, 1},
 		{"nested expression", `<a class={ "btn", "btn-sm" } href={ format(call(a, b)) }>Open</a>`, 0},
 		{"dynamic class", `<button class={ "btn", extra }>Save</button>`, 1},
 		{"dynamic class via unwrapped call", `<button class={ "btn", unknown() }>Save</button>`, 1},
@@ -39,6 +89,14 @@ func TestCheck(t *testing.T) {
 		{"conditional boundary only", `<button class={ templ.KV("btn", enabled) }>Save</button>`, 1},
 		{"conditional boundary removal", `<button class={ "btn", templ.KV("border-0", enabled) }>Save</button>`, 1},
 		{"variant boundary removal", `<button class="btn md:border-0">Save</button>`, 1},
+		{"invisible border override", `<a class="border border-transparent">Save</a>`, 1},
+		{"border style override", `<a class="border hover:border-none">Save</a>`, 1},
+		{"zero border opacity", `<a class="border border-black/0">Save</a>`, 1},
+		{"arbitrary border width", `<a class="border focus:[border-width:0]">Save</a>`, 1},
+		{"arbitrary border token", `<a class="border border-[0px]">Save</a>`, 1},
+		{"hidden border token", `<a class="border border-hidden">Save</a>`, 1},
+		{"directional zero borders", `<a class="border border-s-0 border-e-0 border-y-0">Save</a>`, 1},
+		{"directional arbitrary width", `<a class="border focus:border-x-[0px]!">Save</a>`, 1},
 		{"conditional unrelated attr", `<button class="btn" if enabled { disabled }>Save</button>`, 0},
 		{"conditional class override", `<button class="btn" if enabled { class="link" }>Save</button>`, 1},
 		{"uppercase conditional override", `<button class="btn" if enabled { CLASS="link" }>Save</button>`, 1},
@@ -101,6 +159,13 @@ func TestCheck(t *testing.T) {
 		{"styled submit guarded class", `@molecules.SubmitButtonStyled("Save", actionattrs.ButtonClass(extra), nil)`, 0},
 		{"styled submit class override", `@molecules.SubmitButtonStyled("Save", "w-full", templ.Attributes{"class": "btn-ghost"})`, 1},
 		{"comment ignored", `<!-- <a class="link"> --> <a class="btn">Open</a>`, 0},
+		{"reviewed browser asset", `<script defer src="/assets/alpine-components.js"></script>`, 0},
+		{"unreviewed browser asset", `<script defer src="/assets/new-actions.js"></script>`, 1},
+		{"unreviewed dynamic asset", `<script src={ asset }></script>`, 1},
+		{"unreviewed inline script", `<script>document.createElement("button")</script>`, 1},
+		{"unreviewed Alpine HTML", `<div x-html="actions"></div>`, 1},
+		{"unreviewed Alpine event", `<div @click="writeAction"></div>`, 1},
+		{"unreviewed HTMX event", `<div data-hx-on:click="writeAction()"></div>`, 1},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -110,6 +175,79 @@ func TestCheck(t *testing.T) {
 			}
 			if len(got) != tc.violations {
 				t.Fatalf("got %v, want %d violations", got, tc.violations)
+			}
+		})
+	}
+}
+
+func TestExternalComponentConstructorRejected(t *testing.T) {
+	for _, body := range []string{
+		`@external.Factory()`,
+		`@Local(external.Factory())`,
+		`@Local(Props{Child: external.Factory()})`,
+	} {
+		source := `package demo
+import external "example.org/external"
+templ Demo() { ` + body + ` }`
+		violations, err := Check(source)
+		if err != nil || len(violations) != 1 {
+			t.Errorf("external constructor %q: %v %v", body, violations, err)
+		}
+	}
+}
+
+func TestOpenListComponentSlotsRejected(t *testing.T) {
+	for _, name := range []string{"ListScreen", "ListResults"} {
+		source := `package web
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+templ Demo() { @organisms.` + name + `() }`
+		got, err := Check(source)
+		if err != nil || len(got) == 0 {
+			t.Errorf("%s: got %v, error %v", name, got, err)
+		}
+		goSource := `package web
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+func call() { organisms.` + name + `() }`
+		got, err = CheckGoFile(goSource, "internal/web/helper.go")
+		if err != nil || len(got) == 0 {
+			t.Errorf("Go %s: got %v, error %v", name, got, err)
+		}
+	}
+}
+
+func TestCheckPathRejectsGoComponentConstructor(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/view.templ"
+	source := "package web\ntempl View() { @helper() }\n"
+	if err := os.WriteFile(path, []byte(source), 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := CheckPath(source, path, nil)
+	if err != nil || len(got) == 0 {
+		t.Fatalf("Go constructor: got %v, error %v", got, err)
+	}
+}
+
+func TestCheckPathRejectsNestedGoFactories(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/view.templ"
+	source := "package web\ntempl View() { @Host(helper()) }\ntempl Host(c any) { <div>ok</div> }\n"
+	if err := os.WriteFile(path, []byte(source), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ name, helper string }{
+		{"external", "package web\nimport external \"example.org/external\"\nfunc helper() external.Component { return external.Factory() }\n"},
+		{"alias", "package web\nimport external \"example.org/external\"\ntype Alias = external.Component\nfunc helper() Alias { return external.Factory() }\n"},
+		{"local implementation", "package web\ntype C struct{}\nfunc (C) Render() {}\nfunc helper() C { return C{} }\n"},
+		{"function value", "package web\nimport external \"example.org/external\"\nvar helper = external.Factory\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := os.WriteFile(dir+"/helper.go", []byte(tc.helper), 0600); err != nil {
+				t.Fatal(err)
+			}
+			got, err := CheckPath(source, path, nil)
+			if err != nil || len(got) == 0 {
+				t.Fatalf("nested Go factory: got %v, error %v", got, err)
 			}
 		})
 	}
@@ -598,6 +736,47 @@ func buildIcon(class string) templ.Component {
 	}
 	if len(got) == 0 {
 		t.Fatal("an unresolved Button construction in a plain .go file was not caught")
+	}
+}
+
+func TestCheckGoFileRejectsExternalComponentFactory(t *testing.T) {
+	source := `package web
+import "github.com/a-h/templ"
+import external "example.org/external"
+func build() templ.Component { return external.Factory() }
+`
+	got, err := CheckGoFile(source, "internal/web/helper.go")
+	if err != nil || len(got) == 0 {
+		t.Fatalf("external factory in Go wrapper: %v %v", got, err)
+	}
+}
+
+func TestCheckGoFileRejectsUnverifiedComponentReturns(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(dir+"/safe.templ", []byte("package web\ntempl safe() { <div>safe</div> }"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dir+"/alias.go", []byte("package web\nimport t \"github.com/a-h/templ\"\ntype Other = t.Component\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name, body    string
+		wantViolation bool
+	}{
+		{"template", `func build() templ.Component { return safe() }`, false},
+		{"local helper", `func build() templ.Component { return helper() }`, true},
+		{"alias", `type C = templ.Component; func build() C { return helper() }`, true},
+		{"cross-file alias", `func build() Other { return helper() }`, true},
+		{"variable", `func build(c templ.Component) templ.Component { return c }`, true},
+		{"nested factory", `func build() templ.Component { return safe(external.Factory()) }`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := "package web\nimport \"github.com/a-h/templ\"\nimport external \"example.org/external\"\n" + tc.body
+			got, err := CheckGoFile(source, dir+"/helper.go")
+			if err != nil || (len(got) > 0) != tc.wantViolation {
+				t.Fatalf("got %v, error %v, want violation %v", got, err, tc.wantViolation)
+			}
+		})
 	}
 }
 

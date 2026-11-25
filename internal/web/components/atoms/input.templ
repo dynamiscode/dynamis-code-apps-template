@@ -35,15 +35,10 @@ type InputProps struct {
 }
 
 templ Input(props InputProps) {
-	<fieldset class="fieldset">
-		if props.Label != "" {
-			if props.ID != "" {
-				<label class="fieldset-legend" for={ props.ID }>{ props.Label }</label>
-			} else {
-				<legend class="fieldset-legend">{ props.Label }</legend>
-			}
-		}
-		if props.Icon != nil {
+	if props.Icon == nil {
+		@PlainInput(props)
+	} else {
+		@inputFrame(props) {
 			<label
 				for={ props.ID }
 				class={
@@ -57,9 +52,27 @@ templ Input(props InputProps) {
 				@actionattrs.Scanned(props.Icon)
 				@InputControl(props)
 			</label>
-		} else {
-			@InputControl(props)
 		}
+	}
+}
+
+// PlainInput renders an input with no component slot.
+templ PlainInput(props InputProps) {
+	@inputFrame(props) {
+		@InputControl(props)
+	}
+}
+
+templ inputFrame(props InputProps) {
+	<fieldset class="fieldset">
+		if props.Label != "" {
+			if props.ID != "" {
+				<label class="fieldset-legend" for={ props.ID }>{ props.Label }</label>
+			} else {
+				<legend class="fieldset-legend">{ props.Label }</legend>
+			}
+		}
+		{ children... }
 		if props.Description != "" {
 			<div class="label">{ props.Description }</div>
 		}
@@ -119,6 +132,6 @@ templ InputControl(props InputProps) {
 			templ.KV("input-xl", props.Size == "xl"),
 			templ.KV("tooltip tooltip-top", props.DisabledMessage != ""),
 		}
-		{ props.Attrs... }
+		{ actionattrs.ScalarAttributes(props.Attrs)... }
 	/>
 }

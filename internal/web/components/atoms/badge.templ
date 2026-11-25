@@ -3,6 +3,8 @@
 // rendered as a span so it nests validly inside paragraphs and headings
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type BadgeProps struct {
 	Class string
 	Label string
@@ -10,5 +12,5 @@ type BadgeProps struct {
 }
 
 templ Badge(props BadgeProps) {
-	<span class={ "badge", props.Class } { props.Attrs... }>{ props.Label }{ children... }</span>
+	<span class={ "badge", props.Class } { actionattrs.ScalarAttributes(props.Attrs)... }>{ props.Label }{ children... }</span>
 }

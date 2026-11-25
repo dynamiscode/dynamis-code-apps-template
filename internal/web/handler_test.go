@@ -263,6 +263,29 @@ func TestCompleteMFASessionPreservesReturnTo(t *testing.T) {
 	}
 }
 
+func TestAuthPagePasskeyOutputRetainsNoContentAndClearsChallenge(t *testing.T) {
+	handler := &Handler{}
+	request := httptest.NewRequest(http.MethodPost, "/mfa/passkey", nil)
+	request.AddCookie(&http.Cookie{Name: "mfa_return_to", Value: "/account"})
+	response := httptest.NewRecorder()
+	handler.serveAuthPage(func(*http.Request) authPageOutput {
+		return authPageOutput{kind: authPagePasskeyVerified, session: identity.NewSession{Secret: "test-session", CSRFSecret: "test-csrf"}}
+	})(response, request)
+	if response.Code != http.StatusNoContent || response.Body.Len() != 0 || response.Header().Get("X-MFA-Return-To") != "/account" {
+		t.Fatalf("unexpected passkey reply status %d, body length %d", response.Code, response.Body.Len())
+	}
+	for _, name := range []string{"mfa_challenge", "mfa_csrf", "mfa_return_to"} {
+		if cookie := responseCookie(response, name); cookie.MaxAge != -1 {
+			t.Errorf("%s was not cleared", name)
+		}
+	}
+	for _, name := range []string{"session", "csrf"} {
+		if cookie := responseCookie(response, name); cookie.Value == "" || !cookie.HttpOnly {
+			t.Errorf("%s was not set with HttpOnly", name)
+		}
+	}
+}
+
 func TestMFAPolicyRedirectStartsBrowserChallenge(t *testing.T) {
 	handler, auth, workspaceID, owner := testWebWithMFA(t, 10, true)
 	ctx := context.Background()
@@ -305,6 +328,29 @@ func webTOTPCode(secret string, now time.Time) string {
 	offset := sum[len(sum)-1] & 15
 	value := (uint32(sum[offset])&127)<<24 | uint32(sum[offset+1])<<16 | uint32(sum[offset+2])<<8 | uint32(sum[offset+3])
 	return fmt.Sprintf("%06d", value%1000000)
+}
+
+func TestLogoutAdapterRejectsInvalidCSRFBeforeRevoking(t *testing.T) {
+	handler, auth, _, owner := testWeb(t, 10)
+	session, err := auth.CreateSession(t.Context(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	bad := request(handler, http.MethodPost, "/logout", url.Values{"csrf": {"invalid"}}, cookies, nil)
+	if bad.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF status = %d", bad.Code)
+	}
+	if _, err := auth.AuthenticateSession(t.Context(), session.Secret); err != nil {
+		t.Fatal("invalid logout revoked a valid session")
+	}
+	good := request(handler, http.MethodPost, "/logout", url.Values{"csrf": {session.CSRFSecret}}, cookies, nil)
+	if good.Code != http.StatusSeeOther || good.Header().Get("Location") != "/login" {
+		t.Fatalf("valid logout status %d, location %q", good.Code, good.Header().Get("Location"))
+	}
+	if _, err := auth.AuthenticateSession(t.Context(), session.Secret); err == nil {
+		t.Fatal("valid logout did not revoke the session")
+	}
 }
 
 func TestWebAccountNotificationsAndPasswordReset(t *testing.T) {
@@ -1494,6 +1540,24 @@ func multipartRequest(t *testing.T, handler http.Handler, target string, fields 
 func importDigest(content string) string {
 	digest := sha256.Sum256([]byte(content))
 	return hex.EncodeToString(digest[:])
+}
+
+func TestLoginPageAdapterPreservesLocalizedFormAndCookie(t *testing.T) {
+	handler, _, _, _ := testWeb(t, 1)
+	page := request(handler, http.MethodGet, "/login?return_to=/account", nil, nil, map[string]string{"Accept-Language": "es"})
+	cookie := responseCookie(page, "login_csrf")
+	if page.Code != http.StatusOK || page.Header().Get("Content-Type") != "text/html; charset=utf-8" ||
+		page.Header().Get("Cache-Control") != "no-store" || page.Header().Get("Content-Language") != "es" {
+		t.Fatalf("login response = %d, %v", page.Code, page.Header())
+	}
+	if cookie == nil || !cookie.HttpOnly || cookie.SameSite != http.SameSiteLaxMode || len(cookie.Value) != 32 {
+		t.Fatal("login CSRF cookie missing expected protection")
+	}
+	body := page.Body.String()
+	if !hasHTMLRootLang(body, "es") || !strings.Contains(body, `name="csrf" value="`+cookie.Value+`"`) ||
+		!strings.Contains(body, `name="return_to" value="/account"`) {
+		t.Fatal("localized form did not preserve CSRF and return target")
+	}
 }
 
 func TestWebSetupRequiresTokenAndBootstrapsFirstInstanceAdmin(t *testing.T) {

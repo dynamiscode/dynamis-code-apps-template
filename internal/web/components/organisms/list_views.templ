@@ -11,14 +11,10 @@ import (
 // rename, delete), and save the current filters, sort and columns as a new view. Every action posts to the list's
 // view routes, which redirect back to the list.
 templ ListViewSwitcher(data viewmodel.PageData) {
-	@atoms.Dropdown(atoms.DropdownProps{
-		Class:        "list-menu",
-		SummaryClass: "btn btn-sm",
-		SummaryAttrs: templ.Attributes{"aria-label": data.T("views.title"), "title": data.T("views.title")},
-		Summary:      listViewSummary(data),
-		Panel:        listViewPanel(data),
-		PanelClass:   "list-views-panel bg-base-100 rounded-box shadow-lg border border-base-200 p-3 w-96 max-w-[90vw]",
-	})
+	<details class="dropdown list-menu">
+		<summary class="btn m-1 btn btn-sm" aria-label={ data.T("views.title") } title={ data.T("views.title") }>{ " " }@listViewSummary(data)</summary>{ " " }
+		<div class="dropdown-content list-views-panel bg-base-100 rounded-box shadow-lg border border-base-200 p-3 w-96 max-w-[90vw]">@listViewPanel(data)</div>
+	</details>
 }
 
 // listViewSummary is the view menu's button face: the title and the applied view's name.
@@ -77,7 +73,7 @@ templ listViewPanel(data viewmodel.PageData) {
 								if view.Editable {
 									<form method="post" action={ data.ListViewRoute + "/" + strconv.FormatInt(view.ID, 10) + "/rename" } class="list-view-action">
 										<input type="hidden" name="csrf" value={ data.CSRF }/>
-										@atoms.Input(atoms.InputProps{Label: data.T("views.name"), Name: "name", Value: view.Name, Required: true, MaxLength: "60"})
+										@atoms.PlainInput(atoms.InputProps{Label: data.T("views.name"), Name: "name", Value: view.Name, Required: true, MaxLength: "60"})
 										<button class="btn btn-outline btn-xs" type="submit">{ data.T("views.rename") }</button>
 									</form>
 									<form method="post" action={ data.ListViewRoute + "/" + strconv.FormatInt(view.ID, 10) + "/delete" } class="list-view-action">
@@ -99,9 +95,9 @@ templ listViewPanel(data viewmodel.PageData) {
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
 						<input type="hidden" name="query" value={ data.ListViewQuery }/>
 						<p class="list-view-hint">{ data.T("views.save_hint") }</p>
-						@atoms.Input(atoms.InputProps{Label: data.T("views.name"), Name: "name", Required: true, MaxLength: "60"})
+						@atoms.PlainInput(atoms.InputProps{Label: data.T("views.name"), Name: "name", Required: true, MaxLength: "60"})
 						if data.ListViewCanShare {
-							@atoms.Checkbox(atoms.CheckboxProps{LabelClass: "list-view-check", After: data.T("views.shared"), Name: "shared", Attrs: templ.Attributes{"value": "1"}})
+							@atoms.PlainCheckbox(atoms.CheckboxProps{LabelClass: "list-view-check", After: data.T("views.shared"), Name: "shared", Attrs: templ.Attributes{"value": "1"}})
 							<p class="list-view-hint">{ data.T("views.share_hint") }</p>
 						}
 						<button class="btn btn-xs" type="submit">{ data.T("views.save") }</button>

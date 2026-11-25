@@ -1,7 +1,6 @@
 package web
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
@@ -11,7 +10,7 @@ import "strconv"
 import "strings"
 
 templ clientsPage(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+	@templates.DashboardShell(data, templates.DashboardHome) {
 		@molecules.PageHeading(data.T("clients.title"), "")
 		@clientList(data)
 	}
@@ -20,7 +19,7 @@ templ clientsPage(data viewmodel.PageData) {
 // clientNewPage is the create page. The form is the whole page, so the list
 // never loads four fields it does not need and a phone gets a full-width form.
 templ clientNewPage(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+	@templates.DashboardShell(data, templates.DashboardHome) {
 		@molecules.BackLink(data.CurrentPath, data.T("clients.back"))
 		@molecules.PageHeading(data.T("clients.new_client"), data.T("clients.title")) {
 		}
@@ -33,7 +32,7 @@ templ clientNewPage(data viewmodel.PageData) {
 	}
 }
 
-templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data, templates.DashboardHome) {
 		@molecules.BackLink(clientReturnHref(data.CurrentPath, data.ClientReturnQuery), data.T("clients.back"))
 		@molecules.PageHeading(data.Client.DisplayName, data.T("clients.title")) {
 			<div class="actions client-page-actions">
@@ -387,15 +386,15 @@ templ clientValues(data viewmodel.PageData) {
 						<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
 						@atoms.Label(atoms.LabelProps{For: "value-" + value.FieldID.String(), Text: value.Label + " " + data.T("ui.optional")})
 						if value.Type == "number" {
-							@atoms.Input(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", Type: "number", Step: "any", Value: clientValueDisplayValue(value.Value)})
+							@atoms.PlainInput(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", Type: "number", Step: "any", Value: clientValueDisplayValue(value.Value)})
 						} else if value.Type == "date" {
-							@atoms.Input(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", Type: "date", Value: clientValueDisplayValue(value.Value)})
+							@atoms.PlainInput(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", Type: "date", Value: clientValueDisplayValue(value.Value)})
 						} else if value.Type == "yes_no" {
 							@atoms.Select(atoms.SelectProps{ID: "value-" + value.FieldID.String(), Name: "value", Options: clientValueYesNoOptions(data, value)})
 						} else if value.Type == "single_choice" {
 							@atoms.Select(atoms.SelectProps{ID: "value-" + value.FieldID.String(), Name: "value", Options: clientValueChoiceOptions(data, value)})
 						} else {
-							@atoms.Input(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", MaxLength: "500", Value: clientValueDisplayValue(value.Value)})
+							@atoms.PlainInput(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", MaxLength: "500", Value: clientValueDisplayValue(value.Value)})
 						}
 						<div class="actions">
 							@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.value_save"), Attrs: templ.Attributes{"type": "submit"}})

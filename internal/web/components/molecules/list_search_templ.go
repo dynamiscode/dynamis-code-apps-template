@@ -9,6 +9,8 @@ package molecules
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 // ListSearch is the search box at the start of a list's toolbar. It sends q and always combines with the
@@ -41,7 +43,7 @@ func ListSearch(data viewmodel.PageData, placeholderKey string, value string) te
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.CurrentPath).ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_search.templ`, Line: 9, Col: 115}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_search.templ`, Line: 11, Col: 115}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 			if templ_7745c5c3_Err != nil {
@@ -51,7 +53,7 @@ func ListSearch(data viewmodel.PageData, placeholderKey string, value string) te
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "form", ListSearchLive(data))
+			templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "form", actionattrs.ScalarAttributes(ListSearchLive(data)))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -78,7 +80,7 @@ func ListSearch(data viewmodel.PageData, placeholderKey string, value string) te
 				var templ_7745c5c3_Var3 string
 				templ_7745c5c3_Var3, templ_7745c5c3_Err = templruntime.NewAttributeExpression(field.Name).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_search.templ`, Line: 12, Col: 42}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_search.templ`, Line: 14, Col: 42}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 				if templ_7745c5c3_Err != nil {
@@ -91,7 +93,7 @@ func ListSearch(data viewmodel.PageData, placeholderKey string, value string) te
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templruntime.NewAttributeExpression(field.Value).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_search.templ`, Line: 12, Col: 64}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_search.templ`, Line: 14, Col: 64}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 				if templ_7745c5c3_Err != nil {
@@ -110,7 +112,7 @@ func ListSearch(data viewmodel.PageData, placeholderKey string, value string) te
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.T(placeholderKey))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_search.templ`, Line: 15, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_search.templ`, Line: 17, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -123,7 +125,7 @@ func ListSearch(data viewmodel.PageData, placeholderKey string, value string) te
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templruntime.NewAttributeExpression(value).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_search.templ`, Line: 16, Col: 108}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_search.templ`, Line: 18, Col: 108}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {
@@ -136,7 +138,7 @@ func ListSearch(data viewmodel.PageData, placeholderKey string, value string) te
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T(placeholderKey)).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_search.templ`, Line: 16, Col: 163}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_search.templ`, Line: 18, Col: 163}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
@@ -149,7 +151,7 @@ func ListSearch(data viewmodel.PageData, placeholderKey string, value string) te
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("ui.search"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_search.templ`, Line: 17, Col: 76}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_search.templ`, Line: 19, Col: 76}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -162,7 +164,7 @@ func ListSearch(data viewmodel.PageData, placeholderKey string, value string) te
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("ui.search_failed")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_search.templ`, Line: 18, Col: 109}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_search.templ`, Line: 20, Col: 109}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {

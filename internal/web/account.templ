@@ -1,14 +1,13 @@
 package web
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 
 templ accountPageView(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.AccountHeader(data), organisms.AccountNavigation(data)) {
+	@templates.DashboardShell(data, templates.DashboardAccount) {
 		<div class="account-page" data-account-page>
 				<header class="account-heading bg-base-100 border-b border-base-200">
 					<p class="eyebrow">{ data.T("common.account") }</p>
@@ -38,7 +37,7 @@ templ accountPageView(data viewmodel.PageData) {
 						<p>{ data.T("account.profile_description") }</p>
 						<form action="/account/profile" method="post" data-dirty-track data-unsaved-warning>
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							@atoms.Input(atoms.InputProps{
+							@atoms.PlainInput(atoms.InputProps{
 								ID:        "display-name",
 								Name:      "display_name",
 								Label:     data.T("account.display_name") + " " + data.T("ui.optional"),
@@ -46,13 +45,13 @@ templ accountPageView(data viewmodel.PageData) {
 								MaxLength: "120",
 								Attrs:     templ.Attributes{"data-trim": true},
 							})
-							@atoms.Input(atoms.InputProps{
+							@atoms.PlainInput(atoms.InputProps{
 									ID:    "account-email",
 								Label: data.T("common.email"),
 								Value: data.Profile.Email,
 								Attrs: templ.Attributes{"readonly": true},
 							})
-							@atoms.Input(atoms.InputProps{
+							@atoms.PlainInput(atoms.InputProps{
 									ID:        "account-timezone",
 								Name:      "timezone",
 								Label:     data.T("account.timezone"),
@@ -154,7 +153,7 @@ templ accountPageView(data viewmodel.PageData) {
 						<form action="/account/delete" method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							@molecules.TextField("delete-password", data.T("account.current_password"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password", "required": true})
-							@atoms.Checkbox(atoms.CheckboxProps{
+							@atoms.PlainCheckbox(atoms.CheckboxProps{
 									ID:         "delete-confirm",
 									Name:       "confirm_delete",
 									After:      data.T("account.delete_confirmation_label"),
@@ -174,7 +173,7 @@ templ accountPageView(data viewmodel.PageData) {
 }
 
 templ languageSettingsView(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.AccountHeader(data), organisms.AccountNavigation(data)) {
+	@templates.DashboardShell(data, templates.DashboardAccount) {
 		<div class="account-page" data-account-page>
 				<p class="eyebrow">{ data.T("common.account") }</p>
 				<h1>{ data.T("account.language_settings_title") }</h1>

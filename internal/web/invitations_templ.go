@@ -87,7 +87,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = atoms.Input(atoms.InputProps{Value: data.InvitationURL, Attrs: templ.Attributes{"readonly": true, "aria-label": data.T("invitations.copy_link")}}).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{Value: data.InvitationURL, Attrs: templ.Attributes{"readonly": true, "aria-label": data.T("invitations.copy_link")}}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -135,7 +135,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 				ID:        "invite-email",
 				Label:     data.T("common.email"),
 				Name:      "email",
@@ -177,7 +177,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 				ID:    "invite-life",
 				Label: data.T("invitations.lifetime") + " " + data.T("ui.optional"),
 				Name:  "lifetime",
@@ -474,7 +474,7 @@ func invitationManagementView(data viewmodel.PageData) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templates.DashboardShell(data, templates.DashboardSettings).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -777,7 +777,7 @@ func invitationView(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+					templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 						ID:        "invite-password",
 						Label:     data.T("common.password"),
 						Name:      "password",

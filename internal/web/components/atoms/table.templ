@@ -14,7 +14,7 @@ type TableProps struct {
 
 templ Table(props TableProps) {
 	<div class={ "overflow-x-auto" }>
-		<table { props.Attrs... } class={ "table", props.Class }>
+		<table { actionattrs.ScalarAttributes(props.Attrs)... } class={ "table", props.Class }>
 			if props.Caption != "" {
 				<caption class="sr-only">{ props.Caption }</caption>
 			}
@@ -38,7 +38,7 @@ templ Table(props TableProps) {
 
 // HeaderText is a header cell with attributes (aria-sort, class, abbr).
 templ HeaderText(text string, attrs templ.Attributes) {
-	<span { attrs... }>{ text }</span>
+	<span { actionattrs.ScalarAttributes(attrs)... }>{ text }</span>
 }
 
 // TableWrap renders the table shell (scroll container, table element, caption);
@@ -52,7 +52,7 @@ type TableWrapProps struct {
 }
 
 templ TableWrap(props TableWrapProps) {
-	<div class={ props.WrapClass } { props.Attrs... }>
+	<div class={ props.WrapClass } { actionattrs.ScalarAttributes(props.Attrs)... }>
 		<table
 			if props.TableClass != "" {
 				class={ "table", props.TableClass }

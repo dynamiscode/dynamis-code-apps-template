@@ -38,7 +38,7 @@ func TextField(id, label string, attrs templ.Attributes) templ.Component {
 		delete(attrs, "type")
 		delete(attrs, "value")
 		delete(attrs, "placeholder")
-		templ_7745c5c3_Err = atoms.Input(atoms.InputProps{ID: id, Label: label, Name: name, Type: inputType, Value: value, Placeholder: placeholder, Attrs: attrs}).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{ID: id, Label: label, Name: name, Type: inputType, Value: value, Placeholder: placeholder, Attrs: attrs}).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

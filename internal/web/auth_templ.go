@@ -209,7 +209,7 @@ func authLogin(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 				ID:        "email",
 				Name:      "email",
 				Label:     data.T("common.email"),
@@ -222,7 +222,7 @@ func authLogin(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 				ID:        "password",
 				Name:      "password",
 				Label:     data.T("common.password"),
@@ -438,7 +438,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+				templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 					ID:        "setup-token",
 					Name:      "setup_token",
 					Label:     data.T("setup.setup_token"),
@@ -451,7 +451,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 				ID:        "email",
 				Name:      "email",
 				Label:     data.T("common.email"),
@@ -464,7 +464,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 				ID:        "password",
 				Name:      "password",
 				Label:     data.T("common.password"),
@@ -477,7 +477,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 				ID:        "password-confirmation",
 				Name:      "password_confirmation",
 				Label:     data.T("setup.confirm_password"),
@@ -507,7 +507,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 				ID:        "workspace",
 				Name:      "workspace",
 				Label:     data.T("workspace.name"),
@@ -669,7 +669,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+					templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 						ID:        "reset-password",
 						Name:      "password",
 						Label:     data.T("account.new_password"),
@@ -682,7 +682,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+					templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 						ID:        "reset-password-confirmation",
 						Name:      "password_confirmation",
 						Label:     data.T("account.confirm_password"),
@@ -734,7 +734,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+					templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 						ID:        "reset-email",
 						Name:      "email",
 						Label:     data.T("common.email"),
@@ -913,7 +913,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 				ID:        "totp-code",
 				Name:      "code",
 				Label:     data.T("security.mfa_authenticator_code"),
@@ -972,7 +972,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 				ID:       "recovery-code",
 				Name:     "code",
 				Label:    data.T("security.mfa_recovery_code"),

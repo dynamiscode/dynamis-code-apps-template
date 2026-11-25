@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"html"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -104,6 +105,21 @@ func isDangerousCall(call *ast.CallExpr, imports map[string]string, pkgName stri
 // findUnsafeCalls walks root for any call that is either unprovable
 // (isUnprovableCall) or a dangerous construction (isDangerousCall) that
 // fails safeComponentCall, and reports whether it found at least one.
+func isOpenListCall(call *ast.CallExpr, imports map[string]string, pkgName string) bool {
+	name := callKindName(call)
+	if name != "ListScreen" && name != "ListResults" {
+		return false
+	}
+	switch function := call.Fun.(type) {
+	case *ast.Ident:
+		return pkgName == "organisms"
+	case *ast.SelectorExpr:
+		qualifier, ok := function.X.(*ast.Ident)
+		return ok && imports[qualifier.Name] == "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+	}
+	return false
+}
+
 func findUnsafeCalls(root ast.Node, imports map[string]string, pkgName string) bool {
 	unsafe := false
 	ast.Inspect(root, func(n ast.Node) bool {
@@ -111,7 +127,7 @@ func findUnsafeCalls(root ast.Node, imports map[string]string, pkgName string) b
 		if !ok {
 			return true
 		}
-		if isUnprovableCall(call) {
+		if isUnprovableCall(call) || isOpenListCall(call, imports, pkgName) {
 			unsafe = true
 			return true
 		}
@@ -187,18 +203,340 @@ func CheckGoFile(source, path string) ([]Violation, error) {
 		pkgName = file.Name.Name
 	}
 	var violations []Violation
+	type packageFile struct {
+		file    *ast.File
+		imports map[string]string
+	}
+	files := []packageFile{{file, imports}}
+	entries, err := os.ReadDir(filepath.Dir(path))
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") || strings.HasSuffix(name, "_templ.go") || name == filepath.Base(path) {
+			continue
+		}
+		other, err := parser.ParseFile(token.NewFileSet(), filepath.Join(filepath.Dir(path), name), nil, 0)
+		if err != nil {
+			return nil, err
+		}
+		if other.Name.Name != pkgName {
+			continue
+		}
+		otherImports := map[string]string{}
+		for _, imp := range other.Imports {
+			importPath, err := strconv.Unquote(imp.Path.Value)
+			if err != nil {
+				return nil, err
+			}
+			qualifier := filepath.Base(importPath)
+			if imp.Name != nil {
+				qualifier = imp.Name.Name
+			}
+			otherImports[qualifier] = importPath
+		}
+		files = append(files, packageFile{other, otherImports})
+	}
+	aliases := map[string]bool{}
+	componentType := func(expr ast.Expr, imports map[string]string) bool {
+		if name, ok := expr.(*ast.Ident); ok {
+			return aliases[name.Name]
+		}
+		selector, ok := expr.(*ast.SelectorExpr)
+		if !ok || selector.Sel.Name != "Component" {
+			return false
+		}
+		qualifier, ok := selector.X.(*ast.Ident)
+		return ok && imports[qualifier.Name] == "github.com/a-h/templ"
+	}
+	for changed := true; changed; {
+		changed = false
+		for _, source := range files {
+			for _, declaration := range source.file.Decls {
+				group, ok := declaration.(*ast.GenDecl)
+				if !ok || group.Tok != token.TYPE {
+					continue
+				}
+				for _, spec := range group.Specs {
+					typeSpec := spec.(*ast.TypeSpec)
+					if !aliases[typeSpec.Name.Name] && componentType(typeSpec.Type, source.imports) {
+						aliases[typeSpec.Name.Name], changed = true, true
+					}
+				}
+			}
+		}
+	}
+	templates, err := templateNames(filepath.Dir(path))
+	if err != nil {
+		return nil, err
+	}
+	for _, declaration := range file.Decls {
+		function, ok := declaration.(*ast.FuncDecl)
+		if !ok || function.Type.Results == nil || function.Body == nil {
+			continue
+		}
+		var componentIndexes []int
+		index := 0
+		for _, result := range function.Type.Results.List {
+			count := len(result.Names)
+			if count == 0 {
+				count = 1
+			}
+			if componentType(result.Type, imports) {
+				for i := 0; i < count; i++ {
+					componentIndexes = append(componentIndexes, index+i)
+				}
+			}
+			index += count
+		}
+		if len(componentIndexes) == 0 {
+			continue
+		}
+		ast.Inspect(function.Body, func(node ast.Node) bool {
+			statement, ok := node.(*ast.ReturnStmt)
+			if !ok {
+				return true
+			}
+			for _, index := range componentIndexes {
+				if index >= len(statement.Results) {
+					violations = append(violations, Violation{uint32(fset.Position(statement.Pos()).Line), "unverified component returned by Go constructor"})
+					continue
+				}
+				result := statement.Results[index]
+				if name, ok := result.(*ast.Ident); ok && name.Name == "nil" {
+					continue
+				}
+				if call, ok := result.(*ast.CallExpr); ok {
+					if name, ok := call.Fun.(*ast.Ident); ok && templates[name.Name] {
+						nestedCall := false
+						for _, argument := range call.Args {
+							ast.Inspect(argument, func(node ast.Node) bool {
+								if _, ok := node.(*ast.CallExpr); ok {
+									nestedCall = true
+								}
+								return true
+							})
+						}
+						if !nestedCall {
+							continue
+						}
+					}
+				}
+				violations = append(violations, Violation{uint32(fset.Position(result.Pos()).Line), "unverified component returned by Go constructor"})
+			}
+			return true
+		})
+	}
 	ast.Inspect(file, func(n ast.Node) bool {
 		call, ok := n.(*ast.CallExpr)
 		if !ok {
 			return true
 		}
-		unsafe := isUnprovableCall(call) || (isDangerousCall(call, imports, pkgName) && !safeComponentCall(call, imports))
+		unsafe := isUnprovableCall(call) || isOpenListCall(call, imports, pkgName) || (isDangerousCall(call, imports, pkgName) && !safeComponentCall(call, imports))
 		if unsafe {
 			violations = append(violations, Violation{uint32(fset.Position(call.Pos()).Line), "unbounded or unresolved action component built in Go code"})
 		}
 		return true
 	})
 	return violations, nil
+}
+
+func localGoFunctions(dir string) (map[string]bool, error) {
+	names := map[string]bool{"len": true, "cap": true, "string": true, "int": true, "int64": true, "uint": true, "uint64": true}
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return names, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	collect := func(source string) error {
+		file, err := parser.ParseFile(token.NewFileSet(), "", source, 0)
+		if err != nil {
+			return err
+		}
+		for _, declaration := range file.Decls {
+			if function, ok := declaration.(*ast.FuncDecl); ok && function.Recv == nil {
+				names[function.Name.Name] = true
+			}
+		}
+		return nil
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || strings.HasSuffix(name, "_test.go") || strings.HasSuffix(name, "_templ.go") {
+			continue
+		}
+		if !strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, ".templ") {
+			continue
+		}
+		source, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			return nil, err
+		}
+		if strings.HasSuffix(name, ".go") {
+			if err := collect(string(source)); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		file, err := templparser.ParseString(string(source))
+		if err != nil {
+			return nil, err
+		}
+		v := visitor.New()
+		visit := v.TemplateFileGoExpression
+		v.TemplateFileGoExpression = func(code *templparser.TemplateFileGoExpression) error {
+			if err := collect("package p\n" + code.Expression.Value); err != nil {
+				return err
+			}
+			return visit(code)
+		}
+		if err := file.Visit(v); err != nil {
+			return nil, err
+		}
+	}
+	return names, nil
+}
+
+func externalGoFunctions(dir string) (map[string]bool, error) {
+	names := map[string]bool{}
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return names, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	type parsedFile struct {
+		file    *ast.File
+		imports map[string]string
+	}
+	var files []parsedFile
+	unsafeTypes := map[string]bool{"any": true}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") || strings.HasSuffix(name, "_templ.go") {
+			continue
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), filepath.Join(dir, name), nil, 0)
+		if err != nil {
+			return nil, err
+		}
+		imports := map[string]string{}
+		for _, imp := range file.Imports {
+			path, err := strconv.Unquote(imp.Path.Value)
+			if err != nil {
+				return nil, err
+			}
+			name := filepath.Base(path)
+			if imp.Name != nil {
+				name = imp.Name.Name
+			}
+			imports[name] = path
+		}
+		files = append(files, parsedFile{file, imports})
+		for _, declaration := range file.Decls {
+			function, ok := declaration.(*ast.FuncDecl)
+			if !ok || function.Recv == nil || function.Name.Name != "Render" {
+				continue
+			}
+			receiver := function.Recv.List[0].Type
+			if pointer, ok := receiver.(*ast.StarExpr); ok {
+				receiver = pointer.X
+			}
+			if ident, ok := receiver.(*ast.Ident); ok {
+				unsafeTypes[ident.Name] = true
+			}
+		}
+	}
+	unsafeType := func(expr ast.Expr, imports map[string]string) bool {
+		unsafe := false
+		ast.Inspect(expr, func(node ast.Node) bool {
+			switch value := node.(type) {
+			case *ast.InterfaceType:
+				unsafe = true
+			case *ast.Ident:
+				unsafe = unsafe || unsafeTypes[value.Name]
+			case *ast.SelectorExpr:
+				if qualifier, ok := value.X.(*ast.Ident); ok && imports[qualifier.Name] != "" && !strings.HasPrefix(imports[qualifier.Name], "example.com/dynamis-code/apps-template/") {
+					unsafe = true
+				}
+			}
+			return true
+		})
+		return unsafe
+	}
+	for changed := true; changed; {
+		changed = false
+		for _, source := range files {
+			for _, declaration := range source.file.Decls {
+				group, ok := declaration.(*ast.GenDecl)
+				if !ok || group.Tok != token.TYPE {
+					continue
+				}
+				for _, spec := range group.Specs {
+					typeSpec := spec.(*ast.TypeSpec)
+					if !unsafeTypes[typeSpec.Name.Name] && unsafeType(typeSpec.Type, source.imports) {
+						unsafeTypes[typeSpec.Name.Name], changed = true, true
+					}
+				}
+			}
+		}
+	}
+	for _, source := range files {
+		for _, declaration := range source.file.Decls {
+			function, ok := declaration.(*ast.FuncDecl)
+			if !ok || function.Recv != nil || function.Type.Results == nil {
+				continue
+			}
+			for _, result := range function.Type.Results.List {
+				if unsafeType(result.Type, source.imports) {
+					names[function.Name.Name] = true
+				}
+			}
+		}
+	}
+	return names, nil
+}
+
+func templateNames(dir string) (map[string]bool, error) {
+	names := make(map[string]bool)
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return names, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".templ") {
+			continue
+		}
+		source, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+		if err != nil {
+			return nil, err
+		}
+		file, err := templparser.ParseString(string(source))
+		if err != nil {
+			return nil, err
+		}
+		v := visitor.New()
+		visit := v.HTMLTemplate
+		v.HTMLTemplate = func(template *templparser.HTMLTemplate) error {
+			declarations, err := parser.ParseFile(token.NewFileSet(), "", "package p\nfunc "+template.Expression.Value+" {}", 0)
+			if err != nil {
+				return err
+			}
+			names[declarations.Decls[0].(*ast.FuncDecl).Name.Name] = true
+			return visit(template)
+		}
+		if err := file.Visit(v); err != nil {
+			return nil, err
+		}
+	}
+	return names, nil
 }
 
 // CheckPath accepts only exact, uniquely occurring opening tags in the named file.
@@ -210,12 +548,75 @@ func CheckPath(source, path string, exceptions []Exception) ([]Violation, error)
 	imports := resolveImports(source)
 	revokeShadowedTrust(file, imports)
 	pkgName := packageName(source)
+	var packageTemplates, externalFactories, localFunctions map[string]bool
+	if _, err := os.Stat(path); path != "" && err == nil {
+		packageTemplates, err = templateNames(filepath.Dir(path))
+		if err != nil {
+			return nil, err
+		}
+		externalFactories, err = externalGoFunctions(filepath.Dir(path))
+		if err != nil {
+			return nil, err
+		}
+		localFunctions, err = localGoFunctions(filepath.Dir(path))
+		if err != nil {
+			return nil, err
+		}
+	}
+	importedTemplates := make(map[string]map[string]bool)
 	var violations []Violation
 	matches := make([]int, len(exceptions))
 	v := visitor.New()
+	executableAttrs := make(map[string]int)
+	checkAttribute := func(key templparser.AttributeKey, source string, line uint32) {
+		constant, ok := key.(templparser.ConstantAttributeKey)
+		if !ok {
+			violations = append(violations, Violation{line + 1, "unverified dynamic HTML attribute key"})
+			return
+		}
+		if actionattrs.ExecutableAttribute(constant.Name) {
+			executableAttrs[source]++
+			if executableAttrs[source] > reviewedExecutableAttributes[path][source] {
+				violations = append(violations, Violation{line + 1, "unreviewed executable attribute " + constant.Name})
+			}
+		}
+	}
+	v.ConstantAttribute = func(node *templparser.ConstantAttribute) error {
+		checkAttribute(node.Key, node.String(), node.Range.From.Line)
+		return nil
+	}
+	v.ExpressionAttribute = func(node *templparser.ExpressionAttribute) error {
+		checkAttribute(node.Key, node.String(), node.Range.From.Line)
+		return nil
+	}
+	v.BoolConstantAttribute = func(node *templparser.BoolConstantAttribute) error {
+		checkAttribute(node.Key, node.String(), node.Range.From.Line)
+		return nil
+	}
+	v.BoolExpressionAttribute = func(node *templparser.BoolExpressionAttribute) error {
+		checkAttribute(node.Key, node.String(), node.Range.From.Line)
+		return nil
+	}
 	visitElement := v.Element
+	var elementParents []string
+	seenScannedSlots := make(map[string]int)
+	visitScript := v.ScriptElement
+	seenReviewedScripts := make(map[string]bool)
+	v.ScriptElement = func(element *templparser.ScriptElement) error {
+		if reason := checkTemplateScript(source, path, element, seenReviewedScripts); reason != "" {
+			violations = append(violations, Violation{element.Range.From.Line + 1, reason})
+		}
+		return visitScript(element)
+	}
+	v.ScriptTemplate = func(script *templparser.ScriptTemplate) error {
+		violations = append(violations, Violation{script.Range.From.Line + 1, "unreviewed templ script declaration"})
+		return nil
+	}
 	v.Element = func(element *templparser.Element) error {
-		if element.Name == "a" || element.Name == "button" {
+		if strings.EqualFold(element.Name, "script") {
+			violations = append(violations, Violation{element.Range.From.Line + 1, "unverified browser script element"})
+		}
+		if strings.EqualFold(element.Name, "a") || strings.EqualFold(element.Name, "button") {
 			if !safeElement(element, imports) {
 				from, to := element.OpenTagRange.From.Index, element.OpenTagRange.To.Index
 				excepted := false
@@ -233,15 +634,70 @@ func CheckPath(source, path string, exceptions []Exception) ([]Violation, error)
 				}
 			}
 		}
-		return visitElement(element)
+		elementParents = append(elementParents, element.Name)
+		err := visitElement(element)
+		elementParents = elementParents[:len(elementParents)-1]
+		return err
 	}
 	visitCall := v.TemplElementExpression
 	v.TemplElementExpression = func(call *templparser.TemplElementExpression) error {
 		expr, err := parser.ParseExpr(call.Expression.Value)
+		for _, parent := range elementParents {
+			if strings.EqualFold(parent, "svg") || strings.EqualFold(parent, "math") {
+				violations = append(violations, Violation{call.Range.From.Line + 1, "unverified component in foreign HTML context"})
+				break
+			}
+		}
+		if err == nil && path != "" && isActionattrsCall(expr, "Scanned", imports) {
+			slot := strings.Join(elementParents, "/") + " @ " + strings.TrimSpace(call.Expression.Value)
+			seenScannedSlots[slot]++
+			if seenScannedSlots[slot] > reviewedScannedSlots[path][slot] {
+				violations = append(violations, Violation{call.Range.From.Line + 1, "unreviewed opaque component slot " + slot})
+			}
+		}
 		if err != nil {
 			violations = append(violations, Violation{call.Range.From.Line + 1, "unsupported component expression"})
 		} else if !safeComponent(expr, imports, pkgName) {
 			violations = append(violations, Violation{call.Range.From.Line + 1, "unbounded or unresolved action component"})
+		} else if packageTemplates != nil {
+			if component, ok := expr.(*ast.CallExpr); ok {
+				for _, argument := range component.Args {
+					ast.Inspect(argument, func(node ast.Node) bool {
+						nested, ok := node.(*ast.CallExpr)
+						if !ok {
+							return true
+						}
+						if name, ok := nested.Fun.(*ast.Ident); ok && (externalFactories[name.Name] || !localFunctions[name.Name] && !packageTemplates[name.Name]) {
+							violations = append(violations, Violation{call.Range.From.Line + 1, "unverified nested component constructor " + name.Name})
+						}
+						return true
+					})
+				}
+				proven := false
+				switch function := component.Fun.(type) {
+				case *ast.Ident:
+					proven = packageTemplates[function.Name]
+				case *ast.SelectorExpr:
+					if qualifier, ok := function.X.(*ast.Ident); ok {
+						importPath := imports[qualifier.Name]
+						if importPath == actionattrsImportPath && function.Sel.Name == "Scanned" || qualifier.Name == "templ" && function.Sel.Name == "JSONScript" && importPath == "" {
+							proven = true
+						} else if strings.HasPrefix(importPath, "example.com/dynamis-code/apps-template/internal/web/") {
+							if _, ok := importedTemplates[importPath]; !ok {
+								var err error
+								importedTemplates[importPath], err = templateNames(strings.TrimPrefix(importPath, "example.com/dynamis-code/apps-template/"))
+								if err != nil {
+									return err
+								}
+							}
+							proven = importedTemplates[importPath][function.Sel.Name]
+						}
+					}
+				}
+				if !proven {
+					violations = append(violations, Violation{call.Range.From.Line + 1, "unverified component constructor"})
+				}
+			}
 		}
 		return visitCall(call)
 	}
@@ -638,7 +1094,7 @@ func safeElement(element *templparser.Element, imports map[string]string) bool {
 			}
 		case *templparser.ConstantAttribute:
 			key, ok := attr.Key.(templparser.ConstantAttributeKey)
-			if !ok {
+			if !ok || strings.EqualFold(key.Name, "style") {
 				return false
 			}
 			if strings.EqualFold(key.Name, "class") {
@@ -646,14 +1102,16 @@ func safeElement(element *templparser.Element, imports map[string]string) bool {
 					return false
 				}
 				classSeen = true
-				if !safeTokens(attr.Value) {
+				// Match templ's literal normalization, then HTML's entity decoding.
+				value := html.UnescapeString(strings.Join(strings.Fields(attr.Value), " "))
+				if !actionattrs.SafeClass(value) {
 					return false
 				}
-				boundary = hasBoundary(attr.Value)
+				boundary = actionattrs.HasBoundary(value)
 			}
 		case *templparser.ExpressionAttribute:
 			key, ok := attr.Key.(templparser.ConstantAttributeKey)
-			if !ok {
+			if !ok || strings.EqualFold(key.Name, "style") {
 				return false
 			}
 			if strings.EqualFold(key.Name, "class") {
@@ -667,29 +1125,49 @@ func safeElement(element *templparser.Element, imports map[string]string) bool {
 				}
 				for _, item := range expr.(*ast.CompositeLit).Elts {
 					value, unconditional, ok := classValue(item, imports)
-					if !ok || !safeTokens(value) {
+					if !ok || !actionattrs.SafeClass(value) {
 						return false
 					}
-					boundary = boundary || (unconditional && hasBoundary(value))
+					boundary = boundary || (unconditional && actionattrs.HasBoundary(value))
 				}
+			}
+		case *templparser.BoolConstantAttribute:
+			if !safeActionAuxKey(attr.Key) {
+				return false
+			}
+		case *templparser.BoolExpressionAttribute:
+			if !safeActionAuxKey(attr.Key) {
+				return false
 			}
 		}
 	}
 	return boundary
 }
 
+func safeActionAuxKey(key templparser.AttributeKey) bool {
+	constant, ok := key.(templparser.ConstantAttributeKey)
+	return ok && !strings.EqualFold(constant.Name, "class") && !strings.EqualFold(constant.Name, "style")
+}
+
 func safeConditionalAttributes(attrs []templparser.Attribute) bool {
 	for _, attr := range attrs {
 		switch attr := attr.(type) {
 		case *templparser.ConstantAttribute:
-			if strings.EqualFold(attr.Key.String(), "class") {
+			if !safeActionAuxKey(attr.Key) {
 				return false
 			}
 		case *templparser.ExpressionAttribute:
-			if strings.EqualFold(attr.Key.String(), "class") {
+			if !safeActionAuxKey(attr.Key) {
 				return false
 			}
-		case *templparser.BoolConstantAttribute, *templparser.BoolExpressionAttribute:
+		case *templparser.BoolConstantAttribute:
+			if !safeActionAuxKey(attr.Key) {
+				return false
+			}
+		case *templparser.BoolExpressionAttribute:
+			if !safeActionAuxKey(attr.Key) {
+				return false
+			}
 		case *templparser.ConditionalAttribute:
 			if !safeConditionalAttributes(attr.Then) || !safeConditionalAttributes(attr.Else) {
 				return false
@@ -765,7 +1243,7 @@ func isActionattrsCall(expr ast.Expr, name string, imports map[string]string) bo
 // which requireBoundary=false signals.
 func safeClassExpr(expr ast.Expr, requireBoundary bool, imports map[string]string) bool {
 	if value, ok := stringValue(expr); ok {
-		return safeTokens(value) && (!requireBoundary || hasBoundary(value))
+		return actionattrs.SafeClass(value) && (!requireBoundary || actionattrs.HasBoundary(value))
 	}
 	if isActionattrsCall(expr, "LinkClass", imports) {
 		return true
@@ -806,6 +1284,36 @@ func safeClassExpr(expr ast.Expr, requireBoundary bool, imports map[string]strin
 // HTML at render time instead of trying to prove its source is safe.
 func safeComponent(expr ast.Expr, imports map[string]string, pkgName string) bool {
 	if !containsCall(expr) {
+		return false
+	}
+	unknownExternal := false
+	ast.Inspect(expr, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		selector, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		qualifier, ok := selector.X.(*ast.Ident)
+		if !ok {
+			return true
+		}
+		path, imported := imports[qualifier.Name]
+		if !imported || strings.HasPrefix(path, "example.com/dynamis-code/apps-template/internal/web/") {
+			return true
+		}
+		if path == "github.com/a-h/templ" && (selector.Sel.Name == "SafeURL" || selector.Sel.Name == "KV") ||
+			path == "fmt" && selector.Sel.Name == "Sprintf" ||
+			path == "strings" && selector.Sel.Name == "TrimSpace" ||
+			path == "strconv" && selector.Sel.Name == "Itoa" {
+			return true
+		}
+		unknownExternal = true
+		return true
+	})
+	if unknownExternal {
 		return false
 	}
 	if call, ok := expr.(*ast.CallExpr); ok {
@@ -1023,34 +1531,4 @@ func stringValue(expr ast.Expr) (string, bool) {
 	}
 	value, err := strconv.Unquote(literal.Value)
 	return value, err == nil
-}
-
-// normalizeClassToken strips a colon-separated variant prefix ("md:") and
-// Tailwind's "important" marker, leading in v3 ("!border-0") or trailing in
-// v4 ("border-0!"), so neither can smuggle a forbidden or boundary token
-// past an exact-string comparison.
-func normalizeClassToken(token string) string {
-	base := token[strings.LastIndex(token, ":")+1:]
-	base = strings.TrimPrefix(base, "!")
-	base = strings.TrimSuffix(base, "!")
-	return base
-}
-
-func safeTokens(value string) bool {
-	for _, token := range strings.Fields(value) {
-		base := normalizeClassToken(token)
-		if base == "btn-ghost" || base == "btn-link" || base == "border-0" {
-			return false
-		}
-	}
-	return true
-}
-
-func hasBoundary(value string) bool {
-	for _, token := range strings.Fields(value) {
-		if normalizeClassToken(token) == "btn" || normalizeClassToken(token) == "border" {
-			return true
-		}
-	}
-	return false
 }

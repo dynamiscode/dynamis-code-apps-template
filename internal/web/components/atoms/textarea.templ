@@ -2,6 +2,8 @@
 // https://daisyui.com/components/textarea
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 import "fmt"
 
 type TextareaProps struct {
@@ -29,7 +31,7 @@ templ Textarea(props TextareaProps) {
 			}
 		}
 		<textarea
-			{ props.Attrs... }
+			{ actionattrs.ScalarAttributes(props.Attrs)... }
 			if props.ID != "" {
 				id={ props.ID }
 			}

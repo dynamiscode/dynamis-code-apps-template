@@ -1,7 +1,6 @@
 package molecules
 
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
-import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 
@@ -14,11 +13,21 @@ templ ClientColumnLabel(data viewmodel.PageData, column viewmodel.ListColumn) {
 }
 
 
+templ clientSortLink(data viewmodel.PageData, column viewmodel.ListColumn) {
+	<a class="rounded-field border border-base-300 px-1" href={ column.SortHref } if data.ListLive {
+		hx-get={ listResultsHref(column.SortHref) }
+		hx-target="#list-results"
+		hx-swap="outerHTML"
+		hx-push-url="true"
+		hx-sync="this:replace"
+	}>@atoms.HeaderText(ClientColumnLabelText(data, column), nil)</a>
+}
+
 templ ClientColumnHeading(data viewmodel.PageData, column viewmodel.ListColumn) {
 	if column.SortDirection != "" {
 		<th scope="col" data-column={ column.Key } aria-sort={ column.SortDirection }>
 			if column.SortHref != "" {
-				<a class="rounded-field border border-base-300 px-1" href={ column.SortHref } { actionattrs.From(ListLiveLinkAttributes(data, column.SortHref))... }>@atoms.HeaderText(ClientColumnLabelText(data, column), nil)</a>
+				@clientSortLink(data, column)
 			} else {
 				@atoms.HeaderText(ClientColumnLabelText(data, column), nil)
 			}
@@ -26,7 +35,7 @@ templ ClientColumnHeading(data viewmodel.PageData, column viewmodel.ListColumn) 
 	} else {
 		<th scope="col" data-column={ column.Key }>
 			if column.SortHref != "" {
-				<a class="rounded-field border border-base-300 px-1" href={ column.SortHref } { actionattrs.From(ListLiveLinkAttributes(data, column.SortHref))... }>@atoms.HeaderText(ClientColumnLabelText(data, column), nil)</a>
+				@clientSortLink(data, column)
 			} else {
 				@atoms.HeaderText(ClientColumnLabelText(data, column), nil)
 			}

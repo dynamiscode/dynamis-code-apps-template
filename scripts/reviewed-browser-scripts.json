@@ -1,0 +1,17 @@
+{
+  "alpine-components.js": {
+    "bytes": 68414,
+    "sha256": "89dbfaaf80de3d942aa4bff8cb40a6159efd83c5d221e451b07359677b806ead",
+    "reason": "App-owned action constructor, form controls, and pre-parse HTML-only HTMX transport contract reviewed in #658"
+  },
+  "htmx.min.js": {
+    "bytes": 37448,
+    "sha256": "a0abb04f2f45a1f89d1d4844023245537e5e6014c87b144553e0607b4cc32130",
+    "reason": "Vendored HTMX runtime; swaps app-owned server fragments"
+  },
+  "js/alpine.min.js": {
+    "bytes": 45328,
+    "sha256": "820bc9503874024057da244dc30c21301548329eb9a00e7937e91c4d3908b273",
+    "reason": "Vendored Alpine runtime; initializes app-owned declarative components"
+  }
+}

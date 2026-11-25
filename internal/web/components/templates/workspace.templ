@@ -2,10 +2,18 @@ package templates
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
 import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
-import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
-templ DashboardShell(data viewmodel.PageData, header, navigation templ.Component) {
+type DashboardNavigation string
+
+const (
+	DashboardStandalone DashboardNavigation = ""
+	DashboardHome       DashboardNavigation = "home"
+	DashboardSettings   DashboardNavigation = "settings"
+	DashboardAccount    DashboardNavigation = "account"
+)
+
+templ DashboardShell(data viewmodel.PageData, navigation DashboardNavigation) {
 	<!doctype html>
 	<html lang={ data.Locale } if data.Theme != "system" { data-theme={ data.Theme } }>
 		<head>
@@ -17,13 +25,17 @@ templ DashboardShell(data viewmodel.PageData, header, navigation templ.Component
 				<script defer src="/assets/htmx.min.js"></script>
 			}
 		</head>
-		<body x-data="pageBehaviors" class={ templ.KV("dashboard-workspace", navigation != nil) } data-workspace-home?={ data.NavPage == "workspace" } if data.NavPage != "import" && data.NavPage != "client-detail" && data.NavPage != "client-fields" && data.NavPage != "webhooks" && data.NavPage != "provisioning" { data-webmcp-page={ data.NavPage } }>
+		<body x-data="pageBehaviors" class={ templ.KV("dashboard-workspace", navigation != DashboardStandalone) } data-workspace-home?={ data.NavPage == "workspace" } if data.NavPage != "import" && data.NavPage != "client-detail" && data.NavPage != "client-fields" && data.NavPage != "webhooks" && data.NavPage != "provisioning" { data-webmcp-page={ data.NavPage } }>
 			@molecules.SkipLink(data)
-			if navigation != nil {
+			if navigation != DashboardStandalone {
 				<div class="drawer lg:drawer-open">
 					<input id="app-drawer" type="checkbox" class="drawer-toggle" aria-hidden="true" tabindex="-1"/>
 					<div class="drawer-content flex min-h-screen flex-col">
-						@actionattrs.Scanned(header)
+						if navigation == DashboardAccount {
+							@organisms.AccountHeader(data)
+						} else {
+							@organisms.DashboardHeader(data)
+						}
 						<main id="main" class="workspace-main flex-1">
 							{ children... }
 						</main>
@@ -36,12 +48,19 @@ templ DashboardShell(data viewmodel.PageData, header, navigation templ.Component
 									@organisms.WorkspaceContext(data)
 								</div>
 							}
-							@actionattrs.Scanned(navigation)
+							switch navigation {
+								case DashboardAccount:
+									@organisms.AccountNavigation(data)
+								case DashboardSettings:
+									@organisms.SettingsSidebar(data)
+								case DashboardHome:
+									@organisms.DashboardHomeNavigation(data)
+							}
 						</div>
 					</div>
 				</div>
 			} else {
-				@actionattrs.Scanned(header)
+				@organisms.DashboardHeader(data)
 				<main id="main" class="workspace-main">
 					{ children... }
 				</main>

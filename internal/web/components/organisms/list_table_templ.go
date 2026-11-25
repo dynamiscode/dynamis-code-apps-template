@@ -9,6 +9,8 @@ package organisms
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
@@ -41,7 +43,7 @@ func ListHeader(data viewmodel.PageData, actionsLabel string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Checkbox(atoms.CheckboxProps{
+			templ_7745c5c3_Err = atoms.PlainCheckbox(atoms.CheckboxProps{
 				Attrs: templ.Attributes{"data-bulk-all": true, "aria-label": data.T("clients.bulk_select_all")},
 			}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
@@ -68,7 +70,7 @@ func ListHeader(data viewmodel.PageData, actionsLabel string) templ.Component {
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(actionsLabel)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 23, Col: 81}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 25, Col: 81}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -113,7 +115,7 @@ func ListRow(href string) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templruntime.NewAttributeExpression(href).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 31, Col: 42}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 33, Col: 42}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -165,7 +167,7 @@ func ListRowWith(href string, attrs templ.Attributes) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templruntime.NewAttributeExpression(href).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 39, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 41, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 			if templ_7745c5c3_Err != nil {
@@ -175,7 +177,7 @@ func ListRowWith(href string, attrs templ.Attributes) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "tr", attrs)
+			templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "tr", actionattrs.ScalarAttributes(attrs))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -232,7 +234,7 @@ func ListCells(data viewmodel.PageData, row viewmodel.ListRow, href string) temp
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templruntime.NewAttributeExpression(column.Key).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 49, Col: 31}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 51, Col: 31}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 				if templ_7745c5c3_Err != nil {
@@ -245,7 +247,7 @@ func ListCells(data viewmodel.PageData, row viewmodel.ListRow, href string) temp
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templruntime.NewAttributeExpression(molecules.ClientColumnLabelText(data, column)).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 49, Col: 92}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 51, Col: 92}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 				if templ_7745c5c3_Err != nil {
@@ -258,7 +260,7 @@ func ListCells(data viewmodel.PageData, row viewmodel.ListRow, href string) temp
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.ClientListCellValue(column, row)).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 49, Col: 140}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 51, Col: 140}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 				if templ_7745c5c3_Err != nil {
@@ -309,7 +311,7 @@ func ListCellValue(data viewmodel.PageData, row viewmodel.ListRow, column viewmo
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(molecules.ListInitials(data.ClientListCellValue(column, row)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 62, Col: 113}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 64, Col: 113}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
@@ -322,7 +324,7 @@ func ListCellValue(data viewmodel.PageData, row viewmodel.ListRow, column viewmo
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templruntime.NewAttributeExpression(href).ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 63, Col: 105}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 65, Col: 105}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 			if templ_7745c5c3_Err != nil {
@@ -384,7 +386,7 @@ func ListCellValue(data viewmodel.PageData, row viewmodel.ListRow, column viewmo
 			var templ_7745c5c3_Var16 string
 			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(data.ClientListCellValue(column, row))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 66, Col: 124}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 68, Col: 124}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 			if templ_7745c5c3_Err != nil {
@@ -430,7 +432,7 @@ func ListCardItem(data viewmodel.PageData, row viewmodel.ListRow, href string) t
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templruntime.NewAttributeExpression(href).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 75, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 77, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 		if templ_7745c5c3_Err != nil {
@@ -457,7 +459,7 @@ func ListCardItem(data viewmodel.PageData, row viewmodel.ListRow, href string) t
 				var templ_7745c5c3_Var19 string
 				templ_7745c5c3_Var19, templ_7745c5c3_Err = templruntime.NewAttributeExpression(column.Key).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 80, Col: 33}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_table.templ`, Line: 82, Col: 33}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 				if templ_7745c5c3_Err != nil {

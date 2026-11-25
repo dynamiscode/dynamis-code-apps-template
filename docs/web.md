@@ -370,6 +370,40 @@ were removed. See [issue #401 migration evidence](capabilities.md#setup-and-auth
 Shared navigation uses `components/organisms/navigation.templ` directly. The workspace shell
 composes those components without a bridge.
 
+`actionattrs.Scanned` buffers each wrapped component's complete output. Client,
+member, and file list results no longer use the open `ListScreen` and
+`ListResults` slots; the streaming regression exercises 1,500 rows. Saved-view
+and column-menu panels also render direct children instead of buffering entire
+panels; their streaming and original-output tests are
+`TestListViewSwitcherStreamsPanel` and `TestListColumnsMenuStreamsPanel`. This is
+not a global memory bound: open slots in atoms (including table rows,
+infinite-scroll rows, dropdown panels, modal contents, tabs, drawers, and
+resizable panels) and empty-state CTAs still buffer each supplied component.
+Those components have no enforced output-size limit. Table and infinite-scroll
+scan rows individually rather than buffering the entire row collection; neither
+has a production caller outside the infinite-scroll table wrapper. The
+dashboard shell selects a statically declared header and navigation from a
+typed navigation kind. The workspace switcher renders each item directly;
+`TestWorkspaceSwitcherStreamsItems` checks 1,500 items through the rendered
+member page. The legacy list components still
+buffer their supplied slots if invoked; the action checker rejects their direct
+use in production Go and templ source. The typed check also rejects new
+buffered slots reachable from an enabled list entry point.
+
+List page-size, saved-view, column, filter, and row-action menus no longer
+pass arbitrary components to the generic dropdown API. The page-size and
+row-action menus iterate their typed data directly. Open panels render
+statically named templates or compiler-generated template children.
+Tests compare native and enhanced output with the former dropdowns.
+
+Generic attribute spreads on non-action elements use
+`actionattrs.ScalarAttributes`. It accepts native scalar values and preserves
+their existing keys, class names and rendering order. Component values, scripts,
+callbacks, other unknown types, and `srcdoc` are rejected before the spread is
+emitted. Validation walks the attribute map once without buffering output or
+imposing a rendered list-size limit. Action elements still use the stricter
+action attribute allowlist.
+
 | Navigation surface | Decision and evidence | Route owner |
 |---|---|---|
 | Script messages and skip link | Shared on authenticated, auth, public, and error pages; `TestNavigationComponentsEscapeInput` checks escaping and message placeholders | #434; page migrations remain separate |

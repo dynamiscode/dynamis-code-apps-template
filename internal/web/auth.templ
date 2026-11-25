@@ -34,7 +34,7 @@ templ authLogin(data viewmodel.PageData) {
 		<form action="/login" method="post">
 			<input type="hidden" name="csrf" value={ data.CSRF }/>
 			<input type="hidden" name="return_to" value={ data.ReturnTo }/>
-			@atoms.Input(atoms.InputProps{
+			@atoms.PlainInput(atoms.InputProps{
 				ID:        "email",
 				Name:      "email",
 				Label:     data.T("common.email"),
@@ -44,7 +44,7 @@ templ authLogin(data viewmodel.PageData) {
 				MaxLength: "320",
 				Attrs:     templ.Attributes{"autocomplete": "username", "data-trim": true},
 			})
-			@atoms.Input(atoms.InputProps{
+			@atoms.PlainInput(atoms.InputProps{
 				ID:        "password",
 				Name:      "password",
 				Label:     data.T("common.password"),
@@ -88,7 +88,7 @@ templ authSetup(data viewmodel.PageData) {
 						Label:   data.T("setup.token_format"),
 						Options: setupTokenFormatOptions(data),
 					})
-					@atoms.Input(atoms.InputProps{
+					@atoms.PlainInput(atoms.InputProps{
 						ID:        "setup-token",
 						Name:      "setup_token",
 						Label:     data.T("setup.setup_token"),
@@ -98,7 +98,7 @@ templ authSetup(data viewmodel.PageData) {
 						Attrs:     templ.Attributes{"autocomplete": "off"},
 					})
 				}
-				@atoms.Input(atoms.InputProps{
+				@atoms.PlainInput(atoms.InputProps{
 					ID:        "email",
 					Name:      "email",
 					Label:     data.T("common.email"),
@@ -108,7 +108,7 @@ templ authSetup(data viewmodel.PageData) {
 					MaxLength: "320",
 					Attrs:     templ.Attributes{"autocomplete": "username", "data-trim": true},
 				})
-				@atoms.Input(atoms.InputProps{
+				@atoms.PlainInput(atoms.InputProps{
 					ID:        "password",
 					Name:      "password",
 					Label:     data.T("common.password"),
@@ -118,7 +118,7 @@ templ authSetup(data viewmodel.PageData) {
 					MaxLength: "1024",
 					Attrs:     templ.Attributes{"autocomplete": "new-password", "data-strength": true},
 				})
-				@atoms.Input(atoms.InputProps{
+				@atoms.PlainInput(atoms.InputProps{
 					ID:        "password-confirmation",
 					Name:      "password_confirmation",
 					Label:     data.T("setup.confirm_password"),
@@ -131,7 +131,7 @@ templ authSetup(data viewmodel.PageData) {
 			</fieldset>
 			<fieldset data-step>
 				<legend>{ data.T("setup.step_workspace") }</legend>
-				@atoms.Input(atoms.InputProps{
+				@atoms.PlainInput(atoms.InputProps{
 					ID:        "workspace",
 					Name:      "workspace",
 					Label:     data.T("workspace.name"),
@@ -167,7 +167,7 @@ templ authPasswordReset(data viewmodel.PageData) {
 				<p class="auth-intro">{ data.T("account.choose_password_description") }</p>
 				<form action={ "/password-reset/" + data.PasswordResetSecret } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@atoms.Input(atoms.InputProps{
+					@atoms.PlainInput(atoms.InputProps{
 						ID:        "reset-password",
 						Name:      "password",
 						Label:     data.T("account.new_password"),
@@ -177,7 +177,7 @@ templ authPasswordReset(data viewmodel.PageData) {
 						MaxLength: "1024",
 						Attrs:     templ.Attributes{"autocomplete": "new-password", "data-strength": true},
 					})
-					@atoms.Input(atoms.InputProps{
+					@atoms.PlainInput(atoms.InputProps{
 						ID:        "reset-password-confirmation",
 						Name:      "password_confirmation",
 						Label:     data.T("account.confirm_password"),
@@ -193,7 +193,7 @@ templ authPasswordReset(data viewmodel.PageData) {
 				<p class="auth-intro">{ data.T("account.password_reset_description") }</p>
 				<form action="/password-reset" method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@atoms.Input(atoms.InputProps{
+					@atoms.PlainInput(atoms.InputProps{
 						ID:        "reset-email",
 						Name:      "email",
 						Label:     data.T("common.email"),
@@ -232,7 +232,7 @@ templ authMFA(data viewmodel.PageData) {
 			<p>{ data.T("security.mfa_authenticator_description") }</p>
 			<form action="/mfa/totp" method="post">
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
-				@atoms.Input(atoms.InputProps{
+				@atoms.PlainInput(atoms.InputProps{
 					ID:        "totp-code",
 					Name:      "code",
 					Label:     data.T("security.mfa_authenticator_code"),
@@ -249,7 +249,7 @@ templ authMFA(data viewmodel.PageData) {
 			<p>{ data.T("security.mfa_recovery_description") }</p>
 			<form action="/mfa/recovery" method="post">
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
-				@atoms.Input(atoms.InputProps{
+				@atoms.PlainInput(atoms.InputProps{
 					ID:        "recovery-code",
 					Name:      "code",
 					Label:     data.T("security.mfa_recovery_code"),

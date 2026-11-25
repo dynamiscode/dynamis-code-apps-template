@@ -29,7 +29,7 @@ templ SubmitButtonStyled(label, class string, attrs templ.Attributes) {
 
 
 templ LinkButton(href, label string) {
-	@atoms.Anchor(atoms.AnchorProps{Href: href, Label: label, Class: "btn btn-primary"})
+	<a if href != "" { href={ templ.SafeURL(href) } } class="btn btn-primary">{ label + " " }</a>
 }
 
 

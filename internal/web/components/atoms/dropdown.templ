@@ -41,7 +41,7 @@ type DropdownItem struct {
 
 templ Dropdown(props DropdownProps) {
 	<details class={ "dropdown", props.Class } open?={ props.Open }>
-		<summary class={ "btn m-1", props.SummaryClass } { props.SummaryAttrs... }>
+		<summary class={ "btn m-1", props.SummaryClass } { actionattrs.ScalarAttributes(props.SummaryAttrs)... }>
 			{ props.Label }
 			if props.Summary != nil {
 				@actionattrs.Scanned(props.Summary)
@@ -51,9 +51,9 @@ templ Dropdown(props DropdownProps) {
 			}
 		</summary>
 		if props.Panel != nil {
-			<div class={ "dropdown-content", props.PanelClass } { props.PanelAttrs... }>@actionattrs.Scanned(props.Panel)</div>
+			<div class={ "dropdown-content", props.PanelClass } { actionattrs.ScalarAttributes(props.PanelAttrs)... }>@actionattrs.Scanned(props.Panel)</div>
 		} else if props.PanelChildren {
-			<div class={ "dropdown-content", props.PanelClass } { props.PanelAttrs... }>{ children... }</div>
+			<div class={ "dropdown-content", props.PanelClass } { actionattrs.ScalarAttributes(props.PanelAttrs)... }>{ children... }</div>
 		} else {
 			<ul class={ "menu dropdown-content", props.ListClass }>
 				for _, di := range props.Items {

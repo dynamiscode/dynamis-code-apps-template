@@ -35,10 +35,11 @@ func TestFormUXPatterns(t *testing.T) {
 	enter := func(selector string) { t.Helper(); run(t, tab, chromedp.Focus(selector), chromedp.KeyEvent("\r")) }
 
 	// form-wizard: setup is two steps; Next is blocked while step one is invalid.
+	const nextStep = "form[data-wizard] .wizard-nav button:not([hidden])"
 	run(t, tab, chromedp.Navigate(base+"/setup"))
 	check(js(`document.querySelectorAll("fieldset[data-step]")[1].hidden`), "form-wizard: step two starts hidden")
 	check(js(`document.querySelector('form[data-wizard] button[type="submit"]').hidden`), "form-wizard: submit hidden before the last step")
-	click(".wizard-nav button:not(.btn-ghost)")
+	click(nextStep)
 	check(js(`document.querySelectorAll("fieldset[data-step]")[1].hidden`), "form-wizard: Next is blocked while step one is invalid")
 	check(js(`document.querySelector("#email").getAttribute("aria-invalid") === "true"`), "form-field-input: the invalid field is marked")
 	typeInto("#email", "  "+email+"  ")
@@ -52,10 +53,10 @@ func TestFormUXPatterns(t *testing.T) {
 	click("#password + .reveal")
 	check(js(`document.querySelector("#password").type === "password" && document.querySelector("#password + .reveal").getAttribute("aria-pressed") === "false"`), "form-field-input: reveal hides the password")
 	typeInto("#password-confirmation", "different-password-1")
-	click(".wizard-nav button:not(.btn-ghost)")
+	click(nextStep)
 	check(js(`document.querySelector("#password-confirmation").getAttribute("aria-invalid") === "true"`), "form-field-input: mismatched confirmation is invalid")
 	typeInto("#password-confirmation", password)
-	click(".wizard-nav button:not(.btn-ghost)")
+	click(nextStep)
 	check(js(`!document.querySelectorAll("fieldset[data-step]")[1].hidden`), "form-wizard: Next moves to step two once step one is valid")
 	check(js(`document.activeElement?.tagName === "LEGEND"`), "form-wizard: focus moves to the new step")
 	check(js(`document.querySelector("#email").value === "ux@example.com"`), "form-field-input: the email was trimmed")
