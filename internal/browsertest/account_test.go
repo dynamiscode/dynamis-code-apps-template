@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/chromedp/chromedp"
 	_ "modernc.org/sqlite"
 )
 
@@ -64,6 +65,35 @@ func TestProfilePreferencePersistsThroughOrdinaryForm(t *testing.T) {
 	status := eval[string](t, tab, fmt.Sprintf(`(async () => { const body = new URLSearchParams([["csrf", %s], ["timezone", %s], ["locale", %s], ["display_name", %s], ["theme", %s]]); return String((await fetch("/account/profile", { method: "POST", body, redirect: "manual", credentials: "same-origin" })).type); })()`, jsString(original["csrf"]), jsString(original["timezone"]), jsString(original["locale"]), jsString(original["display_name"]), jsString(original["theme"])), awaitPromise)
 	if status != "opaqueredirect" {
 		t.Fatalf("profile post type %s, want a redirect", status)
+	}
+}
+
+// TestAccountThemeSelectorSurfaceAndPersistence exercises the native selector and profile form.
+func TestAccountThemeSelectorSurfaceAndPersistence(t *testing.T) {
+	tab := newTab(t, 1280, 900, "")
+	signInAs(t, tab, fixtureOwnerEmail, fixturePassword)
+	navigate(t, tab, "/account")
+	restore := setAccountTheme(t, tab, "system")
+	t.Cleanup(restore)
+	navigate(t, tab, "/account")
+
+	for _, choice := range []struct {
+		fraction   float64
+		key, theme string
+	}{
+		{0.1, "d", "dark"},
+		{0.5, "l", "light"},
+		{0.9, "s", "system"},
+	} {
+		box := eval[struct{ X, Y float64 }](t, tab, fmt.Sprintf(`(() => { const r = document.querySelector('#account-theme').getBoundingClientRect(); return {x: r.left + r.width * %g, y: r.top + r.height / 2}; })()`, choice.fraction))
+		run(t, tab, chromedp.MouseClickXY(box.X, box.Y), chromedp.KeyEvent(choice.key), chromedp.KeyEvent("\r"))
+		eventually(t, tab, fmt.Sprintf(`document.querySelector('#account-theme').value === %s`, jsString(choice.theme)), "theme selection failed")
+		clickByText(t, tab, "Save")
+		eventually(t, tab, `location.search.includes("saved=1")`, "profile save did not confirm")
+		expectTheme(t, tab, choice.theme)
+		navigate(t, tab, "/account")
+		eventually(t, tab, fmt.Sprintf(`document.querySelector('#account-theme').value === %s`, jsString(choice.theme)), "saved theme selection not kept")
+		expectTheme(t, tab, choice.theme)
 	}
 }
 
