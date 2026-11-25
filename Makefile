@@ -50,6 +50,7 @@ logger-injection:
 
 commit-msg-hook:
 	./scripts/test-commit-msg-hook.sh
+	sh scripts/test-verify-commit.sh
 
 test: test-unit
 	go test ./...
