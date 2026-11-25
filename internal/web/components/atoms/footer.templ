@@ -20,7 +20,7 @@ templ Footer(props FooterProps) {
 		<aside class="grid-flow-col items-center">
 			if props.Icon != nil {
 				<div class="w-6 h-6">
-					@props.Icon
+					@actionattrs.Scanned(props.Icon)
 				</div>
 			}
 			<p>
@@ -44,11 +44,11 @@ templ Footer(props FooterProps) {
 						{ actionattrs.From(anchor.Attrs)... }
 					>
 						if anchor.LeftIcon != nil {
-							@anchor.LeftIcon
+							@actionattrs.Scanned(anchor.LeftIcon)
 						}
 						{ anchor.Label }
 						if anchor.RightIcon != nil {
-							@anchor.RightIcon
+							@actionattrs.Scanned(anchor.RightIcon)
 						}
 					</a>
 				}

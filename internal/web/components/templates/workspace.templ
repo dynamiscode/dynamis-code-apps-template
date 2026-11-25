@@ -2,6 +2,7 @@ package templates
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
 import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 templ DashboardShell(data viewmodel.PageData, header, navigation templ.Component) {
@@ -22,7 +23,7 @@ templ DashboardShell(data viewmodel.PageData, header, navigation templ.Component
 				<div class="drawer lg:drawer-open">
 					<input id="app-drawer" type="checkbox" class="drawer-toggle" aria-hidden="true" tabindex="-1"/>
 					<div class="drawer-content flex min-h-screen flex-col">
-						@header
+						@actionattrs.Scanned(header)
 						<main id="main" class="workspace-main flex-1">
 							{ children... }
 						</main>
@@ -35,12 +36,12 @@ templ DashboardShell(data viewmodel.PageData, header, navigation templ.Component
 									@organisms.WorkspaceContext(data)
 								</div>
 							}
-							@navigation
+							@actionattrs.Scanned(navigation)
 						</div>
 					</div>
 				</div>
 			} else {
-				@header
+				@actionattrs.Scanned(header)
 				<main id="main" class="workspace-main">
 					{ children... }
 				</main>

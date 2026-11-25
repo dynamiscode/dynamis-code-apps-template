@@ -2,6 +2,8 @@
 // https://daisyui.com/components/indicator
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type IndicatorProps struct {
 	Class     string
 	ItemClass string
@@ -11,7 +13,7 @@ type IndicatorProps struct {
 templ Indicator(props IndicatorProps) {
 	<div class={ "indicator", props.Class }>
 		if props.Item != nil {
-			<span class={ "indicator-item", props.ItemClass }>@props.Item</span>
+			<span class={ "indicator-item", props.ItemClass }>@actionattrs.Scanned(props.Item)</span>
 		}
 		{ children... }
 	</div>

@@ -10,6 +10,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 // ListToolbar groups a list's Columns and sort/filter menus above its table.
@@ -112,7 +113,7 @@ func ListFooter(data viewmodel.PageData, limit int, sizes []int) templ.Component
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(ListFooterCount(data))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/organisms/list_screen.templ`, Line: 30, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/organisms/list_screen.templ`, Line: 31, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -183,7 +184,7 @@ func ListScreen(data viewmodel.PageData, searchKey string, tools templ.Component
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = tools.Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = actionattrs.Scanned(tools).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -195,7 +196,7 @@ func ListScreen(data viewmodel.PageData, searchKey string, tools templ.Component
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = results.Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = actionattrs.Scanned(results).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -224,7 +225,7 @@ func ListResults(data viewmodel.PageData, limit int, sizes []int, columnsSuffix 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = body.Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = actionattrs.Scanned(body).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -244,7 +245,7 @@ func ListResults(data viewmodel.PageData, limit int, sizes []int, columnsSuffix 
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = extras.Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = actionattrs.Scanned(extras).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -44,14 +44,14 @@ templ Dropdown(props DropdownProps) {
 		<summary class={ "btn m-1", props.SummaryClass } { props.SummaryAttrs... }>
 			{ props.Label }
 			if props.Summary != nil {
-				@props.Summary
+				@actionattrs.Scanned(props.Summary)
 			}
 			if !props.PanelChildren {
 				{ children... }
 			}
 		</summary>
 		if props.Panel != nil {
-			<div class={ "dropdown-content", props.PanelClass } { props.PanelAttrs... }>@props.Panel</div>
+			<div class={ "dropdown-content", props.PanelClass } { props.PanelAttrs... }>@actionattrs.Scanned(props.Panel)</div>
 		} else if props.PanelChildren {
 			<div class={ "dropdown-content", props.PanelClass } { props.PanelAttrs... }>{ children... }</div>
 		} else {
@@ -62,7 +62,7 @@ templ Dropdown(props DropdownProps) {
 					} else if di.Divider {
 						<li class="my-1 border-t border-base-content/10"></li>
 					} else if di.Item != nil {
-						<li class={ di.Class }>@di.Item</li>
+						<li class={ di.Class }>@actionattrs.Scanned(di.Item)</li>
 					} else {
 						<li>
 							<a { actionattrs.From(di.Attrs)... } class={ "border border-base-300", templ.KV("text-error", di.Danger) }>{ di.Label }</a>

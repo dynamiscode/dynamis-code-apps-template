@@ -3,6 +3,7 @@
 package atoms
 
 import "fmt"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 
 type ModalProps struct {
 	ID    string
@@ -26,7 +27,7 @@ templ modalWrapper(props ModalProps, attrs templ.Attributes) {
 			{ s }
 		</div>
 	} else if c, ok := props.Label.(templ.Component); ok {
-		@c
+		@actionattrs.Scanned(c)
 	}
 	<dialog id={ props.ID } class="modal">
 		<div class="modal-box">

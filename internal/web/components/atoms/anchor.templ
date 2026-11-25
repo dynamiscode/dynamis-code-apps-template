@@ -21,11 +21,11 @@ templ Anchor(props AnchorProps) {
 		{ actionattrs.From(props.Attrs)... }
 	>
 		if props.LeftIcon != nil {
-			@props.LeftIcon
+			@actionattrs.Scanned(props.LeftIcon)
 		}
 		{ props.Label }
 		if props.RightIcon != nil {
-			@props.RightIcon
+			@actionattrs.Scanned(props.RightIcon)
 		}
 	</a>
 }

@@ -255,6 +255,9 @@ func CheckPath(source, path string, exceptions []Exception) ([]Violation, error)
 		if unsafe := scanStatements(code.Expression.Value, imports, pkgName); unsafe {
 			violations = append(violations, Violation{code.Range.From.Line + 1, "unbounded or unresolved action component built in Go code"})
 		}
+		if hasRogueTemplField("package p\nfunc _() {\n" + code.Expression.Value + "\n}\n") {
+			violations = append(violations, Violation{code.Range.From.Line + 1, "struct field literally named Templ bypasses the action-attribute guard"})
+		}
 		return visitGoCode(code)
 	}
 	visitFileGo := v.TemplateFileGoExpression
@@ -262,7 +265,23 @@ func CheckPath(source, path string, exceptions []Exception) ([]Violation, error)
 		if unsafe := scanDecls(code.Expression.Value, imports, pkgName); unsafe {
 			violations = append(violations, Violation{code.Expression.Range.From.Line + 1, "unbounded or unresolved action component built in Go code"})
 		}
+		if hasRogueTemplField("package p\n" + code.Expression.Value + "\n") {
+			violations = append(violations, Violation{code.Expression.Range.From.Line + 1, "struct field literally named Templ bypasses the action-attribute guard"})
+		}
 		return visitFileGo(code)
+	}
+	visitTemplate := v.HTMLTemplate
+	v.HTMLTemplate = func(template *templparser.HTMLTemplate) error {
+		// A templ function's own parameter list can declare an anonymous
+		// struct type inline (`templ Demo(evil struct{ Templ func()
+		// templ.Attributes })`); VerifyTemplUniqueness only ever scanned
+		// plain .go files, so this shape -- otherwise identical to the
+		// struct-field trick its doc comment describes -- was invisible to
+		// anything.
+		if hasRogueTemplField("package p\nfunc " + template.Expression.Value + " {}\n") {
+			violations = append(violations, Violation{template.Range.From.Line + 1, "struct field literally named Templ bypasses the action-attribute guard"})
+		}
+		return visitTemplate(template)
 	}
 	if err := file.Visit(v); err != nil {
 		return nil, err
@@ -769,25 +788,81 @@ func safeClassExpr(expr ast.Expr, requireBoundary bool, imports map[string]strin
 // and each one is required to pass safeComponentCall. Only an unrecognized
 // wrapper call with no such nested construction anywhere inside it is
 // trusted, the same as an unrecognized bare call always was.
+// safeComponent reports whether expr -- the argument of an `@` component
+// expression -- is safe.
+//
+// A bare component value reference (`@props.Icon`, `@tab.Content`, a loop
+// variable, an indexed slice element, ...) has no call syntax anywhere in
+// it, which means this checker cannot see how the referenced
+// templ.Component was actually built: that construction could be in this
+// same file (which scanStatements/scanDecls do check), in another file in
+// this module (CheckGoFile checks every .go file too), or in a package
+// this module has no source for at all -- a hand-written
+// templ.ComponentFunc, a templ.Raw call embedding an arbitrary HTML
+// string, anything. No amount of AST analysis closes that last case, so a
+// bare reference is never trusted by itself; see actionattrs.Scanned's
+// doc comment for the one way to make it so: wrap the reference in a call
+// to actionattrs.Scanned, which inspects the component's actual rendered
+// HTML at render time instead of trying to prove its source is safe.
 func safeComponent(expr ast.Expr, imports map[string]string, pkgName string) bool {
 	if !containsCall(expr) {
-		switch expr.(type) {
-		case *ast.Ident, *ast.SelectorExpr, *ast.IndexExpr, *ast.StarExpr, *ast.TypeAssertExpr:
-			return true
-		}
 		return false
 	}
-	// The expression actually being rendered via `@` is held to the strict,
-	// name-only rule regardless of package: if it is shaped like one of
-	// dangerousKinds at all, it must pass safeComponentCall, so an
-	// aliased/untrusted/wrong-package call at exactly this position is a
-	// violation, not silently out of scope (unlike a buried nested call
-	// found below, which uses the package-verified isDangerousCall
-	// specifically to avoid flagging unrelated code -- see its doc comment).
-	if call, ok := expr.(*ast.CallExpr); ok && dangerousKinds[callKindName(call)] && !safeComponentCall(call, imports) {
-		return false
+	if call, ok := expr.(*ast.CallExpr); ok {
+		if isActionattrsCall(call, "Scanned", imports) {
+			// Scanned's own runtime guard is the real verification here; still
+			// recurse into its argument for a buried dangerous/unprovable
+			// construction that would be a violation regardless.
+			return !findUnsafeCalls(expr, imports, pkgName)
+		}
+		// The expression actually being rendered via `@` is held to the
+		// strict, name-only rule regardless of package: if it is shaped like
+		// one of dangerousKinds at all, it must pass safeComponentCall, so an
+		// aliased/untrusted/wrong-package call at exactly this position is a
+		// violation, not silently out of scope (unlike a buried nested call
+		// found below, which uses the package-verified isDangerousCall
+		// specifically to avoid flagging unrelated code -- see its doc
+		// comment).
+		if dangerousKinds[callKindName(call)] && !safeComponentCall(call, imports) {
+			return false
+		}
 	}
 	return !findUnsafeCalls(expr, imports, pkgName)
+}
+
+// hasRogueTemplField parses wrapped (already-valid Go source) and reports
+// whether it declares any struct type -- named or anonymous, at any
+// nesting depth, including a function or templ signature's own parameter
+// list -- with a field literally named Templ. See VerifyTemplUniqueness's
+// doc comment for why this matters; VerifyTemplUniqueness itself only
+// scans plain .go files, so CheckPath applies the identical check to a
+// .templ file's own Go-shaped text (a `{{ }}` block, a top-level
+// declaration, or a templ function's parameter list) as well.
+func hasRogueTemplField(wrapped string) bool {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", wrapped, 0)
+	if err != nil {
+		return false
+	}
+	found := false
+	ast.Inspect(f, func(n ast.Node) bool {
+		if struct_, ok := n.(*ast.StructType); ok && structHasTemplField(struct_) {
+			found = true
+		}
+		return true
+	})
+	return found
+}
+
+func structHasTemplField(struct_ *ast.StructType) bool {
+	for _, field := range struct_.Fields.List {
+		for _, name := range field.Names {
+			if name.Name == "Templ" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func containsCall(expr ast.Expr) bool {

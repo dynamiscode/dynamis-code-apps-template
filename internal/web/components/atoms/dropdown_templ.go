@@ -172,7 +172,7 @@ func Dropdown(props DropdownProps) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if props.Summary != nil {
-			templ_7745c5c3_Err = props.Summary.Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = actionattrs.Scanned(props.Summary).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -232,7 +232,7 @@ func Dropdown(props DropdownProps) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = props.Panel.Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = actionattrs.Scanned(props.Panel).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -399,7 +399,7 @@ func Dropdown(props DropdownProps) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = di.Item.Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = actionattrs.Scanned(di.Item).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

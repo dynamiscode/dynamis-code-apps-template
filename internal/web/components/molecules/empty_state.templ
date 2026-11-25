@@ -1,6 +1,6 @@
 package molecules
 
-
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 
 templ EmptyState(message string) {
 	<p>{ message }{ " " }{ children... }</p>
@@ -18,7 +18,7 @@ templ EmptyStateCard(props EmptyStateCardProps) {
 		<h3 class="m-0">{ props.Title }</h3>
 		<p class="mb-4">{ props.Description }</p>
 		if props.CTA != nil {
-			@props.CTA
+			@actionattrs.Scanned(props.CTA)
 		}
 	</div>
 }

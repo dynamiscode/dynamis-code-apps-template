@@ -9,11 +9,15 @@
 package actionattrs
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"regexp"
 	"strings"
 
 	"github.com/a-h/templ"
+	"golang.org/x/net/html"
 )
 
 // allowed lists the only attribute keys a Safe value may carry. Anything
@@ -311,4 +315,81 @@ func LinkClass(value string) string {
 		panic("actionattrs: class missing boundary token (btn or border): " + value)
 	}
 	return value
+}
+
+// Scanned wraps a component slot (an icon, a table row, a page section,
+// ...) so that, at render time, its actual rendered HTML output is parsed
+// and every <a> or <button> element found is held to the same rule
+// safeComponentCall enforces statically: a boundary class ("btn" or
+// "border") present, and no forbidden override token (btn-ghost, btn-link,
+// border-0, in any Tailwind variant/important form). The render panics if
+// one fails. A slot that renders no action elements at all trivially
+// passes; one that renders an already-safe atoms.Button/Anchor (a table
+// row's own action button, say) also passes, since that output already
+// carries a compliant class by construction. Only a tag that is missing
+// its boundary or carries an override -- a hand-built or externally
+// supplied one bypassing every static check -- fails.
+//
+// A slot's declared type is ordinarily templ.Component, which anyone --
+// including a hand-written templ.ComponentFunc, a templ.Raw call embedding
+// an arbitrary HTML string, or a function in a package this module does
+// not even have source for -- can satisfy with absolutely anything.
+// scripts/actioncheck's AST analysis cannot see across a package or module
+// boundary like that at all. Scanned can, because it runs the real render
+// and inspects what actually comes out: the one thing that is always true
+// regardless of where or how the component was built.
+//
+// scripts/actioncheck requires every bare component-slot reference (a
+// render with no call syntax at all) to be wrapped in a call to Scanned;
+// see safeComponent's doc comment.
+func Scanned(c templ.Component) templ.Component {
+	if c == nil {
+		return c
+	}
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+		var buf bytes.Buffer
+		if err := c.Render(ctx, &buf); err != nil {
+			return err
+		}
+		if err := scanRenderedHTML(buf.Bytes()); err != nil {
+			panic("actionattrs: " + err.Error())
+		}
+		_, err := w.Write(buf.Bytes())
+		return err
+	})
+}
+
+// scanRenderedHTML parses rendered and checks every <a> or <button>
+// element it contains against the boundary/override-token rule described
+// on Scanned.
+func scanRenderedHTML(rendered []byte) error {
+	tokenizer := html.NewTokenizer(bytes.NewReader(rendered))
+	for {
+		switch tokenizer.Next() {
+		case html.ErrorToken:
+			return nil
+		case html.StartTagToken, html.SelfClosingTagToken:
+			name, hasAttr := tokenizer.TagName()
+			tag := string(name)
+			if tag != "a" && tag != "button" {
+				continue
+			}
+			class := ""
+			for hasAttr {
+				var key, val []byte
+				key, val, hasAttr = tokenizer.TagAttr()
+				if string(key) == "class" {
+					class = string(val)
+				}
+			}
+			if !hasBoundaryToken(class) {
+				return fmt.Errorf("rendered a <%s> with no btn/border boundary class: %q", tag, class)
+			}
+			for _, tok := range strings.Fields(class) {
+				if forbiddenClassTokens[normalizeClassToken(tok)] {
+					return fmt.Errorf("rendered a <%s> with forbidden class token %q", tag, tok)
+				}
+			}
+		}
+	}
 }

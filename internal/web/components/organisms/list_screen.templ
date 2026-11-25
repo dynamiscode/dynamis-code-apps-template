@@ -1,6 +1,7 @@
 package organisms
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 
@@ -49,17 +50,17 @@ templ ListScreen(data viewmodel.PageData, searchKey string, tools templ.Componen
 		if data.ListHasContent() {
 			@ListAddFilter(data)
 		}
-		@tools
+		@actionattrs.Scanned(tools)
 	</div>
 	@ListFilterBar(data)
-	@results
+	@actionattrs.Scanned(results)
 }
 templ ListResults(data viewmodel.PageData, limit int, sizes []int, columnsSuffix string, body templ.Component, extras templ.Component) {
 	<div id="list-results">
-		@body
+		@actionattrs.Scanned(body)
 		@ListFooter(data, limit, sizes) {
 			@molecules.ListPager(data)
-			@extras
+			@actionattrs.Scanned(extras)
 		}
 	</div>
 	if data.ListFragment {

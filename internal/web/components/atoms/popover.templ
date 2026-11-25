@@ -3,6 +3,8 @@
 // https://daisyui.com/components/dropdown
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type PopoverPanelProps struct {
 	// Align: "end", "center", "top", "top-end", "bottom", "bottom-end" ("" = bottom start)
 	Align        string
@@ -21,7 +23,7 @@ templ Popover(props PopoverPanelProps) {
 			props.Class,
 		}
 	>
-		<summary class={ "btn", props.TriggerClass } { props.TriggerAttrs... }>@props.Trigger</summary>
+		<summary class={ "btn", props.TriggerClass } { props.TriggerAttrs... }>@actionattrs.Scanned(props.Trigger)</summary>
 		<div
 			class={
 				"dropdown-content bg-base-100 rounded-box shadow p-4 z-1",

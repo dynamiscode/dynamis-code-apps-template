@@ -29,11 +29,11 @@ templ MenuItem(props MenuItemProps) {
 	<li>
 		<a class="border border-base-300" { actionattrs.From(props.Attrs)... }>
 			if props.Icon != nil && !props.IconAfter {
-				@props.Icon
+				@actionattrs.Scanned(props.Icon)
 			}
 			{ props.Label }
 			if props.Icon != nil && props.IconAfter {
-				@props.Icon
+				@actionattrs.Scanned(props.Icon)
 			}
 		</a>
 		<ul>
@@ -54,11 +54,11 @@ templ Submenu(props SubmenuProps) {
 		<details { props.Attrs... }>
 			<summary>
 				if props.Icon != nil && !props.IconAfter {
-					@props.Icon
+					@actionattrs.Scanned(props.Icon)
 				}
 				{ props.Title }
 				if props.Icon != nil && props.IconAfter {
-					@props.Icon
+					@actionattrs.Scanned(props.Icon)
 				}
 			</summary>
 			<ul>

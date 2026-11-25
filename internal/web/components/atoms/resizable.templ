@@ -5,6 +5,7 @@
 package atoms
 
 import "fmt"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 
 type ResizableProps struct {
 	ID     string // unique per page
@@ -44,7 +45,7 @@ templ Resizable(props ResizableProps) {
 			style={ templ.SafeCSS(fmt.Sprintf("flex: 0 0 %d%%", props.start())) }
 			class="min-w-0 overflow-auto"
 		>
-			@props.First
+			@actionattrs.Scanned(props.First)
 		</div>
 		<input
 			type="range"
@@ -65,7 +66,7 @@ templ Resizable(props ResizableProps) {
 			})(document.currentScript.parentElement.querySelector("input[type=range]"))
 		</script>
 		<div class="flex-1 min-w-0 overflow-auto">
-			@props.Second
+			@actionattrs.Scanned(props.Second)
 		</div>
 	</div>
 }

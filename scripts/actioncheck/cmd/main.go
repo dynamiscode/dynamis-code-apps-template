@@ -63,11 +63,15 @@ func main() {
 				fmt.Fprintf(os.Stderr, "%s:%d: %s\n", path, violation.Line, violation.Reason)
 				failed = true
 			}
-		case strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_templ.go") && !strings.HasSuffix(path, "_test.go"):
-			// _test.go is excluded: test files deliberately construct both
-			// safe and rejected-at-runtime inputs to exercise actionattrs'
-			// own panics (see button_test.go), and are never rendered in
-			// production.
+		// _test.go is excluded: test files deliberately construct both safe
+		// and rejected-at-runtime inputs to exercise actionattrs' own panics
+		// (see button_test.go), and are never rendered in production.
+		// components/actionattrs is excluded: it is the trust boundary
+		// itself, not code this checker validates against it -- its own
+		// Scanned function must call templ.ComponentFunc to build the safe
+		// wrapper CheckGoFile elsewhere requires everyone else to use
+		// instead of calling templ.ComponentFunc/Raw/FromGoHTML directly.
+		case strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_templ.go") && !strings.HasSuffix(path, "_test.go") && !strings.Contains(filepath.ToSlash(path), "/components/actionattrs/"):
 			source, err := os.ReadFile(path)
 			if err != nil {
 				return err

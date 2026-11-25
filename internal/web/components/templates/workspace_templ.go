@@ -11,6 +11,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
 import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 func DashboardShell(data viewmodel.PageData, header, navigation templ.Component) templ.Component {
@@ -38,7 +39,7 @@ func DashboardShell(data viewmodel.PageData, header, navigation templ.Component)
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.Locale).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/templates/workspace.templ`, Line: 9, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/templates/workspace.templ`, Line: 10, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -56,7 +57,7 @@ func DashboardShell(data viewmodel.PageData, header, navigation templ.Component)
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.Theme).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/templates/workspace.templ`, Line: 9, Col: 79}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/templates/workspace.templ`, Line: 10, Col: 79}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
@@ -105,7 +106,7 @@ func DashboardShell(data viewmodel.PageData, header, navigation templ.Component)
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.CSSClasses(templ_7745c5c3_Var4).String()).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/templates/workspace.templ`, Line: 1, Col: 0}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/templates/workspace.templ`, Line: 1, Col: 0}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
@@ -129,7 +130,7 @@ func DashboardShell(data viewmodel.PageData, header, navigation templ.Component)
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.NavPage).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/templates/workspace.templ`, Line: 19, Col: 340}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/templates/workspace.templ`, Line: 20, Col: 340}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 				if templ_7745c5c3_Err != nil {
@@ -163,7 +164,7 @@ func DashboardShell(data viewmodel.PageData, header, navigation templ.Component)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = header.Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = actionattrs.Scanned(header).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -193,7 +194,7 @@ func DashboardShell(data viewmodel.PageData, header, navigation templ.Component)
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = navigation.Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = actionattrs.Scanned(navigation).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -202,7 +203,7 @@ func DashboardShell(data viewmodel.PageData, header, navigation templ.Component)
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = header.Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = actionattrs.Scanned(header).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

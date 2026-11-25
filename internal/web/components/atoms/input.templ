@@ -2,6 +2,8 @@
 // https://daisyui.com/components/input
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type InputProps struct {
 	// common
 	Name            string
@@ -52,7 +54,7 @@ templ Input(props InputProps) {
 					templ.KV("input-xl", props.Size == "xl"),
 				}
 			>
-				@props.Icon
+				@actionattrs.Scanned(props.Icon)
 				@InputControl(props)
 			</label>
 		} else {

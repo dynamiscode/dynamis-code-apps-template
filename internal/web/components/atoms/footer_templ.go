@@ -58,7 +58,7 @@ func Footer(props FooterProps) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = props.Icon.Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = actionattrs.Scanned(props.Icon).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -186,7 +186,7 @@ func Footer(props FooterProps) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if anchor.LeftIcon != nil {
-				templ_7745c5c3_Err = anchor.LeftIcon.Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = actionattrs.Scanned(anchor.LeftIcon).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -209,7 +209,7 @@ func Footer(props FooterProps) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if anchor.RightIcon != nil {
-				templ_7745c5c3_Err = anchor.RightIcon.Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = actionattrs.Scanned(anchor.RightIcon).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

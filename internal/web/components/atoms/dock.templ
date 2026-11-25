@@ -29,7 +29,7 @@ templ Dock(props DockProps) {
 		for _, item := range props.Items {
 			<button class={ templ.KV("dock-active", item.Active) } { actionattrs.From(item.Attrs)... }>
 				if item.Icon != nil {
-					@item.Icon
+					@actionattrs.Scanned(item.Icon)
 				}
 				<span class="dock-label">{ item.Label }</span>
 			</button>

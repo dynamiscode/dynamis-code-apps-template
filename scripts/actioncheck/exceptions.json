@@ -8,7 +8,7 @@
   {
     "Path": "internal/web/components/atoms/modal.templ",
     "OpenTag": "<button>",
-    "Line": 36,
+    "Line": 37,
     "Reason": "Native dialog backdrop close control, not a visible action."
   },
   {
@@ -56,7 +56,7 @@
   {
     "Path": "internal/web/components/templates/workspace.templ",
     "OpenTag": "<button type=\"button\" class=\"drawer-overlay block\" tabindex=\"-1\" aria-hidden=\"true\" @click=\"toggleDrawer\">",
-    "Line": 31,
+    "Line": 32,
     "Reason": "Fully literal class, no Attrs spread, no caller input. Same category as the modal.templ backdrop exception above: a click-to-close drawer overlay, not a visible/labeled action control."
   }
 ]

@@ -107,7 +107,7 @@ func Anchor(props AnchorProps) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if props.LeftIcon != nil {
-			templ_7745c5c3_Err = props.LeftIcon.Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = actionattrs.Scanned(props.LeftIcon).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -130,7 +130,7 @@ func Anchor(props AnchorProps) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if props.RightIcon != nil {
-			templ_7745c5c3_Err = props.RightIcon.Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = actionattrs.Scanned(props.RightIcon).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

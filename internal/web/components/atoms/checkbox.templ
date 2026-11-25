@@ -2,6 +2,8 @@
 // https://daisyui.com/components/checkbox
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type CheckboxProps struct {
 	ID         string
 	Before     string
@@ -57,7 +59,7 @@ templ Checkbox(props CheckboxProps) {
 		}
 		if props.Content != nil {
 			<span class="ml-2">
-				@props.Content
+				@actionattrs.Scanned(props.Content)
 			</span>
 		}
 	</label>

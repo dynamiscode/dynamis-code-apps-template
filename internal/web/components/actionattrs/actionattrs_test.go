@@ -1,13 +1,18 @@
 package actionattrs
 
 import (
+	"bytes"
+	"context"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/a-h/templ"
 )
 
 func TestWithRejectsUnlistedKey(t *testing.T) {
@@ -79,5 +84,65 @@ func TestTemplMethodIsUnique(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("expected exactly one Templ() method in the module, found %d", count)
+	}
+}
+
+type rawHTMLComponent string
+
+func (c rawHTMLComponent) Render(ctx context.Context, w io.Writer) error {
+	_, err := io.WriteString(w, string(c))
+	return err
+}
+
+func renderScanned(t *testing.T, c templ.Component) (string, func()) {
+	t.Helper()
+	var buf bytes.Buffer
+	var recovered any
+	func() {
+		defer func() { recovered = recover() }()
+		if err := Scanned(c).Render(context.Background(), &buf); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	return buf.String(), func() {
+		if recovered == nil {
+			t.Fatal("expected Scanned to panic")
+		}
+	}
+}
+
+func TestScannedRejectsUnboundedAnchor(t *testing.T) {
+	_, assertPanicked := renderScanned(t, rawHTMLComponent(`<a class="link" onclick="evil()">click</a>`))
+	assertPanicked()
+}
+
+func TestScannedRejectsGhostButton(t *testing.T) {
+	_, assertPanicked := renderScanned(t, rawHTMLComponent(`<button class="btn btn-ghost">click</button>`))
+	assertPanicked()
+}
+
+func TestScannedAcceptsPlainIcon(t *testing.T) {
+	got, assertNoPanic := renderScanned(t, rawHTMLComponent(`<svg class="h-4 w-4"></svg>`))
+	_ = assertNoPanic
+	if !strings.Contains(got, "<svg") {
+		t.Fatalf("expected the icon to render unchanged, got %q", got)
+	}
+}
+
+// TestScannedAcceptsAlreadySafeNestedButton proves Scanned does not break
+// content slots (a table row, a page section, ...) that legitimately
+// contain an already-vetted action control: one built the same way
+// scripts/actioncheck requires everywhere else (a "btn" boundary class, no
+// forbidden override) passes untouched.
+func TestScannedAcceptsAlreadySafeNestedButton(t *testing.T) {
+	got, _ := renderScanned(t, rawHTMLComponent(`<tr><td>Row</td><td><button class="btn btn-sm btn-outline">Archive</button></td></tr>`))
+	if !strings.Contains(got, "btn-outline") {
+		t.Fatalf("expected the already-safe nested button to render unchanged, got %q", got)
+	}
+}
+
+func TestScannedPassesThroughNil(t *testing.T) {
+	if Scanned(nil) != nil {
+		t.Fatal("expected Scanned(nil) to return nil unchanged")
 	}
 }

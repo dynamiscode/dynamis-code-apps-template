@@ -65,10 +65,19 @@ func TestCheck(t *testing.T) {
 		{"button bare attrs var rejected", `@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Attrs: attrs})`, 1},
 		{"button non-literal key rejected", `@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Attrs: templ.Attributes{key: value}})`, 1},
 		{"button safe nested-call attrs value", `@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Attrs: templ.Attributes{"type": "submit", "aria-label": format(nested(a, b), []string{"x", "y"})}})`, 0},
-		{"bare component slot", `@props.Icon`, 0},
-		{"bare indexed component slot", `@props[i].Icon`, 0},
-		{"bare loop variable component", `@tab.Content`, 0},
-		{"bare type-asserted component", `@props.Toggle.(templ.Component)`, 0},
+		// Bare component-slot references are always rejected now (adversarial
+		// review: a bare reference has no call syntax to show this checker
+		// how the component was built, including across a package boundary it
+		// has no source for at all). actionattrs.Scanned is the only way to
+		// make one trusted again; see its doc comment.
+		{"bare component slot", `@props.Icon`, 1},
+		{"bare indexed component slot", `@props[i].Icon`, 1},
+		{"bare loop variable component", `@tab.Content`, 1},
+		{"bare type-asserted component", `@props.Toggle.(templ.Component)`, 1},
+		{"scanned component slot", `@actionattrs.Scanned(props.Icon)`, 0},
+		{"scanned indexed component slot", `@actionattrs.Scanned(props[i].Icon)`, 0},
+		{"scanned loop variable component", `@actionattrs.Scanned(tab.Content)`, 0},
+		{"scanned type-asserted component", `@actionattrs.Scanned(props.Toggle.(templ.Component))`, 0},
 		{"guarded button class on raw button", `<button class={ "btn", actionattrs.ButtonClass(extra) }>Go</button>`, 0},
 		{"guarded link class on raw anchor", `<a class={ actionattrs.LinkClass(extra) }>Go</a>`, 0},
 		{"guarded safe attrs", `@atoms.Anchor(atoms.AnchorProps{Class: "btn", Attrs: props.Attrs.Templ()})`, 0},
@@ -740,5 +749,56 @@ templ Demo(class string) {
 	}
 	if len(got) == 0 {
 		t.Fatal("a bare @icon reference to a templ.Raw value built in the same {{ }} block was not caught")
+	}
+}
+
+// TestExternalPackageTemplRawSlotIsRejected regresses the first bug
+// reported in the fifth round of adversarial review exactly: a bare @icon
+// reference to a templ.Component supplied by an external package
+// (reviewexternal.Unsafe(), wrapping templ.Raw internally) was previously
+// trusted, because the bare-reference branch trusted any such reference
+// unconditionally and this checker has no source for -- and so no way to
+// inspect -- a function in a package outside this module. Bare references
+// are now always rejected; actionattrs.Scanned (verified at render time
+// against the component's actual HTML output, regardless of where it was
+// built) is the only way to make one trusted again.
+func TestExternalPackageTemplRawSlotIsRejected(t *testing.T) {
+	source := testImports + `
+import reviewexternal "example.com/reviewexternal"
+
+templ Demo() {
+	{{ icon := reviewexternal.Unsafe() }}
+	@icon
+}
+`
+	got, err := Check(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 {
+		t.Fatal("a bare @icon reference to an externally-supplied component must be rejected")
+	}
+}
+
+// TestAnonymousTemplParamTemplFieldIsRejected regresses the second bug
+// reported in the fifth round exactly: an anonymous struct type used
+// directly as a *templ function's own parameter* (`templ Demo(evil
+// struct{ Templ func() templ.Attributes })`), not a plain .go file or a
+// `{{ }}` block, whose Templ-named field returns attacker-controlled
+// attributes (style="display:none"). VerifyTemplUniqueness only ever
+// scanned plain .go files; a templ function's own signature was invisible
+// to it.
+func TestAnonymousTemplParamTemplFieldIsRejected(t *testing.T) {
+	source := testImports + `
+templ Demo(evil struct{ Templ func() templ.Attributes }) {
+	@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Attrs: evil.Templ()})
+}
+`
+	got, err := Check(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 {
+		t.Fatal("an anonymous struct templ-function parameter with a field literally named Templ must be rejected")
 	}
 }

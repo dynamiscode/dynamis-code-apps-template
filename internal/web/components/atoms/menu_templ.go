@@ -165,7 +165,7 @@ func MenuItem(props MenuItemProps) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if props.Icon != nil && !props.IconAfter {
-			templ_7745c5c3_Err = props.Icon.Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = actionattrs.Scanned(props.Icon).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -188,7 +188,7 @@ func MenuItem(props MenuItemProps) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if props.Icon != nil && props.IconAfter {
-			templ_7745c5c3_Err = props.Icon.Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = actionattrs.Scanned(props.Icon).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -265,7 +265,7 @@ func Submenu(props SubmenuProps) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if props.Icon != nil && !props.IconAfter {
-			templ_7745c5c3_Err = props.Icon.Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = actionattrs.Scanned(props.Icon).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -288,7 +288,7 @@ func Submenu(props SubmenuProps) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if props.Icon != nil && props.IconAfter {
-			templ_7745c5c3_Err = props.Icon.Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = actionattrs.Scanned(props.Icon).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

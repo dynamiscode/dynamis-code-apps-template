@@ -14,6 +14,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import "fmt"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 
 type ModalProps struct {
 	ID    string
@@ -115,7 +116,7 @@ func modalWrapper(props ModalProps, attrs templ.Attributes) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(s)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/modal.templ`, Line: 26, Col: 6}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/atoms/modal.templ`, Line: 27, Col: 6}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -126,7 +127,7 @@ func modalWrapper(props ModalProps, attrs templ.Attributes) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else if c, ok := props.Label.(templ.Component); ok {
-			templ_7745c5c3_Err = c.Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = actionattrs.Scanned(c).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -138,7 +139,7 @@ func modalWrapper(props ModalProps, attrs templ.Attributes) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templruntime.NewAttributeExpression(props.ID).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/modal.templ`, Line: 31, Col: 22}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/atoms/modal.templ`, Line: 32, Col: 22}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
