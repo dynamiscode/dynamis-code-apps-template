@@ -20,6 +20,9 @@ chmod +x "$work/bin/npm"
 export PATH="$work/bin:$PATH"
 (cd "$repo" && sh "$script" "$commit") > "$work/output" 2>&1
 grep -q "Verified commit $commit" "$work/output"
+orphan=$(printf 'unreferenced\n' | git -C "$repo" commit-tree "$commit^{tree}")
+(cd "$repo" && sh "$script" "$orphan") > "$work/output" 2>&1
+grep -q "Verified commit $orphan" "$work/output"
 test "$(cat "$repo/content")" = dirty
 test "$(cat "$repo/untracked")" = untracked
 if (cd "$repo" && sh "$script" missing-commit) > "$work/output" 2>&1; then

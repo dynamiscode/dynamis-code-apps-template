@@ -14,6 +14,7 @@ work=$(mktemp -d "${TMPDIR:-/tmp}/verify-commit.XXXXXXXX")
 trap 'rm -rf "$work"' EXIT HUP INT TERM
 printf 'Verifying commit %s\n' "$commit"
 git clone --quiet --no-local --no-checkout "$repo" "$work/repo"
+git -C "$work/repo" fetch --quiet --no-tags "$repo" "$commit"
 git -C "$work/repo" checkout --quiet --detach "$commit"
 cd "$work/repo"
 npm ci
