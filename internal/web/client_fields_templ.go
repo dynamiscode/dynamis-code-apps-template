@@ -399,7 +399,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = molecules.ConfirmButton(data.T("clients.delete_field"), data.T("clients.delete_field_confirm"), nil).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = molecules.ConfirmButton(data.T("clients.delete_field"), data.T("clients.delete_field_confirm"), "", nil).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -537,7 +537,7 @@ func clientFieldList(data viewmodel.PageData) templ.Component {
 								if templ_7745c5c3_Err != nil {
 									return templ_7745c5c3_Err
 								}
-								templ_7745c5c3_Err = molecules.ConfirmButton(data.T("clients.option_delete"), data.T("clients.option_delete_confirm"), nil).Render(ctx, templ_7745c5c3_Buffer)
+								templ_7745c5c3_Err = molecules.ConfirmButton(data.T("clients.option_delete"), data.T("clients.option_delete_confirm"), "", nil).Render(ctx, templ_7745c5c3_Buffer)
 								if templ_7745c5c3_Err != nil {
 									return templ_7745c5c3_Err
 								}

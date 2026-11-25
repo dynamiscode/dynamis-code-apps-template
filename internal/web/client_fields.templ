@@ -66,7 +66,7 @@ templ clientFieldList(data viewmodel.PageData) {
 							<div class="client-field-actions">
 								if field.ArchivedAt != nil {
 									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/restore" }><input type="hidden" name="csrf" value={ data.CSRF }/>@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("clients.restore_field"), Attrs: templ.Attributes{"type": "submit"}})</form>
-									<div class="client-delete"><p class="warning alert alert-warning py-2">{ data.T("clients.delete_field_confirm") }</p><form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/delete" }><input type="hidden" name="csrf" value={ data.CSRF }/>@molecules.ConfirmButton(data.T("clients.delete_field"), data.T("clients.delete_field_confirm"), nil)</form></div>
+									<div class="client-delete"><p class="warning alert alert-warning py-2">{ data.T("clients.delete_field_confirm") }</p><form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/delete" }><input type="hidden" name="csrf" value={ data.CSRF }/>@molecules.ConfirmButton(data.T("clients.delete_field"), data.T("clients.delete_field_confirm"), "", nil)</form></div>
 								} else {
 									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/archive" }><input type="hidden" name="csrf" value={ data.CSRF }/>@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("clients.archive_field"), Attrs: templ.Attributes{"type": "submit"}})</form>
 								}
@@ -84,7 +84,7 @@ templ clientFieldList(data viewmodel.PageData) {
 									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/options/" + option.ID.String() + "/delete" }>
 										<input type="hidden" name="csrf" value={ data.CSRF }/>
 										<p class="warning alert alert-warning py-2">{ data.T("clients.option_delete_confirm") }</p>
-										@molecules.ConfirmButton(data.T("clients.option_delete"), data.T("clients.option_delete_confirm"), nil)
+										@molecules.ConfirmButton(data.T("clients.option_delete"), data.T("clients.option_delete_confirm"), "", nil)
 									</form>
 								}
 							</li>

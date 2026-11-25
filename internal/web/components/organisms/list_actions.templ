@@ -59,7 +59,7 @@ templ listActionForm(data viewmodel.PageData, action ListAction) {
 	<form class="list-action-form" method="post" action={ action.PostPath }>
 		<input type="hidden" name="csrf" value={ data.CSRF }/>
 		if action.Danger {
-			@molecules.ConfirmButton("", action.Confirm, templ.Attributes{"class": listActionItemClass(action)}) {
+			@molecules.ConfirmButton("", action.Confirm, listActionItemClass(action), nil) {
 				@ListActionIcon(action.Icon)
 				<span>{ action.Label }</span>
 			}

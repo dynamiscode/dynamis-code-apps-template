@@ -47,7 +47,7 @@ templ securityPage(data viewmodel.PageData) {
 						<form action="/security/totp/remove" method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							@molecules.TextField("remove-totp-password", data.T("security.mfa_password_optional"), templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
-							@molecules.ConfirmButton(data.T("security.mfa_remove_authenticator"), data.T("security.mfa_remove_authenticator"), templ.Attributes{"class": "btn btn-error danger"})
+							@molecules.ConfirmButton(data.T("security.mfa_remove_authenticator"), data.T("security.mfa_remove_authenticator"), "", nil)
 						</form>
 					}
 					for _, passkey := range data.Passkeys {
@@ -55,7 +55,7 @@ templ securityPage(data viewmodel.PageData) {
 							<form action={ "/security/passkey/" + passkey.ID } method="post">
 								<input type="hidden" name="csrf" value={ data.CSRF }/>
 								@molecules.TextField("remove-"+passkey.ID, data.T("security.mfa_password_optional")+" — "+passkey.Name, templ.Attributes{"name": "password", "type": "password", "autocomplete": "current-password"})
-								@molecules.ConfirmButton(data.T("security.mfa_remove_passkey"), data.T("security.mfa_remove_passkey"), templ.Attributes{"class": "btn btn-error danger"})
+								@molecules.ConfirmButton(data.T("security.mfa_remove_passkey"), data.T("security.mfa_remove_passkey"), "", nil)
 							</form>
 						}
 					}

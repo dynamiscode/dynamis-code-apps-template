@@ -12,12 +12,12 @@ type ButtonProps struct {
 
 templ Button(props ButtonProps) {
 	{{
-		if extra, ok := props.Attrs["class"]; ok {
-			if s, ok := extra.(string); ok {
-				props.Class = strings.TrimSpace(props.Class + " " + s)
-				delete(props.Attrs, "class")
+		attrs := make(templ.Attributes, len(props.Attrs))
+		for key, value := range props.Attrs {
+			if !strings.EqualFold(key, "class") {
+				attrs[key] = value
 			}
 		}
 	}}
-	<button class={ "btn", props.Class } { props.Attrs... }>{ props.Label }{ children... }</button>
+	<button class={ "btn", props.Class } { attrs... }>{ props.Label }{ children... }</button>
 }

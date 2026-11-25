@@ -53,7 +53,7 @@ templ authLogin(data viewmodel.PageData) {
 				MaxLength: "1024",
 				Attrs:     templ.Attributes{"autocomplete": "current-password"},
 			})
-			@molecules.SubmitButton(data.T("account.sign_in"), templ.Attributes{"class": "w-full"})
+			@molecules.SubmitButtonStyled(data.T("account.sign_in"), "w-full", nil)
 		</form>
 		<p><a class="auth-recovery-link btn btn-outline btn-sm" href="/password-reset">{ data.T("account.forgot_password") }</a></p>
 		if len(data.OIDCProviders) > 0 {
@@ -148,7 +148,7 @@ templ authSetup(data viewmodel.PageData) {
 					Options: workspaceLocaleOptions(data),
 				})
 			</fieldset>
-			@molecules.SubmitButton(data.T("setup.create_owner"), templ.Attributes{"class": "w-full"})
+			@molecules.SubmitButtonStyled(data.T("setup.create_owner"), "w-full", nil)
 		</form>
 	}
 }
@@ -187,7 +187,7 @@ templ authPasswordReset(data viewmodel.PageData) {
 						MaxLength: "1024",
 						Attrs:     templ.Attributes{"autocomplete": "new-password", "data-match": "reset-password"},
 					})
-					@molecules.SubmitButton(data.T("account.reset_password"), templ.Attributes{"class": "w-full"})
+					@molecules.SubmitButtonStyled(data.T("account.reset_password"), "w-full", nil)
 				</form>
 			} else {
 				<p class="auth-intro">{ data.T("account.password_reset_description") }</p>
@@ -202,7 +202,7 @@ templ authPasswordReset(data viewmodel.PageData) {
 						MaxLength: "320",
 						Attrs:     templ.Attributes{"autocomplete": "username"},
 					})
-					@molecules.SubmitButton(data.T("account.send_reset"), templ.Attributes{"class": "w-full"})
+					@molecules.SubmitButtonStyled(data.T("account.send_reset"), "w-full", nil)
 				</form>
 			}
 		}
@@ -241,7 +241,7 @@ templ authMFA(data viewmodel.PageData) {
 					MaxLength: "9",
 					Attrs:     templ.Attributes{"inputmode": "numeric", "autocomplete": "one-time-code", "data-mask": "digits", "data-mask-length": "6"},
 				})
-				@molecules.SubmitButton(data.T("security.mfa_verify_code"), templ.Attributes{"class": "w-full"})
+				@molecules.SubmitButtonStyled(data.T("security.mfa_verify_code"), "w-full", nil)
 			</form>
 		</section>
 		<section class="auth-method" aria-labelledby="recovery-heading">
@@ -256,7 +256,7 @@ templ authMFA(data viewmodel.PageData) {
 					Required:  true,
 					Attrs:     templ.Attributes{"autocomplete": "one-time-code", "autocapitalize": "characters", "spellcheck": "false", "data-mask": "upper"},
 				})
-				@molecules.SubmitButton(data.T("security.mfa_use_recovery"), templ.Attributes{"class": "w-full"})
+				@molecules.SubmitButtonStyled(data.T("security.mfa_use_recovery"), "w-full", nil)
 			</form>
 		</section>
 	}

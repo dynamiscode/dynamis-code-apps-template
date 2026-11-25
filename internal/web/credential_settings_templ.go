@@ -356,7 +356,7 @@ func apiTokenSettingsPage(data viewmodel.PageData) templ.Component {
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = molecules.ConfirmButton(data.T("tokens.revoke"), data.T("tokens.revoke_confirm"), templ.Attributes{"name": "action", "value": "revoke"}).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = molecules.ConfirmButton(data.T("tokens.revoke"), data.T("tokens.revoke_confirm"), "", templ.Attributes{"name": "action", "value": "revoke"}).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -650,7 +650,7 @@ func scimProvisioningSettingsPage(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = molecules.ConfirmButton(data.T("scim.revoke"), data.T("scim.revoke_confirm"), templ.Attributes{"name": "action", "value": "revoke"}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.ConfirmButton(data.T("scim.revoke"), data.T("scim.revoke_confirm"), "", templ.Attributes{"name": "action", "value": "revoke"}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -339,7 +339,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = molecules.ConfirmButton(data.T("security.mfa_remove_authenticator"), data.T("security.mfa_remove_authenticator"), templ.Attributes{"class": "btn btn-error danger"}).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.ConfirmButton(data.T("security.mfa_remove_authenticator"), data.T("security.mfa_remove_authenticator"), "", nil).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -384,7 +384,7 @@ func securityPage(data viewmodel.PageData) templ.Component {
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = molecules.ConfirmButton(data.T("security.mfa_remove_passkey"), data.T("security.mfa_remove_passkey"), templ.Attributes{"class": "btn btn-error danger"}).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = molecules.ConfirmButton(data.T("security.mfa_remove_passkey"), data.T("security.mfa_remove_passkey"), "", nil).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
