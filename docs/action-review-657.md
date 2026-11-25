@@ -49,16 +49,17 @@ fresh synthetic SQLite workspace and isolated Chrome. `TestSignInKeyboardFocus`
 checked visible focus through the mobile sign-in recovery link. In
 `TestIdentityRolesWithoutJavaScript`, sign-in rejected a wrong password,
 accepted the synthetic owner, and navigated account → sessions at 390 × 844.
-See [keyboard sign-in](reviews/issue-657/mobile-login-keyboard-recovery.png),
-[no-JS login](reviews/issue-657/mobile-nojs-login.png), and
-[no-JS account](reviews/issue-657/mobile-nojs-account.png).
+See [keyboard sign-in](reviews/public-roles-656/mobile-login-keyboard-recovery.png),
+[no-JS login](reviews/public-roles-656/mobile-nojs-login.png), and
+[no-JS account](reviews/public-roles-656/mobile-nojs-account.png).
 
 `TestPublicIntakeLongConsentReflow` exercised the real public form, validation,
 keyboard focus and long consent at 1440 × 900 light and 390 × 844 dark; it
 submitted successfully with JavaScript disabled. See [desktop form](reviews/issue-657/desktop-light-form.png),
-[mobile keyboard](reviews/issue-657/mobile-dark-keyboard-consent.png), and
-[no-JS success](reviews/issue-657/mobile-nojs-success.png). Screenshots contain
-synthetic fixture data only.
+[mobile keyboard](reviews/public-roles-656/mobile-dark-keyboard-consent.png), and
+[no-JS success](reviews/public-roles-656/mobile-nojs-success.png). Links into
+the #656 review point to byte-identical copies of the original #657 captures.
+Screenshots contain synthetic fixture data only.
 
 ## Mobile nested megamenu
 
