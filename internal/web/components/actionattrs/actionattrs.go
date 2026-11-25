@@ -63,46 +63,85 @@ var allowed = map[string]bool{
 	"hx-boost":     true,
 }
 
-// showModalPattern is the one onclick shape this codebase ever uses: the
-// time-slot picker's "<id>.showModal()" native-dialog trigger. Anything
-// else is rejected; onclick's allow-list entry is not a general license to
-// pass script text through.
-var showModalPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*\.showModal\(\)$`)
+// showModalPattern is the onclick shapes this codebase uses: the time-slot
+// picker's "<id>.showModal()" native-dialog open trigger and "<id>.close()"
+// close trigger. Anything else is rejected; onclick's allow-list entry is
+// not a general license to pass script text through.
+var showModalPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*\.(?:showModal|close)\(\)$`)
 
-// hrefSchemePattern matches the schemes this codebase's href usage needs:
-// a relative path, a fragment, or plain http(s). Anything else (notably
-// javascript:, data:, vbscript:) is rejected, independent of templ.SafeURL,
-// since Attrs bypasses that sanitizer entirely.
+// hrefSchemePattern matches a leading URL scheme ("javascript:", "http:",
+// ...). Anchored at the start, since RFC 3986 only treats a leading
+// "word:" as a scheme; a colon elsewhere in a relative reference is not one.
 var hrefSchemePattern = regexp.MustCompile(`(?i)^[a-z][a-z0-9+.-]*:`)
 
-// checkValue rejects a value that does not match the one shape this
+// validHref reports whether s is safe to spread onto an href attribute
+// without templ.SafeURL's sanitization (Attrs bypasses that entirely).
+// Allowed: empty, a fragment or query, a single-slash path-absolute
+// reference, a scheme-less relative reference, or plain http(s). Rejected:
+// any other scheme (javascript:, data:, vbscript:, ...), and anything that
+// could be interpreted as protocol-relative by a browser -- "//evil.com"
+// (same scheme, host evil.com) or a leading backslash in that position
+// ("/\evil.com", "\\evil.com"), which several browsers normalize to the
+// same thing. A backslash anywhere else in the value is also rejected,
+// since it serves no legitimate purpose in a path this codebase builds.
+func validHref(s string) bool {
+	if s == "" || strings.HasPrefix(s, "#") || strings.HasPrefix(s, "?") {
+		return true
+	}
+	if strings.HasPrefix(s, "/") {
+		rest := s[1:]
+		if strings.HasPrefix(rest, "/") || strings.HasPrefix(rest, "\\") {
+			return false
+		}
+		return !strings.Contains(rest, "\\")
+	}
+	if strings.HasPrefix(s, "\\") {
+		return false
+	}
+	if scheme := hrefSchemePattern.FindString(s); scheme != "" {
+		lower := strings.ToLower(scheme)
+		return (lower == "http:" || lower == "https:") && !strings.Contains(s, "\\")
+	}
+	// No scheme, no leading slash: a plain relative reference ("settings",
+	// "export/download"). It resolves against the current page and cannot
+	// change host, so it is safe provided it carries no backslash trick.
+	return !strings.Contains(s, "\\")
+}
+
+// ValidateValue rejects a value that does not match the one shape this
 // codebase's real callers need for key, closing off the rest of that key's
-// space (script injection via onclick, non-http(s) schemes via href).
-func checkValue(key string, value any) {
+// space (script injection via onclick, open-redirect/script schemes via
+// href). Exported so scripts/actioncheck can apply the identical rule to a
+// literal templ.Attributes{...} composite, instead of maintaining a
+// second, divergent copy of this logic.
+func ValidateValue(key string, value any) error {
 	switch key {
 	case "onclick":
 		s, ok := value.(string)
 		if !ok || !showModalPattern.MatchString(s) {
-			panic(fmt.Sprintf("actionattrs: onclick value not allowed: %v", value))
+			return fmt.Errorf("actionattrs: onclick value not allowed: %v", value)
 		}
 	case "href":
 		s, ok := value.(string)
-		if !ok {
-			panic(fmt.Sprintf("actionattrs: href value not allowed: %v", value))
+		if !ok || !validHref(s) {
+			return fmt.Errorf("actionattrs: href value not allowed: %v", value)
 		}
-		if s == "" || strings.HasPrefix(s, "/") || strings.HasPrefix(s, "#") || strings.HasPrefix(s, "?") {
-			return
-		}
-		if scheme := hrefSchemePattern.FindString(s); scheme != "" {
-			lower := strings.ToLower(scheme)
-			if lower != "http:" && lower != "https:" {
-				panic("actionattrs: href scheme not allowed: " + s)
-			}
-			return
-		}
-		// A scheme-relative or otherwise unrecognized shape; reject rather
-		// than guess.
-		panic("actionattrs: href value not allowed: " + s)
+	}
+	return nil
+}
+
+// Allowed reports whether key is on the attribute allow-list. Exported so
+// scripts/actioncheck can require every key of a literal
+// templ.Attributes{...} composite to pass the same check a runtime
+// actionattrs.From/With call would, instead of only restricting "class"
+// there as it historically did.
+func Allowed(key string) bool {
+	return allowed[key]
+}
+
+func checkValue(key string, value any) {
+	if err := ValidateValue(key, value); err != nil {
+		panic(err.Error())
 	}
 }
 
@@ -175,13 +214,20 @@ var forbiddenClassTokens = map[string]bool{
 	"border-0":  true,
 }
 
+func normalizeClassToken(tok string) string {
+	base := tok[strings.LastIndex(tok, ":")+1:]
+	// Tailwind's "important" modifier marks the utility with "!": a leading
+	// "!" in v3 ("!border-0", "md:!border-0") or a trailing "!" in v4
+	// ("border-0!"). Strip either before comparing so it cannot smuggle a
+	// forbidden override past the bare-token check.
+	base = strings.TrimPrefix(base, "!")
+	base = strings.TrimSuffix(base, "!")
+	return base
+}
+
 func checkClassTokens(value string) {
 	for _, tok := range strings.Fields(value) {
-		base := tok[strings.LastIndex(tok, ":")+1:]
-		// Tailwind's "important" modifier prefixes the utility with "!"
-		// (e.g. "!border-0", "md:!border-0"); strip it before comparing so
-		// it cannot smuggle a forbidden override past the bare-token check.
-		base = strings.TrimPrefix(base, "!")
+		base := normalizeClassToken(tok)
 		if forbiddenClassTokens[base] {
 			panic("actionattrs: forbidden class override: " + tok)
 		}
@@ -190,7 +236,7 @@ func checkClassTokens(value string) {
 
 func hasBoundaryToken(value string) bool {
 	for _, tok := range strings.Fields(value) {
-		if tok == "btn" || tok == "border" {
+		if normalizeClassToken(tok) == "btn" || normalizeClassToken(tok) == "border" {
 			return true
 		}
 	}

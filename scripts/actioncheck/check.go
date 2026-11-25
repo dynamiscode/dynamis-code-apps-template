@@ -14,6 +14,8 @@ import (
 
 	templparser "github.com/a-h/templ/parser/v2"
 	"github.com/a-h/templ/parser/v2/visitor"
+
+	"example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 )
 
 type Violation struct {
@@ -62,6 +64,7 @@ func CheckPath(source, path string, exceptions []Exception) ([]Violation, error)
 		return nil, err
 	}
 	imports := resolveImports(source)
+	revokeShadowedTrust(file, imports)
 	var violations []Violation
 	matches := make([]int, len(exceptions))
 	v := visitor.New()
@@ -172,6 +175,122 @@ func addImport(imports map[string]string, line string) {
 	imports[name] = path
 }
 
+// reservedNames are the package qualifiers safeComponent/safeAttrs place
+// trust in. revokeShadowedTrust makes sure a local binding never gets that
+// trust by reusing one of these names.
+var reservedNames = map[string]bool{"actionattrs": true, "atoms": true, "molecules": true}
+
+// revokeShadowedTrust deletes any reservedNames entry from imports that this
+// file also declares as a local variable, range variable, or function
+// parameter anywhere -- a templ function parameter, a `{{ }}` block's `:=`,
+// or a top-level var/const/type/func. Go's own scoping would let such a
+// local binding shadow the package import within its block; this checker
+// has no per-scope resolution to tell a shadowed use from a real one, so it
+// fails closed for the whole file instead: once a file declares a local
+// named "actionattrs" (or "atoms"/"molecules") anywhere, nothing in that
+// file gets the corresponding package's trust, even outside that binding's
+// real scope. Legitimate code has no reason to name a local that way.
+func revokeShadowedTrust(file *templparser.TemplateFile, imports map[string]string) {
+	v := visitor.New()
+	visitGoCode := v.GoCode
+	v.GoCode = func(code *templparser.GoCode) error {
+		if declaresReservedName("package p\nfunc _() {\n" + code.Expression.Value + "\n}\n") {
+			for name := range reservedNames {
+				delete(imports, name)
+			}
+		}
+		return visitGoCode(code)
+	}
+	visitFileGo := v.TemplateFileGoExpression
+	v.TemplateFileGoExpression = func(code *templparser.TemplateFileGoExpression) error {
+		if declaresReservedName("package p\n" + code.Expression.Value + "\n") {
+			for name := range reservedNames {
+				delete(imports, name)
+			}
+		}
+		return visitFileGo(code)
+	}
+	visitTemplate := v.HTMLTemplate
+	v.HTMLTemplate = func(template *templparser.HTMLTemplate) error {
+		if declaresReservedName("package p\nfunc " + template.Expression.Value + " {}\n") {
+			for name := range reservedNames {
+				delete(imports, name)
+			}
+		}
+		return visitTemplate(template)
+	}
+	_ = file.Visit(v)
+}
+
+// declaresReservedName reports whether wrapped (already-valid Go source)
+// declares a variable, range variable, parameter, or result named
+// "actionattrs", "atoms", or "molecules" anywhere. A parse error yields
+// false, same as elsewhere in this checker.
+func declaresReservedName(wrapped string) bool {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", wrapped, 0)
+	if err != nil {
+		return false
+	}
+	found := false
+	names := func(idents []*ast.Ident) {
+		for _, id := range idents {
+			if reservedNames[id.Name] {
+				found = true
+			}
+		}
+	}
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch node := n.(type) {
+		case *ast.AssignStmt:
+			if node.Tok == token.DEFINE {
+				for _, lhs := range node.Lhs {
+					if id, ok := lhs.(*ast.Ident); ok && reservedNames[id.Name] {
+						found = true
+					}
+				}
+			}
+		case *ast.ValueSpec:
+			names(node.Names)
+		case *ast.TypeSpec:
+			if reservedNames[node.Name.Name] {
+				found = true
+			}
+		case *ast.FuncDecl:
+			if reservedNames[node.Name.Name] {
+				found = true
+			}
+			if node.Recv != nil {
+				for _, field := range node.Recv.List {
+					names(field.Names)
+				}
+			}
+			for _, field := range node.Type.Params.List {
+				names(field.Names)
+			}
+			if node.Type.Results != nil {
+				for _, field := range node.Type.Results.List {
+					names(field.Names)
+				}
+			}
+		case *ast.FuncLit:
+			for _, field := range node.Type.Params.List {
+				names(field.Names)
+			}
+		case *ast.RangeStmt:
+			if node.Tok == token.DEFINE {
+				for _, expr := range []ast.Expr{node.Key, node.Value} {
+					if id, ok := expr.(*ast.Ident); ok && reservedNames[id.Name] {
+						found = true
+					}
+				}
+			}
+		}
+		return true
+	})
+	return found
+}
+
 // trustedPackage reports whether ident resolves, in this file's imports, to
 // wantPath. An ident with no matching import, or one that resolves
 // elsewhere, is not trusted: this is the only source of truth a qualifier
@@ -256,11 +375,35 @@ func VerifyTemplUniqueness(root string) error {
 			return nil
 		}
 		for _, decl := range src.Decls {
-			fn, ok := decl.(*ast.FuncDecl)
-			if !ok || fn.Recv == nil || fn.Name.Name != "Templ" {
+			if fn, ok := decl.(*ast.FuncDecl); ok && fn.Recv != nil && fn.Name.Name == "Templ" {
+				found = append(found, fmt.Sprintf("%s: method on %s", path, recvTypeName(fn.Recv)))
 				continue
 			}
-			found = append(found, fmt.Sprintf("%s: %s", path, recvTypeName(fn.Recv)))
+			// A struct field of function type literally named Templ is just as
+			// trusted by safeAttrs' `<expr>.Templ()` check as a real method
+			// (the call syntax is identical), so it must count toward this
+			// same uniqueness invariant.
+			gen, ok := decl.(*ast.GenDecl)
+			if !ok {
+				continue
+			}
+			for _, spec := range gen.Specs {
+				type_, ok := spec.(*ast.TypeSpec)
+				if !ok {
+					continue
+				}
+				struct_, ok := type_.Type.(*ast.StructType)
+				if !ok {
+					continue
+				}
+				for _, field := range struct_.Fields.List {
+					for _, name := range field.Names {
+						if name.Name == "Templ" {
+							found = append(found, fmt.Sprintf("%s: field on %s", path, type_.Name.Name))
+						}
+					}
+				}
+			}
 		}
 		return nil
 	})
@@ -268,10 +411,10 @@ func VerifyTemplUniqueness(root string) error {
 		return walkErr
 	}
 	if len(found) != 1 {
-		return fmt.Errorf("expected exactly one Templ() method in the module, found %d: %v", len(found), found)
+		return fmt.Errorf("expected exactly one Templ member (method or field) in the module, found %d: %v", len(found), found)
 	}
-	if !strings.Contains(filepath.ToSlash(strings.SplitN(found[0], ":", 2)[0]), "/components/actionattrs/") || !strings.HasSuffix(found[0], " Safe") {
-		return fmt.Errorf("the one Templ() method in the module is not actionattrs.Safe.Templ: %s", found[0])
+	if !strings.Contains(filepath.ToSlash(strings.SplitN(found[0], ":", 2)[0]), "/components/actionattrs/") || !strings.HasSuffix(found[0], "on Safe") {
+		return fmt.Errorf("the one Templ member in the module is not actionattrs.Safe.Templ: %s", found[0])
 	}
 	return nil
 }
@@ -297,7 +440,7 @@ func safeElement(element *templparser.Element, imports map[string]string) bool {
 		switch attr := attr.(type) {
 		case *templparser.SpreadAttributes:
 			expr, err := parser.ParseExpr(attr.Expression.Value)
-			if err != nil || !safeAttrs(expr, false, imports) {
+			if err != nil || !safeAttrs(expr, imports) {
 				return false
 			}
 		case *templparser.ConditionalAttribute:
@@ -441,39 +584,80 @@ func safeClassExpr(expr ast.Expr, requireBoundary bool, imports map[string]strin
 	return !requireBoundary && isActionattrsCall(expr, "ButtonClass", imports)
 }
 
+// safeComponent reports whether expr -- the argument of an `@` component
+// expression -- is safe. A bare component value reference (`@props.Icon`,
+// `@tab.Content`, a loop variable, an indexed slice element, ...) has no
+// call syntax anywhere in it to carry a caller-controlled Class or Attrs
+// override; scanStatements/scanDecls separately check every place in this
+// file's Go code where such a value could have been constructed, so this
+// trust is not extended to code this checker never looked at.
+//
+// Otherwise, expr is inspected for every nested call to a dangerousKinds
+// constructor, wherever it occurs -- as the direct `@` call itself, or
+// buried inside an argument to some other, unrecognized wrapper call (for
+// example `@organisms.Something(atoms.Anchor(atoms.AnchorProps{...}))`) --
+// and each one is required to pass safeComponentCall. Only an unrecognized
+// wrapper call with no such nested construction anywhere inside it is
+// trusted, the same as an unrecognized bare call always was.
 func safeComponent(expr ast.Expr, imports map[string]string) bool {
-	call, ok := expr.(*ast.CallExpr)
-	if !ok {
-		// A bare component value reference (`@props.Icon`, `@tab.Content`, a
-		// loop variable, an indexed slice element, ...) has no call syntax to
-		// carry a caller-controlled Class or Attrs override: there is no
-		// composite literal here for an override to live in. Whatever
-		// templ.Component value it names was already type-checked where it
-		// was constructed; scanStatements/scanDecls check every place in this
-		// file's Go code where such a value could have been constructed, so
-		// this trust is not extended to code this checker never looked at.
-		// Reject anything that is not a plain identifier/selector/index
-		// chain.
+	if !containsCall(expr) {
 		switch expr.(type) {
 		case *ast.Ident, *ast.SelectorExpr, *ast.IndexExpr, *ast.StarExpr, *ast.TypeAssertExpr:
 			return true
 		}
 		return false
 	}
-	selector, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok {
-		if name, ok := call.Fun.(*ast.Ident); ok {
-			switch name.Name {
-			case "Anchor", "Link", "Button", "ConfirmButton", "SubmitButton", "SubmitButtonStyled":
-				return false
-			}
+	safe := true
+	ast.Inspect(expr, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		if !dangerousKinds[callKindName(call)] {
+			return true
+		}
+		if !safeComponentCall(call, imports) {
+			safe = false
 		}
 		return true
+	})
+	return safe
+}
+
+func containsCall(expr ast.Expr) bool {
+	found := false
+	ast.Inspect(expr, func(n ast.Node) bool {
+		if _, ok := n.(*ast.CallExpr); ok {
+			found = true
+		}
+		return true
+	})
+	return found
+}
+
+func callKindName(call *ast.CallExpr) string {
+	switch fn := call.Fun.(type) {
+	case *ast.SelectorExpr:
+		return fn.Sel.Name
+	case *ast.Ident:
+		return fn.Name
+	}
+	return ""
+}
+
+// safeComponentCall validates one call already known to be named like a
+// dangerousKinds constructor (see safeComponent). An unqualified call --
+// bare "Button(...)" rather than "atoms.Button(...)" -- is always rejected:
+// there is no package qualifier here to check against imports at all.
+func safeComponentCall(call *ast.CallExpr, imports map[string]string) bool {
+	selector, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
 	}
 	kind := selector.Sel.Name
 	if kind == "SubmitButton" {
 		pkg, ok := selector.X.(*ast.Ident)
-		return ok && trustedPackage(imports, pkg.Name, moleculesImportPath) && len(call.Args) == 2 && safeAttrs(call.Args[1], false, imports)
+		return ok && trustedPackage(imports, pkg.Name, moleculesImportPath) && len(call.Args) == 2 && safeAttrs(call.Args[1], imports)
 	}
 	if kind == "ConfirmButton" || kind == "SubmitButtonStyled" {
 		pkg, ok := selector.X.(*ast.Ident)
@@ -487,7 +671,7 @@ func safeComponent(expr ast.Expr, imports map[string]string) bool {
 		if len(call.Args) != attrsIndex+1 {
 			return false
 		}
-		return safeClassExpr(call.Args[classIndex], false, imports) && safeAttrs(call.Args[attrsIndex], false, imports)
+		return safeClassExpr(call.Args[classIndex], false, imports) && safeAttrs(call.Args[attrsIndex], imports)
 	}
 	if kind != "Anchor" && kind != "Link" && kind != "Button" {
 		return true
@@ -525,7 +709,7 @@ func safeComponent(expr ast.Expr, imports map[string]string) bool {
 			}
 			hasClass = true
 		case "Attrs":
-			if !safeAttrs(kv.Value, false, imports) {
+			if !safeAttrs(kv.Value, imports) {
 				return false
 			}
 		}
@@ -533,7 +717,14 @@ func safeComponent(expr ast.Expr, imports map[string]string) bool {
 	return hasClass || kind == "Button"
 }
 
-func safeAttrs(expr ast.Expr, allowClass bool, imports map[string]string) bool {
+// safeAttrs validates an Attrs expression. A literal `templ.Attributes{...}`
+// composite must pass exactly the rule actionattrs.From/With would apply at
+// runtime -- every key on the allow-list, and href/onclick's value shape
+// checked too -- rather than the historical, narrower rule that only
+// restricted a "class" key: that narrower rule let a literal spread set
+// "style", or an unchecked "href"/"onclick" value, straight past this
+// checker, never touching actionattrs at all.
+func safeAttrs(expr ast.Expr, imports map[string]string) bool {
 	if id, ok := expr.(*ast.Ident); ok && id.Name == "nil" {
 		return true
 	}
@@ -571,12 +762,12 @@ func safeAttrs(expr ast.Expr, allowClass bool, imports map[string]string) bool {
 			return false
 		}
 		key, ok := stringValue(kv.Key)
-		if !ok {
+		if !ok || !actionattrs.Allowed(key) {
 			return false
 		}
-		if strings.EqualFold(key, "class") {
+		if key == "href" || key == "onclick" {
 			value, ok := stringValue(kv.Value)
-			if !allowClass || !ok || !safeTokens(value) {
+			if !ok || actionattrs.ValidateValue(key, value) != nil {
 				return false
 			}
 		}
@@ -593,12 +784,20 @@ func stringValue(expr ast.Expr) (string, bool) {
 	return value, err == nil
 }
 
+// normalizeClassToken strips a colon-separated variant prefix ("md:") and
+// Tailwind's "important" marker, leading in v3 ("!border-0") or trailing in
+// v4 ("border-0!"), so neither can smuggle a forbidden or boundary token
+// past an exact-string comparison.
+func normalizeClassToken(token string) string {
+	base := token[strings.LastIndex(token, ":")+1:]
+	base = strings.TrimPrefix(base, "!")
+	base = strings.TrimSuffix(base, "!")
+	return base
+}
+
 func safeTokens(value string) bool {
 	for _, token := range strings.Fields(value) {
-		base := token[strings.LastIndex(token, ":")+1:]
-		// Tailwind's "important" modifier prefixes the utility with "!"
-		// (e.g. "!border-0", "md:!border-0"); strip it before comparing.
-		base = strings.TrimPrefix(base, "!")
+		base := normalizeClassToken(token)
 		if base == "btn-ghost" || base == "btn-link" || base == "border-0" {
 			return false
 		}
@@ -608,7 +807,7 @@ func safeTokens(value string) bool {
 
 func hasBoundary(value string) bool {
 	for _, token := range strings.Fields(value) {
-		if token == "btn" || token == "border" {
+		if normalizeClassToken(token) == "btn" || normalizeClassToken(token) == "border" {
 			return true
 		}
 	}

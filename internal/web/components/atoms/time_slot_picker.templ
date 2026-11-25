@@ -116,7 +116,7 @@ templ timeSlotModalContent(slot TimeSlot, slotName, reserveURL string) {
 			>
 				Reserve
 			</button>
-			<button class="btn btn-sm" { templ.Attributes{"onclick": slotName + ".close()"}... }>
+			<button class="btn btn-sm" { actionattrs.From(templ.Attributes{"onclick": slotName + ".close()"})... }>
 				Cancel
 			</button>
 		</div>

@@ -1,8 +1,12 @@
 package actioncheck
 
 import (
+	"encoding/json"
 	"os"
+	"strings"
 	"testing"
+
+	"example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 )
 
 // testImports gives test fixtures real imports for atoms, molecules, and
@@ -24,6 +28,13 @@ func TestCheck(t *testing.T) {
 		{"unbounded element", `<a class="link">Open</a>`, 1},
 		{"nested expression", `<a class={ "btn", "btn-sm" } href={ format(call(a, b)) }>Open</a>`, 0},
 		{"dynamic class", `<button class={ "btn", extra }>Save</button>`, 1},
+		{"dynamic class via unwrapped call", `<button class={ "btn", unknown() }>Save</button>`, 1},
+		{"conditional with dynamic class", `<button class={ "btn", templ.KV(extra, active) }>Save</button>`, 1},
+		{"conditional with forbidden token", `<a class={ "btn", templ.KV("btn-ghost", active) }>Open</a>`, 1},
+		{"unwrapped helper call rejected even if always-safe", "func listViewOptionClass(applied bool) string {\n\tif applied {\n\t\treturn \"btn btn-active\"\n\t}\n\treturn \"btn\"\n}\n<a class={ listViewOptionClass(true) }>View</a>", 1},
+		{"literal class missing entirely", `<a href={ path }>Open</a>`, 1},
+		{"literal class with boundary and extra tokens", `<a class="link rounded-field border border-base-300 px-1" href={ path }>Clients</a>`, 0},
+		{"literal class with boundary but forbidden token", `<button class="btn btn-ghost">Save</button>`, 1},
 		{"conditional safe class", `<button class={ "btn", templ.KV("btn-primary", enabled) }>Save</button>`, 0},
 		{"conditional boundary only", `<button class={ templ.KV("btn", enabled) }>Save</button>`, 1},
 		{"conditional boundary removal", `<button class={ "btn", templ.KV("border-0", enabled) }>Save</button>`, 1},
@@ -43,7 +54,17 @@ func TestCheck(t *testing.T) {
 		{"untrusted same-name package", `@other.Button(other.ButtonProps{Class: "btn"})`, 1},
 		{"unqualified button", `@Button(ButtonProps{Class: "btn-ghost"})`, 1},
 		{"unqualified confirm", `@ConfirmButton("Delete", "Sure?", "btn-ghost", nil)`, 1},
-		{"safe component", `@atoms.Anchor(atoms.AnchorProps{Class: "btn", Attrs: templ.Attributes{"href": format(a, b)}})`, 0},
+		{"safe component", `@atoms.Anchor(atoms.AnchorProps{Class: "btn", Attrs: templ.Attributes{"aria-label": format(a, b)}})`, 0},
+		{"literal href must be a literal value", `@atoms.Anchor(atoms.AnchorProps{Class: "btn", Attrs: templ.Attributes{"href": format(a, b)}})`, 1},
+		{"literal href with javascript scheme rejected", `@atoms.Anchor(atoms.AnchorProps{Class: "btn", Attrs: templ.Attributes{"href": "javascript:alert(1)"}})`, 1},
+		{"literal style key rejected", `@atoms.Anchor(atoms.AnchorProps{Class: "btn", Attrs: templ.Attributes{"style": "display:none"}})`, 1},
+		{"anchor literal class without boundary", `@atoms.Anchor(atoms.AnchorProps{Href: "/clients", Class: "link"})`, 1},
+		{"anchor literal class with boundary", `@atoms.Anchor(atoms.AnchorProps{Href: "/clients", Class: "btn btn-primary"})`, 0},
+		{"qualified button forbidden token", `@atoms.Button(atoms.ButtonProps{Class: "btn-ghost"})`, 1},
+		{"qualified button safe token", `@atoms.Button(atoms.ButtonProps{Class: "btn-primary"})`, 0},
+		{"button bare attrs var rejected", `@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Attrs: attrs})`, 1},
+		{"button non-literal key rejected", `@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Attrs: templ.Attributes{key: value}})`, 1},
+		{"button safe nested-call attrs value", `@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Attrs: templ.Attributes{"type": "submit", "aria-label": format(nested(a, b), []string{"x", "y"})}})`, 0},
 		{"bare component slot", `@props.Icon`, 0},
 		{"bare indexed component slot", `@props[i].Icon`, 0},
 		{"bare loop variable component", `@tab.Content`, 0},
@@ -59,6 +80,8 @@ func TestCheck(t *testing.T) {
 		{"confirm injection", `@molecules.ConfirmButton("Delete", "Sure?", "", templ.Attributes{"class": "border-0"})`, 1},
 		{"confirm dynamic class", `@molecules.ConfirmButton("Delete", "Sure?", extra, nil)`, 1},
 		{"confirm unsafe class", `@molecules.ConfirmButton("Delete", "Sure?", "md:border-0", nil)`, 1},
+		{"confirm bare attrs var rejected", `@molecules.ConfirmButton("Delete", "Sure?", "", attrs)`, 1},
+		{"confirm dynamic value on non-class key is safe", `@molecules.ConfirmButton("Delete", "Sure?", "", templ.Attributes{"name": "action", "value": action})`, 0},
 		{"submit safe", `@molecules.SubmitButton("Save", templ.Attributes{"name": "action"})`, 0},
 		{"submit dynamic attrs", `@molecules.SubmitButton("Save", attrs)`, 1},
 		{"submit guarded attrs", `@molecules.SubmitButton("Save", actionattrs.From(attrs))`, 0},
@@ -271,6 +294,86 @@ func TestVerifyTemplUniquenessPassesForActionattrs(t *testing.T) {
 	}
 }
 
+// TestRealListViewsFileIsClean ports half of the legacy JS scanner's
+// "checks real shared helper and component calls" case for
+// list_views.templ: the real file has zero static violations.
+//
+// The other half of that JS test mutated the shared class helper's return
+// value and expected the *static* scanner to catch it. This checker's
+// design deliberately does not: list_views.templ wraps the helper's result
+// in actionattrs.LinkClass (see list_views.templ), which is a runtime
+// guard, not a static one -- the point of actionattrs.ButtonClass/LinkClass
+// is to accept exactly this kind of helper-computed value without the
+// static checker needing to prove every branch of the helper is safe.
+// TestLinkClassCatchesWhatTheHelperMutationWouldProduce below proves the
+// runtime side of that guard instead: the same "link" value the JS
+// mutation introduced is rejected by actionattrs.LinkClass itself.
+func TestRealListViewsFileIsClean(t *testing.T) {
+	source, err := os.ReadFile("../../internal/web/components/organisms/list_views.templ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(source), "actionattrs.LinkClass(listViewOptionClass(") {
+		t.Fatal("expected list_views.templ to still route listViewOptionClass through actionattrs.LinkClass; update this test if that changed")
+	}
+	got, err := CheckPath(string(source), "internal/web/components/organisms/list_views.templ", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("expected the real file to be clean, got %d violations: %v", len(got), got)
+	}
+}
+
+func TestLinkClassCatchesWhatTheHelperMutationWouldProduce(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected actionattrs.LinkClass(\"link\") to panic: it lacks the btn/border boundary token")
+		}
+	}()
+	actionattrs.LinkClass("link")
+}
+
+// TestRealExceptionsResolveRealFiles ports the legacy JS scanner's
+// "repository demo and accessibility exceptions accept their real
+// controls" case: every file named in scripts/actioncheck/exceptions.json
+// has a real violation without its exception, and none with it.
+func TestRealExceptionsResolveRealFiles(t *testing.T) {
+	data, err := os.ReadFile("exceptions.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var exceptions []Exception
+	if err := json.Unmarshal(data, &exceptions); err != nil {
+		t.Fatal(err)
+	}
+	if len(exceptions) == 0 {
+		t.Fatal("expected at least one real exception to test against")
+	}
+	for _, exception := range exceptions {
+		source, err := os.ReadFile("../../" + exception.Path)
+		if err != nil {
+			t.Fatalf("%s: %v", exception.Path, err)
+		}
+		without, err := CheckPath(string(source), exception.Path, nil)
+		if err != nil {
+			t.Fatalf("%s: %v", exception.Path, err)
+		}
+		if len(without) == 0 {
+			t.Errorf("%s: expected a violation without its exception (otherwise the exception is dead)", exception.Path)
+		}
+		with, err := CheckPath(string(source), exception.Path, exceptions)
+		if err != nil {
+			t.Fatalf("%s: %v", exception.Path, err)
+		}
+		for _, violation := range with {
+			if violation.Line == exception.Line {
+				t.Errorf("%s:%d: exception did not resolve its own violation", exception.Path, violation.Line)
+			}
+		}
+	}
+}
+
 func TestVerifyTemplUniquenessRejectsASecondMethodElsewhere(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(root+"/components/actionattrs", 0o755); err != nil {
@@ -284,5 +387,135 @@ func TestVerifyTemplUniquenessRejectsASecondMethodElsewhere(t *testing.T) {
 	}
 	if err := VerifyTemplUniqueness(root); err == nil {
 		t.Fatal("a second Templ() method anywhere in the tree must fail VerifyTemplUniqueness")
+	}
+}
+
+func TestVerifyTemplUniquenessRejectsATemplFuncField(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(root+"/components/actionattrs", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(root+"/components/actionattrs/actionattrs.go", []byte("package actionattrs\ntype Safe struct{}\nfunc (s Safe) Templ() string { return \"\" }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// A struct field of function type literally named Templ is callable with
+	// the exact same `x.Templ()` syntax as a real method; safeAttrs cannot
+	// tell them apart, so this must count toward the uniqueness invariant
+	// the same as a second method would.
+	if err := os.WriteFile(root+"/evil.go", []byte("package evil\ntype Evil struct{ Templ func() string }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyTemplUniqueness(root); err == nil {
+		t.Fatal("a struct field literally named Templ anywhere in the tree must fail VerifyTemplUniqueness")
+	}
+}
+
+// TestNestedDangerousCallInsideUnrecognizedWrapperIsCaught regresses a bug
+// found in adversarial review: safeComponent returned true immediately for
+// any `@` call whose own name was not one of Anchor/Link/Button/..., never
+// looking at that call's arguments. An unresolved atoms.Anchor/Button
+// construction passed as an argument to some other, unrecognized wrapper
+// component in the very same `@` expression was therefore never checked at
+// all.
+func TestNestedDangerousCallInsideUnrecognizedWrapperIsCaught(t *testing.T) {
+	source := testImports + `
+templ Demo(class string) {
+	@organisms.Something(atoms.Anchor(atoms.AnchorProps{Class: class}))
+}
+`
+	got, err := Check(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 {
+		t.Fatal("an unresolved Anchor nested inside an unrecognized wrapper call's arguments was not caught")
+	}
+}
+
+// TestShadowedActionattrsNameIsNotTrusted regresses a bug found in
+// adversarial review: trust in the "actionattrs" qualifier was tied to the
+// file's import declarations, but a local variable or parameter can shadow
+// an import name within its scope, and this checker has no per-scope
+// resolution to tell a shadowed use from a real one.
+func TestShadowedActionattrsNameIsNotTrusted(t *testing.T) {
+	source := testImports + `
+templ Demo(extra templ.Attributes) {
+	{{ actionattrs := extra }}
+	@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Attrs: actionattrs.From(extra)})
+}
+`
+	got, err := Check(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 {
+		t.Fatal("a local variable named actionattrs must not get the real package's trust anywhere in the file")
+	}
+}
+
+func TestShadowedActionattrsParamIsNotTrusted(t *testing.T) {
+	source := testImports + `
+templ Demo(actionattrs string, extra templ.Attributes) {
+	@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Attrs: actionattrs.From(extra)})
+}
+`
+	got, err := Check(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 {
+		t.Fatal("a templ function parameter named actionattrs must not get the real package's trust")
+	}
+}
+
+// TestTailwindV4TrailingImportantCannotSmuggleBorderZero regresses a bug
+// found in adversarial review: only a leading "!" (Tailwind v3) was
+// stripped before comparing tokens; Tailwind v4 moved the "important"
+// marker to a trailing "!" ("border-0!").
+func TestTailwindV4TrailingImportantCannotSmuggleBorderZero(t *testing.T) {
+	for _, body := range []string{
+		`<a class="btn border-0!">Open</a>`,
+		`<a class="btn md:border-0!">Open</a>`,
+	} {
+		got, err := Check(testImports + "\ntempl Demo() {\n" + body + "\n}")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got) == 0 {
+			t.Fatalf("%q: Tailwind v4 trailing-important border-0 override was not caught", body)
+		}
+	}
+}
+
+// TestHrefRejectsOpenRedirectShapes and TestHrefAcceptsLegitimateRelative
+// regress a bug found in adversarial review: the href validator treated any
+// leading "/" as safe, including "//evil.com" (protocol-relative: same
+// scheme, attacker host) and "/\\evil.com" (some browsers normalize a
+// leading backslash the same way); it also rejected legitimate
+// scheme-less relative references with no leading slash at all.
+func TestHrefRejectsOpenRedirectShapes(t *testing.T) {
+	for _, href := range []string{"//evil.com", "/\\evil.com", "\\\\evil.com", "\\evil.com"} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Fatalf("expected href %q to be rejected", href)
+				}
+			}()
+			actionattrs.New().With("href", href)
+		}()
+	}
+}
+
+func TestHrefAcceptsLegitimateRelative(t *testing.T) {
+	for _, href := range []string{"/docs", "/", "", "#main", "?x=1", "settings/export", "https://example.com/x"} {
+		href := href
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Fatalf("expected href %q to be accepted: %v", href, r)
+				}
+			}()
+			actionattrs.New().With("href", href)
+		}()
 	}
 }

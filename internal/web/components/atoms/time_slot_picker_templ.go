@@ -375,7 +375,7 @@ func timeSlotModalContent(slot TimeSlot, slotName, reserveURL string) templ.Comp
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "button", templ.Attributes{"onclick": slotName + ".close()"})
+			templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "button", actionattrs.From(templ.Attributes{"onclick": slotName + ".close()"}))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
