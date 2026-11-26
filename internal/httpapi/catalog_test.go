@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -202,7 +203,7 @@ func TestCatalogEditREST(t *testing.T) {
 	if err := json.Unmarshal(price.Body.Bytes(), &row); err != nil || row.ID == "" {
 		t.Fatalf("price ID: %s", price.Body.String())
 	}
-	response := serveAuthorized(handler, http.MethodPut, entryPath, `{"name":"Updated","durationMinutes":45}`, token, nil)
+	response := serveAuthorized(handler, http.MethodPut, entryPath, `{"name":"Updated","durationMinutes":45}`, token, map[string]string{"If-Match": `"v1"`})
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("edit entry: %d %s", response.Code, response.Body.String())
 	}
@@ -230,6 +231,41 @@ func TestCatalogEditREST(t *testing.T) {
 	response = serveAuthorized(handler, http.MethodDelete, entryPath+"/prices/"+entry.Prices[0].ID, "", token, nil)
 	if response.Code != http.StatusConflict {
 		t.Fatalf("delete last price: %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestCatalogUpdateRevisionPreconditions(t *testing.T) {
+	handler, db, workspace, token := testHandler(t)
+	seedCatalogCurrencies(t, db, workspace)
+	path := "/api/v1/workspaces/" + workspace + "/catalog"
+	created := serveAuthorized(handler, http.MethodPost, path, `{"name":"Alpha","prices":[{"mode":"manual","currency":"USD","variant":"Initial"}]}`, token, nil)
+	var entry struct {
+		ID       string `json:"id"`
+		Revision int64  `json:"revision"`
+	}
+	if err := json.Unmarshal(created.Body.Bytes(), &entry); err != nil || entry.ID == "" || entry.Revision != 1 {
+		t.Fatalf("create = %d %s, %v", created.Code, created.Body.String(), err)
+	}
+	path += "/" + entry.ID
+	update := func(name, tag string) *httptest.ResponseRecorder {
+		headers := map[string]string{}
+		if tag != "" {
+			headers["If-Match"] = tag
+		}
+		return serveAuthorized(handler, http.MethodPut, path, `{"name":"`+name+`"}`, token, headers)
+	}
+	assertProblem(t, update("Missing", ""), http.StatusPreconditionRequired, "precondition-required")
+	assertProblem(t, update("Malformed", "v1"), http.StatusPreconditionFailed, "precondition-failed")
+	if r := update("Beta", `"v1"`); r.Code != http.StatusNoContent {
+		t.Fatalf("first update: %d %s", r.Code, r.Body.String())
+	}
+	if r := update("Alpha", `"v2"`); r.Code != http.StatusNoContent {
+		t.Fatalf("second update: %d %s", r.Code, r.Body.String())
+	}
+	assertProblem(t, update("Stale", `"v1"`), http.StatusPreconditionFailed, "precondition-failed")
+	list := serveAuthorized(handler, http.MethodGet, strings.TrimSuffix(path, "/"+entry.ID), "", token, nil)
+	if !strings.Contains(list.Body.String(), `"name":"Alpha"`) || !strings.Contains(list.Body.String(), `"revision":3`) {
+		t.Fatalf("list = %s", list.Body.String())
 	}
 }
 

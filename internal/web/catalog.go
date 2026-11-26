@@ -233,11 +233,11 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)
 	form := catalogForm{}
-	if request.Method == http.MethodPost && (status == http.StatusUnprocessableEntity || (status == http.StatusConflict && request.FormValue("field") != "")) {
+	if request.Method == http.MethodPost && (status == http.StatusUnprocessableEntity || (status == http.StatusConflict && (request.FormValue("field") != "" || strings.HasSuffix(request.URL.Path, "/edit")))) {
 		form.field = request.FormValue("field")
 		form.value = request.FormValue("value")
 		form.version = request.FormValue("version")
-		form.conflict = status == http.StatusConflict && form.field != ""
+		form.conflict = status == http.StatusConflict
 		form.entryID = request.PathValue("entryId")
 		form.priceID = request.PathValue("priceId")
 		switch {
@@ -256,7 +256,7 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 		amount := request.FormValue("amount")
 		form.price = catalog.PriceOption{Mode: request.FormValue("mode"), Amount: &amount, Currency: request.FormValue("currency"), Variant: request.FormValue("variant"), Eligibility: request.FormValue("eligibility")}
 	}
-	inUse := status == http.StatusConflict && form.kind != "inline"
+	inUse := status == http.StatusConflict && form.kind != "inline" && form.kind != "edit-entry"
 	if request.Header.Get("HX-Request") == "true" && request.Header.Get("HX-History-Restore-Request") != "true" && request.Method == http.MethodGet {
 		_ = catalogContent(data, entries, currencies, identity.CanWriteCatalog(principal), invalid, inUse, includeArchived, entryID, false, form).Render(request.Context(), writer)
 		return
@@ -300,12 +300,17 @@ func (h *Handler) catalogEdit(writer http.ResponseWriter, request *http.Request)
 		return
 	}
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	revision, err := strconv.ParseInt(request.FormValue("version"), 10, 64)
+	if err != nil || revision <= 0 {
+		h.renderError(writer, http.StatusBadRequest)
+		return
+	}
 	if field := request.FormValue("field"); strings.HasSuffix(request.URL.Path, "/field") || field != "" {
 		if (field != "name" && field != "duration_minutes") || !request.PostForm.Has("value") || !request.PostForm.Has("version") {
 			h.renderError(writer, http.StatusBadRequest)
 			return
 		}
-		err := h.catalogService.UpdateField(request.Context(), principal, workspaceID, catalog.ParseEntryID(request.PathValue("entryId")), field, request.FormValue("value"), request.FormValue("version"))
+		err := h.catalogService.UpdateField(request.Context(), principal, workspaceID, catalog.ParseEntryID(request.PathValue("entryId")), field, request.FormValue("value"), revision)
 		if errors.Is(err, catalog.ErrConflict) {
 			h.renderCatalog(writer, request, http.StatusConflict, false)
 			return
@@ -322,7 +327,11 @@ func (h *Handler) catalogEdit(writer http.ResponseWriter, request *http.Request)
 		}
 		duration = &value
 	}
-	err := h.catalogService.Update(request.Context(), principal, workspaceID, catalog.ParseEntryID(request.PathValue("entryId")), request.FormValue("name"), duration)
+	err = h.catalogService.Update(request.Context(), principal, workspaceID, catalog.ParseEntryID(request.PathValue("entryId")), request.FormValue("name"), duration, revision)
+	if errors.Is(err, catalog.ErrConflict) {
+		h.renderCatalog(writer, request, http.StatusConflict, false)
+		return
+	}
 	h.catalogEditResult(writer, request, workspaceID, err)
 }
 

@@ -2,7 +2,7 @@ GOVULNCHECK_VERSION ?= v1.7.0
 ACTIONLINT_VERSION ?= v1.7.12
 GITLEAKS_VERSION ?= v8.30.1
 
-.PHONY: setup setup-hooks fmt-check lint test ci-local vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check templ-generate templ-check test-templ-check css-build css-check build image docker-smoke accessibility-smoke browser-smoke webmcp-smoke template-smoke verify js-check test-unit test-postgres logger-injection commit-msg-hook
+.PHONY: setup setup-hooks fmt-check lint test ci-local vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check templ-generate templ-check test-templ-check css-build css-check build image docker-smoke accessibility-smoke browser-smoke webmcp-smoke template-smoke profile-preflight test-profile-preflight verify js-check test-unit test-postgres logger-injection commit-msg-hook
 
 setup: setup-hooks
 	test -f .env || cp .env.example .env
@@ -35,6 +35,7 @@ web-conformance:
 
 test-unit:
 	node --test internal/web/assets/*.test.mjs
+	node --test scripts/pr-security-inventory.test.mjs
 
 test-postgres:
 	set -e; \
@@ -48,7 +49,7 @@ test-postgres:
 	docker exec "$$name" createdb -U postgres scheduling_test; \
 	POSTGRES_TEST_URL="postgres://postgres@127.0.0.1:$$port/scheduling_test?sslmode=disable" go test ./internal/scheduling/... -count=1
 
-lint: fmt-check vet js-check doc-links web-conformance logger-injection commit-msg-hook test-templ-check
+lint: fmt-check vet js-check doc-links web-conformance logger-injection commit-msg-hook test-templ-check test-profile-preflight
 
 logger-injection:
 	./scripts/check-logger-injection.sh
@@ -128,6 +129,12 @@ accessibility-smoke:
 
 browser-smoke:
 	go test -tags browser -count=1 ./internal/browsertest/... ./cmd/browsersmoke ./cmd/preview
+
+profile-preflight:
+	sh scripts/profile-preflight.sh $(BASE)
+
+test-profile-preflight:
+	sh scripts/test-profile-preflight.sh
 
 template-smoke:
 	set -eu; work="$$(mktemp -d /tmp/dynamis-code-template-smoke.XXXXXX)"; \
