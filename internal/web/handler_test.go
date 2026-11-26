@@ -1234,7 +1234,7 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 
 	page := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil)
 	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" ||
-		!strings.Contains(page.Body.String(), "http://example.com/scim/v2/"+workspaceID.String()) ||
+		!strings.Contains(page.Body.String(), "https://example.com/scim/v2/"+workspaceID.String()) ||
 		strings.Contains(page.Body.String(), "/assets/app.js") || strings.Contains(page.Body.String(), "data-webmcp-page") {
 		t.Fatalf("SCIM provisioning page = %d, headers=%v, body=%s", page.Code, page.Header(), page.Body.String())
 	}

@@ -112,7 +112,12 @@ func testBootstrapMounts(t *testing.T, pkg *packages.Package, body *ast.BlockStm
 					t.Error("app handler must enter through the typed telemetry wrapper")
 					return true
 				}
-				inner, ok := outer.Args[0].(*ast.CallExpr)
+				local, ok := outer.Args[0].(*ast.CallExpr)
+				if !ok || !bootstrapCall(index, local, pkg.PkgPath, "localHTTPOnly") || len(local.Args) != 2 {
+					t.Error("app handler must enter through the local HTTP guard")
+					return true
+				}
+				inner, ok := local.Args[0].(*ast.CallExpr)
 				if !ok || !bootstrapCall(index, inner, pkg.Module.Path+"/internal/httpapi", "LimitPublicIntake") {
 					t.Error("app handler must enter through the typed intake limiter")
 				}
