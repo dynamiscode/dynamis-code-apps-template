@@ -27,3 +27,24 @@ test("rejects unreferenced review images and reports duplicates", () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("recognizes Markdown references and HTML images, excluding fenced examples", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "review-images-"));
+  try {
+    mkdirSync(path.join(root, "docs/reviews"), { recursive: true });
+    for (const name of ["a.png", "b.png", "c.png", "orphan.png"]) {
+      writeFileSync(path.join(root, "docs/reviews", name), name);
+    }
+    writeFileSync(path.join(root, "README.md"), "[root](docs/reviews/a.png)\n");
+    writeFileSync(path.join(root, "docs/reviews/review.md"), [
+      "![picture][view]", "[view]: b.png", '<img src="c.png">',
+      "```md", "[example](orphan.png)", "```",
+    ].join("\n"));
+    const result = spawnSync(process.execPath, [checker, root], { encoding: "utf8" });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /unreferenced review image: docs\/reviews\/orphan.png/);
+    assert.doesNotMatch(result.stderr, /unreferenced review image: docs\/reviews\/(a|b|c).png/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
