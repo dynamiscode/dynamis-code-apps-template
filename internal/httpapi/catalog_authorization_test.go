@@ -54,7 +54,8 @@ func TestCatalogRESTCompleteRoleMatrix(t *testing.T) {
 			}
 			seed := serveAuthorized(routes, http.MethodPost, path, `{"name":"Seed","prices":[{"mode":"manual","currency":"USD","variant":"Initial"}]}`, ownerToken, nil)
 			var entry struct {
-				ID string `json:"id"`
+				ID       string `json:"id"`
+				Revision int64  `json:"revision"`
 			}
 			if err := json.Unmarshal(seed.Body.Bytes(), &entry); err != nil || entry.ID == "" {
 				t.Fatal(seed.Body.String())
@@ -88,7 +89,7 @@ func TestCatalogRESTCompleteRoleMatrix(t *testing.T) {
 				if writable {
 					want = op.success
 				}
-				result := serveAuthorized(routes, op.method, op.target, op.body, token.Secret, nil)
+				result := serveAuthorized(routes, op.method, op.target, op.body, token.Secret, map[string]string{"If-Match": etag(entry.Revision)})
 				if result.Code != want {
 					t.Errorf("%s %s: %d want %d", op.method, op.target, result.Code, want)
 				}

@@ -67,6 +67,10 @@ func TestCatalogWebRoleMatrix(t *testing.T) {
 			if len(price) != 2 {
 				t.Fatal("missing price form")
 			}
+			version := regexp.MustCompile(`name="version" value="([0-9]+)"`).FindStringSubmatch(ownerPage.Body.String())
+			if len(version) != 2 {
+				t.Fatal("missing entry revision")
+			}
 			page := request(routes, http.MethodGet, detail, nil, cookies, nil)
 			writable := role == identity.Owner || role == identity.Admin
 			if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Seed") {
@@ -79,7 +83,7 @@ func TestCatalogWebRoleMatrix(t *testing.T) {
 			if writable {
 				want = http.StatusSeeOther
 			}
-			form := url.Values{"csrf": {session.CSRFSecret}, "name": {"Edited"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Visit"}}
+			form := url.Values{"csrf": {session.CSRFSecret}, "version": {version[1]}, "name": {"Edited"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Visit"}}
 			for _, target := range []string{path, entry + "/edit", entry + "/prices", price[1], strings.TrimSuffix(price[1], "/edit") + "/delete", entry + "/archive", entry + "/unarchive", entry + "/delete"} {
 				result := request(routes, http.MethodPost, target, form, cookies, nil)
 				if result.Code != want {

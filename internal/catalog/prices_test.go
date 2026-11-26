@@ -148,33 +148,48 @@ func TestPriceOptions(t *testing.T) {
 		}
 	}
 	minutes := 45
-	if err := s.Update(ctx, actor, owner.WorkspaceID, entry.ID, "Updated", &minutes); err != nil {
+	if err := s.Update(ctx, actor, owner.WorkspaceID, entry.ID, "Updated", &minutes, 1); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Update(ctx, actor, owner.WorkspaceID, entry.ID, " ", nil); !errors.Is(err, ErrInvalidInput) {
+	if err := s.Update(ctx, actor, owner.WorkspaceID, entry.ID, " ", nil, 2); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("blank name: %v", err)
 	}
-	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "name", "Renamed", "Updated"); err != nil {
+	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "name", "Renamed", 2); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "duration_minutes", "", "45"); err != nil {
+	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "duration_minutes", "", 3); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "name", "Stale", "Updated"); !errors.Is(err, ErrConflict) {
+	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "name", "Stale", 2); !errors.Is(err, ErrConflict) {
 		t.Fatalf("stale name: %v", err)
 	}
-	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "duration_minutes", "30", "45"); !errors.Is(err, ErrConflict) {
+	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "duration_minutes", "30", 3); !errors.Is(err, ErrConflict) {
 		t.Fatalf("stale duration: %v", err)
 	}
-	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "duration_minutes", "0", ""); !errors.Is(err, ErrInvalidInput) {
+	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "duration_minutes", "0", 4); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("invalid duration: %v", err)
 	}
-	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID+1, "name", "Missing", "Renamed"); !errors.Is(err, ErrNotFound) {
+	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID+1, "name", "Missing", 4); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("missing entry: %v", err)
 	}
 	entries, err = s.List(ctx, actor, owner.WorkspaceID, false)
 	if err != nil || len(entries) != 1 || entries[0].Name != "Renamed" || entries[0].DurationMinutes != nil {
 		t.Fatalf("partial edits = %+v, %v", entries, err)
+	}
+	if entries[0].Revision != 4 {
+		t.Fatalf("revision = %d, want 4", entries[0].Revision)
+	}
+	if err := s.Update(ctx, actor, owner.WorkspaceID, entry.ID, "Updated", &minutes, 4); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "name", "Renamed", 5); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Update(ctx, actor, owner.WorkspaceID, entry.ID, "Stale", nil, 4); !errors.Is(err, ErrConflict) {
+		t.Fatalf("ABA full update: %v", err)
+	}
+	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "name", "Stale", 4); !errors.Is(err, ErrConflict) {
+		t.Fatalf("ABA inline update: %v", err)
 	}
 	if err := s.UpdatePrice(ctx, actor, owner.WorkspaceID, entry.ID+1, priceID, manual); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("wrong entry: %v", err)
@@ -240,6 +255,19 @@ func TestPriceOptions(t *testing.T) {
 	entries, err = s.List(ctx, actor, owner.WorkspaceID, true)
 	if err != nil || len(entries) != 0 {
 		t.Fatalf("deleted entries = %+v, %v", entries, err)
+	}
+	recreated, err := s.Create(ctx, actor, owner.WorkspaceID, "Recreated", nil, testPrices())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recreated.ID != entry.ID || recreated.Revision <= 6 {
+		t.Fatalf("recreated entry = %+v, original ID = %v", recreated, entry.ID)
+	}
+	if err := s.Update(ctx, actor, owner.WorkspaceID, recreated.ID, "Stale", nil, 6); !errors.Is(err, ErrConflict) {
+		t.Fatalf("reused ID update: %v", err)
+	}
+	if err := s.Delete(ctx, actor, owner.WorkspaceID, recreated.ID); err != nil {
+		t.Fatal(err)
 	}
 	var legacyID EntryID
 	if err := db.QueryRowContext(ctx, `INSERT INTO catalog_entries (workspace_id, name, archived_at) VALUES ($1, $2, $3) RETURNING id`, owner.WorkspaceID, "Legacy", "2026-01-01T00:00:00Z").Scan(&legacyID); err != nil {

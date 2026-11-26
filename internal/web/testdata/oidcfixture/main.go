@@ -31,7 +31,7 @@ func main() {
 	databasePath := os.Getenv("OIDC_FIXTURE_DATABASE")
 	values := map[string]string{
 		"DATABASE_DRIVER": "sqlite", "SQLITE_PATH": databasePath,
-		"HTTP_ADDRESS": address, "MULTI_WORKSPACE_ENABLED": "true",
+		"HTTP_ADDRESS": address, "HTTP_SECURE": "false", "MULTI_WORKSPACE_ENABLED": "true",
 		"HTTP_REQUESTS_PER_MINUTE": "10000", "HTTP_AUTH_REQUESTS_PER_MINUTE": "1000",
 	}
 	cfg, err := config.LoadFrom(func(name string) (string, bool) {

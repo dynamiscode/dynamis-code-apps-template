@@ -368,7 +368,7 @@ func TestCatalogEditWeb(t *testing.T) {
 	if strings.Contains(page.Body.String(), `action="`+entryPath+`/edit"`) {
 		t.Fatal("redundant entry edit form present")
 	}
-	response := request(routes, http.MethodPost, entryPath+"/edit", url.Values{"csrf": {session.CSRFSecret}, "name": {"Updated"}, "duration_minutes": {"45"}}, cookies, nil)
+	response := request(routes, http.MethodPost, entryPath+"/edit", url.Values{"csrf": {session.CSRFSecret}, "version": {"1"}, "name": {"Updated"}, "duration_minutes": {"45"}}, cookies, nil)
 	if response.Code != http.StatusSeeOther {
 		t.Fatalf("edit: %d", response.Code)
 	}
@@ -459,7 +459,7 @@ func TestCatalogRejectedFormsKeepOnlyTheirValues(t *testing.T) {
 		values       url.Values
 		want         []string
 	}{
-		{"entry", entries[0][1], url.Values{"csrf": {session.CSRFSecret}, "name": {"Draft <entry>"}, "duration_minutes": {"-3"}}, []string{`name="name" value="Draft &lt;entry&gt;"`, `name="duration_minutes" value="-3"`}},
+		{"entry", entries[0][1], url.Values{"csrf": {session.CSRFSecret}, "version": {"1"}, "name": {"Draft <entry>"}, "duration_minutes": {"-3"}}, []string{`name="name" value="Draft &lt;entry&gt;"`, `name="duration_minutes" value="-3"`}},
 		{"edit price", priceForms[0][1], url.Values{"csrf": {session.CSRFSecret}, "mode": {"manual"}, "amount": {"0.123456789012345678"}, "currency": {"BTC"}, "variant": {"Draft <edit>"}, "eligibility": {"Student & staff"}}, []string{`value="manual" selected`, `name="amount" value="0.123456789012345678"`, `value="BTC" selected disabled`, `name="variant" value="Draft &lt;edit&gt;"`, `name="eligibility" value="Student &amp; staff"`}},
 		{"add price", entryPath + "/prices", url.Values{"csrf": {session.CSRFSecret}, "mode": {"manual"}, "amount": {"0.123456789012345678"}, "currency": {"EUR"}, "variant": {"Draft <add>"}, "eligibility": {"Student & staff"}}, []string{`value="manual" selected`, `name="amount" value="0.123456789012345678"`, `value="EUR" selected disabled`, `name="variant" value="Draft &lt;add&gt;"`, `name="eligibility" value="Student &amp; staff"`}},
 	}
@@ -662,23 +662,36 @@ func TestCatalogInlineFieldsAndListSorting(t *testing.T) {
 	post := func(field, version, value string) *httptest.ResponseRecorder {
 		return request(routes, http.MethodPost, action, url.Values{"csrf": {session.CSRFSecret}, "field": {field}, "version": {version}, "value": {value}}, cookies, nil)
 	}
-	if response := request(routes, http.MethodPost, action, url.Values{"csrf": {"wrong"}, "field": {"name"}, "version": {"Alpha"}, "value": {"Denied"}}, cookies, nil); response.Code != http.StatusForbidden {
+	if response := request(routes, http.MethodPost, action, url.Values{"csrf": {"wrong"}, "field": {"name"}, "version": {"1"}, "value": {"Denied"}}, cookies, nil); response.Code != http.StatusForbidden {
 		t.Fatalf("invalid csrf = %d", response.Code)
 	}
-	if response := post("invalid", "Alpha", "Denied"); response.Code != http.StatusBadRequest {
+	if response := post("invalid", "1", "Denied"); response.Code != http.StatusBadRequest {
 		t.Fatalf("invalid field = %d", response.Code)
 	}
-	if response := post("duration_minutes", "60", "45"); response.Code != http.StatusSeeOther {
+	if response := post("duration_minutes", "1", "45"); response.Code != http.StatusSeeOther {
 		t.Fatalf("duration update = %d: %s", response.Code, response.Body.String())
 	}
-	if response := post("name", "Alpha", "Renamed"); response.Code != http.StatusSeeOther {
-		t.Fatalf("independent name update = %d: %s", response.Code, response.Body.String())
+	if response := post("name", "2", "Renamed"); response.Code != http.StatusSeeOther {
+		t.Fatalf("name update = %d: %s", response.Code, response.Body.String())
 	}
-	conflict := post("name", "Alpha", "Draft")
-	if conflict.Code != http.StatusConflict || !strings.Contains(conflict.Body.String(), `value="Draft"`) || !strings.Contains(conflict.Body.String(), `name="version" value="Renamed"`) || !strings.Contains(conflict.Body.String(), `data-inline-explicit-retry`) {
+	conflict := post("name", "1", "Draft")
+	if conflict.Code != http.StatusConflict || !strings.Contains(conflict.Body.String(), `value="Draft"`) || !strings.Contains(conflict.Body.String(), `name="version" value="3"`) || !strings.Contains(conflict.Body.String(), `data-inline-explicit-retry`) {
 		t.Fatalf("stale update = %d: %s", conflict.Code, conflict.Body.String())
 	}
-	invalid := post("duration_minutes", "45", "-1")
+	if response := post("name", "3", "Alpha"); response.Code != http.StatusSeeOther {
+		t.Fatalf("restore name = %d", response.Code)
+	}
+	if response := post("name", "4", "Renamed"); response.Code != http.StatusSeeOther {
+		t.Fatalf("repeat name = %d", response.Code)
+	}
+	if response := post("name", "3", "ABA draft"); response.Code != http.StatusConflict {
+		t.Fatalf("ABA inline = %d", response.Code)
+	}
+	full := request(routes, http.MethodPost, strings.TrimSuffix(action, "/field")+"/edit", url.Values{"csrf": {session.CSRFSecret}, "version": {"3"}, "name": {"Full draft"}, "duration_minutes": {"30"}}, cookies, nil)
+	if full.Code != http.StatusConflict || !strings.Contains(full.Body.String(), `value="Full draft"`) || !strings.Contains(full.Body.String(), `name="version" value="5"`) {
+		t.Fatalf("stale full edit = %d: %s", full.Code, full.Body.String())
+	}
+	invalid := post("duration_minutes", "5", "-1")
 	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), `value="-1"`) || !strings.Contains(invalid.Body.String(), `id="catalog-inline-duration_minutes-error" role="alert"`) || !strings.Contains(invalid.Body.String(), `data-inline-dirty-on-load open`) || !strings.Contains(invalid.Body.String(), `data-inline-cancel`) {
 		t.Fatalf("invalid duration = %d: %s", invalid.Code, invalid.Body.String())
 	}

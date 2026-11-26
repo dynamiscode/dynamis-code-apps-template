@@ -135,7 +135,7 @@ func startFixtures() (func(), error) {
 		return fail(err)
 	}
 	serverEnv := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + dir, "TMPDIR=" + dir,
-		"MULTI_WORKSPACE_ENABLED=true", "HTTP_REQUESTS_PER_MINUTE=10000", "HTTP_AUTH_REQUESTS_PER_MINUTE=1000",
+		"MULTI_WORKSPACE_ENABLED=true", "HTTP_SECURE=false", "HTTP_REQUESTS_PER_MINUTE=10000", "HTTP_AUTH_REQUESTS_PER_MINUTE=1000",
 		"WEBHOOK_ENCRYPTION_KEY=" + strings.Repeat("0", 64), "ENCRYPTION_KEY=",
 		"DATABASE_DRIVER=sqlite", "SQLITE_PATH=" + appDB, "STORAGE_DRIVER=local",
 		"STORAGE_LOCAL_PATH=" + filepath.Join(dir, "files"), "HTTP_SSE_POLL_INTERVAL=1s",
@@ -162,7 +162,7 @@ func startFixtures() (func(), error) {
 		return fail(err)
 	}
 	unkeyedEnv := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + dir, "TMPDIR=" + dir,
-		"MULTI_WORKSPACE_ENABLED=true", "HTTP_REQUESTS_PER_MINUTE=10000", "HTTP_AUTH_REQUESTS_PER_MINUTE=1000",
+		"MULTI_WORKSPACE_ENABLED=true", "HTTP_SECURE=false", "HTTP_REQUESTS_PER_MINUTE=10000", "HTTP_AUTH_REQUESTS_PER_MINUTE=1000",
 		"DATABASE_DRIVER=sqlite", "SQLITE_PATH=" + membersDB, "STORAGE_DRIVER=local",
 		"STORAGE_LOCAL_PATH=" + filepath.Join(dir, "members-files"), "HTTP_SSE_POLL_INTERVAL=1s",
 		"HTTP_SSE_MAX_LIFETIME=1m", fmt.Sprintf("HTTP_ADDRESS=127.0.0.1:%d", unkeyedPort)}

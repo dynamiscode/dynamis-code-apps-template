@@ -33,7 +33,7 @@ func TestCatalogWebWorkspaceIsolation(t *testing.T) {
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	path := "/workspaces/" + workspace.String() + "/catalog"
 	otherPath := "/workspaces/" + other.String() + "/catalog"
-	form := url.Values{"csrf": {session.CSRFSecret}, "name": {"Private"}, "mode": {"fixed"}, "amount": {"0.123456789012345678"}, "currency": {"BTC"}, "variant": {"Private"}}
+	form := url.Values{"csrf": {session.CSRFSecret}, "version": {"1"}, "name": {"Private"}, "mode": {"fixed"}, "amount": {"0.123456789012345678"}, "currency": {"BTC"}, "variant": {"Private"}}
 	if r := request(routes, http.MethodPost, path, form, cookies, nil); r.Code != http.StatusSeeOther {
 		t.Fatal(r.Code)
 	}
@@ -72,7 +72,7 @@ func TestCatalogWebWorkspaceIsolation(t *testing.T) {
 	}
 	localEntry := strings.TrimSuffix(localMatch[1], "/field")
 	foreignPriceOnLocal := localEntry + strings.TrimPrefix(foreignPrice, foreign)
-	invalidEntry := url.Values{"csrf": {session.CSRFSecret}, "name": {"Rejected foreign draft"}, "duration_minutes": {"-3"}}
+	invalidEntry := url.Values{"csrf": {session.CSRFSecret}, "version": {"1"}, "name": {"Rejected foreign draft"}, "duration_minutes": {"-3"}}
 	invalidPrice := url.Values{"csrf": {session.CSRFSecret}, "mode": {"fixed"}, "amount": {"-1"}, "currency": {"DRAFT"}, "variant": {"Rejected foreign draft"}}
 	for _, op := range []struct {
 		name, target string
