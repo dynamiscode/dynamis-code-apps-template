@@ -209,9 +209,17 @@ test("conflict retry requires explicit button activation", () => {
 test("Enter requests confirmation before moving a booking", () => {
 	const f = fixture();
 	let confirmations = 0;
-	f.form.querySelector = () => ({ click: () => confirmations++ });
+	f.form.querySelector = (selector) => selector === "button[type=submit][data-confirm]" ? { click: () => confirmations++ } : null;
 	wireInlineTitles(f.root);
 	f.emit("details:keydown", event({ key: "Enter", target: f.input }));
 	assert.equal(confirmations, 1);
+	assert.equal(f.counts.submitted, 0);
+});
+
+test("Enter cannot submit an invalid inline edit", () => {
+	const f = fixture();
+	f.form.querySelector = (selector) => selector === "button[type=submit]:disabled" ? {} : null;
+	wireInlineTitles(f.root);
+	f.emit("details:keydown", event({ key: "Enter", target: f.input }));
 	assert.equal(f.counts.submitted, 0);
 });

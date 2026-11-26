@@ -723,14 +723,14 @@ func transactionsCreateFields(data viewmodel.PageData, methods []transactions.Me
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "\"> <button type=\"submit\" name=\"picker_action\" value=\"currency\" formnovalidate>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "\"> <button class=\"btn\" type=\"submit\" name=\"picker_action\" value=\"currency\" formnovalidate>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var34 string
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("ui.search"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `transaction_create_fields.templ`, Line: 76, Col: 98}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `transaction_create_fields.templ`, Line: 76, Col: 110}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 		if templ_7745c5c3_Err != nil {

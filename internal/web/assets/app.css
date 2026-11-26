@@ -421,7 +421,7 @@ li[data-optimistic="hidden"], tr[data-optimistic="hidden"] { display: none; }
 .js-enhanced .entry-field[data-entry-bound] > :is(input, textarea, select), .entry-picker-trigger { padding-top: 1.1rem; }
 .entry-picker-trigger { display: block; width: 100%; min-height: 2.75rem; text-align: left; border: var(--border, 1px) solid var(--border-color); border-radius: var(--radius-field, .25rem); padding-inline: .75rem; background: var(--canvas); }
 .entry-field[data-entry-picker-enhanced] > select { position: absolute; width: 1px; height: 1px; padding: 0; clip-path: inset(50%); overflow: hidden; }
-.entry-picker-panel { position: absolute; z-index: 40; top: 100%; left: 0; min-width: 100%; max-width: min(28rem, 90vw); max-height: 18rem; overflow: auto; padding: .5rem; border: 1px solid var(--border-color); border-radius: .5rem; background: var(--canvas); box-shadow: 0 .4rem 1rem #0003; }
+.entry-picker-panel { position: absolute; z-index: 40; top: 100%; left: 0; min-width: 100%; max-width: min(28rem, 90vw); max-height: 18rem; overflow: auto; padding: .5rem; border: 1px solid var(--border-color); border-radius: .5rem; background: var(--canvas); box-shadow: 0 .4rem 1rem var(--shadow); }
 .entry-picker-panel[hidden], .entry-picker-fallback-search[hidden] { display: none; }
 .entry-picker-trigger[hidden] { display: none; }
 .js-enhanced .entry-field[data-entry-bound]:not([data-entry-filled]):not(:focus-within) > :is(input, textarea)::placeholder { color: transparent; }

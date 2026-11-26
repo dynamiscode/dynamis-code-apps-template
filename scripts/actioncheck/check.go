@@ -1307,7 +1307,8 @@ func safeComponent(expr ast.Expr, imports map[string]string, pkgName string) boo
 		if path == "github.com/a-h/templ" && (selector.Sel.Name == "SafeURL" || selector.Sel.Name == "KV") ||
 			path == "fmt" && selector.Sel.Name == "Sprintf" ||
 			path == "strings" && selector.Sel.Name == "TrimSpace" ||
-			path == "strconv" && selector.Sel.Name == "Itoa" {
+			path == "strconv" && selector.Sel.Name == "Itoa" ||
+			path == "example.com/dynamis-code/apps-template/internal/transactions" && selector.Sel.Name == "FormatAmount" {
 			return true
 		}
 		unknownExternal = true

@@ -73,7 +73,7 @@ templ transactionsCreateFields(data viewmodel.PageData, methods []transactions.M
  <noscript>
   <label for="transactions-currency-search">{ data.T("transactions.currency_search") }</label>
   <input id="transactions-currency-search" type="search" name="currency_search" value={ draft.currencySearch }/>
-  <button type="submit" name="picker_action" value="currency" formnovalidate>{ data.T("ui.search") }</button>
+  <button class="btn" type="submit" name="picker_action" value="currency" formnovalidate>{ data.T("ui.search") }</button>
  </noscript>
  @molecules.EntryField(molecules.EntryFieldProps{ID:"transactions-method", Label:data.T("transactions.method"), Value:draft.method, SearchLabel:data.T("ui.search")}) {
    <select id="transactions-method" name="payment_method" required data-entry-picker>
