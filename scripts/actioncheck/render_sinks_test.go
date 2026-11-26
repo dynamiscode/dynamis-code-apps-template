@@ -60,6 +60,29 @@ func TestDirectRenderProducerIgnoresNonRenderingArguments(t *testing.T) {
 	}
 }
 
+func TestMarkdownRenderProducerRequiresGuardedPackage(t *testing.T) {
+	const source = `package fixture
+	import safe "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+	import fake "example.test/other"
+	func calls() { _ = safe.Markdown(); _ = fake.Markdown() }`
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "fixture.go", source, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info := &types.Info{Uses: map[*ast.Ident]types.Object{}}
+	if _, err := (&types.Config{Importer: childSlotFixtureImporter{}}).Check("fixture", fset, []*ast.File{file}, info); err != nil {
+		t.Fatal(err)
+	}
+	body := file.Decls[len(file.Decls)-1].(*ast.FuncDecl).Body
+	for i, statement := range body.List {
+		expr := statement.(*ast.AssignStmt).Rhs[0]
+		if got, want := directRenderProducer(expr, info, nil), i == 0; got != want {
+			t.Errorf("case %d: got %v, want %v", i, got, want)
+		}
+	}
+}
+
 func TestGeneratedSourceMapSeparatesHandwrittenRenderFacilities(t *testing.T) {
 	source := `package fixture
 import markup "github.com/a-h/templ"
@@ -142,6 +165,7 @@ func (childSlotFixtureImporter) Import(path string) (*types.Package, error) {
 	result := types.NewTuple(types.NewVar(token.NoPos, pkg, "", types.Typ[types.Int]))
 	signature := types.NewSignatureType(nil, nil, nil, nil, result, false)
 	pkg.Scope().Insert(types.NewFunc(token.NoPos, pkg, "GetChildren", signature))
+	pkg.Scope().Insert(types.NewFunc(token.NoPos, pkg, "Markdown", signature))
 	callback := types.NewSignatureType(nil, nil, nil, nil, nil, false)
 	generatedInputs := types.NewTuple(types.NewVar(token.NoPos, pkg, "", callback))
 	pkg.Scope().Insert(types.NewFunc(token.NoPos, pkg, "GeneratedTemplate", types.NewSignatureType(nil, nil, nil, generatedInputs, result, false)))
@@ -150,6 +174,7 @@ func (childSlotFixtureImporter) Import(path string) (*types.Package, error) {
 	pkg.Scope().Insert(name)
 	mapValue := types.NewTuple(types.NewVar(token.NoPos, pkg, "", attributes))
 	pkg.Scope().Insert(types.NewFunc(token.NoPos, pkg, "From", types.NewSignatureType(nil, nil, nil, mapValue, mapValue, false)))
+	pkg.Scope().Insert(types.NewFunc(token.NoPos, pkg, "ScalarAttributes", types.NewSignatureType(nil, nil, nil, mapValue, mapValue, false)))
 	pkg.MarkComplete()
 	return pkg, nil
 }
@@ -201,6 +226,8 @@ func TestAttributeSpreadRejectsOpaqueValuesAndForeignAttributeTypes(t *testing.T
 		_ = fake.Attributes{"title": "hello"}
 		_ = attrs
 		_ = safe.From(safe.Attributes{"title": v})
+		_ = safe.ScalarAttributes(safe.Attributes{"title": v})
+		_ = fake.ScalarAttributes(fake.Attributes{"title": v})
 		_ = fake.From(fake.Attributes{"title": v})
 	}`
 	fset := token.NewFileSet()
@@ -214,7 +241,7 @@ func TestAttributeSpreadRejectsOpaqueValuesAndForeignAttributeTypes(t *testing.T
 	}
 	for i, statement := range file.Decls[len(file.Decls)-1].(*ast.FuncDecl).Body.List {
 		argument := statement.(*ast.AssignStmt).Rhs[0]
-		if got, want := checkedAttributeSpread(argument, info), i == 0 || i == 7; got != want {
+		if got, want := checkedAttributeSpread(argument, info), i == 0 || i == 7 || i == 8; got != want {
 			t.Errorf("case %d: got %v, want %v", i, got, want)
 		}
 	}

@@ -112,14 +112,14 @@ func engagementNewDialog(data viewmodel.PageData, choices []clients.Client, sele
 			return templ_7745c5c3_Err
 		}
 		if data.Client.ID != 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<a class=\"btn btn-ghost btn-square\" href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<a class=\"btn btn-outline btn-square\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/clients/" + data.Client.ID.String())).ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 27, Col: 146}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 27, Col: 148}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
@@ -132,7 +132,7 @@ func engagementNewDialog(data viewmodel.PageData, choices []clients.Client, sele
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("ui.close")).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 27, Col: 203}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 27, Col: 205}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 			if templ_7745c5c3_Err != nil {
@@ -143,14 +143,14 @@ func engagementNewDialog(data viewmodel.PageData, choices []clients.Client, sele
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<a class=\"btn btn-ghost btn-square\" href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<a class=\"btn btn-outline btn-square\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL(data.CurrentPath)).ResolveURL(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 29, Col: 79}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 29, Col: 81}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 			if templ_7745c5c3_Err != nil {
@@ -163,7 +163,7 @@ func engagementNewDialog(data viewmodel.PageData, choices []clients.Client, sele
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("ui.close")).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 29, Col: 136}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 29, Col: 138}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 			if templ_7745c5c3_Err != nil {
@@ -1118,14 +1118,14 @@ func engagementNotesEditor(data viewmodel.PageData, notes string) templ.Componen
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "\"><button class=\"btn btn-ghost btn-sm btn-square\" type=\"button\" data-markdown=\"bold\" aria-label=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "\"><button class=\"btn btn-outline btn-sm btn-square\" type=\"button\" data-markdown=\"bold\" aria-label=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var64 string
 		templ_7745c5c3_Var64, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("engagement.bold")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 146, Col: 202}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 146, Col: 204}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var64)
 		if templ_7745c5c3_Err != nil {
@@ -1138,7 +1138,7 @@ func engagementNotesEditor(data viewmodel.PageData, notes string) templ.Componen
 		var templ_7745c5c3_Var65 string
 		templ_7745c5c3_Var65, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("engagement.bold")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 146, Col: 238}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 146, Col: 240}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var65)
 		if templ_7745c5c3_Err != nil {
@@ -1157,14 +1157,14 @@ func engagementNotesEditor(data viewmodel.PageData, notes string) templ.Componen
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "\"><button class=\"btn btn-ghost btn-sm btn-square\" type=\"button\" data-markdown=\"italic\" aria-label=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "\"><button class=\"btn btn-outline btn-sm btn-square\" type=\"button\" data-markdown=\"italic\" aria-label=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var67 string
 		templ_7745c5c3_Var67, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("engagement.italic")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 147, Col: 208}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 147, Col: 210}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var67)
 		if templ_7745c5c3_Err != nil {
@@ -1177,7 +1177,7 @@ func engagementNotesEditor(data viewmodel.PageData, notes string) templ.Componen
 		var templ_7745c5c3_Var68 string
 		templ_7745c5c3_Var68, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("engagement.italic")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 147, Col: 246}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 147, Col: 248}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var68)
 		if templ_7745c5c3_Err != nil {
@@ -1196,14 +1196,14 @@ func engagementNotesEditor(data viewmodel.PageData, notes string) templ.Componen
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "\"><button class=\"btn btn-ghost btn-sm btn-square\" type=\"button\" data-markdown=\"heading\" aria-label=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "\"><button class=\"btn btn-outline btn-sm btn-square\" type=\"button\" data-markdown=\"heading\" aria-label=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var70 string
 		templ_7745c5c3_Var70, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("engagement.heading")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 148, Col: 211}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 148, Col: 213}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var70)
 		if templ_7745c5c3_Err != nil {
@@ -1216,7 +1216,7 @@ func engagementNotesEditor(data viewmodel.PageData, notes string) templ.Componen
 		var templ_7745c5c3_Var71 string
 		templ_7745c5c3_Var71, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("engagement.heading")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 148, Col: 250}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 148, Col: 252}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var71)
 		if templ_7745c5c3_Err != nil {
@@ -1235,14 +1235,14 @@ func engagementNotesEditor(data viewmodel.PageData, notes string) templ.Componen
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "\"><button class=\"btn btn-ghost btn-sm btn-square\" type=\"button\" data-markdown=\"list\" aria-label=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "\"><button class=\"btn btn-outline btn-sm btn-square\" type=\"button\" data-markdown=\"list\" aria-label=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var73 string
 		templ_7745c5c3_Var73, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("engagement.bulleted_list")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 149, Col: 220}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 149, Col: 222}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var73)
 		if templ_7745c5c3_Err != nil {
@@ -1255,7 +1255,7 @@ func engagementNotesEditor(data viewmodel.PageData, notes string) templ.Componen
 		var templ_7745c5c3_Var74 string
 		templ_7745c5c3_Var74, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("engagement.bulleted_list")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 149, Col: 265}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 149, Col: 267}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var74)
 		if templ_7745c5c3_Err != nil {
@@ -1274,14 +1274,14 @@ func engagementNotesEditor(data viewmodel.PageData, notes string) templ.Componen
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "\"><button class=\"btn btn-ghost btn-sm btn-square\" type=\"button\" data-markdown=\"link\" aria-label=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "\"><button class=\"btn btn-outline btn-sm btn-square\" type=\"button\" data-markdown=\"link\" aria-label=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var76 string
 		templ_7745c5c3_Var76, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("engagement.link")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 150, Col: 202}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 150, Col: 204}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var76)
 		if templ_7745c5c3_Err != nil {
@@ -1294,7 +1294,7 @@ func engagementNotesEditor(data viewmodel.PageData, notes string) templ.Componen
 		var templ_7745c5c3_Var77 string
 		templ_7745c5c3_Var77, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("engagement.link")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 150, Col: 238}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 150, Col: 240}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var77)
 		if templ_7745c5c3_Err != nil {
@@ -1313,14 +1313,14 @@ func engagementNotesEditor(data viewmodel.PageData, notes string) templ.Componen
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "\"><button class=\"btn btn-ghost btn-sm btn-square\" type=\"button\" data-markdown=\"code\" aria-label=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "\"><button class=\"btn btn-outline btn-sm btn-square\" type=\"button\" data-markdown=\"code\" aria-label=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var79 string
 		templ_7745c5c3_Var79, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("engagement.code")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 151, Col: 202}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 151, Col: 204}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var79)
 		if templ_7745c5c3_Err != nil {
@@ -1333,7 +1333,7 @@ func engagementNotesEditor(data viewmodel.PageData, notes string) templ.Componen
 		var templ_7745c5c3_Var80 string
 		templ_7745c5c3_Var80, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("engagement.code")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 151, Col: 238}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `engagement_new.templ`, Line: 151, Col: 240}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var80)
 		if templ_7745c5c3_Err != nil {

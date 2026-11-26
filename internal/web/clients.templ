@@ -1,5 +1,6 @@
 package web
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
 import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
@@ -140,7 +141,7 @@ templ clientDetail(data viewmodel.PageData) {
 					@molecules.NotesEditor(molecules.NotesEditorProps{
 						ID: "inline-notes", Name: "value", Label: data.T("clients.notes")+" "+data.T("ui.optional"),
 						EditLabel: data.T("ui.edit"), SaveLabel: data.T("clients.value_save"), CancelLabel: data.T("common.cancel"), RetryLabel: data.T("ui.retry"),
-						EmptyText: data.T("clients.value_none"), Saved: data.Client.Notes, Value: value, Rendered: renderEngagementMarkdown(data.Client.Notes),
+						EmptyText: data.T("clients.value_none"), Saved: data.Client.Notes, Value: value,
 						Action: data.CurrentPath + "/" + data.Client.ID.String() + "/field", CancelURL: data.CurrentPath + "/" + data.Client.ID.String() + "?cancel=1#client-detail",
 						CSRF: data.CSRF, Version: version, Field: "notes", Error: data.T(data.ErrorKey), Warning: data.T("notes.source_warning"),
 						BoldLabel: data.T("engagement.bold"), ItalicLabel: data.T("engagement.italic"), ListLabel: data.T("engagement.bulleted_list"), SourceLabel: data.T("notes.source"), MaxLength: "5000",
@@ -150,7 +151,7 @@ templ clientDetail(data viewmodel.PageData) {
 				} else if data.Client.Notes == "" {
 					<span class="status-line">{ data.T("clients.value_none") }</span>
 				} else {
-					<div class="engagement-markdown">@templ.Raw(renderEngagementMarkdown(data.Client.Notes))</div>
+					<div class="engagement-markdown">@actionattrs.Markdown(data.Client.Notes)</div>
 				}
 			</dd>
 		</dl>
@@ -338,7 +339,7 @@ templ clientValues(data viewmodel.PageData) {
 }
 
 templ clientTextValue(data viewmodel.PageData, value viewmodel.ClientValueRow) {
-	{{ hasDraft := data.ClientValueDraftField == value.FieldID.String(); saved := clientValueDisplayValue(value.Value); inputValue := saved; inputType := value.Type; if inputType != "number" && inputType != "date" { inputType = "text" }; action := data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String(); clearURL := ""; if value.Value != nil { clearURL = action + "/clear" }; if hasDraft { inputValue = data.ClientValueDraft; inputType = "text" } }}
+	{{ version := strconv.FormatInt(data.Client.Version, 10); hasDraft := data.ClientValueDraftField == value.FieldID.String(); saved := clientValueDisplayValue(value.Value); inputValue := saved; inputType := value.Type; if inputType != "number" && inputType != "date" { inputType = "text" }; action := data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String(); clearURL := ""; if value.Value != nil { clearURL = action + "/clear" }; if hasDraft { inputValue = data.ClientValueDraft; inputType = "text" } }}
 	<div class="client-value min-w-0">
 		if hasDraft {
 			@molecules.ErrorAlert(data.T(data.ErrorKey))
@@ -348,7 +349,7 @@ templ clientTextValue(data viewmodel.PageData, value viewmodel.ClientValueRow) {
 			Label: value.Label, InputLabel: value.Label + " " + data.T("ui.optional"), EditLabel: data.T("ui.edit"), SaveLabel: data.T("clients.value_save"), CancelLabel: data.T("common.cancel"),
 			ID: "value-" + value.FieldID.String(), Name: "value", InputType: inputType, MaxLength: "500",
 			Action: action, CancelURL: data.CurrentPath + "/" + data.Client.ID.String() + "?cancel=1#client-values", ClearURL: clearURL, ClearLabel: data.T("clients.value_clear"),
-			CSRF: data.CSRF, Version: strconv.FormatInt(data.Client.Version, 10), Draft: hasDraft, FormDraft: hasDraft, Class: "min-w-0",
+			CSRF: data.CSRF, Version: version, Draft: hasDraft, FormDraft: hasDraft, Class: "min-w-0",
 		})
 	</div>
 }

@@ -88,5 +88,71 @@
     "OpenTag": "<button type=\"button\" class=\"drawer-overlay block\" tabindex=\"-1\" aria-hidden=\"true\" @click=\"toggleDrawer\">",
     "Line": 44,
     "Reason": "Fully literal class, no Attrs spread, no caller input. Same category as the modal.templ backdrop exception above: a click-to-close drawer overlay, not a visible/labeled action control."
+  },
+  {
+    "Path": "internal/web/catalog.templ",
+    "OpenTag": "<button aria-label={ data.T(\"common.cancel\") }>",
+    "Line": 88,
+    "Reason": "Native dialog backdrop closes the modal; it is not a visible action control."
+  },
+  {
+    "Path": "internal/web/clients.templ",
+    "OpenTag": "<a class=\"link lg:hidden\" href=\"#client-timeline-heading\">",
+    "Line": 61,
+    "Reason": "Fixed in-page timeline navigation link has no caller-controlled styling or attribute spread."
+  },
+  {
+    "Path": "internal/web/clients.templ",
+    "OpenTag": "<a class=\"card card-border group block p-4 text-base-content no-underline hover:bg-base-200 focus-visible:bg-base-200\" href={ templ.SafeURL(data.CurrentPath + \"/\" + data.Client.ID.String() + \"/engagements/\" + item.ID.String()) }>",
+    "Line": 90,
+    "Reason": "Whole-card engagement navigation link uses a fixed class and no attribute spread."
+  },
+  {
+    "Path": "internal/web/engagement.templ",
+    "OpenTag": "<a class=\"link lg:hidden\" href=\"#action-history\">",
+    "Line": 29,
+    "Reason": "Fixed in-page activity navigation link has no caller-controlled styling or attribute spread."
+  },
+  {
+    "Path": "internal/web/engagement_new.templ",
+    "OpenTag": "<button id=\"engagement-notes-write-tab\" type=\"button\" role=\"tab\" class=\"tab tab-active\" aria-selected=\"true\" aria-controls=\"engagement-notes-write-panel\" data-notes-write>",
+    "Line": 142,
+    "Reason": "Fixed write tab in the notes tablist; its tab styling and selected state identify the control without button chrome."
+  },
+  {
+    "Path": "internal/web/engagement_new.templ",
+    "OpenTag": "<button id=\"engagement-notes-preview-tab\" type=\"button\" role=\"tab\" class=\"tab\" aria-selected=\"false\" aria-controls=\"engagement-notes-preview-panel\" tabindex=\"-1\" data-notes-preview>",
+    "Line": 143,
+    "Reason": "Fixed preview tab in the notes tablist; its tab styling and selected state identify the control without button chrome."
+  },
+  {
+    "Path": "internal/web/engagement_list.templ",
+    "OpenTag": "<a href={ templ.SafeURL(\"/workspaces/\" + data.Workspace.ID.String() + \"/engagement-stages#stages\") }>",
+    "Line": 112,
+    "Reason": "Fixed navigation link in the settings dropdown has no caller-controlled class or attribute spread; menu styling intentionally remains unboxed."
+  },
+  {
+    "Path": "internal/web/engagement_list.templ",
+    "OpenTag": "<a href={ templ.SafeURL(\"/workspaces/\" + data.Workspace.ID.String() + \"/engagement-stages#engagement-label\") }>",
+    "Line": 113,
+    "Reason": "Fixed navigation link in the settings dropdown has no caller-controlled class or attribute spread; menu styling intentionally remains unboxed."
+  },
+  {
+    "Path": "internal/web/components/organisms/list_actions.templ",
+    "OpenTag": "<button class=\"list-action-item is-danger\" type=\"submit\" data-client-delete data-client-name={ action.ClientDeleteName } data-confirm={ action.Confirm }>",
+    "Line": 76,
+    "Reason": "The client deletion menu item has a fixed class and no attribute spread; the unboxed menu styling is intentional, and its confirmation attributes are retained."
+  },
+  {
+    "Path": "internal/web/components/organisms/navigation.templ",
+    "OpenTag": "<a class=\"menu-active\" aria-current={ currentPage(active) } href={ href }>",
+    "Line": 57,
+    "Reason": "The active sidebar navigation link has fixed menu styling and no attribute spread; aria-current identifies the current page."
+  },
+  {
+    "Path": "internal/web/components/organisms/navigation.templ",
+    "OpenTag": "<a class=\"\" aria-current={ currentPage(active) } href={ href }>",
+    "Line": 59,
+    "Reason": "The inactive sidebar navigation link has a fixed empty class and no attribute spread; menu styling intentionally remains unboxed."
   }
 ]

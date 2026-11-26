@@ -4,6 +4,7 @@ import "strconv"
 import "example.com/dynamis-code/apps-template/internal/engagement"
 import "example.com/dynamis-code/apps-template/internal/identity"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
 import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
@@ -192,7 +193,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 						@molecules.NotesEditor(molecules.NotesEditorProps{
 							ID: "engagement-notes", Name: "notes", Label: data.T("engagement.notes")+" "+data.T("ui.optional"),
 							EditLabel: data.T("ui.edit"), SaveLabel: data.T("engagement.save_notes"), CancelLabel: data.T("engagement.cancel"), RetryLabel: data.T("engagement.retry_save"),
-							EmptyText: data.T("clients.value_none"), Saved: item.Notes, Value: value, Rendered: renderEngagementMarkdown(item.Notes),
+							EmptyText: data.T("clients.value_none"), Saved: item.Notes, Value: value,
 							Action: data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/notes",
 							CancelURL: data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String(),
 							CSRF: data.CSRF, Version: revision, VersionName: "notes_revision",
@@ -202,7 +203,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 							Draft: hasDraft, FormDraft: hasDraft, Conflict: data.ErrorKey == "engagement.notes_conflict", Empty: item.Notes == "",
 						})
 					} else if item.Notes != "" {
-						<div class="engagement-markdown">@templ.Raw(renderEngagementMarkdown(item.Notes))</div>
+						<div class="engagement-markdown">@actionattrs.Markdown(item.Notes)</div>
 					}
 				</section>
 				<section id="engagement-agreement" class="border-t border-base-300 py-4">

@@ -30,7 +30,7 @@ templ clientList(data viewmodel.PageData) {
 				<div class="modal-box w-full max-w-lg">
 					<div class="flex items-center justify-between gap-4">
 						<h2 id="client-create-title" class="text-xl font-bold">{ data.T("clients.new_client") }</h2>
-						<button class="btn btn-ghost btn-sm btn-circle" type="button" data-client-close aria-label={ data.T("ui.close") }>×</button>
+						<button class="btn btn-outline btn-sm btn-circle" type="button" data-client-close aria-label={ data.T("ui.close") }>×</button>
 					</div>
 					<div id="client-create-content">@clientCreateContent(data, true)</div>
 				</div>

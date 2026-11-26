@@ -52,7 +52,13 @@ templ navLi(data viewmodel.PageData, href, key string, active bool) {
 }
 
 templ sidebarNavLi(data viewmodel.PageData, href, key string, active bool) {
-	<li><a class={ templ.KV("menu-active", active) } aria-current={ currentPage(active) } href={ href }>{ data.T(key) }</a></li>
+	<li>
+		if active {
+			<a class="menu-active" aria-current={ currentPage(active) } href={ href }>{ data.T(key) }</a>
+		} else {
+			<a class="" aria-current={ currentPage(active) } href={ href }>{ data.T(key) }</a>
+		}
+	</li>
 }
 
 
@@ -88,14 +94,14 @@ templ WorkspaceNav(data viewmodel.PageData) {
 			</ul>
 		</nav>
 	} else {
-		<nav class="sidebar-navigation" aria-label={ data.T("navigation.workspace_navigation") }>
+		{{ engagementPath := "/workspaces/"+data.Workspace.ID.String()+"/engagements"; isEngagement := strings.HasPrefix(data.CurrentPath, engagementPath) }}<nav class="sidebar-navigation" aria-label={ data.T("navigation.workspace_navigation") }>
 			<ul class="menu w-full">
 				@navTitle(data.T("common.workspace"))
 				@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String(), "navigation.home", data.NavPage == "workspace")
 				if data.ClientsEnabled {
-					@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/clients", "clients.title", (data.NavPage == "clients" && !strings.HasPrefix(data.CurrentPath, "/workspaces/"+data.Workspace.ID.String()+"/engagements")) || data.NavPage == "client-detail" || data.NavPage == "client-fields")
+					@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/clients", "clients.title", (data.NavPage == "clients" && !isEngagement) || data.NavPage == "client-detail" || data.NavPage == "client-fields")
 					if data.EngagementEnabled {
-						@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/engagements", "engagement.title", strings.HasPrefix(data.CurrentPath, "/workspaces/"+data.Workspace.ID.String()+"/engagements"))
+						@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/engagements", "engagement.title", isEngagement)
 					}
 				}
 				if data.CatalogEnabled {

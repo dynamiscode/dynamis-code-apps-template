@@ -495,10 +495,10 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 	case "internal/web/clients.go":
 		value = removeLinesContaining(value, `/internal/scheduling"`)
 		value = removeLinesContaining(value, "engagementBookings :=")
-		value = removeText(value, "\tif h.scheduling != nil && len(engagements) > 0 {", "\townerError := false")
+		value = removeText(value, "\tif h.scheduling != nil && request.PathValue(\"engagementId\") != \"\" && len(engagements) > 0 {", "\townerError := false")
 		value = strings.ReplaceAll(value, "EngagementBookings: engagementBookings, ", "")
-	case "internal/web/clients.templ":
-		value = removeText(value, "\t\t\t\t\t\t\tif len(data.EngagementBookings[item.ID]) > 0 {", "\t\t\t\t\t\t\tif data.CanEditClients {")
+	case "internal/web/engagement.templ":
+		value = removeText(value, "\n\t\t\t\tif len(data.EngagementBookings[item.ID]) > 0 {", "\n\t\t\t</section>")
 	case "docs/capabilities.md":
 		value = removeLinesContaining(value, "000049_scheduling_engagement.sql")
 		value = removeLinesContaining(value, "000050_scheduling_booking_moves.sql")

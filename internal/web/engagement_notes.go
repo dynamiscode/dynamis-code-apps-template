@@ -1,27 +1,21 @@
 package web
 
 import (
-	"bytes"
 	"errors"
 	"net/http"
 	"unicode/utf8"
 
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/extension"
-
 	"example.com/dynamis-code/apps-template/internal/engagement"
 	"example.com/dynamis-code/apps-template/internal/identity"
+	"example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 )
 
-var engagementMarkdown = goldmark.New(goldmark.WithExtensions(extension.GFM))
-
-// Raw HTML and unsafe links are disabled by Goldmark's default renderer.
 func renderEngagementMarkdown(source string) string {
-	var output bytes.Buffer
-	if err := engagementMarkdown.Convert([]byte(source), &output); err != nil {
+	rendered, err := actionattrs.MarkdownHTML(source)
+	if err != nil {
 		return ""
 	}
-	return output.String()
+	return rendered
 }
 
 func (h *Handler) setEngagementNotes(w http.ResponseWriter, r *http.Request) {

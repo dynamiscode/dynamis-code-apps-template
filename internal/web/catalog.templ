@@ -236,7 +236,7 @@ templ catalogList(data viewmodel.PageData, entries []catalog.Entry, canWrite, in
   <nav class="flex flex-wrap gap-2 sm:hidden" aria-label={ data.T("clients.sort_label") }>
    for _, column := range data.ListColumns {
     if column.SortHref != "" {
-     <a class="btn btn-sm btn-ghost" href={ templ.SafeURL(column.SortHref) }>{ data.T(column.LabelKey) }</a>
+     <a class="btn btn-sm btn-outline" href={ templ.SafeURL(column.SortHref) }>{ data.T(column.LabelKey) }</a>
     }
    }
   </nav>

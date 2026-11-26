@@ -1,8 +1,10 @@
 package molecules
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type NotesEditorProps struct {
 	ID, Name, Label, EditLabel, SaveLabel, CancelLabel, RetryLabel, EmptyText string
-	Value, Saved, Rendered, Action, CancelURL, CSRF, Version, VersionName, Field, Error string
+	Value, Saved, Action, CancelURL, CSRF, Version, VersionName, Field, Error string
 	Warning, BoldLabel, ItalicLabel, ListLabel, SourceLabel, MaxLength string
 	LinkLabel, LinkURLLabel, LinkApplyLabel, LinkCancelLabel, LinkInvalidLabel string
 	Draft, FormDraft, Conflict, Empty bool
@@ -12,12 +14,12 @@ type NotesEditorProps struct {
 
 templ NotesEditor(props NotesEditorProps) {
 	{{ versionName := props.VersionName; if versionName == "" { versionName = "version" } }}
-	<details class={ "notes-editor group relative w-full", props.Class } data-notes-editor data-notes-saved={ props.Saved } data-notes-draft?={ props.Draft } data-notes-conflict?={ props.Conflict } open?={ props.Draft } { props.Attrs... }>
+	<details class={ "notes-editor group relative w-full", props.Class } data-notes-editor data-notes-saved={ props.Saved } data-notes-draft?={ props.Draft } data-notes-conflict?={ props.Conflict } open?={ props.Draft } { actionattrs.ScalarAttributes(props.Attrs)... }>
 		<summary class="relative block w-full cursor-text list-none rounded-field pr-8 hover:bg-base-300 group-open:hidden">
 			if props.Empty {
 				<span class="status-line">{ props.EmptyText }</span>
 			} else {
-				<div class="engagement-markdown">@templ.Raw(props.Rendered)</div>
+				<div class="engagement-markdown">@actionattrs.Markdown(props.Saved)</div>
 			}
 			<svg class="absolute right-2 top-1/2 -translate-y-1/2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m15 5 4 4M4 20l4-1 11-11a2.8 2.8 0 0 0-4-4L4 15z"/></svg>
 			<span class="sr-only">{ props.EditLabel } { props.Label }</span>
@@ -33,18 +35,18 @@ templ NotesEditor(props NotesEditorProps) {
 			<label for={ props.ID }>{ props.Label }</label>
 			<div class="rounded-field border border-base-content/40 focus-within:outline-2 focus-within:outline-primary">
 			<div data-notes-toolbar hidden class="flex flex-wrap gap-1 p-2" role="toolbar" aria-label={ props.Label }>
-				<button type="button" class="btn btn-ghost btn-sm aria-pressed:bg-primary! aria-pressed:text-primary-content! aria-pressed:ring-2 aria-pressed:ring-primary" data-notes-format="strong" aria-label={ props.BoldLabel } aria-pressed="false"><strong aria-hidden="true">B</strong></button>
-				<button type="button" class="btn btn-ghost btn-sm aria-pressed:bg-primary! aria-pressed:text-primary-content! aria-pressed:ring-2 aria-pressed:ring-primary" data-notes-format="em" aria-label={ props.ItalicLabel } aria-pressed="false"><em aria-hidden="true">I</em></button>
-				<button type="button" class="btn btn-ghost btn-sm aria-pressed:bg-primary! aria-pressed:text-primary-content! aria-pressed:ring-2 aria-pressed:ring-primary" data-notes-format="list" aria-label={ props.ListLabel } aria-pressed="false">☰</button>
-				<button type="button" class="btn btn-ghost btn-sm" data-notes-link aria-expanded="false" aria-controls={ props.ID + "-link-panel" }>{ props.LinkLabel }</button>
-				<button type="button" class="btn btn-ghost btn-sm aria-pressed:bg-primary! aria-pressed:text-primary-content! aria-pressed:ring-2 aria-pressed:ring-primary" data-notes-source-mode aria-pressed="false">{ props.SourceLabel }</button>
+				<button type="button" class="btn btn-outline btn-sm aria-pressed:bg-primary! aria-pressed:text-primary-content! aria-pressed:ring-2 aria-pressed:ring-primary" data-notes-format="strong" aria-label={ props.BoldLabel } aria-pressed="false"><strong aria-hidden="true">B</strong></button>
+				<button type="button" class="btn btn-outline btn-sm aria-pressed:bg-primary! aria-pressed:text-primary-content! aria-pressed:ring-2 aria-pressed:ring-primary" data-notes-format="em" aria-label={ props.ItalicLabel } aria-pressed="false"><em aria-hidden="true">I</em></button>
+				<button type="button" class="btn btn-outline btn-sm aria-pressed:bg-primary! aria-pressed:text-primary-content! aria-pressed:ring-2 aria-pressed:ring-primary" data-notes-format="list" aria-label={ props.ListLabel } aria-pressed="false">☰</button>
+				<button type="button" class="btn btn-outline btn-sm" data-notes-link aria-expanded="false" aria-controls={ props.ID + "-link-panel" }>{ props.LinkLabel }</button>
+				<button type="button" class="btn btn-outline btn-sm aria-pressed:bg-primary! aria-pressed:text-primary-content! aria-pressed:ring-2 aria-pressed:ring-primary" data-notes-source-mode aria-pressed="false">{ props.SourceLabel }</button>
 			</div>
 			<div id={ props.ID + "-link-panel" } data-notes-link-panel hidden>
 				<label for={ props.ID + "-link-url" }>{ props.LinkURLLabel }</label>
 				<input id={ props.ID + "-link-url" } data-notes-link-url type="text" inputmode="url" class="input w-full" aria-describedby={ props.ID + "-link-error" }/>
 				<p id={ props.ID + "-link-error" } data-notes-link-error role="status" hidden>{ props.LinkInvalidLabel }</p>
 				<button type="button" class="btn btn-sm" data-notes-link-apply>{ props.LinkApplyLabel }</button>
-				<button type="button" class="btn btn-ghost btn-sm" data-notes-link-cancel>{ props.LinkCancelLabel }</button>
+				<button type="button" class="btn btn-outline btn-sm" data-notes-link-cancel>{ props.LinkCancelLabel }</button>
 			</div>
 			<p data-notes-warning hidden role="status">{ props.Warning }</p>
 			<div data-notes-rich hidden class="engagement-markdown h-48 w-full overflow-y-auto [&_.ProseMirror]:min-h-full [&_.ProseMirror]:border-0! [&_.ProseMirror]:shadow-none! [&_.ProseMirror]:outline-none!"></div>
@@ -57,11 +59,11 @@ templ NotesEditor(props NotesEditorProps) {
 					<button class="btn btn-sm" type="submit">{ props.RetryLabel }</button>
 				} else {
 					<span class="tooltip tooltip-bottom" data-tip={ props.SaveLabel }>
-						<button class="btn btn-ghost btn-square" type="submit" aria-label={ props.SaveLabel }><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m5 12 4 4L19 6"/></svg></button>
+						<button class="btn btn-outline btn-square" type="submit" aria-label={ props.SaveLabel }><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m5 12 4 4L19 6"/></svg></button>
 					</span>
 				}
 				<span class="tooltip tooltip-bottom" data-tip={ props.CancelLabel }>
-					<a class="btn btn-ghost btn-square" href={ props.CancelURL } data-notes-cancel aria-label={ props.CancelLabel }><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></a>
+					<a class="btn btn-outline btn-square" href={ props.CancelURL } data-notes-cancel aria-label={ props.CancelLabel }><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></a>
 				</span>
 			</div>
 			</div>

@@ -24,7 +24,7 @@ templ Breadcrumbs(props BreadcrumbsProps) {
 			for i, prop := range props.Items {
 				<li class="select-none max-w-full">
 					if prop.Href != "" {
-						<a class="link link-hover inline-flex min-h-11 max-w-full items-center whitespace-normal break-words border-0! bg-transparent! focus-visible:outline-2 focus-visible:outline-offset-2" href={ templ.SafeURL(prop.Href) } { actionattrs.From(prop.Attrs)... }>{ prop.Label }</a>
+						<a class="link link-hover inline-flex min-h-11 max-w-full items-center whitespace-normal break-words border border-base-300 bg-transparent! focus-visible:outline-2 focus-visible:outline-offset-2" href={ templ.SafeURL(prop.Href) } { actionattrs.From(prop.Attrs)... }>{ prop.Label }</a>
 					} else {
 						if i == len(props.Items) - 1 {
 							<span aria-current="page" class="break-words font-semibold">{ prop.Label }</span>

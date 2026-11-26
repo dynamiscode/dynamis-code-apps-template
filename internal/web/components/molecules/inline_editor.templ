@@ -1,5 +1,7 @@
 package molecules
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type InlineEditorProps struct {
 	Saved, Display, EmptyText, Value string
 	Label, InputLabel, EditLabel, SaveLabel, CancelLabel string
@@ -13,7 +15,7 @@ type InlineEditorProps struct {
 }
 
 templ InlineEditor(props InlineEditorProps) {
-	<details class={ "group relative w-full", props.Class } data-inline-title data-inline-saved={ props.Saved } data-inline-dirty-on-load?={ props.Draft } data-inline-explicit-retry?={ props.Conflict } open?={ props.Draft } { props.Attrs... }>
+	<details class={ "group relative w-full", props.Class } data-inline-title data-inline-saved={ props.Saved } data-inline-dirty-on-load?={ props.Draft } data-inline-explicit-retry?={ props.Conflict } open?={ props.Draft } { actionattrs.ScalarAttributes(props.Attrs)... }>
 		<summary class={ "relative block w-full cursor-text list-none rounded-field pr-8 hover:bg-base-300 hover:outline hover:outline-1 hover:outline-base-content/30 group-open:invisible", templ.KV("break-all", !props.Heading), templ.KV("whitespace-pre-wrap", props.InputType == "textarea" && !props.Heading) }>
 			if props.Heading {
 				<h1 class="inline text-2xl font-bold">{ props.Display }</h1>
@@ -52,18 +54,18 @@ templ InlineEditor(props InlineEditorProps) {
 			<div class="absolute right-0 top-full flex gap-1 rounded-box bg-base-100 p-1 shadow-lg">
 				if props.ClearURL != "" {
 					<span class="tooltip tooltip-bottom" data-tip={ props.ClearLabel }>
-						<button class="btn btn-ghost btn-square" type="submit" formaction={ props.ClearURL } formnovalidate aria-label={ props.ClearLabel }><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m7 21-4-4a2 2 0 0 1 0-3l9-9a2 2 0 0 1 3 0l6 6a2 2 0 0 1 0 3l-7 7H7ZM7 10l7 7M14 21h7"/></svg></button>
+						<button class="btn btn-outline btn-square" type="submit" formaction={ props.ClearURL } formnovalidate aria-label={ props.ClearLabel }><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m7 21-4-4a2 2 0 0 1 0-3l9-9a2 2 0 0 1 3 0l6 6a2 2 0 0 1 0 3l-7 7H7ZM7 10l7 7M14 21h7"/></svg></button>
 					</span>
 				}
 				if props.Conflict {
 					<button class="btn btn-sm" type="submit">{ props.RetryLabel }</button>
 				} else {
 					<span class="tooltip tooltip-bottom" data-tip={ props.SaveLabel }>
-						<button class="btn btn-ghost btn-square" type="submit" aria-label={ props.SaveLabel } { templ.Attributes{"data-confirm": templ.KV(props.Confirm, props.Confirm != "")}... }><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m5 12 4 4L19 6"/></svg></button>
+						<button class="btn btn-outline btn-square" type="submit" aria-label={ props.SaveLabel } { templ.Attributes{"data-confirm": templ.KV(props.Confirm, props.Confirm != "")}... }><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m5 12 4 4L19 6"/></svg></button>
 					</span>
 				}
 				<span class="tooltip tooltip-bottom" data-tip={ props.CancelLabel }>
-					<a class="btn btn-ghost btn-square" href={ props.CancelURL } data-inline-cancel aria-label={ props.CancelLabel }><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></a>
+					<a class="btn btn-outline btn-square" href={ props.CancelURL } data-inline-cancel aria-label={ props.CancelLabel }><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></a>
 				</span>
 			</div>
 		</form>

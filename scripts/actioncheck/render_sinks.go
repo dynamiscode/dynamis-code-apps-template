@@ -23,7 +23,8 @@ func directRenderProducer(receiver ast.Expr, info *types.Info, known map[string]
 		return false
 	}
 	fn := calledFunction(producer, info)
-	return fn != nil && fn.Pkg() != nil && fn.Type().(*types.Signature).Recv() == nil && known[fn.Pkg().Path()][fn.Name()]
+	return fn != nil && fn.Pkg() != nil && fn.Type().(*types.Signature).Recv() == nil &&
+		(known[fn.Pkg().Path()][fn.Name()] || packageFunction(producer, info, actionattrsImportPath, "Markdown"))
 }
 
 func handwrittenIdentifier(mapping *templparser.SourceMap, input []byte, position token.Position, name string) bool {
@@ -254,7 +255,8 @@ func closedTemplateConsumers(functions map[*types.Func]typedFunction, known map[
 				return true
 			}
 			producer, ok := ast.Unparen(method.X).(*ast.CallExpr)
-			valid = ok && (packageFunction(producer, source.info, "github.com/a-h/templ", "JSONScript") || closed(calledFunction(producer, source.info)))
+			valid = ok && (packageFunction(producer, source.info, "github.com/a-h/templ", "JSONScript") ||
+				packageFunction(producer, source.info, actionattrsImportPath, "Markdown") || closed(calledFunction(producer, source.info)))
 			return valid
 		})
 		results[function] = valid

@@ -680,7 +680,7 @@ func CheckPath(source, path string, exceptions []Exception) ([]Violation, error)
 				case *ast.SelectorExpr:
 					if qualifier, ok := function.X.(*ast.Ident); ok {
 						importPath := imports[qualifier.Name]
-						if importPath == actionattrsImportPath && function.Sel.Name == "Scanned" || qualifier.Name == "templ" && function.Sel.Name == "JSONScript" && importPath == "" {
+						if importPath == actionattrsImportPath && (function.Sel.Name == "Scanned" || function.Sel.Name == "Markdown") || qualifier.Name == "templ" && function.Sel.Name == "JSONScript" && importPath == "" {
 							proven = true
 						} else if strings.HasPrefix(importPath, "example.com/dynamis-code/apps-template/internal/web/") {
 							if _, ok := importedTemplates[importPath]; !ok {

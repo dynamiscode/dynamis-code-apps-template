@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -30,6 +32,41 @@ func TestClientsOmissionKeepsSchedulingMembershipCleanup(t *testing.T) {
 	output := string(disableClientsSource("internal/identity/service.go", raw))
 	if strings.Contains(output, "UPDATE engagements SET assignee_id") || strings.Contains(output, "UPDATE engagement_next_actions SET owner_id") || !strings.Contains(output, "UPDATE scheduling_resources SET user_id = NULL") {
 		t.Fatal("Clients omission must remove engagement cleanup and retain scheduling cleanup")
+	}
+}
+
+func TestCatalogOmissionPrunesEngagementBookings(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	for _, tc := range []struct {
+		path string
+		kept []string
+	}{
+		{"internal/web/clients.go", []string{"ownerError := false", "Engagements:      engagements", "EngagementStages: stages"}},
+		{"internal/web/engagement.templ", []string{"engagement-quote-heading", "activity-heading"}},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			source, err := os.ReadFile(filepath.Join(root, tc.path))
+			if err != nil {
+				t.Fatal(err)
+			}
+			output := string(disableCatalogSource(tc.path, source))
+			for _, removed := range []string{"engagementBookings", "EngagementBookings", "h.scheduling.Schedule"} {
+				if strings.Contains(output, removed) {
+					t.Errorf("catalog-free output contains %q", removed)
+				}
+			}
+			for _, kept := range tc.kept {
+				if !strings.Contains(output, kept) {
+					t.Errorf("catalog-free output lost %q", kept)
+				}
+			}
+			if strings.HasSuffix(tc.path, ".go") {
+				if _, err := parser.ParseFile(token.NewFileSet(), tc.path, output, 0); err != nil {
+					t.Fatalf("catalog-free Go source: %v", err)
+				}
+			}
+		})
 	}
 }
 
@@ -99,7 +136,7 @@ func TestGenerateCatalogProfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var sourceExceptions []map[string]json.RawMessage
+	var sourceExceptions []map[string]any
 	if err := json.Unmarshal(exceptionData, &sourceExceptions); err != nil {
 		t.Fatal(err)
 	}
@@ -120,15 +157,15 @@ func TestGenerateCatalogProfile(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			var actual []map[string]json.RawMessage
+			var actual []map[string]any
 			if err := json.Unmarshal(data, &actual); err != nil {
 				t.Fatal(err)
 			}
-			var expected []map[string]json.RawMessage
+			var expected []map[string]any
 			for _, exception := range sourceExceptions {
-				var path string
-				if err := json.Unmarshal(exception["Path"], &path); err != nil {
-					t.Fatal(err)
+				path, ok := exception["Path"].(string)
+				if !ok {
+					t.Fatal("exception has no string Path")
 				}
 				if path == "internal/web/catalog.templ" && !selected ||
 					path == "internal/web/engagement_list.templ" && !tc.clients {

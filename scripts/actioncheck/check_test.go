@@ -19,6 +19,28 @@ const testImports = "package demo\n\n" +
 	"import molecules \"example.com/dynamis-code/apps-template/internal/web/components/molecules\"\n" +
 	"import \"example.com/dynamis-code/apps-template/internal/web/components/actionattrs\"\n"
 
+func TestReviewedExecutableBindingsArePathAndCountScoped(t *testing.T) {
+	for _, tc := range []struct {
+		path, binding string
+	}{
+		{"internal/web/catalog.templ", `x-data="listScreen"`},
+		{"internal/web/engagement_list.templ", `x-data="listScreen"`},
+		{"internal/web/engagement_new.templ", `x-data="engagementClientPicker"`},
+		{"internal/web/engagement_new.templ", `x-data="engagementNotesEditor"`},
+	} {
+		for _, count := range []int{1, 2} {
+			source := "package fixture\n templ View() {\n" + strings.Repeat("<div "+tc.binding+"></div>\n", count) + "}"
+			violations, err := CheckPath(source, tc.path, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(violations) != count-1 {
+				t.Errorf("%s %s count %d: %v", tc.path, tc.binding, count, violations)
+			}
+		}
+	}
+}
+
 func TestReviewedInlineScriptRejectsMutatedAndMovedBytes(t *testing.T) {
 	const path = "internal/web/components/atoms/time_slot_picker.templ"
 	body, err := os.ReadFile("../../" + path)

@@ -73,7 +73,7 @@ templ listActionForm(data viewmodel.PageData, action ListAction) {
 	<form class="list-action-form" method="post" action={ action.PostPath }>
 		<input type="hidden" name="csrf" value={ data.CSRF }/>
 		if action.ClientDeleteName != "" {
-			<button class={ actionattrs.ButtonClass(listActionItemClass(action)) } type="submit" data-client-delete data-client-name={ action.ClientDeleteName } data-confirm={ action.Confirm }>
+			<button class="list-action-item is-danger" type="submit" data-client-delete data-client-name={ action.ClientDeleteName } data-confirm={ action.Confirm }>
 				@ListActionIcon(action.Icon)
 				<span>{ action.Label }</span>
 			</button>

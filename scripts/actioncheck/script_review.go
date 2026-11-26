@@ -23,6 +23,7 @@ var reviewedTemplateScripts = map[string]map[string]string{
 		"96f6eedf3aadf05d8389230c28f5d0337350b905f7b0aa85da3d348f463efc0c": "Closes the native dialog after a successful reservation",
 	},
 	"internal/web/components/templates/head.templ": {
+		"8374d4789b13adab479e10c48e15a1c2b7f79206665d4f9e40ecfb6d8273efe6": "Loads the reviewed notes-editor.js asset; its contents are pinned in scripts/reviewed-browser-scripts.json",
 		"2c9c1055cca8f1b4851af30c9416489ba3a2ede4a4af047f69f133e1a9247740": "Empty script body carries localized data attributes",
 	},
 }
@@ -30,7 +31,10 @@ var reviewedTemplateScripts = map[string]map[string]string{
 // These fixed Alpine bindings only call the reviewed first-party script.
 var reviewedExecutableAttributes = map[string]map[string]int{
 	"internal/web/auth.templ":                                  {`x-data="pageBehaviors"`: 1, `x-data="passkeyLogin"`: 1},
+	"internal/web/catalog.templ":                               {`x-data="listScreen"`: 1},
 	"internal/web/clients_list.templ":                          {`x-data="listScreen"`: 1},
+	"internal/web/engagement_list.templ":                       {`x-data="listScreen"`: 1},
+	"internal/web/engagement_new.templ":                        {`x-data="engagementClientPicker"`: 1, `x-data="engagementNotesEditor"`: 1},
 	"internal/web/security.templ":                              {`x-data="passkeyEnroll"`: 1},
 	"internal/web/notifications.templ":                         {`x-data="notificationsLive"`: 1},
 	"internal/web/components/templates/workspace.templ":        {`x-data="pageBehaviors"`: 1, `@click="toggleDrawer"`: 1},
