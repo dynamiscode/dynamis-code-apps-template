@@ -1,5 +1,9 @@
 # Action guardrail review (#658)
 
+> Historical review: the reviewed Go output manifest has been removed.
+> Current conformance checks do not prove that arbitrary legacy Go writers
+> preserve the reviewed browser response boundary.
+
 Inventory baseline: integration `455c15b`. Final integration base:
 `origin/main` at `6d95000`. Comparing `0824a31..6d95000` found no
 changes under `internal/web` or `cmd/preview`.
@@ -51,33 +55,16 @@ OIDC, logout, notification pages and mutations, and account pages register throu
 `serveAuthPage`. Their callbacks receive no writer and return only a
 typed outcome, with no arbitrary template producer. The adapter retains cookie
 settings, locale middleware, native redirects and verified renderer selection.
-Other browser routes still use the legacy writer. To avoid rewriting their
-request and authorization behavior, the conformance command checks
-`scripts/reviewed-go-output.json` before relying on the reviewed browser ingress,
-rendering, transport and build inputs. The manifest records exact paths and
-SHA-256 digests. It covers Go and templ source, build-tagged and committed
-generated source, native build inputs, Go dependency files, the supported
-build/check scripts, generator metadata, and Go embed payloads. Test-only Go
-files are not release-app inputs.
+Other browser routes still use the legacy writer. The reviewed Go output
+manifest formerly detected changes to their ingress, rendering, transport, and
+build inputs. It is no longer enforced; static and runtime checks do not prove
+that arbitrary Go writer effects preserve this boundary.
 
-An unreviewed addition, edit, rename or deletion fails. Before updating the
-manifest, review all reported changes and their callers, registration,
-response framing, component provenance, and consumers for every affected
-profile. Then run `go run ./scripts/update-go-output-manifest --reviewed`,
-inspect the manifest diff, and rerun full and generated-profile conformance.
-Do not use the update command to clear a failure without review. This is a
-deliberately broad maintenance tradeoff rather than a claim that arbitrary Go
-writer effects can be inferred safely. The manifest and the standard pinned Go
-toolchain are trust roots. An active workspace, Go flags or experiments are
-outside the verified build; module cache verification supplements the pinned
-`go.mod` and `go.sum`.
-
-`template-init` checks the released source manifest and build environment
-before copying. It derives a new manifest only after the known profile
-transformations, code generation, and dependency pruning succeed. Application
-metadata is escaped in supported data contexts and unsupported executable
-substitutions fail. Generated applications need the same explicit review for
-later changes.
+An active workspace, Go flags, or experiments are outside the verified build.
+Module cache verification supplements the pinned `go.mod` and `go.sum`.
+`template-init` checks the build environment before and after generation.
+Application metadata is escaped in supported data contexts, and unsupported
+executable substitutions fail.
 
 Uploaded file bytes and presigned storage responses are user data outside the
 app-authored action-markup contract. File rows and menus navigate to native
