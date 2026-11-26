@@ -110,7 +110,7 @@ func (s *Service) SetCurrencies(ctx context.Context, actor identity.Principal, w
 		return identity.ErrForbidden
 	}
 	// Lock the workspace before reading the current configuration.
-	if _, err := tx.ExecContext(ctx, `UPDATE workspaces SET id = id WHERE id = $1`, workspaceID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE workspaces SET locale = locale WHERE id = $1`, workspaceID); err != nil {
 		return err
 	}
 	previous, err := List(ctx, tx, workspaceID)
