@@ -162,7 +162,7 @@ func TestListWorkspaceFiltersAndPages(t *testing.T) {
 	}
 	check(ListInput{Page: 1, Limit: 1, Search: "%"}, 2, accent.ID)
 	check(ListInput{Page: 2, Limit: 1, Search: "%"}, 2, ids[1])
-	for _, in := range []ListInput{{Page: 0, Limit: 1}, {Page: 1, Limit: 101}, {Page: clients.MaxListPage + 1, Limit: 1}, {Page: 1, Limit: 1, Search: string([]byte{0xff})}} {
+	for _, in := range []ListInput{{Page: 0, Limit: 1}, {Page: 1, Limit: 101}, {Page: clients.MaxListPage + 1, Limit: 1}, {Page: 1, Limit: 1, Search: string([]byte{0xff})}, {Page: 1, Limit: 1, Sort: "name; DROP TABLE engagements", Direction: "asc"}, {Page: 1, Limit: 1, Sort: "name", Direction: "asc; DROP TABLE engagements"}} {
 		if _, err := svc.List(ctx, owner, boot.WorkspaceID, in); !errors.Is(err, ErrInvalidInput) {
 			t.Fatalf("invalid %+v: %v", in, err)
 		}

@@ -44,17 +44,29 @@ func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceI
 	if input.Page < 1 || input.Page > clients.MaxListPage || input.Limit < 1 || input.Limit > 100 || input.StageID < 0 || (input.AssigneeID != nil && *input.AssigneeID < 0) || !utf8.ValidString(input.Search) || utf8.RuneCountInString(input.Search) > 200 {
 		return Page{}, ErrInvalidInput
 	}
-	sortColumns := map[string]string{
-		"name": "e.name", "client": "c.display_name", "stage": "s.name", "assignee": "COALESCE(u.email, '')",
-	}
+	var column string
 	order := "e.id DESC"
 	if input.Sort != "" {
-		column, ok := sortColumns[input.Sort]
-		if !ok || (input.Direction != "asc" && input.Direction != "desc") {
+		switch input.Sort {
+		case "name":
+			column = "e.name"
+		case "client":
+			column = "c.display_name"
+		case "stage":
+			column = "s.name"
+		case "assignee":
+			column = "COALESCE(u.email, '')"
+		default:
 			return Page{}, ErrInvalidInput
 		}
-		direction := strings.ToUpper(input.Direction)
-		order = column + " " + direction + ", e.id " + direction
+		switch input.Direction {
+		case "asc":
+			order = column + " ASC, e.id ASC"
+		case "desc":
+			order = column + " DESC, e.id DESC"
+		default:
+			return Page{}, ErrInvalidInput
+		}
 	} else if input.Direction != "" {
 		return Page{}, ErrInvalidInput
 	}

@@ -61,7 +61,7 @@
   "internal/engagement/dashboard.go": "b663ae4a1aa4029b8f04d792cafc0f48e4561a1e56c810890115c8dc8609e3c2",
   "internal/engagement/engagement.go": "ebcce36a78662d9685380eb4e3c80388dffb2e272697ae2c41e46192015b682c",
   "internal/engagement/label.go": "12e3b1a8f45a43da22cc479a56582fe9f7351b08a527c4584f2d8c661e5355b6",
-  "internal/engagement/list.go": "f8837022e0c9f76de34fa356fa52529c3b64a8a90059d56a62518364ee8f5dcb",
+  "internal/engagement/list.go": "32074c014f4bcb7161c0cf495d946b628080727c7c8de7286f5f88956670f275",
   "internal/engagement/next_action.go": "3274f4421358e9839eb5f878491dce75464ac385cf55de0ce3b3ce169c91e553",
   "internal/engagement/quote.go": "8de28ba12589ccbd8964d57c732dddf423a1998e52105fe95ce83afbd9d07702",
   "internal/engagement/service.go": "ed651ac9100351160809868b67509bf247c4f121b9e1f425c59a4d8ecbedcb3f",
