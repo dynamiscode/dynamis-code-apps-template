@@ -667,10 +667,14 @@ func TestEntryLabelAndValueAlignment(t *testing.T) {
 	path := eval[string](t, tab, "location.pathname")
 	navigate(t, tab, path+"/new")
 	waitVisible(t, tab, "#client-display-name")
+	eventually(t, tab, `document.querySelector("#client-display-name").closest("[data-entry-field]").hasAttribute("data-entry-bound")`, "client entry field was not enhanced")
 
 	measure := func(selector string) {
 		t.Helper()
-		check := fmt.Sprintf(`(() => {
+		position := eval[struct {
+			Label, Value, Border, Padding float64
+			Bound                         bool
+		}](t, tab, fmt.Sprintf(`(() => {
 			const control = document.querySelector(%s);
 			const field = control.closest("[data-entry-field]");
 			const label = field.querySelector("label");
@@ -680,10 +684,11 @@ func TestEntryLabelAndValueAlignment(t *testing.T) {
 			const text = range.getBoundingClientRect();
 			const rect = visible.getBoundingClientRect();
 			const style = getComputedStyle(visible);
-			return Math.abs(text.left - rect.left - parseFloat(style.borderLeftWidth) - parseFloat(style.paddingLeft)) < 0.1;
-		})()`, jsString(selector))
-		if !eval[bool](t, tab, check) {
-			t.Fatalf("%s label and value text origins differ", selector)
+			const border = parseFloat(style.borderLeftWidth), padding = parseFloat(style.paddingLeft);
+			return {label: text.left, value: rect.left + border + padding, border, padding, bound: field.hasAttribute("data-entry-bound")};
+		})()`, jsString(selector)))
+		if math.Abs(position.Label-position.Value) >= 0.1 {
+			t.Fatalf("%s label and value text origins differ: %+v", selector, position)
 		}
 	}
 	measure("#client-display-name")
@@ -738,4 +743,22 @@ func TestEntryLabelAndValueAlignment(t *testing.T) {
 	measure("#client-notes")
 	fill(t, tab, "#client-notes", "Notes")
 	measure("#client-notes")
+
+	navigate(t, tab, strings.TrimSuffix(path, "/clients")+"/transactions")
+	click(t, tab, `a[href*="view=record"]`)
+	waitVisible(t, tab, "#transactions-description")
+	measure("#transactions-description")
+	measure("#transactions-direction")
+	click(t, tab, `label[for="transactions-description"]`)
+	measure("#transactions-description")
+	descriptionLabel := eval[string](t, tab, `document.querySelector('label[for="transactions-description"]').textContent.trim()`)
+	fill(t, tab, "#transactions-description", descriptionLabel)
+	measure("#transactions-description")
+	valueX = captureStart("#transactions-description", false)
+	fill(t, tab, "#transactions-description", "")
+	click(t, tab, "#transactions-amount")
+	labelX = captureStart("#transactions-description", true)
+	if math.Abs(float64(labelX-valueX)) > 1 {
+		t.Fatalf("transaction placeholder starts at %d; entered text starts at %d", labelX, valueX)
+	}
 }

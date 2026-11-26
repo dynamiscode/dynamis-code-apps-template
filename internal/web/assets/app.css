@@ -406,6 +406,8 @@ li[data-optimistic="hidden"], tr[data-optimistic="hidden"] { display: none; }
 .entry-field { position: relative; min-width: 0; }
 .entry-field > .entry-field-label { display: block; }
 .entry-field > :is(input, textarea, select) { width: 100%; }
+.entry-field > :is(input:not([type="hidden"]), textarea, select) { border: var(--border, 1px) solid var(--border-color); padding-inline-start: .75rem; }
+.entry-field > :is(input, textarea, select)[aria-invalid="true"] { border-color: var(--danger); }
 .entry-field:has(> :is(input:not([type="hidden"]), textarea, select)) { display: grid; grid-template-columns: minmax(0, 1fr); }
 .entry-field > .entry-field-label { grid-area: 1 / 1; }
 .entry-field > :is(input:not([type="hidden"]), textarea, select, .entry-picker-trigger) { grid-area: 2 / 1; min-width: 0; padding-inline-end: 2.5rem; }
@@ -413,19 +415,19 @@ li[data-optimistic="hidden"], tr[data-optimistic="hidden"] { display: none; }
 .entry-field:has(> input:is([type="date"], [type="time"], [type="datetime-local"]))::after, .entry-field:not([data-entry-picker-enhanced]):has(> select:not(:disabled))::after { margin-inline-end: 2.5rem; }
 .entry-field > input:is([type="date"], [type="time"], [type="datetime-local"]), .entry-field:not([data-entry-picker-enhanced]) > select { padding-inline-end: 4rem; }
 .entry-field > :is(input, textarea)::placeholder { color: var(--muted); opacity: 1; }
-.entry-field:is([data-entry-filled], :has(> select option:checked:not([value=""]))):not(:focus-within) > :is(input:not([type="hidden"]), textarea, select, .entry-picker-trigger) { border-color: transparent; background-color: transparent; box-shadow: none; }
+.entry-field:is([data-entry-filled], :has(> select option:checked:not([value=""]))):not(:focus-within) > :is(input:not([type="hidden"]), textarea, select, .entry-picker-trigger):not([aria-invalid="true"]) { border-color: transparent; background-color: transparent; box-shadow: none; }
 .entry-field:is([data-entry-filled], :has(> select option:checked:not([value=""]))):not(:focus-within):hover > :is(input:not([type="hidden"]), textarea, select, .entry-picker-trigger) { background-color: var(--accent-surface); }
-.js-enhanced .entry-field[data-entry-bound]:has(> input, > textarea, > select) > .entry-field-label { position: absolute; z-index: 1; left: calc(.75rem + var(--border, 1px)); top: .75rem; }
-.js-enhanced .entry-field[data-entry-bound]:not([data-entry-filled]):not(:focus-within) > .entry-field-label { color: var(--muted); }
-.js-enhanced .entry-field[data-entry-bound]:has(> input, > textarea, > select):is([data-entry-filled], :focus-within) > .entry-field-label { top: .15rem; font-size: .75rem; line-height: 1rem; }
-.js-enhanced .entry-field[data-entry-bound] > :is(input, textarea, select), .entry-picker-trigger { padding-top: 1.1rem; }
+.entry-field[data-entry-bound]:has(> input, > textarea, > select) > .entry-field-label { position: absolute; z-index: 1; left: calc(.75rem + var(--border, 1px)); top: .75rem; }
+.entry-field[data-entry-bound]:not([data-entry-filled]):not(:focus-within) > .entry-field-label { color: var(--muted); }
+.entry-field[data-entry-bound]:has(> input, > textarea, > select):is([data-entry-filled], :focus-within) > .entry-field-label { top: .15rem; font-size: .75rem; line-height: 1rem; }
+.entry-field[data-entry-bound] > :is(input, textarea, select), .entry-picker-trigger { padding-top: 1.1rem; }
 .entry-picker-trigger { display: block; width: 100%; min-height: 2.75rem; text-align: left; border: var(--border, 1px) solid var(--border-color); border-radius: var(--radius-field, .25rem); padding-inline: .75rem; background: var(--canvas); }
 .entry-field[data-entry-picker-enhanced] > select { position: absolute; width: 1px; height: 1px; padding: 0; clip-path: inset(50%); overflow: hidden; }
 .entry-picker-panel { position: absolute; z-index: 40; top: 100%; left: 0; min-width: 100%; max-width: min(28rem, 90vw); max-height: 18rem; overflow: auto; padding: .5rem; border: 1px solid var(--border-color); border-radius: .5rem; background: var(--canvas); box-shadow: 0 .4rem 1rem var(--shadow); }
 .entry-picker-panel[hidden], .entry-picker-fallback-search[hidden] { display: none; }
 .entry-picker-trigger[hidden] { display: none; }
-.js-enhanced .entry-field[data-entry-bound]:not([data-entry-filled]):not(:focus-within) > :is(input, textarea)::placeholder { color: transparent; }
-.js-enhanced .entry-field[data-entry-picker-enhanced]:not([data-entry-filled]):not(:focus-within) .entry-picker-trigger > span { visibility: hidden; }
+.entry-field[data-entry-bound]:not([data-entry-filled]):not(:focus-within) > :is(input, textarea)::placeholder { color: transparent; }
+.entry-field[data-entry-picker-enhanced]:not([data-entry-filled]):not(:focus-within) .entry-picker-trigger > span { visibility: hidden; }
 .entry-picker-search { width: 100%; }
 .entry-picker-option { display: block; width: 100%; padding: .55rem .75rem; text-align: left; }
 .entry-picker-option:is(:hover, :focus-visible), .entry-picker-option[aria-selected="true"] { background: var(--border-color); }
