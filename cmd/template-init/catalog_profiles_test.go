@@ -252,7 +252,7 @@ func TestGenerateCatalogProfile(t *testing.T) {
 			if strings.Contains(string(raw), "/scheduling/bookings/{bookingId}/engagement") != (selected && tc.clients) {
 				t.Fatalf("engagement route mismatch: catalog=%v clients=%v", selected, tc.clients)
 			}
-			for _, path := range []string{"internal/scheduling/move.go", "internal/platform/database/migrations/000048_scheduling_bookings.sql", "internal/platform/database/migrations/000050_scheduling_booking_moves.sql"} {
+			for _, path := range []string{"internal/scheduling/move.go", "internal/platform/database/migrations/000048_scheduling_bookings.sql", "internal/platform/database/migrations/000050_scheduling_booking_moves.sql", "internal/platform/database/migrations/000056_catalog_entry_revision.sql"} {
 				_, err = os.Stat(filepath.Join(output, path))
 				if selected && err != nil || !selected && !os.IsNotExist(err) {
 					t.Fatalf("%s, selected=%v err=%v", path, selected, err)

@@ -157,7 +157,7 @@ func TestListRequiresWorkspaceRead(t *testing.T) {
 		if role != identity.Admin && !errors.Is(err, identity.ErrForbidden) {
 			t.Fatalf("%s add price: %v", role, err)
 		}
-		err = service.Update(ctx, principal, owner.WorkspaceID, created.ID, "Edited", nil)
+		err = service.Update(ctx, principal, owner.WorkspaceID, created.ID, "Edited", nil, created.Revision)
 		if role == identity.Admin && err != nil {
 			t.Fatalf("admin edit: %v", err)
 		}

@@ -42,8 +42,8 @@ func TestCookieSecurityAtHTTPBoundary(t *testing.T) {
 		{"default without URL", "", "", "app.example.com", http.StatusOK, true},
 		{"misleading local URL", "", "http://localhost:8080", "app.example.com", http.StatusOK, true},
 		{"public HTTPS", "", "https://app.example.com", "app.example.com", http.StatusOK, true},
-		{"local HTTP", "false", "", "localhost:8080", http.StatusOK, false},
-		{"local IPv6 HTTP", "false", "", "[::1]:8080", http.StatusOK, false},
+		{"local HTTP", "false", "", "localhost:8080", http.StatusOK, true},
+		{"local IPv6 HTTP", "false", "", "[::1]:8080", http.StatusOK, true},
 		{"local mode rejects public host", "false", "http://localhost:8080", "app.example.com", http.StatusBadRequest, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

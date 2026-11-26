@@ -52,6 +52,17 @@ New browser journeys and meaningful interaction or visual changes require
 [rendered UX review](ux-review.md). Report missing browser evidence as blocked;
 a passing automated check does not substitute for the review.
 
+Before pushing or integrating template changes, run `make profile-preflight`.
+It compares committed, staged, unstaged, and untracked application code against
+`origin/main` and runs the existing generated-profile matrix when affected.
+Shared code can affect any profile, so the complete matrix runs rather than
+guessing individual profiles. For another integration base, use
+`make profile-preflight BASE=<commit>`. Fetch the intended base first. The
+tests use the current working tree, including uncommitted files; rerun after
+changes. Documentation-only and other unrelated changes skip the matrix.
+This optional preflight does not install a hook or replace `make verify`.
+Run `make test-profile-preflight` for its offline deterministic self-check.
+
 ## Catalog verification ladder
 
 1. Run `go test ./internal/catalog ./internal/httpapi ./internal/web ./api` for service invariants, authorization, REST, web, and contract behavior.
