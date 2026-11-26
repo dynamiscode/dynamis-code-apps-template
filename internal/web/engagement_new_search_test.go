@@ -35,8 +35,17 @@ func TestEngagementClientSearchFragment(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := "/workspaces/" + env.workspaceID.String() + "/engagements/new"
+	small := request(env.routes, http.MethodGet, path, nil, env.cookies, map[string]string{"HX-Request": "true"})
+	if strings.Contains(small.Body.String(), `id="client-search"`) {
+		t.Fatal("client picker with five or fewer choices must not show search")
+	}
+	for i := range 4 {
+		if _, err := service.Create(ctx, owner, env.workspaceID, clients.Input{DisplayName: fmt.Sprintf("Extra client %d", i)}, identity.AuditContext{}); err != nil {
+			t.Fatal(err)
+		}
+	}
 	modal := request(env.routes, http.MethodGet, path, nil, env.cookies, map[string]string{"HX-Request": "true"})
-	for _, want := range []string{`hx-trigger="input changed delay:300ms"`, `hx-sync="#engagement-client-results:replace"`, `hx-target="#engagement-client-results"`, `role="status"`, `data-engagement-cancel`, `aria-label="Close"`, `data-client-picker`} {
+	for _, want := range []string{`hx-trigger="input changed delay:300ms"`, `hx-sync="#engagement-client-results:replace"`, `hx-target="#engagement-client-results"`, `role="status"`, `data-engagement-cancel`, `aria-label="Close"`, `data-client-picker`, `entry-picker-panel`, `data-entry-picker`, `data-entry-field`, `data-selected-client data-entry-required`, `formnovalidate`} {
 		if !strings.Contains(modal.Body.String(), want) {
 			t.Errorf("modal missing %q", want)
 		}

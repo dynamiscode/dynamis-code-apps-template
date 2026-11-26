@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"example.com/dynamis-code/apps-template/internal/catalog"
+	"example.com/dynamis-code/apps-template/internal/currency"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
@@ -18,6 +19,8 @@ type catalogForm struct {
 	name, duration         string
 	field, value, version  string
 	conflict               bool
+	searching              bool
+	currencySearch         string
 	price                  catalog.PriceOption
 }
 
@@ -38,6 +41,10 @@ func (h *Handler) catalogCreate(writer http.ResponseWriter, request *http.Reques
 	}
 	if !identity.CanWriteCatalog(principal) {
 		h.renderError(writer, http.StatusForbidden)
+		return
+	}
+	if request.FormValue("picker_action") == "currency" {
+		h.renderCatalog(writer, request, http.StatusOK, false)
 		return
 	}
 	var duration *int
@@ -132,7 +139,7 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 	}
 	includeArchived := request.URL.Query().Get("includeArchived") == "true"
 	entryID := request.URL.Query().Get("entry")
-	if request.PathValue("entryId") != "" && status != http.StatusOK {
+	if request.PathValue("entryId") != "" && (status != http.StatusOK || request.FormValue("picker_action") == "currency") {
 		entryID = request.PathValue("entryId")
 	}
 	entries, err := h.catalogService.List(request.Context(), principal, workspaceID, includeArchived || entryID != "")
@@ -150,7 +157,7 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 		}
 		filtered = append(filtered, entry)
 	}
-	if len(filtered) == 0 && entryID != "" && status != http.StatusOK {
+	if len(filtered) == 0 && entryID != "" && (status != http.StatusOK || request.FormValue("picker_action") == "currency") {
 		entryID = ""
 		for _, entry := range entries {
 			if !entry.Archived {
@@ -183,11 +190,18 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 			return comparison < 0
 		})
 	}
-	currencies, err := h.catalogService.ListCurrencies(request.Context(), principal, workspaceID)
+	currencies, err := h.currencyService.ListCurrencies(request.Context(), principal, workspaceID)
 	if err != nil {
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
+	available := currencies[:0]
+	for _, configured := range currencies {
+		if canonical, ok := currency.Canonical(configured.Code); ok && canonical.Decimals == configured.Decimals {
+			available = append(available, configured)
+		}
+	}
+	currencies = available
 	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
 	if err != nil {
 		h.renderError(writer, http.StatusInternalServerError)
@@ -233,11 +247,13 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)
 	form := catalogForm{}
-	if request.Method == http.MethodPost && (status == http.StatusUnprocessableEntity || (status == http.StatusConflict && (request.FormValue("field") != "" || strings.HasSuffix(request.URL.Path, "/edit")))) {
+	if request.Method == http.MethodPost && (request.FormValue("picker_action") == "currency" || status == http.StatusUnprocessableEntity || (status == http.StatusConflict && (request.FormValue("field") != "" || strings.HasSuffix(request.URL.Path, "/edit")))) {
 		form.field = request.FormValue("field")
 		form.value = request.FormValue("value")
 		form.version = request.FormValue("version")
 		form.conflict = status == http.StatusConflict
+		form.searching = request.FormValue("picker_action") == "currency"
+		form.currencySearch = request.FormValue("currency_search")
 		form.entryID = request.PathValue("entryId")
 		form.priceID = request.PathValue("priceId")
 		switch {
@@ -352,6 +368,14 @@ func (h *Handler) catalogChangePrice(writer http.ResponseWriter, request *http.R
 	if !ok {
 		return
 	}
+	if !remove && request.FormValue("picker_action") == "currency" {
+		if !identity.CanWriteCatalog(principal) {
+			h.renderError(writer, http.StatusForbidden)
+			return
+		}
+		h.renderCatalog(writer, request, http.StatusOK, false)
+		return
+	}
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	entryID := catalog.ParseEntryID(request.PathValue("entryId"))
 	priceID := catalog.ParsePriceID(request.PathValue("priceId"))
@@ -393,6 +417,14 @@ func (h *Handler) catalogCreatePrice(writer http.ResponseWriter, request *http.R
 	}
 	principal, ok := h.mutationPrincipal(writer, request)
 	if !ok {
+		return
+	}
+	if request.FormValue("picker_action") == "currency" {
+		if !identity.CanWriteCatalog(principal) {
+			h.renderError(writer, http.StatusForbidden)
+			return
+		}
+		h.renderCatalog(writer, request, http.StatusOK, false)
 		return
 	}
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))

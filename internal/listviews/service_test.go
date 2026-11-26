@@ -86,6 +86,14 @@ func TestSharedViewsAreSharedAndRefusedOutsideTheRules(t *testing.T) {
 	if views, _, _ := service.List(ctx, actor, workspace, ListFiles); len(views) != 1 || !views[0].Shared {
 		t.Fatalf("shared view not listed as shared: %+v", views)
 	}
+	transactionsView, err := service.Create(ctx, actor, workspace, ListTransactions, "Receipts", false, State{Query: "filter=direction%3Aequals%3Ain", Visible: map[string]bool{"amount": true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	transactionsViews, _, err := service.List(ctx, actor, workspace, ListTransactions)
+	if err != nil || len(transactionsViews) != 1 || transactionsViews[0].ID != transactionsView.ID || !transactionsViews[0].State.Visible["amount"] {
+		t.Fatalf("transactions views = %+v, %v", transactionsViews, err)
+	}
 	if _, err := service.Create(ctx, actor, workspace, "unknown", "x", false, State{}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("unknown list error = %v", err)
 	}
@@ -105,5 +113,50 @@ func TestPersonalViewsStopAtTheLimit(t *testing.T) {
 	}
 	if _, err := service.Create(ctx, actor, workspace, ListMembers, "One too many", false, State{}); !errors.Is(err, ErrLimit) {
 		t.Fatalf("limit error = %v", err)
+	}
+}
+
+func TestTransactionsViewsRequireTransactionsReadPermission(t *testing.T) {
+	ctx := context.Background()
+	service, owner, workspace := newTestService(t)
+	view, err := service.Create(ctx, owner, workspace, ListTransactions, "Shared", true, State{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.db.ExecContext(ctx, `INSERT INTO users (email, created_at) VALUES ('viewer@example.com', 'now')`); err != nil {
+		t.Fatal(err)
+	}
+	var userID identity.UserID
+	if err := service.db.QueryRowContext(ctx, `SELECT id FROM users WHERE email = 'viewer@example.com'`).Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.auth.AddMember(ctx, owner, userID, identity.Viewer, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	viewer, err := service.auth.Authorize(ctx, userID, workspace, identity.ResourcesRead)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = service.List(ctx, viewer, workspace, ListTransactions)
+	if !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("list: %v", err)
+	}
+	_, err = service.Create(ctx, viewer, workspace, ListTransactions, "Private", false, State{})
+	if !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("create: %v", err)
+	}
+	_, err = service.Get(ctx, viewer, workspace, view.ID)
+	if !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("get: %v", err)
+	}
+	for name, err := range map[string]error{
+		"update":        service.Update(ctx, viewer, workspace, view.ID, "Changed", State{}),
+		"delete":        service.Delete(ctx, viewer, workspace, view.ID),
+		"default":       service.SetDefault(ctx, viewer, workspace, ListTransactions, view.ID),
+		"clear default": service.SetDefault(ctx, viewer, workspace, ListTransactions, 0),
+	} {
+		if !errors.Is(err, identity.ErrForbidden) {
+			t.Errorf("%s: %v", name, err)
+		}
 	}
 }

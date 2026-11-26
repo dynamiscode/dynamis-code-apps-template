@@ -12,6 +12,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
+	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 func TestSQLiteWorkspaceExport(t *testing.T) {
@@ -71,6 +72,15 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	}
 	service := NewService(db, driver, auth, 100, 1024*1024, nil)
 	service.now = func() time.Time { return time.Date(2026, 8, 25, 20, 0, 0, 0, time.UTC) }
+	for _, targetType := range []string{"transactions_entry", "transactions_category", "user"} {
+		if err := auth.RecordAudit(ctx, identity.AuditEvent{
+			EventType: "test.target." + targetType, ActorUserID: userID, AuthMethod: "test",
+			WorkspaceID: workspaceID, TargetType: targetType, TargetKey: 42,
+			Action: "test.target", Outcome: "success", Metadata: "{}", CreatedAt: time.Now().UTC(),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
 	encoded, err := service.Export(ctx, actor, workspaceID,
 		identity.AuditContext{RequestID: "export-request", SourceAddress: "127.0.0.1"})
 	if err != nil {
@@ -100,6 +110,24 @@ func runExportContract(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 		len(result.Members) != 2 || len(result.EngagementStages) != 1 || result.EngagementStages[0].Name != "Open" ||
 		len(result.AuditEvents) == 0 || len(result.Excluded) == 0 {
 		t.Fatalf("export = %+v", result)
+	}
+	wantTargets := map[string]id.TypeCode{
+		"transactions_entry":    id.TypeTransactionsEntry,
+		"transactions_category": id.TypeTransactionsCategory,
+		"user":                  id.TypeUser,
+	}
+	for _, event := range result.AuditEvents {
+		code, ok := wantTargets[event.TargetType]
+		if !ok || event.EventType != "test.target."+event.TargetType {
+			continue
+		}
+		if event.TargetID != id.EncodeKey(code, 42) {
+			t.Errorf("target %s = %q, want %q", event.TargetType, event.TargetID, id.EncodeKey(code, 42))
+		}
+		delete(wantTargets, event.TargetType)
+	}
+	if len(wantTargets) != 0 {
+		t.Fatalf("missing audit targets: %v", wantTargets)
 	}
 	if !strings.Contains(string(encoded), `"clientTimelineEntries"`) {
 		t.Fatal("export must disclose excluded client timeline entries")

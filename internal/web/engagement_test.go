@@ -778,7 +778,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 		t.Fatalf("quote: %d %s", quote.Code, quote.Header().Get("Location"))
 	}
 	quoteDetail := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
-	for _, want := range []string{`action="` + quotePath + `"`, `name="return_to" value="detail"`, `value="sent" selected`, `value="120.50"`, `value="2026-11-23"`, `href="` + detailPath + `"`} {
+	for _, want := range []string{`action="` + quotePath + `"`, `name="return_to" value="detail"`, `value="sent" selected`, `value="120.50"`, `data-entry-number="decimal"`, `value="2026-11-23"`, `href="` + detailPath + `"`} {
 		if !strings.Contains(quoteDetail.Body.String(), want) {
 			t.Fatalf("quote detail missing %q", want)
 		}
@@ -790,7 +790,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 		}
 	}
 	badQuote := request(env.routes, http.MethodPost, quotePath, url.Values{"csrf": {env.csrf}, "status": {"bogus"}, "amount": {"not-money"}, "date_sent": {"bad-date"}, "return_to": {"detail"}}, env.cookies, nil)
-	for _, want := range []string{`aria-describedby="engagement-quote-status-error"`, `aria-describedby="engagement-quote-amount-error"`, `aria-describedby="engagement-quote-date-error"`, `value="bogus" selected disabled`, `value="not-money"`, `value="bad-date"`, "Select a valid quote status.", "Enter a non-negative amount"} {
+	for _, want := range []string{`aria-describedby="engagement-quote-status-error"`, `aria-describedby="engagement-quote-amount-error"`, `aria-describedby="engagement-quote-date-error"`, `value="bogus" selected disabled`, `value="not-money"`, `data-entry-number="decimal"`, `value="bad-date"`, "Select a valid quote status.", "Enter a non-negative amount"} {
 		if badQuote.Code != http.StatusUnprocessableEntity || !strings.Contains(badQuote.Body.String(), want) {
 			t.Fatalf("invalid quote fields missing %q: %d", want, badQuote.Code)
 		}

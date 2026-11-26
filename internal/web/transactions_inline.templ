@@ -1,0 +1,126 @@
+package web
+
+import "encoding/json"
+import "net/url"
+import "strconv"
+import "strings"
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import "example.com/dynamis-code/apps-template/internal/transactions"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+templ transactionsInlineField(data viewmodel.PageData, row transactionsRow, draft transactionsDraft, query url.Values, page int, field, label, saved, display, inputType, maxLength string, required, editable bool) {
+  if !editable {
+   if display == "" {
+    <span class="status-line">{ data.T("clients.value_none") }</span>
+   } else {
+    { display }
+   }
+  } else {
+   {{ entry := row.entry; hasDraft := draft.editID == entry.ID.String() && draft.editField == field; value := saved; version := strconv.FormatInt(entry.Revision, 10); if hasDraft { value = draft.editValue; if draft.editError != "transactions.edit_conflict" { version = draft.editVersion } }; action := "/workspaces/"+data.Workspace.ID.String()+"/transactions/entries/"+entry.ID.String()+"/field"+transactionsPageURL(query, page)+"&details="+url.QueryEscape(entry.ID.String())+"&amount_locale="+url.QueryEscape(data.Locale); cancel := "/workspaces/"+data.Workspace.ID.String()+"/transactions"+transactionsDetailsURL(query, page, entry.ID); numberKind := "amount"; var scale int; var known bool; var amountInfo transactions.AmountLocaleInfo; var amountDigits []byte; if field == "amount_minor" { scale, known = transactions.CurrencyScale(entry.Currency); if !known { numberKind = "minor" }; amountInfo = transactions.AmountLocale(data.Locale); amountDigits, _ = json.Marshal(amountInfo.Digits) } }}
+   @molecules.InlineEditor(molecules.InlineEditorProps{Saved:saved, Display:display, Empty:display == "", EmptyText:data.T("clients.value_none"), Value:value, Label:label, InputLabel:label, EditLabel:data.T("ui.edit"), SaveLabel:data.T("clients.value_save"), CancelLabel:data.T("common.cancel"), ID:"transaction-inline-"+field, Name:"value", InputType:inputType, MaxLength:maxLength, Required:required, Action:action, CancelURL:cancel, CSRF:data.CSRF, Version:version, Field:field, Draft:hasDraft, FormDraft:hasDraft && draft.editError != "", Conflict:draft.editError == "transactions.edit_conflict" && hasDraft, Error:data.T(draft.editError), RetryLabel:data.T("ui.retry"), Class:"min-w-0", Attrs:templ.Attributes{"data-entry-number":templ.KV(numberKind, field == "amount_minor"), "data-entry-number-positive":field == "amount_minor", "data-entry-amount-scale":templ.KV(strconv.Itoa(scale), field == "amount_minor" && known), "data-entry-amount-digits":templ.KV(string(amountDigits), field == "amount_minor"), "data-entry-amount-decimal":templ.KV(amountInfo.Decimal, field == "amount_minor"), "data-entry-amount-group":templ.KV(amountInfo.Group, field == "amount_minor"), "data-entry-amount-primary":templ.KV(strconv.Itoa(amountInfo.Primary), field == "amount_minor"), "data-entry-amount-secondary":templ.KV(strconv.Itoa(amountInfo.Secondary), field == "amount_minor"), "data-entry-amount-min-group":templ.KV(strconv.Itoa(amountInfo.MinGroup), field == "amount_minor")}})
+   if hasDraft && draft.editError == "transactions.edit_conflict" {
+    <p>{ data.T("transactions.current_value") }: { display }</p>
+   }
+  }
+ }
+
+templ transactionsInlineChoice(data viewmodel.PageData, row transactionsRow, draft transactionsDraft, query url.Values, page int, field, label, saved, display string, editable bool) {
+  if !editable {
+   if display == "" {
+    <span class="status-line">{ data.T("clients.value_none") }</span>
+   } else {
+    { display }
+   }
+  } else {
+   {{ entry := row.entry; active := draft.editID == entry.ID.String() && draft.editField == field; selected := saved; version := strconv.FormatInt(entry.Revision, 10); if active { selected = draft.editValue; if draft.editError != "transactions.edit_conflict" { version = draft.editVersion } }; action := "/workspaces/"+data.Workspace.ID.String()+"/transactions/entries/"+entry.ID.String()+"/field"+transactionsPageURL(query,page)+"&details="+url.QueryEscape(entry.ID.String()); cancel := "/workspaces/"+data.Workspace.ID.String()+"/transactions"+transactionsDetailsURL(query,page,entry.ID) }}
+   @molecules.EntryEditor(molecules.EntryEditorProps{Display:display, EmptyText:data.T("clients.value_none"), Label:label, EditLabel:data.T("ui.edit"), Draft:active, Attrs:templ.Attributes{"data-transaction-choice":true, "data-transaction-choice-draft":active}}) {
+    <form method="post" action={ templ.SafeURL(action) } class="transaction-choice-form absolute inset-x-0 top-0 z-10 space-y-2 rounded-box bg-base-100 p-1 shadow-lg" data-dirty-track data-unsaved-warning data-dirty-on-load?={ active && draft.editError != "" }>
+     <input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="version" value={ version }/><input type="hidden" name="field" value={ field }/>
+     @molecules.EntryField(molecules.EntryFieldProps{ID:"transaction-inline-"+field, Label:label, Value:selected, SearchLabel:data.T("ui.search")}) {
+     if field == "currency" {
+      <select id="transaction-inline-currency" name="value" required data-entry-picker { templ.Attributes{"aria-invalid":templ.KV("true", active && draft.editError != ""), "aria-describedby":templ.KV("transaction-inline-error-"+field, active && draft.editError != "")}... }>
+       {{ found := false }}
+       for _, item := range draft.currencies {
+        if item.Code == selected {
+         {{ found = true }}
+        }
+        if item.Code == selected || draft.currencySearch == "" || strings.Contains(strings.ToLower(transactionsCurrencyLabel(data,item.Code)), strings.ToLower(strings.TrimSpace(draft.currencySearch))) {
+         <option value={ item.Code } selected?={ item.Code == selected } disabled?={ !transactions.CurrencyAvailable(item) }>{ transactionsCurrencyLabel(data,item.Code) }
+          if !transactions.CurrencyAvailable(item) {
+           — { data.T("transactions.currency_precision_unavailable") }
+          }
+         </option>
+        }
+       }
+       if selected != "" && !found {
+        <option value="" selected disabled>{ selected } — { data.T("transactions.currency_unavailable") }</option>
+       }
+      </select>
+     } else if field == "occurred_on" {
+      <input id="transaction-inline-occurred_on" type="date" name="value" value={ selected } required { templ.Attributes{"aria-invalid":templ.KV("true", active && draft.editError != ""), "aria-describedby":templ.KV("transaction-inline-error-"+field, active && draft.editError != "")}... }/>
+     } else {
+      <select id={ "transaction-inline-"+field } name="value" data-entry-picker { templ.Attributes{"data-entry-remote-url":templ.KV("/workspaces/"+data.Workspace.ID.String()+"/transactions/client-options", field == "client_id"), "data-entry-remote-total":templ.KV(strconv.Itoa(draft.editClients.total), field == "client_id"), "data-entry-previous-label":templ.KV(data.T("ui.previous_page"), field == "client_id"), "data-entry-next-label":templ.KV(data.T("items.next_page"), field == "client_id"), "aria-invalid":templ.KV("true", active && draft.editError != ""), "aria-describedby":templ.KV("transaction-inline-error-"+field, active && draft.editError != "")}... }>
+       if field == "direction" {
+        <option value="in" selected?={ selected == "in" }>{ data.T("transactions.in") }</option><option value="out" selected?={ selected == "out" }>{ data.T("transactions.out") }</option>
+       } else if field == "payment_method" {
+        for _, method := range draft.editMethods {
+         if method.Enabled || selected == method.ID {
+          <option value={ method.ID } selected?={ selected == method.ID }>{ transactionsMethodLabel(data,method.ID,method.Name) }</option>
+         }
+        }
+       } else if field == "category_id" {
+        <option value="">{ data.T("transactions.no_category") }</option>
+        for _, category := range draft.editCategories {
+         if !category.Archived || selected == category.ID.String() {
+          <option value={ category.ID.String() } selected?={ selected == category.ID.String() }>{ category.Name }</option>
+         }
+        }
+       } else if field == "client_id" {
+        <option value="">{ data.T("transactions.no_client") }</option>
+        if saved != "" && saved == selected {
+         <option value={ saved } selected>{ display }</option>
+        }
+        if draft.editClients.selected.ID != 0 && selected != saved && draft.editClients.selected.ID.String() == selected {
+         <option value={ selected } selected>{ draft.editClients.selected.DisplayName }</option>
+        }
+        for _, client := range draft.editClients.choices {
+         if client.ID.String() != saved && client.ID != draft.editClients.selected.ID {
+          <option value={ client.ID.String() } selected?={ selected == client.ID.String() }>{ client.DisplayName }</option>
+         }
+        }
+       }
+      </select>
+      if field == "client_id" {
+       <div data-entry-remote-fallback>
+        <label for="transaction-inline-client-search">{ data.T("transactions.search_clients") }</label><input id="transaction-inline-client-search" class="input input-bordered" type="search" name="client_search" value={ draft.editClients.search } maxlength="200"/><button class="btn btn-outline btn-sm" name="picker_action" value="search" formnovalidate>{ data.T("ui.search") }</button>
+       if draft.editClients.page > 1 {
+        <button class="btn btn-outline btn-sm" name="picker_action" value={ "page:"+strconv.Itoa(draft.editClients.page-1) } formnovalidate>{ data.T("ui.previous_page") }</button>
+       }
+       if draft.editClients.page*25 < draft.editClients.total {
+        <button class="btn btn-outline btn-sm" name="picker_action" value={ "page:"+strconv.Itoa(draft.editClients.page+1) } formnovalidate>{ data.T("items.next_page") }</button>
+       }
+       </div>
+      }
+     }
+     }
+     if field == "currency" {
+      <noscript>
+       <label for="transaction-inline-currency-search">{ data.T("transactions.currency_search") }</label><input id="transaction-inline-currency-search" type="search" name="value_search" value={ draft.currencySearch }/><button class="btn btn-outline btn-sm" name="picker_action" value="currency" formnovalidate>{ data.T("ui.search") }</button>
+      </noscript>
+     }
+     if active && draft.editError != "" {
+      <p id={ "transaction-inline-error-"+field } role="alert" tabindex="-1" class="alert alert-error">{ data.T(draft.editError) }</p>
+      if draft.editError == "transactions.edit_conflict" {
+       <p>{ data.T("transactions.current_value") }: { display }</p>
+      }
+     }
+     <button class="btn btn-outline btn-square" type="submit" aria-label={ data.T("clients.value_save") }>✓</button><a class="btn btn-outline btn-square" href={ templ.SafeURL(cancel) } data-transaction-choice-cancel aria-label={ data.T("common.cancel") }>×</a>
+    </form>
+   }
+  }
+ }
+
+func transactionsAmountInput(entry transactions.Entry, locale string) string {
+ if _, known := transactions.CurrencyScale(entry.Currency); !known { return strconv.FormatInt(entry.AmountMinor, 10) }
+ return strings.TrimPrefix(transactions.FormatAmount(entry.AmountMinor, entry.Currency, locale), entry.Currency+" ")
+}

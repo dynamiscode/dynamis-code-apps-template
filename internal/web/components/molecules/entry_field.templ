@@ -1,0 +1,14 @@
+package molecules
+
+type EntryFieldProps struct {
+	ID, Label, Value, Class, SearchLabel string
+}
+
+templ EntryField(props EntryFieldProps) {
+	<div class={ "entry-field", props.Class } data-entry-field data-entry-filled?={ props.Value != "" } data-entry-search-label={ props.SearchLabel }>
+		if props.Label != "" {
+			<label id={ props.ID + "-label" } class="entry-field-label" for={ props.ID }>{ props.Label }</label>
+		}
+		{ children... }
+	</div>
+}

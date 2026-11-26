@@ -14,12 +14,13 @@ function fixture({ initiallyOpen = false, rejected = false, explicitRetry = fals
 		focus: () => counts.focused++, select: () => counts.selected++,
 		dispatchEvent: (event) => { assert.equal(event.type, "input"); assert.equal(event.bubbles, true); counts.inputEvents++; },
 	};
-	const summary = { addEventListener: on("summary"), focus: () => counts.summaryFocused++ };
+	const pending = { hidden: true, textContent: "" };
+	const summary = { addEventListener: on("summary"), focus: () => counts.summaryFocused++, querySelector: () => pending };
 	const cancel = { href: "/engagement", addEventListener: on("cancel") };
 	const form = { dataset: {}, querySelector: () => null, requestSubmit: () => counts.submitted++ };
 	const details = {
 		open: initiallyOpen, dataset: { inlineSaved: input.value, inlineDiscardMessage: "Discard?" },
-		ownerDocument: { addEventListener: on("document") },
+		ownerDocument: { addEventListener: on("document"), querySelector: () => ({ getAttribute: () => "Unsaved changes" }) },
 		contains: (target) => target === input || target === summary || target === cancel,
 		hasAttribute: (name) => (name === "data-inline-dirty-on-load" && rejected) || (name === "data-inline-explicit-retry" && explicitRetry),
 		removeAttribute: (name) => { if (name === "data-inline-dirty-on-load") rejected = false; },
@@ -28,7 +29,7 @@ function fixture({ initiallyOpen = false, rejected = false, explicitRetry = fals
 	};
 	const root = { querySelectorAll: (selector) => selector === "[data-inline-title]" ? [details] : [] };
 	const emit = (name, event = {}) => { for (const handler of handlers[name] ?? []) handler(event); };
-	return { root, details, input, form, counts, emit, handlers };
+	return { root, details, input, form, counts, emit, handlers, pending };
 }
 
 function event(properties = {}) {
@@ -76,7 +77,7 @@ test("Escape and cancel restore the original value without a prompt", () => {
 	assert.equal(f.input.value, "saved");
 });
 
-test("clicking outside cancels without stealing focus, while inside clicks preserve the edit", () => {
+test("clicking outside closes without losing the draft or stealing focus", () => {
 	const f = fixture({ initiallyOpen: true });
 	wireInlineTitles(f.root);
 	f.input.value = "edited";
@@ -85,9 +86,21 @@ test("clicking outside cancels without stealing focus, while inside clicks prese
 	assert.equal(f.input.value, "edited");
 	f.emit("document:click", event({ target: {} }));
 	assert.equal(f.details.open, false);
-	assert.equal(f.input.value, "saved");
-	assert.equal(f.form.dataset.dirty, "");
+	assert.equal(f.input.value, "edited");
+	assert.equal(f.pending.hidden, false);
+	assert.equal(f.pending.textContent, "Unsaved changes");
 	assert.equal(f.counts.summaryFocused, 0);
+});
+
+test("outside click retains a rejected draft without navigating", () => {
+	const f = fixture({ initiallyOpen: true, rejected: true });
+	wireInlineTitles(f.root);
+	f.input.value = "rejected draft";
+	f.emit("document:click", event({ target: {} }));
+	assert.equal(f.details.open, false);
+	assert.equal(f.input.value, "rejected draft");
+	assert.equal(f.pending.hidden, false);
+	assert.notEqual(f.form.dataset.submitting, "true");
 });
 
 test("multiple independent editors restore only the cancelled field", () => {
@@ -169,7 +182,7 @@ test("multiline conflict requires explicit retry", () => {
 	assert.equal(f.counts.submitted, 0);
 });
 
-test("multiline Escape and outside click discard edits", () => {
+test("multiline Escape discards edits and outside click retains them", () => {
 	for (const action of ["escape", "outside"]) {
 		const f = fixture({ initiallyOpen: true, multiline: true });
 		wireInlineTitles(f.root);
@@ -179,7 +192,7 @@ test("multiline Escape and outside click discard edits", () => {
 		} else {
 			f.emit("document:click", event({ target: {} }));
 		}
-		assert.equal(f.input.value, "saved");
+		assert.equal(f.input.value, action === "escape" ? "saved" : "unsaved\nnotes");
 		assert.equal(f.details.open, false);
 	}
 });
@@ -196,9 +209,17 @@ test("conflict retry requires explicit button activation", () => {
 test("Enter requests confirmation before moving a booking", () => {
 	const f = fixture();
 	let confirmations = 0;
-	f.form.querySelector = () => ({ click: () => confirmations++ });
+	f.form.querySelector = (selector) => selector === "button[type=submit][data-confirm]" ? { click: () => confirmations++ } : null;
 	wireInlineTitles(f.root);
 	f.emit("details:keydown", event({ key: "Enter", target: f.input }));
 	assert.equal(confirmations, 1);
+	assert.equal(f.counts.submitted, 0);
+});
+
+test("Enter cannot submit an invalid inline edit", () => {
+	const f = fixture();
+	f.form.querySelector = (selector) => selector === "button[type=submit]:disabled" ? {} : null;
+	wireInlineTitles(f.root);
+	f.emit("details:keydown", event({ key: "Enter", target: f.input }));
 	assert.equal(f.counts.submitted, 0);
 });

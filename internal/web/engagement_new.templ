@@ -47,19 +47,22 @@ templ engagementNewContent(data viewmodel.PageData, choices []clients.Client, se
     if data.Client.ID != 0 {
      <input type="hidden" name="from_client" value={ data.Client.ID.String() }/>
     }
-    <input type="hidden" name="client" value={ selected.ID.String() } data-selected-client/>
+    <input type="hidden" name="client" value={ selected.ID.String() } data-selected-client data-entry-required/>
     <div class="grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(14rem,1fr)]">
      <div class="min-w-0">
-      @molecules.TextField("engagement-name", data.T("engagement.name"), templ.Attributes{"name": "name", "value": data.EngagementName, "required": true, "maxlength": "200", "aria-invalid": templ.KV("true", data.ErrorKey == "engagement.invalid_name"), "aria-describedby": templ.KV("engagement-name-error", data.ErrorKey == "engagement.invalid_name")})
+      @molecules.EntryField(molecules.EntryFieldProps{ID: "engagement-name", Label: data.T("engagement.name"), Value: data.EngagementName}) {
+       <input id="engagement-name" name="name" value={ data.EngagementName } required maxlength="200" { templ.Attributes{"aria-invalid": templ.KV("true", data.ErrorKey == "engagement.invalid_name"), "aria-describedby": templ.KV("engagement-name-error", data.ErrorKey == "engagement.invalid_name")}... }/>
+      }
       if data.ErrorKey == "engagement.invalid_name" {
        <p id="engagement-name-error">{ data.T(data.ErrorKey) }</p>
       }
       @engagementNotesEditor(data, data.EngagementNotes)
      </div>
      <div class="min-w-0">
-      <span id="engagement-client-label">{ data.T("engagement.client") }</span>
-      <details class="w-full" data-client-picker open?={ selected.ID == 0 || pickerOpen }>
-       <summary class="select select-bordered flex w-full items-center justify-between" aria-labelledby="engagement-client-label engagement-client-current">
+      @molecules.EntryField(molecules.EntryFieldProps{ID: "engagement-client-picker", Value: selected.DisplayName}) {
+      <span id="engagement-client-label" class="entry-field-label">{ data.T("engagement.client") }</span>
+      <details class="w-full" data-client-picker open?={ pickerOpen }>
+       <summary id="engagement-client-picker" class="select select-bordered flex w-full items-center justify-between" aria-labelledby="engagement-client-label engagement-client-current">
         <span id="engagement-client-current" data-client-current>
          if selected.ID == 0 {
           { data.T("engagement.choose_client") }
@@ -69,23 +72,29 @@ templ engagementNewContent(data viewmodel.PageData, choices []clients.Client, se
         </span>
         <span aria-hidden="true">▾</span>
        </summary>
+       <div class="entry-picker-panel">
+       if len(choices) > 5 || next != "" || prev != "" || search != "" {
        <div class="flex flex-wrap gap-3 items-end">
         <label class="form-control flex w-full flex-col gap-1" for="client-search"><span>{ data.T("engagement.search_clients") } { data.T("ui.optional") }</span></label>
         <input class="input input-bordered w-full" id="client-search" name="q" type="search" value={ search } maxlength="200" hx-get={ data.CurrentPath + "/new?part=client-results" } hx-trigger="input changed delay:300ms" hx-target="#engagement-client-results" hx-swap="innerHTML" hx-sync="#engagement-client-results:replace" hx-indicator="#engagement-client-search-loading"/>
         <button class="btn btn-outline" type="submit" name="picker_action" value="search" formnovalidate hx-get={ data.CurrentPath + "/new?part=client-results" } hx-include="#client-search" hx-target="#engagement-client-results" hx-swap="innerHTML" hx-sync="#engagement-client-results:replace" hx-indicator="#engagement-client-search-loading">{ data.T("ui.search") }</button>
         <span id="engagement-client-search-loading" class="htmx-indicator" role="status">{ data.T("ui.loading") }</span>
        </div>
+       }
        <div id="engagement-client-results" aria-live="polite">
         @engagementClientResults(data, choices, search, prev, next)
        </div>
+       </div>
       </details>
-      <label for="engagement-stage">{ data.T("engagement.stage") }</label>
-      <select id="engagement-stage" name="stage" class="select select-bordered" required { templ.Attributes{"aria-invalid": templ.KV("true", data.ErrorKey == "engagement.invalid_stage"), "aria-describedby": templ.KV("engagement-stage-error", data.ErrorKey == "engagement.invalid_stage")}... }>
+      }
+      @molecules.EntryField(molecules.EntryFieldProps{ID: "engagement-stage", Label: data.T("engagement.stage"), Value: data.EngagementStage, SearchLabel: data.T("ui.search")}) {
+      <select id="engagement-stage" name="stage" class="select select-bordered" data-entry-picker required { templ.Attributes{"aria-invalid": templ.KV("true", data.ErrorKey == "engagement.invalid_stage"), "aria-describedby": templ.KV("engagement-stage-error", data.ErrorKey == "engagement.invalid_stage")}... }>
        <option value="">{ data.T("engagement.select_stage") }</option>
        for _, stage := range stages {
         <option value={ stage.ID.String() } selected?={ stage.ID.String() == data.EngagementStage }>{ stage.Name }</option>
        }
       </select>
+      }
       if data.ErrorKey == "engagement.invalid_stage" {
        <p id="engagement-stage-error">{ data.T(data.ErrorKey) }</p>
       }
@@ -135,7 +144,7 @@ templ engagementClientResults(data viewmodel.PageData, choices []clients.Client,
 
 templ engagementNotesEditor(data viewmodel.PageData, notes string) {
  <div class="form-control flex w-full flex-col gap-2" x-data="engagementNotesEditor" data-preview-url={ "/workspaces/" + data.Workspace.ID.String() + "/engagements/notes-preview" } data-preview-failed={ data.T("engagement.preview_failed") } data-preview-loading={ data.T("ui.loading") } data-preview-empty={ data.T("engagement.preview_empty") } data-count-label={ data.T("engagement.characters") }>
-  <label for="engagement-notes">{ data.T("engagement.notes") } { data.T("ui.optional") }</label>
+  @molecules.EntryField(molecules.EntryFieldProps{ID: "engagement-notes", Label: data.T("engagement.notes")+" "+data.T("ui.optional"), Value: notes}) {
   <div class="rounded-box border border-base-300 bg-base-100 text-base-content">
    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-base-300 px-2" data-notes-controls hidden>
     <div role="tablist" aria-label={ data.T("engagement.notes") } class="tabs tabs-border">
@@ -160,5 +169,6 @@ templ engagementNotesEditor(data viewmodel.PageData, notes string) {
     <span data-notes-count hidden></span>
    </div>
   </div>
+  }
  </div>
 }

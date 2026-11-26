@@ -1,8 +1,8 @@
 {
   "alpine-components.js": {
-    "bytes": 87954,
-    "sha256": "5a9a8f505a59f938384deb9f3bc8a3e97c732f7edc8b8de9496bc209ba4de614",
-    "reason": "App-owned form, dialog and action controls; HTMX response guard and server-rendered Markdown preview."
+    "bytes": 111674,
+    "sha256": "f3255bfc0804a06578e7904e1347bd47da857838f0d6e2a15b9f019de1cbb88d",
+    "reason": "App-owned form, dialog and action controls; nonvalidating submitters preserve drafts, with HTMX response guard and server-rendered Markdown preview."
   },
   "htmx.min.js": {
     "bytes": 37448,

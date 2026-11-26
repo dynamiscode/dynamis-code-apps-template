@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"example.com/dynamis-code/apps-template/internal/currency"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
@@ -62,7 +63,7 @@ func TestCatalogAuthorizationAndIsolation(t *testing.T) {
 			if _, err := service.List(ctx, principal, owner.WorkspaceID, false); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := service.ListCurrencies(ctx, principal, owner.WorkspaceID); err != nil {
+			if _, err := currency.NewService(db, auth).ListCurrencies(ctx, principal, owner.WorkspaceID); err != nil {
 				t.Fatal(err)
 			}
 			writable := role == identity.Owner || role == identity.Admin
@@ -72,7 +73,7 @@ func TestCatalogAuthorizationAndIsolation(t *testing.T) {
 					t.Errorf("%s: %v", name, err)
 				}
 			}
-			check("configure currencies", service.SetCurrencies(ctx, principal, owner.WorkspaceID, []Currency{{Code: "USD", Decimals: 2, Default: true}}))
+			check("configure currencies", currency.NewService(db, auth).SetCurrencies(ctx, principal, owner.WorkspaceID, []currency.Currency{{Code: "USD", Decimals: 2, Default: true}}))
 			_, err = service.Create(ctx, principal, owner.WorkspaceID, "New", nil, testPrices())
 			check("create", err)
 			check("edit", service.Update(ctx, principal, owner.WorkspaceID, entry.ID, "Edited", nil, entry.Revision))

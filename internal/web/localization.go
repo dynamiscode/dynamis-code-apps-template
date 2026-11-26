@@ -88,6 +88,7 @@ func (h *Handler) localizePage(writer http.ResponseWriter, data *viewmodel.PageD
 	data.Theme = h.pageTheme(writer)
 	data.Catalog = h.catalog
 	data.CatalogEnabled = h.catalogService != nil
+	data.TransactionsEnabled = h.transactions != nil
 	data.EngagementEnabled = h.engagement != nil
 	if state, ok := writer.(*localeWriter); ok {
 		if state.engagementLoaded && state.engagementWorkspace == data.Workspace.ID {

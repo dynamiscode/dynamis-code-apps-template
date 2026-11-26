@@ -40,3 +40,19 @@ func TestWorkspaceUpdateAndResourcesWriteRoles(t *testing.T) {
 		}
 	}
 }
+
+func TestTransactionsPolicy(t *testing.T) {
+	for _, role := range []Role{Owner, Admin, Member, Viewer, "guest"} {
+		principal := Principal{Role: role, Permissions: permissionsForRole(role)}
+		want := role == Owner || role == Admin || role == Member
+		if CanReadTransactions(principal) != want || CanWriteTransactions(principal) != want {
+			t.Errorf("%s transactions read/write = %v/%v, want %v", role, CanReadTransactions(principal), CanWriteTransactions(principal), want)
+		}
+		if got, want := CanManageTransactions(principal), role == Owner || role == Admin; got != want {
+			t.Errorf("%s transactions management = %v, want %v", role, got, want)
+		}
+	}
+	if CanReadTransactions(Principal{Role: Owner}) || CanWriteTransactions(Principal{Role: Owner}) {
+		t.Fatal("transactions access granted without credential scope")
+	}
+}

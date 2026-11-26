@@ -29,6 +29,8 @@ func TestGoRenderOrigins(t *testing.T) {
 	func methodAlias(component Component) { render := component.Render; render() }
 	func badClosure() { factory := func() Component { return openTemplate(opaqueValue()) }; factory().Render() }
 	func goodClosure() { factory := func() Component { return openTemplate("label") }; factory().Render() }
+	func branchClosure() { factory := func() Component { if true { return checked(nil) }; return openTemplate("label") }; factory().Render() }
+	func unsafeBranchClosure() { factory := func() Component { if true { return opaque(nil) }; return checked(nil) }; factory().Render() }
 	func openAlias() { factory := openTemplate; factory(nil).Render() }
 	type responder struct{}
 	type open interface { dispatch(func(any) Component) }
@@ -64,7 +66,7 @@ func TestGoRenderOrigins(t *testing.T) {
 	index := indexRenderOrigins([]*packages.Package{{Syntax: []*ast.File{file}, TypesInfo: info}}, map[string]map[string]bool{"fixture": {"checked": true, "openTemplate": true}})
 	index.component = component
 	index.closed = func(function *types.Func) bool { return function != nil && function.Name() == "checked" }
-	want := map[string]bool{"accept": true, "reject": false, "Exported": false, "addressTaken": false, "reassigned": false, "aliased": true, "indirect": false, "dispatch": false, "badClosure": false, "goodClosure": true, "openAlias": false}
+	want := map[string]bool{"accept": true, "reject": false, "Exported": false, "addressTaken": false, "reassigned": false, "aliased": true, "indirect": false, "dispatch": false, "badClosure": false, "goodClosure": true, "branchClosure": true, "unsafeBranchClosure": false, "openAlias": false}
 	for _, declaration := range file.Decls {
 		function, ok := declaration.(*ast.FuncDecl)
 		if !ok {

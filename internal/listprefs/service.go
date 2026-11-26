@@ -15,10 +15,11 @@ import (
 var ErrInvalidInput = errors.New("list preference input is invalid")
 
 const (
-	ListClients = "clients"
-	ListItems   = "items"
-	ListFiles   = "files"
-	ListMembers = "members"
+	ListClients      = "clients"
+	ListItems        = "items"
+	ListFiles        = "files"
+	ListMembers      = "members"
+	ListTransactions = "transactions"
 )
 
 type Service struct {
@@ -197,7 +198,7 @@ func validInput(listKey, columnKey string, defaults map[string]bool) error {
 
 func validListKey(listKey string) error {
 	switch listKey {
-	case ListClients, ListItems, ListFiles, ListMembers:
+	case ListClients, ListItems, ListFiles, ListMembers, ListTransactions:
 		return nil
 	default:
 		return ErrInvalidInput

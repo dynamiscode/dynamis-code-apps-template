@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"example.com/dynamis-code/apps-template/internal/currency"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
@@ -65,15 +66,34 @@ func TestPriceOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := NewService(db, auth, nil)
-	initial, err := s.ListCurrencies(ctx, actor, owner.WorkspaceID)
-	if err != nil || len(initial) != 1 || initial[0] != (Currency{Code: "USD", Decimals: 2, Default: true}) {
+	currencyService := currency.NewService(db, auth)
+	initial, err := currencyService.ListCurrencies(ctx, actor, owner.WorkspaceID)
+	if err != nil || len(initial) != 1 || initial[0] != (currency.Currency{Code: "USD", Decimals: 2, Default: true}) {
 		t.Fatalf("initial currencies = %+v, %v", initial, err)
 	}
 	tooPrecise := "1.234"
 	if _, err := s.Create(ctx, actor, owner.WorkspaceID, "Too precise", nil, []PriceOption{{Mode: "fixed", Amount: &tooPrecise, Currency: "USD", Variant: "Standard"}}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("USD precision: %v", err)
 	}
-	if err := s.SetCurrencies(ctx, actor, owner.WorkspaceID, []Currency{{Code: "USD", Decimals: 2}, {Code: "EUR", Decimals: 2}}); !errors.Is(err, ErrInvalidInput) {
+	if _, err := db.ExecContext(ctx, `INSERT INTO workspace_currencies (workspace_id, code, decimals, is_default) VALUES ($1, 'NOTACURRENCY', 2, FALSE)`, owner.WorkspaceID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Create(ctx, actor, owner.WorkspaceID, "Unknown", nil, []PriceOption{{Mode: "manual", Currency: "NOTACURRENCY", Variant: "Standard"}}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("arbitrary currency: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `DELETE FROM workspace_currencies WHERE workspace_id = $1 AND code = 'NOTACURRENCY'`, owner.WorkspaceID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO workspace_currencies (workspace_id, code, decimals, is_default) VALUES ($1, 'USD', 4, TRUE) ON CONFLICT (workspace_id, code) DO UPDATE SET decimals = 4`, owner.WorkspaceID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Create(ctx, actor, owner.WorkspaceID, "Noncanonical", nil, []PriceOption{{Mode: "manual", Currency: "USD", Variant: "Standard"}}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("noncanonical currency precision: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE workspace_currencies SET decimals = 2 WHERE workspace_id = $1 AND code = 'USD'`, owner.WorkspaceID); err != nil {
+		t.Fatal(err)
+	}
+	if err := currencyService.SetCurrencies(ctx, actor, owner.WorkspaceID, []currency.Currency{{Code: "USD", Decimals: 2}, {Code: "EUR", Decimals: 2}}); !errors.Is(err, currency.ErrInvalidInput) {
 		t.Fatalf("missing default: %v", err)
 	}
 	var legacyEntry EntryID
@@ -87,10 +107,23 @@ func TestPriceOptions(t *testing.T) {
 	if err := s.UpdatePrice(ctx, actor, owner.WorkspaceID, legacyEntry, legacyPrice, PriceOption{Mode: "fixed", Amount: &tooPrecise, Currency: "USD", Variant: "Renamed"}); err != nil {
 		t.Fatalf("unchanged legacy amount: %v", err)
 	}
+	if _, err := db.ExecContext(ctx, `UPDATE catalog_prices SET currency = 'NOTACURRENCY' WHERE id = $1`, legacyPrice); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.UpdatePrice(ctx, actor, owner.WorkspaceID, legacyEntry, legacyPrice, PriceOption{Mode: "fixed", Amount: &tooPrecise, Currency: "NOTACURRENCY", Variant: "Renamed again"}); err != nil {
+		t.Fatalf("unchanged historical currency: %v", err)
+	}
+	legacyAmount := "0.123456789012345678"
+	if _, err := db.ExecContext(ctx, `UPDATE catalog_prices SET amount = $1, currency = 'BTC' WHERE id = $2`, legacyAmount, legacyPrice); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.UpdatePrice(ctx, actor, owner.WorkspaceID, legacyEntry, legacyPrice, PriceOption{Mode: "fixed", Amount: &legacyAmount, Currency: "BTC", Variant: "Historical precision"}); err != nil {
+		t.Fatalf("unchanged historical precision: %v", err)
+	}
 	if err := s.Delete(ctx, actor, owner.WorkspaceID, legacyEntry); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SetCurrencies(ctx, actor, owner.WorkspaceID, []Currency{{Code: "USD", Decimals: 2, Default: true}, {Code: "BTC", Decimals: 18}, {Code: "EUR", Decimals: 2}}); err != nil {
+	if err := currencyService.SetCurrencies(ctx, actor, owner.WorkspaceID, []currency.Currency{{Code: "USD", Decimals: 2, Default: true}, {Code: "BHD", Decimals: 3}, {Code: "EUR", Decimals: 2}}); err != nil {
 		t.Fatal(err)
 	}
 	for _, prices := range [][]PriceOption{nil, {}, {{Mode: "manual", Currency: "USD", Variant: "Valid"}, {Mode: "fixed", Currency: "USD", Variant: "Invalid"}}} {
@@ -115,12 +148,12 @@ func TestPriceOptions(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `DROP TRIGGER reject_price`); err != nil {
 		t.Fatal(err)
 	}
-	amount := "0.123456789012345678"
-	entry, err := s.Create(ctx, actor, owner.WorkspaceID, "Service", nil, []PriceOption{{Mode: "fixed", Amount: &amount, Currency: "BTC", Variant: "Visit"}})
+	amount := "0.123"
+	entry, err := s.Create(ctx, actor, owner.WorkspaceID, "Service", nil, []PriceOption{{Mode: "fixed", Amount: &amount, Currency: "BHD", Variant: "Visit"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SetCurrencies(ctx, actor, owner.WorkspaceID, []Currency{{Code: "USD", Decimals: 2, Default: true}}); !errors.Is(err, ErrInUse) {
+	if err := currencyService.SetCurrencies(ctx, actor, owner.WorkspaceID, []currency.Currency{{Code: "USD", Decimals: 2, Default: true}}); !errors.Is(err, currency.ErrInUse) {
 		t.Fatalf("remove used currency: %v", err)
 	}
 	for _, option := range []PriceOption{{Mode: "manual", Currency: "USD", Variant: "Week"}} {
@@ -137,7 +170,7 @@ func TestPriceOptions(t *testing.T) {
 	if err := s.UpdatePrice(ctx, actor, owner.WorkspaceID, entry.ID, priceID, manual); err != nil {
 		t.Fatal(err)
 	}
-	fixed := PriceOption{Mode: "fixed", Amount: &amount, Currency: "BTC", Variant: "Visit"}
+	fixed := PriceOption{Mode: "fixed", Amount: &amount, Currency: "BHD", Variant: "Visit"}
 	if err := s.UpdatePrice(ctx, actor, owner.WorkspaceID, entry.ID, priceID, fixed); err != nil {
 		t.Fatal(err)
 	}

@@ -22,7 +22,7 @@ var (
 	modulePattern     = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._~/-]+$`)
 	slugPattern       = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
 	maintainerPattern = regexp.MustCompile(`^@[A-Za-z0-9][A-Za-z0-9-]*(/[A-Za-z0-9][A-Za-z0-9-]*)?$`)
-	knownProfiles     = []string{"Core", "Identity", "Agent", "Files", "Clients", "Catalog"}
+	knownProfiles     = []string{"Core", "Identity", "Agent", "Files", "Clients", "Catalog", "Transactions"}
 )
 
 const (
@@ -146,7 +146,7 @@ func run(args []string, now func() time.Time) error {
 	}
 	if err := copyTemplate(
 		root, destination, replacements, templateSlug, slug, hasProfile(selectedProfiles, "Agent"), hasProfile(selectedProfiles, "Files"),
-		hasProfile(selectedProfiles, "Clients"), hasProfile(selectedProfiles, "Catalog"),
+		hasProfile(selectedProfiles, "Clients"), hasProfile(selectedProfiles, "Catalog"), hasProfile(selectedProfiles, "Transactions"),
 		templateName, *name, "Dynamis Code", *name,
 		"Copyright (c) 2026 David Londono", "Copyright (c) 2026 "+*name+" contributors",
 		templateRepositoryURL, strings.TrimRight(*repository, "/"),
@@ -161,7 +161,7 @@ func run(args []string, now func() time.Time) error {
 	); err != nil {
 		return err
 	}
-	if !hasProfile(selectedProfiles, "Catalog") || !hasProfile(selectedProfiles, "Clients") {
+	if !hasProfile(selectedProfiles, "Catalog") || !hasProfile(selectedProfiles, "Clients") || !hasProfile(selectedProfiles, "Transactions") {
 		command := exec.Command("go", "tool", "templ", "generate", "-path", "internal/web")
 		command.Dir = destination
 		if output, err := command.CombinedOutput(); err != nil {
@@ -198,6 +198,7 @@ func copyTemplate(
 	files bool,
 	clients bool,
 	catalog bool,
+	transactions bool,
 	dynamicReplacements ...string,
 ) error {
 	replace := strings.NewReplacer(replacements...)
@@ -239,6 +240,12 @@ func copyTemplate(
 			return nil
 		}
 		if !catalog && catalogPath(relative) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !transactions && transactionsPath(relative) {
 			if entry.IsDir() {
 				return filepath.SkipDir
 			}
@@ -305,7 +312,10 @@ func copyTemplate(
 		if !catalog {
 			raw = disableCatalogSource(filepath.ToSlash(relative), raw)
 		}
-		if filepath.ToSlash(relative) == "scripts/actioncheck/exceptions.json" && (!agent || !files || !clients || !catalog) {
+		if !transactions {
+			raw = disableTransactionsSource(filepath.ToSlash(relative), raw)
+		}
+		if filepath.ToSlash(relative) == "scripts/actioncheck/exceptions.json" && (!agent || !files || !clients || !catalog || !transactions) {
 			var exceptions []json.RawMessage
 			if err := json.Unmarshal(raw, &exceptions); err != nil {
 				return fmt.Errorf("decode actioncheck exceptions: %w", err)
@@ -315,15 +325,46 @@ func copyTemplate(
 				var record struct {
 					Path    string
 					OpenTag string
+					Line    int
 				}
 				if err := json.Unmarshal(exception, &record); err != nil {
 					return fmt.Errorf("decode actioncheck exception: %w", err)
 				}
 				if !agent && agentPath(record.Path) || !files && filesPath(record.Path) ||
-					!clients && clientsPath(record.Path) || !catalog && catalogPath(record.Path) ||
+					!clients && clientsPath(record.Path) || !catalog && catalogPath(record.Path) || !transactions && transactionsPath(record.Path) ||
 					(!clients || !catalog) && reminderPath(record.Path) ||
 					!clients && record.Path == "internal/web/engagement.templ" && record.OpenTag == `<a class="link lg:hidden" href="#action-history">` {
 					continue
+				}
+				if !transactions && record.Path == "internal/web/clients.templ" {
+					source, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(record.Path)))
+					if err != nil {
+						return fmt.Errorf("read actioncheck exception source: %w", err)
+					}
+					original := string(source)
+					if strings.Count(original, record.OpenTag) != 1 || strings.Count(original[:strings.Index(original, record.OpenTag)], "\n")+1 != record.Line {
+						return fmt.Errorf("invalid actioncheck exception in %s at line %d", record.Path, record.Line)
+					}
+					transformed := string(disableTransactionsSource(record.Path, source))
+					count := strings.Count(transformed, record.OpenTag)
+					if count == 0 {
+						continue
+					}
+					if count != 1 {
+						return fmt.Errorf("ambiguous actioncheck exception in %s", record.Path)
+					}
+					var fields map[string]json.RawMessage
+					if err := json.Unmarshal(exception, &fields); err != nil {
+						return fmt.Errorf("decode actioncheck exception: %w", err)
+					}
+					fields["Line"], err = json.Marshal(strings.Count(transformed[:strings.Index(transformed, record.OpenTag)], "\n") + 1)
+					if err != nil {
+						return fmt.Errorf("encode actioncheck exception line: %w", err)
+					}
+					exception, err = json.Marshal(fields)
+					if err != nil {
+						return fmt.Errorf("encode actioncheck exception: %w", err)
+					}
 				}
 				kept = append(kept, exception)
 			}
@@ -381,12 +422,135 @@ func copySymlink(root, path, target, relative string) error {
 	return os.Symlink(link, target)
 }
 
+func transactionsPath(relative string) bool {
+	relative = filepath.ToSlash(relative)
+	return relative == "internal/transactions" || strings.HasPrefix(relative, "internal/transactions/") ||
+		strings.HasPrefix(relative, "internal/httpapi/transactions") ||
+		strings.HasPrefix(relative, "internal/web/transactions") ||
+		strings.HasPrefix(relative, "internal/mcpserver/transactions") ||
+		strings.HasPrefix(relative, "internal/browsertest/transactions") ||
+		strings.HasPrefix(relative, "internal/web/transaction_create_fields") ||
+		strings.HasPrefix(relative, "internal/appctl/transactions") ||
+		relative == "internal/portability/transactions_test.go" ||
+		relative == "internal/platform/database/transactions_migrate_test.go" ||
+		relative == "internal/platform/database/migrations/000057_transactions.sql" ||
+		relative == "internal/platform/database/migrations/000058_transactions_client_erasure.sql" ||
+		relative == "internal/platform/database/migrations/000059_transactions_corrections.sql" ||
+		relative == "internal/platform/database/migrations/000060_transactions_method_names.sql" ||
+		relative == "internal/platform/database/migrations/000061_transactions_categories.sql" ||
+		relative == "internal/platform/database/migrations/000062_transaction_description.sql" ||
+		relative == "internal/platform/database/migrations/000064_transactions_revision.sql" ||
+		relative == "internal/platform/database/migrations/000065_transactions_client_revision.sql"
+}
+
+func disableTransactionsSource(relative string, raw []byte) []byte {
+	value := string(raw)
+	switch relative {
+	case "internal/bootstrap/app.go":
+		value = removeLinesContaining(value, `/internal/transactions"`)
+		value = removeLinesContaining(value, "transactionsService :=")
+		value = removeLinesContaining(value, "webHandler.EnableTransactions(")
+		value = strings.ReplaceAll(value, ", transactionsService,", ",")
+	case "internal/bootstrap/agent.go":
+		value = removeLinesContaining(value, `/internal/transactions"`)
+		value = removeLinesContaining(value, "transactionsService *transactions.Service")
+		value = strings.ReplaceAll(value, ", mcpserver.WithTransactions(transactionsService)", "")
+	case "internal/httpapi/handler.go":
+		value = removeLinesContaining(value, `/internal/transactions"`)
+		value = removeLinesContaining(value, "*transactions.Service")
+		value = removeLinesContaining(value, "transactions.NewService(")
+		value = removeLinesContaining(value, `"listTransactionsEntries":`)
+		value = removeLinesContaining(value, `"transactionsTotals":`)
+		value = removeLinesContaining(value, `"listTransactionsCategories":`)
+		value = removeLinesContaining(value, `"createTransactionsMethod":`)
+	case "internal/listviews/service.go":
+		value = removeLinesContaining(value, `ListTransactions = "transactions"`)
+		value = strings.ReplaceAll(value, "ListClients, ListItems, ListFiles, ListMembers, ListTransactions", "ListClients, ListItems, ListFiles, ListMembers")
+		value = strings.ReplaceAll(value, "func canReadList(principal identity.Principal, listKey string) bool {\n\treturn listKey != ListTransactions || identity.CanReadTransactions(principal)\n}", "func canReadList(_ identity.Principal, listKey string) bool {\n\treturn listKey != \"transactions\"\n}")
+	case "internal/listviews/service_test.go":
+		value = removeText(value, "\ttransactionsView, err :=", "\tif _, err := service.Create(ctx, actor, workspace, \"unknown\"")
+		value = removeBlockIncludingEnd(value, "func TestTransactionsViewsRequireTransactionsReadPermission(", "\n}\n")
+	case "internal/listprefs/service.go":
+		value = removeLinesContaining(value, `ListTransactions = "transactions"`)
+		value = strings.ReplaceAll(value, "ListClients, ListItems, ListFiles, ListMembers, ListTransactions", "ListClients, ListItems, ListFiles, ListMembers")
+	case "internal/listprefs/service_test.go":
+		value = removeText(value, "\tif err := service.Set(ctx, actor, boot.WorkspaceID, ListTransactions", "\tgot, err = service.Get(ctx, actor, boot.WorkspaceID, ListClients")
+	case "internal/web/list_views.go":
+		value = removeText(value, "\tcase listviews.ListTransactions:\n", "\t}\n")
+		value = removeBlockIncludingEnd(value, "\tif listKey == listviews.ListTransactions", "\n\t}\n")
+	case "internal/web/handler.go":
+		value = removeLinesContaining(value, `/internal/transactions"`)
+		value = removeLinesContaining(value, "*transactions.Service")
+		value = removeBlockIncludingEnd(value, "\tif h.transactions != nil {", "\t}\n")
+	case "internal/web/clients.go":
+		value = removeLinesContaining(value, `/internal/transactions"`)
+		value = removeBlockIncludingEnd(value, "func clientTransactionsPageURL(", "\n}\n")
+		value = removeText(value, "\tvar transactionsEntries []transactions.Entry\n", "\teditDraft := clients.Input")
+		value = removeLinesContaining(value, "ClientTransactions: transactionsEntries")
+	case "internal/web/clients.templ":
+		value = removeLinesContaining(value, `/internal/transactions"`)
+		value = removeText(value, "\t\tif data.CanReadClientTransactions {\n", "\t\tif data.EngagementEnabled {\n")
+	case "internal/web/localization.go":
+		value = removeLinesContaining(value, "data.TransactionsEnabled")
+	case "internal/web/viewmodel/handler.go":
+		value = removeLinesContaining(value, `/internal/transactions"`)
+		value = removeLinesContaining(value, "ClientTransactions")
+		value = removeLinesContaining(value, "TransactionsEnabled")
+	case "internal/identity/policy.go":
+		value = removeText(value, "// CanReadTransactions", "func permissionsForRole")
+	case "internal/identity/policy_test.go":
+		if start := strings.Index(value, "\nfunc TestTransactionsPolicy("); start >= 0 {
+			value = value[:start] + "\n"
+		}
+	case "internal/web/navigation_test.go":
+		value = removeLinesContaining(value, `{"transactions member"`)
+		value = removeLinesContaining(value, `{"transactions viewer"`)
+		value = removeLinesContaining(value, `{"transactions omitted"`)
+	case "internal/web/components/organisms/navigation.templ":
+		value = removeBlockIncludingEnd(value, "\t\t\t\t\tif data.TransactionsEnabled", "\t\t\t\t\t}\n")
+		value = removeBlockIncludingEnd(value, "\t\t\t\tif data.TransactionsEnabled", "\t\t\t\t}\n")
+	case "internal/web/components/organisms/navigation_templ.go":
+		value = removeBlockIncludingEnd(value, "\n\t\t\t\tif data.TransactionsEnabled", "\n\t\t\t\t}\n")
+		value = removeBlockIncludingEnd(value, "\n\t\t\tif data.TransactionsEnabled", "\n\t\t\t}\n")
+	case "internal/mcpserver/server.go":
+		value = removeLinesContaining(value, `"transactions_create_v1":`)
+		value = removeLinesContaining(value, `"transactions_category_`)
+		value = removeLinesContaining(value, `"transactions_method_create_v1":`)
+		value = removeLinesContaining(value, `"transactions_method_update_v1":`)
+		value = removeLinesContaining(value, `"transactions_void_v1":`)
+	case "internal/appctl/run.go":
+		value = strings.ReplaceAll(value, "<clients|fields|transactions>", "<clients|fields>")
+		value = removeBlockIncludingEnd(value, "\tif args[0] == \"transactions\" {", "\t}\n")
+	case "api/openapi.json":
+		var document map[string]any
+		if json.Unmarshal(raw, &document) == nil {
+			if paths, ok := document["paths"].(map[string]any); ok {
+				delete(paths, "/api/v1/workspaces/{workspaceId}/transactions/entries")
+				delete(paths, "/api/v1/workspaces/{workspaceId}/transactions/entries/{entryId}/void")
+				delete(paths, "/api/v1/workspaces/{workspaceId}/transactions/methods")
+				delete(paths, "/api/v1/workspaces/{workspaceId}/transactions/categories")
+				delete(paths, "/api/v1/workspaces/{workspaceId}/transactions/totals")
+				delete(paths, "/api/v1/workspaces/{workspaceId}/transactions/categories/{categoryId}")
+				if encoded, err := json.MarshalIndent(document, "", "  "); err == nil {
+					value = string(encoded) + "\n"
+				}
+			}
+		}
+	case "docs/capabilities.md":
+		value = removeText(value, "## Transactions filters and client history (#633)", "## Scheduling resources (#579)")
+		value = removeLineStarting(value, "| Transactions |")
+	case "docs/architecture.md":
+		value = removeText(value, "Transactions is optional and requires Identity and Clients.", "\n\nCompanySite")
+	}
+	return []byte(value)
+}
+
 func catalogPath(relative string) bool {
 	relative = filepath.ToSlash(relative)
 	return relative == "api/catalog_contract_test.go" || relative == "api/catalog_authorization_contract_test.go" || relative == "internal/catalog" || strings.HasPrefix(relative, "internal/catalog/") ||
 		relative == "internal/httpapi/catalog.go" || relative == "internal/httpapi/catalog_test.go" || relative == "internal/httpapi/catalog_authorization_test.go" || relative == "internal/httpapi/catalog_isolation_test.go" ||
 		relative == "internal/web/catalog.go" || relative == "internal/web/catalog_test.go" || relative == "internal/web/catalog_authorization_test.go" || relative == "internal/web/catalog_isolation_test.go" ||
-		relative == "internal/web/currency_settings.go" || relative == "internal/web/currency_settings.templ" || relative == "internal/web/currency_settings_templ.go" || relative == "internal/web/currency_settings_test.go" ||
+		relative == "internal/platform/database/migrate_workspace_currencies_postgres_test.go" ||
 		relative == "internal/platform/database/migrate_catalog_currencies_test.go" ||
 		relative == "internal/web/catalog.templ" || relative == "internal/web/catalog_templ.go" ||
 		relative == "internal/scheduling/booking.go" || relative == "internal/scheduling/move.go" || relative == "internal/scheduling/hours_bounds_test.go" || relative == "internal/platform/database/migrations/000048_scheduling_bookings.sql" ||
@@ -423,8 +587,6 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "h.catalogUnarchive")
 		value = removeLinesContaining(value, "h.catalogDelete")
 		value = removeLinesContaining(value, "h.catalogEdit")
-		value = removeLinesContaining(value, "h.currencySettingsPage")
-		value = removeLinesContaining(value, "h.currencySettingsSave")
 		value = removeLinesContaining(value, `"updateCatalog":`)
 		value = removeLinesContaining(value, "EnableCatalog(")
 		value = removeLinesContaining(value, `"listCatalog":`)
@@ -435,6 +597,8 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `"setSchedulingEngagement":`)
 		value = removeLinesContaining(value, `"setSchedulingBookingStatus":`)
 		value = removeLinesContaining(value, `"moveSchedulingBooking":`)
+	case "internal/platform/database/migrate_workspace_currencies_test.go":
+		value = removeText(value, "func TestWorkspaceCurrenciesMigrationPreservesCatalog(", "func TestWorkspaceCurrenciesMigrationWithoutCatalog(")
 	case "internal/httpapi/scheduling.go":
 		value = removeText(value, "func (h *handler) moveSchedulingBooking(", "func (h *handler) listSchedulingResources(")
 		value = removeText(value, "\tcase errors.Is(err, scheduling.ErrNoDuration):", "\tcase err != nil:")
@@ -644,7 +808,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 	switch relative {
 	case "internal/platform/database/migrate.go":
 		value = removeLinesContaining(value, `/internal/platform/id"`)
-		value = removeText(value, "\t\tif migration.version == 51 {", "\t\tif err := recordMigration(ctx, tx, driver, migration.version); err != nil {")
+		value = removeText(value, "\t\tif migration.version == 51 {", "\t\tif migration.version == 63 {")
 		value = removeText(value, "func backfillEngagementNames(", "// renderMigration")
 	case "internal/identity/account.go":
 		value = removeText(value, "\tif _, err := s.exec(ctx, tx, \"UPDATE engagements SET action_version", "\tresult, err := s.exec(ctx, tx, \"DELETE FROM users WHERE id = ?\", userID)")
@@ -685,6 +849,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeText(value, "\tclient, err := clients.NewService", "\tr, err := s.Create")
 		value = strings.Replace(value, `, "engagement_id": {eng.ID.String()}`, "", 1)
 		value = strings.Replace(value, ` || !strings.Contains(page.Body.String(), eng.ID.String())`, "", 1)
+		value = strings.Replace(value, " `name=\"engagement_id\" data-entry-picker`,", "", 1)
 		value = removeText(value, "\tclientPage := request", "\tbookings, _, err := s.Schedule")
 		value = removeText(value, "\tengagementPath := path +", "\tinvalidMove := request")
 		value = removeText(value, "\tengagementPage = request", "\tinvalidMove = request")
@@ -709,7 +874,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeText(value, "templ schedulingEngagement(", "templ schedulingPage(")
 		value = strings.ReplaceAll(value, "engagements []scheduling.EngagementOption, ", "")
 		value = removeText(value, "          for _, option := range engagements {", "          if canBook && booking.Status")
-		value = removeText(value, "         if len(engagements) > 0 {", "         <label class=\"form-control flex flex-col gap-1\"><span>{ data.T(\"scheduling.start\")")
+		value = removeText(value, "         if len(engagements) > 0 {", "         @molecules.EntryField(molecules.EntryFieldProps{ID: \"booking-new-start-")
 	case "internal/identity/service.go":
 		value = removeText(value, "func (s *Service) clearMemberAssignments(", "func normalizeEmail(")
 		value = strings.Replace(value, "func normalizeEmail(", "func (s *Service) clearMemberAssignments(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, userID UserID) error { _, err := s.exec(ctx, tx, \"UPDATE scheduling_resources SET user_id = NULL WHERE workspace_id = ? AND user_id = ?\", workspaceID, userID); return err }\n\nfunc normalizeEmail(", 1)
@@ -1269,6 +1434,9 @@ func parseProfiles(value string) ([]string, error) {
 			return nil, fmt.Errorf("profile %q is unknown or duplicated", profile)
 		}
 		selected[profile] = true
+	}
+	if selected["Transactions"] && (!selected["Identity"] || !selected["Clients"]) {
+		return nil, errors.New("Transactions profile requires Identity and Clients")
 	}
 	if selected["Catalog"] && !selected["Identity"] {
 		return nil, errors.New("Catalog profile requires Identity")

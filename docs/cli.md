@@ -45,6 +45,34 @@ syntax. `clients edit` takes `--version` from the client's last response and
 sends it as `If-Match`; a `--set-` flag with an empty value clears that field.
 Field values, options, restore, and permanent delete are not in `appctl` yet.
 
+Transactions supports `categories`, `category-create --name`, `category-rename
+--category --name`, and `category-archive --category`. `transactions create` accepts
+`--category` for money-out entries. These commands use the REST API.
+
+Transactions methods use `appctl transactions methods --workspace "$WORKSPACE_ID"` to list.
+Create with `appctl transactions method-create --workspace "$WORKSPACE_ID" --name 'Wire'`.
+Rename or change state with `appctl transactions method-update --workspace "$WORKSPACE_ID" --id "$METHOD_ID" --name 'Bank wire' --enabled=false`, using the ID returned by creation or listing.
+Updates require the current name and explicit enabled state. IDs stay stable after renaming. Owners and admins see disabled methods and may manage them; members see enabled methods only.
+
+`transactions list`, `transactions methods`, and `transactions create` use the transactions REST API.
+`transactions create` requires `--description`, a nonblank title of at most
+200 Unicode characters after trimming; `--note` remains optional. Responses
+include `description`, which is empty for historical entries without one.
+`transactions list` accepts `--client`, `--category`, `--payment-method`,
+`--direction` (`in` or `out`), `--from`, and `--to`; filters combine with AND.
+Dates are inclusive `YYYY-MM-DD` bounds. Use `--page` for 1-based pages of
+100 entries. Viewers cannot read transactions entries.
+To void an entry, use `transactions void --workspace "$WORKSPACE_ID" --entry
+"$ENTRY_ID" --reason "Correction"`. To create a linked replacement, pass
+`--replaces-entry "$ENTRY_ID"` to `transactions create`. For a money-out refund, use
+`--direction out --refund-of-entry "$ENTRY_ID"` with the usual creation flags.
+Owners and admins can void or replace entries; members can also record refunds.
+Refunds cannot exceed the unrefunded remainder.
+
+Owners and admins can run `appctl transactions totals --workspace "$WORKSPACE_ID"`.
+Use `--period last_month` or `--period custom --start 2024-01-01 --end 2024-01-31`
+to select a period. The output groups minor-unit balances by currency.
+
 `APPCTL_BASE_URL` defaults to `http://127.0.0.1:8080`.
 `APPCTL_TIMEOUT` defaults to `30s` and must be from `1s` to `5m`. Equivalent
 `--base-url`, `--token`, and `--timeout` flags are accepted after the command.

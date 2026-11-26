@@ -1,0 +1,26 @@
+package molecules
+
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
+type EntryEditorProps struct {
+	Display, EmptyText, Label, EditLabel, Class string
+	Draft bool
+	Attrs templ.Attributes
+}
+
+templ EntryEditor(props EntryEditorProps) {
+	@EntryField(EntryFieldProps{Value: props.Display}) {
+		<details class={ "entry-editor group relative w-full", props.Class } open?={ props.Draft } { actionattrs.ScalarAttributes(props.Attrs)... }>
+			<summary class="relative block w-full cursor-pointer list-none rounded-field pr-8 hover:bg-base-300 hover:outline hover:outline-1 hover:outline-base-content/30 group-open:invisible">
+				if props.Display == "" {
+					<span class="status-line">{ props.EmptyText }</span>
+				} else {
+					{ props.Display }
+				}
+				<svg class="absolute right-2 top-1/2 -translate-y-1/2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m15 5 4 4M4 20l4-1 11-11a2.8 2.8 0 0 0-4-4L4 15z"/></svg>
+				<span class="sr-only"> { props.EditLabel } { props.Label }</span>
+			</summary>
+			{ children... }
+		</details>
+	}
+}

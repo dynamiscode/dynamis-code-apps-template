@@ -68,7 +68,7 @@
   {
     "Path": "internal/web/catalog.templ",
     "OpenTag": "<a class=\"list-row-link\" href={ templ.SafeURL(href) }>",
-    "Line": 272,
+    "Line": 298,
     "Reason": "The catalog card anchor has a fixed class and no caller-controlled styling or attribute spread."
   },
   {
@@ -92,19 +92,19 @@
   {
     "Path": "internal/web/catalog.templ",
     "OpenTag": "<button aria-label={ data.T(\"common.cancel\") }>",
-    "Line": 88,
+    "Line": 100,
     "Reason": "Native dialog backdrop closes the modal; it is not a visible action control."
   },
   {
     "Path": "internal/web/clients.templ",
     "OpenTag": "<a class=\"link lg:hidden\" href=\"#client-timeline-heading\">",
-    "Line": 61,
+    "Line": 62,
     "Reason": "Fixed in-page timeline navigation link has no caller-controlled styling or attribute spread."
   },
   {
     "Path": "internal/web/clients.templ",
     "OpenTag": "<a class=\"card card-border group block p-4 text-base-content no-underline hover:bg-base-200 focus-visible:bg-base-200\" href={ templ.SafeURL(data.CurrentPath + \"/\" + data.Client.ID.String() + \"/engagements/\" + item.ID.String()) }>",
-    "Line": 90,
+    "Line": 131,
     "Reason": "Whole-card engagement navigation link uses a fixed class and no attribute spread."
   },
   {
@@ -116,13 +116,13 @@
   {
     "Path": "internal/web/engagement_new.templ",
     "OpenTag": "<button id=\"engagement-notes-write-tab\" type=\"button\" role=\"tab\" class=\"tab tab-active\" aria-selected=\"true\" aria-controls=\"engagement-notes-write-panel\" data-notes-write>",
-    "Line": 142,
+    "Line": 151,
     "Reason": "Fixed write tab in the notes tablist; its tab styling and selected state identify the control without button chrome."
   },
   {
     "Path": "internal/web/engagement_new.templ",
     "OpenTag": "<button id=\"engagement-notes-preview-tab\" type=\"button\" role=\"tab\" class=\"tab\" aria-selected=\"false\" aria-controls=\"engagement-notes-preview-panel\" tabindex=\"-1\" data-notes-preview>",
-    "Line": 143,
+    "Line": 152,
     "Reason": "Fixed preview tab in the notes tablist; its tab styling and selected state identify the control without button chrome."
   },
   {
@@ -154,5 +154,59 @@
     "OpenTag": "<a class=\"\" aria-current={ currentPage(active) } href={ href }>",
     "Line": 59,
     "Reason": "The inactive sidebar navigation link has a fixed empty class and no attribute spread; menu styling intentionally remains unboxed."
+  },
+  {
+    "Path": "internal/web/clients.templ",
+    "OpenTag": "<a class=\"link\" href={ templ.SafeURL(\"/workspaces/\"+data.Workspace.ID.String()+\"/transactions?client_id=\"+data.Client.ID.String()+\"#transactions-entries-heading\") }>",
+    "Line": 67,
+    "Reason": "The client transaction history link has fixed inline-link styling and no attribute spread."
+  },
+  {
+    "Path": "internal/web/transactions.templ",
+    "OpenTag": "<a href={ templ.SafeURL(settings) }>",
+    "Line": 119,
+    "Reason": "The settings menu link has no caller-controlled styling or attribute spread."
+  },
+  {
+    "Path": "internal/web/transactions.templ",
+    "OpenTag": "<a href={ templ.SafeURL(settings+\"/methods\") }>",
+    "Line": 121,
+    "Reason": "The settings menu link has no caller-controlled styling or attribute spread."
+  },
+  {
+    "Path": "internal/web/transactions.templ",
+    "OpenTag": "<a href={ templ.SafeURL(base+\"/totals?period=this_month\") }>",
+    "Line": 122,
+    "Reason": "The settings menu link has no caller-controlled styling or attribute spread."
+  },
+  {
+    "Path": "internal/web/transactions.templ",
+    "OpenTag": "<a href={ templ.SafeURL(settings+\"/categories\") }>",
+    "Line": 125,
+    "Reason": "The settings menu link has no caller-controlled styling or attribute spread."
+  },
+  {
+    "Path": "internal/web/transactions.templ",
+    "OpenTag": "<a class=\"link\" href={ templ.SafeURL(transactionsDetailsURL(query, page, row.entry.ID)) }>",
+    "Line": 200,
+    "Reason": "The transaction card link has fixed inline-link styling and no attribute spread."
+  },
+  {
+    "Path": "internal/web/transactions.templ",
+    "OpenTag": "<a href={ templ.SafeURL(\"?refund_of_entry_id=\"+entry.ID.String()+\"#transactions-entries-heading\") } aria-label={ data.T(\"transactions.linked_refunds\")+\" \"+entry.ID.String() }>",
+    "Line": 359,
+    "Reason": "The linked refunds navigation has no caller-controlled styling or attribute spread."
+  },
+  {
+    "Path": "internal/web/transactions.templ",
+    "OpenTag": "<a class=\"link\" href={ templ.SafeURL(\"/workspaces/\"+data.Workspace.ID.String()+\"/transactions?entry_id=\"+url.QueryEscape(source.ID.String())+\"#transactions-entries-heading\") }>",
+    "Line": 425,
+    "Reason": "The source transaction link has fixed inline-link styling and no attribute spread."
+  },
+  {
+    "Path": "internal/web/transactions_totals.templ",
+    "OpenTag": "<a class=\"link\" href=\"#transactions-totals-period-heading\">",
+    "Line": 19,
+    "Reason": "The fixed in-page navigation link has no caller-controlled styling or attribute spread."
   }
 ]

@@ -63,6 +63,17 @@ func TestPreferencesMergeIndependentlyAndResetByUserWorkspaceAndList(t *testing.
 	if err != nil || !got["name"] || got["email"] {
 		t.Fatalf("reset = %v, %v; want all defaults", got, err)
 	}
+	if err := service.Set(ctx, actor, boot.WorkspaceID, ListTransactions, "name", false, defaults); err != nil {
+		t.Fatal(err)
+	}
+	got, err = service.Get(ctx, actor, boot.WorkspaceID, ListTransactions, defaults)
+	if err != nil || got["name"] {
+		t.Fatalf("transactions preference = %v, %v", got, err)
+	}
+	got, err = service.Get(ctx, actor, boot.WorkspaceID, ListClients, defaults)
+	if err != nil || !got["name"] {
+		t.Fatalf("client preference changed = %v, %v", got, err)
+	}
 }
 
 func TestPreferencesCannotBeReadOrChangedOutsideAuthenticatedScope(t *testing.T) {

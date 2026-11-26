@@ -13,6 +13,7 @@ import (
 
 	"example.com/dynamis-code/apps-template/internal/catalog"
 	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/currency"
 	"example.com/dynamis-code/apps-template/internal/engagement"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/httpapi"
@@ -29,6 +30,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 	"example.com/dynamis-code/apps-template/internal/portability"
 	"example.com/dynamis-code/apps-template/internal/scheduling"
+	"example.com/dynamis-code/apps-template/internal/transactions"
 	"example.com/dynamis-code/apps-template/internal/web"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
 	"example.com/dynamis-code/apps-template/internal/workspaceemail"
@@ -185,6 +187,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, fmt.Errorf("register booking reminder handler: %w", err)
 	}
 	catalogService := catalog.NewService(db, identityService, scheduling.CatalogEntryInUse)
+	transactionsService := transactions.NewService(db, identityService)
 	handler, err := httpapi.NewHandlerWithCatalogAndEngagement(
 		db, identityService, portabilityService, oidcRegistry, cfg.HTTP, slog.Default(),
 		webhookService, fileService, cfg.PublicURL, mailer, catalogService, engagementService, intakeService, clientService,
@@ -203,7 +206,9 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("initialize web handler: %w", err)
 	}
+	webHandler.SetCurrencyService(currency.NewService(db, identityService))
 	webHandler.EnableCatalog(catalogService)
+	webHandler.EnableTransactions(transactionsService)
 	webHandler.EnableScheduling(schedulingService)
 	webHandler.SetWorkspaceMode(cfg.WorkspaceMode)
 	listPreferences := listprefs.NewService(db, cfg.Database.Driver, identityService)
@@ -217,7 +222,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	mux := http.NewServeMux()
 	mux.Handle("/api/", handler)
 	mux.Handle("/health/", handler)
-	registerAgent(mux, identityService, clientService, cfg)
+	registerAgent(mux, identityService, clientService, transactionsService, cfg)
 	if cfg.MCP.OAuthBuiltIn {
 		webHandler.EnableMCPOAuth(cfg.MCP.OAuthResourceURL)
 	}

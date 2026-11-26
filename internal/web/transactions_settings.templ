@@ -1,0 +1,114 @@
+package web
+
+import "strconv"
+import "example.com/dynamis-code/apps-template/internal/transactions"
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+templ transactionsSettingsView(data viewmodel.PageData, page string, categories []transactions.Category, methods []transactions.Method, draft transactionsDraft, categoryError, methodError, methodID, methodName string, methodEnabled, categorySaved, methodSaved bool) {
+ @templates.DashboardShell(data, templates.DashboardSettings) {
+  {{ base := "/workspaces/" + data.Workspace.ID.String(); transactionsBase := base + "/transactions" }}
+  <div class="settings-page flex flex-col gap-4">
+   @molecules.BackLink(transactionsBase, data.T("transactions.totals_back"))
+   if page == "transactions-settings" {
+    @molecules.PageHeading(data.T("transactions.manage"), data.T("navigation.settings_setup"))
+    <ul class="cards workspace-cards grid list-none gap-4 p-0 grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
+     @molecules.LinkedCard(base + "/settings/transactions/methods", data.T("transactions.methods"), data.T("transactions.method_history_help"))
+     @molecules.LinkedCard(base + "/settings/transactions/categories", data.T("transactions.manage_categories"), data.T("transactions.category_history_help"))
+    </ul>
+   } else if page == "transactions-methods" {
+    @molecules.PageHeading(data.T("transactions.methods"), data.T("navigation.settings_setup"))
+    <section class="settings-panel card min-w-0 p-5 gap-4" aria-labelledby="transactions-methods-heading">
+     <h2 id="transactions-methods-heading" class="text-xl font-bold">{ data.T("transactions.methods") }</h2>
+     <p>{ data.T("transactions.method_history_help") }</p>
+     if methodSaved {
+      @molecules.SuccessAlert(data.T("transactions.method_saved"))
+     }
+     if methodError != "" {
+      <div id="transactions-method-error" role="alert" tabindex="-1" class="alert alert-error error">{ data.T(methodError) }</div>
+     }
+     {{ newMethodName := ""; if methodError != "" && methodID == "" { newMethodName = methodName } }}
+     {{ methodFound := false; for _, method := range methods { if method.ID == methodID { methodFound = true } } }}
+     if methodError != "" && methodID != "" && !methodFound {
+      @molecules.TextField("transactions-missing-method", data.T("transactions.method_name"), templ.Attributes{"value":methodName, "readonly":true})
+     }
+     <form method="post" action={ templ.SafeURL(transactionsBase + "/methods") } class="flex flex-col gap-3 max-w-xl">
+      <input type="hidden" name="csrf" value={ data.CSRF }/>
+      <input type="hidden" name="enabled" value="true"/>
+      @molecules.TextField("transactions-new-method", data.T("transactions.method_name"), templ.Attributes{"name":"name", "required":true, "maxlength":"64", "value":newMethodName, "autofocus":methodError != "" && methodID == "", "aria-invalid":templ.KV("true", methodError != "" && methodID == ""), "aria-describedby":templ.KV("transactions-method-error", methodError != "" && methodID == "")})
+      <button class="btn btn-primary" type="submit">{ data.T("transactions.method_add") }</button>
+     </form>
+     <ul class="settings-records grid list-none gap-4 p-0">
+      for i, method := range methods {
+       {{ failed := methodError != "" && methodID == method.ID; name := method.Name; enabled := method.Enabled; if failed { name = methodName; enabled = methodEnabled } }}
+       <li class="settings-record card card-compact gap-3 bg-base-200 px-4 py-3">
+        <h3 class="font-semibold">{ transactionsMethodLabel(data, method.ID, method.Name) } ·
+         if method.Enabled {
+          { data.T("transactions.method_status_enabled") }
+         } else {
+          { data.T("transactions.method_status_disabled") }
+         }
+        </h3>
+        <form method="post" action={ templ.SafeURL(transactionsBase + "/methods") } class="flex flex-col gap-3 max-w-xl">
+         <input type="hidden" name="csrf" value={ data.CSRF }/>
+         <input type="hidden" name="id" value={ method.ID }/>
+         @molecules.TextField("transactions-method-name-"+strconv.Itoa(i), data.T("transactions.method_name"), templ.Attributes{"name":"name", "required":true, "maxlength":"64", "value":name, "autofocus":failed, "aria-invalid":templ.KV("true", failed), "aria-describedby":templ.KV("transactions-method-error", failed), "aria-label":data.T("transactions.method_name")+" — "+transactionsMethodLabel(data, method.ID, method.Name)})
+         <label class="flex items-center gap-2" for={ "transactions-method-enabled-"+strconv.Itoa(i) }>
+          <input id={ "transactions-method-enabled-"+strconv.Itoa(i) } class="toggle" type="checkbox" name="enabled" value="true" checked?={ enabled } aria-label={ data.T("transactions.method_enabled")+" — "+transactionsMethodLabel(data, method.ID, method.Name) }/>
+          { data.T("transactions.method_enabled") }
+         </label>
+         <button class="btn btn-outline" type="submit" aria-label={ data.T("transactions.method_save")+" — "+transactionsMethodLabel(data, method.ID, method.Name) }>{ data.T("transactions.method_save") }</button>
+        </form>
+       </li>
+      }
+     </ul>
+    </section>
+   } else {
+    @molecules.PageHeading(data.T("transactions.manage_categories"), data.T("navigation.settings_setup"))
+    <section class="settings-panel card min-w-0 p-5 gap-4" aria-labelledby="transactions-categories-heading">
+     <h2 id="transactions-categories-heading" class="text-xl font-bold">{ data.T("transactions.manage_categories") }</h2>
+     <p>{ data.T("transactions.category_history_help") }</p>
+     if categorySaved {
+      @molecules.SuccessAlert(data.T("transactions.category_saved"))
+     }
+     if categoryError != "" {
+      <div id="transactions-category-error" role="alert" tabindex="-1" class="alert alert-error error">{ data.T(categoryError) }</div>
+     }
+     {{ categoryFound := false; for _, category := range categories { if !category.Archived && category.ID.String() == draft.categoryEditID { categoryFound = true } } }}
+     if categoryError != "" && draft.categoryEditID != "" && !categoryFound {
+      @molecules.TextField("transactions-missing-category", data.T("transactions.category_name"), templ.Attributes{"value":draft.categoryName, "readonly":true})
+     }
+     {{ newName := ""; if categoryError != "" && draft.categoryEditID == "" { newName = draft.categoryName } }}
+     <form method="post" action={ templ.SafeURL(transactionsBase + "/categories") } class="flex flex-col gap-3 max-w-xl">
+      <input type="hidden" name="csrf" value={ data.CSRF }/>
+      @molecules.TextField("transactions-new-category", data.T("transactions.category_name"), templ.Attributes{"name":"name", "maxlength":"64", "required":true, "value":newName, "autofocus":categoryError != "" && draft.categoryEditID == "", "aria-invalid":templ.KV("true", categoryError != "" && draft.categoryEditID == ""), "aria-describedby":templ.KV("transactions-category-error", categoryError != "" && draft.categoryEditID == "")})
+      <button class="btn btn-primary" type="submit">{ data.T("transactions.category_create") }</button>
+     </form>
+     <ul class="settings-records grid list-none gap-4 p-0">
+      for _, category := range categories {
+       <li class="settings-record card card-compact bg-base-200 px-4 py-3">
+        if category.Archived {
+         { category.Name } ({ data.T("transactions.category_archived") })
+        } else {
+         {{ failed := categoryError != "" && draft.categoryEditID == category.ID.String(); name := category.Name; if failed { name = draft.categoryName } }}
+         <details open?={ failed }>
+          <summary>{ category.Name }</summary>
+          <form method="post" action={ templ.SafeURL(transactionsBase + "/categories/" + category.ID.String()) } class="flex flex-col gap-3 mt-3 max-w-xl">
+           <input type="hidden" name="csrf" value={ data.CSRF }/>
+           @molecules.TextField("transactions-category-"+category.ID.String(), data.T("transactions.category_name")+": "+category.Name, templ.Attributes{"name":"name", "maxlength":"64", "required":true, "value":name, "autofocus":failed, "aria-invalid":templ.KV("true", failed), "aria-describedby":templ.KV("transactions-category-error", failed)})
+           <div class="flex flex-wrap gap-3">
+            <button class="btn btn-outline" type="submit" name="action" value="rename" aria-label={ data.T("transactions.category_rename") + ": " + category.Name }>{ data.T("transactions.category_rename") }</button>
+            <button class="btn btn-outline" type="submit" name="action" value="archive" formnovalidate aria-label={ data.T("transactions.category_archive") + ": " + category.Name } data-confirm={ data.T("transactions.category_archive_confirm") }>{ data.T("transactions.category_archive") }</button>
+           </div>
+          </form>
+         </details>
+        }
+       </li>
+      }
+     </ul>
+    </section>
+   }
+  </div>
+ }
+}

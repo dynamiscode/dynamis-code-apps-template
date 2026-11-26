@@ -8,34 +8,44 @@ import templates "example.com/dynamis-code/apps-template/internal/web/components
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "strconv"
 
-templ schedulingHoursRow(data viewmodel.PageData, h scheduling.WorkingHours) {
+templ schedulingHoursRow(data viewmodel.PageData, h scheduling.WorkingHours, id string) {
  <fieldset class="flex flex-wrap gap-3 items-end">
   <legend class="sr-only">{ data.T("scheduling.range") }</legend>
-  <label class="form-control flex w-full flex-col gap-1 sm:w-auto"><span>{ data.T("scheduling.day") }</span><select class="select select-bordered w-full" name="weekday">
-   for day := 0; day < 7; day++ {
-    <option value={ strconv.Itoa(day) } selected?={ h.Weekday == day }>{ data.T("scheduling.day_"+strconv.Itoa(day)) }</option>
-   }
-  </select></label>
-  <label class="form-control flex w-full flex-col gap-1 sm:w-auto"><span>{ data.T("scheduling.start") }</span><input class="input input-bordered w-full" type="time" name="start" value={ h.Start }/></label>
-  <label class="form-control flex w-full flex-col gap-1 sm:w-auto"><span>{ data.T("scheduling.end") }</span><input class="input input-bordered w-full" type="time" name="end" value={ h.End }/></label>
+  @molecules.EntryField(molecules.EntryFieldProps{ID: id + "-day", Label: data.T("scheduling.day"), Value: strconv.Itoa(h.Weekday), SearchLabel: data.T("ui.search")}) {
+   <select id={ id + "-day" } class="select select-bordered w-full" name="weekday" data-entry-picker>
+    for day := 0; day < 7; day++ {
+     <option value={ strconv.Itoa(day) } selected?={ h.Weekday == day }>{ data.T("scheduling.day_"+strconv.Itoa(day)) }</option>
+    }
+   </select>
+  }
+  @molecules.EntryField(molecules.EntryFieldProps{ID: id + "-start", Label: data.T("scheduling.start"), Value: h.Start}) {
+   <input id={ id + "-start" } class="input input-bordered w-full" type="time" name="start" value={ h.Start }/>
+  }
+  @molecules.EntryField(molecules.EntryFieldProps{ID: id + "-end", Label: data.T("scheduling.end"), Value: h.End}) {
+   <input id={ id + "-end" } class="input input-bordered w-full" type="time" name="end" value={ h.End }/>
+  }
  </fieldset>
 }
 
-templ schedulingUser(data viewmodel.PageData, members []identity.MemberSummary, selected string) {
- <label class="form-control flex flex-col gap-1"><span class="label-text">{ data.T("scheduling.user") }</span><select class="select select-bordered" name="user_id"><option value="">{ data.T("scheduling.no_user") }</option>
-  for _, member := range members {
-   <option value={ member.UserID.String() } selected?={ selected == member.UserID.String() }>{ member.Email }</option>
-  }
- </select></label>
+templ schedulingUser(data viewmodel.PageData, members []identity.MemberSummary, selected, id string) {
+ @molecules.EntryField(molecules.EntryFieldProps{ID: id, Label: data.T("scheduling.user"), Value: selected, SearchLabel: data.T("ui.search")}) {
+  <select id={ id } class="select select-bordered" name="user_id" data-entry-picker><option value="">{ data.T("scheduling.no_user") }</option>
+   for _, member := range members {
+    <option value={ member.UserID.String() } selected?={ selected == member.UserID.String() }>{ member.Email }</option>
+   }
+  </select>
+ }
 }
 
-templ schedulingEngagement(data viewmodel.PageData, options []scheduling.EngagementOption, selected string) {
- <label class="form-control flex flex-col gap-1"><span>{ data.T("scheduling.engagement") }</span><select class="select select-bordered" name="engagement_id">
-  <option value="">{ data.T("scheduling.no_engagement") }</option>
-  for _, option := range options {
-   <option value={ option.ID.String() } selected?={ selected == option.ID.String() }>{ option.Label }</option>
-  }
- </select></label>
+templ schedulingEngagement(data viewmodel.PageData, options []scheduling.EngagementOption, selected, id string) {
+ @molecules.EntryField(molecules.EntryFieldProps{ID: id, Label: data.T("scheduling.engagement"), Value: selected, SearchLabel: data.T("ui.search")}) {
+  <select id={ id } class="select select-bordered" name="engagement_id" data-entry-picker>
+   <option value="">{ data.T("scheduling.no_engagement") }</option>
+   for _, option := range options {
+    <option value={ option.ID.String() } selected?={ selected == option.ID.String() }>{ option.Label }</option>
+   }
+  </select>
+ }
 }
 
 templ schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, zone string, members []identity.MemberSummary, bookings map[scheduling.ResourceID][]scheduling.Booking, history map[scheduling.BookingID][]scheduling.BookingMove, entries []catalog.Entry, engagements []scheduling.EngagementOption, canWrite bool, canBook bool, invalid bool, draft schedulingDraft) {
@@ -62,7 +72,9 @@ templ schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, z
    }
    <form method="post" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/scheduling/time-zone") } class="card bg-base-100 p-4 space-y-3 max-w-xl">
     <input type="hidden" name="csrf" value={ data.CSRF }/>
-    <label class="form-control flex flex-col gap-1"><span class="label-text">{ data.T("scheduling.zone") }</span><input class="input input-bordered" name="time_zone" value={ zoneInput } required/></label>
+    @molecules.EntryField(molecules.EntryFieldProps{ID: "scheduling-zone", Label: data.T("scheduling.zone"), Value: zoneInput}) {
+     <input id="scheduling-zone" class="input input-bordered" name="time_zone" value={ zoneInput } required/>
+    }
     <button class="btn btn-primary w-fit" type="submit">{ data.T("common.save") }</button>
    </form>
    {{ createName, createUser := "", "" }}
@@ -71,8 +83,10 @@ templ schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, z
    }
    <form method="post" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/scheduling") } class="card bg-base-100 p-4 space-y-3 max-w-xl">
     <input type="hidden" name="csrf" value={ data.CSRF }/>
-    <label class="form-control flex flex-col gap-1"><span class="label-text">{ data.T("scheduling.name") }</span><input class="input input-bordered" name="name" value={ createName } required/></label>
-    @schedulingUser(data, members, createUser)
+    @molecules.EntryField(molecules.EntryFieldProps{ID: "scheduling-create-name", Label: data.T("scheduling.name"), Value: createName}) {
+     <input id="scheduling-create-name" class="input input-bordered" name="name" value={ createName } required/>
+    }
+    @schedulingUser(data, members, createUser, "scheduling-create-user")
     <button class="btn btn-primary w-fit" type="submit">{ data.T("common.create") }</button>
    </form>
   }
@@ -131,9 +145,9 @@ templ schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, z
            <form method="post" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/scheduling/bookings/"+booking.ID.String()+"/engagement") } data-confirm-select>
             <input type="hidden" name="csrf" value={ data.CSRF }/>
             if booking.EngagementID != nil {
-             @schedulingEngagement(data, engagements, booking.EngagementID.String())
+             @schedulingEngagement(data, engagements, booking.EngagementID.String(), "booking-engagement-" + booking.ID.String())
             } else {
-             @schedulingEngagement(data, engagements, "")
+             @schedulingEngagement(data, engagements, "", "booking-engagement-" + booking.ID.String())
             }
             <div data-confirm-select-fallback><button class="btn btn-sm" type="submit">{ data.T("common.save") }</button></div>
             @confirmSelectDialog(data, data.T("scheduling.engagement"))
@@ -155,15 +169,19 @@ templ schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, z
        <details open?={ draft.action == "booking" && draft.resourceID == resource.ID.String() }><summary class="btn btn-sm">{ data.T("scheduling.book") }</summary>
         <form method="post" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/scheduling/"+resource.ID.String()+"/bookings") } class="space-y-3">
          <input type="hidden" name="csrf" value={ data.CSRF }/>
-         <label class="form-control flex flex-col gap-1"><span>{ data.T("scheduling.entry") }</span><select class="select select-bordered" name="entry_id" required>
-          for _, entry := range entries {
-           <option value={ entry.ID.String() } selected?={ draft.entryID == entry.ID.String() }>{ entry.Name }</option>
-          }
-         </select></label>
-         if len(engagements) > 0 {
-          @schedulingEngagement(data, engagements, draft.engagementID)
+         @molecules.EntryField(molecules.EntryFieldProps{ID: "booking-entry-" + resource.ID.String(), Label: data.T("scheduling.entry"), Value: draft.entryID, SearchLabel: data.T("ui.search")}) {
+          <select id={ "booking-entry-" + resource.ID.String() } class="select select-bordered" name="entry_id" required data-entry-picker>
+           for _, entry := range entries {
+            <option value={ entry.ID.String() } selected?={ draft.entryID == entry.ID.String() }>{ entry.Name }</option>
+           }
+          </select>
          }
-         <label class="form-control flex flex-col gap-1"><span>{ data.T("scheduling.start") } ({ zone })</span><input class="input input-bordered" type="datetime-local" name="start" value={ draft.start } required/></label>
+         if len(engagements) > 0 {
+          @schedulingEngagement(data, engagements, draft.engagementID, "booking-new-engagement-" + resource.ID.String())
+         }
+         @molecules.EntryField(molecules.EntryFieldProps{ID: "booking-new-start-" + resource.ID.String(), Label: data.T("scheduling.start") + " (" + zone + ")", Value: draft.start}) {
+          <input id={ "booking-new-start-" + resource.ID.String() } class="input input-bordered" type="datetime-local" name="start" value={ draft.start } required/>
+         }
          <button class="btn btn-primary" type="submit">{ data.T("scheduling.book") }</button>
         </form>
        </details>
@@ -192,10 +210,10 @@ templ schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, z
        <form method="post" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/scheduling/"+resource.ID.String()+"/working-hours") } class="space-y-3">
         <input type="hidden" name="csrf" value={ data.CSRF }/>
         <p>{ data.T("scheduling.hours_help") }</p>
-        for _, hour := range hours {
-         @schedulingHoursRow(data, hour)
+        for i, hour := range hours {
+         @schedulingHoursRow(data, hour, "scheduling-hours-" + resource.ID.String() + "-" + strconv.Itoa(i))
         }
-        @schedulingHoursRow(data, scheduling.WorkingHours{})
+        @schedulingHoursRow(data, scheduling.WorkingHours{}, "scheduling-hours-" + resource.ID.String() + "-new")
         <button class="btn btn-primary" type="submit">{ data.T("common.save") }</button>
        </form>
        </details>
@@ -209,8 +227,10 @@ templ schedulingPage(data viewmodel.PageData, resources []scheduling.Resource, z
        <details open?={ draft.resourceID == resource.ID.String() && draft.action != "hours" && draft.action != "booking" && draft.action != "move" }><summary class="btn btn-sm">{ data.T("ui.edit") }</summary>
         <form method="post" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/scheduling/"+resource.ID.String()+"/edit") } class="space-y-3">
          <input type="hidden" name="csrf" value={ data.CSRF }/>
-         <label class="form-control flex flex-col gap-1"><span class="label-text">{ data.T("scheduling.name") }</span><input class="input input-bordered" name="name" value={ name } required/></label>
-         @schedulingUser(data, members, userID)
+         @molecules.EntryField(molecules.EntryFieldProps{ID: "scheduling-edit-name-" + resource.ID.String(), Label: data.T("scheduling.name"), Value: name}) {
+          <input id={ "scheduling-edit-name-" + resource.ID.String() } class="input input-bordered" name="name" value={ name } required/>
+         }
+         @schedulingUser(data, members, userID, "scheduling-edit-user-" + resource.ID.String())
          <button class="btn btn-primary" type="submit">{ data.T("common.save") }</button>
         </form>
        </details>

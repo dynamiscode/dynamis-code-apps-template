@@ -166,10 +166,18 @@ templ clientCreateForm(data viewmodel.PageData, action string, modal bool) {
 		if modal {
 			<input type="hidden" name="client_modal" value="1"/>
 		}
-		@molecules.TextField("client-display-name", data.T("clients.display_name"), templ.Attributes{"name": "display_name", "required": true, "maxlength": "200", "value": data.ClientDraft.DisplayName, "data-trim": ""})
-		@molecules.TextField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{"name": "email", "type": "email", "maxlength": "254", "value": data.ClientDraft.Email})
-		@molecules.TextField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{"name": "phone", "maxlength": "50", "value": data.ClientDraft.Phone})
-		@molecules.TextareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.ClientDraft.Notes, templ.Attributes{"name": "notes", "maxlength": "5000"})
+		@molecules.EntryField(molecules.EntryFieldProps{ID: "client-display-name", Label: data.T("clients.display_name"), Value: data.ClientDraft.DisplayName}) {
+			<input id="client-display-name" name="display_name" required maxlength="200" value={ data.ClientDraft.DisplayName } data-trim=""/>
+		}
+		@molecules.EntryField(molecules.EntryFieldProps{ID: "client-email", Label: data.T("common.email")+" "+data.T("ui.optional"), Value: data.ClientDraft.Email}) {
+			<input id="client-email" name="email" type="email" maxlength="254" value={ data.ClientDraft.Email }/>
+		}
+		@molecules.EntryField(molecules.EntryFieldProps{ID: "client-phone", Label: data.T("clients.phone")+" "+data.T("ui.optional"), Value: data.ClientDraft.Phone}) {
+			<input id="client-phone" name="phone" type="tel" maxlength="50" value={ data.ClientDraft.Phone }/>
+		}
+		@molecules.EntryField(molecules.EntryFieldProps{ID: "client-notes", Label: data.T("clients.notes")+" "+data.T("ui.optional"), Value: data.ClientDraft.Notes}) {
+			<textarea id="client-notes" name="notes" maxlength="5000">{ data.ClientDraft.Notes }</textarea>
+		}
 		<div class="actions">
 			@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.create"), Attrs: templ.Attributes{"type": "submit"}})
 		</div>

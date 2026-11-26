@@ -11,6 +11,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/listviews"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/scheduling"
+	"example.com/dynamis-code/apps-template/internal/transactions"
 	atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"github.com/a-h/templ"
@@ -41,6 +42,17 @@ func (h *Handler) EnableClients(service *clients.Service, preferences *listprefs
 
 func (h *Handler) clientsPath(workspaceID identity.WorkspaceID) string {
 	return "/workspaces/" + workspaceID.String() + "/clients"
+}
+
+func clientTransactionsPageURL(data viewmodel.PageData, page int) string {
+	query := url.Values{"transactions_page": {strconv.Itoa(page)}}
+	if data.TimelinePage > 1 {
+		query.Set("timeline_page", strconv.Itoa(data.TimelinePage))
+	}
+	if data.ClientReturnQuery != "" {
+		query.Set("return", data.ClientReturnQuery)
+	}
+	return data.CurrentPath + "/" + data.Client.ID.String() + "?" + query.Encode() + "#client-transactions-heading"
 }
 
 func clientOptionalString(value *string) string {
@@ -447,6 +459,23 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		h.clientError(writer, request, err)
 		return
 	}
+	var transactionsEntries []transactions.Entry
+	transactionsPage := 1
+	canReadTransactions := h.transactions != nil && identity.CanReadTransactions(principal) && request.PathValue("engagementId") == ""
+	if canReadTransactions {
+		if raw := request.URL.Query().Get("transactions_page"); raw != "" {
+			transactionsPage, err = strconv.Atoi(raw)
+			if err != nil || transactionsPage < 1 || transactionsPage > 1000000 {
+				h.renderError(writer, http.StatusBadRequest)
+				return
+			}
+		}
+		transactionsEntries, err = h.transactions.List(request.Context(), principal, workspaceID, transactions.ListFilter{Page: transactionsPage, ClientID: clientID})
+		if err != nil {
+			h.transactionsError(writer, err)
+			return
+		}
+	}
 	editDraft := clients.Input{DisplayName: client.DisplayName, Email: client.Email, Phone: client.Phone, Notes: client.Notes}
 	if draft != nil {
 		editDraft = *draft
@@ -628,6 +657,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		FieldsPath:        h.clientFieldsPath(workspaceID),
 		CanManageFields:   principal.Permissions[identity.WorkspaceUpdate],
 		Client:            client, ClientValues: rows, ClientTimeline: entries, TimelinePage: page, TimelineDraft: timelineDraft, CanEditClients: principal.Permissions[identity.ResourcesWrite],
+		ClientTransactions: transactionsEntries, ClientTransactionsPage: transactionsPage, CanReadClientTransactions: canReadTransactions,
 		ClientDraft: editDraft, ClientEditRejected: draft != nil,
 		ClientInlineField: func() string {
 			if errorKey != "" && request.Method == http.MethodPost && strings.HasSuffix(request.URL.Path, "/field") {

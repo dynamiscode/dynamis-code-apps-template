@@ -146,7 +146,7 @@ func TestClientValuesUseTypedInputsAndValidate(t *testing.T) {
 		strings.Contains(page, `id="client-values-heading"`) {
 		t.Fatalf("custom fields actions or layout missing: %s", page)
 	}
-	for _, want := range []string{`type="number"`, `type="date"`, `<option value="true">`, `<option value="false">`} {
+	for _, want := range []string{`type="number"`, `data-entry-number="float"`, `type="date"`, `<option value="true">`, `<option value="false">`} {
 		if !strings.Contains(page, want) {
 			t.Fatalf("detail page lacks %s: %s", want, page)
 		}

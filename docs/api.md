@@ -16,6 +16,43 @@ Catalog profile: `GET /api/v1/workspaces/{workspaceId}/scheduling/resources/{res
 
 Booking creation accepts an optional `engagementId`. Writers can replace or clear it with `PUT /api/v1/workspaces/{workspaceId}/scheduling/bookings/{bookingId}/engagement`; the body requires `engagementId`, either a same-workspace ID or null. Readers see the link in the schedule.
 
+Transactions payment methods: `GET /api/v1/workspaces/{workspaceId}/transactions/methods` requires `resources:read`; owners and admins see disabled methods too, while members see enabled methods only. Each result has a stable `id`, editable `name`, and `enabled` state. Owners and admins with `resources:write` create an enabled method with `POST` and `{"name":"..."}`. Update with `PUT` and `{"id":"...","name":"...","enabled":false}`. Names are nonblank and at most 64 Unicode characters. Disabling the last enabled method returns `409` with code `last-payment-method`. Transactions entries use the stable method ID, not its current name.
+
+Transactions entries use `GET/POST /api/v1/workspaces/{workspaceId}/transactions/entries`.
+Creating an entry requires a nonblank `description` of at most 200 Unicode
+characters after trimming. `note` remains optional and separate. List, create,
+and void responses include `description`; historical entries can have an empty
+description.
+Readers need `resources:read`; entry creation needs `resources:write`. Owners
+and admins can void an entry with `POST /transactions/entries/{entryId}/void` and
+an optional `reason`. They can create a replacement using `replacesEntryId`.
+Owners, admins, and members can record a money-out refund using `refundOfEntryId`.
+Refunds cannot exceed the unrefunded remainder. A receipt with active refunds
+cannot be voided; a refund replacement must retain its original receipt link.
+List and create responses include correction links and void details.
+List accepts optional `clientId`, `categoryId`, `paymentMethod`, `direction`
+(`in` or `out`), `from`, and `to` query parameters. Filters combine with AND;
+dates use inclusive `YYYY-MM-DD` bounds. `page` is 1-based, with 100 entries
+per page. Owners, admins, and members may list entries; viewers cannot.
+
+Owners and admins with `resources:read` can use `GET /api/v1/workspaces/{workspaceId}/transactions/totals`.
+The `period` query parameter is `this_month` (default), `last_month`, or
+`custom`. Custom periods require inclusive `start` and `end` dates in
+`YYYY-MM-DD` format. Presets use the workspace time zone. Results contain
+separate totals per currency, with payment-method and expense-category
+breakdowns. Amounts are exact decimal strings in minor units. Categories include
+their stable ID and archived state. Refunds count as money out; voided entries
+are excluded.
+
+Owners and admins with `resources:read` can use `GET /api/v1/workspaces/{workspaceId}/transactions/totals`.
+The `period` query parameter is `this_month` (default), `last_month`, or
+`custom`. Custom periods require inclusive `start` and `end` dates in
+`YYYY-MM-DD` format. Presets use the workspace time zone. Results contain
+separate totals per currency, with payment-method and expense-category
+breakdowns. Amounts are exact decimal strings in minor units. Categories include
+their stable ID and archived state. Refunds count as money out; voided entries
+are excluded.
+
 ## Consumer quickstart
 
 API tokens are created from the workspace Settings API-token screen or through
@@ -211,6 +248,16 @@ Webhook, delivery, and event IDs are short IDs, and `Webhook-Id` is the event's
 short ID (type `webhook_event`). Integer keys and malformed IDs are never
 accepted: a malformed, integer, or unknown webhook ID gets the same not-found
 problem as a missing webhook.
+
+## Transactions expense categories
+
+Owners and admins with write scope create, rename and archive workspace
+categories. Staff with read scope can list them, including archived categories.
+There are no defaults. Active category names must be unique within a workspace;
+an archived name may be reused. Entries accept an optional active `categoryId`
+only for money out. Historical entries expose the current name even after archival.
+Audit history records category names on creation and archival, and the previous
+and new names on rename. See the OpenAPI contract for routes.
 
 ## Contract rules
 

@@ -96,3 +96,66 @@ func TestListAuditHistoryIsScopedBoundedAndRedacted(t *testing.T) {
 		t.Fatalf("cross-workspace audit history error = %v", err)
 	}
 }
+
+func TestAuditMethodTargetRejectsUntrustedMetadata(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := context.Background()
+	bootstrap := bootstrapOwner(t, service)
+	owner := mustAuthorize(t, service, bootstrap.UserID, bootstrap.WorkspaceID, WorkspaceExport)
+	if err := service.RecordAudit(ctx, AuditEvent{
+		EventType: "transactions.method.updated", ActorUserID: owner.UserID, AuthMethod: "session",
+		WorkspaceID: bootstrap.WorkspaceID, TargetType: "transactions_method", Action: "transactions.method.updated",
+		Outcome: "success", Metadata: `{"methodId":"method-secret","after":{"name":"private"}}`, CreatedAt: service.now(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	history, err := service.ListAuditHistory(ctx, owner, bootstrap.WorkspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range history {
+		if entry.EventType == "transactions.method.updated" && entry.TargetLabel != "" {
+			t.Fatalf("untrusted target exposed: %+v", entry)
+		}
+	}
+}
+
+func TestTransactionsAuditHistoryLabels(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := context.Background()
+	bootstrap := bootstrapOwner(t, service)
+	owner := mustAuthorize(t, service, bootstrap.UserID, bootstrap.WorkspaceID, WorkspaceExport)
+	events := []AuditEvent{
+		{EventType: "transactions.method.updated", TargetType: "transactions_method", Metadata: `{"methodId":"cash"}`},
+		{EventType: "transactions.category.rename", TargetType: "transactions_category", Metadata: `{"before":"Old","after":"New"}`},
+	}
+	for _, event := range events {
+		event.ActorUserID, event.WorkspaceID, event.AuthMethod = owner.UserID, bootstrap.WorkspaceID, "session"
+		event.Action, event.Outcome, event.CreatedAt = event.EventType, "success", service.now()
+		if err := service.RecordAudit(ctx, event); err != nil {
+			t.Fatal(err)
+		}
+	}
+	history, err := service.ListAuditHistory(ctx, owner, bootstrap.WorkspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := 0
+	for _, entry := range history {
+		for _, event := range events {
+			if entry.EventType != event.EventType {
+				continue
+			}
+			found++
+			if entry.TargetType == "transactions_method" && entry.TargetLabel != "cash" {
+				t.Fatalf("method label: %+v", entry)
+			}
+			if entry.TargetType == "transactions_category" && (entry.CategoryPreviousName != "Old" || entry.CategoryNewName != "New") {
+				t.Fatalf("category names: %+v", entry)
+			}
+		}
+	}
+	if found != len(events) {
+		t.Fatalf("found %d events, want %d", found, len(events))
+	}
+}

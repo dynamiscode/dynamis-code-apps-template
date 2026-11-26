@@ -1,0 +1,52 @@
+package molecules
+
+import "strings"
+
+type CurrencyPickerOption struct {
+	Code, Label string
+	Disabled bool
+}
+
+type CurrencyPickerProps struct {
+	ID, Label, SearchLabel, Search, SearchButton string
+	ActionName, ActionValue, Name, Selected string
+	Error, UnavailableLabel, DisabledLabel, EmptyLabel string
+	Required bool
+	Options []CurrencyPickerOption
+}
+
+templ CurrencyPicker(props CurrencyPickerProps) {
+ <div>
+  <div class="entry-picker-fallback-search">
+   <label class="form-control flex flex-col gap-1" for={ props.ID+"-search" }><span>{ props.SearchLabel }</span>
+    <input id={ props.ID+"-search" } class="input input-bordered" type="search" name={ props.Name+"_search" } value={ props.Search }/>
+   </label>
+   <button class="btn btn-outline btn-sm" type="submit" name={ props.ActionName } value={ props.ActionValue } formnovalidate>{ props.SearchButton }</button>
+  </div>
+  @EntryField(EntryFieldProps{ID: props.ID, Label: props.Label, Value: props.Selected, SearchLabel: props.SearchLabel}) {
+   <select id={ props.ID } name={ props.Name } class="select select-bordered" data-entry-picker data-entry-unfilter required?={ props.Required } { templ.Attributes{"aria-invalid":templ.KV("true", props.Error != ""), "aria-describedby":templ.KV(props.ID+"-error", props.Error != "")}... }>
+    {{ found := false; search := strings.ToLower(strings.TrimSpace(props.Search)) }}
+    for _, option := range props.Options {
+     if option.Code == props.Selected {
+      {{ found = true }}
+     }
+    }
+    if props.Selected != "" && !found {
+     <option value="" selected disabled>{ props.Selected } — { props.UnavailableLabel }</option>
+    } else if props.EmptyLabel != "" {
+     <option value="" selected?={ props.Selected == "" }>{ props.EmptyLabel }</option>
+    }
+    for _, option := range props.Options {
+     <option value={ option.Code } selected?={ option.Code == props.Selected } disabled?={ option.Disabled } hidden?={ option.Code != props.Selected && search != "" && !strings.Contains(strings.ToLower(option.Code), search) && !strings.Contains(strings.ToLower(option.Label), search) }>{ option.Label }
+      if option.Disabled && props.DisabledLabel != "" {
+       — { props.DisabledLabel }
+      }
+     </option>
+    }
+   </select>
+  }
+  if props.Error != "" {
+   <p id={ props.ID+"-error" }>{ props.Error }</p>
+  }
+ </div>
+}

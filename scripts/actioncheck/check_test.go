@@ -2,6 +2,7 @@ package actioncheck
 
 import (
 	"encoding/json"
+	"go/parser"
 	"os"
 	"strings"
 	"testing"
@@ -18,6 +19,24 @@ const testImports = "package demo\n\n" +
 	"import atoms \"example.com/dynamis-code/apps-template/internal/web/components/atoms\"\n" +
 	"import molecules \"example.com/dynamis-code/apps-template/internal/web/components/molecules\"\n" +
 	"import \"example.com/dynamis-code/apps-template/internal/web/components/actionattrs\"\n"
+
+func TestTransactionAmountFormatterIsScoped(t *testing.T) {
+	expr, err := parser.ParseExpr(`view(transactions.FormatAmount(amount, currency, locale))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		path string
+		want bool
+	}{
+		{"example.com/dynamis-code/apps-template/internal/transactions", true},
+		{"example.com/other/transactions", false},
+	} {
+		if got := safeComponent(expr, map[string]string{"transactions": tc.path}, "web"); got != tc.want {
+			t.Errorf("%s: got %v, want %v", tc.path, got, tc.want)
+		}
+	}
+}
 
 func TestReviewedExecutableBindingsArePathAndCountScoped(t *testing.T) {
 	for _, tc := range []struct {

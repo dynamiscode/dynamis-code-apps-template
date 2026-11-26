@@ -11,8 +11,22 @@
 ## Browser UX review
 
 <!-- For new journeys or meaningful interaction/visual changes, follow docs/ux-review.md.
-Record revision, viewport, role, journeys and states, actions and outcomes,
-evidence, and unresolved findings. If exempt, explain why; if blocked, say so. -->
+For UI changes, CI requires either the reviewed fields below or an exemption:
+- Status: exempt
+- Reason: Explain why this change has no usability impact.
+Use the current PR head commit SHA (or an unambiguous prefix of at least seven
+hex digits) for Revision. Update it after every new commit and repeat the drive
+as applicable. Do not claim reviewed if the required drive is blocked. Link
+durable evidence; links and completed fields do not establish its effectiveness. -->
+
+- Status:
+- Revision:
+- Journey:
+- Role:
+- Viewport:
+- Actions and outcomes:
+- Evidence:
+- Unresolved gaps:
 
 ## Safety and scope
 
