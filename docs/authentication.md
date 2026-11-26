@@ -100,9 +100,10 @@ wrong password.
 
 Session and CSRF secrets are independent 256-bit values. Only SHA-256 hashes
 are stored. Sessions expire, can be listed and revoked, and re-evaluate current
-workspace membership on protected operations. Browser handlers must use the
-provided cookie policy: `HttpOnly`, `SameSite=Lax`, and `Secure` under HTTPS;
-they must verify the session-bound CSRF secret on state-changing requests.
+workspace membership on protected operations. Browser handlers use
+`HttpOnly`, `SameSite=Lax`, and Secure cookies by default. Only explicit local
+HTTP mode disables Secure; never expose that mode publicly. Handlers verify the
+session-bound CSRF secret on state-changing requests.
 
 ### MFA and passkeys
 
@@ -211,7 +212,7 @@ and already-used links show the same recovery guidance.
 Existing-account sign-in starts with a CSRF-protected form on the invitation
 page. The server stores only the invitation ID and hashes of random handoff and
 browser-binding values for at most ten minutes, capped by invitation expiry.
-HttpOnly, SameSite=Lax cookies, Secure under HTTPS, bind that state to the
+HttpOnly, SameSite=Lax cookies, Secure by default, bind that state to the
 browser. Local login, MFA, and OIDC return to the fixed
 `/invitations/continue` path; neither redirect nor handoff storage contains the
 raw invitation secret. Acceptance checks the
